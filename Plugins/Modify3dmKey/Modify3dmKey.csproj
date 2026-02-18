@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Modify3dmKey</AssemblyName>
+    <RootNamespace>D3dxSkinManager.Plugins.Modify3dmKey</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\D3dxSkinManager\D3dxSkinManager.csproj" />
+  </ItemGroup>
+</Project>

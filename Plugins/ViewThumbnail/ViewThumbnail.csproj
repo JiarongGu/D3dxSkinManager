@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>ViewThumbnail</AssemblyName>
+    <RootNamespace>D3dxSkinManager.Plugins.ViewThumbnail</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\D3dxSkinManager\D3dxSkinManager.csproj" />
+  </ItemGroup>
+</Project>
