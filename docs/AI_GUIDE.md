@@ -87,7 +87,14 @@ Use root [README.md](../README.md) for project setup, `docs/core/` for architect
    #### Frontend (React/TypeScript):
    - Functional components with hooks (no class components)
    - TypeScript strict mode - avoid `any` type
-   - Use React Query or similar for async state
+   - **ALWAYS use React Context for state management** - No prop drilling
+     - See [architecture/FRONTEND_CONTEXT_ARCHITECTURE.md](architecture/FRONTEND_CONTEXT_ARCHITECTURE.md) ⭐⭐⭐
+     - ProfileContext for profile state: `const { selectedProfileId } = useProfile()`
+     - Module contexts (ModsContext, etc.) for module-specific state
+     - NO global variables (`window.__selectedProfileId` removed)
+   - **IPC Message Format:** profileId at TOP LEVEL, NOT in payload
+     - ✅ Correct: `sendMessage({ module: 'MOD', type: 'GET_ALL', profileId })`
+     - ❌ Wrong: `sendMessage({ module: 'MOD', type: 'GET_ALL', payload: { profileId } })`
    - Separate business logic from UI logic
    - Use Ant Design components consistently
    - **ALWAYS use Compact Components for buttons and UI elements** (CompactButton, CompactSpace, etc.)

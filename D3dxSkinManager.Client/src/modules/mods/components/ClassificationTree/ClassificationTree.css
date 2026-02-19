@@ -1,0 +1,200 @@
+/**
+ * Classification Tree Custom Styling
+ * Optimized for full-width selection and minimal left padding
+ */
+
+/* Remove left padding/margin to use full width */
+.classification-tree {
+  overflow: visible !important;
+}
+
+/* Allow overflow to show full selection */
+.classification-tree .ant-tree-list {
+  overflow: visible !important;
+}
+
+.classification-tree .ant-tree-list-holder {
+  overflow: visible !important;
+}
+
+/* Indentation - 16px per level for better hierarchy visibility */
+.classification-tree .ant-tree-indent-unit {
+  width: 16px !important;
+}
+
+/* Hide the expand/collapse arrow - we'll use folder icon state instead */
+.classification-tree .ant-tree-switcher {
+  width: 0 !important;
+  margin-right: 0 !important;
+  display: none !important;
+}
+
+/* Remove the icon element space since we embed icons in title */
+.classification-tree .ant-tree-iconEle {
+  width: 0 !important;
+  margin-right: 0 !important;
+  display: none !important;
+}
+
+/* Full-width clickable area for easier selection */
+.classification-tree .ant-tree-node-content-wrapper {
+  height: 40px !important;
+  min-height: 40px;
+  line-height: normal;
+  padding: 0 4px !important;
+  margin-left: 0 !important;
+  flex: 1 !important;
+  width: 100% !important;
+  border-radius: 4px !important;
+  position: relative;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Selection background color - default */
+.classification-tree .ant-tree-node-selected .ant-tree-node-content-wrapper {
+  background-color: var(--color-primary-bg) !important;
+}
+
+/* Hover background color - default */
+.classification-tree .ant-tree-node-content-wrapper:hover {
+  background-color: var(--color-bg-text-hover) !important;
+}
+
+/* Fix root level to remove empty space and extend selection to left edge */
+.classification-tree > .ant-tree-list > .ant-tree-treenode > .ant-tree-node-content-wrapper {
+  margin-left: -8px !important;
+  padding-left: 12px !important;
+}
+
+/* Ensure tree list items span full width */
+.classification-tree .ant-tree-treenode {
+  padding: 0 !important;
+  width: 100% !important;
+  align-items: stretch !important;
+  position: relative !important;
+  overflow: visible !important;
+  margin: 0 0 6px 0 !important; /* Increased gap for easier drop targeting */
+}
+
+/* Remove any top spacing from the tree list itself */
+.classification-tree .ant-tree-list {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.classification-tree .ant-tree-list-holder {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Make the entire tree list item container full width */
+.classification-tree .ant-tree-list-holder-inner {
+  width: 100%;
+  overflow: visible !important;
+}
+
+/* Fix dark theme selection text color - white for better contrast */
+[data-theme="dark"] .classification-tree .ant-tree-node-selected .ant-tree-node-content-wrapper,
+[data-theme="dark"] .classification-tree .ant-tree-node-selected .ant-tree-title {
+  color: #ffffff !important;
+}
+
+/* Fix dark theme hover color */
+[data-theme="dark"] .classification-tree .ant-tree-node-content-wrapper:hover {
+  background-color: var(--color-bg-spotlight) !important;
+}
+
+/* Light theme - more obvious selection and hover colors */
+[data-theme="light"] .classification-tree .ant-tree-node-selected .ant-tree-node-content-wrapper {
+  background-color: #e6f7ff !important; /* Light blue background */
+  color: rgba(0, 0, 0, 0.88) !important;
+  border-left: 3px solid #1890ff !important; /* Blue accent border */
+}
+
+[data-theme="light"] .classification-tree .ant-tree-node-selected .ant-tree-title {
+  color: rgba(0, 0, 0, 0.88) !important;
+  font-weight: 500 !important; /* Slightly bold for emphasis */
+}
+
+/* Light theme hover - obvious gray background */
+[data-theme="light"] .classification-tree .ant-tree-node-content-wrapper:hover {
+  background-color: #f5f5f5 !important; /* Light gray hover */
+}
+
+/* Ensure tree title text doesn't wrap */
+.classification-tree .ant-tree-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hide the default drag/drop indicator and drag icon handles */
+.classification-tree .ant-tree-draggable-icon {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* Custom drop indicator line for reordering - show only when dropping between nodes (gap) */
+.classification-tree .ant-tree-treenode.drag-over-gap-top::before,
+.classification-tree .ant-tree-treenode.drag-over-gap-bottom::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary) 80%, transparent);
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.8);
+}
+
+.classification-tree .ant-tree-treenode.drag-over-gap-top::before {
+  top: -4px; /* Position in the gap */
+}
+
+.classification-tree .ant-tree-treenode.drag-over-gap-bottom::before {
+  bottom: -4px; /* Position in the gap */
+}
+
+/* Add a subtle background highlight to the gap area when dragging over */
+.classification-tree .ant-tree-treenode.drag-over-gap-top::after,
+.classification-tree .ant-tree-treenode.drag-over-gap-bottom::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: rgba(24, 144, 255, 0.1);
+  z-index: 999;
+  pointer-events: none;
+}
+
+.classification-tree .ant-tree-treenode.drag-over-gap-top::after {
+  top: -4px;
+}
+
+.classification-tree .ant-tree-treenode.drag-over-gap-bottom::after {
+  bottom: -4px;
+}
+
+/* Highlight folder nodes when dragging over them */
+.classification-tree .ant-tree-treenode.drag-over-gap-top > .ant-tree-node-content-wrapper,
+.classification-tree .ant-tree-treenode.drag-over-gap-bottom > .ant-tree-node-content-wrapper {
+  background-color: transparent !important;
+}
+
+.classification-tree .ant-tree-treenode.drag-over > .ant-tree-node-content-wrapper {
+  background-color: var(--color-primary-bg-hover) !important;
+  opacity: 0.8;
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
+}
+
+/* Also highlight during dragenter */
+.classification-tree .ant-tree-node-content-wrapper.drag-over-node {
+  background-color: var(--color-primary-bg-hover) !important;
+  opacity: 0.8;
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
+}

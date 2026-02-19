@@ -1,0 +1,143 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========== Fix flashy/blinking animations ========== */
+
+/* Fast but working dropdown animations */
+.ant-dropdown-slide-up-enter,
+.ant-dropdown-slide-up-appear {
+  animation-duration: 0.05s !important;
+  animation-timing-function: linear !important;
+}
+
+.ant-dropdown-slide-up-leave {
+  animation-duration: 0.05s !important;
+  animation-timing-function: linear !important;
+}
+
+/* Fix modal animations */
+.ant-modal-mask {
+  animation-duration: 0.15s !important;
+}
+
+.ant-modal-wrap {
+  animation-duration: 0.15s !important;
+}
+
+.ant-zoom-enter,
+.ant-zoom-appear {
+  animation-duration: 0.15s !important;
+}
+
+.ant-zoom-leave {
+  animation-duration: 0.1s !important;
+}
+
+/* Fix select dropdown animations */
+.ant-slide-up-enter,
+.ant-slide-up-appear {
+  animation-duration: 0.1s !important;
+}
+
+.ant-slide-up-leave {
+  animation-duration: 0.08s !important;
+}
+
+/* Fix tooltip animations */
+.ant-tooltip-zoom-enter,
+.ant-tooltip-zoom-appear {
+  animation-duration: 0.1s !important;
+}
+
+.ant-tooltip-zoom-leave {
+  animation-duration: 0.08s !important;
+}
+
+/* Fix popover animations */
+.ant-zoom-big-enter,
+.ant-zoom-big-appear {
+  animation-duration: 0.12s !important;
+}
+
+.ant-zoom-big-leave {
+  animation-duration: 0.1s !important;
+}
+
+/* Fix message/notification animations */
+.ant-move-up-enter,
+.ant-move-up-appear {
+  animation-duration: 0.15s !important;
+}
+
+.ant-move-up-leave {
+  animation-duration: 0.1s !important;
+}
+
+/* Smooth hover effects only */
+.ant-dropdown-menu-item,
+.ant-dropdown-menu-submenu-title,
+.ant-select-item {
+  transition: background-color 0.1s ease !important;
+}
+
+/* Fix drawer animations */
+.ant-drawer-mask {
+  animation: none !important;
+  transition: opacity 0.15s ease !important;
+}
+
+.ant-drawer-content-wrapper {
+  transition: transform 0.15s ease !important;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .ant-dropdown,
+  .ant-modal,
+  .ant-message,
+  .ant-notification,
+  .ant-tooltip,
+  .ant-popover,
+  .ant-select-dropdown,
+  .ant-drawer-mask,
+  .ant-drawer-content-wrapper {
+    animation-duration: 0.01s !important;
+    transition-duration: 0.01s !important;
+  }
+}

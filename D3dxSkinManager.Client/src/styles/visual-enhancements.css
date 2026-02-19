@@ -1,0 +1,356 @@
+/**
+ * Visual Enhancements & Polish (Phase 12)
+ * Hover states, transitions, and visual feedback
+ */
+
+/* === Button Hover Effects === */
+.ant-btn:not(.ant-btn-disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.ant-btn:not(.ant-btn-disabled):active {
+  transform: translateY(0);
+  transition: all 0.1s;
+}
+
+/* === Table Row Hover Effects === */
+.ant-table-tbody > tr:hover > td {
+  background: #e6f7ff !important;
+  transition: background 0.2s ease;
+}
+
+.ant-table-tbody > tr {
+  transition: all 0.2s ease;
+}
+
+/* === Card Hover Effects === */
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.3s ease;
+}
+
+.ant-card {
+  transition: box-shadow 0.3s ease;
+}
+
+/* === Input Focus Effects === */
+.ant-input:focus,
+.ant-input-number:focus,
+.ant-select-focused .ant-select-selector {
+  border-color: #40a9ff !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2) !important;
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* === Tag Hover Effects === */
+.ant-tag {
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.ant-tag:hover {
+  opacity: 0.85;
+}
+
+.ant-tag-close-icon:hover {
+  color: #ff4d4f;
+  transform: scale(1.2);
+  transition: all 0.2s ease;
+}
+
+/* === Tree Node Hover Effects === */
+.ant-tree-node-content-wrapper:hover {
+  background-color: #f0f5ff;
+  transition: background-color 0.2s ease;
+}
+
+.ant-tree-node-selected .ant-tree-node-content-wrapper {
+  background-color: #bae7ff !important;
+}
+
+/* === Loading Spinner Enhancement === */
+.ant-spin-dot-item {
+  background-color: #1890ff;
+  animation: antSpinMove 1s infinite linear;
+}
+
+@keyframes antSpinMove {
+  to {
+    opacity: 1;
+  }
+}
+
+/* === Progress Bar Enhancement === */
+.ant-progress-bg {
+  transition: all 0.4s cubic-bezier(0.08, 0.82, 0.17, 1) !important;
+}
+
+/* === Modal/Dialog Fade Effects === */
+.ant-modal {
+  animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* === Dropdown Menu Slide Effect === */
+.ant-dropdown {
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* === Badge Pulse Effect === */
+.ant-badge-count {
+  animation: badgePulse 1.5s ease infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* === Status Color Coding === */
+.status-success {
+  color: #52c41a;
+  font-weight: 600;
+}
+
+.status-error {
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+.status-warning {
+  color: #faad14;
+  font-weight: 600;
+}
+
+.status-processing {
+  color: #1890ff;
+  font-weight: 600;
+}
+
+.status-normal {
+  color: #595959;
+}
+
+/* === Count Indicator Styling === */
+.count-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: #e6f7ff;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #1890ff;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.count-indicator-success {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.count-indicator-warning {
+  background: #fffbe6;
+  color: #faad14;
+}
+
+/* === Thumbnail Hover Effect === */
+.ant-image {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.ant-image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* === Smooth Scrolling === */
+.ant-table-body {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 #f0f0f0;
+}
+
+.ant-table-body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ant-table-body::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.ant-table-body::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* === Skeleton Loading Animation === */
+.ant-skeleton-element {
+  animation: skeletonLoading 1.5s ease infinite;
+}
+
+@keyframes skeletonLoading {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* === Divider Enhancement === */
+.ant-divider {
+  margin: 16px 0;
+  transition: all 0.3s ease;
+}
+
+/* === Switch Toggle Animation === */
+.ant-switch {
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.ant-switch:hover {
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* === Tooltip Enhancement === */
+.ant-tooltip {
+  animation: tooltipFadeIn 0.2s ease;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* === Empty State Styling === */
+.ant-empty-description {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.ant-empty-image svg {
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.ant-empty:hover .ant-empty-image svg {
+  opacity: 0.7;
+}
+
+/* === Form Item Focus Highlight === */
+.ant-form-item-has-feedback.ant-form-item-has-success .ant-input,
+.ant-form-item-has-feedback.ant-form-item-has-success .ant-input-number {
+  border-color: #52c41a;
+}
+
+.ant-form-item-has-feedback.ant-form-item-has-error .ant-input,
+.ant-form-item-has-feedback.ant-form-item-has-error .ant-input-number {
+  border-color: #ff4d4f;
+}
+
+/* === Context Menu Enhancement === */
+.ant-dropdown-menu-item {
+  transition: all 0.2s ease;
+}
+
+.ant-dropdown-menu-item:hover {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.ant-dropdown-menu-item-danger:hover {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+/* === Statistics Card Enhancement === */
+.ant-statistic {
+  transition: all 0.3s ease;
+}
+
+.ant-statistic:hover .ant-statistic-content {
+  transform: scale(1.05);
+  transition: transform 0.3s ease;
+}
+
+/* === Collapse Panel Animation === */
+.ant-collapse-item {
+  transition: all 0.3s ease;
+}
+
+.ant-collapse-content {
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* === Notification Enhancement === */
+.ant-notification {
+  animation: notificationSlideIn 0.3s ease;
+}
+
+@keyframes notificationSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* === Action Button Group Spacing === */
+.ant-space-item {
+  transition: all 0.2s ease;
+}
+
+/* === Responsive Hover Disable for Touch Devices === */
+@media (hover: none) {
+  .ant-btn:hover,
+  .ant-card:hover,
+  .ant-table-tbody > tr:hover > td {
+    transform: none;
+    box-shadow: none;
+  }
+}

@@ -1,0 +1,217 @@
+/**
+ * SlideInScreen styles - Application-style slide-in panels with blur backdrops
+ */
+
+/* Manager container - positioned between header and status bar */
+.slide-in-screen-manager {
+  position: fixed;
+  top: var(--layout-header-height, 64px);
+  left: 0;
+  right: 0;
+  bottom: var(--layout-statusbar-height, 32px);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* Screen container - fills content area only */
+.slide-in-screen-container {
+  position: fixed;
+  top: var(--layout-header-height, 64px);
+  left: 0;
+  right: 0;
+  bottom: var(--layout-statusbar-height, 32px);
+  display: flex;
+  pointer-events: auto;
+  animation: slideInFromRight 0.2s ease-out;
+}
+
+/* Apply slide-out animation to entire container when closing */
+.slide-in-screen-container.closing {
+  animation: slideOutToRight 0.2s ease-in forwards;
+}
+
+/* Blur backdrop indicator on the left - shows original content with blur */
+.slide-in-screen-blur-backdrop {
+  position: relative;
+  cursor: pointer;
+}
+
+/* Level 1: Light blur */
+.slide-in-screen-level-1 .slide-in-screen-blur-backdrop {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Level 2: Medium blur */
+.slide-in-screen-level-2 .slide-in-screen-blur-backdrop {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Level 3+: Heavy blur */
+.slide-in-screen-level-3 .slide-in-screen-blur-backdrop,
+.slide-in-screen-level-4 .slide-in-screen-blur-backdrop,
+.slide-in-screen-level-5 .slide-in-screen-blur-backdrop {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Add subtle darkening overlay to blur backdrop */
+.slide-in-screen-blur-backdrop::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+}
+
+[data-theme="dark"] .slide-in-screen-blur-backdrop::before {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Soft edge gradient - creates smooth transition from blur to panel */
+.slide-in-screen-blur-edge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(to right, transparent, var(--color-bg-container));
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Adjust gradient for dark theme */
+[data-theme="dark"] .slide-in-screen-blur-edge {
+  background: linear-gradient(to right, transparent, var(--color-bg-container));
+}
+
+/* Main panel */
+.slide-in-screen-panel {
+  flex: 1;
+  background: var(--color-bg-container);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.slide-in-screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-container);
+  flex-shrink: 0;
+}
+
+.slide-in-screen-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-base);
+}
+
+.slide-in-screen-close-btn {
+  color: var(--color-text-secondary);
+  transition: color 0.2s;
+}
+
+.slide-in-screen-close-btn:hover {
+  color: var(--color-text-base);
+}
+
+/* Content area */
+.slide-in-screen-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 24px;
+  background: var(--color-bg-container);
+}
+
+/* Custom scrollbar for content */
+.slide-in-screen-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.slide-in-screen-content::-webkit-scrollbar-track {
+  background: var(--color-bg-base);
+}
+
+.slide-in-screen-content::-webkit-scrollbar-thumb {
+  background: var(--color-border-secondary);
+  border-radius: 4px;
+}
+
+.slide-in-screen-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Animations */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutToRight {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Dark theme adjustments - no additional shadow needed */
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .slide-in-screen-panel {
+    width: 95% !important;
+  }
+
+  .slide-in-screen-blur-backdrop {
+    width: 5% !important;
+  }
+
+  .slide-in-screen-content {
+    padding: 16px;
+  }
+}
+
+/* Focus trap for accessibility */
+.slide-in-screen-panel:focus {
+  outline: none;
+}
+
+/* Ant Design component overrides within slide-in screen */
+.slide-in-screen-content .ant-form {
+  max-width: 100%;
+}
+
+.slide-in-screen-content .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.slide-in-screen-content .ant-btn {
+  min-width: 80px;
+}
+
+/* Footer area for actions */
+.slide-in-screen-footer {
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-container);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
