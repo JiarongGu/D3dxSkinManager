@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { List, Tag, Button, message, Space } from 'antd';
+import { Tag, Button, message, Space, Spin } from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -245,79 +245,70 @@ export const ModList: React.FC<ModListProps> = ({
 
   return (
     <div style={{ height: '100%', overflow: 'auto' }}>
-      <List
-        loading={loading}
-        dataSource={displayedMods}
-        renderItem={(mod) => {
-          const isUnloadOption = mod.sha === '__UNLOAD__';
-          const isSelected = selectedMod?.sha === mod.sha;
+      {loading ? (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          padding: '20px'
+        }}>
+          <Spin size="large" />
+        </div>
+      ) : (
+        <>
+          {displayedMods.map((mod) => {
+            const isUnloadOption = mod.sha === '__UNLOAD__';
+            const isSelected = selectedMod?.sha === mod.sha;
 
-          return (
-            <List.Item
-              key={mod.sha}
-              style={{
-                padding: '12px 16px',
-                cursor: 'pointer',
-                background: isUnloadOption
-                  ? 'var(--color-warning-bg)'
-                  : isSelected
-                  ? 'var(--color-primary-bg)'
-                  : undefined,
-                borderLeft: isSelected ? '3px solid var(--color-primary)' : '3px solid transparent',
-                transition: 'all 0.2s',
-              }}
-              onClick={() => {
-                if (isUnloadOption) {
-                  handleUnloadClick(mod);
-                } else {
-                  onRowClick?.(mod);
-                }
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setContextMenuMod(mod);
-                menuState.show(e);
-              }}
-              onDoubleClick={() => {
-                if (!isUnloadOption && !mod.isLoaded) {
-                  onLoad(mod.sha);
-                  message.success(`Loading mod: ${mod.name}`);
-                }
-              }}
-              actions={
-                isUnloadOption
-                  ? []
-                  : [
-                      <Button
-                        key="load-unload"
-                        type="text"
-                        size="small"
-                        icon={mod.isLoaded ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (mod.isLoaded) {
-                            onUnload(mod.sha);
-                          } else {
-                            onLoad(mod.sha);
-                          }
-                        }}
-                      />,
-                      <Button
-                        key="edit"
-                        type="text"
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit?.(mod);
-                        }}
-                      />,
-                    ]
-              }
-            >
-              <List.Item.Meta
-                title={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            return (
+              <div
+                key={mod.sha}
+                draggable={!isUnloadOption}
+                onDragStart={(e) => {
+                  if (!isUnloadOption) {
+                    // Store mod SHA in drag data
+                    e.dataTransfer.setData('application/mod-sha', mod.sha);
+                    e.dataTransfer.setData('application/mod-name', mod.name);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }
+                }}
+                style={{
+                  padding: '12px 16px',
+                  cursor: isUnloadOption ? 'pointer' : 'grab',
+                  background: isUnloadOption
+                    ? 'var(--color-warning-bg)'
+                    : isSelected
+                    ? 'var(--color-primary-bg)'
+                    : undefined,
+                  borderLeft: isSelected ? '3px solid var(--color-primary)' : '3px solid transparent',
+                  borderBottom: '1px solid var(--color-border-secondary)',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                }}
+                onClick={() => {
+                  if (isUnloadOption) {
+                    handleUnloadClick(mod);
+                  } else {
+                    onRowClick?.(mod);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenuMod(mod);
+                  menuState.show(e);
+                }}
+                onDoubleClick={() => {
+                  if (!isUnloadOption && !mod.isLoaded) {
+                    onLoad(mod.sha);
+                    message.success(`Loading mod: ${mod.name}`);
+                  }
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                     {mod.isLoaded && (
                       <CheckCircleFilled style={{ color: 'var(--color-success)', fontSize: '14px' }} />
                     )}
@@ -325,8 +316,6 @@ export const ModList: React.FC<ModListProps> = ({
                       {mod.name}
                     </span>
                   </div>
-                }
-                description={
                   <Space size={[8, 4]} wrap>
                     {mod.grading && (
                       <GradingTag grading={mod.grading} />
@@ -350,12 +339,38 @@ export const ModList: React.FC<ModListProps> = ({
                       <Tag style={{ margin: 0 }}>+{mod.tags.length - 3} more</Tag>
                     )}
                   </Space>
-                }
-              />
-            </List.Item>
-          );
-        }}
-      />
+                </div>
+                {!isUnloadOption && (
+                  <Space size="small">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={mod.isLoaded ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (mod.isLoaded) {
+                          onUnload(mod.sha);
+                        } else {
+                          onLoad(mod.sha);
+                        }
+                      }}
+                    />
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit?.(mod);
+                      }}
+                    />
+                  </Space>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
 
       {/* Infinite scroll trigger */}
       {displayCount < mods.length && (

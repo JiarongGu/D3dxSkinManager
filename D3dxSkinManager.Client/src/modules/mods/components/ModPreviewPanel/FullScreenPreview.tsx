@@ -42,9 +42,9 @@ export const FullScreenPreview: React.FC<FullScreenPreviewProps> = ({
       onCancel={onClose}
       footer={null}
       width="100vw"
-      destroyOnClose
+      destroyOnHidden
       keyboard
-      maskClosable
+      mask={{ closable: true }}
       transitionName=""
       maskTransitionName=""
       wrapClassName="fullscreen-preview-modal"

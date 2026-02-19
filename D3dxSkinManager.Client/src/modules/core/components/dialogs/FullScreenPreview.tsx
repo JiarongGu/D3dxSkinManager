@@ -41,7 +41,7 @@ export const FullScreenPreview: React.FC<FullScreenPreviewProps> = ({
         <span style={{ color: '#fff', fontSize: '24px' }}>×</span>
       }
       maskStyle={{ background: 'rgba(0, 0, 0, 0.95)' }}
-      destroyOnClose
+      destroyOnHidden
     >
       <img
         src={imageSrc}

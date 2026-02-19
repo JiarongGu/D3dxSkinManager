@@ -87,14 +87,18 @@
 #### Facade
 
 - **ModFacade** → `Modules/Mods/ModFacade.cs:14`
-  - Constructor (DI) → `:21-34`
-  - GetAllModsAsync → `:37`
-  - LoadModAsync → `:40-48`
-  - UnloadModAsync → `:51-59`
-  - ImportModAsync → `:62`
-  - SearchModsAsync → `:65`
-  - GetLoadedModsAsync → `:68`
-  - DeleteModAsync → `:71-79`
+  - Constructor (DI) → `:69-88`
+  - RouteMessageAsync → `:93-124` (IPC message routing)
+  - GetAllModsAsync → `:128-132`
+  - LoadModAsync → `:140-149`
+  - UnloadModAsync → `:151-160`
+  - ImportModAsync → `:167-177`
+  - SearchModsAsync → `:217-222`
+  - GetLoadedModsAsync → `:162-165`
+  - DeleteModAsync → `:179-194`
+  - UpdateMetadataAsync → `:228-246`
+  - UpdateCategoryAsync → `:248-262` (NEW: Drag-and-drop support)
+  - GetClassificationTreeAsync → `:424-427`
 
 #### Services
 

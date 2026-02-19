@@ -19,6 +19,12 @@
   background-color: var(--color-primary-bg);
 }
 
+.unclassified-item.drag-over {
+  background-color: var(--color-primary-bg-hover) !important;
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.4) !important;
+}
+
 .unclassified-item-content {
   display: flex;
   align-items: center;

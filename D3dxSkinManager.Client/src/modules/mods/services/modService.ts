@@ -146,6 +146,20 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Update mod category (classification)
+   */
+  async updateCategory(
+    profileId: string,
+    sha: string,
+    category: string
+  ): Promise<boolean> {
+    return this.sendBooleanMessage('UPDATE_CATEGORY', profileId, {
+      sha,
+      category
+    });
+  }
+
+  /**
    * Batch update metadata for multiple mods
    */
   async batchUpdateMetadata(

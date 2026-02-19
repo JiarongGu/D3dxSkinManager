@@ -5,6 +5,7 @@ import { Input } from "antd";
 import { ClassificationNode } from "../../../../shared/types/classification.types";
 import { photinoService } from "../../../../shared/services/photinoService";
 import { useProfile } from "../../../../shared/context/ProfileContext";
+import { useModCategoryUpdate } from "./useModCategoryUpdate";
 
 /**
  * Find a ClassificationNode by ID in the tree
@@ -28,6 +29,7 @@ interface UseClassificationTreeOperationsProps {
   expandedKeys: React.Key[];
   onExpandedKeysChange: (keys: React.Key[]) => void;
   onRefreshTree?: () => Promise<void>;
+  onModsRefresh?: () => Promise<void>;
 }
 
 /**
@@ -39,10 +41,12 @@ export function useClassificationTreeOperations({
   expandedKeys,
   onExpandedKeysChange,
   onRefreshTree,
+  onModsRefresh,
 }: UseClassificationTreeOperationsProps) {
   const { modal, message } = App.useApp();
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const { selectedProfileId } = useProfile();
+  const { updateModCategory } = useModCategoryUpdate({ onRefreshTree, onModsRefresh });
 
   // Edit node handler
   const handleEditNode = useCallback(
@@ -154,7 +158,23 @@ export function useClassificationTreeOperations({
   const handleDrop = useCallback(
     async (info: any) => {
       const dropKey = info.node.key;
-      const dragKey = info.dragNode.key;
+      const dragKey = info.dragNode?.key;
+
+      // Check if this is a mod being dropped (not a tree node)
+      // If dragNode is undefined/null, it means something external is being dragged
+      if (!dragKey) {
+        // This might be a mod drop - check the native event
+        const nativeEvent = info.event as DragEvent;
+        const modSha = nativeEvent.dataTransfer?.getData('application/mod-sha');
+
+        if (modSha && dropKey) {
+          // This is a mod drop!
+          await handleModDrop(nativeEvent as any, dropKey);
+          return; // Don't proceed with tree node reordering
+        }
+      }
+
+      // If we get here, it's a tree node being reordered
       const dropPos = info.node.pos.split("-");
       const dropPosition =
         info.dropPosition - Number(dropPos[dropPos.length - 1]);
@@ -297,6 +317,53 @@ export function useClassificationTreeOperations({
     e.preventDefault(); // Allow drop
   }, []);
 
+  // Handle external drag from ModList
+  const handleModDragOver = useCallback((e: React.DragEvent, nodeId: string) => {
+    // Check if this is a mod being dragged (not a classification node)
+    const modSha = e.dataTransfer.types.includes('application/mod-sha');
+    if (modSha) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+    }
+  }, []);
+
+  // Handle mod drop on classification node
+  const handleModDrop = useCallback(
+    async (e: React.DragEvent, nodeId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const modSha = e.dataTransfer.getData('application/mod-sha');
+      const modName = e.dataTransfer.getData('application/mod-name');
+
+      if (!modSha) {
+        return;
+      }
+
+      // Find the node name from the tree
+      const findNodeName = (nodes: ClassificationNode[], id: string): string | null => {
+        for (const node of nodes) {
+          if (node.id === id) return node.name;
+          if (node.children.length > 0) {
+            const found = findNodeName(node.children, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const nodeName = findNodeName(tree, nodeId) || nodeId;
+
+      // If moving to "Unclassified", clear the category by passing empty string
+      const categoryValue = nodeId === '__unclassified__' ? '' : nodeId;
+
+      // Update the mod's category using the shared hook
+      await updateModCategory(modSha, modName, categoryValue, nodeName);
+    },
+    [updateModCategory, tree]
+  );
+
   return {
     handleEditNode,
     handleDeleteNode,
@@ -305,6 +372,8 @@ export function useClassificationTreeOperations({
     handleDragEnd,
     handleContainerDrop,
     handleContainerDragOver,
+    handleModDragOver,
+    handleModDrop,
     draggedNodeId,
   };
 }

@@ -198,3 +198,11 @@
   border: 2px solid var(--color-primary) !important;
   box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
 }
+
+/* Highlight when mod is being dragged over */
+.classification-tree .ant-tree-node-content-wrapper.mod-drop-target {
+  background-color: var(--color-primary-bg-hover) !important;
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.4) !important;
+  transition: all 0.2s ease;
+}

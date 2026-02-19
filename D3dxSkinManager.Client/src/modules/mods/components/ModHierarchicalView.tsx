@@ -223,6 +223,30 @@ export const ModHierarchicalView: React.FC = () => {
     loadAvailableTags();
   }, [state.mods.length, profileState.selectedProfile?.id]); // Reload when mods count changes
 
+  // Custom refresh handler that also reloads classification-filtered mods if a classification is selected
+  const handleModsRefreshAfterCategoryChange = useCallback(async () => {
+    // Always refresh the full mods list
+    await actions.refreshMods();
+
+    // Reload unclassified count
+    if (profileState.selectedProfile?.id) {
+      try {
+        const { modService } = await import("../services/modService");
+        const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
+        setUnclassifiedCount(count);
+      } catch (error) {
+        console.error("Failed to reload unclassified count:", error);
+      }
+    }
+
+    // If a classification is selected, also reload the filtered mods for that classification
+    if (state.selectedClassification && state.selectedClassification.id !== "__unclassified__") {
+      await actions.loadModsByClassification(state.selectedClassification.id);
+    } else if (state.selectedClassification?.id === "__unclassified__") {
+      await actions.loadUnclassifiedMods();
+    }
+  }, [actions, state.selectedClassification, profileState.selectedProfile?.id]);
+
   const handleUnclassifiedClick = () => {
     const unclassifiedNode: ClassificationNode = {
       id: "__unclassified__",
@@ -496,6 +520,7 @@ export const ModHierarchicalView: React.FC = () => {
             expandedKeys={state.expandedKeys}
             onExpandedKeysChange={actions.setExpandedKeys}
             onRefreshTree={actions.loadClassificationTree}
+            onModsRefresh={handleModsRefreshAfterCategoryChange}
             unclassifiedCount={unclassifiedCount}
             onUnclassifiedClick={handleUnclassifiedClick}
             isUnclassifiedSelected={
