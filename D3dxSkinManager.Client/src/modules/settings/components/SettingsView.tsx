@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Select, Card, Space, message } from 'antd';
+import { Form, Select, message } from 'antd';
 import {
   SettingOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
+import { CompactCard, CompactSpace } from '../../../shared/components/compact';
 import { useAnnotation, getAnnotationLevelLabel, getAnnotationLevelDescription, AnnotationLevel } from '../../../shared/components/common/TooltipSystem';
 import { useTheme, ThemeMode } from '../../../shared/context/ThemeContext';
 import { logger, Logger, LogLevelName } from '../../core/utils/logger';
@@ -118,7 +119,7 @@ export const SettingsView: React.FC = () => {
           migotoVersion: '3dmigoto',
         }}
       >
-        <Card title={<><SettingOutlined /> Global Settings</>} style={{ marginBottom: '24px' }}>
+        <CompactCard title={<><SettingOutlined /> Global Settings</>} style={{ marginBottom: '24px' }}>
           <div style={{ marginBottom: '16px', padding: '12px', background: 'var(--color-info-bg)', borderRadius: '4px', fontSize: '13px', color: 'var(--color-text-base)' }}>
             These settings apply globally across all profiles and are saved automatically.
           </div>
@@ -151,10 +152,10 @@ export const SettingsView: React.FC = () => {
 
           <Form.Item
             label={
-              <Space>
+              <CompactSpace>
                 <span>Annotation Level</span>
                 <InfoCircleOutlined style={{ color: 'var(--color-primary)' }} />
-              </Space>
+              </CompactSpace>
             }
             name="annotationLevel"
             tooltip="Control tooltip detail level throughout the application"
@@ -185,9 +186,9 @@ export const SettingsView: React.FC = () => {
               {getAnnotationLevelDescription(selectedAnnotationLevel)}
             </div>
           )}
-        </Card>
+        </CompactCard>
 
-        <Card title="Profile-Specific Settings" style={{ marginBottom: '24px' }}>
+        <CompactCard title="Profile-Specific Settings" style={{ marginBottom: '24px' }}>
           <div style={{ marginBottom: '16px', padding: '12px', background: 'var(--color-warning-bg)', borderRadius: '4px', fontSize: '13px', color: 'var(--color-text-base)' }}>
             These settings are specific to the current profile and are saved automatically.
           </div>
@@ -204,7 +205,7 @@ export const SettingsView: React.FC = () => {
               <Option value="similarity-keyin">Similarity + Key-in - Combined approach</Option>
             </Select>
           </Form.Item>
-        </Card>
+        </CompactCard>
       </Form>
       </div>
     </div>

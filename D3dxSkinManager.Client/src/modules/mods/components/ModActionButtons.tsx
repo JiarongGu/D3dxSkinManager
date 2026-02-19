@@ -1,6 +1,7 @@
 import React from 'react';
-import { Button, Space, Tooltip } from 'antd';
+import { Tooltip } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
+import { CompactButton, CompactSpace } from '../../../shared/components/compact';
 import { ModInfo } from '../../../shared/types/mod.types';
 
 interface ModActionButtonsProps {
@@ -17,33 +18,33 @@ export const ModActionButtons: React.FC<ModActionButtonsProps> = ({
   onDelete
 }) => {
   return (
-    <Space size="small">
+    <CompactSpace size="small">
       {mod.isLoaded ? (
-        <Button
+        <CompactButton
           size="small"
           danger
           onClick={() => onUnload(mod.sha)}
         >
           Unload
-        </Button>
+        </CompactButton>
       ) : (
-        <Button
+        <CompactButton
           size="small"
           type="primary"
           onClick={() => onLoad(mod.sha)}
           disabled={!mod.isAvailable}
         >
           Load
-        </Button>
+        </CompactButton>
       )}
       <Tooltip title="Delete mod permanently">
-        <Button
+        <CompactButton
           size="small"
           danger
           icon={<DeleteOutlined />}
           onClick={() => onDelete(mod.sha, mod.name)}
         />
       </Tooltip>
-    </Space>
+    </CompactSpace>
   );
 };

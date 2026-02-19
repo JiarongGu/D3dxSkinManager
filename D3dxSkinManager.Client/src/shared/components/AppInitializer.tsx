@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button } from 'antd';
+import { Spin, Alert } from 'antd';
+import { CompactButton } from './compact';
 import { settingsService, GlobalSettings } from '../../modules/settings/services/settingsService';
 import { useProfile } from '../context/ProfileContext';
 
@@ -167,9 +168,9 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
           type="info"
           showIcon
         />
-        <Button type="primary" onClick={() => handleProfileCreate('Default', 'Default profile')}>
+        <CompactButton type="primary" onClick={() => handleProfileCreate('Default', 'Default profile')}>
           Create Default Profile
-        </Button>
+        </CompactButton>
       </div>
     );
   }

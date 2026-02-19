@@ -23,31 +23,31 @@ export abstract class BaseModuleService {
    * @param payload - Optional payload data
    * @returns Promise with typed response data
    */
-  protected async sendMessage<T>(type: string, profileId?: string, payload?: any): Promise<T> {
-    return photinoService.sendMessage<T>({ module: this.moduleName, type, profileId, payload });
+  protected async sendMessage<T, TPayload = unknown>(type: string, profileId?: string, payload?: TPayload): Promise<T> {
+    return photinoService.sendMessage<T, TPayload>({ module: this.moduleName, type, profileId, payload });
   }
 
   /**
    * Send a message and return a boolean result
    * Convenience method for operations that return success/failure
    */
-  protected async sendBooleanMessage(type: string, profileId?: string, payload?: any): Promise<boolean> {
-    return this.sendMessage<boolean>(type, profileId, payload);
+  protected async sendBooleanMessage<TPayload = unknown>(type: string, profileId?: string, payload?: TPayload): Promise<boolean> {
+    return this.sendMessage<boolean, TPayload>(type, profileId, payload);
   }
 
   /**
    * Send a message and return an array result
    * Convenience method for list operations
    */
-  protected async sendArrayMessage<T>(type: string, profileId?: string, payload?: any): Promise<T[]> {
-    return this.sendMessage<T[]>(type, profileId, payload);
+  protected async sendArrayMessage<T, TPayload = unknown>(type: string, profileId?: string, payload?: TPayload): Promise<T[]> {
+    return this.sendMessage<T[], TPayload>(type, profileId, payload);
   }
 
   /**
    * Send a message and return a nullable result
    * Convenience method for get-by-id operations that might not find a result
    */
-  protected async sendNullableMessage<T>(type: string, profileId?: string, payload?: any): Promise<T | null> {
-    return this.sendMessage<T | null>(type, profileId, payload);
+  protected async sendNullableMessage<T, TPayload = unknown>(type: string, profileId?: string, payload?: TPayload): Promise<T | null> {
+    return this.sendMessage<T | null, TPayload>(type, profileId, payload);
   }
 }

@@ -36,7 +36,7 @@ export interface ClassificationNode {
   /**
    * Additional metadata (JSON object)
    */
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, string | number | boolean> | null;
 
   /**
    * Total number of mods in this node and all descendant nodes

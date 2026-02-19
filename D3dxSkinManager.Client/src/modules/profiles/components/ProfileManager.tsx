@@ -130,9 +130,10 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       if (onProfileChanged) {
         onProfileChanged();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to delete profile:', error);
-      message.error(error?.message || 'Failed to delete profile');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete profile';
+      message.error(errorMessage);
     }
   };
 

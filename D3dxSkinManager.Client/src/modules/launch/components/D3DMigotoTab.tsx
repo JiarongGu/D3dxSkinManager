@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Select, Button, Card, Space, message, Divider, Alert, Spin, Row, Col, Modal } from 'antd';
+import { Form, Select, Alert, Spin, Row, Col, Modal, message } from 'antd';
 import {
   FolderOpenOutlined,
   RocketOutlined,
   PlayCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
 import { fileDialogService } from '../../../shared/services/fileDialogService';
 import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
 import { launchService, D3DMigotoVersion } from '../services/launchService';
@@ -39,9 +40,10 @@ export const D3DMigotoTab: React.FC = () => {
             migotoVersion: config.migotoVersion,
           });
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Don't show error if it's just because no profile is selected
-        if (!error?.message?.includes('Profile ID is required')) {
+        const errorMessage = error instanceof Error ? error.message : '';
+        if (!errorMessage.includes('Profile ID is required')) {
           message.error('Failed to load profile configuration');
           console.error('Failed to load profile config:', error);
         }
@@ -187,7 +189,7 @@ export const D3DMigotoTab: React.FC = () => {
           layout="vertical"
         >
           {/* 3DMigoto Configuration */}
-          <Card
+          <CompactCard
             title={<><RocketOutlined /> 3DMigoto Configuration</>}
             style={{ marginBottom: '24px' }}
           >
@@ -203,51 +205,51 @@ export const D3DMigotoTab: React.FC = () => {
               </Select>
             </Form.Item>
 
-            <Divider />
+            <CompactDivider />
 
-            <Space size="middle" wrap>
-              <Button
+            <CompactSpace size="middle" wrap>
+              <CompactButton
                 type="primary"
                 size="large"
                 icon={<PlayCircleOutlined />}
                 onClick={handleLaunch3DMigotoLoader}
               >
                 Launch 3DMigoto Loader
-              </Button>
-              <Button
+              </CompactButton>
+              <CompactButton
                 size="large"
                 icon={<PlayCircleOutlined />}
                 onClick={handleLaunch3DMigoto}
               >
                 One-Key Launch
-              </Button>
-              <Button
+              </CompactButton>
+              <CompactButton
                 size="large"
                 icon={<FolderOpenOutlined />}
                 onClick={handleOpenWorkDirectory}
               >
                 Open Work Directory
-              </Button>
-            </Space>
-          </Card>
+              </CompactButton>
+            </CompactSpace>
+          </CompactCard>
 
           {/* 3DMigoto Version Management */}
-          <Card
+          <CompactCard
             title={<><FolderOpenOutlined /> 3DMigoto Version Management</>}
             style={{ marginBottom: '24px' }}
             extra={
-              <Space>
-                <Button
+              <CompactSpace>
+                <CompactButton
                   icon={<ReloadOutlined />}
                   onClick={handleLoad3DMigotoVersions}
                   loading={d3dLoading}
                 >
                   Refresh
-                </Button>
-              </Space>
+                </CompactButton>
+              </CompactSpace>
             }
           >
-            <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+            <CompactSpace orientation="vertical" style={{ width: '100%' }} size="middle">
               {d3dVersions.length === 0 && (
                 <Alert
                   title="3DMigoto Version Management"
@@ -258,10 +260,10 @@ export const D3DMigotoTab: React.FC = () => {
               )}
 
               {d3dVersions.map((version) => (
-                <Card key={version.name} size="small">
+                <CompactCard key={version.name} size="small">
                   <Row gutter={16} align="middle">
                     <Col flex="auto">
-                      <Space orientation="vertical" size="small">
+                      <CompactSpace orientation="vertical" size="small">
                         <div>
                           <strong>{version.name}</strong>
                           {version.isDeployed && (
@@ -273,10 +275,10 @@ export const D3DMigotoTab: React.FC = () => {
                         <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
                           Size: {version.sizeFormatted}
                         </div>
-                      </Space>
+                      </CompactSpace>
                     </Col>
                     <Col>
-                      <Button
+                      <CompactButton
                         type="primary"
                         size="small"
                         onClick={() => handleDeploy3DMigoto(version)}
@@ -284,13 +286,13 @@ export const D3DMigotoTab: React.FC = () => {
                         disabled={version.isDeployed}
                       >
                         {version.isDeployed ? 'Deployed' : 'Deploy'}
-                      </Button>
+                      </CompactButton>
                     </Col>
                   </Row>
-                </Card>
+                </CompactCard>
               ))}
-            </Space>
-          </Card>
+            </CompactSpace>
+          </CompactCard>
         </Form>
     </div>
   );

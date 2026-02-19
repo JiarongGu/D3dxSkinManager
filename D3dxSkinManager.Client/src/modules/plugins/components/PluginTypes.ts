@@ -6,6 +6,7 @@
 
 import { ReactNode } from 'react';
 import { ModInfo } from '../../../shared/types/mod.types';
+import type { ModService } from '../../mods/services/modService';
 
 /**
  * Base plugin interface
@@ -38,7 +39,7 @@ export interface Plugin {
  */
 export interface PluginContext {
   /** Access to mod service for backend communication */
-  modService: any;  // ModService instance
+  modService: ModService;
 
   /** Register a custom event handler */
   registerEventHandler(eventType: PluginEventType, handler: PluginEventHandler): string;
@@ -47,7 +48,7 @@ export interface PluginContext {
   unregisterEventHandler(registrationId: string): void;
 
   /** Emit a custom event */
-  emitEvent(eventName: string, data?: any): void;
+  emitEvent(eventName: string, data?: unknown): void;
 }
 
 /**
@@ -68,7 +69,7 @@ export enum PluginEventType {
 export interface PluginEventArgs {
   eventType: PluginEventType;
   eventName?: string;  // For CustomEvent type
-  data?: any;
+  data?: unknown;
   timestamp: Date;
 }
 
