@@ -1,0 +1,79 @@
+/* Fullscreen preview modal styles */
+.fullscreen-preview-modal .ant-modal {
+  top: 0 !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.fullscreen-preview-modal .ant-modal-content {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.fullscreen-preview-modal .ant-modal-body {
+  height: 100vh;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  position: relative;
+}
+
+/* Light theme - softer background instead of aggressive white */
+[data-theme="light"] .fullscreen-preview-modal .ant-modal-mask {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+/* Dark theme - keep darker overlay */
+[data-theme="dark"] .fullscreen-preview-modal .ant-modal-mask {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+/* Square close button design - theme-aware */
+.fullscreen-close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--border-radius-base);
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+/* Light theme - more obvious hover effect, flat design */
+[data-theme="light"] .fullscreen-close-button:hover {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Dark theme - subtle hover effect */
+[data-theme="dark"] .fullscreen-close-button:hover {
+  background: var(--color-bg-spotlight);
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-base);
+}
+
+.fullscreen-preview-modal .ant-modal-container {
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* Fullscreen preview image - sharp edges, no shadow */
+.fullscreen-preview-image {
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.fullscreen-preview-image.loaded {
+  opacity: 1;
+}

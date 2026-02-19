@@ -1,20 +1,18 @@
 import React, { useMemo, useCallback, useState, useEffect } from "react";
-import { Layout, Tree, Empty, Spin, Input, message, Tabs } from "antd";
+import { Layout, message } from "antd";
 import {
   FolderOutlined,
   AppstoreOutlined,
-  SearchOutlined,
   EditOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
 import type { DataNode } from "antd/es/tree";
 import { ModInfo } from "../../../shared/types/mod.types";
 import { ClassificationNode } from "../../../shared/types/classification.types";
-import { ModList } from "./ModList";
+
 import { ModPreviewPanel } from "./ModPreviewPanel";
-import { ClassificationTree } from "./ClassificationTree";
-import { UnclassifiedItem } from "./UnclassifiedItem";
-import { useClassificationScreen } from "./ClassificationScreen";
+import { ClassificationPanel } from "./ClassificationPanel";
+import { ModListPanel } from "./ModListPanel";
 import {
   ContextMenu,
   ContextMenuItem,
@@ -22,24 +20,22 @@ import {
 import { DragDropZone } from "../../../shared/components/common/DragDropZone";
 import { ModEditDialog } from "./ModEditDialog";
 import { BatchEditDialog } from "./BatchEditDialog";
-import { ImportTagSelectorDialog } from "./import/ImportTagSelectorDialog";
+import { ImportTagSelectorDialog } from "./ImportTagSelectorDialog/ImportTagSelectorDialog";
 import {
   AddModWindow,
   ImportTask,
   TaskStatus,
-} from "../../core/components/windows/AddModWindow";
-import { AddModUnit } from "../../core/components/windows/AddModUnit";
-import { BatchEditUnit } from "../../core/components/windows/BatchEditUnit";
+} from "./AddModWindow";
+import { AddModUnit } from "./AddModUnit";
+import { BatchEditUnit } from "./BatchEditUnit";
 import { createDefaultFileRouter } from "../../../shared/utils/fileTypeRouter";
 import { useModsContext } from "../context/ModsContext";
 import { useProfile } from "../../../shared/context/ProfileContext";
 
-const { Sider, Content } = Layout;
-const { Search } = Input;
+const { Sider } = Layout;
 
 export const ModHierarchicalView: React.FC = () => {
   const { state, actions } = useModsContext();
-  const { openClassificationScreen } = useClassificationScreen();
   const [unclassifiedCount, setUnclassifiedCount] = useState<number>(0);
   const [availableTagsForImport, setAvailableTagsForImport] = useState<
     string[]
@@ -511,157 +507,42 @@ export const ModHierarchicalView: React.FC = () => {
           style={{ height: "100%", background: "var(--color-bg-container)" }}
         >
           {/* Classification Tree - Left Panel */}
-          <Sider
-            width={250}
-            style={{
-              background: "var(--color-bg-spotlight)",
-              borderRight: "1px solid var(--color-border-secondary)",
-              height: "100%",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {/* Tree container with flex constraint to allow scrolling */}
-            <div
-              style={{
-                flex: 1,
-                minHeight: 0,
-                height: "calc(100% - 40px)",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              <ClassificationTree
-                tree={state.classificationTree}
-                loading={state.classificationLoading}
-                selectedNode={state.selectedClassification}
-                onSelect={handleClassificationSelect}
-                searchQuery={state.classificationSearch}
-                onSearchChange={actions.setClassificationSearch}
-                expandedKeys={state.expandedKeys}
-                onExpandedKeysChange={actions.setExpandedKeys}
-                onRefreshTree={actions.loadClassificationTree}
-                onAddClassification={(parentId) => {
-                  openClassificationScreen({
-                    parentId,
-                    tree: state.classificationTree,
-                    onSave: async (data) => {
-                      console.log("Save classification:", data);
-                      // TODO: Call backend API to create classification
-                      message.success(
-                        `Classification "${data.name}" created successfully`,
-                      );
-                    },
-                  });
-                }}
-              />
-            </div>
-
-            {/* Unclassified Item - fixed at bottom, doesn't scroll */}
-            <div
-              style={{
-                borderTop: "1px solid var(--color-border-secondary)",
-                background: "var(--color-bg-spotlight)",
-                height: "40px",
-              }}
-            >
-              <UnclassifiedItem
-                count={unclassifiedCount}
-                isSelected={
-                  state.selectedClassification?.id === "__unclassified__"
-                }
-                onClick={handleUnclassifiedClick}
-              />
-            </div>
-          </Sider>
+          <ClassificationPanel
+            tree={state.classificationTree}
+            loading={state.classificationLoading}
+            selectedNode={state.selectedClassification}
+            onSelect={handleClassificationSelect}
+            searchQuery={state.classificationSearch}
+            onSearchChange={actions.setClassificationSearch}
+            expandedKeys={state.expandedKeys}
+            onExpandedKeysChange={actions.setExpandedKeys}
+            onRefreshTree={actions.loadClassificationTree}
+            unclassifiedCount={unclassifiedCount}
+            onUnclassifiedClick={handleUnclassifiedClick}
+            isUnclassifiedSelected={
+              state.selectedClassification?.id === "__unclassified__"
+            }
+          />
 
           {/* Mods Table - Center Panel */}
-          <Content
-            style={{
-              background: "var(--color-bg-container)",
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-              overflow: "hidden",
-            }}
-          >
-            {!state.selectedClassification && !state.selectedObject ? (
-              // Show centered empty state when no node is selected
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: "100%",
-                  flexDirection: "column",
-                  gap: "16px",
-                }}
-              >
-                <Empty
-                  description="Select a classification or object node to view mods"
-                  style={{ margin: 0 }}
-                />
-              </div>
-            ) : (
-              <>
-                <div
-                  style={{
-                    padding: "8px",
-                    borderBottom: "1px solid var(--color-border-secondary)",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Search
-                    placeholder="Search mods (name, author, tags)..."
-                    value={state.searchQuery}
-                    onChange={(e) => actions.setSearchQuery(e.target.value)}
-                    allowClear
-                    prefix={<SearchOutlined />}
-                  />
-                </div>
-                <div style={{ flex: 1, overflow: "hidden" }}>
-                  {filteredMods.length > 0 ? (
-                    <ModList
-                      mods={filteredMods}
-                      loading={state.loading}
-                      onLoad={actions.loadModInGame}
-                      onUnload={actions.unloadModFromGame}
-                      onDelete={actions.deleteMod}
-                      onEdit={handleOpenModEdit}
-                      onRowClick={handleModSelect}
-                      selectedMod={state.selectedMod}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        height: "100%",
-                      }}
-                    >
-                      <Empty
-                        description={
-                          state.searchQuery
-                            ? `No mods found matching "${state.searchQuery}"`
-                            : state.selectedClassification
-                              ? `No mods found for ${state.selectedClassification.name}`
-                              : state.selectedObject
-                                ? `No mods found for ${state.selectedObject}`
-                                : "No mods available"
-                        }
-                      />
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </Content>
+          <ModListPanel
+            mods={filteredMods}
+            loading={state.loading}
+            selectedMod={state.selectedMod}
+            searchQuery={state.searchQuery}
+            onSearchChange={actions.setSearchQuery}
+            onLoad={actions.loadModInGame}
+            onUnload={actions.unloadModFromGame}
+            onDelete={actions.deleteMod}
+            onEdit={handleOpenModEdit}
+            onRowClick={handleModSelect}
+            selectedClassification={state.selectedClassification}
+            selectedObject={state.selectedObject}
+          />
 
           {/* Preview Panel - Right Panel */}
           <Sider
-            width={320}
+            width={500}
             style={{
               background: "var(--color-bg-spotlight)",
               borderLeft: "1px solid var(--color-border-secondary)",

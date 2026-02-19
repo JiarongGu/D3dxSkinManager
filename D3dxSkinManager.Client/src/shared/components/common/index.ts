@@ -14,9 +14,6 @@ export type { DragDropZoneProps } from './DragDropZone';
 export { GradingTag } from './GradingTag';
 export type { GradingTagProps } from './GradingTag';
 
-export { ModThumbnail } from './ModThumbnail';
-export type { ModThumbnailProps } from './ModThumbnail';
-
 export { StatusIcon } from './StatusIcon';
 export type { StatusIconProps } from './StatusIcon';
 

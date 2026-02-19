@@ -52,6 +52,10 @@
   line-height: 18px;
   padding: 0 6px;
   border-radius: 10px;
+  /* Disable animations for static badge */
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
 }
 
 .unclassified-item.selected .unclassified-item-badge .ant-badge-count {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Typography, Tag, Space, Button, Empty, message } from 'antd';
+import { Card, Typography, Tag, Space, Button, Empty, message, Carousel } from 'antd';
 import {
   CopyOutlined,
   UserOutlined,
@@ -7,24 +7,35 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  LeftOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
-import { ModInfo } from '../../../shared/types/mod.types';
-import { GradingTag } from '../../../shared/components/common/GradingTag';
-import { FullScreenPreview } from '../../core/components/dialogs/FullScreenPreview';
-import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
+import { GradingTag } from '../../../../shared/components/common/GradingTag';
+import { FullScreenPreview } from './FullScreenPreview';
+import { toAppUrl } from '../../../../shared/utils/imageUrlHelper';
+import { ModPreviewProvider, useModView } from './ModPreviewContext';
+import { ModInfo } from '../../../../shared/types/mod.types';
 
 const { Text, Paragraph, Title } = Typography;
 
-interface ModPreviewPanelProps {
-  mod: ModInfo | null;
-}
-
-export const ModPreviewPanel: React.FC<ModPreviewPanelProps> = ({ mod }) => {
+export const ModPreviewPanelContent: React.FC = () => {
+  const { state } = useModView();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
+  const [fullScreenImageSrc, setFullScreenImageSrc] = useState<string>('');
+
+  const mod = state.currentMod;
 
   if (!mod) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          minHeight: '400px',
+        }}
+      >
         <Empty
           description="Select a mod to view details"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -38,36 +49,80 @@ export const ModPreviewPanel: React.FC<ModPreviewPanelProps> = ({ mod }) => {
     message.success('SHA copied to clipboard');
   };
 
-  const handleImageClick = () => {
-    if (mod.thumbnailPath || mod.previewPath) {
-      setFullScreenVisible(true);
-    }
+  const handleImageClick = (imageSrc: string) => {
+    setFullScreenImageSrc(imageSrc);
+    setFullScreenVisible(true);
   };
+
+  // Determine which images to show (thumbnail + preview paths)
+  const allImagePaths: string[] = [];
+
+  // Add thumbnail first if available
+  if (mod.thumbnailPath) {
+    allImagePaths.push(mod.thumbnailPath);
+  }
+
+  // Add preview paths
+  if (state.previewPaths && state.previewPaths.length > 0) {
+    allImagePaths.push(...state.previewPaths);
+  }
+
+  const hasMultipleImages = allImagePaths.length > 1;
 
   return (
     <div style={{ padding: '16px' }}>
-      {/* Preview Image */}
+      {/* Preview Image(s) */}
       <Card
         style={{ marginBottom: '16px' }}
         styles={{ body: { padding: 0 } }}
         cover={
-          mod.thumbnailPath || mod.previewPath ? (
-            <img
-              alt={mod.name}
-              src={toAppUrl(mod.thumbnailPath || mod.previewPath) || undefined}
-              style={{
-                width: '100%',
-                height: '200px',
-                objectFit: 'cover',
-                cursor: 'pointer',
-              }}
-              onClick={handleImageClick}
-              title="Click to view full screen"
-              onError={(e) => {
-                // Fallback to transparent placeholder on error
-                (e.target as HTMLImageElement).src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-              }}
-            />
+          allImagePaths.length > 0 ? (
+            hasMultipleImages ? (
+              <Carousel
+                arrows
+                prevArrow={<LeftOutlined />}
+                nextArrow={<RightOutlined />}
+                style={{ height: '200px' }}
+              >
+                {allImagePaths.map((path, index) => (
+                  <div key={index}>
+                    <img
+                      alt={`${mod.name} - Preview ${index + 1}`}
+                      src={toAppUrl(path) || undefined}
+                      style={{
+                        width: '100%',
+                        height: '200px',
+                        objectFit: 'cover',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => handleImageClick(toAppUrl(path) || '')}
+                      title="Click to view full screen"
+                      onError={(e) => {
+                        // Fallback to transparent placeholder on error
+                        (e.target as HTMLImageElement).src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+                      }}
+                    />
+                  </div>
+                ))}
+              </Carousel>
+            ) : (
+              <img
+                alt={mod.name}
+                src={toAppUrl(allImagePaths[0]) || undefined}
+                style={{
+                  width: '100%',
+                  height: '200px',
+                  objectFit: 'cover',
+                  cursor: 'pointer',
+                }}
+                onClick={() => handleImageClick(toAppUrl(allImagePaths[0]) || '')}
+                title="Click to view full screen"
+                onError={(e) => {
+                  // Fallback to transparent placeholder on error
+                  (e.target as HTMLImageElement).src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+                }}
+              />
+            )
           ) : (
             <div
               style={{
@@ -196,20 +251,21 @@ export const ModPreviewPanel: React.FC<ModPreviewPanelProps> = ({ mod }) => {
         </div>
       </Card>
 
-      {/* File Type */}
-      <div style={{ marginTop: '12px', textAlign: 'center' }}>
-        <Text type="secondary" style={{ fontSize: '11px' }}>
-          Type: {mod.type.toUpperCase()} �?{mod.isAvailable ? 'Available' : 'Unavailable'}
-        </Text>
-      </div>
-
       {/* Full Screen Preview Dialog */}
       <FullScreenPreview
         visible={fullScreenVisible}
-        imageSrc={toAppUrl(mod.thumbnailPath || mod.previewPath) || ''}
+        imageSrc={fullScreenImageSrc}
         imageAlt={mod.name}
         onClose={() => setFullScreenVisible(false)}
       />
     </div>
+  );
+};
+
+export const ModPreviewPanel: React.FC<{ mod: ModInfo | null }> = ({ mod }) => {
+  return (
+    <ModPreviewProvider mod={mod}>
+      <ModPreviewPanelContent />
+    </ModPreviewProvider>
   );
 };

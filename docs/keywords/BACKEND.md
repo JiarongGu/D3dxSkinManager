@@ -11,9 +11,10 @@
 
 - **Program** → `D3dxSkinManager/Program.cs`
   - Main method → `:11`
-  - InitializeServices (DI setup) → `:24-38`
+  - InitializeServices (DI setup) → `:24-38` (includes WindowStateService)
   - Photino window setup → `:42-55`
   - IPC message handler → `:65-120`
+  - Window state persistence handled by WindowStateService via DI
 
 ---
 
@@ -217,6 +218,24 @@
 
 - **SettingsFileService** → `Modules/Settings/Services/SettingsFileService.cs`
   - Generic file-based storage service
+
+- **WindowStateService** → `Modules/Settings/Services/WindowStateService.cs`
+  - **NEW 2026-02-20:** Window size/position persistence service
+  - LoadWindowState → Returns (width, height, x, y, maximized) tuple
+  - SaveWindowState(PhotinoWindow) → Saves current window state
+  - IsPositionValid → Validates window is visible on at least one monitor
+  - Handles screen resolution changes and multi-monitor setups
+
+#### Models
+
+- **GlobalSettings** → `Modules/Settings/Models/GlobalSettings.cs`
+  - Theme, AnnotationLevel, LogLevel properties
+  - Window (WindowSettings) → Window state persistence (added 2026-02-20)
+
+- **WindowSettings** → `Modules/Settings/Models/GlobalSettings.cs:37`
+  - X, Y, Width, Height (nullable int) → Window position and size
+  - Maximized (bool) → Window maximized state
+  - Used by Program.cs for window state persistence
 
 ---
 

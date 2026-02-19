@@ -15,13 +15,13 @@
   box-sizing: border-box !important;
 }
 
-/* Theme-aware button shadows */
+/* Theme-aware button shadows - very subtle for flat design */
 [data-theme="light"] .compact-button.ant-btn {
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.016);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.01);
 }
 
 [data-theme="light"] .compact-button.ant-btn:not(:disabled):not(.ant-btn-disabled):hover {
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.043);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
 
 /* Dark theme - Flat design without shadows */

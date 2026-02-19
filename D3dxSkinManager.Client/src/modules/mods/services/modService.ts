@@ -172,6 +172,13 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Get preview paths for a mod
+   */
+  async getPreviewPaths(profileId: string, sha: string): Promise<string[]> {
+    return this.sendArrayMessage<string>('GET_PREVIEW_PATHS', profileId, { sha });
+  }
+
+  /**
    * Import a preview image for a mod
    */
   async importPreviewImage(profileId: string, sha: string, imagePath: string): Promise<boolean> {

@@ -13,7 +13,7 @@ import { classificationService } from "../../../shared/services/classificationSe
 import {
   ImportTask,
   TaskStatus,
-} from "../../core/components/windows/AddModWindow";
+} from "../components/AddModWindow";
 import { useProfile } from "../../../shared/context/ProfileContext";
 
 // ============================================================================

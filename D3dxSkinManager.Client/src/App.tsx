@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Layout, message, ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
 import { AppHeader } from './modules/core/components/layout/AppHeader';
-import { AppSider } from './modules/core/components/layout/AppSider';
 import { AppStatusBar, StatusType } from './modules/core/components/layout/AppStatusBar';
 import { ModHierarchicalView } from './modules/mods/components/ModHierarchicalView';
 import { ModsProvider } from './modules/mods/context/ModsContext';
@@ -99,41 +98,38 @@ const AppContent: React.FC = () => {
   return (
     <AnnotationProvider initialLevel="all">
       <Layout style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        {/* Fixed Header */}
-        <AppHeader />
+        {/* Fixed Header with Tabs */}
+        <AppHeader selectedTab={selectedTab} onTabChange={setSelectedTab} />
 
-        {/* Main Content Area with Sider - Scrollable */}
+        {/* Main Content Area - Scrollable */}
         <Layout style={{ flex: 1, overflow: 'hidden' }}>
-          <AppSider selectedTab={selectedTab} onTabChange={setSelectedTab} />
-          <Layout style={{ borderLeft: '1px solid var(--color-border-secondary)', overflow: 'hidden' }}>
-            <Content
-              style={{
-                padding: "0",
-                margin: 0,
-                background: 'var(--color-bg-container)',
-                height: '100%',
-                overflow: 'hidden',
-              }}
-            >
-              {selectedTab === 'mods' && (
-                <ModsProvider>
-                  <ModHierarchicalView />
-                </ModsProvider>
-              )}
-              {selectedTab === 'launch' && (
-                <LaunchView />
-              )}
-              {selectedTab === 'tools' && (
-                <ToolsView onModsChanged={loadMods} />
-              )}
-              {selectedTab === 'plugins' && (
-                <PluginsView />
-              )}
-              {selectedTab === 'settings' && (
-                <SettingsView />
-              )}
-            </Content>
-          </Layout>
+          <Content
+            style={{
+              padding: "0",
+              margin: 0,
+              background: 'var(--color-bg-container)',
+              height: '100%',
+              overflow: 'hidden',
+            }}
+          >
+            {selectedTab === 'mods' && (
+              <ModsProvider>
+                <ModHierarchicalView />
+              </ModsProvider>
+            )}
+            {selectedTab === 'launch' && (
+              <LaunchView />
+            )}
+            {selectedTab === 'tools' && (
+              <ToolsView onModsChanged={loadMods} />
+            )}
+            {selectedTab === 'plugins' && (
+              <PluginsView />
+            )}
+            {selectedTab === 'settings' && (
+              <SettingsView />
+            )}
+          </Content>
         </Layout>
 
         {/* Fixed Footer */}

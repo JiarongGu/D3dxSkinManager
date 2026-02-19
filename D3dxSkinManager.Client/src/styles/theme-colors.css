@@ -7,7 +7,7 @@
 :root,
 [data-theme="light"] {
   /* Layout Dimensions */
-  --layout-header-height: 64px;
+  --layout-header-height: 40px;
   --layout-statusbar-height: 32px;
 
   /* Background Colors */
@@ -375,6 +375,48 @@ body {
 
 .ant-btn-lg {
   border-radius: var(--border-radius-base) !important;
+}
+
+/* Reduce button shadows for flatter design in light theme */
+[data-theme="light"] .ant-btn {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.01) !important;
+}
+
+[data-theme="light"] .ant-btn:not(:disabled):not(.ant-btn-disabled):hover {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Primary buttons - slightly more visible shadow */
+[data-theme="light"] .ant-btn-primary {
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.015) !important;
+}
+
+[data-theme="light"] .ant-btn-primary:not(:disabled):not(.ant-btn-disabled):hover {
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Light theme - More obvious hover effect for icon buttons and text buttons (except header tabs) */
+[data-theme="light"] .ant-btn-text:not(:disabled):not(.ant-btn-disabled):not(.app-header-tab):hover,
+[data-theme="light"] .ant-btn-icon-only:not(:disabled):not(.ant-btn-disabled):not(.app-header-tab):hover {
+  background: var(--color-primary-bg) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Dark theme - Keep subtle hover effect */
+[data-theme="dark"] .ant-btn-text:not(:disabled):not(.ant-btn-disabled):hover,
+[data-theme="dark"] .ant-btn-icon-only:not(:disabled):not(.ant-btn-disabled):hover {
+  background: var(--color-bg-spotlight) !important;
+}
+
+/* List item hover effects - more obvious in light theme */
+[data-theme="light"] .ant-list-item:hover {
+  background: var(--color-primary-bg) !important;
+  border-left-color: var(--color-primary) !important;
+}
+
+[data-theme="dark"] .ant-list-item:hover {
+  background: var(--color-bg-spotlight) !important;
 }
 
 .ant-input,

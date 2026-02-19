@@ -21,6 +21,11 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 }) => {
   const { state, actions } = useProfile();
 
+  // Reload profiles when component mounts and when profiles list might have changed
+  React.useEffect(() => {
+    actions.loadProfiles();
+  }, []);
+
   const handleProfileSwitch = async (profileId: string) => {
     if (profileId === state.selectedProfile?.id) {
       return; // Already selected

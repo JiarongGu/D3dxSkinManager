@@ -24,18 +24,16 @@ import {
 import { profileService } from '../../profiles/services/profileService';
 import { Profile, CreateProfileRequest } from '../../../shared/types/profile.types';
 import { fileDialogService } from '../../../shared/services/fileDialogService';
+import { useProfile } from '../../../shared/context/ProfileContext';
 
 interface ProfileManagerProps {
-  visible: boolean;
-  onClose: () => void;
   onProfileChanged?: () => void;
 }
 
 export const ProfileManager: React.FC<ProfileManagerProps> = ({
-  visible,
-  onClose,
   onProfileChanged
 }) => {
+  const { state, actions } = useProfile();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -45,10 +43,8 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
   const [editForm] = Form.useForm();
 
   useEffect(() => {
-    if (visible) {
-      loadProfiles();
-    }
-  }, [visible]);
+    loadProfiles();
+  }, []);
 
   const loadProfiles = async () => {
     try {
@@ -111,6 +107,17 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       message.success('Profile updated successfully');
       setEditingProfile(null);
       await loadProfiles();
+
+      // Reload profiles in the context to update ProfileSwitcher
+      await actions.loadProfiles();
+
+      // If the edited profile is the currently selected one, update it in context
+      if (editingProfile.id === state.selectedProfile?.id) {
+        const updatedProfile = await profileService.getProfileById(editingProfile.id);
+        if (updatedProfile) {
+          actions.setSelectedProfile(updatedProfile);
+        }
+      }
 
       if (onProfileChanged) {
         onProfileChanged();
@@ -186,18 +193,8 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
 
   return (
     <>
-      <Modal
-        title="Profile Manager"
-        open={visible}
-        onCancel={onClose}
-        width={900}
-        footer={[
-          <Button key="close" onClick={onClose}>
-            Close
-          </Button>
-        ]}
-      >
-        <Space orientation="vertical" style={{ width: '100%' }} size="large">
+      <div style={{ padding: '0' }}>
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -322,7 +319,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
             )}
           />
         </Space>
-      </Modal>
+      </div>
 
       {/* Create Profile Dialog */}
       <Modal

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Button, Space, Card, Image, message } from 'antd';
 import { TagsOutlined, FolderOutlined, FileZipOutlined } from '@ant-design/icons';
-import { ModInfo } from '../../../../shared/types/mod.types';
+import { ModInfo } from '../../../shared/types/mod.types';
 import { ImportTask } from './AddModWindow';
 
 const { TextArea } = Input;

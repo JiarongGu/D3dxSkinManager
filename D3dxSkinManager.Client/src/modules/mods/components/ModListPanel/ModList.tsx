@@ -12,11 +12,11 @@ import {
   FolderOutlined,
   CheckCircleFilled,
 } from '@ant-design/icons';
-import { ModInfo } from '../../../shared/types/mod.types';
-import { fileDialogService } from '../../../shared/services/fileDialogService';
-import { modService } from '../services/modService';
-import { GradingTag } from '../../../shared/components/common/GradingTag';
-import { useProfile } from '../../../shared/context/ProfileContext';
+import { ModInfo } from '../../../../shared/types/mod.types';
+import { fileDialogService } from '../../../../shared/services/fileDialogService';
+import { modService } from '../../services/modService';
+import { GradingTag } from '../../../../shared/components/common/GradingTag';
+import { useProfile } from '../../../../shared/context/ProfileContext';
 
 interface ModListProps {
   mods: ModInfo[];
@@ -205,18 +205,18 @@ export const ModList: React.FC<ModListProps> = ({
     },
     {
       key: 'view-preview',
-      label: 'View Preview Image',
+      label: 'Open Preview in Explorer',
       icon: <FileImageOutlined />,
       onClick: async () => {
-        if (mod.previewPath) {
+        if (mod.thumbnailPath) {
           try {
-            await fileDialogService.openFile(mod.previewPath);
-            message.success('Opened preview image');
+            await fileDialogService.openFile(mod.thumbnailPath);
+            message.success('Opened preview location');
           } catch (error) {
-            message.error('Failed to open preview image');
+            message.error('Failed to open preview location');
           }
         } else {
-          message.warning('No preview image available for this mod');
+          message.warning('No preview available for this mod');
         }
       },
     },

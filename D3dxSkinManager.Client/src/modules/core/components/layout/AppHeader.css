@@ -1,0 +1,80 @@
+/**
+ * AppHeader component styles
+ * Tab navigation styling with flat, modern design
+ */
+
+/* Header container */
+.app-header.ant-layout-header {
+  background: var(--color-header-bg);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border-secondary);
+  height: 40px;
+  line-height: 40px;
+}
+
+/* Tab container */
+.app-header-tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  height: 40px;
+  align-items: stretch;
+}
+
+/* Tab button - override Ant Design button styles */
+.app-header-tab.ant-btn {
+  background: transparent;
+  border: none;
+  height: 100%;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 400;
+  border-radius: 0 !important;
+  transition: color 0.2s ease, background 0.2s ease !important;
+  box-shadow: none !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Tab text color - Both themes use white text on dark header */
+.app-header-tab.ant-btn {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Remove Ant Design default hover effects */
+.app-header-tab.ant-btn:hover,
+.app-header-tab.ant-btn:focus,
+.app-header-tab.ant-btn:active {
+  border: none;
+  box-shadow: none !important;
+}
+
+/* Hover state - Same color as selected state */
+.app-header-tab.ant-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Override global light theme button hover for header tabs */
+[data-theme="light"] .app-header-tab.ant-btn:hover {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: transparent !important;
+}
+
+/* Selected state - Both themes use white overlay on dark header */
+.app-header-tab.ant-btn.app-header-tab-selected {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 500;
+}
+
+/* Selected state hover - keep selected background */
+.app-header-tab.ant-btn.app-header-tab-selected:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}

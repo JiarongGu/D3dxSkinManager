@@ -26,4 +26,5 @@ public class ModInfo
 
     // Note: Preview paths are scanned dynamically from previews/{SHA}/ folder
     // Allows users to add preview images directly to folder
+    // Use GET_PREVIEW_PATHS IPC call to retrieve them
 }

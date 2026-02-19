@@ -20,6 +20,9 @@ public static class SettingsServiceExtensions
         // Register Settings File Service (for generic JSON file storage)
         services.AddSingleton<ISettingsFileService, SettingsFileService>();
 
+        // Register Window State Service (for window position/size persistence)
+        services.AddSingleton<IWindowStateService, WindowStateService>();
+
         // Register facade (depends on Core.FileSystemService, Core.FileDialogService, GlobalSettingsService, and SettingsFileService)
         services.AddSingleton<ISettingsFacade, SettingsFacade>();
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Table, Button, Space, Tag, Progress, message, Divider } from 'antd';
 import { CheckOutlined, CloseOutlined, LoadingOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { ModInfo } from '../../../../shared/types/mod.types';
+import { ModInfo } from '../../../shared/types/mod.types';
 import type { ColumnsType } from 'antd/es/table';
 
 export type TaskStatus = 'pending' | 'processing' | 'success' | 'error' | 'skipped';
