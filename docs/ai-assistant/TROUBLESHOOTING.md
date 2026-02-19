@@ -100,7 +100,7 @@ Remove private NuGet source from NuGet.config or add source filter to project
 error MSB3644: The reference assemblies for .NETFramework,Version=v8.0 were not found
 ```
 
-**Root Cause:** .NET 8 SDK not installed or wrong version
+**Root Cause:** .NET 10 SDK not installed or wrong version
 
 **Solution:**
 ```bash
@@ -111,7 +111,7 @@ dotnet --version
 # If not, download from https://dotnet.microsoft.com/download/dotnet/8.0
 ```
 
-**Required:** .NET 8.0 SDK or later
+**Required:** .NET 10.0 SDK or later
 
 ---
 
@@ -590,13 +590,13 @@ bash: dotnet: command not found
 # Check installation
 dotnet --version
 
-# If not found, install .NET 8 SDK from https://dotnet.microsoft.com/download
+# If not found, install .NET 10 SDK from https://dotnet.microsoft.com/download
 
 # Verify after installation
 dotnet --info
 ```
 
-**Required:** .NET 8.0 SDK or later
+**Required:** .NET 10.0 SDK or later
 
 ---
 

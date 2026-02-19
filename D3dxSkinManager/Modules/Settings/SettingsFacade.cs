@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Facades;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Settings.Models;
@@ -7,13 +8,41 @@ using D3dxSkinManager.Modules.Settings.Services;
 
 namespace D3dxSkinManager.Modules.Settings;
 
+
+/// <summary>
+/// Interface for Settings facade
+/// Handles: SETTINGS_GET, SETTINGS_UPDATE, etc.
+/// Prefix: SETTINGS_*
+/// </summary>
+public interface ISettingsFacade : IModuleFacade
+{
+    // Global Settings
+    Task<GlobalSettings> GetGlobalSettingsAsync();
+    Task UpdateGlobalSettingsAsync(GlobalSettings settings);
+    Task UpdateGlobalSettingAsync(string key, string value);
+    Task ResetGlobalSettingsAsync();
+
+    // File System Operations (moved from Core)
+    Task OpenFileInExplorerAsync(string filePath);
+    Task OpenDirectoryAsync(string directoryPath);
+    Task OpenFileAsync(string filePath);
+
+    // File Dialogs (moved from Core)
+    Task<FileDialogResult> OpenFileDialogAsync(FileDialogOptions? options = null);
+    Task<FileDialogResult> OpenFolderDialogAsync(FileDialogOptions? options = null);
+    Task<FileDialogResult> SaveFileDialogAsync(FileDialogOptions? options = null);
+}
+
+
 /// <summary>
 /// Facade for settings and file system operations
 /// Responsibility: App settings, file dialogs, file system operations
 /// IPC Prefix: SETTINGS_*
 /// </summary>
-public class SettingsFacade : ISettingsFacade
+public class SettingsFacade : BaseFacade, ISettingsFacade
 {
+    protected override string ModuleName => "SettingsFacade";
+
     private readonly IFileSystemService _fileSystemService;
     private readonly IFileDialogService _fileDialogService;
     private readonly IProcessService _processService;
@@ -27,7 +56,8 @@ public class SettingsFacade : ISettingsFacade
         IProcessService processService,
         IGlobalSettingsService globalSettingsService,
         ISettingsFileService settingsFileService,
-        IPayloadHelper payloadHelper)
+        IPayloadHelper payloadHelper,
+        ILogHelper logger) : base(logger)
     {
         _fileSystemService = fileSystemService ?? throw new ArgumentNullException(nameof(fileSystemService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
@@ -37,48 +67,36 @@ public class SettingsFacade : ISettingsFacade
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
     {
-        try
+        return request.Type switch
         {
-            Console.WriteLine($"[SettingsFacade] Handling message: {request.Type}");
+            // Global settings
+            "GET_GLOBAL" => await GetGlobalSettingsHandlerAsync(request),
+            "UPDATE_GLOBAL" => await UpdateGlobalSettingsHandlerAsync(request),
+            "UPDATE_FIELD" => await UpdateGlobalSettingHandlerAsync(request),
+            "RESET_GLOBAL" => await ResetGlobalSettingsHandlerAsync(request),
 
-            object? responseData = request.Type switch
-            {
-                // Global settings
-                "GET_GLOBAL" => await GetGlobalSettingsHandlerAsync(request),
-                "UPDATE_GLOBAL" => await UpdateGlobalSettingsHandlerAsync(request),
-                "UPDATE_FIELD" => await UpdateGlobalSettingHandlerAsync(request),
-                "RESET_GLOBAL" => await ResetGlobalSettingsHandlerAsync(request),
+            // Settings files
+            "GET_FILE" => await GetSettingsFileHandlerAsync(request),
+            "SAVE_FILE" => await SaveSettingsFileHandlerAsync(request),
+            "DELETE_FILE" => await DeleteSettingsFileHandlerAsync(request),
+            "FILE_EXISTS" => await SettingsFileExistsHandlerAsync(request),
+            "LIST_FILES" => await ListSettingsFilesHandlerAsync(request),
 
-                // Settings files
-                "GET_FILE" => await GetSettingsFileHandlerAsync(request),
-                "SAVE_FILE" => await SaveSettingsFileHandlerAsync(request),
-                "DELETE_FILE" => await DeleteSettingsFileHandlerAsync(request),
-                "FILE_EXISTS" => await SettingsFileExistsHandlerAsync(request),
-                "LIST_FILES" => await ListSettingsFilesHandlerAsync(request),
+            // File system operations
+            "OPEN_FILE" => await OpenFileAsync(request),
+            "OPEN_DIRECTORY" => await OpenDirectoryAsync(request),
+            "OPEN_FILE_IN_EXPLORER" => await OpenFileInExplorerAsync(request),
+            "LAUNCH_PROCESS" => await LaunchProcessAsync(request),
 
-                // File system operations
-                "OPEN_FILE" => await OpenFileAsync(request),
-                "OPEN_DIRECTORY" => await OpenDirectoryAsync(request),
-                "OPEN_FILE_IN_EXPLORER" => await OpenFileInExplorerAsync(request),
-                "LAUNCH_PROCESS" => await LaunchProcessAsync(request),
+            // File dialogs
+            "OPEN_FILE_DIALOG" => await OpenFileDialogAsync(request),
+            "OPEN_FOLDER_DIALOG" => await OpenFolderDialogAsync(request),
+            "SAVE_FILE_DIALOG" => await SaveFileDialogAsync(request),
 
-                // File dialogs
-                "OPEN_FILE_DIALOG" => await OpenFileDialogAsync(request),
-                "OPEN_FOLDER_DIALOG" => await OpenFolderDialogAsync(request),
-                "SAVE_FILE_DIALOG" => await SaveFileDialogAsync(request),
-
-                _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
-            };
-
-            return MessageResponse.CreateSuccess(request.Id, responseData);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[SettingsFacade] Error handling message: {ex.Message}");
-            return MessageResponse.CreateError(request.Id, ex.Message);
-        }
+            _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
+        };
     }
 
     public async Task<GlobalSettings> GetGlobalSettingsAsync()
@@ -224,9 +242,9 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<GlobalSettings> GetGlobalSettingsHandlerAsync(MessageRequest request)
     {
-        Console.WriteLine($"[SettingsFacade] GetGlobalSettingsHandlerAsync called");
+        _logger.Debug("GetGlobalSettingsHandlerAsync called", "SettingsFacade");
         var result = await GetGlobalSettingsAsync();
-        Console.WriteLine($"[SettingsFacade] Settings retrieved: Theme={result.Theme}, LogLevel={result.LogLevel}");
+        _logger.Debug($"Settings retrieved: Theme={result.Theme}, LogLevel={result.LogLevel}", "SettingsFacade");
         return result;
     }
 

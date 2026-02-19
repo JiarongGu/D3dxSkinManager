@@ -16,12 +16,14 @@ namespace D3dxSkinManager.Modules.Profiles
         private readonly IPluginLoader _pluginLoader;
         private readonly IPluginEventBus _pluginEventBus;
         private readonly IPluginRegistry _pluginRegistry;
+        private readonly ILogHelper _logger;
 
-        public ProfileServerService(IPluginLoader pluginLoader, IPluginEventBus pluginEventBus, IPluginRegistry pluginRegistry) 
+        public ProfileServerService(IPluginLoader pluginLoader, IPluginEventBus pluginEventBus, IPluginRegistry pluginRegistry, ILogHelper logger)
         {
             _pluginLoader = pluginLoader;
             _pluginEventBus = pluginEventBus;
             _pluginRegistry = pluginRegistry;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             //_imageServerService = imageServerService;
         }
 
@@ -36,7 +38,7 @@ namespace D3dxSkinManager.Modules.Profiles
             // Initialize plugins
             await _pluginLoader.InitializePluginsAsync();
 
-            Console.WriteLine($"[Init] Loaded and initialized {loadedCount} plugin(s)");
+            _logger.Info($"Loaded and initialized {loadedCount} plugin(s)", "Init");
 
             //await _imageServerService.StartAsync();
 
@@ -64,11 +66,11 @@ namespace D3dxSkinManager.Modules.Profiles
                 try
                 {
                     await plugin.ShutdownAsync();
-                    Console.WriteLine($"[Shutdown] Plugin shut down: {plugin.Name}");
+                    _logger.Info($"Plugin shut down: {plugin.Name}", "Shutdown");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Shutdown] Error shutting down plugin {plugin.Name}: {ex.Message}");
+                    _logger.Error($"Error shutting down plugin {plugin.Name}: {ex.Message}", "Shutdown", ex);
                 }
             }
         }

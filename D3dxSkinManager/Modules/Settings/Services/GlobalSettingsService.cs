@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Settings.Models;
 
 namespace D3dxSkinManager.Modules.Settings.Services;
@@ -43,6 +44,7 @@ public class GlobalSettingsService : IGlobalSettingsService
     private readonly string _settingsFilePath;
     private GlobalSettings? _cachedSettings;
     private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly ILogHelper _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -50,17 +52,16 @@ public class GlobalSettingsService : IGlobalSettingsService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public GlobalSettingsService(IPathHelper pathHelper)
+    public GlobalSettingsService(IGlobalPathService globalPaths, ILogHelper logger)
     {
-        // Store global settings in data/settings/global.json
-        var settingsDir = Path.Combine(pathHelper.BaseDataPath, "settings");
-        _settingsFilePath = Path.Combine(settingsDir, "global.json");
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        var globalPathsService = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));
+
+        // Use GlobalPathService direct property for global settings file
+        _settingsFilePath = globalPathsService.GlobalSettingsFilePath;
 
         // Ensure settings directory exists
-        if (!Directory.Exists(settingsDir))
-        {
-            Directory.CreateDirectory(settingsDir);
-        }
+        globalPathsService.EnsureDirectoriesExist();
     }
 
     /// <summary>
@@ -68,8 +69,8 @@ public class GlobalSettingsService : IGlobalSettingsService
     /// </summary>
     public async Task<GlobalSettings> GetSettingsAsync()
     {
-        Console.WriteLine($"[GlobalSettingsService] GetSettingsAsync called");
-        Console.WriteLine($"[GlobalSettingsService] Settings file path: {_settingsFilePath}");
+        _logger.Debug($"GetSettingsAsync called", "GlobalSettingsService");
+        _logger.Debug($"Settings file path: {_settingsFilePath}", "GlobalSettingsService");
 
         await _lock.WaitAsync();
         try
@@ -77,27 +78,26 @@ public class GlobalSettingsService : IGlobalSettingsService
             // Return cached if available
             if (_cachedSettings != null)
             {
-                Console.WriteLine($"[GlobalSettingsService] Returning cached settings");
+                _logger.Debug($"Returning cached settings", "GlobalSettingsService");
                 return _cachedSettings;
             }
 
-            Console.WriteLine($"[GlobalSettingsService] No cached settings, loading from file...");
+            _logger.Debug($"No cached settings, loading from file...", "GlobalSettingsService");
 
             // Load from file or create default
             if (File.Exists(_settingsFilePath))
             {
-                Console.WriteLine($"[GlobalSettingsService] Settings file exists, reading...");
-                var json = await File.ReadAllTextAsync(_settingsFilePath);
-                _cachedSettings = JsonSerializer.Deserialize<GlobalSettings>(json, JsonOptions)
+                _logger.Debug($"Settings file exists, reading...", "GlobalSettingsService");
+                _cachedSettings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath)
                                   ?? new GlobalSettings();
-                Console.WriteLine($"[GlobalSettingsService] Settings loaded from file");
+                _logger.Info($"Settings loaded from file", "GlobalSettingsService");
             }
             else
             {
-                Console.WriteLine($"[GlobalSettingsService] Settings file not found, creating default...");
+                _logger.Info($"Settings file not found, creating default...", "GlobalSettingsService");
                 _cachedSettings = new GlobalSettings();
                 await SaveSettingsAsync(_cachedSettings);
-                Console.WriteLine($"[GlobalSettingsService] Default settings created and saved");
+                _logger.Info($"Default settings created and saved", "GlobalSettingsService");
             }
 
             return _cachedSettings;
@@ -131,7 +131,7 @@ public class GlobalSettingsService : IGlobalSettingsService
     /// </summary>
     public async Task UpdateSettingAsync(string key, string value)
     {
-        Console.WriteLine($"[GlobalSettingsService] UpdateSettingAsync called - Key: {key}, Value: {value}");
+        _logger.Debug($"UpdateSettingAsync called - Key: {key}, Value: {value}", "GlobalSettingsService");
         await _lock.WaitAsync();
         try
         {
@@ -139,18 +139,17 @@ public class GlobalSettingsService : IGlobalSettingsService
             GlobalSettings settings;
             if (_cachedSettings != null)
             {
-                Console.WriteLine($"[GlobalSettingsService] Using cached settings");
+                _logger.Debug($"Using cached settings", "GlobalSettingsService");
                 settings = _cachedSettings;
             }
             else if (File.Exists(_settingsFilePath))
             {
-                Console.WriteLine($"[GlobalSettingsService] Loading settings from file");
-                var json = await File.ReadAllTextAsync(_settingsFilePath);
-                settings = JsonSerializer.Deserialize<GlobalSettings>(json, JsonOptions) ?? new GlobalSettings();
+                _logger.Debug($"Loading settings from file", "GlobalSettingsService");
+                settings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath) ?? new GlobalSettings();
             }
             else
             {
-                Console.WriteLine($"[GlobalSettingsService] Creating new default settings");
+                _logger.Debug($"Creating new default settings", "GlobalSettingsService");
                 settings = new GlobalSettings();
             }
 
@@ -158,15 +157,15 @@ public class GlobalSettingsService : IGlobalSettingsService
             switch (key.ToLowerInvariant())
             {
                 case "theme":
-                    Console.WriteLine($"[GlobalSettingsService] Updating theme from '{settings.Theme}' to '{value}'");
+                    _logger.Info($"Updating theme from '{settings.Theme}' to '{value}'", "GlobalSettingsService");
                     settings.Theme = value;
                     break;
                 case "annotationlevel":
-                    Console.WriteLine($"[GlobalSettingsService] Updating annotationLevel from '{settings.AnnotationLevel}' to '{value}'");
+                    _logger.Info($"Updating annotationLevel from '{settings.AnnotationLevel}' to '{value}'", "GlobalSettingsService");
                     settings.AnnotationLevel = value;
                     break;
                 case "loglevel":
-                    Console.WriteLine($"[GlobalSettingsService] Updating logLevel from '{settings.LogLevel}' to '{value}'");
+                    _logger.Info($"Updating logLevel from '{settings.LogLevel}' to '{value}'", "GlobalSettingsService");
                     settings.LogLevel = value;
                     break;
                 default:
@@ -174,10 +173,10 @@ public class GlobalSettingsService : IGlobalSettingsService
             }
 
             settings.LastUpdated = DateTime.UtcNow;
-            Console.WriteLine($"[GlobalSettingsService] Saving settings to: {_settingsFilePath}");
+            _logger.Debug($"Saving settings to: {_settingsFilePath}", "GlobalSettingsService");
             await SaveSettingsAsync(settings);
             _cachedSettings = settings;
-            Console.WriteLine($"[GlobalSettingsService] Settings saved successfully");
+            _logger.Info($"Settings saved successfully", "GlobalSettingsService");
         }
         finally
         {
@@ -208,7 +207,6 @@ public class GlobalSettingsService : IGlobalSettingsService
     /// </summary>
     private async Task SaveSettingsAsync(GlobalSettings settings)
     {
-        var json = JsonSerializer.Serialize(settings, JsonOptions);
-        await File.WriteAllTextAsync(_settingsFilePath, json);
+        await JsonHelper.SerializeToFileAsync(_settingsFilePath, settings);
     }
 }

@@ -6,6 +6,8 @@ using FluentAssertions;
 using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Core;
 
@@ -16,7 +18,9 @@ public class ImageServiceTests : IDisposable
 {
     private readonly string _testDataPath;
     private readonly PathHelper _pathHelper;
-    private readonly Mock<IProfileContext> _mockProfileContext;
+    private readonly Mock<IProfilePathService> _mockProfilePaths;
+    private readonly Mock<IPathValidator> _mockPathValidator = new();
+    private readonly Mock<ILogHelper> _mockLogger = new();
     private readonly ImageService _service;
     private readonly string _testSha = "abc123def456";
 
@@ -28,11 +32,24 @@ public class ImageServiceTests : IDisposable
 
         _pathHelper = new PathHelper(_testDataPath);
 
-        // Mock ProfileContext
-        _mockProfileContext = new Mock<IProfileContext>();
-        _mockProfileContext.Setup(x => x.ProfilePath).Returns(_testDataPath);
+        // Mock ProfilePathService
+        _mockProfilePaths = new Mock<IProfilePathService>();
+        _mockProfilePaths.Setup(x => x.ProfilePath).Returns(_testDataPath);
+        _mockProfilePaths.Setup(x => x.ThumbnailsDirectory).Returns(Path.Combine(_testDataPath, "thumbnails"));
+        _mockProfilePaths.Setup(x => x.PreviewsDirectory).Returns(Path.Combine(_testDataPath, "previews"));
+        _mockProfilePaths.Setup(x => x.EnsureDirectoriesExist()).Callback(() =>
+        {
+            Directory.CreateDirectory(Path.Combine(_testDataPath, "thumbnails"));
+            Directory.CreateDirectory(Path.Combine(_testDataPath, "previews"));
+        });
 
-        _service = new ImageService(_mockProfileContext.Object, _pathHelper);
+        // Mock helper methods
+        _mockProfilePaths.Setup(x => x.GetThumbnailPath(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns<string, string>((sha, ext) => Path.Combine(_testDataPath, "thumbnails", $"{sha}{ext}"));
+        _mockProfilePaths.Setup(x => x.GetPreviewDirectoryPath(It.IsAny<string>()))
+            .Returns<string>(sha => Path.Combine(_testDataPath, "previews", sha));
+
+        _service = new ImageService(_mockProfilePaths.Object, _pathHelper, _mockPathValidator.Object, _mockLogger.Object);
     }
 
     public void Dispose()

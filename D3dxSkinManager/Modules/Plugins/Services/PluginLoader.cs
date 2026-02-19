@@ -3,6 +3,7 @@ using D3dxSkinManager.Modules.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Plugins.Services;
 
@@ -20,17 +21,20 @@ public interface IPluginLoader
 /// </summary>
 public class PluginLoader : IPluginLoader
 {
-    private readonly string _pluginsPath;
+    private readonly IProfilePathService _profilePaths;
     private readonly IPluginContext _pluginContext;
     private readonly IPluginRegistry _registry;
     private readonly ILogHelper _logger;
 
-    public PluginLoader(IProfileContext profileContext, IPluginContext pluginContext, IPluginRegistry registry, ILogHelper logger)
+    public PluginLoader(IProfilePathService profilePaths, IPluginContext pluginContext, IPluginRegistry registry, ILogHelper logger)
     {
-        _pluginsPath = Path.Combine(profileContext.ProfilePath, "plugins");
-        _pluginContext = pluginContext;
-        _registry = registry;
-        _logger = logger;
+        _profilePaths = profilePaths ?? throw new ArgumentNullException(nameof(profilePaths));
+        _pluginContext = pluginContext ?? throw new ArgumentNullException(nameof(pluginContext));
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Ensure plugins directory exists
+        _profilePaths.EnsureDirectoriesExist();
     }
 
     /// <summary>
@@ -38,19 +42,19 @@ public class PluginLoader : IPluginLoader
     /// </summary>
     public async Task<int> LoadPluginsAsync()
     {
-        _logger.Log(LogLevel.Info, $"[PluginLoader] Loading plugins from: {_pluginsPath}");
+        _logger.Log(LogLevel.Info, $"[PluginLoader] Loading plugins from: {_profilePaths.PluginsDirectory}");
 
-        if (!Directory.Exists(_pluginsPath))
+        if (!Directory.Exists(_profilePaths.PluginsDirectory))
         {
             _logger.Log(LogLevel.Info, "[PluginLoader] Plugins directory does not exist. Creating it.");
-            Directory.CreateDirectory(_pluginsPath);
+            Directory.CreateDirectory(_profilePaths.PluginsDirectory);
             return 0;
         }
 
         var loadedCount = 0;
 
         // Load assembly-based plugins (.dll files)
-        var dllFiles = Directory.GetFiles(_pluginsPath, "*.dll", SearchOption.AllDirectories);
+        var dllFiles = Directory.GetFiles(_profilePaths.PluginsDirectory, "*.dll", SearchOption.AllDirectories);
         foreach (var dllFile in dllFiles)
         {
             try

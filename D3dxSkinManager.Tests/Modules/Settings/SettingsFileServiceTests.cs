@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Settings.Services;
 using D3dxSkinManager.Modules.Core.Services;
@@ -18,6 +19,7 @@ public class SettingsFileServiceTests : IDisposable
     private readonly SettingsFileService _service;
     private readonly string _settingsDirectory;
     private readonly IPathHelper _pathHelper;
+    private readonly Mock<ILogHelper> _mockLogger = new();
 
     public SettingsFileServiceTests()
     {
@@ -25,7 +27,7 @@ public class SettingsFileServiceTests : IDisposable
         _testDataPath = Path.Combine(Path.GetTempPath(), $"SettingsFileServiceTests_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDataPath);
         _pathHelper = new PathHelper(_testDataPath);
-        _service = new SettingsFileService(_pathHelper);
+        _service = new SettingsFileService(_pathHelper, _mockLogger.Object);
         _settingsDirectory = Path.Combine(_testDataPath, "settings");
     }
 

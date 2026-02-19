@@ -48,16 +48,20 @@ public interface IFileSystemService
 /// </summary>
 public class FileSystemService : IFileSystemService
 {
+    private readonly IPathValidator _pathValidator;
+
+    public FileSystemService(IPathValidator pathValidator)
+    {
+        _pathValidator = pathValidator;
+    }
+
     /// <summary>
     /// Opens a file in Windows Explorer with the file selected
     /// </summary>
     public async Task OpenFileInExplorerAsync(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
-
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException($"File not found: {filePath}", filePath);
+        _pathValidator.ValidatePathNotEmpty(filePath, nameof(filePath));
+        _pathValidator.ValidateFileExists(filePath);
 
         try
         {
@@ -76,11 +80,8 @@ public class FileSystemService : IFileSystemService
     /// </summary>
     public async Task OpenDirectoryAsync(string directoryPath)
     {
-        if (string.IsNullOrWhiteSpace(directoryPath))
-            throw new ArgumentException("Directory path cannot be null or empty", nameof(directoryPath));
-
-        if (!Directory.Exists(directoryPath))
-            throw new DirectoryNotFoundException($"Directory not found: {directoryPath}");
+        _pathValidator.ValidatePathNotEmpty(directoryPath, nameof(directoryPath));
+        _pathValidator.ValidateDirectoryExists(directoryPath);
 
         try
         {
@@ -98,11 +99,8 @@ public class FileSystemService : IFileSystemService
     /// </summary>
     public async Task OpenFileAsync(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
-
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException($"File not found: {filePath}", filePath);
+        _pathValidator.ValidatePathNotEmpty(filePath, nameof(filePath));
+        _pathValidator.ValidateFileExists(filePath);
 
         try
         {

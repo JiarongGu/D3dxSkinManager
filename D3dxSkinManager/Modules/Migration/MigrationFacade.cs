@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Facades;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Migration.Models;
@@ -11,56 +12,53 @@ using D3dxSkinManager.Modules.Mods;
 namespace D3dxSkinManager.Modules.Migration;
 
 /// <summary>
+/// Interface for Migration facade
+/// Handles: MIGRATION_ANALYZE, MIGRATION_START, MIGRATION_VALIDATE
+/// Prefix: MIGRATION_*
+/// </summary>
+public interface IMigrationFacade : IModuleFacade
+{
+    Task<MigrationAnalysis> AnalyzeSourceAsync(string pythonPath);
+    Task<MigrationResult> StartMigrationAsync(MigrationOptions options, IProgress<MigrationProgress>? progress = null);
+    Task<bool> ValidateMigrationAsync(string pythonPath, string reactDataPath);
+}
+
+/// <summary>
 /// Facade for migration operations
 /// Responsibility: Python to React migration functionality
 /// IPC Prefix: MIGRATION_*
 /// </summary>
-public class MigrationFacade : IMigrationFacade
+public class MigrationFacade : BaseFacade, IMigrationFacade
 {
+    protected override string ModuleName => "MigrationFacade";
+
     private readonly IMigrationService _migrationService;
     private readonly IModFacade _modFacade;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly PluginEventBus? _eventBus;
+    private readonly IEventEmitterHelper _eventEmitter;
 
     public MigrationFacade(
         IMigrationService migrationService,
         IModFacade modFacade,
         IPayloadHelper payloadHelper,
-        PluginEventBus? eventBus = null)
+        IEventEmitterHelper eventEmitter,
+        ILogHelper logger) : base(logger)
     {
         _migrationService = migrationService ?? throw new ArgumentNullException(nameof(migrationService));
         _modFacade = modFacade ?? throw new ArgumentNullException(nameof(modFacade));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
-        _eventBus = eventBus;
+        _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
     }
 
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
     {
-        try
+        return request.Type switch
         {
-            Console.WriteLine($"[MigrationFacade] Handling message: {request.Type}");
-
-            object? responseData = request.Type switch
-            {
-                "MIGRATION_AUTO_DETECT" => await AutoDetectPythonInstallationAsync(),
-                "ANALYZE" => await AnalyzeSourceAsync(request),
-                "START" => await StartMigrationAsync(request),
-                "MIGRATION_VALIDATE" => await ValidateMigrationAsync(request),
-                _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
-            };
-
-            return MessageResponse.CreateSuccess(request.Id, responseData);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[MigrationFacade] Error handling message: {ex.Message}");
-            return MessageResponse.CreateError(request.Id, ex.Message);
-        }
-    }
-
-    public async Task<string?> AutoDetectPythonInstallationAsync()
-    {
-        return await _migrationService.AutoDetectPythonInstallationAsync();
+            "ANALYZE" => await AnalyzeSourceAsync(request),
+            "START" => await StartMigrationAsync(request),
+            "MIGRATION_VALIDATE" => await ValidateMigrationAsync(request),
+            _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
+        };
     }
 
     public async Task<MigrationAnalysis> AnalyzeSourceAsync(string pythonPath)
@@ -75,24 +73,16 @@ public class MigrationFacade : IMigrationFacade
         // Refresh classification tree cache after migration
         try
         {
-            Console.WriteLine("[MigrationFacade] Refreshing classification tree after migration");
+            _logger.Info("Refreshing classification tree after migration", "MigrationFacade");
             await _modFacade.RefreshClassificationTreeAsync();
-            Console.WriteLine("[MigrationFacade] Classification tree refreshed successfully");
+            _logger.Info("Classification tree refreshed successfully", "MigrationFacade");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[MigrationFacade] Failed to refresh classification tree: {ex.Message}");
+            _logger.Error($"Failed to refresh classification tree: {ex.Message}", "MigrationFacade", ex);
         }
 
-        if (_eventBus != null)
-        {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "migration.completed",
-                Data = result
-            });
-        }
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "migration.completed", result);
 
         return result;
     }

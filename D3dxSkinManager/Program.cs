@@ -163,6 +163,7 @@ class Program
     private static Stream OnAppRequestReceived(object sender, string scheme, string url, out string contentType)
     {
         contentType = string.Empty;
+        var uri = new Uri(url);
         Console.WriteLine($"[CustomScheme] Received request: {url}");
         return Stream.Null;
     }

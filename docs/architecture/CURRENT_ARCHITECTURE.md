@@ -1,10 +1,10 @@
 # D3dxSkinManager - Current Architecture Guide
 
-**Last Updated:** 2024
+**Last Updated:** 2026-02-19
 
 ## Overview
 
-D3dxSkinManager is a modern .NET 8 + React application for managing game mods with a clean module-based architecture that aligns frontend and backend components.
+D3dxSkinManager is a modern .NET 10 + React application for managing game mods with a clean module-based architecture that aligns frontend and backend components.
 
 ## Architecture Principles
 
@@ -31,7 +31,7 @@ D3dxSkinManager is a modern .NET 8 + React application for managing game mods wi
                            │ IPC Messages
                            │ { module, type, payload }
 ┌──────────────────────────┴──────────────────────────────────┐
-│                    Backend (.NET 8 + Photino)                │
+│                    Backend (.NET 10 + Photino)                │
 ├─────────────────────────────────────────────────────────────┤
 │  Program.cs (IPC Handler)                                    │
 │      ↓                                                       │
@@ -99,14 +99,39 @@ modules/{moduleName}/
 
 ### Message Structure
 
+**Type-Safe Generic Message Types (2026-02-19):**
+
 ```typescript
-interface PhotinoMessage {
-  id: string;           // Unique message ID
-  module: ModuleName;   // Target module (e.g., 'MOD', 'PROFILE')
-  type: string;         // Action within module (e.g., 'GET_ALL', 'CREATE')
-  payload?: any;        // Optional data
+// Generic message type with type-safe payload
+interface PhotinoMessage<TPayload = unknown> {
+  id: string;                // Unique message ID
+  module: ModuleName;        // Target module (union type, not string)
+  type: MessageType;         // Action within module
+  profileId?: string;        // Profile context (top-level, not in payload)
+  payload?: TPayload;        // Optional typed data
 }
+
+// Generic response type with type-safe data
+interface PhotinoResponse<TData = unknown> {
+  id: string;                // Matches request ID
+  success: boolean;          // Operation status
+  data?: TData;              // Optional typed result
+  error?: string;            // Error message if failed
+}
+
+// ModuleName is a union type, not string
+type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'TOOL' | 'PLUGIN' |
+                  'WAREHOUSE' | 'MIGRATION' | 'LAUNCH' | 'D3DMIGOTO';
+
+// MessageType is also a union type
+type MessageType = string; // Specific types per module
 ```
+
+**Key Type Safety Features:**
+- Generic payload types eliminate `any` usage
+- `ModuleName` union type prevents typos
+- Default generic parameters (`= unknown`) maintain backward compatibility
+- Profile ID at top level, not in payload
 
 ### Example Messages
 
@@ -139,9 +164,108 @@ interface PhotinoMessage {
 }
 ```
 
+## Frontend UI Components Architecture
+
+### Compact Components System
+
+**Location:** `D3dxSkinManager.Client/src/shared/components/compact/`
+
+The application uses a custom Compact components system for consistent UI styling and sizing:
+
+**Available Components:**
+- `CompactButton` - Consistent button sizing and styling
+- `CompactCard` - Card containers with proper spacing
+- `CompactSpace` - Layout spacing component
+- `CompactDivider` - Section dividers
+- `CompactText` - Typography with proper sizing
+- `CompactAlert` - Alert/notification messages
+- `CompactSection` - Page sections with consistent padding
+
+**Design Principles:**
+- **Consistent Sizing:** All components use standardized sizes for visual harmony
+- **Dark Theme Support:** Flat design (no shadows) to avoid Ant Design style mismatches
+- **Clean Imports:** All components exported through `compact/index.ts`
+- **Ant Design Wrapper:** Wraps Ant Design components with custom styling
+
+**Usage Pattern:**
+```typescript
+// ❌ Old way (inconsistent)
+import { Button, Card, Space } from 'antd';
+
+// ✅ New way (consistent)
+import { CompactButton, CompactCard, CompactSpace } from '../../../shared/components/compact';
+
+// Usage
+<CompactCard>
+  <CompactSpace direction="vertical">
+    <CompactButton type="primary" onClick={handleClick}>
+      Save
+    </CompactButton>
+  </CompactSpace>
+</CompactCard>
+```
+
+**Implementation:**
+```typescript
+// compact/CompactButton.tsx
+import { Button, ButtonProps } from 'antd';
+import './CompactButton.css';
+
+export const CompactButton: React.FC<ButtonProps> = (props) => {
+  return <Button {...props} className={`compact-button ${props.className || ''}`} />;
+};
+
+// CSS provides consistent sizing and dark theme support
+```
+
+## Error Handling Architecture
+
+### Frontend Error Handling Pattern (2026-02-19)
+
+**Standardized Pattern:**
+
+```typescript
+// ✅ Correct pattern
+try {
+  await someAsyncOperation();
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+  message.error(errorMessage);
+  console.error('Operation failed:', error);
+}
+
+// ❌ Incorrect patterns (avoid)
+catch (error: any) { ... }           // Uses 'any' type
+catch (error) { ... }                // Implicit 'any'
+catch (error: Error) { ... }         // Assumes error is Error type
+```
+
+**Key Principles:**
+- Always use `catch (error: unknown)` for type safety
+- Use type guards to check error type: `error instanceof Error`
+- Provide fallback message for non-Error objects
+- Log errors with context for debugging
+- User-facing messages should be clear and actionable
+
+**Example with Silent Handling:**
+```typescript
+try {
+  const config = await profileService.getProfileConfig(profileId);
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : '';
+  // Silent handling for expected errors
+  if (!errorMessage.includes('Profile ID is required')) {
+    message.error('Failed to load profile configuration');
+    console.error('Failed to load profile config:', error);
+  }
+}
+```
+
 ## Frontend Service Pattern
 
 ### Base Service Class
+
+**Type-Safe BaseModuleService (2026-02-19):**
 
 ```typescript
 // All module services extend BaseModuleService
@@ -152,17 +276,52 @@ abstract class BaseModuleService {
     this.moduleName = moduleName;
   }
 
-  // Core method
-  protected async sendMessage<T>(type: string, payload?: any): Promise<T> {
-    return photinoService.sendMessage<T>(this.moduleName, type, payload);
+  // Core method with dual generics for type safety
+  protected async sendMessage<T, TPayload = unknown>(
+    type: string,
+    profileId?: string,
+    payload?: TPayload
+  ): Promise<T> {
+    return photinoService.sendMessage<T>({
+      module: this.moduleName,
+      type,
+      profileId,
+      payload
+    });
   }
 
-  // Convenience methods
-  protected async sendBooleanMessage(type: string, payload?: any): Promise<boolean>
-  protected async sendArrayMessage<T>(type: string, payload?: any): Promise<T[]>
-  protected async sendNullableMessage<T>(type: string, payload?: any): Promise<T | null>
+  // Convenience methods with generic payload types
+  protected async sendBooleanMessage<TPayload = unknown>(
+    type: string,
+    profileId?: string,
+    payload?: TPayload
+  ): Promise<boolean> {
+    return this.sendMessage<boolean, TPayload>(type, profileId, payload);
+  }
+
+  protected async sendArrayMessage<T, TPayload = unknown>(
+    type: string,
+    profileId?: string,
+    payload?: TPayload
+  ): Promise<T[]> {
+    return this.sendMessage<T[], TPayload>(type, profileId, payload);
+  }
+
+  protected async sendNullableMessage<T, TPayload = unknown>(
+    type: string,
+    profileId?: string,
+    payload?: TPayload
+  ): Promise<T | null> {
+    return this.sendMessage<T | null, TPayload>(type, profileId, payload);
+  }
 }
 ```
+
+**Key Changes:**
+- Dual generic parameters: `<T, TPayload = unknown>` for both request and response types
+- Profile ID as separate parameter (not in payload)
+- Default `unknown` type maintains backward compatibility
+- Eliminates all `any` types
 
 ### Module Service Example
 
@@ -456,7 +615,7 @@ If No: Route to AppFacade → Module Facade
 
 ```
 D3dxSkinManager/
-├── D3dxSkinManager/                 # Backend (.NET 8)
+├── D3dxSkinManager/                 # Backend (.NET 10)
 │   ├── Configuration/               # DI registration
 │   ├── Facades/                     # Top-level facades
 │   │   ├── IAppFacade.cs

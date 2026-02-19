@@ -1,6 +1,6 @@
 # D3dxSkinManager
 
-Modern rewrite of d3dxSkinManage using **.NET 8 + Photino.NET** (C# backend) + **React + TypeScript** (frontend).
+Modern rewrite of d3dxSkinManage using **.NET 10 + Photino.NET** (C# backend) + **React + TypeScript** (frontend).
 
 ![Version](https://img.shields.io/badge/version-2.0.0-blue) ![.NET](https://img.shields.io/badge/.NET-8.0-purple) ![React](https://img.shields.io/badge/React-19.2-61DAFB)
 
@@ -16,7 +16,7 @@ Modern rewrite of d3dxSkinManage using **.NET 8 + Photino.NET** (C# backend) + *
 ## Technology Stack
 
 ### Backend
-- **.NET 8** - Modern, cross-platform framework
+- **.NET 10** - Modern, cross-platform framework
 - **Photino.NET** - Lightweight desktop app framework
 - **SQLite** - Embedded database
 - **C#** with **Dependency Injection**
@@ -49,7 +49,7 @@ Modern rewrite of d3dxSkinManage using **.NET 8 + Photino.NET** (C# backend) + *
 ## Getting Started
 
 ### Prerequisites
-- [.NET 8 SDK](https://dotnet.microsoft.com/download)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js 18+](https://nodejs.org/) with npm
 - Windows 10+ (Linux/macOS experimental)
 
@@ -78,7 +78,7 @@ dotnet run
 
 ```
 d3dxSkinManage-Rewrite/
-├── D3dxSkinManager/              # Backend (.NET 8)
+├── D3dxSkinManager/              # Backend (.NET 10)
 │   ├── Configuration/            # DI setup ⭐
 │   ├── Facades/                  # Service coordination ⭐
 │   ├── Models/                   # Data models ⭐
@@ -140,7 +140,7 @@ d3dxSkinManage-Rewrite/
 # Run the build script
 powershell .\build-production.ps1
 
-# Output will be in D3dxSkinManager/bin/Release/net8.0/publish/
+# Output will be in D3dxSkinManager/bin/Release/net10.0/publish/
 ```
 
 ## Documentation

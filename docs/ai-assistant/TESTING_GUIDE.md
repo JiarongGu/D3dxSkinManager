@@ -53,7 +53,7 @@
 
 ## Testing Infrastructure
 
-### Backend (.NET 8 + xUnit)
+### Backend (.NET 10 + xUnit)
 
 **Location:** `D3dxSkinManager.Tests/`
 

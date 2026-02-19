@@ -1,38 +1,79 @@
 # Frontend Service Architecture - Module-Based Services
 
+**Last Updated:** 2026-02-19
+
 ## Overview
 
-Implemented dedicated service classes for each frontend module that mirror the backend module structure, providing type-safe IPC communication through a shared base class.
+Implemented dedicated service classes for each frontend module that mirror the backend module structure, providing type-safe IPC communication through a shared base class with generic type parameters for both requests and responses.
 
 ## Architecture
 
-### Base Service Class
+### Base Service Class ⭐ UPDATED (2026-02-19)
 
 **File:** [baseModuleService.ts](../../D3dxSkinManager.Client/src/shared/services/baseModuleService.ts)
+
+**Type-Safe Generic Implementation:**
 
 ```typescript
 /**
  * Abstract base class for module services
  * Each module service extends this to provide typed operations
+ * Uses dual generic parameters for type-safe request/response
  */
 export abstract class BaseModuleService {
-  protected readonly moduleName: ModuleName;
+  protected readonly moduleName: ModuleName;  // Union type, not string
 
   constructor(moduleName: ModuleName) {
     this.moduleName = moduleName;
   }
 
-  // Core method - routes to specific module
-  protected async sendMessage<T>(type: string, payload?: any): Promise<T> {
-    return photinoService.sendMessage<T>(this.moduleName, type, payload);
+  // Core method with dual generics: <TResponse, TPayload>
+  protected async sendMessage<T, TPayload = unknown>(
+    type: string,
+    profileId?: string,
+    payload?: TPayload
+  ): Promise<T> {
+    return photinoService.sendMessage<T>({
+      module: this.moduleName,
+      type,
+      profileId,
+      payload
+    });
   }
 
-  // Convenience methods for common return types
-  protected async sendBooleanMessage(type: string, payload?: any): Promise<boolean>
-  protected async sendArrayMessage<T>(type: string, payload?: any): Promise<T[]>
-  protected async sendNullableMessage<T>(type: string, payload?: any): Promise<T | null>
+  // Convenience methods with generic payload types
+  protected async sendBooleanMessage<TPayload = unknown>(
+    type: string,
+    profileId?: string,
+    payload?: TPayload
+  ): Promise<boolean> {
+    return this.sendMessage<boolean, TPayload>(type, profileId, payload);
+  }
+
+  protected async sendArrayMessage<T, TPayload = unknown>(
+    type: string,
+    profileId?: string,
+    payload?: TPayload
+  ): Promise<T[]> {
+    return this.sendMessage<T[], TPayload>(type, profileId, payload);
+  }
+
+  protected async sendNullableMessage<T, TPayload = unknown>(
+    type: string,
+    profileId?: string,
+    payload?: TPayload
+  ): Promise<T | null> {
+    return this.sendMessage<T | null, TPayload>(type, profileId, payload);
+  }
 }
 ```
+
+**Key Type Safety Features:**
+- Dual generic parameters: `<TResponse, TPayload = unknown>`
+- Default `unknown` type maintains backward compatibility
+- Profile ID as separate parameter (not in payload)
+- ModuleName is union type: `'MOD' | 'PROFILE' | ...`
+- Eliminates all `any` types
 
 ### Module Services
 
@@ -155,36 +196,66 @@ class MockModService extends BaseModuleService {
 
 ## Implementation Examples
 
-### ModService
+### ModService ⭐ UPDATED (2026-02-19)
 
 **File:** [modService.ts](../../D3dxSkinManager.Client/src/modules/mods/services/modService.ts)
 
 ```typescript
 export class ModService extends BaseModuleService {
   constructor() {
-    super('MOD');  // Fixed module name
+    super('MOD');  // Fixed module name (union type member)
   }
 
-  async getAllMods(): Promise<ModInfo[]> {
-    return this.sendArrayMessage<ModInfo>('GET_ALL');
+  // Simple array fetch - no payload needed
+  async getAllMods(profileId?: string): Promise<ModInfo[]> {
+    return this.sendArrayMessage<ModInfo>(
+      'GET_ALL',
+      profileId
+    );
   }
 
-  async loadMod(sha: string): Promise<boolean> {
-    return this.sendBooleanMessage('LOAD', { sha });
+  // Boolean operation with typed payload
+  async loadMod(sha: string, profileId?: string): Promise<boolean> {
+    return this.sendBooleanMessage<{ sha: string }>(
+      'LOAD',
+      profileId,
+      { sha }
+    );
   }
 
-  async getModBySha(sha: string): Promise<ModInfo | null> {
-    return this.sendNullableMessage<ModInfo>('GET_BY_SHA', { sha });
+  // Nullable result with typed payload
+  async getModBySha(sha: string, profileId?: string): Promise<ModInfo | null> {
+    return this.sendNullableMessage<ModInfo, { sha: string }>(
+      'GET_BY_SHA',
+      profileId,
+      { sha }
+    );
   }
 
-  async updateMetadata(sha: string, metadata: Partial<ModInfo>): Promise<boolean> {
-    return this.sendBooleanMessage('UPDATE_METADATA', { sha, ...metadata });
+  // Complex payload with specific interface
+  async updateMetadata(
+    sha: string,
+    metadata: Partial<ModInfo>,
+    profileId?: string
+  ): Promise<boolean> {
+    type UpdatePayload = { sha: string } & Partial<ModInfo>;
+    return this.sendBooleanMessage<UpdatePayload>(
+      'UPDATE_METADATA',
+      profileId,
+      { sha, ...metadata }
+    );
   }
 }
 
 // Export singleton
 export const modService = new ModService();
 ```
+
+**Key Changes:**
+- Profile ID as separate parameter
+- Explicit payload types: `<{ sha: string }>`
+- No `any` types anywhere
+- Type-safe from service call to IPC
 
 ### ProfileService
 

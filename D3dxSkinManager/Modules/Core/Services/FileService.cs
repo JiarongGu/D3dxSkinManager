@@ -3,8 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using SharpCompress.Archives;
 using SharpCompress.Common;
+using SharpCompress.Readers;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
@@ -15,6 +15,8 @@ public interface IFileService
 {
     Task<string> CalculateSha256Async(string filePath);
     Task<bool> ExtractArchiveAsync(string archivePath, string targetDirectory);
+    Task<bool> CopyFileAsync(string sourceFile, string destinationFile, bool overwrite = false);
+    Task<bool> MoveFileAsync(string sourceFile, string destinationFile);
     Task<bool> CopyDirectoryAsync(string sourceDir, string targetDir, bool overwrite = true);
     Task<bool> DeleteDirectoryAsync(string directory);
 }
@@ -26,6 +28,13 @@ public interface IFileService
 /// </summary>
 public class FileService : IFileService
 {
+    private readonly ILogHelper _logger;
+
+    public FileService(ILogHelper logger)
+    {
+        _logger = logger;
+    }
+
     /// <summary>
     /// Calculate SHA256 hash of a file
     /// </summary>
@@ -59,34 +68,69 @@ public class FileService : IFileService
                 if (!Directory.Exists(targetDirectory))
                     Directory.CreateDirectory(targetDirectory);
 
-                Console.WriteLine($"[FileService] Extracting {Path.GetFileName(archivePath)}...");
+                _logger.Info($"Extracting {Path.GetFileName(archivePath)}...", "FileService");
 
-                // Open archive (auto-detects format: ZIP, RAR, 7Z, TAR, GZIP, etc.)
-                using var archive = ArchiveFactory.Open(archivePath);
-
-                var extractionOptions = new ExtractionOptions
-                {
-                    ExtractFullPath = true,
-                    Overwrite = true
-                };
+                // Use Reader API for SharpCompress 0.46+
+                using var reader = ReaderFactory.OpenReader(archivePath);
 
                 // Extract all entries
                 var entryCount = 0;
-                foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+                while (reader.MoveToNextEntry())
                 {
-                    entry.WriteToDirectory(targetDirectory, extractionOptions);
-                    entryCount++;
+                    if (!reader.Entry.IsDirectory)
+                    {
+                        reader.WriteEntryToDirectory(targetDirectory);
+                        entryCount++;
+                    }
                 }
 
-                Console.WriteLine($"[FileService] Extracted {entryCount} files from {Path.GetFileName(archivePath)}");
+                _logger.Info($"Extracted {entryCount} files from {Path.GetFileName(archivePath)}", "FileService");
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[FileService] Extraction failed: {ex.Message}");
+                _logger.Error($"Extraction failed: {ex.Message}", "FileService", ex);
                 throw new InvalidOperationException($"Archive extraction failed: {ex.Message}", ex);
             }
         });
+    }
+
+    /// <summary>
+    /// Copy a single file
+    /// </summary>
+    public async Task<bool> CopyFileAsync(string sourceFile, string destinationFile, bool overwrite = false)
+    {
+        if (!File.Exists(sourceFile))
+            throw new FileNotFoundException($"Source file not found: {sourceFile}");
+
+        // Create destination directory if it doesn't exist
+        var destDir = Path.GetDirectoryName(destinationFile);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+            Directory.CreateDirectory(destDir);
+
+        // Copy file
+        File.Copy(sourceFile, destinationFile, overwrite);
+
+        return await Task.FromResult(true);
+    }
+
+    /// <summary>
+    /// Move a single file
+    /// </summary>
+    public async Task<bool> MoveFileAsync(string sourceFile, string destinationFile)
+    {
+        if (!File.Exists(sourceFile))
+            throw new FileNotFoundException($"Source file not found: {sourceFile}");
+
+        // Create destination directory if it doesn't exist
+        var destDir = Path.GetDirectoryName(destinationFile);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+            Directory.CreateDirectory(destDir);
+
+        // Move file
+        File.Move(sourceFile, destinationFile);
+
+        return await Task.FromResult(true);
     }
 
     /// <summary>
@@ -135,7 +179,7 @@ public class FileService : IFileService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to delete directory {directory}: {ex.Message}");
+            _logger.Error($"Failed to delete directory {directory}: {ex.Message}", "FileService", ex);
             return false;
         }
     }

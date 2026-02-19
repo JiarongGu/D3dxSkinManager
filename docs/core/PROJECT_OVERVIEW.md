@@ -3,7 +3,7 @@
 **Project Name:** D3dxSkinManager
 **Version:** 1.0.0
 **Type:** Desktop Application (Windows)
-**Technology:** .NET 8 + Photino.NET + React + TypeScript
+**Technology:** .NET 10 + Photino.NET + React + TypeScript
 **Purpose:** Mod management for 3DMigoto-based game mods
 **Status:** ✅ Active Development
 
@@ -502,7 +502,7 @@ Communication between C# backend and React frontend:
 | Attribute | Value |
 |-----------|-------|
 | **Language** | C# + TypeScript |
-| **Framework** | .NET 8 + React 19 |
+| **Framework** | .NET 10 + React 19 |
 | **Desktop Framework** | Photino.NET 4.0.16 |
 | **Database** | SQLite 3.x |
 | **UI Library** | Ant Design 6.3.0 |

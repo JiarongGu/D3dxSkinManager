@@ -4,7 +4,7 @@
 
 **Purpose:** Detailed workflows to ensure consistency and avoid mistakes.
 
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-19
 
 ---
 
@@ -278,7 +278,8 @@ var yourService = new YourService(dataPath);
 
 ```typescript
 import React, { useState, useEffect } from 'react';
-import { Button, Table, message } from 'antd';
+import { Table, message } from 'antd';
+import { CompactButton } from '../../shared/components/compact';  // ⭐ Use Compact components
 import type { ColumnsType } from 'antd/es/table';
 
 interface YourComponentProps {
@@ -305,8 +306,10 @@ const YourComponent: React.FC<YourComponentProps> = ({ title = 'Default Title' }
       // Load data from service
       const result = await yourService.getData();
       setData(result);
-    } catch (error) {
-      message.error(`Failed to load data: ${(error as Error).message}`);
+    } catch (error: unknown) {  // ⭐ Always use 'error: unknown'
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      message.error(`Failed to load data: ${errorMessage}`);
+      console.error('Load data error:', error);
     } finally {
       setLoading(false);
     }
@@ -360,6 +363,111 @@ import YourComponent from './components/YourComponent';
    ```
 
 2. Add to `docs/CHANGELOG.md`
+
+---
+
+## Creating Type-Safe Frontend Service ⭐ NEW (2026-02-19)
+
+### Step 1: Create Service Class
+
+**File:** `D3dxSkinManager.Client/src/modules/{module}/services/{module}Service.ts`
+
+```typescript
+import { BaseModuleService } from '../../../shared/services/baseModuleService';
+import type { ModuleName } from '../../../shared/types/message.types';
+
+// Define request/response types
+export interface YourRequest {
+  name: string;
+  description?: string;
+}
+
+export interface YourResponse {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export class YourModuleService extends BaseModuleService {
+  constructor() {
+    super('YOUR_MODULE' as ModuleName);  // Use ModuleName union type
+  }
+
+  // Type-safe method with generic payload types
+  async create(request: YourRequest): Promise<YourResponse> {
+    return this.sendMessage<YourResponse, YourRequest>(
+      'CREATE',
+      undefined,  // profileId if needed
+      request
+    );
+  }
+
+  async getAll(profileId?: string): Promise<YourResponse[]> {
+    return this.sendArrayMessage<YourResponse>(
+      'GET_ALL',
+      profileId
+    );
+  }
+
+  async delete(id: string, profileId?: string): Promise<boolean> {
+    return this.sendBooleanMessage<{ id: string }>(
+      'DELETE',
+      profileId,
+      { id }
+    );
+  }
+}
+
+// Export singleton instance
+export const yourModuleService = new YourModuleService();
+```
+
+### Step 2: Add ModuleName Type
+
+**File:** `D3dxSkinManager.Client/src/shared/types/message.types.ts`
+
+```typescript
+export type ModuleName =
+  | 'MOD'
+  | 'PROFILE'
+  | 'SETTINGS'
+  | 'YOUR_MODULE'  // ⭐ Add your module here
+  | ...;
+```
+
+### Step 3: Use Service in Component
+
+```typescript
+import { yourModuleService } from '../services/yourModuleService';
+import type { YourRequest } from '../services/yourModuleService';
+
+const MyComponent: React.FC = () => {
+  const handleCreate = async () => {
+    try {
+      const request: YourRequest = {
+        name: 'New Item',
+        description: 'Optional description'
+      };
+
+      const result = await yourModuleService.create(request);
+      message.success(`Created: ${result.name}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Creation failed';
+      message.error(errorMessage);
+      console.error('Create error:', error);
+    }
+  };
+
+  return <CompactButton onClick={handleCreate}>Create</CompactButton>;
+};
+```
+
+**Key Points:**
+- Use dual generic parameters: `<TResponse, TPayload>`
+- Define specific request/response interfaces
+- ModuleName must be union type member
+- Always use `error: unknown` in catch blocks
+- Export singleton service instance
 
 ---
 

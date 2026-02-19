@@ -2,7 +2,7 @@
 
 **Project:** D3dxSkinManager
 **Version:** 1.0.0
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-19
 
 ---
 
@@ -22,10 +22,17 @@
 
 The project follows a **monorepo structure** with clear separation between backend (.NET), frontend (React), and documentation.
 
+**Git Repository Structure (Updated 2026-02-19):**
+- Single unified git repository at root level
+- Previous nested `D3dxSkinManager.Client/.git` has been consolidated into root
+- All project files tracked in single repository
+
 ```
-d3dxSkinManage-Rewrite/          # Repository root
-├── D3dxSkinManager/             # Backend (.NET 8 project)
+D3dxSkinManager/                 # Repository root (single .git)
+├── D3dxSkinManager/             # Backend (.NET 10 project)
 ├── D3dxSkinManager.Client/      # Frontend (React + TypeScript)
+├── Plugins/                     # External plugin projects (27 plugins)
+├── D3dxSkinManager.Tests/       # Backend unit tests
 ├── docs/                        # Documentation system
 ├── D3dxSkinManager.sln          # Visual Studio solution
 ├── build-production.ps1         # Production build script
@@ -207,25 +214,35 @@ D3dxSkinManager.Client/
 │   └── manifest.json               # PWA manifest
 │
 ├── src/                            # Source code
-│   ├── services/                   # Non-UI logic
-│   │   ├── photino.ts              # IPC bridge to C# backend
-│   │   │   └─ Exports:
-│   │   │       ├─ PhotinoService class      → Line 24
-│   │   │       ├─ sendMessage()             → Line 55
-│   │   │       ├─ initializeMessageReceiver() → Line 22
-│   │   │       ├─ simulateBackendResponse() → Line 87
-│   │   │       └─ photinoService (singleton)
+│   ├── shared/                     # Shared utilities & components
+│   │   ├── components/             # Reusable UI components
+│   │   │   └── compact/            # ⭐ Compact component system (2026-02-19)
+│   │   │       ├── index.ts        # Barrel export for all components
+│   │   │       ├── CompactButton.tsx      # Consistent button sizing
+│   │   │       ├── CompactCard.tsx        # Card containers
+│   │   │       ├── CompactSpace.tsx       # Layout spacing
+│   │   │       ├── CompactDivider.tsx     # Section dividers
+│   │   │       ├── CompactText.tsx        # Typography
+│   │   │       ├── CompactAlert.tsx       # Alerts
+│   │   │       └── CompactSection.tsx     # Page sections
 │   │   │
-│   │   └── modService.ts           # API wrapper for mods
-│   │       └─ Exports:
-│   │           ├─ ModInfo interface         → Line 3
-│   │           ├─ ModService class          → Line 18
-│   │           ├─ getAllMods()              → Line 23
-│   │           ├─ loadMod()                 → Line 28
-│   │           ├─ unloadMod()               → Line 33
-│   │           ├─ getLoadedMods()           → Line 38
-│   │           ├─ importMod()               → Line 43
-│   │           └─ modService (singleton)
+│   │   ├── services/               # Non-UI logic
+│   │   │   ├── baseModuleService.ts    # Base class for all services
+│   │   │   └── photinoService.ts       # IPC bridge to C# backend
+│   │   │
+│   │   └── types/                  # Shared TypeScript types
+│   │       ├── message.types.ts    # IPC message types (generic)
+│   │       └── *.types.ts          # Other shared types
+│   │
+│   ├── modules/                    # Feature modules
+│   │   ├── mods/                   # Mod management module
+│   │   │   ├── components/         # Mod UI components
+│   │   │   ├── services/           # modService.ts
+│   │   │   └── types/              # Mod-specific types
+│   │   │
+│   │   ├── profiles/               # Profile management
+│   │   ├── settings/               # Settings module
+│   │   └── ...                     # Other modules
 │   │
 │   ├── App.tsx                     # Main application component
 │   │   └─ Exports:

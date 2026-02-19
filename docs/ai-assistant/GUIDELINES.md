@@ -4,7 +4,7 @@
 
 **Purpose:** Prevent common errors and establish consistent coding patterns.
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-02-19
 
 ---
 
@@ -287,6 +287,50 @@ interface ApiResponse {
 const response: ApiResponse = await fetch();
 ```
 
+#### ✅ DO: Use Generic Types for IPC Messages ⭐ NEW (2026-02-19)
+```typescript
+// Define generic message types
+interface PhotinoMessage<TPayload = unknown> {
+  id: string;
+  module: ModuleName;  // Union type, not string
+  type: MessageType;
+  profileId?: string;
+  payload?: TPayload;  // Type-safe payload
+}
+
+interface PhotinoResponse<TData = unknown> {
+  id: string;
+  success: boolean;
+  data?: TData;  // Type-safe response data
+  error?: string;
+}
+
+// Use in service methods
+protected async sendMessage<T, TPayload = unknown>(
+  type: string,
+  profileId?: string,
+  payload?: TPayload
+): Promise<T> {
+  return photinoService.sendMessage<T>({
+    module: this.moduleName,
+    type,
+    profileId,
+    payload
+  });
+}
+
+// Example usage with specific types
+async createProfile(request: CreateProfileRequest): Promise<Profile> {
+  return this.sendMessage<Profile, CreateProfileRequest>('CREATE', undefined, request);
+}
+```
+
+**Key Points:**
+- Use `unknown` as default generic parameter for backward compatibility
+- Define specific types when available (e.g., `CreateProfileRequest`)
+- ModuleName should be union type: `'MOD' | 'PROFILE' | ...`
+- Never use `any` for generic parameters
+
 ### State Management
 
 #### ✅ DO: Keep State Minimal and Derived
@@ -307,20 +351,60 @@ const [loadedMods, setLoadedMods] = useState<ModInfo[]>([]);  // Redundant
 const [modCount, setModCount] = useState(0);  // Derived
 ```
 
-### Error Handling
+### Error Handling ⭐ UPDATED (2026-02-19)
 
-#### ✅ DO: Use Try-Catch with User Feedback
+#### ✅ DO: Use Standardized Error Handling Pattern
 ```typescript
 const loadMod = async (sha: string) => {
   try {
     await modService.loadMod(sha);
     message.success('Mod loaded successfully');
     await refreshMods();
-  } catch (error) {
-    message.error(`Failed to load mod: ${(error as Error).message}`);
+  } catch (error: unknown) {
+    // ALWAYS use 'error: unknown' and type guard
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    message.error(`Failed to load mod: ${errorMessage}`);
     console.error('Load mod error:', error);
   }
 };
+```
+
+#### ❌ DON'T: Use Loose Error Typing
+```typescript
+// ❌ Bad - Uses 'any' type
+catch (error: any) {
+  message.error(error.message);
+}
+
+// ❌ Bad - Implicit 'any'
+catch (error) {
+  message.error(error.message);
+}
+
+// ❌ Bad - Assumes error is Error type
+catch (error: Error) {
+  message.error(error.message);
+}
+
+// ✅ Good - Type-safe with guard
+catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  message.error(errorMessage);
+}
+```
+
+#### ✅ DO: Silent Handling for Expected Errors
+```typescript
+try {
+  const config = await profileService.getProfileConfig(profileId);
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : '';
+  // Only show error if it's not an expected condition
+  if (!errorMessage.includes('Profile ID is required')) {
+    message.error('Failed to load profile configuration');
+    console.error('Failed to load profile config:', error);
+  }
+}
 ```
 
 ### Theme and Styling ⭐ NEW (2026-02-18)
@@ -395,6 +479,57 @@ Before committing UI changes:
 5. Ensure status colors are clear
 
 **Reference:** See [THEME_SYSTEM.md](../features/THEME_SYSTEM.md) for complete guide
+
+### UI Components ⭐ NEW (2026-02-19)
+
+#### ✅ DO: Use Compact Components
+
+```typescript
+// ✅ Good - Uses Compact components for consistency
+import { CompactButton, CompactCard, CompactSpace } from '../../../shared/components/compact';
+
+<CompactCard>
+  <CompactSpace direction="vertical">
+    <CompactButton type="primary" onClick={handleSave}>
+      Save
+    </CompactButton>
+    <CompactButton onClick={handleCancel}>
+      Cancel
+    </CompactButton>
+  </CompactSpace>
+</CompactCard>
+```
+
+#### ❌ DON'T: Use Direct Ant Design Components for UI Elements
+
+```typescript
+// ❌ Bad - Direct Ant Design components cause inconsistent sizing
+import { Button, Card, Space } from 'antd';
+
+<Card>
+  <Space>
+    <Button type="primary">Save</Button>
+    <Button>Cancel</Button>
+  </Space>
+</Card>
+```
+
+**Available Compact Components:**
+- `CompactButton` - Buttons with consistent sizing
+- `CompactCard` - Cards with proper spacing
+- `CompactSpace` - Layout spacing
+- `CompactDivider` - Section dividers
+- `CompactText` - Typography
+- `CompactAlert` - Alerts and notifications
+- `CompactSection` - Page sections
+
+**When to Use:**
+- ✅ Use Compact components for all buttons, cards, and layout elements
+- ✅ Import from `shared/components/compact`
+- ❌ Don't use direct Ant Design components for these elements
+- ✅ Ant Design components like Form, Input, Select are still used directly
+
+**Location:** `D3dxSkinManager.Client/src/shared/components/compact/`
 
 ---
 

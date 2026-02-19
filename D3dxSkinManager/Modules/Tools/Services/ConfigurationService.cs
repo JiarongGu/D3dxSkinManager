@@ -4,7 +4,9 @@ using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Tools.Services;
 
@@ -51,11 +53,13 @@ public interface IConfigurationService
 public class ConfigurationService : IConfigurationService
 {
     private readonly string _configPath;
+    private readonly ILogHelper _logger;
     private Dictionary<string, object> _config;
 
-    public ConfigurationService(IProfileContext profileContext)
+    public ConfigurationService(IProfilePathService profilePaths, ILogHelper logger)
     {
-        _configPath = Path.Combine(profileContext.ProfilePath, "config.json");
+        _configPath = profilePaths?.ConfigPath ?? throw new ArgumentNullException(nameof(profilePaths));
+        _logger = logger;
         _config = new Dictionary<string, object>();
 
         // Load existing configuration
@@ -122,11 +126,11 @@ public class ConfigurationService : IConfigurationService
         {
             var json = JsonConvert.SerializeObject(_config, Formatting.Indented);
             await File.WriteAllTextAsync(_configPath, json);
-            Console.WriteLine($"[ConfigurationService] Configuration saved to {_configPath}");
+            _logger.Info($"Configuration saved to {_configPath}", "ConfigurationService");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ConfigurationService] Failed to save configuration: {ex.Message}");
+            _logger.Error($"Failed to save configuration: {ex.Message}", "ConfigurationService", ex);
             throw;
         }
     }
@@ -137,7 +141,7 @@ public class ConfigurationService : IConfigurationService
         {
             if (!File.Exists(_configPath))
             {
-                Console.WriteLine($"[ConfigurationService] Configuration file not found. Using defaults.");
+                _logger.Info($"Configuration file not found. Using defaults.", "ConfigurationService");
                 _config = new Dictionary<string, object>();
                 return;
             }
@@ -146,11 +150,11 @@ public class ConfigurationService : IConfigurationService
             _config = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
                 ?? new Dictionary<string, object>();
 
-            Console.WriteLine($"[ConfigurationService] Configuration loaded from {_configPath}");
+            _logger.Info($"Configuration loaded from {_configPath}", "ConfigurationService");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ConfigurationService] Failed to load configuration: {ex.Message}");
+            _logger.Error($"Failed to load configuration: {ex.Message}", "ConfigurationService", ex);
             _config = new Dictionary<string, object>();
         }
     }

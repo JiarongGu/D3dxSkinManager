@@ -15,11 +15,16 @@
 > - Struggled with something → Add to TROUBLESHOOTING.md
 > - Discovered pattern → Add to GUIDELINES.md
 >
+> **⚠️ CHANGELOG CRITICAL RULE:**
+> - **Main CHANGELOG.md MUST be < 200 lines** (check: `wc -l docs/CHANGELOG.md`)
+> - If > 150 lines: Archive old entries BEFORE adding new
+> - See [maintenance/CHANGELOG_MANAGEMENT.md](maintenance/CHANGELOG_MANAGEMENT.md)
+>
 > **If you learned it, document it. Future AI sessions depend on you!**
 
-**Version:** 1.1
-**Last Updated:** 2026-02-18
-**Project Type:** .NET 8 + Photino.NET + React 18 + TypeScript (Desktop Application)
+**Version:** 1.2
+**Last Updated:** 2026-02-19
+**Project Type:** .NET 10 + Photino.NET + React 18 + TypeScript (Desktop Application)
 **Audience:** AI Assistants (Primary), Human Developers (Reference)
 
 ---
@@ -60,10 +65,62 @@ Use root [README.md](../README.md) for project setup, `docs/core/` for architect
 
 **Quick Lookups:**
 - **🔥 What changed last session?** → [RECENT_CHANGES.md](RECENT_CHANGES.md) ⭐⭐⭐ **START HERE**
-- **Component/Service location?** → [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) ⭐
+- **Component/Service location?** → [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) (routing hub) ⭐⭐⭐
 - **System architecture?** → [architecture/CURRENT_ARCHITECTURE.md](architecture/CURRENT_ARCHITECTURE.md) ⭐⭐⭐
 - **Historical changes?** → [CHANGELOG.md](CHANGELOG.md)
 - **Project setup?** → [core/DEVELOPMENT.md](core/DEVELOPMENT.md)
+
+---
+
+## 🗂️ Keywords Index Routing System (v4.0)
+
+> **NEW (2026-02-20):** Keywords index now uses routing system for faster lookups!
+
+### How It Works
+
+1. **Start at routing hub:** [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) (~150 lines)
+2. **Identify your domain:** Backend? Frontend? Documentation? How-to?
+3. **Load specific domain file:** Only load what you need
+
+### Domain Files
+
+| What You Need | Load This File | Size |
+|---------------|----------------|------|
+| **Backend C# code** | [keywords/BACKEND.md](keywords/BACKEND.md) | ~350 lines |
+| **Frontend React code** | [keywords/FRONTEND.md](keywords/FRONTEND.md) | ~550 lines |
+| **Documentation files** | [keywords/DOCUMENTATION.md](keywords/DOCUMENTATION.md) | ~220 lines |
+| **How-to guides** | [keywords/HOW_TO.md](keywords/HOW_TO.md) | ~370 lines |
+
+### Benefits
+
+✅ **Faster lookups** - Load only relevant domain file (not everything)
+✅ **Token efficient** - 150-550 lines per query (not 1,640 lines)
+✅ **Clear routing** - Know exactly which file to load
+✅ **Scalable** - Can add sub-folders if files grow > 500 lines
+
+### Usage Examples
+
+**Query:** "Where is ModFacade?"
+1. It's backend code → Load [keywords/BACKEND.md](keywords/BACKEND.md)
+2. Ctrl+F "ModFacade" → Find `Modules/Mods/ModFacade.cs`
+3. Load source file
+
+**Query:** "How do I add a new service?"
+1. It's a how-to question → Load [keywords/HOW_TO.md](keywords/HOW_TO.md)
+2. Find "Adding Services" section with step-by-step guide
+
+**Query:** "Find useModData hook"
+1. It's frontend code → Load [keywords/FRONTEND.md](keywords/FRONTEND.md)
+2. Ctrl+F "useModData" → Find `src/hooks/useModData.ts`
+
+### Maintenance Rules
+
+- **Main index** (KEYWORDS_INDEX.md) < 200 lines (routing only)
+- **Each domain file** < 500 lines
+- **If file > 500 lines** → Create sub-folder (e.g., `keywords/frontend/COMPONENTS.md`)
+- **Check sizes:** `wc -l docs/KEYWORDS_INDEX.md docs/keywords/*.md`
+
+See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGEMENT.md) for details.
 
 ---
 
@@ -71,7 +128,15 @@ Use root [README.md](../README.md) for project setup, `docs/core/` for architect
 
 ### 1. **ALWAYS follow .NET + React Best Practices**
    #### Backend (.NET/C#):
-   - Services handle business logic (separation of concerns)
+   - **⭐⭐⭐ CRITICAL: Follow Domain-Driven Design principles** (see [architecture/DOMAIN_DESIGN.md](architecture/DOMAIN_DESIGN.md))
+     - ✅ Services handle business logic (separation of concerns)
+     - ✅ Always use service layer - **NEVER bypass to access repositories directly**
+     - ✅ Depend on interfaces (IService), not concrete implementations
+     - ✅ Keep services focused - Single Responsibility Principle (< 1000 lines)
+     - ✅ Use existing services - Don't reimplement logic
+     - ❌ **NEVER** access repositories from other modules
+     - ❌ **NEVER** reimplement logic that exists in other services
+     - ❌ **NEVER** create god classes (services with 10+ dependencies)
    - Use async/await for all I/O operations
    - **ALWAYS use dependency injection** - Never create service instances manually in application code
      - ✅ Services should inject dependencies through constructor: `public MyService(IDependency dep)`
@@ -109,9 +174,18 @@ Use root [README.md](../README.md) for project setup, `docs/core/` for architect
 ### 2. **ALWAYS use TypeScript and C# strictly**
    #### TypeScript:
    - Enable `strict: true` in tsconfig
+   - **NEVER use `any` type** - Use `unknown` with type guards or specific types
    - Define interfaces for all data models
    - Use type guards where necessary
    - Document complex types with comments
+   - **Use generic types for IPC messages:**
+     - ✅ `PhotinoMessage<TPayload = unknown>` and `PhotinoResponse<TData = unknown>`
+     - ✅ `sendMessage<T, TPayload = unknown>(...)`
+     - ✅ `ModuleName` union type instead of `string` for modules
+   - **Standardized error handling:**
+     - ✅ Always use `catch (error: unknown)`
+     - ✅ Use type guards: `error instanceof Error ? error.message : 'Unknown error'`
+     - ❌ Never use `catch (error: any)` or `catch (error)`
 
    #### C#:
    - Enable nullable reference types
@@ -223,6 +297,7 @@ Query → Folder Selection → File Selection → Section
 ## Detailed AI Guides
 
 ### Core Understanding (Read First)
+- **[architecture/DOMAIN_DESIGN.md](architecture/DOMAIN_DESIGN.md)** ⭐⭐⭐ - **START HERE** - Domain boundaries, service responsibilities, anti-patterns
 - **[ai-assistant/GUIDELINES.md](ai-assistant/GUIDELINES.md)** ⭐⭐⭐ - Coding patterns, DO's and DON'Ts
 - **[architecture/CURRENT_ARCHITECTURE.md](architecture/CURRENT_ARCHITECTURE.md)** ⭐⭐⭐ - Current system architecture
 - **[core/PROJECT_OVERVIEW.md](core/PROJECT_OVERVIEW.md)** ⭐⭐ - What this project does
@@ -249,7 +324,7 @@ Query → Folder Selection → File Selection → Section
 ### Technology Stack
 
 **Backend:**
-- .NET 8 (C#)
+- .NET 10 (C#)
 - Photino.NET 4.0+ (desktop framework)
 - SQLite (Microsoft.Data.Sqlite)
 - Newtonsoft.Json
@@ -425,16 +500,53 @@ git commit -m "message"       # Commit (ASK USER FIRST!)
 ### Documentation Updates
 
 **When to update:**
-- ✅ Found info after >5 min search → Update KEYWORDS_INDEX.md
+- ✅ Found info after >5 min search → Update KEYWORDS_INDEX.md (one-line entry)
 - ✅ Solved a bug → Update CHANGELOG.md + TROUBLESHOOTING.md
-- ✅ Created new file → Update KEYWORDS_INDEX.md
+- ✅ Created new class/service → Update KEYWORDS_INDEX.md (one-line entry)
 - ✅ Discovered pattern → Update GUIDELINES.md
 
+**⚠️ KEYWORDS_INDEX CRITICAL RULES:**
+- **Main KEYWORDS_INDEX.md MUST be < 200 lines** (routing hub only)
+- **Each domain file MUST be < 500 lines** (check: `wc -l docs/keywords/*.md`)
+- Currently (2026-02-20):
+  - ✅ KEYWORDS_INDEX.md: 150 lines (routing hub)
+  - ✅ BACKEND.md: 350 lines
+  - ⚠️ FRONTEND.md: 550 lines (consider splitting if grows to 600+)
+  - ✅ DOCUMENTATION.md: 220 lines
+  - ✅ HOW_TO.md: 370 lines
+- **If domain file > 500 lines:** Create sub-folder with sub-domain files
+- See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGEMENT.md)
+
 **How to update:**
-- Keep updates concise
+- Keep updates concise (one line per entry)
 - Link to source files
-- Include line numbers for code references
+- NO method listings - only file paths
 - Add timestamps
+
+**CHANGELOG Management Strategy** ⭐ CRITICAL:
+
+**RULES (NON-NEGOTIABLE):**
+1. **Main CHANGELOG.md MUST be < 200 lines** (currently ~100 lines)
+2. **Before adding**: Check line count with `wc -l docs/CHANGELOG.md`
+3. **If > 150 lines**: Archive old entries FIRST before adding new
+4. **Summary only**: Maximum 5 lines per entry in main CHANGELOG
+5. **Detailed changes**: ALWAYS create separate file in `changelogs/YYYY-MM/`
+
+**See**: [maintenance/CHANGELOG_MANAGEMENT.md](maintenance/CHANGELOG_MANAGEMENT.md) ⭐⭐⭐ for complete guide
+
+**Example Summary Entry** (5 lines max):
+```markdown
+### Fixed - 2026-02-20 - Migration Archive Storage ⭐⭐
+Fixed migration to store archives WITHOUT extensions.
+**Impact**: ✅ 173 tests pass
+**Details**: [changelogs/2026-02/2026-02-20-migration-archive-storage-fix.md](...)
+```
+
+**Decision Tree:**
+- Entry < 5 lines → Add to main CHANGELOG
+- Entry > 5 lines → Create detailed file + add summary link
+- Main > 150 lines → Archive old entries before adding new
+- Main > 200 lines → **CRITICAL**: Immediate cleanup required
 
 ---
 
@@ -518,5 +630,5 @@ Use this template at the start of each session:
 
 **Remember: This guide exists to help you. Use it, update it, improve it!**
 
-*Last updated: 2026-02-17*
-*Version: 1.0*
+*Last updated: 2026-02-19*
+*Version: 1.2*

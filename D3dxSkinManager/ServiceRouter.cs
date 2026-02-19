@@ -205,15 +205,13 @@ public class ServiceRouter : IDisposable
         var pathHelper = new PathHelper(_baseDataPath);
         services.AddSingleton<IPathHelper>(pathHelper);
 
-        // Profile-specific paths
-        var profileDataPath = Path.Combine(_baseDataPath, "profiles", profile.Id);
+        // Get GlobalPathService from global services and use it
+        var globalPaths = _globalServices.GetRequiredService<IGlobalPathService>();
+        var profileDataPath = globalPaths.GetProfileDirectoryPath(profile.Id);
 
         // Create ProfileContext for this profile
         var profileContext = new ProfileContext(profile.Id, profileDataPath, profileService);
         services.AddSingleton<IProfileContext>(profileContext);
-
-        // Ensure profile directories exist
-        EnsureProfileDirectories(profileDataPath);
 
         // Register profile service (shared from global)
         services.AddSingleton(profileService);
@@ -231,7 +229,7 @@ public class ServiceRouter : IDisposable
         services.AddPluginsServices();     // Uses ProfileContext for plugin data
 
         // Register all facades for profile-scoped services
-        services.AddProfilesServices();    // Includes ProfileFacade
+        services.AddProfilesServices();    // Includes ProfileFacade and IProfilePathService
         services.AddSettingsServices();    // Includes SettingsFacade
 
         // Profile-specific server
@@ -265,18 +263,6 @@ public class ServiceRouter : IDisposable
 
             Console.WriteLine($"[ServiceRouter] Invalidated services for profile: {profileId}");
         }
-    }
-
-    private void EnsureProfileDirectories(string profileDataPath)
-    {
-        Directory.CreateDirectory(profileDataPath);
-        Directory.CreateDirectory(Path.Combine(profileDataPath, "mods"));
-        Directory.CreateDirectory(Path.Combine(profileDataPath, "thumbnails"));
-        Directory.CreateDirectory(Path.Combine(profileDataPath, "previews"));
-        Directory.CreateDirectory(Path.Combine(profileDataPath, "work"));
-        Directory.CreateDirectory(Path.Combine(profileDataPath, "logs"));
-        Directory.CreateDirectory(Path.Combine(profileDataPath, "plugins"));
-        Directory.CreateDirectory(Path.Combine(profileDataPath, "settings"));
     }
 
     public void Dispose()

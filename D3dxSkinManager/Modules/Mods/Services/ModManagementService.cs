@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Mods.Models;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
@@ -60,10 +61,12 @@ public class UpdateModRequest
 public class ModManagementService : IModManagementService
 {
     private readonly IModRepository _repository;
+    private readonly ILogHelper _logger;
 
-    public ModManagementService(IModRepository repository)
+    public ModManagementService(IModRepository repository, ILogHelper logger)
     {
         _repository = repository;
+        _logger = logger;
     }
 
     /// <summary>
@@ -100,7 +103,7 @@ public class ModManagementService : IModManagementService
         };
 
         await _repository.InsertAsync(mod);
-        Console.WriteLine($"[ModManagement] Created mod: {mod.Name} ({mod.SHA})");
+        _logger.Info($"Created mod: {mod.Name} ({mod.SHA})", "ModManagementService");
 
         return mod;
     }
@@ -133,7 +136,7 @@ public class ModManagementService : IModManagementService
         // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
 
         await _repository.UpdateAsync(mod);
-        Console.WriteLine($"[ModManagement] Updated mod: {mod.Name} ({sha})");
+        _logger.Info($"Updated mod: {mod.Name} ({sha})", "ModManagementService");
 
         return mod;
     }
@@ -149,14 +152,14 @@ public class ModManagementService : IModManagementService
         var exists = await _repository.ExistsAsync(sha);
         if (!exists)
         {
-            Console.WriteLine($"[ModManagement] Mod not found for deletion: {sha}");
+            _logger.Warning($"Mod not found for deletion: {sha}", "ModManagementService");
             return false;
         }
 
         var success = await _repository.DeleteAsync(sha);
         if (success)
         {
-            Console.WriteLine($"[ModManagement] Deleted mod: {sha}");
+            _logger.Info($"Deleted mod: {sha}", "ModManagementService");
         }
 
         return success;
@@ -175,7 +178,7 @@ public class ModManagementService : IModManagementService
         var existing = await _repository.GetByIdAsync(sha);
         if (existing != null)
         {
-            Console.WriteLine($"[ModManagement] Mod already exists: {existing.Name} ({sha})");
+            _logger.Debug($"Mod already exists: {existing.Name} ({sha})", "ModManagementService");
             return existing;
         }
 

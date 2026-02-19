@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using D3dxSkinManager.Modules.Mods.Models;
 
 using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
 
@@ -40,9 +41,9 @@ public class ClassificationRepository : IClassificationRepository
 {
     private readonly string _connectionString;
 
-    public ClassificationRepository(IProfileContext profileContext)
+    public ClassificationRepository(IProfilePathService profilePaths)
     {
-        var dbPath = Path.Combine(profileContext.ProfilePath, "classifications.db");
+        var dbPath = profilePaths.ClassificationsDatabasePath;
         _connectionString = $"Data Source={dbPath}";
         InitializeDatabaseAsync().Wait();
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Facades;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Tools.Models;
@@ -11,52 +12,61 @@ using D3dxSkinManager.Modules.Plugins.Services;
 namespace D3dxSkinManager.Modules.Tools;
 
 /// <summary>
+/// Interface for Tools facade
+/// Handles: TOOLS_SCAN_CACHE, TOOLS_CLEAN_CACHE, TOOLS_VALIDATE_STARTUP, etc.
+/// Prefix: TOOLS_*
+/// </summary>
+public interface IToolsFacade : IModuleFacade
+{
+
+    // Cache Management
+    Task<List<CacheItem>> ScanCacheAsync();
+    Task<CacheStatistics> GetCacheStatisticsAsync();
+    Task<int> CleanCacheAsync(CacheCategory category);
+    Task<bool> DeleteCacheItemAsync(string sha);
+
+    // Validation
+    Task<StartupValidationReport> ValidateStartupAsync();
+}
+
+/// <summary>
 /// Facade for tools and utilities
 /// Responsibility: Cache management, validation, diagnostics
 /// IPC Prefix: TOOLS_*
 /// </summary>
-public class ToolsFacade : IToolsFacade
+public class ToolsFacade : BaseFacade, IToolsFacade
 {
+    protected override string ModuleName => "ToolsFacade";
+
     private readonly IModFileService _modFileService;
     private readonly IStartupValidationService _validationService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly PluginEventBus? _eventBus;
+    private readonly IEventEmitterHelper _eventEmitter;
 
     public ToolsFacade(
         IModFileService modFileService,
         IStartupValidationService validationService,
         IPayloadHelper payloadHelper,
-        PluginEventBus? eventBus = null)
+        IEventEmitterHelper eventEmitter,
+        ILogHelper logger) : base(logger)
     {
         _modFileService = modFileService ?? throw new ArgumentNullException(nameof(modFileService));
         _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
-        _eventBus = eventBus;
+        _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
     }
 
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
     {
-        try
+        return request.Type switch
         {
-            Console.WriteLine($"[ToolsFacade] Handling message: {request.Type}");
-
-            object? responseData = request.Type switch
-            {
-                "SCAN_CACHE" or "SCAN_CACHE" => await ScanCacheAsync(),
-                "TOOLS_GET_CACHE_STATS" or "GET_CACHE_STATISTICS" => await GetCacheStatisticsAsync(),
-                "CLEAN_CACHE" or "CLEAN_CACHE" => await CleanCacheAsync(request),
-                "DELETE_CACHE_ITEM" or "DELETE_CACHE_ITEM" => await DeleteCacheItemAsync(request),
-                "VALIDATE_STARTUP" or "VALIDATE_STARTUP" => await ValidateStartupAsync(),
-                _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
-            };
-
-            return MessageResponse.CreateSuccess(request.Id, responseData);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ToolsFacade] Error handling message: {ex.Message}");
-            return MessageResponse.CreateError(request.Id, ex.Message);
-        }
+            "SCAN_CACHE" => await ScanCacheAsync(),
+            "TOOLS_GET_CACHE_STATS" or "GET_CACHE_STATISTICS" => await GetCacheStatisticsAsync(),
+            "CLEAN_CACHE" => await CleanCacheAsync(request),
+            "DELETE_CACHE_ITEM" => await DeleteCacheItemAsync(request),
+            "VALIDATE_STARTUP" => await ValidateStartupAsync(),
+            _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
+        };
     }
 
     public async Task<List<CacheItem>> ScanCacheAsync()
@@ -73,15 +83,10 @@ public class ToolsFacade : IToolsFacade
     {
         var deletedCount = await _modFileService.CleanCacheAsync(category);
 
-        if (_eventBus != null)
-        {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "cache.cleaned",
-                Data = new { category = category.ToString(), deletedCount }
-            });
-        }
+        await _eventEmitter.EmitAsync(
+            PluginEventType.CustomEvent,
+            "cache.cleaned",
+            new { category = category.ToString(), deletedCount });
 
         return deletedCount;
     }
@@ -90,14 +95,12 @@ public class ToolsFacade : IToolsFacade
     {
         var success = await _modFileService.DeleteCacheAsync(sha);
 
-        if (success && _eventBus != null)
+        if (success)
         {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "cache.item.deleted",
-                Data = new { sha }
-            });
+            await _eventEmitter.EmitAsync(
+                PluginEventType.CustomEvent,
+                "cache.item.deleted",
+                new { sha });
         }
 
         return success;

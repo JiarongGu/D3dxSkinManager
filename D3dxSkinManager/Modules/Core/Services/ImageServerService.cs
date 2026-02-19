@@ -35,13 +35,15 @@ public class ImageServerService : IImageServerService, IDisposable
     private readonly HttpListener _listener;
     private readonly string _dataPath;
     private readonly int _port;
+    private readonly ILogHelper _logger;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _serverTask;
 
-    public ImageServerService(string dataPath, int port = 5555)
+    public ImageServerService(string dataPath, ILogHelper logger, int port = 5555)
     {
         _dataPath = dataPath;
         _port = port;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://localhost:{_port}/");
     }
@@ -82,12 +84,12 @@ public class ImageServerService : IImageServerService, IDisposable
             _listener.Start();
             _cancellationTokenSource = new CancellationTokenSource();
             _serverTask = Task.Run(() => ListenAsync(_cancellationTokenSource.Token));
-            Console.WriteLine($"[ImageServer] Started on http://localhost:{_port}");
+            _logger.Info($"Started on http://localhost:{_port}", "ImageServer");
             await Task.CompletedTask;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ImageServer] Failed to start: {ex.Message}");
+            _logger.Error($"Failed to start: {ex.Message}", "ImageServer", ex);
             throw;
         }
     }
@@ -104,7 +106,7 @@ public class ImageServerService : IImageServerService, IDisposable
         }
 
         _listener.Stop();
-        Console.WriteLine("[ImageServer] Stopped");
+        _logger.Info("Stopped", "ImageServer");
     }
 
     private async Task ListenAsync(CancellationToken cancellationToken)
@@ -123,7 +125,7 @@ public class ImageServerService : IImageServerService, IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ImageServer] Error accepting request: {ex.Message}");
+                _logger.Error($"Error accepting request: {ex.Message}", "ImageServer", ex);
             }
         }
     }
@@ -153,7 +155,7 @@ public class ImageServerService : IImageServerService, IDisposable
             var dataPathFull = Path.GetFullPath(_dataPath);
             if (!fullPath.StartsWith(dataPathFull, StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"[ImageServer] Security violation: Attempted to access {fullPath}");
+                _logger.Warning($"Security violation: Attempted to access {fullPath}", "ImageServer");
                 response.StatusCode = 403;
                 response.Close();
                 return;
@@ -162,7 +164,7 @@ public class ImageServerService : IImageServerService, IDisposable
             // Check if file exists
             if (!File.Exists(fullPath))
             {
-                Console.WriteLine($"[ImageServer] File not found: {fullPath}");
+                _logger.Warning($"File not found: {fullPath}", "ImageServer");
                 response.StatusCode = 404;
                 response.Close();
                 return;
@@ -198,7 +200,7 @@ public class ImageServerService : IImageServerService, IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ImageServer] Error handling request: {ex.Message}");
+            _logger.Error($"Error handling request: {ex.Message}", "ImageServer", ex);
             response.StatusCode = 500;
             response.Close();
         }

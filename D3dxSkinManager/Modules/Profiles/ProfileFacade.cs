@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Facades;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Profiles.Models;
@@ -34,51 +35,42 @@ public interface IProfileFacade : IModuleFacade
 /// Responsibility: Profile CRUD and switching
 /// IPC Prefix: PROFILE_*
 /// </summary>
-public class ProfileFacade : IProfileFacade
+public class ProfileFacade : BaseFacade, IProfileFacade
 {
+    protected override string ModuleName => "ProfileFacade";
+
     private readonly IProfileService _profileService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly PluginEventBus? _eventBus;
+    private readonly IEventEmitterHelper _eventEmitter;
 
     public ProfileFacade(
         IProfileService profileService,
         IPayloadHelper payloadHelper,
-        PluginEventBus? eventBus = null)
+        IEventEmitterHelper eventEmitter,
+        ILogHelper logger) : base(logger)
     {
         _profileService = profileService ?? throw new ArgumentNullException(nameof(profileService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
-        _eventBus = eventBus;
+        _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
     }
 
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
     {
-        try
+        return request.Type switch
         {
-            Console.WriteLine($"[ProfileFacade] Handling message: {request.Type}");
-
-            object? responseData = request.Type switch
-            {
-                "GET_ALL" => await GetAllProfilesAsync(),
-                "GET_ACTIVE" => await GetActiveProfileAsync(),
-                "GET_BY_ID" => await GetProfileByIdAsync(request),
-                "CREATE" => await CreateProfileAsync(request),
-                "UPDATE" => await UpdateProfileAsync(request),
-                "DELETE" => await DeleteProfileAsync(request),
-                "SWITCH" => await SwitchProfileAsync(request),
-                "DUPLICATE" => await DuplicateProfileAsync(request),
-                "EXPORT_CONFIG" => await ExportProfileConfigAsync(request),
-                "GET_CONFIG" => await GetProfileConfigAsync(request),
-                "UPDATE_CONFIG" => await UpdateProfileConfigAsync(request),
-                _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
-            };
-
-            return MessageResponse.CreateSuccess(request.Id, responseData);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ProfileFacade] Error handling message: {ex.Message}");
-            return MessageResponse.CreateError(request.Id, ex.Message);
-        }
+            "GET_ALL" => await GetAllProfilesAsync(),
+            "GET_ACTIVE" => await GetActiveProfileAsync(),
+            "GET_BY_ID" => await GetProfileByIdAsync(request),
+            "CREATE" => await CreateProfileAsync(request),
+            "UPDATE" => await UpdateProfileAsync(request),
+            "DELETE" => await DeleteProfileAsync(request),
+            "SWITCH" => await SwitchProfileAsync(request),
+            "DUPLICATE" => await DuplicateProfileAsync(request),
+            "EXPORT_CONFIG" => await ExportProfileConfigAsync(request),
+            "GET_CONFIG" => await GetProfileConfigAsync(request),
+            "UPDATE_CONFIG" => await UpdateProfileConfigAsync(request),
+            _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
+        };
     }
 
     public async Task<ProfileListResponse> GetAllProfilesAsync()
@@ -106,16 +98,7 @@ public class ProfileFacade : IProfileFacade
     public async Task<Profile> CreateProfileAsync(CreateProfileRequest createRequest)
     {
         var profile = await _profileService.CreateProfileAsync(createRequest);
-
-        if (_eventBus != null)
-        {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "profile.created",
-                Data = profile
-            });
-        }
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "profile.created", profile);
 
         return profile;
     }
@@ -124,14 +107,9 @@ public class ProfileFacade : IProfileFacade
     {
         var success = await _profileService.UpdateProfileAsync(updateRequest);
 
-        if (success && _eventBus != null)
+        if (success)
         {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "profile.updated",
-                Data = updateRequest
-            });
+            await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "profile.updated", updateRequest);
         }
 
         return success;
@@ -141,14 +119,9 @@ public class ProfileFacade : IProfileFacade
     {
         var success = await _profileService.DeleteProfileAsync(profileId);
 
-        if (success && _eventBus != null)
+        if (success)
         {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "profile.deleted",
-                Data = new { ProfileId = profileId }
-            });
+            await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "profile.deleted", new { ProfileId = profileId });
         }
 
         return success;
@@ -158,14 +131,9 @@ public class ProfileFacade : IProfileFacade
     {
         var result = await _profileService.SwitchProfileAsync(profileId);
 
-        if (result.Success && _eventBus != null)
+        if (result.Success)
         {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "profile.switched",
-                Data = result
-            });
+            await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "profile.switched", result);
         }
 
         return result;
@@ -174,16 +142,7 @@ public class ProfileFacade : IProfileFacade
     public async Task<Profile> DuplicateProfileAsync(string sourceProfileId, string newName)
     {
         var profile = await _profileService.DuplicateProfileAsync(sourceProfileId, newName);
-
-        if (_eventBus != null)
-        {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "profile.duplicated",
-                Data = profile
-            });
-        }
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "profile.duplicated", profile);
 
         return profile;
     }

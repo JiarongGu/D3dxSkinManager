@@ -38,7 +38,7 @@ This document tracks feature parity between the original Python-based d3dxSkinMa
 ### Rewrite Project
 
 - **Name:** D3dxSkinManager (note: capitalization changed)
-- **Language:** C# (.NET 8) + TypeScript
+- **Language:** C# (.NET 10) + TypeScript
 - **UI:** React + Ant Design (in Photino window)
 - **Storage:** SQLite database
 - **Version:** 1.0.0 (active development)
@@ -52,7 +52,7 @@ This document tracks feature parity between the original Python-based d3dxSkinMa
 | Component | Original (Python) | Rewrite (.NET) | Reasoning |
 |-----------|------------------|----------------|-----------|
 | **Language** | Python 3.x | C# 12 | Type safety, performance, user preference |
-| **Runtime** | CPython | .NET 8 | Compiled performance |
+| **Runtime** | CPython | .NET 10 | Compiled performance |
 | **UI Framework** | Tkinter | React 19 | Modern UI, component-based |
 | **Desktop** | Native Tkinter | Photino.NET | Lightweight, .NET backend |
 | **Styling** | ttk themes | Ant Design | Professional components |

@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Tools.Services;
 
@@ -43,10 +45,12 @@ public interface IModAutoDetectionService
 public class ModAutoDetectionService : IModAutoDetectionService
 {
     private readonly string _rulePath;
+    private readonly ILogHelper _logger;
 
-    public ModAutoDetectionService(IProfileContext profileContext)
+    public ModAutoDetectionService(IProfilePathService profilePaths, ILogHelper logger)
     {
-        _rulePath = Path.Combine(profileContext.ProfilePath, "auto_detection_rules.json");
+        _rulePath = profilePaths?.AutoDetectionRulesPath ?? throw new ArgumentNullException(nameof(profilePaths));
+        _logger = logger;
         LoadRulesAsync(_rulePath).Wait();
     }
 
@@ -76,7 +80,7 @@ public class ModAutoDetectionService : IModAutoDetectionService
                     var relativePath = Path.GetRelativePath(modDirectory, file);
                     if (regex.IsMatch(relativePath))
                     {
-                        Console.WriteLine($"[Classification] Matched rule '{rule.Name}': {relativePath} -> {rule.Category}");
+                        _logger.Debug($"Matched rule '{rule.Name}': {relativePath} -> {rule.Category}", "ModAutoDetectionService");
                         return rule.Category;
                     }
                 }
@@ -106,13 +110,13 @@ public class ModAutoDetectionService : IModAutoDetectionService
                 {
                     _rules.Clear();
                     _rules.AddRange(rules);
-                    Console.WriteLine($"[Classification] Loaded {_rules.Count} rules from {rulesFilePath}");
+                    _logger.Info($"Loaded {_rules.Count} rules from {rulesFilePath}", "ModAutoDetectionService");
                     return true;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Classification] Failed to load rules: {ex.Message}");
+                _logger.Error($"Failed to load rules: {ex.Message}", "ModAutoDetectionService", ex);
             }
 
             return false;
@@ -143,12 +147,12 @@ public class ModAutoDetectionService : IModAutoDetectionService
             {
                 var json = JsonConvert.SerializeObject(_rules, Formatting.Indented);
                 await File.WriteAllTextAsync(rulesFilePath, json);
-                Console.WriteLine($"[Classification] Saved {_rules.Count} rules to {rulesFilePath}");
+                _logger.Info($"Saved {_rules.Count} rules to {rulesFilePath}", "ModAutoDetectionService");
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Classification] Failed to save rules: {ex.Message}");
+                _logger.Error($"Failed to save rules: {ex.Message}", "ModAutoDetectionService", ex);
                 return false;
             }
         }

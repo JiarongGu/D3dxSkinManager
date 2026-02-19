@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Profiles.Models;
 
 namespace D3dxSkinManager.Modules.Profiles.Services;
@@ -93,27 +94,22 @@ public interface IProfileService
 /// </summary>
 public class ProfileService : IProfileService
 {
-    private readonly string _profilesDirectory;
-    private readonly string _profilesConfigFile;
-    private readonly string _baseDataPath;
+    private readonly IGlobalPathService _globalPaths;
     private readonly IPathHelper _pathHelper;
+    private readonly ILogHelper _logger;
     private List<Profile> _profiles;
     private string _activeProfileId;
 
-    public ProfileService(IPathHelper pathHelper)
+    public ProfileService(IGlobalPathService globalPaths, IPathHelper pathHelper, ILogHelper logger)
     {
-        _baseDataPath = pathHelper.BaseDataPath;
+        _globalPaths = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));
         _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
-        _profilesDirectory = Path.Combine(_baseDataPath, "profiles");
-        _profilesConfigFile = Path.Combine(_baseDataPath, "profiles.json");
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _profiles = new List<Profile>();
         _activeProfileId = string.Empty;
 
-        // Ensure profiles directory exists
-        if (!Directory.Exists(_profilesDirectory))
-        {
-            Directory.CreateDirectory(_profilesDirectory);
-        }
+        // Ensure global directories exist
+        _globalPaths.EnsureDirectoriesExist();
 
         // Load profiles from disk
         LoadProfilesFromDisk().Wait();
@@ -121,10 +117,9 @@ public class ProfileService : IProfileService
 
     private async Task LoadProfilesFromDisk()
     {
-        if (File.Exists(_profilesConfigFile))
+        if (File.Exists(_globalPaths.ProfilesConfigPath))
         {
-            var json = await File.ReadAllTextAsync(_profilesConfigFile);
-            var data = JsonSerializer.Deserialize<ProfilesData>(json);
+            var data = await JsonHelper.DeserializeFromFileAsync<ProfilesData>(_globalPaths.ProfilesConfigPath);
             if (data != null)
             {
                 _profiles = data.Profiles;
@@ -147,13 +142,7 @@ public class ProfileService : IProfileService
             ActiveProfileId = _activeProfileId
         };
 
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true
-        };
-
-        var json = JsonSerializer.Serialize(data, options);
-        await File.WriteAllTextAsync(_profilesConfigFile, json);
+        await JsonHelper.SerializeToFileAsync(_globalPaths.ProfilesConfigPath, data);
     }
 
     private async Task CreateDefaultProfileAsync()
@@ -161,7 +150,7 @@ public class ProfileService : IProfileService
         var profileId = "default"; // Use fixed "default" ID for the default profile
 
         // Use relative paths for portability
-        var dataDir = Path.Combine(_baseDataPath, "profiles", profileId);
+        var dataDir = _globalPaths.GetProfileDirectoryPath(profileId);
         var workDir = Path.Combine(dataDir, "work"); // Work directory under profile data
 
         var defaultProfile = new Profile
@@ -184,7 +173,7 @@ public class ProfileService : IProfileService
         _activeProfileId = defaultProfile.Id;
 
         // Ensure profile directory structure exists
-        var profileDataDir = Path.Combine(_baseDataPath, "profiles", profileId);
+        var profileDataDir = _globalPaths.GetProfileDirectoryPath(profileId);
         Directory.CreateDirectory(profileDataDir);
         Directory.CreateDirectory(Path.Combine(profileDataDir, "mods"));
         Directory.CreateDirectory(Path.Combine(profileDataDir, "thumbnails"));
@@ -193,7 +182,7 @@ public class ProfileService : IProfileService
         Directory.CreateDirectory(Path.Combine(profileDataDir, "logs"));
 
         await SaveProfilesToDisk();
-        Console.WriteLine($"[ProfileService] Created default profile with data directory: {profileDataDir}");
+        _logger.Info($"Created default profile with data directory: {profileDataDir}", "ProfileService");
     }
 
     public async Task<List<Profile>> GetAllProfilesAsync()
@@ -224,7 +213,7 @@ public class ProfileService : IProfileService
 
     public async Task<Profile> CreateProfileAsync(CreateProfileRequest request)
     {
-        var dataDir = Path.Combine(_profilesDirectory, Guid.NewGuid().ToString());
+        var dataDir = _globalPaths.GetProfileDirectoryPath(Guid.NewGuid().ToString());
         var workDir = string.IsNullOrEmpty(request.WorkDirectory)
             ? Path.Combine(dataDir, "work")
             : request.WorkDirectory;
@@ -271,7 +260,7 @@ public class ProfileService : IProfileService
         _profiles.Add(profile);
         await SaveProfilesToDisk();
 
-        Console.WriteLine($"[ProfileService] Created profile: {profile.Name} ({profile.Id})");
+        _logger.Info($"Created profile: {profile.Name} ({profile.Id})", "ProfileService");
         return profile;
     }
 
@@ -292,7 +281,7 @@ public class ProfileService : IProfileService
         if (request.GameName != null) profile.GameName = request.GameName;
 
         await SaveProfilesToDisk();
-        Console.WriteLine($"[ProfileService] Updated profile: {profile.Name} ({profile.Id})");
+        _logger.Info($"Updated profile: {profile.Name} ({profile.Id})", "ProfileService");
         return true;
     }
 
@@ -318,7 +307,7 @@ public class ProfileService : IProfileService
         _profiles.Remove(profile);
         await SaveProfilesToDisk();
 
-        Console.WriteLine($"[ProfileService] Deleted profile: {profile.Name} ({profile.Id})");
+        _logger.Info($"Deleted profile: {profile.Name} ({profile.Id})", "ProfileService");
 
         // Note: ProfileServiceProvider cleanup is handled by ProfileFacade
         // to avoid circular dependency (ProfileService cannot depend on IProfileServiceProvider)
@@ -353,7 +342,7 @@ public class ProfileService : IProfileService
         await SaveProfilesToDisk();
         await UpdateProfileStatisticsAsync(targetProfile);
 
-        Console.WriteLine($"[ProfileService] Switched to profile: {targetProfile.Name} ({targetProfile.Id})");
+        _logger.Info($"Switched to profile: {targetProfile.Name} ({targetProfile.Id})", "ProfileService");
 
         return new ProfileSwitchResult
         {
@@ -409,7 +398,7 @@ public class ProfileService : IProfileService
             Name = newName,
             Description = $"Copy of {sourceProfile.Name}",
             WorkDirectory = sourceProfile.WorkDirectory,
-            DataDirectory = Path.Combine(_profilesDirectory, Guid.NewGuid().ToString()),
+            DataDirectory = _globalPaths.GetProfileDirectoryPath(Guid.NewGuid().ToString()),
             IsActive = false,
             CreatedAt = DateTime.UtcNow,
             ColorTag = GenerateRandomColor(),
@@ -426,7 +415,7 @@ public class ProfileService : IProfileService
         _profiles.Add(newProfile);
         await SaveProfilesToDisk();
 
-        Console.WriteLine($"[ProfileService] Duplicated profile: {sourceProfile.Name} -> {newProfile.Name}");
+        _logger.Info($"Duplicated profile: {sourceProfile.Name} -> {newProfile.Name}", "ProfileService");
         return newProfile;
     }
 
@@ -446,12 +435,7 @@ public class ProfileService : IProfileService
             Configuration = config
         };
 
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true
-        };
-
-        return JsonSerializer.Serialize(exportData, options);
+        return JsonHelper.Serialize(exportData);
     }
 
     public async Task<Profile> ImportProfileConfigAsync(string configJson, string workDirectory)
@@ -464,7 +448,7 @@ public class ProfileService : IProfileService
 
     public async Task<ProfileConfiguration?> GetProfileConfigurationAsync(string profileId)
     {
-        var configPath = Path.Combine(_profilesDirectory, profileId, "config.json");
+        var configPath = _globalPaths.GetProfileConfigPath(profileId);
         if (!File.Exists(configPath))
         {
             // Return default configuration
@@ -474,8 +458,7 @@ public class ProfileService : IProfileService
             };
         }
 
-        var json = await File.ReadAllTextAsync(configPath);
-        return JsonSerializer.Deserialize<ProfileConfiguration>(json);
+        return await JsonHelper.DeserializeFromFileAsync<ProfileConfiguration>(configPath);
     }
 
     public async Task<bool> UpdateProfileConfigurationAsync(ProfileConfiguration config)
@@ -493,13 +476,7 @@ public class ProfileService : IProfileService
         }
 
         var configPath = Path.Combine(profile.DataDirectory, "config.json");
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true
-        };
-
-        var json = JsonSerializer.Serialize(config, options);
-        await File.WriteAllTextAsync(configPath, json);
+        await JsonHelper.SerializeToFileAsync(configPath, config);
     }
 
     private async Task CopyProfileDataAsync(string sourceProfileId, string targetProfileId)
