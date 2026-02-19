@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, Space, message, Divider, Tooltip, Alert, Spin } from 'antd';
+import { Form, Input, Tooltip, Alert, Spin, message } from 'antd';
 import {
   FolderOpenOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
+import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
 import { UnityArgsDialog } from '../../core/components/dialogs/UnityArgsDialog';
 import { fileDialogService } from '../../../shared/services/fileDialogService';
 import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
@@ -39,9 +40,10 @@ export const GameLaunchTab: React.FC = () => {
             customLaunchArgs: config.customProgramArgs || '',
           });
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Don't show error if it's just because no profile is selected
-        if (!error?.message?.includes('Profile ID is required')) {
+        const errorMessage = error instanceof Error ? error.message : '';
+        if (!errorMessage.includes('Profile ID is required')) {
           message.error('Failed to load profile configuration');
           console.error('Failed to load profile config:', error);
         }
@@ -201,7 +203,7 @@ export const GameLaunchTab: React.FC = () => {
           layout="vertical"
         >
           {/* Game Configuration */}
-          <Card
+          <CompactCard
             title={<><PlayCircleOutlined /> Game Configuration</>}
             style={{ marginBottom: '24px' }}
           >
@@ -216,12 +218,12 @@ export const GameLaunchTab: React.FC = () => {
                   placeholder="C:\Program Files\Game\game.exe"
                   readOnly
                 />
-                <Button
+                <CompactButton
                   icon={<FolderOpenOutlined />}
                   onClick={handleBrowseGamePath}
                 >
                   Browse
-                </Button>
+                </CompactButton>
               </Input.Group>
             </Form.Item>
 
@@ -237,39 +239,39 @@ export const GameLaunchTab: React.FC = () => {
                   onChange={handleLaunchArgsChange}
                 />
                 <Tooltip title="Unity Arguments Helper">
-                  <Button
+                  <CompactButton
                     icon={<PlusOutlined />}
                     onClick={handleOpenUnityArgsDialog}
                   >
                     Unity
-                  </Button>
+                  </CompactButton>
                 </Tooltip>
               </Input.Group>
             </Form.Item>
 
-            <Divider />
+            <CompactDivider />
 
-            <Space size="middle" wrap>
-              <Button
+            <CompactSpace size="middle" wrap>
+              <CompactButton
                 type="primary"
                 size="large"
                 icon={<PlayCircleOutlined />}
                 onClick={handleLaunchGame}
               >
                 Launch Game
-              </Button>
-              <Button
+              </CompactButton>
+              <CompactButton
                 size="large"
                 icon={<FolderOpenOutlined />}
                 onClick={handleOpenGameDirectory}
               >
                 Open Game Directory
-              </Button>
-            </Space>
-          </Card>
+              </CompactButton>
+            </CompactSpace>
+          </CompactCard>
 
           {/* Custom Launch Program */}
-          <Card
+          <CompactCard
             title={<><SettingOutlined /> Custom Launch Program</>}
             style={{ marginBottom: '24px' }}
           >
@@ -284,12 +286,12 @@ export const GameLaunchTab: React.FC = () => {
                   placeholder="C:\Programs\CustomTool\tool.exe"
                   readOnly
                 />
-                <Button
+                <CompactButton
                   icon={<FolderOpenOutlined />}
                   onClick={handleBrowseCustomProgramPath}
                 >
                   Browse
-                </Button>
+                </CompactButton>
               </Input.Group>
             </Form.Item>
 
@@ -304,26 +306,26 @@ export const GameLaunchTab: React.FC = () => {
               />
             </Form.Item>
 
-            <Divider />
+            <CompactDivider />
 
-            <Space size="middle" wrap>
-              <Button
+            <CompactSpace size="middle" wrap>
+              <CompactButton
                 type="primary"
                 size="large"
                 icon={<PlayCircleOutlined />}
                 onClick={handleLaunchCustomProgram}
               >
                 Launch Custom Program
-              </Button>
-              <Button
+              </CompactButton>
+              <CompactButton
                 size="large"
                 icon={<FolderOpenOutlined />}
                 onClick={handleOpenCustomDirectory}
               >
                 Open Program Directory
-              </Button>
-            </Space>
-          </Card>
+              </CompactButton>
+            </CompactSpace>
+          </CompactCard>
         </Form>
 
         {/* Unity Args Dialog */}

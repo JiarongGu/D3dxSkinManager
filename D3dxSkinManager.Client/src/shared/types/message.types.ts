@@ -18,21 +18,23 @@ export type MessageType = string;
 
 /**
  * IPC message sent to backend (new format with module field)
+ * @template TPayload - Type of the payload data (defaults to unknown for type safety)
  */
-export interface PhotinoMessage {
+export interface PhotinoMessage<TPayload = unknown> {
   id: string;
   module: ModuleName;
   type: MessageType;
   profileId?: string;
-  payload?: any;
+  payload?: TPayload;
 }
 
 /**
  * IPC response from backend
+ * @template TData - Type of the response data (defaults to unknown for type safety)
  */
-export interface PhotinoResponse {
+export interface PhotinoResponse<TData = unknown> {
   id: string;
   success: boolean;
-  data?: any;
+  data?: TData;
   error?: string;
 }

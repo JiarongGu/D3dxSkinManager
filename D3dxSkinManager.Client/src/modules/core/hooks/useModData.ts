@@ -23,10 +23,11 @@ export const useModData = () => {
       setLoading(true);
       const data = await modService.getAllMods(profileState.selectedProfile.id);
       setMods(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Don't show error if it's just because no profile is selected
-      if (!error?.message?.includes('Profile ID is required')) {
-        message.error('Failed to load mods: ' + (error?.message || 'Unknown error'));
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (!errorMessage.includes('Profile ID is required')) {
+        message.error('Failed to load mods: ' + errorMessage);
       }
     } finally {
       setLoading(false);
@@ -49,9 +50,10 @@ export const useModData = () => {
       ]);
       setObjects(objectsData);
       setAuthors(authorsData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Don't log error if it's just because no profile is selected
-      if (!error?.message?.includes('Profile ID is required')) {
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (!errorMessage.includes('Profile ID is required')) {
         console.error('Failed to load filters:', error);
       }
     }

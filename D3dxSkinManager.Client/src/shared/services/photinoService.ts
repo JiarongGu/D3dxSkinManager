@@ -2,7 +2,7 @@
  * Photino Bridge - Communication layer between React and .NET backend
  */
 
-import { MessageType, PhotinoMessage, PhotinoResponse } from '../types/message.types';
+import { MessageType, ModuleName, PhotinoMessage, PhotinoResponse } from '../types/message.types';
 
 // Photino window interface
 interface PhotinoWindow {
@@ -69,7 +69,7 @@ class PhotinoService {
    * @param profileId - Optional profile ID for modules that require it
    * @param payload - Optional payload data
    */
-  sendMessage<T>({module, type, profileId, payload}: {module: string; type: MessageType; profileId?: string; payload?: any}): Promise<T> {
+  sendMessage<T, TPayload = unknown>({module, type, profileId, payload}: {module: ModuleName; type: MessageType; profileId?: string; payload?: TPayload}): Promise<T> {
     return new Promise((resolve, reject) => {
       const id = `msg_${++this.messageId}_${Date.now()}`;
 
@@ -83,7 +83,7 @@ class PhotinoService {
 
       const message: PhotinoMessage = {
         id,
-        module: module as any,
+        module,
         type,
         profileId,
         payload
@@ -161,10 +161,11 @@ class PhotinoService {
             response.data = this.getMockActiveProfile();
             break;
           case 'CREATE':
+            const createPayload = message.payload as { name?: string; description?: string } | undefined;
             response.data = {
               id: 'profile_' + Date.now(),
-              name: message.payload?.name || 'New Profile',
-              description: message.payload?.description || '',
+              name: createPayload?.name || 'New Profile',
+              description: createPayload?.description || '',
               isActive: false,
               createdAt: new Date().toISOString(),
               lastUsedAt: new Date().toISOString(),
