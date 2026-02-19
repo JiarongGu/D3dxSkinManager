@@ -86,6 +86,8 @@ interface ClassificationTreeContextValue {
   contextMenuNode: string | null;
   setContextMenuNode: (nodeId: string | null) => void;
   contextMenuItems: MenuProps['items'];
+  contextMenuPosition: { x: number; y: number };
+  setContextMenuPosition: (position: { x: number; y: number }) => void;
 
   // Operations from hook
   handleEditNode: (nodeId: string) => Promise<void>;
@@ -122,6 +124,7 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
   onRefreshTree,
 }) => {
   const [contextMenuNode, setContextMenuNode] = useState<string | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
   // Use the operations hook for edit, delete, drag & drop
   const {
@@ -233,7 +236,11 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
 
   const handleRightClick = useCallback(({ event, node }: any) => {
     event.preventDefault();
-    setContextMenuNode(node.key as string);
+    const newNodeKey = node.key as string;
+
+    // Capture mouse position
+    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+    setContextMenuNode(newNodeKey);
   }, []);
 
   const findNode = useCallback(
@@ -264,6 +271,8 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
     contextMenuNode,
     setContextMenuNode,
     contextMenuItems,
+    contextMenuPosition,
+    setContextMenuPosition,
 
     // Operations
     handleEditNode,

@@ -1,0 +1,155 @@
+/**
+ * Custom Context Menu Styles
+ * Theme-aware styling with expand animation and click feedback
+ */
+
+.context-menu {
+  min-width: 160px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--border-radius-base);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  overflow: hidden;
+  transition: opacity 0.1s ease;
+}
+
+/* Menu Item */
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 5px 12px;
+  min-height: 32px;
+  cursor: pointer;
+  color: var(--color-text-base);
+  transition: background-color 0.1s ease, color 0.1s ease;
+  user-select: none;
+  position: relative;
+}
+
+.context-menu-item:hover {
+  background-color: var(--color-bg-text-hover);
+}
+
+/* Active/Click state - visual feedback */
+.context-menu-item:active {
+  background-color: var(--color-primary-bg);
+}
+
+/* Disabled state */
+.context-menu-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  color: var(--color-text-quaternary);
+}
+
+.context-menu-item.disabled:hover {
+  background-color: transparent;
+}
+
+/* Danger state */
+.context-menu-item.danger {
+  color: var(--color-error);
+}
+
+.context-menu-item.danger:hover {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.context-menu-item.danger:active {
+  background-color: var(--color-error-bg);
+}
+
+/* Icon */
+.context-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  font-size: 14px;
+  min-width: 14px;
+}
+
+/* Label */
+.context-menu-item-label {
+  flex: 1;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+/* Divider */
+.context-menu-divider {
+  height: 1px;
+  margin: 4px 0;
+  background-color: var(--color-border-secondary);
+}
+
+/* Light theme specific adjustments */
+[data-theme="light"] .context-menu {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .context-menu-item:hover {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+[data-theme="light"] .context-menu-item:active {
+  background-color: var(--color-primary-bg);
+}
+
+[data-theme="light"] .context-menu-item.danger:hover {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+/* Dark theme specific adjustments */
+[data-theme="dark"] .context-menu {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .context-menu-item:hover {
+  background-color: var(--color-bg-spotlight);
+}
+
+[data-theme="dark"] .context-menu-item:active {
+  background-color: var(--color-bg-spotlight);
+}
+
+/* Animation classes - only vertical animations */
+.context-menu.expand-top-down {
+  animation: expandTopDown 0.1s ease-out;
+}
+
+.context-menu.expand-bottom-up {
+  animation: expandBottomUp 0.1s ease-out;
+}
+
+/* Expand from top downward (default) */
+@keyframes expandTopDown {
+  from {
+    opacity: 0;
+    transform: scaleY(0.3);
+    transform-origin: top center;
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: top center;
+  }
+}
+
+/* Expand from bottom upward */
+@keyframes expandBottomUp {
+  from {
+    opacity: 0;
+    transform: scaleY(0.3);
+    transform-origin: bottom center;
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: bottom center;
+  }
+}

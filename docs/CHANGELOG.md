@@ -13,6 +13,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-20 - Menu Component System (ContextMenu, PopupMenu, usePopupMenu) ⭐⭐⭐
+
+Created a custom menu system to replace Ant Design Dropdowns with better control over animations, positioning, and theme consistency.
+
+**New Components**:
+- Frontend: [ContextMenu](../D3dxSkinManager.Client/src/shared/components/menu/ContextMenu.tsx) - Low-level context menu with manual position control
+  - Smart positioning with viewport edge detection
+  - Smooth vertical expand animations (top-down/bottom-up)
+  - Theme-aware styling with proper hover states
+  - Closes on scroll or outside click
+  - Supports icons, danger state, disabled state, dividers
+- Frontend: [PopupMenu](../D3dxSkinManager.Client/src/shared/components/menu/PopupMenu.tsx) - Simple wrapper for right-click menus
+  - Automatically manages position from mouse events
+  - Best for simple right-click menus with static items
+- Frontend: [usePopupMenu](../D3dxSkinManager.Client/src/shared/components/menu/usePopupMenu.ts) - Hook for complex menu scenarios
+  - Provides `show(event)`, `hide()`, `visible`, `position` state
+  - Best for tracking context (which item was clicked)
+  - Used in ModList for mod-specific menus
+
+**Replaced Ant Design Dropdowns**:
+- Classification tree context menu → ContextMenu with usePopupMenu hook
+- Mod list 3-dot menu → Right-click menu with usePopupMenu hook (removed 3-dot button)
+- Profile switcher dropdown → ContextMenu with manual positioning
+
+**UI Updates**:
+- 3-panel layout backgrounds: dark-light-dark pattern
+  - Left panel (Classification): `var(--color-bg-spotlight)` - dark
+  - Center panel (ModList): `var(--color-bg-elevated)` - light
+  - Right panel (Preview): `var(--color-bg-container)` - dark
+- Center panel (ModList): Fixed width 450px, right panel takes remaining space
+- Empty states: All use `Empty.PRESENTED_IMAGE_SIMPLE` icon for consistency
+- Empty message centering: Proper flex centering in ModListPanel
+
+**Benefits**: Consistent animations across the app, better theme integration, reduced bundle size (removed Ant Design Dropdown animations), improved user experience with smooth positioning
+
+**Documentation**: [Menu Components README](../D3dxSkinManager.Client/src/shared/components/menu/README.md)
+
 ### Changed - 2026-02-20 - ModHierarchicalView Panel Architecture ⭐⭐
 
 Organized ModHierarchicalView into 3 independent panel folders for better code organization and maintainability.

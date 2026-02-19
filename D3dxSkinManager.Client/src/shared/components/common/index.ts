@@ -5,8 +5,8 @@
  * For compact components, import from 'shared/components/compact'
  */
 
-export { ContextMenu } from './ContextMenu';
-export type { ContextMenuItem } from './ContextMenu';
+export { ContextMenu } from '../menu/ContextMenu';
+export type { ContextMenuItem, ContextMenuProps } from '../menu/ContextMenu';
 
 export { DragDropZone } from './DragDropZone';
 export type { DragDropZoneProps } from './DragDropZone';

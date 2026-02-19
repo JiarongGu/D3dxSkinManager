@@ -1,13 +1,12 @@
-import React from 'react';
-import { Dropdown, Button, Space, message, Badge } from 'antd';
-import type { MenuProps } from 'antd';
+import React, { useState } from 'react';
+import { Button, Space, message, Badge } from 'antd';
 import {
   FolderOpenOutlined,
-  CheckCircleFilled,
   SettingOutlined,
   ThunderboltOutlined
 } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
+import { ContextMenu, ContextMenuItem } from '../../../shared/components/menu/ContextMenu';
 import { Profile } from '../../../shared/types/profile.types';
 
 interface ProfileSwitcherProps {
@@ -20,6 +19,9 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   onProfileSwitch
 }) => {
   const { state, actions } = useProfile();
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
 
   // Reload profiles when component mounts and when profiles list might have changed
   React.useEffect(() => {
@@ -53,52 +55,29 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   // Ensure profiles is an array
   const profiles = Array.isArray(state.profiles) ? state.profiles : [];
 
-  const menuItems: MenuProps['items'] = [
+  const menuItems: ContextMenuItem[] = [
     {
       key: 'profiles-header',
-      label: (
-        <Space style={{ width: '100%', justifyContent: 'space-between', padding: '4px 0' }}>
-          <span style={{ fontWeight: 'bold', fontSize: '11px', color: '#8c8c8c', letterSpacing: '0.5px' }}>
-            MOD PROFILES
-          </span>
-          <Badge count={profiles.length} style={{ backgroundColor: '#1890ff', fontSize: '10px' }} />
-        </Space>
-      ),
+      label: `MOD PROFILES (${profiles.length})`,
       disabled: true
     },
     { type: 'divider' },
     ...profiles.map(profile => ({
       key: profile.id,
-      label: (
-        <Space style={{ width: '100%', justifyContent: 'space-between', padding: '2px 0' }}>
-          <Space>
-            <FolderOpenOutlined style={{ color: '#1890ff', fontSize: '14px' }} />
-            <span style={{ fontWeight: profile.id === state.selectedProfile?.id ? 600 : 400 }}>
-              {profile.name}
-            </span>
-            {profile.modCount !== undefined && (
-              <span style={{ color: '#8c8c8c', fontSize: '12px' }}>
-                ({profile.modCount} mods)
-              </span>
-            )}
-          </Space>
-          {profile.id === state.selectedProfile?.id && (
-            <CheckCircleFilled style={{ color: '#52c41a', fontSize: '16px' }} />
-          )}
-        </Space>
-      ),
-      onClick: () => handleProfileSwitch(profile.id)
+      label: `${profile.name}${profile.modCount !== undefined ? ` (${profile.modCount} mods)` : ''}${profile.id === state.selectedProfile?.id ? ' ✓' : ''}`,
+      icon: <FolderOpenOutlined />,
+      onClick: () => {
+        setMenuVisible(false);
+        handleProfileSwitch(profile.id);
+      }
     })),
     { type: 'divider' },
     {
       key: 'manage',
-      label: (
-        <Space>
-          <SettingOutlined />
-          <span style={{ fontWeight: 500 }}>Manage Profiles</span>
-        </Space>
-      ),
+      label: 'Manage Profiles',
+      icon: <SettingOutlined />,
       onClick: () => {
+        setMenuVisible(false);
         if (onManageClick) {
           onManageClick();
         }
@@ -107,13 +86,9 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   ];
 
   return (
-    <Dropdown
-      menu={{ items: menuItems }}
-      trigger={['click']}
-      placement="bottomRight"
-      disabled={state.loading}
-    >
+    <>
       <Button
+        ref={buttonRef}
         icon={<ThunderboltOutlined />}
         style={{
           background: 'rgba(24, 144, 255, 0.1)',
@@ -127,6 +102,19 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
           transition: 'all 0.3s'
         }}
         loading={state.loading}
+        disabled={state.loading}
+        onClick={() => {
+          if (buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            // Position menu below the button, aligned to the right edge of button
+            // Using rect.right as x will make the menu position from its right edge
+            setMenuPosition({
+              x: rect.right,
+              y: rect.bottom + 4
+            });
+          }
+          setMenuVisible(true);
+        }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'rgba(24, 144, 255, 0.2)';
           e.currentTarget.style.borderColor = 'rgba(24, 144, 255, 0.5)';
@@ -157,6 +145,13 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
           {!activeProfile && <span style={{ fontWeight: 500 }}>Select Profile</span>}
         </Space>
       </Button>
-    </Dropdown>
+
+      <ContextMenu
+        items={menuItems}
+        visible={menuVisible}
+        position={menuPosition}
+        onClose={() => setMenuVisible(false)}
+      />
+    </>
   );
 };

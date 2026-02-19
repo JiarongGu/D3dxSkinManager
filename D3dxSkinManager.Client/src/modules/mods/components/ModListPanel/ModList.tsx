@@ -1,11 +1,10 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { List, Tag, Button, Dropdown, message, Space } from 'antd';
+import { List, Tag, Button, message, Space } from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
   EditOutlined,
   DeleteOutlined,
-  MoreOutlined,
   ExportOutlined,
   FolderOpenOutlined,
   FileImageOutlined,
@@ -17,6 +16,7 @@ import { fileDialogService } from '../../../../shared/services/fileDialogService
 import { modService } from '../../services/modService';
 import { GradingTag } from '../../../../shared/components/common/GradingTag';
 import { useProfile } from '../../../../shared/context/ProfileContext';
+import { ContextMenu, ContextMenuItem, useContextMenu } from '../../../../shared/components/menu';
 
 interface ModListProps {
   mods: ModInfo[];
@@ -42,6 +42,8 @@ export const ModList: React.FC<ModListProps> = ({
   const [displayCount, setDisplayCount] = useState(50);
   const observerTarget = useRef<HTMLDivElement>(null);
   const {state: profileState} = useProfile();
+  const menuState = useContextMenu();
+  const [contextMenuMod, setContextMenuMod] = useState<ModInfo | null>(null);
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
@@ -77,7 +79,7 @@ export const ModList: React.FC<ModListProps> = ({
 
   const displayedMods = mods.slice(0, displayCount);
 
-  const getContextMenuItems = (mod: ModInfo) => [
+  const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => [
     // Load/Unload
     !mod.isLoaded
       ? {
@@ -271,6 +273,11 @@ export const ModList: React.FC<ModListProps> = ({
                   onRowClick?.(mod);
                 }
               }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenuMod(mod);
+                menuState.show(e);
+              }}
               onDoubleClick={() => {
                 if (!isUnloadOption && !mod.isLoaded) {
                   onLoad(mod.sha);
@@ -305,18 +312,6 @@ export const ModList: React.FC<ModListProps> = ({
                           onEdit?.(mod);
                         }}
                       />,
-                      <Dropdown
-                        key="more"
-                        menu={{ items: getContextMenuItems(mod) }}
-                        trigger={['click']}
-                      >
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<MoreOutlined />}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </Dropdown>,
                     ]
               }
             >
@@ -389,6 +384,19 @@ export const ModList: React.FC<ModListProps> = ({
         >
           Showing all {mods.length} mods
         </div>
+      )}
+
+      {/* Context menu */}
+      {contextMenuMod && (
+        <ContextMenu
+          items={getContextMenuItems(contextMenuMod)}
+          visible={menuState.visible}
+          position={menuState.position}
+          onClose={() => {
+            menuState.hide();
+            setContextMenuMod(null);
+          }}
+        />
       )}
     </div>
   );
