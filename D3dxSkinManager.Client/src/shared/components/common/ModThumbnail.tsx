@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image } from 'antd';
 import { PictureOutlined } from '@ant-design/icons';
+import { toAppUrl } from '../../utils/imageUrlHelper';
 
 export interface ModThumbnailProps {
   thumbnailPath?: string;
@@ -12,16 +13,18 @@ export const ModThumbnail: React.FC<ModThumbnailProps> = ({ thumbnailPath, alt =
     return <PictureOutlined style={{ fontSize: '24px', color: '#d9d9d9' }} />;
   }
 
-  // Backend now returns data URIs directly, no need for file:/// prefix
+  // Convert file path to app:// scheme URL
+  const imageUrl = toAppUrl(thumbnailPath) || undefined;
+
   return (
     <Image
       width={50}
       height={100}
-      src={thumbnailPath}
+      src={imageUrl}
       alt={alt}
       fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
       preview={{
-        src: thumbnailPath
+        src: imageUrl
       }}
     />
   );

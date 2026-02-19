@@ -6,6 +6,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Photino.NET;
 using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager;
 
@@ -16,6 +17,7 @@ class Program
 {
     private static ServiceRouter? _serviceRouter;
     private static DevelopmentServerManager? _devServer;
+    private static ICustomSchemeHandler? _schemeHandler;
 
     // JSON serializer options for camelCase (matches JavaScript conventions)
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -127,7 +129,11 @@ class Program
         // Create ServiceRouter for stateless request routing
         _serviceRouter = new ServiceRouter(dataPath);
 
+        // Get custom scheme handler from DI container
+        _schemeHandler = _serviceRouter.GetGlobalServices().GetRequiredService<ICustomSchemeHandler>();
+
         Console.WriteLine("[Init] ServiceRouter initialized for stateless API request handling");
+        Console.WriteLine("[Init] CustomSchemeHandler initialized for app:// URLs");
         Console.WriteLine("[Init] Global services initialized (ProfileService, Settings)");
         Console.WriteLine("[Init] Profile-scoped services ready for request routing");
     }
@@ -160,12 +166,18 @@ class Program
             .Load(startUrl);
     }
 
+    /// <summary>
+    /// Handles custom app:// scheme requests by delegating to CustomSchemeHandler service
+    /// </summary>
     private static Stream OnAppRequestReceived(object sender, string scheme, string url, out string contentType)
     {
-        contentType = string.Empty;
-        var uri = new Uri(url);
-        Console.WriteLine($"[CustomScheme] Received request: {url}");
-        return Stream.Null;
+        if (_schemeHandler == null)
+        {
+            contentType = "text/plain";
+            return new MemoryStream(System.Text.Encoding.UTF8.GetBytes("CustomSchemeHandler not initialized"));
+        }
+
+        return _schemeHandler.HandleRequest(url, out contentType);
     }
 
     /// <summary>

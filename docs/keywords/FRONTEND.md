@@ -473,6 +473,12 @@
 
 ## Utilities
 
+- **imageUrlHelper** → `src/shared/utils/imageUrlHelper.ts`
+  - toAppUrl(path) → Converts file paths to `app://` scheme URLs for custom scheme handler
+  - toAppUrls(paths) → Batch conversion of paths array
+  - Handles data URIs, HTTP URLs, and file paths
+  - Created: 2026-02-20
+
 - **grading.utils.ts** → `src/utils/grading.utils.ts`
   - getGradingColor → `:3-11`
   - getGradingLabel → `:13-21`

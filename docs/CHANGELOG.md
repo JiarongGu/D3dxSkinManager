@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2026-02-20 - Image Loading with Custom Scheme Handler ⭐⭐
+
+Replaced ImageServerService HTTP server with Photino's RegisterCustomSchemeHandler for improved image loading.
+
+**Changes**:
+- Backend: Created [CustomSchemeHandler](../D3dxSkinManager/Modules/Core/Services/CustomSchemeHandler.cs) service with DI registration
+- Backend: Registered in [CoreServiceExtensions](../D3dxSkinManager/Modules/Core/CoreServiceExtensions.cs) for dependency injection
+- Backend: Updated [Program.cs](../D3dxSkinManager/Program.cs) to resolve from DI container
+- Frontend: Created `toAppUrl()` helper in [imageUrlHelper.ts](../D3dxSkinManager.Client/src/shared/utils/imageUrlHelper.ts)
+- Updated components: ModPreviewPanel, ModThumbnail, TreeNodeConverter
+- Removed ImageServerService (HTTP server on localhost:5555 no longer needed)
+
+**Benefits**: Native scheme handler (no HTTP server), DI-based architecture, simpler URL format (`app://encoded_path`), better testability
+
+**Impact**: Image loading now uses custom scheme instead of HTTP localhost
+
 ### Changed - 2026-02-20 - Keywords Index Routing System ⭐⭐
 
 Implemented routing system for KEYWORDS_INDEX.md to improve lookup performance and scalability.
