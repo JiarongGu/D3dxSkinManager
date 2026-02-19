@@ -8,6 +8,8 @@ using Newtonsoft.Json;
 
 using D3dxSkinManager.Modules.Mods.Models;
 
+using D3dxSkinManager.Modules.Profiles;
+
 namespace D3dxSkinManager.Modules.Mods.Services;
 
 /// <summary>
@@ -18,6 +20,7 @@ public interface IClassificationRepository
     Task<List<ClassificationNode>> GetAllAsync();
     Task<ClassificationNode?> GetByIdAsync(string id);
     Task<List<ClassificationNode>> GetChildrenAsync(string? parentId);
+    Task<List<string>> GetAllDescendantIdsAsync(string parentId);
     Task<ClassificationNode?> GetByNameAsync(string name);
     Task<ClassificationNode> InsertAsync(ClassificationNode node);
     Task<bool> UpdateAsync(ClassificationNode node);
@@ -37,9 +40,9 @@ public class ClassificationRepository : IClassificationRepository
 {
     private readonly string _connectionString;
 
-    public ClassificationRepository(string dataPath)
+    public ClassificationRepository(IProfileContext profileContext)
     {
-        var dbPath = Path.Combine(dataPath, "classifications.db");
+        var dbPath = Path.Combine(profileContext.ProfilePath, "classifications.db");
         _connectionString = $"Data Source={dbPath}";
         InitializeDatabaseAsync().Wait();
     }
@@ -130,6 +133,44 @@ public class ClassificationRepository : IClassificationRepository
         }
 
         return nodes;
+    }
+
+    /// <summary>
+    /// Get all descendant node IDs recursively (children, grandchildren, etc.)
+    /// Used for querying mods by parent category (includes all subcategories)
+    /// </summary>
+    public async Task<List<string>> GetAllDescendantIdsAsync(string parentId)
+    {
+        var descendantIds = new List<string>();
+        var toProcess = new Queue<string>();
+        toProcess.Enqueue(parentId);
+
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        // BFS to collect all descendants
+        while (toProcess.Count > 0)
+        {
+            var currentId = toProcess.Dequeue();
+            descendantIds.Add(currentId);
+
+            // Get direct children
+            var command = connection.CreateCommand();
+            command.CommandText = "SELECT Id FROM Classifications WHERE ParentId = @parentId";
+            command.Parameters.AddWithValue("@parentId", currentId);
+
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var childId = reader["Id"].ToString();
+                if (!string.IsNullOrEmpty(childId))
+                {
+                    toProcess.Enqueue(childId);
+                }
+            }
+        }
+
+        return descendantIds;
     }
 
     public async Task<ClassificationNode?> GetByNameAsync(string name)

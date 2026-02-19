@@ -18,10 +18,12 @@ public class ModInfo
     public bool IsLoaded { get; set; }
     public bool IsAvailable { get; set; }
     public string? ThumbnailPath { get; set; }
-    public string? PreviewPath { get; set; }
 
     // File paths for mod file operations
     public string? OriginalPath { get; set; }  // Path to original archive file
     public string? WorkPath { get; set; }      // Path to extracted/working directory
     public string? CachePath { get; set; }     // Path to cache directory (for disabled mods)
+
+    // Note: Preview paths are scanned dynamically from previews/{SHA}/ folder
+    // Allows users to add preview images directly to folder
 }

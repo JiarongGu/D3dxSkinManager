@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using D3dxSkinManager.Facades;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mods.Models;

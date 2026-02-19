@@ -12,7 +12,7 @@ public static class CoreServiceExtensions
     /// <summary>
     /// Register Core module services
     /// </summary>
-    public static IServiceCollection AddCoreServices(this IServiceCollection services)
+    public static IServiceCollection AddCoreServices(this IServiceCollection services, string dataPath)
     {
         // Low-level services (no dependencies)
         services.AddSingleton<IFileService, FileService>();
@@ -20,34 +20,25 @@ public static class CoreServiceExtensions
         services.AddSingleton<IProcessService, ProcessService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
 
+        // Path helper for relative path conversion (ensures portability)
+        services.AddSingleton<IPathHelper>(sp => new PathHelper(dataPath));
+
+        // Payload helper for message parsing (testable DI version)
+        services.AddSingleton<IPayloadHelper, PayloadHelper>();
+
+        // Log helper for centralized logging
+        services.AddSingleton<ILogHelper, LogHelper>();
+
         return services;
     }
 
     /// <summary>
-    /// Register image service with data path
+    /// Register image service and server
     /// </summary>
-    public static IServiceCollection AddImageService(this IServiceCollection services, string dataPath)
+    public static IServiceCollection AddImageService(this IServiceCollection services)
     {
-        services.AddSingleton<IImageService>(sp =>
-        {
-            var profileContext = sp.GetService<Profiles.Services.IProfileContext>();
-            var profileDataPath = profileContext?.GetProfileDataPath() ?? System.IO.Path.Combine(dataPath, "profiles", "default");
-            return new ImageService(profileDataPath);
-        });
-        return services;
-    }
-
-    /// <summary>
-    /// Register image HTTP server
-    /// </summary>
-    public static IServiceCollection AddImageServer(this IServiceCollection services, string dataPath)
-    {
-        services.AddSingleton(sp =>
-        {
-            var profileContext = sp.GetService<Profiles.Services.IProfileContext>();
-            var profileDataPath = profileContext?.GetProfileDataPath() ?? System.IO.Path.Combine(dataPath, "profiles", "default");
-            return new ImageServerService(profileDataPath);
-        });
+        services.AddSingleton<IImageService, ImageService>();
+        services.AddSingleton<IImageServerService, ImageServerService>();
         return services;
     }
 }

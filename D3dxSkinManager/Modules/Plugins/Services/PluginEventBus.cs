@@ -1,10 +1,20 @@
 namespace D3dxSkinManager.Modules.Plugins.Services;
 
+
+public interface IPluginEventBus 
+{
+    string RegisterHandler(PluginEventType eventType, Func<PluginEventArgs, Task> handler);
+
+    void UnregisterHandler(string registrationId);
+
+    Task EmitAsync(PluginEventArgs args);
+}
+
 /// <summary>
 /// Event bus for plugin event handling.
 /// Manages event subscriptions and emission.
 /// </summary>
-public class PluginEventBus
+public class PluginEventBus: IPluginEventBus
 {
     private readonly Dictionary<string, Func<PluginEventArgs, Task>> _handlers = new();
     private readonly object _lock = new();

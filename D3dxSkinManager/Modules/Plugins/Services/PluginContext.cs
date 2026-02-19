@@ -4,6 +4,8 @@ using D3dxSkinManager.Modules.Tools.Services;
 using D3dxSkinManager.Modules.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 
+using D3dxSkinManager.Modules.Profiles;
+
 namespace D3dxSkinManager.Modules.Plugins.Services;
 
 /// <summary>
@@ -14,8 +16,8 @@ public class PluginContext : IPluginContext
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly string _dataPath;
-    private readonly PluginEventBus _eventBus;
-    private readonly ILogger _logger;
+    private readonly IPluginEventBus _eventBus;
+    private readonly ILogHelper _logger;
 
     public IModFacade ModFacade { get; }
     public IModRepository ModRepository { get; }
@@ -25,14 +27,14 @@ public class PluginContext : IPluginContext
 
     public PluginContext(
         IServiceProvider serviceProvider,
-        string dataPath,
-        PluginEventBus eventBus,
-        ILogger logger)
+        IProfileContext profileContext,
+        IPluginEventBus eventBus,
+        ILogHelper logger)
     {
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-        _dataPath = dataPath ?? throw new ArgumentNullException(nameof(dataPath));
-        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _serviceProvider = serviceProvider;
+        _dataPath = profileContext.ProfilePath;
+        _eventBus = eventBus;
+        _logger = logger;
 
         // Resolve core services
         ModFacade = _serviceProvider.GetRequiredService<IModFacade>();
@@ -83,31 +85,6 @@ public class PluginContext : IPluginContext
 
     public void Log(LogLevel level, string message, Exception? exception = null)
     {
-        _logger.Log(level, message, exception);
-    }
-}
-
-/// <summary>
-/// Simple logger interface for plugin logging.
-/// </summary>
-public interface ILogger
-{
-    void Log(LogLevel level, string message, Exception? exception = null);
-}
-
-/// <summary>
-/// Console-based logger implementation.
-/// </summary>
-public class ConsoleLogger : ILogger
-{
-    public void Log(LogLevel level, string message, Exception? exception = null)
-    {
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-        var logMessage = $"[{timestamp}] [{level}] {message}";
-
-        if (exception != null)
-            logMessage += $"\n{exception}";
-
-        Console.WriteLine(logMessage);
+        _logger.Log(level, message, "PluginContext", exception);
     }
 }

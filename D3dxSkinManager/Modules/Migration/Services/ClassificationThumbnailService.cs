@@ -32,7 +32,7 @@ public class ClassificationThumbnailService : IClassificationThumbnailService
 
     public ClassificationThumbnailService(IClassificationRepository classificationRepository)
     {
-        _classificationRepository = classificationRepository ?? throw new ArgumentNullException(nameof(classificationRepository));
+        _classificationRepository = classificationRepository;
     }
 
     /// <summary>

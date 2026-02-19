@@ -7,11 +7,30 @@ using System.Web;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
+public interface IImageServerService: IDisposable
+{
+    /// <summary>
+    /// Convert an image file path to a local HTTP URL served by this service
+    /// If the path is already an HTTP URL, it will be returned as-is
+    /// </summary>
+    string? ConvertPathToUrl(string? path);
+
+    /// <summary>
+    /// Start the image server
+    /// </summary>
+    Task StartAsync();
+
+    /// <summary>
+    /// Stop the image server
+    /// </summary>
+    Task StopAsync();
+}
+
 /// <summary>
 /// Simple HTTP server for serving image files
 /// Runs on localhost to bypass file:// protocol restrictions
 /// </summary>
-public class ImageServerService : IDisposable
+public class ImageServerService : IImageServerService, IDisposable
 {
     private readonly HttpListener _listener;
     private readonly string _dataPath;
@@ -125,7 +144,7 @@ public class ImageServerService : IDisposable
             }
 
             // Extract file path from URL
-            var urlPath = request.Url.AbsolutePath.Substring("/images/".Length);
+            var urlPath = request.Url?.AbsolutePath.Substring("/images/".Length) ?? "";
             urlPath = HttpUtility.UrlDecode(urlPath);
             var filePath = Path.Combine(_dataPath, urlPath.Replace('/', '\\'));
 

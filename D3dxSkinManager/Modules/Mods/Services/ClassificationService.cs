@@ -28,15 +28,17 @@ public interface IClassificationService
 public class ClassificationService : IClassificationService
 {
     private readonly IClassificationRepository _repository;
-    private readonly ImageServerService _imageServer;
+    private readonly IModRepository _modRepository;
     private List<ClassificationNode>? _cachedTree;
     private DateTime _lastRefresh = DateTime.MinValue;
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(5);
 
-    public ClassificationService(IClassificationRepository repository, ImageServerService imageServer)
+    public ClassificationService(
+        IClassificationRepository repository,
+        IModRepository modRepository)
     {
         _repository = repository;
-        _imageServer = imageServer;
+        _modRepository = modRepository;
     }
 
     /// <summary>
@@ -74,9 +76,6 @@ public class ClassificationService : IClassificationService
 
             foreach (var node in allNodes)
             {
-                // Convert thumbnail path to HTTP URL
-                ConvertThumbnailToHttpUrl(node);
-
                 if (string.IsNullOrEmpty(node.ParentId))
                 {
                     // Root node
@@ -88,6 +87,9 @@ public class ClassificationService : IClassificationService
                     parent.Children.Add(node);
                 }
             }
+
+            // Calculate mod counts for all nodes
+            await CalculateModCountsAsync(rootNodes);
 
             _cachedTree = rootNodes;
             _lastRefresh = DateTime.Now;
@@ -311,10 +313,44 @@ public class ClassificationService : IClassificationService
     }
 
     /// <summary>
-    /// Convert thumbnail file path to HTTP URL using centralized method
+    /// Calculate mod counts for all nodes recursively
+    /// Each node's ModCount = direct mods + all descendant mods
     /// </summary>
-    private void ConvertThumbnailToHttpUrl(ClassificationNode node)
+    private async Task CalculateModCountsAsync(List<ClassificationNode> nodes)
     {
-        node.Thumbnail = _imageServer.ConvertPathToUrl(node.Thumbnail);
+        // Get all mods from database once
+        var allMods = await _modRepository.GetAllAsync();
+
+        // Group mods by category for quick lookup
+        var modsByCategory = allMods
+            .GroupBy(m => m.Category)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        // Calculate counts recursively for each root node
+        foreach (var node in nodes)
+        {
+            CalculateNodeModCount(node, modsByCategory);
+        }
+    }
+
+    /// <summary>
+    /// Recursively calculate mod count for a node and all its descendants
+    /// Returns the total count (node's mods + all descendant mods)
+    /// </summary>
+    private int CalculateNodeModCount(ClassificationNode node, Dictionary<string, int> modsByCategory)
+    {
+        // Get direct mod count for this node's category
+        var directCount = modsByCategory.TryGetValue(node.Id, out var count) ? count : 0;
+
+        // Recursively calculate counts for all children
+        var childrenCount = 0;
+        foreach (var child in node.Children)
+        {
+            childrenCount += CalculateNodeModCount(child, modsByCategory);
+        }
+
+        // Total count is direct + children
+        node.ModCount = directCount + childrenCount;
+        return node.ModCount;
     }
 }

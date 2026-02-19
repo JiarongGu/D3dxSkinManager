@@ -19,28 +19,28 @@ namespace D3dxSkinManager.Modules.Mods;
 public class ModFacade : IModFacade
 {
     private readonly IModRepository _repository;
-    private readonly IModArchiveService _archiveService;
+    private readonly IModFileService _fileService;
     private readonly IModImportService _importService;
     private readonly IModQueryService _queryService;
     private readonly IClassificationService _classificationService;
-    private readonly ImageServerService _imageServer;
-    private readonly PluginEventBus? _eventBus;
+    private readonly IPayloadHelper _payloadHelper;
+    private readonly IPluginEventBus? _eventBus;
 
     public ModFacade(
         IModRepository repository,
-        IModArchiveService archiveService,
+        IModFileService fileService,
         IModImportService importService,
         IModQueryService queryService,
         IClassificationService classificationService,
-        ImageServerService imageServer,
-        PluginEventBus? eventBus = null)
+        IPayloadHelper payloadHelper,
+        IPluginEventBus? eventBus)
     {
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
-        _archiveService = archiveService ?? throw new ArgumentNullException(nameof(archiveService));
-        _importService = importService ?? throw new ArgumentNullException(nameof(importService));
-        _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
-        _classificationService = classificationService ?? throw new ArgumentNullException(nameof(classificationService));
-        _imageServer = imageServer ?? throw new ArgumentNullException(nameof(imageServer));
+        _repository = repository;
+        _fileService = fileService;
+        _importService = importService;
+        _queryService = queryService;
+        _classificationService = classificationService;
+        _payloadHelper = payloadHelper;
         _eventBus = eventBus;
     }
 
@@ -96,42 +96,18 @@ public class ModFacade : IModFacade
     public async Task<List<ModInfo>> GetAllModsAsync()
     {
         var mods = await _repository.GetAllAsync();
-        // Convert file paths to data URIs for web rendering
-        foreach (var mod in mods)
-        {
-            await ConvertImagePathsToDataUrisAsync(mod);
-        }
         return mods;
     }
 
     public async Task<ModInfo?> GetModByIdAsync(string sha)
     {
         var mod = await _repository.GetByIdAsync(sha);
-        if (mod != null)
-        {
-            await ConvertImagePathsToDataUrisAsync(mod);
-        }
         return mod;
-    }
-
-    /// <summary>
-    /// Converts file paths to HTTP URLs for web rendering
-    /// This solves browser security restrictions on loading local files
-    /// </summary>
-    private Task ConvertImagePathsToDataUrisAsync(ModInfo mod)
-    {
-        // Convert thumbnail path to HTTP URL using centralized method
-        mod.ThumbnailPath = _imageServer.ConvertPathToUrl(mod.ThumbnailPath);
-
-        // Convert preview path to HTTP URL using centralized method
-        mod.PreviewPath = _imageServer.ConvertPathToUrl(mod.PreviewPath);
-
-        return Task.CompletedTask;
     }
 
     public async Task<bool> LoadModAsync(string sha)
     {
-        var success = await _archiveService.LoadAsync(sha);
+        var success = await _fileService.LoadAsync(sha);
         if (!success) return false;
 
         await _repository.SetLoadedStateAsync(sha, true);
@@ -150,7 +126,7 @@ public class ModFacade : IModFacade
 
     public async Task<bool> UnloadModAsync(string sha)
     {
-        var success = await _archiveService.UnloadAsync(sha);
+        var success = await _fileService.UnloadAsync(sha);
         if (!success) return false;
 
         await _repository.SetLoadedStateAsync(sha, false);
@@ -193,7 +169,8 @@ public class ModFacade : IModFacade
         var mod = await _repository.GetByIdAsync(sha);
         if (mod == null) return false;
 
-        await _archiveService.DeleteAsync(sha, mod.ThumbnailPath, mod.PreviewPath);
+        // Preview folder (previews/{sha}/) is handled by ClearModCacheAsync in DeleteAsync
+        await _fileService.DeleteAsync(sha, mod.ThumbnailPath, null);
         var success = await _repository.DeleteAsync(sha);
 
         if (success && _eventBus != null)
@@ -211,10 +188,6 @@ public class ModFacade : IModFacade
     public async Task<List<ModInfo>> GetModsByObjectAsync(string category)
     {
         var mods = await _repository.GetByCategoryAsync(category);
-        foreach (var mod in mods)
-        {
-            await ConvertImagePathsToDataUrisAsync(mod);
-        }
         return mods;
     }
 
@@ -236,10 +209,6 @@ public class ModFacade : IModFacade
     public async Task<List<ModInfo>> SearchModsAsync(string searchTerm)
     {
         var mods = await _queryService.SearchAsync(searchTerm);
-        foreach (var mod in mods)
-        {
-            await ConvertImagePathsToDataUrisAsync(mod);
-        }
         return mods;
     }
 
@@ -352,7 +321,8 @@ public class ModFacade : IModFacade
 
         File.Copy(imagePath, targetPath, overwrite: true);
 
-        mod.PreviewPath = targetPath;
+        // Note: Previews are now stored in previews/{SHA}/ folder and scanned dynamically
+        // If no thumbnail exists, use this as thumbnail
         if (string.IsNullOrEmpty(mod.ThumbnailPath))
         {
             mod.ThumbnailPath = targetPath;
@@ -377,67 +347,67 @@ public class ModFacade : IModFacade
 
     private async Task<ModInfo?> GetModByIdAsync(MessageRequest request)
     {
-        var sha = PayloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await GetModByIdAsync(sha);
     }
 
     private async Task<bool> LoadModAsync(MessageRequest request)
     {
-        var sha = PayloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await LoadModAsync(sha);
     }
 
     private async Task<bool> UnloadModAsync(MessageRequest request)
     {
-        var sha = PayloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await UnloadModAsync(sha);
     }
 
     private async Task<ModInfo?> ImportModAsync(MessageRequest request)
     {
-        var filePath = PayloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
+        var filePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
         return await ImportModAsync(filePath);
     }
 
     private async Task<bool> DeleteModAsync(MessageRequest request)
     {
-        var sha = PayloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await DeleteModAsync(sha);
     }
 
     private async Task<List<ModInfo>> GetModsByObjectAsync(MessageRequest request)
     {
-        var category = PayloadHelper.GetRequiredValue<string>(request.Payload, "category");
+        var category = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
         return await GetModsByObjectAsync(category);
     }
 
     private async Task<List<ModInfo>> SearchModsAsync(MessageRequest request)
     {
-        var searchTerm = PayloadHelper.GetRequiredValue<string>(request.Payload, "searchTerm");
+        var searchTerm = _payloadHelper.GetRequiredValue<string>(request.Payload, "searchTerm");
         return await SearchModsAsync(searchTerm);
     }
 
     private async Task<bool> UpdateMetadataAsync(MessageRequest request)
     {
-        var sha = PayloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        var name = PayloadHelper.GetOptionalValue<string>(request.Payload, "name");
-        var author = PayloadHelper.GetOptionalValue<string>(request.Payload, "author");
-        var tags = PayloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags");
-        var grading = PayloadHelper.GetOptionalValue<string>(request.Payload, "grading");
-        var description = PayloadHelper.GetOptionalValue<string>(request.Payload, "description");
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var name = _payloadHelper.GetOptionalValue<string>(request.Payload, "name");
+        var author = _payloadHelper.GetOptionalValue<string>(request.Payload, "author");
+        var tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags");
+        var grading = _payloadHelper.GetOptionalValue<string>(request.Payload, "grading");
+        var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
 
         return await UpdateMetadataAsync(sha, name, author, tags, grading, description);
     }
 
     private async Task<object> BatchUpdateMetadataAsync(MessageRequest request)
     {
-        var shas = PayloadHelper.GetRequiredValue<List<string>>(request.Payload, "shas");
-        var name = PayloadHelper.GetOptionalValue<string>(request.Payload, "name");
-        var author = PayloadHelper.GetOptionalValue<string>(request.Payload, "author");
-        var tags = PayloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags");
-        var grading = PayloadHelper.GetOptionalValue<string>(request.Payload, "grading");
-        var description = PayloadHelper.GetOptionalValue<string>(request.Payload, "description");
-        var fieldMask = PayloadHelper.GetRequiredValue<List<string>>(request.Payload, "fieldMask");
+        var shas = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "shas");
+        var name = _payloadHelper.GetOptionalValue<string>(request.Payload, "name");
+        var author = _payloadHelper.GetOptionalValue<string>(request.Payload, "author");
+        var tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags");
+        var grading = _payloadHelper.GetOptionalValue<string>(request.Payload, "grading");
+        var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
+        var fieldMask = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "fieldMask");
 
         var updatedCount = await BatchUpdateMetadataAsync(shas, name, author, tags, grading, description, fieldMask);
 
@@ -446,8 +416,8 @@ public class ModFacade : IModFacade
 
     private async Task<object> ImportPreviewImageAsync(MessageRequest request)
     {
-        var sha = PayloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        var imagePath = PayloadHelper.GetRequiredValue<string>(request.Payload, "imagePath");
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var imagePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "imagePath");
 
         var success = await ImportPreviewImageAsync(sha, imagePath);
 
@@ -477,15 +447,8 @@ public class ModFacade : IModFacade
     /// </summary>
     private async Task<List<ModInfo>> GetModsByClassificationAsync(MessageRequest request)
     {
-        var classificationNodeId = PayloadHelper.GetRequiredValue<string>(request.Payload, "classificationNodeId");
+        var classificationNodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "classificationNodeId");
         var mods = await _queryService.GetModsByClassificationAsync(classificationNodeId);
-
-        // Convert file paths to HTTP URLs for web rendering
-        foreach (var mod in mods)
-        {
-            await ConvertImagePathsToDataUrisAsync(mod);
-        }
-
         return mods;
     }
 
@@ -495,13 +458,6 @@ public class ModFacade : IModFacade
     private async Task<List<ModInfo>> GetUnclassifiedModsAsync()
     {
         var mods = await _queryService.GetUnclassifiedModsAsync();
-
-        // Convert file paths to HTTP URLs for web rendering
-        foreach (var mod in mods)
-        {
-            await ConvertImagePathsToDataUrisAsync(mod);
-        }
-
         return mods;
     }
 
@@ -518,9 +474,9 @@ public class ModFacade : IModFacade
     /// </summary>
     private async Task<bool> MoveClassificationNodeAsync(MessageRequest request)
     {
-        var nodeId = PayloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
-        var newParentId = PayloadHelper.GetOptionalValue<string>(request.Payload, "newParentId");
-        var dropPosition = PayloadHelper.GetOptionalValue<int?>(request.Payload, "dropPosition");
+        var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
+        var newParentId = _payloadHelper.GetOptionalValue<string>(request.Payload, "newParentId");
+        var dropPosition = _payloadHelper.GetOptionalValue<int?>(request.Payload, "dropPosition");
 
         var success = await _classificationService.MoveNodeAsync(nodeId, newParentId, dropPosition);
 
@@ -542,8 +498,8 @@ public class ModFacade : IModFacade
     /// </summary>
     private async Task<bool> ReorderClassificationNodeAsync(MessageRequest request)
     {
-        var nodeId = PayloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
-        var newPosition = PayloadHelper.GetRequiredValue<int>(request.Payload, "newPosition");
+        var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
+        var newPosition = _payloadHelper.GetRequiredValue<int>(request.Payload, "newPosition");
 
         var success = await _classificationService.ReorderNodeAsync(nodeId, newPosition);
 
@@ -565,9 +521,9 @@ public class ModFacade : IModFacade
     /// </summary>
     private async Task<bool> UpdateClassificationNodeAsync(MessageRequest request)
     {
-        var nodeId = PayloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
-        var name = PayloadHelper.GetRequiredValue<string>(request.Payload, "name");
-        var icon = PayloadHelper.GetOptionalValue<string>(request.Payload, "icon");
+        var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        var icon = _payloadHelper.GetOptionalValue<string>(request.Payload, "icon");
 
         var success = await _classificationService.UpdateNodeAsync(nodeId, name, icon);
 
@@ -589,7 +545,7 @@ public class ModFacade : IModFacade
     /// </summary>
     private async Task<bool> DeleteClassificationNodeAsync(MessageRequest request)
     {
-        var nodeId = PayloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
+        var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
 
         var success = await _classificationService.DeleteNodeAsync(nodeId);
 

@@ -1,10 +1,22 @@
 namespace D3dxSkinManager.Modules.Plugins.Services;
 
+public interface IPluginRegistry
+{
+    void RegisterPlugin(IPlugin plugin);
+    IPlugin? GetPlugin(string pluginId);
+    IEnumerable<IPlugin> GetAllPlugins();
+    IEnumerable<T> GetPlugins<T>() where T : IPlugin;
+    bool CanHandleMessage(string messageType);
+    IMessageHandlerPlugin? GetMessageHandler(string messageType);
+    int GetPluginCount();
+    bool UnregisterPlugin(string pluginId);
+}
+
 /// <summary>
 /// Registry for managing loaded plugins.
 /// Provides plugin discovery, registration, and retrieval.
 /// </summary>
-public class PluginRegistry
+public class PluginRegistry: IPluginRegistry
 {
     private readonly Dictionary<string, IPlugin> _plugins = new();
     private readonly Dictionary<string, IMessageHandlerPlugin> _messageHandlers = new();

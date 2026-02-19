@@ -1,6 +1,7 @@
 using D3dxSkinManager.Modules.Plugins.Services;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mods.Models;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.ExamplePlugin;
 
@@ -84,7 +85,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         var mod = args.Data as ModInfo;
         if (mod != null)
         {
-            var message = $"[MOD_IMPORTED] Name: {mod.Name}, Object: {mod.ObjectName}, SHA: {mod.SHA}";
+            var message = $"[MOD_IMPORTED] Name: {mod.Name}, Object: {mod.Category}, SHA: {mod.SHA}";
             _context?.Log(LogLevel.Info, $"[{Name}] {message}");
             await WriteLogAsync(message);
         }

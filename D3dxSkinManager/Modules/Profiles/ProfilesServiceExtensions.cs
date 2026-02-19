@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Profiles.Services;
-using D3dxSkinManager.Modules.Profiles;
 
 namespace D3dxSkinManager.Modules.Profiles;
 
@@ -13,17 +12,10 @@ public static class ProfilesServiceExtensions
     /// <summary>
     /// Register Profiles module services and facade
     /// </summary>
-    public static IServiceCollection AddProfilesServices(this IServiceCollection services, string dataPath)
+    public static IServiceCollection AddProfilesServices(this IServiceCollection services)
     {
-        // Register profile service
-        services.AddSingleton<IProfileService>(sp => new ProfileService(dataPath));
-
-        // Register profile context (manages active profile and provides profile-specific paths)
-        services.AddSingleton<IProfileContext>(sp =>
-        {
-            var profileService = sp.GetRequiredService<IProfileService>();
-            return new ProfileContext(dataPath, profileService);
-        });
+        // Register profile service with PathHelper for portable path storage
+        services.AddSingleton<IProfileService, ProfileService>();
 
         // Register facade
         services.AddSingleton<IProfileFacade, ProfileFacade>();

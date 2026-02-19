@@ -1,8 +1,5 @@
-using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Mods.Services;
-using D3dxSkinManager.Modules.Mods;
-using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Modules.Mods;
 
@@ -15,32 +12,15 @@ public static class ModsServiceExtensions
     /// <summary>
     /// Register Mods module services and facade
     /// </summary>
-    public static IServiceCollection AddModsServices(this IServiceCollection services, string dataPath)
+    public static IServiceCollection AddModsServices(this IServiceCollection services)
     {
         // Register data layer (repositories) - using profile-specific paths
-        services.AddSingleton<IModRepository>(sp =>
-        {
-            // Try to get ProfileContext, fall back to base dataPath if not available
-            var profileContext = sp.GetService<Profiles.Services.IProfileContext>();
-            var profileDataPath = profileContext?.GetProfileDataPath() ?? Path.Combine(dataPath, "profiles", "default");
-            return new ModRepository(profileDataPath);
-        });
+        services.AddSingleton<IModRepository, ModRepository>();
 
-        services.AddSingleton<IClassificationRepository>(sp =>
-        {
-            var profileContext = sp.GetService<Profiles.Services.IProfileContext>();
-            var profileDataPath = profileContext?.GetProfileDataPath() ?? Path.Combine(dataPath, "profiles", "default");
-            return new ClassificationRepository(profileDataPath);
-        });
+        services.AddSingleton<IClassificationRepository, ClassificationRepository>();
 
         // Register domain services
-        services.AddSingleton<IModArchiveService>(sp =>
-        {
-            var profileContext = sp.GetService<Profiles.Services.IProfileContext>();
-            var profileDataPath = profileContext?.GetProfileDataPath() ?? Path.Combine(dataPath, "profiles", "default");
-            var fileService = sp.GetRequiredService<IFileService>();
-            return new ModArchiveService(profileDataPath, fileService);
-        });
+        services.AddSingleton<IModFileService, ModFileService>();
 
         // Register centralized mod management service
         services.AddSingleton<IModManagementService, ModManagementService>();
@@ -49,12 +29,7 @@ public static class ModsServiceExtensions
         services.AddSingleton<IModQueryService, ModQueryService>();
 
         // Register classification service
-        services.AddSingleton<IClassificationService>(sp =>
-        {
-            var repository = sp.GetRequiredService<IClassificationRepository>();
-            var imageServer = sp.GetRequiredService<Core.Services.ImageServerService>();
-            return new ClassificationService(repository, imageServer);
-        });
+        services.AddSingleton<IClassificationService, ClassificationService>();
 
         // Register facade
         services.AddSingleton<IModFacade, ModFacade>();

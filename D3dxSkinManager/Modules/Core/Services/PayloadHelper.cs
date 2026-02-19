@@ -4,11 +4,28 @@ using System.Text.Json;
 namespace D3dxSkinManager.Modules.Core.Services;
 
 /// <summary>
+/// Interface for extracting values from message payloads
+/// Testable alternative to static PayloadHelper methods
+/// </summary>
+public interface IPayloadHelper
+{
+    /// <summary>
+    /// Get required value from payload, throws if missing or invalid
+    /// </summary>
+    T GetRequiredValue<T>(JsonElement? payload, string key);
+
+    /// <summary>
+    /// Get optional value from payload, returns default if missing
+    /// </summary>
+    T? GetOptionalValue<T>(JsonElement? payload, string key);
+}
+
+/// <summary>
 /// Helper for extracting values from message payloads
 /// </summary>
-public static class PayloadHelper
+public class PayloadHelper : IPayloadHelper
 {
-    public static T GetRequiredValue<T>(JsonElement? payload, string key)
+    public T GetRequiredValue<T>(JsonElement? payload, string key)
     {
         if (payload == null || !payload.Value.TryGetProperty(key, out var value))
         {
@@ -29,7 +46,7 @@ public static class PayloadHelper
         }
     }
 
-    public static T? GetOptionalValue<T>(JsonElement? payload, string key)
+    public T? GetOptionalValue<T>(JsonElement? payload, string key)
     {
         if (payload == null || !payload.Value.TryGetProperty(key, out var value))
         {
@@ -50,4 +67,3 @@ public static class PayloadHelper
         }
     }
 }
-

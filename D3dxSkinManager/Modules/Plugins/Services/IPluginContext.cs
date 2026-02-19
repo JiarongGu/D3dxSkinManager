@@ -80,17 +80,6 @@ public interface IPluginContext
 }
 
 /// <summary>
-/// Log levels for plugin logging.
-/// </summary>
-public enum LogLevel
-{
-    Debug,
-    Info,
-    Warning,
-    Error
-}
-
-/// <summary>
 /// System event types that plugins can listen to.
 /// </summary>
 public enum PluginEventType

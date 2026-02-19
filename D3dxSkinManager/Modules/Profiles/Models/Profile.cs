@@ -24,12 +24,21 @@ public class Profile
     public string? Description { get; set; }
 
     /// <summary>
-    /// Work directory path for 3DMigoto (where d3dx.dll is loaded)
+    /// Game directory path (where the game executable is located)
+    /// Used for 3DMigoto deployment
+    /// </summary>
+    public string? GameDirectory { get; set; }
+
+    /// <summary>
+    /// Work directory path (base directory for mod deployment)
+    /// Mods are extracted to: {WorkDirectory}/Mods/{SHA}/
+    /// Can be external or internal. Typically set to game directory for direct deployment.
+    /// Defaults to: {DataDirectory}/work/
     /// </summary>
     public string WorkDirectory { get; set; } = string.Empty;
 
     /// <summary>
-    /// Data directory path (where mods, cache, config are stored)
+    /// Data directory path (where mod archives, thumbnails, previews, and config are stored)
     /// Defaults to: {AppDataPath}/profiles/{ProfileId}/
     /// </summary>
     public string DataDirectory { get; set; } = string.Empty;

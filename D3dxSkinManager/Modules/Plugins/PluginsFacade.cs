@@ -3,10 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Plugins.Models;
 using D3dxSkinManager.Modules.Plugins.Services;
 
 namespace D3dxSkinManager.Modules.Plugins;
+
+/// <summary>
+/// Facade interface for plugin management operations.
+/// Routes plugin-related IPC messages to appropriate services.
+/// </summary>
+public interface IPluginsFacade : IModuleFacade
+{
+    // Inherits HandleMessageAsync from IModuleFacade
+}
 
 /// <summary>
 /// Facade for plugin management operations
@@ -15,13 +25,18 @@ namespace D3dxSkinManager.Modules.Plugins;
 /// </summary>
 public class PluginsFacade : IPluginsFacade
 {
-    private readonly PluginRegistry _pluginRegistry;
-    private readonly PluginLoader _pluginLoader;
+    private readonly IPluginRegistry _pluginRegistry;
+    private readonly IPluginLoader _pluginLoader;
+    private readonly IPayloadHelper _payloadHelper;
 
-    public PluginsFacade(PluginRegistry pluginRegistry, PluginLoader pluginLoader)
+    public PluginsFacade(
+        IPluginRegistry pluginRegistry,
+        IPluginLoader pluginLoader,
+        IPayloadHelper payloadHelper)
     {
-        _pluginRegistry = pluginRegistry ?? throw new ArgumentNullException(nameof(pluginRegistry));
-        _pluginLoader = pluginLoader ?? throw new ArgumentNullException(nameof(pluginLoader));
+        _pluginRegistry = pluginRegistry;
+        _pluginLoader = pluginLoader;
+        _payloadHelper = payloadHelper;
     }
 
     public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
@@ -98,13 +113,13 @@ public class PluginsFacade : IPluginsFacade
 
     private async Task<bool> EnablePluginAsync(MessageRequest request)
     {
-        var pluginId = Modules.Core.Services.PayloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
+        var pluginId = _payloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
         return await EnablePluginAsync(pluginId);
     }
 
     private async Task<bool> DisablePluginAsync(MessageRequest request)
     {
-        var pluginId = Modules.Core.Services.PayloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
+        var pluginId = _payloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
         return await DisablePluginAsync(pluginId);
     }
 }

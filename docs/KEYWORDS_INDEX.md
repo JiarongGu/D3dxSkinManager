@@ -129,19 +129,24 @@
 
 - **IImageService** (interface) → `D3dxSkinManager/Services/ImageService.cs:13-24`
 
-- **ImageService** → `D3dxSkinManager/Services/ImageService.cs:26`
-  - GetThumbnailPathAsync → `:34-45`
-  - GetPreviewPathAsync → `:48-59`
-  - GenerateThumbnailAsync → `:62-110`
-  - CacheImageAsync → `:113-133`
-  - ResizeImageAsync → `:136-165`
-  - ClearModCacheAsync → `:168-190`
-  - GetSupportedImageExtensions → `:193-195`
+- **ImageService** → `D3dxSkinManager/Modules/Core/Services/ImageService.cs:26`
+  - GetThumbnailPathAsync → `:72-85`
+  - GetPreviewPathsAsync → `:87-107` (NEW - scans previews/{SHA}/ folder for multiple previews)
+  - GenerateThumbnailAsync → `:110-167`
+  - GeneratePreviewsAsync → `:169-246` (Returns int count, creates previews in per-mod folders)
+  - CacheImageAsync → `:249-277`
+  - ResizeImageAsync → `:280-314`
+  - ClearModCacheAsync → `:316-357` (Deletes entire preview folder)
+  - GetSupportedImageExtensions → `:360-366`
+  - GetImageAsDataUriAsync → `:368-394`
+  - GetThumbnailAsDataUriAsync → `:396-400`
+  - GetPreviewsAsDataUriAsync → `:402-414` (NEW - returns list of data URIs for all previews)
 
 ### Models ⭐ NEW
 
-- **ModInfo** → `D3dxSkinManager/Models/ModInfo.cs:5`
-  - Properties: SHA, ObjectName, Name, Author, Description, Type, Grading, Tags, IsLoaded, IsAvailable, ThumbnailPath, PreviewPath
+- **ModInfo** → `D3dxSkinManager/Modules/Mods/Models/ModInfo.cs:5`
+  - Properties: SHA, ObjectName, Name, Author, Description, Type, Grading, Tags, IsLoaded, IsAvailable, ThumbnailPath, OriginalPath, WorkPath, CachePath, Category
+  - Note: PreviewPath property removed - previews now scanned dynamically from previews/{SHA}/ folder
 
 - **MessageRequest** → `D3dxSkinManager/Models/MessageRequest.cs:3`
   - Properties: Id, Type, Payload
@@ -587,7 +592,7 @@ Located in `Plugins/` directory (external to backend):
 #### Backend Settings Services ⭐ UPDATED 2026-02-18
 
 - **GlobalSettingsService** → `D3dxSkinManager/Modules/Settings/Services/GlobalSettingsService.cs`
-  - **File Location:** `data/settings/global_settings.json` (moved from `data/`)
+  - **File Location:** `data/settings/global.json` (moved from `data/`)
   - **FIXED 2026-02-18:** Deadlock in UpdateSettingAsync resolved
   - GetSettingsAsync → `:41-81`
   - UpdateSettingsAsync → `:85-98`

@@ -9,6 +9,244 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2026-02-19 - Work Directory Refactoring and GameDirectory Support ⭐⭐⭐
+**Major refactoring: Separated game directory from work directory, renamed work_mods to work**
+
+**Problem:**
+- `WorkDirectory` was ambiguous - meant to be game directory but named as work directory
+- `work_mods` folder was hardcoded in data directory, couldn't be external
+- No way to specify game directory separately from mod extraction location
+- Confusing terminology throughout codebase
+
+**Solution - Clear Separation of Concerns:**
+
+**New Directory Structure:**
+- **GameDirectory** (new): Where game executable is located (for 3DMigoto deployment)
+- **WorkDirectory**: Where mods are extracted/loaded from (can be internal or external)
+  - Internal mode: `{DataDirectory}/work/` (default)
+  - External mode: Can point to game directory or any custom location
+- **DataDirectory**: Where archives, thumbnails, previews, config are stored
+
+**Directory Naming:**
+- Renamed: `work_mods/` → `work/`
+- Reason: Shorter, clearer name. "mods" is redundant since it's obviously for mods.
+
+**Backend Changes:**
+- **Profile.cs:**
+  - Added `GameDirectory` property (nullable - user sets later)
+  - Updated `WorkDirectory` documentation (now clearly for extracted mods)
+  - Updated `DataDirectory` documentation
+
+- **ModArchiveService.cs:**
+  - Constructor now accepts separate `workPath` parameter
+  - Changed `_workModsDirectory` → `_workDirectory`
+  - Supports external work directories
+
+- **ModsServiceExtensions.cs:**
+  - Updated DI registration to get `WorkDirectory` from active profile
+  - Resolves absolute path using PathHelper
+  - Falls back to `{DataDirectory}/work/` if not configured
+
+- **ProfileService.cs:**
+  - `CreateDefaultProfileAsync()`: Sets WorkDirectory to `{DataDirectory}/work/`
+  - `CreateProfileAsync()`: Supports custom WorkDirectory, defaults to internal
+  - `UpdateProfileAsync()`: Added GameDirectory update support
+  - Changed directory creation from `work_mods` → `work`
+
+- **Request Models:**
+  - `CreateProfileRequest`: Added `GameDirectory` and `WorkDirectory` fields
+  - `UpdateProfileRequest`: Added `GameDirectory` field
+
+**Frontend Changes:**
+- **profile.types.ts:**
+  - Added `gameDirectory`, `workDirectory`, `dataDirectory` to Profile interface
+  - Updated CreateProfileRequest and UpdateProfileRequest with new fields
+  - Added missing fields: `colorTag`, `iconName`, `gameName`
+
+**Files Modified:**
+- Profile.cs
+- CreateProfileRequest.cs, UpdateProfileRequest.cs
+- ProfileService.cs (3 methods)
+- ModArchiveService.cs (constructor + all references)
+- ModsServiceExtensions.cs (service registration)
+- profile.types.ts (frontend types)
+
+**Migration Path:**
+- Existing profiles will continue to work
+- WorkDirectory will default to `{DataDirectory}/work/` if not set
+- Users can configure GameDirectory and external WorkDirectory in profile settings
+
+**Benefits:**
+- ✅ **Clear separation**: Game location vs. mod working directory
+- ✅ **Flexibility**: Work directory can be internal or external
+- ✅ **External deployment**: Can set WorkDirectory = GameDirectory for direct deployment
+- ✅ **Better naming**: `work` instead of `work_mods`
+- ✅ **Per-profile configuration**: Each profile can have different directories
+
+**Impact:**
+- **Breaking**: Old `work_mods` folders not automatically migrated (users need to manually move if desired)
+- **New profiles**: Will use `work/` directory structure
+- **Configuration**: Users should set GameDirectory in profile settings for 3DMigoto deployment
+
+### Fixed - 2026-02-19 - Preview Folder Structure in Migration ⭐⭐
+**Fixed migration service to create correct per-mod preview folders**
+
+**Problem:**
+- MigrationService was copying preview images directly to `previews/` directory
+- Files were named like `ABC123.png` or `ABC123_preview1.png` at root level
+- New architecture requires per-mod folders: `previews/{SHA}/preview1.png`
+- Mismatch caused migrated previews to not be discovered by GetPreviewPathsAsync()
+
+**Solution:**
+- **Direct files** (e.g., `preview/ABC123.png`): Now copies to `previews/ABC123/preview1.png`
+- **Subfolder files** (e.g., `preview/ABC123/image.png`): Now copies to `previews/ABC123/image.png`
+- Migration service now creates proper folder structure automatically
+
+**Files Modified:**
+- [MigrationService.cs](D:\Development\D3dxSkinManager\D3dxSkinManager\Modules\Migration\Services\MigrationService.cs) lines 593-673
+  - Updated direct file processing to extract SHA and create per-mod folder
+  - Updated subfolder processing to maintain existing folder structure
+  - Improved progress messages to show SHA instead of filename
+
+**Impact:**
+- ✅ Migrated previews now properly discovered by GetPreviewPathsAsync()
+- ✅ Consistent folder structure across migration and import
+- ✅ Multiple previews per mod supported during migration
+
+### Changed - 2026-02-19 - Simplified Mod List UI to Match Tree View ⭐
+**Removed redundant mod count display and unified search bar styling**
+
+**Motivation:**
+- Mod counts now displayed in classification tree (with hierarchical totals)
+- Redundant title with count in mod list view
+- Search bars had inconsistent styling between tree and list views
+
+**Changes:**
+- **Removed:** `{CategoryName} Mods (count)` header from mod list
+- **Simplified:** Mod list now shows only search bar at top
+- **Unified Styling:** Search bar matches classification tree style:
+  - Removed `size="small"` prop
+  - Changed padding from `16px` to `8px`
+  - Removed title row entirely
+- **Cleanup:** Removed unused `modCounts` variable and calculation
+
+**Files Modified:**
+- [ModHierarchicalView.tsx](D:\Development\D3dxSkinManager\D3dxSkinManager.Client\src\modules\mods\components\ModHierarchicalView.tsx)
+  - Lines 501-509: Removed title header with count
+  - Lines 131-136: Removed modCounts calculation
+  - Line 502: Updated search bar to match tree styling
+
+**Visual Impact:**
+- ✅ Cleaner, more focused UI
+- ✅ Consistent search bar appearance across views
+- ✅ Mod counts available in tree view (including child node totals)
+- ✅ Bundle size reduced by 121 bytes
+
+### Removed - 2026-02-19 - Unused Cache and Temp Directories ⭐
+**Removed unused profile directory structure**
+
+**Analysis:**
+- `cache/` and `temp/` directories were created in each profile but never used
+- CacheService manages disabled mods in `work_mods/DISABLED-{SHA}/` instead
+- No code actually writes to or reads from these directories
+- MigrationService only analyzes old Python `cache/` during migration
+
+**Changes:**
+- **ProfileService.cs:**
+  - Removed `cache/` and `temp/` directory creation in `CreateDefaultProfileAsync()`
+  - Removed `cache/` directory creation in `CreateProfileAsync()`
+- **ProfileContext.cs:**
+  - Removed `cache/` and `temp/` directory creation in `EnsureProfileDirectories()`
+- **DATA_STORAGE_STRUCTURE.md:**
+  - Updated to remove cache and temp directory references
+  - Added clarification about CacheService using `work_mods/DISABLED-{SHA}/`
+
+**Impact:**
+- ✅ Cleaner profile structure - only creates directories that are actually used
+- ✅ Reduced filesystem clutter
+- ✅ More accurate documentation of storage structure
+- **Note:** Disabled mods are stored in `work_mods/DISABLED-{SHA}/` (managed by CacheService)
+
+### Changed - 2026-02-19 - Preview System Refactored to Dynamic Folder Scanning ⭐⭐⭐
+**Refactored preview storage to support multiple previews with dynamic scanning**
+
+**Motivation:**
+- Original system stored single preview path per mod in database
+- No support for multiple preview images per mod
+- Users couldn't easily add preview images without re-importing mod
+- Database bloat from storing file paths that could become stale
+
+**Solution - Dynamic Preview Folder Scanning:**
+- **Storage Structure:** Each mod's previews stored in `previews/{SHA}/preview1.png`, `preview2.png`, etc.
+- **Dynamic Scanning:** `GetPreviewPathsAsync()` scans folder on-demand instead of storing paths in database
+- **User-Friendly:** Users can directly add/remove preview images to mod folders without database updates
+- **Removed `preview_screen` directory** - No longer needed, previews per mod
+
+**Backend Changes:**
+- **IImageService interface** ([ImageService.cs](D:\Development\D3dxSkinManager\D3dxSkinManager\Modules\Core\Services\ImageService.cs)):
+  - `GetPreviewPathsAsync(sha)` - Scans `previews/{SHA}/` folder and returns list of preview paths
+  - `GeneratePreviewsAsync()` - Now returns `int` (count of previews generated) instead of single path
+  - `ClearModCacheAsync()` - Deletes entire preview folder `previews/{SHA}/` instead of single file
+
+- **ModInfo.cs** - Removed `PreviewPath` property (no longer stored in database)
+- **ModRepository.cs** - Removed PreviewPath from INSERT/UPDATE operations
+- **ModManagementService.cs** - Removed PreviewPath from CreateModRequest and UpdateModRequest models
+- **ModFacade.cs** - Removed PreviewPath conversion logic, updated DeleteAsync to pass null for preview path
+- **MigrationService.cs** - Removed database updates for preview paths (migration just copies files to correct locations)
+- **ModImportService.cs** - Updated to use new `GeneratePreviewsAsync()` returning count
+
+**Database Schema:**
+- **No changes needed** - Preview paths no longer stored, computed dynamically
+
+**Benefits:**
+- ✅ **User Control:** Users can add preview images directly to `previews/{SHA}/` folder
+- ✅ **No Database Bloat:** Paths not stored in database
+- ✅ **Always Accurate:** Paths always match filesystem reality
+- ✅ **On-Demand Loading:** Only scanned when user selects a mod (performance optimization)
+- ✅ **Multiple Previews:** Supports unlimited preview images per mod
+
+**Files Modified:**
+- Backend: ImageService.cs, ModInfo.cs, ModRepository.cs, ModManagementService.cs, ModFacade.cs, MigrationService.cs, ModImportService.cs (11 compilation errors fixed)
+- Build Status: ✅ Backend (0 errors), ✅ Frontend (463 kB bundle)
+
+**Impact:** Preview system is now more flexible, user-friendly, and maintainable. Users can manage preview images directly through the filesystem without database operations.
+
+### Added - 2026-02-19 - Mod Count Display in Classification Tree ⭐
+**Added total mod count display for each classification tree node**
+
+**Feature:**
+- Classification tree now shows `(count)` at the end of each node name
+- Count includes mods in current node + all descendant nodes
+- Calculated recursively using BFS traversal
+
+**Backend Changes:**
+- **ClassificationNode.cs** - Added `ModCount` property
+- **ClassificationService.cs**:
+  - Added `IModRepository` dependency injection
+  - Added `CalculateModCountsAsync()` - BFS traversal to calculate counts
+  - Added `CalculateNodeModCount()` - Recursive aggregation
+  - Calculates counts when building classification tree
+
+**Frontend Changes:**
+- **TreeNodeConverter.tsx** - Added visual display of mod count in gray text
+- **classification.types.ts** - Added `modCount?: number` to TypeScript type
+
+**Algorithm:** O(n) where n = number of nodes. Queries all mods once, groups by category, then recursively aggregates counts bottom-up.
+
+**Impact:** Users can now see at a glance how many mods are in each classification category, including all subcategories.
+
+### Removed - 2026-02-19 - Warehouse Feature
+**Removed unused Warehouse module from frontend and backend**
+
+**Reason:** Feature not needed for current use case
+
+**Removed:**
+- Frontend: Navigation menu item, routing, `src/modules/warehouse/` directory
+- Backend: Warehouse facade, service registration, `Modules/Warehouse/` directory
+- Files: ~450 lines of code removed
+
+**Impact:** Reduced application bundle size by 3.55 kB, simplified codebase.
+
 ### Added - 2026-02-18 - Centralized Mod Management Service ⭐⭐
 **Created reusable service for consistent mod creation/update operations**
 
@@ -177,9 +415,9 @@ Moved plugin infrastructure from flat structure to modular architecture:
 - **Impact:** All settings now save correctly without deadlock
 
 **Bug 3: Wrong File Location**
-- Settings file was in `data/global_settings.json`
+- Settings file was in `data/global.json`
 - User requirement: Settings should be in `data/settings/` folder
-- **Fix:** Changed path to `data/settings/global_settings.json`
+- **Fix:** Changed path to `data/settings/global.json`
 - **Impact:** Better organization, settings grouped in dedicated folder
 
 **Testing:**
@@ -207,7 +445,7 @@ Moved plugin infrastructure from flat structure to modular architecture:
     - Path traversal protection (`../etc/passwd`, `..\\windows\\system32`)
     - Invalid filename characters (`<>|:*?"`)
     - Slash prevention in filenames
-    - Protection against overwriting `global_settings.json`
+    - Protection against overwriting `global.json`
   - Empty/null/undefined filename handling
   - Thread-safe concurrent saves
   - Unicode/emoji/special character preservation
@@ -307,7 +545,7 @@ Moved plugin infrastructure from flat structure to modular architecture:
   - JSON validation on read/write operations
   - Path traversal protection (prevents `../` attacks)
   - Atomic file writes (temp file + move for reliability)
-  - Prevents overwriting `global_settings.json` through this API
+  - Prevents overwriting `global.json` through this API
 - **New Endpoints** (via SettingsFacade):
   - `GET_FILE` - Get JSON settings file by filename (without .json extension)
   - `SAVE_FILE` - Save JSON settings file
@@ -327,7 +565,7 @@ Moved plugin infrastructure from flat structure to modular architecture:
 
 **Architecture:**
 - Settings system now has two layers:
-  1. **Global Settings** (`data/global_settings.json`) - Managed settings (theme, log level, annotation level)
+  1. **Global Settings** (`data/global.json`) - Managed settings (theme, log level, annotation level)
   2. **Generic Settings Files** (`data/settings/*.json`) - Any additional frontend configuration files
 - Both use backend as single source of truth (no localStorage)
 
@@ -481,13 +719,13 @@ Moved plugin infrastructure from flat structure to modular architecture:
 - **New Services:**
   - `I3DMigotoService` / `D3DMigotoService` (270 lines)
 - **Features:**
-  - List available 3DMigoto versions from `3dmigoto_versions/` directory
+  - List available 3DMigoto versions from `3dmigoto/` directory
   - Deploy versions to work directory (preserves .ini configuration)
   - Track currently deployed version
   - Auto-detect and launch 3DMigoto loader
   - Support for .zip, .7z, .rar archives
 - **IPC Handlers:**
-  - `GET_3DMIGOTO_VERSIONS`
+  - `GET_3dmigoto`
   - `GET_CURRENT_3DMIGOTO_VERSION`
   - `DEPLOY_3DMIGOTO_VERSION`
   - `LAUNCH_3DMIGOTO`

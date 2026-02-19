@@ -24,6 +24,7 @@ public class MigrationServiceTests : IDisposable
 {
     private readonly string _testDataPath;
     private readonly string _testClassificationPath;
+    private readonly Mock<IProfileContext> _mockProfileContext;
     private readonly Mock<IModRepository> _mockModRepository;
     private readonly Mock<IClassificationRepository> _mockClassificationRepository;
     private readonly Mock<IClassificationThumbnailService> _mockThumbnailService;
@@ -50,6 +51,9 @@ public class MigrationServiceTests : IDisposable
         Directory.CreateDirectory(_testClassificationPath);
 
         // Setup mocks
+        _mockProfileContext = new Mock<IProfileContext>();
+        _mockProfileContext.Setup(x => x.ProfilePath).Returns(_testDataPath);
+
         _mockModRepository = new Mock<IModRepository>();
         _mockClassificationRepository = new Mock<IClassificationRepository>();
         _mockThumbnailService = new Mock<IClassificationThumbnailService>();
@@ -68,7 +72,7 @@ public class MigrationServiceTests : IDisposable
 
         // Create service instance
         _service = new MigrationService(
-            _testDataPath,
+            _mockProfileContext.Object,
             _mockModRepository.Object,
             _mockClassificationRepository.Object,
             _mockThumbnailService.Object,
@@ -123,7 +127,7 @@ public class MigrationServiceTests : IDisposable
 
         // Setup mod repository to return empty (no mods yet)
         _mockModRepository
-            .Setup(r => r.GetByObjectNameAsync(It.IsAny<string>()))
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
 
         // Create options with classification migration enabled
@@ -165,21 +169,21 @@ public class MigrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MigrateClassifications_WithModsMatchingObjectNames_ShouldLinkModsToChildNodes()
+    public async Task MigrateClassifications_WithModsMatchingCategories_ShouldLinkModsToChildNodes()
     {
         // Arrange - Create classification file
         var categoryFile = Path.Combine(_testClassificationPath, "测试分类");
         await File.WriteAllLinesAsync(categoryFile, new[] { "测试角色" });
 
-        // Create mock mods with matching object name
+        // Create mock mods with matching category
         var matchingMods = new List<ModInfo>
         {
-            new() { SHA = "ABC123", ObjectName = "测试角色", Name = "测试角色-皮肤1", Tags = new List<string>() },
-            new() { SHA = "DEF456", ObjectName = "测试角色", Name = "测试角色-皮肤2", Tags = new List<string>() }
+            new() { SHA = "ABC123", Category = "测试角色", Name = "测试角色-皮肤1", Tags = new List<string>() },
+            new() { SHA = "DEF456", Category = "测试角色", Name = "测试角色-皮肤2", Tags = new List<string>() }
         };
 
         _mockModRepository
-            .Setup(r => r.GetByObjectNameAsync("测试角色"))
+            .Setup(r => r.GetByCategoryAsync("测试角色"))
             .ReturnsAsync(matchingMods);
 
         _mockClassificationRepository
@@ -200,19 +204,11 @@ public class MigrationServiceTests : IDisposable
         // Act
         await _service.MigrateAsync(options);
 
-        // Assert - Verify that both mods were updated with classification tags
-        // Tags use simple node IDs
+        // Assert - Mods are linked via Category field, not tags
+        // No update calls should be made (mods already have correct Category field)
         _mockModRepository.Verify(
-            r => r.UpdateAsync(It.Is<ModInfo>(m =>
-                m.SHA == "ABC123" &&
-                m.Tags.Contains("classification:测试角色"))),
-            Times.Once);
-
-        _mockModRepository.Verify(
-            r => r.UpdateAsync(It.Is<ModInfo>(m =>
-                m.SHA == "DEF456" &&
-                m.Tags.Contains("classification:测试角色"))),
-            Times.Once);
+            r => r.UpdateAsync(It.IsAny<ModInfo>()),
+            Times.Never);
     }
 
     [Fact]
@@ -239,7 +235,7 @@ public class MigrationServiceTests : IDisposable
             .ReturnsAsync(false);
 
         _mockModRepository
-            .Setup(r => r.GetByObjectNameAsync(It.IsAny<string>()))
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
 
         var options = new MigrationOptions
@@ -283,7 +279,7 @@ public class MigrationServiceTests : IDisposable
             .ReturnsAsync((ClassificationNode node) => node);
 
         _mockModRepository
-            .Setup(r => r.GetByObjectNameAsync(It.IsAny<string>()))
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
 
         var options = new MigrationOptions
@@ -302,14 +298,14 @@ public class MigrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MigrateClassifications_WithNoModsMatchingObjectName_ShouldLogInfoAndContinue()
+    public async Task MigrateClassifications_WithNoModsMatchingCategory_ShouldLogInfoAndContinue()
     {
         // Arrange
         var categoryFile = Path.Combine(_testClassificationPath, "无匹配");
         await File.WriteAllLinesAsync(categoryFile, new[] { "不存在的角色" });
 
         _mockModRepository
-            .Setup(r => r.GetByObjectNameAsync("不存在的角色"))
+            .Setup(r => r.GetByCategoryAsync("不存在的角色"))
             .ReturnsAsync(new List<ModInfo>()); // No matching mods
 
         _mockClassificationRepository
@@ -363,7 +359,7 @@ public class MigrationServiceTests : IDisposable
             .ReturnsAsync(false);
 
         _mockModRepository
-            .Setup(r => r.GetByObjectNameAsync(It.IsAny<string>()))
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
 
         var options = new MigrationOptions
@@ -429,7 +425,7 @@ public class MigrationServiceTests : IDisposable
             .ReturnsAsync(false);
 
         _mockModRepository
-            .Setup(r => r.GetByObjectNameAsync(It.IsAny<string>()))
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
 
         var options = new MigrationOptions

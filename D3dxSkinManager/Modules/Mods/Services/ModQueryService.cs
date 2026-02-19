@@ -2,9 +2,24 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
 using D3dxSkinManager.Modules.Mods.Models;
+
 namespace D3dxSkinManager.Modules.Mods.Services;
+
+/// <summary>
+/// Interface for mod query service
+/// </summary>
+public interface IModQueryService
+{
+    Task<List<ModInfo>> SearchAsync(string searchTerm);
+    Task<List<ModInfo>> FilterAsync(string? category = null, string? author = null,
+        string? grading = null, bool? isLoaded = null, bool? isAvailable = null);
+    Task<Dictionary<string, List<ModInfo>>> GetGroupedByObjectAsync();
+    Task<ModStatistics> GetStatisticsAsync();
+    Task<List<ModInfo>> GetModsByClassificationAsync(string classificationNodeId);
+    Task<List<ModInfo>> GetUnclassifiedModsAsync();
+    Task<int> GetUnclassifiedCountAsync();
+}
 
 /// <summary>
 /// Service for querying and searching mods
@@ -13,10 +28,12 @@ namespace D3dxSkinManager.Modules.Mods.Services;
 public class ModQueryService : IModQueryService
 {
     private readonly IModRepository _repository;
+    private readonly IClassificationRepository _classificationRepository;
 
-    public ModQueryService(IModRepository repository)
+    public ModQueryService(IModRepository repository, IClassificationRepository classificationRepository)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _classificationRepository = classificationRepository ?? throw new ArgumentNullException(nameof(classificationRepository));
     }
 
     /// <summary>
@@ -137,7 +154,8 @@ public class ModQueryService : IModQueryService
 
     /// <summary>
     /// Get all mods that belong to a specific classification node
-    /// Looks for "classification:{nodeId}" tag in mod's Tags list
+    /// If the node has children, includes all mods from child nodes recursively
+    /// Uses the Category field to match mods (Category = classificationNodeId)
     /// </summary>
     public async Task<List<ModInfo>> GetModsByClassificationAsync(string classificationNodeId)
     {
@@ -146,42 +164,45 @@ public class ModQueryService : IModQueryService
             return new List<ModInfo>();
         }
 
-        var allMods = await _repository.GetAllAsync();
-        var classificationTag = $"classification:{classificationNodeId}";
+        // Get all descendant node IDs (includes self + all children recursively)
+        var descendantIds = await _classificationRepository.GetAllDescendantIdsAsync(classificationNodeId);
 
-        // Filter mods that have the classification tag
+        // Get all mods matching any of these categories
+        var allMods = await _repository.GetAllAsync();
         var matchingMods = allMods
-            .Where(mod => mod.Tags.Contains(classificationTag))
+            .Where(mod => descendantIds.Contains(mod.Category))
             .ToList();
 
         return matchingMods;
     }
 
     /// <summary>
-    /// Get all mods that don't have any classification tags
-    /// Returns mods without any "classification:" prefix tags
+    /// Get all mods that don't have a category assigned
+    /// Returns mods with empty or "Unknown" category
     /// </summary>
     public async Task<List<ModInfo>> GetUnclassifiedModsAsync()
     {
         var allMods = await _repository.GetAllAsync();
 
-        // Filter mods that don't have any classification tags
+        // Filter mods that don't have a category assigned
         var unclassifiedMods = allMods
-            .Where(mod => !mod.Tags.Any(tag => tag.StartsWith("classification:")))
+            .Where(mod => string.IsNullOrWhiteSpace(mod.Category) ||
+                         mod.Category.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         return unclassifiedMods;
     }
 
     /// <summary>
-    /// Get count of mods that don't have any classification tags
+    /// Get count of mods that don't have a category assigned
     /// </summary>
     public async Task<int> GetUnclassifiedCountAsync()
     {
         var allMods = await _repository.GetAllAsync();
 
-        // Count mods that don't have any classification tags
-        var count = allMods.Count(mod => !mod.Tags.Any(tag => tag.StartsWith("classification:")));
+        // Count mods that don't have a category assigned
+        var count = allMods.Count(mod => string.IsNullOrWhiteSpace(mod.Category) ||
+                                         mod.Category.Equals("Unknown", StringComparison.OrdinalIgnoreCase));
 
         return count;
     }

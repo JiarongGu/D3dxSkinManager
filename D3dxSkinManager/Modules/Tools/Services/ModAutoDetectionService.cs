@@ -8,6 +8,8 @@ using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 
 using D3dxSkinManager.Modules.Mods.Models;
+using D3dxSkinManager.Modules.Profiles;
+
 namespace D3dxSkinManager.Modules.Tools.Services;
 
 /// <summary>
@@ -40,6 +42,14 @@ public interface IModAutoDetectionService
 /// </summary>
 public class ModAutoDetectionService : IModAutoDetectionService
 {
+    private readonly string _rulePath;
+
+    public ModAutoDetectionService(IProfileContext profileContext)
+    {
+        _rulePath = Path.Combine(profileContext.ProfilePath, "auto_detection_rules.json");
+        LoadRulesAsync(_rulePath).Wait();
+    }
+
     private readonly List<ModAutoDetectionRule> _rules = new();
 
         /// <summary>

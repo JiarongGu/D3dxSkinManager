@@ -7,6 +7,8 @@ using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 
 using D3dxSkinManager.Modules.Mods.Models;
+using D3dxSkinManager.Modules.Profiles;
+
 namespace D3dxSkinManager.Modules.Mods.Services;
 
 /// <summary>
@@ -36,9 +38,9 @@ public class ModRepository : IModRepository
 {
     private readonly string _connectionString;
 
-    public ModRepository(string dataPath)
+    public ModRepository(IProfileContext profileContext)
     {
-        _connectionString = $"Data Source={Path.Combine(dataPath, "mods.db")}";
+        _connectionString = $"Data Source={Path.Combine(profileContext.ProfilePath, "mods.db")}";
         InitializeDatabaseAsync().Wait();
     }
 
@@ -61,7 +63,6 @@ public class ModRepository : IModRepository
                 IsLoaded INTEGER DEFAULT 0,
                 IsAvailable INTEGER DEFAULT 0,
                 ThumbnailPath TEXT,
-                PreviewPath TEXT,
                 CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
                 UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP
             );
@@ -130,8 +131,8 @@ public class ModRepository : IModRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO Mods (SHA, Category, Name, Author, Description, Type, Grading, Tags, IsLoaded, IsAvailable, ThumbnailPath, PreviewPath)
-            VALUES (@sha, @category, @name, @author, @description, @type, @grading, @tags, @isLoaded, @isAvailable, @thumbnailPath, @previewPath)
+            INSERT INTO Mods (SHA, Category, Name, Author, Description, Type, Grading, Tags, IsLoaded, IsAvailable, ThumbnailPath)
+            VALUES (@sha, @category, @name, @author, @description, @type, @grading, @tags, @isLoaded, @isAvailable, @thumbnailPath)
         ";
 
         command.Parameters.AddWithValue("@sha", mod.SHA);
@@ -145,7 +146,6 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@isLoaded", mod.IsLoaded ? 1 : 0);
         command.Parameters.AddWithValue("@isAvailable", mod.IsAvailable ? 1 : 0);
         command.Parameters.AddWithValue("@thumbnailPath", mod.ThumbnailPath ?? string.Empty);
-        command.Parameters.AddWithValue("@previewPath", mod.PreviewPath ?? string.Empty);
 
         await command.ExecuteNonQueryAsync();
         return mod;
@@ -169,7 +169,6 @@ public class ModRepository : IModRepository
                 IsLoaded = @isLoaded,
                 IsAvailable = @isAvailable,
                 ThumbnailPath = @thumbnailPath,
-                PreviewPath = @previewPath,
                 UpdatedAt = CURRENT_TIMESTAMP
             WHERE SHA = @sha
         ";
@@ -185,7 +184,6 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@isLoaded", mod.IsLoaded ? 1 : 0);
         command.Parameters.AddWithValue("@isAvailable", mod.IsAvailable ? 1 : 0);
         command.Parameters.AddWithValue("@thumbnailPath", mod.ThumbnailPath ?? string.Empty);
-        command.Parameters.AddWithValue("@previewPath", mod.PreviewPath ?? string.Empty);
 
         var rowsAffected = await command.ExecuteNonQueryAsync();
         return rowsAffected > 0;
@@ -344,8 +342,8 @@ public class ModRepository : IModRepository
             Tags = tags,
             IsLoaded = reader.GetInt32(reader.GetOrdinal("IsLoaded")) == 1,
             IsAvailable = reader.GetInt32(reader.GetOrdinal("IsAvailable")) == 1,
-            ThumbnailPath = reader.GetString(reader.GetOrdinal("ThumbnailPath")),
-            PreviewPath = reader.GetString(reader.GetOrdinal("PreviewPath"))
+            ThumbnailPath = reader.GetString(reader.GetOrdinal("ThumbnailPath"))
+            // Note: Preview paths scanned dynamically from previews/{SHA}/ folder
         };
     }
 }

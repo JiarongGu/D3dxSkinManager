@@ -53,6 +53,12 @@ public class ClassificationNode
     /// Custom metadata
     /// </summary>
     public Dictionary<string, object>? Metadata { get; set; }
+
+    /// <summary>
+    /// Total number of mods in this node and all descendant nodes
+    /// Calculated recursively when tree is built
+    /// </summary>
+    public int ModCount { get; set; } = 0;
 }
 
 /// <summary>
