@@ -170,45 +170,56 @@
 - **ModsView** → `src/modules/mods/components/ModsView.tsx`
   - Main mods management view
 
-- **ModHierarchicalView** → `src/components/mods/ModHierarchicalView.tsx:20`
-  - Three-panel hierarchical layout (Classification Tree → Mods Table → Preview Panel)
-  - Props: mods, loading, onLoad, onUnload, onDelete
-  - Updated: 2026-02-17 Phase 1 - Added search bars to Classification and Mods panels
-  - Updated: 2026-02-17 Phase 2 - Added context menus to Classification Tree
-  - Updated: 2026-02-17 Phase 4 - Integrated DragDropZone for file dropping
-  - Search with count indicators [filtered/total]
+- **ModHierarchicalView** → `src/modules/mods/components/ModHierarchicalView.tsx`
+  - Three-panel hierarchical layout (Classification → Mod List → Preview)
+  - Main orchestrator component with state management and business logic
+  - Integrates: ClassificationPanel, ModListPanel, ModPreviewPanel
+  - Features: Classification tree, unclassified mods, mod search/filter, drag-drop import
+  - Context menus, batch operations, mod editing
+  - Updated: 2026-02-20 - Organized into panel-based architecture
 
-- **ModTable** → `src/components/mods/ModTable.tsx:17`
-  - Main table component with Ant Design Table
-  - Props: mods, loading, objects, authors, onLoad, onUnload, onDelete, onRowClick, selectedMod
-  - Updated: 2026-02-17 Phase 2 - Added comprehensive 15-item context menu
-  - Context menu: Load/Unload, Edit, Export, Copy SHA/Name, View Files, Add Folder/Archive, Delete
+#### Panel Components (3-Panel Architecture)
 
-- **ModTableColumns** → `src/components/mods/ModTableColumns.tsx:20`
-  - createModTableColumns function → `:20`
-  - Column configuration for mod table
-  - Returns: ColumnsType<ModInfo>
+> **Architecture:** ModHierarchicalView uses 3 independent panel folders for better organization
+> **Location:** `src/modules/mods/components/[PanelName]/`
 
-- **ModPreviewPanel** → `src/components/mods/ModPreviewPanel.tsx:11`
-  - Preview panel for selected mod with large image and metadata
-  - Props: mod (ModInfo | null)
-  - Displays: preview image, name, object, author, tags, description, SHA with copy button
+- **ClassificationPanel** → `src/modules/mods/components/ClassificationPanel/`
+  - Left panel for classification tree and unclassified mods
+  - **ClassificationPanel.tsx** - Main panel component
+  - **ClassificationTree.tsx** - Hierarchical tree component
+  - **ClassificationTreeContext.tsx** - Tree operations context
+  - **useClassificationTreeOperations.tsx** - Tree manipulation hook
+  - **ClassificationContextMenu.tsx** - Right-click context menu
+  - **UnclassifiedItem.tsx** - Unclassified mods indicator
+  - **ClassificationScreen.tsx** - Add/edit classification slide-in screen
+  - **TreeNodeConverter.tsx** - Converts ClassificationNode to Ant Design DataNode
+  - Features: Hierarchical classification, search with count indicators, context menu operations
+  - Refactored: 2026-02-20 - Extracted into panel folder
 
-- **ModSearchBar** → `src/components/mods/ModSearchBar.tsx:11`
-  - Search input with ! negation support
-  - Props: value, onChange, onSearch
+- **ModListPanel** → `src/modules/mods/components/ModListPanel/`
+  - Center panel for mod list and search
+  - **ModListPanel.tsx** - Main panel with search bar and empty states
+  - **ModList.tsx** - List/card view of mods with actions
+  - Features: Search bar, empty state handling, mod selection
+  - Displays filtered mods based on classification/object selection
+  - Refactored: 2026-02-20 - Extracted into panel folder
 
-- **ModFilterPanel** → `src/components/mods/ModFilterPanel.tsx:19`
-  - Filter controls (object, grading)
-  - Props: selectedObject, selectedGrading, objects, loading, callbacks
+- **ModPreviewPanel** → `src/modules/mods/components/ModPreviewPanel/`
+  - Right panel for selected mod preview
+  - **ModPreviewPanel.tsx** - Main panel with mod details
+  - **ModPreviewContext.tsx** - Preview state management
+  - **FullScreenPreview.tsx** - Full-screen image viewer
+  - **FullScreenPreview.css** - Theme-aware fullscreen preview styling
+  - Features: Large preview image, metadata display, fullscreen view
+  - Dark overlay (rgba(0,0,0,0.92)), flat design, theme-aware
+  - Refactored: 2026-02-20 - Extracted into panel folder, improved fullscreen styling
 
-- **ModActionButtons** → `src/components/mods/ModActionButtons.tsx:14`
+#### Supporting Components
+
+- **ModActionButtons** → `src/modules/mods/components/ModActionButtons.tsx`
   - Load/Unload/Delete action buttons
   - Props: mod, onLoad, onUnload, onDelete
-
-- **ModManagementView** → `src/components/mods/ModManagementView.tsx:29`
-  - Complete mod management view (legacy - replaced by ModHierarchicalView)
-  - Composes: ModSearchBar, ModFilterPanel, ModTable
+  - Used by ModList component
 
 ### Settings Module
 

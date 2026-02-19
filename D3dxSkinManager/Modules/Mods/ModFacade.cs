@@ -41,6 +41,7 @@ public interface IModFacade : IModuleFacade
     Task<bool> UpdateMetadataAsync(string sha, string? name, string? author, List<string>? tags, string? grading, string? description);
     Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask);
     Task<bool> ImportPreviewImageAsync(string sha, string imagePath);
+    Task<List<string>> GetPreviewPathsAsync(string sha);
 
     // Classification Operations
     Task<List<ClassificationNode>> GetClassificationTreeAsync();
@@ -63,6 +64,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IClassificationService _classificationService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitterHelper _eventEmitter;
+    private readonly Core.Services.IImageService _imageService;
 
     public ModFacade(
         IModRepository repository,
@@ -72,6 +74,7 @@ public class ModFacade : BaseFacade, IModFacade
         IClassificationService classificationService,
         IPayloadHelper payloadHelper,
         IEventEmitterHelper eventEmitter,
+        Core.Services.IImageService imageService,
         ILogHelper logger) : base(logger)
     {
         _repository = repository;
@@ -81,6 +84,7 @@ public class ModFacade : BaseFacade, IModFacade
         _classificationService = classificationService;
         _payloadHelper = payloadHelper;
         _eventEmitter = eventEmitter;
+        _imageService = imageService;
     }
 
     /// <summary>
@@ -105,6 +109,7 @@ public class ModFacade : BaseFacade, IModFacade
             "UPDATE_METADATA" => await UpdateMetadataAsync(request),
             "BATCH_UPDATE_METADATA" => await BatchUpdateMetadataAsync(request),
             "IMPORT_PREVIEW_IMAGE" => await ImportPreviewImageAsync(request),
+            "GET_PREVIEW_PATHS" => await GetPreviewPathsAsync(request),
             "GET_CLASSIFICATION_TREE" => await GetClassificationTreeAsync(),
             "REFRESH_CLASSIFICATION_TREE" => await RefreshClassificationTreeAsync(),
             "GET_MODS_BY_CLASSIFICATION" => await GetModsByClassificationAsync(request),
@@ -320,6 +325,11 @@ public class ModFacade : BaseFacade, IModFacade
         return true;
     }
 
+    public async Task<List<string>> GetPreviewPathsAsync(string sha)
+    {
+        return await _imageService.GetPreviewPathsAsync(sha);
+    }
+
     // ============= Message Handler Methods =============
 
     private async Task<ModInfo?> GetModByIdAsync(MessageRequest request)
@@ -399,6 +409,12 @@ public class ModFacade : BaseFacade, IModFacade
         var success = await ImportPreviewImageAsync(sha, imagePath);
 
         return new { success, message = $"Preview image imported for mod: {sha}" };
+    }
+
+    private async Task<List<string>> GetPreviewPathsAsync(MessageRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        return await GetPreviewPathsAsync(sha);
     }
 
     /// <summary>

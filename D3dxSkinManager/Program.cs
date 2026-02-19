@@ -18,6 +18,8 @@ class Program
     private static ServiceRouter? _serviceRouter;
     private static DevelopmentServerManager? _devServer;
     private static ICustomSchemeHandler? _schemeHandler;
+    private static PhotinoWindow? _mainWindow;
+    private static Modules.Settings.Services.IWindowStateService? _windowStateService;
 
     // JSON serializer options for camelCase (matches JavaScript conventions)
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -38,15 +40,15 @@ class Program
         StartDevelopmentServerIfNeeded().Wait();
 
         // Create and configure Photino window
-        var window = CreateWindow();
+        _mainWindow = CreateWindow();
 
         Console.WriteLine($"Application initialized successfully");
         Console.WriteLine($"Press Ctrl+C to exit");
         Console.WriteLine("================================");
 
-        window.WaitForClose();
+        _mainWindow.WaitForClose();
 
-        // Shutdown
+        // Shutdown (includes saving window state)
         Shutdown();
     }
 
@@ -91,12 +93,15 @@ class Program
         }
     }
 
-    /// <summary>
-    /// Performs cleanup on shutdown
-    /// </summary>
     private static void Shutdown()
     {
         Console.WriteLine("[Shutdown] Application shutting down...");
+
+        // Save window state before closing (fallback if WindowClosingHandler didn't fire)
+        if (_mainWindow != null && _windowStateService != null)
+        {
+            _windowStateService.SaveWindowState(_mainWindow);
+        }
 
         // Stop development server
         if (_devServer != null)
@@ -129,11 +134,14 @@ class Program
         // Create ServiceRouter for stateless request routing
         _serviceRouter = new ServiceRouter(dataPath);
 
-        // Get custom scheme handler from DI container
-        _schemeHandler = _serviceRouter.GetGlobalServices().GetRequiredService<ICustomSchemeHandler>();
+        // Get services from DI container
+        var globalServices = _serviceRouter.GetGlobalServices();
+        _schemeHandler = globalServices.GetRequiredService<ICustomSchemeHandler>();
+        _windowStateService = globalServices.GetRequiredService<Modules.Settings.Services.IWindowStateService>();
 
         Console.WriteLine("[Init] ServiceRouter initialized for stateless API request handling");
         Console.WriteLine("[Init] CustomSchemeHandler initialized for app:// URLs");
+        Console.WriteLine("[Init] WindowStateService initialized for window persistence");
         Console.WriteLine("[Init] Global services initialized (ProfileService, Settings)");
         Console.WriteLine("[Init] Profile-scoped services ready for request routing");
     }
@@ -155,15 +163,58 @@ class Program
         Console.WriteLine($"[Init] Mode: {(isDevelopment ? "Development" : "Production")}");
         Console.WriteLine($"[Init] Loading: {startUrl}");
 
-        return new PhotinoWindow()
+        // Load saved window state using WindowStateService
+        var (width, height, x, y, maximized) = _windowStateService?.LoadWindowState()
+            ?? (1280, 800, null, null, false);
+
+        var window = new PhotinoWindow()
             .SetTitle("D3dxSkinManager")
             .SetUseOsDefaultSize(false)
-            .SetSize(1280, 800)
+            .SetSize(width, height)
             .SetResizable(true)
-            .Center()
             .RegisterWebMessageReceivedHandler(OnWebMessageReceived)
             .RegisterCustomSchemeHandler("app", OnAppRequestReceived)
             .Load(startUrl);
+
+        // Register window closing handler to save state before window closes
+        window.WindowClosingHandler = (sender, args) =>
+        {
+            Console.WriteLine("[Window] WindowClosingHandler triggered");
+            _windowStateService?.SaveWindowState(window);
+            return false; // Allow window to close
+        };
+
+        // Apply position if available and valid
+        if (x.HasValue && y.HasValue && _windowStateService != null)
+        {
+            // Validate position is within screen bounds before applying
+            if (_windowStateService.IsPositionValid(x.Value, y.Value, width, height, window))
+            {
+                window.SetLeft(x.Value);
+                window.SetTop(y.Value);
+                Console.WriteLine($"[Init] Window position restored: X={x.Value}, Y={y.Value}");
+            }
+            else
+            {
+                window.Center();
+                Console.WriteLine($"[Init] Saved position invalid (screen changed?), centering window");
+            }
+        }
+        else
+        {
+            window.Center();
+        }
+
+        // Apply maximized state if needed
+        if (maximized)
+        {
+            window.SetMaximized(true);
+            Console.WriteLine($"[Init] Window restored as maximized");
+        }
+
+        Console.WriteLine($"[Init] Window size: {width}x{height}");
+
+        return window;
     }
 
     /// <summary>

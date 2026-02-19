@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, Upload, Button, message } from 'antd';
-import { UploadOutlined, PictureOutlined } from '@ant-design/icons';
+import { Form, Input, Select, Upload, Button, message, Space } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
-import { ClassificationNode } from '../../../shared/types/classification.types';
+import { ClassificationNode } from '../../../../shared/types/classification.types';
+import { useSlideInScreen } from '../../../../shared/context/SlideInScreenContext';
 
 const { TextArea } = Input;
 
-interface ClassificationDialogProps {
-  /**
-   * Whether the dialog is visible
-   */
-  visible: boolean;
-
+interface ClassificationScreenProps {
   /**
    * Parent node ID (undefined for root classification)
    */
@@ -23,15 +19,9 @@ interface ClassificationDialogProps {
   tree: ClassificationNode[];
 
   /**
-   * Callback when dialog is closed
-   */
-  onClose: () => void;
-
-  /**
    * Callback when classification is saved
    */
   onSave: (data: {
-    id: string;
     name: string;
     parentId?: string;
     thumbnail?: string;
@@ -55,43 +45,31 @@ function flattenTree(nodes: ClassificationNode[]): ClassificationNode[] {
 }
 
 /**
- * Dialog for creating/editing classifications
+ * Content component for classification creation/editing
  */
-export const ClassificationDialog: React.FC<ClassificationDialogProps> = ({
-  visible,
+export const ClassificationScreenContent: React.FC<ClassificationScreenProps & { screenId: string }> = ({
   parentId,
   tree,
-  onClose,
-  onSave
+  onSave,
+  screenId
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [thumbnailFile, setThumbnailFile] = useState<UploadFile[]>([]);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | undefined>();
-  const [idManuallyEdited, setIdManuallyEdited] = useState(false);
+  const { closeScreen } = useSlideInScreen();
 
-  // Reset form when dialog opens
+  // Initialize form
   useEffect(() => {
-    if (visible) {
-      form.resetFields();
-      setThumbnailFile([]);
-      setThumbnailPreview(undefined);
-      setIdManuallyEdited(false);
+    form.resetFields();
+    setThumbnailFile([]);
+    setThumbnailPreview(undefined);
 
-      // Set parent if provided
-      if (parentId) {
-        form.setFieldsValue({ parentId });
-      }
+    // Set parent if provided
+    if (parentId) {
+      form.setFieldsValue({ parentId });
     }
-  }, [visible, parentId, form]);
-
-  // Auto-sync ID with name when name changes (unless ID was manually edited)
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newName = e.target.value;
-    if (!idManuallyEdited) {
-      form.setFieldsValue({ id: newName });
-    }
-  };
+  }, [parentId, form]);
 
   const handleSubmit = async () => {
     try {
@@ -99,7 +77,6 @@ export const ClassificationDialog: React.FC<ClassificationDialogProps> = ({
       setLoading(true);
 
       await onSave({
-        id: values.id,
         name: values.name,
         parentId: values.parentId,
         thumbnail: thumbnailPreview,
@@ -107,7 +84,7 @@ export const ClassificationDialog: React.FC<ClassificationDialogProps> = ({
       });
 
       message.success('Classification saved successfully');
-      onClose();
+      closeScreen(screenId);
     } catch (error: any) {
       if (error.errorFields) {
         // Form validation error
@@ -118,6 +95,10 @@ export const ClassificationDialog: React.FC<ClassificationDialogProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    closeScreen(screenId);
   };
 
   const handleThumbnailChange = (info: any) => {
@@ -136,16 +117,7 @@ export const ClassificationDialog: React.FC<ClassificationDialogProps> = ({
   const allNodes = flattenTree(tree);
 
   return (
-    <Modal
-      title="Add Classification"
-      open={visible}
-      onCancel={onClose}
-      onOk={handleSubmit}
-      confirmLoading={loading}
-      width={600}
-      okText="Save"
-      cancelText="Cancel"
-    >
+    <div>
       <Form
         form={form}
         layout="vertical"
@@ -164,26 +136,7 @@ export const ClassificationDialog: React.FC<ClassificationDialogProps> = ({
           <Input
             placeholder="e.g., Character, Weapon, Outfit"
             autoFocus
-            onChange={handleNameChange}
-          />
-        </Form.Item>
-
-        <Form.Item
-          name="id"
-          label="Classification ID"
-          rules={[
-            { required: true, message: 'Please enter a classification ID' },
-            {
-              pattern: /^[a-zA-Z0-9_\u4e00-\u9fa5\-]+$/,
-              message: 'ID can only contain letters, numbers, underscores, hyphens, and Chinese characters'
-            },
-            { min: 1, max: 100, message: 'ID must be between 1 and 100 characters' }
-          ]}
-          help="By default, ID will match the name. You can modify it if needed."
-        >
-          <Input
-            placeholder="Auto-generated from name"
-            onChange={() => setIdManuallyEdited(true)}
+            size="large"
           />
         </Form.Item>
 
@@ -197,6 +150,7 @@ export const ClassificationDialog: React.FC<ClassificationDialogProps> = ({
             allowClear
             showSearch
             optionFilterProp="label"
+            size="large"
             options={[
               { value: '', label: '(Root - No Parent)' },
               ...allNodes.map(node => ({
@@ -213,8 +167,9 @@ export const ClassificationDialog: React.FC<ClassificationDialogProps> = ({
         >
           <TextArea
             placeholder="Optional description for this classification"
-            rows={3}
+            rows={4}
             maxLength={500}
+            showCount
           />
         </Form.Item>
 
@@ -230,27 +185,70 @@ export const ClassificationDialog: React.FC<ClassificationDialogProps> = ({
             maxCount={1}
             listType="picture"
           >
-            <Button icon={<UploadOutlined />}>Select Image</Button>
+            <Button icon={<UploadOutlined />} size="large">Select Image</Button>
           </Upload>
 
           {thumbnailPreview && (
-            <div style={{ marginTop: '12px' }}>
+            <div style={{ marginTop: '16px' }}>
               <img
                 src={thumbnailPreview}
                 alt="Thumbnail preview"
                 style={{
-                  maxWidth: '200px',
-                  maxHeight: '200px',
+                  maxWidth: '300px',
+                  maxHeight: '300px',
                   objectFit: 'contain',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: '4px',
-                  padding: '4px'
+                  border: '1px solid var(--color-border-secondary)',
+                  borderRadius: '8px',
+                  padding: '8px',
+                  background: 'var(--color-bg-elevated)'
                 }}
               />
             </div>
           )}
         </Form.Item>
       </Form>
-    </Modal>
+
+      <div className="slide-in-screen-footer">
+        <Space>
+          <Button onClick={handleCancel} size="large">
+            Cancel
+          </Button>
+          <Button
+            type="primary"
+            onClick={handleSubmit}
+            loading={loading}
+            size="large"
+          >
+            Save Classification
+          </Button>
+        </Space>
+      </div>
+    </div>
   );
 };
+
+/**
+ * Hook to open classification screen
+ */
+export function useClassificationScreen() {
+  const { openScreen } = useSlideInScreen();
+
+  const openClassificationScreen = (props: ClassificationScreenProps) => {
+    // Create a wrapper that will receive the screenId
+    let actualScreenId = '';
+
+    const ContentWrapper = () => (
+      <ClassificationScreenContent {...props} screenId={actualScreenId} />
+    );
+
+    actualScreenId = openScreen({
+      title: 'Add Classification',
+      width: '50%',
+      content: <ContentWrapper />,
+    });
+
+    return actualScreenId;
+  };
+
+  return { openClassificationScreen };
+}

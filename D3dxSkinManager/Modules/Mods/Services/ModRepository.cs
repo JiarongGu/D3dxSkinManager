@@ -331,6 +331,9 @@ public class ModRepository : IModRepository
             ? new List<string>()
             : JsonConvert.DeserializeObject<List<string>>(tagsJson) ?? new List<string>();
 
+        var thumbnailPathOrdinal = reader.GetOrdinal("ThumbnailPath");
+        var thumbnailPath = reader.IsDBNull(thumbnailPathOrdinal) ? null : reader.GetString(thumbnailPathOrdinal);
+
         return new ModInfo
         {
             SHA = reader.GetString(reader.GetOrdinal("SHA")),
@@ -343,7 +346,7 @@ public class ModRepository : IModRepository
             Tags = tags,
             IsLoaded = reader.GetInt32(reader.GetOrdinal("IsLoaded")) == 1,
             IsAvailable = reader.GetInt32(reader.GetOrdinal("IsAvailable")) == 1,
-            ThumbnailPath = reader.GetString(reader.GetOrdinal("ThumbnailPath"))
+            ThumbnailPath = thumbnailPath
             // Note: Preview paths scanned dynamically from previews/{SHA}/ folder
         };
     }
