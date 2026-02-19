@@ -60,6 +60,7 @@ interface ClassificationTreeProviderProps {
   onExpandedKeysChange: (keys: React.Key[]) => void;
   onAddClassification?: (parentId?: string) => void;
   onRefreshTree?: () => Promise<void>;
+  onModsRefresh?: () => Promise<void>;
 }
 
 /**
@@ -97,6 +98,8 @@ interface ClassificationTreeContextValue {
   handleDragEnd: () => void;
   handleContainerDrop: (e: React.DragEvent) => Promise<void>;
   handleContainerDragOver: (e: React.DragEvent) => void;
+  handleModDragOver: (e: React.DragEvent, nodeId: string) => void;
+  handleModDrop: (e: React.DragEvent, nodeId: string) => Promise<void>;
 
   // Tree handlers
   handleToggleExpand: (nodeId: string) => void;
@@ -122,6 +125,7 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
   onExpandedKeysChange,
   onAddClassification,
   onRefreshTree,
+  onModsRefresh,
 }) => {
   const [contextMenuNode, setContextMenuNode] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
@@ -135,11 +139,14 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
     handleDragEnd,
     handleContainerDrop,
     handleContainerDragOver,
+    handleModDragOver,
+    handleModDrop,
   } = useClassificationTreeOperations({
     tree,
     expandedKeys,
     onExpandedKeysChange,
     onRefreshTree,
+    onModsRefresh,
   });
 
   // Get context menu items
@@ -196,8 +203,8 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
 
   // Convert to Ant Design tree format - direct tree nodes without root wrapper
   const treeData = useMemo((): DataNode[] => {
-    return filteredTree.map((node) => convertToDataNode(node, expandedKeys));
-  }, [filteredTree, expandedKeys]);
+    return filteredTree.map((node) => convertToDataNode(node, expandedKeys, handleModDragOver, handleModDrop));
+  }, [filteredTree, expandedKeys, handleModDragOver, handleModDrop]);
 
   const handleSelect = useCallback(
     (selectedKeys: React.Key[], info: any) => {
@@ -282,6 +289,8 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
     handleDragEnd,
     handleContainerDrop,
     handleContainerDragOver,
+    handleModDragOver,
+    handleModDrop,
 
     // Tree handlers
     handleToggleExpand,

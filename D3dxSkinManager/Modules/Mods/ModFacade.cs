@@ -39,6 +39,7 @@ public interface IModFacade : IModuleFacade
 
     // Metadata Operations
     Task<bool> UpdateMetadataAsync(string sha, string? name, string? author, List<string>? tags, string? grading, string? description);
+    Task<bool> UpdateCategoryAsync(string sha, string category);
     Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask);
     Task<bool> ImportPreviewImageAsync(string sha, string imagePath);
     Task<List<string>> GetPreviewPathsAsync(string sha);
@@ -107,6 +108,7 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_TAGS" => await GetTagsAsync(),
             "SEARCH" => await SearchModsAsync(request),
             "UPDATE_METADATA" => await UpdateMetadataAsync(request),
+            "UPDATE_CATEGORY" => await UpdateCategoryAsync(request),
             "BATCH_UPDATE_METADATA" => await BatchUpdateMetadataAsync(request),
             "IMPORT_PREVIEW_IMAGE" => await ImportPreviewImageAsync(request),
             "GET_PREVIEW_PATHS" => await GetPreviewPathsAsync(request),
@@ -241,6 +243,31 @@ public class ModFacade : BaseFacade, IModFacade
 
         await _repository.UpdateAsync(mod);
         await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.metadata.updated", new { sha, mod });
+
+        return true;
+    }
+
+    public async Task<bool> UpdateCategoryAsync(string sha, string category)
+    {
+        var mod = await _repository.GetByIdAsync(sha);
+        if (mod == null)
+        {
+            throw new InvalidOperationException($"Mod not found: {sha}");
+        }
+
+        // If the mod is currently loaded, unload it since category determines which object it applies to
+        if (mod.IsLoaded)
+        {
+            await UnloadModAsync(sha);
+        }
+
+        mod.Category = category;
+
+        await _repository.UpdateAsync(mod);
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.category.updated", new { sha, category, mod });
+
+        // Refresh the classification tree cache to update counts
+        await _classificationService.RefreshTreeAsync();
 
         return true;
     }
@@ -384,6 +411,14 @@ public class ModFacade : BaseFacade, IModFacade
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
 
         return await UpdateMetadataAsync(sha, name, author, tags, grading, description);
+    }
+
+    private async Task<bool> UpdateCategoryAsync(MessageRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var category = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
+
+        return await UpdateCategoryAsync(sha, category);
     }
 
     private async Task<object> BatchUpdateMetadataAsync(MessageRequest request)

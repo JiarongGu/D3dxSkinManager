@@ -60,6 +60,11 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
   };
 
   const handleDragEnter = useCallback((e: DragEvent<HTMLDivElement>) => {
+    // Ignore if this is a mod being dragged (internal drag-and-drop)
+    if (e.dataTransfer.types.includes('application/mod-sha')) {
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
 
@@ -72,6 +77,11 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
   }, [disabled]);
 
   const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
+    // Ignore if this is a mod being dragged (internal drag-and-drop)
+    if (e.dataTransfer.types.includes('application/mod-sha')) {
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
 
@@ -87,11 +97,21 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
   }, [disabled]);
 
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    // Ignore if this is a mod being dragged (internal drag-and-drop)
+    if (e.dataTransfer.types.includes('application/mod-sha')) {
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
   }, []);
 
   const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
+    // Ignore if this is a mod being dragged (internal drag-and-drop)
+    if (e.dataTransfer.types.includes('application/mod-sha')) {
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
 

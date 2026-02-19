@@ -200,12 +200,13 @@
   - **ClassificationTree.tsx** - Hierarchical tree component
   - **ClassificationTreeContext.tsx** - Tree operations context
   - **useClassificationTreeOperations.tsx** - Tree manipulation hook
+  - **useModCategoryUpdate.ts** - Custom hook for mod category updates via drag-and-drop (2026-02-20)
   - **ClassificationContextMenu.tsx** - Right-click context menu
-  - **UnclassifiedItem.tsx** - Unclassified mods indicator
+  - **UnclassifiedItem.tsx** - Unclassified mods indicator (drag-and-drop support added 2026-02-20)
   - **ClassificationScreen.tsx** - Add/edit classification slide-in screen
   - **TreeNodeConverter.tsx** - Converts ClassificationNode to Ant Design DataNode
-  - Features: Hierarchical classification, search with count indicators, context menu operations
-  - Refactored: 2026-02-20 - Extracted into panel folder
+  - Features: Hierarchical classification, search with count indicators, context menu operations, drag-and-drop category updates
+  - Refactored: 2026-02-20 - Extracted into panel folder, added drag-and-drop support
 
 - **ModListPanel** → `src/modules/mods/components/ModListPanel/`
   - Center panel for mod list and search
@@ -472,6 +473,9 @@
   - getTags → `:88`
   - searchMods → `:95`
   - getModBySha → `:102`
+  - updateMetadata → `:131-146`
+  - updateCategory → `:151-160` (NEW: Drag-and-drop category update)
+  - batchUpdateMetadata → `:165`
 
 - **settingsService** → `src/modules/settings/services/settingsService.ts`
   - getGlobalSettings() → `:24-30`

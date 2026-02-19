@@ -95,7 +95,7 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
       </div>
 
       {/* Mod List or Empty State */}
-      <div style={{ flex: 1, height: 'calc(100% - 48x)', overflow: 'auto' }}>
+      <div style={{ flex: 1, height: 'calc(100% - 48px)', overflow: 'auto' }}>
         {mods.length > 0 ? (
           <ModList
             mods={mods}

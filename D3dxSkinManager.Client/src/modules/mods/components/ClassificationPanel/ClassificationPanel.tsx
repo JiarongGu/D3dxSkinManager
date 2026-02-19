@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Layout, message } from 'antd';
 import type { Key } from 'react';
 import { ClassificationNode } from '../../../../shared/types/classification.types';
 import { ClassificationTree } from './ClassificationTree';
 import { UnclassifiedItem } from './UnclassifiedItem';
 import { useClassificationScreen } from './ClassificationScreen';
+import { useModCategoryUpdate } from './useModCategoryUpdate';
 
 const { Sider } = Layout;
 
@@ -18,6 +19,7 @@ interface ClassificationPanelProps {
   expandedKeys: Key[];
   onExpandedKeysChange: (keys: Key[]) => void;
   onRefreshTree: () => Promise<void>;
+  onModsRefresh?: () => Promise<void>; // NEW: Refresh mods after category update
   unclassifiedCount: number;
   onUnclassifiedClick: () => void;
   isUnclassifiedSelected: boolean;
@@ -33,23 +35,36 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
   expandedKeys,
   onExpandedKeysChange,
   onRefreshTree,
+  onModsRefresh,
   unclassifiedCount,
   onUnclassifiedClick,
   isUnclassifiedSelected,
 }) => {
   const { openClassificationScreen } = useClassificationScreen();
+  const { updateModCategory } = useModCategoryUpdate({ onRefreshTree, onModsRefresh });
 
   const handleAddClassification = (parentId?: string) => {
     openClassificationScreen({
       parentId,
       tree,
       onSave: async (data) => {
-        console.log('Save classification:', data);
         // TODO: Call backend API to create classification
         message.success(`Classification "${data.name}" created successfully`);
       },
     });
   };
+
+  // Handle dropping mods on Unclassified item
+  const handleUnclassifiedDrop = useCallback(async (e: React.DragEvent) => {
+    const modSha = e.dataTransfer.getData('application/mod-sha');
+    const modName = e.dataTransfer.getData('application/mod-name');
+
+    if (!modSha) {
+      return;
+    }
+
+    await updateModCategory(modSha, modName, '', 'Unclassified');
+  }, [updateModCategory]);
 
   return (
     <Sider
@@ -82,6 +97,7 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
           expandedKeys={expandedKeys}
           onExpandedKeysChange={onExpandedKeysChange}
           onRefreshTree={onRefreshTree}
+          onModsRefresh={onModsRefresh}
           onAddClassification={handleAddClassification}
         />
       </div>
@@ -97,6 +113,7 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
           count={unclassifiedCount}
           isSelected={isUnclassifiedSelected}
           onClick={onUnclassifiedClick}
+          onModDrop={handleUnclassifiedDrop}
         />
       </div>
     </Sider>

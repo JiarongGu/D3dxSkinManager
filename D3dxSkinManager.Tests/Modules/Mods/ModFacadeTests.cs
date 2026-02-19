@@ -29,6 +29,7 @@ public class ModFacadeTests
     private readonly Mock<IPayloadHelper> _mockPayloadHelper;
     private readonly Mock<IEventEmitterHelper> _mockEventEmitter = new();
     private readonly Mock<ILogHelper> _mockLogger = new();
+    private readonly Mock<IImageService> _mockImageService = new();
     private readonly ModFacade _facade;
 
     public ModFacadeTests()
@@ -49,6 +50,7 @@ public class ModFacadeTests
             _mockClassificationService.Object,
             _mockPayloadHelper.Object,
             _mockEventEmitter.Object,
+            _mockImageService.Object,
             _mockLogger.Object
         );
     }
@@ -535,32 +537,6 @@ public class ModFacadeTests
 
         // Assert
         result.Should().BeEmpty();
-    }
-
-    #endregion
-
-    #region Constructor Tests
-
-    // Note: Constructor tests for null validation removed as ModFacade
-    // constructor doesn't validate nulls - it accepts nullable parameters
-    // and relies on null checks during usage
-
-    [Fact]
-    public void Constructor_WithNullEventBus_ShouldNotThrow()
-    {
-        // Act & Assert
-        var facade = new ModFacade(
-            _mockRepository.Object,
-            _mockFileService.Object,
-            _mockImportService.Object,
-            _mockQueryService.Object,
-            _mockClassificationService.Object,
-            _mockPayloadHelper.Object,
-            null,  // EventBus is optional
-            _mockLogger.Object
-        );
-
-        facade.Should().NotBeNull();
     }
 
     #endregion

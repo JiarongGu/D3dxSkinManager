@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2026-02-20 - Drag-and-Drop Refinements & Ant Design Deprecation Fixes ⭐⭐
+Refined drag-and-drop feature with complete refresh flow, fixed Ant Design deprecation warnings, centered loading spinners, and refactored duplicate code.
+**Key Changes**: Unclassified drops now supported, auto-unload on category change, List component replaced with custom div implementation
+**Details**: [changelogs/2026-02/2026-02-20-drag-drop-refinements-deprecation-fixes.md](changelogs/2026-02/2026-02-20-drag-drop-refinements-deprecation-fixes.md)
+
+### Added - 2026-02-20 - Drag-and-Drop Mod Classification ⭐⭐
+
+Implemented drag-and-drop functionality to change mod categories by dragging mods from ModList to ClassificationTree nodes.
+
+**Features**:
+- Drag any mod from ModList panel
+- Drop onto any ClassificationTree node to change category
+- Visual feedback: **Entire tree node item** highlights on hover during drag (matches clickable area)
+- Success message shows which mod was moved
+- Backend: New `UPDATE_CATEGORY` IPC endpoint
+- Frontend: [modService.updateCategory()](../D3dxSkinManager.Client/src/modules/mods/services/modService.ts:151-160)
+
+**Implementation**:
+- Backend: [ModFacade.UpdateCategoryAsync()](../D3dxSkinManager/Modules/Mods/ModFacade.cs:248-262)
+- Frontend handlers: [useClassificationTreeOperations.tsx](../D3dxSkinManager.Client/src/modules/mods/components/ClassificationPanel/useClassificationTreeOperations.tsx:301-344)
+- Drag events: [ModList.tsx](../D3dxSkinManager.Client/src/modules/mods/components/ModListPanel/ModList.tsx:258-266)
+- Drop zones: [ClassificationTree.tsx](../D3dxSkinManager.Client/src/modules/mods/components/ClassificationPanel/ClassificationTree.tsx:98-166) (event delegation to `.ant-tree-node-content-wrapper`)
+
+**Benefits**: Faster mod organization, intuitive UI workflow, reduces need for edit dialogs
+
 ### Added - 2026-02-20 - Menu Component System (ContextMenu, PopupMenu, usePopupMenu) ⭐⭐⭐
 
 Created a custom menu system to replace Ant Design Dropdowns with better control over animations, positioning, and theme consistency.
