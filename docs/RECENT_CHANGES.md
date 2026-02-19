@@ -1,15 +1,131 @@
-# Recent Changes (Session: 2026-02-18 - Part 3)
+# Recent Changes
 
 > **Purpose:** This document captures the most recent changes to help AI assistants quickly understand what was done in the last session.
 >
 > **Update Frequency:** After each major session. Archive to CHANGELOG.md monthly.
 
-**Last Updated:** 2026-02-18
-**Session Focus:** Multi-Tag Input System + Component Refactoring + Age Rating System + SlideInScreen Animation + Tag Dialog Reorganization + Compact Components Reorganization
+**Last Updated:** 2026-02-19
+**Session Focus:** Frontend React Context Architecture Refactoring
 
 ---
 
-## Current Session Summary (Part 3 + Continuation)
+## 🔥 Current Session (2026-02-19) - Frontend Architecture Refactoring ⭐⭐⭐
+
+### Major Frontend Refactoring - React Context Architecture
+
+**Status:** ✅ Completed
+**Type:** Architecture Improvement
+**Impact:** All frontend components
+
+#### What Changed
+- ✅ **Removed `window.__selectedProfileId` global pattern**
+  - Replaced with React Context-based state management
+  - ProfileContext now provides `selectedProfileId` directly
+  - No more global variables or window properties
+
+- ✅ **Updated ProfileContext API**
+  - Old: `const { state: profileState } = useProfile()`
+  - New: `const { selectedProfileId, selectedProfile } = useProfile()`
+  - Direct property access instead of nested state object
+  - Type changed from `string | null` to `string | undefined` (matches IPC types)
+
+- ✅ **Fixed IPC Message Format (CRITICAL)**
+  - `profileId` must be at TOP LEVEL, not in payload
+  - Fixed classificationService.getClassificationTree()
+  - ✅ Correct: `{ module: 'MOD', type: 'GET_ALL', profileId }`
+  - ❌ Wrong: `{ module: 'MOD', type: 'GET_ALL', payload: { profileId } }`
+
+- ✅ **Simplified App Component Hierarchy**
+  - ProfileProvider wraps everything at top level
+  - AppInitializer manages initialization flow
+  - Removed profile prop drilling from App.tsx
+  - All components use `useProfile()` hook
+
+- ✅ **Updated All Module Contexts**
+  - ModsContext: Uses new ProfileContext API
+  - SettingsView: Uses new ProfileContext API
+  - ClassificationTreeOperations: Uses new ProfileContext API
+  - All dependency arrays updated with `selectedProfileId`
+
+#### Files Changed
+- `D3dxSkinManager.Client/src/shared/context/ProfileContext.tsx`
+- `D3dxSkinManager.Client/src/shared/components/AppInitializer.tsx`
+- `D3dxSkinManager.Client/src/App.tsx`
+- `D3dxSkinManager.Client/src/modules/mods/context/ModsContext.tsx`
+- `D3dxSkinManager.Client/src/modules/settings/components/SettingsView.tsx`
+- `D3dxSkinManager.Client/src/modules/mods/components/ClassificationTree/useClassificationTreeOperations.tsx`
+- `D3dxSkinManager.Client/src/shared/services/classificationService.ts`
+
+#### Documentation Created/Updated
+- ✅ Created [architecture/FRONTEND_CONTEXT_ARCHITECTURE.md](architecture/FRONTEND_CONTEXT_ARCHITECTURE.md) - Comprehensive guide
+- ✅ Updated [AI_GUIDE.md](AI_GUIDE.md) - Added React Context guidelines & IPC format rules
+- ✅ Updated [RECENT_CHANGES.md](RECENT_CHANGES.md) - This file
+
+#### Why This Matters
+- **Type Safety:** Matches TypeScript optional property semantics (`string | undefined`)
+- **Clean Code:** Single source of truth, no prop drilling, no globals
+- **Maintainability:** Consistent pattern across all components
+- **Performance:** Proper React dependency tracking and re-renders
+- **Debugging:** Easier to trace state changes through React DevTools
+
+#### Testing Results
+- ✅ Frontend builds successfully (464.35 kB gzipped)
+- ✅ App initializes and loads profile
+- ✅ Profile switching works correctly
+- ✅ Mods load for selected profile
+- ✅ Classification tree loads correctly (was broken, now fixed!)
+- ✅ No "Profile ID is required" errors
+- ✅ Settings persist per profile
+
+#### Migration Guide for AI Assistants
+
+**OLD PATTERN (DO NOT USE):**
+```typescript
+// ❌ Nested state access
+const { state: profileState } = useProfile();
+const profileId = profileState.selectedProfile?.id;
+
+// ❌ Global window variable
+const profileId = window.__selectedProfileId;
+
+// ❌ Helper function (removed)
+const profileId = getCurrentProfileId();
+
+// ❌ profileId in payload
+sendMessage({ module: 'MOD', type: 'GET_ALL', payload: { profileId } });
+```
+
+**NEW PATTERN (USE THIS):**
+```typescript
+// ✅ Direct access
+const { selectedProfile, selectedProfileId } = useProfile();
+
+// ✅ profileId at top level
+sendMessage({ module: 'MOD', type: 'GET_ALL', profileId: selectedProfileId });
+```
+
+#### Common Issue: "Profile ID is required for module: MOD"
+**Symptom:** Backend logs show `[IPC] Error: Profile ID is required for module: MOD`
+
+**Cause:** profileId in wrong location in IPC message (in payload instead of top level)
+
+**Fix:**
+```typescript
+// ❌ Wrong location
+sendMessage({ module: 'MOD', type: 'GET_ALL', payload: { profileId } })
+
+// ✅ Correct location
+sendMessage({ module: 'MOD', type: 'GET_ALL', profileId })
+```
+
+**How to Debug:**
+1. Check backend logs: `[IPC] Request: GET_ALL (Module: MOD, ProfileId: default)` ← Should have profileId!
+2. If empty: `[IPC] Request: GET_ALL (Module: MOD, ProfileId: )` ← Missing!
+3. Search for the service call and move profileId to top level
+
+---
+
+## Previous Session (2026-02-18 - Part 3)
 
 This session focused on implementing a comprehensive multi-tag input system, refactoring complex dialog components, and reorganizing tag selectors:
 

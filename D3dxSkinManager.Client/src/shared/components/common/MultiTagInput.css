@@ -1,0 +1,43 @@
+.multi-tag-input {
+  width: 100%;
+}
+
+.multi-tag-input-select {
+  width: 100%;
+}
+
+/* Ensure the select component inside Space.Compact takes full width */
+.multi-tag-input .ant-space-compact {
+  width: 100%;
+  display: flex;
+}
+
+.multi-tag-input .ant-space-compact > .ant-select {
+  flex: 1;
+}
+
+/* Button styling to match the input height */
+.multi-tag-input-button {
+  height: 100%;
+  min-width: 36px;
+}
+
+/* Tag styling in dark theme */
+[data-theme="dark"] .multi-tag-input .ant-select-selection-item {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .multi-tag-input .ant-select-selection-item-remove {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .multi-tag-input .ant-select-selection-item-remove:hover {
+  color: var(--color-text);
+}
+
+/* Light theme tag styling */
+[data-theme="light"] .multi-tag-input .ant-select-selection-item {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border);
+}

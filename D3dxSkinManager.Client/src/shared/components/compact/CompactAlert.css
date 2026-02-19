@@ -1,0 +1,82 @@
+/**
+ * CompactAlert Styles
+ *
+ * Ensures consistent alert sizing with smaller padding and icon size
+ * More compact than default Ant Design alerts
+ */
+
+/* Base compact alert styling */
+.compact-alert.ant-alert {
+  padding: 8px 12px !important;
+  margin-bottom: 12px;
+  font-size: 14px !important;
+}
+
+/* Extra compact variant */
+.compact-alert.compact-alert-extra.ant-alert {
+  padding: 6px 10px !important;
+  margin-bottom: 8px;
+  font-size: 13px !important;
+}
+
+/* Smaller icon size */
+.compact-alert.ant-alert .ant-alert-icon {
+  font-size: 16px !important;
+  margin-right: 8px !important;
+}
+
+.compact-alert.compact-alert-extra.ant-alert .ant-alert-icon {
+  font-size: 14px !important;
+  margin-right: 6px !important;
+}
+
+/* Alert with description - reduce spacing */
+.compact-alert.ant-alert.ant-alert-with-description {
+  padding: 12px 15px !important;
+}
+
+.compact-alert.compact-alert-extra.ant-alert.ant-alert-with-description {
+  padding: 10px 12px !important;
+}
+
+.compact-alert.ant-alert.ant-alert-with-description .ant-alert-icon {
+  font-size: 20px !important;
+  margin-right: 10px !important;
+  margin-top: 4px !important;
+}
+
+.compact-alert.compact-alert-extra.ant-alert.ant-alert-with-description .ant-alert-icon {
+  font-size: 18px !important;
+  margin-right: 8px !important;
+}
+
+/* Message styling */
+.compact-alert.ant-alert .ant-alert-message {
+  font-size: 14px !important;
+  margin-bottom: 0 !important;
+}
+
+.compact-alert.compact-alert-extra.ant-alert .ant-alert-message {
+  font-size: 13px !important;
+}
+
+/* Description styling */
+.compact-alert.ant-alert .ant-alert-description {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  margin-top: 4px !important;
+}
+
+.compact-alert.compact-alert-extra.ant-alert .ant-alert-description {
+  font-size: 12px !important;
+  margin-top: 3px !important;
+}
+
+/* Close button */
+.compact-alert.ant-alert .ant-alert-close-icon {
+  font-size: 12px !important;
+}
+
+.compact-alert.compact-alert-extra.ant-alert .ant-alert-close-icon {
+  font-size: 11px !important;
+}

@@ -1,0 +1,445 @@
+/**
+ * Centralized Theme Color System
+ * These CSS variables are automatically updated based on the current theme
+ */
+
+/* Light Theme (Default) */
+:root,
+[data-theme="light"] {
+  /* Layout Dimensions */
+  --layout-header-height: 64px;
+  --layout-statusbar-height: 32px;
+
+  /* Background Colors */
+  --color-bg-base: #ffffff;
+  --color-bg-container: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-layout: #f5f5f5;
+  --color-bg-spotlight: #fafafa;
+  --color-bg-mask: rgba(0, 0, 0, 0.45);
+
+  /* Border Colors */
+  --color-border-base: #d9d9d9;
+  --color-border-secondary: #f0f0f0;
+
+  /* Text Colors */
+  --color-text-base: rgba(0, 0, 0, 0.88);
+  --color-text-secondary: rgba(0, 0, 0, 0.65);
+  --color-text-tertiary: rgba(0, 0, 0, 0.45);
+  --color-text-quaternary: rgba(0, 0, 0, 0.25);
+  --color-text-inverse: #ffffff;
+
+  /* Primary Colors */
+  --color-primary: #1890ff;
+  --color-primary-hover: #40a9ff;
+  --color-primary-active: #096dd9;
+  --color-primary-bg: #e6f7ff;
+  --color-primary-bg-hover: #bae7ff;
+
+  /* Success Colors */
+  --color-success: #52c41a;
+  --color-success-bg: #f6ffed;
+  --color-success-border: #b7eb8f;
+
+  /* Warning Colors */
+  --color-warning: #faad14;
+  --color-warning-bg: #fffbe6;
+  --color-warning-border: #ffe58f;
+
+  /* Error Colors */
+  --color-error: #ff4d4f;
+  --color-error-bg: #fff2f0;
+  --color-error-border: #ffccc7;
+
+  /* Info Colors */
+  --color-info: #1890ff;
+  --color-info-bg: #e6f7ff;
+  --color-info-border: #91d5ff;
+
+  /* Component Specific */
+  --color-card-bg: #ffffff;
+  --color-card-header-bg: #fafafa;
+  --color-input-bg: #ffffff;
+  --color-input-border: #d9d9d9;
+  --color-select-bg: #ffffff;
+  --color-table-header-bg: #fafafa;
+  --color-table-row-hover: #fafafa;
+  --color-sider-bg: #ffffff;
+  --color-header-bg: #001529;
+  --color-header-text: #ffffff;
+
+  /* Shadows */
+  --shadow-base: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.03),
+                 0 1px 6px -1px rgba(0, 0, 0, 0.02),
+                 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+
+  /* Border Radius - Reduced from Ant Design defaults for sharper look */
+  --border-radius-base: 4px;      /* Reduced from 6px */
+  --border-radius-sm: 2px;        /* Reduced from 4px */
+  --border-radius-lg: 6px;        /* Reduced from 8px */
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  /* Background Colors */
+  --color-bg-base: #141414;
+  --color-bg-container: #1f1f1f;
+  --color-bg-elevated: #262626;
+  --color-bg-layout: #000000;
+  --color-bg-spotlight: #1f1f1f;
+  --color-bg-mask: rgba(0, 0, 0, 0.65);
+
+  /* Border Colors */
+  --color-border-base: #434343;
+  --color-border-secondary: #303030;
+
+  /* Text Colors */
+  --color-text-base: rgba(255, 255, 255, 0.85);
+  --color-text-secondary: rgba(255, 255, 255, 0.65);
+  --color-text-tertiary: rgba(255, 255, 255, 0.45);
+  --color-text-quaternary: rgba(255, 255, 255, 0.25);
+  --color-text-inverse: rgba(0, 0, 0, 0.88);
+
+  /* Primary Colors */
+  --color-primary: #177ddc;
+  --color-primary-hover: #3c9ae8;
+  --color-primary-active: #1765ad;
+  --color-primary-bg: #111b26;
+  --color-primary-bg-hover: #112a45;
+
+  /* Success Colors */
+  --color-success: #49aa19;
+  --color-success-bg: #162312;
+  --color-success-border: #274916;
+
+  /* Warning Colors */
+  --color-warning: #d89614;
+  --color-warning-bg: #2b2111;
+  --color-warning-border: #594214;
+
+  /* Error Colors */
+  --color-error: #d32029;
+  --color-error-bg: #2a1215;
+  --color-error-border: #58181c;
+
+  /* Info Colors */
+  --color-info: #177ddc;
+  --color-info-bg: #111b26;
+  --color-info-border: #15395b;
+
+  /* Component Specific */
+  --color-card-bg: #1f1f1f;
+  --color-card-header-bg: #141414;
+  --color-input-bg: #141414;
+  --color-input-border: #434343;
+  --color-select-bg: #141414;
+  --color-table-header-bg: #1f1f1f;
+  --color-table-row-hover: #262626;
+  --color-sider-bg: #141414;
+  --color-header-bg: #141414;
+  --color-header-text: rgba(255, 255, 255, 0.85);
+
+  /* Shadows */
+  --shadow-base: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.15),
+                 0 1px 6px -1px rgba(0, 0, 0, 0.12),
+                 0 2px 4px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* Global Theme Application */
+body {
+  background-color: var(--color-bg-layout);
+  color: var(--color-text-base);
+}
+
+/* Layout Components */
+.ant-layout {
+  background: var(--color-bg-layout) !important;
+}
+
+.ant-layout-header {
+  background: var(--color-header-bg) !important;
+  color: var(--color-header-text) !important;
+}
+
+.ant-layout-sider {
+  background: var(--color-sider-bg) !important;
+}
+
+.ant-layout-content {
+  background: var(--color-bg-container) !important;
+}
+
+/* Card Components */
+.ant-card {
+  background: var(--color-card-bg) !important;
+  border-color: var(--color-border-secondary) !important;
+  color: var(--color-text-base) !important;
+}
+
+.ant-card-head {
+  background: var(--color-card-header-bg) !important;
+  border-bottom-color: var(--color-border-secondary) !important;
+  color: var(--color-text-base) !important;
+}
+
+.ant-card-head-title {
+  color: var(--color-text-base) !important;
+}
+
+/* Input Components */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker {
+  background-color: var(--color-input-bg) !important;
+  border-color: var(--color-input-border) !important;
+  color: var(--color-text-base) !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select-selector:hover {
+  border-color: var(--color-primary) !important;
+}
+
+.ant-input::placeholder,
+.ant-select-selection-placeholder {
+  color: var(--color-text-tertiary) !important;
+}
+
+/* Table Components */
+.ant-table {
+  background: var(--color-card-bg) !important;
+  color: var(--color-text-base) !important;
+}
+
+.ant-table-thead > tr > th {
+  background: var(--color-table-header-bg) !important;
+  color: var(--color-text-base) !important;
+  border-bottom-color: var(--color-border-secondary) !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom-color: var(--color-border-secondary) !important;
+  color: var(--color-text-base) !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: var(--color-table-row-hover) !important;
+}
+
+/* Modal Components */
+.ant-modal-content {
+  background: var(--color-card-bg) !important;
+  color: var(--color-text-base) !important;
+}
+
+.ant-modal-header {
+  background: var(--color-card-header-bg) !important;
+  border-bottom-color: var(--color-border-secondary) !important;
+  color: var(--color-text-base) !important;
+}
+
+.ant-modal-title {
+  color: var(--color-text-base) !important;
+}
+
+.ant-modal-footer {
+  border-top-color: var(--color-border-secondary) !important;
+}
+
+/* Dropdown Components */
+.ant-dropdown-menu {
+  background: var(--color-bg-elevated) !important;
+}
+
+.ant-dropdown-menu-item,
+.ant-dropdown-menu-submenu-title {
+  color: var(--color-text-base) !important;
+}
+
+.ant-dropdown-menu-item:hover,
+.ant-dropdown-menu-submenu-title:hover {
+  background: var(--color-bg-spotlight) !important;
+}
+
+/* Menu Components */
+.ant-menu {
+  background: var(--color-sider-bg) !important;
+  color: var(--color-text-base) !important;
+}
+
+.ant-menu-item,
+.ant-menu-submenu-title {
+  color: var(--color-text-base) !important;
+}
+
+.ant-menu-item:hover,
+.ant-menu-submenu-title:hover {
+  background: var(--color-bg-spotlight) !important;
+}
+
+.ant-menu-item-selected {
+  background: var(--color-primary-bg) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Tree Components */
+.ant-tree {
+  background: transparent !important;
+  color: var(--color-text-base) !important;
+}
+
+.ant-tree-node-content-wrapper:hover {
+  background: var(--color-bg-spotlight) !important;
+}
+
+.ant-tree-node-selected .ant-tree-node-content-wrapper {
+  background: var(--color-primary-bg) !important;
+}
+
+/* Form Components */
+.ant-form-item-label > label {
+  color: var(--color-text-base) !important;
+}
+
+/* Divider */
+.ant-divider {
+  border-top-color: var(--color-border-secondary) !important;
+}
+
+/* Empty State */
+.ant-empty-description {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Tag Components */
+.ant-tag {
+  border-color: var(--color-border-base) !important;
+}
+
+/* Alert Components */
+.ant-alert {
+  border-color: var(--color-border-secondary) !important;
+}
+
+/* Statistic Components */
+.ant-statistic-title {
+  color: var(--color-text-secondary) !important;
+}
+
+.ant-statistic-content {
+  color: var(--color-text-base) !important;
+}
+
+/* Descriptions */
+.ant-descriptions-item-label {
+  color: var(--color-text-secondary) !important;
+}
+
+.ant-descriptions-item-content {
+  color: var(--color-text-base) !important;
+}
+
+/* Scrollbar Styling for Dark Theme */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--color-bg-container);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--color-border-base);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #595959;
+}
+
+/* Global Border Radius Application - Reduced for sharper, more modern look */
+.ant-btn {
+  border-radius: var(--border-radius-base) !important;
+}
+
+.ant-btn-sm {
+  border-radius: var(--border-radius-sm) !important;
+}
+
+.ant-btn-lg {
+  border-radius: var(--border-radius-base) !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker {
+  border-radius: var(--border-radius-base) !important;
+}
+
+.ant-card {
+  border-radius: var(--border-radius-base) !important;
+}
+
+.ant-modal-content {
+  border-radius: var(--border-radius-base) !important;
+}
+
+.ant-modal-header {
+  border-radius: var(--border-radius-base) var(--border-radius-base) 0 0 !important;
+}
+
+.ant-dropdown-menu {
+  border-radius: var(--border-radius-base) !important;
+}
+
+.ant-tooltip-inner {
+  border-radius: var(--border-radius-sm) !important;
+}
+
+.ant-tag {
+  border-radius: var(--border-radius-sm) !important;
+}
+
+.ant-badge-count {
+  border-radius: var(--border-radius-lg) !important;
+}
+
+.ant-alert {
+  border-radius: var(--border-radius-base) !important;
+}
+
+.ant-table {
+  border-radius: var(--border-radius-base) !important;
+}
+
+.ant-table-thead > tr:first-child > th:first-child {
+  border-radius: var(--border-radius-base) 0 0 0 !important;
+}
+
+.ant-table-thead > tr:first-child > th:last-child {
+  border-radius: 0 var(--border-radius-base) 0 0 !important;
+}
+
+.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
+  border-radius: var(--border-radius-base) var(--border-radius-base) 0 0 !important;
+}
+
+.ant-switch {
+  border-radius: var(--border-radius-lg) !important;
+}
+
+.ant-progress-circle .ant-progress-inner {
+  border-radius: 50% !important;
+}
+
+.ant-tree-node-content-wrapper {
+  border-radius: var(--border-radius-base) !important;
+}

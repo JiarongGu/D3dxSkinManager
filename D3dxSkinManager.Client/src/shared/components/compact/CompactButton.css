@@ -1,0 +1,91 @@
+/**
+ * CompactButton Styles
+ *
+ * Ensures consistent button HEIGHT across all button types and states
+ * Width is flexible based on content
+ * Default size is now 'medium' (32px) for a more compact interface
+ * Theme-aware shadows for better dark mode appearance
+ */
+
+/* Base button styling - enforce consistent height */
+.compact-button.ant-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
+/* Theme-aware button shadows */
+[data-theme="light"] .compact-button.ant-btn {
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.016);
+}
+
+[data-theme="light"] .compact-button.ant-btn:not(:disabled):not(.ant-btn-disabled):hover {
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.043);
+}
+
+/* Dark theme - Flat design without shadows */
+[data-theme="dark"] .compact-button.ant-btn {
+  box-shadow: none;
+}
+
+[data-theme="dark"] .compact-button.ant-btn:not(:disabled):not(.ant-btn-disabled):hover {
+  box-shadow: none;
+  border-color: var(--color-primary);
+}
+
+/* Primary button - subtle border highlight on hover instead of shadow */
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-primary {
+  box-shadow: none;
+}
+
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-primary:not(:disabled):not(.ant-btn-disabled):hover {
+  box-shadow: none;
+  filter: brightness(1.1);
+}
+
+/* Large size - 40px height */
+.compact-button.ant-btn.compact-button-large {
+  height: 40px !important;
+  padding-top: 6.4px !important;
+  padding-bottom: 6.4px !important;
+  font-size: 16px !important;
+  line-height: 1.5715 !important;
+}
+
+/* Medium size (NEW DEFAULT) - 32px height */
+.compact-button.ant-btn.compact-button-medium {
+  height: 32px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  font-size: 14px !important;
+  line-height: 1.5715 !important;
+}
+
+/* Small size - 24px height */
+.compact-button.ant-btn.compact-button-small {
+  height: 24px !important;
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+  font-size: 14px !important;
+  line-height: 1.5715 !important;
+}
+
+/* Ensure icon buttons maintain consistent size */
+.compact-button.ant-btn.ant-btn-icon-only.compact-button-large {
+  width: 40px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.compact-button.ant-btn.ant-btn-icon-only.compact-button-medium {
+  width: 32px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.compact-button.ant-btn.ant-btn-icon-only.compact-button-small {
+  width: 24px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
