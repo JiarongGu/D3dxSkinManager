@@ -73,11 +73,22 @@
   - Thumbnail image with fallback icon
   - Props: thumbnailPath, alt
 
-- **ContextMenu** → `src/components/common/ContextMenu.tsx:24`
-  - Reusable context menu component
-  - Props: items (ContextMenuItem[]), children, trigger
-  - Supports: conditional visibility, disabled states, nested menus, dividers
-  - Created: 2026-02-17
+- **Menu Components** → `src/shared/components/menu/`
+  - **ContextMenu** → `ContextMenu.tsx:42` - Low-level menu with manual positioning
+    - Props: items, visible, position, onClose
+    - Smart positioning with viewport edge detection
+    - Smooth vertical animations (top-down/bottom-up)
+    - Theme-aware styling, scroll/click-outside close
+  - **PopupMenu** → `PopupMenu.tsx:36` - Simple right-click menu wrapper
+    - Props: items, children, onClose
+    - Automatically manages position from mouse events
+    - Best for static menu items
+  - **usePopupMenu** → `usePopupMenu.ts:66` - Hook for complex menu scenarios
+    - Returns: { visible, position, show, hide, getTriggerProps }
+    - Best for tracking context (which item was clicked)
+    - Used with ContextMenu for dynamic menus
+  - Documentation: [README.md](../D3dxSkinManager.Client/src/shared/components/menu/README.md)
+  - Created: 2026-02-20 - Replaced Ant Design Dropdowns
 
 - **DragDropZone** → `src/components/common/DragDropZone.tsx:18`
   - Drag & drop zone for files and folders

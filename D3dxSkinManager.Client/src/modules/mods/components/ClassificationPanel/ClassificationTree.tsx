@@ -1,9 +1,9 @@
 import React from 'react';
-import { Tree, Empty, Spin, Input, Dropdown, Button, Tooltip } from 'antd';
+import { Tree, Empty, Spin, Input, Button, Tooltip } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { ClassificationNode } from '../../../../shared/types/classification.types';
 import { ClassificationTreeProvider, useClassificationTreeContext } from './ClassificationTreeContext';
-import { getClassificationContextMenu } from './ClassificationContextMenu';
+import { ContextMenu, ContextMenuItem } from '../../../../shared/components/menu/ContextMenu';
 import './ClassificationTree.css';
 
 const { Search } = Input;
@@ -77,6 +77,8 @@ const ClassificationTreeInner: React.FC = () => {
     contextMenuNode,
     setContextMenuNode,
     contextMenuItems,
+    contextMenuPosition,
+    setContextMenuPosition,
     treeData,
     expandedKeys,
     handleSelect,
@@ -86,9 +88,18 @@ const ClassificationTreeInner: React.FC = () => {
     handleDragEnd,
     handleContainerDrop,
     handleContainerDragOver,
-    handleEditNode,
-    handleDeleteNode,
   } = useClassificationTreeContext();
+
+  // Convert Ant Design menu items to ContextMenuItem format
+  const rightClickMenuItems: ContextMenuItem[] = (contextMenuItems || []).map((item: any) => ({
+    key: item.key,
+    label: item.label,
+    icon: item.icon,
+    danger: item.danger,
+    disabled: item.disabled,
+    onClick: item.onClick,
+    type: item.type,
+  }));
 
   if (loading) {
     return (
@@ -99,16 +110,8 @@ const ClassificationTreeInner: React.FC = () => {
   }
 
   if (tree.length === 0) {
-    // Allow right-click to add root classification even when empty
-    const emptyContextMenu = getClassificationContextMenu({
-      nodeId: null,
-      onAddClassification,
-      onEditNode: handleEditNode,
-      onDeleteNode: handleDeleteNode,
-    });
-
     return (
-      <Dropdown menu={{ items: emptyContextMenu }} trigger={['contextMenu']}>
+      <>
         <div
           style={{
             padding: '16px',
@@ -120,13 +123,24 @@ const ClassificationTreeInner: React.FC = () => {
             justifyContent: 'center',
             paddingBottom: '80px',
           }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setContextMenuPosition({ x: e.clientX, y: e.clientY });
+            setContextMenuNode(null); // null for empty tree
+          }}
         >
           <Empty
             description="No classification data available. Right-click to add one."
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </div>
-      </Dropdown>
+        <ContextMenu
+          items={rightClickMenuItems}
+          visible={contextMenuNode !== null}
+          position={contextMenuPosition}
+          onClose={() => setContextMenuNode(null)}
+        />
+      </>
     );
   }
 
@@ -158,43 +172,41 @@ const ClassificationTreeInner: React.FC = () => {
         onDrop={handleContainerDrop}
         onDragOver={handleContainerDragOver}
       >
-        <Dropdown
-          menu={{ items: contextMenuItems }}
-          trigger={['contextMenu']}
-          open={contextMenuNode !== null}
-          onOpenChange={(open) => {
-            if (!open) setContextMenuNode(null);
+        <div
+          style={{ paddingLeft: '8px', paddingBottom: '8px' }}
+          onContextMenu={(e) => {
+            // Handle context menu on empty areas (not on tree nodes)
+            const target = e.target as HTMLElement;
+            // Check if click is on tree node or empty area
+            if (!target.closest('.ant-tree-node-content-wrapper')) {
+              e.preventDefault();
+              e.stopPropagation();
+              setContextMenuPosition({ x: e.clientX, y: e.clientY });
+              setContextMenuNode(''); // Empty string for empty area context menu
+            }
           }}
         >
-          <div
-            style={{ paddingLeft: '8px', paddingBottom: '8px' }}
-            onContextMenu={(e) => {
-              // Handle context menu on empty areas (not on tree nodes)
-              const target = e.target as HTMLElement;
-              // Check if click is on tree node or empty area
-              if (!target.closest('.ant-tree-node-content-wrapper')) {
-                e.preventDefault();
-                e.stopPropagation();
-                setContextMenuNode(''); // Empty string for empty area context menu
-              }
-            }}
-          >
-            <Tree
-              className="classification-tree"
-              showIcon
-              draggable
-              selectedKeys={selectedNode ? [selectedNode.id] : []}
-              expandedKeys={expandedKeys}
-              onSelect={handleSelect}
-              onRightClick={handleRightClick}
-              onDrop={handleDrop}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              treeData={treeData}
-              style={{ background: 'transparent' }}
-            />
-          </div>
-        </Dropdown>
+          <Tree
+            className="classification-tree"
+            showIcon
+            draggable
+            selectedKeys={selectedNode ? [selectedNode.id] : []}
+            expandedKeys={expandedKeys}
+            onSelect={handleSelect}
+            onRightClick={handleRightClick}
+            onDrop={handleDrop}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            treeData={treeData}
+            style={{ background: 'transparent' }}
+          />
+        </div>
+        <ContextMenu
+          items={rightClickMenuItems}
+          visible={contextMenuNode !== null}
+          position={contextMenuPosition}
+          onClose={() => setContextMenuNode(null)}
+        />
       </div>
     </div>
   );

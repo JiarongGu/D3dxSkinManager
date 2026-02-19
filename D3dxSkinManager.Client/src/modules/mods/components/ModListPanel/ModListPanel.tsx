@@ -5,7 +5,7 @@ import { ModInfo } from '../../../../shared/types/mod.types';
 import { ClassificationNode } from '../../../../shared/types/classification.types';
 import { ModList } from './ModList';
 
-const { Content } = Layout;
+const { Sider } = Layout;
 const { Search } = Input;
 
 interface ModListPanelProps {
@@ -39,27 +39,37 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
 }) => {
   if (!selectedClassification && !selectedObject) {
     return (
-      <Content
+      <Sider
+        width={450}
         style={{
-          background: 'var(--color-bg-container)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          background: 'var(--color-bg-elevated) !important',
           height: '100%',
         }}
       >
-        <Empty
-          description="Select a classification or object node to view mods"
-          style={{ margin: 0 }}
-        />
-      </Content>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            width: '100%',
+          }}
+        >
+          <Empty
+            description="Select a classification to view mods"
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            style={{ margin: 0 }}
+          />
+        </div>
+      </Sider>
     );
   }
 
   return (
-    <Content
+    <Sider
+      width={450}
       style={{
-        background: 'var(--color-bg-container)',
+        background: 'var(--color-bg-elevated) !important',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -72,6 +82,7 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
           padding: '8px',
           borderBottom: '1px solid var(--color-border-secondary)',
           flexShrink: 0,
+          height: '48px',
         }}
       >
         <Search
@@ -84,7 +95,7 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
       </div>
 
       {/* Mod List or Empty State */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      <div style={{ flex: 1, height: 'calc(100% - 48x)', overflow: 'auto' }}>
         {mods.length > 0 ? (
           <ModList
             mods={mods}
@@ -115,10 +126,11 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
                       ? `No mods found for ${selectedObject}`
                       : 'No mods available'
               }
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
           </div>
         )}
       </div>
-    </Content>
+    </Sider>
   );
 };

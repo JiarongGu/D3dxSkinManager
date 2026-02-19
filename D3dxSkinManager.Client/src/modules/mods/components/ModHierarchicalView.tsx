@@ -14,9 +14,8 @@ import { ModPreviewPanel } from "./ModPreviewPanel";
 import { ClassificationPanel } from "./ClassificationPanel";
 import { ModListPanel } from "./ModListPanel";
 import {
-  ContextMenu,
   ContextMenuItem,
-} from "../../../shared/components/common/ContextMenu";
+} from "../../../shared/components/menu/ContextMenu";
 import { DragDropZone } from "../../../shared/components/common/DragDropZone";
 import { ModEditDialog } from "./ModEditDialog";
 import { BatchEditDialog } from "./BatchEditDialog";
@@ -31,8 +30,6 @@ import { BatchEditUnit } from "./BatchEditUnit";
 import { createDefaultFileRouter } from "../../../shared/utils/fileTypeRouter";
 import { useModsContext } from "../context/ModsContext";
 import { useProfile } from "../../../shared/context/ProfileContext";
-
-const { Sider } = Layout;
 
 export const ModHierarchicalView: React.FC = () => {
   const { state, actions } = useModsContext();
@@ -295,24 +292,6 @@ export const ModHierarchicalView: React.FC = () => {
     ];
   };
 
-  // Custom title render with context menu
-  const renderTreeTitle = (node: DataNode) => {
-    const contextMenuItems = getTreeNodeContextMenu(
-      node.key as string,
-      node.title as string,
-    );
-    const titleText =
-      typeof node.title === "string" ? node.title : String(node.title);
-
-    return (
-      <ContextMenu items={contextMenuItems}>
-        <span style={{ display: "inline-block", width: "100%" }}>
-          {titleText}
-        </span>
-      </ContextMenu>
-    );
-  };
-
   // Dialog handlers
   const handleOpenModEdit = (mod: ModInfo) => {
     actions.openEditDialog(mod);
@@ -541,17 +520,16 @@ export const ModHierarchicalView: React.FC = () => {
           />
 
           {/* Preview Panel - Right Panel */}
-          <Sider
-            width={500}
+          <Layout.Content
             style={{
-              background: "var(--color-bg-spotlight)",
+              background: "var(--color-sider-bg) !important",
               borderLeft: "1px solid var(--color-border-secondary)",
               height: "100%",
               overflow: "auto",
             }}
           >
             <ModPreviewPanel mod={state.selectedMod} />
-          </Sider>
+          </Layout.Content>
         </Layout>
       </DragDropZone>
 

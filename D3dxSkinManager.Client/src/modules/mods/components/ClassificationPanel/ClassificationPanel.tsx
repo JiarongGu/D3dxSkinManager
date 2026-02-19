@@ -55,7 +55,6 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
     <Sider
       width={250}
       style={{
-        background: 'var(--color-bg-spotlight)',
         borderRight: '1px solid var(--color-border-secondary)',
         height: '100%',
         overflow: 'hidden',
@@ -91,7 +90,6 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
       <div
         style={{
           borderTop: '1px solid var(--color-border-secondary)',
-          background: 'var(--color-bg-spotlight)',
           height: '40px',
         }}
       >

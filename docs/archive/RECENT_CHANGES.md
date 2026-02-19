@@ -722,7 +722,7 @@ if (!state.selectedClassification && !state.selectedObject) {
 
 #### Centered Empty State (lines 415-429)
 - When NO node selected: Full-height centered flexbox with Empty component
-- Message: "Select a classification or object node to view mods"
+- Message: "Select a classification to view mods"
 - Clean, minimal design
 
 #### Conditional UI Rendering (lines 415-487)
