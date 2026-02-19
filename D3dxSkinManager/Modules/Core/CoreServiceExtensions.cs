@@ -38,16 +38,16 @@ public static class CoreServiceExtensions
         // Event emitter helper for null-safe plugin event emission
         services.AddSingleton<IEventEmitterHelper, EventEmitterHelper>();
 
-        return services;
-    }
-
-    /// <summary>
-    /// Register image service and server
-    /// </summary>
-    public static IServiceCollection AddImageService(this IServiceCollection services)
-    {
+        // Image service for image processing (thumbnails, resizing, etc.)
         services.AddSingleton<IImageService, ImageService>();
-        services.AddSingleton<IImageServerService, ImageServerService>();
+
+        // Custom scheme handler for app:// URLs (image serving)
+        services.AddSingleton<ICustomSchemeHandler>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogHelper>();
+            return new CustomSchemeHandler(dataPath, logger);
+        });
+
         return services;
     }
 }

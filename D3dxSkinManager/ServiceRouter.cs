@@ -168,7 +168,6 @@ public class ServiceRouter : IDisposable
 
         // Core services needed by Settings and Profile facades
         services.AddCoreServices(_baseDataPath);
-        services.AddImageService();
 
         // Profile service (manages profiles but doesn't need ProfileContext)
         services.AddSingleton<IProfileServiceProvider, ProfileServiceProvider>();
@@ -219,7 +218,6 @@ public class ServiceRouter : IDisposable
 
         // Core services that may use ProfileContext
         services.AddCoreServices(_baseDataPath);
-        services.AddImageService();
 
         // Module services that require ProfileContext
         services.AddModsServices();        // Uses ProfileContext for mod paths

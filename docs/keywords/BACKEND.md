@@ -56,8 +56,17 @@
 - **ProcessService** → `Modules/Core/Services/ProcessService.cs`
   - Process management and execution
 
-- **ImageServerService** → `Modules/Core/Services/ImageServerService.cs`
-  - HTTP server for serving images
+- **ImageService** → `Modules/Core/Services/ImageService.cs`
+  - Image processing (thumbnails, resizing, caching)
+  - Note: Image serving now handled by CustomSchemeHandler
+
+- **CustomSchemeHandler** → `Modules/Core/Services/CustomSchemeHandler.cs`
+  - Handles custom `app://` scheme requests for serving local files
+  - URL format: `app://encoded_file_path`
+  - Includes security checks and content type detection
+  - Registered as singleton via DI in CoreServiceExtensions
+  - Interface: ICustomSchemeHandler
+  - Created: 2026-02-20
 
 #### Utilities
 

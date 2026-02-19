@@ -11,6 +11,7 @@ import {
 import { ModInfo } from '../../../shared/types/mod.types';
 import { GradingTag } from '../../../shared/components/common/GradingTag';
 import { FullScreenPreview } from '../../core/components/dialogs/FullScreenPreview';
+import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 
 const { Text, Paragraph, Title } = Typography;
 
@@ -53,7 +54,7 @@ export const ModPreviewPanel: React.FC<ModPreviewPanelProps> = ({ mod }) => {
           mod.thumbnailPath || mod.previewPath ? (
             <img
               alt={mod.name}
-              src={mod.thumbnailPath || mod.previewPath}
+              src={toAppUrl(mod.thumbnailPath || mod.previewPath) || undefined}
               style={{
                 width: '100%',
                 height: '200px',
@@ -205,7 +206,7 @@ export const ModPreviewPanel: React.FC<ModPreviewPanelProps> = ({ mod }) => {
       {/* Full Screen Preview Dialog */}
       <FullScreenPreview
         visible={fullScreenVisible}
-        imageSrc={mod.thumbnailPath || mod.previewPath || ''}
+        imageSrc={toAppUrl(mod.thumbnailPath || mod.previewPath) || ''}
         imageAlt={mod.name}
         onClose={() => setFullScreenVisible(false)}
       />

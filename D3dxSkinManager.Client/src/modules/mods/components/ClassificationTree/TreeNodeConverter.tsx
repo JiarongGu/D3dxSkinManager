@@ -2,6 +2,7 @@ import React from 'react';
 import { FolderOutlined, FolderOpenOutlined, UserOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import { ClassificationNode } from '../../../../shared/types/classification.types';
+import { toAppUrl } from '../../../../shared/utils/imageUrlHelper';
 
 /**
  * Converts ClassificationNode to Ant Design DataNode
@@ -36,7 +37,7 @@ export function convertToDataNode(
       >
         {hasThumbnail && node.thumbnail ? (
           <img
-            src={`app://images?src=${encodeURIComponent(node.thumbnail)}`}
+            src={toAppUrl(node.thumbnail) || undefined}
             alt={node.name}
             style={{
               width: '36px',
