@@ -1,7 +1,9 @@
+using D3dxSkinManager.Modules.Core.Services;
+
 namespace D3dxSkinManager.Modules.Plugins.Services;
 
 
-public interface IPluginEventBus 
+public interface IPluginEventBus
 {
     string RegisterHandler(PluginEventType eventType, Func<PluginEventArgs, Task> handler);
 
@@ -16,9 +18,15 @@ public interface IPluginEventBus
 /// </summary>
 public class PluginEventBus: IPluginEventBus
 {
+    private readonly ILogHelper _logger;
     private readonly Dictionary<string, Func<PluginEventArgs, Task>> _handlers = new();
     private readonly object _lock = new();
     private int _registrationCounter = 0;
+
+    public PluginEventBus(ILogHelper logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
 
     /// <summary>
     /// Register an event handler.
@@ -81,8 +89,7 @@ public class PluginEventBus: IPluginEventBus
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PluginEventBus] Error in event handler: {ex.Message}");
-            Console.WriteLine(ex.StackTrace);
+            _logger.Error($"Error in event handler: {ex.Message}", "PluginEventBus", ex);
         }
     }
 

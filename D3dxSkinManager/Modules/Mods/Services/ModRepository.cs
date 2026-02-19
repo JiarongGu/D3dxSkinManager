@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
 
@@ -38,9 +39,9 @@ public class ModRepository : IModRepository
 {
     private readonly string _connectionString;
 
-    public ModRepository(IProfileContext profileContext)
+    public ModRepository(IProfilePathService profilePaths)
     {
-        _connectionString = $"Data Source={Path.Combine(profileContext.ProfilePath, "mods.db")}";
+        _connectionString = $"Data Source={profilePaths.ModDatabasePath}";
         InitializeDatabaseAsync().Wait();
     }
 

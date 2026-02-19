@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Facades;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Mods.Models;
@@ -12,19 +13,56 @@ using D3dxSkinManager.Modules.Plugins.Services;
 namespace D3dxSkinManager.Modules.Mods;
 
 /// <summary>
+/// Interface for Mod Management facade
+/// Handles: MOD_GET_ALL, MOD_LOAD, MOD_UNLOAD, etc.
+/// Prefix: MOD_*
+/// </summary>
+public interface IModFacade : IModuleFacade
+{
+
+    // Core Mod Operations
+    Task<List<ModInfo>> GetAllModsAsync();
+    Task<ModInfo?> GetModByIdAsync(string sha);
+    Task<bool> LoadModAsync(string sha);
+    Task<bool> UnloadModAsync(string sha);
+    Task<List<string>> GetLoadedModIdsAsync();
+    Task<ModInfo?> ImportModAsync(string filePath);
+    Task<bool> DeleteModAsync(string sha);
+
+    // Query Operations
+    Task<List<ModInfo>> GetModsByObjectAsync(string category);
+    Task<List<string>> GetObjectNamesAsync();
+    Task<List<string>> GetAuthorsAsync();
+    Task<List<string>> GetTagsAsync();
+    Task<List<ModInfo>> SearchModsAsync(string searchTerm);
+    Task<ModStatistics> GetStatisticsAsync();
+
+    // Metadata Operations
+    Task<bool> UpdateMetadataAsync(string sha, string? name, string? author, List<string>? tags, string? grading, string? description);
+    Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask);
+    Task<bool> ImportPreviewImageAsync(string sha, string imagePath);
+
+    // Classification Operations
+    Task<List<ClassificationNode>> GetClassificationTreeAsync();
+    Task<bool> RefreshClassificationTreeAsync();
+}
+
+/// <summary>
 /// Facade for coordinating mod-related operations
 /// Responsibility: Mod management and metadata operations
 /// IPC Prefix: MOD_*
 /// </summary>
-public class ModFacade : IModFacade
+public class ModFacade : BaseFacade, IModFacade
 {
+    protected override string ModuleName => "ModFacade";
+
     private readonly IModRepository _repository;
     private readonly IModFileService _fileService;
     private readonly IModImportService _importService;
     private readonly IModQueryService _queryService;
     private readonly IClassificationService _classificationService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly IPluginEventBus? _eventBus;
+    private readonly IEventEmitterHelper _eventEmitter;
 
     public ModFacade(
         IModRepository repository,
@@ -33,7 +71,8 @@ public class ModFacade : IModFacade
         IModQueryService queryService,
         IClassificationService classificationService,
         IPayloadHelper payloadHelper,
-        IPluginEventBus? eventBus)
+        IEventEmitterHelper eventEmitter,
+        ILogHelper logger) : base(logger)
     {
         _repository = repository;
         _fileService = fileService;
@@ -41,54 +80,42 @@ public class ModFacade : IModFacade
         _queryService = queryService;
         _classificationService = classificationService;
         _payloadHelper = payloadHelper;
-        _eventBus = eventBus;
+        _eventEmitter = eventEmitter;
     }
 
     /// <summary>
     /// Routes incoming IPC messages to appropriate handler methods
     /// </summary>
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
     {
-        try
+        return request.Type switch
         {
-            Console.WriteLine($"[ModFacade] Handling message: {request.Type}");
-
-            object? responseData = request.Type switch
-            {
-                "GET_ALL" => await GetAllModsAsync(),
-                "GET_BY_SHA" => await GetModByIdAsync(request),
-                "LOAD" => await LoadModAsync(request),
-                "UNLOAD" => await UnloadModAsync(request),
-                "GET_LOADED" => await GetLoadedModIdsAsync(),
-                "IMPORT" => await ImportModAsync(request),
-                "DELETE" => await DeleteModAsync(request),
-                "GET_BY_OBJECT" => await GetModsByObjectAsync(request),
-                "GET_OBJECT_NAMES" => await GetObjectNamesAsync(),
-                "GET_AUTHORS" => await GetAuthorsAsync(),
-                "GET_TAGS" => await GetTagsAsync(),
-                "SEARCH" => await SearchModsAsync(request),
-                "UPDATE_METADATA" => await UpdateMetadataAsync(request),
-                "BATCH_UPDATE_METADATA" => await BatchUpdateMetadataAsync(request),
-                "IMPORT_PREVIEW_IMAGE" => await ImportPreviewImageAsync(request),
-                "GET_CLASSIFICATION_TREE" => await GetClassificationTreeAsync(),
-                "REFRESH_CLASSIFICATION_TREE" => await RefreshClassificationTreeAsync(),
-                "GET_MODS_BY_CLASSIFICATION" => await GetModsByClassificationAsync(request),
-                "GET_UNCLASSIFIED_MODS" => await GetUnclassifiedModsAsync(),
-                "GET_UNCLASSIFIED_COUNT" => await GetUnclassifiedCountAsync(),
-                "MOVE_CLASSIFICATION_NODE" => await MoveClassificationNodeAsync(request),
-                "REORDER_CLASSIFICATION_NODE" => await ReorderClassificationNodeAsync(request),
-                "UPDATE_CLASSIFICATION_NODE" => await UpdateClassificationNodeAsync(request),
-                "DELETE_CLASSIFICATION_NODE" => await DeleteClassificationNodeAsync(request),
-                _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
-            };
-
-            return MessageResponse.CreateSuccess(request.Id, responseData);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ModFacade] Error handling message: {ex.Message}");
-            return MessageResponse.CreateError(request.Id, ex.Message);
-        }
+            "GET_ALL" => await GetAllModsAsync(),
+            "GET_BY_SHA" => await GetModByIdAsync(request),
+            "LOAD" => await LoadModAsync(request),
+            "UNLOAD" => await UnloadModAsync(request),
+            "GET_LOADED" => await GetLoadedModIdsAsync(),
+            "IMPORT" => await ImportModAsync(request),
+            "DELETE" => await DeleteModAsync(request),
+            "GET_BY_OBJECT" => await GetModsByObjectAsync(request),
+            "GET_OBJECT_NAMES" => await GetObjectNamesAsync(),
+            "GET_AUTHORS" => await GetAuthorsAsync(),
+            "GET_TAGS" => await GetTagsAsync(),
+            "SEARCH" => await SearchModsAsync(request),
+            "UPDATE_METADATA" => await UpdateMetadataAsync(request),
+            "BATCH_UPDATE_METADATA" => await BatchUpdateMetadataAsync(request),
+            "IMPORT_PREVIEW_IMAGE" => await ImportPreviewImageAsync(request),
+            "GET_CLASSIFICATION_TREE" => await GetClassificationTreeAsync(),
+            "REFRESH_CLASSIFICATION_TREE" => await RefreshClassificationTreeAsync(),
+            "GET_MODS_BY_CLASSIFICATION" => await GetModsByClassificationAsync(request),
+            "GET_UNCLASSIFIED_MODS" => await GetUnclassifiedModsAsync(),
+            "GET_UNCLASSIFIED_COUNT" => await GetUnclassifiedCountAsync(),
+            "MOVE_CLASSIFICATION_NODE" => await MoveClassificationNodeAsync(request),
+            "REORDER_CLASSIFICATION_NODE" => await ReorderClassificationNodeAsync(request),
+            "UPDATE_CLASSIFICATION_NODE" => await UpdateClassificationNodeAsync(request),
+            "DELETE_CLASSIFICATION_NODE" => await DeleteClassificationNodeAsync(request),
+            _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
+        };
     }
 
     // ============= Public API Methods =============
@@ -111,15 +138,7 @@ public class ModFacade : IModFacade
         if (!success) return false;
 
         await _repository.SetLoadedStateAsync(sha, true);
-
-        if (_eventBus != null)
-        {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.ModLoaded,
-                Data = new { Sha = sha }
-            });
-        }
+        await _eventEmitter.EmitAsync(PluginEventType.ModLoaded, data: new { Sha = sha });
 
         return true;
     }
@@ -130,15 +149,7 @@ public class ModFacade : IModFacade
         if (!success) return false;
 
         await _repository.SetLoadedStateAsync(sha, false);
-
-        if (_eventBus != null)
-        {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.ModUnloaded,
-                Data = new { Sha = sha }
-            });
-        }
+        await _eventEmitter.EmitAsync(PluginEventType.ModUnloaded, data: new { Sha = sha });
 
         return true;
     }
@@ -152,13 +163,9 @@ public class ModFacade : IModFacade
     {
         var mod = await _importService.ImportAsync(filePath);
 
-        if (mod != null && _eventBus != null)
+        if (mod != null)
         {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.ModImported,
-                Data = mod
-            });
+            await _eventEmitter.EmitAsync(PluginEventType.ModImported, data: mod);
         }
 
         return mod;
@@ -173,13 +180,9 @@ public class ModFacade : IModFacade
         await _fileService.DeleteAsync(sha, mod.ThumbnailPath, null);
         var success = await _repository.DeleteAsync(sha);
 
-        if (success && _eventBus != null)
+        if (success)
         {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.ModDeleted,
-                Data = new { Sha = sha, Mod = mod }
-            });
+            await _eventEmitter.EmitAsync(PluginEventType.ModDeleted, data: new { Sha = sha, Mod = mod });
         }
 
         return success;
@@ -232,16 +235,7 @@ public class ModFacade : IModFacade
         if (description != null) mod.Description = description;
 
         await _repository.UpdateAsync(mod);
-
-        if (_eventBus != null)
-        {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "mod.metadata.updated",
-                Data = new { sha, mod }
-            });
-        }
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.metadata.updated", new { sha, mod });
 
         return true;
     }
@@ -266,19 +260,11 @@ public class ModFacade : IModFacade
                 await _repository.UpdateAsync(mod);
                 updatedCount++;
 
-                if (_eventBus != null)
-                {
-                    await _eventBus.EmitAsync(new PluginEventArgs
-                    {
-                        EventType = PluginEventType.CustomEvent,
-                        EventName = "mod.metadata.updated",
-                        Data = new { sha, mod }
-                    });
-                }
+                await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.metadata.updated", new { sha, mod });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error updating mod {sha}: {ex.Message}");
+                _logger.Error($"Error updating mod {sha}: {ex.Message}", "ModFacade", ex);
             }
         }
 
@@ -329,16 +315,7 @@ public class ModFacade : IModFacade
         }
 
         await _repository.UpdateAsync(mod);
-
-        if (_eventBus != null)
-        {
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.CustomEvent,
-                EventName = "mod.preview.imported",
-                Data = new { sha, imagePath = targetPath }
-            });
-        }
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.preview.imported", new { sha, imagePath = targetPath });
 
         return true;
     }
@@ -480,14 +457,11 @@ public class ModFacade : IModFacade
 
         var success = await _classificationService.MoveNodeAsync(nodeId, newParentId, dropPosition);
 
-        if (success && _eventBus != null)
+        if (success)
         {
-            // Emit event to notify frontend that tree changed
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.ClassificationTreeChanged,
-                Data = new { nodeId, newParentId, dropPosition }
-            });
+            await _eventEmitter.EmitAsync(
+                PluginEventType.ClassificationTreeChanged,
+                data: new { nodeId, newParentId, dropPosition });
         }
 
         return success;
@@ -503,14 +477,11 @@ public class ModFacade : IModFacade
 
         var success = await _classificationService.ReorderNodeAsync(nodeId, newPosition);
 
-        if (success && _eventBus != null)
+        if (success)
         {
-            // Emit event to notify frontend that tree changed
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.ClassificationTreeChanged,
-                Data = new { nodeId, newPosition }
-            });
+            await _eventEmitter.EmitAsync(
+                PluginEventType.ClassificationTreeChanged,
+                data: new { nodeId, newPosition });
         }
 
         return success;
@@ -527,14 +498,11 @@ public class ModFacade : IModFacade
 
         var success = await _classificationService.UpdateNodeAsync(nodeId, name, icon);
 
-        if (success && _eventBus != null)
+        if (success)
         {
-            // Emit event to notify frontend that tree changed
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.ClassificationTreeChanged,
-                Data = new { nodeId, name, icon }
-            });
+            await _eventEmitter.EmitAsync(
+                PluginEventType.ClassificationTreeChanged,
+                data: new { nodeId, name, icon });
         }
 
         return success;
@@ -549,14 +517,11 @@ public class ModFacade : IModFacade
 
         var success = await _classificationService.DeleteNodeAsync(nodeId);
 
-        if (success && _eventBus != null)
+        if (success)
         {
-            // Emit event to notify frontend that tree changed
-            await _eventBus.EmitAsync(new PluginEventArgs
-            {
-                EventType = PluginEventType.ClassificationTreeChanged,
-                Data = new { nodeId, deleted = true }
-            });
+            await _eventEmitter.EmitAsync(
+                PluginEventType.ClassificationTreeChanged,
+                data: new { nodeId, deleted = true });
         }
 
         return success;

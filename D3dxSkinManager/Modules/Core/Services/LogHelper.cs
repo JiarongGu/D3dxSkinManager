@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
@@ -61,19 +62,16 @@ public interface ILogHelper
 /// </summary>
 public class LogHelper : ILogHelper, IDisposable
 {
-    private readonly string _logDirectory;
+    private readonly IProfilePathService? _profilePaths;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private bool _disposed;
 
-    public LogHelper(IProfileContext profileContext)
+    public LogHelper(IProfilePathService? profilePaths = null)
     {
-        _logDirectory = Path.Combine(profileContext.ProfilePath, "logs");
+        _profilePaths = profilePaths;
 
-        // Ensure log directory exists
-        if (!Directory.Exists(_logDirectory))
-        {
-            Directory.CreateDirectory(_logDirectory);
-        }
+        // Ensure log directory exists if profile paths are available
+        _profilePaths?.EnsureDirectoriesExist();
     }
 
     public void Debug(string message, string? source = null)
@@ -163,6 +161,9 @@ public class LogHelper : ILogHelper, IDisposable
     {
         if (_disposed) return;
 
+        // Skip file writing if no profile paths are available (global services context)
+        if (_profilePaths == null) return;
+
         await _writeLock.WaitAsync();
         try
         {
@@ -173,7 +174,7 @@ public class LogHelper : ILogHelper, IDisposable
                 _ => "app.log"
             };
 
-            var logFilePath = Path.Combine(_logDirectory, logFileName);
+            var logFilePath = _profilePaths.GetLogFilePath(logFileName);
 
             // Append to log file
             await File.AppendAllTextAsync(logFilePath, logEntry + Environment.NewLine);
@@ -181,7 +182,7 @@ public class LogHelper : ILogHelper, IDisposable
             // Also write errors to app.log for complete history
             if (level == LogLevel.Error)
             {
-                var appLogPath = Path.Combine(_logDirectory, "app.log");
+                var appLogPath = _profilePaths.GetLogFilePath("app.log");
                 await File.AppendAllTextAsync(appLogPath, logEntry + Environment.NewLine);
             }
         }

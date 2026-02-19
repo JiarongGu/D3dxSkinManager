@@ -1,3 +1,5 @@
+using D3dxSkinManager.Modules.Core.Services;
+
 namespace D3dxSkinManager.Modules.Plugins.Services;
 
 public interface IPluginRegistry
@@ -18,9 +20,15 @@ public interface IPluginRegistry
 /// </summary>
 public class PluginRegistry: IPluginRegistry
 {
+    private readonly ILogHelper _logger;
     private readonly Dictionary<string, IPlugin> _plugins = new();
     private readonly Dictionary<string, IMessageHandlerPlugin> _messageHandlers = new();
     private readonly object _lock = new();
+
+    public PluginRegistry(ILogHelper logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
 
     /// <summary>
     /// Register a plugin in the registry.
@@ -49,13 +57,13 @@ public class PluginRegistry: IPluginRegistry
                 {
                     if (_messageHandlers.ContainsKey(messageType))
                     {
-                        Console.WriteLine($"[PluginRegistry] Warning: Message type '{messageType}' is already handled by another plugin. Overriding.");
+                        _logger.Warning($"Message type '{messageType}' is already handled by another plugin. Overriding.", "PluginRegistry");
                     }
                     _messageHandlers[messageType] = messageHandler;
                 }
             }
 
-            Console.WriteLine($"[PluginRegistry] Registered plugin: {plugin.Name} v{plugin.Version} ({plugin.Id})");
+            _logger.Info($"Registered plugin: {plugin.Name} v{plugin.Version} ({plugin.Id})", "PluginRegistry");
         }
     }
 
@@ -151,7 +159,7 @@ public class PluginRegistry: IPluginRegistry
                     }
                 }
 
-                Console.WriteLine($"[PluginRegistry] Unregistered plugin: {plugin.Name} ({plugin.Id})");
+                _logger.Info($"Unregistered plugin: {plugin.Name} ({plugin.Id})", "PluginRegistry");
                 return true;
             }
 

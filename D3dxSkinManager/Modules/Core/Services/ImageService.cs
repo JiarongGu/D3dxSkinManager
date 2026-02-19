@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
@@ -33,10 +34,10 @@ public interface IImageService
 /// </summary>
 public class ImageService : IImageService
 {
-    private readonly string _dataPath;
-    private readonly string _thumbnailsPath;
-    private readonly string _previewsPath;
+    private readonly IProfilePathService _profilePaths;
     private readonly IPathHelper _pathHelper;
+    private readonly IPathValidator _pathValidator;
+    private readonly ILogHelper _logger;
 
     // Standard thumbnail size (based on Python version)
     private const int ThumbnailWidth = 200;
@@ -56,17 +57,15 @@ public class ImageService : IImageService
         ".tif", ".tiff"                                     // TIFF format
     };
 
-    public ImageService(IProfileContext profileContext, IPathHelper pathHelper)
+    public ImageService(IProfilePathService profilePaths, IPathHelper pathHelper, IPathValidator pathValidator, ILogHelper logger)
     {
-        _dataPath = profileContext.ProfilePath;
-        _pathHelper = pathHelper;
+        _profilePaths = profilePaths ?? throw new ArgumentNullException(nameof(profilePaths));
+        _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
+        _pathValidator = pathValidator ?? throw new ArgumentNullException(nameof(pathValidator));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        _thumbnailsPath = Path.Combine(_dataPath, "thumbnails");
-        _previewsPath = Path.Combine(_dataPath, "previews");
-
-        // Create directories
-        Directory.CreateDirectory(_thumbnailsPath);
-        Directory.CreateDirectory(_previewsPath);
+        // Ensure directories exist
+        _profilePaths.EnsureDirectoriesExist();
     }
 
     /// <summary>
@@ -77,7 +76,7 @@ public class ImageService : IImageService
         // Check cache first
         foreach (var ext in _supportedExtensions)
         {
-            var cachedPath = Path.Combine(_thumbnailsPath, $"{sha}{ext}");
+            var cachedPath = _profilePaths.GetThumbnailPath(sha, ext);
             if (File.Exists(cachedPath))
                 return await Task.FromResult(cachedPath);
         }
@@ -92,7 +91,7 @@ public class ImageService : IImageService
     public async Task<List<string>> GetPreviewPathsAsync(string sha)
     {
         var previewPaths = new List<string>();
-        var modPreviewFolder = Path.Combine(_previewsPath, sha);
+        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
 
         if (!Directory.Exists(modPreviewFolder))
             return await Task.FromResult(previewPaths);
@@ -123,19 +122,19 @@ public class ImageService : IImageService
             var sourcePath = Path.Combine(modDirectory, fileName);
             if (File.Exists(sourcePath))
             {
-                var targetPath = Path.Combine(_thumbnailsPath, $"{sha}.png");
+                var targetPath = _profilePaths.GetThumbnailPath(sha, ".png");
 
                 try
                 {
                     // Resize to thumbnail size
                     await ResizeImageAsync(sourcePath, targetPath, ThumbnailWidth, ThumbnailHeight);
-                    Console.WriteLine($"[Image] Generated thumbnail for {sha}");
+                    _logger.Info($"Generated thumbnail for {sha}", "ImageService");
                     // Return relative path for portability
                     return _pathHelper.ToRelativePath(targetPath);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Image] Failed to generate thumbnail: {ex.Message}");
+                    _logger.Error($"Failed to generate thumbnail: {ex.Message}", "ImageService", ex);
                 }
             }
         }
@@ -149,18 +148,18 @@ public class ImageService : IImageService
         if (allImages.Any())
         {
             var sourcePath = allImages.First();
-            var targetPath = Path.Combine(_thumbnailsPath, $"{sha}.png");
+            var targetPath = _profilePaths.GetThumbnailPath(sha, ".png");
 
             try
             {
                 await ResizeImageAsync(sourcePath, targetPath, ThumbnailWidth, ThumbnailHeight);
-                Console.WriteLine($"[Image] Generated thumbnail from {Path.GetFileName(sourcePath)}");
+                _logger.Info($"Generated thumbnail from {Path.GetFileName(sourcePath)}", "ImageService");
                 // Return relative path for portability
                 return _pathHelper.ToRelativePath(targetPath);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Image] Failed to generate thumbnail: {ex.Message}");
+                _logger.Error($"Failed to generate thumbnail: {ex.Message}", "ImageService", ex);
             }
         }
 
@@ -180,7 +179,7 @@ public class ImageService : IImageService
             return previewCount;
 
         // Create mod-specific preview folder
-        var modPreviewFolder = Path.Combine(_previewsPath, sha);
+        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
         Directory.CreateDirectory(modPreviewFolder);
 
         // Look for preview images in mod directory (preview.png, preview1.png, preview2.png, etc.)
@@ -205,13 +204,13 @@ public class ImageService : IImageService
             {
                 // Resize to preview size
                 await ResizeImageAsync(sourcePath, targetPath, PreviewWidth, PreviewHeight);
-                Console.WriteLine($"[Image] Generated preview {previewIndex} for {sha}");
+                _logger.Info($"Generated preview {previewIndex} for {sha}", "ImageService");
                 previewCount++;
                 previewIndex++;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Image] Failed to generate preview {previewIndex}: {ex.Message}");
+                _logger.Error($"Failed to generate preview {previewIndex}: {ex.Message}", "ImageService", ex);
             }
         }
 
@@ -232,13 +231,13 @@ public class ImageService : IImageService
                 try
                 {
                     await ResizeImageAsync(sourcePath, targetPath, PreviewWidth, PreviewHeight);
-                    Console.WriteLine($"[Image] Generated preview {previewIndex} from {Path.GetFileName(sourcePath)}");
+                    _logger.Info($"Generated preview {previewIndex} from {Path.GetFileName(sourcePath)}", "ImageService");
                     previewCount++;
                     previewIndex++;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Image] Failed to generate preview: {ex.Message}");
+                    _logger.Error($"Failed to generate preview: {ex.Message}", "ImageService", ex);
                 }
             }
         }
@@ -265,7 +264,7 @@ public class ImageService : IImageService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Image] Failed to cache image: {ex.Message}");
+            _logger.Error($"Failed to cache image: {ex.Message}", "ImageService", ex);
             return false;
         }
     }
@@ -310,7 +309,7 @@ public class ImageService : IImageService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Image] Failed to resize image: {ex.Message}");
+            _logger.Error($"Failed to resize image: {ex.Message}", "ImageService", ex);
             return false;
         }
     }
@@ -325,7 +324,7 @@ public class ImageService : IImageService
         // Delete thumbnails
         foreach (var ext in _supportedExtensions)
         {
-            var thumbnailPath = Path.Combine(_thumbnailsPath, $"{sha}{ext}");
+            var thumbnailPath = _profilePaths.GetThumbnailPath(sha, ext);
             if (File.Exists(thumbnailPath))
             {
                 try
@@ -335,13 +334,13 @@ public class ImageService : IImageService
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Image] Failed to delete thumbnail: {ex.Message}");
+                    _logger.Error($"Failed to delete thumbnail: {ex.Message}", "ImageService", ex);
                 }
             }
         }
 
         // Delete preview folder for this mod
-        var modPreviewFolder = Path.Combine(_previewsPath, sha);
+        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
         if (Directory.Exists(modPreviewFolder))
         {
             try
@@ -351,7 +350,7 @@ public class ImageService : IImageService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Image] Failed to delete preview folder: {ex.Message}");
+                _logger.Error($"Failed to delete preview folder: {ex.Message}", "ImageService", ex);
             }
         }
 
@@ -397,7 +396,7 @@ public class ImageService : IImageService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Image] Failed to convert image to data URI: {ex.Message}");
+            _logger.Error($"Failed to convert image to data URI: {ex.Message}", "ImageService", ex);
             return null;
         }
     }
@@ -410,7 +409,7 @@ public class ImageService : IImageService
         // Check cache first
         foreach (var ext in _supportedExtensions)
         {
-            var cachedPath = Path.Combine(_thumbnailsPath, $"{sha}{ext}");
+            var cachedPath = _profilePaths.GetThumbnailPath(sha, ext);
             if (File.Exists(cachedPath))
             {
                 return await GetImageAsDataUriAsync(cachedPath);

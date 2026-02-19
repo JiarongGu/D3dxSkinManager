@@ -4,9 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Tools.Models;
 
 using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
 
@@ -37,7 +39,6 @@ public interface IModFileService
     Task<bool> DeleteCacheAsync(string sha);
     bool HasCache(string sha);
     string? GetCachePath(string sha);
-    long GetDirectorySize(string path);
 
     // Future: Batch operations
     // Task<BatchResult> LoadBatchAsync(IEnumerable<string> shas);
@@ -52,31 +53,31 @@ public interface IModFileService
 /// Dependencies: FileService for low-level file/archive operations
 ///
 /// Directory structure:
-/// - Archives: {DataDirectory}/mods/{SHA}.7z
+/// - Archives: {DataDirectory}/mods/{SHA} (no extension - auto-detected by SharpCompress)
 /// - Active mods: {WorkDirectory}/Mods/{SHA}/
 /// - Disabled mods (cache): {WorkDirectory}/Mods/DISABLED-{SHA}/
 /// </summary>
 public class ModFileService : IModFileService
 {
-    private readonly string _modsDirectory;
-    private readonly string _workModsDirectory;
+    private readonly IProfilePathService _profilePaths;
     private readonly IFileService _fileService;
     private readonly IModRepository _repository;
+    private readonly ILogHelper _logger;
     private const string DISABLED_PREFIX = "DISABLED-";
 
     public ModFileService(
-        IProfileContext profileContext,
+        IProfilePathService profilePaths,
         IFileService fileService,
-        IModRepository repository)
+        IModRepository repository,
+        ILogHelper logger)
     {
-        _modsDirectory = Path.Combine(profileContext.ProfilePath, "mods");
-        _workModsDirectory = Path.Combine(profileContext.ProfilePath, "work", "Mods");
+        _profilePaths = profilePaths ?? throw new ArgumentNullException(nameof(profilePaths));
         _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Ensure directories exist
-        Directory.CreateDirectory(_modsDirectory);
-        Directory.CreateDirectory(_workModsDirectory);
+        _profilePaths.EnsureDirectoriesExist();
     }
 
     #region Load/Unload Operations
@@ -92,18 +93,18 @@ public class ModFileService : IModFileService
             var archivePath = GetArchivePath(sha);
             if (!File.Exists(archivePath))
             {
-                Console.WriteLine($"[ModFileService] Archive not found: {archivePath}");
+                _logger.Warning($"Archive not found: {archivePath}", "ModFileService");
                 return false;
             }
 
-            var targetDirectory = Path.Combine(_workModsDirectory, sha);
-            var disabledDirectory = Path.Combine(_workModsDirectory, $"{DISABLED_PREFIX}{sha}");
+            var targetDirectory = Path.Combine(_profilePaths.WorkModsDirectory, sha);
+            var disabledDirectory = Path.Combine(_profilePaths.WorkModsDirectory, $"{DISABLED_PREFIX}{sha}");
 
             // If already extracted as disabled cache, just rename it (remove DISABLED- prefix)
             if (Directory.Exists(disabledDirectory))
             {
                 Directory.Move(disabledDirectory, targetDirectory);
-                Console.WriteLine($"[ModFileService] Enabled mod from cache: {sha}");
+                _logger.Info($"Enabled mod from cache: {sha}", "ModFileService");
                 return true;
             }
 
@@ -116,14 +117,14 @@ public class ModFileService : IModFileService
             var success = await _fileService.ExtractArchiveAsync(archivePath, targetDirectory);
             if (success)
             {
-                Console.WriteLine($"[ModFileService] Loaded mod: {sha}");
+                _logger.Info($"Loaded mod: {sha}", "ModFileService");
             }
 
             return success;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ModFileService] Error loading mod {sha}: {ex.Message}");
+            _logger.Error($"Error loading mod {sha}: {ex.Message}", "ModFileService", ex);
             return false;
         }
     }
@@ -135,28 +136,28 @@ public class ModFileService : IModFileService
     {
         try
         {
-            var workDirectory = Path.Combine(_workModsDirectory, sha);
+            var workDirectory = Path.Combine(_profilePaths.WorkModsDirectory, sha);
             if (!Directory.Exists(workDirectory))
             {
-                Console.WriteLine($"[ModFileService] Mod not loaded: {sha}");
+                _logger.Warning($"Mod not loaded: {sha}", "ModFileService");
                 return false;
             }
 
             // Rename to DISABLED-{SHA} instead of deleting (creates cache for fast re-enable)
-            var disabledDirectory = Path.Combine(_workModsDirectory, $"{DISABLED_PREFIX}{sha}");
+            var disabledDirectory = Path.Combine(_profilePaths.WorkModsDirectory, $"{DISABLED_PREFIX}{sha}");
             if (Directory.Exists(disabledDirectory))
             {
                 Directory.Delete(disabledDirectory, true);
             }
 
             Directory.Move(workDirectory, disabledDirectory);
-            Console.WriteLine($"[ModFileService] Unloaded mod (cached): {sha}");
+            _logger.Info($"Unloaded mod (cached): {sha}", "ModFileService");
 
             return await Task.FromResult(true);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ModFileService] Error unloading mod {sha}: {ex.Message}");
+            _logger.Error($"Error unloading mod {sha}: {ex.Message}", "ModFileService", ex);
             return false;
         }
     }
@@ -175,25 +176,25 @@ public class ModFileService : IModFileService
             if (File.Exists(archivePath))
             {
                 File.Delete(archivePath);
-                Console.WriteLine($"[ModFileService] Deleted archive: {archivePath}");
+                _logger.Info($"Deleted archive: {archivePath}", "ModFileService");
                 deleted = true;
             }
 
             // Delete active work directory
-            var workDirectory = Path.Combine(_workModsDirectory, sha);
+            var workDirectory = Path.Combine(_profilePaths.WorkModsDirectory, sha);
             if (Directory.Exists(workDirectory))
             {
                 Directory.Delete(workDirectory, true);
-                Console.WriteLine($"[ModFileService] Deleted work directory: {workDirectory}");
+                _logger.Info($"Deleted work directory: {workDirectory}", "ModFileService");
                 deleted = true;
             }
 
             // Delete disabled cache directory
-            var disabledDirectory = Path.Combine(_workModsDirectory, $"{DISABLED_PREFIX}{sha}");
+            var disabledDirectory = Path.Combine(_profilePaths.WorkModsDirectory, $"{DISABLED_PREFIX}{sha}");
             if (Directory.Exists(disabledDirectory))
             {
                 Directory.Delete(disabledDirectory, true);
-                Console.WriteLine($"[ModFileService] Deleted cache directory: {disabledDirectory}");
+                _logger.Info($"Deleted cache directory: {disabledDirectory}", "ModFileService");
                 deleted = true;
             }
 
@@ -201,21 +202,21 @@ public class ModFileService : IModFileService
             if (!string.IsNullOrEmpty(thumbnailPath) && File.Exists(thumbnailPath))
             {
                 File.Delete(thumbnailPath);
-                Console.WriteLine($"[ModFileService] Deleted thumbnail: {thumbnailPath}");
+                _logger.Info($"Deleted thumbnail: {thumbnailPath}", "ModFileService");
             }
 
             // Delete preview folder
             if (!string.IsNullOrEmpty(previewPath) && Directory.Exists(previewPath))
             {
                 Directory.Delete(previewPath, true);
-                Console.WriteLine($"[ModFileService] Deleted preview folder: {previewPath}");
+                _logger.Info($"Deleted preview folder: {previewPath}", "ModFileService");
             }
 
             return await Task.FromResult(deleted);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ModFileService] Error deleting mod {sha}: {ex.Message}");
+            _logger.Error($"Error deleting mod {sha}: {ex.Message}", "ModFileService", ex);
             return false;
         }
     }
@@ -234,30 +235,23 @@ public class ModFileService : IModFileService
 
     /// <summary>
     /// Get the path to a mod's archive file
-    /// Checks for .7z first, then .zip
+    /// Archives are stored without extensions (like Python version)
     /// </summary>
     public string GetArchivePath(string sha)
     {
-        var sevenZipPath = Path.Combine(_modsDirectory, $"{sha}.7z");
-        if (File.Exists(sevenZipPath))
-        {
-            return sevenZipPath;
-        }
-
-        var zipPath = Path.Combine(_modsDirectory, $"{sha}.zip");
-        return zipPath;
+        return _profilePaths.GetModArchivePath(sha, "");
     }
 
     /// <summary>
     /// Copy archive file to mods directory
+    /// Stores without extension (like Python version) - SharpCompress auto-detects format
     /// </summary>
     public async Task<string> CopyArchiveAsync(string sourcePath, string sha)
     {
-        var extension = Path.GetExtension(sourcePath).ToLowerInvariant();
-        var targetPath = Path.Combine(_modsDirectory, $"{sha}{extension}");
+        var targetPath = _profilePaths.GetModArchivePath(sha, "");
 
         await Task.Run(() => File.Copy(sourcePath, targetPath, overwrite: true));
-        Console.WriteLine($"[ModFileService] Copied archive to: {targetPath}");
+        _logger.Info($"Copied archive to: {targetPath}", "ModFileService");
 
         return targetPath;
     }
@@ -273,7 +267,7 @@ public class ModFileService : IModFileService
     {
         var cacheItems = new List<CacheItem>();
 
-        if (!Directory.Exists(_workModsDirectory))
+        if (!Directory.Exists(_profilePaths.WorkModsDirectory))
         {
             return cacheItems;
         }
@@ -284,7 +278,7 @@ public class ModFileService : IModFileService
         var loadedShas = (await _repository.GetLoadedIdsAsync()).ToHashSet();
 
         // Scan for disabled cache directories
-        var directories = Directory.GetDirectories(_workModsDirectory);
+        var directories = Directory.GetDirectories(_profilePaths.WorkModsDirectory);
 
         foreach (var dir in directories)
         {
@@ -300,7 +294,7 @@ public class ModFileService : IModFileService
             var sha = dirName.Substring(DISABLED_PREFIX.Length);
 
             // Calculate directory size
-            long sizeBytes = GetDirectorySize(dir);
+            long sizeBytes = FileUtilities.GetDirectorySize(dir);
 
             // Get last modified time
             var lastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss");
@@ -373,12 +367,12 @@ public class ModFileService : IModFileService
                 {
                     Directory.Delete(item.Path, recursive: true);
                     deletedCount++;
-                    Console.WriteLine($"[ModFileService] Deleted cache: {item.Path}");
+                    _logger.Info($"Deleted cache: {item.Path}", "ModFileService");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ModFileService] Error deleting cache {item.Path}: {ex.Message}");
+                _logger.Error($"Error deleting cache {item.Path}: {ex.Message}", "ModFileService", ex);
             }
         }
 
@@ -400,12 +394,12 @@ public class ModFileService : IModFileService
         try
         {
             Directory.Delete(cachePath, recursive: true);
-            Console.WriteLine($"[ModFileService] Deleted cache for SHA: {sha}");
+            _logger.Info($"Deleted cache for SHA: {sha}", "ModFileService");
             return Task.FromResult(true);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ModFileService] Error deleting cache for {sha}: {ex.Message}");
+            _logger.Error($"Error deleting cache for {sha}: {ex.Message}", "ModFileService", ex);
             return Task.FromResult(false);
         }
     }
@@ -425,46 +419,8 @@ public class ModFileService : IModFileService
     /// </summary>
     public string? GetCachePath(string sha)
     {
-        var cachePath = Path.Combine(_workModsDirectory, $"{DISABLED_PREFIX}{sha}");
+        var cachePath = Path.Combine(_profilePaths.WorkModsDirectory, $"{DISABLED_PREFIX}{sha}");
         return Directory.Exists(cachePath) ? cachePath : null;
-    }
-
-    /// <summary>
-    /// Calculate directory size in bytes (recursive)
-    /// </summary>
-    public long GetDirectorySize(string path)
-    {
-        if (!Directory.Exists(path))
-        {
-            return 0;
-        }
-
-        long totalSize = 0;
-
-        try
-        {
-            // Get all files in directory and subdirectories
-            var files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
-
-            foreach (var file in files)
-            {
-                try
-                {
-                    var fileInfo = new FileInfo(file);
-                    totalSize += fileInfo.Length;
-                }
-                catch
-                {
-                    // Skip files that can't be accessed
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ModFileService] Error calculating size for {path}: {ex.Message}");
-        }
-
-        return totalSize;
     }
 
     /// <summary>

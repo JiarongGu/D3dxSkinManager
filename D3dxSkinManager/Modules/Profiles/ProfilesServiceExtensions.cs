@@ -17,6 +17,9 @@ public static class ProfilesServiceExtensions
         // Register profile service with PathHelper for portable path storage
         services.AddSingleton<IProfileService, ProfileService>();
 
+        // Register profile path service for centralized path management
+        services.AddScoped<IProfilePathService, ProfilePathService>();
+
         // Register facade
         services.AddSingleton<IProfileFacade, ProfileFacade>();
 

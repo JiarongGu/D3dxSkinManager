@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Facades;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Plugins.Models;
@@ -23,8 +24,10 @@ public interface IPluginsFacade : IModuleFacade
 /// Responsibility: Plugin listing and management
 /// IPC Prefix: PLUGINS_*
 /// </summary>
-public class PluginsFacade : IPluginsFacade
+public class PluginsFacade : BaseFacade, IPluginsFacade
 {
+    protected override string ModuleName => "PluginsFacade";
+
     private readonly IPluginRegistry _pluginRegistry;
     private readonly IPluginLoader _pluginLoader;
     private readonly IPayloadHelper _payloadHelper;
@@ -32,34 +35,23 @@ public class PluginsFacade : IPluginsFacade
     public PluginsFacade(
         IPluginRegistry pluginRegistry,
         IPluginLoader pluginLoader,
-        IPayloadHelper payloadHelper)
+        IPayloadHelper payloadHelper,
+        ILogHelper logger) : base(logger)
     {
         _pluginRegistry = pluginRegistry;
         _pluginLoader = pluginLoader;
         _payloadHelper = payloadHelper;
     }
 
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
     {
-        try
+        return request.Type switch
         {
-            Console.WriteLine($"[PluginsFacade] Handling message: {request.Type}");
-
-            object? responseData = request.Type switch
-            {
-                "PLUGINS_GET_ALL" => await GetAllPluginsAsync(),
-                "PLUGINS_ENABLE" => await EnablePluginAsync(request),
-                "PLUGINS_DISABLE" => await DisablePluginAsync(request),
-                _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
-            };
-
-            return MessageResponse.CreateSuccess(request.Id, responseData);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[PluginsFacade] Error handling message: {ex.Message}");
-            return MessageResponse.CreateError(request.Id, ex.Message);
-        }
+            "PLUGINS_GET_ALL" => await GetAllPluginsAsync(),
+            "PLUGINS_ENABLE" => await EnablePluginAsync(request),
+            "PLUGINS_DISABLE" => await DisablePluginAsync(request),
+            _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
+        };
     }
 
     public async Task<List<PluginInfo>> GetAllPluginsAsync()

@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Profiles.Models;
 
 namespace D3dxSkinManager.Modules.Profiles.Services;
@@ -34,10 +35,9 @@ public interface IProfileServiceProvider : IProfileService
 /// </summary>
 public class ProfileServiceProvider : IProfileServiceProvider
 {
-    private readonly string _profilesDirectory;
-    private readonly string _profilesConfigFile;
-    private readonly string _baseDataPath;
+    private readonly IGlobalPathService _globalPaths;
     private readonly IPathHelper _pathHelper;
+    private readonly ILogHelper _logger;
     private List<Profile> _profiles;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
@@ -48,20 +48,15 @@ public class ProfileServiceProvider : IProfileServiceProvider
         PropertyNameCaseInsensitive = true  // Handle existing PascalCase files
     };
 
-    public ProfileServiceProvider(IPathHelper pathHelper)
+    public ProfileServiceProvider(IGlobalPathService globalPaths, IPathHelper pathHelper, ILogHelper logger)
     {
+        _globalPaths = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));
         _pathHelper = pathHelper;
-        _baseDataPath = pathHelper.BaseDataPath;
-        _profilesDirectory = Path.Combine(_baseDataPath, "profiles");
-
-        // Store profiles.json in the settings folder
-        var settingsDir = Path.Combine(_baseDataPath, "settings");
-        _profilesConfigFile = Path.Combine(settingsDir, "profiles.json");
+        _logger = logger;
         _profiles = new List<Profile>();
 
         // Ensure directories exist
-        Directory.CreateDirectory(_profilesDirectory);
-        Directory.CreateDirectory(settingsDir);
+        _globalPaths.EnsureDirectoriesExist();
 
         // Load profiles configuration
         LoadProfilesConfiguration();
@@ -135,12 +130,13 @@ public class ProfileServiceProvider : IProfileServiceProvider
             }
 
             // Create profile
+            var profileId = Guid.NewGuid().ToString("N");
             var profile = new Profile
             {
-                Id = Guid.NewGuid().ToString("N"),
+                Id = profileId,
                 Name = request.Name,
                 Description = request.Description ?? string.Empty,
-                WorkDirectory = request.WorkDirectory ?? Path.Combine(_profilesDirectory, Guid.NewGuid().ToString("N"), "work"),
+                WorkDirectory = request.WorkDirectory ?? Path.Combine(_globalPaths.GetProfileDirectoryPath(profileId), "work"),
                 CreatedAt = DateTime.UtcNow,
                 LastUsedAt = DateTime.UtcNow,
                 IsActive = false,
@@ -149,7 +145,7 @@ public class ProfileServiceProvider : IProfileServiceProvider
             };
 
             // Create profile directory structure
-            var profilePath = Path.Combine(_profilesDirectory, profile.Id);
+            var profilePath = _globalPaths.GetProfileDirectoryPath(profile.Id);
             CreateProfileDirectories(profilePath);
 
             // Add to profiles list
@@ -161,7 +157,7 @@ public class ProfileServiceProvider : IProfileServiceProvider
             // Save configuration
             await SaveProfilesConfiguration();
 
-            Console.WriteLine($"[ProfileServiceProvider] Created profile: {profile.Name} ({profile.Id})");
+            _logger.Info($"Created profile: {profile.Name} ({profile.Id})", "ProfileServiceProvider");
             return profile;
         }
         finally
@@ -209,7 +205,7 @@ public class ProfileServiceProvider : IProfileServiceProvider
             // Save configuration
             await SaveProfilesConfiguration();
 
-            Console.WriteLine($"[ProfileServiceProvider] Updated profile: {profile.Name} ({profile.Id})");
+            _logger.Info($"Updated profile: {profile.Name} ({profile.Id})", "ProfileServiceProvider");
             return true;
         }
         finally
@@ -236,17 +232,17 @@ public class ProfileServiceProvider : IProfileServiceProvider
             }
 
             // Delete profile directory
-            var profilePath = Path.Combine(_profilesDirectory, profileId);
+            var profilePath = _globalPaths.GetProfileDirectoryPath(profileId);
             if (Directory.Exists(profilePath))
             {
                 try
                 {
                     Directory.Delete(profilePath, recursive: true);
-                    Console.WriteLine($"[ProfileServiceProvider] Deleted profile directory: {profilePath}");
+                    _logger.Info($"Deleted profile directory: {profilePath}", "ProfileServiceProvider");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ProfileServiceProvider] Error deleting profile directory: {ex.Message}");
+                    _logger.Error($"Error deleting profile directory: {ex.Message}", "ProfileServiceProvider", ex);
                 }
             }
 
@@ -256,7 +252,7 @@ public class ProfileServiceProvider : IProfileServiceProvider
             // Save configuration
             await SaveProfilesConfiguration();
 
-            Console.WriteLine($"[ProfileServiceProvider] Deleted profile: {profile.Name} ({profile.Id})");
+            _logger.Info($"Deleted profile: {profile.Name} ({profile.Id})", "ProfileServiceProvider");
             return true;
         }
         finally
@@ -326,7 +322,7 @@ public class ProfileServiceProvider : IProfileServiceProvider
         }
 
         // Calculate statistics from profile directory
-        var profilePath = Path.Combine(_profilesDirectory, profileId);
+        var profilePath = _globalPaths.GetProfileDirectoryPath(profileId);
         if (Directory.Exists(profilePath))
         {
             var modPath = Path.Combine(profilePath, "mods");
@@ -356,24 +352,24 @@ public class ProfileServiceProvider : IProfileServiceProvider
             throw new InvalidOperationException($"Source profile not found: {sourceProfileId}");
         }
 
-        // Create new profile
+        // Create new profile (work directory will be auto-generated based on new profile ID)
         var createRequest = new CreateProfileRequest
         {
             Name = newName,
             Description = $"Duplicate of {sourceProfile.Name}",
-            WorkDirectory = Path.Combine(_profilesDirectory, Guid.NewGuid().ToString("N"), "work")
+            WorkDirectory = null // Let CreateProfileAsync auto-generate based on new profile ID
         };
 
         var newProfile = await CreateProfileAsync(createRequest);
 
         // Copy profile data
-        var sourcePath = Path.Combine(_profilesDirectory, sourceProfileId);
-        var targetPath = Path.Combine(_profilesDirectory, newProfile.Id);
+        var sourcePath = _globalPaths.GetProfileDirectoryPath(sourceProfileId);
+        var targetPath = _globalPaths.GetProfileDirectoryPath(newProfile.Id);
 
         if (Directory.Exists(sourcePath))
         {
             await CopyDirectoryAsync(sourcePath, targetPath);
-            Console.WriteLine($"[ProfileServiceProvider] Duplicated profile data from {sourceProfileId} to {newProfile.Id}");
+            _logger.Info($"Duplicated profile data from {sourceProfileId} to {newProfile.Id}", "ProfileServiceProvider");
         }
 
         return newProfile;
@@ -395,7 +391,7 @@ public class ProfileServiceProvider : IProfileServiceProvider
         }
 
         // Just serialize the profile itself
-        return JsonSerializer.Serialize(profile, JsonOptions);
+        return JsonHelper.Serialize(profile);
     }
 
     /// <summary>
@@ -404,7 +400,7 @@ public class ProfileServiceProvider : IProfileServiceProvider
     public async Task<Profile> ImportProfileConfigAsync(string configJson, string workDirectory)
     {
         // Deserialize the profile
-        var profile = JsonSerializer.Deserialize<Profile>(configJson, JsonOptions);
+        var profile = JsonHelper.Deserialize<Profile>(configJson);
         if (profile == null)
         {
             throw new InvalidOperationException("Invalid profile configuration");
@@ -464,21 +460,21 @@ public class ProfileServiceProvider : IProfileServiceProvider
     {
         try
         {
-            if (File.Exists(_profilesConfigFile))
+            if (File.Exists(_globalPaths.ProfilesConfigPath))
             {
-                var json = File.ReadAllText(_profilesConfigFile);
-                var config = JsonSerializer.Deserialize<ProfilesConfiguration>(json, JsonOptions);
+                var json = File.ReadAllText(_globalPaths.ProfilesConfigPath);
+                var config = JsonHelper.Deserialize<ProfilesConfiguration>(json);
                 if (config != null)
                 {
                     _profiles = config.Profiles ?? new List<Profile>();
                     // Note: No active profile in stateless architecture
-                    Console.WriteLine($"[ProfileServiceProvider] Loaded {_profiles.Count} profiles");
+                    _logger.Info($"Loaded {_profiles.Count} profiles", "ProfileServiceProvider");
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ProfileServiceProvider] Error loading profiles configuration: {ex.Message}");
+            _logger.Error($"Error loading profiles configuration: {ex.Message}", "ProfileServiceProvider", ex);
             _profiles = new List<Profile>();
         }
     }
@@ -494,13 +490,12 @@ public class ProfileServiceProvider : IProfileServiceProvider
                 ActiveProfileId = null
             };
 
-            var json = JsonSerializer.Serialize(config, JsonOptions);
-            await File.WriteAllTextAsync(_profilesConfigFile, json);
-            Console.WriteLine($"[ProfileServiceProvider] Saved profiles configuration");
+            await JsonHelper.SerializeToFileAsync(_globalPaths.ProfilesConfigPath, config);
+            _logger.Info($"Saved profiles configuration", "ProfileServiceProvider");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ProfileServiceProvider] Error saving profiles configuration: {ex.Message}");
+            _logger.Error($"Error saving profiles configuration: {ex.Message}", "ProfileServiceProvider", ex);
         }
     }
 

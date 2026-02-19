@@ -4,6 +4,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Core.Services;
 
@@ -17,12 +18,13 @@ public class FileServiceTests : IDisposable
 {
     private readonly string _testDataPath;
     private readonly FileService _service;
+    private readonly Mock<ILogHelper> _mockLogger = new();
 
     public FileServiceTests()
     {
         _testDataPath = Path.Combine(Path.GetTempPath(), $"FileServiceTests_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDataPath);
-        _service = new FileService();
+        _service = new FileService(_mockLogger.Object);
     }
 
     public void Dispose()

@@ -266,7 +266,7 @@ App.tsx (Main Application)
 
 ### 2. Application Layer (Backend - Refactored with DI)
 
-**Technology:** .NET 8 + C# 12 + Photino.NET 4.0.16 + Microsoft.Extensions.DependencyInjection
+**Technology:** .NET 10 + C# 12 + Photino.NET 4.0.16 + Microsoft.Extensions.DependencyInjection
 
 **Architecture:** Facade pattern with dependency injection
 
@@ -913,7 +913,7 @@ CREATE INDEX idx_is_loaded ON Mods(IsLoaded);
 
 ```
 d3dxSkinManage-Rewrite/
-├── D3dxSkinManager/                 # Backend (.NET 8)
+├── D3dxSkinManager/                 # Backend (.NET 10)
 │   ├── Configuration/
 │   │   └── ServiceCollectionExtensions.cs  # DI registration ⭐ NEW
 │   ├── Facades/

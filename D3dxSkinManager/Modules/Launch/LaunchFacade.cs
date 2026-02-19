@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Facades;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Launch.Models;
@@ -10,12 +11,31 @@ using D3dxSkinManager.Modules.Profiles.Services;
 namespace D3dxSkinManager.Modules.Launch;
 
 /// <summary>
+/// Interface for launch operations facade
+/// </summary>
+public interface ILaunchFacade : IModuleFacade
+{
+
+    // 3DMigoto methods
+    Task<List<D3DMigotoVersion>> GetAvailableVersionsAsync();
+    Task<string?> GetCurrentVersionAsync();
+    Task<DeploymentResult> DeployVersionAsync(string versionName);
+    Task<bool> Launch3DMigotoAsync();
+
+    // Game methods
+    Task<bool> LaunchGameAsync(string? customArgs = null);
+    Task<bool> LaunchCustomProgramAsync(string programPath, string? arguments = null);
+}
+
+/// <summary>
 /// Facade for launch operations (3DMigoto and Game)
 /// Responsibility: 3DMigoto version management and game launching
 /// IPC Prefix: LAUNCH_*
 /// </summary>
-public class LaunchFacade : ILaunchFacade
+public class LaunchFacade : BaseFacade, ILaunchFacade
 {
+    protected override string ModuleName => "LaunchFacade";
+
     private readonly I3DMigotoService _d3dMigotoService;
     private readonly IProcessService _processService;
     private readonly IProfileService _profileService;
@@ -25,7 +45,8 @@ public class LaunchFacade : ILaunchFacade
         I3DMigotoService d3dMigotoService,
         IProcessService processService,
         IProfileService profileService,
-        IPayloadHelper payloadHelper)
+        IPayloadHelper payloadHelper,
+        ILogHelper logger) : base(logger)
     {
         _d3dMigotoService = d3dMigotoService ?? throw new ArgumentNullException(nameof(d3dMigotoService));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
@@ -33,34 +54,22 @@ public class LaunchFacade : ILaunchFacade
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
     {
-        try
+        return request.Type switch
         {
-            Console.WriteLine($"[LaunchFacade] Handling message: {request.Type}");
+            // 3DMigoto messages
+            "LAUNCH_GET_VERSIONS" => await GetAvailableVersionsAsync(),
+            "LAUNCH_GET_CURRENT" => await GetCurrentVersionAsync(),
+            "LAUNCH_DEPLOY" => await DeployVersionAsync(request),
+            "LAUNCH_3DMIGOTO" => await Launch3DMigotoAsync(),
 
-            object? responseData = request.Type switch
-            {
-                // 3DMigoto messages
-                "LAUNCH_GET_VERSIONS" => await GetAvailableVersionsAsync(),
-                "LAUNCH_GET_CURRENT" => await GetCurrentVersionAsync(),
-                "LAUNCH_DEPLOY" => await DeployVersionAsync(request),
-                "LAUNCH_3DMIGOTO" => await Launch3DMigotoAsync(),
+            // Game messages
+            "LAUNCH_GAME" => await LaunchGameAsync(request),
+            "LAUNCH_CUSTOM" => await LaunchCustomProgramAsync(request),
 
-                // Game messages
-                "LAUNCH_GAME" => await LaunchGameAsync(request),
-                "LAUNCH_CUSTOM" => await LaunchCustomProgramAsync(request),
-
-                _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
-            };
-
-            return MessageResponse.CreateSuccess(request.Id, responseData);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[LaunchFacade] Error handling message: {ex.Message}");
-            return MessageResponse.CreateError(request.Id, ex.Message);
-        }
+            _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
+        };
     }
 
     // 3DMigoto methods

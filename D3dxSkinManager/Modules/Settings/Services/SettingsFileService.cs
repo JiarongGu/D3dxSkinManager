@@ -50,17 +50,19 @@ public interface ISettingsFileService
 public class SettingsFileService : ISettingsFileService
 {
     private readonly string _settingsDirectory;
+    private readonly ILogHelper _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    public SettingsFileService(IPathHelper pathHelper)
+    public SettingsFileService(IPathHelper pathHelper, ILogHelper logger)
     {
         _settingsDirectory = Path.Combine(pathHelper.BaseDataPath, "settings");
+        _logger = logger;
 
         // Ensure settings directory exists
         if (!Directory.Exists(_settingsDirectory))
         {
             Directory.CreateDirectory(_settingsDirectory);
-            Console.WriteLine($"[SettingsFileService] Created settings directory: {_settingsDirectory}");
+            _logger.Info($"Created settings directory: {_settingsDirectory}", "SettingsFileService");
         }
     }
 
@@ -78,11 +80,11 @@ public class SettingsFileService : ISettingsFileService
 
             if (!File.Exists(filePath))
             {
-                Console.WriteLine($"[SettingsFileService] Settings file not found: {filename}");
+                _logger.Debug($"Settings file not found: {filename}", "SettingsFileService");
                 return null;
             }
 
-            Console.WriteLine($"[SettingsFileService] Reading settings file: {filename}");
+            _logger.Debug($"Reading settings file: {filename}", "SettingsFileService");
             var content = await File.ReadAllTextAsync(filePath);
 
             // Validate it's valid JSON before returning
@@ -92,7 +94,7 @@ public class SettingsFileService : ISettingsFileService
             }
             catch (JsonException ex)
             {
-                Console.WriteLine($"[SettingsFileService] Invalid JSON in file {filename}: {ex.Message}");
+                _logger.Error($"Invalid JSON in file {filename}: {ex.Message}", "SettingsFileService", ex);
                 throw new InvalidOperationException($"Settings file contains invalid JSON: {filename}");
             }
 
@@ -125,14 +127,14 @@ public class SettingsFileService : ISettingsFileService
         try
         {
             var filePath = GetFilePath(filename);
-            Console.WriteLine($"[SettingsFileService] Saving settings file: {filename}");
+            _logger.Debug($"Saving settings file: {filename}", "SettingsFileService");
 
             // Write to temp file first, then move (atomic operation)
             var tempPath = filePath + ".tmp";
             await File.WriteAllTextAsync(tempPath, jsonContent);
             File.Move(tempPath, filePath, overwrite: true);
 
-            Console.WriteLine($"[SettingsFileService] Settings file saved: {filename}");
+            _logger.Info($"Settings file saved: {filename}", "SettingsFileService");
         }
         finally
         {
@@ -155,11 +157,11 @@ public class SettingsFileService : ISettingsFileService
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
-                Console.WriteLine($"[SettingsFileService] Settings file deleted: {filename}");
+                _logger.Info($"Settings file deleted: {filename}", "SettingsFileService");
             }
             else
             {
-                Console.WriteLine($"[SettingsFileService] Settings file not found for deletion: {filename}");
+                _logger.Debug($"Settings file not found for deletion: {filename}", "SettingsFileService");
             }
         }
         finally
@@ -205,7 +207,7 @@ public class SettingsFileService : ISettingsFileService
                 .Where(name => !string.IsNullOrEmpty(name))
                 .ToArray();
 
-            Console.WriteLine($"[SettingsFileService] Found {files.Length} settings files");
+            _logger.Debug($"Found {files.Length} settings files", "SettingsFileService");
             return files!;
         }
         finally

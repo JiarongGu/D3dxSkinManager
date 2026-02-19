@@ -18,7 +18,11 @@ public interface IClassificationService
     Task<bool> MoveNodeAsync(string nodeId, string? newParentId, int? dropPosition = null);
     Task<bool> ReorderNodeAsync(string nodeId, int newPosition);
     Task<bool> UpdateNodeAsync(string nodeId, string name, string? icon = null);
+    Task<bool> SetNodeThumbnailAsync(string nodeId, string thumbnailPath);
+    Task<ClassificationNode?> GetNodeByNameAsync(string name);
     Task<bool> DeleteNodeAsync(string nodeId);
+    Task<ClassificationNode?> CreateNodeAsync(string nodeId, string name, string? parentId = null, int priority = 100, string? description = null);
+    Task<bool> NodeExistsAsync(string nodeId);
 }
 
 /// <summary>
@@ -292,6 +296,89 @@ public class ClassificationService : IClassificationService
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Create a new classification node
+    /// Returns null if node already exists
+    /// </summary>
+    public async Task<ClassificationNode?> CreateNodeAsync(
+        string nodeId,
+        string name,
+        string? parentId = null,
+        int priority = 100,
+        string? description = null)
+    {
+        try
+        {
+            // Check if node already exists
+            if (await _repository.ExistsAsync(nodeId))
+            {
+                return null; // Already exists
+            }
+
+            var node = new ClassificationNode
+            {
+                Id = nodeId,
+                Name = name,
+                ParentId = parentId,
+                Thumbnail = null,
+                Priority = priority,
+                Description = description ?? $"Node: {name}",
+                Children = new List<ClassificationNode>()
+            };
+
+            await _repository.InsertAsync(node);
+            await RefreshTreeAsync(); // Invalidate cache
+            return node;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Set thumbnail for a classification node
+    /// </summary>
+    public async Task<bool> SetNodeThumbnailAsync(string nodeId, string thumbnailPath)
+    {
+        try
+        {
+            var node = await _repository.GetByIdAsync(nodeId);
+            if (node == null)
+                return false;
+
+            node.Thumbnail = thumbnailPath;
+            var updated = await _repository.UpdateAsync(node);
+
+            if (updated)
+            {
+                await RefreshTreeAsync(); // Invalidate cache
+            }
+
+            return updated;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Get classification node by name (useful for migration thumbnail association)
+    /// </summary>
+    public async Task<ClassificationNode?> GetNodeByNameAsync(string name)
+    {
+        return await _repository.GetByNameAsync(name);
+    }
+
+    /// <summary>
+    /// Check if a classification node exists
+    /// </summary>
+    public async Task<bool> NodeExistsAsync(string nodeId)
+    {
+        return await _repository.ExistsAsync(nodeId);
     }
 
     /// <summary>

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Tools.Models;
 
 using D3dxSkinManager.Modules.Profiles;
@@ -55,16 +56,18 @@ public class StartupValidationService : IStartupValidationService
 {
     private readonly string _dataPath;
     private readonly IConfigurationService _configService;
+    private readonly ILogHelper _logger;
 
-    public StartupValidationService(IProfileContext profileContext, IConfigurationService configService)
+    public StartupValidationService(IProfileContext profileContext, IConfigurationService configService, ILogHelper logger)
     {
         _dataPath = profileContext.ProfilePath;
         _configService = configService;
+        _logger = logger;
     }
 
     public async Task<StartupValidationReport> ValidateStartupAsync()
     {
-        Console.WriteLine("[StartupValidation] Starting validation checks...");
+        _logger.Info("Starting validation checks...", "StartupValidationService");
 
         var report = new StartupValidationReport
         {
@@ -88,11 +91,11 @@ public class StartupValidationService : IStartupValidationService
 
         if (report.IsValid)
         {
-            Console.WriteLine($"[StartupValidation] ï¿?All checks passed ({report.WarningCount} warnings)");
+            _logger.Info($"All checks passed ({report.WarningCount} warnings)", "StartupValidationService");
         }
         else
         {
-            Console.WriteLine($"[StartupValidation] ï¿?Validation failed: {report.ErrorCount} errors, {report.WarningCount} warnings");
+            _logger.Error($"Validation failed: {report.ErrorCount} errors, {report.WarningCount} warnings", "StartupValidationService");
         }
 
         return report;
@@ -126,7 +129,7 @@ public class StartupValidationService : IStartupValidationService
                     try
                     {
                         Directory.CreateDirectory(dir);
-                        Console.WriteLine($"[StartupValidation] Created directory: {dir}");
+                        _logger.Info($"Created directory: {dir}", "StartupValidationService");
                     }
                     catch (Exception ex)
                     {
@@ -332,21 +335,21 @@ public class StartupValidationService : IStartupValidationService
             var components = new List<string>();
 
             // Check SharpCompress (archive extraction)
-            components.Add("ï¿?SharpCompress (archive extraction): Built-in");
+            components.Add("ï¿½?SharpCompress (archive extraction): Built-in");
 
             // Check .NET runtime
             var runtimeVersion = Environment.Version;
-            components.Add($"ï¿?.NET Runtime: {runtimeVersion}");
+            components.Add($"ï¿½?.NET Runtime: {runtimeVersion}");
 
             // Check Windows Forms (file dialogs)
             try
             {
                 var _ = typeof(System.Windows.Forms.Form);
-                components.Add("ï¿?Windows Forms (file dialogs): Available");
+                components.Add("ï¿½?Windows Forms (file dialogs): Available");
             }
             catch
             {
-                components.Add("ï¿?Windows Forms: Not available");
+                components.Add("ï¿½?Windows Forms: Not available");
             }
 
             result.IsValid = true;

@@ -11,12 +11,12 @@ public class PythonConfiguration
     public string? Uuid { get; set; }
     public string? GamePath { get; set; }
     public string? GameLaunchArgument { get; set; }
-    public WindowPosition? WindowPosition { get; set; }
-    public OcdSettings? Ocd { get; set; }
+    public PythonWindowPosition? WindowPosition { get; set; }
+    public PythonOcdSettings? Ocd { get; set; }
     public Dictionary<string, object> Advanced { get; set; } = new();
 }
 
-public class WindowPosition
+public class PythonWindowPosition
 {
     public int X { get; set; }
     public int Y { get; set; }
@@ -24,7 +24,7 @@ public class WindowPosition
     public int Height { get; set; }
 }
 
-public class OcdSettings
+public class PythonOcdSettings
 {
     public string? WindowName { get; set; }
     public int Width { get; set; }

@@ -8,10 +8,14 @@ using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Migration.Services;
 using D3dxSkinManager.Modules.Migration.Models;
+using D3dxSkinManager.Modules.Migration.Steps;
+using D3dxSkinManager.Modules.Migration.Parsers;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Mods.Services;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Tools.Services;
+using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Migration;
 
@@ -25,13 +29,19 @@ public class MigrationServiceTests : IDisposable
     private readonly string _testDataPath;
     private readonly string _testClassificationPath;
     private readonly Mock<IProfileContext> _mockProfileContext;
+    private readonly Mock<IProfilePathService> _mockProfilePaths;
     private readonly Mock<IModRepository> _mockModRepository;
-    private readonly Mock<IClassificationRepository> _mockClassificationRepository;
-    private readonly Mock<IClassificationThumbnailService> _mockThumbnailService;
+    private readonly Mock<IClassificationService> _mockClassificationService;
+    private readonly Mock<IPythonRedirectionFileParser> _mockRedirectionParser;
+    private readonly Mock<IPythonClassificationFileParser> _mockClassificationParser;
+    private readonly Mock<IPythonModIndexParser> _mockModIndexParser;
     private readonly Mock<IFileService> _mockFileService;
     private readonly Mock<IImageService> _mockImageService;
     private readonly Mock<IConfigurationService> _mockConfigService;
+    private readonly Mock<IPythonConfigurationParser> _mockConfigParser;
     private readonly Mock<IModManagementService> _mockModManagementService;
+    private readonly Mock<IModAutoDetectionService> _mockAutoDetectionService;
+    private readonly Mock<ILogHelper> _mockLogger = new();
     private readonly MigrationService _service;
 
     public MigrationServiceTests()
@@ -54,32 +64,72 @@ public class MigrationServiceTests : IDisposable
         _mockProfileContext = new Mock<IProfileContext>();
         _mockProfileContext.Setup(x => x.ProfilePath).Returns(_testDataPath);
 
+        // Setup ProfilePathService mock with all standard paths
+        _mockProfilePaths = new Mock<IProfilePathService>();
+        _mockProfilePaths.Setup(x => x.ProfilePath).Returns(_testDataPath);
+        _mockProfilePaths.Setup(x => x.ModsDirectory).Returns(Path.Combine(_testDataPath, "mods"));
+        _mockProfilePaths.Setup(x => x.ThumbnailsDirectory).Returns(Path.Combine(_testDataPath, "thumbnails"));
+        _mockProfilePaths.Setup(x => x.PreviewsDirectory).Returns(Path.Combine(_testDataPath, "previews"));
+        _mockProfilePaths.Setup(x => x.LogsDirectory).Returns(Path.Combine(_testDataPath, "logs"));
+        _mockProfilePaths.Setup(x => x.AutoDetectionRulesPath).Returns(Path.Combine(_testDataPath, "auto_detection_rules.json"));
+        _mockProfilePaths.Setup(x => x.ConfigPath).Returns(Path.Combine(_testDataPath, "config.json"));
+
         _mockModRepository = new Mock<IModRepository>();
-        _mockClassificationRepository = new Mock<IClassificationRepository>();
-        _mockThumbnailService = new Mock<IClassificationThumbnailService>();
+        _mockClassificationService = new Mock<IClassificationService>();
+        _mockRedirectionParser = new Mock<IPythonRedirectionFileParser>();
+        _mockClassificationParser = new Mock<IPythonClassificationFileParser>();
+        _mockModIndexParser = new Mock<IPythonModIndexParser>();
         _mockFileService = new Mock<IFileService>();
         _mockImageService = new Mock<IImageService>();
         _mockConfigService = new Mock<IConfigurationService>();
+        _mockConfigParser = new Mock<IPythonConfigurationParser>();
         _mockModManagementService = new Mock<IModManagementService>();
+        _mockAutoDetectionService = new Mock<IModAutoDetectionService>();
 
         // Setup image service to return common extensions
         _mockImageService.Setup(s => s.GetSupportedImageExtensions())
             .Returns(new[] { ".png", ".jpg", ".jpeg" });
 
-        // Setup thumbnail service to return 0 (no thumbnails in tests)
-        _mockThumbnailService.Setup(s => s.AssociateThumbnailsAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(0);
+        // Setup redirection parser to return empty mappings (no thumbnails in tests)
+        _mockRedirectionParser.Setup(p => p.ParseAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, string>());
+        _mockRedirectionParser.Setup(p => p.GetStatisticsAsync(It.IsAny<string>()))
+            .ReturnsAsync(new PythonRedirectionFileStatistics());
 
-        // Create service instance
+        // Setup classification parser to return empty classifications (tests will override as needed)
+        _mockClassificationParser.Setup(p => p.ParseAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Setup mod index parser to return empty list (tests will override as needed)
+        _mockModIndexParser.Setup(p => p.ParseAsync(It.IsAny<string>()))
+            .ReturnsAsync(new List<PythonModEntry>());
+
+        // Setup auto-detection service
+        _mockAutoDetectionService.Setup(s => s.SaveRulesAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        // Setup config parser to return null (tests don't need configuration)
+        _mockConfigParser.Setup(p => p.ParseAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((PythonConfiguration?)null);
+
+        // Create step instances (new reorganized step architecture with ProfilePathService)
+        var step1 = new MigrationStep1AnalyzeSource(_mockImageService.Object, _mockConfigParser.Object, _mockLogger.Object);
+        var step2 = new MigrationStep2MigrateConfiguration(_mockConfigService.Object, _mockLogger.Object);
+        var step3 = new MigrationStep3MigrateClassifications(_mockProfilePaths.Object, _mockModRepository.Object, _mockClassificationParser.Object, _mockClassificationService.Object, _mockAutoDetectionService.Object, _mockLogger.Object);
+        var step4 = new MigrationStep4MigrateClassificationThumbnails(_mockProfilePaths.Object, _mockFileService.Object, _mockRedirectionParser.Object, _mockClassificationService.Object, _mockLogger.Object);
+        var step5 = new MigrationStep5MigrateModArchives(_mockProfilePaths.Object, _mockFileService.Object, _mockModIndexParser.Object, _mockModManagementService.Object, _mockLogger.Object);
+        var step6 = new MigrationStep6MigrateModPreviews(_mockProfilePaths.Object, _mockFileService.Object, _mockImageService.Object, _mockLogger.Object);
+
+        // Create service instance (orchestrator)
         _service = new MigrationService(
-            _mockProfileContext.Object,
-            _mockModRepository.Object,
-            _mockClassificationRepository.Object,
-            _mockThumbnailService.Object,
-            _mockFileService.Object,
-            _mockImageService.Object,
-            _mockConfigService.Object,
-            _mockModManagementService.Object
+            _mockProfilePaths.Object,
+            _mockLogger.Object,
+            step1,
+            step2,
+            step3,
+            step4,
+            step5,
+            step6
         );
     }
 
@@ -114,21 +164,38 @@ public class MigrationServiceTests : IDisposable
             "霜降"     // Frost
         });
 
-        // Setup mock to track node insertions
-        var insertedNodes = new List<ClassificationNode>();
-        _mockClassificationRepository
-            .Setup(r => r.InsertAsync(It.IsAny<ClassificationNode>()))
-            .Callback<ClassificationNode>(node => insertedNodes.Add(node))
-            .ReturnsAsync((ClassificationNode node) => node);
-
-        _mockClassificationRepository
-            .Setup(r => r.ExistsAsync(It.IsAny<string>()))
-            .ReturnsAsync(false);
+        // Setup mock to track node creations
+        var createdNodes = new List<ClassificationNode>();
+        _mockClassificationService
+            .Setup(s => s.CreateNodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync((string nodeId, string name, string parentId, int priority, string description) =>
+            {
+                var node = new ClassificationNode
+                {
+                    Id = nodeId,
+                    Name = name,
+                    ParentId = parentId,
+                    Priority = priority,
+                    Description = description,
+                    Children = new List<ClassificationNode>()
+                };
+                createdNodes.Add(node);
+                return node;
+            });
 
         // Setup mod repository to return empty (no mods yet)
         _mockModRepository
             .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
+
+        // Setup classification parser to return the test data
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(_testClassificationPath))
+            .ReturnsAsync(new Dictionary<string, List<string>>
+            {
+                { "干员·灼热", new List<string> { "莱万汀", "伊芙利特" } },
+                { "干员·寒冷", new List<string> { "冰雪", "霜降" } }
+            });
 
         // Create options with classification migration enabled
         var options = new MigrationOptions
@@ -147,22 +214,22 @@ public class MigrationServiceTests : IDisposable
 
         // Assert
         result.Success.Should().BeTrue();
-        insertedNodes.Should().HaveCount(6); // 2 parents + 4 children
+        createdNodes.Should().HaveCount(6); // 2 parents + 4 children
 
         // Verify parent nodes
-        var parentNodes = insertedNodes.Where(n => n.ParentId == null).ToList();
+        var parentNodes = createdNodes.Where(n => n.ParentId == null).ToList();
         parentNodes.Should().HaveCount(2);
         parentNodes.Should().Contain(n => n.Name == "干员·灼热");
         parentNodes.Should().Contain(n => n.Name == "干员·寒冷");
 
         // Verify child nodes for Fire Operators
-        var fireChildren = insertedNodes.Where(n => n.ParentId == "干员·灼热").ToList();
+        var fireChildren = createdNodes.Where(n => n.ParentId == "干员·灼热").ToList();
         fireChildren.Should().HaveCount(2);
         fireChildren.Should().Contain(n => n.Name == "莱万汀");
         fireChildren.Should().Contain(n => n.Name == "伊芙利特");
 
         // Verify child node IDs are simple names (not paths)
-        var leviathanNode = insertedNodes.FirstOrDefault(n => n.Name == "莱万汀");
+        var leviathanNode = createdNodes.FirstOrDefault(n => n.Name == "莱万汀");
         leviathanNode.Should().NotBeNull();
         leviathanNode!.Id.Should().Be("莱万汀"); // Simple ID, not path-based
         leviathanNode.ParentId.Should().Be("干员·灼热");
@@ -186,13 +253,18 @@ public class MigrationServiceTests : IDisposable
             .Setup(r => r.GetByCategoryAsync("测试角色"))
             .ReturnsAsync(matchingMods);
 
-        _mockClassificationRepository
-            .Setup(r => r.ExistsAsync(It.IsAny<string>()))
-            .ReturnsAsync(false);
+        _mockClassificationService
+            .Setup(s => s.CreateNodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync((string nodeId, string name, string parentId, int priority, string description) =>
+                new ClassificationNode { Id = nodeId, Name = name, ParentId = parentId, Priority = priority, Description = description, Children = new List<ClassificationNode>() });
 
-        _mockClassificationRepository
-            .Setup(r => r.InsertAsync(It.IsAny<ClassificationNode>()))
-            .ReturnsAsync((ClassificationNode node) => node);
+        // Setup classification parser
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(_testClassificationPath))
+            .ReturnsAsync(new Dictionary<string, List<string>>
+            {
+                { "测试分类", new List<string> { "测试角色" } }
+            });
 
         var options = new MigrationOptions
         {
@@ -224,19 +296,27 @@ public class MigrationServiceTests : IDisposable
             "角色2"
         });
 
-        var insertedNodes = new List<ClassificationNode>();
-        _mockClassificationRepository
-            .Setup(r => r.InsertAsync(It.IsAny<ClassificationNode>()))
-            .Callback<ClassificationNode>(node => insertedNodes.Add(node))
-            .ReturnsAsync((ClassificationNode node) => node);
-
-        _mockClassificationRepository
-            .Setup(r => r.ExistsAsync(It.IsAny<string>()))
-            .ReturnsAsync(false);
+        var createdNodes = new List<ClassificationNode>();
+        _mockClassificationService
+            .Setup(s => s.CreateNodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync((string nodeId, string name, string parentId, int priority, string description) =>
+            {
+                var node = new ClassificationNode { Id = nodeId, Name = name, ParentId = parentId, Priority = priority, Description = description, Children = new List<ClassificationNode>() };
+                createdNodes.Add(node);
+                return node;
+            });
 
         _mockModRepository
             .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
+
+        // Setup classification parser (parser already filters empty lines)
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(_testClassificationPath))
+            .ReturnsAsync(new Dictionary<string, List<string>>
+            {
+                { "测试", new List<string> { "角色1", "角色2" } }
+            });
 
         var options = new MigrationOptions
         {
@@ -249,7 +329,7 @@ public class MigrationServiceTests : IDisposable
         await _service.MigrateAsync(options);
 
         // Assert - Should only create nodes for non-empty lines
-        var childNodes = insertedNodes.Where(n => n.ParentId != null).ToList();
+        var childNodes = createdNodes.Where(n => n.ParentId != null).ToList();
         childNodes.Should().HaveCount(2);
         childNodes.Should().Contain(n => n.Name == "角色1");
         childNodes.Should().Contain(n => n.Name == "角色2");
@@ -262,25 +342,32 @@ public class MigrationServiceTests : IDisposable
         var categoryFile = Path.Combine(_testClassificationPath, "已存在分类");
         await File.WriteAllLinesAsync(categoryFile, new[] { "已存在角色" });
 
-        // Simulate that parent node already exists
-        _mockClassificationRepository
-            .Setup(r => r.ExistsAsync("已存在分类"))
-            .ReturnsAsync(true);
+        // Simulate that parent node already exists, child doesn't
+        var createdNodes = new List<ClassificationNode>();
+        _mockClassificationService
+            .Setup(s => s.CreateNodeAsync("已存在分类", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync((ClassificationNode?)null); // Already exists
 
-        // Child node doesn't exist
-        _mockClassificationRepository
-            .Setup(r => r.ExistsAsync("已存在角色"))
-            .ReturnsAsync(false);
-
-        var insertedNodes = new List<ClassificationNode>();
-        _mockClassificationRepository
-            .Setup(r => r.InsertAsync(It.IsAny<ClassificationNode>()))
-            .Callback<ClassificationNode>(node => insertedNodes.Add(node))
-            .ReturnsAsync((ClassificationNode node) => node);
+        _mockClassificationService
+            .Setup(s => s.CreateNodeAsync("已存在角色", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync((string nodeId, string name, string parentId, int priority, string description) =>
+            {
+                var node = new ClassificationNode { Id = nodeId, Name = name, ParentId = parentId, Priority = priority, Description = description, Children = new List<ClassificationNode>() };
+                createdNodes.Add(node);
+                return node;
+            });
 
         _mockModRepository
             .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
+
+        // Setup classification parser
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(_testClassificationPath))
+            .ReturnsAsync(new Dictionary<string, List<string>>
+            {
+                { "已存在分类", new List<string> { "已存在角色" } }
+            });
 
         var options = new MigrationOptions
         {
@@ -293,8 +380,8 @@ public class MigrationServiceTests : IDisposable
         await _service.MigrateAsync(options);
 
         // Assert - Should only insert child node, not parent
-        insertedNodes.Should().HaveCount(1);
-        insertedNodes[0].Name.Should().Be("已存在角色");
+        createdNodes.Should().HaveCount(1);
+        createdNodes[0].Name.Should().Be("已存在角色");
     }
 
     [Fact]
@@ -308,13 +395,18 @@ public class MigrationServiceTests : IDisposable
             .Setup(r => r.GetByCategoryAsync("不存在的角色"))
             .ReturnsAsync(new List<ModInfo>()); // No matching mods
 
-        _mockClassificationRepository
-            .Setup(r => r.ExistsAsync(It.IsAny<string>()))
-            .ReturnsAsync(false);
+        _mockClassificationService
+            .Setup(s => s.CreateNodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync((string nodeId, string name, string parentId, int priority, string description) =>
+                new ClassificationNode { Id = nodeId, Name = name, ParentId = parentId, Priority = priority, Description = description, Children = new List<ClassificationNode>() });
 
-        _mockClassificationRepository
-            .Setup(r => r.InsertAsync(It.IsAny<ClassificationNode>()))
-            .ReturnsAsync((ClassificationNode node) => node);
+        // Setup classification parser
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(_testClassificationPath))
+            .ReturnsAsync(new Dictionary<string, List<string>>
+            {
+                { "无匹配", new List<string> { "不存在的角色" } }
+            });
 
         var options = new MigrationOptions
         {
@@ -348,19 +440,29 @@ public class MigrationServiceTests : IDisposable
             await File.WriteAllLinesAsync(filePath, objects);
         }
 
-        var insertedNodes = new List<ClassificationNode>();
-        _mockClassificationRepository
-            .Setup(r => r.InsertAsync(It.IsAny<ClassificationNode>()))
-            .Callback<ClassificationNode>(node => insertedNodes.Add(node))
-            .ReturnsAsync((ClassificationNode node) => node);
-
-        _mockClassificationRepository
-            .Setup(r => r.ExistsAsync(It.IsAny<string>()))
-            .ReturnsAsync(false);
+        var createdNodes = new List<ClassificationNode>();
+        _mockClassificationService
+            .Setup(s => s.CreateNodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync((string nodeId, string name, string parentId, int priority, string description) =>
+            {
+                var node = new ClassificationNode { Id = nodeId, Name = name, ParentId = parentId, Priority = priority, Description = description, Children = new List<ClassificationNode>() };
+                createdNodes.Add(node);
+                return node;
+            });
 
         _mockModRepository
             .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
+
+        // Setup classification parser
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(_testClassificationPath))
+            .ReturnsAsync(new Dictionary<string, List<string>>
+            {
+                { "干员·灼热", new List<string> { "莱万汀", "伊芙利特" } },
+                { "干员·寒冷", new List<string> { "冰雪" } },
+                { "怪物", new List<string> { "史莱姆", "哥布林" } }
+            });
 
         var options = new MigrationOptions
         {
@@ -373,16 +475,16 @@ public class MigrationServiceTests : IDisposable
         await _service.MigrateAsync(options);
 
         // Assert
-        var parentNodes = insertedNodes.Where(n => n.ParentId == null).ToList();
+        var parentNodes = createdNodes.Where(n => n.ParentId == null).ToList();
         parentNodes.Should().HaveCount(3);
 
-        var fireOperatorChildren = insertedNodes.Where(n => n.ParentId == "干员·灼热").ToList();
+        var fireOperatorChildren = createdNodes.Where(n => n.ParentId == "干员·灼热").ToList();
         fireOperatorChildren.Should().HaveCount(2);
 
-        var coldOperatorChildren = insertedNodes.Where(n => n.ParentId == "干员·寒冷").ToList();
+        var coldOperatorChildren = createdNodes.Where(n => n.ParentId == "干员·寒冷").ToList();
         coldOperatorChildren.Should().HaveCount(1);
 
-        var monsterChildren = insertedNodes.Where(n => n.ParentId == "怪物").ToList();
+        var monsterChildren = createdNodes.Where(n => n.ParentId == "怪物").ToList();
         monsterChildren.Should().HaveCount(2);
     }
 
@@ -414,19 +516,27 @@ public class MigrationServiceTests : IDisposable
         var categoryFile = Path.Combine(_testClassificationPath, "测试优先级");
         await File.WriteAllLinesAsync(categoryFile, new[] { "角色" });
 
-        var insertedNodes = new List<ClassificationNode>();
-        _mockClassificationRepository
-            .Setup(r => r.InsertAsync(It.IsAny<ClassificationNode>()))
-            .Callback<ClassificationNode>(node => insertedNodes.Add(node))
-            .ReturnsAsync((ClassificationNode node) => node);
-
-        _mockClassificationRepository
-            .Setup(r => r.ExistsAsync(It.IsAny<string>()))
-            .ReturnsAsync(false);
+        var createdNodes = new List<ClassificationNode>();
+        _mockClassificationService
+            .Setup(s => s.CreateNodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync((string nodeId, string name, string parentId, int priority, string description) =>
+            {
+                var node = new ClassificationNode { Id = nodeId, Name = name, ParentId = parentId, Priority = priority, Description = description, Children = new List<ClassificationNode>() };
+                createdNodes.Add(node);
+                return node;
+            });
 
         _mockModRepository
             .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
             .ReturnsAsync(new List<ModInfo>());
+
+        // Setup classification parser
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(_testClassificationPath))
+            .ReturnsAsync(new Dictionary<string, List<string>>
+            {
+                { "测试优先级", new List<string> { "角色" } }
+            });
 
         var options = new MigrationOptions
         {
@@ -439,10 +549,10 @@ public class MigrationServiceTests : IDisposable
         await _service.MigrateAsync(options);
 
         // Assert - Verify priorities
-        var parentNode = insertedNodes.First(n => n.ParentId == null);
+        var parentNode = createdNodes.First(n => n.ParentId == null);
         parentNode.Priority.Should().Be(100); // Parent priority
 
-        var childNode = insertedNodes.First(n => n.ParentId != null);
+        var childNode = createdNodes.First(n => n.ParentId != null);
         childNode.Priority.Should().Be(50); // Child priority
     }
 

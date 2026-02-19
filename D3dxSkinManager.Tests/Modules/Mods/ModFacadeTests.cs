@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
@@ -26,7 +27,8 @@ public class ModFacadeTests
     private readonly Mock<IModQueryService> _mockQueryService;
     private readonly Mock<IClassificationService> _mockClassificationService;
     private readonly Mock<IPayloadHelper> _mockPayloadHelper;
-    private readonly Mock<IPluginEventBus> _mockEventBus;
+    private readonly Mock<IEventEmitterHelper> _mockEventEmitter = new();
+    private readonly Mock<ILogHelper> _mockLogger = new();
     private readonly ModFacade _facade;
 
     public ModFacadeTests()
@@ -38,7 +40,6 @@ public class ModFacadeTests
         _mockQueryService = new Mock<IModQueryService>();
         _mockClassificationService = new Mock<IClassificationService>();
         _mockPayloadHelper = new Mock<IPayloadHelper>();
-        _mockEventBus = new Mock<IPluginEventBus>();
 
         _facade = new ModFacade(
             _mockRepository.Object,
@@ -47,7 +48,8 @@ public class ModFacadeTests
             _mockQueryService.Object,
             _mockClassificationService.Object,
             _mockPayloadHelper.Object,
-            _mockEventBus.Object
+            _mockEventEmitter.Object,
+            _mockLogger.Object
         );
     }
 
@@ -228,9 +230,7 @@ public class ModFacadeTests
         await _facade.LoadModAsync("sha123");
 
         // Assert
-        _mockEventBus.Verify(e => e.EmitAsync(It.Is<PluginEventArgs>(
-            args => args.EventType == PluginEventType.ModLoaded
-        )), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(PluginEventType.ModLoaded, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -278,9 +278,7 @@ public class ModFacadeTests
         await _facade.UnloadModAsync("sha123");
 
         // Assert
-        _mockEventBus.Verify(e => e.EmitAsync(It.Is<PluginEventArgs>(
-            args => args.EventType == PluginEventType.ModUnloaded
-        )), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(PluginEventType.ModUnloaded, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -360,9 +358,7 @@ public class ModFacadeTests
         await _facade.ImportModAsync("test.zip");
 
         // Assert
-        _mockEventBus.Verify(e => e.EmitAsync(It.Is<PluginEventArgs>(
-            args => args.EventType == PluginEventType.ModImported
-        )), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(PluginEventType.ModImported, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -416,9 +412,7 @@ public class ModFacadeTests
         await _facade.DeleteModAsync("sha123");
 
         // Assert
-        _mockEventBus.Verify(e => e.EmitAsync(It.Is<PluginEventArgs>(
-            args => args.EventType == PluginEventType.ModDeleted
-        )), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(PluginEventType.ModDeleted, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -562,7 +556,8 @@ public class ModFacadeTests
             _mockQueryService.Object,
             _mockClassificationService.Object,
             _mockPayloadHelper.Object,
-            null  // EventBus is optional
+            null,  // EventBus is optional
+            _mockLogger.Object
         );
 
         facade.Should().NotBeNull();

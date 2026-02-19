@@ -506,7 +506,7 @@ pluginRegistry.register(new MyPlugin(), context);
 
 ### Build Errors
 
-1. Ensure .NET 8 SDK is installed
+1. Ensure .NET 10 SDK is installed
 2. Check project references are correct
 3. Restore NuGet packages: `dotnet restore`
 4. Clean and rebuild: `dotnet clean && dotnet build`

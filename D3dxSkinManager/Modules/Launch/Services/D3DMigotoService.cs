@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Launch.Models;
 using D3dxSkinManager.Modules.Tools.Services;
 
@@ -48,17 +49,20 @@ public class D3DMigotoService : I3DMigotoService
     private readonly IFileService _fileService;
     private readonly IConfigurationService _configService;
     private readonly IProcessService _processService;
+    private readonly ILogHelper _logger;
 
     public D3DMigotoService(
         IProfileContext profileContext,
         IFileService fileService,
         IConfigurationService configService,
-        IProcessService processService)
+        IProcessService processService,
+        ILogHelper logger)
     {
         _dataPath = profileContext.ProfilePath;
         _fileService = fileService;
         _configService = configService;
         _processService = processService;
+        _logger = logger;
 
         _versionsDirectory = Path.Combine(_dataPath, "3dmigoto");
 
@@ -66,7 +70,7 @@ public class D3DMigotoService : I3DMigotoService
         if (!Directory.Exists(_versionsDirectory))
         {
             Directory.CreateDirectory(_versionsDirectory);
-            Console.WriteLine($"[3DMigotoService] Created versions directory: {_versionsDirectory}");
+            _logger.Info($"Created versions directory: {_versionsDirectory}", "D3DMigotoService");
         }
     }
 
@@ -99,16 +103,16 @@ public class D3DMigotoService : I3DMigotoService
                     Name = name,
                     FilePath = file,
                     SizeBytes = fileInfo.Length,
-                    SizeFormatted = FormatBytes(fileInfo.Length),
+                    SizeFormatted = FileUtilities.FormatBytes(fileInfo.Length),
                     IsDeployed = name.Equals(currentVersion, StringComparison.OrdinalIgnoreCase)
                 });
             }
 
-            Console.WriteLine($"[3DMigotoService] Found {versions.Count} available versions");
+            _logger.Info($"Found {versions.Count} available versions", "D3DMigotoService");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[3DMigotoService] Error getting versions: {ex.Message}");
+            _logger.Error($"Error getting versions: {ex.Message}", "D3DMigotoService", ex);
         }
 
         return versions;
@@ -130,7 +134,7 @@ public class D3DMigotoService : I3DMigotoService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[3DMigotoService] Error getting current version: {ex.Message}");
+            _logger.Error($"Error getting current version: {ex.Message}", "D3DMigotoService", ex);
             return null;
         }
     }
@@ -139,7 +143,7 @@ public class D3DMigotoService : I3DMigotoService
     {
         try
         {
-            Console.WriteLine($"[3DMigotoService] Deploying version: {versionName}");
+            _logger.Info($"Deploying version: {versionName}", "D3DMigotoService");
 
             // Get work directory
             var workDirectory = _configService.GetWorkDirectory();
@@ -186,13 +190,13 @@ public class D3DMigotoService : I3DMigotoService
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[3DMigotoService] Warning: Could not delete {file}: {ex.Message}");
+                        _logger.Warning($"Could not delete {file}: {ex.Message}", "D3DMigotoService");
                     }
                 }
             }
 
             // Extract the version archive
-            Console.WriteLine($"[3DMigotoService] Extracting {archivePath} to {workDirectory}");
+            _logger.Info($"Extracting {archivePath} to {workDirectory}", "D3DMigotoService");
             var success = await _fileService.ExtractArchiveAsync(archivePath, workDirectory);
 
             if (!success)
@@ -208,7 +212,7 @@ public class D3DMigotoService : I3DMigotoService
             var versionFile = Path.Combine(_dataPath, "current_3dmigoto_version.txt");
             await File.WriteAllTextAsync(versionFile, versionName);
 
-            Console.WriteLine($"[3DMigotoService] Successfully deployed version: {versionName}");
+            _logger.Info($"Successfully deployed version: {versionName}", "D3DMigotoService");
 
             return new DeploymentResult
             {
@@ -218,7 +222,7 @@ public class D3DMigotoService : I3DMigotoService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[3DMigotoService] Error deploying version: {ex.Message}");
+            _logger.Error($"Error deploying version: {ex.Message}", "D3DMigotoService", ex);
             return new DeploymentResult
             {
                 Success = false,
@@ -234,7 +238,7 @@ public class D3DMigotoService : I3DMigotoService
             var workDirectory = _configService.GetWorkDirectory();
             if (string.IsNullOrEmpty(workDirectory) || !Directory.Exists(workDirectory))
             {
-                Console.WriteLine("[3DMigotoService] Work directory not configured or does not exist");
+                _logger.Warning("Work directory not configured or does not exist", "D3DMigotoService");
                 return false;
             }
 
@@ -269,32 +273,20 @@ public class D3DMigotoService : I3DMigotoService
 
             if (loaderPath == null)
             {
-                Console.WriteLine("[3DMigotoService] No 3DMigoto loader found in work directory");
+                _logger.Warning("No 3DMigoto loader found in work directory", "D3DMigotoService");
                 return false;
             }
 
-            Console.WriteLine($"[3DMigotoService] Launching: {loaderPath}");
+            _logger.Info($"Launching: {loaderPath}", "D3DMigotoService");
             await _processService.LaunchProcessAsync(loaderPath, "", Path.GetDirectoryName(loaderPath));
 
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[3DMigotoService] Error launching 3DMigoto: {ex.Message}");
+            _logger.Error($"Error launching 3DMigoto: {ex.Message}", "D3DMigotoService", ex);
             return false;
         }
     }
 
-    private static string FormatBytes(long bytes)
-    {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-        double len = bytes;
-        int order = 0;
-        while (len >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            len = len / 1024;
-        }
-        return $"{len:0.##} {sizes[order]}";
-    }
 }

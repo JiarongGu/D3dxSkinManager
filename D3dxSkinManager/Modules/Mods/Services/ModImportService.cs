@@ -30,6 +30,8 @@ public class ModImportService : IModImportService
     private readonly IModRepository _repository;
     private readonly IModFileService _modFileService;
     private readonly IModManagementService _modManagementService;
+    private readonly IPathValidator _pathValidator;
+    private readonly ILogHelper _logger;
 
     public ModImportService(
         IFileService fileService,
@@ -37,7 +39,9 @@ public class ModImportService : IModImportService
         IImageService imageService,
         IModRepository repository,
         IModFileService modFileService,
-        IModManagementService modManagementService)
+        IModManagementService modManagementService,
+        IPathValidator pathValidator,
+        ILogHelper logger)
     {
         _fileService = fileService;
         _autoDetectionService = autoDetectionService;
@@ -45,6 +49,8 @@ public class ModImportService : IModImportService
         _repository = repository;
         _modFileService = modFileService;
         _modManagementService = modManagementService;
+        _pathValidator = pathValidator;
+        _logger = logger;
     }
 
     /// <summary>
@@ -52,23 +58,20 @@ public class ModImportService : IModImportService
     /// </summary>
     public async Task<ModInfo?> ImportAsync(string filePath)
     {
-        if (!File.Exists(filePath))
-        {
-            throw new FileNotFoundException($"File not found: {filePath}");
-        }
+        _pathValidator.ValidateFileExists(filePath);
 
         try
         {
-            Console.WriteLine($"[ModImport] Starting import: {filePath}");
+            _logger.Info($"Starting import: {filePath}", "ModImportService");
 
             // Step 1: Calculate SHA256
             var sha = await _fileService.CalculateSha256Async(filePath);
-            Console.WriteLine($"[ModImport] SHA256: {sha}");
+            _logger.Info($"SHA256: {sha}", "ModImportService");
 
             // Check if already exists
             if (await _repository.ExistsAsync(sha))
             {
-                Console.WriteLine($"[ModImport] Mod already exists: {sha}");
+                _logger.Info($"Mod already exists: {sha}", "ModImportService");
                 return await _repository.GetByIdAsync(sha);
             }
 
@@ -94,14 +97,14 @@ public class ModImportService : IModImportService
 
             // Step 4: Read metadata
             var metadata = await ReadMetadataAsync(tempExtractPath);
-            Console.WriteLine($"[ModImport] Metadata: Name={metadata.Name}, Author={metadata.Author}");
+            _logger.Info($"Metadata: Name={metadata.Name}, Author={metadata.Author}", "ModImportService");
 
             // Step 5: Auto-classify object name if not provided
             var category = metadata.Category;
             if (string.IsNullOrEmpty(category))
             {
                 category = await _autoDetectionService.DetectObjectNameAsync(tempExtractPath);
-                Console.WriteLine($"[ModImport] Auto-detected as: {category ?? "Unknown"}");
+                _logger.Info($"Auto-detected as: {category ?? "Unknown"}", "ModImportService");
             }
 
             // Step 6: Generate thumbnail and previews
@@ -110,21 +113,21 @@ public class ModImportService : IModImportService
             try
             {
                 thumbnailPath = await _imageService.GenerateThumbnailAsync(tempExtractPath, sha);
-                Console.WriteLine($"[ModImport] Generated thumbnail: {thumbnailPath}");
+                _logger.Info($"Generated thumbnail: {thumbnailPath}", "ModImportService");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ModImport] Failed to generate thumbnail: {ex.Message}");
+                _logger.Info($"Failed to generate thumbnail: {ex.Message}", "ModImportService");
             }
 
             try
             {
                 var previewCount = await _imageService.GeneratePreviewsAsync(tempExtractPath, sha);
-                Console.WriteLine($"[ModImport] Generated {previewCount} preview(s)");
+                _logger.Info($"Generated {previewCount} preview(s)", "ModImportService");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ModImport] Failed to generate previews: {ex.Message}");
+                _logger.Info($"Failed to generate previews: {ex.Message}", "ModImportService");
             }
 
             // Step 7 & 8: Create and save ModInfo using centralized service
@@ -144,7 +147,7 @@ public class ModImportService : IModImportService
             };
 
             var mod = await _modManagementService.CreateModAsync(createRequest);
-            Console.WriteLine($"[ModImport] Import complete: {mod.Name} ({sha})");
+            _logger.Info($"Import complete: {mod.Name} ({sha})", "ModImportService");
 
             // Cleanup temp directory
             try
@@ -156,14 +159,14 @@ public class ModImportService : IModImportService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ModImport] Failed to cleanup temp directory: {ex.Message}");
+                _logger.Info($"Failed to cleanup temp directory: {ex.Message}", "ModImportService");
             }
 
             return mod;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ModImport] Import failed: {ex.Message}");
+            _logger.Info($"Import failed: {ex.Message}", "ModImportService");
             throw;
         }
     }
@@ -190,7 +193,7 @@ public class ModImportService : IModImportService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ModImport] Failed to parse metadata.json: {ex.Message}");
+                _logger.Info($"Failed to parse metadata.json: {ex.Message}", "ModImportService");
             }
         }
 
