@@ -5,6 +5,8 @@ using FluentAssertions;
 using Xunit;
 using D3dxSkinManager.Modules.Settings.Services;
 using D3dxSkinManager.Modules.Settings.Models;
+using Moq;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Settings;
 
@@ -16,13 +18,19 @@ public class GlobalSettingsServiceTests : IDisposable
 {
     private readonly string _testDataPath;
     private readonly GlobalSettingsService _service;
+    private readonly Mock<IPathHelper> _mockPathHelper;
 
     public GlobalSettingsServiceTests()
     {
         // Arrange - Create temp directory for each test
         _testDataPath = Path.Combine(Path.GetTempPath(), $"GlobalSettingsServiceTests_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDataPath);
-        _service = new GlobalSettingsService(_testDataPath);
+
+        // Setup mock PathHelper
+        _mockPathHelper = new Mock<IPathHelper>();
+        _mockPathHelper.Setup(x => x.BaseDataPath).Returns(_testDataPath);
+
+        _service = new GlobalSettingsService(_mockPathHelper.Object);
     }
 
     public void Dispose()
@@ -43,7 +51,7 @@ public class GlobalSettingsServiceTests : IDisposable
         // Assert
         settings.Should().NotBeNull();
         settings.Theme.Should().Be("light");
-        settings.LogLevel.Should().Be("INFO");
+        settings.LogLevel.Should().Be("info");
         settings.AnnotationLevel.Should().Be("all");
         settings.LastUpdated.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
@@ -54,8 +62,8 @@ public class GlobalSettingsServiceTests : IDisposable
         // Act
         var settings = await _service.GetSettingsAsync();
 
-        // Assert - File should now exist
-        var filePath = Path.Combine(_testDataPath, "global_settings.json");
+        // Assert - File should now exist in settings subfolder
+        var filePath = Path.Combine(_testDataPath, "settings", "global.json");
         File.Exists(filePath).Should().BeTrue();
 
         var fileContent = await File.ReadAllTextAsync(filePath);
@@ -79,7 +87,7 @@ public class GlobalSettingsServiceTests : IDisposable
         await _service.UpdateSettingsAsync(newSettings);
 
         // Create new service instance to ensure reading from file
-        var newService = new GlobalSettingsService(_testDataPath);
+        var newService = new GlobalSettingsService(_mockPathHelper.Object);
         var retrieved = await newService.GetSettingsAsync();
 
         // Assert
@@ -188,7 +196,7 @@ public class GlobalSettingsServiceTests : IDisposable
         await _service.UpdateSettingAsync("theme", "dark");
 
         // Create new service instance to ensure reading from file
-        var newService = new GlobalSettingsService(_testDataPath);
+        var newService = new GlobalSettingsService(_mockPathHelper.Object);
         var settings = await newService.GetSettingsAsync();
 
         // Assert
@@ -209,7 +217,7 @@ public class GlobalSettingsServiceTests : IDisposable
 
         // Assert
         settings.Theme.Should().Be("light");
-        settings.LogLevel.Should().Be("INFO");
+        settings.LogLevel.Should().Be("info");
         settings.AnnotationLevel.Should().Be("all");
     }
 
@@ -223,7 +231,7 @@ public class GlobalSettingsServiceTests : IDisposable
         await _service.ResetSettingsAsync();
 
         // Create new service instance
-        var newService = new GlobalSettingsService(_testDataPath);
+        var newService = new GlobalSettingsService(_mockPathHelper.Object);
         var settings = await newService.GetSettingsAsync();
 
         // Assert
@@ -234,7 +242,7 @@ public class GlobalSettingsServiceTests : IDisposable
     public async Task GetSettingsAsync_WithCorruptedFile_ShouldHandleGracefully()
     {
         // Arrange - Create corrupted JSON file
-        var filePath = Path.Combine(_testDataPath, "global_settings.json");
+        var filePath = Path.Combine(_testDataPath, "global.json");
         await File.WriteAllTextAsync(filePath, "{ invalid json }");
 
         // Act - This should either throw or create new default settings

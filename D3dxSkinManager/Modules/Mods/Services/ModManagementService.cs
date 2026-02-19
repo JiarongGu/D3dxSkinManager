@@ -32,7 +32,7 @@ public class CreateModRequest
     public bool IsLoaded { get; set; } = false;
     public bool IsAvailable { get; set; } = true;
     public string? ThumbnailPath { get; set; }
-    public string? PreviewPath { get; set; }
+    // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
 }
 
 /// <summary>
@@ -50,7 +50,7 @@ public class UpdateModRequest
     public bool? IsLoaded { get; set; }
     public bool? IsAvailable { get; set; }
     public string? ThumbnailPath { get; set; }
-    public string? PreviewPath { get; set; }
+    // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
 }
 
 /// <summary>
@@ -63,7 +63,7 @@ public class ModManagementService : IModManagementService
 
     public ModManagementService(IModRepository repository)
     {
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _repository = repository;
     }
 
     /// <summary>
@@ -95,8 +95,8 @@ public class ModManagementService : IModManagementService
             Tags = request.Tags ?? new List<string>(),
             IsLoaded = request.IsLoaded,
             IsAvailable = request.IsAvailable,
-            ThumbnailPath = request.ThumbnailPath,
-            PreviewPath = request.PreviewPath
+            ThumbnailPath = request.ThumbnailPath
+            // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
         };
 
         await _repository.InsertAsync(mod);
@@ -130,7 +130,7 @@ public class ModManagementService : IModManagementService
         if (request.IsLoaded.HasValue) mod.IsLoaded = request.IsLoaded.Value;
         if (request.IsAvailable.HasValue) mod.IsAvailable = request.IsAvailable.Value;
         if (request.ThumbnailPath != null) mod.ThumbnailPath = request.ThumbnailPath;
-        if (request.PreviewPath != null) mod.PreviewPath = request.PreviewPath;
+        // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
 
         await _repository.UpdateAsync(mod);
         Console.WriteLine($"[ModManagement] Updated mod: {mod.Name} ({sha})");

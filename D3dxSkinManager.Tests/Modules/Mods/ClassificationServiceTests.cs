@@ -18,14 +18,17 @@ namespace D3dxSkinManager.Tests.Modules.Mods;
 public class ClassificationServiceTests
 {
     private readonly Mock<IClassificationRepository> _mockRepository;
-    private readonly Mock<ImageServerService> _mockImageServer;
+    private readonly Mock<IModRepository> _mockModRepository;
     private readonly ClassificationService _service;
 
     public ClassificationServiceTests()
     {
         _mockRepository = new Mock<IClassificationRepository>();
-        _mockImageServer = new Mock<ImageServerService>("test_data_path", 5555);
-        _service = new ClassificationService(_mockRepository.Object, _mockImageServer.Object);
+        _mockModRepository = new Mock<IModRepository>();
+        _service = new ClassificationService(_mockRepository.Object, _mockModRepository.Object);
+
+        // Setup default mock behavior for mod repository
+        _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ModInfo>());
     }
 
     [Fact]

@@ -5,6 +5,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Profiles;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
@@ -14,15 +15,16 @@ namespace D3dxSkinManager.Modules.Core.Services;
 public interface IImageService
 {
     Task<string?> GetThumbnailPathAsync(string sha);
-    Task<string?> GetPreviewPathAsync(string sha);
+    Task<List<string>> GetPreviewPathsAsync(string sha);
     Task<string?> GenerateThumbnailAsync(string modDirectory, string sha);
+    Task<int> GeneratePreviewsAsync(string modDirectory, string sha);
     Task<bool> CacheImageAsync(string sourcePath, string targetPath);
     Task<bool> ResizeImageAsync(string sourcePath, string targetPath, int maxWidth, int maxHeight);
     Task<bool> ClearModCacheAsync(string sha);
     string[] GetSupportedImageExtensions();
     Task<string?> GetImageAsDataUriAsync(string filePath);
     Task<string?> GetThumbnailAsDataUriAsync(string sha);
-    Task<string?> GetPreviewAsDataUriAsync(string sha);
+    Task<List<string>> GetPreviewsAsDataUriAsync(string sha);
 }
 
 /// <summary>
@@ -34,17 +36,17 @@ public class ImageService : IImageService
     private readonly string _dataPath;
     private readonly string _thumbnailsPath;
     private readonly string _previewsPath;
-        private readonly string _previewScreenPath;
+    private readonly IPathHelper _pathHelper;
 
-        // Standard thumbnail size (based on Python version)
-        private const int ThumbnailWidth = 200;
-        private const int ThumbnailHeight = 400;
+    // Standard thumbnail size (based on Python version)
+    private const int ThumbnailWidth = 200;
+    private const int ThumbnailHeight = 400;
 
-        // Preview size
-        private const int PreviewWidth = 450;
-        private const int PreviewHeight = 900;
+    // Preview size
+    private const int PreviewWidth = 450;
+    private const int PreviewHeight = 900;
 
-        // All web-renderable image formats
+    // All web-renderable image formats
     private readonly string[] _supportedExtensions = {
         ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp",  // Common raster formats
         ".svg",                                             // Vector format
@@ -54,243 +56,307 @@ public class ImageService : IImageService
         ".tif", ".tiff"                                     // TIFF format
     };
 
-        public ImageService(string dataPath)
-        {
-            _dataPath = dataPath;
-            _thumbnailsPath = Path.Combine(dataPath, "thumbnails");
-            _previewsPath = Path.Combine(dataPath, "previews");
-            _previewScreenPath = Path.Combine(dataPath, "preview_screen");
+    public ImageService(IProfileContext profileContext, IPathHelper pathHelper)
+    {
+        _dataPath = profileContext.ProfilePath;
+        _pathHelper = pathHelper;
 
-            // Create directories
-            Directory.CreateDirectory(_thumbnailsPath);
-            Directory.CreateDirectory(_previewsPath);
-            Directory.CreateDirectory(_previewScreenPath);
+        _thumbnailsPath = Path.Combine(_dataPath, "thumbnails");
+        _previewsPath = Path.Combine(_dataPath, "previews");
+
+        // Create directories
+        Directory.CreateDirectory(_thumbnailsPath);
+        Directory.CreateDirectory(_previewsPath);
+    }
+
+    /// <summary>
+    /// Get thumbnail path for a mod (returns file path, will be converted to data URI by facade layer)
+    /// </summary>
+    public async Task<string?> GetThumbnailPathAsync(string sha)
+    {
+        // Check cache first
+        foreach (var ext in _supportedExtensions)
+        {
+            var cachedPath = Path.Combine(_thumbnailsPath, $"{sha}{ext}");
+            if (File.Exists(cachedPath))
+                return await Task.FromResult(cachedPath);
         }
 
-        /// <summary>
-        /// Get thumbnail path for a mod (returns file path, will be converted to data URI by facade layer)
-        /// </summary>
-        public async Task<string?> GetThumbnailPathAsync(string sha)
-        {
-            // Check cache first
-            foreach (var ext in _supportedExtensions)
-            {
-                var cachedPath = Path.Combine(_thumbnailsPath, $"{sha}{ext}");
-                if (File.Exists(cachedPath))
-                    return await Task.FromResult(cachedPath);
-            }
+        return null;
+    }
 
+    /// <summary>
+    /// Get preview image paths for a mod by scanning the preview folder
+    /// Allows users to add preview images directly to previews/{sha}/ folder
+    /// </summary>
+    public async Task<List<string>> GetPreviewPathsAsync(string sha)
+    {
+        var previewPaths = new List<string>();
+        var modPreviewFolder = Path.Combine(_previewsPath, sha);
+
+        if (!Directory.Exists(modPreviewFolder))
+            return await Task.FromResult(previewPaths);
+
+        // Find all preview files in the mod's folder (preview1.png, preview2.png, etc.)
+        var previewFiles = Directory.GetFiles(modPreviewFolder, "preview*.*")
+            .Where(f => _supportedExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .OrderBy(f => f) // Natural sort by filename
+            .ToList();
+
+        previewPaths.AddRange(previewFiles);
+        return await Task.FromResult(previewPaths);
+    }
+
+    /// <summary>
+    /// Generate thumbnail from mod directory
+    /// </summary>
+    public async Task<string?> GenerateThumbnailAsync(string modDirectory, string sha)
+    {
+        if (!Directory.Exists(modDirectory))
             return null;
-        }
 
-        /// <summary>
-        /// Get preview image path for a mod (returns file path, will be converted to data URI by facade layer)
-        /// </summary>
-        public async Task<string?> GetPreviewPathAsync(string sha)
+        // Look for preview images in mod directory
+        var previewFiles = new[] { "preview.png", "preview.jpg", "thumbnail.png", "thumbnail.jpg" };
+
+        foreach (var fileName in previewFiles)
         {
-            // Check preview_screen first (full size)
-            foreach (var ext in _supportedExtensions)
+            var sourcePath = Path.Combine(modDirectory, fileName);
+            if (File.Exists(sourcePath))
             {
-                var screenPath = Path.Combine(_previewScreenPath, $"{sha}{ext}");
-                if (File.Exists(screenPath))
-                    return await Task.FromResult(screenPath);
-            }
-
-            // Check regular previews
-            foreach (var ext in _supportedExtensions)
-            {
-                var previewPath = Path.Combine(_previewsPath, $"{sha}{ext}");
-                if (File.Exists(previewPath))
-                    return await Task.FromResult(previewPath);
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Generate thumbnail from mod directory
-        /// </summary>
-        public async Task<string?> GenerateThumbnailAsync(string modDirectory, string sha)
-        {
-            if (!Directory.Exists(modDirectory))
-                return null;
-
-            // Look for preview images in mod directory
-            var previewFiles = new[] { "preview.png", "preview.jpg", "thumbnail.png", "thumbnail.jpg" };
-
-            foreach (var fileName in previewFiles)
-            {
-                var sourcePath = Path.Combine(modDirectory, fileName);
-                if (File.Exists(sourcePath))
-                {
-                    var targetPath = Path.Combine(_thumbnailsPath, $"{sha}.png");
-
-                    try
-                    {
-                        // Resize to thumbnail size
-                        await ResizeImageAsync(sourcePath, targetPath, ThumbnailWidth, ThumbnailHeight);
-                        Console.WriteLine($"[Image] Generated thumbnail for {sha}");
-                        // Return file path (will be converted to data URI by facade layer)
-                        return targetPath;
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[Image] Failed to generate thumbnail: {ex.Message}");
-                    }
-                }
-            }
-
-            // Search for any image file in mod directory
-            var allImages = Directory.GetFiles(modDirectory, "*.*", SearchOption.AllDirectories)
-                .Where(f => _supportedExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
-                .OrderBy(f => f.Length) // Prefer smaller files first
-                .ToList();
-
-            if (allImages.Any())
-            {
-                var sourcePath = allImages.First();
                 var targetPath = Path.Combine(_thumbnailsPath, $"{sha}.png");
 
                 try
                 {
+                    // Resize to thumbnail size
                     await ResizeImageAsync(sourcePath, targetPath, ThumbnailWidth, ThumbnailHeight);
-                    Console.WriteLine($"[Image] Generated thumbnail from {Path.GetFileName(sourcePath)}");
-                    // Return file path (will be converted to data URI by facade layer)
-                    return targetPath;
+                    Console.WriteLine($"[Image] Generated thumbnail for {sha}");
+                    // Return relative path for portability
+                    return _pathHelper.ToRelativePath(targetPath);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[Image] Failed to generate thumbnail: {ex.Message}");
                 }
             }
-
-            return null;
         }
 
-        /// <summary>
-        /// Copy image from mod directory to cache
-        /// </summary>
-        public async Task<bool> CacheImageAsync(string sourcePath, string targetPath)
+        // Search for any image file in mod directory
+        var allImages = Directory.GetFiles(modDirectory, "*.*", SearchOption.AllDirectories)
+            .Where(f => _supportedExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .OrderBy(f => f.Length) // Prefer smaller files first
+            .ToList();
+
+        if (allImages.Any())
         {
-            if (!File.Exists(sourcePath))
-                return false;
+            var sourcePath = allImages.First();
+            var targetPath = Path.Combine(_thumbnailsPath, $"{sha}.png");
 
             try
             {
-                var targetDir = Path.GetDirectoryName(targetPath);
-                if (targetDir != null && !Directory.Exists(targetDir))
-                    Directory.CreateDirectory(targetDir);
-
-                File.Copy(sourcePath, targetPath, overwrite: true);
-                return await Task.FromResult(true);
+                await ResizeImageAsync(sourcePath, targetPath, ThumbnailWidth, ThumbnailHeight);
+                Console.WriteLine($"[Image] Generated thumbnail from {Path.GetFileName(sourcePath)}");
+                // Return relative path for portability
+                return _pathHelper.ToRelativePath(targetPath);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Image] Failed to cache image: {ex.Message}");
-                return false;
+                Console.WriteLine($"[Image] Failed to generate thumbnail: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Resize image maintaining aspect ratio
-        /// </summary>
-        public async Task<bool> ResizeImageAsync(string sourcePath, string targetPath, int maxWidth, int maxHeight)
+        return null;
+    }
+
+    /// <summary>
+    /// Generate preview images from mod directory
+    /// Searches for multiple preview images and stores them in per-mod folders
+    /// Returns the count of previews generated
+    /// </summary>
+    public async Task<int> GeneratePreviewsAsync(string modDirectory, string sha)
+    {
+        int previewCount = 0;
+
+        if (!Directory.Exists(modDirectory))
+            return previewCount;
+
+        // Create mod-specific preview folder
+        var modPreviewFolder = Path.Combine(_previewsPath, sha);
+        Directory.CreateDirectory(modPreviewFolder);
+
+        // Look for preview images in mod directory (preview.png, preview1.png, preview2.png, etc.)
+        var previewPatterns = new[] { "preview*.png", "preview*.jpg", "preview*.jpeg" };
+        var foundPreviews = new List<string>();
+
+        foreach (var pattern in previewPatterns)
         {
-            if (!File.Exists(sourcePath))
-                return false;
+            var files = Directory.GetFiles(modDirectory, pattern, SearchOption.TopDirectoryOnly)
+                .OrderBy(f => f)
+                .ToList();
+            foundPreviews.AddRange(files);
+        }
+
+        // Process each preview image
+        int previewIndex = 1;
+        foreach (var sourcePath in foundPreviews.Distinct())
+        {
+            var targetPath = Path.Combine(modPreviewFolder, $"preview{previewIndex}.png");
 
             try
             {
-                using var sourceImage = Image.FromFile(sourcePath);
-
-                // Calculate new dimensions maintaining aspect ratio
-                var ratioX = (double)maxWidth / sourceImage.Width;
-                var ratioY = (double)maxHeight / sourceImage.Height;
-                var ratio = Math.Min(ratioX, ratioY);
-
-                var newWidth = (int)(sourceImage.Width * ratio);
-                var newHeight = (int)(sourceImage.Height * ratio);
-
-                // Create resized image
-                using var resizedImage = new Bitmap(newWidth, newHeight);
-                using (var graphics = Graphics.FromImage(resizedImage))
-                {
-                    graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-                    graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                    graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                    graphics.DrawImage(sourceImage, 0, 0, newWidth, newHeight);
-                }
-
-                // Save as PNG
-                var targetDir = Path.GetDirectoryName(targetPath);
-                if (targetDir != null && !Directory.Exists(targetDir))
-                    Directory.CreateDirectory(targetDir);
-
-                resizedImage.Save(targetPath, ImageFormat.Png);
-                return await Task.FromResult(true);
+                // Resize to preview size
+                await ResizeImageAsync(sourcePath, targetPath, PreviewWidth, PreviewHeight);
+                Console.WriteLine($"[Image] Generated preview {previewIndex} for {sha}");
+                previewCount++;
+                previewIndex++;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Image] Failed to resize image: {ex.Message}");
-                return false;
+                Console.WriteLine($"[Image] Failed to generate preview {previewIndex}: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Clear image cache for a specific mod
-        /// </summary>
-        public async Task<bool> ClearModCacheAsync(string sha)
+        // If no previews found, look for any image file as fallback
+        if (previewCount == 0)
         {
-            var cleared = false;
+            var allImages = Directory.GetFiles(modDirectory, "*.*", SearchOption.AllDirectories)
+                .Where(f => _supportedExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                .OrderBy(f => new FileInfo(f).Length) // Prefer smaller files first
+                .Take(3) // Take up to 3 images as previews
+                .ToList();
 
-            // Delete thumbnails
-            foreach (var ext in _supportedExtensions)
+            previewIndex = 1;
+            foreach (var sourcePath in allImages)
             {
-                var thumbnailPath = Path.Combine(_thumbnailsPath, $"{sha}{ext}");
-                if (File.Exists(thumbnailPath))
-                {
-                    try
-                    {
-                        File.Delete(thumbnailPath);
-                        cleared = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[Image] Failed to delete thumbnail: {ex.Message}");
-                    }
-                }
+                var targetPath = Path.Combine(modPreviewFolder, $"preview{previewIndex}.png");
 
-                var previewPath = Path.Combine(_previewsPath, $"{sha}{ext}");
-                if (File.Exists(previewPath))
+                try
                 {
-                    try
-                    {
-                        File.Delete(previewPath);
-                        cleared = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[Image] Failed to delete preview: {ex.Message}");
-                    }
+                    await ResizeImageAsync(sourcePath, targetPath, PreviewWidth, PreviewHeight);
+                    Console.WriteLine($"[Image] Generated preview {previewIndex} from {Path.GetFileName(sourcePath)}");
+                    previewCount++;
+                    previewIndex++;
                 }
-
-                var screenPath = Path.Combine(_previewScreenPath, $"{sha}{ext}");
-                if (File.Exists(screenPath))
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        File.Delete(screenPath);
-                        cleared = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[Image] Failed to delete screen preview: {ex.Message}");
-                    }
+                    Console.WriteLine($"[Image] Failed to generate preview: {ex.Message}");
                 }
             }
-
-            return await Task.FromResult(cleared);
         }
+
+        return previewCount;
+    }
+
+    /// <summary>
+    /// Copy image from mod directory to cache
+    /// </summary>
+    public async Task<bool> CacheImageAsync(string sourcePath, string targetPath)
+    {
+        if (!File.Exists(sourcePath))
+            return false;
+
+        try
+        {
+            var targetDir = Path.GetDirectoryName(targetPath);
+            if (targetDir != null && !Directory.Exists(targetDir))
+                Directory.CreateDirectory(targetDir);
+
+            File.Copy(sourcePath, targetPath, overwrite: true);
+            return await Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Image] Failed to cache image: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Resize image maintaining aspect ratio
+    /// </summary>
+    public async Task<bool> ResizeImageAsync(string sourcePath, string targetPath, int maxWidth, int maxHeight)
+    {
+        if (!File.Exists(sourcePath))
+            return false;
+
+        try
+        {
+            using var sourceImage = Image.FromFile(sourcePath);
+
+            // Calculate new dimensions maintaining aspect ratio
+            var ratioX = (double)maxWidth / sourceImage.Width;
+            var ratioY = (double)maxHeight / sourceImage.Height;
+            var ratio = Math.Min(ratioX, ratioY);
+
+            var newWidth = (int)(sourceImage.Width * ratio);
+            var newHeight = (int)(sourceImage.Height * ratio);
+
+            // Create resized image
+            using var resizedImage = new Bitmap(newWidth, newHeight);
+            using (var graphics = Graphics.FromImage(resizedImage))
+            {
+                graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                graphics.DrawImage(sourceImage, 0, 0, newWidth, newHeight);
+            }
+
+            // Save as PNG
+            var targetDir = Path.GetDirectoryName(targetPath);
+            if (targetDir != null && !Directory.Exists(targetDir))
+                Directory.CreateDirectory(targetDir);
+
+            resizedImage.Save(targetPath, ImageFormat.Png);
+            return await Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Image] Failed to resize image: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Clear image cache for a specific mod
+    /// </summary>
+    public async Task<bool> ClearModCacheAsync(string sha)
+    {
+        var cleared = false;
+
+        // Delete thumbnails
+        foreach (var ext in _supportedExtensions)
+        {
+            var thumbnailPath = Path.Combine(_thumbnailsPath, $"{sha}{ext}");
+            if (File.Exists(thumbnailPath))
+            {
+                try
+                {
+                    File.Delete(thumbnailPath);
+                    cleared = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Image] Failed to delete thumbnail: {ex.Message}");
+                }
+            }
+        }
+
+        // Delete preview folder for this mod
+        var modPreviewFolder = Path.Combine(_previewsPath, sha);
+        if (Directory.Exists(modPreviewFolder))
+        {
+            try
+            {
+                Directory.Delete(modPreviewFolder, recursive: true);
+                cleared = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Image] Failed to delete preview folder: {ex.Message}");
+            }
+        }
+
+        return await Task.FromResult(cleared);
+    }
 
     /// <summary>
     /// Get all supported image extensions
@@ -355,30 +421,22 @@ public class ImageService : IImageService
     }
 
     /// <summary>
-    /// Get preview as base64 data URI
+    /// Get all previews as base64 data URIs
     /// </summary>
-    public async Task<string?> GetPreviewAsDataUriAsync(string sha)
+    public async Task<List<string>> GetPreviewsAsDataUriAsync(string sha)
     {
-        // Check preview_screen first (full size)
-        foreach (var ext in _supportedExtensions)
+        var dataUris = new List<string>();
+        var previewPaths = await GetPreviewPathsAsync(sha);
+
+        foreach (var previewPath in previewPaths)
         {
-            var screenPath = Path.Combine(_previewScreenPath, $"{sha}{ext}");
-            if (File.Exists(screenPath))
+            var dataUri = await GetImageAsDataUriAsync(previewPath);
+            if (dataUri != null)
             {
-                return await GetImageAsDataUriAsync(screenPath);
+                dataUris.Add(dataUri);
             }
         }
 
-        // Check regular previews
-        foreach (var ext in _supportedExtensions)
-        {
-            var previewPath = Path.Combine(_previewsPath, $"{sha}{ext}");
-            if (File.Exists(previewPath))
-            {
-                return await GetImageAsDataUriAsync(previewPath);
-            }
-        }
-
-        return null;
+        return dataUris;
     }
 }

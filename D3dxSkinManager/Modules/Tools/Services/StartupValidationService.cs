@@ -7,7 +7,45 @@ using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 using D3dxSkinManager.Modules.Tools.Models;
 
+using D3dxSkinManager.Modules.Profiles;
+
 namespace D3dxSkinManager.Modules.Tools.Services;
+
+/// <summary>
+/// Interface for startup validation service
+/// </summary>
+public interface IStartupValidationService
+{
+    /// <summary>
+    /// Perform all startup validation checks
+    /// </summary>
+    Task<StartupValidationReport> ValidateStartupAsync();
+
+    /// <summary>
+    /// Validate required directories exist and are accessible
+    /// </summary>
+    Task<ValidationResult> ValidateDirectoriesAsync();
+
+    /// <summary>
+    /// Validate 3DMigoto installation and work directory
+    /// </summary>
+    Task<ValidationResult> Validate3DMigotoAsync();
+
+    /// <summary>
+    /// Validate configuration file integrity
+    /// </summary>
+    Task<ValidationResult> ValidateConfigurationAsync();
+
+    /// <summary>
+    /// Validate database file is accessible
+    /// </summary>
+    Task<ValidationResult> ValidateDatabaseAsync();
+
+    /// <summary>
+    /// Validate required components are present
+    /// </summary>
+    Task<ValidationResult> ValidateComponentsAsync();
+}
 
 /// <summary>
 /// Service for performing startup validation checks
@@ -18,10 +56,10 @@ public class StartupValidationService : IStartupValidationService
     private readonly string _dataPath;
     private readonly IConfigurationService _configService;
 
-    public StartupValidationService(string dataPath, IConfigurationService configService)
+    public StartupValidationService(IProfileContext profileContext, IConfigurationService configService)
     {
-        _dataPath = dataPath ?? throw new ArgumentNullException(nameof(dataPath));
-        _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _dataPath = profileContext.ProfilePath;
+        _configService = configService;
     }
 
     public async Task<StartupValidationReport> ValidateStartupAsync()
@@ -50,11 +88,11 @@ public class StartupValidationService : IStartupValidationService
 
         if (report.IsValid)
         {
-            Console.WriteLine($"[StartupValidation] ï¿½?All checks passed ({report.WarningCount} warnings)");
+            Console.WriteLine($"[StartupValidation] ï¿?All checks passed ({report.WarningCount} warnings)");
         }
         else
         {
-            Console.WriteLine($"[StartupValidation] ï¿½?Validation failed: {report.ErrorCount} errors, {report.WarningCount} warnings");
+            Console.WriteLine($"[StartupValidation] ï¿?Validation failed: {report.ErrorCount} errors, {report.WarningCount} warnings");
         }
 
         return report;
@@ -73,7 +111,7 @@ public class StartupValidationService : IStartupValidationService
             var requiredDirectories = new[]
             {
                 Path.Combine(_dataPath, "mods"),
-                Path.Combine(_dataPath, "work_mods"),
+                Path.Combine(_dataPath, "work"),
                 Path.Combine(_dataPath, "thumbnails"),
                 Path.Combine(_dataPath, "previews")
             };
@@ -294,21 +332,21 @@ public class StartupValidationService : IStartupValidationService
             var components = new List<string>();
 
             // Check SharpCompress (archive extraction)
-            components.Add("ï¿½?SharpCompress (archive extraction): Built-in");
+            components.Add("ï¿?SharpCompress (archive extraction): Built-in");
 
             // Check .NET runtime
             var runtimeVersion = Environment.Version;
-            components.Add($"ï¿½?.NET Runtime: {runtimeVersion}");
+            components.Add($"ï¿?.NET Runtime: {runtimeVersion}");
 
             // Check Windows Forms (file dialogs)
             try
             {
                 var _ = typeof(System.Windows.Forms.Form);
-                components.Add("ï¿½?Windows Forms (file dialogs): Available");
+                components.Add("ï¿?Windows Forms (file dialogs): Available");
             }
             catch
             {
-                components.Add("ï¿½?Windows Forms: Not available");
+                components.Add("ï¿?Windows Forms: Not available");
             }
 
             result.IsValid = true;

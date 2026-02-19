@@ -73,9 +73,16 @@ Use root [README.md](../README.md) for project setup, `docs/core/` for architect
    #### Backend (.NET/C#):
    - Services handle business logic (separation of concerns)
    - Use async/await for all I/O operations
+   - **ALWAYS use dependency injection** - Never create service instances manually in application code
+     - ✅ Services should inject dependencies through constructor: `public MyService(IDependency dep)`
+     - ✅ DI registration can use `new` for utilities: `services.AddSingleton(sp => new PathHelper(dataPath))`
+     - ❌ Never create services manually in application code: `var service = new MyService()`
    - Use interfaces for dependency injection
+   - Inject all dependencies through constructor parameters
    - Proper exception handling with try-catch
    - Use `using` statements for IDisposable resources
+   - **ALWAYS use relative paths** for data stored in database/config files (see [architecture/PATH_CONVENTIONS.md](architecture/PATH_CONVENTIONS.md))
+   - Use `PathHelper` service to convert between absolute and relative paths
 
    #### Frontend (React/TypeScript):
    - Functional components with hooks (no class components)
@@ -134,9 +141,13 @@ Use root [README.md](../README.md) for project setup, `docs/core/` for architect
    - Update [AI_GUIDE.md](AI_GUIDE.md) if discovering new patterns
 
 ### 6. **ALWAYS test changes before committing**
-   - Backend: `dotnet build` AND `dotnet test` (must pass)
-   - Frontend: `npm run build` AND `npm test` (must pass)
-   - Integration: Start both backend and frontend, verify it works
+   - **🚨 CRITICAL: Write unit tests for new utility classes and core logic**
+   - Backend: `dotnet build` (must succeed with no errors)
+   - Backend Tests: `dotnet test` (must pass all tests)
+   - Frontend: `npm run build` (must succeed if frontend changes)
+   - Frontend Tests: `npm test` (must pass if frontend changes)
+   - Integration: Start both backend and frontend, manually verify functionality
+   - Path Portability: If path-related changes, test by moving/renaming folder
    - Check for console errors and warnings
    - See [ai-assistant/TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md) ⭐⭐⭐ for comprehensive testing guide
 

@@ -1,8 +1,6 @@
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Tools.Services;
-using D3dxSkinManager.Modules.Tools;
-using D3dxSkinManager.Modules.Mods.Services;
 
 namespace D3dxSkinManager.Modules.Tools;
 
@@ -15,44 +13,18 @@ public static class ToolsServiceExtensions
     /// <summary>
     /// Register Tools module services and facade
     /// </summary>
-    public static IServiceCollection AddToolsServices(this IServiceCollection services, string dataPath)
+    public static IServiceCollection AddToolsServices(this IServiceCollection services)
     {
         // Register configuration service (required by validation and D3DMigoto) - using profile paths
-        services.AddSingleton<IConfigurationService>(sp =>
-        {
-            var profileContext = sp.GetService<Profiles.Services.IProfileContext>();
-            var profileDataPath = profileContext?.GetProfileDataPath() ?? Path.Combine(dataPath, "profiles", "default");
-            return new ConfigurationService(profileDataPath);
-        });
+        services.AddSingleton<IConfigurationService, ConfigurationService>();
 
         // Register mod auto-detection service
-        services.AddSingleton<IModAutoDetectionService>(sp =>
-        {
-            var profileContext = sp.GetService<Profiles.Services.IProfileContext>();
-            var profileDataPath = profileContext?.GetProfileDataPath() ?? Path.Combine(dataPath, "profiles", "default");
-            var autoDetectionService = new ModAutoDetectionService();
-            var rulesPath = Path.Combine(profileDataPath, "auto_detection_rules.json");
-            autoDetectionService.LoadRulesAsync(rulesPath).Wait();
-            return autoDetectionService;
-        });
+        services.AddSingleton<IModAutoDetectionService, ModAutoDetectionService>();
 
-        // Register cache service
-        services.AddSingleton<ICacheService>(sp =>
-        {
-            var profileContext = sp.GetService<Profiles.Services.IProfileContext>();
-            var profileDataPath = profileContext?.GetProfileDataPath() ?? Path.Combine(dataPath, "profiles", "default");
-            var repository = sp.GetRequiredService<IModRepository>();
-            return new CacheService(profileDataPath, repository);
-        });
+        // Cache service is now part of ModFileService in Mods module
 
         // Register validation service
-        services.AddSingleton<IStartupValidationService>(sp =>
-        {
-            var profileContext = sp.GetService<Profiles.Services.IProfileContext>();
-            var profileDataPath = profileContext?.GetProfileDataPath() ?? Path.Combine(dataPath, "profiles", "default");
-            var configService = sp.GetRequiredService<IConfigurationService>();
-            return new StartupValidationService(profileDataPath, configService);
-        });
+        services.AddSingleton<IStartupValidationService, StartupValidationService>();
 
         // Register facade
         services.AddSingleton<IToolsFacade, ToolsFacade>();

@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Tools.Models;
 using D3dxSkinManager.Modules.Tools.Services;
+using D3dxSkinManager.Modules.Mods.Services;
 using D3dxSkinManager.Modules.Plugins.Services;
 
 namespace D3dxSkinManager.Modules.Tools;
@@ -16,17 +17,20 @@ namespace D3dxSkinManager.Modules.Tools;
 /// </summary>
 public class ToolsFacade : IToolsFacade
 {
-    private readonly ICacheService _cacheService;
+    private readonly IModFileService _modFileService;
     private readonly IStartupValidationService _validationService;
+    private readonly IPayloadHelper _payloadHelper;
     private readonly PluginEventBus? _eventBus;
 
     public ToolsFacade(
-        ICacheService cacheService,
+        IModFileService modFileService,
         IStartupValidationService validationService,
+        IPayloadHelper payloadHelper,
         PluginEventBus? eventBus = null)
     {
-        _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
+        _modFileService = modFileService ?? throw new ArgumentNullException(nameof(modFileService));
         _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
+        _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventBus = eventBus;
     }
 
@@ -57,17 +61,17 @@ public class ToolsFacade : IToolsFacade
 
     public async Task<List<CacheItem>> ScanCacheAsync()
     {
-        return await _cacheService.ScanCacheAsync();
+        return await _modFileService.ScanCacheAsync();
     }
 
     public async Task<CacheStatistics> GetCacheStatisticsAsync()
     {
-        return await _cacheService.GetStatisticsAsync();
+        return await _modFileService.GetCacheStatisticsAsync();
     }
 
     public async Task<int> CleanCacheAsync(CacheCategory category)
     {
-        var deletedCount = await _cacheService.CleanCacheAsync(category);
+        var deletedCount = await _modFileService.CleanCacheAsync(category);
 
         if (_eventBus != null)
         {
@@ -84,7 +88,7 @@ public class ToolsFacade : IToolsFacade
 
     public async Task<bool> DeleteCacheItemAsync(string sha)
     {
-        var success = await _cacheService.DeleteCacheItemAsync(sha);
+        var success = await _modFileService.DeleteCacheAsync(sha);
 
         if (success && _eventBus != null)
         {
@@ -106,7 +110,7 @@ public class ToolsFacade : IToolsFacade
 
     private async Task<int> CleanCacheAsync(MessageRequest request)
     {
-        var categoryString = PayloadHelper.GetRequiredValue<string>(request.Payload, "category");
+        var categoryString = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
 
         if (!Enum.TryParse<CacheCategory>(categoryString, true, out var category))
         {
@@ -118,7 +122,7 @@ public class ToolsFacade : IToolsFacade
 
     private async Task<bool> DeleteCacheItemAsync(MessageRequest request)
     {
-        var sha = PayloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await DeleteCacheItemAsync(sha);
     }
 }

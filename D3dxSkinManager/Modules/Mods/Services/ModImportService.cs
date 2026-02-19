@@ -11,6 +11,14 @@ using D3dxSkinManager.Modules.Tools.Services;
 namespace D3dxSkinManager.Modules.Mods.Services;
 
 /// <summary>
+/// Interface for mod import service
+/// </summary>
+public interface IModImportService
+{
+    Task<ModInfo?> ImportAsync(string filePath);
+}
+
+/// <summary>
 /// Service for importing new mods
 /// Responsibility: Import workflow coordination (hash, extract, classify, generate images, save)
 /// </summary>
@@ -20,7 +28,7 @@ public class ModImportService : IModImportService
     private readonly IModAutoDetectionService _autoDetectionService;
     private readonly IImageService _imageService;
     private readonly IModRepository _repository;
-    private readonly IModArchiveService _archiveService;
+    private readonly IModFileService _modFileService;
     private readonly IModManagementService _modManagementService;
 
     public ModImportService(
@@ -28,15 +36,15 @@ public class ModImportService : IModImportService
         IModAutoDetectionService autoDetectionService,
         IImageService imageService,
         IModRepository repository,
-        IModArchiveService archiveService,
+        IModFileService modFileService,
         IModManagementService modManagementService)
     {
-        _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
-        _autoDetectionService = autoDetectionService ?? throw new ArgumentNullException(nameof(autoDetectionService));
-        _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
-        _archiveService = archiveService ?? throw new ArgumentNullException(nameof(archiveService));
-        _modManagementService = modManagementService ?? throw new ArgumentNullException(nameof(modManagementService));
+        _fileService = fileService;
+        _autoDetectionService = autoDetectionService;
+        _imageService = imageService;
+        _repository = repository;
+        _modFileService = modFileService;
+        _modManagementService = modManagementService;
     }
 
     /// <summary>
@@ -65,7 +73,7 @@ public class ModImportService : IModImportService
             }
 
             // Step 2: Copy archive to mods directory
-            await _archiveService.CopyArchiveAsync(filePath, sha);
+            await _modFileService.CopyArchiveAsync(filePath, sha);
 
             // Step 3: Extract to temporary directory for metadata reading
             var tempExtractPath = Path.Combine(Path.GetTempPath(), $"mod_import_{sha}");
@@ -75,7 +83,7 @@ public class ModImportService : IModImportService
             }
 
             var extracted = await _fileService.ExtractArchiveAsync(
-                _archiveService.GetArchivePath(sha),
+                _modFileService.GetArchivePath(sha),
                 tempExtractPath
             );
 
@@ -96,8 +104,9 @@ public class ModImportService : IModImportService
                 Console.WriteLine($"[ModImport] Auto-detected as: {category ?? "Unknown"}");
             }
 
-            // Step 6: Generate thumbnail
+            // Step 6: Generate thumbnail and previews
             string? thumbnailPath = null;
+
             try
             {
                 thumbnailPath = await _imageService.GenerateThumbnailAsync(tempExtractPath, sha);
@@ -106,6 +115,16 @@ public class ModImportService : IModImportService
             catch (Exception ex)
             {
                 Console.WriteLine($"[ModImport] Failed to generate thumbnail: {ex.Message}");
+            }
+
+            try
+            {
+                var previewCount = await _imageService.GeneratePreviewsAsync(tempExtractPath, sha);
+                Console.WriteLine($"[ModImport] Generated {previewCount} preview(s)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ModImport] Failed to generate previews: {ex.Message}");
             }
 
             // Step 7 & 8: Create and save ModInfo using centralized service
@@ -121,8 +140,7 @@ public class ModImportService : IModImportService
                 Tags = metadata.Tags ?? new List<string>(),
                 IsLoaded = false,
                 IsAvailable = true,
-                ThumbnailPath = thumbnailPath,
-                PreviewPath = null
+                ThumbnailPath = thumbnailPath
             };
 
             var mod = await _modManagementService.CreateModAsync(createRequest);
@@ -203,17 +221,4 @@ public class ModImportService : IModImportService
 
         return metadata;
     }
-}
-
-/// <summary>
-/// Metadata extracted from mod files
-/// </summary>
-public class ModMetadata
-{
-    public string? Name { get; set; }
-    public string? Category { get; set; }
-    public string? Author { get; set; }
-    public string? Description { get; set; }
-    public string? Grading { get; set; }
-    public List<string>? Tags { get; set; }
 }

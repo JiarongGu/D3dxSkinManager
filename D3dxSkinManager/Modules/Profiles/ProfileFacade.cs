@@ -9,6 +9,27 @@ using D3dxSkinManager.Modules.Plugins.Services;
 namespace D3dxSkinManager.Modules.Profiles;
 
 /// <summary>
+/// Interface for Profile Management facade
+/// Handles: PROFILE_GET_ALL, PROFILE_SWITCH, PROFILE_CREATE, etc.
+/// Prefix: PROFILE_*
+/// </summary>
+public interface IProfileFacade : IModuleFacade
+{
+    Task<ProfileListResponse> GetAllProfilesAsync();
+    Task<Profile?> GetActiveProfileAsync();
+    Task<Profile?> GetProfileByIdAsync(string profileId);
+    Task<Profile> CreateProfileAsync(CreateProfileRequest createRequest);
+    Task<bool> UpdateProfileAsync(UpdateProfileRequest updateRequest);
+    Task<bool> DeleteProfileAsync(string profileId);
+    Task<ProfileSwitchResult> SwitchProfileAsync(string profileId);
+    Task<Profile> DuplicateProfileAsync(string sourceProfileId, string newName);
+    Task<string> ExportProfileConfigAsync(string profileId);
+    Task<ProfileConfiguration?> GetProfileConfigAsync(string profileId);
+    Task<bool> UpdateProfileConfigAsync(ProfileConfiguration config);
+}
+
+
+/// <summary>
 /// Facade for profile management operations
 /// Responsibility: Profile CRUD and switching
 /// IPC Prefix: PROFILE_*
@@ -16,13 +37,16 @@ namespace D3dxSkinManager.Modules.Profiles;
 public class ProfileFacade : IProfileFacade
 {
     private readonly IProfileService _profileService;
+    private readonly IPayloadHelper _payloadHelper;
     private readonly PluginEventBus? _eventBus;
 
     public ProfileFacade(
         IProfileService profileService,
+        IPayloadHelper payloadHelper,
         PluginEventBus? eventBus = null)
     {
         _profileService = profileService ?? throw new ArgumentNullException(nameof(profileService));
+        _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventBus = eventBus;
     }
 
@@ -183,19 +207,19 @@ public class ProfileFacade : IProfileFacade
 
     private async Task<Profile?> GetProfileByIdAsync(MessageRequest request)
     {
-        var profileId = PayloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         return await GetProfileByIdAsync(profileId);
     }
 
     private async Task<Profile> CreateProfileAsync(MessageRequest request)
     {
-        var name = PayloadHelper.GetRequiredValue<string>(request.Payload, "name");
-        var description = PayloadHelper.GetOptionalValue<string>(request.Payload, "description");
-        var workDirectory = PayloadHelper.GetRequiredValue<string>(request.Payload, "workDirectory");
-        var colorTag = PayloadHelper.GetOptionalValue<string>(request.Payload, "colorTag");
-        var iconName = PayloadHelper.GetOptionalValue<string>(request.Payload, "iconName");
-        var gameName = PayloadHelper.GetOptionalValue<string>(request.Payload, "gameName");
-        var copyFromCurrent = PayloadHelper.GetOptionalValue<bool?>(request.Payload, "copyFromCurrent") ?? false;
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
+        var workDirectory = _payloadHelper.GetRequiredValue<string>(request.Payload, "workDirectory");
+        var colorTag = _payloadHelper.GetOptionalValue<string>(request.Payload, "colorTag");
+        var iconName = _payloadHelper.GetOptionalValue<string>(request.Payload, "iconName");
+        var gameName = _payloadHelper.GetOptionalValue<string>(request.Payload, "gameName");
+        var copyFromCurrent = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "copyFromCurrent") ?? false;
 
         var createRequest = new CreateProfileRequest
         {
@@ -213,13 +237,13 @@ public class ProfileFacade : IProfileFacade
 
     private async Task<bool> UpdateProfileAsync(MessageRequest request)
     {
-        var profileId = PayloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
-        var name = PayloadHelper.GetOptionalValue<string>(request.Payload, "name");
-        var description = PayloadHelper.GetOptionalValue<string>(request.Payload, "description");
-        var workDirectory = PayloadHelper.GetOptionalValue<string>(request.Payload, "workDirectory");
-        var colorTag = PayloadHelper.GetOptionalValue<string>(request.Payload, "colorTag");
-        var iconName = PayloadHelper.GetOptionalValue<string>(request.Payload, "iconName");
-        var gameName = PayloadHelper.GetOptionalValue<string>(request.Payload, "gameName");
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var name = _payloadHelper.GetOptionalValue<string>(request.Payload, "name");
+        var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
+        var workDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workDirectory");
+        var colorTag = _payloadHelper.GetOptionalValue<string>(request.Payload, "colorTag");
+        var iconName = _payloadHelper.GetOptionalValue<string>(request.Payload, "iconName");
+        var gameName = _payloadHelper.GetOptionalValue<string>(request.Payload, "gameName");
 
         var updateRequest = new UpdateProfileRequest
         {
@@ -237,48 +261,48 @@ public class ProfileFacade : IProfileFacade
 
     private async Task<bool> DeleteProfileAsync(MessageRequest request)
     {
-        var profileId = PayloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         return await DeleteProfileAsync(profileId);
     }
 
     private async Task<ProfileSwitchResult> SwitchProfileAsync(MessageRequest request)
     {
-        var profileId = PayloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         return await SwitchProfileAsync(profileId);
     }
 
     private async Task<Profile> DuplicateProfileAsync(MessageRequest request)
     {
-        var sourceProfileId = PayloadHelper.GetRequiredValue<string>(request.Payload, "sourceProfileId");
-        var newName = PayloadHelper.GetRequiredValue<string>(request.Payload, "newName");
+        var sourceProfileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceProfileId");
+        var newName = _payloadHelper.GetRequiredValue<string>(request.Payload, "newName");
         return await DuplicateProfileAsync(sourceProfileId, newName);
     }
 
     private async Task<string> ExportProfileConfigAsync(MessageRequest request)
     {
-        var profileId = PayloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         return await ExportProfileConfigAsync(profileId);
     }
 
     private async Task<ProfileConfiguration?> GetProfileConfigAsync(MessageRequest request)
     {
-        var profileId = PayloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         return await GetProfileConfigAsync(profileId);
     }
 
     private async Task<bool> UpdateProfileConfigAsync(MessageRequest request)
     {
-        var profileId = PayloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
-        var archiveHandlingMode = PayloadHelper.GetOptionalValue<string>(request.Payload, "archiveHandlingMode");
-        var defaultGrading = PayloadHelper.GetOptionalValue<string>(request.Payload, "defaultGrading");
-        var autoGenerateThumbnails = PayloadHelper.GetOptionalValue<bool?>(request.Payload, "autoGenerateThumbnails");
-        var autoClassifyMods = PayloadHelper.GetOptionalValue<bool?>(request.Payload, "autoClassifyMods");
-        var thumbnailAlgorithm = PayloadHelper.GetOptionalValue<string>(request.Payload, "thumbnailAlgorithm");
-        var migotoVersion = PayloadHelper.GetOptionalValue<string>(request.Payload, "migotoVersion");
-        var gamePath = PayloadHelper.GetOptionalValue<string>(request.Payload, "gamePath");
-        var gameLaunchArgs = PayloadHelper.GetOptionalValue<string>(request.Payload, "gameLaunchArgs");
-        var customProgramPath = PayloadHelper.GetOptionalValue<string>(request.Payload, "customProgramPath");
-        var customProgramArgs = PayloadHelper.GetOptionalValue<string>(request.Payload, "customProgramArgs");
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var archiveHandlingMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "archiveHandlingMode");
+        var defaultGrading = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultGrading");
+        var autoGenerateThumbnails = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "autoGenerateThumbnails");
+        var autoClassifyMods = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "autoClassifyMods");
+        var thumbnailAlgorithm = _payloadHelper.GetOptionalValue<string>(request.Payload, "thumbnailAlgorithm");
+        var migotoVersion = _payloadHelper.GetOptionalValue<string>(request.Payload, "migotoVersion");
+        var gamePath = _payloadHelper.GetOptionalValue<string>(request.Payload, "gamePath");
+        var gameLaunchArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "gameLaunchArgs");
+        var customProgramPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "customProgramPath");
+        var customProgramArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "customProgramArgs");
 
         var config = new ProfileConfiguration
         {

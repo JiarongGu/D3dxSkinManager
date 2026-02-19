@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Xunit;
 using D3dxSkinManager.Modules.Settings.Services;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Settings;
 
@@ -16,13 +17,15 @@ public class SettingsFileServiceTests : IDisposable
     private readonly string _testDataPath;
     private readonly SettingsFileService _service;
     private readonly string _settingsDirectory;
+    private readonly IPathHelper _pathHelper;
 
     public SettingsFileServiceTests()
     {
         // Arrange - Create temp directory for each test
         _testDataPath = Path.Combine(Path.GetTempPath(), $"SettingsFileServiceTests_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDataPath);
-        _service = new SettingsFileService(_testDataPath);
+        _pathHelper = new PathHelper(_testDataPath);
+        _service = new SettingsFileService(_pathHelper);
         _settingsDirectory = Path.Combine(_testDataPath, "settings");
     }
 

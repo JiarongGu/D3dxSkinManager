@@ -2,13 +2,41 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Settings.Models;
 
 namespace D3dxSkinManager.Modules.Settings.Services;
 
 /// <summary>
 /// Service for managing global application settings
-/// Settings are stored in data/settings/global_settings.json
+/// Settings are stored in data/global.json
+/// </summary>
+public interface IGlobalSettingsService
+{
+    /// <summary>
+    /// Get current global settings
+    /// </summary>
+    Task<GlobalSettings> GetSettingsAsync();
+
+    /// <summary>
+    /// Update global settings
+    /// </summary>
+    Task UpdateSettingsAsync(GlobalSettings settings);
+
+    /// <summary>
+    /// Update a single setting field
+    /// </summary>
+    Task UpdateSettingAsync(string key, string value);
+
+    /// <summary>
+    /// Reset settings to default values
+    /// </summary>
+    Task ResetSettingsAsync();
+}
+
+/// <summary>
+/// Service for managing global application settings
+/// Settings are stored in data/settings/global.json
 /// </summary>
 public class GlobalSettingsService : IGlobalSettingsService
 {
@@ -22,11 +50,11 @@ public class GlobalSettingsService : IGlobalSettingsService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public GlobalSettingsService(string dataPath)
+    public GlobalSettingsService(IPathHelper pathHelper)
     {
-        // Store global settings in data/settings/global_settings.json
-        var settingsDir = Path.Combine(dataPath, "settings");
-        _settingsFilePath = Path.Combine(settingsDir, "global_settings.json");
+        // Store global settings in data/settings/global.json
+        var settingsDir = Path.Combine(pathHelper.BaseDataPath, "settings");
+        _settingsFilePath = Path.Combine(settingsDir, "global.json");
 
         // Ensure settings directory exists
         if (!Directory.Exists(settingsDir))

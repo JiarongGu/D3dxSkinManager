@@ -19,19 +19,22 @@ public class SettingsFacade : ISettingsFacade
     private readonly IProcessService _processService;
     private readonly IGlobalSettingsService _globalSettingsService;
     private readonly ISettingsFileService _settingsFileService;
+    private readonly IPayloadHelper _payloadHelper;
 
     public SettingsFacade(
         IFileSystemService fileSystemService,
         IFileDialogService fileDialogService,
         IProcessService processService,
         IGlobalSettingsService globalSettingsService,
-        ISettingsFileService settingsFileService)
+        ISettingsFileService settingsFileService,
+        IPayloadHelper payloadHelper)
     {
         _fileSystemService = fileSystemService ?? throw new ArgumentNullException(nameof(fileSystemService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _globalSettingsService = globalSettingsService ?? throw new ArgumentNullException(nameof(globalSettingsService));
         _settingsFileService = settingsFileService ?? throw new ArgumentNullException(nameof(settingsFileService));
+        _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
     public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
@@ -145,30 +148,30 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<object> OpenFileInExplorerAsync(MessageRequest request)
     {
-        var filePath = PayloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
+        var filePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
         await OpenFileInExplorerAsync(filePath);
         return new { success = true, message = $"Opened file in explorer: {filePath}" };
     }
 
     private async Task<object> OpenDirectoryAsync(MessageRequest request)
     {
-        var directoryPath = PayloadHelper.GetRequiredValue<string>(request.Payload, "directoryPath");
+        var directoryPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "directoryPath");
         await OpenDirectoryAsync(directoryPath);
         return new { success = true, message = $"Opened directory: {directoryPath}" };
     }
 
     private async Task<object> OpenFileAsync(MessageRequest request)
     {
-        var filePath = PayloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
+        var filePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
         await OpenFileAsync(filePath);
         return new { success = true, message = $"Opened file: {filePath}" };
     }
 
     private async Task<object> LaunchProcessAsync(MessageRequest request)
     {
-        var executablePath = PayloadHelper.GetRequiredValue<string>(request.Payload, "executablePath");
-        var arguments = PayloadHelper.GetOptionalValue<string>(request.Payload, "arguments");
-        var workingDirectory = PayloadHelper.GetOptionalValue<string>(request.Payload, "workingDirectory");
+        var executablePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "executablePath");
+        var arguments = _payloadHelper.GetOptionalValue<string>(request.Payload, "arguments");
+        var workingDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workingDirectory");
 
         await _processService.LaunchProcessAsync(executablePath, arguments, workingDirectory);
 
@@ -177,8 +180,8 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<FileDialogResult> OpenFileDialogAsync(MessageRequest request)
     {
-        var title = PayloadHelper.GetOptionalValue<string>(request.Payload, "title");
-        var defaultPath = PayloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
+        var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
+        var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
 
         var options = new FileDialogOptions
         {
@@ -192,8 +195,8 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<FileDialogResult> OpenFolderDialogAsync(MessageRequest request)
     {
-        var title = PayloadHelper.GetOptionalValue<string>(request.Payload, "title");
-        var defaultPath = PayloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
+        var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
+        var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
 
         var options = new FileDialogOptions
         {
@@ -206,8 +209,8 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<FileDialogResult> SaveFileDialogAsync(MessageRequest request)
     {
-        var title = PayloadHelper.GetOptionalValue<string>(request.Payload, "title");
-        var defaultPath = PayloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
+        var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
+        var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
 
         var options = new FileDialogOptions
         {
@@ -229,9 +232,9 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<object> UpdateGlobalSettingsHandlerAsync(MessageRequest request)
     {
-        var theme = PayloadHelper.GetOptionalValue<string>(request.Payload, "theme");
-        var annotationLevel = PayloadHelper.GetOptionalValue<string>(request.Payload, "annotationLevel");
-        var logLevel = PayloadHelper.GetOptionalValue<string>(request.Payload, "logLevel");
+        var theme = _payloadHelper.GetOptionalValue<string>(request.Payload, "theme");
+        var annotationLevel = _payloadHelper.GetOptionalValue<string>(request.Payload, "annotationLevel");
+        var logLevel = _payloadHelper.GetOptionalValue<string>(request.Payload, "logLevel");
 
         var settings = await GetGlobalSettingsAsync();
 
@@ -246,8 +249,8 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<object> UpdateGlobalSettingHandlerAsync(MessageRequest request)
     {
-        var key = PayloadHelper.GetRequiredValue<string>(request.Payload, "key");
-        var value = PayloadHelper.GetRequiredValue<string>(request.Payload, "value");
+        var key = _payloadHelper.GetRequiredValue<string>(request.Payload, "key");
+        var value = _payloadHelper.GetRequiredValue<string>(request.Payload, "value");
 
         await UpdateGlobalSettingAsync(key, value);
 
@@ -266,7 +269,7 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<object> GetSettingsFileHandlerAsync(MessageRequest request)
     {
-        var filename = PayloadHelper.GetRequiredValue<string>(request.Payload, "filename");
+        var filename = _payloadHelper.GetRequiredValue<string>(request.Payload, "filename");
         var content = await _settingsFileService.GetSettingsFileAsync(filename);
 
         if (content == null)
@@ -279,8 +282,8 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<object> SaveSettingsFileHandlerAsync(MessageRequest request)
     {
-        var filename = PayloadHelper.GetRequiredValue<string>(request.Payload, "filename");
-        var content = PayloadHelper.GetRequiredValue<string>(request.Payload, "content");
+        var filename = _payloadHelper.GetRequiredValue<string>(request.Payload, "filename");
+        var content = _payloadHelper.GetRequiredValue<string>(request.Payload, "content");
 
         await _settingsFileService.SaveSettingsFileAsync(filename, content);
 
@@ -289,7 +292,7 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<object> DeleteSettingsFileHandlerAsync(MessageRequest request)
     {
-        var filename = PayloadHelper.GetRequiredValue<string>(request.Payload, "filename");
+        var filename = _payloadHelper.GetRequiredValue<string>(request.Payload, "filename");
 
         await _settingsFileService.DeleteSettingsFileAsync(filename);
 
@@ -298,7 +301,7 @@ public class SettingsFacade : ISettingsFacade
 
     private async Task<object> SettingsFileExistsHandlerAsync(MessageRequest request)
     {
-        var filename = PayloadHelper.GetRequiredValue<string>(request.Payload, "filename");
+        var filename = _payloadHelper.GetRequiredValue<string>(request.Payload, "filename");
         var exists = await _settingsFileService.SettingsFileExistsAsync(filename);
 
         return new { exists };

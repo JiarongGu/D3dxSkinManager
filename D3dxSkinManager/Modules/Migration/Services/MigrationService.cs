@@ -13,14 +13,48 @@ using D3dxSkinManager.Modules.Mods.Services;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Tools.Services;
 
+using D3dxSkinManager.Modules.Profiles;
+
 namespace D3dxSkinManager.Modules.Migration.Services;
+
+/// <summary>
+/// Service for migrating data from Python d3dxSkinManage to React version
+/// </summary>
+public interface IMigrationService
+{
+    /// <summary>
+    /// Analyze Python installation and return migration analysis
+    /// </summary>
+    Task<MigrationAnalysis> AnalyzeSourceAsync(string pythonPath);
+
+    /// <summary>
+    /// Perform migration with specified options
+    /// </summary>
+    /// <param name="options">Migration options</param>
+    /// <param name="progress">Progress callback</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task<MigrationResult> MigrateAsync(
+        MigrationOptions options,
+        IProgress<MigrationProgress>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Validate migration by comparing source and destination
+    /// </summary>
+    Task<bool> ValidateMigrationAsync(string pythonPath, string reactDataPath);
+
+    /// <summary>
+    /// Auto-detect Python installation path
+    /// </summary>
+    Task<string?> AutoDetectPythonInstallationAsync();
+}
 
 /// <summary>
 /// Service for migrating data from Python d3dxSkinManage to React version
 /// </summary>
 public class MigrationService : IMigrationService
 {
-    private readonly string _reactDataPath;
+    private readonly IProfileContext _profileContext;
     private readonly IModRepository _repository;
     private readonly IClassificationRepository _classificationRepository;
     private readonly IClassificationThumbnailService _thumbnailService;
@@ -30,7 +64,7 @@ public class MigrationService : IMigrationService
     private readonly IModManagementService _modManagementService;
 
     public MigrationService(
-        string reactDataPath,
+        IProfileContext profileContext,
         IModRepository repository,
         IClassificationRepository classificationRepository,
         IClassificationThumbnailService thumbnailService,
@@ -39,7 +73,7 @@ public class MigrationService : IMigrationService
         IConfigurationService configService,
         IModManagementService modManagementService)
     {
-        _reactDataPath = reactDataPath;
+        _profileContext = profileContext;
         _repository = repository;
         _classificationRepository = classificationRepository;
         _thumbnailService = thumbnailService;
@@ -188,7 +222,7 @@ public class MigrationService : IMigrationService
     {
         var startTime = DateTime.Now;
         var result = new MigrationResult();
-        var logPath = Path.Combine(_reactDataPath, $"migration_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+        var logPath = Path.Combine(_profileContext.ProfilePath, "logs", $"migration_{DateTime.Now:yyyyMMdd_HHmmss}.log");
 
         try
         {
@@ -425,8 +459,8 @@ public class MigrationService : IMigrationService
                     Tags = entry.Tags,
                     IsLoaded = false, // User will load manually
                     IsAvailable = File.Exists(Path.Combine(sourcePath, "resources", "mods", entry.Sha)),
-                    ThumbnailPath = null, // Will be generated later
-                    PreviewPath = null    // Will be set if preview exists
+                    ThumbnailPath = null // Will be generated later
+                    // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
                 };
 
                 var mod = await _modManagementService.GetOrCreateModAsync(entry.Sha, createRequest);
@@ -453,7 +487,7 @@ public class MigrationService : IMigrationService
         string logPath)
     {
         var sourceDir = Path.Combine(sourcePath, "resources", "mods");
-        var destDir = Path.Combine(_reactDataPath, "mods");
+        var destDir = Path.Combine(_profileContext.ProfilePath, "mods");
 
         if (!Directory.Exists(sourceDir))
         {
@@ -520,7 +554,7 @@ public class MigrationService : IMigrationService
     private async Task<int> MigratePreviewsAsync(string sourcePath, string logPath, IProgress<MigrationProgress>? progress = null)
     {
         var sourceDir = Path.Combine(sourcePath, "resources", "preview");
-        var destDir = Path.Combine(_reactDataPath, "previews");
+        var destDir = Path.Combine(_profileContext.ProfilePath, "previews");
 
         if (!Directory.Exists(sourceDir))
         {
@@ -559,10 +593,18 @@ public class MigrationService : IMigrationService
         var copied = 0;
 
         // Process direct files first (higher priority)
+        // These are files like preview/ABC123.png which should go to previews/ABC123/preview1.png
         foreach (var sourceFile in directFiles)
         {
             var fileName = Path.GetFileName(sourceFile);
-            var destFile = Path.Combine(destDir, fileName);
+            var sha = Path.GetFileNameWithoutExtension(fileName);
+            var ext = Path.GetExtension(fileName);
+
+            // Create per-mod preview folder
+            var modPreviewFolder = Path.Combine(destDir, sha);
+            Directory.CreateDirectory(modPreviewFolder);
+
+            var destFile = Path.Combine(modPreviewFolder, $"preview1{ext}");
 
             try
             {
@@ -572,24 +614,15 @@ public class MigrationService : IMigrationService
                     copied++;
                 }
 
-                // Update database with preview path (plain file path, will be converted to HTTP URL by facade)
-                var sha = Path.GetFileNameWithoutExtension(fileName);
-                if (await _repository.ExistsAsync(sha))
-                {
-                    var mod = await _repository.GetByIdAsync(sha);
-                    if (mod != null && string.IsNullOrEmpty(mod.PreviewPath))
-                    {
-                        // Store plain file path (facade will convert to HTTP URL)
-                        mod.PreviewPath = destFile;
-                        await _repository.UpdateAsync(mod);
-                    }
-                }
+                // Note: Preview paths are no longer stored in database
+                // Previews are scanned dynamically from previews/{SHA}/ folder
+                // Migration copies files to correct location and they will be discovered automatically
 
                 // Report progress
                 progress?.Report(new MigrationProgress
                 {
                     Stage = MigrationStage.CopyingPreviews,
-                    CurrentTask = $"Copying preview {fileName}...",
+                    CurrentTask = $"Copying preview for {sha}...",
                     ProcessedItems = copied,
                     TotalItems = totalFiles,
                     PercentComplete = 60 + (20 * copied / Math.Max(1, totalFiles))
@@ -597,19 +630,23 @@ public class MigrationService : IMigrationService
             }
             catch (Exception ex)
             {
-                await LogAsync(logPath, $"ERROR copying preview {fileName}: {ex.Message}");
+                await LogAsync(logPath, $"ERROR copying preview for {sha}: {ex.Message}");
             }
         }
 
-        // Process subfolder files (e.g., ABC123/preview1.png -> ABC123_preview1.png)
+        // Process subfolder files (e.g., ABC123/preview1.png -> previews/ABC123/preview1.png)
         foreach (var sourceFile in subfolderFiles)
         {
             try
             {
-                var directory = Path.GetFileName(Path.GetDirectoryName(sourceFile));
+                var sha = Path.GetFileName(Path.GetDirectoryName(sourceFile));
                 var fileName = Path.GetFileName(sourceFile);
-                var newFileName = $"{directory}_{fileName}";
-                var destFile = Path.Combine(destDir, newFileName);
+
+                // Create per-mod preview folder
+                var modPreviewFolder = Path.Combine(destDir, sha);
+                Directory.CreateDirectory(modPreviewFolder);
+
+                var destFile = Path.Combine(modPreviewFolder, fileName);
 
                 if (!File.Exists(destFile))
                 {
@@ -617,24 +654,15 @@ public class MigrationService : IMigrationService
                     copied++;
                 }
 
-                // Try to extract SHA from folder name
-                var sha = directory;
-                if (!string.IsNullOrEmpty(sha) && await _repository.ExistsAsync(sha))
-                {
-                    var mod = await _repository.GetByIdAsync(sha);
-                    if (mod != null && string.IsNullOrEmpty(mod.PreviewPath))
-                    {
-                        // Only set if no direct preview exists (plain file path)
-                        mod.PreviewPath = destFile;
-                        await _repository.UpdateAsync(mod);
-                    }
-                }
+                // Note: Preview paths are no longer stored in database
+                // Previews are scanned dynamically from previews/{SHA}/ folder
+                // Migration copies files to correct location and they will be discovered automatically
 
                 // Report progress
                 progress?.Report(new MigrationProgress
                 {
                     Stage = MigrationStage.CopyingPreviews,
-                    CurrentTask = $"Copying preview {newFileName}...",
+                    CurrentTask = $"Copying preview for {sha}...",
                     ProcessedItems = copied,
                     TotalItems = totalFiles,
                     PercentComplete = 60 + (20 * copied / Math.Max(1, totalFiles))
@@ -660,7 +688,7 @@ public class MigrationService : IMigrationService
         }
 
         // Copy thumbnails to data/thumbnails/
-        var destThumbnailsDir = Path.Combine(_reactDataPath, "thumbnails");
+        var destThumbnailsDir = Path.Combine(_profileContext.ProfilePath, "thumbnails");
         Directory.CreateDirectory(destThumbnailsDir);
 
         var copiedCount = await CopyDirectoryRecursiveAsync(sourceThumbnailDir, destThumbnailsDir, logPath);
@@ -781,7 +809,7 @@ public class MigrationService : IMigrationService
             return 0;
         }
 
-        var rulesPath = Path.Combine(_reactDataPath, "auto_detection_rules.json");
+        var rulesPath = Path.Combine(_profileContext.ProfilePath, "auto_detection_rules.json");
         var rules = new List<ModAutoDetectionRule>();
         int totalNodesCreated = 0;
 
@@ -847,8 +875,8 @@ public class MigrationService : IMigrationService
                         await _classificationRepository.InsertAsync(childNode);
                         totalNodesCreated++;
 
-                        // Link all mods with this object name to the child classification node
-                        await LinkModsToClassificationNodeAsync(category, childNodeId, logPath);
+                        // Verify mods exist for this category
+                        await VerifyModsForCategoryAsync(category, logPath);
                     }
 
                     // Create auto-detection rules (legacy support)
@@ -878,11 +906,11 @@ public class MigrationService : IMigrationService
     }
 
     /// <summary>
-    /// Link all mods with a specific object name to a classification node
+    /// Verify mods exist for a specific category (object name)
+    /// Mods are linked via their Category field, not through tags
     /// </summary>
-    private async Task LinkModsToClassificationNodeAsync(
+    private async Task VerifyModsForCategoryAsync(
         string category,
-        string classificationNodeId,
         string logPath)
     {
         try
@@ -896,19 +924,9 @@ public class MigrationService : IMigrationService
                 return;
             }
 
-            // Update each mod with classification information
-            // Store classification data in mod's Tags as a special format
-            foreach (var mod in mods)
-            {
-                var tag = $"classification:{classificationNodeId}";
-                if (!mod.Tags.Contains(tag))
-                {
-                    mod.Tags.Add(tag);
-                    await _repository.UpdateAsync(mod);
-                }
-            }
-
-            await LogAsync(logPath, $"Linked {mods.Count} mod(s) with object '{category}' to node '{classificationNodeId}'");
+            // Mods are already linked via their Category field
+            // No need to add classification tags - Category field contains the object name
+            await LogAsync(logPath, $"Found {mods.Count} mod(s) for object '{category}' (linked via Category field)");
         }
         catch (Exception ex)
         {

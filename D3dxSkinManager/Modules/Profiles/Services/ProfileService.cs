@@ -5,9 +5,87 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Models;
-
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Profiles.Models;
+
 namespace D3dxSkinManager.Modules.Profiles.Services;
+
+/// <summary>
+/// Service for managing mod management profiles
+/// Each profile has its own work directory, database, and configuration
+/// Responsibility: Profile CRUD, switching, and data isolation
+/// </summary>
+public interface IProfileService
+{
+    /// <summary>
+    /// Get all profiles
+    /// </summary>
+    Task<List<Profile>> GetAllProfilesAsync();
+
+    /// <summary>
+    /// Get currently active profile
+    /// </summary>
+    Task<Profile?> GetActiveProfileAsync();
+
+    /// <summary>
+    /// Get profile by ID
+    /// </summary>
+    Task<Profile?> GetProfileByIdAsync(string profileId);
+
+    /// <summary>
+    /// Create a new profile
+    /// </summary>
+    /// <param name="request">Profile creation parameters</param>
+    /// <returns>Created profile</returns>
+    Task<Profile> CreateProfileAsync(CreateProfileRequest request);
+
+    /// <summary>
+    /// Update profile metadata
+    /// </summary>
+    Task<bool> UpdateProfileAsync(UpdateProfileRequest request);
+
+    /// <summary>
+    /// Delete a profile (cannot delete active profile)
+    /// </summary>
+    Task<bool> DeleteProfileAsync(string profileId);
+
+    /// <summary>
+    /// Switch to a different profile
+    /// </summary>
+    /// <param name="profileId">Target profile ID</param>
+    /// <returns>Switch result with new active profile</returns>
+    Task<ProfileSwitchResult> SwitchProfileAsync(string profileId);
+
+    /// <summary>
+    /// Get profile statistics (mod count, total size)
+    /// </summary>
+    Task<Profile> GetProfileStatisticsAsync(string profileId);
+
+    /// <summary>
+    /// Duplicate a profile (copy all data)
+    /// </summary>
+    Task<Profile> DuplicateProfileAsync(string sourceProfileId, string newName);
+
+    /// <summary>
+    /// Export profile configuration to JSON
+    /// </summary>
+    Task<string> ExportProfileConfigAsync(string profileId);
+
+    /// <summary>
+    /// Import profile from configuration JSON
+    /// </summary>
+    Task<Profile> ImportProfileConfigAsync(string configJson, string workDirectory);
+
+    /// <summary>
+    /// Get profile configuration
+    /// </summary>
+    Task<ProfileConfiguration?> GetProfileConfigurationAsync(string profileId);
+
+    /// <summary>
+    /// Update profile configuration
+    /// </summary>
+    Task<bool> UpdateProfileConfigurationAsync(ProfileConfiguration config);
+}
 
 /// <summary>
 /// Service for managing mod management profiles
@@ -18,14 +96,16 @@ public class ProfileService : IProfileService
     private readonly string _profilesDirectory;
     private readonly string _profilesConfigFile;
     private readonly string _baseDataPath;
+    private readonly IPathHelper _pathHelper;
     private List<Profile> _profiles;
     private string _activeProfileId;
 
-    public ProfileService(string baseDataPath)
+    public ProfileService(IPathHelper pathHelper)
     {
-        _baseDataPath = baseDataPath;
-        _profilesDirectory = Path.Combine(baseDataPath, "profiles");
-        _profilesConfigFile = Path.Combine(baseDataPath, "profiles.json");
+        _baseDataPath = pathHelper.BaseDataPath;
+        _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
+        _profilesDirectory = Path.Combine(_baseDataPath, "profiles");
+        _profilesConfigFile = Path.Combine(_baseDataPath, "profiles.json");
         _profiles = new List<Profile>();
         _activeProfileId = string.Empty;
 
@@ -79,13 +159,19 @@ public class ProfileService : IProfileService
     private async Task CreateDefaultProfileAsync()
     {
         var profileId = "default"; // Use fixed "default" ID for the default profile
+
+        // Use relative paths for portability
+        var dataDir = Path.Combine(_baseDataPath, "profiles", profileId);
+        var workDir = Path.Combine(dataDir, "work"); // Work directory under profile data
+
         var defaultProfile = new Profile
         {
             Id = profileId,
             Name = "Default",
             Description = "Default profile",
-            WorkDirectory = Path.Combine(_baseDataPath, "work_mods"),
-            DataDirectory = Path.Combine(_baseDataPath, "profiles", profileId), // Profile-based structure
+            GameDirectory = null, // User will set this later
+            WorkDirectory = _pathHelper.ToRelativePath(workDir) ?? workDir, // Store as relative path
+            DataDirectory = _pathHelper.ToRelativePath(dataDir) ?? dataDir,   // Store as relative path
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             LastUsedAt = DateTime.UtcNow,
@@ -100,10 +186,11 @@ public class ProfileService : IProfileService
         // Ensure profile directory structure exists
         var profileDataDir = Path.Combine(_baseDataPath, "profiles", profileId);
         Directory.CreateDirectory(profileDataDir);
-        Directory.CreateDirectory(Path.Combine(profileDataDir, "cache"));
+        Directory.CreateDirectory(Path.Combine(profileDataDir, "mods"));
         Directory.CreateDirectory(Path.Combine(profileDataDir, "thumbnails"));
-        Directory.CreateDirectory(Path.Combine(profileDataDir, "archives"));
-        Directory.CreateDirectory(Path.Combine(profileDataDir, "temp"));
+        Directory.CreateDirectory(Path.Combine(profileDataDir, "previews"));
+        Directory.CreateDirectory(Path.Combine(profileDataDir, "work"));
+        Directory.CreateDirectory(Path.Combine(profileDataDir, "logs"));
 
         await SaveProfilesToDisk();
         Console.WriteLine($"[ProfileService] Created default profile with data directory: {profileDataDir}");
@@ -137,13 +224,21 @@ public class ProfileService : IProfileService
 
     public async Task<Profile> CreateProfileAsync(CreateProfileRequest request)
     {
+        var dataDir = Path.Combine(_profilesDirectory, Guid.NewGuid().ToString());
+        var workDir = string.IsNullOrEmpty(request.WorkDirectory)
+            ? Path.Combine(dataDir, "work")
+            : request.WorkDirectory;
+
         var profile = new Profile
         {
             Id = Guid.NewGuid().ToString(),
             Name = request.Name,
             Description = request.Description,
-            WorkDirectory = request.WorkDirectory,
-            DataDirectory = Path.Combine(_profilesDirectory, Guid.NewGuid().ToString()),
+            GameDirectory = request.GameDirectory,
+            // WorkDirectory might be external (game folder) - use PathHelper to store as relative if under data path
+            WorkDirectory = _pathHelper.ToRelativePath(workDir) ?? workDir,
+            // DataDirectory is always under data path - store as relative
+            DataDirectory = _pathHelper.ToRelativePath(dataDir) ?? dataDir,
             IsActive = false,
             CreatedAt = DateTime.UtcNow,
             ColorTag = request.ColorTag ?? GenerateRandomColor(),
@@ -151,13 +246,14 @@ public class ProfileService : IProfileService
             GameName = request.GameName
         };
 
-        // Create profile data directory structure
-        Directory.CreateDirectory(profile.DataDirectory);
-        Directory.CreateDirectory(Path.Combine(profile.DataDirectory, "mods"));
-        Directory.CreateDirectory(Path.Combine(profile.DataDirectory, "work_mods"));
-        Directory.CreateDirectory(Path.Combine(profile.DataDirectory, "cache"));
-        Directory.CreateDirectory(Path.Combine(profile.DataDirectory, "thumbnails"));
-        Directory.CreateDirectory(Path.Combine(profile.DataDirectory, "previews"));
+        // Create profile data directory structure (use absolute path for file operations)
+        var absoluteDataDir = _pathHelper.ToAbsolutePath(profile.DataDirectory) ?? profile.DataDirectory;
+        Directory.CreateDirectory(absoluteDataDir);
+        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "mods"));
+        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "thumbnails"));
+        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "previews"));
+        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "work"));
+        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "logs"));
 
         // Create profile configuration
         var config = new ProfileConfiguration
@@ -189,6 +285,7 @@ public class ProfileService : IProfileService
 
         if (!string.IsNullOrEmpty(request.Name)) profile.Name = request.Name;
         if (request.Description != null) profile.Description = request.Description;
+        if (request.GameDirectory != null) profile.GameDirectory = request.GameDirectory;
         if (!string.IsNullOrEmpty(request.WorkDirectory)) profile.WorkDirectory = request.WorkDirectory;
         if (request.ColorTag != null) profile.ColorTag = request.ColorTag;
         if (request.IconName != null) profile.IconName = request.IconName;
@@ -222,6 +319,10 @@ public class ProfileService : IProfileService
         await SaveProfilesToDisk();
 
         Console.WriteLine($"[ProfileService] Deleted profile: {profile.Name} ({profile.Id})");
+
+        // Note: ProfileServiceProvider cleanup is handled by ProfileFacade
+        // to avoid circular dependency (ProfileService cannot depend on IProfileServiceProvider)
+
         return true;
     }
 

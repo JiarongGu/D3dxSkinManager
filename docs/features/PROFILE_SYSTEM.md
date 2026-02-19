@@ -325,7 +325,7 @@ data/profiles/{profile-id}/
 ```
 data/
 ├── profiles.json    (profile metadata & active ID)
-└── 3dmigoto_versions/ (shared 3DMigoto versions)
+└── 3dmigoto/ (shared 3DMigoto versions)
 ```
 
 ---

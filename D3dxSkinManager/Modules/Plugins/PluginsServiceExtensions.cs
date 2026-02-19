@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using D3dxSkinManager.Modules.Plugins;
+using D3dxSkinManager.Modules.Plugins.Services;
 
 namespace D3dxSkinManager.Modules.Plugins;
 
@@ -16,6 +16,10 @@ public static class PluginsServiceExtensions
     {
         // Register facade (depends on root-level PluginRegistry)
         services.AddSingleton<IPluginsFacade, PluginsFacade>();
+        services.AddSingleton<IPluginLoader, PluginLoader>();
+        services.AddSingleton<IPluginContext, PluginContext>();
+        services.AddSingleton<IPluginEventBus, PluginEventBus>();
+        services.AddSingleton<IPluginRegistry, PluginRegistry>();
 
         return services;
     }

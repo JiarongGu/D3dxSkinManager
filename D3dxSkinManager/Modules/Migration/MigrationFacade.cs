@@ -19,15 +19,18 @@ public class MigrationFacade : IMigrationFacade
 {
     private readonly IMigrationService _migrationService;
     private readonly IModFacade _modFacade;
+    private readonly IPayloadHelper _payloadHelper;
     private readonly PluginEventBus? _eventBus;
 
     public MigrationFacade(
         IMigrationService migrationService,
         IModFacade modFacade,
+        IPayloadHelper payloadHelper,
         PluginEventBus? eventBus = null)
     {
         _migrationService = migrationService ?? throw new ArgumentNullException(nameof(migrationService));
         _modFacade = modFacade ?? throw new ArgumentNullException(nameof(modFacade));
+        _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventBus = eventBus;
     }
 
@@ -101,21 +104,21 @@ public class MigrationFacade : IMigrationFacade
 
     private async Task<MigrationAnalysis> AnalyzeSourceAsync(MessageRequest request)
     {
-        var pythonPath = PayloadHelper.GetRequiredValue<string>(request.Payload, "pythonPath");
+        var pythonPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "pythonPath");
         return await AnalyzeSourceAsync(pythonPath);
     }
 
     private async Task<MigrationResult> StartMigrationAsync(MessageRequest request)
     {
-        var sourcePath = PayloadHelper.GetRequiredValue<string>(request.Payload, "sourcePath");
-        var environmentName = PayloadHelper.GetRequiredValue<string>(request.Payload, "environmentName");
-        var migrateArchives = PayloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateArchives") ?? true;
-        var migrateMetadata = PayloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateMetadata") ?? true;
-        var migratePreviews = PayloadHelper.GetOptionalValue<bool?>(request.Payload, "migratePreviews") ?? true;
-        var migrateConfiguration = PayloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateConfiguration") ?? true;
-        var migrateClassifications = PayloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateClassifications") ?? true;
-        var archiveModeString = PayloadHelper.GetOptionalValue<string>(request.Payload, "archiveMode") ?? "Copy";
-        var postActionString = PayloadHelper.GetOptionalValue<string>(request.Payload, "postAction") ?? "Keep";
+        var sourcePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourcePath");
+        var environmentName = _payloadHelper.GetRequiredValue<string>(request.Payload, "environmentName");
+        var migrateArchives = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateArchives") ?? true;
+        var migrateMetadata = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateMetadata") ?? true;
+        var migratePreviews = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migratePreviews") ?? true;
+        var migrateConfiguration = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateConfiguration") ?? true;
+        var migrateClassifications = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateClassifications") ?? true;
+        var archiveModeString = _payloadHelper.GetOptionalValue<string>(request.Payload, "archiveMode") ?? "Copy";
+        var postActionString = _payloadHelper.GetOptionalValue<string>(request.Payload, "postAction") ?? "Keep";
 
         if (!Enum.TryParse<ArchiveHandling>(archiveModeString, true, out var archiveMode))
         {
@@ -145,8 +148,8 @@ public class MigrationFacade : IMigrationFacade
 
     private async Task<bool> ValidateMigrationAsync(MessageRequest request)
     {
-        var pythonPath = PayloadHelper.GetRequiredValue<string>(request.Payload, "pythonPath");
-        var reactDataPath = PayloadHelper.GetRequiredValue<string>(request.Payload, "reactDataPath");
+        var pythonPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "pythonPath");
+        var reactDataPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "reactDataPath");
         return await ValidateMigrationAsync(pythonPath, reactDataPath);
     }
 }

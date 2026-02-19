@@ -1,25 +1,36 @@
 using System.Reflection;
+using D3dxSkinManager.Modules.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 
+using D3dxSkinManager.Modules.Profiles;
+
 namespace D3dxSkinManager.Modules.Plugins.Services;
+
+
+public interface IPluginLoader
+{
+    Task<int> LoadPluginsAsync();
+
+    Task InitializePluginsAsync();
+}
 
 /// <summary>
 /// Loads plugins from the plugins directory.
 /// Supports both assembly-based (.dll) and directory-based plugins.
 /// </summary>
-public class PluginLoader
+public class PluginLoader : IPluginLoader
 {
     private readonly string _pluginsPath;
-    private readonly PluginRegistry _registry;
-    private readonly IServiceCollection _services;
-    private readonly ILogger _logger;
+    private readonly IPluginContext _pluginContext;
+    private readonly IPluginRegistry _registry;
+    private readonly ILogHelper _logger;
 
-    public PluginLoader(string pluginsPath, PluginRegistry registry, IServiceCollection services, ILogger logger)
+    public PluginLoader(IProfileContext profileContext, IPluginContext pluginContext, IPluginRegistry registry, ILogHelper logger)
     {
-        _pluginsPath = pluginsPath ?? throw new ArgumentNullException(nameof(pluginsPath));
-        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _services = services ?? throw new ArgumentNullException(nameof(services));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _pluginsPath = Path.Combine(profileContext.ProfilePath, "plugins");
+        _pluginContext = pluginContext;
+        _registry = registry;
+        _logger = logger;
     }
 
     /// <summary>
@@ -49,7 +60,7 @@ public class PluginLoader
             }
             catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to load plugin from {dllFile}: {ex.Message}", ex);
+                _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to load plugin from {dllFile}: {ex.Message}", "PluginLoader", ex);
             }
         }
 
@@ -92,10 +103,12 @@ public class PluginLoader
                 }
 
                 // Register services if plugin implements IServicePlugin
+                // NOTE: Service registration at runtime is not supported in this architecture
+                // Plugins that need services should be registered during application startup
                 if (plugin is IServicePlugin servicePlugin)
                 {
-                    _logger.Log(LogLevel.Debug, $"[PluginLoader] Configuring services for plugin: {plugin.Name}");
-                    servicePlugin.ConfigureServices(_services);
+                    _logger.Log(LogLevel.Debug, $"[PluginLoader] Plugin {plugin.Name} implements IServicePlugin but runtime service registration is not supported");
+                    // servicePlugin.ConfigureServices(_services); // Cannot inject services at runtime
                 }
 
                 // Register plugin
@@ -106,7 +119,7 @@ public class PluginLoader
             }
             catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to load plugin {pluginType.Name}: {ex.Message}", ex);
+                _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to load plugin {pluginType.Name}: {ex.Message}", "PluginLoader", ex);
             }
         }
 
@@ -117,7 +130,7 @@ public class PluginLoader
     /// Initialize all loaded plugins.
     /// Must be called after all services are built.
     /// </summary>
-    public async Task InitializePluginsAsync(IPluginContext context)
+    public async Task InitializePluginsAsync()
     {
         _logger.Log(LogLevel.Info, "[PluginLoader] Initializing plugins...");
 
@@ -127,12 +140,12 @@ public class PluginLoader
             try
             {
                 _logger.Log(LogLevel.Debug, $"[PluginLoader] Initializing plugin: {plugin.Name}");
-                await plugin.InitializeAsync(context);
+                await plugin.InitializeAsync(_pluginContext);
                 _logger.Log(LogLevel.Info, $"[PluginLoader] Initialized plugin: {plugin.Name}");
             }
             catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to initialize plugin {plugin.Name}: {ex.Message}", ex);
+                _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to initialize plugin {plugin.Name}: {ex.Message}", "PluginLoader", ex);
             }
         });
 
@@ -158,7 +171,7 @@ public class PluginLoader
             }
             catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, $"[PluginLoader] Error shutting down plugin {plugin.Name}: {ex.Message}", ex);
+                _logger.Log(LogLevel.Error, $"[PluginLoader] Error shutting down plugin {plugin.Name}: {ex.Message}", "PluginLoader", ex);
             }
         });
 
