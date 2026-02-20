@@ -23,7 +23,7 @@ public interface IModFacade : IModuleFacade
     // Core Mod Operations
     Task<List<ModInfo>> GetAllModsAsync();
     Task<ModInfo?> GetModByIdAsync(string sha);
-    Task<bool> LoadModAsync(string sha);
+    Task<Models.ModLoadResult> LoadModAsync(string sha);
     Task<bool> UnloadModAsync(string sha);
     Task<List<string>> GetLoadedModIdsAsync();
     Task<ModInfo?> ImportModAsync(string filePath);
@@ -164,8 +164,11 @@ public class ModFacade : BaseFacade, IModFacade
         return mod;
     }
 
-    public async Task<bool> LoadModAsync(string sha)
+    public async Task<Models.ModLoadResult> LoadModAsync(string sha)
     {
+        // Track unloaded mods for efficient frontend updates (avoids full mod list refresh)
+        var unloadedModShas = new List<string>();
+
         // Get mod information for operation display and category checking
         var mod = await _repository.GetByIdAsync(sha);
         if (mod == null)
@@ -206,13 +209,15 @@ public class ModFacade : BaseFacade, IModFacade
                         await progressReporter.ReportProgressAsync(10, $"Unloading: {modToUnload.Name}...");
                         var unloadSuccess = await _fileService.UnloadAsync(modToUnload.SHA);
 
-                        if (!unloadSuccess)
+                        if (unloadSuccess)
                         {
-                            _logger.Warning($"Failed to unload mod '{modToUnload.Name}' (SHA: {modToUnload.SHA})", "ModFacade");
+                            // Track successfully unloaded mods for efficient frontend update
+                            unloadedModShas.Add(modToUnload.SHA);
+                            await _eventEmitter.EmitAsync(PluginEventType.ModUnloaded, data: new { Sha = modToUnload.SHA });
                         }
                         else
                         {
-                            await _eventEmitter.EmitAsync(PluginEventType.ModUnloaded, data: new { Sha = modToUnload.SHA });
+                            _logger.Warning($"Failed to unload mod '{modToUnload.Name}' (SHA: {modToUnload.SHA})", "ModFacade");
                         }
                     }
                 }
@@ -224,14 +229,24 @@ public class ModFacade : BaseFacade, IModFacade
 
             if (!success)
             {
-                return false;
+                return new Models.ModLoadResult
+                {
+                    LoadedModSha = sha,
+                    UnloadedModShas = unloadedModShas,
+                    Success = false
+                };
             }
 
             // Note: IsLoaded is determined dynamically from file system, not stored in database
             // No need to call SetLoadedStateAsync (it's a no-op)
             await _eventEmitter.EmitAsync(PluginEventType.ModLoaded, data: new { Sha = sha });
 
-            return true;
+            return new Models.ModLoadResult
+            {
+                LoadedModSha = sha,
+                UnloadedModShas = unloadedModShas,
+                Success = true
+            };
         }
         catch (Core.Models.ModException)
         {
@@ -541,7 +556,7 @@ public class ModFacade : BaseFacade, IModFacade
         return await GetModByIdAsync(sha);
     }
 
-    private async Task<bool> LoadModAsync(MessageRequest request)
+    private async Task<Models.ModLoadResult> LoadModAsync(MessageRequest request)
     {
         var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await LoadModAsync(sha);
@@ -855,31 +870,6 @@ public class ModFacade : BaseFacade, IModFacade
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Populates file paths (OriginalPath, WorkPath) for a mod
-    /// Converts absolute paths to relative paths for portability
-    /// </summary>
-    private void PopulateFilePaths(ModInfo mod)
-    {
-        // Original file path (the archive file without extension in data/profiles/{profileId}/mods/{SHA})
-        var originalArchivePath = Path.Combine(_profilePaths.ModsDirectory, mod.SHA);
-        if (File.Exists(originalArchivePath))
-        {
-            mod.OriginalPath = _pathHelper.ToRelativePath(originalArchivePath) ?? originalArchivePath;
-        }
-
-        // Work path (extracted files in data/profiles/{profileId}/work/Mods/{SHA}/)
-        var workPath = Path.Combine(_profilePaths.WorkModsDirectory, mod.SHA);
-        if (Directory.Exists(workPath))
-        {
-            mod.WorkPath = _pathHelper.ToRelativePath(workPath) ?? workPath;
-        }
-
-        // Note: CachePath removed - work path and cache path are the same
-        // When mod is disabled, the work directory is renamed to DISABLED-{SHA}
-        // Frontend only needs workPath which always points to the active location
     }
 
     /// <summary>

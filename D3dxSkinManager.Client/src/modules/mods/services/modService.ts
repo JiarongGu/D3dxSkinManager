@@ -1,8 +1,8 @@
 import { BaseModuleService } from '../../../shared/services/baseModuleService';
-import { ModInfo } from '../../../shared/types/mod.types';
+import { ModInfo, ModLoadResult } from '../../../shared/types/mod.types';
 
-// Re-export ModInfo for backwards compatibility
-export type { ModInfo };
+// Re-export types for backwards compatibility
+export type { ModInfo, ModLoadResult };
 
 /**
  * Service for mod management operations
@@ -22,9 +22,10 @@ export class ModService extends BaseModuleService {
 
   /**
    * Load a mod by SHA
+   * Returns affected mod SHAs for efficient frontend updates (avoids full list refresh)
    */
-  async loadMod(profileId: string, sha: string): Promise<boolean> {
-    return this.sendBooleanMessage('LOAD', profileId, { sha });
+  async loadMod(profileId: string, sha: string): Promise<ModLoadResult> {
+    return this.sendMessage<ModLoadResult>('LOAD', profileId, { sha });
   }
 
   /**

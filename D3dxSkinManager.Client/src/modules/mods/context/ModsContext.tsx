@@ -277,12 +277,28 @@ export const ModsProvider: React.FC<{
       });
 
       try {
-        // Perform backend operation
-        await modService.loadMod(selectedProfileId, sha);
+        // Perform backend operation - returns affected mod SHAs for efficient updates
+        const result = await modService.loadMod(selectedProfileId, sha);
         notification.success("Mod loaded successfully");
 
-        // Refresh mods from backend (with delayed loading to prevent flicker)
-        await modData.loadMods(selectedProfileId);
+        // Efficient partial update: Only update the loaded mod and unloaded mods
+        // No need to refresh entire mod list (could be 1000s of mods)
+        if (result.unloadedModShas && result.unloadedModShas.length > 0) {
+          // Update unloaded mods locally
+          result.unloadedModShas.forEach((unloadedSha) => {
+            modData.dispatch({
+              type: "UPDATE_MOD_LOCAL",
+              payload: { sha: unloadedSha, data: { isLoaded: false } },
+            });
+
+            classificationData.dispatch({
+              type: "UPDATE_FILTERED_MOD",
+              payload: { sha: unloadedSha, data: { isLoaded: false } },
+            });
+          });
+        }
+
+        // Loaded mod is already updated optimistically above, no need to update again
       } catch (error) {
         // Revert optimistic update on error
         modData.dispatch({
