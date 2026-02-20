@@ -30,6 +30,14 @@ export interface PhotinoMessage<TPayload = unknown> {
 }
 
 /**
+ * Error details from backend ModException
+ */
+export interface ErrorDetails {
+  errorCode: string;
+  data?: unknown;
+}
+
+/**
  * IPC response from backend
  * @template TData - Type of the response data (defaults to unknown for type safety)
  */
@@ -38,4 +46,5 @@ export interface PhotinoResponse<TData = unknown> {
   success: boolean;
   data?: TData;
   error?: string;
+  errorDetails?: ErrorDetails;
 }

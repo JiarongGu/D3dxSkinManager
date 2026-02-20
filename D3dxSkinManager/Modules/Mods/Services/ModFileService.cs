@@ -103,7 +103,10 @@ public class ModFileService : IModFileService
             {
                 _logger.Warning($"Archive not found: {archivePath}", "ModFileService");
                 await progressReporter.ReportFailureAsync("Archive not found");
-                return false;
+                throw new Core.Models.ModException(
+                    Core.Models.ErrorCodes.MOD_ARCHIVE_NOT_FOUND,
+                    $"Mod archive file not found: {archivePath}",
+                    new { sha, archivePath });
             }
 
             var targetDirectory = Path.Combine(_profilePaths.WorkModsDirectory, sha);
@@ -113,11 +116,37 @@ public class ModFileService : IModFileService
             if (Directory.Exists(disabledDirectory))
             {
                 await progressReporter.ReportProgressAsync(50, "Enabling from cache...");
-                Directory.Move(disabledDirectory, targetDirectory);
-                _logger.Info($"Enabled mod from cache: {sha}", "ModFileService");
-                await progressReporter.ReportProgressAsync(100, "Enabled from cache");
-                await progressReporter.ReportCompletionAsync();
-                return true;
+
+                try
+                {
+                    Directory.Move(disabledDirectory, targetDirectory);
+                    _logger.Info($"Enabled mod from cache: {sha}", "ModFileService");
+                    await progressReporter.ReportProgressAsync(100, "Enabled from cache");
+                    await progressReporter.ReportCompletionAsync();
+                    return true;
+                }
+                catch (IOException ioEx)
+                {
+                    // Folder is in use by another process
+                    _logger.Error($"Cannot enable mod {sha} - folder is in use: {ioEx.Message}", "ModFileService", ioEx);
+                    await progressReporter.ReportFailureAsync("Folder is in use by another process");
+                    throw new Core.Models.ModException(
+                        Core.Models.ErrorCodes.MOD_FOLDER_IN_USE,
+                        $"Cannot enable mod - the folder is currently in use by another process. Please close any programs accessing: {disabledDirectory}",
+                        ioEx,
+                        new { sha, path = disabledDirectory });
+                }
+                catch (UnauthorizedAccessException authEx)
+                {
+                    // Access denied
+                    _logger.Error($"Access denied when enabling mod {sha}: {authEx.Message}", "ModFileService", authEx);
+                    await progressReporter.ReportFailureAsync("Access denied");
+                    throw new Core.Models.ModException(
+                        Core.Models.ErrorCodes.FILE_ACCESS_DENIED,
+                        $"Access denied when enabling mod. Please run with appropriate permissions.",
+                        authEx,
+                        new { sha, path = disabledDirectory });
+                }
             }
 
             await progressReporter.ReportProgressAsync(10, "Detecting archive type...");
@@ -146,19 +175,32 @@ public class ModFileService : IModFileService
 
                 await progressReporter.ReportProgressAsync(100, "Load complete");
                 await progressReporter.ReportCompletionAsync();
+                return true;
             }
             else
             {
                 await progressReporter.ReportFailureAsync("Archive extraction failed");
+                throw new Core.Models.ModException(
+                    Core.Models.ErrorCodes.MOD_EXTRACTION_FAILED,
+                    "Failed to extract mod archive. The file may be corrupted or in an unsupported format.",
+                    new { sha, archivePath });
             }
-
-            return extractionResult.Success;
+        }
+        catch (Core.Models.ModException)
+        {
+            // Re-throw ModException as-is for proper error handling
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.Error($"Error loading mod {sha}: {ex.Message}", "ModFileService", ex);
+            // Wrap unknown exceptions in ModException
+            _logger.Error($"Unexpected error loading mod {sha}: {ex.Message}", "ModFileService", ex);
             await (progressReporter?.ReportFailureAsync(ex.Message) ?? Task.CompletedTask);
-            return false;
+            throw new Core.Models.ModException(
+                Core.Models.ErrorCodes.UNKNOWN_ERROR,
+                $"An unexpected error occurred while loading the mod: {ex.Message}",
+                ex,
+                new { sha, exceptionType = ex.GetType().Name });
         }
     }
 
@@ -217,15 +259,47 @@ public class ModFileService : IModFileService
                 Directory.Delete(disabledDirectory, true);
             }
 
-            Directory.Move(workDirectory, disabledDirectory);
-            _logger.Info($"Unloaded mod (cached): {sha}", "ModFileService");
-
-            return await Task.FromResult(true);
+            try
+            {
+                Directory.Move(workDirectory, disabledDirectory);
+                _logger.Info($"Unloaded mod (cached): {sha}", "ModFileService");
+                return await Task.FromResult(true);
+            }
+            catch (IOException ioEx)
+            {
+                // Folder is in use by another process
+                _logger.Error($"Cannot unload mod {sha} - folder is in use: {ioEx.Message}", "ModFileService", ioEx);
+                throw new Core.Models.ModException(
+                    Core.Models.ErrorCodes.MOD_FOLDER_IN_USE,
+                    $"Cannot unload mod - the folder is currently in use by another process. Please close any programs accessing: {workDirectory}",
+                    ioEx,
+                    new { sha, path = workDirectory });
+            }
+            catch (UnauthorizedAccessException authEx)
+            {
+                // Access denied
+                _logger.Error($"Access denied when unloading mod {sha}: {authEx.Message}", "ModFileService", authEx);
+                throw new Core.Models.ModException(
+                    Core.Models.ErrorCodes.FILE_ACCESS_DENIED,
+                    $"Access denied when unloading mod. Please run with appropriate permissions.",
+                    authEx,
+                    new { sha, path = workDirectory });
+            }
+        }
+        catch (Core.Models.ModException)
+        {
+            // Re-throw ModException for proper error handling
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.Error($"Error unloading mod {sha}: {ex.Message}", "ModFileService", ex);
-            return false;
+            // Wrap unknown exceptions in ModException
+            _logger.Error($"Unexpected error unloading mod {sha}: {ex.Message}", "ModFileService", ex);
+            throw new Core.Models.ModException(
+                Core.Models.ErrorCodes.UNKNOWN_ERROR,
+                $"An unexpected error occurred while unloading the mod: {ex.Message}",
+                ex,
+                new { sha, exceptionType = ex.GetType().Name });
         }
     }
 

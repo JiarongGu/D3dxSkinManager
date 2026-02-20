@@ -166,21 +166,87 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> LoadModAsync(string sha)
     {
-        // Get mod name for operation display
+        // Get mod information for operation display and category checking
         var mod = await _repository.GetByIdAsync(sha);
-        var modName = mod?.Name ?? $"Mod {sha.Substring(0, 8)}";
+        if (mod == null)
+        {
+            throw new Core.Models.ModException(
+                Core.Models.ErrorCodes.MOD_NOT_FOUND,
+                $"Mod not found: {sha}",
+                new { sha });
+        }
+
+        var modName = mod.Name ?? $"Mod {sha.Substring(0, 8)}";
 
         // Create operation for progress tracking
         var progressReporter = _operationService.CreateOperation($"Loading: {modName}", metadata: new { sha });
 
-        var success = await _fileService.LoadAsync(sha, progressReporter);
-        if (!success) return false;
+        try
+        {
+            // CRITICAL: Unload all mods in the same category first to prevent conflicts
+            // This ensures only one mod per category is loaded at a time
+            if (!string.IsNullOrEmpty(mod.Category))
+            {
+                await progressReporter.ReportProgressAsync(0, "Checking category conflicts...");
 
-        // Note: IsLoaded is determined dynamically from file system, not stored in database
-        // No need to call SetLoadedStateAsync (it's a no-op)
-        await _eventEmitter.EmitAsync(PluginEventType.ModLoaded, data: new { Sha = sha });
+                var sameCategoryMods = await _repository.GetByCategoryAsync(mod.Category);
+                var loadedSameCategoryMods = sameCategoryMods.Where(m => m.SHA != sha).ToList();
 
-        return true;
+                // Populate IsLoaded flags to check which mods need to be unloaded
+                PopulateStatusFlagsBulk(loadedSameCategoryMods);
+
+                var modsToUnload = loadedSameCategoryMods.Where(m => m.IsLoaded).ToList();
+
+                if (modsToUnload.Any())
+                {
+                    _logger.Info($"Unloading {modsToUnload.Count} mod(s) in category '{mod.Category}' before loading '{modName}'", "ModFacade");
+
+                    foreach (var modToUnload in modsToUnload)
+                    {
+                        await progressReporter.ReportProgressAsync(10, $"Unloading: {modToUnload.Name}...");
+                        var unloadSuccess = await _fileService.UnloadAsync(modToUnload.SHA);
+
+                        if (!unloadSuccess)
+                        {
+                            _logger.Warning($"Failed to unload mod '{modToUnload.Name}' (SHA: {modToUnload.SHA})", "ModFacade");
+                        }
+                        else
+                        {
+                            await _eventEmitter.EmitAsync(PluginEventType.ModUnloaded, data: new { Sha = modToUnload.SHA });
+                        }
+                    }
+                }
+            }
+
+            // Load the requested mod
+            await progressReporter.ReportProgressAsync(20, "Loading mod...");
+            var success = await _fileService.LoadAsync(sha, progressReporter);
+
+            if (!success)
+            {
+                return false;
+            }
+
+            // Note: IsLoaded is determined dynamically from file system, not stored in database
+            // No need to call SetLoadedStateAsync (it's a no-op)
+            await _eventEmitter.EmitAsync(PluginEventType.ModLoaded, data: new { Sha = sha });
+
+            return true;
+        }
+        catch (Core.Models.ModException)
+        {
+            // Re-throw ModException as-is for proper error handling
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error loading mod {sha}: {ex.Message}", "ModFacade", ex);
+            throw new Core.Models.ModException(
+                Core.Models.ErrorCodes.UNKNOWN_ERROR,
+                $"Failed to load mod: {ex.Message}",
+                ex,
+                new { sha, modName });
+        }
     }
 
     public async Task<bool> UnloadModAsync(string sha)

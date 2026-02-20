@@ -3,7 +3,7 @@
 > **Purpose:** Backend C# classes, services, and architecture
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-02-20
+**Last Updated:** 2026-02-21
 
 ---
 
@@ -23,6 +23,16 @@
 ### Core Module
 
 #### Models
+
+- **ErrorCodes** → `Modules/Core/Models/ErrorCodes.cs`
+  - Standard error codes for application-wide error handling
+  - MOD_FOLDER_IN_USE, MOD_ARCHIVE_NOT_FOUND, MOD_NOT_FOUND, etc.
+  - Created: 2026-02-21
+
+- **ModException** → `Modules/Core/Models/ModException.cs`
+  - Custom exception with error code and data for frontend error handling
+  - Properties: ErrorCode, Data (additional context)
+  - Created: 2026-02-21
 
 - **OperationProgress** → `Modules/Core/Models/OperationProgress.cs`
   - OperationStatus enum (Running, Completed, Failed, Cancelled)
@@ -392,7 +402,8 @@ Located in `Plugins/` directory (external to backend):
   - Properties: Id, Type, Payload
 
 - **MessageResponse** → `Models/MessageResponse.cs:3`
-  - Properties: Id, Success, Data, Error
+  - Properties: Id, Success, Data, Error, ErrorDetails
+  - ErrorDetails contains errorCode and data for frontend error handling (added 2026-02-21)
 
 ---
 

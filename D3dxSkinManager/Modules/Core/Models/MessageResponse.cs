@@ -9,6 +9,7 @@ public class MessageResponse
     public bool Success { get; set; }
     public object? Data { get; set; }
     public string? Error { get; set; }
+    public object? ErrorDetails { get; set; }
 
     public static MessageResponse CreateSuccess(string id, object? data)
     {
@@ -20,13 +21,14 @@ public class MessageResponse
         };
     }
 
-    public static MessageResponse CreateError(string id, string errorMessage)
+    public static MessageResponse CreateError(string id, string errorMessage, object? errorDetails = null)
     {
         return new MessageResponse
         {
             Id = id,
             Success = false,
-            Error = errorMessage
+            Error = errorMessage,
+            ErrorDetails = errorDetails
         };
     }
 }

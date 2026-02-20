@@ -127,7 +127,12 @@ class PhotinoService {
         if (response.success) {
           resolve(response.data as T);
         } else {
-          reject(new Error(response.error || 'Unknown error'));
+          const error = new Error(response.error || 'Unknown error') as Error & { errorDetails?: typeof response.errorDetails };
+          // Attach errorDetails to the error object for error handling middleware
+          if (response.errorDetails) {
+            error.errorDetails = response.errorDetails;
+          }
+          reject(error);
         }
       });
 

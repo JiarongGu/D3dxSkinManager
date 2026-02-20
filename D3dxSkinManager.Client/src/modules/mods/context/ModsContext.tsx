@@ -6,6 +6,7 @@ import React, {
   useMemo,
 } from "react";
 import { notification } from "../../../shared/utils/notification";
+import { handleError } from "../../../shared/utils/errorHandler";
 import { ModInfo } from "../../../shared/types/mod.types";
 import { ClassificationNode } from "../../../shared/types/classification.types";
 import { ImportTask } from "../components/AddModWindow";
@@ -294,7 +295,8 @@ export const ModsProvider: React.FC<{
           payload: { sha, data: { isLoaded: false } },
         });
 
-        notification.error("Failed to load mod");
+        // Handle error with user-friendly messages based on error code
+        handleError(error);
       }
     },
     [selectedProfileId, modData, classificationData],
@@ -334,7 +336,8 @@ export const ModsProvider: React.FC<{
           payload: { sha, data: { isLoaded: true } },
         });
 
-        notification.error("Failed to unload mod");
+        // Handle error with user-friendly messages based on error code
+        handleError(error);
       }
     },
     [selectedProfileId, modData, classificationData],
