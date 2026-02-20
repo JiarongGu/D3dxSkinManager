@@ -52,8 +52,8 @@
   - Updated: 2026-02-17 - Added Tools and Plugins tabs
 
 - **AppStatusBar** → `src/components/layout/AppStatusBar.tsx:26`
-  - Status bar with progress, color-coded messages, Help/Suggestions links
-  - Props: userName, serverStatus, modsLoaded, modsTotal, statusMessage, statusType, progressPercent, progressVisible, onHelpClick, onSuggestionsClick
+  - Status bar with progress, color-coded messages, Help links
+  - Props: userName, serverStatus, modsLoaded, modsTotal, statusMessage, statusType, progressPercent, progressVisible, onHelpClick
   - Updated: 2026-02-17 Phase 3 - Added progress bar, color coding, action buttons
   - Updated: 2026-02-18 - Theme-aware colors
 
@@ -443,6 +443,25 @@
   - Profile management hook
   - Returns: Profile state and operations
   - Created: 2026-02-18
+
+- **useDragDrop** → `src/shared/hooks/useDragDrop.ts:162`
+  - Generic drag-and-drop hook for custom drag/drop behavior
+  - Supports multiple event types with declarative handler configuration
+  - Features: Automatic gap detection, visual feedback, DOM data extraction
+  - Returns: { containerRef } - Callback ref to attach to container element
+  - Handler config: eventType, nodeSelector, allow ('node'|'gap'|'all'), onData, onDrop
+  - Fixed: 2026-02-21 - Dragleave flickering, gap detection, React state management
+  - See: [changelogs/2026-02/2026-02-21-usedragdrop-hook-fixes.md](../changelogs/2026-02/2026-02-21-usedragdrop-hook-fixes.md)
+
+- **useDelayedLoading** → `src/shared/hooks/useDelayedLoading.ts`
+  - Delays loading state changes to prevent flicker
+  - Returns: isDelayedLoading boolean
+  - Created: 2026-02-20
+
+- **useOptimisticUpdate** → `src/shared/hooks/useOptimisticUpdate.ts`
+  - Optimistic UI updates with automatic verification
+  - Handles update → verify → rollback on mismatch workflow
+  - Created: 2026-02-20
 
 ---
 

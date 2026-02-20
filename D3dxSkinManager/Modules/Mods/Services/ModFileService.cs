@@ -25,7 +25,7 @@ public interface IModFileService
     // Load/Unload operations
     Task<bool> LoadAsync(string sha);
     Task<bool> UnloadAsync(string sha);
-    Task<bool> DeleteAsync(string sha, string? thumbnailPath, string? previewPath);
+    Task<bool> DeleteAsync(string sha, string? previewPath);
 
     // Archive operations
     bool ArchiveExists(string sha);
@@ -61,6 +61,7 @@ public class ModFileService : IModFileService
 {
     private readonly IProfilePathService _profilePaths;
     private readonly IFileService _fileService;
+    private readonly Core.Services.IArchiveService _archiveService;
     private readonly IModRepository _repository;
     private readonly ILogHelper _logger;
     private const string DISABLED_PREFIX = "DISABLED-";
@@ -68,11 +69,13 @@ public class ModFileService : IModFileService
     public ModFileService(
         IProfilePathService profilePaths,
         IFileService fileService,
+        Core.Services.IArchiveService archiveService,
         IModRepository repository,
         ILogHelper logger)
     {
         _profilePaths = profilePaths ?? throw new ArgumentNullException(nameof(profilePaths));
         _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
+        _archiveService = archiveService ?? throw new ArgumentNullException(nameof(archiveService));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -85,6 +88,7 @@ public class ModFileService : IModFileService
     /// <summary>
     /// Load a mod by extracting its archive to work directory
     /// If mod is cached (disabled), just rename it to enable
+    /// Detects and updates archive type if needed
     /// </summary>
     public async Task<bool> LoadAsync(string sha)
     {
@@ -108,24 +112,65 @@ public class ModFileService : IModFileService
                 return true;
             }
 
-            // Extract archive
+            // Extract archive using ArchiveService (with type detection)
             if (Directory.Exists(targetDirectory))
             {
                 Directory.Delete(targetDirectory, true);
             }
 
-            var success = await _fileService.ExtractArchiveAsync(archivePath, targetDirectory);
-            if (success)
+            var extractionResult = await _archiveService.ExtractArchiveAsync(archivePath, targetDirectory);
+
+            if (extractionResult.Success)
             {
-                _logger.Info($"Loaded mod: {sha}", "ModFileService");
+                _logger.Info($"Loaded mod: {sha} ({extractionResult.FileCount} files)", "ModFileService");
+
+                // Update mod Type in database if detected and different from stored
+                if (!string.IsNullOrEmpty(extractionResult.DetectedType))
+                {
+                    await UpdateModTypeIfNeededAsync(sha, extractionResult.DetectedType);
+                }
             }
 
-            return success;
+            return extractionResult.Success;
         }
         catch (Exception ex)
         {
             _logger.Error($"Error loading mod {sha}: {ex.Message}", "ModFileService", ex);
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Update mod Type field if it's empty or different from detected type
+    /// </summary>
+    private async Task UpdateModTypeIfNeededAsync(string sha, string detectedType)
+    {
+        try
+        {
+            var mod = await _repository.GetByIdAsync(sha);
+            if (mod == null)
+            {
+                return;
+            }
+
+            // Normalize both types for comparison (remove dots, lowercase)
+            var storedType = (mod.Type ?? "").TrimStart('.').ToLowerInvariant();
+            var normalizedDetectedType = detectedType.TrimStart('.').ToLowerInvariant();
+
+            // Update if type is missing or different
+            if (string.IsNullOrEmpty(storedType) || storedType != normalizedDetectedType)
+            {
+                var oldType = mod.Type;
+                mod.Type = normalizedDetectedType;
+                await _repository.UpdateAsync(mod);
+
+                _logger.Info($"Updated mod type: {sha} ({oldType ?? "empty"} → {normalizedDetectedType})", "ModFileService");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Don't fail the load operation if type update fails
+            _logger.Warning($"Failed to update mod type for {sha}: {ex.Message}", "ModFileService");
         }
     }
 
@@ -165,7 +210,7 @@ public class ModFileService : IModFileService
     /// <summary>
     /// Delete a mod permanently (archive + work directory + cache + images)
     /// </summary>
-    public async Task<bool> DeleteAsync(string sha, string? thumbnailPath, string? previewPath)
+    public async Task<bool> DeleteAsync(string sha, string? previewPath)
     {
         try
         {
@@ -196,13 +241,6 @@ public class ModFileService : IModFileService
                 Directory.Delete(disabledDirectory, true);
                 _logger.Info($"Deleted cache directory: {disabledDirectory}", "ModFileService");
                 deleted = true;
-            }
-
-            // Delete thumbnail
-            if (!string.IsNullOrEmpty(thumbnailPath) && File.Exists(thumbnailPath))
-            {
-                File.Delete(thumbnailPath);
-                _logger.Info($"Deleted thumbnail: {thumbnailPath}", "ModFileService");
             }
 
             // Delete preview folder

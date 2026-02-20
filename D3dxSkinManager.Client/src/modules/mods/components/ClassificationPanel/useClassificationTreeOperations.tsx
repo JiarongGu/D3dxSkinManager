@@ -1,11 +1,12 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { App } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { Input } from "antd";
 import { ClassificationNode } from "../../../../shared/types/classification.types";
-import { photinoService } from "../../../../shared/services/photinoService";
+import { classificationService } from "../../../../shared/services/classificationService";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useModCategoryUpdate } from "./useModCategoryUpdate";
+import { notification } from "../../../../shared/utils/notification";
 
 /**
  * Find a ClassificationNode by ID in the tree
@@ -29,24 +30,21 @@ interface UseClassificationTreeOperationsProps {
   expandedKeys: React.Key[];
   onExpandedKeysChange: (keys: React.Key[]) => void;
   onRefreshTree?: () => Promise<void>;
-  onModsRefresh?: () => Promise<void>;
 }
 
 /**
  * Custom hook for handling classification tree operations
- * (edit, delete, drag & drop)
+ * (edit, delete, drag & drop with delayed loading)
  */
 export function useClassificationTreeOperations({
   tree,
   expandedKeys,
   onExpandedKeysChange,
   onRefreshTree,
-  onModsRefresh,
 }: UseClassificationTreeOperationsProps) {
-  const { modal, message } = App.useApp();
-  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const { modal } = App.useApp();
   const { selectedProfileId } = useProfile();
-  const { updateModCategory } = useModCategoryUpdate({ onRefreshTree, onModsRefresh });
+  const { updateModCategory } = useModCategoryUpdate({ onRefreshTree });
 
   // Edit node handler
   const handleEditNode = useCallback(
@@ -73,37 +71,35 @@ export function useClassificationTreeOperations({
           const newName = input?.value?.trim();
 
           if (!newName) {
-            message.error("Name cannot be empty");
+            notification.error("Name cannot be empty");
             return Promise.reject();
           }
 
+          if (!selectedProfileId) return;
+
           try {
-            const response = await photinoService.sendMessage<boolean>({
-              module: "MOD",
-              type: "UPDATE_CLASSIFICATION_NODE",
-              profileId: selectedProfileId,
-              payload: {
-                nodeId,
-                name: newName,
-              },
-            });
+            const response = await classificationService.updateNode(
+              selectedProfileId,
+              nodeId,
+              newName
+            );
 
             if (response) {
-              message.success("Classification updated successfully");
+              notification.success("Classification updated successfully");
               if (onRefreshTree) {
                 await onRefreshTree();
               }
             } else {
-              message.error("Failed to update classification");
+              notification.error("Failed to update classification");
             }
           } catch (error) {
             console.error("Error updating classification:", error);
-            message.error("Failed to update classification");
+            notification.error("Failed to update classification");
           }
         },
       });
     },
-    [tree, modal, message, onRefreshTree, selectedProfileId],
+    [tree, modal, notification, onRefreshTree, selectedProfileId],
   );
 
   // Delete node handler
@@ -126,75 +122,78 @@ export function useClassificationTreeOperations({
         okType: "danger",
         cancelText: "Cancel",
         onOk: async () => {
+          if (!selectedProfileId) return;
+
           try {
-            const response = await photinoService.sendMessage<boolean>({
-              module: "MOD",
-              type: "DELETE_CLASSIFICATION_NODE",
-              profileId: selectedProfileId,
-              payload: {
-                nodeId,
-              },
-            });
+            const response = await classificationService.deleteNode(
+              selectedProfileId,
+              nodeId
+            );
 
             if (response) {
-              message.success("Classification deleted successfully");
+              notification.success("Classification deleted successfully");
               if (onRefreshTree) {
                 await onRefreshTree();
               }
             } else {
-              message.error("Failed to delete classification");
+              notification.error("Failed to delete classification");
             }
           } catch (error) {
             console.error("Error deleting classification:", error);
-            message.error("Failed to delete classification");
+            notification.error("Failed to delete classification");
           }
         },
       });
     },
-    [tree, modal, message, onRefreshTree, selectedProfileId],
+    [tree, modal, notification, onRefreshTree, selectedProfileId],
   );
 
-  // Handle drag and drop on tree nodes
-  const handleDrop = useCallback(
-    async (info: any) => {
-      const dropKey = info.node.key;
-      const dragKey = info.dragNode?.key;
-
-      // Check if this is a mod being dropped (not a tree node)
-      // If dragNode is undefined/null, it means something external is being dragged
-      if (!dragKey) {
-        // This might be a mod drop - check the native event
-        const nativeEvent = info.event as DragEvent;
-        const modSha = nativeEvent.dataTransfer?.getData('application/mod-sha');
-
-        if (modSha && dropKey) {
-          // This is a mod drop!
-          await handleModDrop(nativeEvent as any, dropKey);
-          return; // Don't proceed with tree node reordering
-        }
-      }
-
-      // If we get here, it's a tree node being reordered
-      const dropPos = info.node.pos.split("-");
-      const dropPosition =
-        info.dropPosition - Number(dropPos[dropPos.length - 1]);
-
+  // Simplified node reorder handler - just takes node IDs and drop type
+  // dropNodeId can be empty string to indicate dropping to root level
+  const handleNodeReorder = useCallback(
+    async (
+      dragNodeId: string,
+      dropNodeId: string,
+      dropType: 'node' | 'gap',
+      gapSide?: 'top' | 'bottom'
+    ) => {
       // Prevent dropping on itself
-      if (dragKey === dropKey) {
+      if (dragNodeId === dropNodeId) {
         return;
       }
 
+      if (!selectedProfileId) return;
+
       try {
+        // Handle dropping to root level (empty dropNodeId)
+        if (dropNodeId === '') {
+          await classificationService.moveNode(
+            selectedProfileId,
+            dragNodeId,
+            null, // null parent = root level
+            0
+          );
+
+          if (onRefreshTree) {
+            await onRefreshTree();
+          }
+          return;
+        }
+
+        // Expand target node if dropping into it
+        if (dropType === 'node' && !expandedKeys.includes(dropNodeId)) {
+          onExpandedKeysChange([...expandedKeys, dropNodeId]);
+        }
+
         // Check if dropping into a node or between nodes
-        if (info.dropToGap) {
+        if (dropType === 'gap') {
           // Dropping between nodes (reordering or moving to root)
-          const dropNode = findNodeById(tree, dropKey);
+          const dropNode = findNodeById(tree, dropNodeId);
 
           // Determine the parent: if dropNode has no parent, we're at root level
           const newParentId = dropNode ? dropNode.parentId || null : null;
 
           // Calculate the actual position within siblings
-          // We need to find siblings and determine where to insert
           let siblings: ClassificationNode[] = [];
           if (newParentId) {
             // Find parent node and get its children
@@ -206,160 +205,103 @@ export function useClassificationTreeOperations({
           }
 
           // Find the index of the drop target node within siblings
-          const dropNodeIndex = siblings.findIndex((s) => s.id === dropKey);
+          const dropNodeIndex = siblings.findIndex((s) => s.id === dropNodeId);
 
-          // Calculate final position based on whether dropping before or after
-          let finalPosition = dropNodeIndex;
-          if (dropPosition > 0) {
-            // Dropping after the node
-            finalPosition = dropNodeIndex + 1;
+          // For gap drops, position depends on whether dropping above or below
+          // top: place before (at same index), bottom: place after (index + 1)
+          let finalPosition: number;
+          if (gapSide === 'top') {
+            finalPosition = dropNodeIndex; // Place before the target
+          } else {
+            finalPosition = dropNodeIndex + 1; // Place after the target (default)
           }
-          // If dropPosition < 0, we're dropping before, so use dropNodeIndex as-is
 
           // Send move request to backend
-          const response = await photinoService.sendMessage<boolean>({
-            module: "MOD",
-            type: "MOVE_CLASSIFICATION_NODE",
-            profileId: selectedProfileId,
-            payload: {
-              nodeId: dragKey,
-              newParentId: newParentId,
-              dropPosition: Math.max(0, finalPosition),
-            },
-          });
-
-          if (response && onRefreshTree) {
-            // Refresh the tree
-            await onRefreshTree();
-          }
+          await classificationService.moveNode(
+            selectedProfileId,
+            dragNodeId,
+            newParentId,
+            Math.max(0, finalPosition)
+          );
         } else {
           // Dropping into a node (moving to new parent)
-          const response = await photinoService.sendMessage<boolean>({
-            module: "MOD",
-            type: "MOVE_CLASSIFICATION_NODE",
-            profileId: selectedProfileId,
-            payload: {
-              nodeId: dragKey,
-              newParentId: dropKey,
-              dropPosition: 0,
-            },
-          });
-
-          if (response && onRefreshTree) {
-            // Refresh the tree
-            await onRefreshTree();
-
-            // Expand the target node to show the moved item
-            if (!expandedKeys.includes(dropKey)) {
-              onExpandedKeysChange([...expandedKeys, dropKey]);
-            }
-          }
+          await classificationService.moveNode(
+            selectedProfileId,
+            dragNodeId,
+            dropNodeId,
+            0
+          );
         }
-      } catch (error) {
-        console.error("Error moving classification node:", error);
-      }
-    },
-    [tree, expandedKeys, onExpandedKeysChange, onRefreshTree, selectedProfileId],
-  );
 
-  // Track which node is being dragged
-  const handleDragStart = useCallback((info: any) => {
-    setDraggedNodeId(info.node.key);
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    setDraggedNodeId(null);
-  }, []);
-
-  // Handle drop on container (empty space) to make node a root
-  const handleContainerDrop = useCallback(
-    async (e: React.DragEvent) => {
-      // Check if we're dropping on an actual tree node - if so, let Tree handle it
-      const target = e.target as HTMLElement;
-      if (
-        target.closest(".ant-tree-node-content-wrapper") ||
-        target.closest(".ant-tree-treenode")
-      ) {
-        return; // Let the Tree component handle node drops
-      }
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (!draggedNodeId) return;
-
-      try {
-        // Move to root level (no parent)
-        const response = await photinoService.sendMessage<boolean>({
-          module: "MOD",
-          type: "MOVE_CLASSIFICATION_NODE",
-          profileId: selectedProfileId,
-          payload: {
-            nodeId: draggedNodeId,
-            newParentId: null,
-            dropPosition: 0,
-          },
-        });
-
-        if (response && onRefreshTree) {
+        // After backend operation completes, refresh tree
+        // The delayed loading in useClassificationData will prevent flicker
+        if (onRefreshTree) {
           await onRefreshTree();
         }
       } catch (error) {
-        console.error("Error moving node to root:", error);
-      } finally {
-        setDraggedNodeId(null);
+        console.error("Error reordering classification node:", error);
+        notification.error("Failed to move classification node");
       }
     },
-    [draggedNodeId, onRefreshTree, selectedProfileId],
+    [tree, expandedKeys, onExpandedKeysChange, selectedProfileId, onRefreshTree, notification],
   );
 
-  const handleContainerDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); // Allow drop
-  }, []);
 
-  // Handle external drag from ModList
-  const handleModDragOver = useCallback((e: React.DragEvent, nodeId: string) => {
-    // Check if this is a mod being dragged (not a classification node)
-    const modSha = e.dataTransfer.types.includes('application/mod-sha');
-    if (modSha) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
-    }
-  }, []);
-
-  // Handle mod drop on classification node
-  const handleModDrop = useCallback(
-    async (e: React.DragEvent, nodeId: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const modSha = e.dataTransfer.getData('application/mod-sha');
-      const modName = e.dataTransfer.getData('application/mod-name');
+  // Simplified mod classification handler - just takes mod SHA and category node ID
+  const handleModClassify = useCallback(
+    async (modSha: string, nodeId: string) => {
+      console.log('[handleModClassify] Called with:', { modSha, nodeId });
 
       if (!modSha) {
+        console.error('[handleModClassify] No modSha provided');
+        notification.error('No mod selected');
         return;
       }
 
-      // Find the node name from the tree
-      const findNodeName = (nodes: ClassificationNode[], id: string): string | null => {
-        for (const node of nodes) {
-          if (node.id === id) return node.name;
-          if (node.children.length > 0) {
-            const found = findNodeName(node.children, id);
-            if (found) return found;
+      if (!nodeId) {
+        console.error('[handleModClassify] No nodeId provided');
+        notification.error('No category selected');
+        return;
+      }
+
+      try {
+        // Find the node name from the tree
+        const findNodeName = (nodes: ClassificationNode[], id: string): string | null => {
+          for (const node of nodes) {
+            if (node.id === id) {
+              console.log('[handleModClassify] Found node:', { id, name: node.name });
+              return node.name;
+            }
+            if (node.children.length > 0) {
+              const found = findNodeName(node.children, id);
+              if (found) return found;
+            }
           }
-        }
-        return null;
-      };
+          return null;
+        };
 
-      const nodeName = findNodeName(tree, nodeId) || nodeId;
+        const nodeName = findNodeName(tree, nodeId) || nodeId;
+        console.log('[handleModClassify] Node name:', nodeName);
 
-      // If moving to "Unclassified", clear the category by passing empty string
-      const categoryValue = nodeId === '__unclassified__' ? '' : nodeId;
+        // If moving to "Unclassified", clear the category by passing empty string
+        const categoryValue = nodeId === '__unclassified__' ? '' : nodeId;
+        console.log('[handleModClassify] Category value:', categoryValue);
 
-      // Update the mod's category using the shared hook
-      await updateModCategory(modSha, modName, categoryValue, nodeName);
+        // Update the mod's category using the shared hook
+        // Note: modName is optional, pass empty string if not available
+        console.log('[handleModClassify] Calling updateModCategory with:', {
+          modSha,
+          modName: '',
+          categoryValue,
+          nodeName
+        });
+
+        await updateModCategory(modSha, '', categoryValue, nodeName);
+        console.log('[handleModClassify] Successfully updated mod category');
+      } catch (error) {
+        console.error('[handleModClassify] Error:', error);
+        notification.error('Failed to update mod category');
+      }
     },
     [updateModCategory, tree]
   );
@@ -367,13 +309,7 @@ export function useClassificationTreeOperations({
   return {
     handleEditNode,
     handleDeleteNode,
-    handleDrop,
-    handleDragStart,
-    handleDragEnd,
-    handleContainerDrop,
-    handleContainerDragOver,
-    handleModDragOver,
-    handleModDrop,
-    draggedNodeId,
+    handleNodeReorder,
+    handleModClassify,
   };
 }

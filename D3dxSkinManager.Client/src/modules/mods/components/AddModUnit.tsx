@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, Button, Space, Card, Image, message } from 'antd';
+import { Modal, Form, Input, Select, Button, Space, Card, Image } from 'antd';
 import { TagsOutlined, FolderOutlined, FileZipOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { ImportTask } from './AddModWindow';
@@ -63,11 +64,11 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
       setSaving(true);
       onSave(task.id, modData);
 
-      message.success('Task updated successfully');
+      notification.success('Task updated successfully');
       onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
-      message.error('Please check all required fields');
+      notification.error('Please check all required fields');
     } finally {
       setSaving(false);
     }
@@ -77,7 +78,7 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
     if (onOpenTagSelector) {
       onOpenTagSelector(selectedTags);
     } else {
-      message.info('Tag selector not implemented yet');
+      notification.info('Tag selector not implemented yet');
     }
   };
 

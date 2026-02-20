@@ -1,0 +1,78 @@
+/**
+ * Custom notification wrapper styles
+ * Aggressively removes ALL default Ant Design spacing and styling
+ */
+
+/* Remove backdrop/overlay - notifications don't block interaction */
+.ant-notification {
+  pointer-events: none !important;
+}
+
+.ant-notification .ant-notification-notice {
+  pointer-events: auto !important;
+}
+
+/* Position at bottom center with NO spacing */
+.ant-notification-bottom {
+  left: 50% !important;
+  transform: translateX(-50%);
+  bottom: 24px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+/* Remove ALL spacing between notifications */
+.ant-notification-bottom .ant-notification-notice {
+  margin-bottom: 0 !important;
+}
+
+/* Make wrapper completely transparent - our custom component handles all styling */
+.custom-notification-wrapper.ant-notification-notice {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  width: auto !important;
+  height: auto !important;
+  line-height: normal !important;
+  border-radius: var(--border-radius-base) !important;
+}
+
+/* Remove all default Ant Design notification styling from content */
+.custom-notification-wrapper .ant-notification-notice-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: none !important;
+  display: block !important;
+}
+
+/* Remove all styling from message wrapper */
+.custom-notification-wrapper .ant-notification-notice-message {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: none !important;
+  margin-bottom: 0 !important;
+  line-height: normal !important;
+}
+
+/* Hide description */
+.custom-notification-wrapper .ant-notification-notice-description {
+  display: none !important;
+}
+
+/* Hide close icon - our custom component has its own */
+.custom-notification-wrapper .ant-notification-notice-close {
+  display: none !important;
+}
+
+/* Remove icon wrapper if it exists */
+.custom-notification-wrapper .ant-notification-notice-icon {
+  display: none !important;
+}
+
+/* Force no gaps anywhere */
+.custom-notification-wrapper * {
+  margin: 0 !important;
+}

@@ -21,7 +21,6 @@ interface AppStatusBarProps {
   progressPercent?: number;
   progressVisible?: boolean;
   onHelpClick?: () => void;
-  onSuggestionsClick?: () => void;
 }
 
 export const AppStatusBar: React.FC<AppStatusBarProps> = ({
@@ -34,7 +33,6 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
   progressPercent = 0,
   progressVisible = false,
   onHelpClick,
-  onSuggestionsClick,
 }) => {
   const getServerStatusIcon = () => {
     switch (serverStatus) {
@@ -101,13 +99,8 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
           fontSize: '12px',
         }}
       >
-        {/* Left side - User, Status, Message */}
+        {/* Left side - Status, Message */}
         <Space size="large">
-          <Space size="small">
-            <UserOutlined />
-            <span>* {userName}</span>
-          </Space>
-
           <AnnotatedTooltip title="Backend connection status" level={2}>
             <Space size="small">
               {getServerStatusIcon()}
@@ -123,7 +116,7 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
           )}
         </Space>
 
-        {/* Right side - Help, Suggestions, Mods, Version */}
+        {/* Right side - Help, Mods, Version */}
         <Space size="large">
           {/* Help link */}
           {onHelpClick && (
@@ -139,24 +132,6 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
                 style={{ padding: 0, height: 'auto', fontSize: '12px' }}
               >
                 Help
-              </Button>
-            </AnnotatedTooltip>
-          )}
-
-          {/* Suggestions link */}
-          {onSuggestionsClick && (
-            <AnnotatedTooltip
-              title={annotations.statusBar.suggestionsButton.title}
-              level={annotations.statusBar.suggestionsButton.level}
-            >
-              <Button
-                type="link"
-                size="small"
-                icon={<BulbOutlined />}
-                onClick={onSuggestionsClick}
-                style={{ padding: 0, height: 'auto', fontSize: '12px' }}
-              >
-                Suggestions
               </Button>
             </AnnotatedTooltip>
           )}

@@ -1,5 +1,6 @@
+import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, Space, Divider, Alert, message, AutoComplete } from 'antd';
+import { Modal, Form, Input, Select, Space, Divider, Alert,  AutoComplete } from 'antd';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { modService } from '../../services/modService';
 import { MultiTagInput } from '../../../../shared/components/common/MultiTagInput';
@@ -115,19 +116,19 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
       }
 
       if (fieldMask.length === 0) {
-        message.warning('Please select at least one field to update');
+        notification.warning('Please select at least one field to update');
         return;
       }
 
       setSaving(true);
       await onSave(modData, fieldMask);
 
-      message.success(`${selectedMods.length} mod(s) updated successfully`);
+      notification.success(`${selectedMods.length} mod(s) updated successfully`);
       handleReset();
       onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
-      message.error('Please check all required fields');
+      notification.error('Please check all required fields');
     } finally {
       setSaving(false);
     }

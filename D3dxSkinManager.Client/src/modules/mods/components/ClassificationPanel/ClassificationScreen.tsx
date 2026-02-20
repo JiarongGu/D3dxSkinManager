@@ -1,5 +1,6 @@
+import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Select, Upload, Button, message, Space } from 'antd';
+import { Form, Input, Select, Upload, Button,  Space } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
 import { ClassificationNode } from '../../../../shared/types/classification.types';
@@ -83,7 +84,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
         description: values.description
       });
 
-      message.success('Classification saved successfully');
+      notification.success('Classification saved successfully');
       closeScreen(screenId);
     } catch (error: any) {
       if (error.errorFields) {
@@ -91,7 +92,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
         return;
       }
       console.error('Failed to save classification:', error);
-      message.error('Failed to save classification');
+      notification.error('Failed to save classification');
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,6 @@
+import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Switch, Select, InputNumber, Space, Divider, message } from 'antd';
+import { Modal, Form, Switch, Select, InputNumber, Space, Divider } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 
 const { Option } = Select;
@@ -111,11 +112,11 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
       const argsString = buildArgsFromForm(values);
       onSave(argsString);
 
-      message.success('Unity launch arguments updated');
+      notification.success('Unity launch arguments updated');
       onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
-      message.error('Please check all fields');
+      notification.error('Please check all fields');
     } finally {
       setSaving(false);
     }

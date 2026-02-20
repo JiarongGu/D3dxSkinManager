@@ -1,0 +1,25 @@
+.drag-over-node {
+  background-color: var(--color-primary-bg-hover) !important;
+  opacity: 0.8;
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
+}
+
+/* Gap drop indicator - shows line in the middle of the gap between nodes */
+.drag-over-gap::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary) 80%, transparent);
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.8);
+  top: -5px; /* Center in 8px gap (4px up from bottom edge) */
+}
+
+.drag-over-gap[data-gap-position="bottom"]::before {
+  top: auto;
+  bottom: -5px; /* Center in 8px gap (4px up from top edge of next node) */
+}

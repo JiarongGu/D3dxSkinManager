@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Form, Select, Alert, Spin, Row, Col, Modal, message } from 'antd';
+import { Form, Select, Alert, Spin, Row, Col, Modal } from 'antd';
 import {
   FolderOpenOutlined,
   RocketOutlined,
@@ -44,7 +45,7 @@ export const D3DMigotoTab: React.FC = () => {
         // Don't show error if it's just because no profile is selected
         const errorMessage = error instanceof Error ? error.message : '';
         if (!errorMessage.includes('Profile ID is required')) {
-          message.error('Failed to load profile configuration');
+          notification.error('Failed to load profile configuration');
           console.error('Failed to load profile config:', error);
         }
       } finally {
@@ -60,21 +61,21 @@ export const D3DMigotoTab: React.FC = () => {
 
   const handleMigotoVersionChange = async (value: string) => {
     if (!profileState.selectedProfile) {
-      message.error('No profile selected');
+      notification.error('No profile selected');
       return;
     }
 
     try {
       await updateActiveProfileConfigField(profileState.selectedProfile.id, 'migotoVersion', value);
-      message.success(`3DMigoto version changed to: ${value}`);
+      notification.success(`3DMigoto version changed to: ${value}`);
     } catch (error) {
-      message.error('Failed to update 3DMigoto version');
+      notification.error('Failed to update 3DMigoto version');
     }
   };
 
   const handleLaunch3DMigoto = () => {
     // TODO: Implement 3DMigoto launch
-    message.info('Launching 3DMigoto...');
+    notification.info('Launching 3DMigoto...');
   };
 
   const handleOpenWorkDirectory = async () => {
@@ -82,9 +83,9 @@ export const D3DMigotoTab: React.FC = () => {
       // TODO: Get work directory from current profile
       const workDir = 'C:\\Games\\YourGame'; // Placeholder
       await fileDialogService.openDirectory(workDir);
-      message.success('Opened work directory');
+      notification.success('Opened work directory');
     } catch (error) {
-      message.error('Failed to open work directory');
+      notification.error('Failed to open work directory');
     }
   };
 
@@ -93,7 +94,7 @@ export const D3DMigotoTab: React.FC = () => {
    */
   const handleLoad3DMigotoVersions = async () => {
     if (!profileState.selectedProfile) {
-      message.error('No profile selected');
+      notification.error('No profile selected');
       return;
     }
 
@@ -105,12 +106,12 @@ export const D3DMigotoTab: React.FC = () => {
       setD3dVersions(versions);
 
       if (versions.length === 0) {
-        message.info('No 3DMigoto versions found. Place version archives in the 3dmigoto directory.');
+        notification.info('No 3DMigoto versions found. Place version archives in the 3dmigoto directory.');
       } else {
-        message.success(`Found ${versions.length} 3DMigoto version(s)`);
+        notification.success(`Found ${versions.length} 3DMigoto version(s)`);
       }
     } catch (error) {
-      message.error('Failed to load 3DMigoto versions');
+      notification.error('Failed to load 3DMigoto versions');
       console.error(error);
     } finally {
       setD3dLoading(false);
@@ -129,7 +130,7 @@ export const D3DMigotoTab: React.FC = () => {
       cancelText: 'Cancel',
       onOk: async () => {       
         if (!profileState.selectedProfile) {
-          message.error('No profile selected');
+          notification.error('No profile selected');
           return;
         }
         try {
@@ -137,13 +138,13 @@ export const D3DMigotoTab: React.FC = () => {
           const result = await launchService.deployVersion(profileState.selectedProfile.id, version.name);
 
           if (result.success) {
-            message.success(result.message || '3DMigoto deployed successfully');
+            notification.success(result.message || '3DMigoto deployed successfully');
             await handleLoad3DMigotoVersions(); // Refresh list
           } else {
-            message.error(result.error || 'Deployment failed');
+            notification.error(result.error || 'Deployment failed');
           }
         } catch (error) {
-          message.error('Failed to deploy 3DMigoto version');
+          notification.error('Failed to deploy 3DMigoto version');
           console.error(error);
         } finally {
           setD3dLoading(false);
@@ -157,19 +158,19 @@ export const D3DMigotoTab: React.FC = () => {
    */
   const handleLaunch3DMigotoLoader = async () => {
     if (!profileState.selectedProfile) {
-      message.error('No profile selected');
+      notification.error('No profile selected');
       return;
     }
 
     try {
       const result = await launchService.launch3DMigoto(profileState.selectedProfile.id);
       if (result) {
-        message.success('3DMigoto launched successfully');
+        notification.success('3DMigoto launched successfully');
       } else {
-        message.error('Failed to launch 3DMigoto. Check that the work directory is configured and contains a loader executable.');
+        notification.error('Failed to launch 3DMigoto. Check that the work directory is configured and contains a loader executable.');
       }
     } catch (error) {
-      message.error('Failed to launch 3DMigoto');
+      notification.error('Failed to launch 3DMigoto');
       console.error(error);
     }
   };

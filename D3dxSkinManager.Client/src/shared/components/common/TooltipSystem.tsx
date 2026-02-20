@@ -321,10 +321,6 @@ export const annotations = {
       level: 1 as TooltipLevel,
       title: 'Open help documentation',
     },
-    suggestionsButton: {
-      level: 2 as TooltipLevel,
-      title: 'View suggestions and tips',
-    },
     modsCount: {
       level: 1 as TooltipLevel,
       title: 'Number of loaded mods / Total mods',

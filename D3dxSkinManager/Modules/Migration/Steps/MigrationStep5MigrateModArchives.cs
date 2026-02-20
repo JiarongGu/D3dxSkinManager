@@ -24,6 +24,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
 {
     private readonly IProfilePathService _profilePaths;
     private readonly IFileService _fileService;
+    private readonly IArchiveService _archiveService;
     private readonly IPythonModIndexParser _modIndexParser;
     private readonly IModManagementService _modManagementService;
     private readonly ILogHelper _logger;
@@ -34,12 +35,14 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
     public MigrationStep5MigrateModArchives(
         IProfilePathService profilePaths,
         IFileService fileService,
+        IArchiveService archiveService,
         IPythonModIndexParser modIndexParser,
         IModManagementService modManagementService,
         ILogHelper logger)
     {
         _profilePaths = profilePaths;
         _fileService = fileService;
+        _archiveService = archiveService;
         _modIndexParser = modIndexParser;
         _modManagementService = modManagementService;
         _logger = logger;
@@ -159,35 +162,20 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
     }
 
     /// <summary>
-    /// Detect archive type using SharpCompress library
+    /// Detect archive type using ArchiveService
     /// </summary>
     private async Task<string> DetectArchiveTypeAsync(string filePath)
     {
-        return await Task.Run(() =>
+        try
         {
-            try
-            {
-                using var reader = SharpCompress.Readers.ReaderFactory.OpenReader(filePath);
-
-                // SharpCompress successfully opened it, now determine the type
-                var archiveType = reader.ArchiveType;
-
-                return archiveType switch
-                {
-                    SharpCompress.Common.ArchiveType.Zip => "zip",
-                    SharpCompress.Common.ArchiveType.SevenZip => "7z",
-                    SharpCompress.Common.ArchiveType.Rar => "rar",
-                    SharpCompress.Common.ArchiveType.Tar => "tar",
-                    SharpCompress.Common.ArchiveType.GZip => "gz",
-                    _ => "zip" // Default fallback
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Error detecting archive type for {Path.GetFileName(filePath)}: {ex.Message}", "Migration", ex);
-                return "zip"; // Default fallback
-            }
-        });
+            var detectedType = await _archiveService.DetectArchiveTypeAsync(filePath);
+            return detectedType ?? "zip"; // Default fallback if detection fails
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error detecting archive type for {Path.GetFileName(filePath)}: {ex.Message}", "Migration", ex);
+            return "zip"; // Default fallback
+        }
     }
 
     private async Task LogAsync(string logPath, string message)

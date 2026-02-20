@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Photino.NET;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using SevenZip;
 
 namespace D3dxSkinManager;
 
@@ -35,6 +36,9 @@ class Program
 
         // Initialize services with DI container
         InitializeServices();
+
+        // Initialize 7z library for archive extraction
+        Initialize7zLibrary();
 
         // Start development server if in development mode
         StartDevelopmentServerIfNeeded().Wait();
@@ -280,6 +284,34 @@ class Program
             var errorResponse = MessageResponse.CreateError(requestId, ex.Message);
             var json = JsonSerializer.Serialize(errorResponse, JsonOptions);
             window.SendWebMessage(json);
+        }
+    }
+
+    /// <summary>
+    /// Initialize 7z library for archive extraction
+    /// Sets the path to the native 7z.dll based on platform (x64/x86)
+    /// </summary>
+    private static void Initialize7zLibrary()
+    {
+        try
+        {
+            var platformFolder = Environment.Is64BitProcess ? "x64" : "x86";
+            var libraryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, platformFolder, "7z.dll");
+
+            if (File.Exists(libraryPath))
+            {
+                SevenZipBase.SetLibraryPath(libraryPath);
+                Console.WriteLine($"[Init] 7z library initialized: {libraryPath}");
+            }
+            else
+            {
+                Console.WriteLine($"[Init] WARNING: 7z.dll not found at: {libraryPath}");
+                Console.WriteLine($"[Init] Archive extraction may fail for some formats (7z, etc.)");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Init] ERROR: Failed to initialize 7z library: {ex.Message}");
         }
     }
 }

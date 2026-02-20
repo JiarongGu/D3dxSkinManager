@@ -18,30 +18,32 @@ export const ModActionButtons: React.FC<ModActionButtonsProps> = ({
   onDelete
 }) => {
   return (
-    <CompactSpace size="small">
+    <CompactSpace size="middle">
       {mod.isLoaded ? (
         <CompactButton
-          size="small"
+          size="medium"
           danger
           onClick={() => onUnload(mod.sha)}
+          style={{ minWidth: '80px' }}
         >
           Unload
         </CompactButton>
       ) : (
         <CompactButton
-          size="small"
+          size="medium"
           type="primary"
           onClick={() => onLoad(mod.sha)}
           disabled={!mod.isAvailable}
+          style={{ minWidth: '80px' }}
         >
           Load
         </CompactButton>
       )}
       <Tooltip title="Delete mod permanently">
         <CompactButton
-          size="small"
+          size="medium"
           danger
-          icon={<DeleteOutlined />}
+          icon={<DeleteOutlined style={{ fontSize: '16px' }} />}
           onClick={() => onDelete(mod.sha, mod.name)}
         />
       </Tooltip>

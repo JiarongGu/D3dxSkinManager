@@ -79,7 +79,7 @@ public class ModRepository : IModRepository
         await connection.OpenAsync();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Mods ORDER BY Category, Name";
+        command.CommandText = "SELECT * FROM Mods ORDER BY SHA";
 
         using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -198,7 +198,7 @@ public class ModRepository : IModRepository
         await connection.OpenAsync();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Mods WHERE Category = @category ORDER BY Name";
+        command.CommandText = "SELECT * FROM Mods WHERE Category = @category ORDER BY SHA";
         command.Parameters.AddWithValue("@category", category);
 
         using var reader = await command.ExecuteReaderAsync();
@@ -297,18 +297,17 @@ public class ModRepository : IModRepository
         return allTags.OrderBy(t => t).ToList();
     }
 
+    /// <summary>
+    /// This method is a no-op placeholder kept for backward compatibility.
+    /// IsLoaded is determined dynamically from file system (work directory existence),
+    /// not stored in the database. See ModInfo.IsLoaded comment.
+    /// </summary>
     public async Task<bool> SetLoadedStateAsync(string sha, bool isLoaded)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
-
-        var command = connection.CreateCommand();
-        command.CommandText = "UPDATE Mods SET IsLoaded = @isLoaded, UpdatedAt = CURRENT_TIMESTAMP WHERE SHA = @sha";
-        command.Parameters.AddWithValue("@sha", sha);
-        command.Parameters.AddWithValue("@isLoaded", isLoaded ? 1 : 0);
-
-        var rowsAffected = await command.ExecuteNonQueryAsync();
-        return rowsAffected > 0;
+        // IsLoaded is not stored in database - it's determined dynamically by checking
+        // if work directory exists (see PopulateStatusFlagsBulk in ModFacade)
+        // This method is kept for interface compatibility but does nothing
+        return await Task.FromResult(true);
     }
 
     private ModInfo MapToModInfo(SqliteDataReader reader)

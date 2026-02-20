@@ -7,8 +7,9 @@
  * - Backend communication via custom message types
  */
 
+import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Typography, Space, message } from 'antd';
+import { Card, Button, Typography, Space } from 'antd';
 import { FileTextOutlined, ClearOutlined } from '@ant-design/icons';
 import type { UIPlugin, PluginContext, PluginEventArgs } from '../PluginTypes';
 import { photinoService } from '../../../../shared/services/photinoService';
@@ -42,11 +43,11 @@ export class ModLogViewerPlugin implements UIPlugin {
   }
 
   private onModLoaded = (args: PluginEventArgs) => {
-    message.success(`Mod loaded event received`);
+    notification.success(`Mod loaded event received`);
   };
 
   private onModUnloaded = (args: PluginEventArgs) => {
-    message.info(`Mod unloaded event received`);
+    notification.info(`Mod unloaded event received`);
   };
 
   renderTab = () => {
@@ -73,7 +74,7 @@ const ModLogViewerTab: React.FC = () => {
       });
       setLog(response.log || 'No logs available');
     } catch (err: any) {
-      message.error(`Failed to load log: ${err.message}`);
+      notification.error(`Failed to load log: ${err.message}`);
       console.error('Error loading log:', err);
     } finally {
       setLoading(false);
@@ -87,10 +88,10 @@ const ModLogViewerTab: React.FC = () => {
         type: 'CLEAR_MOD_LOG',
         profileId: profileState.selectedProfile?.id
       });
-      message.success('Log cleared');
+      notification.success('Log cleared');
       setLog('');
     } catch (err: any) {
-      message.error(`Failed to clear log: ${err.message}`);
+      notification.error(`Failed to clear log: ${err.message}`);
     }
   };
 

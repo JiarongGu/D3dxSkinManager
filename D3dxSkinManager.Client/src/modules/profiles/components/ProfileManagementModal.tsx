@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Modal, Table, Button, Input, Form, Space, Popconfirm, message } from 'antd';
+import { Modal, Table, Button, Input, Form, Space, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { Profile } from '../../../shared/types/profile.types';
@@ -22,11 +23,11 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
   const handleCreate = async (values: { name: string; description?: string }) => {
     try {
       await actions.createProfile(values.name, values.description);
-      message.success('Profile created successfully');
+      notification.success('Profile created successfully');
       setCreateModalVisible(false);
       form.resetFields();
     } catch (error) {
-      message.error('Failed to create profile');
+      notification.error('Failed to create profile');
     }
   };
 
@@ -35,29 +36,29 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
 
     try {
       await actions.updateProfile(editingProfile.id, values.name, values.description);
-      message.success('Profile updated successfully');
+      notification.success('Profile updated successfully');
       setEditingProfile(null);
       form.resetFields();
     } catch (error) {
-      message.error('Failed to update profile');
+      notification.error('Failed to update profile');
     }
   };
 
   const handleDelete = async (profileId: string) => {
     try {
       await actions.deleteProfile(profileId);
-      message.success('Profile deleted successfully');
+      notification.success('Profile deleted successfully');
     } catch (error) {
-      message.error('Failed to delete profile');
+      notification.error('Failed to delete profile');
     }
   };
 
   const handleSwitch = async (profileId: string) => {
     try {
       await actions.selectProfile(profileId);
-      message.success('Profile switched successfully');
+      notification.success('Profile switched successfully');
     } catch (error) {
-      message.error('Failed to switch profile');
+      notification.error('Failed to switch profile');
     }
   };
 

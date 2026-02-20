@@ -1,5 +1,6 @@
+import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useRef, useCallback } from 'react';
-import { Tag, Button, message, Space, Spin } from 'antd';
+import { Tag, Button, Space, Spin } from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -109,7 +110,7 @@ export const ModList: React.FC<ModListProps> = ({
         if (onEdit) {
           onEdit(mod);
         } else {
-          message.info(`Edit mod: ${mod.name}`);
+          notification.info(`Edit mod: ${mod.name}`);
         }
       },
     },
@@ -130,12 +131,12 @@ export const ModList: React.FC<ModListProps> = ({
         if (result.success && result.filePath && profileState.selectedProfile) {
           try {
             await modService.exportMod(profileState.selectedProfile.id, mod.sha, result.filePath);
-            message.success(`Exported mod: ${mod.name}`);
+            notification.success(`Exported mod: ${mod.name}`);
           } catch (error) {
-            message.error('Failed to export mod');
+            notification.error('Failed to export mod');
           }
         } else if (result.error) {
-          message.error(result.error);
+          notification.error(result.error);
         }
       },
     },
@@ -147,7 +148,7 @@ export const ModList: React.FC<ModListProps> = ({
       label: 'Copy SHA',
       onClick: () => {
         navigator.clipboard.writeText(mod.sha);
-        message.success('SHA copied to clipboard');
+        notification.success('SHA copied to clipboard');
       },
     },
     {
@@ -155,7 +156,7 @@ export const ModList: React.FC<ModListProps> = ({
       label: 'Copy Name',
       onClick: () => {
         navigator.clipboard.writeText(mod.name);
-        message.success('Name copied to clipboard');
+        notification.success('Name copied to clipboard');
       },
     },
     { type: 'divider' as const },
@@ -170,9 +171,9 @@ export const ModList: React.FC<ModListProps> = ({
         if (checkedPaths?.originalPath) {
           try {
             await fileDialogService.openFileInExplorer(checkedPaths.originalPath);
-            message.success('Opened original file location');
+            notification.success('Opened original file location');
           } catch (error) {
-            message.error('Failed to open original file');
+            notification.error('Failed to open original file');
           }
         }
       },
@@ -186,9 +187,9 @@ export const ModList: React.FC<ModListProps> = ({
         if (checkedPaths?.workPath) {
           try {
             await fileDialogService.openDirectory(checkedPaths.workPath);
-            message.success('Opened work folder');
+            notification.success('Opened work folder');
           } catch (error) {
-            message.error('Failed to open work folder');
+            notification.error('Failed to open work folder');
           }
         }
       },
@@ -202,9 +203,9 @@ export const ModList: React.FC<ModListProps> = ({
         if (checkedPaths?.thumbnailPath) {
           try {
             await fileDialogService.openDirectory(checkedPaths.thumbnailPath);
-            message.success('Opened preview folder');
+            notification.success('Opened preview folder');
           } catch (error) {
-            message.error('Failed to open preview folder');
+            notification.error('Failed to open preview folder');
           }
         }
       },
@@ -226,7 +227,7 @@ export const ModList: React.FC<ModListProps> = ({
     const loadedMod = mods.find(m => m.category === mod.category && m.isLoaded);
     if (loadedMod) {
       onUnload(loadedMod.sha);
-      message.success(`Unloading object: ${mod.category}`);
+      notification.success(`Unloading object: ${mod.category}`);
     }
   };
 
@@ -302,18 +303,29 @@ export const ModList: React.FC<ModListProps> = ({
                 onDoubleClick={() => {
                   if (!isUnloadOption && !mod.isLoaded) {
                     onLoad(mod.sha);
-                    message.success(`Loading mod: ${mod.name}`);
+                    notification.success(`Loading mod: ${mod.name}`);
                   }
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    {mod.isLoaded && (
-                      <CheckCircleFilled style={{ color: 'var(--color-success)', fontSize: '14px' }} />
-                    )}
                     <span style={{ fontWeight: isUnloadOption ? 600 : 500 }}>
                       {mod.name}
                     </span>
+                    {mod.isLoaded && (
+                      <Tag
+                        color="success"
+                        style={{
+                          margin: 0,
+                          fontSize: '11px',
+                          padding: '0 6px',
+                          lineHeight: '18px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        LOADED
+                      </Tag>
+                    )}
                   </div>
                   <Space size={[8, 4]} wrap>
                     {mod.grading && (
@@ -340,11 +352,11 @@ export const ModList: React.FC<ModListProps> = ({
                   </Space>
                 </div>
                 {!isUnloadOption && (
-                  <Space size="small">
+                  <Space size="small" style={{ display: 'flex', alignItems: 'center' }}>
                     <Button
                       type="text"
-                      size="small"
-                      icon={mod.isLoaded ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                      size="middle"
+                      icon={mod.isLoaded ? <PauseCircleOutlined style={{ fontSize: '18px' }} /> : <PlayCircleOutlined style={{ fontSize: '18px' }} />}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (mod.isLoaded) {
@@ -353,15 +365,19 @@ export const ModList: React.FC<ModListProps> = ({
                           onLoad(mod.sha);
                         }
                       }}
+                      title={mod.isLoaded ? 'Unload mod' : 'Load mod'}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     />
                     <Button
                       type="text"
-                      size="small"
-                      icon={<EditOutlined />}
+                      size="middle"
+                      icon={<EditOutlined style={{ fontSize: '18px' }} />}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEdit?.(mod);
                       }}
+                      title="Edit mod"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     />
                   </Space>
                 )}

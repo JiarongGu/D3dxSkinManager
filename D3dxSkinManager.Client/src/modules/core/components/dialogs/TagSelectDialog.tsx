@@ -1,5 +1,6 @@
+import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Checkbox, Input, Button, Space, Row, Col, Divider, Tag, message } from 'antd';
+import { Checkbox, Input, Button, Space, Row, Col, Divider, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSlideInDialog } from '../../../../shared/hooks/useSlideInDialog';
 
@@ -67,17 +68,17 @@ export const TagSelectDialog: React.FC<TagSelectDialogProps> = ({
     const trimmed = customTag.trim();
 
     if (!trimmed) {
-      message.warning('Please enter a tag name');
+      notification.warning('Please enter a tag name');
       return;
     }
 
     if (allTags.includes(trimmed)) {
-      message.warning('This tag already exists');
+      notification.warning('This tag already exists');
       return;
     }
 
     if (trimmed.length > 50) {
-      message.warning('Tag name is too long (max 50 characters)');
+      notification.warning('Tag name is too long (max 50 characters)');
       return;
     }
 
@@ -85,14 +86,14 @@ export const TagSelectDialog: React.FC<TagSelectDialogProps> = ({
     setAllTags([...allTags, trimmed].sort());
     setTempSelectedTags([...tempSelectedTags, trimmed]);
     setCustomTag('');
-    message.success(`Tag "${trimmed}" added`);
+    notification.success(`Tag "${trimmed}" added`);
   };
 
   const handleRemoveTag = (tag: string) => {
     // Remove from both selected and available
     setTempSelectedTags(tempSelectedTags.filter(t => t !== tag));
     setAllTags(allTags.filter(t => t !== tag));
-    message.info(`Tag "${tag}" removed`);
+    notification.info(`Tag "${tag}" removed`);
   };
 
   const handleSave = () => {

@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Switch, Space, message, Button, Modal, Descriptions } from 'antd';
+import { Card, Table, Tag, Switch, Space,  Button, Modal, Descriptions } from 'antd';
 import {
   ApiOutlined,
   CheckCircleOutlined,
@@ -66,7 +67,7 @@ export const PluginsView: React.FC = () => {
       ];
       setPlugins(mockPlugins);
     } catch (error) {
-      message.error('Failed to load plugins');
+      notification.error('Failed to load plugins');
     } finally {
       setLoading(false);
     }
@@ -79,7 +80,7 @@ export const PluginsView: React.FC = () => {
         ? { ...p, enabled, status: enabled ? 'Active' : 'Inactive' }
         : p
     ));
-    message.success(`Plugin ${enabled ? 'enabled' : 'disabled'}: ${name}`);
+    notification.success(`Plugin ${enabled ? 'enabled' : 'disabled'}: ${name}`);
   };
 
   const handleShowDetails = (plugin: PluginInfo) => {

@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Card, message } from 'antd';
+import { Card } from 'antd';
 import {
   CheckCircleOutlined,
   ReloadOutlined,
@@ -36,14 +37,14 @@ export const StartupValidationTool: React.FC = () => {
       setValidationReport(report);
 
       if (report.isValid) {
-        message.success('All validation checks passed!');
+        notification.success('All validation checks passed!');
       } else if (report.errorCount > 0) {
-        message.error(`Validation failed: ${report.errorCount} errors, ${report.warningCount} warnings`);
+        notification.error(`Validation failed: ${report.errorCount} errors, ${report.warningCount} warnings`);
       } else {
-        message.warning(`Validation passed with ${report.warningCount} warnings`);
+        notification.warning(`Validation passed with ${report.warningCount} warnings`);
       }
     } catch (error) {
-      message.error('Failed to run validation');
+      notification.error('Failed to run validation');
       console.error(error);
     } finally {
       setValidationLoading(false);
