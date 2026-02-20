@@ -3,7 +3,7 @@
 > **Purpose:** React components, hooks, services, and TypeScript types
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-02-20
+**Last Updated:** 2026-02-21
 
 ---
 
@@ -534,6 +534,14 @@
 
 ## Utilities
 
+- **errorHandler** → `src/shared/utils/errorHandler.ts`
+  - handleError(error) → Processes errors and shows user-friendly messages based on error code
+  - ModOperationError class → Typed error with errorCode and data
+  - getErrorMessage(errorCode) → Get user-friendly message for error code
+  - isErrorCode(error, errorCode) → Check if error matches specific code
+  - ERROR_MESSAGES mapping for all error codes
+  - Created: 2026-02-21
+
 - **imageUrlHelper** → `src/shared/utils/imageUrlHelper.ts`
   - toAppUrl(path) → Converts file paths to `app://` scheme URLs for custom scheme handler
   - toAppUrls(paths) → Batch conversion of paths array
@@ -586,6 +594,12 @@
   - MessageType union type → `:1-12`
   - PhotinoMessage interface → `:14-18`
   - PhotinoResponse interface → `:20-25`
+  - ErrorDetails interface → Error code and data from backend (added 2026-02-21)
+
+- **errorCodes.ts** → `src/shared/constants/errorCodes.ts`
+  - ErrorCodes constants → MOD_FOLDER_IN_USE, MOD_ARCHIVE_NOT_FOUND, etc.
+  - ErrorCode type → Union type of all error codes
+  - Created: 2026-02-21
 
 - **operation.types.ts** → `src/shared/types/operation.types.ts`
   - OperationStatus type (Running, Completed, Failed, Cancelled)

@@ -34,10 +34,27 @@ public abstract class BaseFacade : IModuleFacade
 
             return MessageResponse.CreateSuccess(request.Id, responseData);
         }
+        catch (ModException modEx)
+        {
+            // Handle ModException specially to include error code and data
+            _logger.Error($"Mod operation error '{request.Type}': [{modEx.ErrorCode}] {modEx.Message}", ModuleName, modEx);
+
+            return MessageResponse.CreateError(request.Id, modEx.Message, new
+            {
+                errorCode = modEx.ErrorCode,
+                data = modEx.Data
+            });
+        }
         catch (Exception ex)
         {
-            _logger.Error($"Error handling message '{request.Type}': {ex.Message}", ModuleName, ex);
-            return MessageResponse.CreateError(request.Id, ex.Message);
+            // Handle unknown errors with UNKNOWN_ERROR code
+            _logger.Error($"Unknown error handling message '{request.Type}': {ex.Message}", ModuleName, ex);
+
+            return MessageResponse.CreateError(request.Id, ex.Message, new
+            {
+                errorCode = ErrorCodes.UNKNOWN_ERROR,
+                data = new { exceptionType = ex.GetType().Name }
+            });
         }
     }
 

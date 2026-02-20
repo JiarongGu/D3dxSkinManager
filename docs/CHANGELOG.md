@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-21 - Category-Based Mod Loading with Comprehensive Error Handling ⭐⭐⭐⭐⭐
+Implemented automatic category-based unloading and comprehensive error handling system with user-friendly messages for all error scenarios.
+**Key Features**: Auto-unload conflicting mods, error code system (backend + frontend), folder-in-use detection, user-friendly error messages, unknown error handling
+**Impact**: ✅ No mod conflicts, clear error guidance, all error paths covered
+**Details**: [changelogs/2026-02/2026-02-21-category-based-loading-error-handling.md](changelogs/2026-02/2026-02-21-category-based-loading-error-handling.md)
+
 ### Added - 2026-02-21 - Operation Notification System ⭐⭐⭐⭐⭐
 Implemented complete backend → frontend push notification system for real-time operation progress tracking. Long-running operations (e.g., mod loading) now report progress (0-100%) to status bar and full operation monitor screen (Ctrl+Shift+O).
 **Key Features**: IProgressReporter pattern, push notifications via IPC, React Context state management, status bar integration, operation history (last 50)
