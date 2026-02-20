@@ -1,0 +1,102 @@
+/**
+ * ConfirmDialog Styles
+ * Remove default Modal borders and make more compact
+ * Disable all animations for instant feedback
+ */
+
+/* Remove all borders and make compact */
+.confirm-dialog .ant-modal-content {
+  padding: 0 !important;
+}
+
+/*
+ * Disable ALL animations and transitions to prevent size changes
+ * Trade-off: No smooth color transitions, but no size change glitches
+ */
+
+/* Disable wave effect (causes size changes) */
+.confirm-dialog .ant-btn::after,
+.confirm-dialog .ant-btn .ant-wave {
+  display: none !important;
+}
+
+/* Disable all transitions, animations, and transforms */
+.confirm-dialog .ant-btn,
+.confirm-dialog .ant-btn:hover,
+.confirm-dialog .ant-btn:focus,
+.confirm-dialog .ant-btn:active,
+.confirm-dialog .ant-btn *,
+.confirm-dialog .ant-btn::after {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+/* Prevent layout shifts during button state changes */
+.confirm-dialog .ant-btn {
+  will-change: auto !important;
+}
+
+.confirm-dialog .ant-modal-header {
+  border-bottom: none !important;
+  padding: 16px 8px 8px 8px !important; /* Increased top padding to 16px for better spacing */
+  margin-bottom: 12px !important;
+  background: transparent !important;
+}
+
+.confirm-dialog .ant-modal-body {
+  padding: 0 8px !important;
+  margin-bottom: 16px !important;
+}
+
+.confirm-dialog .ant-modal-footer {
+  border-top: none !important;
+  padding: 0 8px 8px 8px !important;
+  margin-top: 0 !important;
+}
+
+/* Square close button design - theme-aware (matching FullScreenPreview style) */
+/* Dark theme close button */
+[data-theme="dark"] .confirm-dialog-close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--border-radius-base);
+  cursor: pointer;
+  transition: none; /* Disable animation */
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+[data-theme="dark"] .confirm-dialog-close-button:hover {
+  background: var(--color-bg-spotlight);
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-base);
+}
+
+/* Light theme close button - more distinct from background */
+[data-theme="light"] .confirm-dialog-close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(240, 240, 245, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: var(--border-radius-base);
+  cursor: pointer;
+  transition: none; /* Disable animation */
+  color: rgba(0, 0, 0, 0.8);
+  font-size: 14px;
+}
+
+[data-theme="light"] .confirm-dialog-close-button:hover {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}

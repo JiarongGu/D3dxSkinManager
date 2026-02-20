@@ -33,16 +33,19 @@ public class ClassificationService : IClassificationService
 {
     private readonly IClassificationRepository _repository;
     private readonly IModRepository _modRepository;
+    private readonly Core.Services.IPathHelper _pathHelper;
     private List<ClassificationNode>? _cachedTree;
     private DateTime _lastRefresh = DateTime.MinValue;
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(5);
 
     public ClassificationService(
         IClassificationRepository repository,
-        IModRepository modRepository)
+        IModRepository modRepository,
+        Core.Services.IPathHelper pathHelper)
     {
         _repository = repository;
         _modRepository = modRepository;
+        _pathHelper = pathHelper;
     }
 
     /// <summary>
@@ -349,7 +352,10 @@ public class ClassificationService : IClassificationService
             if (node == null)
                 return false;
 
-            node.Thumbnail = thumbnailPath;
+            // Convert to relative path if under data folder for portability
+            var relativeThumbnailPath = _pathHelper.ToRelativePath(thumbnailPath) ?? thumbnailPath;
+
+            node.Thumbnail = relativeThumbnailPath;
             var updated = await _repository.UpdateAsync(node);
 
             if (updated)

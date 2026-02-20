@@ -33,11 +33,21 @@ public interface IFileDialogService
 /// <summary>
 /// Windows Forms-based file dialog implementation
 /// Uses STA thread for proper dialog display with path memory
+/// Path memory persists across sessions via GlobalSettings
+/// Paths within data folder are stored as relative for portability
 /// </summary>
 public class FileDialogService : IFileDialogService
 {
-    // Thread-safe dictionary to store last used paths by key
-    private static readonly ConcurrentDictionary<string, string> _lastUsedPaths = new();
+    private readonly Settings.Services.IGlobalSettingsService _globalSettings;
+    private readonly IPathHelper _pathHelper;
+    private readonly ILogHelper _logger;
+
+    public FileDialogService(Settings.Services.IGlobalSettingsService globalSettings, IPathHelper pathHelper, ILogHelper logger)
+    {
+        _globalSettings = globalSettings ?? throw new ArgumentNullException(nameof(globalSettings));
+        _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
 
     /// <summary>
     /// Open file dialog to select a file
@@ -220,7 +230,7 @@ public class FileDialogService : IFileDialogService
     /// <summary>
     /// Get the initial path for the dialog, using remembered path if available
     /// </summary>
-    private static string GetInitialPath(FileDialogOptions? options)
+    private string GetInitialPath(FileDialogOptions? options)
     {
         // Priority:
         // 1. Remembered path (if RememberPathKey is set and we have a saved path)
@@ -229,18 +239,34 @@ public class FileDialogService : IFileDialogService
 
         if (!string.IsNullOrWhiteSpace(options?.RememberPathKey))
         {
-            if (_lastUsedPaths.TryGetValue(options.RememberPathKey, out var rememberedPath))
+            try
             {
-                // Verify the path still exists
-                if (Directory.Exists(rememberedPath))
+                var settings = _globalSettings.GetSettingsAsync().GetAwaiter().GetResult();
+                if (settings.FileDialogPaths.TryGetValue(options.RememberPathKey, out var rememberedPath))
                 {
-                    return rememberedPath;
+                    // Convert relative path to absolute if needed
+                    var absolutePath = _pathHelper.ToAbsolutePath(rememberedPath) ?? rememberedPath;
+
+                    // Verify the path still exists
+                    if (Directory.Exists(absolutePath))
+                    {
+                        return absolutePath;
+                    }
+                    else
+                    {
+                        // Clean up invalid path asynchronously (fire and forget)
+                        _ = Task.Run(async () =>
+                        {
+                            var updatedSettings = await _globalSettings.GetSettingsAsync();
+                            updatedSettings.FileDialogPaths.Remove(options.RememberPathKey);
+                            await _globalSettings.UpdateSettingsAsync(updatedSettings);
+                        });
+                    }
                 }
-                else
-                {
-                    // Clean up invalid path
-                    _lastUsedPaths.TryRemove(options.RememberPathKey, out _);
-                }
+            }
+            catch
+            {
+                // If settings load fails, just continue to fallback
             }
         }
 
@@ -255,16 +281,50 @@ public class FileDialogService : IFileDialogService
     }
 
     /// <summary>
-    /// Save the last used path for future use
+    /// Save the last used path for future use (persists to global settings)
+    /// Called from STA thread context (Windows Forms dialog), so we use sync-over-async pattern
     /// </summary>
-    private static void SaveLastUsedPath(FileDialogOptions? options, string? path)
+    private void SaveLastUsedPath(FileDialogOptions? options, string? path)
     {
-        if (string.IsNullOrWhiteSpace(options?.RememberPathKey) || string.IsNullOrWhiteSpace(path))
-            return;
+        _logger.Debug($"SaveLastUsedPath called - Key: '{options?.RememberPathKey}', Path: '{path}'", "FileDialogService");
 
-        if (Directory.Exists(path))
+        if (string.IsNullOrWhiteSpace(options?.RememberPathKey))
         {
-            _lastUsedPaths[options.RememberPathKey] = path;
+            _logger.Debug("SaveLastUsedPath: No RememberPathKey provided, skipping save", "FileDialogService");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            _logger.Debug("SaveLastUsedPath: Path is null or empty, skipping save", "FileDialogService");
+            return;
+        }
+
+        if (!Directory.Exists(path))
+        {
+            _logger.Debug($"SaveLastUsedPath: Directory does not exist: '{path}', skipping save", "FileDialogService");
+            return;
+        }
+
+        try
+        {
+            _logger.Debug($"SaveLastUsedPath: Loading global settings...", "FileDialogService");
+            var settings = _globalSettings.GetSettingsAsync().GetAwaiter().GetResult();
+
+            // Convert to relative path if within data folder for portability
+            var pathToSave = _pathHelper.ToRelativePath(path) ?? path;
+            _logger.Debug($"SaveLastUsedPath: Setting key '{options.RememberPathKey}' to '{pathToSave}' (original: '{path}')", "FileDialogService");
+            settings.FileDialogPaths[options.RememberPathKey] = pathToSave;
+
+            _logger.Debug($"SaveLastUsedPath: Saving settings...", "FileDialogService");
+            _globalSettings.UpdateSettingsAsync(settings).GetAwaiter().GetResult();
+
+            _logger.Debug($"SaveLastUsedPath: Successfully saved path for key '{options.RememberPathKey}'", "FileDialogService");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"SaveLastUsedPath: Error saving path - {ex.Message}", "FileDialogService");
+            _logger.Debug($"SaveLastUsedPath: Stack trace: {ex.StackTrace}", "FileDialogService");
         }
     }
 

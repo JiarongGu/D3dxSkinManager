@@ -44,6 +44,36 @@
   filter: brightness(1.1);
 }
 
+/* Danger button - deeper/darker on hover with subtle background tint */
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous {
+  box-shadow: none;
+}
+
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):hover {
+  border-color: #d9363e !important;
+  color: #d9363e !important;
+  background: rgba(217, 54, 62, 0.08) !important;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):active {
+  border-color: #cf1322 !important;
+  color: #cf1322 !important;
+  background: rgba(207, 19, 34, 0.12) !important;
+}
+
+[data-theme="light"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):hover {
+  border-color: #d9363e !important;
+  color: #d9363e !important;
+  background: rgba(217, 54, 62, 0.06) !important;
+}
+
+[data-theme="light"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):active {
+  border-color: #a8071a !important;
+  color: #a8071a !important;
+  background: rgba(168, 7, 26, 0.1) !important;
+}
+
 /* Large size - 40px height */
 .compact-button.ant-btn.compact-button-large {
   height: 40px !important;

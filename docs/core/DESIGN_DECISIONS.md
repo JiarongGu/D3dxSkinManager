@@ -2,7 +2,7 @@
 
 **Purpose:** Document critical architectural and design decisions for the d3dx-skin-manager project.
 
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-20
 
 ---
 
@@ -13,6 +13,7 @@
 3. [State Management Strategy](#state-management-strategy)
 4. [Component Architecture](#component-architecture)
 5. [Refactoring Strategy](#refactoring-strategy)
+6. [Modal Dialog Patterns](#modal-dialog-patterns)
 
 ---
 
@@ -600,6 +601,267 @@ docs/
 
 ---
 
+## Modal Dialog Patterns
+
+### Decision
+
+**All modal dialogs MUST use declarative rendering with disabled transitions for instant display without flashing animations.**
+
+### Rationale
+
+**User Experience:**
+- Imperative APIs (`Modal.confirm()`) cause visible flashing/flickering when opening
+- Disabled transitions provide instant feedback without animation delays
+- Users expect dialogs to appear immediately when triggered
+
+**Implementation Consistency:**
+- Declarative modals integrate better with React's component lifecycle
+- State management is explicit and predictable
+- Easier to test and debug
+
+**Technical Requirements:**
+```typescript
+// ✅ DO: Declarative with disabled transitions
+<Modal
+  open={visible}
+  transitionName=""        // Disable modal transition
+  maskTransitionName=""    // Disable mask transition
+  centered                 // Center on viewport
+>
+```
+
+```typescript
+// ❌ DON'T: Imperative API
+Modal.confirm({
+  // Causes flashing and harder to control
+});
+```
+
+### Implementation Pattern
+
+**1. ConfirmDialog Component** (`shared/components/dialogs/ConfirmDialog.tsx`)
+- Reusable confirmation dialog with proper theming
+- Disabled transitions for instant display
+- Custom close button matching design system
+- Compact spacing with clear visual hierarchy
+
+**2. Close Button Styling**
+- Square 32x32px button with rounded corners
+- Theme-aware (dark/light mode support)
+- Matches FullScreenPreview close button design
+- Hover states for visual feedback
+
+**3. Spacing Guidelines**
+- Header padding: `16px` top, `8px` horizontal and bottom (provides breathing room from top edge)
+- Body padding: `8px` horizontal
+- Footer padding: `8px` horizontal, `8px` bottom
+- Gap after header: `12px` margin-bottom
+- Gap after body: `16px` margin-bottom
+
+**4. Animation Disabling (Critical for UX)**
+
+All animations must be completely disabled for instant feedback. Ant Design buttons have multiple animation sources that must all be disabled:
+
+```css
+/* Comprehensive animation disabling - targets all button states */
+.confirm-dialog .ant-btn,
+.confirm-dialog .ant-btn:hover,
+.confirm-dialog .ant-btn:focus,
+.confirm-dialog .ant-btn:active,
+.confirm-dialog .ant-btn *,
+.confirm-dialog .ant-btn::after {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+/* Disable Ant Design's wave effect */
+.confirm-dialog .ant-btn::after,
+.confirm-dialog .ant-btn .ant-wave {
+  display: none !important;
+}
+
+/* Prevent layout shifts */
+.confirm-dialog .ant-btn {
+  will-change: auto !important;
+}
+```
+
+**Key Findings:**
+- Must disable `transition`, `animation`, AND `transform` properties
+- Must target all button pseudo-states (`:hover`, `:focus`, `:active`)
+- Must disable on all child elements (`.ant-btn *`) to catch nested icons/spinners
+- Must disable Ant Design's wave effect (`.ant-btn::after` and `.ant-wave`)
+- Must prevent CSS optimization with `will-change: auto`
+- Danger buttons (`CompactDangerButton`) are particularly prone to size change animations
+
+**5. Loading State Management**
+
+**Delayed Loading Indicator Pattern:**
+Only show loading spinner if operation takes longer than 50ms to prevent annoying flicker for fast operations:
+
+```typescript
+const [loading, setLoading] = React.useState(false);
+const loadingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+const isProcessingRef = React.useRef(false);
+
+// Reset loading state when dialog visibility changes
+React.useEffect(() => {
+  if (!visible) {
+    setLoading(false);
+    isProcessingRef.current = false;
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
+  }
+}, [visible]);
+
+const handleOk = async () => {
+  // Prevent multiple clicks while processing (without disabling button)
+  if (isProcessingRef.current) {
+    return;
+  }
+  isProcessingRef.current = true;
+
+  // Only show loading spinner if operation takes longer than 50ms
+  loadingTimeoutRef.current = setTimeout(() => {
+    setLoading(true);
+  }, 50);
+
+  try {
+    await onOk();
+  } finally {
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
+    setLoading(false);
+    isProcessingRef.current = false;
+  }
+};
+```
+
+**Key Benefits:**
+- **Fast operations (< 50ms)**: No loading spinner - dialog closes instantly without flicker
+- **Slow operations (> 50ms)**: Loading spinner appears providing visual feedback
+- **Click prevention**: `isProcessingRef` prevents multiple submissions without disabling button (avoids style changes)
+- **Proper cleanup**: Resets all state when dialog closes
+
+**Why 50ms?**
+- Operations completing under 50ms feel instant to users
+- Loading spinner for such short operations is more jarring than helpful
+- Common pattern used by modern applications (GitHub, VSCode, etc.)
+
+**6. Danger Button Styling**
+
+Danger buttons (used for destructive actions like "Delete") use a progressive darkening approach for hover states:
+
+```css
+/* Danger button - deeper/darker on hover with subtle background tint */
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:hover {
+  border-color: #d9363e !important;
+  color: #d9363e !important;
+  background: rgba(217, 54, 62, 0.08) !important;
+}
+
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:active {
+  border-color: #cf1322 !important;
+  color: #cf1322 !important;
+  background: rgba(207, 19, 34, 0.12) !important;
+}
+
+[data-theme="light"] .compact-button.ant-btn.ant-btn-dangerous:hover {
+  border-color: #d9363e !important;
+  color: #d9363e !important;
+  background: rgba(217, 54, 62, 0.06) !important;
+}
+
+[data-theme="light"] .compact-button.ant-btn.ant-btn-dangerous:active {
+  border-color: #a8071a !important;
+  color: #a8071a !important;
+  background: rgba(168, 7, 26, 0.1) !important;
+}
+```
+
+**Design Philosophy:**
+- **Progressive darkening:** Default red → Darker red (hover) → Darkest red (active)
+- **Subtle background tint:** Very low opacity red background adds depth without overwhelming
+- **"Pressed in" feeling:** Darker colors create impression of button being pressed
+- **Minimal changes:** Only border, text, and subtle background - keeps design clean
+- **Consistent opacity:** Dark theme uses slightly higher opacity (8%/12%) vs light theme (6%/10%) for better visibility
+
+**7. Theme Integration**
+```css
+/* Dark theme close button */
+[data-theme="dark"] .confirm-dialog-close-button {
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-base);
+  color: var(--color-text-secondary);
+  transition: none;
+}
+
+/* Light theme close button */
+[data-theme="light"] .confirm-dialog-close-button {
+  width: 32px;
+  height: 32px;
+  background: rgba(240, 240, 245, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: rgba(0, 0, 0, 0.8);
+  transition: none;
+}
+```
+
+### Examples
+
+**Delete Confirmation (ModPreviewPanel)**
+```typescript
+const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+
+<ConfirmDialog
+  visible={deleteConfirmVisible}
+  title="Delete Preview Image"
+  content="Are you sure you want to delete this preview image? This action cannot be undone."
+  okText="Delete"
+  okType="danger"
+  onOk={handleDeleteConfirm}
+  onCancel={() => setDeleteConfirmVisible(false)}
+/>
+```
+
+### Benefits
+
+**Instant Feedback:**
+- No animation delay when opening dialogs
+- Feels more responsive to user actions
+- Reduces perceived latency
+
+**Consistent Styling:**
+- Matches application design system
+- Theme-aware close buttons
+- Compact spacing reduces visual noise
+
+**Maintainability:**
+- Single reusable component for all confirmations
+- Easy to update styling globally
+- Clear separation of concerns
+
+### Related Components
+
+- `FullScreenPreview` - Uses same close button pattern
+- `ContextMenu` - Uses declarative rendering
+- `CompactButton` / `CompactDangerButton` - Used in dialog footer
+
+### Files
+
+- `D3dxSkinManager.Client/src/shared/components/dialogs/ConfirmDialog.tsx`
+- `D3dxSkinManager.Client/src/shared/components/dialogs/ConfirmDialog.css`
+- `D3dxSkinManager.Client/src/modules/mods/components/ModPreviewPanel/FullScreenPreview.tsx`
+
+---
+
 ## References
 
 - **AI Guide:** [docs/AI_GUIDE.md](../AI_GUIDE.md)
@@ -609,4 +871,4 @@ docs/
 
 ---
 
-*Last updated: 2026-02-17 | This document follows [AI_GUIDE.md](../AI_GUIDE.md) requirements*
+*Last updated: 2026-02-20 | This document follows [AI_GUIDE.md](../AI_GUIDE.md) requirements*

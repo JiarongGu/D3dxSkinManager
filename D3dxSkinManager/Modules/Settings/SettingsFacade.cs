@@ -200,12 +200,14 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
     {
         var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
         var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
+        var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
 
         var options = new FileDialogOptions
         {
             Title = title,
             DefaultPath = defaultPath,
-            Filters = null
+            Filters = null,
+            RememberPathKey = rememberPathKey
         };
 
         return await OpenFileDialogAsync(options);
@@ -215,11 +217,13 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
     {
         var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
         var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
+        var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
 
         var options = new FileDialogOptions
         {
             Title = title,
-            DefaultPath = defaultPath
+            DefaultPath = defaultPath,
+            RememberPathKey = rememberPathKey
         };
 
         return await OpenFolderDialogAsync(options);
@@ -229,12 +233,14 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
     {
         var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
         var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
+        var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
 
         var options = new FileDialogOptions
         {
             Title = title,
             DefaultPath = defaultPath,
-            Filters = null
+            Filters = null,
+            RememberPathKey = rememberPathKey
         };
 
         return await SaveFileDialogAsync(options);
