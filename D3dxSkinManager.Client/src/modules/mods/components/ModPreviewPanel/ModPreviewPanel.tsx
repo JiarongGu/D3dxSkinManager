@@ -1,29 +1,21 @@
 import React, { useState } from "react";
-import {
-  Card,
-  Typography,
-  Tag,
-  Space,
-  Button,
-  Empty,
-  message,
-  Carousel,
-} from "antd";
+import { Typography, Button, Empty, message, Space, Tag } from "antd";
 import {
   CopyOutlined,
+  LeftOutlined,
+  RightOutlined,
   UserOutlined,
   TagsOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  LeftOutlined,
-  RightOutlined,
 } from "@ant-design/icons";
 import { GradingTag } from "../../../../shared/components/common/GradingTag";
 import { FullScreenPreview } from "./FullScreenPreview";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
 import { ModPreviewProvider, useModView } from "./ModPreviewContext";
 import { ModInfo } from "../../../../shared/types/mod.types";
+import "./ModPreviewPanel.css";
 
 const { Text, Paragraph, Title } = Typography;
 
@@ -31,29 +23,19 @@ export const ModPreviewPanelContent: React.FC = () => {
   const { state } = useModView();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [fullScreenImageSrc, setFullScreenImageSrc] = useState<string>("");
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showLeftButton, setShowLeftButton] = useState(false);
+  const [showRightButton, setShowRightButton] = useState(false);
 
   const mod = state.currentMod;
 
-  if (!mod) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          minHeight: "400px",
-        }}
-      >
-        <Empty
-          description="Select a mod to view details"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
-      </div>
-    );
-  }
+  // Reset image index when mod changes (must be before early return)
+  React.useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [mod?.sha]);
 
   const handleCopySHA = () => {
+    if (!mod) return;
     navigator.clipboard.writeText(mod.sha);
     message.success("SHA copied to clipboard");
   };
@@ -67,7 +49,7 @@ export const ModPreviewPanelContent: React.FC = () => {
   const allImagePaths: string[] = [];
 
   // Add thumbnail first if available
-  if (mod.thumbnailPath) {
+  if (mod?.thumbnailPath) {
     allImagePaths.push(mod.thumbnailPath);
   }
 
@@ -78,116 +60,70 @@ export const ModPreviewPanelContent: React.FC = () => {
 
   const hasMultipleImages = allImagePaths.length > 1;
 
+  // Navigation handlers
+  const handlePreviousImage = () => {
+    setCurrentImageIndex((prev) =>
+      prev > 0 ? prev - 1 : allImagePaths.length - 1,
+    );
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) =>
+      prev < allImagePaths.length - 1 ? prev + 1 : 0,
+    );
+  };
+
+  // Handle mouse movement to show/hide navigation buttons
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!hasMultipleImages) return;
+
+    const container = e.currentTarget;
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const containerWidth = rect.width;
+
+    // Show left button when hovering on left 20% of the container
+    const leftThreshold = containerWidth * 0.2;
+    setShowLeftButton(x < leftThreshold);
+
+    // Show right button when hovering on right 20% of the container
+    const rightThreshold = containerWidth * 0.8;
+    setShowRightButton(x > rightThreshold);
+  };
+
+  const handleMouseLeave = () => {
+    setShowLeftButton(false);
+    setShowRightButton(false);
+  };
+
+  if (!mod) {
+    return (
+      <div className="mod-preview-empty">
+        <Empty
+          description="Select a mod to view details"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* Mod Name */}
-      <Title level={5} style={{ margin: "8px", fontSize: "16px" }}>
-        {mod.name}
-      </Title>
-
-      {/* Preview Image(s) */}
-      <Card
-        style={{
-          borderRadius: "0 !important",
-          padding: "0 8px",
-          background: "transparent !important",
-        }}
-        styles={{ body: { padding: 0 } }}
-        cover={
-          allImagePaths.length > 0 ? (
-            hasMultipleImages ? (
-              <Carousel
-                arrows
-                prevArrow={<LeftOutlined />}
-                nextArrow={<RightOutlined />}
-                style={{ height: "200px" }}
-              >
-                {allImagePaths.map((path, index) => (
-                  <div key={index}>
-                    <img
-                      alt={`${mod.name} - Preview ${index + 1}`}
-                      src={toAppUrl(path) || undefined}
-                      style={{
-                        width: "100%",
-                        height: "200px",
-                        objectFit: "cover",
-                        cursor: "pointer",
-                        borderRadius: "0",
-                      }}
-                      onClick={() => handleImageClick(toAppUrl(path) || "")}
-                      title="Click to view full screen"
-                      onError={(e) => {
-                        // Fallback to transparent placeholder on error
-                        (e.target as HTMLImageElement).src =
-                          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-                      }}
-                    />
-                  </div>
-                ))}
-              </Carousel>
-            ) : (
-              <img
-                alt={mod.name}
-                src={toAppUrl(allImagePaths[0]) || undefined}
-                style={{
-                  width: "100%",
-                  height: "200px",
-                  objectFit: "cover",
-                  cursor: "pointer",
-                }}
-                onClick={() =>
-                  handleImageClick(toAppUrl(allImagePaths[0]) || "")
-                }
-                title="Click to view full screen"
-                onError={(e) => {
-                  // Fallback to transparent placeholder on error
-                  (e.target as HTMLImageElement).src =
-                    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-                }}
-              />
-            )
-          ) : (
-            <div
-              style={{
-                width: "100%",
-                height: "200px",
-                background: "#f0f0f0",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#999",
-              }}
-            >
-              No Preview Available
-            </div>
-          )
-        }
-      />
-
-      {/* Scrollable Content Area */}
-      <div
-        style={{
-          flex: 1,
-          overflow: "auto",
-          padding: "16px",
-        }}
-      >
-        {/* Object Name */}
-        <div style={{ marginBottom: "12px" }}>
-          <Text type="secondary" style={{ fontSize: "13px" }}>
-            <FileTextOutlined /> {mod.category}
-          </Text>
-        </div>
-
-        {/* Status */}
-        <div style={{ marginBottom: "12px" }}>
-          <Space>
+    <div className="mod-preview-panel">
+      {/* Header Section */}
+      <div className="mod-preview-header">
+        <div className="mod-preview-header-content">
+          <div className="mod-preview-header-title">
+            <Title level={4} className="mod-preview-title">
+              {mod.name}
+            </Title>
+            {mod.category && (
+              <Text type="secondary" className="mod-preview-category">
+                <FileTextOutlined className="mod-preview-category-icon" />
+                {mod.category}
+              </Text>
+            )}
+          </div>
+          <Space size="small">
             {mod.isLoaded ? (
               <Tag icon={<CheckCircleOutlined />} color="success">
                 Loaded
@@ -200,34 +136,106 @@ export const ModPreviewPanelContent: React.FC = () => {
             <GradingTag grading={mod.grading} />
           </Space>
         </div>
+      </div>
 
+      {/* Image Preview Section */}
+      <div className="mod-preview-image-section">
+        {allImagePaths.length > 0 ? (
+          <>
+            {/* Image Display */}
+            <div
+              className="mod-preview-image-container"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+            >
+              <img
+                className="mod-preview-image"
+                alt={`${mod.name} - Preview ${currentImageIndex + 1}`}
+                src={toAppUrl(allImagePaths[currentImageIndex]) || undefined}
+                onClick={() =>
+                  handleImageClick(
+                    toAppUrl(allImagePaths[currentImageIndex]) || "",
+                  )
+                }
+                title="Click to view full screen"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+                }}
+              />
+
+              {/* Left Navigation Button - Windows Gallery style */}
+              {showLeftButton && (
+                <div
+                  className="mod-preview-nav-button mod-preview-nav-button-left"
+                  onClick={handlePreviousImage}
+                  title="Previous"
+                >
+                  <div className="mod-preview-nav-icon">
+                    <LeftOutlined style={{ fontSize: "12px" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Right Navigation Button - Windows Gallery style */}
+              {showRightButton && (
+                <div
+                  className="mod-preview-nav-button mod-preview-nav-button-right"
+                  onClick={handleNextImage}
+                  title="Next"
+                >
+                  <div className="mod-preview-nav-icon">
+                    <RightOutlined style={{ fontSize: "12px" }} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Image Counter - Only show if multiple images */}
+            {hasMultipleImages && (
+              <div className="mod-preview-image-counter">
+                <Text type="secondary" className="mod-preview-counter-text">
+                  {currentImageIndex + 1} / {allImagePaths.length}
+                </Text>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="mod-preview-no-image">
+            <Empty
+              description="No Preview Available"
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Info Section */}
+      <div className="mod-preview-info">
         {/* Author */}
         {mod.author && (
-          <div style={{ marginBottom: "12px" }}>
-            <Text type="secondary" style={{ fontSize: "12px" }}>
-              <UserOutlined /> Author:
+          <div className="mod-preview-info-item">
+            <Text type="secondary" className="mod-preview-info-label">
+              <UserOutlined style={{ marginRight: "4px" }} />
+              Author
             </Text>
-            <br />
-            <Text style={{ fontSize: "13px" }}>{mod.author}</Text>
+            <Text className="mod-preview-info-value">{mod.author}</Text>
           </div>
         )}
 
         {/* Tags */}
         {mod.tags && mod.tags.length > 0 && (
-          <div style={{ marginBottom: "12px" }}>
+          <div className="mod-preview-info-item">
             <Text
               type="secondary"
-              style={{
-                fontSize: "12px",
-                display: "block",
-                marginBottom: "4px",
-              }}
+              className="mod-preview-info-label mod-preview-info-label-with-margin"
             >
-              <TagsOutlined /> Tags:
+              <TagsOutlined style={{ marginRight: "4px" }} />
+              Tags
             </Text>
             <Space size={[4, 4]} wrap>
               {mod.tags.map((tag, index) => (
-                <Tag key={index} style={{ fontSize: "11px" }}>
+                <Tag key={index} style={{ fontSize: "11px", margin: 0 }}>
                   {tag}
                 </Tag>
               ))}
@@ -237,83 +245,46 @@ export const ModPreviewPanelContent: React.FC = () => {
 
         {/* Description */}
         {mod.description && (
-          <div style={{ marginBottom: "16px" }}>
+          <div className="mod-preview-info-item">
             <Text
               type="secondary"
-              style={{
-                fontSize: "12px",
-                display: "block",
-                marginBottom: "4px",
-              }}
+              className="mod-preview-info-label mod-preview-info-label-with-margin"
             >
-              Description:
+              Description
             </Text>
             <Paragraph
-              style={{
-                fontSize: "13px",
-                marginBottom: 0,
-                maxHeight: "120px",
-                overflow: "auto",
-              }}
+              className="mod-preview-description"
+              ellipsis={{ rows: 3, expandable: true, symbol: "more" }}
             >
               {mod.description}
             </Paragraph>
           </div>
         )}
       </div>
-      {/* End Scrollable Content Area */}
 
-      {/* SHA Hash - Fixed at Bottom */}
-      <Card
-        size="small"
-        style={{
-          margin: 0,
-          background: "#fafafa",
-          borderRadius: 0,
-          borderLeft: 0,
-          borderRight: 0,
-          borderBottom: 0,
-        }}
-        styles={{ body: { padding: "8px 12px" } }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <Text
-              type="secondary"
-              style={{ fontSize: "11px", display: "block" }}
-            >
-              SHA256:
-            </Text>
-            <Text
-              style={{
-                fontSize: "11px",
-                fontFamily: "monospace",
-                wordBreak: "break-all",
-                display: "block",
-                cursor: "pointer",
-                color: "#1890ff",
-              }}
-              onClick={handleCopySHA}
-              title="Click to copy full SHA"
-            >
-              {mod.sha.substring(0, 16)}...
-            </Text>
-          </div>
+      {/* SHA Section - Fixed at Bottom */}
+      <div className="mod-preview-sha">
+        <div className="mod-preview-sha-content">
+          <Text type="secondary" className="mod-preview-sha-label">
+            SHA256:
+          </Text>
+          <Text
+            className="mod-preview-sha-value"
+            onClick={handleCopySHA}
+            title="Click to copy full SHA"
+          >
+            {mod.sha}
+          </Text>
           <Button
             type="text"
             size="small"
             icon={<CopyOutlined />}
             onClick={handleCopySHA}
             title="Copy SHA to clipboard"
+            className="mod-preview-sha-button"
           />
         </div>
-      </Card>
+      </div>
 
       {/* Full Screen Preview Dialog */}
       <FullScreenPreview
