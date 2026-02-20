@@ -131,6 +131,7 @@ public class ModFacade : BaseFacade, IModFacade
             "REORDER_CLASSIFICATION_NODE" => await ReorderClassificationNodeAsync(request),
             "UPDATE_CLASSIFICATION_NODE" => await UpdateClassificationNodeAsync(request),
             "DELETE_CLASSIFICATION_NODE" => await DeleteClassificationNodeAsync(request),
+            "CHECK_FILE_PATHS" => await CheckFilePathsAsync(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -140,6 +141,10 @@ public class ModFacade : BaseFacade, IModFacade
     public async Task<List<ModInfo>> GetAllModsAsync()
     {
         var mods = await _repository.GetAllAsync();
+
+        // Populate status flags from file system (bulk operation for better performance)
+        PopulateStatusFlagsBulk(mods);
+
         return mods;
     }
 
@@ -194,7 +199,7 @@ public class ModFacade : BaseFacade, IModFacade
         if (mod == null) return false;
 
         // Preview folder (previews/{sha}/) is handled by ClearModCacheAsync in DeleteAsync
-        await _fileService.DeleteAsync(sha, mod.ThumbnailPath, null);
+        await _fileService.DeleteAsync(sha, null, null);
         var success = await _repository.DeleteAsync(sha);
 
         if (success)
@@ -346,13 +351,6 @@ public class ModFacade : BaseFacade, IModFacade
         // Convert to relative path if under data folder for portability
         var relativeTargetPath = _pathHelper.ToRelativePath(targetPath) ?? targetPath;
 
-        // If no thumbnail exists, use this as thumbnail (stored as relative path)
-        if (string.IsNullOrEmpty(mod.ThumbnailPath))
-        {
-            mod.ThumbnailPath = relativeTargetPath;
-            await _repository.UpdateAsync(mod);
-        }
-
         await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.preview.imported", new { sha, imagePath = targetPath });
 
         return true;
@@ -385,6 +383,8 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> SetThumbnailAsync(string sha, string previewPath)
     {
+        // This method is kept for backward compatibility but no longer stores thumbnail selection
+        // The first preview image (sorted alphabetically) is automatically used as thumbnail
         var mod = await _repository.GetByIdAsync(sha);
         if (mod == null)
         {
@@ -399,12 +399,8 @@ public class ModFacade : BaseFacade, IModFacade
             throw new FileNotFoundException($"Preview image not found: {previewPath}");
         }
 
-        // Store as relative path if under data folder for portability
-        var relativePreviewPath = _pathHelper.ToRelativePath(absolutePreviewPath) ?? absolutePreviewPath;
-
-        mod.ThumbnailPath = relativePreviewPath;
-        await _repository.UpdateAsync(mod);
-        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.thumbnail.updated", new { sha, thumbnailPath = relativePreviewPath });
+        // Emit event for UI update (thumbnail selection is now automatic based on file order)
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.thumbnail.updated", new { sha, previewPath });
 
         return true;
     }
@@ -423,19 +419,6 @@ public class ModFacade : BaseFacade, IModFacade
         if (!File.Exists(absolutePreviewPath))
         {
             throw new FileNotFoundException($"Preview image not found: {previewPath}");
-        }
-
-        // Normalize both paths for comparison (handles both relative and absolute stored paths)
-        var normalizedDeletePath = _pathHelper.NormalizePath(previewPath);
-        var normalizedThumbnailPath = _pathHelper.NormalizePath(mod.ThumbnailPath);
-
-        // If deleting the thumbnail, clear the thumbnail path
-        if (normalizedThumbnailPath != null && normalizedDeletePath != null &&
-            normalizedDeletePath.Equals(normalizedThumbnailPath, StringComparison.OrdinalIgnoreCase))
-        {
-            mod.ThumbnailPath = null;
-            await _repository.UpdateAsync(mod);
-            await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.thumbnail.updated", new { sha, thumbnailPath = (string?)null });
         }
 
         // Delete the file using absolute path
@@ -684,5 +667,142 @@ public class ModFacade : BaseFacade, IModFacade
         }
 
         return success;
+    }
+
+    /// <summary>
+    /// Checks if file paths exist for a mod (on-demand for context menu)
+    /// Returns paths only if they exist on the file system
+    /// </summary>
+    private async Task<object> CheckFilePathsAsync(MessageRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var mod = await _repository.GetByIdAsync(sha);
+
+        if (mod == null)
+        {
+            throw new InvalidOperationException($"Mod with SHA {sha} not found");
+        }
+
+        var result = new
+        {
+            originalPath = CheckOriginalPath(mod.SHA),
+            workPath = CheckWorkPath(mod.SHA),
+            thumbnailPath = CheckPreviewFolderPath(mod.SHA)
+        };
+
+        return result;
+    }
+
+    /// <summary>
+    /// Checks if original archive file exists (file without extension)
+    /// </summary>
+    private string? CheckOriginalPath(string sha)
+    {
+        var originalArchivePath = Path.Combine(_profilePaths.ModsDirectory, sha);
+        if (File.Exists(originalArchivePath))
+        {
+            return _pathHelper.ToRelativePath(originalArchivePath) ?? originalArchivePath;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if work directory exists (extracted files)
+    /// </summary>
+    private string? CheckWorkPath(string sha)
+    {
+        var workPath = Path.Combine(_profilePaths.WorkModsDirectory, sha);
+        if (Directory.Exists(workPath))
+        {
+            return _pathHelper.ToRelativePath(workPath) ?? workPath;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if preview folder exists and contains preview images
+    /// Returns the preview directory path if it exists, regardless of thumbnailPath
+    /// </summary>
+    private string? CheckPreviewFolderPath(string sha)
+    {
+        // Check for the preview directory (previews/{SHA}/)
+        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
+
+        if (Directory.Exists(previewDirectory))
+        {
+            // Check if there are any preview images in the directory
+            var hasPreviewImages = Directory.GetFiles(previewDirectory, "*.*")
+                .Any(f => _imageService.GetSupportedImageExtensions()
+                    .Contains(Path.GetExtension(f).ToLowerInvariant()));
+
+            if (hasPreviewImages)
+            {
+                return _pathHelper.ToRelativePath(previewDirectory) ?? previewDirectory;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Populates file paths (OriginalPath, WorkPath) for a mod
+    /// Converts absolute paths to relative paths for portability
+    /// </summary>
+    private void PopulateFilePaths(ModInfo mod)
+    {
+        // Original file path (the archive file without extension in data/profiles/{profileId}/mods/{SHA})
+        var originalArchivePath = Path.Combine(_profilePaths.ModsDirectory, mod.SHA);
+        if (File.Exists(originalArchivePath))
+        {
+            mod.OriginalPath = _pathHelper.ToRelativePath(originalArchivePath) ?? originalArchivePath;
+        }
+
+        // Work path (extracted files in data/profiles/{profileId}/work/Mods/{SHA}/)
+        var workPath = Path.Combine(_profilePaths.WorkModsDirectory, mod.SHA);
+        if (Directory.Exists(workPath))
+        {
+            mod.WorkPath = _pathHelper.ToRelativePath(workPath) ?? workPath;
+        }
+
+        // Note: CachePath removed - work path and cache path are the same
+        // When mod is disabled, the work directory is renamed to DISABLED-{SHA}
+        // Frontend only needs workPath which always points to the active location
+    }
+
+    /// <summary>
+    /// Populates status flags (IsLoaded, IsAvailable) for all mods in bulk by scanning directories once
+    /// IsLoaded: True if work directory exists without DISABLED- prefix
+    /// IsAvailable: True if original archive file exists
+    /// This is much faster than checking each mod individually
+    /// </summary>
+    private void PopulateStatusFlagsBulk(List<ModInfo> mods)
+    {
+        // Get all files in mods directory (for IsAvailable check)
+        var availableFiles = Directory.Exists(_profilePaths.ModsDirectory)
+            ? Directory.GetFiles(_profilePaths.ModsDirectory)
+                .Select(Path.GetFileName)
+                .Where(f => !string.IsNullOrEmpty(f))
+                .Select(f => f!)
+                .ToHashSet()
+            : new HashSet<string>();
+
+        // Get all directories in work/Mods directory (for IsLoaded check)
+        var loadedDirectories = Directory.Exists(_profilePaths.WorkModsDirectory)
+            ? Directory.GetDirectories(_profilePaths.WorkModsDirectory)
+                .Select(Path.GetFileName)
+                .Where(d => !string.IsNullOrEmpty(d) && !d.StartsWith("DISABLED-"))
+                .Select(d => d!)
+                .ToHashSet()
+            : new HashSet<string>();
+
+        // Populate flags for each mod using the cached directory listings
+        foreach (var mod in mods)
+        {
+            mod.IsAvailable = availableFiles.Contains(mod.SHA);
+            mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
+        }
+
+        // Note: Disabled mods have their work directory renamed to DISABLED-{SHA}
+        // So they're automatically excluded from the loadedDirectories set
     }
 }

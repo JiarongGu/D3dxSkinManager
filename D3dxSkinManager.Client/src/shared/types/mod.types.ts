@@ -9,10 +9,10 @@ export interface ModInfo {
   tags: string[];
   isLoaded: boolean;
   isAvailable: boolean;
-  thumbnailPath?: string;
-  // Note: Preview images are stored dynamically in previews/{SHA}/ folder
+  // Note: Preview images and thumbnails are stored dynamically in previews/{SHA}/ folder
   // Use modService.getPreviewPaths(sha) to fetch them
-  // File paths (for viewing operations)
+  // The first preview image (sorted alphabetically) is used as the thumbnail
+  // File paths (for viewing operations - populated on-demand, not stored in DB)
   originalPath?: string;  // Path to original archive file
   workPath?: string;      // Path to extracted/working directory
   cachePath?: string;     // Path to cache directory (for disabled mods)

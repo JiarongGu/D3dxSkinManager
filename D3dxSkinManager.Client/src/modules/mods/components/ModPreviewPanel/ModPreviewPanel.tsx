@@ -65,16 +65,9 @@ export const ModPreviewPanelContent: React.FC = () => {
   const allImagePaths: string[] = [];
 
   if (state.previewPaths && state.previewPaths.length > 0) {
-    // If thumbnail exists, show it first
-    if (mod?.thumbnailPath && state.previewPaths.includes(mod.thumbnailPath)) {
-      // Add thumbnail first
-      allImagePaths.push(mod.thumbnailPath);
-      // Add other previews (excluding thumbnail to avoid duplicates)
-      allImagePaths.push(...state.previewPaths.filter(p => p !== mod.thumbnailPath));
-    } else {
-      // No thumbnail or thumbnail not in preview paths, just show all previews
-      allImagePaths.push(...state.previewPaths);
-    }
+    // Preview paths are already sorted alphabetically by the backend
+    // The first preview is automatically used as the thumbnail
+    allImagePaths.push(...state.previewPaths);
   }
 
   const hasMultipleImages = allImagePaths.length > 1;
@@ -271,7 +264,7 @@ export const ModPreviewPanelContent: React.FC = () => {
 
   // Get current image info
   const currentImagePath = allImagePaths[currentImageIndex] || "";
-  const isCurrentImageThumbnail = currentImagePath === mod?.thumbnailPath;
+  const isCurrentImageThumbnail = currentImageIndex === 0; // First image is always the thumbnail
   const hasImages = allImagePaths.length > 0;
 
   // Context menu items (show only relevant items based on state)

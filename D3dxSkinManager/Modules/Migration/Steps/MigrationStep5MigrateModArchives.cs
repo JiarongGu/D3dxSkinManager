@@ -126,9 +126,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                         Description = modEntry.Explain,
                         Type = archiveType,
                         Grading = modEntry.Grading,
-                        Tags = modEntry.Tags,
-                        IsLoaded = false,
-                        IsAvailable = true
+                        Tags = modEntry.Tags
                     }
                 );
 

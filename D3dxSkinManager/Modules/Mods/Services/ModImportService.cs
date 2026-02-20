@@ -140,10 +140,7 @@ public class ModImportService : IModImportService
                 Description = metadata.Description,
                 Type = Path.GetExtension(filePath).TrimStart('.'),
                 Grading = metadata.Grading ?? "G",
-                Tags = metadata.Tags ?? new List<string>(),
-                IsLoaded = false,
-                IsAvailable = true,
-                ThumbnailPath = thumbnailPath
+                Tags = metadata.Tags ?? new List<string>()
             };
 
             var mod = await _modManagementService.CreateModAsync(createRequest);

@@ -2,68 +2,152 @@
 
 This directory contains official plugins ported from the original Python-based D3dxSkinManager.
 
-## Plugin List
+> **Recent Cleanup (2026-02-20)**: Removed 13 redundant/irrelevant plugins. Core functionality now provides features previously handled by plugins.
 
-### 1. HighlightLoadingMod
-**Status:** ✅ Complete (Backend + Frontend)
-**Version:** 1.0.0
+## Active Plugins (14 total)
 
-Highlights the currently loaded mod in the UI with visual indicators.
+### 1. AddModFileWarnSize
+**Status:** ✅ Complete
+**Priority:** Low
+**Description:** Warns users when importing files exceeding configurable size thresholds (100MB-2GB)
 
-**Features:**
-- Backend tracks loaded mod state per object
-- Frontend receives events and provides highlighting API
-- Custom IPC messages: `GET_LOADED_MODS_MAP`, `GET_LOADED_MOD_FOR_OBJECT`
-- Events: `HIGHLIGHT_MOD_LOADED`, `HIGHLIGHT_MOD_UNLOADED`
+### 2. BatchProcessingTools
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** High
+**Description:** Bulk operations framework for delete, export, import, load, unload with progress tracking
 
-**Files:**
-- `Highlight LoadingMod/HighlightLoadingModPlugin.cs` - Backend plugin
-- `HighlightLoadingMod/HighlightLoadingMod.csproj` - Build configuration
-- `../D3dxSkinManager.Client/src/plugins/HighlightLoadingMod/HighlightLoadingModPlugin.tsx` - Frontend plugin
+### 3. CheckModsAccident
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** Medium
+**Description:** Scans for and repairs corrupted mod files for data integrity
 
-**Usage:**
-```csharp
-// Backend automatically tracks loaded mods
-// Frontend can query via:
-const loadedSha = plugin.getLoadedModForObject("CharacterName");
-const isLoaded = plugin.isModLoaded(sha);
-```
+### 4. DropfilesMultiple
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** Medium
+**Description:** Enhanced drag-and-drop handling for multiple files (mods + previews)
+
+### 5. ExportModFile
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** Medium
+**Description:** Export mods as zip/7z packages with previews for distribution
+
+### 6. HandleUserEnv
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** High
+**Description:** Multi-user environment management with separate mod libraries per user
+
+### 7. Modify3dmKey
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** High
+**Description:** 3DMigoto configuration editor for d3dx.ini and help.ini key bindings
+
+### 8. ModifyKeySwap
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** Low
+**Description:** Advanced key binding management for merged mods
+
+### 9. ModifyListOrder
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** High
+**Description:** User-defined display order for classes, objects, and mods with drag-and-drop
+
+### 10. ModifyObjectName
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** Medium
+**Description:** Rename object categories with cascade updates to associated mods
+
+### 11. SearchClassAndObject
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** High
+**Description:** Advanced search with negation support and real-time filtering
+
+### 12. UnloadObjectMods
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** Medium
+**Description:** Bulk unload all mods for specific objects or categories
+
+### 13. ViewIniConfig
+**Status:** 🔧 Stub (Needs Implementation)
+**Priority:** Medium
+**Description:** Browse and view INI files for 3DMigoto troubleshooting
+
+### 14. ViewThumbnail
+**Status:** ✅ Complete
+**Priority:** Low
+**Description:** Opens redirection.json for thumbnail mapping configuration
 
 ---
 
-### 2. DeleteAndRemoveMod
-**Status:** ✅ Complete (Backend)
-**Version:** 1.0.0
+## Removed Plugins (13 total)
 
-Enhanced mod deletion with automatic cache cleanup.
+### Redundant - Core Functionality Exists (7 plugins)
 
-**Features:**
-- Complete deletion: database + file + cache
-- Soft removal: file + cache (keeps database record)
-- Auto-unload if mod is currently loaded
-- Proper error handling for permissions
+#### DeleteModCache
+**Removed:** 2026-02-20
+**Reason:** Core `ModFileService.DeleteCacheAsync()` provides cache deletion
+**Migration:** Use core mod deletion functionality
 
-**Files:**
-- `DeleteAndRemoveMod/DeleteAndRemoveModPlugin.cs` - Backend plugin
-- `DeleteAndRemoveMod/DeleteAndRemoveMod.csproj` - Build configuration
+#### CacheClearup
+**Removed:** 2026-02-20
+**Reason:** Core has `ModFileService.ScanCacheAsync()` with categorization (invalid/rarely/often)
+**Migration:** Use core cache management
 
-**IPC Messages:**
-- `DELETE_MOD_COMPLETE` - Full removal (data + file + cache)
-  - Parameters: `{ sha: string }`
-  - Response: `{ success: boolean, sha: string, modName: string }`
+#### DeleteAndRemoveMod
+**Removed:** 2026-02-20
+**Reason:** Core `ModFacade.DeleteModAsync()` includes cache cleanup
+**Migration:** Use DELETE IPC message
 
-- `REMOVE_MOD_SOFT` - Soft removal (file + cache only)
-  - Parameters: `{ sha: string }`
-  - Response: `{ success: boolean, sha: string, modName: string }`
+#### UnloadWithDeleteCache
+**Removed:** 2026-02-20
+**Reason:** Core `ModFacade.UnloadModAsync()` handles cache. Auto-delete can be a setting
+**Migration:** Implement as configuration option in core
 
-**Usage:**
-```typescript
-// Complete deletion
-await photinoService.sendMessage('DELETE_MOD_COMPLETE', { sha: modSha });
+#### PreviewClearup
+**Removed:** 2026-02-20
+**Reason:** Core `ImageService.ClearModCacheAsync()` manages previews
+**Migration:** Use core preview management
 
-// Soft removal
-await photinoService.sendMessage('REMOVE_MOD_SOFT', { sha: modSha });
-```
+#### TempCacheCleanup
+**Removed:** 2026-02-20
+**Reason:** Modern architecture doesn't use temp cache directories
+**Migration:** N/A - obsolete in React+.NET architecture
+
+#### MultiplePreview
+**Removed:** 2026-02-20
+**Reason:** Core supports multiple previews via `ModFacade.ImportPreviewImageAsync()`
+**Migration:** Use core preview import functionality
+
+### Irrelevant - Architecture Change (6 plugins)
+
+#### HighlightLoadingMod
+**Removed:** 2026-02-20
+**Reason:** UI concern should be React component logic, not backend plugin
+**Migration:** Implement in React components using mod state
+
+#### AlphaWindow
+**Removed:** 2026-02-20
+**Reason:** No desktop windows in React+.NET web architecture
+**Migration:** N/A - not applicable
+
+#### ScreenCapture
+**Removed:** 2026-02-20
+**Reason:** Browser/OS responsibility in web architecture
+**Migration:** Use browser screenshot APIs or OS tools
+
+#### AutoLogin
+**Removed:** 2026-02-20
+**Reason:** Authentication should be proper auth system, not plugin
+**Migration:** Implement in core authentication module
+
+#### EnforceLogout
+**Removed:** 2026-02-20
+**Reason:** Logout is core auth feature, not user plugin
+**Migration:** Implement in core authentication module
+
+#### DeleteIndexNoFile
+**Removed:** 2026-02-20
+**Reason:** Database maintenance should be core admin tool
+**Migration:** Add to core database maintenance utilities
 
 ---
 
@@ -71,21 +155,20 @@ await photinoService.sendMessage('REMOVE_MOD_SOFT', { sha: modSha });
 
 ### Individual Plugin
 ```bash
-cd Plugins/HighlightLoadingMod
+cd Plugins/AddModFileWarnSize
 dotnet build
 ```
 
 ### All Plugins
+Use the build script:
 ```bash
-# From repository root
 cd Plugins
-dotnet build HighlightLoadingMod/HighlightLoadingMod.csproj
-dotnet build DeleteAndRemoveMod/DeleteAndRemoveMod.csproj
+./build-all-plugins.ps1
 ```
 
 ### Output
 Plugin DLLs are output to:
-- `Plugins/{PluginName}/bin/Debug/net8.0/{PluginName}.dll`
+- `Plugins/{PluginName}/bin/Debug/net10.0/{PluginName}.dll`
 
 ### Installation
 Copy plugin DLL to:
@@ -95,7 +178,7 @@ Copy plugin DLL to:
 
 Example:
 ```bash
-copy Plugins\HighlightLoadingMod\bin\Debug\net8.0\HighlightLoadingMod.dll "{AppData}\plugins\"
+copy Plugins\AddModFileWarnSize\bin\Debug\net10.0\AddModFileWarnSize.dll "{AppData}\plugins\"
 ```
 
 ---
@@ -113,7 +196,7 @@ copy Plugins\HighlightLoadingMod\bin\Debug\net8.0\HighlightLoadingMod.dll "{AppD
    ```xml
    <Project Sdk="Microsoft.NET.Sdk">
      <PropertyGroup>
-       <TargetFramework>net8.0</TargetFramework>
+       <TargetFramework>net10.0</TargetFramework>
        <ImplicitUsings>enable</ImplicitUsings>
        <Nullable>enable</Nullable>
        <AssemblyName>MyNewPlugin</AssemblyName>
@@ -127,12 +210,15 @@ copy Plugins\HighlightLoadingMod\bin\Debug\net8.0\HighlightLoadingMod.dll "{AppD
 
 3. **Create plugin class:**
    ```csharp
-   using D3dxSkinManager.Plugins;
+   using D3dxSkinManager.Modules.Plugins.Services;
+   using D3dxSkinManager.Modules.Core.Models;
 
    namespace D3dxSkinManager.Plugins.MyNewPlugin;
 
-   public class MyNewPlugin : IPlugin
+   public class MyNewPlugin : IMessageHandlerPlugin
    {
+       private IPluginContext? _context;
+
        public string Id => "com.yourname.mynewplugin";
        public string Name => "My New Plugin";
        public string Version => "1.0.0";
@@ -141,12 +227,24 @@ copy Plugins\HighlightLoadingMod\bin\Debug\net8.0\HighlightLoadingMod.dll "{AppD
 
        public async Task InitializeAsync(IPluginContext context)
        {
-           // Initialize plugin
+           _context = context ?? throw new ArgumentNullException(nameof(context));
+           _context.Log(LogLevel.Info, $"[{Name}] Initialized");
        }
 
        public async Task ShutdownAsync()
        {
-           // Cleanup
+           _context?.Log(LogLevel.Info, $"[{Name}] Shut down");
+       }
+
+       public IEnumerable<string> GetHandledMessageTypes()
+       {
+           return new[] { "MY_MESSAGE_TYPE" };
+       }
+
+       public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
+       {
+           // Handle message
+           return new MessageResponse { Success = true };
        }
    }
    ```
@@ -154,7 +252,7 @@ copy Plugins\HighlightLoadingMod\bin\Debug\net8.0\HighlightLoadingMod.dll "{AppD
 4. **Build and test:**
    ```bash
    dotnet build
-   copy bin\Debug\net8.0\MyNewPlugin.dll "{AppData}\plugins\"
+   copy bin\Debug\net10.0\MyNewPlugin.dll "{AppData}\plugins\"
    ```
 
 ---
@@ -162,78 +260,37 @@ copy Plugins\HighlightLoadingMod\bin\Debug\net8.0\HighlightLoadingMod.dll "{AppD
 ## Port Status from Original Python Plugins
 
 ### Conversion Summary
-- **Total Plugins:** 26 (converted from 26 Python plugins)
-- **Fully Implemented:** 9 plugins (35%)
-- **Functional Stubs:** 17 plugins (65%)
-- **Build Success Rate:** 100% (26/26)
+- **Original Python Plugins:** 26
+- **Removed (Redundant/Irrelevant):** 13 (50%)
+- **Active Plugins:** 14 (50%)
+  - **Fully Implemented:** 2 plugins (14%)
+  - **Functional Stubs:** 12 plugins (86%)
+- **Build Success Rate:** 100% (14/14)
 
-### Fully Implemented ✅ (9 plugins)
+### Implementation Priority
 
-1. **HighlightLoadingMod** - Highlights currently loaded mod
-2. **DeleteAndRemoveMod** - Enhanced deletion with cache cleanup
-3. **CacheClearup** - Intelligent cache management with categorization
-4. **AddModFileWarnSize** - File size warning thresholds
-5. **ViewThumbnail** - Opens thumbnail configuration viewer
-6. **DeleteModCache** - Deletes mod cache (DISABLED-{SHA} folders)
-7. **TempCacheCleanup** - Cleans temporary cache files
-8. **PreviewClearup** - Cleans unused preview images (invalid/rarely/often)
-9. **UnloadWithDeleteCache** - Auto-deletes cache on mod unload
+#### High Priority (6 plugins)
+Complex functionality essential for power users:
+1. **BatchProcessingTools** - Bulk mod operations
+2. **SearchClassAndObject** - Advanced search filtering
+3. **ModifyListOrder** - Custom display order
+4. **Modify3dmKey** - 3DMigoto configuration
+5. **HandleUserEnv** - Multi-user management
+6. **CheckModsAccident** - Data integrity
 
-### Functional Stubs 🔧 (17 plugins)
+#### Medium Priority (6 plugins)
+Standard features for enhanced UX:
+1. **ExportModFile** - Mod distribution
+2. **DropfilesMultiple** - Enhanced drag-and-drop
+3. **ModifyObjectName** - Category renaming
+4. **UnloadObjectMods** - Bulk unload
+5. **ViewIniConfig** - Configuration viewer
+6. **CheckModsAccident** - Corruption detection
 
-**High Priority - Complex Functionality:**
-- **AutoLogin** - Auto-login and program launch system
-- **BatchProcessingTools** - Bulk mod operations
-- **SearchClassAndObject** - Real-time search filtering
-- **ModifyListOrder** - Customizes display order for classes/objects/mods
-- **Modify3dmKey** - Edits 3DMigoto key bindings
-- **HandleUserEnv** - User environment management
-
-**Medium Priority - Standard Features:**
-- **ExportModFile** - Export mods to zip/7z with preview
-- **MultiplePreview** - Multiple preview image management
-- **CheckModsAccident** - Detect and fix corrupted mods
-- **ModifyObjectName** - Rename object categories
-- **UnloadObjectMods** - Bulk unload operations
-- **ViewIniConfig** - Browse and view INI files
-- **DropfilesMultiple** - Drag-and-drop handler for multiple files
-- **DeleteIndexNoFile** - Delete invalid index entries
-
-**Low Priority - UI Enhancements:**
-- **AlphaWindow** - Window transparency control
-- **EnforceLogout** - User logout functionality
-- **ModifyKeySwap** - Key swap configuration editor
-
-### Plugin List with Status
-
-| # | Plugin Name | Status | Priority | Description |
-|---|-------------|--------|----------|-------------|
-| 1 | AddModFileWarnSize | ✅ Complete | Low | File size warnings |
-| 2 | AlphaWindow | 🔧 Stub | Low | Window transparency |
-| 3 | AutoLogin | 🔧 Stub | High | Auto-login system |
-| 4 | BatchProcessingTools | 🔧 Stub | High | Bulk operations |
-| 5 | CacheClearup | ✅ Complete | High | Cache management |
-| 6 | CheckModsAccident | 🔧 Stub | Medium | Detect corruption |
-| 7 | DeleteAndRemoveMod | ✅ Complete | Medium | Enhanced deletion |
-| 8 | DeleteIndexNoFile | 🔧 Stub | Medium | Clean invalid index |
-| 9 | DeleteModCache | ✅ Complete | Medium | Delete mod cache |
-| 10 | DropfilesMultiple | 🔧 Stub | Medium | Drag-and-drop |
-| 11 | EnforceLogout | 🔧 Stub | Low | Logout function |
-| 12 | ExportModFile | 🔧 Stub | Medium | Export mods |
-| 13 | HandleUserEnv | 🔧 Stub | High | User management |
-| 14 | HighlightLoadingMod | ✅ Complete | Medium | Highlight loaded |
-| 15 | Modify3dmKey | 🔧 Stub | High | Edit key bindings |
-| 16 | ModifyKeySwap | 🔧 Stub | Low | Key swap config |
-| 17 | ModifyListOrder | 🔧 Stub | High | Customize order |
-| 18 | ModifyObjectName | 🔧 Stub | Medium | Rename objects |
-| 19 | MultiplePreview | 🔧 Stub | Medium | Multi previews |
-| 20 | PreviewClearup | ✅ Complete | High | Clean previews |
-| 21 | SearchClassAndObject | 🔧 Stub | High | Search filter |
-| 22 | TempCacheCleanup | ✅ Complete | High | Clean temp cache |
-| 23 | UnloadObjectMods | 🔧 Stub | Medium | Bulk unload |
-| 24 | UnloadWithDeleteCache | ✅ Complete | Medium | Auto-delete cache |
-| 25 | ViewIniConfig | 🔧 Stub | Medium | View INI files |
-| 26 | ViewThumbnail | ✅ Complete | Low | View thumbnails |
+#### Low Priority (2 plugins)
+Nice-to-have utilities:
+1. **AddModFileWarnSize** - ✅ Complete
+2. **ViewThumbnail** - ✅ Complete
 
 ---
 
@@ -282,8 +339,8 @@ dotnet test
 ### Debug Logging
 Plugins can log via context:
 ```csharp
-context.Log(LogLevel.Info, "Message");
-context.Log(LogLevel.Error, "Error message", exception);
+_context.Log(LogLevel.Info, "Message");
+_context.Log(LogLevel.Error, "Error message", exception);
 ```
 
 ---
@@ -294,12 +351,13 @@ context.Log(LogLevel.Error, "Error message", exception);
 - Check DLL is in correct directory
 - Verify plugin implements `IPlugin` interface
 - Check console for error messages
-- Ensure .NET 8 runtime installed
+- Ensure .NET 10 runtime installed
 
 ### Build Errors
 - Verify project references are correct
 - Run `dotnet restore`
 - Check namespace matches
+- Update target framework to net10.0
 
 ### IPC Messages Not Working
 - Verify message type in `GetHandledMessageTypes()`
@@ -312,7 +370,7 @@ context.Log(LogLevel.Error, "Error message", exception);
 ## Credits
 
 Original Python plugins by:
-- Other contributors to D3dxSkinManager community
+- D3dxSkinManager community contributors
 
 Ported to .NET + React by:
 - D3dxSkinManager Team
@@ -325,5 +383,7 @@ See main project LICENSE file.
 
 ---
 
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-20
+**Active Plugins:** 14
 **Plugin System Version:** 1.0.0
+**Target Framework:** .NET 10.0
