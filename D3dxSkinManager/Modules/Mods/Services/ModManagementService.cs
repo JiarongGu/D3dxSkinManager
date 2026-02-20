@@ -30,10 +30,8 @@ public class CreateModRequest
     public string Type { get; set; } = "zip";
     public string Grading { get; set; } = "G";
     public List<string> Tags { get; set; } = new();
-    public bool IsLoaded { get; set; } = false;
-    public bool IsAvailable { get; set; } = true;
-    public string? ThumbnailPath { get; set; }
-    // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
+    // Note: IsLoaded and IsAvailable are determined dynamically from file system
+    // Note: Preview paths and thumbnails are dynamically scanned from previews/{SHA}/ folder
 }
 
 /// <summary>
@@ -48,10 +46,8 @@ public class UpdateModRequest
     public string? Type { get; set; }
     public string? Grading { get; set; }
     public List<string>? Tags { get; set; }
-    public bool? IsLoaded { get; set; }
-    public bool? IsAvailable { get; set; }
-    public string? ThumbnailPath { get; set; }
-    // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
+    // Note: IsLoaded and IsAvailable are determined dynamically from file system
+    // Note: Preview paths and thumbnails are dynamically scanned from previews/{SHA}/ folder
 }
 
 /// <summary>
@@ -95,11 +91,8 @@ public class ModManagementService : IModManagementService
             Description = request.Description ?? string.Empty,
             Type = request.Type,
             Grading = request.Grading,
-            Tags = request.Tags ?? new List<string>(),
-            IsLoaded = request.IsLoaded,
-            IsAvailable = request.IsAvailable,
-            ThumbnailPath = request.ThumbnailPath
-            // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
+            Tags = request.Tags ?? new List<string>()
+            // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system
         };
 
         await _repository.InsertAsync(mod);
@@ -130,10 +123,7 @@ public class ModManagementService : IModManagementService
         if (request.Type != null) mod.Type = request.Type;
         if (request.Grading != null) mod.Grading = request.Grading;
         if (request.Tags != null) mod.Tags = request.Tags;
-        if (request.IsLoaded.HasValue) mod.IsLoaded = request.IsLoaded.Value;
-        if (request.IsAvailable.HasValue) mod.IsAvailable = request.IsAvailable.Value;
-        if (request.ThumbnailPath != null) mod.ThumbnailPath = request.ThumbnailPath;
-        // Note: Preview paths are dynamically scanned from previews/{SHA}/ folder
+        // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system
 
         await _repository.UpdateAsync(mod);
         _logger.Info($"Updated mod: {mod.Name} ({sha})", "ModManagementService");

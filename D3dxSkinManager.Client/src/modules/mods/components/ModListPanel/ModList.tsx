@@ -7,9 +7,8 @@ import {
   DeleteOutlined,
   ExportOutlined,
   FolderOpenOutlined,
-  FileImageOutlined,
-  FolderOutlined,
   CheckCircleFilled,
+  FileZipOutlined,
 } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { fileDialogService } from '../../../../shared/services/systemService';
@@ -44,6 +43,11 @@ export const ModList: React.FC<ModListProps> = ({
   const {state: profileState} = useProfile();
   const menuState = useContextMenu();
   const [contextMenuMod, setContextMenuMod] = useState<ModInfo | null>(null);
+  const [checkedPaths, setCheckedPaths] = useState<{
+    originalPath: string | null;
+    workPath: string | null;
+    thumbnailPath: string | null;
+  } | null>(null);
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
@@ -160,12 +164,12 @@ export const ModList: React.FC<ModListProps> = ({
     {
       key: 'view-original',
       label: 'View Original File',
-      icon: <FolderOpenOutlined />,
-      disabled: !mod.originalPath,
+      icon: <FileZipOutlined />,
+      disabled: !checkedPaths?.originalPath,
       onClick: async () => {
-        if (mod.originalPath) {
+        if (checkedPaths?.originalPath) {
           try {
-            await fileDialogService.openFileInExplorer(mod.originalPath);
+            await fileDialogService.openFileInExplorer(checkedPaths.originalPath);
             message.success('Opened original file location');
           } catch (error) {
             message.error('Failed to open original file');
@@ -175,50 +179,33 @@ export const ModList: React.FC<ModListProps> = ({
     },
     {
       key: 'view-work',
-      label: 'View Work Files',
-      icon: <FolderOutlined />,
-      disabled: !mod.workPath,
+      label: 'Open Work Folder',
+      icon: <FolderOpenOutlined />,
+      disabled: !checkedPaths?.workPath,
       onClick: async () => {
-        if (mod.workPath) {
+        if (checkedPaths?.workPath) {
           try {
-            await fileDialogService.openDirectory(mod.workPath);
-            message.success('Opened work directory');
+            await fileDialogService.openDirectory(checkedPaths.workPath);
+            message.success('Opened work folder');
           } catch (error) {
-            message.error('Failed to open work directory');
-          }
-        }
-      },
-    },
-    {
-      key: 'view-cache',
-      label: 'View Cache Files',
-      icon: <FolderOutlined />,
-      disabled: !mod.cachePath,
-      onClick: async () => {
-        if (mod.cachePath) {
-          try {
-            await fileDialogService.openDirectory(mod.cachePath);
-            message.success('Opened cache directory');
-          } catch (error) {
-            message.error('Failed to open cache directory');
+            message.error('Failed to open work folder');
           }
         }
       },
     },
     {
       key: 'view-preview',
-      label: 'Open Preview in Explorer',
-      icon: <FileImageOutlined />,
+      label: 'Open Preview Folder',
+      icon: <FolderOpenOutlined />,
+      disabled: !checkedPaths?.thumbnailPath,
       onClick: async () => {
-        if (mod.thumbnailPath) {
+        if (checkedPaths?.thumbnailPath) {
           try {
-            await fileDialogService.openFile(mod.thumbnailPath);
-            message.success('Opened preview location');
+            await fileDialogService.openDirectory(checkedPaths.thumbnailPath);
+            message.success('Opened preview folder');
           } catch (error) {
-            message.error('Failed to open preview location');
+            message.error('Failed to open preview folder');
           }
-        } else {
-          message.warning('No preview available for this mod');
         }
       },
     },
@@ -295,9 +282,21 @@ export const ModList: React.FC<ModListProps> = ({
                     onRowClick?.(mod);
                   }
                 }}
-                onContextMenu={(e) => {
+                onContextMenu={async (e) => {
                   e.preventDefault();
                   setContextMenuMod(mod);
+
+                  // Check file paths on-demand when opening context menu
+                  if (profileState.selectedProfile?.id) {
+                    try {
+                      const paths = await modService.checkFilePaths(profileState.selectedProfile.id, mod.sha);
+                      setCheckedPaths(paths);
+                    } catch (error) {
+                      console.error('Failed to check file paths:', error);
+                      setCheckedPaths({ originalPath: null, workPath: null, thumbnailPath: null });
+                    }
+                  }
+
                   menuState.show(e);
                 }}
                 onDoubleClick={() => {

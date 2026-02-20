@@ -238,6 +238,25 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Check file paths for a mod (on-demand for context menu)
+   * Returns paths only if they exist on the file system
+   */
+  async checkFilePaths(
+    profileId: string,
+    sha: string
+  ): Promise<{
+    originalPath: string | null;
+    workPath: string | null;
+    thumbnailPath: string | null;
+  }> {
+    return this.sendMessage<{
+      originalPath: string | null;
+      workPath: string | null;
+      thumbnailPath: string | null;
+    }>('CHECK_FILE_PATHS', profileId, { sha });
+  }
+
+  /**
    * Get file paths for a mod (helper for file viewing operations)
    * Note: This is a client-side helper that constructs expected paths
    * The actual existence of these paths should be verified by the backend

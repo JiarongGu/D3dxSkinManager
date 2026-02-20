@@ -61,15 +61,11 @@ public class ModRepository : IModRepository
                 Type TEXT DEFAULT '7z',
                 Grading TEXT DEFAULT 'G',
                 Tags TEXT,
-                IsLoaded INTEGER DEFAULT 0,
-                IsAvailable INTEGER DEFAULT 0,
-                ThumbnailPath TEXT,
                 CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
                 UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE INDEX IF NOT EXISTS idx_category ON Mods(Category);
-            CREATE INDEX IF NOT EXISTS idx_is_loaded ON Mods(IsLoaded);
             CREATE INDEX IF NOT EXISTS idx_author ON Mods(Author);
         ";
         await createTableCmd.ExecuteNonQueryAsync();
@@ -132,8 +128,8 @@ public class ModRepository : IModRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO Mods (SHA, Category, Name, Author, Description, Type, Grading, Tags, IsLoaded, IsAvailable, ThumbnailPath)
-            VALUES (@sha, @category, @name, @author, @description, @type, @grading, @tags, @isLoaded, @isAvailable, @thumbnailPath)
+            INSERT INTO Mods (SHA, Category, Name, Author, Description, Type, Grading, Tags)
+            VALUES (@sha, @category, @name, @author, @description, @type, @grading, @tags)
         ";
 
         command.Parameters.AddWithValue("@sha", mod.SHA);
@@ -144,9 +140,6 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@type", mod.Type);
         command.Parameters.AddWithValue("@grading", mod.Grading);
         command.Parameters.AddWithValue("@tags", JsonConvert.SerializeObject(mod.Tags));
-        command.Parameters.AddWithValue("@isLoaded", mod.IsLoaded ? 1 : 0);
-        command.Parameters.AddWithValue("@isAvailable", mod.IsAvailable ? 1 : 0);
-        command.Parameters.AddWithValue("@thumbnailPath", mod.ThumbnailPath ?? string.Empty);
 
         await command.ExecuteNonQueryAsync();
         return mod;
@@ -167,9 +160,6 @@ public class ModRepository : IModRepository
                 Type = @type,
                 Grading = @grading,
                 Tags = @tags,
-                IsLoaded = @isLoaded,
-                IsAvailable = @isAvailable,
-                ThumbnailPath = @thumbnailPath,
                 UpdatedAt = CURRENT_TIMESTAMP
             WHERE SHA = @sha
         ";
@@ -182,9 +172,6 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@type", mod.Type);
         command.Parameters.AddWithValue("@grading", mod.Grading);
         command.Parameters.AddWithValue("@tags", JsonConvert.SerializeObject(mod.Tags));
-        command.Parameters.AddWithValue("@isLoaded", mod.IsLoaded ? 1 : 0);
-        command.Parameters.AddWithValue("@isAvailable", mod.IsAvailable ? 1 : 0);
-        command.Parameters.AddWithValue("@thumbnailPath", mod.ThumbnailPath ?? string.Empty);
 
         var rowsAffected = await command.ExecuteNonQueryAsync();
         return rowsAffected > 0;
@@ -331,9 +318,6 @@ public class ModRepository : IModRepository
             ? new List<string>()
             : JsonConvert.DeserializeObject<List<string>>(tagsJson) ?? new List<string>();
 
-        var thumbnailPathOrdinal = reader.GetOrdinal("ThumbnailPath");
-        var thumbnailPath = reader.IsDBNull(thumbnailPathOrdinal) ? null : reader.GetString(thumbnailPathOrdinal);
-
         return new ModInfo
         {
             SHA = reader.GetString(reader.GetOrdinal("SHA")),
@@ -343,11 +327,8 @@ public class ModRepository : IModRepository
             Description = reader.GetString(reader.GetOrdinal("Description")),
             Type = reader.GetString(reader.GetOrdinal("Type")),
             Grading = reader.GetString(reader.GetOrdinal("Grading")),
-            Tags = tags,
-            IsLoaded = reader.GetInt32(reader.GetOrdinal("IsLoaded")) == 1,
-            IsAvailable = reader.GetInt32(reader.GetOrdinal("IsAvailable")) == 1,
-            ThumbnailPath = thumbnailPath
-            // Note: Preview paths scanned dynamically from previews/{SHA}/ folder
+            Tags = tags
+            // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system
         };
     }
 }

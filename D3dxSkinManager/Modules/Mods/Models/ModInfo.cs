@@ -15,16 +15,18 @@ public class ModInfo
     public string Type { get; set; } = "7z";
     public string Grading { get; set; } = "G";
     public List<string> Tags { get; set; } = new();
-    public bool IsLoaded { get; set; }
-    public bool IsAvailable { get; set; }
-    public string? ThumbnailPath { get; set; }
 
-    // File paths for mod file operations
+    // Status flags (populated on-demand from file system, not stored in DB)
+    public bool IsLoaded { get; set; }      // True if work directory exists without DISABLED- prefix
+    public bool IsAvailable { get; set; }   // True if original archive file exists in mods folder
+
+    // File paths for mod file operations (populated on-demand, not stored in DB)
     public string? OriginalPath { get; set; }  // Path to original archive file
     public string? WorkPath { get; set; }      // Path to extracted/working directory
     public string? CachePath { get; set; }     // Path to cache directory (for disabled mods)
 
-    // Note: Preview paths are scanned dynamically from previews/{SHA}/ folder
+    // Note: Preview paths and thumbnails are scanned dynamically from previews/{SHA}/ folder
     // Allows users to add preview images directly to folder
     // Use GET_PREVIEW_PATHS IPC call to retrieve them
+    // The first preview image (sorted alphabetically) is used as the thumbnail
 }
