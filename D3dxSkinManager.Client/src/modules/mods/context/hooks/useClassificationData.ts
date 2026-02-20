@@ -1,6 +1,5 @@
 import { notification } from '../../../../shared/utils/notification';
 import { useReducer, useCallback, Dispatch, useEffect } from "react";
-import { ModInfo } from "../../../../shared/types/mod.types";
 import { ClassificationNode } from "../../../../shared/types/classification.types";
 import { modService } from "../../services/modService";
 import { classificationService } from "../../../../shared/services/classificationService";
@@ -30,7 +29,6 @@ export interface UseClassificationDataReturn {
   ) => Promise<boolean>;
   selectClassification: (node: ClassificationNode | null) => void;
   setClassificationSearch: (query: string) => void;
-  updateTreeOptimistic: (tree: ClassificationNode[]) => void;
 }
 
 export function useClassificationData(): UseClassificationDataReturn {
@@ -175,10 +173,6 @@ export function useClassificationData(): UseClassificationDataReturn {
     dispatch({ type: "SET_CLASSIFICATION_SEARCH", payload: query });
   }, []);
 
-  const updateTreeOptimistic = useCallback((tree: ClassificationNode[]) => {
-    dispatch({ type: "UPDATE_CLASSIFICATION_TREE_OPTIMISTIC", payload: tree });
-  }, []);
-
   return {
     state,
     dispatch,
@@ -188,7 +182,6 @@ export function useClassificationData(): UseClassificationDataReturn {
     loadUnclassifiedMods,
     updateModCategory,
     selectClassification,
-    setClassificationSearch,
-    updateTreeOptimistic,
+    setClassificationSearch
   };
 }

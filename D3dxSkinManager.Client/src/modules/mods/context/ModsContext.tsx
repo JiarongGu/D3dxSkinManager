@@ -69,7 +69,6 @@ interface ModsContextValue {
     refreshMods: () => Promise<void>;
     loadClassificationTree: () => Promise<void>;
     refreshClassificationTree: () => Promise<void>;
-    updateTreeOptimistic: (tree: ClassificationNode[]) => void;
     loadModsByClassification: (nodeId: string) => Promise<void>;
     loadUnclassifiedMods: () => Promise<void>;
 
@@ -90,12 +89,12 @@ interface ModsContextValue {
     updateModCategory: (
       sha: string,
       categoryId: string,
-      onMismatch?: () => void
+      onMismatch?: () => void,
     ) => Promise<boolean>;
     batchUpdateMetadata: (
       shas: string[],
       data: Partial<ModInfo>,
-      fields: string[]
+      fields: string[],
     ) => Promise<void>;
 
     // UI Actions
@@ -152,7 +151,7 @@ export const ModsProvider: React.FC<{
     if (selectedProfile && selectedProfileId) {
       console.log(
         "[ModsContext] Profile selected/changed, loading mods for:",
-        selectedProfile.name
+        selectedProfile.name,
       );
       modData.loadMods(selectedProfileId);
       classificationData.loadClassificationTree(selectedProfileId);
@@ -174,7 +173,7 @@ export const ModsProvider: React.FC<{
       // Import State
       ...importOps.state,
     }),
-    [modData.state, classificationData.state, uiState.state, importOps.state]
+    [modData.state, classificationData.state, uiState.state, importOps.state],
   );
 
   // ============================================================================
@@ -201,16 +200,15 @@ export const ModsProvider: React.FC<{
     await classificationData.refreshClassificationTree(selectedProfileId);
   }, [selectedProfileId, classificationData]);
 
-  const updateTreeOptimistic = useCallback((tree: ClassificationNode[]) => {
-    classificationData.updateTreeOptimistic(tree);
-  }, [classificationData]);
-
   const loadModsByClassification = useCallback(
     async (nodeId: string) => {
       if (!selectedProfileId) return;
-      await classificationData.loadModsByClassification(selectedProfileId, nodeId);
+      await classificationData.loadModsByClassification(
+        selectedProfileId,
+        nodeId,
+      );
     },
-    [selectedProfileId, classificationData]
+    [selectedProfileId, classificationData],
   );
 
   const loadUnclassifiedMods = useCallback(async () => {
@@ -223,7 +221,7 @@ export const ModsProvider: React.FC<{
       if (!selectedProfileId) return null;
       return await importOps.importMod(selectedProfileId, task);
     },
-    [selectedProfileId, importOps]
+    [selectedProfileId, importOps],
   );
 
   const importMods = useCallback(
@@ -233,10 +231,10 @@ export const ModsProvider: React.FC<{
         selectedProfileId,
         tasks,
         () => refreshMods(),
-        () => uiState.closeImportWindow()
+        () => uiState.closeImportWindow(),
       );
     },
-    [selectedProfileId, importOps, refreshMods, uiState]
+    [selectedProfileId, importOps, refreshMods, uiState],
   );
 
   const updateMod = useCallback(
@@ -251,7 +249,7 @@ export const ModsProvider: React.FC<{
         });
       }
     },
-    [selectedProfileId, modData, classificationData]
+    [selectedProfileId, modData, classificationData],
   );
 
   const deleteMod = useCallback(
@@ -259,7 +257,7 @@ export const ModsProvider: React.FC<{
       if (!selectedProfileId) return;
       await modData.deleteMod(selectedProfileId, sha, () => refreshMods());
     },
-    [selectedProfileId, modData, refreshMods]
+    [selectedProfileId, modData, refreshMods],
   );
 
   const loadModInGame = useCallback(
@@ -299,7 +297,7 @@ export const ModsProvider: React.FC<{
         notification.error("Failed to load mod");
       }
     },
-    [selectedProfileId, modData, classificationData]
+    [selectedProfileId, modData, classificationData],
   );
 
   const unloadModFromGame = useCallback(
@@ -339,7 +337,7 @@ export const ModsProvider: React.FC<{
         notification.error("Failed to unload mod");
       }
     },
-    [selectedProfileId, modData, classificationData]
+    [selectedProfileId, modData, classificationData],
   );
 
   const updateModCategory = useCallback(
@@ -360,7 +358,12 @@ export const ModsProvider: React.FC<{
       }
 
       // Calculate optimistic tree with updated counts
-      const optimisticTree = updateTreeCounts(currentTree, currentMods, oldCategory, categoryId);
+      const optimisticTree = updateTreeCounts(
+        currentTree,
+        currentMods,
+        oldCategory,
+        categoryId,
+      );
 
       // Update mod data, classification filtered list, AND tree optimistically
       modData.dispatch({
@@ -370,7 +373,11 @@ export const ModsProvider: React.FC<{
 
       classificationData.dispatch({
         type: "UPDATE_FILTERED_MOD",
-        payload: { sha, data: { category: categoryId }, newCategory: categoryId },
+        payload: {
+          sha,
+          data: { category: categoryId },
+          newCategory: categoryId,
+        },
       });
 
       classificationData.dispatch({
@@ -386,7 +393,7 @@ export const ModsProvider: React.FC<{
         // Refresh both mods and tree from backend (with delayed loading to prevent flicker)
         await Promise.all([
           modData.loadMods(selectedProfileId),
-          classificationData.refreshClassificationTree(selectedProfileId)
+          classificationData.refreshClassificationTree(selectedProfileId),
         ]);
 
         return true;
@@ -408,7 +415,7 @@ export const ModsProvider: React.FC<{
         return false;
       }
     },
-    [selectedProfileId, modData, classificationData]
+    [selectedProfileId, modData, classificationData],
   );
 
   // Helper function to update tree counts when moving a mod between categories
@@ -417,10 +424,14 @@ export const ModsProvider: React.FC<{
     tree: ClassificationNode[],
     mods: ModInfo[],
     oldCategory: string | undefined,
-    newCategory: string
+    newCategory: string,
   ): ClassificationNode[] => {
     // Check if newCategory is an ancestor of oldCategory
-    const isAncestor = (tree: ClassificationNode[], ancestorId: string, childId: string): boolean => {
+    const isAncestor = (
+      tree: ClassificationNode[],
+      ancestorId: string,
+      childId: string,
+    ): boolean => {
       for (const node of tree) {
         if (node.id === ancestorId) {
           // Found the potential ancestor, check if childId exists in its subtree
@@ -440,7 +451,9 @@ export const ModsProvider: React.FC<{
       return false;
     };
 
-    const movingToAncestor = oldCategory ? isAncestor(tree, newCategory, oldCategory) : false;
+    const movingToAncestor = oldCategory
+      ? isAncestor(tree, newCategory, oldCategory)
+      : false;
 
     const updateNode = (node: ClassificationNode): ClassificationNode => {
       let updatedNode = { ...node };
@@ -475,7 +488,7 @@ export const ModsProvider: React.FC<{
           selectedProfileId,
           shas,
           data,
-          fields
+          fields,
         );
         await refreshMods();
         notification.success("Batch update successful");
@@ -484,7 +497,7 @@ export const ModsProvider: React.FC<{
         throw error;
       }
     },
-    [selectedProfileId, refreshMods]
+    [selectedProfileId, refreshMods],
   );
 
   const clearClassificationFilter = useCallback(() => {
@@ -505,7 +518,7 @@ export const ModsProvider: React.FC<{
         updateMod(uiState.state.modToEdit.sha, { tags });
       }
     },
-    [uiState, updateMod]
+    [uiState, updateMod],
   );
 
   const saveTagsForImport = useCallback(
@@ -519,7 +532,7 @@ export const ModsProvider: React.FC<{
         });
       }
     },
-    [uiState, importOps]
+    [uiState, importOps],
   );
 
   const saveAddModUnit = useCallback(
@@ -527,7 +540,7 @@ export const ModsProvider: React.FC<{
       importOps.updateImportTask(task.id, task);
       uiState.closeAddModUnit();
     },
-    [importOps, uiState]
+    [importOps, uiState],
   );
 
   const saveBatchEditUnit = useCallback(
@@ -542,7 +555,7 @@ export const ModsProvider: React.FC<{
       });
       uiState.closeBatchEditUnit();
     },
-    [uiState, importOps]
+    [uiState, importOps],
   );
 
   // ============================================================================
@@ -558,7 +571,6 @@ export const ModsProvider: React.FC<{
         refreshMods,
         loadClassificationTree,
         refreshClassificationTree,
-        updateTreeOptimistic,
         loadModsByClassification,
         loadUnclassifiedMods,
 
@@ -616,7 +628,6 @@ export const ModsProvider: React.FC<{
       refreshMods,
       loadClassificationTree,
       refreshClassificationTree,
-      updateTreeOptimistic,
       loadModsByClassification,
       loadUnclassifiedMods,
       modData,
@@ -636,7 +647,7 @@ export const ModsProvider: React.FC<{
       saveTagsForImport,
       saveAddModUnit,
       saveBatchEditUnit,
-    ]
+    ],
   );
 
   return <ModsContext.Provider value={value}>{children}</ModsContext.Provider>;

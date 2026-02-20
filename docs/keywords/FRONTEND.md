@@ -39,6 +39,14 @@
   - Profile state management and IPC integration
   - Created: 2026-02-18
 
+- **OperationContext** → `src/shared/context/OperationContext.tsx`
+  - OperationProvider (context provider)
+  - useOperation (hook) - access operation state and actions
+  - Global state for active/completed/failed operations
+  - Subscribes to backend push notifications via photinoService
+  - Maintains last 50 completed/failed operations
+  - Created: 2026-02-21
+
 ---
 
 ## Layout Components
@@ -116,6 +124,14 @@
   - Button to open tag selector dialog
   - Responsive tag display with maxTagCount
   - Created: 2026-02-18
+
+- **OperationMonitorScreen** → `src/shared/components/operation/OperationMonitorScreen.tsx`
+  - Full-screen operation monitor with tabs (Active/Completed/Failed)
+  - Real-time progress bars for active operations
+  - Duration display, error messages, metadata support
+  - Clear All buttons for completed/failed operations
+  - Opens via Ctrl+Shift+O or clicking status bar progress
+  - Created: 2026-02-21
 
 ### Compact Component Library
 
@@ -570,6 +586,13 @@
   - MessageType union type → `:1-12`
   - PhotinoMessage interface → `:14-18`
   - PhotinoResponse interface → `:20-25`
+
+- **operation.types.ts** → `src/shared/types/operation.types.ts`
+  - OperationStatus type (Running, Completed, Failed, Cancelled)
+  - OperationNotificationType - notification event types
+  - OperationProgress interface - matches backend model
+  - OperationNotificationMessage - IPC push message format
+  - Created: 2026-02-21
 
 ---
 

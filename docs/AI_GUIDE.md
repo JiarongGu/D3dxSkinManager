@@ -160,6 +160,34 @@ See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGE
    - **IPC Message Format:** profileId at TOP LEVEL, NOT in payload
      - ✅ Correct: `sendMessage({ module: 'MOD', type: 'GET_ALL', profileId })`
      - ❌ Wrong: `sendMessage({ module: 'MOD', type: 'GET_ALL', payload: { profileId } })`
+   - **⭐⭐⭐ CRITICAL: Avoid React Closure Issues with Callbacks**
+     - See [ai-assistant/REACT_CLOSURE_PATTERNS.md](ai-assistant/REACT_CLOSURE_PATTERNS.md) ⭐⭐⭐
+     - **Problem**: `useCallback` captures stale values from when callback is created
+     - **Solution**: Use `useStableRef` to access current values in callbacks
+     - **Example (Single value)**:
+       ```tsx
+       // BAD: tree is captured from when callback was created
+       const handleClick = useCallback(() => {
+         console.log(tree.length); // May be stale!
+       }, [tree]);
+
+       // GOOD: Always accesses current tree data
+       const treeRef = useStableRef(tree);
+       const handleClick = useCallback(() => {
+         console.log(treeRef.current.length); // Always current!
+       }, []); // Empty deps - no recreation needed
+       ```
+     - **Example (Multiple values)**:
+       ```tsx
+       // Access multiple values without callback recreation
+       const [itemsRef, filtersRef] = useStableRef(items, filters);
+       const handleSearch = useCallback(() => {
+         return itemsRef.current.filter(f => filtersRef.current.includes(f));
+       }, []); // No dependencies needed!
+       ```
+     - **When to use**: Callbacks passed to refs, event handlers, or third-party libraries
+     - **Utility**: `src/shared/hooks/useStableRef.ts` provides `useStableRef` (supports up to 12 values)
+     - **Note**: `react-hooks/exhaustive-deps` ESLint rule is disabled globally - refs don't need to be in dependency arrays
    - Separate business logic from UI logic
    - Use Ant Design components consistently
    - **ALWAYS use Compact Components for buttons and UI elements** (CompactButton, CompactSpace, etc.)

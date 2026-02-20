@@ -20,7 +20,8 @@ export type LogLevelName = 'ALL' | 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
  * Log level is now stored in backend global settings
  */
 export class Logger {
-  private currentLevel: LogLevel = LogLevel.INFO;
+  // Default to DEBUG in development, INFO in production
+  private currentLevel: LogLevel = process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO;
   private isInitialized = false;
 
   constructor() {

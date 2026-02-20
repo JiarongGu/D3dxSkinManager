@@ -3,6 +3,7 @@
  */
 
 import { MessageType, ModuleName, PhotinoMessage, PhotinoResponse } from '../types/message.types';
+import { OperationNotificationMessage } from '../types/operation.types';
 
 // Photino window interface
 interface PhotinoWindow {
@@ -34,6 +35,7 @@ function getPhotinoBridge(): PhotinoWindow | undefined {
 
 class PhotinoService {
   private messageHandlers: Map<string, (response: PhotinoResponse) => void> = new Map();
+  private operationNotificationHandlers: Array<(notification: OperationNotificationMessage['notification']) => void> = [];
   private messageId = 0;
   // Global modules that don't require profileId
   private readonly globalModules = ['SETTINGS', 'PROFILE', 'SYSTEM'];
@@ -42,13 +44,44 @@ class PhotinoService {
     this.initializeMessageReceiver();
   }
 
+  /**
+   * Subscribe to operation notifications from backend
+   * Returns unsubscribe function
+   */
+  subscribeToOperationNotifications(handler: (notification: OperationNotificationMessage['notification']) => void): () => void {
+    this.operationNotificationHandlers.push(handler);
+    return () => {
+      const index = this.operationNotificationHandlers.indexOf(handler);
+      if (index > -1) {
+        this.operationNotificationHandlers.splice(index, 1);
+      }
+    };
+  }
+
   private initializeMessageReceiver() {
     // Listen for messages from .NET backend
     const bridge = getPhotinoBridge();
     if (bridge?.receiveMessage) {
       bridge.receiveMessage((message: string) => {
         try {
-          const response: PhotinoResponse = JSON.parse(message);
+          const parsed = JSON.parse(message);
+
+          // Check if this is an operation notification (push message)
+          if (parsed.type === 'OPERATION_NOTIFICATION') {
+            const operationNotification = parsed as OperationNotificationMessage;
+            // Notify all subscribers
+            this.operationNotificationHandlers.forEach(handler => {
+              try {
+                handler(operationNotification.notification);
+              } catch (error) {
+                console.error('Error in operation notification handler:', error);
+              }
+            });
+            return;
+          }
+
+          // Otherwise, it's a regular response message
+          const response: PhotinoResponse = parsed;
           const handler = this.messageHandlers.get(response.id);
 
           if (handler) {

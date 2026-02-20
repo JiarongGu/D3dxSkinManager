@@ -22,6 +22,15 @@
 
 ### Core Module
 
+#### Models
+
+- **OperationProgress** → `Modules/Core/Models/OperationProgress.cs`
+  - OperationStatus enum (Running, Completed, Failed, Cancelled)
+  - OperationProgress class - tracks operation state and progress
+  - OperationNotificationType enum - notification types for IPC
+  - OperationNotification class - IPC push notification payload
+  - Created: 2026-02-21
+
 #### Services
 
 - **FileService** → `Modules/Core/Services/FileService.cs:24`
@@ -68,6 +77,20 @@
   - Registered as singleton via DI in CoreServiceExtensions
   - Interface: ICustomSchemeHandler
   - Created: 2026-02-20
+
+- **OperationNotificationService** → `Modules/Core/Services/OperationNotificationService.cs`
+  - Manages active operations and emits progress notifications
+  - Interface: IOperationNotificationService
+  - CreateOperation() returns IProgressReporter for tracking progress
+  - Event-driven push notifications to frontend via IPC
+  - Thread-safe with ConcurrentDictionary
+  - Created: 2026-02-21
+
+- **IProgressReporter** → `Modules/Core/Services/IProgressReporter.cs`
+  - Interface for operations to report progress (0-100%)
+  - ReportProgressAsync, ReportCompletionAsync, ReportFailureAsync
+  - NullProgressReporter for operations that don't need tracking
+  - Created: 2026-02-21
 
 #### Utilities
 

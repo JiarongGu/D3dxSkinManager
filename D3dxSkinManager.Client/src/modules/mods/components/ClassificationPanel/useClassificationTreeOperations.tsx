@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { App } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { Input } from "antd";
@@ -7,6 +7,7 @@ import { classificationService } from "../../../../shared/services/classificatio
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useModCategoryUpdate } from "./useModCategoryUpdate";
 import { notification } from "../../../../shared/utils/notification";
+import { useStableRef } from "../../../../shared/hooks/useStableRef";
 
 /**
  * Find a ClassificationNode by ID in the tree
@@ -46,10 +47,12 @@ export function useClassificationTreeOperations({
   const { selectedProfileId } = useProfile();
   const { updateModCategory } = useModCategoryUpdate({ onRefreshTree });
 
+  const [treeRef, selectedProfileIdRef] = useStableRef(tree, selectedProfileId);
+
   // Edit node handler
   const handleEditNode = useCallback(
     async (nodeId: string) => {
-      const node = findNodeById(tree, nodeId);
+      const node = findNodeById(treeRef.current, nodeId);
       if (!node) return;
 
       modal.confirm({
@@ -75,11 +78,11 @@ export function useClassificationTreeOperations({
             return Promise.reject();
           }
 
-          if (!selectedProfileId) return;
+          if (!selectedProfileIdRef.current) return;
 
           try {
             const response = await classificationService.updateNode(
-              selectedProfileId,
+              selectedProfileIdRef.current,
               nodeId,
               newName
             );
@@ -99,13 +102,13 @@ export function useClassificationTreeOperations({
         },
       });
     },
-    [tree, modal, notification, onRefreshTree, selectedProfileId],
+    [modal, onRefreshTree],
   );
 
   // Delete node handler
   const handleDeleteNode = useCallback(
     async (nodeId: string) => {
-      const node = findNodeById(tree, nodeId);
+      const node = findNodeById(treeRef.current, nodeId);
       if (!node) return;
 
       const hasChildren = node.children && node.children.length > 0;
@@ -122,11 +125,11 @@ export function useClassificationTreeOperations({
         okType: "danger",
         cancelText: "Cancel",
         onOk: async () => {
-          if (!selectedProfileId) return;
+          if (!selectedProfileIdRef.current) return;
 
           try {
             const response = await classificationService.deleteNode(
-              selectedProfileId,
+              selectedProfileIdRef.current,
               nodeId
             );
 
@@ -145,7 +148,7 @@ export function useClassificationTreeOperations({
         },
       });
     },
-    [tree, modal, notification, onRefreshTree, selectedProfileId],
+    [modal, onRefreshTree],
   );
 
   // Simplified node reorder handler - just takes node IDs and drop type
@@ -157,18 +160,22 @@ export function useClassificationTreeOperations({
       dropType: 'node' | 'gap',
       gapSide?: 'top' | 'bottom'
     ) => {
+      const currentTree = treeRef.current;
+
       // Prevent dropping on itself
       if (dragNodeId === dropNodeId) {
         return;
       }
 
-      if (!selectedProfileId) return;
+      if (!selectedProfileIdRef.current) {
+        return;
+      }
 
       try {
         // Handle dropping to root level (empty dropNodeId)
         if (dropNodeId === '') {
           await classificationService.moveNode(
-            selectedProfileId,
+            selectedProfileIdRef.current,
             dragNodeId,
             null, // null parent = root level
             0
@@ -188,7 +195,7 @@ export function useClassificationTreeOperations({
         // Check if dropping into a node or between nodes
         if (dropType === 'gap') {
           // Dropping between nodes (reordering or moving to root)
-          const dropNode = findNodeById(tree, dropNodeId);
+          const dropNode = findNodeById(currentTree, dropNodeId);
 
           // Determine the parent: if dropNode has no parent, we're at root level
           const newParentId = dropNode ? dropNode.parentId || null : null;
@@ -197,11 +204,11 @@ export function useClassificationTreeOperations({
           let siblings: ClassificationNode[] = [];
           if (newParentId) {
             // Find parent node and get its children
-            const parentNode = findNodeById(tree, newParentId);
+            const parentNode = findNodeById(currentTree, newParentId);
             siblings = parentNode ? parentNode.children : [];
           } else {
             // Root level siblings
-            siblings = tree;
+            siblings = currentTree;
           }
 
           // Find the index of the drop target node within siblings
@@ -218,7 +225,7 @@ export function useClassificationTreeOperations({
 
           // Send move request to backend
           await classificationService.moveNode(
-            selectedProfileId,
+              selectedProfileIdRef.current,
             dragNodeId,
             newParentId,
             Math.max(0, finalPosition)
@@ -226,7 +233,7 @@ export function useClassificationTreeOperations({
         } else {
           // Dropping into a node (moving to new parent)
           await classificationService.moveNode(
-            selectedProfileId,
+            selectedProfileIdRef.current,
             dragNodeId,
             dropNodeId,
             0
@@ -239,27 +246,23 @@ export function useClassificationTreeOperations({
           await onRefreshTree();
         }
       } catch (error) {
-        console.error("Error reordering classification node:", error);
+        console.error("[handleNodeReorder] Error reordering classification node:", error);
         notification.error("Failed to move classification node");
       }
     },
-    [tree, expandedKeys, onExpandedKeysChange, selectedProfileId, onRefreshTree, notification],
+    [expandedKeys, onExpandedKeysChange, onRefreshTree],
   );
 
 
   // Simplified mod classification handler - just takes mod SHA and category node ID
   const handleModClassify = useCallback(
     async (modSha: string, nodeId: string) => {
-      console.log('[handleModClassify] Called with:', { modSha, nodeId });
-
       if (!modSha) {
-        console.error('[handleModClassify] No modSha provided');
         notification.error('No mod selected');
         return;
       }
 
       if (!nodeId) {
-        console.error('[handleModClassify] No nodeId provided');
         notification.error('No category selected');
         return;
       }
@@ -269,7 +272,6 @@ export function useClassificationTreeOperations({
         const findNodeName = (nodes: ClassificationNode[], id: string): string | null => {
           for (const node of nodes) {
             if (node.id === id) {
-              console.log('[handleModClassify] Found node:', { id, name: node.name });
               return node.name;
             }
             if (node.children.length > 0) {
@@ -280,30 +282,20 @@ export function useClassificationTreeOperations({
           return null;
         };
 
-        const nodeName = findNodeName(tree, nodeId) || nodeId;
-        console.log('[handleModClassify] Node name:', nodeName);
+        const nodeName = findNodeName(treeRef.current, nodeId) || nodeId;
 
         // If moving to "Unclassified", clear the category by passing empty string
         const categoryValue = nodeId === '__unclassified__' ? '' : nodeId;
-        console.log('[handleModClassify] Category value:', categoryValue);
 
         // Update the mod's category using the shared hook
         // Note: modName is optional, pass empty string if not available
-        console.log('[handleModClassify] Calling updateModCategory with:', {
-          modSha,
-          modName: '',
-          categoryValue,
-          nodeName
-        });
-
-        await updateModCategory(modSha, '', categoryValue, nodeName);
-        console.log('[handleModClassify] Successfully updated mod category');
+        await updateModCategory(modSha, categoryValue, nodeName);
       } catch (error) {
         console.error('[handleModClassify] Error:', error);
         notification.error('Failed to update mod category');
       }
     },
-    [updateModCategory, tree]
+    [updateModCategory]
   );
 
   return {

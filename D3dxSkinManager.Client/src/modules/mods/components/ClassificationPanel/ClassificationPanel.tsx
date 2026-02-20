@@ -62,7 +62,7 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
     }
     // Pass empty string for modName since we don't have it here
     // The updateModCategory function uses it only for the success message
-    await updateModCategory(sha, '', '', 'Unclassified');
+    await updateModCategory(sha, '', 'Unclassified');
     if (onModsRefresh) {
       await onModsRefresh();
     }

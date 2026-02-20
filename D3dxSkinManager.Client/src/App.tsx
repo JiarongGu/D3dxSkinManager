@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Layout, ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
 import { notification } from './shared/utils/notification';
 import { AppHeader } from './modules/core/components/layout/AppHeader';
@@ -12,9 +12,11 @@ import { PluginsView } from './modules/plugins/components/PluginsView';
 import { AnnotationProvider } from './shared/components/common/TooltipSystem';
 import { ProfileProvider } from './shared/context/ProfileContext';
 import { ThemeProvider, useTheme } from './shared/context/ThemeContext';
-import { SlideInScreenProvider } from './shared/context/SlideInScreenContext';
+import { SlideInScreenProvider, useSlideInScreen } from './shared/context/SlideInScreenContext';
 import { SlideInScreenManager } from './shared/components/common/SlideInScreen';
 import { AppInitializer } from './shared/components/AppInitializer';
+import { OperationProvider, useOperation } from './shared/context/OperationContext';
+import OperationMonitorScreen from './shared/components/operation/OperationMonitorScreen';
 import { useModsContext } from './modules/mods/context/ModsContext';
 import { keyboardManager, SHORTCUTS } from './modules/core/utils/KeyboardShortcutManager';
 import { KeyboardShortcutsDialog } from './modules/core/components/dialogs/KeyboardShortcutsDialog';
@@ -47,15 +49,34 @@ const AppContent: React.FC = () => {
   const { state, actions } = useModsContext();
   const { mods } = state;
 
+  // Get operation data from OperationContext
+  const { state: operationState } = useOperation();
+  const { currentOperation, activeOperations } = operationState;
+
+  // Get slide-in screen controls
+  const { openScreen, closeScreen } = useSlideInScreen();
+
   // Calculate loaded mods count
   const modsLoadedCount = useMemo(() => {
     return mods.filter((mod) => mod.isLoaded).length;
   }, [mods]);
 
+  // Derive progress from current operation
+  const operationProgress = currentOperation?.percentComplete || 0;
+  const operationName = currentOperation?.operationName;
+  const isOperationActive = activeOperations.length > 0;
+
   // Status bar handlers
   const handleHelpClick = () => {
     setHelpWindowVisible(true);
   };
+
+  const handleOperationMonitorClick = useCallback(() => {
+    const screenId = openScreen({
+      title: 'Operation Monitor',
+      content: <OperationMonitorScreen onClose={() => closeScreen(screenId)} />,
+    });
+  }, [openScreen, closeScreen]);
 
   // Initialize keyboard shortcuts
   useEffect(() => {
@@ -83,13 +104,21 @@ const AppContent: React.FC = () => {
       },
     });
 
+    keyboardManager.register('operation-monitor', {
+      key: 'o',
+      ctrlKey: true,
+      shiftKey: true,
+      description: 'Open operation monitor',
+      callback: handleOperationMonitorClick,
+    });
+
     // Start listening
     keyboardManager.start();
 
     return () => {
       keyboardManager.stop();
     };
-  }, [actions]);
+  }, [actions, handleOperationMonitorClick]);
 
   return (
     <AnnotationProvider initialLevel="all">
@@ -128,15 +157,17 @@ const AppContent: React.FC = () => {
 
         {/* Fixed Footer */}
         <AppStatusBar
-          userName="User"
           serverStatus="connected"
           modsLoaded={modsLoadedCount}
           modsTotal={mods.length}
           statusMessage={statusMessage}
           statusType={statusType}
-          progressPercent={progressPercent}
-          progressVisible={progressVisible}
+          progressPercent={isOperationActive ? operationProgress : progressPercent}
+          progressVisible={isOperationActive || progressVisible}
+          operationName={operationName}
+          activeOperationCount={activeOperations.length}
           onHelpClick={handleHelpClick}
+          onProgressClick={handleOperationMonitorClick}
         />
       </Layout>
 
@@ -181,11 +212,13 @@ const App: React.FC = () => {
     >
       <AntdApp notification={{ maxCount: 1, stack: false }}>
         <ProfileProvider>
-          <AppInitializer>
-            <ModsProvider>
-              <AppContent />
-            </ModsProvider>
-          </AppInitializer>
+          <OperationProvider>
+            <AppInitializer>
+              <ModsProvider>
+                <AppContent />
+              </ModsProvider>
+            </AppInitializer>
+          </OperationProvider>
         </ProfileProvider>
       </AntdApp>
     </ConfigProvider>

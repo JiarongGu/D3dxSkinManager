@@ -42,6 +42,9 @@ public static class CoreServiceExtensions
         // Image service for image processing (thumbnails, resizing, etc.)
         services.AddSingleton<IImageService, ImageService>();
 
+        // Operation notification service for progress reporting and operation monitoring
+        services.AddSingleton<IOperationNotificationService, OperationNotificationService>();
+
         // Custom scheme handler for app:// URLs (image serving)
         services.AddSingleton<ICustomSchemeHandler>(sp =>
         {

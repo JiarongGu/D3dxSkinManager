@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-21 - Operation Notification System ⭐⭐⭐⭐⭐
+Implemented complete backend → frontend push notification system for real-time operation progress tracking. Long-running operations (e.g., mod loading) now report progress (0-100%) to status bar and full operation monitor screen (Ctrl+Shift+O).
+**Key Features**: IProgressReporter pattern, push notifications via IPC, React Context state management, status bar integration, operation history (last 50)
+**Impact**: ✅ Real-time progress visibility, better UX for long operations
+**Details**: [changelogs/2026-02/2026-02-21-operation-notification-system.md](changelogs/2026-02/2026-02-21-operation-notification-system.md)
+
 ### Refactored - 2026-02-21 - Simplified Declarative Drag & Drop API + Service Layer ⭐⭐⭐⭐⭐
 Completely refactored `useDragDrop` with ultra-clean declarative API and added proper service layer abstraction. Hook automatically extracts data (from `dataTransfer` OR `onData`), manages styling, and uses object parameters. Backend calls now go through `classificationService` instead of direct `photinoService` calls.
 **New API Example**:
