@@ -19,13 +19,14 @@ public class ClassificationServiceTests
 {
     private readonly Mock<IClassificationRepository> _mockRepository;
     private readonly Mock<IModRepository> _mockModRepository;
+    private readonly Mock<IPathHelper> _mockPathHelper = new();
     private readonly ClassificationService _service;
 
     public ClassificationServiceTests()
     {
         _mockRepository = new Mock<IClassificationRepository>();
         _mockModRepository = new Mock<IModRepository>();
-        _service = new ClassificationService(_mockRepository.Object, _mockModRepository.Object);
+        _service = new ClassificationService(_mockRepository.Object, _mockModRepository.Object, _mockPathHelper.Object);
 
         // Setup default mock behavior for mod repository
         _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ModInfo>());

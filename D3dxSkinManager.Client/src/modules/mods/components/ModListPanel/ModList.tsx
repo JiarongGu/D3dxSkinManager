@@ -12,7 +12,7 @@ import {
   CheckCircleFilled,
 } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
-import { fileDialogService } from '../../../../shared/services/fileDialogService';
+import { fileDialogService } from '../../../../shared/services/systemService';
 import { modService } from '../../services/modService';
 import { GradingTag } from '../../../../shared/components/common/GradingTag';
 import { useProfile } from '../../../../shared/context/ProfileContext';

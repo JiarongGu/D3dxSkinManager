@@ -4,7 +4,7 @@ import { FolderOpenOutlined } from '@ant-design/icons';
 import { CompactButton } from '../../../../shared/components/compact';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { migrationService } from '../../services/migrationService';
-import { fileDialogService } from '../../../../shared/services/fileDialogService';
+import { fileDialogService } from '../../../../shared/services/systemService';
 import { message } from 'antd';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 

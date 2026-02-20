@@ -1,6 +1,6 @@
 # D3dxSkinManager - Current Architecture Guide
 
-**Last Updated:** 2026-02-19
+**Last Updated:** 2026-02-20
 
 ## Overview
 
@@ -73,7 +73,8 @@ Modules/{ModuleName}/
 - **D3DMigoto** - 3DMigoto version management
 - **Game** - Game detection and launching
 - **Tools** - Cache management, classification, validation
-- **Settings** - Application settings and file dialogs
+- **Settings** - Application settings (global settings, settings files)
+- **SystemUtils** - System-level operations (file dialogs, file system operations, path utilities, process launching)
 - **Plugins** - Plugin management
 - **Warehouse** - Mod discovery (future)
 - **Migration** - Python-to-React migration
@@ -94,6 +95,45 @@ modules/{moduleName}/
 └── types/                   # TypeScript types
     └── *.types.ts
 ```
+
+## Module Separation: Settings vs SystemUtils
+
+### Settings Module (SETTINGS_*)
+**Responsibility:** Application settings and configuration management
+
+**IPC Prefix:** `SETTINGS_*`
+
+**Operations:**
+- Global settings (theme, log level, annotation level, window settings)
+- Settings file management (get, save, delete, list settings files)
+
+**Example Messages:**
+- `SETTINGS_GET_GLOBAL` - Retrieve global settings
+- `SETTINGS_UPDATE_GLOBAL` - Update global settings
+- `SETTINGS_GET_FILE` - Get a settings file content
+
+### SystemUtils Module (SYSTEM_*)
+**Responsibility:** System-level operations and utilities
+
+**IPC Prefix:** `SYSTEM_*`
+
+**Operations:**
+- File system operations (open file, open directory, open in explorer)
+- File dialogs (open file, open folder, save file)
+- Path utilities (convert relative to absolute paths)
+- Process operations (launch external processes)
+
+**Example Messages:**
+- `SYSTEM_OPEN_FILE_DIALOG` - Show open file dialog
+- `SYSTEM_OPEN_FILE_IN_EXPLORER` - Open file location in file explorer
+- `SYSTEM_GET_ABSOLUTE_PATH` - Convert relative path to absolute
+
+**Design Rationale:**
+Previously, SettingsFacade handled both settings and system operations, violating the single responsibility principle. The refactoring separates these concerns:
+- **Settings** focuses on application configuration
+- **SystemUtils** focuses on OS-level interactions
+
+This separation improves maintainability and makes each module's purpose clearer.
 
 ## IPC Message Format
 
@@ -120,7 +160,7 @@ interface PhotinoResponse<TData = unknown> {
 }
 
 // ModuleName is a union type, not string
-type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'TOOL' | 'PLUGIN' |
+type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'SYSTEM' | 'TOOL' | 'PLUGIN' |
                   'WAREHOUSE' | 'MIGRATION' | 'LAUNCH' | 'D3DMIGOTO';
 
 // MessageType is also a union type

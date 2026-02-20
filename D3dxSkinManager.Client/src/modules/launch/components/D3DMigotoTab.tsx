@@ -7,7 +7,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
-import { fileDialogService } from '../../../shared/services/fileDialogService';
+import { fileDialogService } from '../../../shared/services/systemService';
 import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
 import { launchService, D3DMigotoVersion } from '../services/launchService';
 import { useProfile } from '../../../shared/context/ProfileContext';

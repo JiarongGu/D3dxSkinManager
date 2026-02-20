@@ -8,6 +8,7 @@ interface ModViewState {
   previewPaths: string[];
   loadingPreviews: boolean;
   currentPreviewIndex: number;
+  cacheTimestamp: number; // Used to bust browser cache when images change
 }
 
 interface ModViewContextType {
@@ -30,6 +31,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
     previewPaths: [],
     loadingPreviews: false,
     currentPreviewIndex: 0,
+    cacheTimestamp: Date.now(),
   });
 
   useEffect(() => {
@@ -54,6 +56,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
           previewPaths: paths,
           loadingPreviews: false,
           currentPreviewIndex: 0,
+          cacheTimestamp: Date.now(), // Bust browser cache
         }));
       } catch (error) {
         console.error('Failed to load preview paths:', error);
@@ -62,6 +65,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
           previewPaths: [],
           loadingPreviews: false,
           currentPreviewIndex: 0,
+          cacheTimestamp: Date.now(), // Bust browser cache
         }));
       }
     },

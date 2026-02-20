@@ -23,7 +23,7 @@ import {
 } from '@ant-design/icons';
 import { profileService } from '../../profiles/services/profileService';
 import { Profile, CreateProfileRequest } from '../../../shared/types/profile.types';
-import { fileDialogService } from '../../../shared/services/fileDialogService';
+import { fileDialogService } from '../../../shared/services/systemService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 
 interface ProfileManagerProps {

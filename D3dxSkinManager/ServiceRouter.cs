@@ -6,6 +6,7 @@ using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.Tools;
 using D3dxSkinManager.Modules.Settings;
+using D3dxSkinManager.Modules.SystemUtils;
 using D3dxSkinManager.Modules.Launch;
 using D3dxSkinManager.Modules.Migration;
 using D3dxSkinManager.Modules.Plugins;
@@ -153,6 +154,7 @@ public class ServiceRouter : IDisposable
             "TOOLS" or "TOOL" => serviceProvider.GetService<IToolsFacade>(),
             "PLUGINS" or "PLUGIN" => serviceProvider.GetService<IPluginsFacade>(),
             "SETTINGS" or "SETTING" => serviceProvider.GetService<ISettingsFacade>(),
+            "SYSTEM" => serviceProvider.GetService<ISystemFacade>(),
             "MIGRATION" => serviceProvider.GetService<IMigrationFacade>(),
             "PROFILE" or "PROFILES" => serviceProvider.GetService<IProfileFacade>(),
             _ => null
@@ -175,6 +177,9 @@ public class ServiceRouter : IDisposable
 
         // Settings services
         services.AddSettingsServices();
+
+        // System services (file system, dialogs, paths)
+        services.AddSystemServices();
 
         // Register facades for global services
         services.AddSingleton<IProfileFacade, ProfileFacade>();
@@ -229,6 +234,7 @@ public class ServiceRouter : IDisposable
         // Register all facades for profile-scoped services
         services.AddProfilesServices();    // Includes ProfileFacade and IProfilePathService
         services.AddSettingsServices();    // Includes SettingsFacade
+        services.AddSystemServices();      // Includes SystemFacade for file system, dialogs, paths
 
         // Profile-specific server
         services.AddSingleton<IProfileServerService, ProfileServerService>();

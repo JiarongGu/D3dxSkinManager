@@ -33,18 +33,18 @@ public interface IFileDialogService
 /// <summary>
 /// Windows Forms-based file dialog implementation
 /// Uses STA thread for proper dialog display with path memory
-/// Path memory persists across sessions via GlobalSettings
+/// Path memory persists across sessions via SystemSettings
 /// Paths within data folder are stored as relative for portability
 /// </summary>
 public class FileDialogService : IFileDialogService
 {
-    private readonly Settings.Services.IGlobalSettingsService _globalSettings;
+    private readonly SystemUtils.Services.ISystemSettingsService _systemSettings;
     private readonly IPathHelper _pathHelper;
     private readonly ILogHelper _logger;
 
-    public FileDialogService(Settings.Services.IGlobalSettingsService globalSettings, IPathHelper pathHelper, ILogHelper logger)
+    public FileDialogService(SystemUtils.Services.ISystemSettingsService systemSettings, IPathHelper pathHelper, ILogHelper logger)
     {
-        _globalSettings = globalSettings ?? throw new ArgumentNullException(nameof(globalSettings));
+        _systemSettings = systemSettings ?? throw new ArgumentNullException(nameof(systemSettings));
         _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -241,7 +241,7 @@ public class FileDialogService : IFileDialogService
         {
             try
             {
-                var settings = _globalSettings.GetSettingsAsync().GetAwaiter().GetResult();
+                var settings = _systemSettings.GetSettingsAsync().GetAwaiter().GetResult();
                 if (settings.FileDialogPaths.TryGetValue(options.RememberPathKey, out var rememberedPath))
                 {
                     // Convert relative path to absolute if needed
@@ -257,9 +257,9 @@ public class FileDialogService : IFileDialogService
                         // Clean up invalid path asynchronously (fire and forget)
                         _ = Task.Run(async () =>
                         {
-                            var updatedSettings = await _globalSettings.GetSettingsAsync();
+                            var updatedSettings = await _systemSettings.GetSettingsAsync();
                             updatedSettings.FileDialogPaths.Remove(options.RememberPathKey);
-                            await _globalSettings.UpdateSettingsAsync(updatedSettings);
+                            await _systemSettings.UpdateSettingsAsync(updatedSettings);
                         });
                     }
                 }
@@ -308,16 +308,14 @@ public class FileDialogService : IFileDialogService
 
         try
         {
-            _logger.Debug($"SaveLastUsedPath: Loading global settings...", "FileDialogService");
-            var settings = _globalSettings.GetSettingsAsync().GetAwaiter().GetResult();
+            _logger.Debug($"SaveLastUsedPath: Loading system settings...", "FileDialogService");
 
             // Convert to relative path if within data folder for portability
             var pathToSave = _pathHelper.ToRelativePath(path) ?? path;
             _logger.Debug($"SaveLastUsedPath: Setting key '{options.RememberPathKey}' to '{pathToSave}' (original: '{path}')", "FileDialogService");
-            settings.FileDialogPaths[options.RememberPathKey] = pathToSave;
 
             _logger.Debug($"SaveLastUsedPath: Saving settings...", "FileDialogService");
-            _globalSettings.UpdateSettingsAsync(settings).GetAwaiter().GetResult();
+            _systemSettings.RememberFileDialogPathAsync(options.RememberPathKey, pathToSave).GetAwaiter().GetResult();
 
             _logger.Debug($"SaveLastUsedPath: Successfully saved path for key '{options.RememberPathKey}'", "FileDialogService");
         }

@@ -14,10 +14,21 @@ export interface FileDialogResult {
   error?: string;
 }
 
-class FileDialogService extends BaseModuleService {
+export interface SystemSettings {
+  fileDialogPaths: Record<string, string>;
+  lastUpdated: string;
+}
+
+/**
+ * System service for file operations, dialogs, and system settings
+ * Handles all system-level operations and configuration
+ */
+class SystemService extends BaseModuleService {
   constructor() {
-    super('SETTINGS');
+    super('SYSTEM');
   }
+
+  // File Dialog Operations
 
   async openFileDialog(options: FileDialogOptions = {}): Promise<FileDialogResult> {
     return this.sendMessage<FileDialogResult>('OPEN_FILE_DIALOG', undefined, {
@@ -46,6 +57,8 @@ class FileDialogService extends BaseModuleService {
     });
   }
 
+  // File System Operations
+
   async openFile(filePath: string): Promise<void> {
     await this.sendMessage('OPEN_FILE', undefined, { filePath });
   }
@@ -58,9 +71,34 @@ class FileDialogService extends BaseModuleService {
     await this.sendMessage('OPEN_FILE_IN_EXPLORER', undefined, { filePath });
   }
 
+  async getAbsolutePath(path: string): Promise<string> {
+    const result = await this.sendMessage<{ absolutePath: string }>('GET_ABSOLUTE_PATH', undefined, { path });
+    return result.absolutePath;
+  }
+
+  // Process Operations
+
   async launchProcess(path: string, args?: string): Promise<void> {
     await this.sendMessage('LAUNCH_PROCESS', undefined, { path, args });
   }
+
+  // System Settings Operations
+
+  async getSystemSettings(): Promise<SystemSettings> {
+    return this.sendMessage<SystemSettings>('GET_SETTINGS');
+  }
+
+  async updateSystemSettings(settings: SystemSettings): Promise<void> {
+    await this.sendMessage('UPDATE_SETTINGS', undefined, { settings });
+  }
+
+  async resetSystemSettings(): Promise<SystemSettings> {
+    const result = await this.sendMessage<{ settings: SystemSettings }>('RESET_SETTINGS');
+    return result.settings;
+  }
 }
 
-export const fileDialogService = new FileDialogService();
+export const systemService = new SystemService();
+
+// Export as fileDialogService for backward compatibility
+export const fileDialogService = systemService;

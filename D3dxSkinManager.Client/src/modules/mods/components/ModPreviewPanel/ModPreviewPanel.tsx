@@ -25,7 +25,7 @@ import { ModPreviewProvider, useModView } from "./ModPreviewContext";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { modService } from "../../services/modService";
-import { fileDialogService } from "../../../../shared/services/fileDialogService";
+import { fileDialogService } from "../../../../shared/services/systemService";
 import "./ModPreviewPanel.css";
 
 const { Text, Paragraph, Title } = Typography;
@@ -43,6 +43,7 @@ export const ModPreviewPanelContent: React.FC = () => {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   const mod = state.currentMod;
+  const cacheTimestamp = state.cacheTimestamp;
 
   // Reset image index when mod changes (must be before early return)
   React.useEffect(() => {
@@ -150,11 +151,19 @@ export const ModPreviewPanelContent: React.FC = () => {
     setContextMenuVisible(false);
   };
 
-  const handleCopyImagePath = () => {
+  const handleCopyImagePath = async () => {
     if (!mod) return;
     const currentImagePath = allImagePaths[currentImageIndex];
-    navigator.clipboard.writeText(currentImagePath);
-    message.success("Image path copied to clipboard");
+
+    try {
+      // Convert relative path to absolute for clipboard
+      const absolutePath = await fileDialogService.getAbsolutePath(currentImagePath);
+      await navigator.clipboard.writeText(absolutePath);
+      message.success("Image path copied to clipboard");
+    } catch (error) {
+      console.error("Error copying image path:", error);
+      message.error("Failed to copy image path");
+    }
     setContextMenuVisible(false);
   };
 
@@ -166,12 +175,24 @@ export const ModPreviewPanelContent: React.FC = () => {
   const handleDeleteConfirm = async () => {
     if (!mod || !selectedProfileId) return;
     const currentImagePath = allImagePaths[currentImageIndex];
+    const totalImages = allImagePaths.length;
 
     try {
       await modService.deletePreview(selectedProfileId, mod.sha, currentImagePath);
       message.success("Preview image deleted");
+
+      // Determine the new index after deletion
+      // If we're deleting the last image, move back one position
+      // Otherwise, stay at the same index (which will show the next image after deletion)
+      const newIndex = currentImageIndex >= totalImages - 1
+        ? Math.max(0, currentImageIndex - 1)
+        : currentImageIndex;
+
       // Refresh preview to update UI
       await actions.loadPreviewPaths(mod.sha);
+
+      // Set the new index after refresh
+      setCurrentImageIndex(newIndex);
     } catch (error) {
       console.error("Error deleting preview:", error);
       message.error("Failed to delete preview image");
@@ -399,6 +420,7 @@ export const ModPreviewPanelContent: React.FC = () => {
               onContextMenu={handleImageContextMenu}
             >
               <img
+                key={`${allImagePaths[currentImageIndex]}-${cacheTimestamp}`}
                 className="mod-preview-image"
                 alt={`${mod.name} - Preview ${currentImageIndex + 1}`}
                 src={toAppUrl(allImagePaths[currentImageIndex]) || undefined}
