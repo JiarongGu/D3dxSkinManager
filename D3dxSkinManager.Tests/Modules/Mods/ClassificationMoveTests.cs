@@ -5,6 +5,7 @@ using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Mods.Services;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Mods;
 
@@ -15,13 +16,14 @@ public class ClassificationMoveTests
 {
     private readonly Mock<IClassificationRepository> _mockRepository;
     private readonly Mock<IModRepository> _mockModRepository;
+    private readonly Mock<IPathHelper> _mockPathHelper = new();
     private readonly ClassificationService _service;
 
     public ClassificationMoveTests()
     {
         _mockRepository = new Mock<IClassificationRepository>();
         _mockModRepository = new Mock<IModRepository>();
-        _service = new ClassificationService(_mockRepository.Object, _mockModRepository.Object);
+        _service = new ClassificationService(_mockRepository.Object, _mockModRepository.Object, _mockPathHelper.Object);
 
         // Setup default mock behavior for mod repository
         _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ModInfo>());

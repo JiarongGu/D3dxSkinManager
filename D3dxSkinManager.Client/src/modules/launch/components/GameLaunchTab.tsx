@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
 import { UnityArgsDialog } from '../../core/components/dialogs/UnityArgsDialog';
-import { fileDialogService } from '../../../shared/services/fileDialogService';
+import { fileDialogService } from '../../../shared/services/systemService';
 import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 

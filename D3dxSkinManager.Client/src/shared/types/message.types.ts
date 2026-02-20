@@ -8,6 +8,7 @@ export type ModuleName =
   | 'TOOLS'
   | 'PLUGINS'
   | 'SETTINGS'
+  | 'SYSTEM'
   | 'MIGRATION'
   | 'PROFILE';
 

@@ -11,6 +11,7 @@ using D3dxSkinManager.Modules.Mods;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Mods.Services;
 using D3dxSkinManager.Modules.Plugins.Services;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Mods;
 
@@ -22,7 +23,6 @@ public class ModFacadeTests
 {
     private readonly Mock<IModRepository> _mockRepository;
     private readonly Mock<IModFileService> _mockFileService;
-    private readonly Mock<IModFileService> _mockArchiveService; // Alias for backward compatibility
     private readonly Mock<IModImportService> _mockImportService;
     private readonly Mock<IModQueryService> _mockQueryService;
     private readonly Mock<IClassificationService> _mockClassificationService;
@@ -30,13 +30,14 @@ public class ModFacadeTests
     private readonly Mock<IEventEmitterHelper> _mockEventEmitter = new();
     private readonly Mock<ILogHelper> _mockLogger = new();
     private readonly Mock<IImageService> _mockImageService = new();
+    private readonly Mock<IProfilePathService> _mockProfilePathService = new();
+    private readonly Mock<IPathHelper> _mockPathHelper = new();
     private readonly ModFacade _facade;
 
     public ModFacadeTests()
     {
         _mockRepository = new Mock<IModRepository>();
         _mockFileService = new Mock<IModFileService>();
-        _mockArchiveService = _mockFileService; // Alias for backward compatibility
         _mockImportService = new Mock<IModImportService>();
         _mockQueryService = new Mock<IModQueryService>();
         _mockClassificationService = new Mock<IClassificationService>();
@@ -51,6 +52,8 @@ public class ModFacadeTests
             _mockPayloadHelper.Object,
             _mockEventEmitter.Object,
             _mockImageService.Object,
+            _mockProfilePathService.Object,
+            _mockPathHelper.Object,
             _mockLogger.Object
         );
     }

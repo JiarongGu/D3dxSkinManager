@@ -11,7 +11,7 @@ namespace D3dxSkinManager.Modules.Settings;
 
 /// <summary>
 /// Interface for Settings facade
-/// Handles: SETTINGS_GET, SETTINGS_UPDATE, etc.
+/// Handles: SETTINGS_GET, SETTINGS_UPDATE, settings file operations
 /// Prefix: SETTINGS_*
 /// </summary>
 public interface ISettingsFacade : IModuleFacade
@@ -21,47 +21,28 @@ public interface ISettingsFacade : IModuleFacade
     Task UpdateGlobalSettingsAsync(GlobalSettings settings);
     Task UpdateGlobalSettingAsync(string key, string value);
     Task ResetGlobalSettingsAsync();
-
-    // File System Operations (moved from Core)
-    Task OpenFileInExplorerAsync(string filePath);
-    Task OpenDirectoryAsync(string directoryPath);
-    Task OpenFileAsync(string filePath);
-
-    // File Dialogs (moved from Core)
-    Task<FileDialogResult> OpenFileDialogAsync(FileDialogOptions? options = null);
-    Task<FileDialogResult> OpenFolderDialogAsync(FileDialogOptions? options = null);
-    Task<FileDialogResult> SaveFileDialogAsync(FileDialogOptions? options = null);
 }
 
 
 /// <summary>
-/// Facade for settings and file system operations
-/// Responsibility: App settings, file dialogs, file system operations
+/// Facade for settings operations
+/// Responsibility: Global settings and settings file management
 /// IPC Prefix: SETTINGS_*
 /// </summary>
 public class SettingsFacade : BaseFacade, ISettingsFacade
 {
     protected override string ModuleName => "SettingsFacade";
 
-    private readonly IFileSystemService _fileSystemService;
-    private readonly IFileDialogService _fileDialogService;
-    private readonly IProcessService _processService;
     private readonly IGlobalSettingsService _globalSettingsService;
     private readonly ISettingsFileService _settingsFileService;
     private readonly IPayloadHelper _payloadHelper;
 
     public SettingsFacade(
-        IFileSystemService fileSystemService,
-        IFileDialogService fileDialogService,
-        IProcessService processService,
         IGlobalSettingsService globalSettingsService,
         ISettingsFileService settingsFileService,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
-        _fileSystemService = fileSystemService ?? throw new ArgumentNullException(nameof(fileSystemService));
-        _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
-        _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _globalSettingsService = globalSettingsService ?? throw new ArgumentNullException(nameof(globalSettingsService));
         _settingsFileService = settingsFileService ?? throw new ArgumentNullException(nameof(settingsFileService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
@@ -83,17 +64,6 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
             "DELETE_FILE" => await DeleteSettingsFileHandlerAsync(request),
             "FILE_EXISTS" => await SettingsFileExistsHandlerAsync(request),
             "LIST_FILES" => await ListSettingsFilesHandlerAsync(request),
-
-            // File system operations
-            "OPEN_FILE" => await OpenFileAsync(request),
-            "OPEN_DIRECTORY" => await OpenDirectoryAsync(request),
-            "OPEN_FILE_IN_EXPLORER" => await OpenFileInExplorerAsync(request),
-            "LAUNCH_PROCESS" => await LaunchProcessAsync(request),
-
-            // File dialogs
-            "OPEN_FILE_DIALOG" => await OpenFileDialogAsync(request),
-            "OPEN_FOLDER_DIALOG" => await OpenFolderDialogAsync(request),
-            "SAVE_FILE_DIALOG" => await SaveFileDialogAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -119,132 +89,7 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
         await _globalSettingsService.ResetSettingsAsync();
     }
 
-    public async Task OpenFileInExplorerAsync(string filePath)
-    {
-        if (!_fileSystemService.FileExists(filePath))
-        {
-            throw new InvalidOperationException($"File not found: {filePath}");
-        }
-
-        await _fileSystemService.OpenFileInExplorerAsync(filePath);
-    }
-
-    public async Task OpenDirectoryAsync(string directoryPath)
-    {
-        if (!_fileSystemService.DirectoryExists(directoryPath))
-        {
-            throw new InvalidOperationException($"Directory not found: {directoryPath}");
-        }
-
-        await _fileSystemService.OpenDirectoryAsync(directoryPath);
-    }
-
-    public async Task OpenFileAsync(string filePath)
-    {
-        if (!_fileSystemService.FileExists(filePath))
-        {
-            throw new InvalidOperationException($"File not found: {filePath}");
-        }
-
-        await _fileSystemService.OpenFileAsync(filePath);
-    }
-
-    public async Task<FileDialogResult> OpenFileDialogAsync(FileDialogOptions? options = null)
-    {
-        return await _fileDialogService.OpenFileDialogAsync(options);
-    }
-
-    public async Task<FileDialogResult> OpenFolderDialogAsync(FileDialogOptions? options = null)
-    {
-        return await _fileDialogService.OpenFolderDialogAsync(options);
-    }
-
-    public async Task<FileDialogResult> SaveFileDialogAsync(FileDialogOptions? options = null)
-    {
-        return await _fileDialogService.SaveFileDialogAsync(options);
-    }
-
-    private async Task<object> OpenFileInExplorerAsync(MessageRequest request)
-    {
-        var filePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
-        await OpenFileInExplorerAsync(filePath);
-        return new { success = true, message = $"Opened file in explorer: {filePath}" };
-    }
-
-    private async Task<object> OpenDirectoryAsync(MessageRequest request)
-    {
-        var directoryPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "directoryPath");
-        await OpenDirectoryAsync(directoryPath);
-        return new { success = true, message = $"Opened directory: {directoryPath}" };
-    }
-
-    private async Task<object> OpenFileAsync(MessageRequest request)
-    {
-        var filePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
-        await OpenFileAsync(filePath);
-        return new { success = true, message = $"Opened file: {filePath}" };
-    }
-
-    private async Task<object> LaunchProcessAsync(MessageRequest request)
-    {
-        var executablePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "executablePath");
-        var arguments = _payloadHelper.GetOptionalValue<string>(request.Payload, "arguments");
-        var workingDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workingDirectory");
-
-        await _processService.LaunchProcessAsync(executablePath, arguments, workingDirectory);
-
-        return new { success = true, message = $"Launched process: {executablePath}" };
-    }
-
-    private async Task<FileDialogResult> OpenFileDialogAsync(MessageRequest request)
-    {
-        var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
-        var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
-        var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
-
-        var options = new FileDialogOptions
-        {
-            Title = title,
-            DefaultPath = defaultPath,
-            Filters = null,
-            RememberPathKey = rememberPathKey
-        };
-
-        return await OpenFileDialogAsync(options);
-    }
-
-    private async Task<FileDialogResult> OpenFolderDialogAsync(MessageRequest request)
-    {
-        var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
-        var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
-        var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
-
-        var options = new FileDialogOptions
-        {
-            Title = title,
-            DefaultPath = defaultPath,
-            RememberPathKey = rememberPathKey
-        };
-
-        return await OpenFolderDialogAsync(options);
-    }
-
-    private async Task<FileDialogResult> SaveFileDialogAsync(MessageRequest request)
-    {
-        var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
-        var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
-        var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
-
-        var options = new FileDialogOptions
-        {
-            Title = title,
-            DefaultPath = defaultPath,
-            Filters = null,
-            RememberPathKey = rememberPathKey
-        };
-
-        return await SaveFileDialogAsync(options);
-    }
+    // IPC Message Handlers
 
     private async Task<GlobalSettings> GetGlobalSettingsHandlerAsync(MessageRequest request)
     {
