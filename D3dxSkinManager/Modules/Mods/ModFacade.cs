@@ -151,6 +151,13 @@ public class ModFacade : BaseFacade, IModFacade
     public async Task<ModInfo?> GetModByIdAsync(string sha)
     {
         var mod = await _repository.GetByIdAsync(sha);
+
+        // Populate status flags from file system for single mod
+        if (mod != null)
+        {
+            PopulateStatusFlagsBulk(new List<ModInfo> { mod });
+        }
+
         return mod;
     }
 
@@ -159,7 +166,8 @@ public class ModFacade : BaseFacade, IModFacade
         var success = await _fileService.LoadAsync(sha);
         if (!success) return false;
 
-        await _repository.SetLoadedStateAsync(sha, true);
+        // Note: IsLoaded is determined dynamically from file system, not stored in database
+        // No need to call SetLoadedStateAsync (it's a no-op)
         await _eventEmitter.EmitAsync(PluginEventType.ModLoaded, data: new { Sha = sha });
 
         return true;
@@ -170,7 +178,8 @@ public class ModFacade : BaseFacade, IModFacade
         var success = await _fileService.UnloadAsync(sha);
         if (!success) return false;
 
-        await _repository.SetLoadedStateAsync(sha, false);
+        // Note: IsLoaded is determined dynamically from file system, not stored in database
+        // No need to call SetLoadedStateAsync (it's a no-op)
         await _eventEmitter.EmitAsync(PluginEventType.ModUnloaded, data: new { Sha = sha });
 
         return true;
@@ -199,7 +208,7 @@ public class ModFacade : BaseFacade, IModFacade
         if (mod == null) return false;
 
         // Preview folder (previews/{sha}/) is handled by ClearModCacheAsync in DeleteAsync
-        await _fileService.DeleteAsync(sha, null, null);
+        await _fileService.DeleteAsync(sha, null);
         var success = await _repository.DeleteAsync(sha);
 
         if (success)
@@ -213,6 +222,10 @@ public class ModFacade : BaseFacade, IModFacade
     public async Task<List<ModInfo>> GetModsByObjectAsync(string category)
     {
         var mods = await _repository.GetByCategoryAsync(category);
+
+        // Populate status flags from file system
+        PopulateStatusFlagsBulk(mods);
+
         return mods;
     }
 
@@ -234,6 +247,10 @@ public class ModFacade : BaseFacade, IModFacade
     public async Task<List<ModInfo>> SearchModsAsync(string searchTerm)
     {
         var mods = await _queryService.SearchAsync(searchTerm);
+
+        // Populate status flags from file system
+        PopulateStatusFlagsBulk(mods);
+
         return mods;
     }
 
@@ -264,22 +281,34 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> UpdateCategoryAsync(string sha, string category)
     {
-        var mod = await _repository.GetByIdAsync(sha);
+        var mod = await GetModByIdAsync(sha);
         if (mod == null)
         {
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
 
+        _logger.Info($"Mod {sha} current state: IsLoaded={mod.IsLoaded}", "ModFacade");
+
         // If the mod is currently loaded, unload it since category determines which object it applies to
         if (mod.IsLoaded)
         {
+            _logger.Info($"Mod {sha} is loaded, unloading before category change", "ModFacade");
             await UnloadModAsync(sha);
+            _logger.Info($"Mod {sha} unloaded", "ModFacade");
+        }
+        else
+        {
+            _logger.Info($"Mod {sha} is not loaded, skipping unload", "ModFacade");
         }
 
         mod.Category = category;
 
         await _repository.UpdateAsync(mod);
-        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.category.updated", new { sha, category, mod });
+
+        // Re-fetch the mod to get the updated IsLoaded state from file system
+        var updatedMod = await GetModByIdAsync(sha);
+
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.category.updated", new { sha, category, mod = updatedMod ?? mod });
 
         // Refresh the classification tree cache to update counts
         await _classificationService.RefreshTreeAsync();
@@ -568,6 +597,10 @@ public class ModFacade : BaseFacade, IModFacade
     {
         var classificationNodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "classificationNodeId");
         var mods = await _queryService.GetModsByClassificationAsync(classificationNodeId);
+
+        // Populate status flags from file system
+        PopulateStatusFlagsBulk(mods);
+
         return mods;
     }
 
@@ -577,6 +610,10 @@ public class ModFacade : BaseFacade, IModFacade
     private async Task<List<ModInfo>> GetUnclassifiedModsAsync()
     {
         var mods = await _queryService.GetUnclassifiedModsAsync();
+
+        // Populate status flags from file system
+        PopulateStatusFlagsBulk(mods);
+
         return mods;
     }
 

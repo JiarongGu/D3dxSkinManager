@@ -1,12 +1,51 @@
-import React from 'react';
-import { Tree, Empty, Spin, Input, Button, Tooltip } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { ClassificationNode } from '../../../../shared/types/classification.types';
-import { ClassificationTreeProvider, useClassificationTreeContext } from './ClassificationTreeContext';
-import { ContextMenu, ContextMenuItem } from '../../../../shared/components/menu/ContextMenu';
-import './ClassificationTree.css';
+import React from "react";
+import { Tree, Empty, Spin, Input, Button, Tooltip } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
+import { ClassificationNode } from "../../../../shared/types/classification.types";
+import {
+  ClassificationTreeProvider,
+  useClassificationTreeContext,
+} from "./ClassificationTreeContext";
+import { ContextMenu, ContextMenuItem } from "../../../../shared/components/menu/ContextMenu";
+import { useDragDrop } from "../../../../shared/hooks/useDragDrop";
+import { logger } from "../../../core/utils/logger";
+import type { MenuProps } from "antd";
+import "./ClassificationTree.css";
 
 const { Search } = Input;
+
+/**
+ * Extract node ID from tree element text content
+ * Strips count suffix like " (5)" from displayed text
+ */
+const extractNodeId = (target: Element | null): string => {
+  if (!target) return "";
+  return target.textContent?.trim().replace(/\s*\(\d+\)$/, "") || "";
+};
+
+/**
+ * Convert Ant Design MenuProps items to ContextMenuItem array
+ */
+const convertMenuItems = (items: MenuProps['items']): ContextMenuItem[] => {
+  if (!items) return [];
+  return items
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .map(item => {
+      // Handle divider type
+      if ('type' in item && item.type === 'divider') {
+        return { type: 'divider' as const };
+      }
+      // Handle regular menu items
+      return {
+        key: String((item as any).key || ''),
+        label: String((item as any).label || ''),
+        icon: (item as any).icon,
+        danger: (item as any).danger,
+        disabled: (item as any).disabled,
+        onClick: (item as any).onClick,
+      };
+    });
+};
 
 /**
  * Props for the main ClassificationTree component
@@ -88,133 +127,83 @@ const ClassificationTreeInner: React.FC = () => {
     expandedKeys,
     handleSelect,
     handleRightClick,
-    handleDrop,
-    handleDragStart,
-    handleDragEnd,
-    handleContainerDrop,
-    handleContainerDragOver,
-    handleModDragOver,
-    handleModDrop,
+    handleNodeReorder,
+    handleModClassify,
   } = useClassificationTreeContext();
 
-  const treeContainerRef = React.useRef<HTMLDivElement>(null);
+  // Track which node is being dragged
+  const draggedNodeKeyRef = React.useRef<string | null>(null);
 
-  // Add DOM-level event listeners to capture external drops on tree nodes
-  React.useEffect(() => {
-    if (!treeContainerRef.current) return;
-
-    const container = treeContainerRef.current;
-
-    const handleDragOver = (e: DragEvent) => {
-      // Check if mod is being dragged
-      const types = Array.from(e.dataTransfer?.types || []);
-
-      if (types.includes('application/mod-sha')) {
-        e.preventDefault(); // Allow drop
-        e.dataTransfer!.dropEffect = 'move';
-
-        // Add visual feedback
-        const target = e.target as HTMLElement;
-        const nodeWrapper = target.closest('.ant-tree-node-content-wrapper');
-
-        if (nodeWrapper) {
-          nodeWrapper.classList.add('mod-drop-target');
+  // Enhanced drag and drop with simplified API
+  const { containerRef: treeContainerRef } = useDragDrop<HTMLDivElement>(
+    // Handler 1: Mod drops from the mod list (only allow dropping into nodes)
+    {
+      eventType: "application/mod-sha",
+      nodeSelector: ".ant-tree-node-content-wrapper",
+      allow: "node", // Only allow dropping into categories, not between them
+      onDrop: ({ data, target }) => {
+        if (!data) {
+          logger.error('[ModDrop] No mod SHA provided');
+          return false;
         }
-      }
-    };
 
-    const handleDragLeave = (e: DragEvent) => {
-      const target = e.target as HTMLElement;
-      const nodeWrapper = target.closest('.ant-tree-node-content-wrapper');
-      if (nodeWrapper) {
-        nodeWrapper.classList.remove('mod-drop-target');
-      }
-    };
-
-    const handleDrop = (e: DragEvent) => {
-      // Remove all visual feedback
-      container.querySelectorAll('.mod-drop-target').forEach(el => {
-        el.classList.remove('mod-drop-target');
-      });
-
-      const modSha = e.dataTransfer?.getData('application/mod-sha');
-
-      if (modSha) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Find which node was dropped on
-        const target = e.target as HTMLElement;
-        const nodeWrapper = target.closest('.ant-tree-node-content-wrapper');
-        const treeNode = nodeWrapper?.closest('.ant-tree-treenode');
-
-        if (treeNode) {
-          // Try multiple methods to get the node key
-          let nodeKey: string | null = null;
-
-          // Method 1: Try React fiber
-          const fiberKey = Object.keys(treeNode).find(key => key.startsWith('__reactFiber'));
-          if (fiberKey) {
-            const fiber = (treeNode as any)[fiberKey];
-            nodeKey = fiber?.key || fiber?.memoizedProps?.eventKey || fiber?.memoizedProps?.data?.key;
-          }
-
-          // Method 2: Try title element's data
-          if (!nodeKey && nodeWrapper) {
-            const titleElement = nodeWrapper.querySelector('[data-node-id]');
-            if (titleElement) {
-              nodeKey = titleElement.getAttribute('data-node-id');
-            }
-          }
-
-          // Method 3: Get from the title text and match against tree data
-          if (!nodeKey && nodeWrapper) {
-            const titleText = nodeWrapper.textContent?.trim();
-            if (titleText) {
-              // Strip the count suffix like " (5)"
-              const cleanTitle = titleText.replace(/\s*\(\d+\)$/, '');
-              nodeKey = cleanTitle; // Use the title as the key (classification node IDs match their names)
-            }
-          }
-
-          if (nodeKey) {
-            handleModDrop(e as any, nodeKey);
-          }
+        if (!target) {
+          logger.error('[ModDrop] No target element');
+          return false;
         }
-      }
-    };
 
-    container.addEventListener('dragover', handleDragOver, true);
-    container.addEventListener('dragleave', handleDragLeave, true);
-    container.addEventListener('drop', handleDrop, true);
+        const nodeId = extractNodeId(target);
+        logger.debug('[ModDrop] Dropping mod:', data, 'onto node:', nodeId);
 
-    return () => {
-      container.removeEventListener('dragover', handleDragOver, true);
-      container.removeEventListener('dragleave', handleDragLeave, true);
-      container.removeEventListener('drop', handleDrop, true);
-    };
-  }, [handleModDrop, treeData]); // Re-run when treeData changes (ensures ref is set)
+        handleModClassify(data, nodeId);
+        return true;
+      },
+    },
+    // Handler 2: Tree node reorganization with automatic drop zones
+    {
+      eventType: "application/tree-node-id",
+      nodeSelector: ".ant-tree-node-content-wrapper",
+      allow: "all",
+      gapThreshold: 0.15,
+      onDrop: ({ data, type, gapPosition, target }) => {
+        if (!data || !draggedNodeKeyRef.current) return false;
 
-  // Convert Ant Design menu items to ContextMenuItem format
-  const rightClickMenuItems: ContextMenuItem[] = (contextMenuItems || []).map((item: any) => ({
-    key: item.key,
-    label: item.label,
-    icon: item.icon,
-    danger: item.danger,
-    disabled: item.disabled,
-    onClick: item.onClick,
-    type: item.type,
-  }));
+        if (!target) {
+          logger.error('[TreeDrop] No target element');
+          return false;
+        }
+
+        const dropNodeId = extractNodeId(target);
+
+        logger.debug('[TreeDrop] Reordering:', {
+          dragNode: draggedNodeKeyRef.current,
+          dropNode: dropNodeId,
+          dropType: type,
+          gapSide: gapPosition
+        });
+
+        handleNodeReorder(
+          draggedNodeKeyRef.current,
+          dropNodeId,
+          type,
+          gapPosition
+        );
+        return true;
+      },
+    },
+  );
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        padding: '24px'
-      }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          padding: "24px",
+        }}
+      >
         <Spin description="Loading classification tree..." />
       </div>
     );
@@ -225,14 +214,14 @@ const ClassificationTreeInner: React.FC = () => {
       <>
         <div
           style={{
-            padding: '16px',
-            userSelect: 'none',
-            height: '100%',
-            minHeight: '300px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingBottom: '80px',
+            padding: "16px",
+            userSelect: "none",
+            height: "100%",
+            minHeight: "300px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingBottom: "80px",
           }}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -246,7 +235,7 @@ const ClassificationTreeInner: React.FC = () => {
           />
         </div>
         <ContextMenu
-          items={rightClickMenuItems}
+          items={convertMenuItems(contextMenuItems)}
           visible={contextMenuNode !== null}
           position={contextMenuPosition}
           onClose={() => setContextMenuNode(null)}
@@ -256,8 +245,23 @@ const ClassificationTreeInner: React.FC = () => {
   }
 
   return (
-    <div style={{ userSelect: 'none', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', gap: '8px', padding: '8px 8px 8px 8px', flexShrink: 0 }}>
+    <div
+      style={{
+        userSelect: "none",
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          gap: "8px",
+          padding: "8px 8px 8px 8px",
+          flexShrink: 0,
+        }}
+      >
         <Search
           placeholder="Search classifications..."
           value={searchQuery}
@@ -269,32 +273,26 @@ const ClassificationTreeInner: React.FC = () => {
           <Button
             type="default"
             icon={<PlusOutlined />}
-            onClick={() => {
-              if (onAddClassification) {
-                onAddClassification();
-              }
-            }}
+            onClick={() => onAddClassification?.()}
           />
         </Tooltip>
       </div>
 
       <div
         ref={treeContainerRef}
-        style={{ flex: 1, minHeight: 0, overflow: 'auto', paddingRight: '4px' }}
-        onDrop={handleContainerDrop}
-        onDragOver={handleContainerDragOver}
+        style={{ flex: 1, minHeight: 0, overflow: "auto", paddingRight: "4px" }}
       >
         <div
-          style={{ paddingLeft: '8px', paddingBottom: '8px' }}
+          style={{ paddingLeft: "8px", paddingBottom: "8px" }}
           onContextMenu={(e) => {
             // Handle context menu on empty areas (not on tree nodes)
             const target = e.target as HTMLElement;
             // Check if click is on tree node or empty area
-            if (!target.closest('.ant-tree-node-content-wrapper')) {
+            if (!target.closest(".ant-tree-node-content-wrapper")) {
               e.preventDefault();
               e.stopPropagation();
               setContextMenuPosition({ x: e.clientX, y: e.clientY });
-              setContextMenuNode(''); // Empty string for empty area context menu
+              setContextMenuNode(""); // Empty string for empty area context menu
             }
           }}
         >
@@ -306,15 +304,25 @@ const ClassificationTreeInner: React.FC = () => {
             expandedKeys={expandedKeys}
             onSelect={handleSelect}
             onRightClick={handleRightClick}
-            onDrop={handleDrop}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
+            onDragStart={(info) => {
+              const nodeKey = info.node.key as string;
+              draggedNodeKeyRef.current = nodeKey;
+
+              // Set dataTransfer data for our custom drag/drop hook
+              if (info.event.dataTransfer) {
+                info.event.dataTransfer.setData('application/tree-node-id', nodeKey);
+                info.event.dataTransfer.effectAllowed = 'move';
+              }
+            }}
+            onDragEnd={() => {
+              draggedNodeKeyRef.current = null;
+            }}
             treeData={treeData}
-            style={{ background: 'transparent' }}
+            style={{ background: "transparent" }}
           />
         </div>
         <ContextMenu
-          items={rightClickMenuItems}
+          items={convertMenuItems(contextMenuItems)}
           visible={contextMenuNode !== null}
           position={contextMenuPosition}
           onClose={() => setContextMenuNode(null)}
@@ -330,7 +338,9 @@ const ClassificationTreeInner: React.FC = () => {
  * This component uses a context provider to manage all state and logic internally.
  * It provides a clean API for parent components while keeping internal complexity isolated.
  */
-export const ClassificationTree: React.FC<ClassificationTreeProps> = (props) => {
+export const ClassificationTree: React.FC<ClassificationTreeProps> = (
+  props,
+) => {
   return (
     <ClassificationTreeProvider {...props}>
       <ClassificationTreeInner />

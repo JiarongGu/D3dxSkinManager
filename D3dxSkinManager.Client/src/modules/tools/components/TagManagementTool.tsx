@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Tag, Modal, message } from 'antd';
+import { Tag, Modal } from 'antd';
 import { TagsOutlined, ReloadOutlined } from '@ant-design/icons';
 import {
   CompactCard,
@@ -66,7 +67,7 @@ export const TagManagementTool: React.FC = () => {
             Cancel
           </CompactButton>,
           <CompactButton key="save" type="primary" onClick={() => {
-            message.success('Tags saved');
+            notification.success('Tags saved');
             setShowTagEditor(false);
           }}>
             Save

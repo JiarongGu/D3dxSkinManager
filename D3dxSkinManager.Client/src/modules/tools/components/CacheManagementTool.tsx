@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState, useMemo } from 'react';
-import { Card, message, Table, Tag, Modal, Statistic, Row, Col } from 'antd';
+import { Card,  Table, Tag, Modal, Statistic, Row, Col } from 'antd';
 import {
   DeleteOutlined,
   ClearOutlined,
@@ -56,9 +57,9 @@ export const CacheManagementTool: React.FC = () => {
       ]);
       setCacheItems(items);
       setCacheStats(stats);
-      message.success(`Cache scan complete: ${items.length} items found`);
+      notification.success(`Cache scan complete: ${items.length} items found`);
     } catch (error) {
-      message.error('Failed to scan cache');
+      notification.error('Failed to scan cache');
       console.error(error);
     } finally {
       setLoading(false);
@@ -76,7 +77,7 @@ export const CacheManagementTool: React.FC = () => {
     ].length;
 
     if (count === 0) {
-      message.info(`No ${categoryName} cache items to clean`);
+      notification.info(`No ${categoryName} cache items to clean`);
       return;
     }
 
@@ -92,19 +93,19 @@ export const CacheManagementTool: React.FC = () => {
       cancelText: 'Cancel',
       onOk: async () => {
         if (!profileState.selectedProfile?.id) {
-          message.error('No profile selected. Cannot clean cache.');
+          notification.error('No profile selected. Cannot clean cache.');
           return;
         }
         const profileId = profileState.selectedProfile.id;
         try {
           setLoading(true);
           const deletedCount = await cacheService.cleanCache(profileId, category);
-          message.success(`${deletedCount} ${categoryName} cache item(s) deleted`);
+          notification.success(`${deletedCount} ${categoryName} cache item(s) deleted`);
 
           // Refresh cache list
           await handleScanCache();
         } catch (error) {
-          message.error(`Failed to clean ${categoryName} cache`);
+          notification.error(`Failed to clean ${categoryName} cache`);
           console.error(error);
         } finally {
           setLoading(false);
@@ -125,7 +126,7 @@ export const CacheManagementTool: React.FC = () => {
       cancelText: 'Cancel',
       onOk: async () => {
         if (!profileState.selectedProfile?.id) {
-          message.error('No profile selected. Cannot delete cache item.');
+          notification.error('No profile selected. Cannot delete cache item.');
           return;
         }
         const profileId = profileState.selectedProfile.id;
@@ -133,14 +134,14 @@ export const CacheManagementTool: React.FC = () => {
           setLoading(true);
           const success = await cacheService.deleteCacheItem(profileId, item.sha);
           if (success) {
-            message.success('Cache item deleted');
+            notification.success('Cache item deleted');
             // Refresh cache list
             await handleScanCache();
           } else {
-            message.error('Failed to delete cache item');
+            notification.error('Failed to delete cache item');
           }
         } catch (error) {
-          message.error('Failed to delete cache item');
+          notification.error('Failed to delete cache item');
           console.error(error);
         } finally {
           setLoading(false);
@@ -156,10 +157,10 @@ export const CacheManagementTool: React.FC = () => {
     try {
       // Assuming work_mods is the cache directory
       // This would need to be configured based on actual data path
-      message.info('Opening cache directory...');
+      notification.info('Opening cache directory...');
       // await fileSystemService.openDirectory(cachePath);
     } catch (error) {
-      message.error('Failed to open cache directory');
+      notification.error('Failed to open cache directory');
       console.error(error);
     }
   };

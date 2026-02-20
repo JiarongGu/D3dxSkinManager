@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Button, Space, message, Badge } from 'antd';
+import { Button, Space,  Badge } from 'antd';
 import {
   FolderOpenOutlined,
   SettingOutlined,
@@ -35,7 +36,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 
     try {
       await actions.selectProfile(profileId);
-      message.success(`Switched to profile`);
+      notification.success(`Switched to profile`);
 
       // Notify parent component
       if (onProfileSwitch && state.selectedProfile) {
@@ -46,7 +47,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
       window.location.reload();
     } catch (error) {
       console.error('Failed to switch profile:', error);
-      message.error('Failed to switch profile');
+      notification.error('Failed to switch profile');
     }
   };
 

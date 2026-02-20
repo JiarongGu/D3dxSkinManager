@@ -1,5 +1,5 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState, useCallback, DragEvent } from 'react';
-import { message } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { FileTypeRouter } from '../../../shared/utils/fileTypeRouter';
 
@@ -60,8 +60,9 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
   };
 
   const handleDragEnter = useCallback((e: DragEvent<HTMLDivElement>) => {
-    // Ignore if this is a mod being dragged (internal drag-and-drop)
-    if (e.dataTransfer.types.includes('application/mod-sha')) {
+    // Ignore if this is internal drag-and-drop (mods or tree nodes)
+    if (e.dataTransfer.types.includes('application/mod-sha') ||
+        e.dataTransfer.types.includes('application/tree-node-id')) {
       return;
     }
 
@@ -77,8 +78,9 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
   }, [disabled]);
 
   const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
-    // Ignore if this is a mod being dragged (internal drag-and-drop)
-    if (e.dataTransfer.types.includes('application/mod-sha')) {
+    // Ignore if this is internal drag-and-drop (mods or tree nodes)
+    if (e.dataTransfer.types.includes('application/mod-sha') ||
+        e.dataTransfer.types.includes('application/tree-node-id')) {
       return;
     }
 
@@ -97,8 +99,9 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
   }, [disabled]);
 
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
-    // Ignore if this is a mod being dragged (internal drag-and-drop)
-    if (e.dataTransfer.types.includes('application/mod-sha')) {
+    // Ignore if this is internal drag-and-drop (mods or tree nodes)
+    if (e.dataTransfer.types.includes('application/mod-sha') ||
+        e.dataTransfer.types.includes('application/tree-node-id')) {
       return;
     }
 
@@ -107,8 +110,9 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
   }, []);
 
   const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
-    // Ignore if this is a mod being dragged (internal drag-and-drop)
-    if (e.dataTransfer.types.includes('application/mod-sha')) {
+    // Ignore if this is internal drag-and-drop (mods or tree nodes)
+    if (e.dataTransfer.types.includes('application/mod-sha') ||
+        e.dataTransfer.types.includes('application/tree-node-id')) {
       return;
     }
 
@@ -123,7 +127,7 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
     const { files, items } = e.dataTransfer;
 
     if (!files || files.length === 0) {
-      message.warning('No files detected');
+      notification.warning('No files detected');
       return;
     }
 
@@ -144,7 +148,7 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
 
     // Show rejection message if any
     if (rejectedFiles.length > 0) {
-      message.warning(
+      notification.warning(
         `${rejectedFiles.length} file(s) rejected. Accepted types: ${accept?.join(', ')}`
       );
     }
@@ -168,11 +172,11 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
           }
 
           if (messages.length > 0) {
-            message.success(`Processed: ${messages.join(', ')}`);
+            notification.success(`Processed: ${messages.join(', ')}`);
           }
         }).catch(error => {
           console.error('File routing error:', error);
-          message.error('Failed to process some files');
+          notification.error('Failed to process some files');
         });
       } else {
         // Categorize files
@@ -195,13 +199,13 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
 
         // Show success message
         if (images.length > 0) {
-          message.success(`${images.length} preview image(s) ready to add`);
+          notification.success(`${images.length} preview image(s) ready to add`);
         }
         if (archives.length > 0) {
-          message.success(`${archives.length} mod archive(s) ready to add`);
+          notification.success(`${archives.length} mod archive(s) ready to add`);
         }
         if (others.length > 0) {
-          message.info(`${others.length} other file(s) detected`);
+          notification.info(`${others.length} other file(s) detected`);
         }
       }
     }

@@ -74,7 +74,7 @@
   align-items: stretch !important;
   position: relative !important;
   overflow: visible !important;
-  margin: 0 0 6px 0 !important; /* Increased gap for easier drop targeting */
+  margin: 0 0 8px 0 !important; /* Increased gap for easier drop targeting */
 }
 
 /* Remove any top spacing from the tree list itself */
@@ -135,61 +135,7 @@
   opacity: 0 !important;
 }
 
-/* Custom drop indicator line for reordering - show only when dropping between nodes (gap) */
-.classification-tree .ant-tree-treenode.drag-over-gap-top::before,
-.classification-tree .ant-tree-treenode.drag-over-gap-bottom::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-primary) 80%, transparent);
-  z-index: 1000;
-  pointer-events: none;
-  box-shadow: 0 0 8px rgba(24, 144, 255, 0.8);
-}
-
-.classification-tree .ant-tree-treenode.drag-over-gap-top::before {
-  top: -4px; /* Position in the gap */
-}
-
-.classification-tree .ant-tree-treenode.drag-over-gap-bottom::before {
-  bottom: -4px; /* Position in the gap */
-}
-
-/* Add a subtle background highlight to the gap area when dragging over */
-.classification-tree .ant-tree-treenode.drag-over-gap-top::after,
-.classification-tree .ant-tree-treenode.drag-over-gap-bottom::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 8px;
-  background: rgba(24, 144, 255, 0.1);
-  z-index: 999;
-  pointer-events: none;
-}
-
-.classification-tree .ant-tree-treenode.drag-over-gap-top::after {
-  top: -4px;
-}
-
-.classification-tree .ant-tree-treenode.drag-over-gap-bottom::after {
-  bottom: -4px;
-}
-
-/* Highlight folder nodes when dragging over them */
-.classification-tree .ant-tree-treenode.drag-over-gap-top > .ant-tree-node-content-wrapper,
-.classification-tree .ant-tree-treenode.drag-over-gap-bottom > .ant-tree-node-content-wrapper {
-  background-color: transparent !important;
-}
-
-.classification-tree .ant-tree-treenode.drag-over > .ant-tree-node-content-wrapper {
-  background-color: var(--color-primary-bg-hover) !important;
-  opacity: 0.8;
-  border: 2px solid var(--color-primary) !important;
-  box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
-}
+/* Drop indicator styling handled by useDragDrop.css - removed duplicate styles */
 
 /* Also highlight during dragenter */
 .classification-tree .ant-tree-node-content-wrapper.drag-over-node {
@@ -197,12 +143,4 @@
   opacity: 0.8;
   border: 2px solid var(--color-primary) !important;
   box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
-}
-
-/* Highlight when mod is being dragged over */
-.classification-tree .ant-tree-node-content-wrapper.mod-drop-target {
-  background-color: var(--color-primary-bg-hover) !important;
-  border: 2px solid var(--color-primary) !important;
-  box-shadow: 0 0 8px rgba(24, 144, 255, 0.4) !important;
-  transition: all 0.2s ease;
 }

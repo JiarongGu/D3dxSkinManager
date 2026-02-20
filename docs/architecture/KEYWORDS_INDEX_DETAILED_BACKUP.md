@@ -296,8 +296,8 @@ Located in `Plugins/` directory (external to backend):
   - Updated: 2026-02-17 - Added Tools and Plugins tabs
 
 - **AppStatusBar** → `D3dxSkinManager.Client/src/components/layout/AppStatusBar.tsx:26` ⭐ ENHANCED
-  - Status bar with progress, color-coded messages, Help/Suggestions links
-  - Props: userName, serverStatus, modsLoaded, modsTotal, statusMessage, statusType, progressPercent, progressVisible, onHelpClick, onSuggestionsClick
+  - Status bar with progress, color-coded messages, Help links
+  - Props: userName, serverStatus, modsLoaded, modsTotal, statusMessage, statusType, progressPercent, progressVisible, onHelpClick
   - Updated: 2026-02-17 Phase 3 - Added progress bar, color coding, action buttons
   - Updated: 2026-02-18 - Theme-aware colors, borders, and status indicators
 

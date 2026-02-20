@@ -10,9 +10,7 @@ import { toAppUrl } from '../../../../shared/utils/imageUrlHelper';
  */
 export function convertToDataNode(
   node: ClassificationNode,
-  expandedKeys: React.Key[],
-  onModDragOver?: (e: React.DragEvent, nodeId: string) => void,
-  onModDrop?: (e: React.DragEvent, nodeId: string) => Promise<void>
+  expandedKeys: React.Key[]
 ): DataNode {
   const isLeaf = node.children.length === 0;
   const hasThumbnail = !!node.thumbnail;
@@ -80,6 +78,6 @@ export function convertToDataNode(
     // Don't use the icon property at all - embed in title instead
     icon: <span />,
     isLeaf,
-    children: node.children.map(child => convertToDataNode(child, expandedKeys, onModDragOver, onModDrop)),
+    children: node.children.map(child => convertToDataNode(child, expandedKeys)),
   };
 }

@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Modal, Form, Input, Select, Button, Space, Checkbox, Divider, Alert, message } from 'antd';
+import { Modal, Form, Input, Select, Button, Space, Checkbox, Divider, Alert } from 'antd';
 import { TagsOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { ImportTask } from './AddModWindow';
@@ -74,7 +75,7 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
       }
 
       if (fieldMask.length === 0) {
-        message.warning('Please select at least one field to update');
+        notification.warning('Please select at least one field to update');
         return;
       }
 
@@ -82,12 +83,12 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
       const taskIds = selectedTasks.map(task => task.id);
       onSave(taskIds, modData, fieldMask);
 
-      message.success(`${selectedTasks.length} task(s) updated successfully`);
+      notification.success(`${selectedTasks.length} task(s) updated successfully`);
       handleReset();
       onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
-      message.error('Please check all required fields');
+      notification.error('Please check all required fields');
     } finally {
       setSaving(false);
     }
@@ -114,7 +115,7 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
     if (onOpenTagSelector) {
       onOpenTagSelector(selectedTags);
     } else {
-      message.info('Tag selector not implemented yet');
+      notification.info('Tag selector not implemented yet');
     }
   };
 

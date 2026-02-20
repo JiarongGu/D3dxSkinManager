@@ -1,3 +1,4 @@
+import { notification } from '../../../../shared/utils/notification';
 import React from 'react';
 import { Space, Alert, Card, Row, Col, Statistic, Divider, List, Typography } from 'antd';
 import { FolderOpenOutlined } from '@ant-design/icons';
@@ -5,7 +6,6 @@ import { CompactButton } from '../../../../shared/components/compact';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { migrationService } from '../../services/migrationService';
 import { fileDialogService } from '../../../../shared/services/systemService';
-import { message } from 'antd';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 
 const { Text } = Typography;
@@ -34,13 +34,13 @@ export const DetectionStep: React.FC = () => {
       const detectedPath = await migrationService.autoDetect();
       if (detectedPath) {
         setPythonPath(detectedPath);
-        message.success('Python installation detected');
+        notification.success('Python installation detected');
         await handleAnalyze(detectedPath);
       } else {
-        message.warning('Could not auto-detect Python installation. Please browse manually.');
+        notification.warning('Could not auto-detect Python installation. Please browse manually.');
       }
     } catch (error) {
-      message.error('Failed to auto-detect Python installation');
+      notification.error('Failed to auto-detect Python installation');
       console.error(error);
     } finally {
       setLoading(false);
@@ -63,7 +63,7 @@ export const DetectionStep: React.FC = () => {
         await handleAnalyze(result.filePath);
       }
     } catch (error) {
-      message.error('Failed to browse for directory');
+      notification.error('Failed to browse for directory');
       console.error(error);
     }
   };
@@ -73,7 +73,7 @@ export const DetectionStep: React.FC = () => {
    */
   const handleAnalyze = async (path: string) => {
     if (!profileState.selectedProfile?.id) {
-      message.error('No profile selected');
+      notification.error('No profile selected');
       return;
     }
     const profileId = profileState.selectedProfile.id;
@@ -84,12 +84,12 @@ export const DetectionStep: React.FC = () => {
       setAnalysis(analysisResult);
 
       if (!analysisResult.isValid) {
-        message.error(`Invalid Python installation directory: ${analysisResult.errors.join(', ')}`);
+        notification.error(`Invalid Python installation directory: ${analysisResult.errors.join(', ')}`);
       } else {
-        message.success(`Found ${analysisResult.totalMods} mods ready to migrate`);
+        notification.success(`Found ${analysisResult.totalMods} mods ready to migrate`);
       }
     } catch (error) {
-      message.error('Failed to analyze Python installation');
+      notification.error('Failed to analyze Python installation');
       console.error('Analysis error:', error);
       // Set a failed analysis state so user can see the error
       setAnalysis({

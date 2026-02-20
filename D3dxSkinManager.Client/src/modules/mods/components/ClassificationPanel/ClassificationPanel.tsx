@@ -1,5 +1,6 @@
+import { notification } from '../../../../shared/utils/notification';
 import React, { useCallback } from 'react';
-import { Layout, message } from 'antd';
+import { Layout } from 'antd';
 import type { Key } from 'react';
 import { ClassificationNode } from '../../../../shared/types/classification.types';
 import { ClassificationTree } from './ClassificationTree';
@@ -19,7 +20,7 @@ interface ClassificationPanelProps {
   expandedKeys: Key[];
   onExpandedKeysChange: (keys: Key[]) => void;
   onRefreshTree: () => Promise<void>;
-  onModsRefresh?: () => Promise<void>; // NEW: Refresh mods after category update
+  onModsRefresh?: () => Promise<void>;
   unclassifiedCount: number;
   onUnclassifiedClick: () => void;
   isUnclassifiedSelected: boolean;
@@ -41,7 +42,7 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
   isUnclassifiedSelected,
 }) => {
   const { openClassificationScreen } = useClassificationScreen();
-  const { updateModCategory } = useModCategoryUpdate({ onRefreshTree, onModsRefresh });
+  const { updateModCategory } = useModCategoryUpdate({ onRefreshTree });
 
   const handleAddClassification = (parentId?: string) => {
     openClassificationScreen({
@@ -49,22 +50,23 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
       tree,
       onSave: async (data) => {
         // TODO: Call backend API to create classification
-        message.success(`Classification "${data.name}" created successfully`);
+        notification.success(`Classification "${data.name}" created successfully`);
       },
     });
   };
 
   // Handle dropping mods on Unclassified item
-  const handleUnclassifiedDrop = useCallback(async (e: React.DragEvent) => {
-    const modSha = e.dataTransfer.getData('application/mod-sha');
-    const modName = e.dataTransfer.getData('application/mod-name');
-
-    if (!modSha) {
+  const handleUnclassifiedDrop = useCallback(async (sha?: string) => {
+    if (!sha) {
       return;
     }
-
-    await updateModCategory(modSha, modName, '', 'Unclassified');
-  }, [updateModCategory]);
+    // Pass empty string for modName since we don't have it here
+    // The updateModCategory function uses it only for the success message
+    await updateModCategory(sha, '', '', 'Unclassified');
+    if (onModsRefresh) {
+      await onModsRefresh();
+    }
+  }, [updateModCategory, onModsRefresh]);
 
   return (
     <Sider

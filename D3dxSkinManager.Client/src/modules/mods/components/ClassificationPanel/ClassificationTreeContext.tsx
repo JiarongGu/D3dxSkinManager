@@ -93,13 +93,13 @@ interface ClassificationTreeContextValue {
   // Operations from hook
   handleEditNode: (nodeId: string) => Promise<void>;
   handleDeleteNode: (nodeId: string) => Promise<void>;
-  handleDrop: (info: any) => Promise<void>;
-  handleDragStart: (info: any) => void;
-  handleDragEnd: () => void;
-  handleContainerDrop: (e: React.DragEvent) => Promise<void>;
-  handleContainerDragOver: (e: React.DragEvent) => void;
-  handleModDragOver: (e: React.DragEvent, nodeId: string) => void;
-  handleModDrop: (e: React.DragEvent, nodeId: string) => Promise<void>;
+  handleNodeReorder: (
+    dragNodeId: string,
+    dropNodeId: string,
+    dropType: 'node' | 'gap',
+    gapSide?: 'top' | 'bottom'
+  ) => Promise<void>;
+  handleModClassify: (modSha: string, nodeId: string) => Promise<void>;
 
   // Tree handlers
   handleToggleExpand: (nodeId: string) => void;
@@ -134,19 +134,13 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
   const {
     handleEditNode,
     handleDeleteNode,
-    handleDrop,
-    handleDragStart,
-    handleDragEnd,
-    handleContainerDrop,
-    handleContainerDragOver,
-    handleModDragOver,
-    handleModDrop,
+    handleNodeReorder,
+    handleModClassify,
   } = useClassificationTreeOperations({
     tree,
     expandedKeys,
     onExpandedKeysChange,
-    onRefreshTree,
-    onModsRefresh,
+    onRefreshTree, // ✅ Pass refresh callback
   });
 
   // Get context menu items
@@ -203,8 +197,8 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
 
   // Convert to Ant Design tree format - direct tree nodes without root wrapper
   const treeData = useMemo((): DataNode[] => {
-    return filteredTree.map((node) => convertToDataNode(node, expandedKeys, handleModDragOver, handleModDrop));
-  }, [filteredTree, expandedKeys, handleModDragOver, handleModDrop]);
+    return filteredTree.map((node) => convertToDataNode(node, expandedKeys));
+  }, [filteredTree, expandedKeys]);
 
   const handleSelect = useCallback(
     (selectedKeys: React.Key[], info: any) => {
@@ -268,7 +262,6 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
     expandedKeys,
     onExpandedKeysChange,
     onAddClassification,
-    onRefreshTree,
 
     // Derived state
     filteredTree,
@@ -284,13 +277,8 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
     // Operations
     handleEditNode,
     handleDeleteNode,
-    handleDrop,
-    handleDragStart,
-    handleDragEnd,
-    handleContainerDrop,
-    handleContainerDragOver,
-    handleModDragOver,
-    handleModDrop,
+    handleNodeReorder,
+    handleModClassify,
 
     // Tree handlers
     handleToggleExpand,

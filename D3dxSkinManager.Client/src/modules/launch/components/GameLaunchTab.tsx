@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Tooltip, Alert, Spin, message } from 'antd';
+import { Form, Input, Tooltip, Alert, Spin } from 'antd';
 import {
   FolderOpenOutlined,
   PlayCircleOutlined,
@@ -44,7 +45,7 @@ export const GameLaunchTab: React.FC = () => {
         // Don't show error if it's just because no profile is selected
         const errorMessage = error instanceof Error ? error.message : '';
         if (!errorMessage.includes('Profile ID is required')) {
-          message.error('Failed to load profile configuration');
+          notification.error('Failed to load profile configuration');
           console.error('Failed to load profile config:', error);
         }
       } finally {
@@ -67,14 +68,14 @@ export const GameLaunchTab: React.FC = () => {
     if (result.success && result.filePath) {
       form.setFieldsValue({ gamePath: result.filePath });
       if (!profileState.selectedProfile) {
-        message.error('No profile selected');
+        notification.error('No profile selected');
         return;
       }
       try {
         await updateActiveProfileConfigField(profileState.selectedProfile.id, 'gamePath', result.filePath);
-        message.success('Game path updated');
+        notification.success('Game path updated');
       } catch (error) {
-        message.error('Failed to save game path');
+        notification.error('Failed to save game path');
       }
     }
   };
@@ -91,14 +92,14 @@ export const GameLaunchTab: React.FC = () => {
     if (result.success && result.filePath) {
       form.setFieldsValue({ customProgramPath: result.filePath });
       if (!profileState.selectedProfile) {
-        message.error('No profile selected');
+        notification.error('No profile selected');
         return;
       }
       try {
         await updateActiveProfileConfigField(profileState.selectedProfile.id, 'customProgramPath', result.filePath);
-        message.success('Custom program path updated');
+        notification.success('Custom program path updated');
       } catch (error) {
-        message.error('Failed to save custom program path');
+        notification.error('Failed to save custom program path');
       }
     }
   };
@@ -106,48 +107,48 @@ export const GameLaunchTab: React.FC = () => {
   const handleLaunchGame = () => {
     const gamePath = form.getFieldValue('gamePath');
     if (!gamePath) {
-      message.error('Please set game path first');
+      notification.error('Please set game path first');
       return;
     }
     // TODO: Launch game with arguments
-    message.info('Launching game...');
+    notification.info('Launching game...');
   };
 
   const handleOpenGameDirectory = async () => {
     const gamePath = form.getFieldValue('gamePath');
     if (!gamePath) {
-      message.error('Please set game path first');
+      notification.error('Please set game path first');
       return;
     }
     try {
       await fileDialogService.openFileInExplorer(gamePath);
-      message.success('Opened game directory');
+      notification.success('Opened game directory');
     } catch (error) {
-      message.error('Failed to open game directory');
+      notification.error('Failed to open game directory');
     }
   };
 
   const handleLaunchCustomProgram = () => {
     const programPath = form.getFieldValue('customProgramPath');
     if (!programPath) {
-      message.error('Please set custom program path first');
+      notification.error('Please set custom program path first');
       return;
     }
     // TODO: Launch custom program
-    message.info('Launching custom program...');
+    notification.info('Launching custom program...');
   };
 
   const handleOpenCustomDirectory = async () => {
     const programPath = form.getFieldValue('customProgramPath');
     if (!programPath) {
-      message.error('Please set custom program path first');
+      notification.error('Please set custom program path first');
       return;
     }
     try {
       await fileDialogService.openFileInExplorer(programPath);
-      message.success('Opened custom program directory');
+      notification.success('Opened custom program directory');
     } catch (error) {
-      message.error('Failed to open custom program directory');
+      notification.error('Failed to open custom program directory');
     }
   };
 
@@ -159,14 +160,14 @@ export const GameLaunchTab: React.FC = () => {
     form.setFieldsValue({ launchArgs: args });
     setUnityArgsDialogVisible(false);
     if (!profileState.selectedProfile) {
-      message.error('No profile selected');
+      notification.error('No profile selected');
       return;
     }
     try {
       await updateActiveProfileConfigField(profileState.selectedProfile.id, 'gameLaunchArgs', args);
-      message.success('Launch arguments updated');
+      notification.success('Launch arguments updated');
     } catch (error) {
-      message.error('Failed to save launch arguments');
+      notification.error('Failed to save launch arguments');
     }
   };
 

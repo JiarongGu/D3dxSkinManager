@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React from 'react';
-import { Steps, Space, message } from 'antd';
+import { Steps, Space } from 'antd';
 import {
   FolderOpenOutlined,
   CheckCircleOutlined,
@@ -57,7 +58,7 @@ const MigrationWizardInner: React.FC<{
 
   const handleNext = () => {
     if (currentStep === MigrationStep.Detection && (!analysis || !analysis.isValid)) {
-      message.error('Please select a valid Python installation first');
+      notification.error('Please select a valid Python installation first');
       return;
     }
     goToNextStep();
@@ -65,12 +66,12 @@ const MigrationWizardInner: React.FC<{
 
   const handleStartMigration = async () => {
     if (!form) {
-      message.error('Form not initialized');
+      notification.error('Form not initialized');
       return;
     }
 
     if (!profileState.selectedProfile?.id) {
-      message.error('No profile selected');
+      notification.error('No profile selected');
       return;
     }
 
@@ -113,25 +114,25 @@ const MigrationWizardInner: React.FC<{
             gameName: analysis?.activeEnvironment,
             copyFromCurrent: false,
           });
-          message.success(`Profile "${profileName}" created successfully!`);
+          notification.success(`Profile "${profileName}" created successfully!`);
         } catch (error) {
           console.error('Failed to create profile:', error);
-          message.warning('Migration succeeded but profile creation failed');
+          notification.warning('Migration succeeded but profile creation failed');
         }
       }
 
       setCurrentStep(MigrationStep.Complete);
 
       if (migrationResult.success) {
-        message.success('Migration completed successfully!');
+        notification.success('Migration completed successfully!');
         if (onMigrationComplete) {
           onMigrationComplete();
         }
       } else {
-        message.error('Migration completed with errors');
+        notification.error('Migration completed with errors');
       }
     } catch (error) {
-      message.error('Migration failed');
+      notification.error('Migration failed');
       console.error(error);
     } finally {
       setMigrating(false);

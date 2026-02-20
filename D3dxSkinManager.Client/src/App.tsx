@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Layout, message, ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
+import { Layout, ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
+import { notification } from './shared/utils/notification';
 import { AppHeader } from './modules/core/components/layout/AppHeader';
 import { AppStatusBar, StatusType } from './modules/core/components/layout/AppStatusBar';
 import { ModHierarchicalView } from './modules/mods/components/ModHierarchicalView';
@@ -14,9 +15,7 @@ import { ThemeProvider, useTheme } from './shared/context/ThemeContext';
 import { SlideInScreenProvider } from './shared/context/SlideInScreenContext';
 import { SlideInScreenManager } from './shared/components/common/SlideInScreen';
 import { AppInitializer } from './shared/components/AppInitializer';
-import { useModData } from './modules/core/hooks/useModData';
-import { useModFilters } from './modules/core/hooks/useModFilters';
-import { useModActions } from './modules/core/hooks/useModActions';
+import { useModsContext } from './modules/mods/context/ModsContext';
 import { keyboardManager, SHORTCUTS } from './modules/core/utils/KeyboardShortcutManager';
 import { KeyboardShortcutsDialog } from './modules/core/components/dialogs/KeyboardShortcutsDialog';
 import { AboutDialog } from './modules/core/components/dialogs/AboutDialog';
@@ -24,6 +23,7 @@ import { HelpWindow } from './modules/core/components/windows/HelpWindow';
 import './App.css';
 import './styles/visual-enhancements.css';
 import './styles/theme-colors.css';
+import './styles/custom-notification.css';
 
 const { Content } = Layout;
 
@@ -43,22 +43,18 @@ const AppContent: React.FC = () => {
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [progressVisible, setProgressVisible] = useState<boolean>(false);
 
-  // Load mod data and filters
-  const { mods, loading, loadMods, loadFilters } = useModData();
+  // Get mod data from ModsContext
+  const { state, actions } = useModsContext();
+  const { mods } = state;
 
   // Calculate loaded mods count
   const modsLoadedCount = useMemo(() => {
-    return mods.filter(mod => mod.isLoaded).length;
+    return mods.filter((mod) => mod.isLoaded).length;
   }, [mods]);
 
   // Status bar handlers
   const handleHelpClick = () => {
     setHelpWindowVisible(true);
-  };
-
-  const handleSuggestionsClick = () => {
-    message.info('Optimization suggestions coming soon!');
-    // TODO: Open suggestions window
   };
 
   // Initialize keyboard shortcuts
@@ -82,8 +78,8 @@ const AppContent: React.FC = () => {
     keyboardManager.register('refresh', {
       ...SHORTCUTS.REFRESH,
       callback: () => {
-        loadMods();
-        message.success('Refreshed');
+        actions.loadMods();
+        notification.success('Refreshed successfully');
       },
     });
 
@@ -93,7 +89,7 @@ const AppContent: React.FC = () => {
     return () => {
       keyboardManager.stop();
     };
-  }, [loadMods]);
+  }, [actions]);
 
   return (
     <AnnotationProvider initialLevel="all">
@@ -113,15 +109,13 @@ const AppContent: React.FC = () => {
             }}
           >
             {selectedTab === 'mods' && (
-              <ModsProvider>
-                <ModHierarchicalView />
-              </ModsProvider>
+              <ModHierarchicalView />
             )}
             {selectedTab === 'launch' && (
               <LaunchView />
             )}
             {selectedTab === 'tools' && (
-              <ToolsView onModsChanged={loadMods} />
+              <ToolsView onModsChanged={actions.loadMods} />
             )}
             {selectedTab === 'plugins' && (
               <PluginsView />
@@ -143,7 +137,6 @@ const AppContent: React.FC = () => {
           progressPercent={progressPercent}
           progressVisible={progressVisible}
           onHelpClick={handleHelpClick}
-          onSuggestionsClick={handleSuggestionsClick}
         />
       </Layout>
 
@@ -186,10 +179,12 @@ const App: React.FC = () => {
       }}
       componentSize="middle"
     >
-      <AntdApp>
+      <AntdApp notification={{ maxCount: 1, stack: false }}>
         <ProfileProvider>
           <AppInitializer>
-            <AppContent />
+            <ModsProvider>
+              <AppContent />
+            </ModsProvider>
           </AppInitializer>
         </ProfileProvider>
       </AntdApp>

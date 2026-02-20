@@ -16,6 +16,7 @@ public static class CoreServiceExtensions
     {
         // Low-level services (no dependencies)
         services.AddSingleton<IFileService, FileService>();
+        services.AddSingleton<IArchiveService, ArchiveService>();
         services.AddSingleton<IFileSystemService, FileSystemService>();
         services.AddSingleton<IProcessService, ProcessService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();

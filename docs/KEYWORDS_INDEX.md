@@ -96,6 +96,7 @@
 ### Quick How-To
 - **Add backend service** → [keywords/HOW_TO.md#adding-services](keywords/HOW_TO.md#adding-services)
 - **Add React component** → [keywords/HOW_TO.md#adding-components](keywords/HOW_TO.md#adding-components)
+- **⭐ Loading without flicker** → [keywords/HOW_TO.md#delayed-loading-no-flicker-pattern](keywords/HOW_TO.md#delayed-loading-no-flicker-pattern) **NEW!**
 - **Build project** → [keywords/HOW_TO.md#build-for-production](keywords/HOW_TO.md#build-for-production)
 
 **Full How-To Index:** [keywords/HOW_TO.md](keywords/HOW_TO.md)

@@ -1,5 +1,6 @@
+import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Space, message } from 'antd';
+import { Form, Input, Space } from 'antd';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { modService } from '../../services/modService';
 import { useSlideInDialog } from '../../../../shared/hooks/useSlideInDialog';
@@ -87,13 +88,13 @@ export const ModEditDialog: React.FC<ModEditDialogProps> = ({
 
       await onSave(modData);
 
-      message.success('Mod updated successfully');
+      notification.success('Mod updated successfully');
       form.resetFields();
       setSelectedTags([]);
       onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
-      message.error('Please check all required fields');
+      notification.error('Please check all required fields');
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
+import { notification } from '../../../shared/utils/notification';
 import { ModInfo, ModFilters } from '../../../shared/types/mod.types';
-import { message } from 'antd';
 import { modService } from '../../mods/services/modService';
 import { profile } from 'console';
 
@@ -51,7 +51,7 @@ export const useModFilters = (profileId: string, mods: ModInfo[]) => {
       const results = await modService.searchMods(profileId, searchTerm);
       return results;
     } catch (error) {
-      message.error('Search failed: ' + (error as Error).message);
+      notification.error('Search failed: ' + (error as Error).message);
       return mods;
     } finally {
       setLoading(false);

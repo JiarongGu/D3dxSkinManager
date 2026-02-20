@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Badge } from 'antd';
 import { AppstoreOutlined } from '@ant-design/icons';
+import { useDragDrop } from '../../../../shared/hooks/useDragDrop';
 import './UnclassifiedItem.css';
 
 export interface UnclassifiedItemProps {
   count: number;
   isSelected: boolean;
   onClick: () => void;
-  onModDrop?: (e: React.DragEvent) => void;
+  onModDrop?: (sha?: string) => void;
 }
 
 export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
@@ -16,34 +17,25 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
   onClick,
   onModDrop,
 }) => {
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    // Check if mod is being dragged
-    const types = Array.from(e.dataTransfer?.types || []);
-    if (types.includes('application/mod-sha')) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      setIsDragOver(true);
+  // Use the unified drag-and-drop hook
+  const { containerRef } = useDragDrop<HTMLDivElement>(
+    {
+      eventType: 'application/mod-sha',
+      allow: 'node', // Allow dropping into the unclassified area
+      nodeSelector: '.unclassified-item', // Target the entire item
+      onDrop: ({ data }) => {
+        if (onModDrop) {
+          onModDrop(data);
+        }
+        return true;
+      }
     }
-  };
-
-  const handleDragLeave = () => {
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const modSha = e.dataTransfer.getData('application/mod-sha');
-    if (modSha && onModDrop) {
-      onModDrop(e);
-    }
-  };
+  );
 
   return (
     <div
-      className={`unclassified-item ${isSelected ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}`}
+      ref={containerRef}
+      className={`unclassified-item ${isSelected ? 'selected' : ''}`}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -52,9 +44,6 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
           onClick();
         }
       }}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
     >
       <div className="unclassified-item-content">
         <AppstoreOutlined className="unclassified-item-icon" />

@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useMemo, useCallback, useState, useEffect } from "react";
-import { Layout, message } from "antd";
+import { Layout } from "antd";
 import {
   FolderOutlined,
   AppstoreOutlined,
@@ -263,17 +264,17 @@ export const ModHierarchicalView: React.FC = () => {
   // Context menu handlers for classification tree
   const handleModifyClassification = (category: string) => {
     // TODO: Open modify classification dialog
-    message.info(`Modify classification: ${category}`);
+    notification.info(`Modify classification: ${category}`);
   };
 
   const handleAddClassification = () => {
     // TODO: Open add classification dialog
-    message.info("Add new classification");
+    notification.info("Add new classification");
   };
 
   const handleCopyObjectName = (category: string) => {
     navigator.clipboard.writeText(category);
-    message.success(`Copied category: ${category}`);
+    notification.success(`Copied category: ${category}`);
   };
 
   // Get context menu items for tree node
@@ -377,7 +378,7 @@ export const ModHierarchicalView: React.FC = () => {
     async (files: File[]) => {
       // Handle preview image imports
       if (!state.selectedMod) {
-        message.warning("Please select a mod to add preview image");
+        notification.warning("Please select a mod to add preview image");
         return;
       }
 
@@ -385,7 +386,7 @@ export const ModHierarchicalView: React.FC = () => {
 
       // For now, just show a message about preview image import
       // In a full implementation, we would upload the file to backend
-      message.info(
+      notification.info(
         `Preview image import for mod: ${state.selectedMod.name} (${files.length} image(s))`,
       );
 
@@ -425,7 +426,7 @@ export const ModHierarchicalView: React.FC = () => {
 
     actions.addImportTasks(newTasks);
     actions.openImportWindow();
-    message.success(`${files.length} file(s) added to import queue`);
+    notification.success(`${files.length} file(s) added to import queue`);
   };
 
   // Create file router
@@ -452,7 +453,7 @@ export const ModHierarchicalView: React.FC = () => {
 
   const handleRemoveImportTask = (taskId: string) => {
     actions.removeImportTask(taskId);
-    message.info("Task removed from queue");
+    notification.info("Task removed from queue");
   };
 
   const handleBatchEditImportTasks = (taskIds: string[]) => {
@@ -519,7 +520,7 @@ export const ModHierarchicalView: React.FC = () => {
             onSearchChange={actions.setClassificationSearch}
             expandedKeys={state.expandedKeys}
             onExpandedKeysChange={actions.setExpandedKeys}
-            onRefreshTree={actions.loadClassificationTree}
+            onRefreshTree={actions.refreshClassificationTree}
             onModsRefresh={handleModsRefreshAfterCategoryChange}
             unclassifiedCount={unclassifiedCount}
             onUnclassifiedClick={handleUnclassifiedClick}

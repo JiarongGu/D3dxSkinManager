@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Modal, Table, Button, Space, Tag, Progress, message, Divider } from 'antd';
+import { Modal, Table, Button, Space, Tag, Progress,  Divider } from 'antd';
 import { CheckOutlined, CloseOutlined, LoadingOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../shared/types/mod.types';
 import type { ColumnsType } from 'antd/es/table';
@@ -200,7 +201,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
   // Handle batch edit
   const handleBatchEdit = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Please select at least one task to edit');
+      notification.warning('Please select at least one task to edit');
       return;
     }
     onBatchEdit(selectedRowKeys as string[]);
@@ -214,7 +215,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
     );
 
     if (invalidTasks.length > 0) {
-      message.error(`${invalidTasks.length} task(s) missing required fields (Name, Category)`);
+      notification.error(`${invalidTasks.length} task(s) missing required fields (Name, Category)`);
       return;
     }
 

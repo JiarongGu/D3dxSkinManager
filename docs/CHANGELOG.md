@@ -13,6 +13,149 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Refactored - 2026-02-21 - Simplified Declarative Drag & Drop API + Service Layer ⭐⭐⭐⭐⭐
+Completely refactored `useDragDrop` with ultra-clean declarative API and added proper service layer abstraction. Hook automatically extracts data (from `dataTransfer` OR `onData`), manages styling, and uses object parameters. Backend calls now go through `classificationService` instead of direct `photinoService` calls.
+**New API Example**:
+```tsx
+useDragDrop(
+  {
+    eventType: 'application/mod-sha',
+    nodeSelector: '.tree-node',
+    allow: 'node',
+    onData: ({ target }) => target.textContent?.trim() || '', // Extract from DOM
+    onDrop: ({ data, type }) => {
+      // data = extracted from onData (replaces dataTransfer)
+      console.log('Dropped onto:', data);
+    }
+  },
+  {
+    eventType: 'application/tree-node-id',
+    nodeSelector: '.tree-node',
+    allow: 'all',
+    gapThreshold: 0.15,
+    classes: { node: 'custom' }, // Optional CSS
+    onDrop: ({ data, type }) => {
+      // data = from dataTransfer (no onData provided)
+      console.log(type === 'gap' ? 'Reorder' : 'Make child');
+    }
+  }
+)
+```
+**Key Features**:
+- **Unified data param**: `data` from dataTransfer OR onData (replaces, not adds)
+- **Object parameters**: `{ data, type, target, event }` - clean & self-documenting
+- **Auto data extraction**: Both dataTransfer AND DOM extraction handled automatically
+- **Rest parameters**: Just pass handler objects directly (no arrays/wrappers)
+- **Custom CSS classes**: Optional `classes` per handler for different visual feedback
+**Benefits**: ~75% less boilerplate, zero manual data extraction, consistent UX, type-safe
+**Bundle Size**: 471.05 kB
+**Components Updated**: ClassificationTree, UnclassifiedItem (fully migrated to new API)
+**Handler Simplification**:
+  - `handleNodeReorder(dragNodeId, dropNodeId, dropToGap)` - Clean 3-param function instead of Ant Design mock objects
+  - `handleModClassify(modSha, nodeId)` - Direct params instead of event extraction
+  - Removed `handleContainerDrop`/`handleContainerDragOver` (no longer needed)
+  - Removed redundant `draggedNodeId` state and `handleDragStart`/`handleDragEnd`
+**Service Layer Improvements**:
+  - Added `classificationService.moveNode()` - Clean API for moving nodes
+  - Added `classificationService.updateNode()` - Update node names
+  - Added `classificationService.deleteNode()` - Delete nodes
+  - All operations now use service layer instead of direct IPC calls
+
+### Fixed - 2026-02-21 - Classification Tree "Drop Into" Much Easier to Trigger ⭐⭐⭐⭐
+Fixed difficult-to-trigger "drop into" mode when dragging nodes to make children in classification tree. Implemented native DOM drag detection that bypasses Ant Design's restrictive thresholds (25% edges). Now uses 15% edges / 70% middle for drop zones - much easier to create child nodes!
+**Solution**: Created generic `useDragDrop` hook using native DOM events (same technique as mod drops, which worked well)
+**Thresholds**: Top 15% = reorder above | Middle 70% = make child (was 50%) | Bottom 15% = reorder below
+**New Hook**: [useDragDrop.ts](../D3dxSkinManager.Client/src/shared/hooks/useDragDrop.ts) - Reusable for any drag/drop scenario!
+
+### Fixed - 2026-02-21 - Status Bar Mod Count Updates ⭐⭐⭐⭐
+Fixed status bar not updating when mods are loaded/unloaded or categories changed. Unified mod state management by moving `ModsProvider` to app-level and replacing duplicate `useModData` hook with `useModsContext`. Status bar now accurately reflects real-time mod state from the single source of truth.
+**Architecture Change**: `ModsProvider` now wraps entire app (not just mod view), enabling all components to access live mod state
+**Files Removed**: `modules/core/hooks/useModData.ts` (duplicate, replaced by `useModsContext`)
+**Bundle Size**: 470.71 KB (improved from 470.99 KB)
+
+### Refactored - 2026-02-20 - Delayed Loading Pattern Replaces Complex Verification ⭐⭐⭐⭐
+Replaced complex `useOptimisticUpdate` verification with simpler `useDelayedLoading` pattern for loading operations. Eliminated UI flicker for fast operations (<100ms) while reducing code by ~250 lines and bundle size by ~1KB. Removed duplicate load/unload functions from `useModData`. Operations now show loading spinner only if they take longer than threshold - best of both worlds: instant feedback + user feedback for slow operations.
+**Impact**: Clearer code architecture, faster builds, no flicker, maintained UX quality
+**Details**: [2026-02-20-delayed-loading-refactoring.md](changelogs/2026-02/2026-02-20-delayed-loading-refactoring.md)
+
+### Added - 2026-02-20 - Archive 7z Support & Optimistic Update Fixes ⭐⭐⭐⭐
+Added native 7z archive support using SevenZipSharp library. Fixed critical optimistic update bugs: UI not updating on load/unload, category change not unloading mods, and tree count mismatches. Implemented detailed mismatch logging and proper tree count calculation with ancestor detection.
+**Details**: [2026-02-20-archive-7z-support-optimistic-updates-fixes.md](changelogs/2026-02/2026-02-20-archive-7z-support-optimistic-updates-fixes.md)
+
+### Added - 2026-02-20 - Reusable Optimistic Update Hook ⭐⭐⭐⭐
+Created a powerful, reusable custom React hook for optimistic UI updates with smart verification pattern.
+**Hook Features**:
+- **Generic pattern**: Works with any data type via TypeScript generics
+- **Smart verification**: Configurable delay (default 50ms), only refreshes on state mismatch
+- **Custom comparison**: Optional comparison function for precise mismatch detection
+- **Auto error recovery**: Automatic revert on operation failure
+- **Cancellable**: Can cancel pending verifications
+- **Development logging**: Detailed logs in dev mode for debugging
+**Specialized variants**:
+- `useModOptimisticUpdate()`: Mod-specific with isLoaded state comparison logic
+**Implementation**: [useOptimisticUpdate.ts](../D3dxSkinManager.Client/src/modules/mods/hooks/useOptimisticUpdate.ts) - Reusable optimistic update pattern
+**Refactored operations using this hook**:
+- Load/Unload mod operations - instant UI feedback with smart verification
+- Drag-drop classification moves - smooth category updates without jarring refresh
+**Benefits**: Cleaner code, consistent UX pattern, easier to add optimistic updates to new features
+
+### Added - 2026-02-20 - Multi-Point Verification for Classification Updates ⭐⭐⭐⭐
+Implemented comprehensive 3-point verification system that checks mod category, mod list, AND tree counts independently.
+**Smart Verification System**:
+- **Point 1**: Verify the specific mod's category was updated correctly
+- **Point 2**: Verify the entire mod list has no category mismatches
+- **Point 3**: Verify classification tree counts are accurate (calculated backend values)
+- **Selective refresh**: Only refreshes what's actually wrong (mod list OR tree, never both unnecessarily)
+**Performance Benefits**:
+- **Instant UI update**: Category changes immediately on drag-drop
+- **Parallel verification**: All 3 checks run simultaneously after 50ms
+- **No unnecessary refreshes**: If all 3 match, nothing refreshes - silky smooth!
+- **Detailed logging**: Console shows exactly which check failed and what mismatched
+**Implementation**:
+- [ModsContext.tsx:746-858](../D3dxSkinManager.Client/src/modules/mods/context/ModsContext.tsx#L746-L858) - Multi-point verification with selective refresh
+- Uses `Promise.all()` to fetch mod list and tree in parallel for fast verification
+**UX Impact**: Drag-drop is instant, tree counts update correctly, and UI only refreshes when there's an actual problem
+
+### Added - 2026-02-20 - Optimistic UI with Smart Verification ⭐⭐⭐
+Implemented instant, smooth UI updates with intelligent backend verification - best of both worlds!
+**Performance Improvements**:
+- **Instant feedback**: UI updates immediately on button click (no waiting for backend)
+- **Smart verification**: Fetches entire mod list after 50ms, only refreshes UI if state differs
+- **No unnecessary updates**: If backend state matches optimistic update, no UI change (smooth!)
+- **Error recovery**: Automatic revert if operation fails
+- **Multi-view sync**: Updates propagate to all views (main list, classification filtered, selected mod)
+**UX Benefits**: Buttery smooth experience with safety net - instant feedback + guaranteed consistency
+**Implementation**: [ModsContext.tsx:657-727](../D3dxSkinManager.Client/src/modules/mods/context/ModsContext.tsx#L657-L727) - Using `useModOptimisticUpdate` hook
+
+### Added - 2026-02-20 - Enhanced UI for Load/Unload Operations ⭐⭐
+Improved visual design and usability of mod load/unload operations across all views with better consistency.
+**UI Improvements**:
+- Redesigned loaded indicator: Clean green "LOADED" tag next to mod name (consistent with Ant Design)
+- Increased action button icons from 14px to 18px for better visibility
+- Enhanced ModActionButtons: Larger buttons (size="medium") with min-width 80px
+- Improved ModPreviewPanel tags: Larger icons (16px) and better padding
+- Fixed vertical alignment: All buttons and content properly centered
+- Added tooltips to action buttons for better UX
+**Impact**: More prominent loaded state visibility, better visual consistency, and easier interaction with mod controls
+**Files**: [ModList.tsx](../D3dxSkinManager.Client/src/modules/mods/components/ModListPanel/ModList.tsx), [ModActionButtons.tsx](../D3dxSkinManager.Client/src/modules/mods/components/ModActionButtons.tsx), [ModPreviewPanel.tsx](../D3dxSkinManager.Client/src/modules/mods/components/ModPreviewPanel/ModPreviewPanel.tsx)
+
+### Fixed - 2026-02-20 - Load Mod Complete Implementation with UI Status Display ⭐⭐⭐
+Fixed three critical bugs preventing Load Mod from working correctly:
+1. **Archive extraction error**: "Cannot determine compressed stream type" for extensionless archives
+2. **Database schema error**: "no such column: IsLoaded" trying to update non-existent column
+3. **UI display bug**: isLoaded/isAvailable always false - missing PopulateStatusFlagsBulk calls
+
+**Solutions**:
+- Created dedicated ArchiveService with magic byte detection (ZIP, 7Z, RAR v4/v5, TAR, GZIP, BZIP2)
+- Auto-updates ModInfo.Type during extraction if missing/incorrect
+- Stream-based extraction handles extensionless files
+- Made SetLoadedStateAsync a no-op (IsLoaded determined dynamically from file system)
+- Added PopulateStatusFlagsBulk to all methods returning ModInfo (GetByClassification, GetUnclassified, GetByObject, Search, GetById)
+
+**Impact**: Load Mod function fully working with correct UI status display
+**New Service**: [ArchiveService.cs](../D3dxSkinManager/Modules/Core/Services/ArchiveService.cs) - Archive detection & extraction
+**Fixed**: [ModFacade.cs](../D3dxSkinManager/Modules/Mods/ModFacade.cs) - All query methods now populate status flags
+
 ### Added - 2026-02-20 - Preview Image Management with Context Menu ⭐⭐⭐
 Added comprehensive preview image management with right-click context menu for thumbnail assignment, file operations, and image import with persistent path memory. Fixed ImportPreviewImageAsync to use correct `previews/{SHA}/` directory structure. Enhanced file dialog path memory to persist across sessions via GlobalSettings.
 **Key Changes**: Set thumbnail, delete preview, open in explorer, copy path, add from file (persistent path memory via global.json), clipboard paste detection, fixed import path bug
@@ -294,6 +437,6 @@ _Additional February changes archived in [february-archive.md](changelogs/2026-0
 
 ---
 
-**Current Line Count**: ~110 lines (Target: < 200 lines)
-**Last Cleanup**: 2026-02-20
-**Next Cleanup**: 2026-03-01
+**Current Line Count**: 382 lines (Target: < 200 lines) ⚠️ NEEDS ARCHIVING
+**Last Cleanup**: 2026-02-19
+**Next Cleanup**: NOW (overdue)

@@ -83,5 +83,50 @@ export const classificationService = {
 
     traverse(tree);
     return result;
+  },
+
+  /**
+   * Move a classification node to a new parent or position
+   */
+  async moveNode(
+    profileId: string,
+    nodeId: string,
+    newParentId: string | null,
+    dropPosition: number
+  ): Promise<boolean> {
+    return await photinoService.sendMessage<boolean>({
+      module: 'MOD',
+      type: 'MOVE_CLASSIFICATION_NODE',
+      profileId,
+      payload: {
+        nodeId,
+        newParentId,
+        dropPosition,
+      },
+    });
+  },
+
+  /**
+   * Update a classification node's name
+   */
+  async updateNode(profileId: string, nodeId: string, newName: string): Promise<boolean> {
+    return await photinoService.sendMessage<boolean>({
+      module: 'MOD',
+      type: 'UPDATE_CLASSIFICATION_NODE',
+      profileId,
+      payload: { nodeId, newName },
+    });
+  },
+
+  /**
+   * Delete a classification node
+   */
+  async deleteNode(profileId: string, nodeId: string): Promise<boolean> {
+    return await photinoService.sendMessage<boolean>({
+      module: 'MOD',
+      type: 'DELETE_CLASSIFICATION_NODE',
+      profileId,
+      payload: { nodeId },
+    });
   }
 };

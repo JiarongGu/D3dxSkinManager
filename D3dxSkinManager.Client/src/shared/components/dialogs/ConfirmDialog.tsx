@@ -7,6 +7,7 @@ import React from 'react';
 import { Modal } from 'antd';
 import { ExclamationCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { CompactButton, CompactSpace, CompactDangerButton } from '../compact';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import './ConfirmDialog.css';
 
 interface ConfirmDialogProps {
@@ -32,43 +33,26 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onOk,
   onCancel,
 }) => {
-  const [loading, setLoading] = React.useState(false);
-  const loadingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const isProcessingRef = React.useRef(false);
+  const { loading, execute, reset } = useDelayedLoading(50);
 
   // Reset loading state when dialog visibility changes
   React.useEffect(() => {
     if (!visible) {
-      setLoading(false);
-      isProcessingRef.current = false;
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
+      reset();
     }
-  }, [visible]);
+  }, [visible, reset]);
 
   const handleOk = async () => {
-    // Prevent multiple clicks while processing (without disabling button)
-    if (isProcessingRef.current) {
-      return;
-    }
-    isProcessingRef.current = true;
-
-    // Only show loading spinner if operation takes longer than 50ms
-    loadingTimeoutRef.current = setTimeout(() => {
-      setLoading(true);
-    }, 50);
-
     try {
-      await onOk();
-    } finally {
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
+      await execute(async () => {
+        await onOk();
+      });
+    } catch (error) {
+      // Silently ignore if operation already in progress
+      if (error instanceof Error && error.message === 'Operation already in progress') {
+        return;
       }
-      setLoading(false);
-      isProcessingRef.current = false;
+      throw error;
     }
   };
 

@@ -1,5 +1,6 @@
+import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Form, Select, message } from 'antd';
+import { Form, Select } from 'antd';
 import {
   SettingOutlined,
   InfoCircleOutlined,
@@ -61,9 +62,9 @@ export const SettingsView: React.FC = () => {
     // Save to backend
     try {
       await settingsService.updateGlobalSetting('annotationLevel', value);
-      message.success(`Annotation level changed to: ${getAnnotationLevelLabel(value)}`);
+      notification.success(`Annotation level changed to: ${getAnnotationLevelLabel(value)}`);
     } catch (error) {
-      message.error('Failed to save annotation level setting');
+      notification.error('Failed to save annotation level setting');
       console.error('[SettingsView] Failed to save annotation level:', error);
     }
   };
@@ -75,10 +76,10 @@ export const SettingsView: React.FC = () => {
     // Save to backend
     try {
       await settingsService.updateGlobalSetting('logLevel', value);
-      message.success(`Log level changed to: ${value}`);
+      notification.success(`Log level changed to: ${value}`);
       logger.info('Log level changed', { newLevel: value });
     } catch (error) {
-      message.error('Failed to save log level setting');
+      notification.error('Failed to save log level setting');
       console.error('[SettingsView] Failed to save log level:', error);
     }
   };
@@ -86,12 +87,12 @@ export const SettingsView: React.FC = () => {
   const handleThemeChange = (value: ThemeMode) => {
     setTheme(value);
     const themeLabel = value === 'auto' ? 'Auto (System)' : value.charAt(0).toUpperCase() + value.slice(1);
-    message.success(`Theme changed to: ${themeLabel}`);
+    notification.success(`Theme changed to: ${themeLabel}`);
   };
 
   const handleThumbnailAlgorithmChange = async (value: string) => {
     if (!selectedProfileId) {
-      message.error('No profile selected');
+      notification.error('No profile selected');
       return;
     }
 
@@ -99,9 +100,9 @@ export const SettingsView: React.FC = () => {
       // Import the service dynamically to avoid circular dependencies
       const { updateActiveProfileConfigField } = await import('../../profiles/services/profileConfigService');
       await updateActiveProfileConfigField(selectedProfileId, 'thumbnailAlgorithm', value);
-      message.success('Thumbnail algorithm updated');
+      notification.success('Thumbnail algorithm updated');
     } catch (error) {
-      message.error('Failed to update thumbnail algorithm');
+      notification.error('Failed to update thumbnail algorithm');
       console.error('Failed to update thumbnail algorithm:', error);
     }
   };

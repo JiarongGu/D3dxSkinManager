@@ -195,11 +195,10 @@ public class ModFacadeTests
     #region LoadModAsync Tests
 
     [Fact]
-    public async Task LoadModAsync_WithValidSha_ShouldLoadAndUpdateState()
+    public async Task LoadModAsync_WithValidSha_ShouldLoadAndEmitEvent()
     {
         // Arrange
         _mockFileService.Setup(s => s.LoadAsync("sha123")).ReturnsAsync(true);
-        _mockRepository.Setup(r => r.SetLoadedStateAsync("sha123", true)).ReturnsAsync(true);
 
         // Act
         var result = await _facade.LoadModAsync("sha123");
@@ -207,7 +206,7 @@ public class ModFacadeTests
         // Assert
         result.Should().BeTrue();
         _mockFileService.Verify(s => s.LoadAsync("sha123"), Times.Once);
-        _mockRepository.Verify(r => r.SetLoadedStateAsync("sha123", true), Times.Once);
+        // Note: IsLoaded is determined dynamically from file system, not stored in database
     }
 
     [Fact]
@@ -221,7 +220,6 @@ public class ModFacadeTests
 
         // Assert
         result.Should().BeFalse();
-        _mockRepository.Verify(r => r.SetLoadedStateAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
     }
 
     [Fact]
@@ -229,7 +227,6 @@ public class ModFacadeTests
     {
         // Arrange
         _mockFileService.Setup(s => s.LoadAsync("sha123")).ReturnsAsync(true);
-        _mockRepository.Setup(r => r.SetLoadedStateAsync("sha123", true)).ReturnsAsync(true);
 
         // Act
         await _facade.LoadModAsync("sha123");
@@ -243,11 +240,10 @@ public class ModFacadeTests
     #region UnloadModAsync Tests
 
     [Fact]
-    public async Task UnloadModAsync_WithValidSha_ShouldUnloadAndUpdateState()
+    public async Task UnloadModAsync_WithValidSha_ShouldUnloadAndEmitEvent()
     {
         // Arrange
         _mockFileService.Setup(s => s.UnloadAsync("sha123")).ReturnsAsync(true);
-        _mockRepository.Setup(r => r.SetLoadedStateAsync("sha123", false)).ReturnsAsync(true);
 
         // Act
         var result = await _facade.UnloadModAsync("sha123");
@@ -255,7 +251,7 @@ public class ModFacadeTests
         // Assert
         result.Should().BeTrue();
         _mockFileService.Verify(s => s.UnloadAsync("sha123"), Times.Once);
-        _mockRepository.Verify(r => r.SetLoadedStateAsync("sha123", false), Times.Once);
+        // Note: IsLoaded is determined dynamically from file system, not stored in database
     }
 
     [Fact]
@@ -269,7 +265,6 @@ public class ModFacadeTests
 
         // Assert
         result.Should().BeFalse();
-        _mockRepository.Verify(r => r.SetLoadedStateAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
     }
 
     [Fact]
@@ -277,7 +272,6 @@ public class ModFacadeTests
     {
         // Arrange
         _mockFileService.Setup(s => s.UnloadAsync("sha123")).ReturnsAsync(true);
-        _mockRepository.Setup(r => r.SetLoadedStateAsync("sha123", false)).ReturnsAsync(true);
 
         // Act
         await _facade.UnloadModAsync("sha123");
@@ -376,7 +370,7 @@ public class ModFacadeTests
         // Arrange
         var mod = CreateSampleMods()[0];
         _mockRepository.Setup(r => r.GetByIdAsync("sha123")).ReturnsAsync(mod);
-        _mockFileService.Setup(s => s.DeleteAsync("sha123", mod.ThumbnailPath, null))
+        _mockFileService.Setup(s => s.DeleteAsync("sha123", null))
             .ReturnsAsync(true);
         _mockRepository.Setup(r => r.DeleteAsync("sha123")).ReturnsAsync(true);
 
@@ -385,7 +379,7 @@ public class ModFacadeTests
 
         // Assert
         result.Should().BeTrue();
-        _mockFileService.Verify(s => s.DeleteAsync("sha123", mod.ThumbnailPath, null), Times.Once);
+        _mockFileService.Verify(s => s.DeleteAsync("sha123", null), Times.Once);
         _mockRepository.Verify(r => r.DeleteAsync("sha123"), Times.Once);
     }
 
@@ -400,7 +394,7 @@ public class ModFacadeTests
 
         // Assert
         result.Should().BeFalse();
-        _mockFileService.Verify(s => s.DeleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _mockFileService.Verify(s => s.DeleteAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
@@ -409,7 +403,7 @@ public class ModFacadeTests
         // Arrange
         var mod = CreateSampleMods()[0];
         _mockRepository.Setup(r => r.GetByIdAsync("sha123")).ReturnsAsync(mod);
-        _mockFileService.Setup(s => s.DeleteAsync("sha123", mod.ThumbnailPath, null))
+        _mockFileService.Setup(s => s.DeleteAsync("sha123", null))
             .ReturnsAsync(true);
         _mockRepository.Setup(r => r.DeleteAsync("sha123")).ReturnsAsync(true);
 
@@ -555,7 +549,6 @@ public class ModFacadeTests
                 Name = "Test Mod 1",
                 Author = "Author1",
                 Category = "Character1",
-                ThumbnailPath = "/thumbs/1.jpg",
                 IsLoaded = false
             },
             new()
@@ -564,7 +557,6 @@ public class ModFacadeTests
                 Name = "Test Mod 2",
                 Author = "Author2",
                 Category = "Character2",
-                ThumbnailPath = "/thumbs/2.jpg",
                 IsLoaded = false
             },
             new()
@@ -573,7 +565,6 @@ public class ModFacadeTests
                 Name = "Test Mod 3",
                 Author = "Author3",
                 Category = "Weapon1",
-                ThumbnailPath = "/thumbs/3.jpg",
                 IsLoaded = true
             }
         };

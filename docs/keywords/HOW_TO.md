@@ -171,6 +171,63 @@ export const useModData = () => {
 
 ---
 
+### Delayed Loading (No Flicker Pattern)
+
+**"How do I implement loading without flicker?"** ⭐ **NEW PATTERN**
+- **Documentation:** `docs/features/DELAYED_LOADING_UX_PATTERN.md`
+- **Hook:** `src/shared/hooks/useDelayedLoading.ts`
+- **Examples:** `useClassificationData.ts`, `useModData.ts`, `ConfirmDialog.tsx`
+
+**Use This Pattern Instead of Always-Show-Loading**
+
+**Pattern:**
+```typescript
+import { useDelayedLoading } from '../../../shared/hooks/useDelayedLoading';
+
+export const useMyData = () => {
+  const [state, dispatch] = useReducer(myReducer, initialState);
+
+  // 1. Create hook with 100ms threshold
+  const { loading, execute } = useDelayedLoading(100);
+
+  // 2. Sync loading state with reducer
+  useEffect(() => {
+    dispatch({ type: "SET_LOADING", payload: loading });
+  }, [loading]);
+
+  // 3. Wrap operations with execute()
+  const loadData = useCallback(async (id: string) => {
+    await execute(async () => {
+      const data = await myService.getData(id);
+      dispatch({ type: "SET_DATA", payload: data });
+    });
+  }, [execute]);
+
+  return { state, loadData };
+};
+```
+
+**Reducer (Important!):**
+```typescript
+// DON'T set loading: false in SET_DATA action
+case "SET_DATA":
+  return { ...state, data: action.payload }; // Let hook control loading
+```
+
+**When to use:**
+- ✅ Data fetching (mods, classifications, profiles)
+- ✅ UI interactions (dialogs, confirmations)
+- ✅ Tree operations (drag-drop, reordering)
+- ❌ File uploads/downloads (always slow, use progress bar)
+- ❌ Complex verification needed (use `useOptimisticUpdate` instead)
+
+**Benefits:**
+- Fast operations (<100ms): No spinner, feels instant ✨
+- Slow operations (>100ms): Spinner appears, user gets feedback 🔄
+- No flicker, smooth UX
+
+---
+
 ### Context Providers
 
 **"How do I create a Context Provider?"**

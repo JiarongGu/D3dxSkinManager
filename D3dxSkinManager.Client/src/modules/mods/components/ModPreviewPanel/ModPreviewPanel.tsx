@@ -1,5 +1,6 @@
+import { notification } from '../../../../shared/utils/notification';
 import React, { useState } from "react";
-import { Typography, Button, Empty, message, Space, Tag } from "antd";
+import { Typography, Button, Empty,  Space, Tag } from "antd";
 import {
   CopyOutlined,
   LeftOutlined,
@@ -53,7 +54,7 @@ export const ModPreviewPanelContent: React.FC = () => {
   const handleCopySHA = () => {
     if (!mod) return;
     navigator.clipboard.writeText(mod.sha);
-    message.success("SHA copied to clipboard");
+    notification.success("SHA copied to clipboard");
   };
 
   const handleImageClick = (imageSrc: string) => {
@@ -121,12 +122,12 @@ export const ModPreviewPanelContent: React.FC = () => {
 
     try {
       await modService.setThumbnail(selectedProfileId, mod.sha, currentImagePath);
-      message.success("Thumbnail updated successfully");
+      notification.success("Thumbnail updated successfully");
       // Refresh preview to update UI
       await actions.loadPreviewPaths(mod.sha);
     } catch (error) {
       console.error("Error setting thumbnail:", error);
-      message.error("Failed to set thumbnail");
+      notification.error("Failed to set thumbnail");
     }
     setContextMenuVisible(false);
   };
@@ -139,7 +140,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       await fileDialogService.openFileInExplorer(currentImagePath);
     } catch (error) {
       console.error("Error opening in explorer:", error);
-      message.error("Failed to open in file explorer");
+      notification.error("Failed to open in file explorer");
     }
     setContextMenuVisible(false);
   };
@@ -152,10 +153,10 @@ export const ModPreviewPanelContent: React.FC = () => {
       // Convert relative path to absolute for clipboard
       const absolutePath = await fileDialogService.getAbsolutePath(currentImagePath);
       await navigator.clipboard.writeText(absolutePath);
-      message.success("Image path copied to clipboard");
+      notification.success("Image path copied to clipboard");
     } catch (error) {
       console.error("Error copying image path:", error);
-      message.error("Failed to copy image path");
+      notification.error("Failed to copy image path");
     }
     setContextMenuVisible(false);
   };
@@ -172,7 +173,7 @@ export const ModPreviewPanelContent: React.FC = () => {
 
     try {
       await modService.deletePreview(selectedProfileId, mod.sha, currentImagePath);
-      message.success("Preview image deleted");
+      notification.success("Preview image deleted");
 
       // Determine the new index after deletion
       // If we're deleting the last image, move back one position
@@ -188,7 +189,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       setCurrentImageIndex(newIndex);
     } catch (error) {
       console.error("Error deleting preview:", error);
-      message.error("Failed to delete preview image");
+      notification.error("Failed to delete preview image");
     }
     setDeleteConfirmVisible(false);
   };
@@ -207,13 +208,13 @@ export const ModPreviewPanelContent: React.FC = () => {
 
       if (result.success && result.filePath) {
         await modService.importPreviewImage(selectedProfileId, mod.sha, result.filePath);
-        message.success("Preview image added successfully");
+        notification.success("Preview image added successfully");
         // Refresh preview to update UI
         await actions.loadPreviewPaths(mod.sha);
       }
     } catch (error) {
       console.error("Error adding preview from file:", error);
-      message.error("Failed to add preview image");
+      notification.error("Failed to add preview image");
     }
     setContextMenuVisible(false);
   };
@@ -224,7 +225,7 @@ export const ModPreviewPanelContent: React.FC = () => {
     try {
       // Check if clipboard API is available
       if (!navigator.clipboard || !navigator.clipboard.read) {
-        message.warning("Clipboard API not supported in this browser");
+        notification.warning("Clipboard API not supported in this browser");
         setContextMenuVisible(false);
         return;
       }
@@ -246,18 +247,18 @@ export const ModPreviewPanelContent: React.FC = () => {
 
           // Create a temporary path (backend will handle the actual file creation)
           // For now, we'll need to upload the blob - this requires a backend endpoint
-          message.info("Clipboard image paste feature requires backend implementation");
+          notification.info("Clipboard image paste feature requires backend implementation");
           imageFound = true;
           break;
         }
       }
 
       if (!imageFound) {
-        message.warning("No image found in clipboard");
+        notification.warning("No image found in clipboard");
       }
     } catch (error) {
       console.error("Error pasting from clipboard:", error);
-      message.error("Failed to paste from clipboard. Make sure you have copied an image.");
+      notification.error("Failed to paste from clipboard. Make sure you have copied an image.");
     }
     setContextMenuVisible(false);
   };
@@ -348,11 +349,11 @@ export const ModPreviewPanelContent: React.FC = () => {
                 const folderPath = previewPaths[0].substring(0, previewPaths[0].lastIndexOf("\\"));
                 await fileDialogService.openDirectory(folderPath);
               } else {
-                message.info("No preview folder exists yet for this mod");
+                notification.info("No preview folder exists yet for this mod");
               }
             } catch (error) {
               console.error("Error opening preview folder:", error);
-              message.error("Failed to open preview folder");
+              notification.error("Failed to open preview folder");
             }
             setContextMenuVisible(false);
           },
@@ -388,11 +389,19 @@ export const ModPreviewPanelContent: React.FC = () => {
           </div>
           <Space size="small">
             {mod.isLoaded ? (
-              <Tag icon={<CheckCircleOutlined />} color="success">
+              <Tag
+                icon={<CheckCircleOutlined style={{ fontSize: '16px' }} />}
+                color="success"
+                style={{ fontSize: '14px', padding: '4px 12px', fontWeight: 500 }}
+              >
                 Loaded
               </Tag>
             ) : (
-              <Tag icon={<CloseCircleOutlined />} color="default">
+              <Tag
+                icon={<CloseCircleOutlined style={{ fontSize: '16px' }} />}
+                color="default"
+                style={{ fontSize: '14px', padding: '4px 12px' }}
+              >
                 Not Loaded
               </Tag>
             )}
