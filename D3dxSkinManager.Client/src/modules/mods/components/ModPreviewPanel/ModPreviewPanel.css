@@ -1,0 +1,217 @@
+/* ModPreviewPanel - Main Container */
+.mod-preview-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-container);
+}
+
+/* Empty State */
+.mod-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* Header Section */
+.mod-preview-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mod-preview-header-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mod-preview-header-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.mod-preview-title {
+  margin: 0;
+  margin-bottom: 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.mod-preview-category {
+  font-size: 13px;
+}
+
+.mod-preview-category-icon {
+  margin-right: 4px;
+}
+
+/* Image Preview Section */
+.mod-preview-image-section {
+  flex: 1;
+  min-height: 0;
+  /* background: var(--color-bg-layout); */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.mod-preview-image-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  user-select: none;
+}
+
+.mod-preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+/* Navigation Buttons - Windows Gallery Style */
+.mod-preview-nav-button {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 90px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.mod-preview-nav-button-left {
+  left: 0;
+  justify-content: flex-start;
+  padding-left: 8px;
+}
+
+.mod-preview-nav-button-right {
+  right: 0;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+/* Dark theme navigation icon */
+[data-theme="dark"] .mod-preview-nav-icon {
+  width: 24px;
+  height: 48px;
+  background: rgba(60, 60, 70, 0.75);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+/* Light theme navigation icon - lighter background, dark icon */
+[data-theme="light"] .mod-preview-nav-icon {
+  width: 24px;
+  height: 48px;
+  background: rgba(240, 240, 245, 0.95);
+  backdrop-filter: blur(10px);
+  color: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+/* Image Counter */
+.mod-preview-image-counter {
+  padding: 8px;
+  text-align: center;
+  background: var(--color-bg-container);
+  border-top: 1px solid var(--color-border);
+}
+
+.mod-preview-counter-text {
+  font-size: 12px;
+}
+
+/* Empty Image State */
+.mod-preview-no-image {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Info Section */
+.mod-preview-info {
+  padding: 16px;
+  border-top: 1px solid var(--color-border);
+  max-height: 200px;
+  overflow: auto;
+}
+
+.mod-preview-info-item {
+  margin-bottom: 12px;
+}
+
+.mod-preview-info-item:last-child {
+  margin-bottom: 0;
+}
+
+.mod-preview-info-label {
+  font-size: 12px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.mod-preview-info-label-with-margin {
+  margin-bottom: 6px;
+}
+
+.mod-preview-info-value {
+  font-size: 13px;
+}
+
+.mod-preview-description {
+  font-size: 13px;
+  margin-bottom: 0;
+  color: var(--color-text);
+}
+
+/* SHA Section - Fixed at Bottom */
+.mod-preview-sha {
+  padding: 8px 16px;
+  background: var(--color-bg-container);
+  border-top: 1px solid var(--color-border);
+}
+
+.mod-preview-sha-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mod-preview-sha-label {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.mod-preview-sha-value {
+  flex: 1;
+  font-size: 11px;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  color: var(--color-primary);
+}
+
+.mod-preview-sha-button {
+  flex-shrink: 0;
+}

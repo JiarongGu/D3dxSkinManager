@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-20 - Windows Gallery Image Navigation & CSS Refactoring ⭐⭐⭐
+Implemented modern image navigation with hover-triggered buttons, refactored all inline styles to organized CSS, added comprehensive light/dark theme support.
+**Key Changes**: Previous/Next navigation on hover, image counter (1/5), ~150 lines inline styles → CSS classes, bluish-gray buttons for light theme
+**Details**: [changelogs/2026-02/2026-02-20-image-navigation-css-refactoring.md](changelogs/2026-02/2026-02-20-image-navigation-css-refactoring.md)
+
 ### Changed - 2026-02-20 - Drag-and-Drop Refinements & Ant Design Deprecation Fixes ⭐⭐
 Refined drag-and-drop feature with complete refresh flow, fixed Ant Design deprecation warnings, centered loading spinners, and refactored duplicate code.
 **Key Changes**: Unclassified drops now supported, auto-unload on category change, List component replaced with custom div implementation
@@ -257,25 +262,7 @@ Major refactoring month focusing on code quality, migration service, and archite
 - Multiple preview support
 - **Impact**: Better UX, cleaner architecture
 
-#### 2026-02-19 - Mod Count Display ⭐
-- Added mod counts to classification tree: "Category (15)"
-- Real-time filtering updates
-- **Impact**: Better navigation
-
-#### 2026-02-18 - Centralized Mod Management ⭐⭐
-- Created `ModManagementService` for mod operations
-- Single source of truth for mod state
-- **Impact**: Cleaner architecture, easier maintenance
-
-#### 2026-02-18 - Settings Persistence Fixed ⭐⭐⭐
-- Fixed deadlock in `UpdateSettingAsync`
-- Settings now save correctly from UI
-- **Impact**: Critical bug fix
-
-#### 2026-02-18 - Test Suite Added ⭐⭐⭐
-- 118+ unit tests across 8 test files
-- Coverage for core, mods, migration, settings
-- **Impact**: Confident refactoring, catches regressions
+_Additional February changes archived in [february-archive.md](changelogs/2026-02/february-archive.md)_
 
 ---
 
