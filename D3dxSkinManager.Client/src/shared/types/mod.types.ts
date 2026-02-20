@@ -31,3 +31,16 @@ export interface ModStatistics {
   loadedMods: number;
   availableMods: number;
 }
+
+/**
+ * Result of mod load operation with affected mods for efficient updates
+ * Avoids full mod list refresh by returning only what changed
+ */
+export interface ModLoadResult {
+  /** SHA of the mod that was loaded */
+  loadedModSha: string;
+  /** SHAs of mods that were automatically unloaded (same category conflicts) */
+  unloadedModShas: string[];
+  /** Whether the load operation succeeded */
+  success: boolean;
+}

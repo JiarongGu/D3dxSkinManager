@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace D3dxSkinManager.Modules.Mods.Models;
 
 /// <summary>
@@ -19,11 +17,6 @@ public class ModInfo
     // Status flags (populated on-demand from file system, not stored in DB)
     public bool IsLoaded { get; set; }      // True if work directory exists without DISABLED- prefix
     public bool IsAvailable { get; set; }   // True if original archive file exists in mods folder
-
-    // File paths for mod file operations (populated on-demand, not stored in DB)
-    public string? OriginalPath { get; set; }  // Path to original archive file
-    public string? WorkPath { get; set; }      // Path to extracted/working directory
-    public string? CachePath { get; set; }     // Path to cache directory (for disabled mods)
 
     // Note: Preview paths and thumbnails are scanned dynamically from previews/{SHA}/ folder
     // Allows users to add preview images directly to folder
