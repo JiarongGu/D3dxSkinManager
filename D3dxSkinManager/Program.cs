@@ -21,6 +21,7 @@ class Program
     private static ICustomSchemeHandler? _schemeHandler;
     private static PhotinoWindow? _mainWindow;
     private static Modules.Settings.Services.IWindowStateService? _windowStateService;
+    private static Modules.Core.Services.IOperationNotificationService? _operationNotificationService;
 
     // JSON serializer options for camelCase (matches JavaScript conventions)
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -142,6 +143,10 @@ class Program
         var globalServices = _serviceRouter.GetGlobalServices();
         _schemeHandler = globalServices.GetRequiredService<ICustomSchemeHandler>();
         _windowStateService = globalServices.GetRequiredService<Modules.Settings.Services.IWindowStateService>();
+        _operationNotificationService = globalServices.GetRequiredService<Modules.Core.Services.IOperationNotificationService>();
+
+        // Subscribe to operation notifications and forward to frontend
+        _operationNotificationService.OperationNotificationReceived += OnOperationNotificationReceived;
 
         Console.WriteLine("[Init] ServiceRouter initialized for stateless API request handling");
         Console.WriteLine("[Init] CustomSchemeHandler initialized for app:// URLs");
@@ -219,6 +224,53 @@ class Program
         Console.WriteLine($"[Init] Window size: {width}x{height}");
 
         return window;
+    }
+
+    /// <summary>
+    /// Handles operation notification events from OperationNotificationService
+    /// Forwards notifications to frontend via IPC push message
+    /// </summary>
+    private static void OnOperationNotificationReceived(object? sender, Modules.Core.Models.OperationNotification notification)
+    {
+        if (_mainWindow == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Create a push notification message (no ID needed - this is a one-way push)
+            var pushMessage = new
+            {
+                type = "OPERATION_NOTIFICATION",
+                notification = new
+                {
+                    type = notification.Type.ToString(),
+                    operation = new
+                    {
+                        operationId = notification.Operation.OperationId,
+                        operationName = notification.Operation.OperationName,
+                        status = notification.Operation.Status.ToString(),
+                        percentComplete = notification.Operation.PercentComplete,
+                        currentStep = notification.Operation.CurrentStep,
+                        startedAt = notification.Operation.StartedAt,
+                        completedAt = notification.Operation.CompletedAt,
+                        errorMessage = notification.Operation.ErrorMessage,
+                        metadata = notification.Operation.Metadata
+                    },
+                    timestamp = notification.Timestamp
+                }
+            };
+
+            var json = JsonSerializer.Serialize(pushMessage, JsonOptions);
+            _mainWindow.SendWebMessage(json);
+
+            Console.WriteLine($"[IPC] Operation notification pushed: {notification.Type} - {notification.Operation.OperationName} ({notification.Operation.PercentComplete}%)");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[IPC] Error pushing operation notification: {ex.Message}");
+        }
     }
 
     /// <summary>

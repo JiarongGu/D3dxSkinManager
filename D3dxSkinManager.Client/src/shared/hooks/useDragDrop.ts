@@ -154,6 +154,16 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
     }, {})
   );
 
+  // Update handlersMapRef whenever handlers change
+  // This ensures that when callbacks are recreated with new data (e.g., tree updates),
+  // the event listeners use the latest callbacks instead of stale closures
+  useEffect(() => {
+    handlersMapRef.current = handlers.reduce<Record<string, DragDropHandler>>((map, handler) => {
+      map[handler.eventType] = handler;
+      return map;
+    }, {});
+  }, [handlers]);
+
   useEffect(() => {
     if (!container) {
       return;
@@ -304,14 +314,21 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
      */
     const handleDrop = (e: DragEvent) => {
       const types = Array.from(e.dataTransfer?.types || []);
+      console.log('[useDragDrop] handleDrop - dataTransfer types:', types, 'handlers:', Object.keys(handlersMapRef.current));
 
       for (const type of types) {
         const handler = handlersMapRef.current[type];
-        if (!handler) continue;
+        if (!handler) {
+          console.log(`[useDragDrop] No handler for type: ${type}`);
+          continue;
+        }
+        console.log(`[useDragDrop] Processing handler for type: ${type}`);
 
         if (handler.onDrop) {
+          console.log('[useDragDrop] handler.onDrop exists, processing drop...');
           // Extract data from dataTransfer using the event type
           let data = e.dataTransfer?.getData(type) || '';
+          console.log('[useDragDrop] Extracted data from dataTransfer:', data);
 
           // Calculate position and target
           let dropType: DropType = 'node';
@@ -319,7 +336,77 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
           let target: Element | null = null;
 
           if (handler.nodeSelector) {
+            // Try to find target from event target first
             target = (e.target as HTMLElement).closest(handler.nodeSelector);
+
+            // Debug logging
+            if (!target) {
+              console.log('[useDragDrop] No target from e.target.closest(), trying fallbacks...', {
+                eventTargetTag: (e.target as HTMLElement).tagName,
+                eventTargetClass: (e.target as HTMLElement).className,
+                mousePos: { x: e.clientX, y: e.clientY },
+                containerExists: !!container
+              });
+            }
+
+            // If no target found, try multiple fallback strategies
+            if (!target) {
+              // Strategy 1: Check if e.target is inside the container, search from there
+              const eventTarget = e.target as HTMLElement;
+              if (container && container.contains(eventTarget)) {
+                // Search up from the actual event target within our container
+                let current: HTMLElement | null = eventTarget;
+                while (current && current !== container) {
+                  const found = current.querySelector(handler.nodeSelector);
+                  if (found) {
+                    target = found;
+                    break;
+                  }
+                  // Also check if current matches the selector
+                  if (current.matches(handler.nodeSelector)) {
+                    target = current;
+                    break;
+                  }
+                  current = current.parentElement;
+                }
+              }
+
+              // Strategy 2: Use mouse position as last resort
+              if (!target) {
+                const elementAtPoint = document.elementFromPoint(e.clientX, e.clientY);
+                if (elementAtPoint) {
+                  target = elementAtPoint.closest(handler.nodeSelector);
+                }
+              }
+
+              // Strategy 3: If still no target, search within container at mouse position
+              if (!target && container) {
+                const allNodes = container.querySelectorAll(handler.nodeSelector);
+                for (const node of Array.from(allNodes)) {
+                  const rect = node.getBoundingClientRect();
+                  if (
+                    e.clientX >= rect.left &&
+                    e.clientX <= rect.right &&
+                    e.clientY >= rect.top &&
+                    e.clientY <= rect.bottom
+                  ) {
+                    target = node;
+                    break;
+                  }
+                }
+              }
+
+              // Log which strategy worked (if any)
+              if (target) {
+                console.log('[useDragDrop] Found target using fallback strategy:', {
+                  targetElement: target,
+                  targetClass: target.className
+                });
+              } else {
+                console.error('[useDragDrop] All fallback strategies failed to find target');
+              }
+            }
+
             if (target) {
               const gapThreshold = handler.gapThreshold ?? 0.15;
               dropType = calculateDropType(e, target, gapThreshold);
@@ -337,7 +424,9 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
             }
           }
 
+          console.log('[useDragDrop] About to call handler.onDrop with:', { data, dropType, gapPosition, target });
           const result = handler.onDrop({ data, type: dropType, gapPosition, target, event: e });
+          console.log('[useDragDrop] handler.onDrop returned:', result);
           if (result === true) {
             e.preventDefault();
             e.stopPropagation();

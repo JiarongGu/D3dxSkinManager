@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
-import { App } from 'antd';
-import { useModsContext } from '../../context/ModsContext';
+import { useCallback } from "react";
+import { useModsContext } from "../../context/ModsContext";
+import { useStableRef } from "../../../../shared/hooks/useStableRef";
+import { notification } from "../../../../shared/utils/notification";
 
 interface UseModCategoryUpdateProps {
   onRefreshTree?: () => Promise<void>;
@@ -14,24 +15,24 @@ interface UseModCategoryUpdateProps {
 export function useModCategoryUpdate({
   onRefreshTree,
 }: UseModCategoryUpdateProps) {
-  const { message } = App.useApp();
-  const { actions } = useModsContext();
+  const { state, actions } = useModsContext();
   const { updateModCategory: updateModCategoryOptimistic } = actions;
+
+  // Store mods in a stable ref to avoid closure issues
+  const modsRef = useStableRef(state.mods);
 
   /**
    * Update a mod's category with optimistic updates
    * @param modSha - SHA of the mod to update
-   * @param modName - Display name of the mod (for success message)
    * @param categoryId - New category ID (empty string for unclassified)
    * @param categoryName - Display name of the category (for success message)
    */
   const updateModCategory = useCallback(
-    async (
-      modSha: string,
-      modName: string,
-      categoryId: string,
-      categoryName: string
-    ) => {
+    async (modSha: string, categoryId: string, categoryName: string) => {
+      // Find the mod name if not provided
+      const mod = modsRef.current.find((m) => m.sha === modSha);
+      const modName = mod?.name || modSha;
+
       try {
         // Use optimistic update from ModsContext - handles state updates automatically
         // The optimistic update will trigger verification after 50ms
@@ -39,23 +40,23 @@ export function useModCategoryUpdate({
         const success = await updateModCategoryOptimistic(
           modSha,
           categoryId,
-          onRefreshTree // Only called when verification mismatch or error occurs
+          onRefreshTree, // Only called when verification mismatch or error occurs
         );
 
         if (success) {
-          message.success(`Moved "${modName}" to "${categoryName}"`);
+          notification.success(`Moved "${modName}" to "${categoryName}"`);
           return true;
         } else {
-          message.error('Failed to update mod category');
+          notification.error("Failed to update mod category");
           return false;
         }
       } catch (error) {
-        console.error('Error updating mod category:', error);
-        message.error('Failed to update mod category');
+        console.error("Error updating mod category:", error);
+        notification.error("Failed to update mod category");
         return false;
       }
     },
-    [updateModCategoryOptimistic, message, onRefreshTree]
+    [updateModCategoryOptimistic, onRefreshTree], // modsRef is stable
   );
 
   return { updateModCategory };

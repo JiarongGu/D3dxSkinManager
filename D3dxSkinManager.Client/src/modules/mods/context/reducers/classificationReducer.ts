@@ -19,7 +19,6 @@ export interface ClassificationState {
 
 export type ClassificationAction =
   | { type: "SET_CLASSIFICATION_TREE"; payload: ClassificationNode[] }
-  | { type: "UPDATE_CLASSIFICATION_TREE_OPTIMISTIC"; payload: ClassificationNode[] }
   | { type: "SET_CLASSIFICATION_LOADING"; payload: boolean }
   | { type: "SELECT_CLASSIFICATION"; payload: ClassificationNode | null }
   | { type: "SET_CLASSIFICATION_FILTERED_MODS"; payload: ModInfo[] | null }
@@ -43,12 +42,6 @@ export function classificationReducer(
         ...state,
         classificationTree: action.payload,
         // Don't set loading to false here - let useDelayedLoading handle it
-      };
-
-    case "UPDATE_CLASSIFICATION_TREE_OPTIMISTIC":
-      return {
-        ...state,
-        classificationTree: action.payload,
       };
 
     case "SET_CLASSIFICATION_LOADING":

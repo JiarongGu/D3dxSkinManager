@@ -15,12 +15,39 @@ import "./ClassificationTree.css";
 const { Search } = Input;
 
 /**
- * Extract node ID from tree element text content
- * Strips count suffix like " (5)" from displayed text
+ * Extract node ID from tree element
+ * Looks for data-node-id attribute that we set in the title span
  */
 const extractNodeId = (target: Element | null): string => {
   if (!target) return "";
-  return target.textContent?.trim().replace(/\s*\(\d+\)$/, "") || "";
+
+  // First check if the target itself has the attribute
+  let nodeId = (target as HTMLElement).getAttribute('data-node-id');
+  if (nodeId) {
+    return nodeId;
+  }
+
+  // Check if target has a child with the attribute (the title span is inside the wrapper)
+  const elementWithId = (target as HTMLElement).querySelector('[data-node-id]');
+  if (elementWithId) {
+    nodeId = elementWithId.getAttribute('data-node-id');
+    if (nodeId) {
+      return nodeId;
+    }
+  }
+
+  // Also check parents in case target is inside the title span
+  const parentWithId = (target as HTMLElement).closest('[data-node-id]');
+  if (parentWithId) {
+    nodeId = parentWithId.getAttribute('data-node-id');
+    if (nodeId) {
+      return nodeId;
+    }
+  }
+
+  // Fallback: extract from text content (should not happen anymore)
+  const textContent = target.textContent?.trim().replace(/\s*\(\d+\)$/, "") || "";
+  return textContent;
 };
 
 /**
@@ -166,7 +193,12 @@ const ClassificationTreeInner: React.FC = () => {
       allow: "all",
       gapThreshold: 0.15,
       onDrop: ({ data, type, gapPosition, target }) => {
-        if (!data || !draggedNodeKeyRef.current) return false;
+        logger.debug('[TreeDrop] onDrop called:', { data, type, gapPosition, target, draggedNode: draggedNodeKeyRef.current });
+
+        if (!data || !draggedNodeKeyRef.current) {
+          logger.error('[TreeDrop] Missing data or draggedNodeKeyRef:', { data, draggedNode: draggedNodeKeyRef.current });
+          return false;
+        }
 
         if (!target) {
           logger.error('[TreeDrop] No target element');
@@ -175,11 +207,13 @@ const ClassificationTreeInner: React.FC = () => {
 
         const dropNodeId = extractNodeId(target);
 
-        logger.debug('[TreeDrop] Reordering:', {
+        logger.debug('[TreeDrop] Calling handleNodeReorder with:', {
           dragNode: draggedNodeKeyRef.current,
           dropNode: dropNodeId,
           dropType: type,
-          gapSide: gapPosition
+          gapSide: gapPosition,
+          targetElement: target,
+          targetText: target.textContent
         });
 
         handleNodeReorder(
@@ -188,6 +222,8 @@ const ClassificationTreeInner: React.FC = () => {
           type,
           gapPosition
         );
+
+        logger.debug('[TreeDrop] handleNodeReorder called, returning true');
         return true;
       },
     },

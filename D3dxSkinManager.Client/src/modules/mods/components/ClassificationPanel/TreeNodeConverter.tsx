@@ -26,6 +26,7 @@ export function convertToDataNode(
     key: node.id,
     title: (
       <span
+        data-node-id={node.id}
         style={{
           display: 'inline-flex',
           alignItems: 'center',

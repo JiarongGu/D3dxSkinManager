@@ -100,7 +100,6 @@ export type ModsDataAction =
 ```typescript
 export type ClassificationAction =
   | { type: "SET_CLASSIFICATION_TREE"; payload: ClassificationNode[] }
-  | { type: "UPDATE_CLASSIFICATION_TREE_OPTIMISTIC"; payload: ClassificationNode[] }
   | { type: "SET_CLASSIFICATION_LOADING"; payload: boolean }
   | { type: "SELECT_CLASSIFICATION"; payload: ClassificationNode | null }
   | { type: "SET_CLASSIFICATION_FILTERED_MODS"; payload: ModInfo[] | null }
@@ -108,13 +107,7 @@ export type ClassificationAction =
   | { type: "UPDATE_FILTERED_MOD"; payload: { sha: string; data: Partial<ModInfo>; newCategory?: string } };
 ```
 
-**Analysis:**
-- `UPDATE_CLASSIFICATION_TREE_OPTIMISTIC` - Used for optimistic tree updates (drag-drop)
-- All others are actively used
-
-**Question:** Do we still need `UPDATE_CLASSIFICATION_TREE_OPTIMISTIC` after refactoring to `useDelayedLoading`?
-
-**Answer:** YES - It's used for immediate UI updates (like category changes) where we update the tree synchronously without triggering loading state. Different from `SET_CLASSIFICATION_TREE` which is for full tree replacement.
+**Analysis:** All actions are used. No redundancy detected.
 
 ---
 

@@ -140,6 +140,14 @@
   - Light/dark/auto modes
   - Created: 2026-02-18
 
+- **Operation Notification System** → `docs/features/OPERATION_NOTIFICATION_SYSTEM.md`
+  - Real-time progress tracking for backend operations
+  - Backend → Frontend push notification architecture
+  - IProgressReporter pattern for operation tracking
+  - AppStatusBar integration and OperationMonitorScreen
+  - Complete usage guide with examples
+  - Created: 2026-02-21
+
 ---
 
 ## Maintenance Guides

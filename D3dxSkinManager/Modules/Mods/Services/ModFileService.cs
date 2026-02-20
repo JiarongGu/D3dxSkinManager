@@ -23,7 +23,7 @@ namespace D3dxSkinManager.Modules.Mods.Services;
 public interface IModFileService
 {
     // Load/Unload operations
-    Task<bool> LoadAsync(string sha);
+    Task<bool> LoadAsync(string sha, IProgressReporter? progressReporter = null);
     Task<bool> UnloadAsync(string sha);
     Task<bool> DeleteAsync(string sha, string? previewPath);
 
@@ -90,14 +90,19 @@ public class ModFileService : IModFileService
     /// If mod is cached (disabled), just rename it to enable
     /// Detects and updates archive type if needed
     /// </summary>
-    public async Task<bool> LoadAsync(string sha)
+    public async Task<bool> LoadAsync(string sha, IProgressReporter? progressReporter = null)
     {
         try
         {
+            progressReporter ??= NullProgressReporter.Instance;
+
+            await progressReporter.ReportProgressAsync(0, "Checking archive...");
+
             var archivePath = GetArchivePath(sha);
             if (!File.Exists(archivePath))
             {
                 _logger.Warning($"Archive not found: {archivePath}", "ModFileService");
+                await progressReporter.ReportFailureAsync("Archive not found");
                 return false;
             }
 
@@ -107,10 +112,15 @@ public class ModFileService : IModFileService
             // If already extracted as disabled cache, just rename it (remove DISABLED- prefix)
             if (Directory.Exists(disabledDirectory))
             {
+                await progressReporter.ReportProgressAsync(50, "Enabling from cache...");
                 Directory.Move(disabledDirectory, targetDirectory);
                 _logger.Info($"Enabled mod from cache: {sha}", "ModFileService");
+                await progressReporter.ReportProgressAsync(100, "Enabled from cache");
+                await progressReporter.ReportCompletionAsync();
                 return true;
             }
+
+            await progressReporter.ReportProgressAsync(10, "Detecting archive type...");
 
             // Extract archive using ArchiveService (with type detection)
             if (Directory.Exists(targetDirectory))
@@ -118,17 +128,28 @@ public class ModFileService : IModFileService
                 Directory.Delete(targetDirectory, true);
             }
 
+            await progressReporter.ReportProgressAsync(20, "Extracting archive...");
+
             var extractionResult = await _archiveService.ExtractArchiveAsync(archivePath, targetDirectory);
 
             if (extractionResult.Success)
             {
+                await progressReporter.ReportProgressAsync(80, $"Extracted {extractionResult.FileCount} files");
                 _logger.Info($"Loaded mod: {sha} ({extractionResult.FileCount} files)", "ModFileService");
 
                 // Update mod Type in database if detected and different from stored
                 if (!string.IsNullOrEmpty(extractionResult.DetectedType))
                 {
+                    await progressReporter.ReportProgressAsync(90, "Updating metadata...");
                     await UpdateModTypeIfNeededAsync(sha, extractionResult.DetectedType);
                 }
+
+                await progressReporter.ReportProgressAsync(100, "Load complete");
+                await progressReporter.ReportCompletionAsync();
+            }
+            else
+            {
+                await progressReporter.ReportFailureAsync("Archive extraction failed");
             }
 
             return extractionResult.Success;
@@ -136,6 +157,7 @@ public class ModFileService : IModFileService
         catch (Exception ex)
         {
             _logger.Error($"Error loading mod {sha}: {ex.Message}", "ModFileService", ex);
+            await (progressReporter?.ReportFailureAsync(ex.Message) ?? Task.CompletedTask);
             return false;
         }
     }

@@ -5,6 +5,7 @@ import { ClassificationNode } from '../../../../shared/types/classification.type
 import { convertToDataNode } from './TreeNodeConverter';
 import { getClassificationContextMenu } from './ClassificationContextMenu';
 import { useClassificationTreeOperations } from './useClassificationTreeOperations';
+import { useStableRef } from '../../../../shared/hooks/useStableRef';
 
 /**
  * Recursively filter tree nodes by search query
@@ -130,6 +131,9 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
   const [contextMenuNode, setContextMenuNode] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
+  // Store frequently changing values in stable refs to avoid closure issues
+  const [treeRef, expandedKeysRef, selectedNodeRef] = useStableRef(tree, expandedKeys, selectedNode);
+
   // Use the operations hook for edit, delete, drag & drop
   const {
     handleEditNode,
@@ -158,11 +162,13 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
   // Toggle expansion for a folder node - optimized for performance
   const handleToggleExpand = useCallback(
     (nodeId: string) => {
-      const isExpanded = expandedKeys.includes(nodeId);
+      const currentExpandedKeys = expandedKeysRef.current;
+      const currentTree = treeRef.current;
+      const isExpanded = currentExpandedKeys.includes(nodeId);
 
       if (isExpanded) {
         // Collapse: remove this key and all descendant keys
-        const node = findNodeById(tree, nodeId);
+        const node = findNodeById(currentTree, nodeId);
         if (!node) return;
 
         const keysToRemove = new Set<React.Key>([nodeId]);
@@ -179,13 +185,13 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
           });
         }
 
-        onExpandedKeysChange(expandedKeys.filter((k) => !keysToRemove.has(k)));
+        onExpandedKeysChange(currentExpandedKeys.filter((k) => !keysToRemove.has(k)));
       } else {
         // Expand: add this key
-        onExpandedKeysChange([...expandedKeys, nodeId]);
+        onExpandedKeysChange([...currentExpandedKeys, nodeId]);
       }
     },
-    [expandedKeys, tree, onExpandedKeysChange]
+    [onExpandedKeysChange] // treeRef and expandedKeysRef are stable refs
   );
 
   // Filter tree based on search query
@@ -202,14 +208,16 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
 
   const handleSelect = useCallback(
     (selectedKeys: React.Key[], info: any) => {
+      const currentTree = treeRef.current;
+      const currentSelectedNode = selectedNodeRef.current;
       const key = info.node.key as string;
-      const node = findNodeById(tree, key);
+      const node = findNodeById(currentTree, key);
 
       // Check if this is a folder node (has children)
       const isFolderNode = node && node.children.length > 0;
 
       // Check if we're clicking the already selected node
-      const isAlreadySelected = selectedNode?.id === key;
+      const isAlreadySelected = currentSelectedNode?.id === key;
 
       // For folder nodes: toggle expansion
       if (isFolderNode) {
@@ -232,7 +240,7 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
 
       onSelect(node);
     },
-    [tree, handleToggleExpand, onSelect, selectedNode]
+    [handleToggleExpand, onSelect] // treeRef and selectedNodeRef are stable refs
   );
 
   const handleRightClick = useCallback(({ event, node }: any) => {
@@ -246,9 +254,9 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
 
   const findNode = useCallback(
     (id: string) => {
-      return findNodeById(tree, id);
+      return findNodeById(treeRef.current, id);
     },
-    [tree]
+    [] // treeRef is a stable ref
   );
 
   const contextValue: ClassificationTreeContextValue = {

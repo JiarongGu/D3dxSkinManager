@@ -1,18 +1,15 @@
 import React from 'react';
 import { Space, Tag, Progress, Button } from 'antd';
 import {
-  UserOutlined,
   CheckCircleOutlined,
   LoadingOutlined,
   QuestionCircleOutlined,
-  BulbOutlined,
 } from '@ant-design/icons';
 import { AnnotatedTooltip, annotations } from '../../../../shared/components/common/TooltipSystem';
 
 export type StatusType = 'normal' | 'warning' | 'error';
 
 interface AppStatusBarProps {
-  userName?: string;
   serverStatus: 'connected' | 'disconnected' | 'connecting';
   modsLoaded: number;
   modsTotal: number;
@@ -20,11 +17,13 @@ interface AppStatusBarProps {
   statusType?: StatusType;
   progressPercent?: number;
   progressVisible?: boolean;
+  operationName?: string; // Current operation name
+  activeOperationCount?: number; // Number of active operations
   onHelpClick?: () => void;
+  onProgressClick?: () => void; // Click handler for progress bar (opens operation monitor)
 }
 
 export const AppStatusBar: React.FC<AppStatusBarProps> = ({
-  userName = 'User',
   serverStatus,
   modsLoaded,
   modsTotal,
@@ -32,7 +31,10 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
   statusType = 'normal',
   progressPercent = 0,
   progressVisible = false,
+  operationName,
+  activeOperationCount = 0,
   onHelpClick,
+  onProgressClick,
 }) => {
   const getServerStatusIcon = () => {
     switch (serverStatus) {
@@ -78,13 +80,19 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
     >
       {/* Progress bar - shown when progressVisible is true */}
       {progressVisible && (
-        <Progress
-          percent={progressPercent}
-          size="small"
-          showInfo={false}
-          status={progressPercent === 100 ? 'success' : 'active'}
-          style={{ marginBottom: 0, lineHeight: '2px' }}
-        />
+        <div
+          onClick={onProgressClick}
+          style={{ cursor: onProgressClick ? 'pointer' : 'default' }}
+          title={operationName || 'Operation in progress'}
+        >
+          <Progress
+            percent={progressPercent}
+            size="small"
+            showInfo={false}
+            status={progressPercent === 100 ? 'success' : 'active'}
+            style={{ marginBottom: 0, lineHeight: '2px' }}
+          />
+        </div>
       )}
 
       {/* Main status bar */}
@@ -108,12 +116,24 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
             </Space>
           </AnnotatedTooltip>
 
-          {/* Status message with color coding */}
-          {statusMessage && (
+          {/* Operation name or status message */}
+          {operationName && activeOperationCount > 0 ? (
+            <Space size="small">
+              <LoadingOutlined style={{ color: 'var(--color-primary)' }} />
+              <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                {operationName}
+              </span>
+              {activeOperationCount > 1 && (
+                <Tag color="blue" style={{ marginLeft: 4 }}>
+                  +{activeOperationCount - 1} more
+                </Tag>
+              )}
+            </Space>
+          ) : statusMessage ? (
             <span style={{ color: getStatusColor(), fontWeight: 500 }}>
               {statusMessage}
             </span>
-          )}
+          ) : null}
         </Space>
 
         {/* Right side - Help, Mods, Version */}

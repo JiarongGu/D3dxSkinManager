@@ -70,6 +70,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly Core.Services.IImageService _imageService;
     private readonly Profiles.Services.IProfilePathService _profilePaths;
     private readonly Core.Services.IPathHelper _pathHelper;
+    private readonly Core.Services.IOperationNotificationService _operationService;
 
     public ModFacade(
         IModRepository repository,
@@ -82,6 +83,7 @@ public class ModFacade : BaseFacade, IModFacade
         Core.Services.IImageService imageService,
         Profiles.Services.IProfilePathService profilePaths,
         Core.Services.IPathHelper pathHelper,
+        Core.Services.IOperationNotificationService operationService,
         ILogHelper logger) : base(logger)
     {
         _repository = repository;
@@ -94,6 +96,7 @@ public class ModFacade : BaseFacade, IModFacade
         _imageService = imageService;
         _profilePaths = profilePaths;
         _pathHelper = pathHelper;
+        _operationService = operationService;
     }
 
     /// <summary>
@@ -163,7 +166,14 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> LoadModAsync(string sha)
     {
-        var success = await _fileService.LoadAsync(sha);
+        // Get mod name for operation display
+        var mod = await _repository.GetByIdAsync(sha);
+        var modName = mod?.Name ?? $"Mod {sha.Substring(0, 8)}";
+
+        // Create operation for progress tracking
+        var progressReporter = _operationService.CreateOperation($"Loading: {modName}", metadata: new { sha });
+
+        var success = await _fileService.LoadAsync(sha, progressReporter);
         if (!success) return false;
 
         // Note: IsLoaded is determined dynamically from file system, not stored in database
