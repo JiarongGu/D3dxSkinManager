@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Form } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { MultiTagInput } from '../../../../shared/components/common/MultiTagInput';
 import { ModTagSelectorDialog } from './ModTagSelectorDialog';
 
@@ -18,6 +19,7 @@ export const TagsSection: React.FC<TagsSectionProps> = ({
   availableTags,
   onTagsChange,
 }) => {
+  const { t } = useTranslation();
   const [tagSelectorVisible, setTagSelectorVisible] = useState(false);
 
   const handleOpenTagSelector = () => {
@@ -36,15 +38,15 @@ export const TagsSection: React.FC<TagsSectionProps> = ({
   return (
     <>
       <Form.Item
-        label="Tags"
-        tooltip="Type to add tags or click button to select from list"
+        label={t('mods.edit.tags')}
+        tooltip={t('mods.edit.tagsTooltip')}
       >
         <MultiTagInput
           value={tags}
           onChange={onTagsChange}
           availableTags={availableTags}
           onOpenTagSelector={handleOpenTagSelector}
-          placeholder="Type to add tags..."
+          placeholder={t('mods.edit.tagsPlaceholder')}
         />
       </Form.Item>
 

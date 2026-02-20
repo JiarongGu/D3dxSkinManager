@@ -23,7 +23,10 @@ public static class SettingsServiceExtensions
         // Register Window State Service (for window position/size persistence)
         services.AddSingleton<IWindowStateService, WindowStateService>();
 
-        // Register facade (depends on Core.FileSystemService, Core.FileDialogService, GlobalSettingsService, and SettingsFileService)
+        // Register Language Service (for i18n/language files)
+        services.AddSingleton<ILanguageService, LanguageService>();
+
+        // Register facade (depends on GlobalSettingsService, SettingsFileService, and LanguageService)
         services.AddSingleton<ISettingsFacade, SettingsFacade>();
 
         return services;

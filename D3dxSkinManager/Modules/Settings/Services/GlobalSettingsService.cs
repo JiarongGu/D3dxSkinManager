@@ -168,6 +168,10 @@ public class GlobalSettingsService : IGlobalSettingsService
                     _logger.Info($"Updating logLevel from '{settings.LogLevel}' to '{value}'", "GlobalSettingsService");
                     settings.LogLevel = value;
                     break;
+                case "language":
+                    _logger.Info($"Updating language from '{settings.Language}' to '{value}'", "GlobalSettingsService");
+                    settings.Language = value;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown setting key: {key}");
             }

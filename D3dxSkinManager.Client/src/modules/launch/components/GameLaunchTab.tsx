@@ -1,6 +1,7 @@
 import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Tooltip, Alert, Spin } from 'antd';
+import { useTranslation } from 'react-i18next';
 import {
   FolderOpenOutlined,
   PlayCircleOutlined,
@@ -12,8 +13,10 @@ import { UnityArgsDialog } from '../../core/components/dialogs/UnityArgsDialog';
 import { fileDialogService } from '../../../shared/services/systemService';
 import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
 import { useProfile } from '../../../shared/context/ProfileContext';
+import './GameLaunchTab.css';
 
 export const GameLaunchTab: React.FC = () => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [unityArgsDialogVisible, setUnityArgsDialogVisible] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -45,7 +48,7 @@ export const GameLaunchTab: React.FC = () => {
         // Don't show error if it's just because no profile is selected
         const errorMessage = error instanceof Error ? error.message : '';
         if (!errorMessage.includes('Profile ID is required')) {
-          notification.error('Failed to load profile configuration');
+          notification.error(t('launch.game.loadConfigFailed'));
           console.error('Failed to load profile config:', error);
         }
       } finally {
@@ -58,48 +61,48 @@ export const GameLaunchTab: React.FC = () => {
 
   const handleBrowseGamePath = async () => {
     const result = await fileDialogService.openFileDialog({
-      title: 'Select Game Executable',
+      title: t('launch.game.selectGameExe'),
       filters: [
-        { name: 'Executable Files', extensions: ['exe'] },
-        { name: 'All Files', extensions: ['*'] }
+        { name: t('launch.game.executableFiles'), extensions: ['exe'] },
+        { name: t('launch.game.allFiles'), extensions: ['*'] }
       ]
     });
 
     if (result.success && result.filePath) {
       form.setFieldsValue({ gamePath: result.filePath });
       if (!profileState.selectedProfile) {
-        notification.error('No profile selected');
+        notification.error(t('errors.noProfileSelected'));
         return;
       }
       try {
         await updateActiveProfileConfigField(profileState.selectedProfile.id, 'gamePath', result.filePath);
-        notification.success('Game path updated');
+        notification.success(t('launch.game.gamePathUpdated'));
       } catch (error) {
-        notification.error('Failed to save game path');
+        notification.error(t('launch.game.saveGamePathFailed'));
       }
     }
   };
 
   const handleBrowseCustomProgramPath = async () => {
     const result = await fileDialogService.openFileDialog({
-      title: 'Select Custom Program Executable',
+      title: t('launch.game.selectCustomProgram'),
       filters: [
-        { name: 'Executable Files', extensions: ['exe'] },
-        { name: 'All Files', extensions: ['*'] }
+        { name: t('launch.game.executableFiles'), extensions: ['exe'] },
+        { name: t('launch.game.allFiles'), extensions: ['*'] }
       ]
     });
 
     if (result.success && result.filePath) {
       form.setFieldsValue({ customProgramPath: result.filePath });
       if (!profileState.selectedProfile) {
-        notification.error('No profile selected');
+        notification.error(t('errors.noProfileSelected'));
         return;
       }
       try {
         await updateActiveProfileConfigField(profileState.selectedProfile.id, 'customProgramPath', result.filePath);
-        notification.success('Custom program path updated');
+        notification.success(t('launch.game.customPathUpdated'));
       } catch (error) {
-        notification.error('Failed to save custom program path');
+        notification.error(t('launch.game.saveCustomPathFailed'));
       }
     }
   };
@@ -107,48 +110,48 @@ export const GameLaunchTab: React.FC = () => {
   const handleLaunchGame = () => {
     const gamePath = form.getFieldValue('gamePath');
     if (!gamePath) {
-      notification.error('Please set game path first');
+      notification.error(t('launch.game.setGamePathFirst'));
       return;
     }
     // TODO: Launch game with arguments
-    notification.info('Launching game...');
+    notification.info(t('launch.game.launchingGame'));
   };
 
   const handleOpenGameDirectory = async () => {
     const gamePath = form.getFieldValue('gamePath');
     if (!gamePath) {
-      notification.error('Please set game path first');
+      notification.error(t('launch.game.setGamePathFirst'));
       return;
     }
     try {
       await fileDialogService.openFileInExplorer(gamePath);
-      notification.success('Opened game directory');
+      notification.success(t('launch.game.openedGameDir'));
     } catch (error) {
-      notification.error('Failed to open game directory');
+      notification.error(t('launch.game.openGameDirFailed'));
     }
   };
 
   const handleLaunchCustomProgram = () => {
     const programPath = form.getFieldValue('customProgramPath');
     if (!programPath) {
-      notification.error('Please set custom program path first');
+      notification.error(t('launch.game.setCustomPathFirst'));
       return;
     }
     // TODO: Launch custom program
-    notification.info('Launching custom program...');
+    notification.info(t('launch.game.launchingCustom'));
   };
 
   const handleOpenCustomDirectory = async () => {
     const programPath = form.getFieldValue('customProgramPath');
     if (!programPath) {
-      notification.error('Please set custom program path first');
+      notification.error(t('launch.game.setCustomPathFirst'));
       return;
     }
     try {
       await fileDialogService.openFileInExplorer(programPath);
-      notification.success('Opened custom program directory');
+      notification.success(t('launch.game.openedCustomDir'));
     } catch (error) {
-      notification.error('Failed to open custom program directory');
+      notification.error(t('launch.game.openCustomDirFailed'));
     }
   };
 
@@ -160,14 +163,14 @@ export const GameLaunchTab: React.FC = () => {
     form.setFieldsValue({ launchArgs: args });
     setUnityArgsDialogVisible(false);
     if (!profileState.selectedProfile) {
-      notification.error('No profile selected');
+      notification.error(t('errors.noProfileSelected'));
       return;
     }
     try {
       await updateActiveProfileConfigField(profileState.selectedProfile.id, 'gameLaunchArgs', args);
-      notification.success('Launch arguments updated');
+      notification.success(t('launch.game.launchArgsUpdated'));
     } catch (error) {
-      notification.error('Failed to save launch arguments');
+      notification.error(t('launch.game.saveLaunchArgsFailed'));
     }
   };
 
@@ -191,60 +194,60 @@ export const GameLaunchTab: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin size="large" description="Loading profile configuration..." />
+      <div className="game-launch-loading">
+        <Spin size="large" description={t('launch.game.loadingConfig')} />
       </div>
     );
   }
 
   return (
-    <div style={{ paddingTop: '16px' }}>
+    <div className="game-launch-tab">
       <Form
           form={form}
           layout="vertical"
         >
           {/* Game Configuration */}
           <CompactCard
-            title={<><PlayCircleOutlined /> Game Configuration</>}
+            title={<><PlayCircleOutlined /> {t('launch.game.gameConfig')}</>}
             style={{ marginBottom: '24px' }}
           >
             <Form.Item
-              label="Game Executable Path"
+              label={t('launch.game.gameExePath')}
               name="gamePath"
-              tooltip="Path to the game executable for this profile"
+              tooltip={t('launch.game.gameExeTooltip')}
             >
               <Input.Group compact>
                 <Input
                   style={{ width: 'calc(100% - 100px)' }}
-                  placeholder="C:\Program Files\Game\game.exe"
+                  placeholder={t('launch.game.gameExePlaceholder')}
                   readOnly
                 />
                 <CompactButton
                   icon={<FolderOpenOutlined />}
                   onClick={handleBrowseGamePath}
                 >
-                  Browse
+                  {t('common.browse')}
                 </CompactButton>
               </Input.Group>
             </Form.Item>
 
             <Form.Item
-              label="Launch Arguments"
+              label={t('launch.game.launchArgs')}
               name="launchArgs"
-              tooltip="Command line arguments for launching the game"
+              tooltip={t('launch.game.launchArgsTooltip')}
             >
               <Input.Group compact>
                 <Input
                   style={{ width: 'calc(100% - 80px)' }}
-                  placeholder="-windowed -dx11"
+                  placeholder={t('launch.game.launchArgsPlaceholder')}
                   onChange={handleLaunchArgsChange}
                 />
-                <Tooltip title="Unity Arguments Helper">
+                <Tooltip title={t('launch.game.unityArgsHelper')}>
                   <CompactButton
                     icon={<PlusOutlined />}
                     onClick={handleOpenUnityArgsDialog}
                   >
-                    Unity
+                    {t('launch.game.unity')}
                   </CompactButton>
                 </Tooltip>
               </Input.Group>
@@ -259,50 +262,50 @@ export const GameLaunchTab: React.FC = () => {
                 icon={<PlayCircleOutlined />}
                 onClick={handleLaunchGame}
               >
-                Launch Game
+                {t('launch.game.launchGame')}
               </CompactButton>
               <CompactButton
                 size="large"
                 icon={<FolderOpenOutlined />}
                 onClick={handleOpenGameDirectory}
               >
-                Open Game Directory
+                {t('launch.game.openGameDir')}
               </CompactButton>
             </CompactSpace>
           </CompactCard>
 
           {/* Custom Launch Program */}
           <CompactCard
-            title={<><SettingOutlined /> Custom Launch Program</>}
+            title={<><SettingOutlined /> {t('launch.game.customProgram')}</>}
             style={{ marginBottom: '24px' }}
           >
             <Form.Item
-              label="Custom Program Path"
+              label={t('launch.game.customProgramPath')}
               name="customProgramPath"
-              tooltip="Path to a custom program to launch (e.g., ReShade, overlay, etc.)"
+              tooltip={t('launch.game.customProgramTooltip')}
             >
               <Input.Group compact>
                 <Input
                   style={{ width: 'calc(100% - 100px)' }}
-                  placeholder="C:\Programs\CustomTool\tool.exe"
+                  placeholder={t('launch.game.customProgramPlaceholder')}
                   readOnly
                 />
                 <CompactButton
                   icon={<FolderOpenOutlined />}
                   onClick={handleBrowseCustomProgramPath}
                 >
-                  Browse
+                  {t('common.browse')}
                 </CompactButton>
               </Input.Group>
             </Form.Item>
 
             <Form.Item
-              label="Custom Launch Arguments"
+              label={t('launch.game.customLaunchArgs')}
               name="customLaunchArgs"
-              tooltip="Arguments for the custom program"
+              tooltip={t('launch.game.customArgsTooltip')}
             >
               <Input
-                placeholder="Custom arguments"
+                placeholder={t('launch.game.customArgsPlaceholder')}
                 onChange={handleCustomLaunchArgsChange}
               />
             </Form.Item>
@@ -316,14 +319,14 @@ export const GameLaunchTab: React.FC = () => {
                 icon={<PlayCircleOutlined />}
                 onClick={handleLaunchCustomProgram}
               >
-                Launch Custom Program
+                {t('launch.game.launchCustom')}
               </CompactButton>
               <CompactButton
                 size="large"
                 icon={<FolderOpenOutlined />}
                 onClick={handleOpenCustomDirectory}
               >
-                Open Program Directory
+                {t('launch.game.openProgramDir')}
               </CompactButton>
             </CompactSpace>
           </CompactCard>

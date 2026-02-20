@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-21 - Complete Internationalization (i18n) System ⭐⭐⭐⭐⭐
+Implemented comprehensive bilingual support (English + Chinese) with react-i18next and custom backend integration. 507 translation keys per language, 16 components fully internationalized, flat JSON structure for easy maintenance.
+**Key Features**: react-i18next with custom C# backend, auto-language loading from settings, language switcher in Settings panel, flat JSON (easy searching), 507 keys per language (EN/CN 100% parity), 16/35+ components completed
+**Components**: ModList, ModListPanel, ModPreviewPanel, ModEditDialog (3 sections), Launch tabs (Game/D3DMigoto), ToolsView, PluginsView, AboutDialog, KeyboardShortcutsDialog, AppHeader, AppStatusBar, SettingsView
+**Architecture**: Backend: LanguageService (load/save language files), Frontend: i18n.ts (custom backend), I18nInitializer (loads on startup), languageService.ts (IPC client)
+**Translation Files**: `Languages/en.json` + `cn.json` (auto-copied to `data/languages/`)
+**Impact**: ✅ Full bilingual support, easy to add more languages, professional Chinese translations
+**Docs**: `docs/features/INTERNATIONALIZATION.md`, `docs/how-to/ADD_I18N_TO_COMPONENT.md`
+
 ### Added - 2026-02-21 - Category-Based Mod Loading with Comprehensive Error Handling ⭐⭐⭐⭐⭐
 Implemented automatic category-based unloading and comprehensive error handling system with user-friendly messages for all error scenarios.
 **Key Features**: Auto-unload conflicting mods, error code system (backend + frontend), folder-in-use detection, user-friendly error messages, unknown error handling

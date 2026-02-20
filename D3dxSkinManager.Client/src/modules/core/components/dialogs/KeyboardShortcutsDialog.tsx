@@ -7,6 +7,8 @@ import React from 'react';
 import { Modal, Table, Tag, Typography, Divider } from 'antd';
 import { CodeOutlined } from '@ant-design/icons';
 import { KeyboardShortcutManager, ShortcutConfig } from '../../utils/KeyboardShortcutManager';
+import { useTranslation } from 'react-i18next';
+import './KeyboardShortcutsDialog.css';
 
 const { Title, Text } = Typography;
 
@@ -26,13 +28,15 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
   onClose,
   shortcuts,
 }) => {
+  const { t } = useTranslation();
+
   // Group shortcuts by context
   const groupedShortcuts: ShortcutGroup[] = React.useMemo(() => {
     const groups: Record<string, ShortcutGroup> = {
-      global: { title: 'Global Shortcuts', shortcuts: [] },
-      'mod-list': { title: 'Mod Management', shortcuts: [] },
-      'import-window': { title: 'Import Window', shortcuts: [] },
-      dialog: { title: 'Dialogs', shortcuts: [] },
+      global: { title: t('shortcuts.groups.global'), shortcuts: [] },
+      'mod-list': { title: t('shortcuts.groups.modManagement'), shortcuts: [] },
+      'import-window': { title: t('shortcuts.groups.importWindow'), shortcuts: [] },
+      dialog: { title: t('shortcuts.groups.dialogs'), shortcuts: [] },
     };
 
     shortcuts.forEach((shortcut) => {
@@ -44,11 +48,11 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
     });
 
     return Object.values(groups).filter((group) => group.shortcuts.length > 0);
-  }, [shortcuts]);
+  }, [shortcuts, t]);
 
   const columns = [
     {
-      title: 'Shortcut',
+      title: t('shortcuts.table.shortcut'),
       dataIndex: 'config',
       key: 'shortcut',
       width: 200,
@@ -56,18 +60,18 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
         <Tag
           icon={<CodeOutlined />}
           color="blue"
-          style={{ padding: '4px 12px', fontSize: '13px', fontWeight: 600 }}
+          className="keyboard-shortcuts-tag"
         >
           {KeyboardShortcutManager.formatShortcut(config)}
         </Tag>
       ),
     },
     {
-      title: 'Description',
+      title: t('shortcuts.table.description'),
       dataIndex: 'config',
       key: 'description',
       render: (config: ShortcutConfig) => (
-        <Text style={{ fontSize: '14px' }}>{config.description}</Text>
+        <Text className="keyboard-shortcuts-description">{config.description}</Text>
       ),
     },
   ];
@@ -77,7 +81,7 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
       title={
         <>
           <CodeOutlined style={{ marginRight: 8 }} />
-          Keyboard Shortcuts
+          {t('shortcuts.title')}
         </>
       }
       open={visible}
@@ -86,11 +90,11 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
       width={700}
       styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
     >
-      <div style={{ padding: '8px 0' }}>
+      <div className="keyboard-shortcuts-content">
         {groupedShortcuts.map((group, index) => (
           <div key={group.title}>
             {index > 0 && <Divider />}
-            <Title level={5} style={{ marginTop: index > 0 ? 16 : 0, marginBottom: 12 }}>
+            <Title level={5} className="keyboard-shortcuts-group-title" style={{ marginTop: index > 0 ? 16 : 0 }}>
               {group.title}
             </Title>
             <Table
@@ -107,9 +111,9 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
 
         <Divider />
 
-        <div style={{ marginTop: 16, padding: '12px', background: '#f0f5ff', borderRadius: '4px' }}>
-          <Text type="secondary" style={{ fontSize: '13px' }}>
-            <strong>Tip:</strong> Press <Tag>Ctrl + /</Tag> or <Tag>?</Tag> to open this help dialog anytime.
+        <div className="keyboard-shortcuts-tip">
+          <Text type="secondary" className="keyboard-shortcuts-tip-text">
+            <strong>{t('shortcuts.tip.label')}:</strong> {t('shortcuts.tip.message')} <Tag>Ctrl + /</Tag> {t('shortcuts.tip.or')} <Tag>?</Tag>
           </Text>
         </div>
       </div>

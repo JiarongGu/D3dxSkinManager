@@ -8,6 +8,9 @@ import {
 import { CompactCard, CompactSpace } from '../../../shared/components/compact';
 import { useAnnotation, getAnnotationLevelLabel, getAnnotationLevelDescription, AnnotationLevel } from '../../../shared/components/common/TooltipSystem';
 import { useTheme, ThemeMode } from '../../../shared/context/ThemeContext';
+import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '../../../i18n/i18n';
+import { AVAILABLE_LANGUAGES } from '../../../shared/types/language.types';
 import { logger, Logger, LogLevelName } from '../../core/utils/logger';
 import { settingsService } from '../services/settingsService';
 import { useProfile } from '../../../shared/context/ProfileContext';
@@ -18,6 +21,7 @@ export const SettingsView: React.FC = () => {
   const [form] = Form.useForm();
   const { annotationLevel, setAnnotationLevel } = useAnnotation();
   const { theme, setTheme } = useTheme();
+  const { t, i18n } = useTranslation();
   const { selectedProfile, selectedProfileId } = useProfile();
   const [selectedAnnotationLevel, setSelectedAnnotationLevel] = useState<AnnotationLevel>(annotationLevel);
   const [logLevel, setLogLevel] = useState<LogLevelName>(logger.getCurrentLevelName());
@@ -43,17 +47,18 @@ export const SettingsView: React.FC = () => {
       }
     };
     loadThumbnailAlgorithm();
-  }, [form, selectedProfileId]); // React to profile ID changes
+  }, [form, selectedProfileId]);
 
-  // Initialize form with annotation level, log level, and theme
+  // Initialize form with annotation level, log level, theme, and language
   useEffect(() => {
     form.setFieldsValue({
       theme: theme,
+      language: i18n.language,
       annotationLevel: annotationLevel,
       logLevel: logger.getCurrentLevelName(),
     });
     setSelectedAnnotationLevel(annotationLevel);
-  }, [annotationLevel, theme, form]);
+  }, [annotationLevel, theme, i18n.language, form]);
 
   const handleAnnotationLevelChange = async (value: AnnotationLevel) => {
     setSelectedAnnotationLevel(value);
@@ -90,6 +95,17 @@ export const SettingsView: React.FC = () => {
     notification.success(`Theme changed to: ${themeLabel}`);
   };
 
+  const handleLanguageChange = async (value: string) => {
+    try {
+      await changeLanguage(value);
+      const selectedLang = AVAILABLE_LANGUAGES.find(l => l.code === value);
+      notification.success(`Language changed to: ${selectedLang?.name || value}`);
+    } catch (error) {
+      notification.error('Failed to change language');
+      console.error('[SettingsView] Failed to change language:', error);
+    }
+  };
+
   const handleThumbnailAlgorithmChange = async (value: string) => {
     if (!selectedProfileId) {
       notification.error('No profile selected');
@@ -115,6 +131,7 @@ export const SettingsView: React.FC = () => {
         layout="vertical"
         initialValues={{
           theme: theme,
+          language: i18n.language,
           logLevel: logger.getCurrentLevelName(),
           thumbnailAlgorithm: thumbnailAlgorithm,
           migotoVersion: '3dmigoto',
@@ -134,6 +151,20 @@ export const SettingsView: React.FC = () => {
               <Option value="light">Light</Option>
               <Option value="dark">Dark</Option>
               <Option value="auto">Auto (System)</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Language"
+            name="language"
+            tooltip="Select application language"
+          >
+            <Select value={i18n.language} onChange={handleLanguageChange}>
+              {AVAILABLE_LANGUAGES.map(lang => (
+                <Option key={lang.code} value={lang.code}>
+                  {lang.name}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
 

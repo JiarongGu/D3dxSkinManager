@@ -1,0 +1,28 @@
+.keyboard-shortcuts-content {
+  padding: 8px 0;
+}
+
+.keyboard-shortcuts-group-title {
+  margin-bottom: 12px;
+}
+
+.keyboard-shortcuts-tag {
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.keyboard-shortcuts-description {
+  font-size: 14px;
+}
+
+.keyboard-shortcuts-tip {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f0f5ff;
+  border-radius: 4px;
+}
+
+.keyboard-shortcuts-tip-text {
+  font-size: 13px;
+}

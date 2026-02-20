@@ -21,6 +21,11 @@ public class GlobalSettings
     public string LogLevel { get; set; } = "info";
 
     /// <summary>
+    /// Language/Locale: en, cn, etc.
+    /// </summary>
+    public string Language { get; set; } = "en";
+
+    /// <summary>
     /// Last updated timestamp
     /// </summary>
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;

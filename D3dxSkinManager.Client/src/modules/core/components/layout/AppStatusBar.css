@@ -1,0 +1,74 @@
+.app-status-bar {
+  background: var(--color-bg-spotlight);
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.app-status-bar-progress {
+  cursor: pointer;
+}
+
+.app-status-bar-progress-default {
+  cursor: default;
+}
+
+.app-status-bar-progress-bar {
+  margin-bottom: 0;
+  line-height: 2px;
+}
+
+.app-status-bar-main {
+  height: 32px;
+  line-height: 32px;
+  padding: 0 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.app-status-bar-status-icon-connected {
+  color: var(--color-success);
+}
+
+.app-status-bar-status-icon-connecting {
+  color: var(--color-primary);
+}
+
+.app-status-bar-status-icon-disconnected {
+  color: var(--color-error);
+}
+
+.app-status-bar-operation-text {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.app-status-bar-operation-tag {
+  margin-left: 4px;
+}
+
+.app-status-bar-status-message {
+  font-weight: 500;
+}
+
+.app-status-bar-status-message-error {
+  color: var(--color-error);
+}
+
+.app-status-bar-status-message-warning {
+  color: var(--color-warning);
+}
+
+.app-status-bar-status-message-normal {
+  color: var(--color-text-secondary);
+}
+
+.app-status-bar-help-button {
+  padding: 0;
+  height: auto;
+  font-size: 12px;
+}
+
+.app-status-bar-version {
+  color: var(--color-text-tertiary);
+}

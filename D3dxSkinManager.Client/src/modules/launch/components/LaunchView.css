@@ -1,0 +1,11 @@
+/* LaunchView Container */
+.launch-view {
+  height: 100%;
+  overflow: auto;
+  padding: 24px;
+}
+
+.launch-view-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}

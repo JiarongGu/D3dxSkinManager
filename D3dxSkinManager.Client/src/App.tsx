@@ -13,6 +13,7 @@ import { AnnotationProvider } from './shared/components/common/TooltipSystem';
 import { ProfileProvider } from './shared/context/ProfileContext';
 import { ThemeProvider, useTheme } from './shared/context/ThemeContext';
 import { SlideInScreenProvider, useSlideInScreen } from './shared/context/SlideInScreenContext';
+import { I18nInitializer } from './i18n/I18nInitializer';
 import { SlideInScreenManager } from './shared/components/common/SlideInScreen';
 import { AppInitializer } from './shared/components/AppInitializer';
 import { OperationProvider, useOperation } from './shared/context/OperationContext';
@@ -231,9 +232,11 @@ const App: React.FC = () => {
 const AppWithProviders: React.FC = () => {
   return (
     <ThemeProvider>
-      <SlideInScreenProvider>
-        <App />
-      </SlideInScreenProvider>
+      <I18nInitializer>
+        <SlideInScreenProvider>
+          <App />
+        </SlideInScreenProvider>
+      </I18nInitializer>
     </ThemeProvider>
   );
 };

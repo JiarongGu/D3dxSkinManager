@@ -35,16 +35,19 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
 
     private readonly IGlobalSettingsService _globalSettingsService;
     private readonly ISettingsFileService _settingsFileService;
+    private readonly ILanguageService _languageService;
     private readonly IPayloadHelper _payloadHelper;
 
     public SettingsFacade(
         IGlobalSettingsService globalSettingsService,
         ISettingsFileService settingsFileService,
+        ILanguageService languageService,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
         _globalSettingsService = globalSettingsService ?? throw new ArgumentNullException(nameof(globalSettingsService));
         _settingsFileService = settingsFileService ?? throw new ArgumentNullException(nameof(settingsFileService));
+        _languageService = languageService ?? throw new ArgumentNullException(nameof(languageService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -64,6 +67,11 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
             "DELETE_FILE" => await DeleteSettingsFileHandlerAsync(request),
             "FILE_EXISTS" => await SettingsFileExistsHandlerAsync(request),
             "LIST_FILES" => await ListSettingsFilesHandlerAsync(request),
+
+            // Language/i18n
+            "GET_LANGUAGE" => await GetLanguageHandlerAsync(request),
+            "GET_AVAILABLE_LANGUAGES" => await GetAvailableLanguagesHandlerAsync(request),
+            "LANGUAGE_EXISTS" => await LanguageExistsHandlerAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -181,5 +189,34 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
         var files = await _settingsFileService.ListSettingsFilesAsync();
 
         return new { files };
+    }
+
+    // Language/i18n Handlers
+
+    private async Task<object> GetLanguageHandlerAsync(MessageRequest request)
+    {
+        var languageCode = _payloadHelper.GetRequiredValue<string>(request.Payload, "languageCode");
+        var language = await _languageService.GetLanguageAsync(languageCode);
+
+        if (language == null)
+        {
+            return new { success = false, message = $"Language not found: {languageCode}", language = (LanguageSettings?)null };
+        }
+
+        return new { success = true, language };
+    }
+
+    private async Task<object> GetAvailableLanguagesHandlerAsync(MessageRequest request)
+    {
+        var languages = await _languageService.GetAvailableLanguagesAsync();
+        return new { success = true, languages };
+    }
+
+    private async Task<object> LanguageExistsHandlerAsync(MessageRequest request)
+    {
+        var languageCode = _payloadHelper.GetRequiredValue<string>(request.Payload, "languageCode");
+        var exists = await _languageService.LanguageExistsAsync(languageCode);
+
+        return new { exists };
     }
 }

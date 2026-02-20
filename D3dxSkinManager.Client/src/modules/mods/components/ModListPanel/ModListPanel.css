@@ -1,0 +1,44 @@
+.mod-list-panel {
+  background: var(--color-bg-elevated) !important;
+  height: 100%;
+}
+
+.mod-list-panel-flex {
+  background: var(--color-bg-elevated) !important;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.mod-list-panel-empty-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+.mod-list-panel-empty {
+  margin: 0;
+}
+
+.mod-list-panel-search-bar {
+  padding: 8px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  flex-shrink: 0;
+  height: 48px;
+}
+
+.mod-list-panel-content {
+  flex: 1;
+  height: calc(100% - 48px);
+  overflow: auto;
+}
+
+.mod-list-panel-content-empty-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}

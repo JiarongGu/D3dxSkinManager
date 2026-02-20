@@ -1,7 +1,7 @@
+using SharpSevenZip;
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using SevenZip;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
@@ -158,7 +158,7 @@ public class ArchiveService : IArchiveService
 
                 if (File.Exists(libraryPath))
                 {
-                    SevenZipBase.SetLibraryPath(libraryPath);
+                    SharpSevenZipBase.SetLibraryPath(libraryPath);
                 }
                 else
                 {
@@ -166,7 +166,7 @@ public class ArchiveService : IArchiveService
                 }
 
                 // Use SevenZipSharp for extraction (supports all common formats)
-                using var extractor = new SevenZipExtractor(archivePath);
+                using var extractor = new SharpSevenZipExtractor(archivePath);
                 extractor.ExtractArchive(targetDirectory);
 
                 result.Success = true;

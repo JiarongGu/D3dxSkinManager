@@ -31,6 +31,7 @@ public class ModImportService : IModImportService
     private readonly IModFileService _modFileService;
     private readonly IModManagementService _modManagementService;
     private readonly IPathValidator _pathValidator;
+    private readonly IArchiveService _archiveService;
     private readonly ILogHelper _logger;
 
     public ModImportService(
@@ -41,6 +42,7 @@ public class ModImportService : IModImportService
         IModFileService modFileService,
         IModManagementService modManagementService,
         IPathValidator pathValidator,
+        IArchiveService archiveService,
         ILogHelper logger)
     {
         _fileService = fileService;
@@ -50,6 +52,7 @@ public class ModImportService : IModImportService
         _modFileService = modFileService;
         _modManagementService = modManagementService;
         _pathValidator = pathValidator;
+        _archiveService = archiveService;
         _logger = logger;
     }
 
@@ -85,12 +88,12 @@ public class ModImportService : IModImportService
                 Directory.Delete(tempExtractPath, true);
             }
 
-            var extracted = await _fileService.ExtractArchiveAsync(
+            var result = await _archiveService.ExtractArchiveAsync(
                 _modFileService.GetArchivePath(sha),
                 tempExtractPath
             );
 
-            if (!extracted)
+            if (!result.Success)
             {
                 throw new Exception("Failed to extract archive");
             }

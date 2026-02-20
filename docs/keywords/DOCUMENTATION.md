@@ -148,6 +148,15 @@
   - Complete usage guide with examples
   - Created: 2026-02-21
 
+- **Internationalization (i18n)** → `docs/features/INTERNATIONALIZATION.md` ⭐⭐⭐
+  - Complete i18n system documentation
+  - react-i18next with custom backend
+  - 507 translation keys per language (EN + CN)
+  - Flat JSON structure for easy searching
+  - Backend: LanguageService, frontend: useTranslation hook
+  - 16/35+ components completed
+  - Created: 2026-02-21
+
 ---
 
 ## Maintenance Guides

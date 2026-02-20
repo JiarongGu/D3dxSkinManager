@@ -11,6 +11,8 @@ import {
   CopyrightOutlined,
   LinkOutlined
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import './AboutDialog.css';
 
 const { Title, Text, Link, Paragraph } = Typography;
 
@@ -20,6 +22,7 @@ interface AboutDialogProps {
 }
 
 export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) => {
+  const { t } = useTranslation();
   const version = '2.0.0';
   const buildDate = '2026-02-17';
 
@@ -28,7 +31,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
       title={
         <>
           <InfoCircleOutlined style={{ marginRight: 8 }} />
-          About d3dx Skin Manager
+          {t('about.title')}
         </>
       }
       open={visible}
@@ -36,30 +39,28 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
       footer={null}
       width={600}
     >
-      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" className="about-dialog-content">
         {/* App Info */}
-        <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            d3dx Skin Manager
+        <div className="about-dialog-header">
+          <Title level={2} className="about-dialog-app-title">
+            {t('about.appName')}
           </Title>
           <Space>
-            <Tag color="blue" style={{ fontSize: '14px', padding: '4px 12px' }}>
-              Version {version}
+            <Tag color="blue" className="about-dialog-tag">
+              {t('about.version', { version })}
             </Tag>
-            <Tag style={{ fontSize: '14px', padding: '4px 12px' }}>
-              Build {buildDate}
+            <Tag className="about-dialog-tag">
+              {t('about.build', { buildDate })}
             </Tag>
           </Space>
         </div>
 
-        <Divider style={{ margin: '12px 0' }} />
+        <Divider className="about-dialog-divider" />
 
         {/* Description */}
         <div>
-          <Paragraph style={{ fontSize: '15px', lineHeight: '1.8', color: '#595959' }}>
-            A modern, cross-platform skin/mod management tool for 3DMigoto-based games.
-            Built with React, TypeScript, and .NET 8, featuring a comprehensive plugin system
-            and intuitive hierarchical mod organization.
+          <Paragraph className="about-dialog-description">
+            {t('about.description')}
           </Paragraph>
         </div>
 
@@ -67,7 +68,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
         <div>
           <Title level={5}>
             <LinkOutlined style={{ marginRight: 8 }} />
-            Technology Stack
+            {t('about.techStack')}
           </Title>
           <Space wrap>
             <Tag color="geekblue">React 18</Tag>
@@ -81,35 +82,35 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
 
         {/* Features */}
         <div>
-          <Title level={5}>Key Features</Title>
-          <ul style={{ lineHeight: '2', paddingLeft: '20px', color: '#595959' }}>
-            <li>Hierarchical mod organization with classification system</li>
-            <li>Plugin-based architecture (26+ plugins supported)</li>
-            <li>Real-time search and filtering</li>
-            <li>Batch operations and import queue management</li>
-            <li>Comprehensive annotation and tooltip system</li>
-            <li>Keyboard shortcuts for power users</li>
-            <li>Mod warehouse for online browsing and downloads</li>
+          <Title level={5}>{t('about.keyFeatures')}</Title>
+          <ul className="about-dialog-features">
+            <li>{t('about.features.hierarchical')}</li>
+            <li>{t('about.features.pluginArchitecture')}</li>
+            <li>{t('about.features.realtimeSearch')}</li>
+            <li>{t('about.features.batchOperations')}</li>
+            <li>{t('about.features.annotationSystem')}</li>
+            <li>{t('about.features.keyboardShortcuts')}</li>
+            <li>{t('about.features.modWarehouse')}</li>
           </ul>
         </div>
 
-        <Divider style={{ margin: '12px 0' }} />
+        <Divider className="about-dialog-divider" />
 
         {/* Credits */}
         <div>
           <Title level={5}>
             <CopyrightOutlined style={{ marginRight: 8 }} />
-            Credits
+            {t('about.credits')}
           </Title>
           <Space orientation="vertical" size="small">
             <Text>
-              <strong>Original Python Version:</strong> Based on d3dxSkinManage
+              <strong>{t('about.credits.originalPython')}:</strong> {t('about.credits.basedOn')}
             </Text>
             <Text>
-              <strong>Refactor & UI:</strong> React + .NET 8 + Photino.NET
+              <strong>{t('about.credits.refactorUI')}:</strong> React + .NET 8 + Photino.NET
             </Text>
             <Text>
-              <strong>3DMigoto:</strong> Graphics mod injection framework
+              <strong>{t('about.credits.3dmigoto')}:</strong> {t('about.credits.graphicsFramework')}
             </Text>
           </Space>
         </div>
@@ -118,32 +119,32 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
         <div>
           <Title level={5}>
             <GithubOutlined style={{ marginRight: 8 }} />
-            Resources
+            {t('about.resources')}
           </Title>
           <Space orientation="vertical">
             <Link href="#" target="_blank">
-              GitHub Repository
+              {t('about.links.github')}
             </Link>
             <Link href="#" target="_blank">
-              Documentation
+              {t('about.links.documentation')}
             </Link>
             <Link href="#" target="_blank">
-              Report Issues
+              {t('about.links.reportIssues')}
             </Link>
             <Link href="#" target="_blank">
-              3DMigoto Official Site
+              {t('about.links.3dmigotoSite')}
             </Link>
           </Space>
         </div>
 
-        <Divider style={{ margin: '12px 0' }} />
+        <Divider className="about-dialog-divider" />
 
         {/* License */}
-        <div style={{ textAlign: 'center', padding: '12px', background: '#f0f0f0', borderRadius: '4px' }}>
-          <Text type="secondary" style={{ fontSize: '13px' }}>
-            Released under the MIT License
+        <div className="about-dialog-license">
+          <Text type="secondary" className="about-dialog-license-text">
+            {t('about.license.releasedUnder')}
             <br />
-            © 2026 d3dx Skin Manager Contributors
+            {t('about.license.copyright')}
           </Text>
         </div>
       </Space>

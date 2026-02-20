@@ -1,0 +1,28 @@
+.d3dmigoto-tab-container {
+  padding-top: 16px;
+}
+
+.d3dmigoto-tab-loading {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.d3dmigoto-tab-card {
+  margin-bottom: 24px;
+}
+
+.d3dmigoto-tab-version-list {
+  width: 100%;
+}
+
+.d3dmigoto-tab-version-deployed {
+  margin-left: 8px;
+  color: #52c41a;
+}
+
+.d3dmigoto-tab-version-size {
+  font-size: 12px;
+  color: #8c8c8c;
+}

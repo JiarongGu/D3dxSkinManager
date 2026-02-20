@@ -8,6 +8,7 @@ export interface GlobalSettings {
   theme: 'light' | 'dark' | 'auto';
   annotationLevel: string;
   logLevel: string;
+  language: string;
   lastUpdated: string;
 }
 

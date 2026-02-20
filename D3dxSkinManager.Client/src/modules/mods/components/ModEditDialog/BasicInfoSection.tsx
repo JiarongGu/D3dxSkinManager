@@ -1,5 +1,6 @@
 import React from 'react';
 import { Form, Input } from 'antd';
+import { useTranslation } from 'react-i18next';
 
 const { TextArea } = Input;
 
@@ -8,25 +9,27 @@ const { TextArea } = Input;
  * Includes mod name and description fields
  */
 export const BasicInfoSection: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <>
       {/* Name */}
       <Form.Item
-        label="Mod Name"
+        label={t('mods.edit.name')}
         name="name"
-        rules={[{ required: true, message: 'Please enter mod name' }]}
+        rules={[{ required: true, message: t('mods.edit.nameRequired') }]}
       >
-        <Input placeholder="Enter mod name" />
+        <Input placeholder={t('mods.edit.namePlaceholder')} />
       </Form.Item>
 
       {/* Description */}
       <Form.Item
-        label="Description"
+        label={t('mods.edit.description')}
         name="description"
-        tooltip="Detailed description or explanation of the mod"
+        tooltip={t('mods.edit.descriptionTooltip')}
       >
         <TextArea
-          placeholder="Enter mod description..."
+          placeholder={t('mods.edit.descriptionPlaceholder')}
           rows={3}
           showCount
           maxLength={500}

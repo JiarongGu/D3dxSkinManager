@@ -11,7 +11,7 @@
   border-radius: var(--border-radius-base) !important;
   box-shadow: var(--shadow-elevated) !important;
   min-width: 200px !important;
-  max-width: 80vh !important;
+  max-width: 80vw !important;
   font-size: 14px !important;
   line-height: 1.5715 !important;
   background: var(--color-bg-elevated) !important;

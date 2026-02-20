@@ -9,12 +9,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="7z.Libs" Version="18.6.0" />
+    <PackageReference Include="7z.Libs" Version="25.1.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.3" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Photino.NET" Version="4.0.16" />
-    <PackageReference Include="SevenZipSharp" Version="0.64.0" />
+    <PackageReference Include="SharpSevenZip" Version="2.0.36" />
+  </ItemGroup>
+
+  <!-- Copy language files to output directory -->
+  <ItemGroup>
+    <None Include="Languages\**\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>data\languages\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
   </ItemGroup>
 
 </Project>

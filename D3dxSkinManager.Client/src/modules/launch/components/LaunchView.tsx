@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, Alert, Space } from 'antd';
 import { RocketOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { D3DMigotoTab } from './D3DMigotoTab';
 import { GameLaunchTab } from './GameLaunchTab';
+import './LaunchView.css';
 
 const { TabPane } = Tabs;
 
 export const LaunchView: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
-    <div style={{ height: '100%', overflow: 'auto', padding: '24px' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="launch-view">
+      <div className="launch-view-content">
         <Tabs defaultActiveKey="3dmigoto" size="large">
           <TabPane
             tab={
               <span>
                 <RocketOutlined />
-                3DMigoto
+                {t('launch.tabs.migoto')}
               </span>
             }
             key="3dmigoto"
@@ -27,7 +31,7 @@ export const LaunchView: React.FC = () => {
             tab={
               <span>
                 <PlayCircleOutlined />
-                Game Launch
+                {t('launch.tabs.game')}
               </span>
             }
             key="game"

@@ -10,6 +10,7 @@ import {
 import { ProfileSwitcher } from "../../../profiles/components/ProfileSwitcher";
 import { ProfileManager } from "../../../profiles/components/ProfileManager";
 import { useSlideInScreen } from "../../../../shared/context/SlideInScreenContext";
+import { useTranslation } from "react-i18next";
 import "./AppHeader.css";
 
 const { Header } = Layout;
@@ -25,19 +26,20 @@ interface TabItem {
   label: string;
 }
 
-const tabs: TabItem[] = [
-  { key: "mods", icon: <AppstoreOutlined />, label: "Mods" },
-  { key: "launch", icon: <RocketOutlined />, label: "Launch" },
-  { key: "tools", icon: <ToolOutlined />, label: "Tools" },
-  { key: "plugins", icon: <ApiOutlined />, label: "Plugins" },
-  { key: "settings", icon: <SettingOutlined />, label: "Settings" },
-];
-
 export const AppHeader: React.FC<AppHeaderProps> = ({
   selectedTab,
   onTabChange,
 }) => {
   const { openScreen } = useSlideInScreen();
+  const { t } = useTranslation();
+
+  const tabs: TabItem[] = [
+    { key: "mods", icon: <AppstoreOutlined />, label: t('header.tabs.mods') },
+    { key: "launch", icon: <RocketOutlined />, label: t('header.tabs.launch') },
+    { key: "tools", icon: <ToolOutlined />, label: t('header.tabs.tools') },
+    { key: "plugins", icon: <ApiOutlined />, label: t('header.tabs.plugins') },
+    { key: "settings", icon: <SettingOutlined />, label: t('header.tabs.settings') },
+  ];
 
   const handleProfileSwitch = () => {
     // Profile switched, page will reload automatically
@@ -45,7 +47,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const handleManageProfiles = () => {
     openScreen({
-      title: "Profile Manager",
+      title: t('header.profile.manage'),
       content: <ProfileManager />,
       width: "900px",
     });

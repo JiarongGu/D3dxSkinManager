@@ -49,6 +49,49 @@
 
 ---
 
+## Internationalization (i18n)
+
+- **i18n Configuration** → `src/i18n/i18n.ts`
+  - react-i18next setup with custom backend
+  - Loads translations from C# LanguageService via IPC
+  - Default language handling and fallbacks
+  - Created: 2026-02-21
+
+- **I18nInitializer** → `src/i18n/I18nInitializer.tsx`
+  - Initializes i18next on app startup
+  - Loads language from backend settings
+  - Wraps app with I18nextProvider
+  - Created: 2026-02-21
+
+- **Language Types** → `src/shared/types/language.types.ts`
+  - LanguageSettings interface
+  - TranslationDictionary type
+  - AVAILABLE_LANGUAGES constant
+  - Created: 2026-02-21
+
+- **Language Service** → `src/shared/services/languageService.ts`
+  - getLanguage(code) - Load language from backend
+  - getAvailableLanguages() - List available languages
+  - languageExists(code) - Check language file exists
+  - IPC integration with SETTINGS module
+  - Created: 2026-02-21
+
+- **Translation Files** → Backend: `D3dxSkinManager/Languages/`
+  - en.json - English translations (507 keys)
+  - cn.json - Chinese translations (507 keys)
+  - Flat JSON structure for easy searching
+  - Auto-copied to data/languages/ on build
+  - Created: 2026-02-21
+
+- **useTranslation Hook** → From react-i18next
+  - Usage: `const { t, i18n } = useTranslation();`
+  - t('namespace.key') - Get translation
+  - t('namespace.key', { param }) - With interpolation
+  - i18n.language - Current language code
+  - i18n.changeLanguage() - Switch language
+
+---
+
 ## Layout Components
 
 - **AppHeader** → `src/components/layout/AppHeader.tsx:8`

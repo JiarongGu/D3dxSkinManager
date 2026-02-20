@@ -4,6 +4,7 @@ import { PythonMigrationTool } from './PythonMigrationTool';
 import { CacheManagementTool } from './CacheManagementTool';
 import { TagManagementTool } from './TagManagementTool';
 import { UtilitiesTool } from './UtilitiesTool';
+import './ToolsView.css';
 
 interface ToolsViewProps {
   onModsChanged?: () => void;
@@ -21,8 +22,8 @@ interface ToolsViewProps {
  */
 export const ToolsView: React.FC<ToolsViewProps> = ({ onModsChanged }) => {
   return (
-    <div style={{ height: '100%', overflow: 'auto', padding: '24px' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="tools-view-container">
+      <div className="tools-view-content">
         <StartupValidationTool />
         <PythonMigrationTool onMigrationComplete={onModsChanged} />
         <CacheManagementTool />
