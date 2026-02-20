@@ -29,6 +29,13 @@ public class GlobalSettings
     /// Window size and position settings
     /// </summary>
     public WindowSettings Window { get; set; } = new();
+
+    /// <summary>
+    /// File dialog path memory by key
+    /// Key: rememberPathKey (e.g., "mod-preview-import", "migration_python_install")
+    /// Value: Last used directory path
+    /// </summary>
+    public Dictionary<string, string> FileDialogPaths { get; set; } = new();
 }
 
 /// <summary>

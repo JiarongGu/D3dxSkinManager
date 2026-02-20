@@ -43,6 +43,8 @@ public interface IModFacade : IModuleFacade
     Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask);
     Task<bool> ImportPreviewImageAsync(string sha, string imagePath);
     Task<List<string>> GetPreviewPathsAsync(string sha);
+    Task<bool> SetThumbnailAsync(string sha, string previewPath);
+    Task<bool> DeletePreviewAsync(string sha, string previewPath);
 
     // Classification Operations
     Task<List<ClassificationNode>> GetClassificationTreeAsync();
@@ -66,6 +68,8 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitterHelper _eventEmitter;
     private readonly Core.Services.IImageService _imageService;
+    private readonly Profiles.Services.IProfilePathService _profilePaths;
+    private readonly Core.Services.IPathHelper _pathHelper;
 
     public ModFacade(
         IModRepository repository,
@@ -76,6 +80,8 @@ public class ModFacade : BaseFacade, IModFacade
         IPayloadHelper payloadHelper,
         IEventEmitterHelper eventEmitter,
         Core.Services.IImageService imageService,
+        Profiles.Services.IProfilePathService profilePaths,
+        Core.Services.IPathHelper pathHelper,
         ILogHelper logger) : base(logger)
     {
         _repository = repository;
@@ -86,6 +92,8 @@ public class ModFacade : BaseFacade, IModFacade
         _payloadHelper = payloadHelper;
         _eventEmitter = eventEmitter;
         _imageService = imageService;
+        _profilePaths = profilePaths;
+        _pathHelper = pathHelper;
     }
 
     /// <summary>
@@ -112,6 +120,8 @@ public class ModFacade : BaseFacade, IModFacade
             "BATCH_UPDATE_METADATA" => await BatchUpdateMetadataAsync(request),
             "IMPORT_PREVIEW_IMAGE" => await ImportPreviewImageAsync(request),
             "GET_PREVIEW_PATHS" => await GetPreviewPathsAsync(request),
+            "SET_THUMBNAIL" => await SetThumbnailAsync(request),
+            "DELETE_PREVIEW" => await DeletePreviewAsync(request),
             "GET_CLASSIFICATION_TREE" => await GetClassificationTreeAsync(),
             "REFRESH_CLASSIFICATION_TREE" => await RefreshClassificationTreeAsync(),
             "GET_MODS_BY_CLASSIFICATION" => await GetModsByClassificationAsync(request),
@@ -323,38 +333,116 @@ public class ModFacade : BaseFacade, IModFacade
             throw new InvalidOperationException($"Invalid image format: {extension}. Supported: {string.Join(", ", validExtensions)}");
         }
 
-        string? targetDirectory = mod.WorkPath ?? mod.CachePath;
-        if (string.IsNullOrEmpty(targetDirectory))
+        // Use ImageService to get the preview paths and determine the next filename
+        var existingPreviews = await _imageService.GetPreviewPathsAsync(sha);
+
+        // Generate next preview filename (preview1.png, preview2.png, etc.)
+        int nextIndex = existingPreviews.Count + 1;
+        var targetFileName = $"preview{nextIndex}{extension}";
+
+        // Use ImageService's path resolution (previews/{SHA}/ folder)
+        var targetPath = await CopyToPreviewDirectoryAsync(sha, imagePath, targetFileName);
+
+        // Convert to relative path if under data folder for portability
+        var relativeTargetPath = _pathHelper.ToRelativePath(targetPath) ?? targetPath;
+
+        // If no thumbnail exists, use this as thumbnail (stored as relative path)
+        if (string.IsNullOrEmpty(mod.ThumbnailPath))
         {
-            throw new InvalidOperationException($"Mod has no work or cache directory: {sha}");
+            mod.ThumbnailPath = relativeTargetPath;
+            await _repository.UpdateAsync(mod);
         }
+
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.preview.imported", new { sha, imagePath = targetPath });
+
+        return true;
+    }
+
+    /// <summary>
+    /// Copy an image to the mod's preview directory
+    /// Helper method to centralize preview directory logic
+    /// </summary>
+    private Task<string> CopyToPreviewDirectoryAsync(string sha, string sourcePath, string targetFileName)
+    {
+        // Use ProfilePathService to get the correct preview directory (previews/{SHA}/)
+        var targetDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
 
         if (!Directory.Exists(targetDirectory))
         {
             Directory.CreateDirectory(targetDirectory);
         }
 
-        var targetFileName = $"preview{extension}";
         var targetPath = Path.Combine(targetDirectory, targetFileName);
+        File.Copy(sourcePath, targetPath, overwrite: true);
 
-        File.Copy(imagePath, targetPath, overwrite: true);
-
-        // Note: Previews are now stored in previews/{SHA}/ folder and scanned dynamically
-        // If no thumbnail exists, use this as thumbnail
-        if (string.IsNullOrEmpty(mod.ThumbnailPath))
-        {
-            mod.ThumbnailPath = targetPath;
-        }
-
-        await _repository.UpdateAsync(mod);
-        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.preview.imported", new { sha, imagePath = targetPath });
-
-        return true;
+        return Task.FromResult(targetPath);
     }
 
     public async Task<List<string>> GetPreviewPathsAsync(string sha)
     {
         return await _imageService.GetPreviewPathsAsync(sha);
+    }
+
+    public async Task<bool> SetThumbnailAsync(string sha, string previewPath)
+    {
+        var mod = await _repository.GetByIdAsync(sha);
+        if (mod == null)
+        {
+            throw new InvalidOperationException($"Mod not found: {sha}");
+        }
+
+        // Convert to absolute path if needed for file existence check
+        var absolutePreviewPath = _pathHelper.ToAbsolutePath(previewPath) ?? previewPath;
+
+        if (!File.Exists(absolutePreviewPath))
+        {
+            throw new FileNotFoundException($"Preview image not found: {previewPath}");
+        }
+
+        // Store as relative path if under data folder for portability
+        var relativePreviewPath = _pathHelper.ToRelativePath(absolutePreviewPath) ?? absolutePreviewPath;
+
+        mod.ThumbnailPath = relativePreviewPath;
+        await _repository.UpdateAsync(mod);
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.thumbnail.updated", new { sha, thumbnailPath = relativePreviewPath });
+
+        return true;
+    }
+
+    public async Task<bool> DeletePreviewAsync(string sha, string previewPath)
+    {
+        var mod = await _repository.GetByIdAsync(sha);
+        if (mod == null)
+        {
+            throw new InvalidOperationException($"Mod not found: {sha}");
+        }
+
+        // Convert to absolute path for file operations
+        var absolutePreviewPath = _pathHelper.ToAbsolutePath(previewPath) ?? previewPath;
+
+        if (!File.Exists(absolutePreviewPath))
+        {
+            throw new FileNotFoundException($"Preview image not found: {previewPath}");
+        }
+
+        // Normalize both paths for comparison (handles both relative and absolute stored paths)
+        var normalizedDeletePath = _pathHelper.NormalizePath(previewPath);
+        var normalizedThumbnailPath = _pathHelper.NormalizePath(mod.ThumbnailPath);
+
+        // If deleting the thumbnail, clear the thumbnail path
+        if (normalizedThumbnailPath != null && normalizedDeletePath != null &&
+            normalizedDeletePath.Equals(normalizedThumbnailPath, StringComparison.OrdinalIgnoreCase))
+        {
+            mod.ThumbnailPath = null;
+            await _repository.UpdateAsync(mod);
+            await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.thumbnail.updated", new { sha, thumbnailPath = (string?)null });
+        }
+
+        // Delete the file using absolute path
+        File.Delete(absolutePreviewPath);
+        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "mod.preview.deleted", new { sha, previewPath });
+
+        return true;
     }
 
     // ============= Message Handler Methods =============
@@ -450,6 +538,26 @@ public class ModFacade : BaseFacade, IModFacade
     {
         var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await GetPreviewPathsAsync(sha);
+    }
+
+    private async Task<object> SetThumbnailAsync(MessageRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var previewPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "previewPath");
+
+        var success = await SetThumbnailAsync(sha, previewPath);
+
+        return new { success, message = $"Thumbnail updated for mod: {sha}" };
+    }
+
+    private async Task<object> DeletePreviewAsync(MessageRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var previewPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "previewPath");
+
+        var success = await DeletePreviewAsync(sha, previewPath);
+
+        return new { success, message = $"Preview image deleted: {previewPath}" };
     }
 
     /// <summary>

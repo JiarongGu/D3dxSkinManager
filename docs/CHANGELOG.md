@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-20 - Preview Image Management with Context Menu ⭐⭐⭐
+Added comprehensive preview image management with right-click context menu for thumbnail assignment, file operations, and image import with persistent path memory. Fixed ImportPreviewImageAsync to use correct `previews/{SHA}/` directory structure. Enhanced file dialog path memory to persist across sessions via GlobalSettings.
+**Key Changes**: Set thumbnail, delete preview, open in explorer, copy path, add from file (persistent path memory via global.json), clipboard paste detection, fixed import path bug
+**Details**: [changelogs/2026-02/2026-02-20-preview-image-management.md](changelogs/2026-02/2026-02-20-preview-image-management.md)
+
 ### Added - 2026-02-20 - Windows Gallery Image Navigation & CSS Refactoring ⭐⭐⭐
 Implemented modern image navigation with hover-triggered buttons, refactored all inline styles to organized CSS, added comprehensive light/dark theme support.
 **Key Changes**: Previous/Next navigation on hover, image counter (1/5), ~150 lines inline styles → CSS classes, bluish-gray buttons for light theme

@@ -70,6 +70,7 @@ public class ImageService : IImageService
 
     /// <summary>
     /// Get thumbnail path for a mod (returns file path, will be converted to data URI by facade layer)
+    /// Returns relative path for portability
     /// </summary>
     public async Task<string?> GetThumbnailPathAsync(string sha)
     {
@@ -78,7 +79,11 @@ public class ImageService : IImageService
         {
             var cachedPath = _profilePaths.GetThumbnailPath(sha, ext);
             if (File.Exists(cachedPath))
-                return await Task.FromResult(cachedPath);
+            {
+                // Return relative path for portability
+                var relativePath = _pathHelper.ToRelativePath(cachedPath);
+                return await Task.FromResult(relativePath ?? cachedPath);
+            }
         }
 
         return null;
@@ -87,6 +92,7 @@ public class ImageService : IImageService
     /// <summary>
     /// Get preview image paths for a mod by scanning the preview folder
     /// Allows users to add preview images directly to previews/{sha}/ folder
+    /// Returns relative paths for portability
     /// </summary>
     public async Task<List<string>> GetPreviewPathsAsync(string sha)
     {
@@ -100,6 +106,7 @@ public class ImageService : IImageService
         var previewFiles = Directory.GetFiles(modPreviewFolder, "preview*.*")
             .Where(f => _supportedExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
             .OrderBy(f => f) // Natural sort by filename
+            .Select(f => _pathHelper.ToRelativePath(f) ?? f) // Convert to relative paths for portability
             .ToList();
 
         previewPaths.AddRange(previewFiles);

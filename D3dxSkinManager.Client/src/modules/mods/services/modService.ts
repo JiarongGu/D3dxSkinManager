@@ -208,6 +208,36 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Set a preview image as the mod thumbnail
+   */
+  async setThumbnail(profileId: string, sha: string, previewPath: string): Promise<boolean> {
+    const result = await this.sendMessage<{ success: boolean; message: string }>(
+      'SET_THUMBNAIL',
+      profileId,
+      {
+        sha,
+        previewPath
+      }
+    );
+    return result.success;
+  }
+
+  /**
+   * Delete a preview image
+   */
+  async deletePreview(profileId: string, sha: string, previewPath: string): Promise<boolean> {
+    const result = await this.sendMessage<{ success: boolean; message: string }>(
+      'DELETE_PREVIEW',
+      profileId,
+      {
+        sha,
+        previewPath
+      }
+    );
+    return result.success;
+  }
+
+  /**
    * Get file paths for a mod (helper for file viewing operations)
    * Note: This is a client-side helper that constructs expected paths
    * The actual existence of these paths should be verified by the backend

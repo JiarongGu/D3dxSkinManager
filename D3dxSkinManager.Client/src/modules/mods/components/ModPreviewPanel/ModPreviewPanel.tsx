@@ -9,23 +9,38 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  PictureOutlined,
+  FolderOpenOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  PlusOutlined,
+  SnippetsOutlined,
 } from "@ant-design/icons";
+import { ContextMenu, ContextMenuItem } from "../../../../shared/components/menu/ContextMenu";
+import { ConfirmDialog } from "../../../../shared/components/dialogs";
 import { GradingTag } from "../../../../shared/components/common/GradingTag";
 import { FullScreenPreview } from "./FullScreenPreview";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
 import { ModPreviewProvider, useModView } from "./ModPreviewContext";
 import { ModInfo } from "../../../../shared/types/mod.types";
+import { useProfile } from "../../../../shared/context/ProfileContext";
+import { modService } from "../../services/modService";
+import { fileDialogService } from "../../../../shared/services/fileDialogService";
 import "./ModPreviewPanel.css";
 
 const { Text, Paragraph, Title } = Typography;
 
 export const ModPreviewPanelContent: React.FC = () => {
-  const { state } = useModView();
+  const { state, actions } = useModView();
+  const { selectedProfileId } = useProfile();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [fullScreenImageSrc, setFullScreenImageSrc] = useState<string>("");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showLeftButton, setShowLeftButton] = useState(false);
   const [showRightButton, setShowRightButton] = useState(false);
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   const mod = state.currentMod;
 
@@ -45,17 +60,20 @@ export const ModPreviewPanelContent: React.FC = () => {
     setFullScreenVisible(true);
   };
 
-  // Determine which images to show (thumbnail + preview paths)
+  // Determine which images to show (preview paths, with thumbnail first)
   const allImagePaths: string[] = [];
 
-  // Add thumbnail first if available
-  if (mod?.thumbnailPath) {
-    allImagePaths.push(mod.thumbnailPath);
-  }
-
-  // Add preview paths
   if (state.previewPaths && state.previewPaths.length > 0) {
-    allImagePaths.push(...state.previewPaths);
+    // If thumbnail exists, show it first
+    if (mod?.thumbnailPath && state.previewPaths.includes(mod.thumbnailPath)) {
+      // Add thumbnail first
+      allImagePaths.push(mod.thumbnailPath);
+      // Add other previews (excluding thumbnail to avoid duplicates)
+      allImagePaths.push(...state.previewPaths.filter(p => p !== mod.thumbnailPath));
+    } else {
+      // No thumbnail or thumbnail not in preview paths, just show all previews
+      allImagePaths.push(...state.previewPaths);
+    }
   }
 
   const hasMultipleImages = allImagePaths.length > 1;
@@ -95,6 +113,237 @@ export const ModPreviewPanelContent: React.FC = () => {
     setShowLeftButton(false);
     setShowRightButton(false);
   };
+
+  // Context menu handlers
+  const handleImageContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setContextMenuVisible(true);
+  };
+
+  const handleSetAsThumbnail = async () => {
+    if (!mod || !selectedProfileId) return;
+    const currentImagePath = allImagePaths[currentImageIndex];
+
+    try {
+      await modService.setThumbnail(selectedProfileId, mod.sha, currentImagePath);
+      message.success("Thumbnail updated successfully");
+      // Refresh preview to update UI
+      await actions.loadPreviewPaths(mod.sha);
+    } catch (error) {
+      console.error("Error setting thumbnail:", error);
+      message.error("Failed to set thumbnail");
+    }
+    setContextMenuVisible(false);
+  };
+
+  const handleOpenInExplorer = async () => {
+    if (!mod) return;
+    const currentImagePath = allImagePaths[currentImageIndex];
+
+    try {
+      await fileDialogService.openFileInExplorer(currentImagePath);
+    } catch (error) {
+      console.error("Error opening in explorer:", error);
+      message.error("Failed to open in file explorer");
+    }
+    setContextMenuVisible(false);
+  };
+
+  const handleCopyImagePath = () => {
+    if (!mod) return;
+    const currentImagePath = allImagePaths[currentImageIndex];
+    navigator.clipboard.writeText(currentImagePath);
+    message.success("Image path copied to clipboard");
+    setContextMenuVisible(false);
+  };
+
+  const handleDeletePreview = () => {
+    setContextMenuVisible(false);
+    setDeleteConfirmVisible(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!mod || !selectedProfileId) return;
+    const currentImagePath = allImagePaths[currentImageIndex];
+
+    try {
+      await modService.deletePreview(selectedProfileId, mod.sha, currentImagePath);
+      message.success("Preview image deleted");
+      // Refresh preview to update UI
+      await actions.loadPreviewPaths(mod.sha);
+    } catch (error) {
+      console.error("Error deleting preview:", error);
+      message.error("Failed to delete preview image");
+    }
+    setDeleteConfirmVisible(false);
+  };
+
+  const handleAddFromFile = async () => {
+    if (!mod || !selectedProfileId) return;
+
+    try {
+      const result = await fileDialogService.openFileDialog({
+        title: "Select Preview Image",
+        filters: [
+          { name: "Image Files", extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"] }
+        ],
+        rememberPathKey: 'mod-preview-import'
+      });
+
+      if (result.success && result.filePath) {
+        await modService.importPreviewImage(selectedProfileId, mod.sha, result.filePath);
+        message.success("Preview image added successfully");
+        // Refresh preview to update UI
+        await actions.loadPreviewPaths(mod.sha);
+      }
+    } catch (error) {
+      console.error("Error adding preview from file:", error);
+      message.error("Failed to add preview image");
+    }
+    setContextMenuVisible(false);
+  };
+
+  const handlePasteFromClipboard = async () => {
+    if (!mod || !selectedProfileId) return;
+
+    try {
+      // Check if clipboard API is available
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        message.warning("Clipboard API not supported in this browser");
+        setContextMenuVisible(false);
+        return;
+      }
+
+      const clipboardItems = await navigator.clipboard.read();
+      let imageFound = false;
+
+      for (const item of clipboardItems) {
+        // Look for image types
+        const imageType = item.types.find(type => type.startsWith('image/'));
+
+        if (imageType) {
+          const blob = await item.getType(imageType);
+
+          // Convert blob to file-like object
+          const extension = imageType.split('/')[1] || 'png';
+          const fileName = `clipboard_${Date.now()}.${extension}`;
+          const file = new File([blob], fileName, { type: imageType });
+
+          // Create a temporary path (backend will handle the actual file creation)
+          // For now, we'll need to upload the blob - this requires a backend endpoint
+          message.info("Clipboard image paste feature requires backend implementation");
+          imageFound = true;
+          break;
+        }
+      }
+
+      if (!imageFound) {
+        message.warning("No image found in clipboard");
+      }
+    } catch (error) {
+      console.error("Error pasting from clipboard:", error);
+      message.error("Failed to paste from clipboard. Make sure you have copied an image.");
+    }
+    setContextMenuVisible(false);
+  };
+
+  // Get current image info
+  const currentImagePath = allImagePaths[currentImageIndex] || "";
+  const isCurrentImageThumbnail = currentImagePath === mod?.thumbnailPath;
+  const hasImages = allImagePaths.length > 0;
+
+  // Context menu items (show only relevant items based on state)
+  const contextMenuItems: ContextMenuItem[] = hasImages
+    ? [
+        {
+          key: "add-from-file",
+          label: "Add from File...",
+          icon: <PlusOutlined />,
+          onClick: handleAddFromFile,
+        },
+        {
+          key: "paste-clipboard",
+          label: "Paste from Clipboard",
+          icon: <SnippetsOutlined />,
+          onClick: handlePasteFromClipboard,
+        },
+        {
+          type: "divider",
+        },
+        {
+          key: "set-thumbnail",
+          label: "Set as Thumbnail",
+          icon: <PictureOutlined />,
+          onClick: handleSetAsThumbnail,
+          disabled: isCurrentImageThumbnail,
+        },
+        {
+          type: "divider",
+        },
+        {
+          key: "open-explorer",
+          label: "Open in File Explorer",
+          icon: <FolderOpenOutlined />,
+          onClick: handleOpenInExplorer,
+        },
+        {
+          key: "copy-path",
+          label: "Copy Image Path",
+          icon: <CopyOutlined />,
+          onClick: handleCopyImagePath,
+        },
+        {
+          type: "divider",
+        },
+        {
+          key: "delete",
+          label: "Delete Preview",
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: handleDeletePreview,
+        },
+      ]
+    : [
+        {
+          key: "add-from-file",
+          label: "Add from File...",
+          icon: <PlusOutlined />,
+          onClick: handleAddFromFile,
+        },
+        {
+          key: "paste-clipboard",
+          label: "Paste from Clipboard",
+          icon: <SnippetsOutlined />,
+          onClick: handlePasteFromClipboard,
+        },
+        {
+          type: "divider",
+        },
+        {
+          key: "open-preview-folder",
+          label: "Open Previews Folder",
+          icon: <FolderOpenOutlined />,
+          onClick: async () => {
+            if (!mod) return;
+            try {
+              // Get preview paths to determine folder location
+              const previewPaths = await modService.getPreviewPaths(selectedProfileId!, mod.sha);
+              if (previewPaths.length > 0) {
+                // Open the folder containing the first preview
+                const folderPath = previewPaths[0].substring(0, previewPaths[0].lastIndexOf("\\"));
+                await fileDialogService.openDirectory(folderPath);
+              } else {
+                message.info("No preview folder exists yet for this mod");
+              }
+            } catch (error) {
+              console.error("Error opening preview folder:", error);
+              message.error("Failed to open preview folder");
+            }
+            setContextMenuVisible(false);
+          },
+        },
+      ];
 
   if (!mod) {
     return (
@@ -147,6 +396,7 @@ export const ModPreviewPanelContent: React.FC = () => {
               className="mod-preview-image-container"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
+              onContextMenu={handleImageContextMenu}
             >
               <img
                 className="mod-preview-image"
@@ -201,7 +451,10 @@ export const ModPreviewPanelContent: React.FC = () => {
             )}
           </>
         ) : (
-          <div className="mod-preview-no-image">
+          <div
+            className="mod-preview-no-image"
+            onContextMenu={handleImageContextMenu}
+          >
             <Empty
               description="No Preview Available"
               image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -292,6 +545,27 @@ export const ModPreviewPanelContent: React.FC = () => {
         imageSrc={fullScreenImageSrc}
         imageAlt={mod.name}
         onClose={() => setFullScreenVisible(false)}
+      />
+
+      {/* Image Context Menu */}
+      <ContextMenu
+        items={contextMenuItems}
+        visible={contextMenuVisible}
+        position={contextMenuPosition}
+        onClose={() => setContextMenuVisible(false)}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        visible={deleteConfirmVisible}
+        title="Delete Preview Image"
+        content="Are you sure you want to delete this preview image? This action cannot be undone."
+        okText="Delete"
+        cancelText="Cancel"
+        okType="danger"
+        icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: '22px' }} />}
+        onOk={handleDeleteConfirm}
+        onCancel={() => setDeleteConfirmVisible(false)}
       />
     </div>
   );
