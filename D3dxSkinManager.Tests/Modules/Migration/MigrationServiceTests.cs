@@ -41,6 +41,7 @@ public class MigrationServiceTests : IDisposable
     private readonly Mock<IPythonConfigurationParser> _mockConfigParser;
     private readonly Mock<IModManagementService> _mockModManagementService;
     private readonly Mock<IModAutoDetectionService> _mockAutoDetectionService;
+    private readonly Mock<IArchiveService> _mockArchiveService;
     private readonly Mock<ILogHelper> _mockLogger = new();
     private readonly MigrationService _service;
 
@@ -85,6 +86,7 @@ public class MigrationServiceTests : IDisposable
         _mockConfigParser = new Mock<IPythonConfigurationParser>();
         _mockModManagementService = new Mock<IModManagementService>();
         _mockAutoDetectionService = new Mock<IModAutoDetectionService>();
+        _mockArchiveService = new Mock<IArchiveService>();
 
         // Setup image service to return common extensions
         _mockImageService.Setup(s => s.GetSupportedImageExtensions())
@@ -117,7 +119,7 @@ public class MigrationServiceTests : IDisposable
         var step2 = new MigrationStep2MigrateConfiguration(_mockConfigService.Object, _mockLogger.Object);
         var step3 = new MigrationStep3MigrateClassifications(_mockProfilePaths.Object, _mockModRepository.Object, _mockClassificationParser.Object, _mockClassificationService.Object, _mockAutoDetectionService.Object, _mockLogger.Object);
         var step4 = new MigrationStep4MigrateClassificationThumbnails(_mockProfilePaths.Object, _mockFileService.Object, _mockRedirectionParser.Object, _mockClassificationService.Object, _mockLogger.Object);
-        var step5 = new MigrationStep5MigrateModArchives(_mockProfilePaths.Object, _mockFileService.Object, _mockModIndexParser.Object, _mockModManagementService.Object, _mockLogger.Object);
+        var step5 = new MigrationStep5MigrateModArchives(_mockProfilePaths.Object, _mockFileService.Object, _mockArchiveService.Object, _mockModIndexParser.Object, _mockModManagementService.Object, _mockLogger.Object);
         var step6 = new MigrationStep6MigrateModPreviews(_mockProfilePaths.Object, _mockFileService.Object, _mockImageService.Object, _mockLogger.Object);
 
         // Create service instance (orchestrator)

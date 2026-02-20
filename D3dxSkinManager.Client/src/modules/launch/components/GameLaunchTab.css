@@ -1,0 +1,11 @@
+/* GameLaunchTab Container */
+.game-launch-tab {
+  padding-top: 16px;
+}
+
+.game-launch-loading {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

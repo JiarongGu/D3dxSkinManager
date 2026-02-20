@@ -253,6 +253,15 @@
   - UpdateSettingAsync → `:104-158` (fixed deadlock - no nested lock)
   - ResetSettingsAsync → `:163-174`
 
+- **LanguageService** → `Modules/Settings/Services/LanguageService.cs`
+  - **NEW 2026-02-21:** Language file management service
+  - GetLanguageAsync(languageCode) → Load language from JSON file
+  - GetAvailableLanguagesAsync() → List available language files
+  - LanguageExistsAsync(languageCode) → Check if language file exists
+  - SaveLanguageAsync(language) → Save language file (future feature)
+  - **Language Files:** `Languages/en.json`, `Languages/cn.json` (auto-copied to `data/languages/`)
+  - Created: 2026-02-21
+
 - **SettingsFileService** → `Modules/Settings/Services/SettingsFileService.cs`
   - Generic file-based storage service
 

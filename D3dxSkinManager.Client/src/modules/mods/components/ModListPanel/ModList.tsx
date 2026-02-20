@@ -20,6 +20,8 @@ import {
   ContextMenuItem,
   useContextMenu,
 } from "../../../../shared/components/menu";
+import { useTranslation } from "react-i18next";
+import "./ModList.css";
 
 interface ModListProps {
   mods: ModInfo[];
@@ -42,6 +44,7 @@ export const ModList: React.FC<ModListProps> = ({
   onRowClick,
   selectedMod,
 }) => {
+  const { t } = useTranslation();
   const [displayCount, setDisplayCount] = useState(50);
   const observerTarget = useRef<HTMLDivElement>(null);
   const { state: profileState } = useProfile();
@@ -95,13 +98,13 @@ export const ModList: React.FC<ModListProps> = ({
     !mod.isLoaded
       ? {
           key: "load",
-          label: "Load Mod",
+          label: t('contextMenu.loadMod'),
           icon: <PlayCircleOutlined />,
           onClick: () => onLoad(mod.sha),
         }
       : {
           key: "unload",
-          label: "Unload Mod",
+          label: t('contextMenu.unloadMod'),
           icon: <PauseCircleOutlined />,
           onClick: () => onUnload(mod.sha),
         },
@@ -110,27 +113,27 @@ export const ModList: React.FC<ModListProps> = ({
     // Edit & Export
     {
       key: "edit",
-      label: "Edit Mod Information",
+      label: t('contextMenu.editModInfo'),
       icon: <EditOutlined />,
       onClick: () => {
         if (onEdit) {
           onEdit(mod);
         } else {
-          notification.info(`Edit mod: ${mod.name}`);
+          notification.info(t('mods.notifications.editMod', { name: mod.name }));
         }
       },
     },
     {
       key: "export",
-      label: "Export Mod File",
+      label: t('contextMenu.exportMod'),
       icon: <ExportOutlined />,
       onClick: async () => {
         const result = await fileDialogService.saveFileDialog({
-          title: "Export Mod",
+          title: t('dialogs.exportMod.title'),
           defaultPath: `${mod.name}.zip`,
           filters: [
-            { name: "ZIP Archive", extensions: ["zip"] },
-            { name: "All Files", extensions: ["*"] },
+            { name: t('dialogs.exportMod.zipArchive'), extensions: ["zip"] },
+            { name: t('dialogs.exportMod.allFiles'), extensions: ["*"] },
           ],
         });
 
@@ -141,9 +144,9 @@ export const ModList: React.FC<ModListProps> = ({
               mod.sha,
               result.filePath,
             );
-            notification.success(`Exported mod: ${mod.name}`);
+            notification.success(t('mods.notifications.exportSuccess', { name: mod.name }));
           } catch (error) {
-            notification.error("Failed to export mod");
+            notification.error(t('mods.notifications.exportFailed'));
           }
         } else if (result.error) {
           notification.error(result.error);
@@ -155,18 +158,18 @@ export const ModList: React.FC<ModListProps> = ({
     // Copy operations
     {
       key: "copy-sha",
-      label: "Copy SHA",
+      label: t('contextMenu.copySHA'),
       onClick: () => {
         navigator.clipboard.writeText(mod.sha);
-        notification.success("SHA copied to clipboard");
+        notification.success(t('mods.notifications.shaCopied'));
       },
     },
     {
       key: "copy-name",
-      label: "Copy Name",
+      label: t('contextMenu.copyName'),
       onClick: () => {
         navigator.clipboard.writeText(mod.name);
-        notification.success("Name copied to clipboard");
+        notification.success(t('mods.notifications.nameCopied'));
       },
     },
     { type: "divider" as const },
@@ -174,7 +177,7 @@ export const ModList: React.FC<ModListProps> = ({
     // File viewing operations
     {
       key: "view-original",
-      label: "View Original File",
+      label: t('contextMenu.viewOriginalFile'),
       icon: <FileZipOutlined />,
       disabled: !checkedPaths?.originalPath,
       onClick: async () => {
@@ -183,41 +186,41 @@ export const ModList: React.FC<ModListProps> = ({
             await fileDialogService.openFileInExplorer(
               checkedPaths.originalPath,
             );
-            notification.success("Opened original file location");
+            notification.success(t('mods.notifications.openedOriginal'));
           } catch (error) {
-            notification.error("Failed to open original file");
+            notification.error(t('mods.notifications.openOriginalFailed'));
           }
         }
       },
     },
     {
       key: "view-work",
-      label: "Open Work Folder",
+      label: t('contextMenu.openWorkFolder'),
       icon: <FolderOpenOutlined />,
       disabled: !checkedPaths?.workPath,
       onClick: async () => {
         if (checkedPaths?.workPath) {
           try {
             await fileDialogService.openDirectory(checkedPaths.workPath);
-            notification.success("Opened work folder");
+            notification.success(t('mods.notifications.openedWork'));
           } catch (error) {
-            notification.error("Failed to open work folder");
+            notification.error(t('mods.notifications.openWorkFailed'));
           }
         }
       },
     },
     {
       key: "view-preview",
-      label: "Open Preview Folder",
+      label: t('contextMenu.openPreviewFolder'),
       icon: <FolderOpenOutlined />,
       disabled: !checkedPaths?.thumbnailPath,
       onClick: async () => {
         if (checkedPaths?.thumbnailPath) {
           try {
             await fileDialogService.openDirectory(checkedPaths.thumbnailPath);
-            notification.success("Opened preview folder");
+            notification.success(t('mods.notifications.openedPreview'));
           } catch (error) {
-            notification.error("Failed to open preview folder");
+            notification.error(t('mods.notifications.openPreviewFailed'));
           }
         }
       },
@@ -227,7 +230,7 @@ export const ModList: React.FC<ModListProps> = ({
     // Delete
     {
       key: "delete",
-      label: "Delete Mod",
+      label: t('contextMenu.deleteMod'),
       icon: <DeleteOutlined />,
       danger: true,
       onClick: () => onDelete(mod.sha, mod.name),
@@ -241,22 +244,14 @@ export const ModList: React.FC<ModListProps> = ({
     );
     if (loadedMod) {
       onUnload(loadedMod.sha);
-      notification.success(`Unloading object: ${mod.category}`);
+      notification.success(t('mods.notifications.unloadingObject', { category: mod.category }));
     }
   };
 
   return (
-    <div style={{ height: "100%", overflow: "auto" }}>
+    <div className="mod-list-container">
       {loading ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100%",
-            padding: "20px",
-          }}
-        >
+        <div className="mod-list-loading-container">
           <Spin size="large" />
         </div>
       ) : (
@@ -271,21 +266,7 @@ export const ModList: React.FC<ModListProps> = ({
                   e.dataTransfer.setData("application/mod-sha", mod.sha);
                   e.dataTransfer.effectAllowed = "move";
                 }}
-                style={{
-                  padding: "12px 16px",
-                  cursor: "pointer",
-                  background: isSelected
-                    ? "var(--color-primary-bg)"
-                    : undefined,
-                  borderLeft: isSelected
-                    ? "3px solid var(--color-primary)"
-                    : "3px solid transparent",
-                  borderBottom: "1px solid var(--color-border-secondary)",
-                  transition: "all 0.2s",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                }}
+                className={`mod-list-item ${isSelected ? 'mod-list-item-selected' : ''}`}
                 onClick={() => {
                   onRowClick?.(mod);
                 }}
@@ -321,78 +302,50 @@ export const ModList: React.FC<ModListProps> = ({
                   }
                 }}
               >
-                <div
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <span style={{ fontWeight: 500 }}>{mod.name}</span>
+                <div className="mod-list-item-content">
+                  <div className="mod-list-item-header">
+                    <span className="mod-list-item-name">{mod.name}</span>
                     {mod.isLoaded && (
-                      <Tag
-                        color="success"
-                        style={{
-                          margin: 0,
-                          fontSize: "11px",
-                          padding: "0 6px",
-                          lineHeight: "18px",
-                          borderRadius: "4px",
-                          userSelect: "none",
-                        }}
-                      >
-                        LOADED
+                      <Tag color="success" className="mod-list-item-loaded-tag">
+                        {t('mods.list.loaded')}
                       </Tag>
                     )}
                   </div>
-                  <Space size={[8, 4]} wrap style={{ userSelect: "none" }}>
+                  <Space size={[8, 4]} wrap className="mod-list-item-tags">
                     {mod.grading && <GradingTag grading={mod.grading} />}
                     {mod.author && mod.author.trim() !== "" && (
-                      <Tag color="blue" style={{ margin: 0 }}>
+                      <Tag color="blue" className="mod-list-item-tag">
                         {mod.author}
                       </Tag>
                     )}
                     {mod.category && mod.category.trim() !== "" && (
-                      <Tag color="geekblue" style={{ margin: 0 }}>
+                      <Tag color="geekblue" className="mod-list-item-tag">
                         {mod.category}
                       </Tag>
                     )}
                     {mod.tags &&
                       mod.tags.slice(0, 3).map((tag) => (
-                        <Tag key={tag} style={{ margin: 0 }}>
+                        <Tag key={tag} className="mod-list-item-tag">
                           {tag}
                         </Tag>
                       ))}
                     {mod.tags && mod.tags.length > 3 && (
-                      <Tag style={{ margin: 0 }}>
-                        +{mod.tags.length - 3} more
+                      <Tag className="mod-list-item-tag">
+                        +{mod.tags.length - 3} {t('mods.list.more')}
                       </Tag>
                     )}
                   </Space>
                 </div>
                 {
-                  <Space
-                    size="small"
-                    style={{ display: "flex", alignItems: "center" }}
-                  >
+                  <div className="mod-list-item-actions">
                     <Button
                       type="text"
                       size="middle"
                       icon={
                         mod.isLoaded ? (
-                          <PauseCircleOutlined style={{ fontSize: "18px" }} />
+                          <PauseCircleOutlined className="mod-list-item-action-icon" />
                         ) : (
-                          <PlayCircleOutlined style={{ fontSize: "18px" }} />
+                          <PlayCircleOutlined className="mod-list-item-action-icon" />
                         )
                       }
                       onClick={(e) => {
@@ -403,29 +356,21 @@ export const ModList: React.FC<ModListProps> = ({
                           onLoad(mod.sha);
                         }
                       }}
-                      title={mod.isLoaded ? "Unload mod" : "Load mod"}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
+                      title={mod.isLoaded ? t('mods.list.unloadMod') : t('mods.list.loadMod')}
+                      className="mod-list-item-action-button"
                     />
                     <Button
                       type="text"
                       size="middle"
-                      icon={<EditOutlined style={{ fontSize: "18px" }} />}
+                      icon={<EditOutlined className="mod-list-item-action-icon" />}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEdit?.(mod);
                       }}
-                      title="Edit mod"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
+                      title={t('mods.list.editMod')}
+                      className="mod-list-item-action-button"
                     />
-                  </Space>
+                  </div>
                 }
               </div>
             );
@@ -435,30 +380,15 @@ export const ModList: React.FC<ModListProps> = ({
 
       {/* Infinite scroll trigger */}
       {displayCount < mods.length && (
-        <div
-          ref={observerTarget}
-          style={{
-            height: "20px",
-            margin: "10px 0",
-            textAlign: "center",
-            color: "var(--color-text-secondary)",
-          }}
-        >
-          Loading more...
+        <div ref={observerTarget} className="mod-list-scroll-trigger">
+          {t('mods.list.loadingMore')}
         </div>
       )}
 
       {/* Show total count */}
       {displayCount >= mods.length && mods.length > 50 && (
-        <div
-          style={{
-            padding: "10px",
-            textAlign: "center",
-            color: "var(--color-text-secondary)",
-            fontSize: "12px",
-          }}
-        >
-          Showing all {mods.length} mods
+        <div className="mod-list-total-count">
+          {t('mods.list.showingAll', { count: mods.length })}
         </div>
       )}
 

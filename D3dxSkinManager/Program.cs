@@ -1,13 +1,14 @@
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Settings.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Photino.NET;
+using SharpSevenZip;
 using System;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Photino.NET;
-using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Core.Services;
-using SevenZip;
 
 namespace D3dxSkinManager;
 
@@ -20,8 +21,8 @@ class Program
     private static DevelopmentServerManager? _devServer;
     private static ICustomSchemeHandler? _schemeHandler;
     private static PhotinoWindow? _mainWindow;
-    private static Modules.Settings.Services.IWindowStateService? _windowStateService;
-    private static Modules.Core.Services.IOperationNotificationService? _operationNotificationService;
+    private static IWindowStateService? _windowStateService;
+    private static IOperationNotificationService? _operationNotificationService;
 
     // JSON serializer options for camelCase (matches JavaScript conventions)
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -352,7 +353,7 @@ class Program
 
             if (File.Exists(libraryPath))
             {
-                SevenZipBase.SetLibraryPath(libraryPath);
+                SharpSevenZipBase.SetLibraryPath(libraryPath);
                 Console.WriteLine($"[Init] 7z library initialized: {libraryPath}");
             }
             else

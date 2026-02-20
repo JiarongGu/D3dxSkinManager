@@ -8,6 +8,8 @@ import {
   InfoCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import './PluginsView.css';
 
 interface PluginInfo {
   name: string;
@@ -20,6 +22,7 @@ interface PluginInfo {
 }
 
 export const PluginsView: React.FC = () => {
+  const { t } = useTranslation();
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPlugin, setSelectedPlugin] = useState<PluginInfo | null>(null);
@@ -67,7 +70,7 @@ export const PluginsView: React.FC = () => {
       ];
       setPlugins(mockPlugins);
     } catch (error) {
-      notification.error('Failed to load plugins');
+      notification.error(t('plugins.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -80,7 +83,7 @@ export const PluginsView: React.FC = () => {
         ? { ...p, enabled, status: enabled ? 'Active' : 'Inactive' }
         : p
     ));
-    notification.success(`Plugin ${enabled ? 'enabled' : 'disabled'}: ${name}`);
+    notification.success(t(enabled ? 'plugins.notifications.enableSuccess' : 'plugins.notifications.disableSuccess', { name }));
   };
 
   const handleShowDetails = (plugin: PluginInfo) => {
@@ -90,30 +93,30 @@ export const PluginsView: React.FC = () => {
 
   const columns = [
     {
-      title: 'Status',
+      title: t('plugins.table.status'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
       render: (status: string) => {
         const color = status === 'Active' ? 'green' : status === 'Error' ? 'red' : 'default';
         const icon = status === 'Active' ? <CheckCircleOutlined /> : <CloseCircleOutlined />;
-        return <Tag color={color} icon={icon}>{status}</Tag>;
+        return <Tag color={color} icon={icon}>{t(`plugins.status.${status.toLowerCase()}`)}</Tag>;
       },
     },
     {
-      title: 'Plugin Name',
+      title: t('plugins.table.name'),
       dataIndex: 'name',
       key: 'name',
       render: (name: string) => <strong>{name}</strong>,
     },
     {
-      title: 'Description',
+      title: t('plugins.table.description'),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
     },
     {
-      title: 'Type',
+      title: t('plugins.table.type'),
       dataIndex: 'type',
       key: 'type',
       width: 150,
@@ -123,13 +126,13 @@ export const PluginsView: React.FC = () => {
       },
     },
     {
-      title: 'Version',
+      title: t('plugins.table.version'),
       dataIndex: 'version',
       key: 'version',
       width: 100,
     },
     {
-      title: 'Enabled',
+      title: t('plugins.table.enabled'),
       dataIndex: 'enabled',
       key: 'enabled',
       width: 100,
@@ -141,7 +144,7 @@ export const PluginsView: React.FC = () => {
       ),
     },
     {
-      title: 'Action',
+      title: t('plugins.table.action'),
       key: 'action',
       width: 100,
       render: (_: any, record: PluginInfo) => (
@@ -150,7 +153,7 @@ export const PluginsView: React.FC = () => {
           icon={<InfoCircleOutlined />}
           onClick={() => handleShowDetails(record)}
         >
-          Details
+          {t('plugins.details.title')}
         </Button>
       ),
     },
@@ -160,15 +163,15 @@ export const PluginsView: React.FC = () => {
   const totalCount = plugins.length;
 
   return (
-    <div style={{ height: '100%', overflow: 'auto', padding: '24px' }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="plugins-view-container">
+      <div className="plugins-view-content">
       <Card
         title={
           <Space>
             <ApiOutlined />
-            <span>Plugins</span>
-            <Tag color="blue">{activeCount} Active</Tag>
-            <Tag>{totalCount} Total</Tag>
+            <span>{t('plugins.title')}</span>
+            <Tag color="blue">{t('plugins.activeCount', { count: activeCount })}</Tag>
+            <Tag>{t('plugins.totalCount', { count: totalCount })}</Tag>
           </Space>
         }
         extra={
@@ -177,7 +180,7 @@ export const PluginsView: React.FC = () => {
             onClick={loadPlugins}
             loading={loading}
           >
-            Refresh
+            {t('common.refresh')}
           </Button>
         }
       >
@@ -190,7 +193,7 @@ export const PluginsView: React.FC = () => {
           pagination={{
             pageSize: 15,
             showSizeChanger: true,
-            showTotal: (total) => `Total ${total} plugins`,
+            showTotal: (total) => t('plugins.totalPlugins', { total }),
           }}
         />
       </Card>
@@ -207,27 +210,27 @@ export const PluginsView: React.FC = () => {
         onCancel={() => setShowDetails(false)}
         footer={[
           <Button key="close" onClick={() => setShowDetails(false)}>
-            Close
+            {t('common.close')}
           </Button>,
         ]}
         width={700}
       >
         {selectedPlugin && (
           <Descriptions bordered column={1}>
-            <Descriptions.Item label="Plugin Name">{selectedPlugin.name}</Descriptions.Item>
-            <Descriptions.Item label="Version">{selectedPlugin.version}</Descriptions.Item>
-            <Descriptions.Item label="Author">{selectedPlugin.author}</Descriptions.Item>
-            <Descriptions.Item label="Type">
+            <Descriptions.Item label={t('plugins.details.name')}>{selectedPlugin.name}</Descriptions.Item>
+            <Descriptions.Item label={t('plugins.details.version')}>{selectedPlugin.version}</Descriptions.Item>
+            <Descriptions.Item label={t('plugins.details.author')}>{selectedPlugin.author}</Descriptions.Item>
+            <Descriptions.Item label={t('plugins.details.type')}>
               <Tag color={selectedPlugin.type === 'MessageHandler' ? 'blue' : 'green'}>
                 {selectedPlugin.type}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Status">
+            <Descriptions.Item label={t('plugins.details.status')}>
               <Tag color={selectedPlugin.status === 'Active' ? 'green' : 'default'}>
-                {selectedPlugin.status}
+                {t(`plugins.status.${selectedPlugin.status.toLowerCase()}`)}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Enabled">
+            <Descriptions.Item label={t('plugins.details.enabled')}>
               <Switch
                 checked={selectedPlugin.enabled}
                 onChange={(checked) => {
@@ -236,7 +239,7 @@ export const PluginsView: React.FC = () => {
                 }}
               />
             </Descriptions.Item>
-            <Descriptions.Item label="Description">
+            <Descriptions.Item label={t('plugins.details.description')}>
               {selectedPlugin.description}
             </Descriptions.Item>
           </Descriptions>

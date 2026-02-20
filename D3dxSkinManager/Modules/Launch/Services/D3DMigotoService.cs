@@ -49,6 +49,7 @@ public class D3DMigotoService : I3DMigotoService
     private readonly IFileService _fileService;
     private readonly IConfigurationService _configService;
     private readonly IProcessService _processService;
+    private readonly IArchiveService _archiveService;
     private readonly ILogHelper _logger;
 
     public D3DMigotoService(
@@ -56,12 +57,14 @@ public class D3DMigotoService : I3DMigotoService
         IFileService fileService,
         IConfigurationService configService,
         IProcessService processService,
+        IArchiveService archiveService,
         ILogHelper logger)
     {
         _dataPath = profileContext.ProfilePath;
         _fileService = fileService;
         _configService = configService;
         _processService = processService;
+        _archiveService = archiveService;
         _logger = logger;
 
         _versionsDirectory = Path.Combine(_dataPath, "3dmigoto");
@@ -197,9 +200,9 @@ public class D3DMigotoService : I3DMigotoService
 
             // Extract the version archive
             _logger.Info($"Extracting {archivePath} to {workDirectory}", "D3DMigotoService");
-            var success = await _fileService.ExtractArchiveAsync(archivePath, workDirectory);
+            var result = await _archiveService.ExtractArchiveAsync(archivePath, workDirectory);
 
-            if (!success)
+            if (!result.Success)
             {
                 return new DeploymentResult
                 {

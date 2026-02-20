@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using SevenZip;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
@@ -13,7 +12,6 @@ namespace D3dxSkinManager.Modules.Core.Services;
 public interface IFileService
 {
     Task<string> CalculateSha256Async(string filePath);
-    Task<bool> ExtractArchiveAsync(string archivePath, string targetDirectory);
     Task<bool> CopyFileAsync(string sourceFile, string destinationFile, bool overwrite = false);
     Task<bool> MoveFileAsync(string sourceFile, string destinationFile);
     Task<bool> CopyDirectoryAsync(string sourceDir, string targetDir, bool overwrite = true);
@@ -47,56 +45,6 @@ public class FileService : IFileService
 
         var hashBytes = await sha256.ComputeHashAsync(stream);
         return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-    }
-
-    /// <summary>
-    /// Extract archive (ZIP, RAR, 7Z, TAR, GZIP, etc.) to directory
-    /// Delegates to ArchiveService for actual extraction
-    /// </summary>
-    [Obsolete("Use IArchiveService.ExtractArchiveAsync instead. This method is kept for backward compatibility.")]
-    public async Task<bool> ExtractArchiveAsync(string archivePath, string targetDirectory)
-    {
-        // For backward compatibility, use SevenZipSharp
-        if (!File.Exists(archivePath))
-            throw new FileNotFoundException("Archive not found", archivePath);
-
-        return await Task.Run(() =>
-        {
-            try
-            {
-                // Create target directory if it doesn't exist
-                if (!Directory.Exists(targetDirectory))
-                    Directory.CreateDirectory(targetDirectory);
-
-                _logger.Info($"Extracting {Path.GetFileName(archivePath)}...", "FileService");
-
-                // Set library path for 7z.dll (required by SevenZipSharp)
-                // The 7z.Libs package places DLLs in x64/x86 subdirectories
-                var platformFolder = Environment.Is64BitProcess ? "x64" : "x86";
-                var libraryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, platformFolder, "7z.dll");
-
-                if (File.Exists(libraryPath))
-                {
-                    SevenZipBase.SetLibraryPath(libraryPath);
-                }
-                else
-                {
-                    _logger.Warning($"7z.dll not found at: {libraryPath}", "FileService");
-                }
-
-                // Use SevenZipSharp for extraction
-                using var extractor = new SevenZipExtractor(archivePath);
-                extractor.ExtractArchive(targetDirectory);
-
-                _logger.Info($"Extracted {extractor.FilesCount} files from {Path.GetFileName(archivePath)}", "FileService");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Extraction failed: {ex.Message}", "FileService", ex);
-                throw new InvalidOperationException($"Archive extraction failed: {ex.Message}", ex);
-            }
-        });
     }
 
     /// <summary>

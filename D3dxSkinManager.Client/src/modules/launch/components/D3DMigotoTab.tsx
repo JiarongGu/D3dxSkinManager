@@ -12,10 +12,13 @@ import { fileDialogService } from '../../../shared/services/systemService';
 import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
 import { launchService, D3DMigotoVersion } from '../services/launchService';
 import { useProfile } from '../../../shared/context/ProfileContext';
+import { useTranslation } from 'react-i18next';
+import './D3DMigotoTab.css';
 
 const { Option } = Select;
 
 export const D3DMigotoTab: React.FC = () => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [d3dVersions, setD3dVersions] = useState<D3DMigotoVersion[]>([]);
@@ -45,7 +48,7 @@ export const D3DMigotoTab: React.FC = () => {
         // Don't show error if it's just because no profile is selected
         const errorMessage = error instanceof Error ? error.message : '';
         if (!errorMessage.includes('Profile ID is required')) {
-          notification.error('Failed to load profile configuration');
+          notification.error(t('launch.d3dmigoto.loadConfigFailed'));
           console.error('Failed to load profile config:', error);
         }
       } finally {
@@ -61,21 +64,21 @@ export const D3DMigotoTab: React.FC = () => {
 
   const handleMigotoVersionChange = async (value: string) => {
     if (!profileState.selectedProfile) {
-      notification.error('No profile selected');
+      notification.error(t('launch.notifications.noProfileSelected'));
       return;
     }
 
     try {
       await updateActiveProfileConfigField(profileState.selectedProfile.id, 'migotoVersion', value);
-      notification.success(`3DMigoto version changed to: ${value}`);
+      notification.success(t('launch.d3dmigoto.versionChangedTo', { version: value }));
     } catch (error) {
-      notification.error('Failed to update 3DMigoto version');
+      notification.error(t('launch.d3dmigoto.updateVersionFailed'));
     }
   };
 
   const handleLaunch3DMigoto = () => {
     // TODO: Implement 3DMigoto launch
-    notification.info('Launching 3DMigoto...');
+    notification.info(t('launch.d3dmigoto.launching'));
   };
 
   const handleOpenWorkDirectory = async () => {
@@ -83,9 +86,9 @@ export const D3DMigotoTab: React.FC = () => {
       // TODO: Get work directory from current profile
       const workDir = 'C:\\Games\\YourGame'; // Placeholder
       await fileDialogService.openDirectory(workDir);
-      notification.success('Opened work directory');
+      notification.success(t('launch.d3dmigoto.openedWorkDir'));
     } catch (error) {
-      notification.error('Failed to open work directory');
+      notification.error(t('launch.d3dmigoto.openWorkDirFailed'));
     }
   };
 
@@ -94,7 +97,7 @@ export const D3DMigotoTab: React.FC = () => {
    */
   const handleLoad3DMigotoVersions = async () => {
     if (!profileState.selectedProfile) {
-      notification.error('No profile selected');
+      notification.error(t('launch.notifications.noProfileSelected'));
       return;
     }
 
@@ -106,12 +109,12 @@ export const D3DMigotoTab: React.FC = () => {
       setD3dVersions(versions);
 
       if (versions.length === 0) {
-        notification.info('No 3DMigoto versions found. Place version archives in the 3dmigoto directory.');
+        notification.info(t('launch.d3dmigoto.noVersionsFound'));
       } else {
-        notification.success(`Found ${versions.length} 3DMigoto version(s)`);
+        notification.success(t('launch.d3dmigoto.foundVersions', { count: versions.length }));
       }
     } catch (error) {
-      notification.error('Failed to load 3DMigoto versions');
+      notification.error(t('launch.d3dmigoto.loadVersionsFailed'));
       console.error(error);
     } finally {
       setD3dLoading(false);
@@ -123,14 +126,17 @@ export const D3DMigotoTab: React.FC = () => {
    */
   const handleDeploy3DMigoto = async (version: D3DMigotoVersion) => {
     Modal.confirm({
-      title: `Deploy 3DMigoto ${version.name}?`,
-      content: `This will extract ${version.name} (${version.sizeFormatted}) to your work directory. Existing 3DMigoto files will be replaced, but .ini configuration files will be preserved.`,
-      okText: 'Deploy',
+      title: t('launch.d3dmigoto.deployTitle', { version: version.name }),
+      content: t('launch.d3dmigoto.deployContent', {
+        version: version.name,
+        size: version.sizeFormatted
+      }),
+      okText: t('launch.d3dmigoto.deploy'),
       okType: 'primary',
-      cancelText: 'Cancel',
-      onOk: async () => {       
+      cancelText: t('common.cancel'),
+      onOk: async () => {
         if (!profileState.selectedProfile) {
-          notification.error('No profile selected');
+          notification.error(t('launch.notifications.noProfileSelected'));
           return;
         }
         try {
@@ -138,13 +144,13 @@ export const D3DMigotoTab: React.FC = () => {
           const result = await launchService.deployVersion(profileState.selectedProfile.id, version.name);
 
           if (result.success) {
-            notification.success(result.message || '3DMigoto deployed successfully');
+            notification.success(result.message || t('launch.d3dmigoto.deploySuccess'));
             await handleLoad3DMigotoVersions(); // Refresh list
           } else {
-            notification.error(result.error || 'Deployment failed');
+            notification.error(result.error || t('launch.d3dmigoto.deployFailed'));
           }
         } catch (error) {
-          notification.error('Failed to deploy 3DMigoto version');
+          notification.error(t('launch.d3dmigoto.deployVersionFailed'));
           console.error(error);
         } finally {
           setD3dLoading(false);
@@ -158,51 +164,51 @@ export const D3DMigotoTab: React.FC = () => {
    */
   const handleLaunch3DMigotoLoader = async () => {
     if (!profileState.selectedProfile) {
-      notification.error('No profile selected');
+      notification.error(t('launch.notifications.noProfileSelected'));
       return;
     }
 
     try {
       const result = await launchService.launch3DMigoto(profileState.selectedProfile.id);
       if (result) {
-        notification.success('3DMigoto launched successfully');
+        notification.success(t('launch.d3dmigoto.launchSuccess'));
       } else {
-        notification.error('Failed to launch 3DMigoto. Check that the work directory is configured and contains a loader executable.');
+        notification.error(t('launch.d3dmigoto.launchFailedCheck'));
       }
     } catch (error) {
-      notification.error('Failed to launch 3DMigoto');
+      notification.error(t('launch.d3dmigoto.launchFailed'));
       console.error(error);
     }
   };
 
   if (loading) {
     return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin size="large" description="Loading profile configuration..." />
+      <div className="d3dmigoto-tab-loading">
+        <Spin size="large" description={t('launch.d3dmigoto.loadingConfig')} />
       </div>
     );
   }
 
   return (
-    <div style={{ paddingTop: '16px' }}>
+    <div className="d3dmigoto-tab-container">
       <Form
           form={form}
           layout="vertical"
         >
           {/* 3DMigoto Configuration */}
           <CompactCard
-            title={<><RocketOutlined /> 3DMigoto Configuration</>}
-            style={{ marginBottom: '24px' }}
+            title={<><RocketOutlined /> {t('launch.d3dmigoto.configuration')}</>}
+            className="d3dmigoto-tab-card"
           >
             <Form.Item
-              label="3DMigoto Version"
+              label={t('launch.d3dmigoto.versionLabel')}
               name="migotoVersion"
-              tooltip="Select the 3DMigoto version to use for this profile"
+              tooltip={t('launch.d3dmigoto.versionTooltip')}
             >
               <Select onChange={handleMigotoVersionChange}>
-                <Option value="3dmigoto">3DMigoto (Latest)</Option>
-                <Option value="3dmigoto-dev">3DMigoto Dev Build</Option>
-                <Option value="custom">Custom Build</Option>
+                <Option value="3dmigoto">{t('launch.d3dmigoto.versionLatest')}</Option>
+                <Option value="3dmigoto-dev">{t('launch.d3dmigoto.versionDev')}</Option>
+                <Option value="custom">{t('launch.d3dmigoto.versionCustom')}</Option>
               </Select>
             </Form.Item>
 
@@ -215,29 +221,29 @@ export const D3DMigotoTab: React.FC = () => {
                 icon={<PlayCircleOutlined />}
                 onClick={handleLaunch3DMigotoLoader}
               >
-                Launch 3DMigoto Loader
+                {t('launch.d3dmigoto.launchLoader')}
               </CompactButton>
               <CompactButton
                 size="large"
                 icon={<PlayCircleOutlined />}
                 onClick={handleLaunch3DMigoto}
               >
-                One-Key Launch
+                {t('launch.d3dmigoto.oneKeyLaunch')}
               </CompactButton>
               <CompactButton
                 size="large"
                 icon={<FolderOpenOutlined />}
                 onClick={handleOpenWorkDirectory}
               >
-                Open Work Directory
+                {t('launch.d3dmigoto.openWorkDir')}
               </CompactButton>
             </CompactSpace>
           </CompactCard>
 
           {/* 3DMigoto Version Management */}
           <CompactCard
-            title={<><FolderOpenOutlined /> 3DMigoto Version Management</>}
-            style={{ marginBottom: '24px' }}
+            title={<><FolderOpenOutlined /> {t('launch.d3dmigoto.versionManagement')}</>}
+            className="d3dmigoto-tab-card"
             extra={
               <CompactSpace>
                 <CompactButton
@@ -245,16 +251,16 @@ export const D3DMigotoTab: React.FC = () => {
                   onClick={handleLoad3DMigotoVersions}
                   loading={d3dLoading}
                 >
-                  Refresh
+                  {t('common.refresh')}
                 </CompactButton>
               </CompactSpace>
             }
           >
-            <CompactSpace orientation="vertical" style={{ width: '100%' }} size="middle">
+            <CompactSpace orientation="vertical" className="d3dmigoto-tab-version-list" size="middle">
               {d3dVersions.length === 0 && (
                 <Alert
-                  title="3DMigoto Version Management"
-                  description="Place 3DMigoto version archives (.zip, .7z) in the '3dmigoto' directory, then click Refresh to see them here. Deploy a version to extract it to your work directory."
+                  title={t('launch.d3dmigoto.versionManagement')}
+                  description={t('launch.d3dmigoto.versionManagementDesc')}
                   type="info"
                   showIcon
                 />
@@ -268,13 +274,13 @@ export const D3DMigotoTab: React.FC = () => {
                         <div>
                           <strong>{version.name}</strong>
                           {version.isDeployed && (
-                            <span style={{ marginLeft: '8px', color: '#52c41a' }}>
-                              ● Deployed
+                            <span className="d3dmigoto-tab-version-deployed">
+                              ● {t('launch.d3dmigoto.deployed')}
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                          Size: {version.sizeFormatted}
+                        <div className="d3dmigoto-tab-version-size">
+                          {t('launch.d3dmigoto.size')}: {version.sizeFormatted}
                         </div>
                       </CompactSpace>
                     </Col>
@@ -286,7 +292,7 @@ export const D3DMigotoTab: React.FC = () => {
                         loading={d3dLoading}
                         disabled={version.isDeployed}
                       >
-                        {version.isDeployed ? 'Deployed' : 'Deploy'}
+                        {version.isDeployed ? t('launch.d3dmigoto.deployed') : t('launch.d3dmigoto.deploy')}
                       </CompactButton>
                     </Col>
                   </Row>

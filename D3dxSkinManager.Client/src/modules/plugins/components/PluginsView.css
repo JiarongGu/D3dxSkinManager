@@ -1,0 +1,10 @@
+.plugins-view-container {
+  height: 100%;
+  overflow: auto;
+  padding: 24px;
+}
+
+.plugins-view-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}

@@ -32,6 +32,7 @@ public class ModFacadeTests
     private readonly Mock<IImageService> _mockImageService = new();
     private readonly Mock<IProfilePathService> _mockProfilePathService = new();
     private readonly Mock<IPathHelper> _mockPathHelper = new();
+    private readonly Mock<IOperationNotificationService> _mockOperationNotificationService = new();
     private readonly ModFacade _facade;
 
     public ModFacadeTests()
@@ -54,6 +55,7 @@ public class ModFacadeTests
             _mockImageService.Object,
             _mockProfilePathService.Object,
             _mockPathHelper.Object,
+            _mockOperationNotificationService.Object,
             _mockLogger.Object
         );
     }
@@ -204,7 +206,7 @@ public class ModFacadeTests
         var result = await _facade.LoadModAsync("sha123");
 
         // Assert
-        result.Should().BeTrue();
+        result.Success.Should().BeTrue();
         _mockFileService.Verify(s => s.LoadAsync("sha123"), Times.Once);
         // Note: IsLoaded is determined dynamically from file system, not stored in database
     }
@@ -219,7 +221,7 @@ public class ModFacadeTests
         var result = await _facade.LoadModAsync("sha123");
 
         // Assert
-        result.Should().BeFalse();
+        result.Success.Should().BeFalse();
     }
 
     [Fact]

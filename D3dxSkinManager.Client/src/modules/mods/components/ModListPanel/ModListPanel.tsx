@@ -4,6 +4,8 @@ import { SearchOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { ClassificationNode } from '../../../../shared/types/classification.types';
 import { ModList } from './ModList';
+import { useTranslation } from 'react-i18next';
+import './ModListPanel.css';
 
 const { Sider } = Layout;
 const { Search } = Input;
@@ -37,28 +39,16 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
   selectedClassification,
   selectedObject,
 }) => {
+  const { t } = useTranslation();
+
   if (!selectedClassification && !selectedObject) {
     return (
-      <Sider
-        width={450}
-        style={{
-          background: 'var(--color-bg-elevated) !important',
-          height: '100%',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            width: '100%',
-          }}
-        >
+      <Sider width={450} className="mod-list-panel">
+        <div className="mod-list-panel-empty-container">
           <Empty
-            description="Select a classification to view mods"
+            description={t('mods.panel.selectClassification')}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            style={{ margin: 0 }}
+            className="mod-list-panel-empty"
           />
         </div>
       </Sider>
@@ -66,27 +56,11 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
   }
 
   return (
-    <Sider
-      width={450}
-      style={{
-        background: 'var(--color-bg-elevated) !important',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        overflow: 'hidden',
-      }}
-    >
+    <Sider width={450} className="mod-list-panel-flex">
       {/* Search Bar */}
-      <div
-        style={{
-          padding: '8px',
-          borderBottom: '1px solid var(--color-border-secondary)',
-          flexShrink: 0,
-          height: '48px',
-        }}
-      >
+      <div className="mod-list-panel-search-bar">
         <Search
-          placeholder="Search mods (name, author, tags)..."
+          placeholder={t('mods.list.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           allowClear
@@ -95,7 +69,7 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
       </div>
 
       {/* Mod List or Empty State */}
-      <div style={{ flex: 1, height: 'calc(100% - 48px)', overflow: 'auto' }}>
+      <div className="mod-list-panel-content">
         {mods.length > 0 ? (
           <ModList
             mods={mods}
@@ -108,23 +82,16 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
             selectedMod={selectedMod}
           />
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-            }}
-          >
+          <div className="mod-list-panel-content-empty-container">
             <Empty
               description={
                 searchQuery
-                  ? `No mods found matching "${searchQuery}"`
+                  ? t('mods.panel.noModsMatchingSearch', { query: searchQuery })
                   : selectedClassification
-                    ? `No mods found for ${selectedClassification.name}`
+                    ? t('mods.panel.noModsForClassification', { name: selectedClassification.name })
                     : selectedObject
-                      ? `No mods found for ${selectedObject}`
-                      : 'No mods available'
+                      ? t('mods.panel.noModsForObject', { object: selectedObject })
+                      : t('mods.panel.noModsAvailable')
               }
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />

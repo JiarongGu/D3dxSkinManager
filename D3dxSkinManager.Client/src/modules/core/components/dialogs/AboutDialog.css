@@ -1,0 +1,44 @@
+.about-dialog-content {
+  width: 100%;
+}
+
+.about-dialog-header {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.about-dialog-app-title {
+  margin-bottom: 8px;
+}
+
+.about-dialog-tag {
+  font-size: 14px;
+  padding: 4px 12px;
+}
+
+.about-dialog-divider {
+  margin: 12px 0;
+}
+
+.about-dialog-description {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #595959;
+}
+
+.about-dialog-features {
+  line-height: 2;
+  padding-left: 20px;
+  color: #595959;
+}
+
+.about-dialog-license {
+  text-align: center;
+  padding: 12px;
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.about-dialog-license-text {
+  font-size: 13px;
+}

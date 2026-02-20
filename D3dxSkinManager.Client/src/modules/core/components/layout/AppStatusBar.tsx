@@ -6,6 +6,8 @@ import {
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { AnnotatedTooltip, annotations } from '../../../../shared/components/common/TooltipSystem';
+import { useTranslation } from 'react-i18next';
+import './AppStatusBar.css';
 
 export type StatusType = 'normal' | 'warning' | 'error';
 
@@ -36,77 +38,57 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
   onHelpClick,
   onProgressClick,
 }) => {
+  const { t } = useTranslation();
+
   const getServerStatusIcon = () => {
+    const iconClass = `app-status-bar-status-icon-${serverStatus}`;
     switch (serverStatus) {
       case 'connected':
-        return <CheckCircleOutlined style={{ color: 'var(--color-success)' }} />;
+        return <CheckCircleOutlined className={iconClass} />;
       case 'connecting':
-        return <LoadingOutlined style={{ color: 'var(--color-primary)' }} />;
+        return <LoadingOutlined className={iconClass} />;
       case 'disconnected':
-        return <CheckCircleOutlined style={{ color: 'var(--color-error)' }} />;
+        return <CheckCircleOutlined className={iconClass} />;
     }
   };
 
   const getServerStatusText = () => {
     switch (serverStatus) {
       case 'connected':
-        return 'Connected';
+        return t('statusBar.connected');
       case 'connecting':
-        return 'Connecting...';
+        return t('common.loading');
       case 'disconnected':
-        return 'Disconnected';
+        return t('statusBar.disconnected');
     }
   };
 
-  // Get color for status message based on type
-  const getStatusColor = (): string => {
-    switch (statusType) {
-      case 'error':
-        return 'var(--color-error)';
-      case 'warning':
-        return 'var(--color-warning)';
-      case 'normal':
-      default:
-        return 'var(--color-text-secondary)';
-    }
+  // Get CSS class for status message based on type
+  const getStatusClass = (): string => {
+    return `app-status-bar-status-message app-status-bar-status-message-${statusType}`;
   };
 
   return (
-    <div
-      style={{
-        background: 'var(--color-bg-spotlight)',
-        borderTop: '1px solid var(--color-border-secondary)',
-      }}
-    >
+    <div className="app-status-bar">
       {/* Progress bar - shown when progressVisible is true */}
       {progressVisible && (
         <div
           onClick={onProgressClick}
-          style={{ cursor: onProgressClick ? 'pointer' : 'default' }}
-          title={operationName || 'Operation in progress'}
+          className={onProgressClick ? 'app-status-bar-progress' : 'app-status-bar-progress-default'}
+          title={operationName || t('dialogs.operationMonitor.noOperations')}
         >
           <Progress
             percent={progressPercent}
             size="small"
             showInfo={false}
             status={progressPercent === 100 ? 'success' : 'active'}
-            style={{ marginBottom: 0, lineHeight: '2px' }}
+            className="app-status-bar-progress-bar"
           />
         </div>
       )}
 
       {/* Main status bar */}
-      <div
-        style={{
-          height: '32px',
-          lineHeight: '32px',
-          padding: '0 16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '12px',
-        }}
-      >
+      <div className="app-status-bar-main">
         {/* Left side - Status, Message */}
         <Space size="large">
           <AnnotatedTooltip title="Backend connection status" level={2}>
@@ -119,18 +101,18 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
           {/* Operation name or status message */}
           {operationName && activeOperationCount > 0 ? (
             <Space size="small">
-              <LoadingOutlined style={{ color: 'var(--color-primary)' }} />
-              <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+              <LoadingOutlined className="app-status-bar-status-icon-connecting" />
+              <span className="app-status-bar-operation-text">
                 {operationName}
               </span>
               {activeOperationCount > 1 && (
-                <Tag color="blue" style={{ marginLeft: 4 }}>
+                <Tag color="blue" className="app-status-bar-operation-tag">
                   +{activeOperationCount - 1} more
                 </Tag>
               )}
             </Space>
           ) : statusMessage ? (
-            <span style={{ color: getStatusColor(), fontWeight: 500 }}>
+            <span className={getStatusClass()}>
               {statusMessage}
             </span>
           ) : null}
@@ -149,9 +131,9 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
                 size="small"
                 icon={<QuestionCircleOutlined />}
                 onClick={onHelpClick}
-                style={{ padding: 0, height: 'auto', fontSize: '12px' }}
+                className="app-status-bar-help-button"
               >
-                Help
+                {t('statusBar.help')}
               </Button>
             </AnnotatedTooltip>
           )}
@@ -162,12 +144,12 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
           >
             <Space size="small">
               <Tag color={modsLoaded > 0 ? 'green' : 'default'}>
-                {modsLoaded} / {modsTotal} Mods
+                {t('statusBar.modsLoaded', { count: modsLoaded, total: modsTotal })}
               </Tag>
             </Space>
           </AnnotatedTooltip>
 
-          <span style={{ color: 'var(--color-text-tertiary)' }}>
+          <span className="app-status-bar-version">
             D3dxSkinManager v1.0.0
           </span>
         </Space>

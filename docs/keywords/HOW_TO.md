@@ -3,7 +3,57 @@
 > **Purpose:** Task-based quick reference for common operations
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-02-20
+**Last Updated:** 2026-02-21
+
+---
+
+## Internationalization (i18n)
+
+### Adding i18n to Components
+
+**"How do I add translations to a component?"**
+- **Documentation:** `docs/how-to/ADD_I18N_TO_COMPONENT.md` ⭐⭐⭐
+- **Feature Guide:** `docs/features/INTERNATIONALIZATION.md`
+- **Translation Files:** `D3dxSkinManager/Languages/en.json`, `cn.json`
+- **Current Status:** 16/35+ components completed (507 keys per language)
+
+**Quick Steps:**
+1. Import `useTranslation` hook
+2. Add `const { t } = useTranslation();`
+3. Replace hardcoded strings with `t('namespace.key')`
+4. Add keys to both `en.json` and `cn.json`
+5. Test language switching in Settings
+
+**Example:**
+```tsx
+import { useTranslation } from 'react-i18next';
+
+export const MyComponent = () => {
+  const { t } = useTranslation();
+  return <Button>{t('common.ok')}</Button>;
+};
+```
+
+### Adding Translation Keys
+
+**"How do I add new translation keys?"**
+- **Translation Files:** `D3dxSkinManager/Languages/` (flat JSON structure)
+- **Namespaces:** `common.*`, `mods.*`, `launch.*`, `plugins.*`, etc.
+- **Guidelines:** `docs/features/INTERNATIONALIZATION.md#translation-guidelines`
+
+**Steps:**
+1. Add key to `en.json` in alphabetical order
+2. Add matching key to `cn.json` with Chinese translation
+3. Use in component: `t('namespace.key')`
+4. Verify key parity with verification script
+
+### Changing Language
+
+**"How does language switching work?"**
+- **User-facing:** Settings panel → Language selector
+- **Programmatic:** `import { changeLanguage } from '../i18n/i18n'`
+- **Backend:** Saved in `data/settings/global.json`
+- **Persistence:** Loads automatically on app startup
 
 ---
 
