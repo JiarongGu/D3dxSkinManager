@@ -20,8 +20,8 @@ export type LogLevelName = 'ALL' | 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
  * Log level is now stored in backend global settings
  */
 export class Logger {
-  // Default to DEBUG in development, INFO in production
-  private currentLevel: LogLevel = process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO;
+  // Default to INFO in development, WARN in production
+  private currentLevel: LogLevel = process.env.NODE_ENV === 'development' ? LogLevel.INFO : LogLevel.WARN;
   private isInitialized = false;
 
   constructor() {
@@ -69,7 +69,7 @@ export class Logger {
    */
   private async loadLevel(): Promise<void> {
     try {
-      const { settingsService } = await import('../../../modules/settings/services/settingsService');
+      const { settingsService } = await import('../../modules/settings/services/settingsService');
       const settings = await settingsService.getGlobalSettings();
       const level = settings.logLevel as LogLevelName;
       if (level && level in LogLevel) {
@@ -89,7 +89,7 @@ export class Logger {
    */
   private async saveLevel(): Promise<void> {
     try {
-      const { settingsService } = await import('../../../modules/settings/services/settingsService');
+      const { settingsService } = await import('../../modules/settings/services/settingsService');
       await settingsService.updateGlobalSetting('logLevel', this.getLevelName(this.currentLevel));
     } catch (error) {
       // Silently fail - this is a dev/debug setting

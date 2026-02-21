@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Layout, ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
-import { notification } from './shared/utils/notification';
+import { notification, setNotificationApi } from './shared/utils/notification';
 import { AppHeader } from './modules/core/components/layout/AppHeader';
 import { AppStatusBar, StatusType } from './modules/core/components/layout/AppStatusBar';
 import { ModHierarchicalView } from './modules/mods/components/ModHierarchicalView';
@@ -198,6 +198,20 @@ const AppContent: React.FC = () => {
 };
 
 /**
+ * Component to initialize notification API from AntdApp context
+ */
+const NotificationInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { notification: notificationApi } = AntdApp.useApp();
+
+  useEffect(() => {
+    // Initialize the notification API singleton
+    setNotificationApi(notificationApi);
+  }, [notificationApi]);
+
+  return <>{children}</>;
+};
+
+/**
  * App wrapper with theme and config providers
  * ProfileProvider wraps everything and manages profile state
  */
@@ -212,15 +226,17 @@ const App: React.FC = () => {
       componentSize="middle"
     >
       <AntdApp notification={{ maxCount: 1, stack: false }}>
-        <ProfileProvider>
-          <OperationProvider>
-            <AppInitializer>
-              <ModsProvider>
-                <AppContent />
-              </ModsProvider>
-            </AppInitializer>
-          </OperationProvider>
-        </ProfileProvider>
+        <NotificationInitializer>
+          <ProfileProvider>
+            <OperationProvider>
+              <AppInitializer>
+                <ModsProvider>
+                  <AppContent />
+                </ModsProvider>
+              </AppInitializer>
+            </OperationProvider>
+          </ProfileProvider>
+        </NotificationInitializer>
       </AntdApp>
     </ConfigProvider>
   );

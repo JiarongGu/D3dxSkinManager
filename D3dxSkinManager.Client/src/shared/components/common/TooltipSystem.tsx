@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Tooltip } from 'antd';
-import type { TooltipPlacement } from 'antd/es/tooltip';
-import { settingsService } from '../../../modules/settings/services/settingsService';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { Tooltip } from "antd";
+import type { TooltipPlacement } from "antd/es/tooltip";
+import { settingsService } from "../../../modules/settings/services/settingsService";
 
 /**
  * Annotation levels for tooltips
@@ -10,7 +10,7 @@ import { settingsService } from '../../../modules/settings/services/settingsServ
  * - less: Show only basic tooltips (level 1)
  * - off: Disable all tooltips
  */
-export type AnnotationLevel = 'all' | 'more' | 'less' | 'off';
+export type AnnotationLevel = "all" | "more" | "less" | "off";
 
 /**
  * Tooltip detail level
@@ -26,7 +26,7 @@ interface AnnotationContextType {
 }
 
 const AnnotationContext = createContext<AnnotationContextType>({
-  annotationLevel: 'all',
+  annotationLevel: "all",
   setAnnotationLevel: () => {},
 });
 
@@ -46,9 +46,10 @@ interface AnnotationProviderProps {
  */
 export const AnnotationProvider: React.FC<AnnotationProviderProps> = ({
   children,
-  initialLevel = 'all',
+  initialLevel = "all",
 }) => {
-  const [annotationLevel, setAnnotationLevel] = useState<AnnotationLevel>(initialLevel);
+  const [annotationLevel, setAnnotationLevel] =
+    useState<AnnotationLevel>(initialLevel);
 
   // Load annotation level from backend on mount with retry logic
   useEffect(() => {
@@ -60,8 +61,11 @@ export const AnnotationProvider: React.FC<AnnotationProviderProps> = ({
         try {
           const settings = await settingsService.getGlobalSettings();
           const level = settings.annotationLevel as AnnotationLevel;
-          if (level && ['all', 'more', 'less', 'off'].includes(level)) {
-            console.log('[AnnotationProvider] Loaded annotation level from backend:', level);
+          if (level && ["all", "more", "less", "off"].includes(level)) {
+            console.log(
+              "[AnnotationProvider] Loaded annotation level from backend:",
+              level,
+            );
             setAnnotationLevel(level);
             return; // Success - exit retry loop
           }
@@ -69,14 +73,19 @@ export const AnnotationProvider: React.FC<AnnotationProviderProps> = ({
           const isLastAttempt = attempt === maxRetries - 1;
 
           if (isLastAttempt) {
-            console.error('[AnnotationProvider] Failed to load annotation level from backend after retries:', error);
+            console.error(
+              "[AnnotationProvider] Failed to load annotation level from backend after retries:",
+              error,
+            );
             // Default to 'all' on final failure
-            setAnnotationLevel('all');
+            setAnnotationLevel("all");
           } else {
             // Wait before retry with exponential backoff
             const delay = initialDelay * Math.pow(2, attempt);
-            console.log(`[AnnotationProvider] Retry ${attempt + 1}/${maxRetries} in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+            console.log(
+              `[AnnotationProvider] Retry ${attempt + 1}/${maxRetries} in ${delay}ms...`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
           }
         }
       }
@@ -92,9 +101,12 @@ export const AnnotationProvider: React.FC<AnnotationProviderProps> = ({
 
     // Save to backend - this is the ONLY source of truth
     try {
-      await settingsService.updateGlobalSetting('annotationLevel', level);
+      await settingsService.updateGlobalSetting("annotationLevel", level);
     } catch (error) {
-      console.error('[AnnotationProvider] Failed to save annotation level to backend:', error);
+      console.error(
+        "[AnnotationProvider] Failed to save annotation level to backend:",
+        error,
+      );
       // On failure, reload from backend to stay in sync
       try {
         const settings = await settingsService.getGlobalSettings();
@@ -133,7 +145,7 @@ export interface AnnotatedTooltipProps {
 export const AnnotatedTooltip: React.FC<AnnotatedTooltipProps> = ({
   title,
   level = 1,
-  placement = 'top',
+  placement = "top",
   children,
   mouseEnterDelay = 0.5,
   overlayStyle,
@@ -142,10 +154,10 @@ export const AnnotatedTooltip: React.FC<AnnotatedTooltipProps> = ({
 
   // Determine if tooltip should be visible based on level
   const shouldShow = (): boolean => {
-    if (annotationLevel === 'off') return false;
-    if (annotationLevel === 'less') return level === 1;
-    if (annotationLevel === 'more') return level === 1 || level === 2;
-    if (annotationLevel === 'all') return true;
+    if (annotationLevel === "off") return false;
+    if (annotationLevel === "less") return level === 1;
+    if (annotationLevel === "more") return level === 1 || level === 2;
+    if (annotationLevel === "all") return true;
     return false;
   };
 
@@ -161,9 +173,9 @@ export const AnnotatedTooltip: React.FC<AnnotatedTooltipProps> = ({
       mouseEnterDelay={mouseEnterDelay}
       styles={{
         root: {
-          maxWidth: '400px',
+          maxWidth: "400px",
           ...overlayStyle,
-        }
+        },
       }}
     >
       {children}
@@ -179,27 +191,30 @@ export const annotations = {
   modTable: {
     loadButton: {
       level: 1 as TooltipLevel,
-      title: 'Load this mod into the game. Loaded mods will be active when you start the game.',
+      title:
+        "Load this mod into the game. Loaded mods will be active when you start the game.",
     },
     unloadButton: {
       level: 1 as TooltipLevel,
-      title: 'Unload this mod from the game. The mod will remain in your library.',
+      title:
+        "Unload this mod from the game. The mod will remain in your library.",
     },
     deleteButton: {
       level: 2 as TooltipLevel,
-      title: 'Permanently delete this mod from your library. This action cannot be undone.',
+      title:
+        "Permanently delete this mod from your library. This action cannot be undone.",
     },
     editButton: {
       level: 1 as TooltipLevel,
-      title: 'Edit mod information (name, description, author, tags, grading)',
+      title: "Edit mod information (name, description, author, tags, grading)",
     },
     shaColumn: {
       level: 3 as TooltipLevel,
-      title: 'SHA-256 hash - Unique identifier for this mod file',
+      title: "SHA-256 hash - Unique identifier for this mod file",
     },
     gradingColumn: {
       level: 2 as TooltipLevel,
-      title: 'Your rating of this mod (0-5 stars)',
+      title: "Your rating of this mod (0-5 stars)",
     },
   },
 
@@ -207,11 +222,12 @@ export const annotations = {
   search: {
     modSearch: {
       level: 1 as TooltipLevel,
-      title: 'Search mods by name, author, or tags. Use "!" prefix to exclude terms (e.g., "!NSFW")',
+      title:
+        'Search mods by name, author, or tags. Use "!" prefix to exclude terms (e.g., "!NSFW")',
     },
     classificationSearch: {
       level: 1 as TooltipLevel,
-      title: 'Filter classifications by name',
+      title: "Filter classifications by name",
     },
   },
 
@@ -219,23 +235,24 @@ export const annotations = {
   importWindow: {
     taskId: {
       level: 2 as TooltipLevel,
-      title: 'Unique task identifier. Tasks are processed in order.',
+      title: "Unique task identifier. Tasks are processed in order.",
     },
     editTask: {
       level: 1 as TooltipLevel,
-      title: 'Edit import properties for this task',
+      title: "Edit import properties for this task",
     },
     removeTask: {
       level: 1 as TooltipLevel,
-      title: 'Remove this task from the import queue',
+      title: "Remove this task from the import queue",
     },
     batchEdit: {
       level: 2 as TooltipLevel,
-      title: 'Edit common properties for all selected tasks',
+      title: "Edit common properties for all selected tasks",
     },
     confirmImport: {
       level: 1 as TooltipLevel,
-      title: 'Start importing all pending tasks. Requires Name and Category for each task.',
+      title:
+        "Start importing all pending tasks. Requires Name and Category for each task.",
     },
   },
 
@@ -243,7 +260,7 @@ export const annotations = {
   modEdit: {
     name: {
       level: 1 as TooltipLevel,
-      title: 'Display name for this mod',
+      title: "Display name for this mod",
     },
     category: {
       level: 2 as TooltipLevel,
@@ -251,15 +268,15 @@ export const annotations = {
     },
     description: {
       level: 1 as TooltipLevel,
-      title: 'Description of what this mod changes (max 500 characters)',
+      title: "Description of what this mod changes (max 500 characters)",
     },
     author: {
       level: 1 as TooltipLevel,
-      title: 'Mod creator\'s name',
+      title: "Mod creator's name",
     },
     grading: {
       level: 2 as TooltipLevel,
-      title: 'Rate this mod\'s quality (0-5 stars)',
+      title: "Rate this mod's quality (0-5 stars)",
     },
     tags: {
       level: 2 as TooltipLevel,
@@ -267,7 +284,7 @@ export const annotations = {
     },
     sha: {
       level: 3 as TooltipLevel,
-      title: 'SHA-256 hash - Cannot be edited (read-only)',
+      title: "SHA-256 hash - Cannot be edited (read-only)",
     },
   },
 
@@ -275,15 +292,16 @@ export const annotations = {
   settings: {
     annotationLevel: {
       level: 1 as TooltipLevel,
-      title: 'Control tooltip detail level: All (show everything), More (detailed), Less (basic only), Off (disabled)',
+      title:
+        "Control tooltip detail level: All (show everything), More (detailed), Less (basic only), Off (disabled)",
     },
     theme: {
       level: 1 as TooltipLevel,
-      title: 'Choose application color theme',
+      title: "Choose application color theme",
     },
     language: {
       level: 1 as TooltipLevel,
-      title: 'Select interface language',
+      title: "Select interface language",
     },
   },
 
@@ -291,27 +309,27 @@ export const annotations = {
   contextMenu: {
     loadMod: {
       level: 1 as TooltipLevel,
-      title: 'Load this mod into the game',
+      title: "Load this mod into the game",
     },
     unloadMod: {
       level: 1 as TooltipLevel,
-      title: 'Unload this mod from the game',
+      title: "Unload this mod from the game",
     },
     copyModName: {
       level: 2 as TooltipLevel,
-      title: 'Copy mod name to clipboard',
+      title: "Copy mod name to clipboard",
     },
     copySha: {
       level: 3 as TooltipLevel,
-      title: 'Copy SHA-256 hash to clipboard',
+      title: "Copy SHA-256 hash to clipboard",
     },
     viewFiles: {
       level: 2 as TooltipLevel,
-      title: 'Open mod files in file explorer',
+      title: "Open mod files in file explorer",
     },
     exportMod: {
       level: 2 as TooltipLevel,
-      title: 'Export this mod as a ZIP file',
+      title: "Export this mod as a ZIP file",
     },
   },
 
@@ -319,11 +337,11 @@ export const annotations = {
   statusBar: {
     helpButton: {
       level: 1 as TooltipLevel,
-      title: 'Open help documentation',
+      title: "Open help documentation",
     },
     modsCount: {
       level: 1 as TooltipLevel,
-      title: 'Number of loaded mods / Total mods',
+      title: "Number of loaded mods / Total mods",
     },
   },
 };
@@ -333,33 +351,35 @@ export const annotations = {
  */
 export const getAnnotationLevelLabel = (level: AnnotationLevel): string => {
   switch (level) {
-    case 'all':
-      return 'All (全部)';
-    case 'more':
-      return 'More (较多)';
-    case 'less':
-      return 'Less (较少)';
-    case 'off':
-      return 'Off (关闭)';
+    case "all":
+      return "All (全部)";
+    case "more":
+      return "More (较多)";
+    case "less":
+      return "Less (较少)";
+    case "off":
+      return "Off (关闭)";
     default:
-      return 'All';
+      return "All";
   }
 };
 
 /**
  * Helper function to get annotation level description
  */
-export const getAnnotationLevelDescription = (level: AnnotationLevel): string => {
+export const getAnnotationLevelDescription = (
+  level: AnnotationLevel,
+): string => {
   switch (level) {
-    case 'all':
-      return 'Show all tooltips including expert-level details';
-    case 'more':
-      return 'Show detailed tooltips for most features';
-    case 'less':
-      return 'Show only basic tooltips';
-    case 'off':
-      return 'Disable all tooltips';
+    case "all":
+      return "Show all tooltips including expert-level details";
+    case "more":
+      return "Show detailed tooltips for most features";
+    case "less":
+      return "Show only basic tooltips";
+    case "off":
+      return "Disable all tooltips";
     default:
-      return '';
+      return "";
   }
 };

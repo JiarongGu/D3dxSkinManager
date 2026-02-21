@@ -31,6 +31,8 @@ docs/
 │   ├── WORKFLOWS.md               Step-by-step procedures
 │   ├── TESTING_GUIDE.md           Testing requirements
 │   ├── TROUBLESHOOTING.md         Known issues & solutions
+│   ├── REACT_CLOSURE_PATTERNS.md  ⭐ useStableRef pattern guide
+│   ├── DOCUMENTATION_MAINTENANCE.md Documentation update guide
 │   └── REFERENCE.md               Quick command reference
 │
 ├── architecture/                  🏛️ System architecture & design
@@ -51,9 +53,21 @@ docs/
 │
 ├── features/                      ✨ Feature documentation
 │   ├── FEATURE_GAP_ANALYSIS_V3.md Feature parity analysis
+│   ├── INTERNATIONALIZATION.md    ⭐⭐ i18n system (EN/CN)
+│   ├── OPERATION_NOTIFICATION_SYSTEM.md ⭐⭐ Progress tracking
+│   ├── DELAYED_LOADING_UX_PATTERN.md Loading UX pattern
 │   ├── PLUGINS.md                 Plugin system
 │   ├── PROFILE_SYSTEM.md          Profile management
 │   └── THEME_SYSTEM.md            Theme system
+│
+├── how-to/                        📖 Step-by-step guides
+│   └── ADD_I18N_TO_COMPONENT.md   ⭐ Adding translations
+│
+├── keywords/                      🔍 Keyword routing system (v4.0)
+│   ├── BACKEND.md                 Backend classes & services
+│   ├── FRONTEND.md                Frontend components & hooks
+│   ├── DOCUMENTATION.md           Documentation files
+│   └── HOW_TO.md                  How-to guides
 │
 ├── migration/                     📦 Migration from Python version
 │   └── MIGRATION_DESIGN.md        Original design document
@@ -65,12 +79,14 @@ docs/
 │
 ├── maintenance/                   🔧 Maintenance procedures
 │   ├── README.md                  Maintenance overview
-│   └── CHANGELOG_MANAGEMENT.md    ⭐ Changelog guidelines (< 200 lines rule)
+│   ├── CHANGELOG_MANAGEMENT.md    ⭐ Changelog guidelines (< 200 lines rule)
+│   └── KEYWORDS_INDEX_MANAGEMENT.md Keywords index maintenance
 │
 └── archive/                       📁 Historical documentation
     ├── 2026-02-19-migration-refactoring/  Migration refactoring session
     ├── 2026-02-17-roadmap/                Original roadmap (archived)
     ├── CONVERSION_COMPLETE_V2.md          V2 conversion complete
+    ├── ARCHITECTURE_OLD.md                ⭐ OLD - See CURRENT_ARCHITECTURE.md instead
     └── ...                                Other archived docs
 ```
 
@@ -80,10 +96,12 @@ docs/
 
 **Critical Rules:** Read [AI_GUIDE.md](AI_GUIDE.md) first!
 
-1. Use [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) to find files
+1. Use [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) to find files (routing system v4.0)
 2. Read [ai-assistant/GUIDELINES.md](ai-assistant/GUIDELINES.md) before coding
-3. Update [CHANGELOG.md](CHANGELOG.md) after changes
+3. Update [CHANGELOG.md](CHANGELOG.md) after changes (keep < 200 lines!)
 4. **Never commit without user approval**
+5. **ALL user-facing text must use i18n** - See [how-to/ADD_I18N_TO_COMPONENT.md](how-to/ADD_I18N_TO_COMPONENT.md)
+6. **ALL long operations must report progress** - See [features/OPERATION_NOTIFICATION_SYSTEM.md](features/OPERATION_NOTIFICATION_SYSTEM.md)
 
 ---
 
@@ -114,11 +132,37 @@ docs/
 ## 📊 Project Status
 
 ✅ UI Complete (14 phases, 40+ components)
-✅ Frontend: 387 kB bundle
+✅ Frontend: ~470 kB bundle (Vite build)
 ✅ Backend: .NET 10 + Photino.NET
-✅ Docs: Complete & organized
-📊 Feature Parity: ~60% vs Python v1.6.3
+✅ Technology Stack: React 19.2.4 + TypeScript 5.9.3 + Ant Design 6.3.0
+✅ i18n: Complete bilingual support (EN/CN, 507 keys each)
+✅ Operation Notifications: Real-time progress tracking with IProgressReporter
+✅ Docs: Complete & organized (85 files, well-structured)
+📊 Feature Parity: ~70% vs Python v1.6.3
 
 ---
 
-*Updated: 2026-02-17*
+## 🆕 Recent Major Updates (2026-02-21)
+
+### Critical New Requirements
+1. **Internationalization (i18n)** - ALL user-facing text must use `t('key')` translations
+2. **Operation Notifications** - ALL long-running operations must use `IProgressReporter`
+3. **Vite Build System** - Frontend now uses Vite instead of Create React App
+
+### New Features
+- ⭐⭐⭐ Complete i18n system with flat JSON structure
+- ⭐⭐⭐ Real-time operation progress with push notifications
+- ⭐⭐⭐ Category-based mod loading with auto-unload
+- ⭐⭐⭐ Declarative drag & drop API (useDragDrop hook)
+- ⭐⭐ Delayed loading pattern (useDelayedLoading)
+
+### Documentation Cleanup
+- Routing system for keywords index (v4.0) - Faster lookups
+- CHANGELOG.md reduced from 463 to 101 lines
+- AI_GUIDE.md v1.3 with i18n and progress reporting requirements
+- Removed 3 obsolete files (47KB+ freed)
+- Comprehensive feature docs for new systems
+
+---
+
+*Updated: 2026-02-21*

@@ -157,37 +157,37 @@ body {
 
 /* Layout Components */
 .ant-layout {
-  background: var(--color-bg-layout) !important;
+  background: var(--color-bg-layout);
 }
 
 .ant-layout-header {
-  background: var(--color-header-bg) !important;
-  color: var(--color-header-text) !important;
+  background: var(--color-header-bg);
+  color: var(--color-header-text);
 }
 
 .ant-layout-sider {
-  background: var(--color-sider-bg) !important;
+  background: var(--color-sider-bg);
 }
 
 .ant-layout-content {
-  background: var(--color-bg-container) !important;
+  background: var(--color-bg-container);
 }
 
 /* Card Components */
 .ant-card {
-  background: var(--color-card-bg) !important;
-  border-color: var(--color-border-secondary) !important;
-  color: var(--color-text-base) !important;
+  background: var(--color-card-bg);
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-base);
 }
 
 .ant-card-head {
-  background: var(--color-card-header-bg) !important;
-  border-bottom-color: var(--color-border-secondary) !important;
-  color: var(--color-text-base) !important;
+  background: var(--color-card-header-bg);
+  border-bottom-color: var(--color-border-secondary);
+  color: var(--color-text-base);
 }
 
 .ant-card-head-title {
-  color: var(--color-text-base) !important;
+  color: var(--color-text-base);
 }
 
 /* Input Components */
@@ -195,154 +195,154 @@ body {
 .ant-input-affix-wrapper,
 .ant-select-selector,
 .ant-picker {
-  background-color: var(--color-input-bg) !important;
-  border-color: var(--color-input-border) !important;
-  color: var(--color-text-base) !important;
+  background-color: var(--color-input-bg);
+  border-color: var(--color-input-border);
+  color: var(--color-text-base);
 }
 
 .ant-input:hover,
 .ant-input-affix-wrapper:hover,
 .ant-select-selector:hover {
-  border-color: var(--color-primary) !important;
+  border-color: var(--color-primary);
 }
 
 .ant-input::placeholder,
 .ant-select-selection-placeholder {
-  color: var(--color-text-tertiary) !important;
+  color: var(--color-text-tertiary);
 }
 
 /* Table Components */
 .ant-table {
-  background: var(--color-card-bg) !important;
-  color: var(--color-text-base) !important;
+  background: var(--color-card-bg);
+  color: var(--color-text-base);
 }
 
 .ant-table-thead > tr > th {
-  background: var(--color-table-header-bg) !important;
-  color: var(--color-text-base) !important;
-  border-bottom-color: var(--color-border-secondary) !important;
+  background: var(--color-table-header-bg);
+  color: var(--color-text-base);
+  border-bottom-color: var(--color-border-secondary);
 }
 
 .ant-table-tbody > tr > td {
-  border-bottom-color: var(--color-border-secondary) !important;
-  color: var(--color-text-base) !important;
+  border-bottom-color: var(--color-border-secondary);
+  color: var(--color-text-base);
 }
 
 .ant-table-tbody > tr:hover > td {
-  background: var(--color-table-row-hover) !important;
+  background: var(--color-table-row-hover);
 }
 
 /* Modal Components */
 .ant-modal-content {
-  background: var(--color-card-bg) !important;
-  color: var(--color-text-base) !important;
+  background: var(--color-card-bg);
+  color: var(--color-text-base);
 }
 
 .ant-modal-header {
-  background: var(--color-card-header-bg) !important;
-  border-bottom-color: var(--color-border-secondary) !important;
-  color: var(--color-text-base) !important;
+  background: var(--color-card-header-bg);
+  border-bottom-color: var(--color-border-secondary);
+  color: var(--color-text-base);
 }
 
 .ant-modal-title {
-  color: var(--color-text-base) !important;
+  color: var(--color-text-base);
 }
 
 .ant-modal-footer {
-  border-top-color: var(--color-border-secondary) !important;
+  border-top-color: var(--color-border-secondary);
 }
 
 /* Dropdown Components */
 .ant-dropdown-menu {
-  background: var(--color-bg-elevated) !important;
+  background: var(--color-bg-elevated);
 }
 
 .ant-dropdown-menu-item,
 .ant-dropdown-menu-submenu-title {
-  color: var(--color-text-base) !important;
+  color: var(--color-text-base);
 }
 
 .ant-dropdown-menu-item:hover,
 .ant-dropdown-menu-submenu-title:hover {
-  background: var(--color-bg-spotlight) !important;
+  background: var(--color-bg-spotlight);
 }
 
 /* Menu Components */
 .ant-menu {
-  background: var(--color-sider-bg) !important;
-  color: var(--color-text-base) !important;
+  background: var(--color-sider-bg);
+  color: var(--color-text-base);
 }
 
 .ant-menu-item,
 .ant-menu-submenu-title {
-  color: var(--color-text-base) !important;
+  color: var(--color-text-base);
 }
 
 .ant-menu-item:hover,
 .ant-menu-submenu-title:hover {
-  background: var(--color-bg-spotlight) !important;
+  background: var(--color-bg-spotlight);
 }
 
 .ant-menu-item-selected {
-  background: var(--color-primary-bg) !important;
-  color: var(--color-primary) !important;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 /* Tree Components */
 .ant-tree {
-  background: transparent !important;
-  color: var(--color-text-base) !important;
+  background: transparent;
+  color: var(--color-text-base);
 }
 
 .ant-tree-node-content-wrapper:hover {
-  background: var(--color-bg-spotlight) !important;
+  background: var(--color-bg-spotlight);
 }
 
 .ant-tree-node-selected .ant-tree-node-content-wrapper {
-  background: var(--color-primary-bg) !important;
+  background: var(--color-primary-bg);
 }
 
 /* Form Components */
 .ant-form-item-label > label {
-  color: var(--color-text-base) !important;
+  color: var(--color-text-base);
 }
 
 /* Divider */
 .ant-divider {
-  border-top-color: var(--color-border-secondary) !important;
+  border-top-color: var(--color-border-secondary);
 }
 
 /* Empty State */
 .ant-empty-description {
-  color: var(--color-text-secondary) !important;
+  color: var(--color-text-secondary);
 }
 
 /* Tag Components */
 .ant-tag {
-  border-color: var(--color-border-base) !important;
+  border-color: var(--color-border-base);
 }
 
 /* Alert Components */
 .ant-alert {
-  border-color: var(--color-border-secondary) !important;
+  border-color: var(--color-border-secondary);
 }
 
 /* Statistic Components */
 .ant-statistic-title {
-  color: var(--color-text-secondary) !important;
+  color: var(--color-text-secondary);
 }
 
 .ant-statistic-content {
-  color: var(--color-text-base) !important;
+  color: var(--color-text-base);
 }
 
 /* Descriptions */
 .ant-descriptions-item-label {
-  color: var(--color-text-secondary) !important;
+  color: var(--color-text-secondary);
 }
 
 .ant-descriptions-item-content {
-  color: var(--color-text-base) !important;
+  color: var(--color-text-base);
 }
 
 /* Scrollbar Styling for Dark Theme */
@@ -366,122 +366,122 @@ body {
 
 /* Global Border Radius Application - Reduced for sharper, more modern look */
 .ant-btn {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--border-radius-base);
 }
 
 .ant-btn-sm {
-  border-radius: var(--border-radius-sm) !important;
+  border-radius: var(--border-radius-sm);
 }
 
 .ant-btn-lg {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--border-radius-base);
 }
 
 /* Reduce button shadows for flatter design in light theme */
 [data-theme="light"] .ant-btn {
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.01) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.01);
 }
 
 [data-theme="light"] .ant-btn:not(:disabled):not(.ant-btn-disabled):hover {
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
 
 /* Primary buttons - slightly more visible shadow */
 [data-theme="light"] .ant-btn-primary {
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.015) !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.015);
 }
 
 [data-theme="light"] .ant-btn-primary:not(:disabled):not(.ant-btn-disabled):hover {
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.03) !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.03);
 }
 
 /* Light theme - More obvious hover effect for icon buttons and text buttons (except header tabs) */
 [data-theme="light"] .ant-btn-text:not(:disabled):not(.ant-btn-disabled):not(.app-header-tab):hover,
 [data-theme="light"] .ant-btn-icon-only:not(:disabled):not(.ant-btn-disabled):not(.app-header-tab):hover {
-  background: var(--color-primary-bg) !important;
-  border-color: var(--color-primary) !important;
-  color: var(--color-primary) !important;
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 /* Dark theme - Keep subtle hover effect */
 [data-theme="dark"] .ant-btn-text:not(:disabled):not(.ant-btn-disabled):hover,
 [data-theme="dark"] .ant-btn-icon-only:not(:disabled):not(.ant-btn-disabled):hover {
-  background: var(--color-bg-spotlight) !important;
+  background: var(--color-bg-spotlight);
 }
 
 /* List item hover effects - more obvious in light theme */
 [data-theme="light"] .ant-list-item:hover {
-  background: var(--color-primary-bg) !important;
-  border-left-color: var(--color-primary) !important;
+  background: var(--color-primary-bg);
+  border-left-color: var(--color-primary);
 }
 
 [data-theme="dark"] .ant-list-item:hover {
-  background: var(--color-bg-spotlight) !important;
+  background: var(--color-bg-spotlight);
 }
 
 .ant-input,
 .ant-input-affix-wrapper,
 .ant-select-selector,
 .ant-picker {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--border-radius-base);
 }
 
 .ant-card {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--border-radius-base);
 }
 
 .ant-modal-content {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--border-radius-base);
 }
 
 .ant-modal-header {
-  border-radius: var(--border-radius-base) var(--border-radius-base) 0 0 !important;
+  border-radius: var(--border-radius-base) var(--border-radius-base) 0 0;
 }
 
 .ant-dropdown-menu {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--border-radius-base);
 }
 
 .ant-tooltip-inner {
-  border-radius: var(--border-radius-sm) !important;
+  border-radius: var(--border-radius-sm);
 }
 
 .ant-tag {
-  border-radius: var(--border-radius-sm) !important;
+  border-radius: var(--border-radius-sm);
 }
 
 .ant-badge-count {
-  border-radius: var(--border-radius-lg) !important;
+  border-radius: var(--border-radius-lg);
 }
 
 .ant-alert {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--border-radius-base);
 }
 
 .ant-table {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--border-radius-base);
 }
 
 .ant-table-thead > tr:first-child > th:first-child {
-  border-radius: var(--border-radius-base) 0 0 0 !important;
+  border-radius: var(--border-radius-base) 0 0 0;
 }
 
 .ant-table-thead > tr:first-child > th:last-child {
-  border-radius: 0 var(--border-radius-base) 0 0 !important;
+  border-radius: 0 var(--border-radius-base) 0 0;
 }
 
 .ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
-  border-radius: var(--border-radius-base) var(--border-radius-base) 0 0 !important;
+  border-radius: var(--border-radius-base) var(--border-radius-base) 0 0;
 }
 
 .ant-switch {
-  border-radius: var(--border-radius-lg) !important;
+  border-radius: var(--border-radius-lg);
 }
 
 .ant-progress-circle .ant-progress-inner {
-  border-radius: 50% !important;
+  border-radius: 50%;
 }
 
 .ant-tree-node-content-wrapper {
-  border-radius: var(--border-radius-base) !important;
+  border-radius: var(--border-radius-base);
 }

@@ -8,7 +8,7 @@ import {
 } from "./ClassificationTreeContext";
 import { ContextMenu, ContextMenuItem } from "../../../../shared/components/menu/ContextMenu";
 import { useDragDrop } from "../../../../shared/hooks/useDragDrop";
-import { logger } from "../../../core/utils/logger";
+import { logger } from "../../../../shared/utils/logger";
 import type { MenuProps } from "antd";
 import "./ClassificationTree.css";
 
