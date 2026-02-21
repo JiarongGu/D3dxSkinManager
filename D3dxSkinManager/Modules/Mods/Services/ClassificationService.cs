@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Mods.Models;
+using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
 
@@ -21,7 +23,7 @@ public interface IClassificationService
     Task<bool> SetNodeThumbnailAsync(string nodeId, string thumbnailPath);
     Task<ClassificationNode?> GetNodeByNameAsync(string name);
     Task<bool> DeleteNodeAsync(string nodeId);
-    Task<ClassificationNode?> CreateNodeAsync(string nodeId, string name, string? parentId = null, int priority = 100, string? description = null);
+    Task<ClassificationNode?> CreateNodeAsync(string nodeId, string name, string? parentId = null, int priority = 100, string? description = null, string? thumbnailPath = null);
     Task<bool> NodeExistsAsync(string nodeId);
 }
 
@@ -33,7 +35,9 @@ public class ClassificationService : IClassificationService
 {
     private readonly IClassificationRepository _repository;
     private readonly IModRepository _modRepository;
-    private readonly Core.Services.IPathHelper _pathHelper;
+    private readonly IPathHelper _pathHelper;
+    private readonly IFileTransferService _fileTransferService;
+    private readonly IProfilePathService _profilePaths;
     private List<ClassificationNode>? _cachedTree;
     private DateTime _lastRefresh = DateTime.MinValue;
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(5);
@@ -41,9 +45,13 @@ public class ClassificationService : IClassificationService
     public ClassificationService(
         IClassificationRepository repository,
         IModRepository modRepository,
-        Core.Services.IPathHelper pathHelper)
+        IPathHelper pathHelper,
+        IFileTransferService fileTransferService,
+        IProfilePathService profilePaths)
     {
         _repository = repository;
+        _fileTransferService = fileTransferService;
+        _profilePaths = profilePaths;
         _modRepository = modRepository;
         _pathHelper = pathHelper;
     }
@@ -310,7 +318,8 @@ public class ClassificationService : IClassificationService
         string name,
         string? parentId = null,
         int priority = 100,
-        string? description = null)
+        string? description = null,
+        string? thumbnailPath = null)
     {
         try
         {
@@ -320,12 +329,31 @@ public class ClassificationService : IClassificationService
                 return null; // Already exists
             }
 
+            // Copy thumbnail to data folder if provided
+            string? relativeThumbnailPath = null;
+            if (!string.IsNullOrEmpty(thumbnailPath))
+            {
+                // Use FileTransferService to handle copy with SHA-256 naming and deduplication
+                relativeThumbnailPath = await _fileTransferService.CopyToManagedDirectoryAsync(
+                    thumbnailPath,
+                    _profilePaths.ThumbnailsDirectory,
+                    preserveExtension: true
+                );
+
+                // If copy failed (file doesn't exist), store original path (will fail gracefully on display)
+                if (relativeThumbnailPath == null)
+                {
+                    Console.WriteLine($"[ClassificationService] Failed to copy thumbnail, storing original path");
+                    relativeThumbnailPath = thumbnailPath;
+                }
+            }
+
             var node = new ClassificationNode
             {
                 Id = nodeId,
                 Name = name,
                 ParentId = parentId,
-                Thumbnail = null,
+                Thumbnail = relativeThumbnailPath,
                 Priority = priority,
                 Description = description ?? $"Node: {name}",
                 Children = new List<ClassificationNode>()
@@ -389,9 +417,13 @@ public class ClassificationService : IClassificationService
 
     /// <summary>
     /// Recursively delete a node and all its children
+    /// Thumbnails are deleted BEFORE node deletion to catch file lock errors
     /// </summary>
     private async Task DeleteNodeAndChildrenRecursiveAsync(string nodeId)
     {
+        // Get the node to check for thumbnail
+        var node = await _repository.GetByIdAsync(nodeId);
+
         // Get all children
         var children = await _repository.GetChildrenAsync(nodeId);
 
@@ -401,8 +433,66 @@ public class ClassificationService : IClassificationService
             await DeleteNodeAndChildrenRecursiveAsync(child.Id);
         }
 
-        // Delete the node itself
+        // IMPORTANT: Delete thumbnail BEFORE deleting the node
+        // This allows us to catch file lock errors and stop the deletion
+        if (node?.Thumbnail != null)
+        {
+            await CleanupThumbnailIfUnusedAsync(node.Thumbnail);
+        }
+
+        // Delete the node itself (only after thumbnail is successfully deleted)
         await _repository.DeleteAsync(nodeId);
+    }
+
+    /// <summary>
+    /// Delete thumbnail file if no other classification nodes are using it
+    /// and it's in our data folder
+    /// Throws exception if file is locked or inaccessible
+    /// </summary>
+    private async Task CleanupThumbnailIfUnusedAsync(string thumbnailPath)
+    {
+        // Convert to absolute path
+        var absolutePath = _pathHelper.ToAbsolutePath(thumbnailPath);
+        if (absolutePath == null || !File.Exists(absolutePath))
+            return;
+
+        // Only delete if it's in our thumbnails folder (use FileTransferService to check)
+        if (_fileTransferService.IsExternalToDirectory(absolutePath, _profilePaths.ThumbnailsDirectory))
+            return; // External file, don't delete
+
+        // Check if any other classification nodes are using this thumbnail
+        var allNodes = await _repository.GetAllAsync();
+        var isUsedByOthers = allNodes.Any(n =>
+            n.Thumbnail != null &&
+            _pathHelper.ToAbsolutePath(n.Thumbnail)?.Equals(absolutePath, StringComparison.OrdinalIgnoreCase) == true
+        );
+
+        if (!isUsedByOthers)
+        {
+            try
+            {
+                // Attempt to delete - will throw if file is locked
+                File.Delete(absolutePath);
+                Console.WriteLine($"[ClassificationService] Deleted thumbnail: {absolutePath}");
+            }
+            catch (IOException ex)
+            {
+                // File is locked or inaccessible - throw error to stop deletion
+                throw new InvalidOperationException(
+                    $"Cannot delete classification: thumbnail file is currently in use or locked. " +
+                    $"Please close any applications using this file and try again. File: {Path.GetFileName(absolutePath)}",
+                    ex
+                );
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // No permission to delete file
+                throw new InvalidOperationException(
+                    $"Cannot delete classification: no permission to delete thumbnail file. File: {Path.GetFileName(absolutePath)}",
+                    ex
+                );
+            }
+        }
     }
 
     /// <summary>

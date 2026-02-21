@@ -1,0 +1,125 @@
+/* CompactUpload - Upload area with better hover colors */
+
+.compact-upload {
+  border: 2px dashed var(--color-border-secondary);
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Size variants */
+.compact-upload-small {
+  padding: 16px;
+}
+
+.compact-upload-medium {
+  padding: 24px;
+}
+
+.compact-upload-large {
+  padding: 32px;
+}
+
+/* Icon styling */
+.compact-upload-icon {
+  color: var(--color-text-tertiary);
+  margin-bottom: 8px;
+  transition: color 0.3s;
+}
+
+.compact-upload-small .compact-upload-icon {
+  font-size: 36px;
+}
+
+.compact-upload-medium .compact-upload-icon {
+  font-size: 48px;
+}
+
+.compact-upload-large .compact-upload-icon {
+  font-size: 64px;
+}
+
+/* Title styling */
+.compact-upload-title {
+  color: var(--color-text-secondary);
+  margin-top: 8px;
+  font-size: 14px;
+  transition: color 0.3s;
+}
+
+/* Subtitle styling */
+.compact-upload-subtitle {
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+/* Dark theme hover - darker background */
+[data-theme="dark"] .compact-upload {
+  background: var(--color-bg-container);
+}
+
+[data-theme="dark"] .compact-upload:hover {
+  border-color: var(--color-primary);
+  background: var(--color-input-bg); /* Darker than container (black) */
+}
+
+[data-theme="dark"] .compact-upload:hover .compact-upload-icon {
+  color: var(--color-primary);
+}
+
+[data-theme="dark"] .compact-upload:hover .compact-upload-title {
+  color: var(--color-text-base);
+}
+
+/* Light theme hover */
+[data-theme="light"] .compact-upload {
+  background: var(--color-bg-container);
+}
+
+[data-theme="light"] .compact-upload:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg-hover);
+}
+
+[data-theme="light"] .compact-upload:hover .compact-upload-icon {
+  color: var(--color-primary);
+}
+
+[data-theme="light"] .compact-upload:hover .compact-upload-title {
+  color: var(--color-primary);
+}
+
+/* Focus state */
+.compact-upload:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.compact-upload:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Dragging state - when file is being dragged over */
+.compact-upload-dragging {
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary-bg) !important;
+}
+
+[data-theme="dark"] .compact-upload-dragging {
+  background: var(--color-primary-bg-hover) !important;
+}
+
+.compact-upload-dragging .compact-upload-icon {
+  color: var(--color-primary) !important;
+  transform: scale(1.1);
+}
+
+.compact-upload-dragging .compact-upload-title {
+  color: var(--color-primary) !important;
+}

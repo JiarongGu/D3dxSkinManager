@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-21 - Classification Management with SHA-256 Thumbnail Deduplication ⭐⭐⭐⭐⭐
+Complete "Add Classification" feature with thumbnail support, SHA-256 deduplication, IPC-based validation, and file lock detection. FileTransferService for reusable file copying.
+**Impact**: ✅ Create classifications with thumbnails, automatic deduplication, duplicate prevention, file lock error handling
+**Details**: [changelogs/2026-02/2026-02-21-classification-thumbnail-management.md](changelogs/2026-02/2026-02-21-classification-thumbnail-management.md)
+
 ### Added - 2026-02-21 - Complete Internationalization (i18n) System ⭐⭐⭐⭐⭐
 Implemented comprehensive bilingual support (English + Chinese) with react-i18next. 507 translation keys per language, 16 components internationalized, flat JSON structure.
 **Impact**: ✅ Full bilingual support, easy to add more languages

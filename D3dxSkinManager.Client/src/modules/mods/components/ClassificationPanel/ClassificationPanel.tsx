@@ -7,6 +7,10 @@ import { ClassificationTree } from './ClassificationTree';
 import { UnclassifiedItem } from './UnclassifiedItem';
 import { useClassificationScreen } from './ClassificationScreen';
 import { useModCategoryUpdate } from './useModCategoryUpdate';
+import { useProfile } from '../../../../shared/context/ProfileContext';
+import { classificationService } from '../../../../shared/services/classificationService';
+import { useTranslation } from 'react-i18next';
+import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
 
 const { Sider } = Layout;
 
@@ -41,16 +45,48 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
   onUnclassifiedClick,
   isUnclassifiedSelected,
 }) => {
+  const { t } = useTranslation();
+  const { selectedProfileId } = useProfile();
   const { openClassificationScreen } = useClassificationScreen();
   const { updateModCategory } = useModCategoryUpdate({ onRefreshTree });
+  const { loading: delayedLoading, execute } = useDelayedLoading(100); // Show loading only if operation takes >100ms
 
   const handleAddClassification = (parentId?: string) => {
     openClassificationScreen({
       parentId,
       tree,
       onSave: async (data) => {
-        // TODO: Call backend API to create classification
-        notification.success(`Classification "${data.name}" created successfully`);
+        if (!selectedProfileId) {
+          notification.error(t('common.errors.noProfileSelected'));
+          return;
+        }
+
+        // Wrap operation in delayed loading execution
+        await execute(async () => {
+          try {
+            // Create the classification node via backend
+            const createdNode = await classificationService.createNode(
+              selectedProfileId,
+              data.name,
+              data.name,
+              data.parentId || null,
+              100, // default priority
+              data.description,
+              data.thumbnail
+            );
+
+            if (createdNode) {
+              notification.success(t('classification.createSuccess', { name: data.name }));
+              // Refresh the classification tree to show the new node
+              await onRefreshTree();
+            } else {
+              notification.error(t('classification.createFailed', { name: data.name }));
+            }
+          } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            notification.error(t('classification.createError', { error: errorMessage }));
+          }
+        });
       },
     });
   };
@@ -91,7 +127,7 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
       >
         <ClassificationTree
           tree={tree}
-          loading={loading}
+          loading={loading || delayedLoading}
           selectedNode={selectedNode}
           onSelect={onSelect}
           searchQuery={searchQuery}

@@ -25,3 +25,6 @@ export type { SlideInScreenProps } from './SlideInScreen';
 
 export { MultiTagInput } from './MultiTagInput';
 export type { MultiTagInputProps } from './MultiTagInput';
+
+export { CloseButton } from './CloseButton';
+export type { CloseButtonProps } from './CloseButton';

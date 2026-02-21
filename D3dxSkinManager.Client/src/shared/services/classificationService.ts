@@ -15,7 +15,8 @@ export const classificationService = {
   },
 
   /**
-   * Find a classification node by ID
+   * Find a classification node by ID (local tree search)
+   * For validation, use nodeExists() instead which checks the database
    */
   findNodeById(tree: ClassificationNode[], id: string): ClassificationNode | null {
     for (const node of tree) {
@@ -31,19 +32,17 @@ export const classificationService = {
   },
 
   /**
-   * Find a classification node by name (recursive search)
+   * Check if a classification node exists in the database by nodeId
+   * Returns true if exists, false otherwise
+   * Use this for validation to ensure data integrity
    */
-  findNodeByName(tree: ClassificationNode[], name: string): ClassificationNode | null {
-    for (const node of tree) {
-      if (node.name === name) {
-        return node;
-      }
-      if (node.children.length > 0) {
-        const found = this.findNodeByName(node.children, name);
-        if (found) return found;
-      }
-    }
-    return null;
+  async nodeExists(profileId: string, nodeId: string): Promise<boolean> {
+    return await photinoService.sendMessage<boolean>({
+      module: 'MOD',
+      type: 'CHECK_CLASSIFICATION_NODE_EXISTS',
+      profileId,
+      payload: { nodeId },
+    });
   },
 
   /**
@@ -83,6 +82,33 @@ export const classificationService = {
 
     traverse(tree);
     return result;
+  },
+
+  /**
+   * Create a new classification node
+   */
+  async createNode(
+    profileId: string,
+    nodeId: string,
+    name: string,
+    parentId: string | null = null,
+    priority: number = 100,
+    description?: string,
+    thumbnail?: string
+  ): Promise<ClassificationNode | null> {
+    return await photinoService.sendMessage<ClassificationNode | null>({
+      module: 'MOD',
+      type: 'CREATE_CLASSIFICATION_NODE',
+      profileId,
+      payload: {
+        nodeId,
+        name,
+        parentId,
+        priority,
+        description,
+        thumbnail,
+      },
+    });
   },
 
   /**
