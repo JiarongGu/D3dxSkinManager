@@ -686,9 +686,10 @@
 | Package | Version | Purpose |
 |---------|---------|---------|
 | react | 19.2.4 | UI library |
-| typescript | 4.9.5 | Type safety |
+| typescript | 5.9.3 | Type safety |
 | antd | 6.3.0 | UI components |
-| axios | 1.13.5 | HTTP client |
+| vite | 7.3.1 | Build tool |
+| react-i18next | 16.5.4 | Internationalization |
 
 ---
 

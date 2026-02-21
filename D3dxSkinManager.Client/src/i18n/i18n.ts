@@ -2,6 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { languageService } from '../shared/services/languageService';
 import { DEFAULT_LANGUAGE } from '../shared/types/language.types';
+import logger from '../shared/utils/logger';
 
 /**
  * Custom backend for i18next that loads translations from our backend service
@@ -11,7 +12,7 @@ const customBackend = {
   init: () => {},
   read: async (language: string, namespace: string, callback: (error: Error | null, data?: any) => void) => {
     try {
-      console.log(`[i18n] Loading language: ${language}, namespace: ${namespace}`);
+      logger.info(`[i18n] Loading language: ${language}, namespace: ${namespace}`);
       const languageSettings = await languageService.getLanguage(language);
 
       if (languageSettings && languageSettings.translations) {
@@ -20,7 +21,7 @@ const customBackend = {
         callback(new Error(`Language ${language} not found`));
       }
     } catch (error) {
-      console.error(`[i18n] Failed to load language ${language}:`, error);
+      logger.error(`[i18n] Failed to load language ${language}:`, error);
       callback(error as Error);
     }
   },
@@ -69,12 +70,12 @@ export const loadLanguageFromSettings = async () => {
     const settings = await settingsService.getGlobalSettings();
     const savedLanguage = settings.language || DEFAULT_LANGUAGE;
 
-    console.log(`[i18n] Loading saved language: ${savedLanguage}`);
+    logger.info(`[i18n] Loading saved language: ${savedLanguage}`);
     await i18n.changeLanguage(savedLanguage);
 
     return savedLanguage;
   } catch (error) {
-    console.error('[i18n] Failed to load language from settings:', error);
+    logger.error('[i18n] Failed to load language from settings:', error);
     return DEFAULT_LANGUAGE;
   }
 };
@@ -84,7 +85,7 @@ export const loadLanguageFromSettings = async () => {
  */
 export const changeLanguage = async (language: string) => {
   try {
-    console.log(`[i18n] Changing language to: ${language}`);
+    logger.info(`[i18n] Changing language to: ${language}`);
 
     // Change language in i18next
     await i18n.changeLanguage(language);
@@ -93,9 +94,9 @@ export const changeLanguage = async (language: string) => {
     const { settingsService } = await import('../modules/settings/services/settingsService');
     await settingsService.updateGlobalSetting('language', language);
 
-    console.log(`[i18n] Language changed successfully`);
+    logger.info(`[i18n] Language changed successfully`);
   } catch (error) {
-    console.error('[i18n] Failed to change language:', error);
+    logger.error('[i18n] Failed to change language:', error);
     throw error;
   }
 };

@@ -1,0 +1,67 @@
+/* ProfileManager Component Styles */
+
+.container {
+  padding: 0;
+}
+
+.verticalSpace {
+  width: 100%;
+}
+
+.profileListContainer {
+  /* Flex container managed by Ant Design Flex component */
+}
+
+.profileItem {
+  border-left-width: 4px;
+  border-left-style: solid;
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 8px 12px 16px;
+}
+
+.profileItemActive {
+  border-left-color: #52c41a;
+}
+
+.profileItemInactive {
+  border-left-color: #d9d9d9;
+}
+
+.profileAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.profileContent {
+  flex: 1;
+}
+
+.profileName {
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.profileDescription {
+  color: #595959;
+}
+
+.profileStats {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.profileActions {
+  /* Space component handles layout */
+}
+
+.fullWidthInput {
+  width: 100%;
+}

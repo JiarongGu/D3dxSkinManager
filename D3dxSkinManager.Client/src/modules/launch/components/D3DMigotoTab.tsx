@@ -14,6 +14,7 @@ import { launchService, D3DMigotoVersion } from '../services/launchService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useTranslation } from 'react-i18next';
 import './D3DMigotoTab.css';
+import logger from '../../../shared/utils/logger';
 
 const { Option } = Select;
 
@@ -30,14 +31,14 @@ export const D3DMigotoTab: React.FC = () => {
     const loadConfig = async () => {
       // Only load if we have a selected profile
       if (!profileState.selectedProfile) {
-        console.log('[D3DMigotoTab] No profile selected, skipping config load');
+        logger.info('[D3DMigotoTab] No profile selected, skipping config load');
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
-        console.log('[D3DMigotoTab] Loading config for profile:', profileState.selectedProfile.name);
+        logger.info(`[D3DMigotoTab] Loading config for profile: ${profileState.selectedProfile.name}`);
         const config = await getActiveProfileConfig(profileState.selectedProfile.id);
         if (config) {
           form.setFieldsValue({
@@ -49,7 +50,7 @@ export const D3DMigotoTab: React.FC = () => {
         const errorMessage = error instanceof Error ? error.message : '';
         if (!errorMessage.includes('Profile ID is required')) {
           notification.error(t('launch.d3dmigoto.loadConfigFailed'));
-          console.error('Failed to load profile config:', error);
+          logger.error('Failed to load profile config:', error);
         }
       } finally {
         setLoading(false);
@@ -115,7 +116,7 @@ export const D3DMigotoTab: React.FC = () => {
       }
     } catch (error) {
       notification.error(t('launch.d3dmigoto.loadVersionsFailed'));
-      console.error(error);
+      logger.error('Failed to load 3DMigoto versions:', error);
     } finally {
       setD3dLoading(false);
     }
@@ -151,7 +152,7 @@ export const D3DMigotoTab: React.FC = () => {
           }
         } catch (error) {
           notification.error(t('launch.d3dmigoto.deployVersionFailed'));
-          console.error(error);
+          logger.error('Failed to deploy 3DMigoto version:', error);
         } finally {
           setD3dLoading(false);
         }

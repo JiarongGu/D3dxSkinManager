@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { Spin } from 'antd';
 import i18n, { loadLanguageFromSettings } from './i18n';
+import logger from '../shared/utils/logger';
 
 interface I18nInitializerProps {
   children: React.ReactNode;
@@ -17,12 +18,12 @@ export const I18nInitializer: React.FC<I18nInitializerProps> = ({ children }) =>
   useEffect(() => {
     const initialize = async () => {
       try {
-        console.log('[I18nInitializer] Initializing i18next...');
+        logger.info('[I18nInitializer] Initializing i18next...');
         await loadLanguageFromSettings();
-        console.log('[I18nInitializer] i18next initialized successfully');
+        logger.info('[I18nInitializer] i18next initialized successfully');
         setIsInitialized(true);
       } catch (error) {
-        console.error('[I18nInitializer] Failed to initialize i18next:', error);
+        logger.error('[I18nInitializer] Failed to initialize i18next:', error);
         // Still set initialized to true to prevent infinite loading
         setIsInitialized(true);
       }
@@ -42,7 +43,7 @@ export const I18nInitializer: React.FC<I18nInitializerProps> = ({ children }) =>
           width: '100vw',
         }}
       >
-        <Spin size="large" tip="Loading..." />
+        <Spin size="large" description="Loading..." />
       </div>
     );
   }

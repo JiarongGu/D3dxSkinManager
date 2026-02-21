@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
-  List,
+  Flex,
   Button,
   Space,
   Tag,
@@ -10,6 +10,7 @@ import {
   Form,
   Input,
   ColorPicker,
+  Spin,
   message
 } from 'antd';
 import {
@@ -21,10 +22,13 @@ import {
   CheckCircleOutlined,
   DownloadOutlined
 } from '@ant-design/icons';
+import classNames from 'classnames';
+import { useTranslation } from 'react-i18next';
 import { profileService } from '../../profiles/services/profileService';
 import { Profile, CreateProfileRequest } from '../../../shared/types/profile.types';
 import { fileDialogService } from '../../../shared/services/systemService';
 import { useProfile } from '../../../shared/context/ProfileContext';
+import styles from './ProfileManager.module.css';
 
 interface ProfileManagerProps {
   onProfileChanged?: () => void;
@@ -33,6 +37,7 @@ interface ProfileManagerProps {
 export const ProfileManager: React.FC<ProfileManagerProps> = ({
   onProfileChanged
 }) => {
+  const { t } = useTranslation();
   const { state, actions } = useProfile();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string>('');
@@ -54,7 +59,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       setActiveProfileId(result.activeProfileId);
     } catch (error) {
       console.error('Failed to load profiles:', error);
-      message.error('Failed to load profiles');
+      message.error(t('profiles.notifications.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -74,7 +79,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       };
 
       await profileService.createProfile(request);
-      message.success('Profile created successfully');
+      message.success(t('profiles.notifications.createSuccess'));
 
       setShowCreateDialog(false);
       createForm.resetFields();
@@ -85,7 +90,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       }
     } catch (error) {
       console.error('Failed to create profile:', error);
-      message.error('Failed to create profile');
+      message.error(t('profiles.notifications.createFailed'));
     }
   };
 
@@ -104,7 +109,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
         gameName: values.gameName
       });
 
-      message.success('Profile updated successfully');
+      message.success(t('profiles.notifications.updateSuccess'));
       setEditingProfile(null);
       await loadProfiles();
 
@@ -124,14 +129,14 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       }
     } catch (error) {
       console.error('Failed to update profile:', error);
-      message.error('Failed to update profile');
+      message.error(t('profiles.notifications.updateFailed'));
     }
   };
 
   const handleDelete = async (profileId: string) => {
     try {
       await profileService.deleteProfile(profileId);
-      message.success('Profile deleted successfully');
+      message.success(t('profiles.notifications.deleteSuccess'));
       await loadProfiles();
 
       if (onProfileChanged) {
@@ -139,16 +144,16 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       }
     } catch (error: unknown) {
       console.error('Failed to delete profile:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete profile';
+      const errorMessage = error instanceof Error ? error.message : t('profiles.notifications.deleteFailed');
       message.error(errorMessage);
     }
   };
 
   const handleDuplicate = async (profile: Profile) => {
     try {
-      const newName = `${profile.name} (Copy)`;
+      const newName = `${profile.name}${t('profiles.duplicate.suffix')}`;
       await profileService.duplicateProfile(profile.id, newName);
-      message.success('Profile duplicated successfully');
+      message.success(t('profiles.notifications.duplicateSuccess'));
       await loadProfiles();
 
       if (onProfileChanged) {
@@ -156,21 +161,21 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       }
     } catch (error) {
       console.error('Failed to duplicate profile:', error);
-      message.error('Failed to duplicate profile');
+      message.error(t('profiles.notifications.duplicateFailed'));
     }
   };
 
   const handleBrowseWorkDirectory = async (formInstance: any) => {
     try {
       const result = await fileDialogService.openFolderDialog({
-        title: 'Select Work Directory (3DMigoto location)'
+        title: t('profiles.dialog.selectWorkDirectory')
       });
 
       if (result.success && result.filePath) {
         formInstance.setFieldsValue({ workDirectory: result.filePath });
       }
     } catch (error) {
-      message.error('Failed to open folder dialog');
+      message.error(t('profiles.notifications.folderDialogFailed'));
     }
   };
 
@@ -184,146 +189,132 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       a.download = `profile-${profileId}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      message.success('Profile configuration exported');
+      message.success(t('profiles.notifications.exportSuccess'));
     } catch (error) {
       console.error('Failed to export profile:', error);
-      message.error('Failed to export profile');
+      message.error(t('profiles.notifications.exportFailed'));
     }
   };
 
   return (
     <>
-      <div style={{ padding: '0' }}>
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
+      <div className={styles.container}>
+        <Space orientation="vertical" className={styles.verticalSpace} size="large">
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setShowCreateDialog(true)}
           >
-            Create New Profile
+            {t('profiles.button.createNew')}
           </Button>
 
-          <List
-            loading={loading}
-            dataSource={profiles}
-            renderItem={(profile) => (
-              <List.Item
-                key={profile.id}
-                style={{
-                  borderLeft: profile.id === activeProfileId ? '4px solid #52c41a' : '4px solid #d9d9d9',
-                  paddingLeft: '16px'
-                }}
-              >
-                <List.Item.Meta
-                  avatar={
+          <Spin spinning={loading}>
+            <Flex vertical gap="middle">
+              {profiles.map((profile) => (
+                <Flex
+                  key={profile.id}
+                  justify="space-between"
+                  align="center"
+                  className={classNames(styles.profileItem, {
+                    [styles.profileItemActive]: profile.id === activeProfileId,
+                    [styles.profileItemInactive]: profile.id !== activeProfileId,
+                  })}
+                >
+                  <Flex align="flex-start" gap="middle" className={styles.profileContent}>
                     <div
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '8px',
-                        backgroundColor: profile.colorTag || '#1890ff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '18px'
-                      }}
+                      className={styles.profileAvatar}
+                      style={{ backgroundColor: profile.colorTag || '#1890ff' }}
                     >
                       {profile.name.charAt(0).toUpperCase()}
                     </div>
-                  }
-                  title={
-                    <Space>
-                      <span style={{ fontWeight: 500, fontSize: '16px' }}>{profile.name}</span>
-                      {profile.id === activeProfileId && (
-                        <Tag color="success" icon={<CheckCircleOutlined />}>
-                          Active
-                        </Tag>
-                      )}
-                      {profile.gameName && (
-                        <Tag color="blue">{profile.gameName}</Tag>
-                      )}
-                    </Space>
-                  }
-                  description={
-                    <Space orientation="vertical" size={4} style={{ width: '100%' }}>
+                    <Flex vertical gap="small" className={styles.profileContent}>
+                      <Space>
+                        <span className={styles.profileName}>{profile.name}</span>
+                        {profile.id === activeProfileId && (
+                          <Tag color="success" icon={<CheckCircleOutlined />}>
+                            {t('profiles.badge.active')}
+                          </Tag>
+                        )}
+                        {profile.gameName && (
+                          <Tag color="blue">{profile.gameName}</Tag>
+                        )}
+                      </Space>
                       {profile.description && (
-                        <span style={{ color: '#595959' }}>{profile.description}</span>
+                        <span className={styles.profileDescription}>{profile.description}</span>
                       )}
                       <Space size="large">
-                        <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                          Mods: {profile.modCount}
+                        <span className={styles.profileStats}>
+                          {t('profiles.label.mods')} {profile.modCount}
                         </span>
-                        <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                          Size: {profileService.formatBytes(profile.totalSize || 0)}
+                        <span className={styles.profileStats}>
+                          {t('profiles.label.size')} {profileService.formatBytes(profile.totalSize || 0)}
                         </span>
-                        <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                          Created: {new Date(profile.createdAt).toLocaleDateString()}
+                        <span className={styles.profileStats}>
+                          {t('profiles.label.created')} {new Date(profile.createdAt).toLocaleDateString()}
                         </span>
                       </Space>
-                    </Space>
-                  }
-                />
-                <Space>
-                  <Tooltip title="Edit">
-                    <Button
-                      icon={<EditOutlined />}
-                      size="small"
-                      onClick={() => {
-                        setEditingProfile(profile);
-                        editForm.setFieldsValue({
-                          name: profile.name,
-                          description: profile.description,
-                          workDirectory: profile.workDirectory,
-                          colorTag: profile.colorTag,
-                          gameName: profile.gameName
-                        });
-                      }}
-                    />
-                  </Tooltip>
-                  <Tooltip title="Duplicate">
-                    <Button
-                      icon={<CopyOutlined />}
-                      size="small"
-                      onClick={() => handleDuplicate(profile)}
-                    />
-                  </Tooltip>
-                  <Tooltip title="Export Config">
-                    <Button
-                      icon={<DownloadOutlined />}
-                      size="small"
-                      onClick={() => handleExport(profile.id)}
-                    />
-                  </Tooltip>
-                  {profile.id !== activeProfileId && (
-                    <Popconfirm
-                      title="Delete Profile?"
-                      description="This will permanently delete all profile data including mods. Are you sure?"
-                      onConfirm={() => handleDelete(profile.id)}
-                      okText="Delete"
-                      cancelText="Cancel"
-                      okButtonProps={{ danger: true }}
-                    >
-                      <Tooltip title="Delete">
-                        <Button
-                          icon={<DeleteOutlined />}
-                          size="small"
-                          danger
-                        />
-                      </Tooltip>
-                    </Popconfirm>
-                  )}
-                </Space>
-              </List.Item>
-            )}
-          />
+                    </Flex>
+                  </Flex>
+                  <Space>
+                    <Tooltip title={t('profiles.tooltip.edit')}>
+                      <Button
+                        icon={<EditOutlined />}
+                        size="small"
+                        onClick={() => {
+                          setEditingProfile(profile);
+                          editForm.setFieldsValue({
+                            name: profile.name,
+                            description: profile.description,
+                            workDirectory: profile.workDirectory,
+                            colorTag: profile.colorTag,
+                            gameName: profile.gameName
+                          });
+                        }}
+                      />
+                    </Tooltip>
+                    <Tooltip title={t('profiles.tooltip.duplicate')}>
+                      <Button
+                        icon={<CopyOutlined />}
+                        size="small"
+                        onClick={() => handleDuplicate(profile)}
+                      />
+                    </Tooltip>
+                    <Tooltip title={t('profiles.tooltip.exportConfig')}>
+                      <Button
+                        icon={<DownloadOutlined />}
+                        size="small"
+                        onClick={() => handleExport(profile.id)}
+                      />
+                    </Tooltip>
+                    {profile.id !== activeProfileId && (
+                      <Popconfirm
+                        title={t('profiles.delete.title')}
+                        description={t('profiles.delete.description')}
+                        onConfirm={() => handleDelete(profile.id)}
+                        okText={t('profiles.delete.confirm')}
+                        cancelText={t('common.cancel')}
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Tooltip title={t('profiles.tooltip.delete')}>
+                          <Button
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            danger
+                          />
+                        </Tooltip>
+                      </Popconfirm>
+                    )}
+                  </Space>
+                </Flex>
+              ))}
+            </Flex>
+          </Spin>
         </Space>
       </div>
 
       {/* Create Profile Dialog */}
       <Modal
-        title="Create New Profile"
+        title={t('profiles.dialog.createTitle')}
         open={showCreateDialog}
         onCancel={() => {
           setShowCreateDialog(false);
@@ -334,50 +325,49 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       >
         <Form form={createForm} layout="vertical">
           <Form.Item
-            label="Profile Name"
+            label={t('profiles.form.name.label')}
             name="name"
-            rules={[{ required: true, message: 'Please enter profile name' }]}
+            rules={[{ required: true, message: t('profiles.form.name.required') }]}
           >
-            <Input placeholder="e.g., Genshin Impact, Endfield, etc." />
+            <Input placeholder={t('profiles.form.name.placeholder')} />
           </Form.Item>
 
           <Form.Item
-            label="Description"
+            label={t('profiles.form.description.label')}
             name="description"
           >
             <Input.TextArea
               rows={2}
-              placeholder="Optional description for this profile"
+              placeholder={t('profiles.form.description.placeholder')}
             />
           </Form.Item>
 
           <Form.Item
-            label="Work Directory"
+            label={t('profiles.form.workDirectory.label')}
             name="workDirectory"
-            rules={[{ required: true, message: 'Please select work directory' }]}
+            rules={[{ required: true, message: t('profiles.form.workDirectory.required') }]}
           >
-            <Input
-              placeholder="Directory where 3DMigoto d3dx.dll is loaded"
-              addonAfter={
-                <Button
-                  type="link"
-                  icon={<FolderOpenOutlined />}
-                  onClick={() => handleBrowseWorkDirectory(createForm)}
-                  style={{ padding: 0 }}
-                />
-              }
-            />
+            <Space.Compact className={styles.fullWidthInput}>
+              <Input
+                placeholder={t('profiles.form.workDirectory.placeholder')}
+                className={styles.fullWidthInput}
+              />
+              <Button
+                icon={<FolderOpenOutlined />}
+                onClick={() => handleBrowseWorkDirectory(createForm)}
+              />
+            </Space.Compact>
           </Form.Item>
 
           <Form.Item
-            label="Game Name"
+            label={t('profiles.form.gameName.label')}
             name="gameName"
           >
-            <Input placeholder="e.g., Genshin Impact" />
+            <Input placeholder={t('profiles.form.gameName.placeholder')} />
           </Form.Item>
 
           <Form.Item
-            label="Color Tag"
+            label={t('profiles.form.colorTag.label')}
             name="colorTag"
           >
             <ColorPicker showText />
@@ -387,7 +377,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
 
       {/* Edit Profile Dialog */}
       <Modal
-        title="Edit Profile"
+        title={t('profiles.dialog.editTitle')}
         open={editingProfile !== null}
         onCancel={() => setEditingProfile(null)}
         onOk={handleEdit}
@@ -395,46 +385,43 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       >
         <Form form={editForm} layout="vertical">
           <Form.Item
-            label="Profile Name"
+            label={t('profiles.form.name.label')}
             name="name"
-            rules={[{ required: true, message: 'Please enter profile name' }]}
+            rules={[{ required: true, message: t('profiles.form.name.required') }]}
           >
             <Input />
           </Form.Item>
 
           <Form.Item
-            label="Description"
+            label={t('profiles.form.description.label')}
             name="description"
           >
             <Input.TextArea rows={2} />
           </Form.Item>
 
           <Form.Item
-            label="Work Directory"
+            label={t('profiles.form.workDirectory.label')}
             name="workDirectory"
-            rules={[{ required: true, message: 'Please select work directory' }]}
+            rules={[{ required: true, message: t('profiles.form.workDirectory.required') }]}
           >
-            <Input
-              addonAfter={
-                <Button
-                  type="link"
-                  icon={<FolderOpenOutlined />}
-                  onClick={() => handleBrowseWorkDirectory(editForm)}
-                  style={{ padding: 0 }}
-                />
-              }
-            />
+            <Space.Compact className={styles.fullWidthInput}>
+              <Input className={styles.fullWidthInput} />
+              <Button
+                icon={<FolderOpenOutlined />}
+                onClick={() => handleBrowseWorkDirectory(editForm)}
+              />
+            </Space.Compact>
           </Form.Item>
 
           <Form.Item
-            label="Game Name"
+            label={t('profiles.form.gameName.label')}
             name="gameName"
           >
             <Input />
           </Form.Item>
 
           <Form.Item
-            label="Color Tag"
+            label={t('profiles.form.colorTag.label')}
             name="colorTag"
           >
             <ColorPicker showText />

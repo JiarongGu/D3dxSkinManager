@@ -22,9 +22,9 @@
 >
 > **If you learned it, document it. Future AI sessions depend on you!**
 
-**Version:** 1.2
-**Last Updated:** 2026-02-19
-**Project Type:** .NET 10 + Photino.NET + React 18 + TypeScript (Desktop Application)
+**Version:** 1.3
+**Last Updated:** 2026-02-21
+**Project Type:** .NET 10 + Photino.NET + React 18 + TypeScript + Vite (Desktop Application)
 **Audience:** AI Assistants (Primary), Human Developers (Reference)
 
 ---
@@ -64,10 +64,10 @@ Use root [README.md](../README.md) for project setup, `docs/core/` for architect
 | `docs/core/` | Project fundamentals | "What is..." |
 
 **Quick Lookups:**
-- **🔥 What changed last session?** → [RECENT_CHANGES.md](RECENT_CHANGES.md) ⭐⭐⭐ **START HERE**
+- **🔥 What changed recently?** → [CHANGELOG.md](CHANGELOG.md) ⭐⭐⭐ **START HERE**
 - **Component/Service location?** → [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) (routing hub) ⭐⭐⭐
 - **System architecture?** → [architecture/CURRENT_ARCHITECTURE.md](architecture/CURRENT_ARCHITECTURE.md) ⭐⭐⭐
-- **Historical changes?** → [CHANGELOG.md](CHANGELOG.md)
+- **Detailed changes?** → [changelogs/2026-02/](changelogs/2026-02/) (monthly detailed logs)
 - **Project setup?** → [core/DEVELOPMENT.md](core/DEVELOPMENT.md)
 
 ---
@@ -148,6 +148,31 @@ See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGE
    - Use `using` statements for IDisposable resources
    - **ALWAYS use relative paths** for data stored in database/config files (see [architecture/PATH_CONVENTIONS.md](architecture/PATH_CONVENTIONS.md))
    - Use `PathHelper` service to convert between absolute and relative paths
+   - **⭐⭐⭐ CRITICAL: Use IProgressReporter for Long-Running Operations**
+     - See [features/OPERATION_NOTIFICATION_SYSTEM.md](features/OPERATION_NOTIFICATION_SYSTEM.md) ⭐⭐⭐
+     - **ALL operations taking >1 second MUST report progress**
+     - **Inject IProgressReporter**: Constructor parameter in Facade classes
+     - **Create operations**: `_progressReporter.CreateOperation(operationId, title, type)`
+     - **Report progress**: `_progressReporter.UpdateProgress(operationId, percent, status)`
+     - **Complete operations**: `_progressReporter.CompleteOperation(operationId, result)`
+     - **Handle failures**: `_progressReporter.FailOperation(operationId, error)`
+     - **Example**:
+       ```csharp
+       // ✅ GOOD: Reports progress for long operation
+       public async Task<MessageResponse> LoadModAsync(string sha, string profileId) {
+           var opId = Guid.NewGuid().ToString();
+           _progressReporter.CreateOperation(opId, $"Loading {sha}", OperationType.ModLoad);
+           try {
+               _progressReporter.UpdateProgress(opId, 50, "Extracting archive...");
+               // ... do work ...
+               _progressReporter.CompleteOperation(opId, "Mod loaded successfully");
+               return MessageResponse.Success();
+           } catch (Exception ex) {
+               _progressReporter.FailOperation(opId, ex.Message);
+               throw;
+           }
+       }
+       ```
 
    #### Frontend (React/TypeScript):
    - Functional components with hooks (no class components)
@@ -155,11 +180,29 @@ See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGE
    - **ALWAYS use React Context for state management** - No prop drilling
      - See [architecture/FRONTEND_CONTEXT_ARCHITECTURE.md](architecture/FRONTEND_CONTEXT_ARCHITECTURE.md) ⭐⭐⭐
      - ProfileContext for profile state: `const { selectedProfileId } = useProfile()`
+     - OperationContext for operation notifications: `const { activeOperations } = useOperation()`
      - Module contexts (ModsContext, etc.) for module-specific state
      - NO global variables (`window.__selectedProfileId` removed)
    - **IPC Message Format:** profileId at TOP LEVEL, NOT in payload
      - ✅ Correct: `sendMessage({ module: 'MOD', type: 'GET_ALL', profileId })`
      - ❌ Wrong: `sendMessage({ module: 'MOD', type: 'GET_ALL', payload: { profileId } })`
+   - **⭐⭐⭐ CRITICAL: Internationalization (i18n) Required**
+     - See [features/INTERNATIONALIZATION.md](features/INTERNATIONALIZATION.md) ⭐⭐⭐
+     - See [how-to/ADD_I18N_TO_COMPONENT.md](how-to/ADD_I18N_TO_COMPONENT.md) ⭐⭐⭐
+     - **ALL user-facing text MUST use i18n**: Use `t('key')` instead of hardcoded strings
+     - **Translation keys**: Flat structure in `Languages/en.json` and `Languages/cn.json`
+     - **Usage**: `const { t } = useTranslation();` then `t('mods.actions.load')`
+     - **Adding new keys**: Add to BOTH en.json AND cn.json (maintain 100% parity)
+     - **DO NOT** use hardcoded English strings in any component
+     - **Example**:
+       ```tsx
+       // ❌ BAD: Hardcoded string
+       <Button>Load Mod</Button>
+
+       // ✅ GOOD: i18n translation
+       const { t } = useTranslation();
+       <Button>{t('mods.actions.load')}</Button>
+       ```
    - **⭐⭐⭐ CRITICAL: Avoid React Closure Issues with Callbacks**
      - See [ai-assistant/REACT_CLOSURE_PATTERNS.md](ai-assistant/REACT_CLOSURE_PATTERNS.md) ⭐⭐⭐
      - **Problem**: `useCallback` captures stale values from when callback is created
@@ -358,10 +401,11 @@ Query → Folder Selection → File Selection → Section
 - Newtonsoft.Json
 
 **Frontend:**
-- React 18+
+- React 18+ (19.2.4)
 - TypeScript 4.9+
-- Ant Design 5+
-- Axios (HTTP client)
+- Ant Design 5+ (6.3.0)
+- Vite (build tool)
+- react-i18next (internationalization)
 
 **Build:**
 - PowerShell scripts (`build-production.ps1`)
@@ -414,8 +458,8 @@ D3dxSkinManager/
 │   └── Modules/                   # Tests mirror module structure
 │
 └── docs/                          # Documentation (this folder)
-    ├── RECENT_CHANGES.md          # ⭐ START HERE for new sessions
     ├── AI_GUIDE.md                # This file
+    ├── CHANGELOG.md               # ⭐ START HERE for recent changes
     └── architecture/              # Architecture docs
 ```
 
@@ -439,11 +483,12 @@ dotnet build
 dotnet run
 dotnet clean
 
-# Frontend
+# Frontend (Vite)
 cd D3dxSkinManager.Client
 npm install
-npm start
-npm run build
+npm start            # Development server (runs vite)
+npm run build        # Production build
+npm run preview      # Preview production build
 
 # Both (Production)
 powershell -ExecutionPolicy Bypass -File build-production.ps1
@@ -658,5 +703,31 @@ Use this template at the start of each session:
 
 **Remember: This guide exists to help you. Use it, update it, improve it!**
 
-*Last updated: 2026-02-19*
-*Version: 1.2*
+*Last updated: 2026-02-21*
+*Version: 1.3*
+
+---
+
+## Recent Major Updates (2026-02-21)
+
+### New Critical Requirements:
+1. **Internationalization (i18n)** - ALL user-facing text must use `t('key')` translations
+2. **Operation Notifications** - ALL long-running operations must use `IProgressReporter`
+3. **Vite Build System** - Frontend now uses Vite instead of Create React App
+
+### Documentation Added:
+- [features/INTERNATIONALIZATION.md](features/INTERNATIONALIZATION.md) - Complete i18n system guide
+- [how-to/ADD_I18N_TO_COMPONENT.md](how-to/ADD_I18N_TO_COMPONENT.md) - Step-by-step i18n implementation
+- [features/OPERATION_NOTIFICATION_SYSTEM.md](features/OPERATION_NOTIFICATION_SYSTEM.md) - Progress reporting system
+- [features/DELAYED_LOADING_UX_PATTERN.md](features/DELAYED_LOADING_UX_PATTERN.md) - Delayed loading pattern
+
+### New React Patterns:
+- **OperationContext** - Global operation state and notifications
+- **useDelayedLoading** - Show loading only if operation takes >100ms
+- **useDragDrop** - Declarative drag & drop API (refactored)
+- **Flat JSON i18n** - Easy-to-search translation keys
+
+### Architecture Changes:
+- ModsProvider now at app-level (not view-level) for global state access
+- Category-based mod loading with auto-unload of conflicts
+- Comprehensive error code system for user-friendly messages

@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import './useDragDrop.css';
+import logger from '../utils/logger';
 
 /**
  * Drop zone type - determines where the drop is allowed
@@ -169,7 +170,7 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
       return;
     }
     const handlerTypes = Object.keys(handlersMapRef.current);
-    console.log('[useDragDrop] Registering event listeners', {
+    logger.info('[useDragDrop] Registering event listeners', {
       container,
       handlerTypes,
       containerClass: container.className
@@ -314,21 +315,21 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
      */
     const handleDrop = (e: DragEvent) => {
       const types = Array.from(e.dataTransfer?.types || []);
-      console.log('[useDragDrop] handleDrop - dataTransfer types:', types, 'handlers:', Object.keys(handlersMapRef.current));
+      logger.info('[useDragDrop] handleDrop - dataTransfer types:', types, 'handlers:', Object.keys(handlersMapRef.current));
 
       for (const type of types) {
         const handler = handlersMapRef.current[type];
         if (!handler) {
-          console.log(`[useDragDrop] No handler for type: ${type}`);
+          logger.info(`[useDragDrop] No handler for type: ${type}`);
           continue;
         }
-        console.log(`[useDragDrop] Processing handler for type: ${type}`);
+        logger.info(`[useDragDrop] Processing handler for type: ${type}`);
 
         if (handler.onDrop) {
-          console.log('[useDragDrop] handler.onDrop exists, processing drop...');
+          logger.info('[useDragDrop] handler.onDrop exists, processing drop...');
           // Extract data from dataTransfer using the event type
           let data = e.dataTransfer?.getData(type) || '';
-          console.log('[useDragDrop] Extracted data from dataTransfer:', data);
+          logger.info('[useDragDrop] Extracted data from dataTransfer:', data);
 
           // Calculate position and target
           let dropType: DropType = 'node';
@@ -341,7 +342,7 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
 
             // Debug logging
             if (!target) {
-              console.log('[useDragDrop] No target from e.target.closest(), trying fallbacks...', {
+              logger.info('[useDragDrop] No target from e.target.closest(), trying fallbacks...', {
                 eventTargetTag: (e.target as HTMLElement).tagName,
                 eventTargetClass: (e.target as HTMLElement).className,
                 mousePos: { x: e.clientX, y: e.clientY },
@@ -398,12 +399,12 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
 
               // Log which strategy worked (if any)
               if (target) {
-                console.log('[useDragDrop] Found target using fallback strategy:', {
+                logger.info('[useDragDrop] Found target using fallback strategy:', {
                   targetElement: target,
                   targetClass: target.className
                 });
               } else {
-                console.error('[useDragDrop] All fallback strategies failed to find target');
+                logger.error('[useDragDrop] All fallback strategies failed to find target');
               }
             }
 
@@ -424,9 +425,9 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
             }
           }
 
-          console.log('[useDragDrop] About to call handler.onDrop with:', { data, dropType, gapPosition, target });
+          logger.info('[useDragDrop] About to call handler.onDrop with:', { data, dropType, gapPosition, target });
           const result = handler.onDrop({ data, type: dropType, gapPosition, target, event: e });
-          console.log('[useDragDrop] handler.onDrop returned:', result);
+          logger.info('[useDragDrop] handler.onDrop returned:', result);
           if (result === true) {
             e.preventDefault();
             e.stopPropagation();
@@ -442,7 +443,7 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
     container.addEventListener('drop', handleDrop);
 
     return () => {
-      console.log('[useDragDrop] Removing event listeners', {
+      logger.info('[useDragDrop] Removing event listeners', {
         container,
         containerClass: container.className
       });
