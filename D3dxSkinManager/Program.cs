@@ -4,10 +4,6 @@ using D3dxSkinManager.Modules.Settings.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Photino.NET;
 using SharpSevenZip;
-using System;
-using System.Drawing;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
 
 namespace D3dxSkinManager;
@@ -228,6 +224,37 @@ class Program
     }
 
     /// <summary>
+    /// Handles files dropped at OS level
+    /// Forwards file paths to frontend via IPC push message
+    /// </summary>
+    private static void OnFilesDropped(string[] filePaths)
+    {
+        if (_mainWindow == null || filePaths.Length == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            // Send file paths to frontend
+            var pushMessage = new
+            {
+                type = "FILES_DROPPED",
+                filePaths = filePaths
+            };
+
+            var json = JsonSerializer.Serialize(pushMessage, JsonOptions);
+            _mainWindow.SendWebMessage(json);
+
+            Console.WriteLine($"[DragDrop] Pushed {filePaths.Length} file path(s) to frontend");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DragDrop] Error pushing file paths: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Handles operation notification events from OperationNotificationService
     /// Forwards notifications to frontend via IPC push message
     /// </summary>
@@ -302,6 +329,22 @@ class Program
         MessageRequest? request = null;
         try
         {
+            // Check if this is a FILE_DROP_INTERCEPTED message from our navigation interceptor
+            var rawMessage = JsonSerializer.Deserialize<JsonElement>(message);
+            if (rawMessage.TryGetProperty("type", out var typeElement) &&
+                typeElement.GetString() == "FILE_DROP_INTERCEPTED")
+            {
+                var filePath = rawMessage.GetProperty("filePath").GetString();
+                Console.WriteLine($"[DropInterceptor] File navigation intercepted: {filePath}");
+
+                if (!string.IsNullOrEmpty(filePath))
+                {
+                    // Trigger FilesDropped event
+                    OnFilesDropped(new[] { filePath });
+                }
+                return;
+            }
+
             // Parse incoming message (case-insensitive for incoming)
             request = JsonSerializer.Deserialize<MessageRequest>(message, JsonOptions);
             if (request is null)
@@ -310,6 +353,24 @@ class Program
             }
 
             Console.WriteLine($"[IPC] Request: {request.Type} (ID: {request.Id}, Module: {request.Module}, ProfileId: {request.ProfileId})");
+
+            // Legacy INIT_DROP_TARGET for backwards compatibility
+            if (request.Type == "INIT_DROP_TARGET")
+            {
+                var response = MessageResponse.CreateSuccess(request.Id, new { initialized = true });
+                var json = JsonSerializer.Serialize(response, JsonOptions);
+                window.SendWebMessage(json);
+                return;
+            }
+
+            // Legacy START_DROP_LISTENING and STOP_DROP_LISTENING for backwards compatibility
+            if (request.Type == "START_DROP_LISTENING" || request.Type == "STOP_DROP_LISTENING")
+            {
+                var response = MessageResponse.CreateSuccess(request.Id, new { listening = true });
+                var json = JsonSerializer.Serialize(response, JsonOptions);
+                window.SendWebMessage(json);
+                return;
+            }
 
             // ServiceRouter handles everything:
             // 1. Routes to appropriate service provider (global vs profile-scoped)
@@ -320,13 +381,13 @@ class Program
                 throw new InvalidOperationException("ServiceRouter not initialized");
             }
 
-            var response = await _serviceRouter.HandleMessageAsync(request);
+            var response2 = await _serviceRouter.HandleMessageAsync(request);
 
             // Send response back to frontend (using camelCase)
-            var json = JsonSerializer.Serialize(response, JsonOptions);
-            window.SendWebMessage(json);
+            var json2 = JsonSerializer.Serialize(response2, JsonOptions);
+            window.SendWebMessage(json2);
 
-            Console.WriteLine($"[IPC] Response: {(response.Success ? "Success" : "Error")}");
+            Console.WriteLine($"[IPC] Response: {(response2.Success ? "Success" : "Error")}");
         }
         catch (Exception ex)
         {

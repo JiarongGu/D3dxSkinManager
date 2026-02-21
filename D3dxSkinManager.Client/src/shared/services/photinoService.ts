@@ -36,6 +36,7 @@ function getPhotinoBridge(): PhotinoWindow | undefined {
 class PhotinoService {
   private messageHandlers: Map<string, (response: PhotinoResponse) => void> = new Map();
   private operationNotificationHandlers: Array<(notification: OperationNotificationMessage['notification']) => void> = [];
+  private filesDroppedHandlers: Array<(filePaths: string[]) => void> = [];
   private messageId = 0;
   // Global modules that don't require profileId
   private readonly globalModules = ['SETTINGS', 'PROFILE', 'SYSTEM'];
@@ -58,6 +59,20 @@ class PhotinoService {
     };
   }
 
+  /**
+   * Subscribe to file drop events from OS-level drag-drop
+   * Returns unsubscribe function
+   */
+  subscribeToFilesDropped(handler: (filePaths: string[]) => void): () => void {
+    this.filesDroppedHandlers.push(handler);
+    return () => {
+      const index = this.filesDroppedHandlers.indexOf(handler);
+      if (index > -1) {
+        this.filesDroppedHandlers.splice(index, 1);
+      }
+    };
+  }
+
   private initializeMessageReceiver() {
     // Listen for messages from .NET backend
     const bridge = getPhotinoBridge();
@@ -75,6 +90,21 @@ class PhotinoService {
                 handler(operationNotification.notification);
               } catch (error) {
                 console.error('Error in operation notification handler:', error);
+              }
+            });
+            return;
+          }
+
+          // Check if this is a FILES_DROPPED push message
+          if (parsed.type === 'FILES_DROPPED') {
+            const filePaths = parsed.filePaths as string[];
+            console.log('[PhotinoService] FILES_DROPPED received:', filePaths);
+            // Notify all subscribers
+            this.filesDroppedHandlers.forEach(handler => {
+              try {
+                handler(filePaths);
+              } catch (error) {
+                console.error('Error in files dropped handler:', error);
               }
             });
             return;

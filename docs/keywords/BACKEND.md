@@ -83,10 +83,26 @@
 - **CustomSchemeHandler** → `Modules/Core/Services/CustomSchemeHandler.cs`
   - Handles custom `app://` scheme requests for serving local files
   - URL format: `app://encoded_file_path`
-  - Includes security checks and content type detection
+  - Security check removed 2026-02-21 (safe for desktop app)
   - Registered as singleton via DI in CoreServiceExtensions
   - Interface: ICustomSchemeHandler
   - Created: 2026-02-20
+
+- **FileTransferService** → `Modules/Core/Services/FileTransferService.cs`
+  - Reusable service for copying files with SHA-256 deduplication
+  - CopyToManagedDirectoryAsync - copies file with hash-based naming
+  - IsExternalToDirectory - checks if file is outside target directory
+  - Automatic collision prevention through SHA-256 naming
+  - Returns relative paths for database storage
+  - Interface: IFileTransferService
+  - Created: 2026-02-21
+
+- **HashService** → `Modules/Core/Services/HashService.cs`
+  - SHA-256 hash calculation for files
+  - CalculateFileSHA256Async - computes hash from file stream
+  - Used by FileTransferService for deduplication
+  - Interface: IHashService
+  - Created: 2026-02-21
 
 - **OperationNotificationService** → `Modules/Core/Services/OperationNotificationService.cs`
   - Manages active operations and emits progress notifications
@@ -132,6 +148,11 @@
   - UpdateMetadataAsync → `:228-246`
   - UpdateCategoryAsync → `:248-262` (NEW: Drag-and-drop support)
   - GetClassificationTreeAsync → `:424-427`
+  - CreateClassificationNodeAsync - IPC handler with duplicate validation
+  - UpdateClassificationNodeAsync - IPC handler for name updates
+  - DeleteClassificationNodeAsync - IPC handler with thumbnail cleanup
+  - CheckClassificationNodeExistsAsync - IPC handler for form validation
+  - Updated: 2026-02-21 (classification IPC handlers, validation)
 
 #### Services
 
@@ -174,6 +195,14 @@
   - GetRules → `:93`
   - AddRule → `:96`
   - SaveRulesAsync → `:99-110`
+  - CreateNodeAsync - creates classification with SHA-256 thumbnail deduplication
+  - DeleteNodeAsync - deletes node with thumbnail cleanup
+  - NodeExistsAsync - checks if nodeId exists in database
+  - UpdateNodeAsync - updates classification name
+  - MoveNodeAsync - moves node to new parent
+  - DeleteNodeAndChildrenRecursiveAsync - recursive deletion with thumbnail-first order
+  - CleanupThumbnailIfUnusedAsync - deletes unused thumbnails with file lock detection
+  - Updated: 2026-02-21 (thumbnail management, validation, file lock detection)
 
 - **ClassificationRepository** → `Modules/Mods/Services/ClassificationRepository.cs`
   - Database access for classifications

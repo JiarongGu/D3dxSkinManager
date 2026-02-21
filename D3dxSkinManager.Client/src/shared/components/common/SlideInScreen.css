@@ -8,7 +8,7 @@
   top: var(--layout-header-height, 64px);
   left: 0;
   right: 0;
-  bottom: var(--layout-statusbar-height, 32px);
+  bottom: calc(var(--layout-statusbar-height, 32px) + 1px); /* 1px to cover border */
   z-index: 1000;
   pointer-events: none;
 }
@@ -19,7 +19,7 @@
   top: var(--layout-header-height, 64px);
   left: 0;
   right: 0;
-  bottom: var(--layout-statusbar-height, 32px);
+  bottom: calc(var(--layout-statusbar-height, 32px) + 1px); /* 1px to cover border */
   display: flex;
   pointer-events: auto;
   animation: slideInFromRight 0.2s ease-out;

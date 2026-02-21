@@ -132,8 +132,10 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_UNCLASSIFIED_COUNT" => await GetUnclassifiedCountAsync(),
             "MOVE_CLASSIFICATION_NODE" => await MoveClassificationNodeAsync(request),
             "REORDER_CLASSIFICATION_NODE" => await ReorderClassificationNodeAsync(request),
+            "CREATE_CLASSIFICATION_NODE" => await CreateClassificationNodeAsync(request),
             "UPDATE_CLASSIFICATION_NODE" => await UpdateClassificationNodeAsync(request),
             "DELETE_CLASSIFICATION_NODE" => await DeleteClassificationNodeAsync(request),
+            "CHECK_CLASSIFICATION_NODE_EXISTS" => await CheckClassificationNodeExistsAsync(request),
             "CHECK_FILE_PATHS" => await CheckFilePathsAsync(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -758,6 +760,37 @@ public class ModFacade : BaseFacade, IModFacade
     }
 
     /// <summary>
+    /// Create a new classification node
+    /// </summary>
+    private async Task<ClassificationNode?> CreateClassificationNodeAsync(MessageRequest request)
+    {
+        var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        var parentId = _payloadHelper.GetOptionalValue<string>(request.Payload, "parentId");
+        var priorityValue = _payloadHelper.GetOptionalValue<int?>(request.Payload, "priority");
+        var priority = priorityValue ?? 100;
+        var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
+        var thumbnail = _payloadHelper.GetOptionalValue<string>(request.Payload, "thumbnail");
+
+        // Check if node already exists before attempting to create
+        if (await _classificationService.NodeExistsAsync(nodeId))
+        {
+            throw new InvalidOperationException($"Classification with name '{name}' already exists. Please use a different name.");
+        }
+
+        var node = await _classificationService.CreateNodeAsync(nodeId, name, parentId, priority, description, thumbnail);
+
+        if (node != null)
+        {
+            await _eventEmitter.EmitAsync(
+                PluginEventType.ClassificationTreeChanged,
+                data: new { nodeId, name, parentId, created = true });
+        }
+
+        return node;
+    }
+
+    /// <summary>
     /// Update a classification node's name and icon
     /// </summary>
     private async Task<bool> UpdateClassificationNodeAsync(MessageRequest request)
@@ -795,6 +828,16 @@ public class ModFacade : BaseFacade, IModFacade
         }
 
         return success;
+    }
+
+    /// <summary>
+    /// Check if a classification node exists by nodeId
+    /// Used for form validation to prevent duplicates
+    /// </summary>
+    private async Task<bool> CheckClassificationNodeExistsAsync(MessageRequest request)
+    {
+        var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
+        return await _classificationService.NodeExistsAsync(nodeId);
     }
 
     /// <summary>

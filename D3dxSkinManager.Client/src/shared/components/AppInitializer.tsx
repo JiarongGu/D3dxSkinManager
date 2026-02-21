@@ -3,6 +3,7 @@ import { Spin, Alert } from 'antd';
 import { CompactButton } from './compact';
 import { settingsService, GlobalSettings } from '../../modules/settings/services/settingsService';
 import { useProfile } from '../context/ProfileContext';
+import { systemService } from '../services/systemService';
 
 /**
  * Initialization state for the application
@@ -61,6 +62,24 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       setState(prev => ({ ...prev, stage: 'ready' }));
     }
   }, [selectedProfile, state.stage]);
+
+  // Step 5: Initialize OLE drag-drop target when app is ready
+  useEffect(() => {
+    if (state.stage === 'ready') {
+      initializeDropTarget();
+    }
+  }, [state.stage]);
+
+  const initializeDropTarget = async () => {
+    try {
+      console.log('[AppInitializer] Initializing drop target...');
+      await systemService.sendMessage('INIT_DROP_TARGET');
+      console.log('[AppInitializer] Drop target initialized');
+    } catch (error) {
+      console.error('[AppInitializer] Failed to initialize drop target:', error);
+      // Non-fatal error - app can continue without drag-drop
+    }
+  };
 
   const loadGlobalSettings = async () => {
     try {

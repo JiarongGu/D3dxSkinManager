@@ -35,3 +35,15 @@ export type { CompactAlertProps } from './CompactAlert';
 // Section component
 export { CompactSection } from './CompactSection';
 export type { CompactSectionProps } from './CompactSection';
+
+// Input components
+export { CompactInput, CompactTextArea, CompactPassword } from './CompactInput';
+export type { CompactInputProps, CompactTextAreaProps, CompactPasswordProps, CompactInputSize } from './CompactInput';
+
+// Select component
+export { CompactSelect } from './CompactSelect';
+export type { CompactSelectProps, CompactSelectSize } from './CompactSelect';
+
+// Upload component
+export { CompactUpload } from './CompactUpload';
+export type { CompactUploadProps } from './CompactUpload';

@@ -96,6 +96,16 @@ class SystemService extends BaseModuleService {
     const result = await this.sendMessage<{ settings: SystemSettings }>('RESET_SETTINGS');
     return result.settings;
   }
+
+  // Drag-Drop Operations
+
+  async startDropListening(): Promise<void> {
+    await this.sendMessage('START_DROP_LISTENING');
+  }
+
+  async stopDropListening(): Promise<void> {
+    await this.sendMessage('STOP_DROP_LISTENING');
+  }
 }
 
 export const systemService = new SystemService();

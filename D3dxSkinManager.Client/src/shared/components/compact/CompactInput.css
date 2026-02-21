@@ -1,0 +1,53 @@
+/* CompactInput - Consistent input sizing and styling */
+
+.compact-input-small,
+.compact-textarea-small {
+  font-size: 13px;
+}
+
+.compact-input-medium,
+.compact-textarea-medium {
+  font-size: 14px;
+}
+
+.compact-input-large,
+.compact-textarea-large {
+  font-size: 15px;
+}
+
+/* Ensure consistent heights */
+.compact-input-small.ant-input {
+  height: 24px;
+  padding: 0 8px;
+}
+
+.compact-input-medium.ant-input {
+  height: 32px;
+  padding: 4px 11px;
+}
+
+.compact-input-large.ant-input {
+  height: 40px;
+  padding: 6px 11px;
+}
+
+/* TextArea specific styles */
+.compact-textarea.ant-input {
+  padding: 4px 11px;
+  line-height: 1.5;
+}
+
+.compact-textarea-small.ant-input {
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+.compact-textarea-medium.ant-input {
+  padding: 4px 11px;
+  font-size: 14px;
+}
+
+.compact-textarea-large.ant-input {
+  padding: 6px 11px;
+  font-size: 15px;
+}

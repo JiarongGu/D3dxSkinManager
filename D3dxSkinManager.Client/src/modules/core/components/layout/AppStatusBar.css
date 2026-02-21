@@ -1,6 +1,6 @@
 .app-status-bar {
   background: var(--color-bg-spotlight);
-  border-top: 1px solid var(--color-border-secondary);
+  border-top: 1px solid var(--color-border-base);
 }
 
 .app-status-bar-progress {

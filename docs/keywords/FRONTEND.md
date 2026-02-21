@@ -263,6 +263,11 @@
   - **ClassificationContextMenu.tsx** - Right-click context menu
   - **UnclassifiedItem.tsx** - Unclassified mods indicator (drag-and-drop support added 2026-02-20)
   - **ClassificationScreen.tsx** - Add/edit classification slide-in screen
+    - Thumbnail file picker with preview
+    - IPC-based async validation for duplicate names
+    - Ant Design form validation with Promise.reject/resolve pattern
+    - Integration with useProfile for profileId access
+    - Updated: 2026-02-21 (thumbnail support, validation)
   - **TreeNodeConverter.tsx** - Converts ClassificationNode to Ant Design DataNode
   - Features: Hierarchical classification, search with count indicators, context menu operations, drag-and-drop category updates
   - Refactored: 2026-02-20 - Extracted into panel folder, added drag-and-drop support
@@ -554,6 +559,18 @@
   - updateMetadata → `:131-146`
   - updateCategory → `:151-160` (NEW: Drag-and-drop category update)
   - batchUpdateMetadata → `:165`
+
+- **classificationService** → `src/shared/services/classificationService.ts`
+  - getClassificationTree(profileId) - fetches full tree from database
+  - findNodeById(tree, id) - local tree search (for UI only)
+  - nodeExists(profileId, nodeId) - IPC database validation (for form validation)
+  - createNode(profileId, nodeId, name, ...) - creates classification with thumbnail
+  - moveNode(profileId, nodeId, newParentId, dropPosition) - moves node
+  - updateNode(profileId, nodeId, newName) - updates classification name
+  - deleteNode(profileId, nodeId) - deletes classification with thumbnail cleanup
+  - getAllLeafNodes(tree) - gets all leaf nodes
+  - flattenTree(tree) - flattens tree to list
+  - Updated: 2026-02-21 (added nodeExists for IPC validation)
 
 - **settingsService** → `src/modules/settings/services/settingsService.ts`
   - getGlobalSettings() → `:24-30`

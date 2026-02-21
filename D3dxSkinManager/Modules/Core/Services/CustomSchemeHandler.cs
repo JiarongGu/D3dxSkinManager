@@ -23,13 +23,17 @@ public interface ICustomSchemeHandler
 /// Serves local files (images, etc.) through Photino's custom scheme handler
 ///
 /// URL Format: app://encoded_file_path
-/// Example: app://profiles%2F123%2Fthumbnails%2Fabc.png
+/// Examples:
+/// - app://profiles%2F123%2Fthumbnails%2Fabc.png (relative to data folder)
+/// - app://C%3A%5CUsers%5Cuser%5CPictures%5Cimage.png (absolute path)
 ///
 /// Responsibilities:
 /// - Parse and validate app:// URLs
 /// - Decode file paths from URLs
-/// - Serve files from data directory with security checks
+/// - Serve files from any accessible location on the filesystem
 /// - Return appropriate content types for different file extensions
+///
+/// Note: No directory restrictions since this is a desktop app with local-only access
 /// </summary>
 public class CustomSchemeHandler : ICustomSchemeHandler
 {
@@ -79,15 +83,6 @@ public class CustomSchemeHandler : ICustomSchemeHandler
 
             // Normalize path
             absolutePath = Path.GetFullPath(absolutePath);
-
-            // Security check: ensure file is within data directory
-            var dataPathFull = Path.GetFullPath(_dataPath);
-            if (!absolutePath.StartsWith(dataPathFull, StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.Warning($"Security violation: {absolutePath}", "CustomScheme");
-                contentType = "text/plain";
-                return CreateErrorStream("Access denied");
-            }
 
             // Check if file exists
             if (!File.Exists(absolutePath))

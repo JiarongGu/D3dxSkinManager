@@ -1,0 +1,50 @@
+/* CompactSelect - Consistent select sizing and styling */
+
+.compact-select-small .ant-select-selector {
+  font-size: 13px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+}
+
+.compact-select-small .ant-select-selection-item,
+.compact-select-small .ant-select-selection-placeholder {
+  line-height: 22px !important;
+}
+
+.compact-select-medium .ant-select-selector {
+  font-size: 14px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+}
+
+.compact-select-medium .ant-select-selection-item,
+.compact-select-medium .ant-select-selection-placeholder {
+  line-height: 30px !important;
+}
+
+.compact-select-large .ant-select-selector {
+  font-size: 15px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+.compact-select-large .ant-select-selection-item,
+.compact-select-large .ant-select-selection-placeholder {
+  line-height: 38px !important;
+}
+
+/* Multiple mode adjustments */
+.compact-select-small.ant-select-multiple .ant-select-selector {
+  min-height: 24px !important;
+  padding: 1px 4px !important;
+}
+
+.compact-select-medium.ant-select-multiple .ant-select-selector {
+  min-height: 32px !important;
+  padding: 2px 4px !important;
+}
+
+.compact-select-large.ant-select-multiple .ant-select-selector {
+  min-height: 40px !important;
+  padding: 4px 4px !important;
+}

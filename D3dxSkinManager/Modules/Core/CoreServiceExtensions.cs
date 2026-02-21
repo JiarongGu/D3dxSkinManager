@@ -16,6 +16,7 @@ public static class CoreServiceExtensions
     {
         // Low-level services (no dependencies)
         services.AddSingleton<IFileService, FileService>();
+        services.AddSingleton<IHashService, HashService>();
         services.AddSingleton<IArchiveService, ArchiveService>();
         services.AddSingleton<IFileSystemService, FileSystemService>();
         services.AddSingleton<IProcessService, ProcessService>();
@@ -26,6 +27,9 @@ public static class CoreServiceExtensions
 
         // Path helper for relative path conversion (ensures portability)
         services.AddSingleton<IPathHelper>(sp => new PathHelper(dataPath));
+
+        // File transfer service for managed file copying with deduplication
+        services.AddSingleton<IFileTransferService, FileTransferService>();
 
         // Path validator for centralized file/directory validation
         services.AddSingleton<IPathValidator, PathValidator>();
