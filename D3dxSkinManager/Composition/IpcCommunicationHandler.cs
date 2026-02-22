@@ -58,9 +58,6 @@ public class IpcCommunicationHandler
         // Subscribe to messages from React
         _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
-        // Inject JavaScript bridge
-        InjectJavaScriptBridge();
-
         _logger.Info("Communication handler initialized", "IPC");
     }
 
@@ -224,41 +221,4 @@ public class IpcCommunicationHandler
         }
     }
 
-    /// <summary>
-    /// Inject JavaScript bridge for better communication
-    /// </summary>
-    private async void InjectJavaScriptBridge()
-    {
-        try
-        {
-            // Create a global bridge object in the React app
-            var script = @"
-                window.ipcBridge = {
-                    isReady: true,
-                    send: function(module, type, payload) {
-                        const message = {
-                            id: crypto.randomUUID(),
-                            module: module,
-                            type: type,
-                            payload: payload,
-                            timestamp: new Date().toISOString()
-                        };
-                        chrome.webview.postMessage(JSON.stringify(message));
-                        return message.id;
-                    },
-                    test: function() {
-                        return this.send('TEST', 'ECHO', { message: 'Hello from React!' });
-                    }
-                };
-                console.log('IPC Bridge injected successfully');
-            ";
-
-            await _webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(script);
-            _logger.Debug("JavaScript bridge injected", "IPC");
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Error injecting JavaScript bridge: {ex.Message}", "IPC", ex);
-        }
-    }
 }
