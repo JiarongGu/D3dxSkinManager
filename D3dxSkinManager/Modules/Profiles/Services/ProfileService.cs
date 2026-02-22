@@ -122,7 +122,8 @@ public class ProfileService : IProfileService
             {
                 // No profiles found - create default profile
                 _logger.Info("No profiles found. Creating default profile.", "ProfileService");
-                await CreateProfileAsync(new CreateProfileRequest
+                // Use internal method to avoid circular Lazy<T> initialization
+                await CreateProfileInternalAsync(new CreateProfileRequest
                 {
                     Name = "Default",
                     Description = "Default profile",
@@ -136,7 +137,7 @@ public class ProfileService : IProfileService
         }
         catch (Exception ex)
         {
-            _logger.Error($"Failed to ensure default profile exists: {ex.Message}", "ProfileService");
+            _logger.Error($"Failed to ensure default profile exists: {ex.Message}", "ProfileService", ex);
         }
     }
 
@@ -162,6 +163,15 @@ public class ProfileService : IProfileService
     public async Task<Profile> CreateProfileAsync(CreateProfileRequest request)
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
+        return await CreateProfileInternalAsync(request).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Internal profile creation that doesn't call EnsureInitializedAsync
+    /// Used during initialization to avoid circular Lazy dependency
+    /// </summary>
+    private async Task<Profile> CreateProfileInternalAsync(CreateProfileRequest request)
+    {
         var profileId = Guid.NewGuid().ToString();
         var dataDir = _globalPaths.GetProfileDirectoryPath(profileId);
         var workDir = string.IsNullOrEmpty(request.WorkDirectory) ? Path.Combine(dataDir, "work") : request.WorkDirectory;

@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-02-23 - First Boot & Context Menu Issues ⭐⭐
+Fixed three critical UX issues: Lazy<T> re-entrancy error on first boot, context menu not appearing on empty classification panel, and context menu not working on empty whitespace in tree.
+**Impact**: ✅ Application boots successfully on first run, context menus work consistently
+**Backend**: ProfileService - Created internal CreateProfileInternalAsync() to break circular dependency
+**Frontend**: ClassificationTree - Fixed visibility logic (null vs undefined) and moved handler to outer container
+
 ### Simplified - 2026-02-23 - Logging System Architecture & DI Container ⭐⭐⭐⭐
 Simplified logging initialization and removed unnecessary ServiceContainer wrapper. AppEnvironment reads log level from GlobalSettingsService on startup, eliminating complex initialization logic. Replaced ServiceContainer with direct ServiceCollection usage.
 **Impact**: ✅ Cleaner architecture, removed ~80 lines of unnecessary code, simpler DI setup

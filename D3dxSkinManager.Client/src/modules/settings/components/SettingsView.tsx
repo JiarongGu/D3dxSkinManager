@@ -139,10 +139,6 @@ export const SettingsView: React.FC = () => {
         }}
       >
         <CompactCard title={<><SettingOutlined /> {t('settings.global.title')}</>} className={styles.cardMargin}>
-          <div className={styles.infoAlert}>
-            {t('settings.global.description')}
-          </div>
-
           <Form.Item
             label={t('settings.global.theme.label')}
             name="theme"
@@ -212,10 +208,6 @@ export const SettingsView: React.FC = () => {
         </CompactCard>
 
         <CompactCard title={t('settings.profile.title')} className={styles.cardMargin}>
-          <div className={styles.warningAlert}>
-            {t('settings.profile.description')}
-          </div>
-
           <Form.Item
             label={t('settings.profile.thumbnailAlgorithm.label')}
             name="thumbnailAlgorithm"

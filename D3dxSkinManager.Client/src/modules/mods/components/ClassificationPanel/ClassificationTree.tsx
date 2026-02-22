@@ -9,6 +9,7 @@ import {
 import { ContextMenu, ContextMenuItem } from "../../../../shared/components/menu/ContextMenu";
 import { useDragDrop } from "../../../../shared/hooks/useDragDrop";
 import { logger } from "../../../../shared/utils/logger";
+import { useTranslation } from "react-i18next";
 import type { MenuProps } from "antd";
 import "./ClassificationTree.css";
 
@@ -138,6 +139,7 @@ export interface ClassificationTreeProps {
  * Internal tree component that uses the context
  */
 const ClassificationTreeInner: React.FC = () => {
+  const { t } = useTranslation();
   const {
     loading,
     tree,
@@ -231,16 +233,10 @@ const ClassificationTreeInner: React.FC = () => {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          padding: "24px",
-        }}
-      >
-        <Spin description="Loading classification tree..." />
+      <div className="classification-tree-loading-container">
+        <Spin>
+          <div className="classification-tree-loading-text">{t('classification.tree.loading')}</div>
+        </Spin>
       </div>
     );
   }
@@ -249,16 +245,7 @@ const ClassificationTreeInner: React.FC = () => {
     return (
       <>
         <div
-          style={{
-            padding: "16px",
-            userSelect: "none",
-            height: "100%",
-            minHeight: "300px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            paddingBottom: "80px",
-          }}
+          className="classification-tree-empty-container"
           onContextMenu={(e) => {
             e.preventDefault();
             setContextMenuPosition({ x: e.clientX, y: e.clientY });
@@ -266,46 +253,34 @@ const ClassificationTreeInner: React.FC = () => {
           }}
         >
           <Empty
-            description="No classification data available. Right-click to add one."
+            description={t('classification.tree.empty')}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </div>
         <ContextMenu
           items={convertMenuItems(contextMenuItems)}
-          visible={contextMenuNode !== null}
+          visible={contextMenuNode !== undefined}
           position={contextMenuPosition}
-          onClose={() => setContextMenuNode(null)}
+          onClose={() => {
+            setContextMenuNode(undefined as any);
+            setContextMenuPosition({ x: 0, y: 0 });
+          }}
         />
       </>
     );
   }
 
   return (
-    <div
-      style={{
-        userSelect: "none",
-        flex: 1,
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          gap: "8px",
-          padding: "8px 8px 8px 8px",
-          flexShrink: 0,
-        }}
-      >
+    <div className="classification-tree-container">
+      <div className="classification-tree-header">
         <Search
-          placeholder="Search classifications..."
+          placeholder={t('classification.tree.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          style={{ flex: 1 }}
+          className="classification-tree-search"
           allowClear
         />
-        <Tooltip title="Add Classification" placement="top">
+        <Tooltip title={t('classification.tree.addClassification')} placement="top">
           <Button
             type="default"
             icon={<PlusOutlined />}
@@ -316,22 +291,20 @@ const ClassificationTreeInner: React.FC = () => {
 
       <div
         ref={treeContainerRef}
-        style={{ flex: 1, minHeight: 0, overflow: "auto", paddingRight: "4px" }}
+        className="classification-tree-scroll-container"
+        onContextMenu={(e) => {
+          // Handle context menu on empty areas (not on tree nodes)
+          const target = e.target as HTMLElement;
+          // Check if click is on tree node or empty area
+          if (!target.closest(".ant-tree-node-content-wrapper")) {
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenuPosition({ x: e.clientX, y: e.clientY });
+            setContextMenuNode(""); // Empty string for empty area context menu
+          }
+        }}
       >
-        <div
-          style={{ paddingLeft: "8px", paddingBottom: "8px" }}
-          onContextMenu={(e) => {
-            // Handle context menu on empty areas (not on tree nodes)
-            const target = e.target as HTMLElement;
-            // Check if click is on tree node or empty area
-            if (!target.closest(".ant-tree-node-content-wrapper")) {
-              e.preventDefault();
-              e.stopPropagation();
-              setContextMenuPosition({ x: e.clientX, y: e.clientY });
-              setContextMenuNode(""); // Empty string for empty area context menu
-            }
-          }}
-        >
+        <div className="classification-tree-inner">
           <Tree
             className="classification-tree"
             showIcon
@@ -359,9 +332,12 @@ const ClassificationTreeInner: React.FC = () => {
         </div>
         <ContextMenu
           items={convertMenuItems(contextMenuItems)}
-          visible={contextMenuNode !== null}
+          visible={contextMenuNode !== undefined}
           position={contextMenuPosition}
-          onClose={() => setContextMenuNode(null)}
+          onClose={() => {
+            setContextMenuNode(undefined as any);
+            setContextMenuPosition({ x: 0, y: 0 });
+          }}
         />
       </div>
     </div>

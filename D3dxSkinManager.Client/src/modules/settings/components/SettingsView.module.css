@@ -15,24 +15,6 @@
   margin-bottom: 24px;
 }
 
-.infoAlert {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: var(--color-info-bg);
-  border-radius: 4px;
-  font-size: 13px;
-  color: var(--color-text-base);
-}
-
-.warningAlert {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: var(--color-warning-bg);
-  border-radius: 4px;
-  font-size: 13px;
-  color: var(--color-text-base);
-}
-
 .annotationDescription {
   padding: 12px;
   background: var(--color-info-bg);
@@ -41,10 +23,6 @@
   margin-top: -12px;
   font-size: 13px;
   color: var(--color-text-secondary);
-}
-
-.labelWithIcon {
-  /* Handled by CompactSpace component */
 }
 
 .primaryIcon {

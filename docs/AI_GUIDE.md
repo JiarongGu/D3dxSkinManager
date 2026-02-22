@@ -257,6 +257,29 @@ See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGE
      - Example: `<CompactButton type="primary">Save</CompactButton>`
      - Available components: CompactButton, CompactCard, CompactSpace, CompactDivider, CompactText, CompactAlert, CompactSection
      - All components exported through `compact/index.ts` for clean imports
+   - **⭐⭐ IMPORTANT: Prefer CSS Modules/Classes over Inline Styles**
+     - **Use CSS modules** (`.module.css`) or CSS classes for reusable styling
+     - **Inline styles are acceptable for**:
+       - Layout properties (flex, display, padding when dynamic)
+       - Dynamic values that change at runtime (width based on state)
+       - One-off positioning that won't be reused
+     - **CSS classes are preferred for**:
+       - Reusable component styles
+       - Hover/focus states (can't be done inline)
+       - Media queries and responsive design
+       - Theme-aware colors and spacing
+     - **Example**:
+       ```tsx
+       // ❌ BAD: Reusable styles inline
+       <div style={{ padding: "16px", background: "#fff", borderRadius: "4px" }}>
+
+       // ✅ GOOD: Reusable styles in CSS class
+       <div className="card-container">
+       // card-container defined in .css or .module.css file
+
+       // ✅ ACCEPTABLE: Dynamic inline style
+       <div style={{ width: `${progress}%` }}>
+       ```
 
 ### 2. **ALWAYS use TypeScript and C# strictly**
    #### TypeScript:

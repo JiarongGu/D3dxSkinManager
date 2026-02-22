@@ -144,3 +144,58 @@
   border: 2px solid var(--color-primary) !important;
   box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
 }
+
+/* Component layout classes */
+.classification-tree-loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+}
+
+.classification-tree-loading-text {
+  margin-top: 8px;
+}
+
+.classification-tree-empty-container {
+  padding: 16px;
+  user-select: none;
+  height: 100%;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.classification-tree-container {
+  user-select: none;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.classification-tree-header {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.classification-tree-search {
+  flex: 1;
+}
+
+.classification-tree-scroll-container {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.classification-tree-inner {
+  padding-left: 8px;
+  padding-bottom: 8px;
+  min-height: 100%;
+}
