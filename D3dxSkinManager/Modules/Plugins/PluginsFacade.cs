@@ -77,7 +77,7 @@ public class PluginsFacade : BaseFacade, IPluginsFacade
     {
         // TODO: Implement plugin enable/disable functionality
         // For now, return false to indicate the operation is not supported
-        _logger.Warning($"Plugin enable requested for '{pluginId}' but this feature is not yet implemented", "Plugins");
+        _logger.Warn($"Plugin enable requested for '{pluginId}' but this feature is not yet implemented", "Plugins");
         await Task.CompletedTask;
         return false;
     }
@@ -86,7 +86,7 @@ public class PluginsFacade : BaseFacade, IPluginsFacade
     {
         // TODO: Implement plugin enable/disable functionality
         // For now, return false to indicate the operation is not supported
-        _logger.Warning($"Plugin disable requested for '{pluginId}' but this feature is not yet implemented", "Plugins");
+        _logger.Warn($"Plugin disable requested for '{pluginId}' but this feature is not yet implemented", "Plugins");
         await Task.CompletedTask;
         return false;
     }

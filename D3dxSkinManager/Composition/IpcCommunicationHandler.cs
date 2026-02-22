@@ -78,7 +78,7 @@ public class IpcCommunicationHandler
             var message = JsonSerializer.Deserialize<IpcRequest>(json, _jsonOptions);
             if (message == null)
             {
-                _logger.Warning("Invalid message format", "IPC");
+                _logger.Warn("Invalid message format", "IPC");
                 return;
             }
 

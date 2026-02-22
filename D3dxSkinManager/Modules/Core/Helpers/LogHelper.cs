@@ -1,16 +1,31 @@
-using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Modules.Core.Helpers;
 
 /// <summary>
 /// Log levels for categorizing log messages
+/// Matches frontend LogLevel enum exactly
 /// </summary>
 public enum LogLevel
 {
-    Debug,
-    Info,
-    Warning,
-    Error
+    /// <summary>Debug - Verbose diagnostic information</summary>
+    Debug = 0,
+
+    /// <summary>Info - General informational messages</summary>
+    Info = 1,
+
+    /// <summary>Warn - Warning messages</summary>
+    Warn = 2,
+
+    /// <summary>Error - Error messages</summary>
+    Error = 3,
+
+    /// <summary>All - Show everything (special value for filtering)</summary>
+    All = 4,
+
+    /// <summary>Off - Disable all logging (special value for filtering)</summary>
+    Off = -1
 }
 
 /// <summary>
@@ -18,6 +33,11 @@ public enum LogLevel
 /// </summary>
 public interface ILogHelper
 {
+    /// <summary>
+    /// Gets or sets the minimum log level that will be output
+    /// </summary>
+    LogLevel MinimumLevel { get; set; }
+
     /// <summary>
     /// Log a debug message (verbose diagnostic information)
     /// </summary>
@@ -31,7 +51,7 @@ public interface ILogHelper
     /// <summary>
     /// Log a warning message
     /// </summary>
-    void Warning(string message, string? source = null);
+    void Warn(string message, string? source = null);
 
     /// <summary>
     /// Log an error message
@@ -51,18 +71,41 @@ public interface ILogHelper
 
 /// <summary>
 /// Centralized logging service
-/// Writes logs to profile-specific log directory and console
+/// Writes logs to centralized log directory under data\logs and console
 /// Thread-safe with async file writing
 /// </summary>
 public class LogHelper : ILogHelper, IDisposable
 {
-    private readonly IProfilePathService? _profilePaths;
+    private readonly IGlobalPathService _globalPaths;
+    private readonly AppEnvironment _appEnvironment;
+
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly string _logsBaseDirectory;
     private bool _disposed;
 
-    public LogHelper(IProfilePathService? profilePaths = null)
+    public LogLevel MinimumLevel
     {
-        _profilePaths = profilePaths;
+        // Always use AppEnvironment's MinimumLogLevel as the single source of truth
+        get => _appEnvironment.MinimumLogLevel;
+        set => _appEnvironment.MinimumLogLevel = value;
+    }
+
+    // Constructor for DI (preferred)
+    public LogHelper(IGlobalPathService globalPaths, AppEnvironment appEnvironment)
+    {
+        _globalPaths = globalPaths;
+        _appEnvironment = appEnvironment;
+
+        _logsBaseDirectory = _globalPaths.LogsDirectory;
+
+        // AppEnvironment already has the log level configured (OFF by default or from env var)
+        // No need to set it here - just use AppEnvironment.MinimumLogLevel directly
+    }
+
+    public static LogHelper Create(AppEnvironment environment) 
+    {
+        var globalPaths = new GlobalPathService(environment);
+        return new LogHelper(globalPaths, environment);
     }
 
     public void Debug(string message, string? source = null)
@@ -75,9 +118,9 @@ public class LogHelper : ILogHelper, IDisposable
         Log(LogLevel.Info, message, source);
     }
 
-    public void Warning(string message, string? source = null)
+    public void Warn(string message, string? source = null)
     {
-        Log(LogLevel.Warning, message, source);
+        Log(LogLevel.Warn, message, source);
     }
 
     public void Error(string message, string? source = null, Exception? exception = null)
@@ -104,11 +147,41 @@ public class LogHelper : ILogHelper, IDisposable
             }
         }
 
-        // Write to console
-        WriteToConsole(level, logEntry);
+        // LOGGING BEHAVIOR:
+        // - Console Output: Development mode ONLY (always shows all logs regardless of settings)
+        // - File Output: Respects log level settings in both dev and prod modes
+        // - Production: No console output at all, only file output based on settings
+        // - Log Level Settings: Apply ONLY to file output, not console
 
-        // Write to file asynchronously (fire and forget)
-        _ = WriteToFileAsync(level, logEntry);
+        // Console: Development only, shows everything
+        if (_appEnvironment.IsDevelopment)
+        {
+            WriteToConsole(level, logEntry);
+        }
+
+        // File: Respects log level settings (OFF, DEBUG, INFO, WARNING, ERROR, ALL)
+        if (ShouldLog(level))
+        {
+            _ = WriteToFileAsync(level, logEntry, source);
+        }
+    }
+
+    private bool ShouldLog(LogLevel level)
+    {
+        // Skip logging if disabled (Off=-1)
+        if (_appEnvironment.MinimumLogLevel == LogLevel.Off)
+        {
+            return false;
+        }
+
+        // Log everything if minimum is All=4
+        if (_appEnvironment.MinimumLogLevel == LogLevel.All)
+        {
+            return true;
+        }
+
+        // Otherwise, check if level meets minimum threshold
+        return level >= _appEnvironment.MinimumLogLevel;
     }
 
     public async Task FlushAsync()
@@ -135,7 +208,7 @@ public class LogHelper : ILogHelper, IDisposable
             {
                 LogLevel.Debug => ConsoleColor.Gray,
                 LogLevel.Info => ConsoleColor.White,
-                LogLevel.Warning => ConsoleColor.Yellow,
+                LogLevel.Warn => ConsoleColor.Yellow,
                 LogLevel.Error => ConsoleColor.Red,
                 _ => ConsoleColor.White
             };
@@ -148,33 +221,18 @@ public class LogHelper : ILogHelper, IDisposable
         }
     }
 
-    private async Task WriteToFileAsync(LogLevel level, string logEntry)
+    private async Task WriteToFileAsync(LogLevel level, string logEntry, string? source)
     {
         if (_disposed) return;
-
-        // Skip file writing if no profile paths are available (global services context)
-        if (_profilePaths == null) return;
 
         await _writeLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            // Determine log file based on level
-            var logFileName = level switch
+            if (level >= LogLevel.Info)
             {
-                LogLevel.Error => "error.log",
-                _ => "app.log"
-            };
-
-            var logFilePath = _profilePaths.GetLogFilePath(logFileName);
-
-            // Append to log file
-            await File.AppendAllTextAsync(logFilePath, logEntry + Environment.NewLine).ConfigureAwait(false);
-
-            // Also write errors to app.log for complete history
-            if (level == LogLevel.Error)
-            {
-                var appLogPath = _profilePaths.GetLogFilePath("app.log");
-                await File.AppendAllTextAsync(appLogPath, logEntry + Environment.NewLine).ConfigureAwait(false);
+                // Append to log file
+                var logFile = Path.Combine(_logsBaseDirectory, $"{DateTime.UtcNow:yyyy-MM-dd}.log");
+                await File.AppendAllTextAsync(logFile, logEntry + Environment.NewLine).ConfigureAwait(false);
             }
         }
         catch (Exception ex)

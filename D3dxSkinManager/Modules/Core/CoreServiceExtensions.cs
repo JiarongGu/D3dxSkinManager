@@ -2,7 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Composition;
 
 namespace D3dxSkinManager.Modules.Core;
 
@@ -39,7 +41,7 @@ public static class CoreServiceExtensions
         // Payload helper for message parsing (testable DI version)
         AddSingleton<IPayloadHelper, PayloadHelper>(services);
 
-        // Log helper for centralized logging
+        // Log helper for centralized logging with AppEnvironment and GlobalPathService
         AddSingleton<ILogHelper, LogHelper>(services);
 
         // Event emitter helper for null-safe plugin event emission
@@ -54,6 +56,9 @@ public static class CoreServiceExtensions
         // Event bus for event messaging between services
         AddSingleton<IEventBus, EventBus>(services);
         AddSingleton<IEventEmitter, EventEmitter>(services);
+
+        // Performance monitor for tracking application performance
+        AddSingleton<IPerformanceMonitor, PerformanceMonitor>(services);
 
         return services;
     }

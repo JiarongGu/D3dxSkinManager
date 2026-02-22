@@ -319,7 +319,7 @@ public class ProfileService : IProfileService
 
         // TODO: Implement import logic
         // For now, return null to indicate the operation is not supported
-        _logger.Warning("Profile import requested but this feature is not yet implemented", "Profiles");
+        _logger.Warn("Profile import requested but this feature is not yet implemented", "Profiles");
 
         // Parse JSON, create profile with imported settings
         await Task.CompletedTask;

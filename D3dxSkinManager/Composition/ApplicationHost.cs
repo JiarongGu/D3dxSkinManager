@@ -1,6 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using Microsoft.Web.WebView2.WinForms;
 using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Settings;
@@ -14,6 +11,7 @@ using D3dxSkinManager.Modules.Migration;
 using D3dxSkinManager.Modules.Plugins;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
 
 namespace D3dxSkinManager.Composition;
 
@@ -27,10 +25,17 @@ public class ApplicationHost
     private WebViewInitializer _webViewInitializer;
     private IpcCommunicationHandler _ipcHandler;
     private MessageDispatcher _messageDispatcher;
-    private ServiceContainer _serviceContainer;
     private ServiceProvider _serviceProvider;
     private ProfileServiceRouter _profileRouter;
+    private IPerformanceMonitor _performanceMonitor;
     private ILogHelper _logger;
+    private AppEnvironment _environment;
+
+    public ApplicationHost(AppEnvironment environment, ILogHelper logHelper)
+    {
+        _logger = logHelper;
+        _environment = environment;
+    }
 
     public Form MainForm => _mainForm;
 
@@ -40,21 +45,23 @@ public class ApplicationHost
     public void CreateMainForm()
     {
         // Create temporary logger until DI is ready
-        _logger = new LogHelper();
         _logger.Info("Creating main form...", "Host");
 
-        _mainForm = new Form
-        {
-            Text = "D3dxSkinManager",
-            Width = 1280,
-            Height = 800,
-            StartPosition = FormStartPosition.CenterScreen
-        };
+        // Suspend layout during form creation for better performance
+        _mainForm = new OptimizedForm();
+        _mainForm.SuspendLayout();
+
+        _mainForm.Text = "D3dxSkinManager";
+        _mainForm.Width = 1280;
+        _mainForm.Height = 800;
+        _mainForm.StartPosition = FormStartPosition.CenterScreen;
+        _mainForm.BackColor = Color.FromArgb(26, 26, 26); // Match WebView2 background
 
         // Create WebView2 control
         _webView = new WebView2
         {
-            Dock = DockStyle.Fill
+            Dock = DockStyle.Fill,
+            BackColor = Color.FromArgb(26, 26, 26) // Prevent white flash
         };
 
         _mainForm.Controls.Add(_webView);
@@ -62,8 +69,13 @@ public class ApplicationHost
         // Wire up form events
         _mainForm.Load += OnFormLoad;
         _mainForm.FormClosed += OnFormClosed;
+        _mainForm.Resize += OnFormResize;
 
-        _logger.Info("Main form created", "Host");
+        // Resume layout after all controls are added
+        _mainForm.ResumeLayout(false);
+        _mainForm.PerformLayout();
+
+        _logger.Info("Main form created with double buffering enabled", "Host");
     }
 
     /// <summary>
@@ -75,14 +87,22 @@ public class ApplicationHost
         {
             _logger.Info("Form loaded, initializing components...", "Host");
 
-            // Initialize service container first (needed for custom scheme handler)
-            _logger.Info("Initializing service container...", "Host");
-            _serviceContainer = new ServiceContainer();
-            ConfigureServices();
-            _serviceProvider = _serviceContainer.Build();
+            // Initialize services first (needed for custom scheme handler)
+            _logger.Info("Initializing services...", "Host");
+            var services = new ServiceCollection();
+
+            // Register AppEnvironment first
+            services.AddSingleton(_environment);
+
+            ConfigureServices(services);
+            _serviceProvider = services.BuildServiceProvider();
 
             // Update logger to use DI version
             _logger = _serviceProvider.GetRequiredService<ILogHelper>();
+            _performanceMonitor = _serviceProvider.GetRequiredService<IPerformanceMonitor>();
+
+            // Track WebView2 initialization performance
+            _performanceMonitor.StartOperation("WebView2.Initialize");
 
             // Get custom scheme handler from DI
             var schemeHandler = _serviceProvider.GetRequiredService<ICustomSchemeHandler>();
@@ -90,6 +110,8 @@ public class ApplicationHost
             // Initialize WebView2 with custom scheme handler
             _webViewInitializer = new WebViewInitializer(_webView, schemeHandler);
             await _webViewInitializer.InitializeAsync();
+
+            _performanceMonitor.StopOperation("WebView2.Initialize");
 
             // Navigate to app
             _webViewInitializer.NavigateToApp();
@@ -131,6 +153,19 @@ public class ApplicationHost
     }
 
     /// <summary>
+    /// Handle form resize to optimize WebView2 rendering
+    /// </summary>
+    private void OnFormResize(object? sender, EventArgs e)
+    {
+        // Suspend WebView2 layout during resize for smoother performance
+        if (_webView?.IsHandleCreated == true && _mainForm.WindowState != FormWindowState.Minimized)
+        {
+            _webView.SuspendLayout();
+            _webView.ResumeLayout(false);
+        }
+    }
+
+    /// <summary>
     /// Clean up when form closes
     /// </summary>
     private void OnFormClosed(object? sender, FormClosedEventArgs e)
@@ -148,17 +183,15 @@ public class ApplicationHost
     /// <summary>
     /// Configure application services
     /// </summary>
-    private void ConfigureServices()
+    private void ConfigureServices(IServiceCollection services)
     {
         _logger?.Info("Configuring services...", "Host");
 
-        // AppEnvironment is already registered in ServiceContainer constructor
-
         // Register global facades (no profile dependency)
-        _serviceContainer.Services.AddCoreServices();
-        _serviceContainer.Services.AddSettingsServices();
-        _serviceContainer.Services.AddSystemServices();
-        _serviceContainer.Services.AddProfileServices();
+        services.AddCoreServices();
+        services.AddSettingsServices();
+        services.AddSystemServices();
+        services.AddProfileServices();
 
         _logger?.Info("Services configured", "Host");
     }

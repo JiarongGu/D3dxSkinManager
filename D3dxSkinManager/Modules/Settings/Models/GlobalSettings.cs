@@ -16,9 +16,9 @@ public class GlobalSettings
     public string AnnotationLevel { get; set; } = "all";
 
     /// <summary>
-    /// Log level: debug, info, warn, error
+    /// Log level for C# backend file logging: ALL, DEBUG, INFO, WARNING, ERROR, OFF
     /// </summary>
-    public string LogLevel { get; set; } = "info";
+    public string LogLevel { get; set; } = "OFF";
 
     /// <summary>
     /// Language/Locale: en, cn, etc.

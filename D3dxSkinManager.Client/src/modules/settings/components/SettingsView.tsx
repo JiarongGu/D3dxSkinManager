@@ -11,7 +11,7 @@ import { useTheme, ThemeMode } from '../../../shared/context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '../../../i18n/i18n';
 import { AVAILABLE_LANGUAGES } from '../../../shared/types/language.types';
-import { logger, Logger, LogLevelName } from '../../../shared/utils/logger';
+import { logger, Logger } from '../../../shared/utils/logger';
 import { settingsService } from '../services/settingsService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import styles from './SettingsView.module.css';
@@ -25,7 +25,7 @@ export const SettingsView: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { selectedProfile, selectedProfileId } = useProfile();
   const [selectedAnnotationLevel, setSelectedAnnotationLevel] = useState<AnnotationLevel>(annotationLevel);
-  const [logLevel, setLogLevel] = useState<LogLevelName>(logger.getCurrentLevelName());
+  const [logLevel, setLogLevel] = useState<string>('info');
   const [thumbnailAlgorithm, setThumbnailAlgorithm] = useState<string>('similarity-threshold');
 
   // Load thumbnail algorithm from profile config
@@ -75,15 +75,13 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleLogLevelChange = async (value: LogLevelName) => {
+  const handleLogLevelChange = async (value: string) => {
     setLogLevel(value);
-    logger.setLevel(value);
 
     // Save to backend
     try {
       await settingsService.updateGlobalSetting('logLevel', value);
       notification.success(t('settings.notifications.logLevelChanged', { level: value }));
-      logger.info('Log level changed', { newLevel: value });
     } catch (error) {
       notification.error(t('settings.notifications.logLevelFailed'));
       console.error('[SettingsView] Failed to save log level:', error);
@@ -178,8 +176,8 @@ export const SettingsView: React.FC = () => {
           >
             <Select value={logLevel} onChange={handleLogLevelChange}>
               {Logger.getLevelOptions().map(option => (
-                <Option key={option.value} value={option.value}>
-                  {option.label} - {option.description}
+                <Option key={option.value} value={option.value} title={option.description}>
+                  {option.label}
                 </Option>
               ))}
             </Select>

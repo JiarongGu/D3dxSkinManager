@@ -1,8 +1,5 @@
-using System;
-using System.Threading;
-using System.Windows.Forms;
 using D3dxSkinManager.Modules.Core.Helpers;
-using Microsoft.Extensions.DependencyInjection;
+using D3dxSkinManager.Modules.Core.Models;
 
 namespace D3dxSkinManager.Composition;
 
@@ -18,18 +15,24 @@ public static class ApplicationBootstrapper
     /// </summary>
     public static void Run()
     {
-        // Create a temporary logger for bootstrap phase
-        // (Full DI container not available yet)
-        _logger = new LogHelper();
+        // Create AppEnvironment for bootstrap phase
+        var appEnv = AppEnvironment.Create(AppDomain.CurrentDomain.BaseDirectory);
+        _logger = LogHelper.Create(appEnv);
 
+        // Create a logger with configured log level (using named parameters to avoid ambiguity)
         _logger.Info("=== D3dxSkinManager Starting ===", "Bootstrap");
+        _logger.Info($"Environment: {(appEnv.IsDevelopment ? "Development" : "Production")}", "Bootstrap");
+        _logger.Info($"Log Level: {appEnv.MinimumLogLevel} (Debug logs {(appEnv.MinimumLogLevel > LogLevel.Debug ? "disabled" : "enabled")})", "Bootstrap");
         _logger.Info($"Thread apartment state: {Thread.CurrentThread.GetApartmentState()}", "Bootstrap");
+
+        // Test that debug logs are filtered
+        _logger.Debug("This debug message should not appear if log level is Info or higher", "Bootstrap");
 
         // Initialize WinForms
         InitializeWinForms();
 
         // Create and run application host
-        var host = new ApplicationHost();
+        var host = new ApplicationHost(appEnv, _logger);
         host.CreateMainForm();
         host.Run();
     }
@@ -41,10 +44,23 @@ public static class ApplicationBootstrapper
     {
         _logger?.Info("Initializing WinForms...", "Bootstrap");
 
+        // Enable visual styles for modern appearance
         Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        Application.SetHighDpiMode(HighDpiMode.SystemAware);
 
-        _logger?.Info("WinForms initialized", "Bootstrap");
+        // Use GDI+ for text rendering (better performance)
+        Application.SetCompatibleTextRenderingDefault(false);
+
+        // Enable high DPI support for crisp rendering on high-resolution displays
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+
+        // Optimize rendering for performance
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+
+        // Enable application-wide double buffering for smoother rendering
+        typeof(Application).GetType()
+            .GetProperty("UseWaitCursor", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?
+            .SetValue(null, false);
+
+        _logger?.Info("WinForms initialized with performance optimizations", "Bootstrap");
     }
 }

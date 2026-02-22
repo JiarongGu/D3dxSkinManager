@@ -142,7 +142,7 @@ public class ModManagementService : IModManagementService
         var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
         if (!exists)
         {
-            _logger.Warning($"Mod not found for deletion: {sha}", "ModManagementService");
+            _logger.Warn($"Mod not found for deletion: {sha}", "ModManagementService");
             return false;
         }
 

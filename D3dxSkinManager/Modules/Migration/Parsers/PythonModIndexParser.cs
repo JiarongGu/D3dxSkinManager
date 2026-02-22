@@ -46,7 +46,7 @@ public class PythonModIndexParser : IPythonModIndexParser
 
         if (!Directory.Exists(modsIndexDirectory))
         {
-            _logger.Warning($"ModsIndex directory not found: {modsIndexDirectory}", "PythonModIndexParser");
+            _logger.Warn($"ModsIndex directory not found: {modsIndexDirectory}", "PythonModIndexParser");
             return allMods;
         }
 
@@ -64,7 +64,7 @@ public class PythonModIndexParser : IPythonModIndexParser
 
                 if (modsObj == null)
                 {
-                    _logger.Warning($"No 'mods' object in {Path.GetFileName(indexFile)}", "PythonModIndexParser");
+                    _logger.Warn($"No 'mods' object in {Path.GetFileName(indexFile)}", "PythonModIndexParser");
                     continue;
                 }
 
@@ -97,7 +97,7 @@ public class PythonModIndexParser : IPythonModIndexParser
             }
             catch (Exception ex)
             {
-                _logger.Warning($"Failed to parse {Path.GetFileName(indexFile)}: {ex.Message}", "PythonModIndexParser");
+                _logger.Warn($"Failed to parse {Path.GetFileName(indexFile)}: {ex.Message}", "PythonModIndexParser");
             }
         }
 

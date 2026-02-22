@@ -93,7 +93,7 @@ public class PythonRedirectionFileParser : IPythonRedirectionFileParser
 
         if (!Directory.Exists(fullFolderPath))
         {
-            _logger.Warning($"Directory not found: {fullFolderPath}", "PythonRedirectionFileParser");
+            _logger.Warn($"Directory not found: {fullFolderPath}", "PythonRedirectionFileParser");
             return;
         }
 

@@ -1,11 +1,7 @@
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
 using System.Net;
-using System.Threading;
 using Encoding = System.Text.Encoding;
 
 namespace D3dxSkinManager.Modules.Core.Services;
@@ -79,15 +75,12 @@ public class CustomSchemeHandler : ICustomSchemeHandler
 
         try
         {
-            // Only log in debug mode or for errors
-#if DEBUG
-            _logger.Info($"Request: {url}", "CustomScheme");
-#endif
+            _logger.Debug($"Request: {url}", "CustomScheme");
 
             // Fast validation: check scheme prefix
             if (!url.StartsWith(SchemePrefix, StringComparison.OrdinalIgnoreCase))
             {
-                _logger.Warning($"Invalid scheme: {url}", "CustomScheme");
+                _logger.Warn($"Invalid scheme: {url}", "CustomScheme");
                 contentType = "text/plain";
                 return new MemoryStream(_invalidSchemeError.Value);
             }
@@ -96,7 +89,7 @@ public class CustomSchemeHandler : ICustomSchemeHandler
             var encodedPath = url.AsSpan(SchemePrefixLength);
             if (encodedPath.Length == 0)
             {
-                _logger.Warning("Empty file path", "CustomScheme");
+                _logger.Warn("Empty file path", "CustomScheme");
                 contentType = "text/plain";
                 return new MemoryStream(_emptyPathError.Value);
             }
@@ -115,7 +108,7 @@ public class CustomSchemeHandler : ICustomSchemeHandler
             // Check if file exists
             if (!File.Exists(absolutePath))
             {
-                _logger.Warning($"File not found: {absolutePath}", "CustomScheme");
+                _logger.Warn($"File not found: {absolutePath}", "CustomScheme");
                 contentType = "text/plain";
                 return new MemoryStream(_fileNotFoundError.Value);
             }
@@ -123,9 +116,7 @@ public class CustomSchemeHandler : ICustomSchemeHandler
             // Get cached content type
             contentType = GetCachedContentType(absolutePath);
 
-#if DEBUG
-            _logger.Info($"Serving: {absolutePath} ({contentType})", "CustomScheme");
-#endif
+            _logger.Debug($"Serving: {absolutePath} ({contentType})", "CustomScheme");
 
             // Return optimized file stream with buffer
             return new FileStream(

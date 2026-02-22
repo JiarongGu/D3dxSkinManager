@@ -13,6 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Simplified - 2026-02-23 - Logging System Architecture & DI Container ⭐⭐⭐⭐
+Simplified logging initialization and removed unnecessary ServiceContainer wrapper. AppEnvironment reads log level from GlobalSettingsService on startup, eliminating complex initialization logic. Replaced ServiceContainer with direct ServiceCollection usage.
+**Impact**: ✅ Cleaner architecture, removed ~80 lines of unnecessary code, simpler DI setup
+**Components**: AppEnvironment.cs (simplified ReadLogLevel), removed ServiceContainer.cs, ApplicationHost uses ServiceCollection directly
+**Frontend**: Improved log level option labels (All → Debug → Info → Warn → Error → Off)
+
+### Implemented - 2026-02-23 - Global Settings Log Level Integration ⭐⭐⭐
+Integrated backend C# log level control with global settings. GlobalSettingsService now applies log level changes to LogHelper immediately when updated from UI.
+**Impact**: ✅ Dynamic log level control from settings, no restart needed, supports all/debug/info/warning/error/off
+**Components**: GlobalSettingsService.cs, GlobalSettings.cs
+**How it works**: Settings UI → SettingsFacade → GlobalSettingsService.UpdateSettingAsync → LogHelper.MinimumLevel updated
+
+### Improved - 2026-02-22 - Simplified Centralized Logging ⭐⭐⭐⭐
+Reorganized logging to use centralized `data\logs` directory with simple log level-based files. Daily rotation, uses GlobalPathService for path management.
+**Impact**: ✅ Simple and maintainable, easier troubleshooting, level-based log files with daily rotation
+**Structure**: `data\logs\{level}-{date}.log` (debug, info, warning, error) plus combined `all-{date}.log`
+**Documentation**: [architecture/LOGGING_ARCHITECTURE.md](architecture/LOGGING_ARCHITECTURE.md)
+
+### Added - 2026-02-22 - Log Level Configuration ⭐⭐⭐
+Implemented configurable log levels based on environment. Development shows Info+, Production shows Warning+. Debug logs filtered by default to reduce console noise.
+**Impact**: ✅ Cleaner console output, configurable via D3DX_LOG_LEVEL env var, automatic environment detection
+**Components**: LogHelper.cs, AppEnvironment.cs, ApplicationBootstrapper.cs
+
+### Optimized - 2026-02-22 - WinForms UI Performance Improvements ⭐⭐⭐⭐
+Implemented double buffering, GPU acceleration enhancements, performance monitoring. Created OptimizedForm class, enhanced WebView2 settings, added IPerformanceMonitor service.
+**Impact**: ✅ Smoother UI rendering, no flicker, better responsiveness, performance metrics tracking
+**Components**: OptimizedForm.cs, ApplicationHost.cs, WebViewInitializer.cs, PerformanceMonitor.cs
+
 ### Fixed - 2026-02-22 - Comprehensive Code Quality Improvements ⭐⭐⭐⭐
 Fixed Console.WriteLine usage (5 Composition files → ILogger), NotImplementedException (2 files → graceful returns), frontend services (3 services → extend BaseModuleService).
 **Impact**: ✅ Consistent logging, no runtime exceptions, uniform service architecture

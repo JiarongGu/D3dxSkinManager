@@ -89,7 +89,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
             {
                 if (_profiles.FirstOrDefault(p => p.Id == profile.Id) != null)
                 {
-                    _logger.Warning($"Profile with ID {profile.Id} already exists. Skipping creation.", "ProfileRepository");
+                    _logger.Warn($"Profile with ID {profile.Id} already exists. Skipping creation.", "ProfileRepository");
                     return;
                 }
 
@@ -127,7 +127,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 var index = _profiles.FindIndex(p => p.Id == profile.Id);
                 if (index == -1)
                 {
-                    _logger.Warning($"Profile with ID {profile.Id} not found. Cannot update.", "ProfileRepository");
+                    _logger.Warn($"Profile with ID {profile.Id} not found. Cannot update.", "ProfileRepository");
                     return;
                 }
                 profile.DataDirectory = _pathHelper.ToRelativePath(profile.DataDirectory) ?? profile.DataDirectory;
@@ -154,7 +154,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
                 if (profile == null)
                 {
-                    _logger.Warning($"Profile with ID {profileId} not found. Cannot delete.", "ProfileRepository");
+                    _logger.Warn($"Profile with ID {profileId} not found. Cannot delete.", "ProfileRepository");
                     return;
                 }
                 _profiles.Remove(profile);
@@ -210,7 +210,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
                 if (profile == null)
                 {
-                    _logger.Warning($"Profile with ID {profileId} not found.", "ProfileRepository");
+                    _logger.Warn($"Profile with ID {profileId} not found.", "ProfileRepository");
                     return null;
                 }
                 return profile;
@@ -289,7 +289,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
                 if (profile == null)
                 {
-                    _logger.Warning($"Profile with ID {profileId} not found.", "ProfileRepository");
+                    _logger.Warn($"Profile with ID {profileId} not found.", "ProfileRepository");
                     return null;
                 }
 

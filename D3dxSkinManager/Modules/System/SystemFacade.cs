@@ -89,6 +89,9 @@ public class SystemFacade : BaseFacade, ISystemFacade
             "UPDATE_SETTINGS" => await UpdateSystemSettingsHandlerAsync(request),
             "RESET_SETTINGS" => await ResetSystemSettingsHandlerAsync(request),
 
+            // Frontend logging
+            "LOG_FROM_FRONTEND" => LogFromFrontendHandler(request),
+
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -286,5 +289,41 @@ public class SystemFacade : BaseFacade, ISystemFacade
         await ResetSystemSettingsAsync().ConfigureAwait(false);
         var settings = await GetSystemSettingsAsync().ConfigureAwait(false);
         return new { success = true, message = "System settings reset to defaults", settings };
+    }
+
+    // ============================================
+    // Frontend Logging Handler
+    // ============================================
+
+    private object LogFromFrontendHandler(IpcRequest request)
+    {
+        try
+        {
+            var level = _payloadHelper.GetOptionalValue<string>(request.Payload, "level") ?? "INFO";
+            var message = _payloadHelper.GetOptionalValue<string>(request.Payload, "message") ?? "";
+            var source = _payloadHelper.GetOptionalValue<string>(request.Payload, "source") ?? "Frontend";
+
+            // Parse log level from frontend (case-insensitive)
+            var logLevel = level.ToUpperInvariant() switch
+            {
+                "ALL" => LogLevel.All,
+                "DEBUG" => LogLevel.Debug,
+                "INFO" => LogLevel.Info,
+                "WARN" => LogLevel.Warn,
+                "ERROR" => LogLevel.Error,
+                "OFF" => LogLevel.Off,
+                _ => LogLevel.Info
+            };
+
+            // Log to backend with [Frontend] prefix
+            _logger.Log(logLevel, $"[Frontend] {message}", source);
+
+            return new { success = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to log frontend message: {ex.Message}", "SystemFacade", ex);
+            return new { success = false, error = ex.Message };
+        }
     }
 }

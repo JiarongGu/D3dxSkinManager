@@ -219,7 +219,7 @@ public class ModFacade : BaseFacade, IModFacade
                         }
                         else
                         {
-                            _logger.Warning($"Failed to unload mod '{modToUnload.Name}' (SHA: {modToUnload.SHA})", "ModFacade");
+                            _logger.Warn($"Failed to unload mod '{modToUnload.Name}' (SHA: {modToUnload.SHA})", "ModFacade");
                         }
                     }
                 }

@@ -102,7 +102,7 @@ public class MessageDispatcher
             if (response?.Success == true)
                 _logger.Debug($"Success: {message.Module}/{message.Type}", "MessageDispatcher");
             else if (response?.Success == false)
-                _logger.Warning($"Failed: {message.Module}/{message.Type} - {response.Error}", "MessageDispatcher");
+                _logger.Warn($"Failed: {message.Module}/{message.Type} - {response.Error}", "MessageDispatcher");
             return response;
         });
     }

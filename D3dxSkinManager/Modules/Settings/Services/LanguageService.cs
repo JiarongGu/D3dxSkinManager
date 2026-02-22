@@ -85,7 +85,7 @@ public class LanguageService : ILanguageService
 
         if (!File.Exists(filePath))
         {
-            _logger.Warning($"Language file not found: {languageCode}", "LanguageService");
+            _logger.Warn($"Language file not found: {languageCode}", "LanguageService");
             return null;
         }
 

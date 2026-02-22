@@ -41,6 +41,13 @@ public class WebViewInitializer
                                              "--disable-features=msSmartScreenProtection " +
                                              "--enable-gpu-rasterization " +
                                              "--enable-zero-copy " +
+                                             "--enable-accelerated-2d-canvas " +
+                                             "--enable-hardware-overlays " +
+                                             "--force-color-profile=srgb " +
+                                             "--disable-background-timer-throttling " +
+                                             "--disable-renderer-backgrounding " +
+                                             "--disable-features=TranslateUI " +
+                                             "--disable-ipc-flooding-protection " +
                                              "--disable-gpu-driver-bug-workarounds";
 
         // Create WebView2 environment with performance options
@@ -120,8 +127,6 @@ public class WebViewInitializer
 
                 if (!uri.StartsWith("app://", StringComparison.OrdinalIgnoreCase))
                     return;
-
-                Console.WriteLine($"[WebView2] Custom scheme request: {uri}");
 
                 // Get file stream from custom scheme handler
                 var stream = _schemeHandler.HandleRequest(uri, out var contentType);

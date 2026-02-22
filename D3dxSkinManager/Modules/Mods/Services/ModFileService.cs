@@ -1,13 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Tools.Models;
-
-using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 
@@ -99,7 +92,7 @@ public class ModFileService : IModFileService
             var archivePath = GetArchivePath(sha);
             if (!File.Exists(archivePath))
             {
-                _logger.Warning($"Archive not found: {archivePath}", "ModFileService");
+                _logger.Warn($"Archive not found: {archivePath}", "ModFileService");
                 await progressReporter.ReportFailureAsync("Archive not found").ConfigureAwait(false);
                 throw new Core.Models.ModException(
                     Core.Models.ErrorCodes.MOD_ARCHIVE_NOT_FOUND,
@@ -232,7 +225,7 @@ public class ModFileService : IModFileService
         catch (Exception ex)
         {
             // Don't fail the load operation if type update fails
-            _logger.Warning($"Failed to update mod type for {sha}: {ex.Message}", "ModFileService");
+            _logger.Warn($"Failed to update mod type for {sha}: {ex.Message}", "ModFileService");
         }
     }
 
@@ -246,7 +239,7 @@ public class ModFileService : IModFileService
             var workDirectory = Path.Combine(_profilePaths.WorkModsDirectory, sha);
             if (!Directory.Exists(workDirectory))
             {
-                _logger.Warning($"Mod not loaded: {sha}", "ModFileService");
+                _logger.Warn($"Mod not loaded: {sha}", "ModFileService");
                 return false;
             }
 

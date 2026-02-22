@@ -1,6 +1,9 @@
+using D3dxSkinManager.Modules.Launch.Services;
+using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.System.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using D3dxSkinManager.Modules.Launch.Services;
 
 namespace D3dxSkinManager.Modules.Launch;
 
@@ -17,7 +20,10 @@ public static class LaunchServiceExtensions
     {
         Console.WriteLine("[LaunchFacade] Registering Launch services...");
 
+        services.AddProfileServices();
+
         // Register 3DMigoto service
+        services.TryAddSingleton<ISystemProcessService, SystemProcessService>();
         services.TryAddSingleton<I3DMigotoService, D3DMigotoService>();
 
         // Register facade

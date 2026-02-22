@@ -87,7 +87,7 @@ public class PluginLoader : IPluginLoader
 
         if (pluginTypes.Count == 0)
         {
-            _logger.Log(LogLevel.Warning, $"[PluginLoader] No plugin types found in {Path.GetFileName(assemblyPath)}");
+            _logger.Log(LogLevel.Warn, $"[PluginLoader] No plugin types found in {Path.GetFileName(assemblyPath)}");
             return Task.FromResult(false);
         }
 

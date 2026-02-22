@@ -58,7 +58,7 @@ public class PluginRegistry: IPluginRegistry
                 {
                     if (_messageHandlers.ContainsKey(messageType))
                     {
-                        _logger.Warning($"Message type '{messageType}' is already handled by another plugin. Overriding.", "PluginRegistry");
+                        _logger.Warn($"Message type '{messageType}' is already handled by another plugin. Overriding.", "PluginRegistry");
                     }
                     _messageHandlers[messageType] = messageHandler;
                 }

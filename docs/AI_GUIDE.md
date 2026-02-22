@@ -148,6 +148,17 @@ See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGE
    - Use `using` statements for IDisposable resources
    - **ALWAYS use relative paths** for data stored in database/config files (see [architecture/PATH_CONVENTIONS.md](architecture/PATH_CONVENTIONS.md))
    - Use `PathHelper` service to convert between absolute and relative paths
+   - **⭐⭐⭐ CRITICAL: Service Registration Patterns**
+     - The custom `AddSingleton` helper in CoreServiceExtensions does NOT support factory functions
+     - ✅ **CORRECT**: `AddSingleton<IService, ServiceImpl>(services);`
+     - ❌ **WRONG**: `services.AddSingleton<IService>(sp => new ServiceImpl(...));`
+     - If you need complex initialization, use constructor DI with multiple constructors
+   - **⭐⭐⭐ CRITICAL: Always Use GlobalPathService for Paths**
+     - Never construct file paths manually in services
+     - ✅ **CORRECT**: Use `IGlobalPathService.LogsDirectory`
+     - ❌ **WRONG**: `Path.Combine(baseDir, "data", "logs")`
+     - GlobalPathService centralizes all path management
+     - See [architecture/LOGGING_ARCHITECTURE.md](architecture/LOGGING_ARCHITECTURE.md) for examples
    - **⭐⭐⭐ CRITICAL: Use IProgressReporter for Long-Running Operations**
      - See [features/OPERATION_NOTIFICATION_SYSTEM.md](features/OPERATION_NOTIFICATION_SYSTEM.md) ⭐⭐⭐
      - **ALL operations taking >1 second MUST report progress**

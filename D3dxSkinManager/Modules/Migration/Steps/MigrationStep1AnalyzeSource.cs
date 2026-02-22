@@ -149,7 +149,7 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
                 catch (Exception ex)
                 {
                     analysis.Warnings.Add($"Could not fully scan mods directory: {ex.Message}");
-                    _logger.Warning($"Mods scan warning: {ex.Message}", "Migration");
+                    _logger.Warn($"Mods scan warning: {ex.Message}", "Migration");
                 }
             }
 
@@ -171,7 +171,7 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
                 catch (Exception ex)
                 {
                     analysis.Warnings.Add($"Could not fully scan preview directory: {ex.Message}");
-                    _logger.Warning($"Preview scan warning: {ex.Message}", "Migration");
+                    _logger.Warn($"Preview scan warning: {ex.Message}", "Migration");
                 }
             }
 
@@ -187,7 +187,7 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
                 catch (Exception ex)
                 {
                     analysis.Warnings.Add($"Could not fully scan cache directory: {ex.Message}");
-                    _logger.Warning($"Cache scan warning: {ex.Message}", "Migration");
+                    _logger.Warn($"Cache scan warning: {ex.Message}", "Migration");
                 }
             }
 

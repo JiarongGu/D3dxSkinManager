@@ -51,7 +51,7 @@ public class PythonClassificationFileParser : IPythonClassificationFileParser
 
         if (!Directory.Exists(classificationDirectory))
         {
-            _logger.Warning($"Python classification directory not found: {classificationDirectory}", "PythonClassificationFileParser");
+            _logger.Warn($"Python classification directory not found: {classificationDirectory}", "PythonClassificationFileParser");
             return result;
         }
 
@@ -77,7 +77,7 @@ public class PythonClassificationFileParser : IPythonClassificationFileParser
             }
             catch (Exception ex)
             {
-                _logger.Warning($"Failed to parse {Path.GetFileName(file)}: {ex.Message}", "PythonClassificationFileParser");
+                _logger.Warn($"Failed to parse {Path.GetFileName(file)}: {ex.Message}", "PythonClassificationFileParser");
             }
         }
 

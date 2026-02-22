@@ -1,10 +1,8 @@
-using System;
-using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
+using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Settings.Models;
 
 namespace D3dxSkinManager.Modules.Settings.Services;
@@ -45,7 +43,7 @@ public class GlobalSettingsService : IGlobalSettingsService
     private readonly string _settingsFilePath;
     private GlobalSettings? _cachedSettings;
     private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly ILogHelper _logger;
+    private readonly AppEnvironment _appEnvironment;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -53,9 +51,9 @@ public class GlobalSettingsService : IGlobalSettingsService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public GlobalSettingsService(IGlobalPathService globalPaths, ILogHelper logger)
+    public GlobalSettingsService(IGlobalPathService globalPaths, AppEnvironment appEnvironment)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _appEnvironment = appEnvironment ?? throw new ArgumentNullException(nameof(appEnvironment));
         var globalPathsService = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));
 
         // Use GlobalPathService direct property for global settings file
@@ -70,35 +68,32 @@ public class GlobalSettingsService : IGlobalSettingsService
     /// </summary>
     public async Task<GlobalSettings> GetSettingsAsync()
     {
-        _logger.Debug($"GetSettingsAsync called", "GlobalSettingsService");
-        _logger.Debug($"Settings file path: {_settingsFilePath}", "GlobalSettingsService");
-
         await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
             // Return cached if available
             if (_cachedSettings != null)
             {
-                _logger.Debug($"Returning cached settings", "GlobalSettingsService");
                 return _cachedSettings;
             }
-
-            _logger.Debug($"No cached settings, loading from file...", "GlobalSettingsService");
 
             // Load from file or create default
             if (File.Exists(_settingsFilePath))
             {
-                _logger.Debug($"Settings file exists, reading...", "GlobalSettingsService");
                 _cachedSettings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath).ConfigureAwait(false)
                                   ?? new GlobalSettings();
-                _logger.Info($"Settings loaded from file", "GlobalSettingsService");
+
+                // Apply log level to AppEnvironment
+                _appEnvironment.MinimumLogLevel = ParseLogLevel(_cachedSettings.LogLevel);
             }
             else
             {
-                _logger.Info($"Settings file not found, creating default...", "GlobalSettingsService");
                 _cachedSettings = new GlobalSettings();
+
+                // Apply default log level to AppEnvironment
+                _appEnvironment.MinimumLogLevel = ParseLogLevel(_cachedSettings.LogLevel);
+
                 await SaveSettingsAsync(_cachedSettings).ConfigureAwait(false);
-                _logger.Info($"Default settings created and saved", "GlobalSettingsService");
             }
 
             return _cachedSettings;
@@ -107,6 +102,12 @@ public class GlobalSettingsService : IGlobalSettingsService
         {
             _lock.Release();
         }
+    }
+
+    public async Task<LogLevel> GetLogLevelAsync()
+    {
+        var settings = await GetSettingsAsync().ConfigureAwait(false);
+        return ParseLogLevel(settings.LogLevel);
     }
 
     /// <summary>
@@ -132,7 +133,6 @@ public class GlobalSettingsService : IGlobalSettingsService
     /// </summary>
     public async Task UpdateSettingAsync(string key, string value)
     {
-        _logger.Debug($"UpdateSettingAsync called - Key: {key}, Value: {value}", "GlobalSettingsService");
         await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -140,17 +140,14 @@ public class GlobalSettingsService : IGlobalSettingsService
             GlobalSettings settings;
             if (_cachedSettings != null)
             {
-                _logger.Debug($"Using cached settings", "GlobalSettingsService");
                 settings = _cachedSettings;
             }
             else if (File.Exists(_settingsFilePath))
             {
-                _logger.Debug($"Loading settings from file", "GlobalSettingsService");
                 settings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath).ConfigureAwait(false) ?? new GlobalSettings();
             }
             else
             {
-                _logger.Debug($"Creating new default settings", "GlobalSettingsService");
                 settings = new GlobalSettings();
             }
 
@@ -158,19 +155,17 @@ public class GlobalSettingsService : IGlobalSettingsService
             switch (key.ToLowerInvariant())
             {
                 case "theme":
-                    _logger.Info($"Updating theme from '{settings.Theme}' to '{value}'", "GlobalSettingsService");
                     settings.Theme = value;
                     break;
                 case "annotationlevel":
-                    _logger.Info($"Updating annotationLevel from '{settings.AnnotationLevel}' to '{value}'", "GlobalSettingsService");
                     settings.AnnotationLevel = value;
                     break;
                 case "loglevel":
-                    _logger.Info($"Updating logLevel from '{settings.LogLevel}' to '{value}'", "GlobalSettingsService");
                     settings.LogLevel = value;
+                    // Update AppEnvironment immediately so LogHelper uses the new level
+                    _appEnvironment.MinimumLogLevel = ParseLogLevel(value);
                     break;
                 case "language":
-                    _logger.Info($"Updating language from '{settings.Language}' to '{value}'", "GlobalSettingsService");
                     settings.Language = value;
                     break;
                 default:
@@ -178,10 +173,8 @@ public class GlobalSettingsService : IGlobalSettingsService
             }
 
             settings.LastUpdated = DateTime.UtcNow;
-            _logger.Debug($"Saving settings to: {_settingsFilePath}", "GlobalSettingsService");
             await SaveSettingsAsync(settings).ConfigureAwait(false);
             _cachedSettings = settings;
-            _logger.Info($"Settings saved successfully", "GlobalSettingsService");
         }
         finally
         {
@@ -213,5 +206,23 @@ public class GlobalSettingsService : IGlobalSettingsService
     private async Task SaveSettingsAsync(GlobalSettings settings)
     {
         await JsonHelper.SerializeToFileAsync(_settingsFilePath, settings).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Parse a string log level to LogLevel enum
+    /// Frontend uses: ALL, DEBUG, INFO, WARN, ERROR, OFF
+    /// Backend enum: All, Debug, Info, Warn, Error, Off
+    /// </summary>
+    private LogLevel ParseLogLevel(string logLevelStr)
+    {
+        // Try direct enum parse first (case-insensitive)
+        // This handles: ALL, DEBUG, INFO, WARN, ERROR, OFF
+        if (Enum.TryParse<LogLevel>(logLevelStr, true, out var level))
+        {
+            return level;
+        }
+
+        // Default to OFF for unknown values
+        return LogLevel.Off;
     }
 }

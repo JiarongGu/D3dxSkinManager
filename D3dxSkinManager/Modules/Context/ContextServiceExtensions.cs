@@ -13,7 +13,6 @@ namespace D3dxSkinManager.Modules.Context
             services.AddSingleton<IModAutoDetectionService, ModAutoDetectionService>();
             services.AddSingleton<IProfileServerService, ProfileServerService>();
             services.AddSingleton<IImageService, ImageService>();
-
             return services;
         }
     }

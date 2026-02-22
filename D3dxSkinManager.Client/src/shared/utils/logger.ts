@@ -3,17 +3,15 @@
  * Lower number = more verbose
  */
 export enum LogLevel {
-  ALL = 0,      // Show everything
-  TRACE = 1,    // Detailed traces
-  DEBUG = 2,    // Debug information
-  INFO = 3,     // General information
-  WARN = 4,     // Warnings
-  ERROR = 5,    // Errors
-  FATAL = 6,    // Fatal errors
-  OFF = 7,      // Disable logging
+  DEBUG = 0,    // Debug
+  INFO = 1,     // Info
+  WARN = 2,     // Warnings
+  ERROR = 3,    // Errors
+  ALL = 4,     // Show everything
+  OFF = -1,     // Disable logging
 }
 
-export type LogLevelName = 'ALL' | 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL' | 'OFF';
+export type LogLevelName = 'ALL' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'OFF';
 
 /**
  * Logger class with level-based filtering
@@ -23,10 +21,25 @@ export class Logger {
   // Default to INFO in development, WARN in production
   private currentLevel: LogLevel = process.env.NODE_ENV === 'development' ? LogLevel.INFO : LogLevel.WARN;
   private isInitialized = false;
+  private persistToBackend = false; // Whether to send logs to backend for persistence
 
   constructor() {
     // Load log level from backend
     this.loadLevel();
+  }
+
+  /**
+   * Enable/disable sending logs to backend for persistence
+   */
+  setPersistence(enabled: boolean): void {
+    this.persistToBackend = enabled;
+  }
+
+  /**
+   * Get persistence status
+   */
+  getPersistence(): boolean {
+    return this.persistToBackend;
   }
 
   /**
@@ -101,15 +114,48 @@ export class Logger {
    * Check if message should be logged
    */
   private shouldLog(level: LogLevel): boolean {
+    // OFF disables all logging
+    if (this.currentLevel === LogLevel.OFF) {
+      return false;
+    }
+
+    // ALL enables all logging
+    if (this.currentLevel === LogLevel.ALL) {
+      return true;
+    }
+
+    // Otherwise, log if level >= currentLevel
     return level >= this.currentLevel;
   }
 
   /**
-   * Log a trace message
+   * Send log to backend for persistence
    */
-  trace(message: string, ...args: any[]): void {
-    if (this.shouldLog(LogLevel.TRACE)) {
-      console.log(`[TRACE] ${message}`, ...args);
+  private async sendToBackend(level: LogLevel, message: string, args: any[]): Promise<void> {
+    if (!this.persistToBackend) {
+      return;
+    }
+
+    try {
+      const { bridgeService } = await import('../services/bridgeService');
+      const levelName = this.getLevelName(level);
+      const formattedMessage = args.length > 0
+        ? `${message} ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')}`
+        : message;
+
+      await bridgeService.sendMessage({
+        module: 'SYSTEM',
+        type: 'LOG_FROM_FRONTEND',
+        payload: {
+          level: levelName,
+          message: formattedMessage,
+          timestamp: new Date().toISOString(),
+          source: 'Frontend'
+        }
+      });
+    } catch (error) {
+      // Silently fail - don't create infinite loop if logging itself fails
+      // Just log to console as fallback
     }
   }
 
@@ -119,6 +165,7 @@ export class Logger {
   debug(message: string, ...args: any[]): void {
     if (this.shouldLog(LogLevel.DEBUG)) {
       console.log(`[DEBUG] ${message}`, ...args);
+      this.sendToBackend(LogLevel.DEBUG, message, args); // Fire and forget
     }
   }
 
@@ -128,6 +175,7 @@ export class Logger {
   info(message: string, ...args: any[]): void {
     if (this.shouldLog(LogLevel.INFO)) {
       console.info(`[INFO] ${message}`, ...args);
+      this.sendToBackend(LogLevel.INFO, message, args); // Fire and forget
     }
   }
 
@@ -137,6 +185,7 @@ export class Logger {
   warn(message: string, ...args: any[]): void {
     if (this.shouldLog(LogLevel.WARN)) {
       console.warn(`[WARN] ${message}`, ...args);
+      this.sendToBackend(LogLevel.WARN, message, args); // Fire and forget
     }
   }
 
@@ -146,31 +195,21 @@ export class Logger {
   error(message: string, ...args: any[]): void {
     if (this.shouldLog(LogLevel.ERROR)) {
       console.error(`[ERROR] ${message}`, ...args);
-    }
-  }
-
-  /**
-   * Log a fatal error message
-   */
-  fatal(message: string, ...args: any[]): void {
-    if (this.shouldLog(LogLevel.FATAL)) {
-      console.error(`[FATAL] ${message}`, ...args);
+      this.sendToBackend(LogLevel.ERROR, message, args); // Fire and forget
     }
   }
 
   /**
    * Get all available log level options
    */
-  static getLevelOptions(): Array<{ value: LogLevelName; label: string; description: string }> {
+  static getLevelOptions(): Array<{ value: string; label: string; description: string }> {
     return [
-      { value: 'ALL', label: 'ALL', description: 'Show all log messages' },
-      { value: 'TRACE', label: 'TRACE', description: 'Show trace and above' },
-      { value: 'DEBUG', label: 'DEBUG', description: 'Show debug and above' },
-      { value: 'INFO', label: 'INFO', description: 'Show info and above (recommended)' },
-      { value: 'WARN', label: 'WARN', description: 'Show warnings and errors only' },
-      { value: 'ERROR', label: 'ERROR', description: 'Show errors only' },
-      { value: 'FATAL', label: 'FATAL', description: 'Show only fatal errors' },
-      { value: 'OFF', label: 'OFF', description: 'Disable all logging' },
+      { value: 'ALL', label: 'All', description: 'Show all log messages' },
+      { value: 'DEBUG', label: 'Debug', description: 'Debug information and above' },
+      { value: 'INFO', label: 'Info', description: 'Information, warnings and errors' },
+      { value: 'WARN', label: 'Warn', description: 'Warnings and errors' },
+      { value: 'ERROR', label: 'Error', description: 'Errors only' },
+      { value: 'OFF', label: 'Off', description: 'Disable all logging' },
     ];
   }
 }

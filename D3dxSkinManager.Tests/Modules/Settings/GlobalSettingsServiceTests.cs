@@ -8,6 +8,7 @@ using D3dxSkinManager.Modules.Settings.Models;
 using Moq;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
 
 namespace D3dxSkinManager.Tests.Modules.Settings;
 
@@ -20,7 +21,7 @@ public class GlobalSettingsServiceTests : IDisposable
     private readonly string _testDataPath;
     private readonly GlobalSettingsService _service;
     private readonly Mock<IGlobalPathService> _mockGlobalPaths;
-    private readonly Mock<ILogHelper> _mockLogger = new();
+    private readonly AppEnvironment _appEnvironment;
 
     public GlobalSettingsServiceTests()
     {
@@ -40,7 +41,15 @@ public class GlobalSettingsServiceTests : IDisposable
             Directory.CreateDirectory(Path.Combine(_testDataPath, "settings"));
         });
 
-        _service = new GlobalSettingsService(_mockGlobalPaths.Object, _mockLogger.Object);
+        // Create AppEnvironment for tests
+        _appEnvironment = new AppEnvironment
+        {
+            BaseDirectory = _testDataPath,
+            IsDevelopment = false,
+            MinimumLogLevel = LogLevel.Off
+        };
+
+        _service = new GlobalSettingsService(_mockGlobalPaths.Object, _appEnvironment);
     }
 
     public void Dispose()
@@ -61,7 +70,7 @@ public class GlobalSettingsServiceTests : IDisposable
         // Assert
         settings.Should().NotBeNull();
         settings.Theme.Should().Be("light");
-        settings.LogLevel.Should().Be("info");
+        settings.LogLevel.Should().Be("OFF");
         settings.AnnotationLevel.Should().Be("all");
         settings.LastUpdated.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
@@ -206,7 +215,7 @@ public class GlobalSettingsServiceTests : IDisposable
         await _service.UpdateSettingAsync("theme", "dark");
 
         // Create new service instance to ensure reading from file
-        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _mockLogger.Object);
+        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _appEnvironment);
         var settings = await newService.GetSettingsAsync();
 
         // Assert
@@ -227,7 +236,7 @@ public class GlobalSettingsServiceTests : IDisposable
 
         // Assert
         settings.Theme.Should().Be("light");
-        settings.LogLevel.Should().Be("info");
+        settings.LogLevel.Should().Be("OFF");
         settings.AnnotationLevel.Should().Be("all");
     }
 
@@ -241,7 +250,7 @@ public class GlobalSettingsServiceTests : IDisposable
         await _service.ResetSettingsAsync();
 
         // Create new service instance
-        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _mockLogger.Object);
+        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _appEnvironment);
         var settings = await newService.GetSettingsAsync();
 
         // Assert

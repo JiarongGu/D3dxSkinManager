@@ -3,6 +3,7 @@ using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Plugins.Interfaces;
+using D3dxSkinManager.Modules.Core.Event;
 
 namespace D3dxSkinManager.ExamplePlugin;
 
@@ -56,12 +57,12 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
 
     // ============= Event Handlers =============
 
-    private async Task OnApplicationStarted(Modules.Plugins.Services.EventArgs args)
+    private async Task OnApplicationStarted(EventMessage args)
     {
         await WriteLogAsync($"Application started at {args.Timestamp:yyyy-MM-dd HH:mm:ss}");
     }
 
-    private async Task OnModLoaded(Modules.Plugins.Services.EventArgs args)
+    private async Task OnModLoaded(EventMessage args)
     {
         var data = args.Data as dynamic;
         var sha = data?.Sha?.ToString() ?? "unknown";
@@ -71,7 +72,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         await WriteLogAsync(message);
     }
 
-    private async Task OnModUnloaded(Modules.Plugins.Services.EventArgs args)
+    private async Task OnModUnloaded(EventMessage args)
     {
         var data = args.Data as dynamic;
         var sha = data?.Sha?.ToString() ?? "unknown";
@@ -81,7 +82,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         await WriteLogAsync(message);
     }
 
-    private async Task OnModImported(Modules.Plugins.Services.EventArgs args)
+    private async Task OnModImported(EventMessage args)
     {
         var mod = args.Data as ModInfo;
         if (mod != null)
@@ -92,7 +93,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         }
     }
 
-    private async Task OnModDeleted(Modules.Plugins.Services.EventArgs args)
+    private async Task OnModDeleted(EventMessage args)
     {
         var data = args.Data as dynamic;
         var sha = data?.Sha?.ToString() ?? "unknown";

@@ -48,6 +48,11 @@
         /// <summary>
         /// Custom event emitted by other plugins.
         /// </summary>
-        CustomEvent
+        CustomEvent,
+
+        /// <summary>
+        /// Fired when log level setting is changed.
+        /// </summary>
+        LogLevelChanged
     }
 }

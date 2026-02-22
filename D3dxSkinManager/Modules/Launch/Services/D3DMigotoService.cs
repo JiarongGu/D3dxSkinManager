@@ -188,7 +188,7 @@ public class D3DMigotoService : I3DMigotoService
                     }
                     catch (Exception ex)
                     {
-                        _logger.Warning($"Could not delete {file}: {ex.Message}", "D3DMigotoService");
+                        _logger.Warn($"Could not delete {file}: {ex.Message}", "D3DMigotoService");
                     }
                 }
             }
@@ -237,7 +237,7 @@ public class D3DMigotoService : I3DMigotoService
             var workDirectory = _configService.GetWorkDirectory();
             if (string.IsNullOrEmpty(workDirectory) || !Directory.Exists(workDirectory))
             {
-                _logger.Warning("Work directory not configured or does not exist", "D3DMigotoService");
+                _logger.Warn("Work directory not configured or does not exist", "D3DMigotoService");
                 return false;
             }
 
@@ -272,7 +272,7 @@ public class D3DMigotoService : I3DMigotoService
 
             if (loaderPath == null)
             {
-                _logger.Warning("No 3DMigoto loader found in work directory", "D3DMigotoService");
+                _logger.Warn("No 3DMigoto loader found in work directory", "D3DMigotoService");
                 return false;
             }
 

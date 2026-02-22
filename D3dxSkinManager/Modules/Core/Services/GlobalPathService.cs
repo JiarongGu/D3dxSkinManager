@@ -45,6 +45,11 @@ public interface IGlobalPathService
     string FrontendIndexPath { get; }
 
     /// <summary>
+    /// Global logs directory (data/logs/)
+    /// </summary>
+    string LogsDirectory { get; }
+
+    /// <summary>
     /// Ensure all standard global directories exist
     /// Should be called during application initialization
     /// </summary>
@@ -104,6 +109,8 @@ public class GlobalPathService : IGlobalPathService
 
     public string FrontendIndexPath => Path.Combine(FrontendPath, "index.html");
 
+    public string LogsDirectory => Path.Combine(BaseDataPath, "logs");
+
     /// <summary>
     /// Ensure all standard global directories exist
     /// Creates directories if they don't exist
@@ -115,6 +122,7 @@ public class GlobalPathService : IGlobalPathService
         Directory.CreateDirectory(BaseDataPath);
         Directory.CreateDirectory(ProfilesDirectory);
         Directory.CreateDirectory(GlobalSettingsDirectory);
+        Directory.CreateDirectory(LogsDirectory);
     }
 
     // Helper method implementations

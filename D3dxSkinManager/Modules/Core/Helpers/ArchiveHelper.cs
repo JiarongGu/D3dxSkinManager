@@ -113,7 +113,7 @@ public class ArchiveHelper : IArchiveHelper
             }
             catch (Exception ex)
             {
-                _logger.Warning($"Failed to detect archive type: {ex.Message}", "ArchiveService");
+                _logger.Warn($"Failed to detect archive type: {ex.Message}", "ArchiveService");
                 return null;
             }
         });
@@ -161,7 +161,7 @@ public class ArchiveHelper : IArchiveHelper
                 }
                 else
                 {
-                    _logger.Warning($"7z.dll not found at: {libraryPath}", "ArchiveService");
+                    _logger.Warn($"7z.dll not found at: {libraryPath}", "ArchiveService");
                 }
 
                 // Use SevenZipSharp for extraction (supports all common formats)
