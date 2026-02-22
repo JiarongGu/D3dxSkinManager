@@ -3,18 +3,46 @@
 > **Purpose:** Backend C# classes, services, and architecture
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-02-21
+**Last Updated:** 2026-02-22
 
 ---
 
 ## Entry Point
 
 - **Program** → `D3dxSkinManager/Program.cs`
-  - Main method → `:11`
-  - InitializeServices (DI setup) → `:24-38` (includes WindowStateService)
-  - Photino window setup → `:42-55`
-  - IPC message handler → `:65-120`
-  - Window state persistence handled by WindowStateService via DI
+  - Main method → Entry point for application
+  - Uses ApplicationBootstrapper for initialization
+
+## Composition Layer (WebView2 Architecture)
+
+- **ApplicationBootstrapper** → `D3dxSkinManager/Composition/ApplicationBootstrapper.cs`
+  - Application initialization and DI setup
+  - Creates ApplicationHost with WebView2
+
+- **ApplicationHost** → `D3dxSkinManager/Composition/ApplicationHost.cs`
+  - WinForms main form with WebView2 control
+  - Manages window state and lifecycle
+
+- **WebViewInitializer** → `D3dxSkinManager/Composition/WebViewInitializer.cs`
+  - WebView2 environment setup
+  - Custom scheme handler registration
+  - GPU acceleration settings
+
+- **IpcCommunicationHandler** → `D3dxSkinManager/Composition/IpcCommunicationHandler.cs`
+  - Handles WebView2 ↔ C# IPC messages
+  - PostWebMessageAsString / WebMessageReceived
+
+- **MessageDispatcher** → `D3dxSkinManager/Composition/MessageDispatcher.cs`
+  - Middleware pipeline for message processing
+  - Lazy<T> caching for performance
+
+- **ProfileServiceRouter** → `D3dxSkinManager/Composition/ProfileServiceRouter.cs`
+  - Profile-scoped service providers
+  - Routes messages to profile-specific services
+
+- **ServiceContainer** → `D3dxSkinManager/Composition/ServiceContainer.cs`
+  - Global DI container setup
+  - Service registration
 
 ---
 
@@ -40,6 +68,15 @@
   - OperationNotificationType enum - notification types for IPC
   - OperationNotification class - IPC push notification payload
   - Created: 2026-02-21
+
+#### Utilities
+
+- **LruCache<TKey,TValue>** → `Modules/Core/Utilities/LruCache.cs`
+  - Thread-safe LRU cache with capacity limit
+  - Automatic eviction of least recently used items
+  - ReaderWriterLockSlim for concurrent access
+  - Used by CustomSchemeHandler for path caching
+  - Created: 2026-02-22
 
 #### Services
 
@@ -295,11 +332,12 @@
   - Generic file-based storage service
 
 - **WindowStateService** → `Modules/Settings/Services/WindowStateService.cs`
-  - **NEW 2026-02-20:** Window size/position persistence service
+  - Window size/position persistence service
   - LoadWindowState → Returns (width, height, x, y, maximized) tuple
-  - SaveWindowState(PhotinoWindow) → Saves current window state
+  - SaveWindowState(Form) → Saves current window state
   - IsPositionValid → Validates window is visible on at least one monitor
   - Handles screen resolution changes and multi-monitor setups
+  - Updated 2026-02-22: Works with WinForms instead of Photino
 
 #### Models
 
@@ -469,7 +507,8 @@ Located in `Plugins/` directory (external to backend):
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| Photino.NET | 4.0.16 | Desktop window framework |
+| Microsoft.Web.WebView2.WinForms | 1.0.3800.47 | WebView2 control for WinForms |
+| System.Windows.Forms | 10.0.3 | WinForms desktop framework |
 | Microsoft.Data.Sqlite | 10.0.3 | SQLite database |
 | Newtonsoft.Json | 13.0.4 | JSON serialization |
 | Microsoft.Extensions.DependencyInjection | 10.0.3 | DI container |

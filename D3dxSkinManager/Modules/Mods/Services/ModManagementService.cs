@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Mods.Models;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
@@ -95,7 +95,7 @@ public class ModManagementService : IModManagementService
             // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system
         };
 
-        await _repository.InsertAsync(mod);
+        await _repository.InsertAsync(mod).ConfigureAwait(false);
         _logger.Info($"Created mod: {mod.Name} ({mod.SHA})", "ModManagementService");
 
         return mod;
@@ -109,7 +109,7 @@ public class ModManagementService : IModManagementService
         if (string.IsNullOrWhiteSpace(sha))
             throw new ArgumentException("SHA is required", nameof(sha));
 
-        var mod = await _repository.GetByIdAsync(sha);
+        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
         if (mod == null)
         {
             throw new InvalidOperationException($"Mod with SHA {sha} not found");
@@ -125,7 +125,7 @@ public class ModManagementService : IModManagementService
         if (request.Tags != null) mod.Tags = request.Tags;
         // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system
 
-        await _repository.UpdateAsync(mod);
+        await _repository.UpdateAsync(mod).ConfigureAwait(false);
         _logger.Info($"Updated mod: {mod.Name} ({sha})", "ModManagementService");
 
         return mod;
@@ -139,14 +139,14 @@ public class ModManagementService : IModManagementService
         if (string.IsNullOrWhiteSpace(sha))
             throw new ArgumentException("SHA is required", nameof(sha));
 
-        var exists = await _repository.ExistsAsync(sha);
+        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
         if (!exists)
         {
             _logger.Warning($"Mod not found for deletion: {sha}", "ModManagementService");
             return false;
         }
 
-        var success = await _repository.DeleteAsync(sha);
+        var success = await _repository.DeleteAsync(sha).ConfigureAwait(false);
         if (success)
         {
             _logger.Info($"Deleted mod: {sha}", "ModManagementService");
@@ -165,7 +165,7 @@ public class ModManagementService : IModManagementService
             throw new ArgumentException("SHA is required", nameof(sha));
 
         // Try to get existing mod
-        var existing = await _repository.GetByIdAsync(sha);
+        var existing = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
         if (existing != null)
         {
             _logger.Debug($"Mod already exists: {existing.Name} ({sha})", "ModManagementService");
@@ -173,6 +173,6 @@ public class ModManagementService : IModManagementService
         }
 
         // Create new mod
-        return await CreateModAsync(request);
+        return await CreateModAsync(request).ConfigureAwait(false);
     }
 }

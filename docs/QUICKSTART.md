@@ -52,13 +52,13 @@ npm start
 ```
 Wait for "Compiled successfully!" message and browser opens.
 
-**Terminal 2 - Photino Backend:**
+**Terminal 2 - Backend:**
 ```bash
 cd d3dxSkinManage-Rewrite/D3dxSkinManager
 dotnet run
 ```
 
-A window should open showing the d3dxSkinManage UI!
+A WebView2 window should open showing the d3dxSkinManage UI!
 
 ## What You'll See
 
@@ -79,8 +79,8 @@ Since no mods are in the database yet, the frontend uses mock data:
 - You can click Load/Unload buttons (they work in dev mode)
 
 ### Browser DevTools
-The Photino window is essentially a browser, so you can:
-- Press `F12` (if supported) for DevTools
+The WebView2 window uses Chromium, so you can:
+- Press `F12` for DevTools
 - Check console for errors
 - Inspect React components
 
@@ -120,7 +120,7 @@ d3dxSkinManage-Rewrite/
     ├── src/
     │   ├── App.tsx             # 🔧 Main UI - Edit to change layout
     │   ├── services/
-    │   │   ├── photino.ts      # 🔧 C# ↔ React bridge
+    │   │   ├── bridgeService.ts # 🔧 C# ↔ React bridge
     │   │   └── modService.ts   # 🔧 Mod operations
     │   └── ...
     └── package.json
@@ -184,11 +184,12 @@ Now you have a method to count mods!
 ### Issue: "npm: command not found"
 **Fix**: Install Node.js from https://nodejs.org/
 
-### Issue: Photino window is blank
+### Issue: WebView2 window is blank
 **Fix**:
 1. Make sure React dev server is running (`npm start`)
 2. Check that you see "Compiled successfully!"
 3. Try accessing http://localhost:3000 in a regular browser
+4. Ensure WebView2 runtime is installed (bundled with Windows 11)
 
 ### Issue: Can't install packages (NuGet error)
 **Fix**: Use official NuGet source:

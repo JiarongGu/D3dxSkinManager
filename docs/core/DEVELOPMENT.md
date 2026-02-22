@@ -170,7 +170,7 @@ npm start
 # 5. Start backend (in terminal 2)
 cd ..\D3dxSkinManager
 dotnet run
-# Opens Photino window pointing to localhost:3000
+# Opens WebView2 window pointing to localhost:3000
 
 # 6. Make code changes
 # Edit files in VS Code / Visual Studio
@@ -315,7 +315,7 @@ npm start
 cd D3dxSkinManager
 dotnet run
 
-# Backend opens Photino window
+# Backend opens WebView2 window
 # Points to http://localhost:3000
 # Real IPC communication
 ```
@@ -465,8 +465,8 @@ Until automated tests exist:
 ### Frontend Debugging (Browser)
 
 1. **Open DevTools:**
-   - Press F12 in Photino window
-   - Or right-click > Inspect
+   - Press F12 in WebView2 window
+   - Or right-click > Inspect (in development mode)
 
 2. **Use Console:**
    ```typescript
@@ -488,29 +488,30 @@ Until automated tests exist:
 
 **IPC Not Working:**
 ```typescript
-// In photino.ts, add logging:
+// In bridgeService.ts, add logging:
 sendMessage<T>(type: MessageType, payload?: any): Promise<T> {
   console.log('[IPC] Sending:', type, payload);
   return new Promise((resolve, reject) => {
+    chrome.webview.postMessage({ id, type, payload });
     // ...
   });
 }
 
 // In message receiver:
-window.external?.receiveMessage((message: string) => {
-  console.log('[IPC] Received:', message);
+chrome.webview.addEventListener('message', (event) => {
+  console.log('[IPC] Received:', event.data);
   // ...
 });
 ```
 
 ```csharp
-// In Program.cs:
-private static void OnWebMessageReceived(object? sender, string message)
+// In IpcCommunicationHandler.cs:
+webView.CoreWebView2.WebMessageReceived += (sender, args) =>
 {
-    Console.WriteLine($"[IPC] Received: {message}");
+    Console.WriteLine($"[IPC] Received: {args.WebMessageAsJson}");
     // ...
     Console.WriteLine($"[IPC] Sending: {json}");
-    window.SendWebMessage(json);
+    webView.CoreWebView2.PostWebMessageAsJson(json);
 }
 ```
 
@@ -811,15 +812,15 @@ PORT=3001 npm start
 
 ### Backend Crashes on Startup
 
-**Problem:** Missing icon file or database issues
+**Problem:** WebView2 runtime missing or database issues
 
 **Solution:**
 ```bash
-# Check Program.cs has icon line commented:
-// .SetIconFile("icon.ico")
+# Ensure WebView2 runtime is installed
+# It's bundled with Windows 11, or download separately
 
 # Delete and regenerate database:
-rm bin\Debug\net8.0\mods.db
+rm bin\Debug\net10.0\mods.db
 dotnet run
 ```
 
@@ -833,7 +834,7 @@ dotnet run
 - [WORKFLOWS.md](../ai-assistant/WORKFLOWS.md) - Step-by-step procedures
 - [.NET Documentation](https://docs.microsoft.com/dotnet/)
 - [React Documentation](https://react.dev/)
-- [Photino.NET Docs](https://www.tryphotino.io/)
+- [WebView2 Docs](https://learn.microsoft.com/en-us/microsoft-edge/webview2/)
 
 ---
 

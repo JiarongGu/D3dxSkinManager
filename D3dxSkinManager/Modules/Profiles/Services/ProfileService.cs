@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Profiles.Models;
@@ -51,16 +50,9 @@ public interface IProfileService
     Task<bool> DeleteProfileAsync(string profileId);
 
     /// <summary>
-    /// Switch to a different profile
+    /// Switch to a different profile (set as active)
     /// </summary>
-    /// <param name="profileId">Target profile ID</param>
-    /// <returns>Switch result with new active profile</returns>
-    Task<ProfileSwitchResult> SwitchProfileAsync(string profileId);
-
-    /// <summary>
-    /// Get profile statistics (mod count, total size)
-    /// </summary>
-    Task<Profile> GetProfileStatisticsAsync(string profileId);
+    Task<bool> SwitchProfileAsync(string profileId);
 
     /// <summary>
     /// Duplicate a profile (copy all data)
@@ -91,136 +83,92 @@ public interface IProfileService
 /// <summary>
 /// Service for managing mod management profiles
 /// Each profile has isolated data directory and configuration
+/// Business logic layer - delegates data operations to ProfileRepository
 /// </summary>
 public class ProfileService : IProfileService
 {
     private readonly IGlobalPathService _globalPaths;
     private readonly IPathHelper _pathHelper;
+    private readonly IFileHelper _fileService;
+    private readonly IProfileRepository _repository;
     private readonly ILogHelper _logger;
-    private List<Profile> _profiles;
-    private string _activeProfileId;
+    private readonly Lazy<Task> _init;
 
-    public ProfileService(IGlobalPathService globalPaths, IPathHelper pathHelper, ILogHelper logger)
+    public ProfileService(
+        IGlobalPathService globalPaths,
+        IFileHelper fileService,
+        IPathHelper pathHelper,
+        IProfileRepository repository,
+        ILogHelper logger)
     {
-        _globalPaths = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));
-        _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _profiles = new List<Profile>();
-        _activeProfileId = string.Empty;
+        _globalPaths = globalPaths;
+        _pathHelper = pathHelper;
+        _fileService = fileService;
+        _repository = repository;
+        _logger = logger;
 
-        // Ensure global directories exist
-        _globalPaths.EnsureDirectoriesExist();
-
-        // Load profiles from disk
-        LoadProfilesFromDisk().Wait();
+        // Lazy initialization to avoid blocking constructor
+        _init = new Lazy<Task>(EnsureDefaultProfileExistsAsync, isThreadSafe: true);
     }
 
-    private async Task LoadProfilesFromDisk()
+    private Task EnsureInitializedAsync() => _init.Value;
+
+    private async Task EnsureDefaultProfileExistsAsync()
     {
-        if (File.Exists(_globalPaths.ProfilesConfigPath))
+        try
         {
-            var data = await JsonHelper.DeserializeFromFileAsync<ProfilesData>(_globalPaths.ProfilesConfigPath);
-            if (data != null)
+            var profiles = await _repository.GetAllProfilesAsync().ConfigureAwait(false);
+            if (profiles.Count == 0)
             {
-                _profiles = data.Profiles;
-                _activeProfileId = data.ActiveProfileId;
+                // No profiles found - create default profile
+                _logger.Info("No profiles found. Creating default profile.", "ProfileService");
+                await CreateProfileAsync(new CreateProfileRequest
+                {
+                    Name = "Default",
+                    Description = "Default profile",
+                    GameDirectory = string.Empty,
+                    WorkDirectory = string.Empty,
+                    ColorTag = "#1890ff",
+                    IconName = "home",
+                    GameName = "Default"
+                }).ConfigureAwait(false);
             }
         }
-
-        // If no profiles exist, create default profile
-        if (_profiles.Count == 0)
+        catch (Exception ex)
         {
-            await CreateDefaultProfileAsync();
+            _logger.Error($"Failed to ensure default profile exists: {ex.Message}", "ProfileService");
         }
-    }
-
-    private async Task SaveProfilesToDisk()
-    {
-        var data = new ProfilesData
-        {
-            Profiles = _profiles,
-            ActiveProfileId = _activeProfileId
-        };
-
-        await JsonHelper.SerializeToFileAsync(_globalPaths.ProfilesConfigPath, data);
-    }
-
-    private async Task CreateDefaultProfileAsync()
-    {
-        var profileId = "default"; // Use fixed "default" ID for the default profile
-
-        // Use relative paths for portability
-        var dataDir = _globalPaths.GetProfileDirectoryPath(profileId);
-        var workDir = Path.Combine(dataDir, "work"); // Work directory under profile data
-
-        var defaultProfile = new Profile
-        {
-            Id = profileId,
-            Name = "Default",
-            Description = "Default profile",
-            GameDirectory = null, // User will set this later
-            WorkDirectory = _pathHelper.ToRelativePath(workDir) ?? workDir, // Store as relative path
-            DataDirectory = _pathHelper.ToRelativePath(dataDir) ?? dataDir,   // Store as relative path
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            LastUsedAt = DateTime.UtcNow,
-            ColorTag = "#1890ff",
-            IconName = "home",
-            GameName = "Default"
-        };
-
-        _profiles.Add(defaultProfile);
-        _activeProfileId = defaultProfile.Id;
-
-        // Ensure profile directory structure exists
-        var profileDataDir = _globalPaths.GetProfileDirectoryPath(profileId);
-        Directory.CreateDirectory(profileDataDir);
-        Directory.CreateDirectory(Path.Combine(profileDataDir, "mods"));
-        Directory.CreateDirectory(Path.Combine(profileDataDir, "thumbnails"));
-        Directory.CreateDirectory(Path.Combine(profileDataDir, "previews"));
-        Directory.CreateDirectory(Path.Combine(profileDataDir, "work"));
-        Directory.CreateDirectory(Path.Combine(profileDataDir, "logs"));
-
-        await SaveProfilesToDisk();
-        _logger.Info($"Created default profile with data directory: {profileDataDir}", "ProfileService");
     }
 
     public async Task<List<Profile>> GetAllProfilesAsync()
     {
-        // Update statistics for all profiles
-        foreach (var profile in _profiles)
-        {
-            await UpdateProfileStatisticsAsync(profile);
-        }
-        return _profiles.ToList();
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        return await _repository.GetAllProfilesAsync().ConfigureAwait(false);
     }
 
     public async Task<Profile?> GetActiveProfileAsync()
     {
-        var profile = _profiles.FirstOrDefault(p => p.Id == _activeProfileId);
-        if (profile != null)
-        {
-            await UpdateProfileStatisticsAsync(profile);
-        }
-        return profile;
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        var activeId = await _repository.GetActiveProfileIdAsync().ConfigureAwait(false);
+        return await _repository.GetProfileAsync(activeId).ConfigureAwait(false);
     }
 
-    public Task<Profile?> GetProfileByIdAsync(string profileId)
+    public async Task<Profile?> GetProfileByIdAsync(string profileId)
     {
-        var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
-        return Task.FromResult(profile);
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        return await _repository.GetProfileAsync(profileId).ConfigureAwait(false);
     }
 
     public async Task<Profile> CreateProfileAsync(CreateProfileRequest request)
     {
-        var dataDir = _globalPaths.GetProfileDirectoryPath(Guid.NewGuid().ToString());
-        var workDir = string.IsNullOrEmpty(request.WorkDirectory)
-            ? Path.Combine(dataDir, "work")
-            : request.WorkDirectory;
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        var profileId = Guid.NewGuid().ToString();
+        var dataDir = _globalPaths.GetProfileDirectoryPath(profileId);
+        var workDir = string.IsNullOrEmpty(request.WorkDirectory) ? Path.Combine(dataDir, "work") : request.WorkDirectory;
 
         var profile = new Profile
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = profileId,
             Name = request.Name,
             Description = request.Description,
             GameDirectory = request.GameDirectory,
@@ -235,30 +183,15 @@ public class ProfileService : IProfileService
             GameName = request.GameName
         };
 
-        // Create profile data directory structure (use absolute path for file operations)
-        var absoluteDataDir = _pathHelper.ToAbsolutePath(profile.DataDirectory) ?? profile.DataDirectory;
-        Directory.CreateDirectory(absoluteDataDir);
-        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "mods"));
-        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "thumbnails"));
-        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "previews"));
-        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "work"));
-        Directory.CreateDirectory(Path.Combine(absoluteDataDir, "logs"));
+        // Create profile in repository (this will create directory and save to disk)
+        await _repository.CreateProfileAsync(profile).ConfigureAwait(false);
 
-        // Create profile configuration
+        // Create default profile configuration
         var config = new ProfileConfiguration
         {
             ProfileId = profile.Id
         };
-        await SaveProfileConfigurationAsync(profile.Id, config);
-
-        // If copyFromCurrent, copy database and config from active profile
-        if (request.CopyFromCurrent)
-        {
-            await CopyProfileDataAsync(_activeProfileId, profile.Id);
-        }
-
-        _profiles.Add(profile);
-        await SaveProfilesToDisk();
+        await _repository.SaveProfileConfigurationAsync(profile.Id, config).ConfigureAwait(false);
 
         _logger.Info($"Created profile: {profile.Name} ({profile.Id})", "ProfileService");
         return profile;
@@ -266,12 +199,14 @@ public class ProfileService : IProfileService
 
     public async Task<bool> UpdateProfileAsync(UpdateProfileRequest request)
     {
-        var profile = _profiles.FirstOrDefault(p => p.Id == request.ProfileId);
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        var profile = await _repository.GetProfileAsync(request.ProfileId).ConfigureAwait(false);
         if (profile == null)
         {
             return false;
         }
 
+        // Update profile properties
         if (!string.IsNullOrEmpty(request.Name)) profile.Name = request.Name;
         if (request.Description != null) profile.Description = request.Description;
         if (request.GameDirectory != null) profile.GameDirectory = request.GameDirectory;
@@ -280,32 +215,28 @@ public class ProfileService : IProfileService
         if (request.IconName != null) profile.IconName = request.IconName;
         if (request.GameName != null) profile.GameName = request.GameName;
 
-        await SaveProfilesToDisk();
+        await _repository.UpdateProfileAsync(profile).ConfigureAwait(false);
         _logger.Info($"Updated profile: {profile.Name} ({profile.Id})", "ProfileService");
         return true;
     }
 
     public async Task<bool> DeleteProfileAsync(string profileId)
     {
-        if (profileId == _activeProfileId)
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        var activeId = await _repository.GetActiveProfileIdAsync().ConfigureAwait(false);
+        if (profileId == activeId)
         {
             throw new InvalidOperationException("Cannot delete the active profile. Please switch to another profile first.");
         }
 
-        var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
+        var profile = await _repository.GetProfileAsync(profileId).ConfigureAwait(false);
         if (profile == null)
         {
             return false;
         }
 
-        // Delete profile data directory
-        if (Directory.Exists(profile.DataDirectory))
-        {
-            Directory.Delete(profile.DataDirectory, recursive: true);
-        }
-
-        _profiles.Remove(profile);
-        await SaveProfilesToDisk();
+        // Delete profile via repository (handles directory deletion)
+        await _repository.DeleteProfileAsync(profileId).ConfigureAwait(false);
 
         _logger.Info($"Deleted profile: {profile.Name} ({profile.Id})", "ProfileService");
 
@@ -315,90 +246,35 @@ public class ProfileService : IProfileService
         return true;
     }
 
-    public async Task<ProfileSwitchResult> SwitchProfileAsync(string profileId)
+    public async Task<bool> SwitchProfileAsync(string profileId)
     {
-        var targetProfile = _profiles.FirstOrDefault(p => p.Id == profileId);
-        if (targetProfile == null)
-        {
-            return new ProfileSwitchResult
-            {
-                Success = false,
-                ErrorMessage = $"Profile not found: {profileId}"
-            };
-        }
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        // Set the new active profile
+        await _repository.SetActiveProfileIdAsync(profileId).ConfigureAwait(false);
 
-        // Mark old profile as inactive
-        var oldProfile = _profiles.FirstOrDefault(p => p.Id == _activeProfileId);
-        if (oldProfile != null)
-        {
-            oldProfile.IsActive = false;
-        }
-
-        // Activate new profile
-        targetProfile.IsActive = true;
-        targetProfile.LastUsedAt = DateTime.UtcNow;
-        _activeProfileId = profileId;
-
-        await SaveProfilesToDisk();
-        await UpdateProfileStatisticsAsync(targetProfile);
-
-        _logger.Info($"Switched to profile: {targetProfile.Name} ({targetProfile.Id})", "ProfileService");
-
-        return new ProfileSwitchResult
-        {
-            Success = true,
-            ActiveProfile = targetProfile,
-            ModsLoaded = targetProfile.ModCount
-        };
-    }
-
-    public async Task<Profile> GetProfileStatisticsAsync(string profileId)
-    {
-        var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
-        if (profile == null)
-        {
-            throw new ArgumentException($"Profile not found: {profileId}");
-        }
-
-        await UpdateProfileStatisticsAsync(profile);
-        return profile;
-    }
-
-    private async Task UpdateProfileStatisticsAsync(Profile profile)
-    {
-        // Count mods in profile database
-        var dbPath = Path.Combine(profile.DataDirectory, "mods.db");
-        if (File.Exists(dbPath))
-        {
-            // TODO: Query database for mod count and total size
-            // For now, estimate from mods directory
-            var modsDir = Path.Combine(profile.DataDirectory, "mods");
-            if (Directory.Exists(modsDir))
-            {
-                var files = Directory.GetFiles(modsDir, "*.*", SearchOption.TopDirectoryOnly);
-                profile.ModCount = files.Length;
-                profile.TotalSizeBytes = files.Sum(f => new FileInfo(f).Length);
-            }
-        }
-
-        await Task.CompletedTask;
+        _logger.Info($"Switched to profile: {profileId}", "ProfileService");
+        return true;
     }
 
     public async Task<Profile> DuplicateProfileAsync(string sourceProfileId, string newName)
     {
-        var sourceProfile = _profiles.FirstOrDefault(p => p.Id == sourceProfileId);
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        var sourceProfile = await _repository.GetProfileAsync(sourceProfileId).ConfigureAwait(false);
         if (sourceProfile == null)
         {
             throw new ArgumentException($"Source profile not found: {sourceProfileId}");
         }
 
+        var newProfileId = Guid.NewGuid().ToString();
+        var newDataDir = _globalPaths.GetProfileDirectoryPath(newProfileId);
+
         var newProfile = new Profile
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = newProfileId,
             Name = newName,
             Description = $"Copy of {sourceProfile.Name}",
             WorkDirectory = sourceProfile.WorkDirectory,
-            DataDirectory = _globalPaths.GetProfileDirectoryPath(Guid.NewGuid().ToString()),
+            DataDirectory = _pathHelper.ToRelativePath(newDataDir) ?? newDataDir,
             IsActive = false,
             CreatedAt = DateTime.UtcNow,
             ColorTag = GenerateRandomColor(),
@@ -406,14 +282,12 @@ public class ProfileService : IProfileService
             GameName = sourceProfile.GameName
         };
 
-        // Create directory structure
-        Directory.CreateDirectory(newProfile.DataDirectory);
+        // Create profile in repository
+        await _repository.CreateProfileAsync(newProfile).ConfigureAwait(false);
 
         // Copy all data from source profile
-        await CopyDirectoryAsync(sourceProfile.DataDirectory, newProfile.DataDirectory);
-
-        _profiles.Add(newProfile);
-        await SaveProfilesToDisk();
+        var sourceDataDir = _pathHelper.ToAbsolutePath(sourceProfile.DataDirectory) ?? sourceProfile.DataDirectory;
+        await CopyDirectoryAsync(sourceDataDir, newDataDir).ConfigureAwait(false);
 
         _logger.Info($"Duplicated profile: {sourceProfile.Name} -> {newProfile.Name}", "ProfileService");
         return newProfile;
@@ -421,13 +295,14 @@ public class ProfileService : IProfileService
 
     public async Task<string> ExportProfileConfigAsync(string profileId)
     {
-        var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        var profile = await _repository.GetProfileAsync(profileId).ConfigureAwait(false);
         if (profile == null)
         {
             throw new ArgumentException($"Profile not found: {profileId}");
         }
 
-        var config = await GetProfileConfigurationAsync(profileId);
+        var config = await _repository.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
 
         var exportData = new
         {
@@ -440,72 +315,28 @@ public class ProfileService : IProfileService
 
     public async Task<Profile> ImportProfileConfigAsync(string configJson, string workDirectory)
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         // TODO: Implement import logic
+        // For now, return null to indicate the operation is not supported
+        _logger.Warning("Profile import requested but this feature is not yet implemented", "Profiles");
+
         // Parse JSON, create profile with imported settings
         await Task.CompletedTask;
-        throw new NotImplementedException("Profile import not yet implemented");
+        return null;
     }
 
     public async Task<ProfileConfiguration?> GetProfileConfigurationAsync(string profileId)
     {
-        var configPath = _globalPaths.GetProfileConfigPath(profileId);
-        if (!File.Exists(configPath))
-        {
-            // Return default configuration
-            return new ProfileConfiguration
-            {
-                ProfileId = profileId
-            };
-        }
-
-        return await JsonHelper.DeserializeFromFileAsync<ProfileConfiguration>(configPath);
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        return await _repository.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
     }
 
     public async Task<bool> UpdateProfileConfigurationAsync(ProfileConfiguration config)
     {
-        await SaveProfileConfigurationAsync(config.ProfileId, config);
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        await _repository.SaveProfileConfigurationAsync(config.ProfileId, config).ConfigureAwait(false);
         return true;
-    }
-
-    private async Task SaveProfileConfigurationAsync(string profileId, ProfileConfiguration config)
-    {
-        var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
-        if (profile == null)
-        {
-            throw new ArgumentException($"Profile not found: {profileId}");
-        }
-
-        var configPath = Path.Combine(profile.DataDirectory, "config.json");
-        await JsonHelper.SerializeToFileAsync(configPath, config);
-    }
-
-    private async Task CopyProfileDataAsync(string sourceProfileId, string targetProfileId)
-    {
-        var sourceProfile = _profiles.FirstOrDefault(p => p.Id == sourceProfileId);
-        var targetProfile = _profiles.FirstOrDefault(p => p.Id == targetProfileId);
-
-        if (sourceProfile == null || targetProfile == null)
-        {
-            return;
-        }
-
-        // Copy database file
-        var sourceDb = Path.Combine(sourceProfile.DataDirectory, "mods.db");
-        var targetDb = Path.Combine(targetProfile.DataDirectory, "mods.db");
-        if (File.Exists(sourceDb))
-        {
-            File.Copy(sourceDb, targetDb, overwrite: true);
-        }
-
-        // Copy configuration
-        var sourceConfig = Path.Combine(sourceProfile.DataDirectory, "config.json");
-        var targetConfig = Path.Combine(targetProfile.DataDirectory, "config.json");
-        if (File.Exists(sourceConfig))
-        {
-            File.Copy(sourceConfig, targetConfig, overwrite: true);
-        }
-
-        await Task.CompletedTask;
     }
 
     private async Task CopyDirectoryAsync(string sourceDir, string targetDir)
@@ -526,7 +357,7 @@ public class ProfileService : IProfileService
         {
             var dirName = Path.GetFileName(dir);
             var targetSubDir = Path.Combine(targetDir, dirName);
-            await CopyDirectoryAsync(dir, targetSubDir);
+            await CopyDirectoryAsync(dir, targetSubDir).ConfigureAwait(false);
         }
     }
 
@@ -535,11 +366,5 @@ public class ProfileService : IProfileService
         var colors = new[] { "#1890ff", "#52c41a", "#faad14", "#f5222d", "#722ed1", "#13c2c2", "#eb2f96", "#fa8c16" };
         var random = new Random();
         return colors[random.Next(colors.Length)];
-    }
-
-    private class ProfilesData
-    {
-        public List<Profile> Profiles { get; set; } = new();
-        public string ActiveProfileId { get; set; } = string.Empty;
     }
 }

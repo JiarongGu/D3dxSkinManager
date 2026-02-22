@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Mods.Models;
-using D3dxSkinManager.Modules.Tools.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
 
@@ -24,25 +24,25 @@ public interface IModImportService
 /// </summary>
 public class ModImportService : IModImportService
 {
-    private readonly IFileService _fileService;
+    private readonly IFileHelper _fileService;
     private readonly IModAutoDetectionService _autoDetectionService;
     private readonly IImageService _imageService;
     private readonly IModRepository _repository;
     private readonly IModFileService _modFileService;
     private readonly IModManagementService _modManagementService;
     private readonly IPathValidator _pathValidator;
-    private readonly IArchiveService _archiveService;
+    private readonly IArchiveHelper _archiveService;
     private readonly ILogHelper _logger;
 
     public ModImportService(
-        IFileService fileService,
+        IFileHelper fileService,
         IModAutoDetectionService autoDetectionService,
         IImageService imageService,
         IModRepository repository,
         IModFileService modFileService,
         IModManagementService modManagementService,
         IPathValidator pathValidator,
-        IArchiveService archiveService,
+        IArchiveHelper archiveService,
         ILogHelper logger)
     {
         _fileService = fileService;
@@ -68,18 +68,18 @@ public class ModImportService : IModImportService
             _logger.Info($"Starting import: {filePath}", "ModImportService");
 
             // Step 1: Calculate SHA256
-            var sha = await _fileService.CalculateSha256Async(filePath);
+            var sha = await _fileService.CalculateSha256Async(filePath).ConfigureAwait(false);
             _logger.Info($"SHA256: {sha}", "ModImportService");
 
             // Check if already exists
             if (await _repository.ExistsAsync(sha))
             {
                 _logger.Info($"Mod already exists: {sha}", "ModImportService");
-                return await _repository.GetByIdAsync(sha);
+                return await _repository.GetByIdAsync(sha).ConfigureAwait(false);
             }
 
             // Step 2: Copy archive to mods directory
-            await _modFileService.CopyArchiveAsync(filePath, sha);
+            await _modFileService.CopyArchiveAsync(filePath, sha).ConfigureAwait(false);
 
             // Step 3: Extract to temporary directory for metadata reading
             var tempExtractPath = Path.Combine(Path.GetTempPath(), $"mod_import_{sha}");
@@ -99,14 +99,14 @@ public class ModImportService : IModImportService
             }
 
             // Step 4: Read metadata
-            var metadata = await ReadMetadataAsync(tempExtractPath);
+            var metadata = await ReadMetadataAsync(tempExtractPath).ConfigureAwait(false);
             _logger.Info($"Metadata: Name={metadata.Name}, Author={metadata.Author}", "ModImportService");
 
             // Step 5: Auto-classify object name if not provided
             var category = metadata.Category;
             if (string.IsNullOrEmpty(category))
             {
-                category = await _autoDetectionService.DetectObjectNameAsync(tempExtractPath);
+                category = await _autoDetectionService.DetectObjectNameAsync(tempExtractPath).ConfigureAwait(false);
                 _logger.Info($"Auto-detected as: {category ?? "Unknown"}", "ModImportService");
             }
 
@@ -115,7 +115,7 @@ public class ModImportService : IModImportService
 
             try
             {
-                thumbnailPath = await _imageService.GenerateThumbnailAsync(tempExtractPath, sha);
+                thumbnailPath = await _imageService.GenerateThumbnailAsync(tempExtractPath, sha).ConfigureAwait(false);
                 _logger.Info($"Generated thumbnail: {thumbnailPath}", "ModImportService");
             }
             catch (Exception ex)
@@ -125,7 +125,7 @@ public class ModImportService : IModImportService
 
             try
             {
-                var previewCount = await _imageService.GeneratePreviewsAsync(tempExtractPath, sha);
+                var previewCount = await _imageService.GeneratePreviewsAsync(tempExtractPath, sha).ConfigureAwait(false);
                 _logger.Info($"Generated {previewCount} preview(s)", "ModImportService");
             }
             catch (Exception ex)
@@ -146,7 +146,7 @@ public class ModImportService : IModImportService
                 Tags = metadata.Tags ?? new List<string>()
             };
 
-            var mod = await _modManagementService.CreateModAsync(createRequest);
+            var mod = await _modManagementService.CreateModAsync(createRequest).ConfigureAwait(false);
             _logger.Info($"Import complete: {mod.Name} ({sha})", "ModImportService");
 
             // Cleanup temp directory
@@ -184,7 +184,7 @@ public class ModImportService : IModImportService
         {
             try
             {
-                var json = await File.ReadAllTextAsync(metadataPath);
+                var json = await File.ReadAllTextAsync(metadataPath).ConfigureAwait(false);
                 var parsedMetadata = JsonConvert.DeserializeObject<ModMetadata>(json);
                 if (parsedMetadata != null)
                 {
@@ -203,7 +203,7 @@ public class ModImportService : IModImportService
         {
             try
             {
-                var content = await File.ReadAllTextAsync(readmeFiles[0]);
+                var content = await File.ReadAllTextAsync(readmeFiles[0]).ConfigureAwait(false);
                 // Try to extract author from "Author:", "By:", etc.
                 var lines = content.Split('\n');
                 foreach (var line in lines)

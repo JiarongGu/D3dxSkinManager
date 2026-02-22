@@ -1,8 +1,8 @@
 import { settingsFileService } from '../settingsFileService';
-import { photinoService } from '../../../../shared/services/photinoService';
+import { bridgeService } from '../../../shared/services/bridgeService';
 
-// Mock Photino service
-jest.mock('../../../../shared/services/photinoService');
+// Mock WebView bridge service
+jest.mock('../../../../shared/services/bridgeService');
 
 describe('settingsFileService', () => {
   beforeEach(() => {
@@ -12,7 +12,7 @@ describe('settingsFileService', () => {
   describe('getSettingsFile', () => {
     it('should parse and return JSON data when file exists', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true,
         content: '{"theme":"dark","enabled":true}'
       });
@@ -22,7 +22,7 @@ describe('settingsFileService', () => {
 
       // Assert
       expect(result).toEqual({ theme: 'dark', enabled: true });
-      expect(photinoService.sendMessage).toHaveBeenCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
         'SETTINGS',
         'GET_FILE',
         { filename: 'myconfig' }
@@ -36,7 +36,7 @@ describe('settingsFileService', () => {
         count: number;
       }
 
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true,
         content: '{"theme":"dark","count":42}'
       });
@@ -52,7 +52,7 @@ describe('settingsFileService', () => {
 
     it('should return null if file does not exist', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: false,
         message: 'File not found'
       });
@@ -66,7 +66,7 @@ describe('settingsFileService', () => {
 
     it('should return null if content is missing', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true,
         content: null
       });
@@ -80,7 +80,7 @@ describe('settingsFileService', () => {
 
     it('should handle errors gracefully and return null', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockRejectedValue(
+      (bridgeService.sendMessage as jest.Mock).mockRejectedValue(
         new Error('Network error')
       );
 
@@ -102,7 +102,7 @@ describe('settingsFileService', () => {
 
     it('should handle invalid JSON gracefully', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true,
         content: '{ invalid json }'
       });
@@ -132,7 +132,7 @@ describe('settingsFileService', () => {
         version: 2
       };
 
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true,
         content: JSON.stringify(complexData)
       });
@@ -148,7 +148,7 @@ describe('settingsFileService', () => {
   describe('saveSettingsFile', () => {
     it('should serialize and save JSON data', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true,
         message: 'File saved'
       });
@@ -160,7 +160,7 @@ describe('settingsFileService', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(photinoService.sendMessage).toHaveBeenCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
         'SETTINGS',
         'SAVE_FILE',
         {
@@ -172,7 +172,7 @@ describe('settingsFileService', () => {
 
     it('should format JSON with 2-space indentation', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true
       });
 
@@ -183,7 +183,7 @@ describe('settingsFileService', () => {
 
       // Assert
       const expectedJson = JSON.stringify(data, null, 2);
-      expect(photinoService.sendMessage).toHaveBeenCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
         'SETTINGS',
         'SAVE_FILE',
         {
@@ -195,7 +195,7 @@ describe('settingsFileService', () => {
 
     it('should return false on save failure', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockRejectedValue(
+      (bridgeService.sendMessage as jest.Mock).mockRejectedValue(
         new Error('Save failed')
       );
 
@@ -213,7 +213,7 @@ describe('settingsFileService', () => {
 
     it('should handle arrays', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true
       });
 
@@ -224,7 +224,7 @@ describe('settingsFileService', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(photinoService.sendMessage).toHaveBeenCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
         'SETTINGS',
         'SAVE_FILE',
         {
@@ -236,13 +236,13 @@ describe('settingsFileService', () => {
 
     it('should handle primitive values', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true
       });
 
       // Act & Assert - String
       await settingsFileService.saveSettingsFile('myconfig', 'test');
-      expect(photinoService.sendMessage).toHaveBeenLastCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenLastCalledWith(
         'SETTINGS',
         'SAVE_FILE',
         { filename: 'myconfig', content: '"test"' }
@@ -250,7 +250,7 @@ describe('settingsFileService', () => {
 
       // Number
       await settingsFileService.saveSettingsFile('myconfig', 42);
-      expect(photinoService.sendMessage).toHaveBeenLastCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenLastCalledWith(
         'SETTINGS',
         'SAVE_FILE',
         { filename: 'myconfig', content: '42' }
@@ -258,7 +258,7 @@ describe('settingsFileService', () => {
 
       // Boolean
       await settingsFileService.saveSettingsFile('myconfig', true);
-      expect(photinoService.sendMessage).toHaveBeenLastCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenLastCalledWith(
         'SETTINGS',
         'SAVE_FILE',
         { filename: 'myconfig', content: 'true' }
@@ -269,7 +269,7 @@ describe('settingsFileService', () => {
   describe('deleteSettingsFile', () => {
     it('should delete file successfully', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true,
         message: 'File deleted'
       });
@@ -279,7 +279,7 @@ describe('settingsFileService', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(photinoService.sendMessage).toHaveBeenCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
         'SETTINGS',
         'DELETE_FILE',
         { filename: 'myconfig' }
@@ -288,7 +288,7 @@ describe('settingsFileService', () => {
 
     it('should return false on delete failure', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockRejectedValue(
+      (bridgeService.sendMessage as jest.Mock).mockRejectedValue(
         new Error('Delete failed')
       );
 
@@ -308,7 +308,7 @@ describe('settingsFileService', () => {
   describe('settingsFileExists', () => {
     it('should return true if file exists', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         exists: true
       });
 
@@ -317,7 +317,7 @@ describe('settingsFileService', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(photinoService.sendMessage).toHaveBeenCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
         'SETTINGS',
         'FILE_EXISTS',
         { filename: 'myconfig' }
@@ -326,7 +326,7 @@ describe('settingsFileService', () => {
 
     it('should return false if file does not exist', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         exists: false
       });
 
@@ -339,7 +339,7 @@ describe('settingsFileService', () => {
 
     it('should return false on error', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockRejectedValue(
+      (bridgeService.sendMessage as jest.Mock).mockRejectedValue(
         new Error('Network error')
       );
 
@@ -359,7 +359,7 @@ describe('settingsFileService', () => {
   describe('listSettingsFiles', () => {
     it('should return array of filenames', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         files: ['config1', 'config2', 'config3']
       });
 
@@ -368,7 +368,7 @@ describe('settingsFileService', () => {
 
       // Assert
       expect(result).toEqual(['config1', 'config2', 'config3']);
-      expect(photinoService.sendMessage).toHaveBeenCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
         'SETTINGS',
         'LIST_FILES',
         {}
@@ -377,7 +377,7 @@ describe('settingsFileService', () => {
 
     it('should return empty array if no files', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         files: []
       });
 
@@ -390,7 +390,7 @@ describe('settingsFileService', () => {
 
     it('should return empty array if files is undefined', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({});
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({});
 
       // Act
       const result = await settingsFileService.listSettingsFiles();
@@ -401,7 +401,7 @@ describe('settingsFileService', () => {
 
     it('should return empty array on error', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock).mockRejectedValue(
+      (bridgeService.sendMessage as jest.Mock).mockRejectedValue(
         new Error('Network error')
       );
 
@@ -423,7 +423,7 @@ describe('settingsFileService', () => {
       // Arrange
       const data = { theme: 'dark', count: 42 };
 
-      (photinoService.sendMessage as jest.Mock)
+      (bridgeService.sendMessage as jest.Mock)
         .mockResolvedValueOnce({ success: true }) // Save
         .mockResolvedValueOnce({ success: true, content: JSON.stringify(data) }); // Load
 
@@ -438,7 +438,7 @@ describe('settingsFileService', () => {
 
     it('should handle check-exists-then-load workflow', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock)
+      (bridgeService.sendMessage as jest.Mock)
         .mockResolvedValueOnce({ exists: true }) // Exists check
         .mockResolvedValueOnce({ success: true, content: '{"key":"value"}' }); // Load
 
@@ -453,7 +453,7 @@ describe('settingsFileService', () => {
 
     it('should handle list-then-load-all workflow', async () => {
       // Arrange
-      (photinoService.sendMessage as jest.Mock)
+      (bridgeService.sendMessage as jest.Mock)
         .mockResolvedValueOnce({ files: ['config1', 'config2'] }) // List
         .mockResolvedValueOnce({ success: true, content: '{"id":1}' }) // Load config1
         .mockResolvedValueOnce({ success: true, content: '{"id":2}' }); // Load config2

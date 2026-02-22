@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Settings.Models;
@@ -72,7 +73,7 @@ public class GlobalSettingsService : IGlobalSettingsService
         _logger.Debug($"GetSettingsAsync called", "GlobalSettingsService");
         _logger.Debug($"Settings file path: {_settingsFilePath}", "GlobalSettingsService");
 
-        await _lock.WaitAsync();
+        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
             // Return cached if available
@@ -88,7 +89,7 @@ public class GlobalSettingsService : IGlobalSettingsService
             if (File.Exists(_settingsFilePath))
             {
                 _logger.Debug($"Settings file exists, reading...", "GlobalSettingsService");
-                _cachedSettings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath)
+                _cachedSettings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath).ConfigureAwait(false)
                                   ?? new GlobalSettings();
                 _logger.Info($"Settings loaded from file", "GlobalSettingsService");
             }
@@ -96,7 +97,7 @@ public class GlobalSettingsService : IGlobalSettingsService
             {
                 _logger.Info($"Settings file not found, creating default...", "GlobalSettingsService");
                 _cachedSettings = new GlobalSettings();
-                await SaveSettingsAsync(_cachedSettings);
+                await SaveSettingsAsync(_cachedSettings).ConfigureAwait(false);
                 _logger.Info($"Default settings created and saved", "GlobalSettingsService");
             }
 
@@ -113,11 +114,11 @@ public class GlobalSettingsService : IGlobalSettingsService
     /// </summary>
     public async Task UpdateSettingsAsync(GlobalSettings settings)
     {
-        await _lock.WaitAsync();
+        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
             settings.LastUpdated = DateTime.UtcNow;
-            await SaveSettingsAsync(settings);
+            await SaveSettingsAsync(settings).ConfigureAwait(false);
             _cachedSettings = settings;
         }
         finally
@@ -132,7 +133,7 @@ public class GlobalSettingsService : IGlobalSettingsService
     public async Task UpdateSettingAsync(string key, string value)
     {
         _logger.Debug($"UpdateSettingAsync called - Key: {key}, Value: {value}", "GlobalSettingsService");
-        await _lock.WaitAsync();
+        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
             // Load settings from cache or file (without calling GetSettingsAsync to avoid deadlock)
@@ -145,7 +146,7 @@ public class GlobalSettingsService : IGlobalSettingsService
             else if (File.Exists(_settingsFilePath))
             {
                 _logger.Debug($"Loading settings from file", "GlobalSettingsService");
-                settings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath) ?? new GlobalSettings();
+                settings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath).ConfigureAwait(false) ?? new GlobalSettings();
             }
             else
             {
@@ -178,7 +179,7 @@ public class GlobalSettingsService : IGlobalSettingsService
 
             settings.LastUpdated = DateTime.UtcNow;
             _logger.Debug($"Saving settings to: {_settingsFilePath}", "GlobalSettingsService");
-            await SaveSettingsAsync(settings);
+            await SaveSettingsAsync(settings).ConfigureAwait(false);
             _cachedSettings = settings;
             _logger.Info($"Settings saved successfully", "GlobalSettingsService");
         }
@@ -193,11 +194,11 @@ public class GlobalSettingsService : IGlobalSettingsService
     /// </summary>
     public async Task ResetSettingsAsync()
     {
-        await _lock.WaitAsync();
+        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
             var defaultSettings = new GlobalSettings();
-            await SaveSettingsAsync(defaultSettings);
+            await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
             _cachedSettings = defaultSettings;
         }
         finally
@@ -211,6 +212,6 @@ public class GlobalSettingsService : IGlobalSettingsService
     /// </summary>
     private async Task SaveSettingsAsync(GlobalSettings settings)
     {
-        await JsonHelper.SerializeToFileAsync(_settingsFilePath, settings);
+        await JsonHelper.SerializeToFileAsync(_settingsFilePath, settings).ConfigureAwait(false);
     }
 }

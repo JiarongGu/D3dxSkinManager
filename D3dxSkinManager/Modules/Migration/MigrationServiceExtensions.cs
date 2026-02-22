@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using D3dxSkinManager.Modules.Migration.Services;
 using D3dxSkinManager.Modules.Migration.Steps;
 using D3dxSkinManager.Modules.Migration.Parsers;
@@ -16,26 +17,30 @@ public static class MigrationServiceExtensions
     /// </summary>
     public static IServiceCollection AddMigrationServices(this IServiceCollection services)
     {
+        Console.WriteLine("[MigrationFacade] Registering Migration services...");
+
         // Register parsers (parse Python files → return data structures)
-        services.AddSingleton<IPythonConfigurationParser, PythonConfigurationParser>();
-        services.AddSingleton<IPythonRedirectionFileParser, PythonRedirectionFileParser>();
-        services.AddSingleton<IPythonClassificationFileParser, PythonClassificationFileParser>();
-        services.AddSingleton<IPythonModIndexParser, PythonModIndexParser>();
+        services.TryAddSingleton<IPythonConfigurationParser, PythonConfigurationParser>();
+        services.TryAddSingleton<IPythonRedirectionFileParser, PythonRedirectionFileParser>();
+        services.TryAddSingleton<IPythonClassificationFileParser, PythonClassificationFileParser>();
+        services.TryAddSingleton<IPythonModIndexParser, PythonModIndexParser>();
 
         // Register migration steps (each step is a separate service)
-        services.AddSingleton<MigrationStep1AnalyzeSource>();
-        services.AddSingleton<MigrationStep2MigrateConfiguration>();
-        services.AddSingleton<MigrationStep3MigrateClassifications>();
-        services.AddSingleton<MigrationStep4MigrateClassificationThumbnails>();
-        services.AddSingleton<MigrationStep5MigrateModArchives>();
-        services.AddSingleton<MigrationStep6MigrateModPreviews>();
+        services.TryAddSingleton<MigrationStep1AnalyzeSource>();
+        services.TryAddSingleton<MigrationStep2MigrateConfiguration>();
+        services.TryAddSingleton<MigrationStep3MigrateClassifications>();
+        services.TryAddSingleton<MigrationStep4MigrateClassificationThumbnails>();
+        services.TryAddSingleton<MigrationStep5MigrateModArchives>();
+        services.TryAddSingleton<MigrationStep6MigrateModPreviews>();
 
         // Register migration service (step-based orchestrator)
-        services.AddSingleton<IMigrationService, MigrationService>();
+        services.TryAddSingleton<IMigrationService, MigrationService>();
 
         // Register facade
-        services.AddSingleton<IMigrationFacade, MigrationFacade>();
+        services.TryAddSingleton<IMigrationFacade, MigrationFacade>();
+        services.TryAddSingleton<MigrationFacade>();
 
+        Console.WriteLine("[MigrationFacade] Migration services registered");
         return services;
     }
 }

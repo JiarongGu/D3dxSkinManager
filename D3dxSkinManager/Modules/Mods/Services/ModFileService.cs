@@ -8,7 +8,8 @@ using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Tools.Models;
 
 using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
 
@@ -60,27 +61,24 @@ public interface IModFileService
 public class ModFileService : IModFileService
 {
     private readonly IProfilePathService _profilePaths;
-    private readonly IFileService _fileService;
-    private readonly Core.Services.IArchiveService _archiveService;
+    private readonly IFileHelper _fileService;
+    private readonly IArchiveHelper _archiveService;
     private readonly IModRepository _repository;
     private readonly ILogHelper _logger;
     private const string DISABLED_PREFIX = "DISABLED-";
 
     public ModFileService(
         IProfilePathService profilePaths,
-        IFileService fileService,
-        Core.Services.IArchiveService archiveService,
+        IFileHelper fileService,
+        IArchiveHelper archiveService,
         IModRepository repository,
         ILogHelper logger)
     {
-        _profilePaths = profilePaths ?? throw new ArgumentNullException(nameof(profilePaths));
-        _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
-        _archiveService = archiveService ?? throw new ArgumentNullException(nameof(archiveService));
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-        // Ensure directories exist
-        _profilePaths.EnsureDirectoriesExist();
+        _profilePaths = profilePaths;
+        _fileService = fileService;
+        _archiveService = archiveService;
+        _repository = repository;
+        _logger = logger;
     }
 
     #region Load/Unload Operations
@@ -96,13 +94,13 @@ public class ModFileService : IModFileService
         {
             progressReporter ??= NullProgressReporter.Instance;
 
-            await progressReporter.ReportProgressAsync(0, "Checking archive...");
+            await progressReporter.ReportProgressAsync(0, "Checking archive...").ConfigureAwait(false);
 
             var archivePath = GetArchivePath(sha);
             if (!File.Exists(archivePath))
             {
                 _logger.Warning($"Archive not found: {archivePath}", "ModFileService");
-                await progressReporter.ReportFailureAsync("Archive not found");
+                await progressReporter.ReportFailureAsync("Archive not found").ConfigureAwait(false);
                 throw new Core.Models.ModException(
                     Core.Models.ErrorCodes.MOD_ARCHIVE_NOT_FOUND,
                     $"Mod archive file not found: {archivePath}",
@@ -115,21 +113,21 @@ public class ModFileService : IModFileService
             // If already extracted as disabled cache, just rename it (remove DISABLED- prefix)
             if (Directory.Exists(disabledDirectory))
             {
-                await progressReporter.ReportProgressAsync(50, "Enabling from cache...");
+                await progressReporter.ReportProgressAsync(50, "Enabling from cache...").ConfigureAwait(false);
 
                 try
                 {
                     Directory.Move(disabledDirectory, targetDirectory);
                     _logger.Info($"Enabled mod from cache: {sha}", "ModFileService");
-                    await progressReporter.ReportProgressAsync(100, "Enabled from cache");
-                    await progressReporter.ReportCompletionAsync();
+                    await progressReporter.ReportProgressAsync(100, "Enabled from cache").ConfigureAwait(false);
+                    await progressReporter.ReportCompletionAsync().ConfigureAwait(false);
                     return true;
                 }
                 catch (IOException ioEx)
                 {
                     // Folder is in use by another process
                     _logger.Error($"Cannot enable mod {sha} - folder is in use: {ioEx.Message}", "ModFileService", ioEx);
-                    await progressReporter.ReportFailureAsync("Folder is in use by another process");
+                    await progressReporter.ReportFailureAsync("Folder is in use by another process").ConfigureAwait(false);
                     throw new Core.Models.ModException(
                         Core.Models.ErrorCodes.MOD_FOLDER_IN_USE,
                         $"Cannot enable mod - the folder is currently in use by another process. Please close any programs accessing: {disabledDirectory}",
@@ -140,7 +138,7 @@ public class ModFileService : IModFileService
                 {
                     // Access denied
                     _logger.Error($"Access denied when enabling mod {sha}: {authEx.Message}", "ModFileService", authEx);
-                    await progressReporter.ReportFailureAsync("Access denied");
+                    await progressReporter.ReportFailureAsync("Access denied").ConfigureAwait(false);
                     throw new Core.Models.ModException(
                         Core.Models.ErrorCodes.FILE_ACCESS_DENIED,
                         $"Access denied when enabling mod. Please run with appropriate permissions.",
@@ -149,7 +147,7 @@ public class ModFileService : IModFileService
                 }
             }
 
-            await progressReporter.ReportProgressAsync(10, "Detecting archive type...");
+            await progressReporter.ReportProgressAsync(10, "Detecting archive type...").ConfigureAwait(false);
 
             // Extract archive using ArchiveService (with type detection)
             if (Directory.Exists(targetDirectory))
@@ -157,29 +155,29 @@ public class ModFileService : IModFileService
                 Directory.Delete(targetDirectory, true);
             }
 
-            await progressReporter.ReportProgressAsync(20, "Extracting archive...");
+            await progressReporter.ReportProgressAsync(20, "Extracting archive...").ConfigureAwait(false);
 
-            var extractionResult = await _archiveService.ExtractArchiveAsync(archivePath, targetDirectory);
+            var extractionResult = await _archiveService.ExtractArchiveAsync(archivePath, targetDirectory).ConfigureAwait(false);
 
             if (extractionResult.Success)
             {
-                await progressReporter.ReportProgressAsync(80, $"Extracted {extractionResult.FileCount} files");
+                await progressReporter.ReportProgressAsync(80, $"Extracted {extractionResult.FileCount} files").ConfigureAwait(false);
                 _logger.Info($"Loaded mod: {sha} ({extractionResult.FileCount} files)", "ModFileService");
 
                 // Update mod Type in database if detected and different from stored
                 if (!string.IsNullOrEmpty(extractionResult.DetectedType))
                 {
-                    await progressReporter.ReportProgressAsync(90, "Updating metadata...");
-                    await UpdateModTypeIfNeededAsync(sha, extractionResult.DetectedType);
+                    await progressReporter.ReportProgressAsync(90, "Updating metadata...").ConfigureAwait(false);
+                    await UpdateModTypeIfNeededAsync(sha, extractionResult.DetectedType).ConfigureAwait(false);
                 }
 
-                await progressReporter.ReportProgressAsync(100, "Load complete");
-                await progressReporter.ReportCompletionAsync();
+                await progressReporter.ReportProgressAsync(100, "Load complete").ConfigureAwait(false);
+                await progressReporter.ReportCompletionAsync().ConfigureAwait(false);
                 return true;
             }
             else
             {
-                await progressReporter.ReportFailureAsync("Archive extraction failed");
+                await progressReporter.ReportFailureAsync("Archive extraction failed").ConfigureAwait(false);
                 throw new Core.Models.ModException(
                     Core.Models.ErrorCodes.MOD_EXTRACTION_FAILED,
                     "Failed to extract mod archive. The file may be corrupted or in an unsupported format.",
@@ -211,7 +209,7 @@ public class ModFileService : IModFileService
     {
         try
         {
-            var mod = await _repository.GetByIdAsync(sha);
+            var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
             if (mod == null)
             {
                 return;
@@ -226,9 +224,9 @@ public class ModFileService : IModFileService
             {
                 var oldType = mod.Type;
                 mod.Type = normalizedDetectedType;
-                await _repository.UpdateAsync(mod);
+                await _repository.UpdateAsync(mod).ConfigureAwait(false);
 
-                _logger.Info($"Updated mod type: {sha} ({oldType ?? "empty"} â†’ {normalizedDetectedType})", "ModFileService");
+                _logger.Info($"Updated mod type: {sha} ({oldType ?? "empty"} â†?{normalizedDetectedType})", "ModFileService");
             }
         }
         catch (Exception ex)
@@ -263,7 +261,7 @@ public class ModFileService : IModFileService
             {
                 Directory.Move(workDirectory, disabledDirectory);
                 _logger.Info($"Unloaded mod (cached): {sha}", "ModFileService");
-                return await Task.FromResult(true);
+                return await Task.FromResult(true).ConfigureAwait(false);
             }
             catch (IOException ioEx)
             {
@@ -346,7 +344,7 @@ public class ModFileService : IModFileService
                 _logger.Info($"Deleted preview folder: {previewPath}", "ModFileService");
             }
 
-            return await Task.FromResult(deleted);
+            return await Task.FromResult(deleted).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -407,7 +405,7 @@ public class ModFileService : IModFileService
         }
 
         // Get all mods from database
-        var allMods = await _repository.GetAllAsync();
+        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
         var allShas = allMods.Select(m => m.SHA).ToHashSet();
         var loadedShas = (await _repository.GetLoadedIdsAsync()).ToHashSet();
 
@@ -454,7 +452,7 @@ public class ModFileService : IModFileService
     /// </summary>
     public async Task<CacheStatistics> GetCacheStatisticsAsync()
     {
-        var cacheItems = await ScanCacheAsync();
+        var cacheItems = await ScanCacheAsync().ConfigureAwait(false);
 
         var stats = new CacheStatistics();
 
@@ -488,7 +486,7 @@ public class ModFileService : IModFileService
     /// </summary>
     public async Task<int> CleanCacheAsync(CacheCategory category)
     {
-        var cacheItems = await ScanCacheAsync();
+        var cacheItems = await ScanCacheAsync().ConfigureAwait(false);
         var itemsToDelete = cacheItems.Where(item => item.Category == category).ToList();
 
         int deletedCount = 0;

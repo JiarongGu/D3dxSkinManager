@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Migration.Parsers;
 
@@ -53,7 +54,7 @@ public class PythonRedirectionFileParser : IPythonRedirectionFileParser
     public async Task<Dictionary<string, string>> ParseAsync(string redirectionFilePath)
     {
         var mappings = new Dictionary<string, string>();
-        var lines = await File.ReadAllLinesAsync(redirectionFilePath);
+        var lines = await File.ReadAllLinesAsync(redirectionFilePath).ConfigureAwait(false);
         var baseDir = Path.GetDirectoryName(redirectionFilePath) ?? string.Empty;
 
         foreach (var line in lines)
@@ -72,7 +73,7 @@ public class PythonRedirectionFileParser : IPythonRedirectionFileParser
             {
                 ParseFolderDeclaration(trimmed, baseDir, mappings);
             }
-            // Handle explicit character thumbnail mappings: 管理员 = 终末地\干员-物理\管理员.png
+            // Handle explicit character thumbnail mappings: 管理�?= 终末地\干员-物理\管理�?png
             else if (trimmed.Contains("="))
             {
                 ParseExplicitMapping(trimmed, mappings);
@@ -139,7 +140,7 @@ public class PythonRedirectionFileParser : IPythonRedirectionFileParser
     /// </summary>
     public async Task<PythonRedirectionFileStatistics> GetStatisticsAsync(string redirectionFilePath)
     {
-        var lines = await File.ReadAllLinesAsync(redirectionFilePath);
+        var lines = await File.ReadAllLinesAsync(redirectionFilePath).ConfigureAwait(false);
         var stats = new PythonRedirectionFileStatistics
         {
             TotalLines = lines.Length

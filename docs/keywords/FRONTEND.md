@@ -43,7 +43,7 @@
   - OperationProvider (context provider)
   - useOperation (hook) - access operation state and actions
   - Global state for active/completed/failed operations
-  - Subscribes to backend push notifications via photinoService
+  - Subscribes to backend push notifications via bridgeService
   - Maintains last 50 completed/failed operations
   - Created: 2026-02-21
 
@@ -533,13 +533,13 @@
 
 ### IPC Communication
 
-- **photinoService** → `src/services/photino.ts:60`
-  - sendMessage → `:91-128`
-  - initializeMessageReceiver → `:68-86`
-  - simulateBackendResponse → `:133-162` (dev mode)
-  - getMockMods → `:164-191` (dev mode)
+- **bridgeService** → `src/shared/services/bridgeService.ts`
+  - Renamed from photinoService (WebView2 migration - 2026-02-22)
+  - Uses chrome.webview.postMessage for IPC
+  - sendMessage → Sends messages to backend
+  - initializeMessageReceiver → Sets up message listener
+  - simulateBackendResponse → Dev mode mock responses
   - activeProfileId → Profile integration for all IPC messages
-  - Updated: 2026-02-18 - Added profile context integration
 
 ### API Services
 

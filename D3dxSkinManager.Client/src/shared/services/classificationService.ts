@@ -1,18 +1,22 @@
-import { photinoService } from './photinoService';
+import { BaseModuleService } from './baseModuleService';
 import type { ClassificationNode } from '../types/classification.types';
 
 /**
  * Service for managing character classification tree
  * Communicates with backend ClassificationService via IPC
  */
-export const classificationService = {
+class ClassificationService extends BaseModuleService {
+  constructor() {
+    super('MOD');
+  }
+
   /**
    * Get the full classification tree from SQLite database
    * Returns hierarchical structure with thumbnails
    */
   async getClassificationTree(profileId: string): Promise<ClassificationNode[]> {
-    return await photinoService.sendMessage<ClassificationNode[]>({ module: 'MOD', type: 'GET_CLASSIFICATION_TREE', profileId });
-  },
+    return this.sendMessage<ClassificationNode[]>('GET_CLASSIFICATION_TREE', profileId);
+  }
 
   /**
    * Find a classification node by ID (local tree search)
@@ -29,7 +33,7 @@ export const classificationService = {
       }
     }
     return null;
-  },
+  }
 
   /**
    * Check if a classification node exists in the database by nodeId
@@ -37,13 +41,8 @@ export const classificationService = {
    * Use this for validation to ensure data integrity
    */
   async nodeExists(profileId: string, nodeId: string): Promise<boolean> {
-    return await photinoService.sendMessage<boolean>({
-      module: 'MOD',
-      type: 'CHECK_CLASSIFICATION_NODE_EXISTS',
-      profileId,
-      payload: { nodeId },
-    });
-  },
+    return this.sendMessage<boolean>('CHECK_CLASSIFICATION_NODE_EXISTS', profileId, { nodeId });
+  }
 
   /**
    * Get all leaf nodes (characters) from tree
@@ -63,7 +62,7 @@ export const classificationService = {
 
     traverse(tree);
     return leaves;
-  },
+  }
 
   /**
    * Flatten tree to list of all nodes
@@ -82,7 +81,7 @@ export const classificationService = {
 
     traverse(tree);
     return result;
-  },
+  }
 
   /**
    * Create a new classification node
@@ -96,20 +95,19 @@ export const classificationService = {
     description?: string,
     thumbnail?: string
   ): Promise<ClassificationNode | null> {
-    return await photinoService.sendMessage<ClassificationNode | null>({
-      module: 'MOD',
-      type: 'CREATE_CLASSIFICATION_NODE',
+    return this.sendMessage<ClassificationNode | null>(
+      'CREATE_CLASSIFICATION_NODE',
       profileId,
-      payload: {
+      {
         nodeId,
         name,
         parentId,
         priority,
         description,
         thumbnail,
-      },
-    });
-  },
+      }
+    );
+  }
 
   /**
    * Move a classification node to a new parent or position
@@ -120,39 +118,38 @@ export const classificationService = {
     newParentId: string | null,
     dropPosition: number
   ): Promise<boolean> {
-    return await photinoService.sendMessage<boolean>({
-      module: 'MOD',
-      type: 'MOVE_CLASSIFICATION_NODE',
+    return this.sendMessage<boolean>(
+      'MOVE_CLASSIFICATION_NODE',
       profileId,
-      payload: {
+      {
         nodeId,
         newParentId,
         dropPosition,
-      },
-    });
-  },
+      }
+    );
+  }
 
   /**
    * Update a classification node's name
    */
   async updateNode(profileId: string, nodeId: string, newName: string): Promise<boolean> {
-    return await photinoService.sendMessage<boolean>({
-      module: 'MOD',
-      type: 'UPDATE_CLASSIFICATION_NODE',
+    return this.sendMessage<boolean>(
+      'UPDATE_CLASSIFICATION_NODE',
       profileId,
-      payload: { nodeId, newName },
-    });
-  },
+      { nodeId, newName }
+    );
+  }
 
   /**
    * Delete a classification node
    */
   async deleteNode(profileId: string, nodeId: string): Promise<boolean> {
-    return await photinoService.sendMessage<boolean>({
-      module: 'MOD',
-      type: 'DELETE_CLASSIFICATION_NODE',
+    return this.sendMessage<boolean>(
+      'DELETE_CLASSIFICATION_NODE',
       profileId,
-      payload: { nodeId },
-    });
+      { nodeId }
+    );
   }
-};
+}
+
+export const classificationService = new ClassificationService();

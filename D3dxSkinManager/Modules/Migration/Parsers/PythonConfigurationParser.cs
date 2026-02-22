@@ -37,7 +37,7 @@ public class PythonConfigurationParser : IPythonConfigurationParser
             var localConfigPath = Path.Combine(pythonPath, "local", "configuration");
             if (File.Exists(localConfigPath))
             {
-                var json = await File.ReadAllTextAsync(localConfigPath);
+                var json = await File.ReadAllTextAsync(localConfigPath).ConfigureAwait(false);
                 var doc = JObject.Parse(json);
 
                 config.StyleTheme = doc["style_theme"]?.ToString();
@@ -73,7 +73,7 @@ public class PythonConfigurationParser : IPythonConfigurationParser
                 var envConfigPath = Path.Combine(pythonPath, "home", envName, "configuration");
                 if (File.Exists(envConfigPath))
                 {
-                    var json = await File.ReadAllTextAsync(envConfigPath);
+                    var json = await File.ReadAllTextAsync(envConfigPath).ConfigureAwait(false);
                     var doc = JObject.Parse(json);
 
                     config.GamePath = doc["GamePath"]?.ToString();

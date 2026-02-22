@@ -3,14 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Parsers;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Mods.Services;
-using D3dxSkinManager.Modules.Tools.Services;
 using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Migration.Steps;
 
@@ -25,9 +24,9 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
 {
     private readonly IProfilePathService _profilePaths;
     private readonly IModRepository _modRepository;
-    private readonly IPythonClassificationFileParser _classificationParser;  // âœ… Using parser!
-    private readonly IClassificationService _classificationService;  // âœ… Using service, not repository!
-    private readonly IModAutoDetectionService _autoDetectionService;  // âœ… Using service!
+    private readonly IPythonClassificationFileParser _classificationParser;  // âœ?Using parser!
+    private readonly IClassificationService _classificationService;  // âœ?Using service, not repository!
+    private readonly IModAutoDetectionService _autoDetectionService;  // âœ?Using service!
     private readonly ILogHelper _logger;
 
     public int StepNumber => 3;
@@ -67,12 +66,12 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
             PercentComplete = 30
         });
 
-        await LogAsync(context.LogPath, "Step 3: Migrating classification hierarchy");
+        await LogAsync(context.LogPath, "Step 3: Migrating classification hierarchy").ConfigureAwait(false);
 
-        var rules = await MigrateClassificationsAsync(context.EnvironmentPath!, context.LogPath);
+        var rules = await MigrateClassificationsAsync(context.EnvironmentPath!, context.LogPath).ConfigureAwait(false);
         context.Result.ClassificationRulesCreated = rules;
 
-        await LogAsync(context.LogPath, $"Created {rules} classification rules");
+        await LogAsync(context.LogPath, $"Created {rules} classification rules").ConfigureAwait(false);
         _logger.Info($"Step 3 complete: {rules} classification rules created", "Migration");
     }
 
@@ -81,7 +80,7 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
         var classDir = Path.Combine(envPath, "classification");
         if (!Directory.Exists(classDir))
         {
-            await LogAsync(logPath, "WARNING: classification directory not found");
+            await LogAsync(logPath, "WARNING: classification directory not found").ConfigureAwait(false);
             return 0;
         }
 
@@ -89,16 +88,16 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
 
         try
         {
-            // âœ… Use parser to get classifications (not inline parsing!)
-            var classifications = await _classificationParser.ParseAsync(classDir);
-            await LogAsync(logPath, $"Found {classifications.Count} classification files");
+            // âœ?Use parser to get classifications (not inline parsing!)
+            var classifications = await _classificationParser.ParseAsync(classDir).ConfigureAwait(false);
+            await LogAsync(logPath, $"Found {classifications.Count} classification files").ConfigureAwait(false);
 
             // Process each category
             foreach (var (categoryName, objectNames) in classifications)
             {
-                await LogAsync(logPath, $"Processing '{categoryName}' with {objectNames.Count} entries");
+                await LogAsync(logPath, $"Processing '{categoryName}' with {objectNames.Count} entries").ConfigureAwait(false);
 
-                // âœ… Use ClassificationService to create parent node (not repository!)
+                // âœ?Use ClassificationService to create parent node (not repository!)
                 var parentNodeId = categoryName;
                 var parentNode = await _classificationService.CreateNodeAsync(
                     nodeId: parentNodeId,
@@ -106,12 +105,12 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
                     parentId: null, // Root level
                     priority: 100,
                     description: $"Category: {categoryName}"
-                );
+                ).ConfigureAwait(false);
 
                 if (parentNode != null)
                 {
                     totalNodesCreated++;
-                    await LogAsync(logPath, $"Created parent node: {categoryName}");
+                    await LogAsync(logPath, $"Created parent node: {categoryName}").ConfigureAwait(false);
                 }
 
                 // Process child nodes (objects within this category)
@@ -119,7 +118,7 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
                 {
                     var category = objectName;
 
-                    // âœ… Use ClassificationService to create child node
+                    // âœ?Use ClassificationService to create child node
                     var childNodeId = category;
                     var childNode = await _classificationService.CreateNodeAsync(
                         nodeId: childNodeId,
@@ -127,18 +126,18 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
                         parentId: parentNodeId,
                         priority: 50,
                         description: $"Object: {category}"
-                    );
+                    ).ConfigureAwait(false);
 
                     if (childNode != null)
                     {
                         totalNodesCreated++;
 
                         // Verify mods exist for this category (using repository for read-only query)
-                        await VerifyModsForCategoryAsync(category, logPath);
+                        await VerifyModsForCategoryAsync(category, logPath).ConfigureAwait(false);
                     }
 
-                    // âœ… Use ModAutoDetectionService to add rules (not manual JSON!)
-                    _autoDetectionService.AddRule(new ModAutoDetectionRule
+                    // âœ?Use ModAutoDetectionService to add rules (not manual JSON!)
+                    await _autoDetectionService.AddRuleAsync(new ModAutoDetectionRule
                     {
                         Name = $"{category} ({categoryName})",
                         Pattern = $"*{category}*",
@@ -148,16 +147,16 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
                 }
             }
 
-            // âœ… Use ModAutoDetectionService to save rules (not manual File.WriteAllText!)
-            await _autoDetectionService.SaveRulesAsync(_profilePaths.AutoDetectionRulesPath);
+            // âœ?Use ModAutoDetectionService to save rules (not manual File.WriteAllText!)
+            await _autoDetectionService.SaveRulesAsync(_profilePaths.AutoDetectionRulesPath).ConfigureAwait(false);
 
-            await LogAsync(logPath, $"Created {totalNodesCreated} classification nodes total");
+            await LogAsync(logPath, $"Created {totalNodesCreated} classification nodes total").ConfigureAwait(false);
             return totalNodesCreated;
         }
         catch (Exception ex)
         {
-            await LogAsync(logPath, $"ERROR migrating classifications: {ex.Message}");
-            await LogAsync(logPath, $"Stack trace: {ex.StackTrace}");
+            await LogAsync(logPath, $"ERROR migrating classifications: {ex.Message}").ConfigureAwait(false);
+            await LogAsync(logPath, $"Stack trace: {ex.StackTrace}").ConfigureAwait(false);
             return 0;
         }
     }
@@ -173,11 +172,11 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
         {
             // Read-only query to ModRepository is acceptable here
             // For creating/updating/deleting mods, use ModManagementService instead
-            var mods = await _modRepository.GetByCategoryAsync(category);
+            var mods = await _modRepository.GetByCategoryAsync(category).ConfigureAwait(false);
 
             if (mods.Count == 0)
             {
-                await LogAsync(logPath, $"INFO: No mods found for object '{category}'");
+                await LogAsync(logPath, $"INFO: No mods found for object '{category}'").ConfigureAwait(false);
                 return;
             }
 
@@ -185,7 +184,7 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
         }
         catch (Exception ex)
         {
-            await LogAsync(logPath, $"ERROR linking mods for object '{category}': {ex.Message}");
+            await LogAsync(logPath, $"ERROR linking mods for object '{category}': {ex.Message}").ConfigureAwait(false);
         }
     }
 
@@ -194,7 +193,7 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
         try
         {
             var logMessage = $"[{DateTime.Now:HH:mm:ss}] {message}";
-            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine);
+            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine).ConfigureAwait(false);
             _logger.Info(message, "Migration");
         }
         catch

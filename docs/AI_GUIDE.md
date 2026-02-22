@@ -22,9 +22,9 @@
 >
 > **If you learned it, document it. Future AI sessions depend on you!**
 
-**Version:** 1.3
-**Last Updated:** 2026-02-21
-**Project Type:** .NET 10 + Photino.NET + React 18 + TypeScript + Vite (Desktop Application)
+**Version:** 1.4
+**Last Updated:** 2026-02-22
+**Project Type:** .NET 10 + WinForms + WebView2 + React 18 + TypeScript + Vite (Desktop Application)
 **Audience:** AI Assistants (Primary), Human Developers (Reference)
 
 ---
@@ -177,6 +177,11 @@ See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGE
    #### Frontend (React/TypeScript):
    - Functional components with hooks (no class components)
    - TypeScript strict mode - avoid `any` type
+   - **⭐⭐⭐ CRITICAL: All frontend services MUST extend BaseModuleService**
+     - ✅ Correct: `class MyService extends BaseModuleService { constructor() { super('MODULE_NAME'); } }`
+     - ✅ Use `this.sendMessage()` for IPC calls, not `bridgeService.sendMessage()` directly
+     - ❌ Wrong: Object literal services with direct bridgeService calls
+     - See classificationService.ts, languageService.ts for examples
    - **ALWAYS use React Context for state management** - No prop drilling
      - See [architecture/FRONTEND_CONTEXT_ARCHITECTURE.md](architecture/FRONTEND_CONTEXT_ARCHITECTURE.md) ⭐⭐⭐
      - ProfileContext for profile state: `const { selectedProfileId } = useProfile()`
@@ -396,9 +401,10 @@ Query → Folder Selection → File Selection → Section
 
 **Backend:**
 - .NET 10 (C#)
-- Photino.NET 4.0+ (desktop framework)
+- WinForms (desktop framework)
+- WebView2 (Microsoft.Web.WebView2.WinForms)
 - SQLite (Microsoft.Data.Sqlite)
-- Newtonsoft.Json
+- Newtonsoft.Json / System.Text.Json
 
 **Frontend:**
 - React 18+ (19.2.4)
@@ -417,21 +423,26 @@ Query → Folder Selection → File Selection → Section
 ```
 D3dxSkinManager/
 ├── D3dxSkinManager/               # .NET Backend
-│   ├── Program.cs                 # Entry point, Photino window
-│   ├── Configuration/             # DI setup
-│   │   └── ServiceCollectionExtensions.cs
-│   ├── Facades/                   # Top-level routing
-│   │   └── AppFacade.cs           # IPC message router
+│   ├── Program.cs                 # Entry point
+│   ├── Composition/               # ⭐ Application bootstrapping
+│   │   ├── ApplicationBootstrapper.cs  # App initialization
+│   │   ├── ApplicationHost.cs          # WinForms + WebView2 host
+│   │   ├── ServiceContainer.cs         # DI container
+│   │   ├── WebViewInitializer.cs       # WebView2 setup
+│   │   ├── IpcCommunicationHandler.cs  # IPC message handler
+│   │   ├── MessageDispatcher.cs        # Middleware pipeline
+│   │   └── ProfileServiceRouter.cs     # Profile-scoped routing
 │   ├── Modules/                   # ⭐ MODULAR ARCHITECTURE
 │   │   ├── Core/                  # Shared services
+│   │   ├── Context/               # Profile-scoped context
 │   │   ├── Mods/                  # Mod management
 │   │   ├── Profiles/              # Profile system
 │   │   ├── Settings/              # Settings & file system
-│   │   ├── Plugins/               # ⭐ Plugin system (NEW LOCATION)
-│   │   │   ├── Models/
-│   │   │   ├── Services/          # Plugin infrastructure
-│   │   │   ├── PluginsFacade.cs
-│   │   │   └── PluginsServiceExtensions.cs
+│   │   ├── System/                # System utilities
+│   │   ├── Tools/                 # Configuration tools
+│   │   ├── Launch/                # Game launching
+│   │   ├── Migration/             # Python migration
+│   │   ├── Plugins/               # Plugin system
 │   │   └── ...
 │   └── D3dxSkinManager.csproj
 │
@@ -445,7 +456,7 @@ D3dxSkinManager/
 │   │   ├── shared/                # Shared components
 │   │   │   ├── context/           # React contexts (theme, etc)
 │   │   │   └── services/
-│   │   │       └── photinoService.ts  # C# ↔ React bridge
+│   │   │       └── bridgeService.ts  # C# ↔ React bridge (WebView2)
 │   │   └── ...
 │   └── package.json
 │
@@ -467,10 +478,12 @@ D3dxSkinManager/
 
 | File | Purpose | Edit Frequency |
 |------|---------|----------------|
-| `D3dxSkinManager/Program.cs` | Main entry, Photino setup, IPC handler | Medium |
-| `D3dxSkinManager/Services/ModService.cs` | Core mod operations | High |
+| `D3dxSkinManager/Program.cs` | Main entry point | Low |
+| `D3dxSkinManager/Composition/ApplicationHost.cs` | WinForms + WebView2 host | Medium |
+| `D3dxSkinManager/Composition/ProfileServiceRouter.cs` | Profile-scoped routing | Medium |
+| `D3dxSkinManager/Modules/Mods/Services/ModManagementService.cs` | Core mod operations | High |
 | `D3dxSkinManager.Client/src/App.tsx` | Main UI | High |
-| `D3dxSkinManager.Client/src/services/photino.ts` | Frontend-backend bridge | Low |
+| `D3dxSkinManager.Client/src/shared/services/bridgeService.ts` | WebView2 IPC bridge | Low |
 | `docs/CHANGELOG.md` | Change tracking | Every session |
 | `docs/AI_GUIDE.md` | This file | When learning |
 
@@ -703,12 +716,65 @@ Use this template at the start of each session:
 
 **Remember: This guide exists to help you. Use it, update it, improve it!**
 
-*Last updated: 2026-02-21*
-*Version: 1.3*
+*Last updated: 2026-02-22*
+*Version: 1.4*
 
 ---
 
-## Recent Major Updates (2026-02-21)
+## Recent Major Updates (2026-02-22)
+
+### ⭐⭐⭐ CRITICAL: Photino → WinForms + WebView2 Migration
+
+**Major architectural change!** The application has been migrated from Photino.NET to WinForms + WebView2.
+
+**What Changed:**
+- **Desktop Framework**: Photino.NET → WinForms + WebView2
+- **IPC Bridge**: `photinoService.ts` → `bridgeService.ts`
+- **Window Management**: Photino window → `ApplicationHost.cs` (WinForms Form)
+- **WebView Integration**: Photino's web view → Microsoft.Web.WebView2.WinForms
+
+**New Architecture:**
+- `Composition/ApplicationBootstrapper.cs` - Application initialization
+- `Composition/ApplicationHost.cs` - Main form with WebView2 control
+- `Composition/WebViewInitializer.cs` - WebView2 setup and custom scheme handler
+- `Composition/IpcCommunicationHandler.cs` - WebView2 IPC messages
+- `Composition/MessageDispatcher.cs` - Middleware pipeline with Lazy<T> caching
+- `Composition/ProfileServiceRouter.cs` - Profile-scoped service providers
+
+**Frontend Changes:**
+- `photinoService.ts` renamed to `bridgeService.ts`
+- IPC uses `chrome.webview.postMessage()` instead of Photino's bridge
+- Custom scheme handler: `app://` URLs for local file serving
+
+**Performance Optimizations:**
+- GPU acceleration enabled for WebView2
+- Pipeline caching with `Lazy<T>` in MessageDispatcher
+- Custom scheme handler for efficient local file serving
+- Background color set to prevent white flash
+
+**Why the migration?**
+- Better Windows integration
+- More control over window behavior
+- Standard WebView2 API
+- Easier debugging and development
+
+**Performance Optimizations Added (2026-02-22):**
+- **CustomSchemeHandler**: LRU cache (500 items), content type caching, 4KB buffer streaming
+- **SystemFileDialogService**: Fixed 2-5 second delay by reusing main UI thread (Control.Invoke)
+- **LruCache Utility**: Thread-safe generic cache with automatic eviction (`Modules/Core/Utilities/LruCache.cs`)
+- **Key Learning**: WebView2 streams must be writable - don't use `new MemoryStream(bytes, false)`
+
+**Code Quality Improvements (2026-02-22 Session 2):**
+- **Logging**: Replaced Console.WriteLine with ILogger in all Composition files (46 replacements)
+- **Error Handling**: Replaced NotImplementedException with graceful returns + logging
+- **Frontend Services**: All services now properly extend BaseModuleService (classificationService, languageService)
+- **Constructor DI Pattern**: IpcCommunicationHandler, MessageDispatcher, ProfileServiceRouter now accept ILogHelper in constructor
+
+See [technical/winforms-webview2-migration.md](../technical/winforms-webview2-migration.md) for complete migration details.
+
+---
+
+## Previous Updates (2026-02-21)
 
 ### New Critical Requirements:
 1. **Internationalization (i18n)** - ALL user-facing text must use `t('key')` translations

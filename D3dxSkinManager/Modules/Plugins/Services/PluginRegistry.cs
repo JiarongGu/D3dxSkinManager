@@ -1,4 +1,5 @@
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Plugins.Interfaces;
 
 namespace D3dxSkinManager.Modules.Plugins.Services;
 

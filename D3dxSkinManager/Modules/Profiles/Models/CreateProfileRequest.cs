@@ -12,5 +12,4 @@ public class CreateProfileRequest
     public string? ColorTag { get; set; }
     public string? IconName { get; set; }
     public string? GameName { get; set; }
-    public bool CopyFromCurrent { get; set; } = false;
 }

@@ -165,9 +165,9 @@ public interface IModRepository
 
 **"How do I add a new IPC message type?"**
 - **Documentation:** `docs/ai-assistant/WORKFLOWS.md#ipc-messages`
-- **Backend Handler:** `Program.cs:65-120` or Facade
-- **Frontend Types:** `src/types/message.types.ts`
-- **Frontend Service:** `src/services/photino.ts`
+- **Backend Handler:** Facade classes in `Modules/*/[Module]Facade.cs`
+- **Frontend Types:** `src/shared/types/message.types.ts`
+- **Frontend Service:** `src/shared/services/bridgeService.ts`
 
 **Steps:**
 1. Add message type to `MessageType` union (`message.types.ts`)
@@ -581,7 +581,7 @@ gh pr create --title "PR Title" --body "Summary"
 |------|----------|
 | **Main entry point (backend)?** | `D3dxSkinManager/Program.cs:11` |
 | **Main UI (frontend)?** | `D3dxSkinManager.Client/src/App.tsx` |
-| **IPC handler?** | `Program.cs:65` (backend), `photino.ts` (frontend) |
+| **IPC handler?** | `Composition/IpcCommunicationHandler.cs` (backend), `bridgeService.ts` (frontend) |
 | **Database schema?** | `Modules/Mods/Services/ModRepository.cs:49` |
 | **Data directory?** | `data/` (created at runtime) |
 | **Config files?** | `data/settings/`, `data/profiles/*/` |

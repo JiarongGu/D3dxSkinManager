@@ -1,3 +1,4 @@
+using D3dxSkinManager.Modules.Core.Helpers;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -33,13 +34,13 @@ public interface IFileTransferService
 /// </summary>
 public class FileTransferService : IFileTransferService
 {
-    private readonly IFileService _fileService;
-    private readonly IHashService _hashService;
+    private readonly IFileHelper _fileService;
+    private readonly IHashHelper _hashService;
     private readonly IPathHelper _pathHelper;
 
     public FileTransferService(
-        IFileService fileService,
-        IHashService hashService,
+        IFileHelper fileService,
+        IHashHelper hashService,
         IPathHelper pathHelper)
     {
         _fileService = fileService;
@@ -81,7 +82,7 @@ public class FileTransferService : IFileTransferService
 
         // Always calculate SHA-256 to determine target filename
         var extension = preserveExtension ? Path.GetExtension(sourcePath) : "";
-        var fileSha = await _hashService.CalculateFileSHA256Async(absoluteSourcePath);
+        var fileSha = await _hashService.CalculateFileSHA256Async(absoluteSourcePath).ConfigureAwait(false);
         Console.WriteLine($"[FileTransferService] File SHA-256: {fileSha}");
 
         var fileName = $"{fileSha}{extension}";
@@ -99,7 +100,7 @@ public class FileTransferService : IFileTransferService
         else
         {
             Console.WriteLine($"[FileTransferService] Copying file to destination...");
-            await _fileService.CopyFileAsync(absoluteSourcePath, targetPath, overwrite: false);
+            await _fileService.CopyFileAsync(absoluteSourcePath, targetPath, overwrite: false).ConfigureAwait(false);
             Console.WriteLine($"[FileTransferService] Copy complete");
         }
 

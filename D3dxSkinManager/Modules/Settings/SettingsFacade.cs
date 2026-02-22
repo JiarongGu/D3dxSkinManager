@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Facades;
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Settings.Models;
 using D3dxSkinManager.Modules.Settings.Services;
 
@@ -51,7 +51,7 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
-    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(IpcRequest request)
     {
         return request.Type switch
         {
@@ -79,75 +79,75 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
 
     public async Task<GlobalSettings> GetGlobalSettingsAsync()
     {
-        return await _globalSettingsService.GetSettingsAsync();
+        return await _globalSettingsService.GetSettingsAsync().ConfigureAwait(false);
     }
 
     public async Task UpdateGlobalSettingsAsync(GlobalSettings settings)
     {
-        await _globalSettingsService.UpdateSettingsAsync(settings);
+        await _globalSettingsService.UpdateSettingsAsync(settings).ConfigureAwait(false);
     }
 
     public async Task UpdateGlobalSettingAsync(string key, string value)
     {
-        await _globalSettingsService.UpdateSettingAsync(key, value);
+        await _globalSettingsService.UpdateSettingAsync(key, value).ConfigureAwait(false);
     }
 
     public async Task ResetGlobalSettingsAsync()
     {
-        await _globalSettingsService.ResetSettingsAsync();
+        await _globalSettingsService.ResetSettingsAsync().ConfigureAwait(false);
     }
 
     // IPC Message Handlers
 
-    private async Task<GlobalSettings> GetGlobalSettingsHandlerAsync(MessageRequest request)
+    private async Task<GlobalSettings> GetGlobalSettingsHandlerAsync(IpcRequest request)
     {
         _logger.Debug("GetGlobalSettingsHandlerAsync called", "SettingsFacade");
-        var result = await GetGlobalSettingsAsync();
+        var result = await GetGlobalSettingsAsync().ConfigureAwait(false);
         _logger.Debug($"Settings retrieved: Theme={result.Theme}, LogLevel={result.LogLevel}", "SettingsFacade");
         return result;
     }
 
-    private async Task<object> UpdateGlobalSettingsHandlerAsync(MessageRequest request)
+    private async Task<object> UpdateGlobalSettingsHandlerAsync(IpcRequest request)
     {
         var theme = _payloadHelper.GetOptionalValue<string>(request.Payload, "theme");
         var annotationLevel = _payloadHelper.GetOptionalValue<string>(request.Payload, "annotationLevel");
         var logLevel = _payloadHelper.GetOptionalValue<string>(request.Payload, "logLevel");
 
-        var settings = await GetGlobalSettingsAsync();
+        var settings = await GetGlobalSettingsAsync().ConfigureAwait(false);
 
         if (theme != null) settings.Theme = theme;
         if (annotationLevel != null) settings.AnnotationLevel = annotationLevel;
         if (logLevel != null) settings.LogLevel = logLevel;
 
-        await UpdateGlobalSettingsAsync(settings);
+        await UpdateGlobalSettingsAsync(settings).ConfigureAwait(false);
 
         return new { success = true, message = "Global settings updated", settings };
     }
 
-    private async Task<object> UpdateGlobalSettingHandlerAsync(MessageRequest request)
+    private async Task<object> UpdateGlobalSettingHandlerAsync(IpcRequest request)
     {
         var key = _payloadHelper.GetRequiredValue<string>(request.Payload, "key");
         var value = _payloadHelper.GetRequiredValue<string>(request.Payload, "value");
 
-        await UpdateGlobalSettingAsync(key, value);
+        await UpdateGlobalSettingAsync(key, value).ConfigureAwait(false);
 
         return new { success = true, message = $"Setting '{key}' updated to '{value}'" };
     }
 
-    private async Task<object> ResetGlobalSettingsHandlerAsync(MessageRequest request)
+    private async Task<object> ResetGlobalSettingsHandlerAsync(IpcRequest request)
     {
-        await ResetGlobalSettingsAsync();
-        var settings = await GetGlobalSettingsAsync();
+        await ResetGlobalSettingsAsync().ConfigureAwait(false);
+        var settings = await GetGlobalSettingsAsync().ConfigureAwait(false);
 
         return new { success = true, message = "Global settings reset to defaults", settings };
     }
 
     // Settings File Handlers
 
-    private async Task<object> GetSettingsFileHandlerAsync(MessageRequest request)
+    private async Task<object> GetSettingsFileHandlerAsync(IpcRequest request)
     {
         var filename = _payloadHelper.GetRequiredValue<string>(request.Payload, "filename");
-        var content = await _settingsFileService.GetSettingsFileAsync(filename);
+        var content = await _settingsFileService.GetSettingsFileAsync(filename).ConfigureAwait(false);
 
         if (content == null)
         {
@@ -157,46 +157,46 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
         return new { success = true, content };
     }
 
-    private async Task<object> SaveSettingsFileHandlerAsync(MessageRequest request)
+    private async Task<object> SaveSettingsFileHandlerAsync(IpcRequest request)
     {
         var filename = _payloadHelper.GetRequiredValue<string>(request.Payload, "filename");
         var content = _payloadHelper.GetRequiredValue<string>(request.Payload, "content");
 
-        await _settingsFileService.SaveSettingsFileAsync(filename, content);
+        await _settingsFileService.SaveSettingsFileAsync(filename, content).ConfigureAwait(false);
 
         return new { success = true, message = $"Settings file saved: {filename}" };
     }
 
-    private async Task<object> DeleteSettingsFileHandlerAsync(MessageRequest request)
+    private async Task<object> DeleteSettingsFileHandlerAsync(IpcRequest request)
     {
         var filename = _payloadHelper.GetRequiredValue<string>(request.Payload, "filename");
 
-        await _settingsFileService.DeleteSettingsFileAsync(filename);
+        await _settingsFileService.DeleteSettingsFileAsync(filename).ConfigureAwait(false);
 
         return new { success = true, message = $"Settings file deleted: {filename}" };
     }
 
-    private async Task<object> SettingsFileExistsHandlerAsync(MessageRequest request)
+    private async Task<object> SettingsFileExistsHandlerAsync(IpcRequest request)
     {
         var filename = _payloadHelper.GetRequiredValue<string>(request.Payload, "filename");
-        var exists = await _settingsFileService.SettingsFileExistsAsync(filename);
+        var exists = await _settingsFileService.SettingsFileExistsAsync(filename).ConfigureAwait(false);
 
         return new { exists };
     }
 
-    private async Task<object> ListSettingsFilesHandlerAsync(MessageRequest request)
+    private async Task<object> ListSettingsFilesHandlerAsync(IpcRequest request)
     {
-        var files = await _settingsFileService.ListSettingsFilesAsync();
+        var files = await _settingsFileService.ListSettingsFilesAsync().ConfigureAwait(false);
 
         return new { files };
     }
 
     // Language/i18n Handlers
 
-    private async Task<object> GetLanguageHandlerAsync(MessageRequest request)
+    private async Task<object> GetLanguageHandlerAsync(IpcRequest request)
     {
         var languageCode = _payloadHelper.GetRequiredValue<string>(request.Payload, "languageCode");
-        var language = await _languageService.GetLanguageAsync(languageCode);
+        var language = await _languageService.GetLanguageAsync(languageCode).ConfigureAwait(false);
 
         if (language == null)
         {
@@ -206,16 +206,16 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
         return new { success = true, language };
     }
 
-    private async Task<object> GetAvailableLanguagesHandlerAsync(MessageRequest request)
+    private async Task<object> GetAvailableLanguagesHandlerAsync(IpcRequest request)
     {
-        var languages = await _languageService.GetAvailableLanguagesAsync();
+        var languages = await _languageService.GetAvailableLanguagesAsync().ConfigureAwait(false);
         return new { success = true, languages };
     }
 
-    private async Task<object> LanguageExistsHandlerAsync(MessageRequest request)
+    private async Task<object> LanguageExistsHandlerAsync(IpcRequest request)
     {
         var languageCode = _payloadHelper.GetRequiredValue<string>(request.Payload, "languageCode");
-        var exists = await _languageService.LanguageExistsAsync(languageCode);
+        var exists = await _languageService.LanguageExistsAsync(languageCode).ConfigureAwait(false);
 
         return new { exists };
     }

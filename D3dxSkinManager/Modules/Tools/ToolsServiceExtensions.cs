@@ -1,5 +1,5 @@
-using System.IO;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using D3dxSkinManager.Modules.Tools.Services;
 
 namespace D3dxSkinManager.Modules.Tools;
@@ -11,24 +11,23 @@ namespace D3dxSkinManager.Modules.Tools;
 public static class ToolsServiceExtensions
 {
     /// <summary>
-    /// Register Tools module services and facade
+    /// Register Tools module services and facade (profile-scoped)
     /// </summary>
     public static IServiceCollection AddToolsServices(this IServiceCollection services)
     {
+        Console.WriteLine("[ToolsFacade] Registering Tools services (profile-scoped)...");
+
         // Register configuration service (required by validation and D3DMigoto) - using profile paths
-        services.AddSingleton<IConfigurationService, ConfigurationService>();
-
-        // Register mod auto-detection service
-        services.AddSingleton<IModAutoDetectionService, ModAutoDetectionService>();
-
-        // Cache service is now part of ModFileService in Mods module
+        services.TryAddSingleton<IConfigurationService, ConfigurationService>();
 
         // Register validation service
-        services.AddSingleton<IStartupValidationService, StartupValidationService>();
+        services.TryAddSingleton<IStartupValidationService, StartupValidationService>();
 
         // Register facade
-        services.AddSingleton<IToolsFacade, ToolsFacade>();
+        services.TryAddSingleton<IToolsFacade, ToolsFacade>();
+        services.TryAddSingleton<ToolsFacade>();
 
+        Console.WriteLine("[ToolsFacade] Tools services registered");
         return services;
     }
 }

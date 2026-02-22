@@ -2,9 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Facades;
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Plugins.Interfaces;
 using D3dxSkinManager.Modules.Plugins.Models;
 using D3dxSkinManager.Modules.Plugins.Services;
 
@@ -43,7 +44,7 @@ public class PluginsFacade : BaseFacade, IPluginsFacade
         _payloadHelper = payloadHelper;
     }
 
-    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(IpcRequest request)
     {
         return request.Type switch
         {
@@ -69,21 +70,25 @@ public class PluginsFacade : BaseFacade, IPluginsFacade
             Capabilities = GetPluginCapabilities(p)
         }).ToList();
 
-        return await Task.FromResult(pluginInfos);
+        return await Task.FromResult(pluginInfos).ConfigureAwait(false);
     }
 
     public async Task<bool> EnablePluginAsync(string pluginId)
     {
         // TODO: Implement plugin enable/disable functionality
+        // For now, return false to indicate the operation is not supported
+        _logger.Warning($"Plugin enable requested for '{pluginId}' but this feature is not yet implemented", "Plugins");
         await Task.CompletedTask;
-        throw new NotImplementedException("Plugin enable/disable not yet implemented");
+        return false;
     }
 
     public async Task<bool> DisablePluginAsync(string pluginId)
     {
         // TODO: Implement plugin enable/disable functionality
+        // For now, return false to indicate the operation is not supported
+        _logger.Warning($"Plugin disable requested for '{pluginId}' but this feature is not yet implemented", "Plugins");
         await Task.CompletedTask;
-        throw new NotImplementedException("Plugin enable/disable not yet implemented");
+        return false;
     }
 
     private List<string> GetPluginCapabilities(IPlugin plugin)
@@ -103,15 +108,15 @@ public class PluginsFacade : BaseFacade, IPluginsFacade
         return capabilities;
     }
 
-    private async Task<bool> EnablePluginAsync(MessageRequest request)
+    private async Task<bool> EnablePluginAsync(IpcRequest request)
     {
         var pluginId = _payloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
-        return await EnablePluginAsync(pluginId);
+        return await EnablePluginAsync(pluginId).ConfigureAwait(false);
     }
 
-    private async Task<bool> DisablePluginAsync(MessageRequest request)
+    private async Task<bool> DisablePluginAsync(IpcRequest request)
     {
         var pluginId = _payloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
-        return await DisablePluginAsync(pluginId);
+        return await DisablePluginAsync(pluginId).ConfigureAwait(false);
     }
 }

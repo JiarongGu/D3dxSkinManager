@@ -1,8 +1,13 @@
 # Documentation Archive
 
-This folder contains historical documentation that still has potential future value.
+This folder contains historical documentation that still has potential value for future reference.
 
 ## Contents
+
+### Historical Architecture
+- **[ARCHITECTURE_OLD.md](ARCHITECTURE_OLD.md)** - Pre-WebView2 architecture (Photino.NET era)
+  - Preserved for historical reference only
+  - **DO NOT USE** - See [CURRENT_ARCHITECTURE.md](../architecture/CURRENT_ARCHITECTURE.md) instead
 
 ### Plugin Development
 - **[CONVERSION_COMPLETE_V2.md](CONVERSION_COMPLETE_V2.md)** - Plugin conversion status reference
@@ -17,10 +22,10 @@ This folder contains historical documentation that still has potential future va
 ## Current Documentation
 
 For the latest architecture and documentation, see:
-- **[CURRENT_ARCHITECTURE.md](../architecture/CURRENT_ARCHITECTURE.md)** - Current system architecture
+- **[CURRENT_ARCHITECTURE.md](../architecture/CURRENT_ARCHITECTURE.md)** - Current system architecture (WebView2)
 - **[AI_GUIDE.md](../AI_GUIDE.md)** - AI assistant guide
 - **[README.md](../README.md)** - Documentation hub
 
 ---
 
-**Note:** These documents are kept for future reference but are not actively maintained.
+**Note:** These documents are kept for historical reference but are NOT actively maintained.

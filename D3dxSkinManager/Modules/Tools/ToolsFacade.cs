@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Facades;
 using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Tools.Models;
 using D3dxSkinManager.Modules.Tools.Services;
 using D3dxSkinManager.Modules.Mods.Services;
 using D3dxSkinManager.Modules.Plugins.Services;
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Event;
 
 namespace D3dxSkinManager.Modules.Tools;
 
@@ -41,13 +42,13 @@ public class ToolsFacade : BaseFacade, IToolsFacade
     private readonly IModFileService _modFileService;
     private readonly IStartupValidationService _validationService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly IEventEmitterHelper _eventEmitter;
+    private readonly IEventEmitter _eventEmitter;
 
     public ToolsFacade(
         IModFileService modFileService,
         IStartupValidationService validationService,
         IPayloadHelper payloadHelper,
-        IEventEmitterHelper eventEmitter,
+        IEventEmitter eventEmitter,
         ILogHelper logger) : base(logger)
     {
         _modFileService = modFileService ?? throw new ArgumentNullException(nameof(modFileService));
@@ -56,7 +57,7 @@ public class ToolsFacade : BaseFacade, IToolsFacade
         _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
     }
 
-    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(IpcRequest request)
     {
         return request.Type switch
         {
@@ -71,20 +72,20 @@ public class ToolsFacade : BaseFacade, IToolsFacade
 
     public async Task<List<CacheItem>> ScanCacheAsync()
     {
-        return await _modFileService.ScanCacheAsync();
+        return await _modFileService.ScanCacheAsync().ConfigureAwait(false);
     }
 
     public async Task<CacheStatistics> GetCacheStatisticsAsync()
     {
-        return await _modFileService.GetCacheStatisticsAsync();
+        return await _modFileService.GetCacheStatisticsAsync().ConfigureAwait(false);
     }
 
     public async Task<int> CleanCacheAsync(CacheCategory category)
     {
-        var deletedCount = await _modFileService.CleanCacheAsync(category);
+        var deletedCount = await _modFileService.CleanCacheAsync(category).ConfigureAwait(false);
 
         await _eventEmitter.EmitAsync(
-            PluginEventType.CustomEvent,
+            Core.Event.EventType.CustomEvent,
             "cache.cleaned",
             new { category = category.ToString(), deletedCount });
 
@@ -93,14 +94,14 @@ public class ToolsFacade : BaseFacade, IToolsFacade
 
     public async Task<bool> DeleteCacheItemAsync(string sha)
     {
-        var success = await _modFileService.DeleteCacheAsync(sha);
+        var success = await _modFileService.DeleteCacheAsync(sha).ConfigureAwait(false);
 
         if (success)
         {
             await _eventEmitter.EmitAsync(
-                PluginEventType.CustomEvent,
+                Core.Event.EventType.CustomEvent,
                 "cache.item.deleted",
-                new { sha });
+                new { sha }).ConfigureAwait(false);
         }
 
         return success;
@@ -108,10 +109,10 @@ public class ToolsFacade : BaseFacade, IToolsFacade
 
     public async Task<StartupValidationReport> ValidateStartupAsync()
     {
-        return await _validationService.ValidateStartupAsync();
+        return await _validationService.ValidateStartupAsync().ConfigureAwait(false);
     }
 
-    private async Task<int> CleanCacheAsync(MessageRequest request)
+    private async Task<int> CleanCacheAsync(IpcRequest request)
     {
         var categoryString = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
 
@@ -120,12 +121,12 @@ public class ToolsFacade : BaseFacade, IToolsFacade
             throw new ArgumentException($"Invalid cache category: {categoryString}");
         }
 
-        return await CleanCacheAsync(category);
+        return await CleanCacheAsync(category).ConfigureAwait(false);
     }
 
-    private async Task<bool> DeleteCacheItemAsync(MessageRequest request)
+    private async Task<bool> DeleteCacheItemAsync(IpcRequest request)
     {
         var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        return await DeleteCacheItemAsync(sha);
+        return await DeleteCacheItemAsync(sha).ConfigureAwait(false);
     }
 }

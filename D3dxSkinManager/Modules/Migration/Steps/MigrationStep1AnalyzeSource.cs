@@ -4,7 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Parsers;
@@ -46,9 +47,9 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
             PercentComplete = 0
         });
 
-        await LogAsync(context.LogPath, "Step 1: Analyzing Python installation source");
+        await LogAsync(context.LogPath, "Step 1: Analyzing Python installation source").ConfigureAwait(false);
 
-        var analysis = await AnalyzeSourceAsync(context.Options.SourcePath);
+        var analysis = await AnalyzeSourceAsync(context.Options.SourcePath).ConfigureAwait(false);
 
         if (!analysis.IsValid)
         {
@@ -69,13 +70,13 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
         var envPath = Path.Combine(context.Options.SourcePath, "home", envName);
         if (!Directory.Exists(Path.Combine(context.Options.SourcePath, "home")))
         {
-            await LogAsync(context.LogPath, "WARNING: 'home' directory not found, using root path for metadata");
+            await LogAsync(context.LogPath, "WARNING: 'home' directory not found, using root path for metadata").ConfigureAwait(false);
             envPath = context.Options.SourcePath;
         }
         context.EnvironmentPath = envPath;
 
-        await LogAsync(context.LogPath, $"Environment: {envName}");
-        await LogAsync(context.LogPath, $"Found {analysis.TotalMods} mods, {analysis.Environments.Count} environments");
+        await LogAsync(context.LogPath, $"Environment: {envName}").ConfigureAwait(false);
+        await LogAsync(context.LogPath, $"Found {analysis.TotalMods} mods, {analysis.Environments.Count} environments").ConfigureAwait(false);
 
         _logger.Info($"Analysis complete: {analysis.TotalMods} mods", "Migration");
     }
@@ -191,7 +192,7 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
             }
 
             // Parse configuration if available
-            analysis.Configuration = await _configParser.ParseAsync(pythonPath, analysis.ActiveEnvironment);
+            analysis.Configuration = await _configParser.ParseAsync(pythonPath, analysis.ActiveEnvironment).ConfigureAwait(false);
 
             // Format sizes for display
             analysis.TotalArchiveSizeFormatted = FileUtilities.FormatBytes(analysis.TotalArchiveSize);
@@ -214,7 +215,7 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
         try
         {
             var logMessage = $"[{DateTime.Now:HH:mm:ss}] {message}";
-            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine);
+            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine).ConfigureAwait(false);
             _logger.Info(message, "Migration");
         }
         catch

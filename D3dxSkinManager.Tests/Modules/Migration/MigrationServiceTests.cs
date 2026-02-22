@@ -12,10 +12,10 @@ using D3dxSkinManager.Modules.Migration.Steps;
 using D3dxSkinManager.Modules.Migration.Parsers;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Mods.Services;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Tools.Services;
-using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Migration;
 
@@ -35,13 +35,13 @@ public class MigrationServiceTests : IDisposable
     private readonly Mock<IPythonRedirectionFileParser> _mockRedirectionParser;
     private readonly Mock<IPythonClassificationFileParser> _mockClassificationParser;
     private readonly Mock<IPythonModIndexParser> _mockModIndexParser;
-    private readonly Mock<IFileService> _mockFileService;
+    private readonly Mock<IFileHelper> _mockFileService;
     private readonly Mock<IImageService> _mockImageService;
     private readonly Mock<IConfigurationService> _mockConfigService;
     private readonly Mock<IPythonConfigurationParser> _mockConfigParser;
     private readonly Mock<IModManagementService> _mockModManagementService;
     private readonly Mock<IModAutoDetectionService> _mockAutoDetectionService;
-    private readonly Mock<IArchiveService> _mockArchiveService;
+    private readonly Mock<IArchiveHelper> _mockArchiveService;
     private readonly Mock<ILogHelper> _mockLogger = new();
     private readonly MigrationService _service;
 
@@ -80,13 +80,13 @@ public class MigrationServiceTests : IDisposable
         _mockRedirectionParser = new Mock<IPythonRedirectionFileParser>();
         _mockClassificationParser = new Mock<IPythonClassificationFileParser>();
         _mockModIndexParser = new Mock<IPythonModIndexParser>();
-        _mockFileService = new Mock<IFileService>();
+        _mockFileService = new Mock<IFileHelper>();
         _mockImageService = new Mock<IImageService>();
         _mockConfigService = new Mock<IConfigurationService>();
         _mockConfigParser = new Mock<IPythonConfigurationParser>();
         _mockModManagementService = new Mock<IModManagementService>();
         _mockAutoDetectionService = new Mock<IModAutoDetectionService>();
-        _mockArchiveService = new Mock<IArchiveService>();
+        _mockArchiveService = new Mock<IArchiveHelper>();
 
         // Setup image service to return common extensions
         _mockImageService.Setup(s => s.GetSupportedImageExtensions())

@@ -46,7 +46,7 @@ public static class JsonHelper
     public static async Task SerializeToFileAsync<T>(string filePath, T obj, JsonSerializerOptions? options = null)
     {
         var json = Serialize(obj, options);
-        await File.WriteAllTextAsync(filePath, json);
+        await File.WriteAllTextAsync(filePath, json).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ public static class JsonHelper
             return default;
         }
 
-        var json = await File.ReadAllTextAsync(filePath);
+        var json = await File.ReadAllTextAsync(filePath).ConfigureAwait(false);
         return Deserialize<T>(json, options);
     }
 }

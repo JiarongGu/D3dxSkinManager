@@ -8,6 +8,8 @@ using Xunit;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Mods.Services;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Mods;
 
@@ -17,16 +19,22 @@ namespace D3dxSkinManager.Tests.Modules.Mods;
 /// </summary>
 public class ClassificationServiceTests
 {
-    private readonly Mock<IClassificationRepository> _mockRepository;
-    private readonly Mock<IModRepository> _mockModRepository;
+    private readonly Mock<IClassificationRepository> _mockRepository = new();
+    private readonly Mock<IModRepository> _mockModRepository = new();
     private readonly Mock<IPathHelper> _mockPathHelper = new();
+    private readonly Mock<IFileTransferService> _mockFileTransferService = new();
+    private readonly Mock<IProfilePathService> _mockProfilePathService = new();
     private readonly ClassificationService _service;
 
     public ClassificationServiceTests()
     {
-        _mockRepository = new Mock<IClassificationRepository>();
-        _mockModRepository = new Mock<IModRepository>();
-        _service = new ClassificationService(_mockRepository.Object, _mockModRepository.Object, _mockPathHelper.Object);
+        _service = new ClassificationService(
+            _mockRepository.Object,
+            _mockModRepository.Object,
+            _mockPathHelper.Object,
+            _mockFileTransferService.Object,
+            _mockProfilePathService.Object
+        );
 
         // Setup default mock behavior for mod repository
         _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ModInfo>());

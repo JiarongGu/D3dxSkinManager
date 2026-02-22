@@ -1,5 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Core;
 
@@ -9,53 +12,69 @@ namespace D3dxSkinManager.Modules.Core;
 /// </summary>
 public static class CoreServiceExtensions
 {
+    private static readonly List<Type> _registerdServices = new List<Type>();
+
     /// <summary>
     /// Register Core module services
     /// </summary>
-    public static IServiceCollection AddCoreServices(this IServiceCollection services, string dataPath)
+    public static IServiceCollection AddCoreServices(this IServiceCollection services)
     {
         // Low-level services (no dependencies)
-        services.AddSingleton<IFileService, FileService>();
-        services.AddSingleton<IHashService, HashService>();
-        services.AddSingleton<IArchiveService, ArchiveService>();
-        services.AddSingleton<IFileSystemService, FileSystemService>();
-        services.AddSingleton<IProcessService, ProcessService>();
-        services.AddSingleton<IFileDialogService, FileDialogService>();
+        AddSingleton<IFileHelper, FileHelper>(services);
+        AddSingleton<IHashHelper, HashHelper>(services);
+        AddSingleton<IArchiveHelper, ArchiveHelper>(services);
 
         // Global path service for application-level paths
-        services.AddSingleton<IGlobalPathService>(sp => new GlobalPathService(dataPath));
+        AddSingleton<IGlobalPathService, GlobalPathService>(services);
 
         // Path helper for relative path conversion (ensures portability)
-        services.AddSingleton<IPathHelper>(sp => new PathHelper(dataPath));
+        AddSingleton<IPathHelper, PathHelper>(services);
 
         // File transfer service for managed file copying with deduplication
-        services.AddSingleton<IFileTransferService, FileTransferService>();
+        AddSingleton<IFileTransferService, FileTransferService>(services);
 
         // Path validator for centralized file/directory validation
-        services.AddSingleton<IPathValidator, PathValidator>();
+        AddSingleton<IPathValidator, PathValidator>(services);
 
         // Payload helper for message parsing (testable DI version)
-        services.AddSingleton<IPayloadHelper, PayloadHelper>();
+        AddSingleton<IPayloadHelper, PayloadHelper>(services);
 
         // Log helper for centralized logging
-        services.AddSingleton<ILogHelper, LogHelper>();
+        AddSingleton<ILogHelper, LogHelper>(services);
 
         // Event emitter helper for null-safe plugin event emission
-        services.AddSingleton<IEventEmitterHelper, EventEmitterHelper>();
-
-        // Image service for image processing (thumbnails, resizing, etc.)
-        services.AddSingleton<IImageService, ImageService>();
+        AddSingleton<IEventEmitter, EventEmitter>(services);
 
         // Operation notification service for progress reporting and operation monitoring
-        services.AddSingleton<IOperationNotificationService, OperationNotificationService>();
+        AddSingleton<INotificationService, NotificationService>(services);
 
         // Custom scheme handler for app:// URLs (image serving)
-        services.AddSingleton<ICustomSchemeHandler>(sp =>
-        {
-            var logger = sp.GetRequiredService<ILogHelper>();
-            return new CustomSchemeHandler(dataPath, logger);
-        });
+        AddSingleton<ICustomSchemeHandler, CustomSchemeHandler>(services);
 
+        // Event bus for event messaging between services
+        AddSingleton<IEventBus, EventBus>(services);
+        AddSingleton<IEventEmitter, EventEmitter>(services);
+
+        return services;
+    }
+
+    public static IServiceCollection AddCoreServices(this IServiceCollection services, IServiceProvider serviceProvider)
+    {
+        foreach (var serviceType in _registerdServices)
+        {
+            var service = serviceProvider.GetService(serviceType);
+            if (service != null)
+            {
+                services.AddSingleton(serviceType, service);
+            }
+        }
+        return services;
+    }
+
+    public static IServiceCollection AddSingleton<TService, TImplementation>(IServiceCollection services)
+    {
+        services.Add(new ServiceDescriptor(typeof(TService), typeof(TImplementation), ServiceLifetime.Singleton));
+        _registerdServices.Add(typeof(TService));
         return services;
     }
 }

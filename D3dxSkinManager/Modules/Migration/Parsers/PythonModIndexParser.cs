@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using Newtonsoft.Json.Linq;
 
@@ -58,7 +58,7 @@ public class PythonModIndexParser : IPythonModIndexParser
         {
             try
             {
-                var json = await File.ReadAllTextAsync(indexFile);
+                var json = await File.ReadAllTextAsync(indexFile).ConfigureAwait(false);
                 var doc = JObject.Parse(json);
                 var modsObj = doc["mods"] as JObject;
 

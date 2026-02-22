@@ -7,6 +7,7 @@ using D3dxSkinManager.Modules.Settings.Services;
 using D3dxSkinManager.Modules.Settings.Models;
 using Moq;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Settings;
 

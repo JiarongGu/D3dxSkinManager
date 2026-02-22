@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Core;
 

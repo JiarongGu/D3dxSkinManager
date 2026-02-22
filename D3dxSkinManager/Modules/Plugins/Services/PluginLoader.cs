@@ -1,9 +1,10 @@
 using System.Reflection;
-using D3dxSkinManager.Modules.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Plugins.Interfaces;
 
 namespace D3dxSkinManager.Modules.Plugins.Services;
 
@@ -28,13 +29,10 @@ public class PluginLoader : IPluginLoader
 
     public PluginLoader(IProfilePathService profilePaths, IPluginContext pluginContext, IPluginRegistry registry, ILogHelper logger)
     {
-        _profilePaths = profilePaths ?? throw new ArgumentNullException(nameof(profilePaths));
-        _pluginContext = pluginContext ?? throw new ArgumentNullException(nameof(pluginContext));
-        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-        // Ensure plugins directory exists
-        _profilePaths.EnsureDirectoriesExist();
+        _profilePaths = profilePaths;
+        _pluginContext = pluginContext;
+        _registry = registry;
+        _logger = logger;
     }
 
     /// <summary>
@@ -144,7 +142,7 @@ public class PluginLoader : IPluginLoader
             try
             {
                 _logger.Log(LogLevel.Debug, $"[PluginLoader] Initializing plugin: {plugin.Name}");
-                await plugin.InitializeAsync(_pluginContext);
+                await plugin.InitializeAsync(_pluginContext).ConfigureAwait(false);
                 _logger.Log(LogLevel.Info, $"[PluginLoader] Initialized plugin: {plugin.Name}");
             }
             catch (Exception ex)
@@ -153,7 +151,7 @@ public class PluginLoader : IPluginLoader
             }
         });
 
-        await Task.WhenAll(initTasks);
+        await Task.WhenAll(initTasks).ConfigureAwait(false);
 
         _logger.Log(LogLevel.Info, $"[PluginLoader] Initialized {plugins.Count} plugin(s)");
     }
@@ -171,7 +169,7 @@ public class PluginLoader : IPluginLoader
             try
             {
                 _logger.Log(LogLevel.Debug, $"[PluginLoader] Shutting down plugin: {plugin.Name}");
-                await plugin.ShutdownAsync();
+                await plugin.ShutdownAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -179,7 +177,7 @@ public class PluginLoader : IPluginLoader
             }
         });
 
-        await Task.WhenAll(shutdownTasks);
+        await Task.WhenAll(shutdownTasks).ConfigureAwait(false);
 
         _logger.Log(LogLevel.Info, "[PluginLoader] All plugins shut down");
     }

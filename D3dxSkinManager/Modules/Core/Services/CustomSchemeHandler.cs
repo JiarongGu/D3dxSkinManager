@@ -1,6 +1,12 @@
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Utilities;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Threading;
+using Encoding = System.Text.Encoding;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
@@ -20,7 +26,7 @@ public interface ICustomSchemeHandler
 
 /// <summary>
 /// Service for handling custom app:// scheme requests
-/// Serves local files (images, etc.) through Photino's custom scheme handler
+/// Serves local files (images, etc.) through WebView2's custom scheme handler
 ///
 /// URL Format: app://encoded_file_path
 /// Examples:
@@ -37,13 +43,31 @@ public interface ICustomSchemeHandler
 /// </summary>
 public class CustomSchemeHandler : ICustomSchemeHandler
 {
-    private readonly string _dataPath;
+    private readonly IGlobalPathService _globalPathService;
     private readonly ILogHelper _logger;
 
-    public CustomSchemeHandler(string dataPath, ILogHelper logger)
+    // Cache for content types - static since extensions don't change
+    private static readonly ConcurrentDictionary<string, string> _contentTypeCache = new();
+
+    // LRU cache for normalized paths with size limit
+    private readonly LruCache<string, string> _normalizedPathCache;
+
+    // Pre-allocated error streams to avoid repeated allocations
+    private static readonly Lazy<byte[]> _invalidSchemeError = new(() => Encoding.UTF8.GetBytes("Invalid scheme"));
+    private static readonly Lazy<byte[]> _emptyPathError = new(() => Encoding.UTF8.GetBytes("Empty file path"));
+    private static readonly Lazy<byte[]> _fileNotFoundError = new(() => Encoding.UTF8.GetBytes("File not found"));
+
+    // Constants
+    private const string SchemePrefix = "app://";
+    private const int SchemePrefixLength = 6; // Length of "app://"
+    private const int FileStreamBufferSize = 4096; // Optimal buffer size for file streaming
+    private const int MaxPathCacheSize = 500; // Maximum number of cached paths
+
+    public CustomSchemeHandler(IGlobalPathService globalPathService, ILogHelper logger)
     {
-        _dataPath = dataPath ?? throw new ArgumentNullException(nameof(dataPath));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _globalPathService = globalPathService;
+        _logger = logger;
+        _normalizedPathCache = new LruCache<string, string>(MaxPathCacheSize);
     }
 
     /// <summary>
@@ -55,66 +79,80 @@ public class CustomSchemeHandler : ICustomSchemeHandler
 
         try
         {
+            // Only log in debug mode or for errors
+#if DEBUG
             _logger.Info($"Request: {url}", "CustomScheme");
+#endif
 
-            // Extract the file path from the URL
-            // URL format: app://encoded_file_path
-            if (!url.StartsWith("app://", StringComparison.OrdinalIgnoreCase))
+            // Fast validation: check scheme prefix
+            if (!url.StartsWith(SchemePrefix, StringComparison.OrdinalIgnoreCase))
             {
                 _logger.Warning($"Invalid scheme: {url}", "CustomScheme");
                 contentType = "text/plain";
-                return CreateErrorStream("Invalid scheme");
+                return new MemoryStream(_invalidSchemeError.Value);
             }
 
-            var encodedPath = url.Substring(6); // Remove "app://"
-            var filePath = WebUtility.UrlDecode(encodedPath);
-
-            if (string.IsNullOrEmpty(filePath))
+            // Extract and decode path efficiently
+            var encodedPath = url.AsSpan(SchemePrefixLength);
+            if (encodedPath.Length == 0)
             {
                 _logger.Warning("Empty file path", "CustomScheme");
                 contentType = "text/plain";
-                return CreateErrorStream("Empty file path");
+                return new MemoryStream(_emptyPathError.Value);
             }
 
-            // Convert relative path to absolute path
-            var absolutePath = Path.IsPathRooted(filePath)
-                ? filePath
-                : Path.Combine(_dataPath, filePath);
+            var filePath = WebUtility.UrlDecode(encodedPath.ToString());
 
-            // Normalize path
-            absolutePath = Path.GetFullPath(absolutePath);
+            // Try to get cached normalized path or compute it
+            var absolutePath = _normalizedPathCache.GetOrAdd(filePath, path =>
+            {
+                var resolvedPath = Path.IsPathRooted(path)
+                    ? path
+                    : Path.Combine(_globalPathService.BaseDataPath, path);
+                return Path.GetFullPath(resolvedPath);
+            });
 
             // Check if file exists
             if (!File.Exists(absolutePath))
             {
                 _logger.Warning($"File not found: {absolutePath}", "CustomScheme");
                 contentType = "text/plain";
-                return CreateErrorStream("File not found");
+                return new MemoryStream(_fileNotFoundError.Value);
             }
 
-            // Determine content type from file extension
-            contentType = GetContentType(absolutePath);
+            // Get cached content type
+            contentType = GetCachedContentType(absolutePath);
 
+#if DEBUG
             _logger.Info($"Serving: {absolutePath} ({contentType})", "CustomScheme");
+#endif
 
-            // Read and return file stream
-            return new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            // Return optimized file stream with buffer
+            return new FileStream(
+                absolutePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: FileStreamBufferSize,
+                useAsync: false); // Sync is faster for local files
         }
         catch (Exception ex)
         {
             _logger.Error($"Error handling request: {ex.Message}", "CustomScheme", ex);
             contentType = "text/plain";
-            return CreateErrorStream($"Error: {ex.Message}");
+            var errorBytes = Encoding.UTF8.GetBytes($"Error: {ex.Message}");
+            return new MemoryStream(errorBytes);
         }
     }
 
     /// <summary>
-    /// Determines the MIME content type from file extension
+    /// Gets content type with caching to avoid repeated lookups
     /// </summary>
-    private static string GetContentType(string filePath)
+    private string GetCachedContentType(string filePath)
     {
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        return extension switch
+        var extension = Path.GetExtension(filePath)?.ToLowerInvariant() ?? string.Empty;
+
+        return _contentTypeCache.GetOrAdd(extension, ext => ext switch
         {
             ".png" => "image/png",
             ".jpg" or ".jpeg" => "image/jpeg",
@@ -126,15 +164,14 @@ public class CustomSchemeHandler : ICustomSchemeHandler
             ".avif" => "image/avif",
             ".tif" or ".tiff" => "image/tiff",
             _ => "application/octet-stream"
-        };
+        });
     }
 
     /// <summary>
-    /// Creates a memory stream with an error message
+    /// Clears the path cache - useful if base data path changes
     /// </summary>
-    private static Stream CreateErrorStream(string message)
+    public void ClearPathCache()
     {
-        var bytes = System.Text.Encoding.UTF8.GetBytes(message);
-        return new MemoryStream(bytes);
+        _normalizedPathCache.Clear();
     }
 }

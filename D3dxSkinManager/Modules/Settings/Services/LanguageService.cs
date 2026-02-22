@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Settings.Models;
@@ -169,7 +170,7 @@ public class LanguageService : ILanguageService
 
         try
         {
-            await JsonHelper.SerializeToFileAsync(filePath, language);
+            await JsonHelper.SerializeToFileAsync(filePath, language).ConfigureAwait(false);
             _logger.Info($"Saved language: {language.Code}", "LanguageService");
         }
         catch (Exception ex)

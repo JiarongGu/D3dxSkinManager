@@ -1,13 +1,14 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Facades;
 using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Services;
 using D3dxSkinManager.Modules.Plugins.Services;
 using D3dxSkinManager.Modules.Mods;
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Event;
 
 namespace D3dxSkinManager.Modules.Migration;
 
@@ -35,13 +36,13 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
     private readonly IMigrationService _migrationService;
     private readonly IModFacade _modFacade;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly IEventEmitterHelper _eventEmitter;
+    private readonly IEventEmitter _eventEmitter;
 
     public MigrationFacade(
         IMigrationService migrationService,
         IModFacade modFacade,
         IPayloadHelper payloadHelper,
-        IEventEmitterHelper eventEmitter,
+        IEventEmitter eventEmitter,
         ILogHelper logger) : base(logger)
     {
         _migrationService = migrationService ?? throw new ArgumentNullException(nameof(migrationService));
@@ -50,7 +51,7 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
         _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
     }
 
-    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(IpcRequest request)
     {
         return request.Type switch
         {
@@ -63,18 +64,18 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
 
     public async Task<MigrationAnalysis> AnalyzeSourceAsync(string pythonPath)
     {
-        return await _migrationService.AnalyzeSourceAsync(pythonPath);
+        return await _migrationService.AnalyzeSourceAsync(pythonPath).ConfigureAwait(false);
     }
 
     public async Task<MigrationResult> StartMigrationAsync(MigrationOptions options, IProgress<MigrationProgress>? progress = null)
     {
-        var result = await _migrationService.MigrateAsync(options, progress, CancellationToken.None);
+        var result = await _migrationService.MigrateAsync(options, progress, CancellationToken.None).ConfigureAwait(false);
 
         // Refresh classification tree cache after migration
         try
         {
             _logger.Info("Refreshing classification tree after migration", "MigrationFacade");
-            await _modFacade.RefreshClassificationTreeAsync();
+            await _modFacade.RefreshClassificationTreeAsync().ConfigureAwait(false);
             _logger.Info("Classification tree refreshed successfully", "MigrationFacade");
         }
         catch (Exception ex)
@@ -82,23 +83,23 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
             _logger.Error($"Failed to refresh classification tree: {ex.Message}", "MigrationFacade", ex);
         }
 
-        await _eventEmitter.EmitAsync(PluginEventType.CustomEvent, "migration.completed", result);
+        await _eventEmitter.EmitAsync(Core.Event.EventType.CustomEvent, "migration.completed", result).ConfigureAwait(false);
 
         return result;
     }
 
     public async Task<bool> ValidateMigrationAsync(string pythonPath, string reactDataPath)
     {
-        return await _migrationService.ValidateMigrationAsync(pythonPath, reactDataPath);
+        return await _migrationService.ValidateMigrationAsync(pythonPath, reactDataPath).ConfigureAwait(false);
     }
 
-    private async Task<MigrationAnalysis> AnalyzeSourceAsync(MessageRequest request)
+    private async Task<MigrationAnalysis> AnalyzeSourceAsync(IpcRequest request)
     {
         var pythonPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "pythonPath");
-        return await AnalyzeSourceAsync(pythonPath);
+        return await AnalyzeSourceAsync(pythonPath).ConfigureAwait(false);
     }
 
-    private async Task<MigrationResult> StartMigrationAsync(MessageRequest request)
+    private async Task<MigrationResult> StartMigrationAsync(IpcRequest request)
     {
         var sourcePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourcePath");
         var environmentName = _payloadHelper.GetRequiredValue<string>(request.Payload, "environmentName");
@@ -133,13 +134,13 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
             PostAction = postAction
         };
 
-        return await StartMigrationAsync(options);
+        return await StartMigrationAsync(options).ConfigureAwait(false);
     }
 
-    private async Task<bool> ValidateMigrationAsync(MessageRequest request)
+    private async Task<bool> ValidateMigrationAsync(IpcRequest request)
     {
         var pythonPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "pythonPath");
         var reactDataPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "reactDataPath");
-        return await ValidateMigrationAsync(pythonPath, reactDataPath);
+        return await ValidateMigrationAsync(pythonPath, reactDataPath).ConfigureAwait(false);
     }
 }

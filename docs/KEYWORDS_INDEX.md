@@ -82,7 +82,7 @@
 ### Frontend Entry Points
 - **App.tsx** → `src/App.tsx` (root component)
 - **ModsView** → `src/modules/mods/components/ModsView.tsx` (main mods UI)
-- **photinoService** → `src/services/photino.ts` (IPC)
+- **bridgeService** → `src/shared/services/bridgeService.ts` (IPC)
 
 **Full Frontend Index:** [keywords/FRONTEND.md](keywords/FRONTEND.md)
 

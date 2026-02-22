@@ -3,7 +3,7 @@
 **Project Name:** D3dxSkinManager
 **Version:** 1.0.0
 **Type:** Desktop Application (Windows)
-**Technology:** .NET 10 + Photino.NET + React + TypeScript
+**Technology:** .NET 10 + WebView2 + React + TypeScript
 **Purpose:** Mod management for 3DMigoto-based game mods
 **Status:** ✅ Active Development
 
@@ -84,9 +84,9 @@ The original d3dxSkinManage (Python) solved these problems:
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **.NET** | 8.0 | Core runtime and framework |
+| **.NET** | 10.0 | Core runtime and framework |
 | **C#** | 12.0 | Programming language |
-| **Photino.NET** | 4.0.16 | Desktop window framework (like Electron for .NET) |
+| **WebView2** | Latest | Chromium-based desktop UI framework |
 | **SQLite** | 3.x | Embedded database for mod metadata |
 | **Newtonsoft.Json** | 13.0.4 | JSON serialization |
 
@@ -97,12 +97,12 @@ The original d3dxSkinManage (Python) solved these problems:
 - Excellent tooling (Visual Studio)
 - User wanted .NET over Python
 
-**Why Photino.NET?**
-- Lightweight (unlike Electron)
-- Uses native OS webview
-- .NET backend (unlike Tauri which requires Rust)
-- Small bundle size
-- Simple IPC communication
+**Why WebView2?**
+- Chromium-based (modern web standards)
+- Native Windows integration
+- Small deployment size (runtime bundled with Windows 11)
+- Full DevTools support
+- Robust IPC with chrome.webview API
 
 ### Frontend
 
@@ -180,7 +180,7 @@ CREATE INDEX idx_is_loaded ON Mods(IsLoaded);
 - ✅ Sort by object name, mod name
 
 #### 2. User Interface
-- ✅ Modern desktop window (Photino)
+- ✅ Modern desktop window (WebView2)
 - ✅ React-based UI
 - ✅ Header with title
 - ✅ Sidebar navigation (Mods, Warehouse, Settings)
@@ -340,9 +340,9 @@ CREATE INDEX idx_is_loaded ON Mods(IsLoaded);
 
 ### Dependencies
 
-**Photino.NET** - Desktop framework
-- GitHub: [tryphotino/photino.NET](https://github.com/tryphotino/photino.NET)
-- Docs: [tryphotino.io](https://www.tryphotino.io/)
+**WebView2** - Desktop framework
+- Docs: [Microsoft WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/)
+- NuGet: Microsoft.Web.WebView2.WinForms
 
 **3DMigoto** - Game modding framework
 - GitHub: [bo3b/3Dmigoto](https://github.com/bo3b/3Dmigoto)
@@ -374,16 +374,20 @@ CREATE INDEX idx_is_loaded ON Mods(IsLoaded);
 D3dxSkinManager/
 ├── D3dxSkinManager/              # Backend (.NET)
 │   ├── Program.cs                # Entry point
-│   ├── Services/                 # Business logic
-│   │   ├── IModService.cs        # Interface
-│   │   └── ModService.cs         # Implementation
+│   ├── Composition/              # WebView2 architecture
+│   │   ├── ApplicationBootstrapper.cs
+│   │   ├── ApplicationHost.cs
+│   │   ├── WebViewInitializer.cs
+│   │   ├── IpcCommunicationHandler.cs
+│   │   └── MessageDispatcher.cs
+│   ├── Modules/                  # Business logic modules
 │   └── D3dxSkinManager.csproj    # Project file
 │
 ├── D3dxSkinManager.Client/       # Frontend (React)
 │   ├── src/
 │   │   ├── App.tsx               # Main component
 │   │   ├── services/
-│   │   │   ├── photino.ts        # IPC bridge
+│   │   │   ├── bridgeService.ts  # IPC bridge
 │   │   │   └── modService.ts     # API wrapper
 │   │   └── index.tsx             # Entry point
 │   └── package.json
@@ -435,7 +439,7 @@ An **object** is what the mod modifies:
 
 Communication between C# backend and React frontend:
 
-**Frontend → Backend:** JSON message
+**Frontend → Backend:** JSON message via chrome.webview.postMessage
 ```json
 {
   "id": "msg_123",
@@ -444,7 +448,7 @@ Communication between C# backend and React frontend:
 }
 ```
 
-**Backend → Frontend:** JSON response
+**Backend → Frontend:** JSON response via CoreWebView2.PostWebMessageAsJson
 ```json
 {
   "id": "msg_123",
@@ -453,7 +457,7 @@ Communication between C# backend and React frontend:
 }
 ```
 
-**Transport:** Photino's SendWebMessage / ReceiveWebMessage
+**Transport:** WebView2's chrome.webview API
 
 ---
 
@@ -503,7 +507,7 @@ Communication between C# backend and React frontend:
 |-----------|-------|
 | **Language** | C# + TypeScript |
 | **Framework** | .NET 10 + React 19 |
-| **Desktop Framework** | Photino.NET 4.0.16 |
+| **Desktop Framework** | WebView2 (Chromium) |
 | **Database** | SQLite 3.x |
 | **UI Library** | Ant Design 6.3.0 |
 | **Platform** | Windows (primary) |

@@ -1,10 +1,10 @@
 # D3dxSkinManager - Current Architecture Guide
 
-**Last Updated:** 2026-02-20
+**Last Updated:** 2026-02-22
 
 ## Overview
 
-D3dxSkinManager is a modern .NET 10 + React application for managing game mods with a clean module-based architecture that aligns frontend and backend components.
+D3dxSkinManager is a modern .NET 10 + WinForms + WebView2 + React application for managing game mods with a clean module-based architecture that aligns frontend and backend components.
 
 ## Architecture Principles
 
@@ -26,18 +26,20 @@ D3dxSkinManager is a modern .NET 10 + React application for managing game mods w
 │      ↓                                                       │
 │  BaseModuleService (encapsulates module name)               │
 │      ↓                                                       │
-│  PhotinoService (IPC bridge)                                │
+│  BridgeService (WebView2 IPC bridge)                         │
 └──────────────────────────┬──────────────────────────────────┘
                            │ IPC Messages
-                           │ { module, type, payload }
+                           │ { id, module, type, payload, profileId }
 ┌──────────────────────────┴──────────────────────────────────┐
-│                    Backend (.NET 10 + Photino)                │
+│                Backend (.NET 10 + WinForms + WebView2)        │
 ├─────────────────────────────────────────────────────────────┤
-│  Program.cs (IPC Handler)                                    │
+│  ApplicationHost (WinForms Form + WebView2)                  │
 │      ↓                                                       │
-│  Plugin Interception (optional)                              │
+│  IpcCommunicationHandler (WebView2 messages)                 │
 │      ↓                                                       │
-│  AppFacade (Top-Level Router)                               │
+│  MessageDispatcher (Middleware pipeline)                     │
+│      ↓                                                       │
+│  ServiceRouter / ProfileServiceRouter                        │
 │      ↓                                                       │
 │  Module Facade (ModFacade, ProfileFacade, etc.)             │
 │      ↓                                                       │
@@ -143,7 +145,7 @@ This separation improves maintainability and makes each module's purpose clearer
 
 ```typescript
 // Generic message type with type-safe payload
-interface PhotinoMessage<TPayload = unknown> {
+interface IpcRequest<TPayload = unknown> {
   id: string;                // Unique message ID
   module: ModuleName;        // Target module (union type, not string)
   type: MessageType;         // Action within module
@@ -152,7 +154,7 @@ interface PhotinoMessage<TPayload = unknown> {
 }
 
 // Generic response type with type-safe data
-interface PhotinoResponse<TData = unknown> {
+interface IpcResponse<TData = unknown> {
   id: string;                // Matches request ID
   success: boolean;          // Operation status
   data?: TData;              // Optional typed result
@@ -322,7 +324,7 @@ abstract class BaseModuleService {
     profileId?: string,
     payload?: TPayload
   ): Promise<T> {
-    return photinoService.sendMessage<T>({
+    return bridgeService.sendMessage<T>({
       module: this.moduleName,
       type,
       profileId,
@@ -610,11 +612,11 @@ If No: Route to AppFacade → Module Facade
    ↓
 3. ModService sends: { module: 'MOD', type: 'LOAD', payload: { sha } }
    ↓
-4. PhotinoService → IPC → Program.cs
+4. BridgeService → IPC (chrome.webview.postMessage) → IpcCommunicationHandler
    ↓
-5. Program.cs → AppFacade.HandleMessageAsync()
+5. IpcCommunicationHandler → MessageDispatcher → ProfileServiceRouter
    ↓
-6. AppFacade routes to ModFacade
+6. Router dispatches to ModFacade
    ↓
 7. ModFacade.HandleMessageAsync() routes to LoadModAsync()
    ↓
@@ -622,7 +624,7 @@ If No: Route to AppFacade → Module Facade
    ↓
 9. Repository loads mod files, emits ModLoaded event
    ↓
-10. Success response travels back to frontend
+10. Success response travels back to frontend via CoreWebView2.PostWebMessageAsJson
    ↓
 11. Component updates UI
 ```
@@ -677,7 +679,7 @@ D3dxSkinManager/
 │       ├── shared/                  # Shared utilities
 │       │   ├── services/
 │       │   │   ├── baseModuleService.ts
-│       │   │   ├── photino.ts
+│       │   │   ├── bridgeService.ts
 │       │   │   └── ...
 │       │   └── types/
 │       └── App.tsx

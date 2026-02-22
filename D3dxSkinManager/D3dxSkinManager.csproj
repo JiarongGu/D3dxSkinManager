@@ -1,28 +1,40 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<UseWPF>false</UseWPF>
+	</PropertyGroup>
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <UseWindowsForms>true</UseWindowsForms>
-  </PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="7z.Libs" Version="25.1.0" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3800.47" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageReference Include="SharpSevenZip" Version="2.0.36" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="7z.Libs" Version="25.1.0" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="Photino.NET" Version="4.0.16" />
-    <PackageReference Include="SharpSevenZip" Version="2.0.36" />
-  </ItemGroup>
+	<!-- Copy language files to output directory -->
+	<ItemGroup>
+		<Folder Include="Languages\" />
+	</ItemGroup>
 
-  <!-- Copy language files to output directory -->
-  <ItemGroup>
-    <None Include="Languages\**\*.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>data\languages\%(RecursiveDir)%(Filename)%(Extension)</Link>
-    </None>
-  </ItemGroup>
+	<ItemGroup>
+		<Content Include="Languages\**\*.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<TargetPath>data\languages\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+		</Content>
+	</ItemGroup>
 
+	<ItemGroup>
+	  <Reference Update="C:\Users\user\.nuget\packages\microsoft.web.webview2\1.0.3800.47\buildTransitive\..\\lib_manual\net5.0-windows10.0.17763.0\Microsoft.Web.WebView2.Wpf.dll">
+	    <Private>False</Private>
+	  </Reference>
+	</ItemGroup>
 </Project>

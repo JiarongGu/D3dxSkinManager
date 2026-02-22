@@ -1,5 +1,3 @@
-using Photino.NET;
-
 namespace D3dxSkinManager.Modules.Settings.Services;
 
 /// <summary>
@@ -11,13 +9,13 @@ public interface IWindowStateService
     /// Loads saved window state from settings
     /// </summary>
     /// <returns>Tuple containing (width, height, x, y, maximized)</returns>
-    (int width, int height, int? x, int? y, bool maximized) LoadWindowState();
+    Task<(int width, int height, int? x, int? y, bool maximized)> LoadWindowStateAsync();
 
     /// <summary>
     /// Saves current window state to settings
     /// </summary>
-    /// <param name="window">The Photino window to save state from</param>
-    void SaveWindowState(PhotinoWindow window);
+    /// <param name="form">The WinForms Form to save state from</param>
+    Task SaveWindowStateAsync(Form form);
 
     /// <summary>
     /// Validates that a window position is visible on at least one monitor
@@ -26,7 +24,7 @@ public interface IWindowStateService
     /// <param name="y">Window Y position</param>
     /// <param name="width">Window width</param>
     /// <param name="height">Window height</param>
-    /// <param name="window">The Photino window (for monitor information)</param>
+    /// <param name="form">The WinForms Form (for monitor information)</param>
     /// <returns>True if position is valid, false otherwise</returns>
-    bool IsPositionValid(int x, int y, int width, int height, PhotinoWindow window);
+    bool IsPositionValid(int x, int y, int width, int height, Form form);
 }

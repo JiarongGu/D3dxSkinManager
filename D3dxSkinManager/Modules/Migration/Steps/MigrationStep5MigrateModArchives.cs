@@ -4,12 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Parsers;
 using D3dxSkinManager.Modules.Mods.Services;
 using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Migration.Steps;
 
@@ -23,8 +23,8 @@ namespace D3dxSkinManager.Modules.Migration.Steps;
 public class MigrationStep5MigrateModArchives : IMigrationStep
 {
     private readonly IProfilePathService _profilePaths;
-    private readonly IFileService _fileService;
-    private readonly IArchiveService _archiveService;
+    private readonly IFileHelper _fileService;
+    private readonly IArchiveHelper _archiveService;
     private readonly IPythonModIndexParser _modIndexParser;
     private readonly IModManagementService _modManagementService;
     private readonly ILogHelper _logger;
@@ -34,8 +34,8 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
 
     public MigrationStep5MigrateModArchives(
         IProfilePathService profilePaths,
-        IFileService fileService,
-        IArchiveService archiveService,
+        IFileHelper fileService,
+        IArchiveHelper archiveService,
         IPythonModIndexParser modIndexParser,
         IModManagementService modManagementService,
         ILogHelper logger)
@@ -66,18 +66,18 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
             PercentComplete = 50
         });
 
-        await LogAsync(context.LogPath, "Step 5: Migrating mod archives and metadata");
+        await LogAsync(context.LogPath, "Step 5: Migrating mod archives and metadata").ConfigureAwait(false);
 
         // Parse mod index files
         var modsIndexPath = Path.Combine(context.EnvironmentPath!, "modsIndex");
         if (!Directory.Exists(modsIndexPath))
         {
-            await LogAsync(context.LogPath, "WARNING: modsIndex directory not found");
+            await LogAsync(context.LogPath, "WARNING: modsIndex directory not found").ConfigureAwait(false);
             return;
         }
 
-        var modEntries = await _modIndexParser.ParseAsync(modsIndexPath);
-        await LogAsync(context.LogPath, $"Found {modEntries.Count} mod entries in index files");
+        var modEntries = await _modIndexParser.ParseAsync(modsIndexPath).ConfigureAwait(false);
+        await LogAsync(context.LogPath, $"Found {modEntries.Count} mod entries in index files").ConfigureAwait(false);
 
         // Migrate mod archives and create mod entries
         int copied = 0;
@@ -106,15 +106,15 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 else
                 {
                     // Try to detect from file header
-                    archiveType = await DetectArchiveTypeAsync(sourceArchivePath);
-                    await LogAsync(context.LogPath, $"INFO: Detected archive type '{archiveType}' for {modEntry.Name}");
+                    archiveType = await DetectArchiveTypeAsync(sourceArchivePath).ConfigureAwait(false);
+                    await LogAsync(context.LogPath, $"INFO: Detected archive type '{archiveType}' for {modEntry.Name}").ConfigureAwait(false);
                 }
 
                 // Store without extension (like Python version)
                 var destArchivePath = _profilePaths.GetModArchivePath(modEntry.Sha, "");
                 Directory.CreateDirectory(Path.GetDirectoryName(destArchivePath)!);
 
-                await _fileService.CopyFileAsync(sourceArchivePath, destArchivePath, overwrite: false);
+                await _fileService.CopyFileAsync(sourceArchivePath, destArchivePath, overwrite: false).ConfigureAwait(false);
                 copied++;
 
                 // Create mod entry using service
@@ -131,7 +131,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                         Grading = modEntry.Grading,
                         Tags = modEntry.Tags
                     }
-                );
+                ).ConfigureAwait(false);
 
                 if (mod != null)
                 {
@@ -150,14 +150,14 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
             }
             catch (Exception ex)
             {
-                await LogAsync(context.LogPath, $"ERROR migrating mod {modEntry.Name}: {ex.Message}");
+                await LogAsync(context.LogPath, $"ERROR migrating mod {modEntry.Name}: {ex.Message}").ConfigureAwait(false);
             }
         }
 
         context.Result.ArchivesCopied = copied;
         context.Result.ModsMigrated = created;
 
-        await LogAsync(context.LogPath, $"Copied {copied} archives, created {created} mod entries");
+        await LogAsync(context.LogPath, $"Copied {copied} archives, created {created} mod entries").ConfigureAwait(false);
         _logger.Info($"Step 5 complete: {copied} archives, {created} mods", "Migration");
     }
 
@@ -168,7 +168,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
     {
         try
         {
-            var detectedType = await _archiveService.DetectArchiveTypeAsync(filePath);
+            var detectedType = await _archiveService.DetectArchiveTypeAsync(filePath).ConfigureAwait(false);
             return detectedType ?? "zip"; // Default fallback if detection fails
         }
         catch (Exception ex)
@@ -183,7 +183,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         try
         {
             var logMessage = $"[{DateTime.Now:HH:mm:ss}] {message}";
-            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine);
+            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine).ConfigureAwait(false);
             _logger.Info(message, "Migration");
         }
         catch

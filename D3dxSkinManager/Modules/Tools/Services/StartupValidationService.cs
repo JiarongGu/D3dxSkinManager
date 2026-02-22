@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Tools.Models;
-
-using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Tools.Services;
 
@@ -54,13 +48,13 @@ public interface IStartupValidationService
 /// </summary>
 public class StartupValidationService : IStartupValidationService
 {
-    private readonly string _dataPath;
+    private readonly IProfilePathService _profilePathService;
     private readonly IConfigurationService _configService;
     private readonly ILogHelper _logger;
 
-    public StartupValidationService(IProfileContext profileContext, IConfigurationService configService, ILogHelper logger)
+    public StartupValidationService(IProfilePathService profilePathService, IConfigurationService configService, ILogHelper logger)
     {
-        _dataPath = profileContext.ProfilePath;
+        _profilePathService = profilePathService;
         _configService = configService;
         _logger = logger;
     }
@@ -113,10 +107,10 @@ public class StartupValidationService : IStartupValidationService
         {
             var requiredDirectories = new[]
             {
-                Path.Combine(_dataPath, "mods"),
-                Path.Combine(_dataPath, "work"),
-                Path.Combine(_dataPath, "thumbnails"),
-                Path.Combine(_dataPath, "previews")
+                _profilePathService.ModsDirectory,
+                _profilePathService.WorkDirectory,
+                _profilePathService.ThumbnailsDirectory,
+                _profilePathService.PreviewsDirectory,
             };
 
             var missingDirectories = new List<string>();
@@ -155,7 +149,7 @@ public class StartupValidationService : IStartupValidationService
             result.Message = $"Directory validation failed: {ex.Message}";
         }
 
-        return await Task.FromResult(result);
+        return await Task.FromResult(result).ConfigureAwait(false);
     }
 
     public async Task<ValidationResult> Validate3DMigotoAsync()
@@ -222,7 +216,7 @@ public class StartupValidationService : IStartupValidationService
             result.Message = $"3DMigoto validation failed: {ex.Message}";
         }
 
-        return await Task.FromResult(result);
+        return await Task.FromResult(result).ConfigureAwait(false);
     }
 
     public async Task<ValidationResult> ValidateConfigurationAsync()
@@ -235,7 +229,7 @@ public class StartupValidationService : IStartupValidationService
 
         try
         {
-            var configPath = Path.Combine(_dataPath, "config.json");
+            var configPath = _profilePathService.ConfigPath;
 
             if (!File.Exists(configPath))
             {
@@ -246,7 +240,7 @@ public class StartupValidationService : IStartupValidationService
             }
 
             // Try to parse configuration file
-            var configJson = await File.ReadAllTextAsync(configPath);
+            var configJson = await File.ReadAllTextAsync(configPath).ConfigureAwait(false);
             var config = JsonConvert.DeserializeObject<Dictionary<string, object>>(configJson);
 
             if (config == null)
@@ -278,7 +272,7 @@ public class StartupValidationService : IStartupValidationService
 
         try
         {
-            var dbPath = Path.Combine(_dataPath, "mods.db");
+            var dbPath = _profilePathService.ModDatabasePath;
 
             // Check if database directory is writable
             var dbDirectory = Path.GetDirectoryName(dbPath);
@@ -289,13 +283,13 @@ public class StartupValidationService : IStartupValidationService
 
             // Try to open database connection
             var connectionString = $"Data Source={dbPath}";
-            using var connection = new SqliteConnection(connectionString);
-            await connection.OpenAsync();
+            await using var connection = new SqliteConnection(connectionString);
+            await connection.OpenAsync().ConfigureAwait(false);
 
             // Verify we can query the database
             var command = connection.CreateCommand();
             command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='Mods'";
-            var tableExists = await command.ExecuteScalarAsync();
+            var tableExists = await command.ExecuteScalarAsync().ConfigureAwait(false);
 
             if (tableExists == null)
             {
@@ -308,7 +302,7 @@ public class StartupValidationService : IStartupValidationService
             {
                 // Check if we can query the table
                 command.CommandText = "SELECT COUNT(*) FROM Mods";
-                var count = await command.ExecuteScalarAsync();
+                var count = await command.ExecuteScalarAsync().ConfigureAwait(false);
                 result.IsValid = true;
                 result.Message = $"Database is valid and accessible ({count} mods)";
             }
@@ -335,21 +329,21 @@ public class StartupValidationService : IStartupValidationService
             var components = new List<string>();
 
             // Check SharpCompress (archive extraction)
-            components.Add("ï¿½?SharpCompress (archive extraction): Built-in");
+            components.Add("ï¿?SharpCompress (archive extraction): Built-in");
 
             // Check .NET runtime
             var runtimeVersion = Environment.Version;
-            components.Add($"ï¿½?.NET Runtime: {runtimeVersion}");
+            components.Add($"ï¿?.NET Runtime: {runtimeVersion}");
 
             // Check Windows Forms (file dialogs)
             try
             {
-                var _ = typeof(System.Windows.Forms.Form);
-                components.Add("ï¿½?Windows Forms (file dialogs): Available");
+                var _ = typeof(Form);
+                components.Add("ï¿?Windows Forms (file dialogs): Available");
             }
             catch
             {
-                components.Add("ï¿½?Windows Forms: Not available");
+                components.Add("ï¿?Windows Forms: Not available");
             }
 
             result.IsValid = true;
@@ -361,6 +355,6 @@ public class StartupValidationService : IStartupValidationService
             result.Message = $"Component validation failed: {ex.Message}";
         }
 
-        return await Task.FromResult(result);
+        return await Task.FromResult(result).ConfigureAwait(false);
     }
 }

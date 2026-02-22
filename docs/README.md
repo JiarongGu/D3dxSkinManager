@@ -133,7 +133,7 @@ docs/
 
 ✅ UI Complete (14 phases, 40+ components)
 ✅ Frontend: ~470 kB bundle (Vite build)
-✅ Backend: .NET 10 + Photino.NET
+✅ Backend: .NET 10 + WebView2
 ✅ Technology Stack: React 19.2.4 + TypeScript 5.9.3 + Ant Design 6.3.0
 ✅ i18n: Complete bilingual support (EN/CN, 507 keys each)
 ✅ Operation Notifications: Real-time progress tracking with IProgressReporter

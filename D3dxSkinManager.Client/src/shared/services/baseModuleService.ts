@@ -3,7 +3,7 @@
  * Provides type-safe IPC communication with a specific backend module
  */
 
-import { photinoService } from './photinoService';
+import { bridgeService } from './bridgeService';
 import { ModuleName } from '../types/message.types';
 
 /**
@@ -24,7 +24,7 @@ export abstract class BaseModuleService {
    * @returns Promise with typed response data
    */
   protected async sendMessage<T, TPayload = unknown>(type: string, profileId?: string, payload?: TPayload): Promise<T> {
-    return photinoService.sendMessage<T, TPayload>({ module: this.moduleName, type, profileId, payload });
+    return bridgeService.sendMessage<T, TPayload>({ module: this.moduleName, type, profileId, payload });
   }
 
   /**

@@ -32,8 +32,8 @@ public class ModQueryService : IModQueryService
 
     public ModQueryService(IModRepository repository, IClassificationRepository classificationRepository)
     {
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
-        _classificationRepository = classificationRepository ?? throw new ArgumentNullException(nameof(classificationRepository));
+        _repository = repository;
+        _classificationRepository = classificationRepository;
     }
 
     /// <summary>
@@ -43,10 +43,10 @@ public class ModQueryService : IModQueryService
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
-            return await _repository.GetAllAsync();
+            return await _repository.GetAllAsync().ConfigureAwait(false);
         }
 
-        var allMods = await _repository.GetAllAsync();
+        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
 
         // Split search term into individual terms
         var terms = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -90,7 +90,7 @@ public class ModQueryService : IModQueryService
         bool? isLoaded = null,
         bool? isAvailable = null)
     {
-        var mods = await _repository.GetAllAsync();
+        var mods = await _repository.GetAllAsync().ConfigureAwait(false);
 
         if (!string.IsNullOrEmpty(category))
         {
@@ -125,7 +125,7 @@ public class ModQueryService : IModQueryService
     /// </summary>
     public async Task<Dictionary<string, List<ModInfo>>> GetGroupedByObjectAsync()
     {
-        var mods = await _repository.GetAllAsync();
+        var mods = await _repository.GetAllAsync().ConfigureAwait(false);
         return mods.GroupBy(m => m.Category)
                    .ToDictionary(g => g.Key, g => g.ToList());
     }
@@ -135,7 +135,7 @@ public class ModQueryService : IModQueryService
     /// </summary>
     public async Task<ModStatistics> GetStatisticsAsync()
     {
-        var allMods = await _repository.GetAllAsync();
+        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
 
         return new ModStatistics
         {
@@ -165,10 +165,10 @@ public class ModQueryService : IModQueryService
         }
 
         // Get all descendant node IDs (includes self + all children recursively)
-        var descendantIds = await _classificationRepository.GetAllDescendantIdsAsync(classificationNodeId);
+        var descendantIds = await _classificationRepository.GetAllDescendantIdsAsync(classificationNodeId).ConfigureAwait(false);
 
         // Get all mods matching any of these categories
-        var allMods = await _repository.GetAllAsync();
+        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
         var matchingMods = allMods
             .Where(mod => descendantIds.Contains(mod.Category))
             .ToList();
@@ -182,7 +182,7 @@ public class ModQueryService : IModQueryService
     /// </summary>
     public async Task<List<ModInfo>> GetUnclassifiedModsAsync()
     {
-        var allMods = await _repository.GetAllAsync();
+        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
 
         // Filter mods that don't have a category assigned
         var unclassifiedMods = allMods
@@ -198,7 +198,7 @@ public class ModQueryService : IModQueryService
     /// </summary>
     public async Task<int> GetUnclassifiedCountAsync()
     {
-        var allMods = await _repository.GetAllAsync();
+        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
 
         // Count mods that don't have a category assigned
         var count = allMods.Count(mod => string.IsNullOrWhiteSpace(mod.Category) ||

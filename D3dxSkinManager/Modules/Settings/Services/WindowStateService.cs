@@ -1,6 +1,3 @@
-using System;
-using Photino.NET;
-
 namespace D3dxSkinManager.Modules.Settings.Services;
 
 /// <summary>
@@ -29,11 +26,11 @@ public class WindowStateService : IWindowStateService
     /// <summary>
     /// Loads saved window state from global settings
     /// </summary>
-    public (int width, int height, int? x, int? y, bool maximized) LoadWindowState()
+    public async Task<(int width, int height, int? x, int? y, bool maximized)> LoadWindowStateAsync()
     {
         try
         {
-            var settings = _settingsService.GetSettingsAsync().GetAwaiter().GetResult();
+            var settings = await _settingsService.GetSettingsAsync().ConfigureAwait(false);
 
             var width = settings.Window.Width ?? DefaultWidth;
             var height = settings.Window.Height ?? DefaultHeight;
@@ -61,24 +58,24 @@ public class WindowStateService : IWindowStateService
     /// <summary>
     /// Saves current window state to global settings
     /// </summary>
-    public void SaveWindowState(PhotinoWindow window)
+    public async Task SaveWindowStateAsync(Form form)
     {
-        if (window == null)
+        if (form == null)
         {
-            Console.WriteLine("[WindowState] Cannot save - window is null");
+            Console.WriteLine("[WindowState] Cannot save - form is null");
             return;
         }
 
         try
         {
-            var settings = _settingsService.GetSettingsAsync().GetAwaiter().GetResult();
+            var settings = await _settingsService.GetSettingsAsync().ConfigureAwait(false);
 
             // Get current window properties
-            var currentLeft = window.Left;
-            var currentTop = window.Top;
-            var currentWidth = window.Width;
-            var currentHeight = window.Height;
-            var currentMaximized = window.Maximized;
+            var currentLeft = form.Left;
+            var currentTop = form.Top;
+            var currentWidth = form.Width;
+            var currentHeight = form.Height;
+            var currentMaximized = form.WindowState == FormWindowState.Maximized;
 
             Console.WriteLine($"[WindowState] Reading current state: " +
                             $"Left={currentLeft}, Top={currentTop}, " +
@@ -108,7 +105,7 @@ public class WindowStateService : IWindowStateService
                                 "not saving position/size");
             }
 
-            _settingsService.UpdateSettingsAsync(settings).GetAwaiter().GetResult();
+            await _settingsService.UpdateSettingsAsync(settings).ConfigureAwait(false);
 
             Console.WriteLine($"[WindowState] Saved: {settings.Window.Width}x{settings.Window.Height}, " +
                             $"Position: X={settings.Window.X},Y={settings.Window.Y}, " +
@@ -124,57 +121,57 @@ public class WindowStateService : IWindowStateService
     /// Validates that window position is within available screen bounds
     /// Ensures at least part of the window (title bar area) is visible on screen
     /// </summary>
-    public bool IsPositionValid(int x, int y, int width, int height, PhotinoWindow window)
+    public bool IsPositionValid(int x, int y, int width, int height, Form form)
     {
-        if (window == null)
+        if (form == null)
         {
             return false;
         }
 
         try
         {
-            // Get all monitors
-            var monitors = window.Monitors;
-            if (monitors == null || monitors.Count == 0)
+            // Get all screens (monitors)
+            var screens = Screen.AllScreens;
+            if (screens == null || screens.Length == 0)
             {
-                Console.WriteLine("[WindowState] No monitors found, position invalid");
+                Console.WriteLine("[WindowState] No screens found, position invalid");
                 return false;
             }
 
-            // Check if window is at least partially visible on any monitor
-            foreach (var monitor in monitors)
+            // Check if window is at least partially visible on any screen
+            foreach (var screen in screens)
             {
                 // Window rectangle
                 var windowRight = x + width;
                 var windowBottom = y + height;
 
-                // Monitor rectangle (MonitorArea is a Rectangle with X, Y, Width, Height)
-                var monitorArea = monitor.MonitorArea;
-                var monitorRight = monitorArea.X + monitorArea.Width;
-                var monitorBottom = monitorArea.Y + monitorArea.Height;
+                // Screen bounds
+                var screenBounds = screen.Bounds;
+                var screenRight = screenBounds.X + screenBounds.Width;
+                var screenBottom = screenBounds.Y + screenBounds.Height;
 
                 // Check if there's any overlap
-                bool hasOverlap = !(windowRight < monitorArea.X ||
-                                   x > monitorRight ||
-                                   windowBottom < monitorArea.Y ||
-                                   y > monitorBottom);
+                bool hasOverlap = !(windowRight < screenBounds.X ||
+                                   x > screenRight ||
+                                   windowBottom < screenBounds.Y ||
+                                   y > screenBottom);
 
                 if (hasOverlap)
                 {
                     // Ensure at least minimum visible area (title bar)
-                    int visibleWidth = Math.Min(windowRight, monitorRight) - Math.Max(x, monitorArea.X);
-                    int visibleHeight = Math.Min(windowBottom, monitorBottom) - Math.Max(y, monitorArea.Y);
+                    int visibleWidth = Math.Min(windowRight, screenRight) - Math.Max(x, screenBounds.X);
+                    int visibleHeight = Math.Min(windowBottom, screenBottom) - Math.Max(y, screenBounds.Y);
 
                     if (visibleWidth >= MinVisibleWidth && visibleHeight >= MinVisibleHeight)
                     {
-                        Console.WriteLine($"[WindowState] Position valid on monitor at " +
-                                        $"({monitorArea.X},{monitorArea.Y})");
+                        Console.WriteLine($"[WindowState] Position valid on screen at " +
+                                        $"({screenBounds.X},{screenBounds.Y})");
                         return true;
                     }
                 }
             }
 
-            Console.WriteLine($"[WindowState] Position ({x},{y}) not visible on any monitor");
+            Console.WriteLine($"[WindowState] Position ({x},{y}) not visible on any screen");
             return false;
         }
         catch (Exception ex)

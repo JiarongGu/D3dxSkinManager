@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 
 using D3dxSkinManager.Modules.Mods.Models;
-using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
 
@@ -38,17 +32,20 @@ public interface IModRepository
 public class ModRepository : IModRepository
 {
     private readonly string _connectionString;
+    private readonly Lazy<Task> _init;
 
     public ModRepository(IProfilePathService profilePaths)
     {
         _connectionString = $"Data Source={profilePaths.ModDatabasePath}";
-        InitializeDatabaseAsync().Wait();
+        _init = new Lazy<Task>(InitializeDatabaseAsync, isThreadSafe: true);
     }
+
+    private Task EnsureInitializedAsync() => _init.Value;
 
     private async Task InitializeDatabaseAsync()
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var createTableCmd = connection.CreateCommand();
         createTableCmd.CommandText = @"
@@ -68,21 +65,23 @@ public class ModRepository : IModRepository
             CREATE INDEX IF NOT EXISTS idx_category ON Mods(Category);
             CREATE INDEX IF NOT EXISTS idx_author ON Mods(Author);
         ";
-        await createTableCmd.ExecuteNonQueryAsync();
+        await createTableCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
 
     public async Task<List<ModInfo>> GetAllAsync()
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         var mods = new List<ModInfo>();
 
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Mods ORDER BY SHA";
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
             mods.Add(MapToModInfo(reader));
         }
@@ -92,15 +91,17 @@ public class ModRepository : IModRepository
 
     public async Task<ModInfo?> GetByIdAsync(string sha)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Mods WHERE SHA = @sha";
         command.Parameters.AddWithValue("@sha", sha);
 
-        using var reader = await command.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        if (await reader.ReadAsync().ConfigureAwait(false))
         {
             return MapToModInfo(reader);
         }
@@ -110,21 +111,25 @@ public class ModRepository : IModRepository
 
     public async Task<bool> ExistsAsync(string sha)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM Mods WHERE SHA = @sha";
         command.Parameters.AddWithValue("@sha", sha);
 
-        var count = (long)(await command.ExecuteScalarAsync() ?? 0L);
+        var count = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
         return count > 0;
     }
 
     public async Task<ModInfo> InsertAsync(ModInfo mod)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = @"
@@ -141,14 +146,16 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@grading", mod.Grading);
         command.Parameters.AddWithValue("@tags", JsonConvert.SerializeObject(mod.Tags));
 
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return mod;
     }
 
     public async Task<bool> UpdateAsync(ModInfo mod)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = @"
@@ -173,36 +180,40 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@grading", mod.Grading);
         command.Parameters.AddWithValue("@tags", JsonConvert.SerializeObject(mod.Tags));
 
-        var rowsAffected = await command.ExecuteNonQueryAsync();
+        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
     }
 
     public async Task<bool> DeleteAsync(string sha)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM Mods WHERE SHA = @sha";
         command.Parameters.AddWithValue("@sha", sha);
 
-        var rowsAffected = await command.ExecuteNonQueryAsync();
+        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
     }
 
     public async Task<List<ModInfo>> GetByCategoryAsync(string category)
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         var mods = new List<ModInfo>();
 
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Mods WHERE Category = @category ORDER BY SHA";
         command.Parameters.AddWithValue("@category", category);
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
             mods.Add(MapToModInfo(reader));
         }
@@ -212,16 +223,18 @@ public class ModRepository : IModRepository
 
     public async Task<List<string>> GetLoadedIdsAsync()
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         var shas = new List<string>();
 
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT SHA FROM Mods WHERE IsLoaded = 1";
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
             shas.Add(reader.GetString(0));
         }
@@ -231,16 +244,18 @@ public class ModRepository : IModRepository
 
     public async Task<List<string>> GetDistinctCategoriesAsync()
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         var categories = new List<string>();
 
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT DISTINCT Category FROM Mods WHERE Category != '' ORDER BY Category";
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
             categories.Add(reader.GetString(0));
         }
@@ -250,16 +265,18 @@ public class ModRepository : IModRepository
 
     public async Task<List<string>> GetDistinctAuthorsAsync()
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         var authors = new List<string>();
 
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT DISTINCT Author FROM Mods WHERE Author != '' ORDER BY Author";
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
             authors.Add(reader.GetString(0));
         }
@@ -269,16 +286,18 @@ public class ModRepository : IModRepository
 
     public async Task<List<string>> GetAllTagsAsync()
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         var allTags = new HashSet<string>();
 
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT Tags FROM Mods WHERE Tags != ''";
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
             var tagsJson = reader.GetString(0);
             if (!string.IsNullOrEmpty(tagsJson))
@@ -307,7 +326,7 @@ public class ModRepository : IModRepository
         // IsLoaded is not stored in database - it's determined dynamically by checking
         // if work directory exists (see PopulateStatusFlagsBulk in ModFacade)
         // This method is kept for interface compatibility but does nothing
-        return await Task.FromResult(true);
+        return await Task.FromResult(true).ConfigureAwait(false);
     }
 
     private ModInfo MapToModInfo(SqliteDataReader reader)

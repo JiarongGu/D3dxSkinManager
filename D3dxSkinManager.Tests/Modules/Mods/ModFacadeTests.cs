@@ -11,7 +11,9 @@ using D3dxSkinManager.Modules.Mods;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Mods.Services;
 using D3dxSkinManager.Modules.Plugins.Services;
-using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Event;
 
 namespace D3dxSkinManager.Tests.Modules.Mods;
 
@@ -27,12 +29,12 @@ public class ModFacadeTests
     private readonly Mock<IModQueryService> _mockQueryService;
     private readonly Mock<IClassificationService> _mockClassificationService;
     private readonly Mock<IPayloadHelper> _mockPayloadHelper;
-    private readonly Mock<IEventEmitterHelper> _mockEventEmitter = new();
+    private readonly Mock<IEventEmitter> _mockEventEmitter = new();
     private readonly Mock<ILogHelper> _mockLogger = new();
     private readonly Mock<IImageService> _mockImageService = new();
     private readonly Mock<IProfilePathService> _mockProfilePathService = new();
     private readonly Mock<IPathHelper> _mockPathHelper = new();
-    private readonly Mock<IOperationNotificationService> _mockOperationNotificationService = new();
+    private readonly Mock<INotificationService> _mockOperationNotificationService = new();
     private readonly ModFacade _facade;
 
     public ModFacadeTests()
@@ -69,7 +71,7 @@ public class ModFacadeTests
         var mods = CreateSampleMods();
         _mockRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(mods);
 
-        var request = new MessageRequest
+        var request = new IpcRequest
         {
             Id = Guid.NewGuid().ToString(),
             Module = "MOD",
@@ -90,7 +92,7 @@ public class ModFacadeTests
     public async Task HandleMessageAsync_WithUnknownType_ShouldReturnError()
     {
         // Arrange
-        var request = new MessageRequest
+        var request = new IpcRequest
         {
             Id = Guid.NewGuid().ToString(),
             Module = "MOD",
@@ -112,7 +114,7 @@ public class ModFacadeTests
         // Arrange
         _mockRepository.Setup(r => r.GetAllAsync()).ThrowsAsync(new Exception("Database error"));
 
-        var request = new MessageRequest
+        var request = new IpcRequest
         {
             Id = Guid.NewGuid().ToString(),
             Module = "MOD",
@@ -234,7 +236,7 @@ public class ModFacadeTests
         await _facade.LoadModAsync("sha123");
 
         // Assert
-        _mockEventEmitter.Verify(e => e.EmitAsync(PluginEventType.ModLoaded, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(EventType.ModLoaded, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -279,7 +281,7 @@ public class ModFacadeTests
         await _facade.UnloadModAsync("sha123");
 
         // Assert
-        _mockEventEmitter.Verify(e => e.EmitAsync(PluginEventType.ModUnloaded, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(EventType.ModUnloaded, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -359,7 +361,7 @@ public class ModFacadeTests
         await _facade.ImportModAsync("test.zip");
 
         // Assert
-        _mockEventEmitter.Verify(e => e.EmitAsync(PluginEventType.ModImported, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(EventType.ModImported, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -413,7 +415,7 @@ public class ModFacadeTests
         await _facade.DeleteModAsync("sha123");
 
         // Assert
-        _mockEventEmitter.Verify(e => e.EmitAsync(PluginEventType.ModDeleted, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(EventType.ModDeleted, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion

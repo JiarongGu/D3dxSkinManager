@@ -1,7 +1,8 @@
 using D3dxSkinManager.Modules.Plugins.Services;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mods.Models;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Plugins.Interfaces;
 
 namespace D3dxSkinManager.ExamplePlugin;
 
@@ -37,11 +38,11 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         _context.Log(LogLevel.Info, $"[{Name}] Log file: {_logFilePath}");
 
         // Register event handlers
-        _context.RegisterEventHandler(PluginEventType.ApplicationStarted, OnApplicationStarted);
-        _context.RegisterEventHandler(PluginEventType.ModLoaded, OnModLoaded);
-        _context.RegisterEventHandler(PluginEventType.ModUnloaded, OnModUnloaded);
-        _context.RegisterEventHandler(PluginEventType.ModImported, OnModImported);
-        _context.RegisterEventHandler(PluginEventType.ModDeleted, OnModDeleted);
+        _context.RegisterEventHandler(EventType.ApplicationStarted, OnApplicationStarted);
+        _context.RegisterEventHandler(EventType.ModLoaded, OnModLoaded);
+        _context.RegisterEventHandler(EventType.ModUnloaded, OnModUnloaded);
+        _context.RegisterEventHandler(EventType.ModImported, OnModImported);
+        _context.RegisterEventHandler(EventType.ModDeleted, OnModDeleted);
 
         // Write startup message to log file
         await WriteLogAsync("=== Mod Logger Plugin Started ===");
@@ -55,12 +56,12 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
 
     // ============= Event Handlers =============
 
-    private async Task OnApplicationStarted(PluginEventArgs args)
+    private async Task OnApplicationStarted(Modules.Plugins.Services.EventArgs args)
     {
         await WriteLogAsync($"Application started at {args.Timestamp:yyyy-MM-dd HH:mm:ss}");
     }
 
-    private async Task OnModLoaded(PluginEventArgs args)
+    private async Task OnModLoaded(Modules.Plugins.Services.EventArgs args)
     {
         var data = args.Data as dynamic;
         var sha = data?.Sha?.ToString() ?? "unknown";
@@ -70,7 +71,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         await WriteLogAsync(message);
     }
 
-    private async Task OnModUnloaded(PluginEventArgs args)
+    private async Task OnModUnloaded(Modules.Plugins.Services.EventArgs args)
     {
         var data = args.Data as dynamic;
         var sha = data?.Sha?.ToString() ?? "unknown";
@@ -80,7 +81,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         await WriteLogAsync(message);
     }
 
-    private async Task OnModImported(PluginEventArgs args)
+    private async Task OnModImported(Modules.Plugins.Services.EventArgs args)
     {
         var mod = args.Data as ModInfo;
         if (mod != null)
@@ -91,7 +92,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         }
     }
 
-    private async Task OnModDeleted(PluginEventArgs args)
+    private async Task OnModDeleted(Modules.Plugins.Services.EventArgs args)
     {
         var data = args.Data as dynamic;
         var sha = data?.Sha?.ToString() ?? "unknown";
@@ -109,7 +110,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         return new[] { "GET_MOD_LOG", "CLEAR_MOD_LOG" };
     }
 
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
+    public async Task<IpcResponse> HandleMessageAsync(IpcRequest request)
     {
         try
         {
@@ -117,34 +118,34 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
             {
                 "GET_MOD_LOG" => await GetModLogAsync(request),
                 "CLEAR_MOD_LOG" => await ClearModLogAsync(request),
-                _ => MessageResponse.CreateError(request.Id, $"Unknown message type: {request.Type}")
+                _ => IpcResponse.CreateError(request.Id, $"Unknown message type: {request.Type}")
             };
         }
         catch (Exception ex)
         {
-            return MessageResponse.CreateError(request.Id, ex.Message);
+            return IpcResponse.CreateError(request.Id, ex.Message);
         }
     }
 
-    private Task<MessageResponse> GetModLogAsync(MessageRequest request)
+    private Task<IpcResponse> GetModLogAsync(IpcRequest request)
     {
         if (_logFilePath == null || !File.Exists(_logFilePath))
         {
-            return Task.FromResult(MessageResponse.CreateSuccess(request.Id, new { log = "" }));
+            return Task.FromResult(IpcResponse.CreateSuccess(request.Id, new { log = "" }));
         }
 
         lock (_fileLock)
         {
             var logContent = File.ReadAllText(_logFilePath);
-            return Task.FromResult(MessageResponse.CreateSuccess(request.Id, new { log = logContent }));
+            return Task.FromResult(IpcResponse.CreateSuccess(request.Id, new { log = logContent }));
         }
     }
 
-    private async Task<MessageResponse> ClearModLogAsync(MessageRequest request)
+    private async Task<IpcResponse> ClearModLogAsync(IpcRequest request)
     {
         if (_logFilePath == null)
         {
-            return MessageResponse.CreateError(request.Id, "Log file not initialized");
+            return IpcResponse.CreateError(request.Id, "Log file not initialized");
         }
 
         lock (_fileLock)
@@ -153,7 +154,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         }
 
         await WriteLogAsync("=== Log Cleared ===");
-        return MessageResponse.CreateSuccess(request.Id, new { success = true });
+        return IpcResponse.CreateSuccess(request.Id, new { success = true });
     }
 
     // ============= Helper Methods =============

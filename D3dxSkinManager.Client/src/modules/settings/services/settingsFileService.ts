@@ -3,7 +3,7 @@
  * Files are stored in data/settings/ directory on backend
  */
 
-import { photinoService } from '../../../shared/services/photinoService';
+import { BaseModuleService } from '../../../shared/services/baseModuleService';
 
 export interface SettingsFileResponse {
   success: boolean;
@@ -19,18 +19,18 @@ export interface SettingsFileListResponse {
   files: string[];
 }
 
-class SettingsFileService {
+class SettingsFileService extends BaseModuleService {
+  constructor() {
+    super('SETTINGS');
+  }
+
   /**
    * Get a settings file by name (without .json extension)
    * Returns the parsed JSON object, or null if file doesn't exist
    */
-  async getSettingsFile<T = any>(filename: string): Promise<T | null> {
+  async getSettingsFile<T extends Record<string, unknown> = Record<string, unknown>>(filename: string): Promise<T | null> {
     try {
-      const response = await photinoService.sendMessage<SettingsFileResponse>({
-        module: 'SETTINGS',
-        type: 'GET_FILE',
-        payload: { filename }
-      });
+      const response = await this.sendMessage<SettingsFileResponse>('GET_FILE', undefined, { filename });
 
       if (!response.success || !response.content) {
         return null;
@@ -47,14 +47,13 @@ class SettingsFileService {
    * Save a settings file by name (without .json extension)
    * Accepts any JSON-serializable object
    */
-  async saveSettingsFile(filename: string, data: any): Promise<boolean> {
+  async saveSettingsFile(filename: string, data: Record<string, unknown>): Promise<boolean> {
     try {
       const jsonContent = JSON.stringify(data, null, 2);
 
-      await photinoService.sendMessage<SettingsFileResponse>({ 
-        module: 'SETTINGS', 
-        type: 'SAVE_FILE', 
-        payload: { filename, content: jsonContent } 
+      await this.sendMessage<SettingsFileResponse>('SAVE_FILE', undefined, {
+        filename,
+        content: jsonContent
       });
 
       return true;
@@ -69,12 +68,7 @@ class SettingsFileService {
    */
   async deleteSettingsFile(filename: string): Promise<boolean> {
     try {
-      await photinoService.sendMessage<SettingsFileResponse>({ 
-        module: 'SETTINGS', 
-        type: 'DELETE_FILE', 
-        payload: { filename } 
-      });
-
+      await this.sendMessage<SettingsFileResponse>('DELETE_FILE', undefined, { filename });
       return true;
     } catch (error) {
       console.error(`[SettingsFileService] Failed to delete settings file '${filename}':`, error);
@@ -87,12 +81,7 @@ class SettingsFileService {
    */
   async settingsFileExists(filename: string): Promise<boolean> {
     try {
-      const response = await photinoService.sendMessage<SettingsFileExistsResponse>({ 
-        module: 'SETTINGS', 
-        type: 'FILE_EXISTS', 
-        payload: { filename } 
-      });
-
+      const response = await this.sendMessage<SettingsFileExistsResponse>('FILE_EXISTS', undefined, { filename });
       return response.exists;
     } catch (error) {
       console.error(`[SettingsFileService] Failed to check if settings file '${filename}' exists:`, error);
@@ -105,12 +94,7 @@ class SettingsFileService {
    */
   async listSettingsFiles(): Promise<string[]> {
     try {
-      const response = await photinoService.sendMessage<SettingsFileListResponse>({ 
-        module: 'SETTINGS', 
-        type: 'LIST_FILES', 
-        payload: {} 
-      });
-
+      const response = await this.sendMessage<SettingsFileListResponse>('LIST_FILES', undefined, {});
       return response.files || [];
     } catch (error) {
       console.error('[SettingsFileService] Failed to list settings files:', error);

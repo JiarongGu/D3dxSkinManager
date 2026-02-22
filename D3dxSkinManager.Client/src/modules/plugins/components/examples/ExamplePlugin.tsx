@@ -12,7 +12,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Typography, Space } from 'antd';
 import { FileTextOutlined, ClearOutlined } from '@ant-design/icons';
 import type { UIPlugin, PluginContext, PluginEventArgs } from '../PluginTypes';
-import { photinoService } from '../../../../shared/services/photinoService';
+import { bridgeService } from '../../../../shared/services/bridgeService';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 
 const { Title, Paragraph, Text } = Typography;
@@ -67,7 +67,7 @@ const ModLogViewerTab: React.FC = () => {
     setLoading(true);
     try {
       // Send custom message to backend plugin
-      const response = await photinoService.sendMessage<{ log: string }>({
+      const response = await bridgeService.sendMessage<{ log: string }>({
         module: 'PLUGINS',
         type: 'GET_MOD_LOG',
         profileId: profileState.selectedProfile?.id
@@ -83,7 +83,7 @@ const ModLogViewerTab: React.FC = () => {
 
   const clearLog = async () => {
     try {
-      await photinoService.sendMessage({
+      await bridgeService.sendMessage({
         module: 'PLUGINS',
         type: 'CLEAR_MOD_LOG',
         profileId: profileState.selectedProfile?.id

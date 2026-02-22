@@ -4,10 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Migration.Steps;
 
@@ -19,7 +19,7 @@ namespace D3dxSkinManager.Modules.Migration.Steps;
 public class MigrationStep6MigrateModPreviews : IMigrationStep
 {
     private readonly IProfilePathService _profilePaths;
-    private readonly IFileService _fileService;
+    private readonly IFileHelper _fileService;
     private readonly IImageService _imageService;
     private readonly ILogHelper _logger;
 
@@ -28,7 +28,7 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
 
     public MigrationStep6MigrateModPreviews(
         IProfilePathService profilePaths,
-        IFileService fileService,
+        IFileHelper fileService,
         IImageService imageService,
         ILogHelper logger)
     {
@@ -56,12 +56,12 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
             PercentComplete = 70
         });
 
-        await LogAsync(context.LogPath, "Step 6: Migrating mod preview images");
+        await LogAsync(context.LogPath, "Step 6: Migrating mod preview images").ConfigureAwait(false);
 
         // Migrate preview images
-        var copied = await MigrateModPreviewsAsync(context.Options.SourcePath, context.LogPath, progress);
+        var copied = await MigrateModPreviewsAsync(context.Options.SourcePath, context.LogPath, progress).ConfigureAwait(false);
         context.Result.PreviewsCopied = copied;
-        await LogAsync(context.LogPath, $"Copied {copied} mod preview images");
+        await LogAsync(context.LogPath, $"Copied {copied} mod preview images").ConfigureAwait(false);
 
         _logger.Info($"Step 6 complete: {copied} previews", "Migration");
     }
@@ -73,13 +73,13 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
 
         if (!Directory.Exists(sourceDir))
         {
-            await LogAsync(logPath, "WARNING: Source preview directory not found");
+            await LogAsync(logPath, "WARNING: Source preview directory not found").ConfigureAwait(false);
             return 0;
         }
 
         Directory.CreateDirectory(destDir);
 
-        // âœ… Use ImageService to get supported extensions
+        // âœ?Use ImageService to get supported extensions
         var imageExtensions = _imageService.GetSupportedImageExtensions();
         var allFiles = new List<string>();
         foreach (var ext in imageExtensions)
@@ -130,14 +130,14 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
             if (!File.Exists(destFile))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destFile)!);
-                // âœ… Use FileService instead of File.Copy!
-                await _fileService.CopyFileAsync(sourceFile, destFile, overwrite: false);
+                // âœ?Use FileService instead of File.Copy!
+                await _fileService.CopyFileAsync(sourceFile, destFile, overwrite: false).ConfigureAwait(false);
                 return true;
             }
         }
         catch (Exception ex)
         {
-            await LogAsync(logPath, $"ERROR copying preview for {sha}: {ex.Message}");
+            await LogAsync(logPath, $"ERROR copying preview for {sha}: {ex.Message}").ConfigureAwait(false);
         }
         return false;
     }
@@ -159,7 +159,7 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
         try
         {
             var logMessage = $"[{DateTime.Now:HH:mm:ss}] {message}";
-            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine);
+            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine).ConfigureAwait(false);
             _logger.Info(message, "Migration");
         }
         catch

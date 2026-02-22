@@ -1,6 +1,6 @@
 # D3dxSkinManager
 
-Modern rewrite of d3dxSkinManage using **.NET 10 + Photino.NET** (C# backend) + **React + TypeScript** (frontend).
+Modern rewrite of d3dxSkinManage using **.NET 10 + WebView2** (C# backend) + **React + TypeScript** (frontend).
 
 ![Version](https://img.shields.io/badge/version-2.0.0-blue) ![.NET](https://img.shields.io/badge/.NET-8.0-purple) ![React](https://img.shields.io/badge/React-19.2-61DAFB)
 
@@ -17,7 +17,7 @@ Modern rewrite of d3dxSkinManage using **.NET 10 + Photino.NET** (C# backend) + 
 
 ### Backend
 - **.NET 10** - Modern, cross-platform framework
-- **Photino.NET** - Lightweight desktop app framework
+- **WebView2** - Chromium-based desktop UI framework
 - **SQLite** - Embedded database
 - **C#** with **Dependency Injection**
 

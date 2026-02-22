@@ -1,5 +1,7 @@
-using Microsoft.Extensions.DependencyInjection;
+using D3dxSkinManager.Composition;
 using D3dxSkinManager.Modules.Settings.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace D3dxSkinManager.Modules.Settings;
 
@@ -14,21 +16,38 @@ public static class SettingsServiceExtensions
     /// </summary>
     public static IServiceCollection AddSettingsServices(this IServiceCollection services)
     {
-        // Register Global Settings Service
-        services.AddSingleton<IGlobalSettingsService, GlobalSettingsService>();
+        Console.WriteLine("[SettingsFacade] Registering Settings services...");
 
-        // Register Settings File Service (for generic JSON file storage)
-        services.AddSingleton<ISettingsFileService, SettingsFileService>();
+        // Register the underlying services (using TryAdd to avoid duplicates)
+        services.TryAddSingleton<ISettingsFileService, SettingsFileService>();
+        services.TryAddSingleton<ILanguageService, LanguageService>();
+        services.TryAddSingleton<IWindowStateService, WindowStateService>();
+        services.TryAddSingleton<IGlobalSettingsService, GlobalSettingsService>();
 
-        // Register Window State Service (for window position/size persistence)
-        services.AddSingleton<IWindowStateService, WindowStateService>();
+        // Register the facade itself
+        services.TryAddSingleton<ISettingsFacade, SettingsFacade>();
 
-        // Register Language Service (for i18n/language files)
-        services.AddSingleton<ILanguageService, LanguageService>();
-
-        // Register facade (depends on GlobalSettingsService, SettingsFileService, and LanguageService)
-        services.AddSingleton<ISettingsFacade, SettingsFacade>();
-
+        Console.WriteLine("[SettingsFacade] Settings services registered");
         return services;
+    }
+
+    /// <summary>
+    /// Register SettingsFacade message handlers with the MessageDispatcher
+    /// </summary>
+    public static MessageDispatcher UseSettingsFacade(this MessageDispatcher dispatcher, ServiceProvider serviceProvider)
+    {
+        var facade = serviceProvider.GetService<ISettingsFacade>();
+        if (facade == null)
+        {
+            Console.WriteLine("[SettingsFacade] Warning: SettingsFacade not registered in service container");
+            return dispatcher;
+        }
+
+        Console.WriteLine("[SettingsFacade] Registering SETTINGS module handlers");
+
+        // Register the module handler
+        dispatcher.UseModule("SETTINGS", facade.HandleMessageAsync);
+
+        return dispatcher;
     }
 }

@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Tools.Services;
 
@@ -15,7 +15,7 @@ namespace D3dxSkinManager.Modules.Migration.Steps;
 /// </summary>
 public class MigrationStep2MigrateConfiguration : IMigrationStep
 {
-    private readonly IConfigurationService _configService;  // âœ… Using service!
+    private readonly IConfigurationService _configService;  // âœ?Using service!
     private readonly ILogHelper _logger;
 
     public int StepNumber => 2;
@@ -47,10 +47,10 @@ public class MigrationStep2MigrateConfiguration : IMigrationStep
             PercentComplete = 15
         });
 
-        await LogAsync(context.LogPath, "Step 2: Migrating configuration settings");
+        await LogAsync(context.LogPath, "Step 2: Migrating configuration settings").ConfigureAwait(false);
 
-        await MigrateConfigurationAsync(context.Analysis.Configuration, context.LogPath);
-        await LogAsync(context.LogPath, "Configuration migrated");
+        await MigrateConfigurationAsync(context.Analysis.Configuration, context.LogPath).ConfigureAwait(false);
+        await LogAsync(context.LogPath, "Configuration migrated").ConfigureAwait(false);
         _logger.Info("Step 2 complete: Configuration migrated", "Migration");
     }
 
@@ -58,7 +58,7 @@ public class MigrationStep2MigrateConfiguration : IMigrationStep
     {
         try
         {
-            // âœ… Use ConfigurationService instead of manual file writes!
+            // âœ?Use ConfigurationService instead of manual file writes!
 
             // Set work directory
             if (!string.IsNullOrEmpty(config.GamePath))
@@ -66,36 +66,36 @@ public class MigrationStep2MigrateConfiguration : IMigrationStep
                 var workDir = Path.GetDirectoryName(config.GamePath);
                 if (!string.IsNullOrEmpty(workDir))
                 {
-                    await _configService.SetWorkDirectoryAsync(workDir);
-                    await LogAsync(logPath, $"Set work directory: {workDir}");
+                    await _configService.SetWorkDirectoryAsync(workDir).ConfigureAwait(false);
+                    await LogAsync(logPath, $"Set work directory: {workDir}").ConfigureAwait(false);
                 }
             }
 
             // Store migration metadata
-            await _configService.SetValueAsync("migratedFrom", "python");
+            await _configService.SetValueAsync("migratedFrom", "python").ConfigureAwait(false);
             await _configService.SetValueAsync("migrationDate", DateTime.Now.ToString("O"));
 
             // Store UUID for tracking
             if (!string.IsNullOrEmpty(config.Uuid))
             {
-                await _configService.SetValueAsync("uuid", config.Uuid);
+                await _configService.SetValueAsync("uuid", config.Uuid).ConfigureAwait(false);
             }
 
             // Store OCD settings
             if (config.Ocd != null)
             {
-                await _configService.SetValueAsync("ocd.windowName", config.Ocd.WindowName);
-                await _configService.SetValueAsync("ocd.width", config.Ocd.Width);
-                await _configService.SetValueAsync("ocd.height", config.Ocd.Height);
+                await _configService.SetValueAsync("ocd.windowName", config.Ocd.WindowName).ConfigureAwait(false);
+                await _configService.SetValueAsync("ocd.width", config.Ocd.Width).ConfigureAwait(false);
+                await _configService.SetValueAsync("ocd.height", config.Ocd.Height).ConfigureAwait(false);
             }
 
-            // âœ… Save using service (handles JSON serialization, error handling, etc.)
-            await _configService.SaveAsync();
-            await LogAsync(logPath, "Configuration saved successfully");
+            // âœ?Save using service (handles JSON serialization, error handling, etc.)
+            await _configService.SaveAsync().ConfigureAwait(false);
+            await LogAsync(logPath, "Configuration saved successfully").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            await LogAsync(logPath, $"ERROR migrating configuration: {ex.Message}");
+            await LogAsync(logPath, $"ERROR migrating configuration: {ex.Message}").ConfigureAwait(false);
         }
     }
 
@@ -104,7 +104,7 @@ public class MigrationStep2MigrateConfiguration : IMigrationStep
         try
         {
             var logMessage = $"[{DateTime.Now:HH:mm:ss}] {message}";
-            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine);
+            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine).ConfigureAwait(false);
             _logger.Info(message, "Migration");
         }
         catch

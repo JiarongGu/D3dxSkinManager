@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Mods.Models;
-using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
 
@@ -69,7 +70,7 @@ public class ClassificationService : IClassificationService
         }
 
         // Rebuild tree from database
-        await RefreshTreeAsync();
+        await RefreshTreeAsync().ConfigureAwait(false);
         return _cachedTree ?? new List<ClassificationNode>();
     }
 
@@ -81,7 +82,7 @@ public class ClassificationService : IClassificationService
         try
         {
             // Get all nodes from database
-            var allNodes = await _repository.GetAllAsync();
+            var allNodes = await _repository.GetAllAsync().ConfigureAwait(false);
 
             // Build dictionary for quick lookup
             var nodeDict = allNodes.ToDictionary(n => n.Id);
@@ -104,7 +105,7 @@ public class ClassificationService : IClassificationService
             }
 
             // Calculate mod counts for all nodes
-            await CalculateModCountsAsync(rootNodes);
+            await CalculateModCountsAsync(rootNodes).ConfigureAwait(false);
 
             _cachedTree = rootNodes;
             _lastRefresh = DateTime.Now;
@@ -123,14 +124,14 @@ public class ClassificationService : IClassificationService
     public async Task<ClassificationNode?> FindClassificationForObjectAsync(string category)
     {
         // Try exact match first
-        var node = await _repository.GetByNameAsync(category);
+        var node = await _repository.GetByNameAsync(category).ConfigureAwait(false);
         if (node != null)
         {
             return node;
         }
 
         // Fall back to tree search
-        var tree = await GetClassificationTreeAsync();
+        var tree = await GetClassificationTreeAsync().ConfigureAwait(false);
         return FindNodeByNameRecursive(tree, category);
     }
 
@@ -167,13 +168,13 @@ public class ClassificationService : IClassificationService
         try
         {
             // Move the node to new parent
-            var moved = await _repository.MoveNodeAsync(nodeId, newParentId);
+            var moved = await _repository.MoveNodeAsync(nodeId, newParentId).ConfigureAwait(false);
             if (!moved) return false;
 
             // If dropPosition is specified, reorder siblings
             if (dropPosition.HasValue)
             {
-                var siblings = await _repository.GetChildrenAsync(newParentId);
+                var siblings = await _repository.GetChildrenAsync(newParentId).ConfigureAwait(false);
                 var updates = new List<(string nodeId, int priority)>();
 
                 // Calculate new priorities based on drop position
@@ -200,11 +201,11 @@ public class ClassificationService : IClassificationService
                     updates.Add((nodeId, priority));
                 }
 
-                await _repository.ReorderSiblingsAsync(updates);
+                await _repository.ReorderSiblingsAsync(updates).ConfigureAwait(false);
             }
 
             // Invalidate cache
-            await RefreshTreeAsync();
+            await RefreshTreeAsync().ConfigureAwait(false);
             return true;
         }
         catch
@@ -220,10 +221,10 @@ public class ClassificationService : IClassificationService
     {
         try
         {
-            var node = await _repository.GetByIdAsync(nodeId);
+            var node = await _repository.GetByIdAsync(nodeId).ConfigureAwait(false);
             if (node == null) return false;
 
-            var siblings = await _repository.GetChildrenAsync(node.ParentId);
+            var siblings = await _repository.GetChildrenAsync(node.ParentId).ConfigureAwait(false);
             var updates = new List<(string nodeId, int priority)>();
 
             // Remove the node from its current position
@@ -246,10 +247,10 @@ public class ClassificationService : IClassificationService
                 }
             }
 
-            await _repository.ReorderSiblingsAsync(updates);
+            await _repository.ReorderSiblingsAsync(updates).ConfigureAwait(false);
 
             // Invalidate cache
-            await RefreshTreeAsync();
+            await RefreshTreeAsync().ConfigureAwait(false);
             return true;
         }
         catch
@@ -265,16 +266,16 @@ public class ClassificationService : IClassificationService
     {
         try
         {
-            var node = await _repository.GetByIdAsync(nodeId);
+            var node = await _repository.GetByIdAsync(nodeId).ConfigureAwait(false);
             if (node == null) return false;
 
             node.Name = name;
             // Note: Icon parameter is kept for API compatibility but not used in the current model
 
-            var updated = await _repository.UpdateAsync(node);
+            var updated = await _repository.UpdateAsync(node).ConfigureAwait(false);
             if (updated)
             {
-                await RefreshTreeAsync();
+                await RefreshTreeAsync().ConfigureAwait(false);
             }
 
             return updated;
@@ -293,14 +294,14 @@ public class ClassificationService : IClassificationService
         try
         {
             // Check if node exists
-            var node = await _repository.GetByIdAsync(nodeId);
+            var node = await _repository.GetByIdAsync(nodeId).ConfigureAwait(false);
             if (node == null) return false;
 
             // Delete all children recursively
-            await DeleteNodeAndChildrenRecursiveAsync(nodeId);
+            await DeleteNodeAndChildrenRecursiveAsync(nodeId).ConfigureAwait(false);
 
             // Invalidate cache
-            await RefreshTreeAsync();
+            await RefreshTreeAsync().ConfigureAwait(false);
             return true;
         }
         catch
@@ -338,7 +339,7 @@ public class ClassificationService : IClassificationService
                     thumbnailPath,
                     _profilePaths.ThumbnailsDirectory,
                     preserveExtension: true
-                );
+                ).ConfigureAwait(false);
 
                 // If copy failed (file doesn't exist), store original path (will fail gracefully on display)
                 if (relativeThumbnailPath == null)
@@ -359,8 +360,8 @@ public class ClassificationService : IClassificationService
                 Children = new List<ClassificationNode>()
             };
 
-            await _repository.InsertAsync(node);
-            await RefreshTreeAsync(); // Invalidate cache
+            await _repository.InsertAsync(node).ConfigureAwait(false);
+            await RefreshTreeAsync().ConfigureAwait(false); // Invalidate cache
             return node;
         }
         catch
@@ -376,7 +377,7 @@ public class ClassificationService : IClassificationService
     {
         try
         {
-            var node = await _repository.GetByIdAsync(nodeId);
+            var node = await _repository.GetByIdAsync(nodeId).ConfigureAwait(false);
             if (node == null)
                 return false;
 
@@ -384,11 +385,11 @@ public class ClassificationService : IClassificationService
             var relativeThumbnailPath = _pathHelper.ToRelativePath(thumbnailPath) ?? thumbnailPath;
 
             node.Thumbnail = relativeThumbnailPath;
-            var updated = await _repository.UpdateAsync(node);
+            var updated = await _repository.UpdateAsync(node).ConfigureAwait(false);
 
             if (updated)
             {
-                await RefreshTreeAsync(); // Invalidate cache
+                await RefreshTreeAsync().ConfigureAwait(false); // Invalidate cache
             }
 
             return updated;
@@ -404,7 +405,7 @@ public class ClassificationService : IClassificationService
     /// </summary>
     public async Task<ClassificationNode?> GetNodeByNameAsync(string name)
     {
-        return await _repository.GetByNameAsync(name);
+        return await _repository.GetByNameAsync(name).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -412,7 +413,7 @@ public class ClassificationService : IClassificationService
     /// </summary>
     public async Task<bool> NodeExistsAsync(string nodeId)
     {
-        return await _repository.ExistsAsync(nodeId);
+        return await _repository.ExistsAsync(nodeId).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -422,26 +423,26 @@ public class ClassificationService : IClassificationService
     private async Task DeleteNodeAndChildrenRecursiveAsync(string nodeId)
     {
         // Get the node to check for thumbnail
-        var node = await _repository.GetByIdAsync(nodeId);
+        var node = await _repository.GetByIdAsync(nodeId).ConfigureAwait(false);
 
         // Get all children
-        var children = await _repository.GetChildrenAsync(nodeId);
+        var children = await _repository.GetChildrenAsync(nodeId).ConfigureAwait(false);
 
         // Recursively delete children first
         foreach (var child in children)
         {
-            await DeleteNodeAndChildrenRecursiveAsync(child.Id);
+            await DeleteNodeAndChildrenRecursiveAsync(child.Id).ConfigureAwait(false);
         }
 
         // IMPORTANT: Delete thumbnail BEFORE deleting the node
         // This allows us to catch file lock errors and stop the deletion
         if (node?.Thumbnail != null)
         {
-            await CleanupThumbnailIfUnusedAsync(node.Thumbnail);
+            await CleanupThumbnailIfUnusedAsync(node.Thumbnail).ConfigureAwait(false);
         }
 
         // Delete the node itself (only after thumbnail is successfully deleted)
-        await _repository.DeleteAsync(nodeId);
+        await _repository.DeleteAsync(nodeId).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -461,7 +462,7 @@ public class ClassificationService : IClassificationService
             return; // External file, don't delete
 
         // Check if any other classification nodes are using this thumbnail
-        var allNodes = await _repository.GetAllAsync();
+        var allNodes = await _repository.GetAllAsync().ConfigureAwait(false);
         var isUsedByOthers = allNodes.Any(n =>
             n.Thumbnail != null &&
             _pathHelper.ToAbsolutePath(n.Thumbnail)?.Equals(absolutePath, StringComparison.OrdinalIgnoreCase) == true
@@ -502,7 +503,7 @@ public class ClassificationService : IClassificationService
     private async Task CalculateModCountsAsync(List<ClassificationNode> nodes)
     {
         // Get all mods from database once
-        var allMods = await _modRepository.GetAllAsync();
+        var allMods = await _modRepository.GetAllAsync().ConfigureAwait(false);
 
         // Group mods by category for quick lookup
         var modsByCategory = allMods

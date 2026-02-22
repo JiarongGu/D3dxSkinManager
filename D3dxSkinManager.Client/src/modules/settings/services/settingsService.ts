@@ -2,7 +2,7 @@
  * Settings Service - Handles global settings storage via backend
  */
 
-import { photinoService } from '../../../shared/services/photinoService';
+import { bridgeService } from '../../../shared/services/bridgeService';
 
 export interface GlobalSettings {
   theme: 'light' | 'dark' | 'auto';
@@ -23,7 +23,7 @@ class SettingsService {
    * Get global settings from backend
    */
   async getGlobalSettings(): Promise<GlobalSettings> {
-    return await photinoService.sendMessage<GlobalSettings>({
+    return await bridgeService.sendMessage<GlobalSettings>({
       module: 'SETTINGS',
       type: 'GET_GLOBAL',
       payload: {}
@@ -34,7 +34,7 @@ class SettingsService {
    * Update multiple global settings at once
    */
   async updateGlobalSettings(settings: Partial<GlobalSettings>): Promise<SettingsUpdateResult> {
-    return await photinoService.sendMessage<SettingsUpdateResult>({
+    return await bridgeService.sendMessage<SettingsUpdateResult>({
       module: 'SETTINGS',
       type: 'UPDATE_GLOBAL',
       payload: settings
@@ -45,7 +45,7 @@ class SettingsService {
    * Update a single global setting
    */
   async updateGlobalSetting(key: string, value: string): Promise<SettingsUpdateResult> {
-    return await photinoService.sendMessage<SettingsUpdateResult>({
+    return await bridgeService.sendMessage<SettingsUpdateResult>({
       module: 'SETTINGS',
       type: 'UPDATE_FIELD',
       payload: { key, value }
@@ -56,7 +56,7 @@ class SettingsService {
    * Reset global settings to defaults
    */
   async resetGlobalSettings(): Promise<SettingsUpdateResult> {
-    return await photinoService.sendMessage<SettingsUpdateResult>({
+    return await bridgeService.sendMessage<SettingsUpdateResult>({
       module: 'SETTINGS',
       type: 'RESET_GLOBAL',
       payload: {}

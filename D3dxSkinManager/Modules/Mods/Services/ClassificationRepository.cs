@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 using D3dxSkinManager.Modules.Mods.Models;
 
 using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
 
@@ -40,18 +40,21 @@ public interface IClassificationRepository
 public class ClassificationRepository : IClassificationRepository
 {
     private readonly string _connectionString;
+    private readonly Lazy<Task> _init;
 
     public ClassificationRepository(IProfilePathService profilePaths)
     {
         var dbPath = profilePaths.ClassificationsDatabasePath;
         _connectionString = $"Data Source={dbPath}";
-        InitializeDatabaseAsync().Wait();
+        _init = new Lazy<Task>(InitializeDatabaseAsync, isThreadSafe: true);
     }
+
+    private Task EnsureInitializedAsync() => _init.Value;
 
     private async Task InitializeDatabaseAsync()
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var createTableCmd = connection.CreateCommand();
         createTableCmd.CommandText = @"
@@ -69,21 +72,23 @@ public class ClassificationRepository : IClassificationRepository
             CREATE INDEX IF NOT EXISTS idx_classifications_parent ON Classifications(ParentId);
             CREATE INDEX IF NOT EXISTS idx_classifications_name ON Classifications(Name);
         ";
-        await createTableCmd.ExecuteNonQueryAsync();
+        await createTableCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
 
     public async Task<List<ClassificationNode>> GetAllAsync()
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         var nodes = new List<ClassificationNode>();
 
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Classifications ORDER BY Priority DESC, Name";
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
             nodes.Add(MapToNode(reader));
         }
@@ -93,15 +98,17 @@ public class ClassificationRepository : IClassificationRepository
 
     public async Task<ClassificationNode?> GetByIdAsync(string id)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Classifications WHERE Id = @id";
         command.Parameters.AddWithValue("@id", id);
 
-        using var reader = await command.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        if (await reader.ReadAsync().ConfigureAwait(false))
         {
             return MapToNode(reader);
         }
@@ -111,10 +118,12 @@ public class ClassificationRepository : IClassificationRepository
 
     public async Task<List<ClassificationNode>> GetChildrenAsync(string? parentId)
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         var nodes = new List<ClassificationNode>();
 
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         if (parentId == null)
@@ -127,8 +136,8 @@ public class ClassificationRepository : IClassificationRepository
             command.Parameters.AddWithValue("@parentId", parentId);
         }
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
             nodes.Add(MapToNode(reader));
         }
@@ -142,12 +151,14 @@ public class ClassificationRepository : IClassificationRepository
     /// </summary>
     public async Task<List<string>> GetAllDescendantIdsAsync(string parentId)
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         var descendantIds = new List<string>();
         var toProcess = new Queue<string>();
         toProcess.Enqueue(parentId);
 
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         // BFS to collect all descendants
         while (toProcess.Count > 0)
@@ -160,8 +171,8 @@ public class ClassificationRepository : IClassificationRepository
             command.CommandText = "SELECT Id FROM Classifications WHERE ParentId = @parentId";
             command.Parameters.AddWithValue("@parentId", currentId);
 
-            using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
                 var childId = reader["Id"].ToString();
                 if (!string.IsNullOrEmpty(childId))
@@ -176,15 +187,16 @@ public class ClassificationRepository : IClassificationRepository
 
     public async Task<ClassificationNode?> GetByNameAsync(string name)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+
+        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Classifications WHERE Name = @name LIMIT 1";
         command.Parameters.AddWithValue("@name", name);
 
-        using var reader = await command.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        if (await reader.ReadAsync().ConfigureAwait(false))
         {
             return MapToNode(reader);
         }
@@ -194,8 +206,9 @@ public class ClassificationRepository : IClassificationRepository
 
     public async Task<ClassificationNode> InsertAsync(ClassificationNode node)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+
+        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = @"
@@ -211,14 +224,14 @@ public class ClassificationRepository : IClassificationRepository
         command.Parameters.AddWithValue("@description", node.Description ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", node.Metadata != null ? JsonConvert.SerializeObject(node.Metadata) : (object)DBNull.Value);
 
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return node;
     }
 
     public async Task<bool> UpdateAsync(ClassificationNode node)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = @"
@@ -240,50 +253,50 @@ public class ClassificationRepository : IClassificationRepository
         command.Parameters.AddWithValue("@description", node.Description ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", node.Metadata != null ? JsonConvert.SerializeObject(node.Metadata) : (object)DBNull.Value);
 
-        var rowsAffected = await command.ExecuteNonQueryAsync();
+        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
     }
 
     public async Task<bool> DeleteAsync(string id)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM Classifications WHERE Id = @id";
         command.Parameters.AddWithValue("@id", id);
 
-        var rowsAffected = await command.ExecuteNonQueryAsync();
+        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
     }
 
     public async Task<bool> ExistsAsync(string id)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM Classifications WHERE Id = @id";
         command.Parameters.AddWithValue("@id", id);
 
-        var count = (long)(await command.ExecuteScalarAsync() ?? 0L);
+        var count = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
         return count > 0;
     }
 
     public async Task ClearAllAsync()
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM Classifications";
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
 
     public async Task<bool> MoveNodeAsync(string nodeId, string? newParentId)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = @"
@@ -295,14 +308,14 @@ public class ClassificationRepository : IClassificationRepository
         command.Parameters.AddWithValue("@nodeId", nodeId);
         command.Parameters.AddWithValue("@newParentId", newParentId ?? (object)DBNull.Value);
 
-        var rowsAffected = await command.ExecuteNonQueryAsync();
+        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
     }
 
     public async Task<bool> UpdatePriorityAsync(string nodeId, int priority)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
         command.CommandText = @"
@@ -314,14 +327,14 @@ public class ClassificationRepository : IClassificationRepository
         command.Parameters.AddWithValue("@nodeId", nodeId);
         command.Parameters.AddWithValue("@priority", priority);
 
-        var rowsAffected = await command.ExecuteNonQueryAsync();
+        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
     }
 
     public async Task<bool> ReorderSiblingsAsync(List<(string nodeId, int priority)> updates)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
 
         using var transaction = connection.BeginTransaction();
         try
@@ -339,7 +352,7 @@ public class ClassificationRepository : IClassificationRepository
                 command.Parameters.AddWithValue("@nodeId", nodeId);
                 command.Parameters.AddWithValue("@priority", priority);
 
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
             transaction.Commit();
@@ -374,3 +387,4 @@ public class ClassificationRepository : IClassificationRepository
         };
     }
 }
+

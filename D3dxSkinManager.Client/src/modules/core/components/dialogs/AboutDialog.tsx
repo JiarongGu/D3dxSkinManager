@@ -71,11 +71,11 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
             {t('about.techStack')}
           </Title>
           <Space wrap>
-            <Tag color="geekblue">React 18</Tag>
+            <Tag color="geekblue">React 19</Tag>
             <Tag color="blue">TypeScript</Tag>
-            <Tag color="purple">.NET 8</Tag>
-            <Tag color="cyan">Ant Design v5</Tag>
-            <Tag color="green">Photino.NET</Tag>
+            <Tag color="purple">.NET 10</Tag>
+            <Tag color="cyan">Ant Design v6</Tag>
+            <Tag color="green">WebView2</Tag>
             <Tag color="orange">SQLite</Tag>
           </Space>
         </div>
@@ -107,7 +107,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
               <strong>{t('about.credits.originalPython')}:</strong> {t('about.credits.basedOn')}
             </Text>
             <Text>
-              <strong>{t('about.credits.refactorUI')}:</strong> React + .NET 8 + Photino.NET
+              <strong>{t('about.credits.refactorUI')}:</strong> React 19 + .NET 10 + WebView2
             </Text>
             <Text>
               <strong>{t('about.credits.3dmigoto')}:</strong> {t('about.credits.graphicsFramework')}

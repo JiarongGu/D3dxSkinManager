@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Launch.Models;
+using D3dxSkinManager.Modules.System.Services;
 using D3dxSkinManager.Modules.Tools.Services;
-
-using D3dxSkinManager.Modules.Profiles;
 
 namespace D3dxSkinManager.Modules.Launch.Services;
 
@@ -44,36 +44,33 @@ public interface I3DMigotoService
 /// </summary>
 public class D3DMigotoService : I3DMigotoService
 {
-    private readonly string _dataPath;
-    private readonly string _versionsDirectory;
-    private readonly IFileService _fileService;
+    private readonly IProfilePathService _profilePathService;
+    private readonly IFileHelper _fileService;
     private readonly IConfigurationService _configService;
-    private readonly IProcessService _processService;
-    private readonly IArchiveService _archiveService;
+    private readonly ISystemProcessService _processService;
+    private readonly IArchiveHelper _archiveService;
     private readonly ILogHelper _logger;
 
     public D3DMigotoService(
-        IProfileContext profileContext,
-        IFileService fileService,
+        IProfilePathService profilePathSerivce,
+        IFileHelper fileService,
         IConfigurationService configService,
-        IProcessService processService,
-        IArchiveService archiveService,
+        ISystemProcessService processService,
+        IArchiveHelper archiveService,
         ILogHelper logger)
     {
-        _dataPath = profileContext.ProfilePath;
+        _profilePathService = profilePathSerivce;
         _fileService = fileService;
         _configService = configService;
         _processService = processService;
         _archiveService = archiveService;
         _logger = logger;
 
-        _versionsDirectory = Path.Combine(_dataPath, "3dmigoto");
-
         // Ensure versions directory exists
-        if (!Directory.Exists(_versionsDirectory))
+        if (!Directory.Exists(_profilePathService.TdMigotoDirectory))
         {
-            Directory.CreateDirectory(_versionsDirectory);
-            _logger.Info($"Created versions directory: {_versionsDirectory}", "D3DMigotoService");
+            Directory.CreateDirectory(_profilePathService.TdMigotoDirectory);
+            _logger.Info($"Created versions directory: {_profilePathService.TdMigotoDirectory}", "D3DMigotoService");
         }
     }
 
@@ -83,16 +80,16 @@ public class D3DMigotoService : I3DMigotoService
 
         try
         {
-            if (!Directory.Exists(_versionsDirectory))
+            if (!Directory.Exists(_profilePathService.TdMigotoDirectory))
             {
                 return versions;
             }
 
-            var currentVersion = await GetCurrentVersionAsync();
+            var currentVersion = await GetCurrentVersionAsync().ConfigureAwait(false);
 
             // Get all archive files in the versions directory
             var archiveExtensions = new[] { ".zip", ".7z", ".rar" };
-            var files = Directory.GetFiles(_versionsDirectory)
+            var files = Directory.GetFiles(_profilePathService.TdMigotoDirectory)
                 .Where(f => archiveExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
                 .OrderBy(f => Path.GetFileName(f));
 
@@ -125,14 +122,12 @@ public class D3DMigotoService : I3DMigotoService
     {
         try
         {
-            var versionFile = Path.Combine(_dataPath, "current_3dmigoto_version.txt");
-
-            if (!File.Exists(versionFile))
+            if (!File.Exists(ActiveVersionPath))
             {
                 return null;
             }
 
-            var version = await File.ReadAllTextAsync(versionFile);
+            var version = await File.ReadAllTextAsync(ActiveVersionPath).ConfigureAwait(false);
             return version.Trim();
         }
         catch (Exception ex)
@@ -162,7 +157,7 @@ public class D3DMigotoService : I3DMigotoService
             // Find the version archive
             var archiveExtensions = new[] { ".zip", ".7z", ".rar" };
             var archivePath = archiveExtensions
-                .Select(ext => Path.Combine(_versionsDirectory, $"{versionName}{ext}"))
+                .Select(ext => Path.Combine(_profilePathService.TdMigotoDirectory, $"{versionName}{ext}"))
                 .FirstOrDefault(File.Exists);
 
             if (archivePath == null)
@@ -200,7 +195,7 @@ public class D3DMigotoService : I3DMigotoService
 
             // Extract the version archive
             _logger.Info($"Extracting {archivePath} to {workDirectory}", "D3DMigotoService");
-            var result = await _archiveService.ExtractArchiveAsync(archivePath, workDirectory);
+            var result = await _archiveService.ExtractArchiveAsync(archivePath, workDirectory).ConfigureAwait(false);
 
             if (!result.Success)
             {
@@ -212,8 +207,7 @@ public class D3DMigotoService : I3DMigotoService
             }
 
             // Save current version
-            var versionFile = Path.Combine(_dataPath, "current_3dmigoto_version.txt");
-            await File.WriteAllTextAsync(versionFile, versionName);
+            await File.WriteAllTextAsync(ActiveVersionPath, versionName).ConfigureAwait(false);
 
             _logger.Info($"Successfully deployed version: {versionName}", "D3DMigotoService");
 
@@ -233,6 +227,8 @@ public class D3DMigotoService : I3DMigotoService
             };
         }
     }
+
+    private string ActiveVersionPath => Path.Combine(_profilePathService.ProfilePath, "current_version.txt");
 
     public async Task<bool> LaunchAsync()
     {

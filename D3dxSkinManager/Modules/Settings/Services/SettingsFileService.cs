@@ -1,3 +1,4 @@
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using System;
 using System.IO;
@@ -49,21 +50,14 @@ public interface ISettingsFileService
 /// </summary>
 public class SettingsFileService : ISettingsFileService
 {
-    private readonly string _settingsDirectory;
+    private readonly IGlobalPathService _globalPathService;
     private readonly ILogHelper _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    public SettingsFileService(IPathHelper pathHelper, ILogHelper logger)
+    public SettingsFileService(IGlobalPathService globalPathService, ILogHelper logger)
     {
-        _settingsDirectory = Path.Combine(pathHelper.BaseDataPath, "settings");
         _logger = logger;
-
-        // Ensure settings directory exists
-        if (!Directory.Exists(_settingsDirectory))
-        {
-            Directory.CreateDirectory(_settingsDirectory);
-            _logger.Info($"Created settings directory: {_settingsDirectory}", "SettingsFileService");
-        }
+        _globalPathService = globalPathService;
     }
 
     /// <summary>
@@ -73,7 +67,7 @@ public class SettingsFileService : ISettingsFileService
     {
         ValidateFilename(filename);
 
-        await _lock.WaitAsync();
+        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
             var filePath = GetFilePath(filename);
@@ -85,7 +79,7 @@ public class SettingsFileService : ISettingsFileService
             }
 
             _logger.Debug($"Reading settings file: {filename}", "SettingsFileService");
-            var content = await File.ReadAllTextAsync(filePath);
+            var content = await File.ReadAllTextAsync(filePath).ConfigureAwait(false);
 
             // Validate it's valid JSON before returning
             try
@@ -123,7 +117,7 @@ public class SettingsFileService : ISettingsFileService
             throw new ArgumentException($"Invalid JSON content: {ex.Message}");
         }
 
-        await _lock.WaitAsync();
+        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
             var filePath = GetFilePath(filename);
@@ -131,7 +125,7 @@ public class SettingsFileService : ISettingsFileService
 
             // Write to temp file first, then move (atomic operation)
             var tempPath = filePath + ".tmp";
-            await File.WriteAllTextAsync(tempPath, jsonContent);
+            await File.WriteAllTextAsync(tempPath, jsonContent).ConfigureAwait(false);
             File.Move(tempPath, filePath, overwrite: true);
 
             _logger.Info($"Settings file saved: {filename}", "SettingsFileService");
@@ -149,7 +143,7 @@ public class SettingsFileService : ISettingsFileService
     {
         ValidateFilename(filename);
 
-        await _lock.WaitAsync();
+        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
             var filePath = GetFilePath(filename);
@@ -177,7 +171,7 @@ public class SettingsFileService : ISettingsFileService
     {
         ValidateFilename(filename);
 
-        await _lock.WaitAsync();
+        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
             var filePath = GetFilePath(filename);
@@ -194,15 +188,10 @@ public class SettingsFileService : ISettingsFileService
     /// </summary>
     public async Task<string[]> ListSettingsFilesAsync()
     {
-        await _lock.WaitAsync();
+        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (!Directory.Exists(_settingsDirectory))
-            {
-                return Array.Empty<string>();
-            }
-
-            var files = Directory.GetFiles(_settingsDirectory, "*.json")
+            var files = Directory.GetFiles(_globalPathService.GlobalSettingsDirectory, "*.json")
                 .Select(Path.GetFileNameWithoutExtension)
                 .Where(name => !string.IsNullOrEmpty(name))
                 .ToArray();
@@ -221,7 +210,7 @@ public class SettingsFileService : ISettingsFileService
     /// </summary>
     private string GetFilePath(string filename)
     {
-        return Path.Combine(_settingsDirectory, $"{filename}.json");
+        return _globalPathService.GetGlobalSettingsFilePath($"{filename}.json");
     }
 
     /// <summary>

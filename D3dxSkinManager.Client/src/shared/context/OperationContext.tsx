@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
-import { photinoService } from '../services/photinoService';
+import { bridgeService } from '../../shared/services/bridgeService';
 import { OperationProgress, OperationNotificationType } from '../types/operation.types';
 
 /**
@@ -124,7 +124,7 @@ export const OperationProvider: React.FC<OperationProviderProps> = ({ children }
 
   // Subscribe to operation notifications from backend
   useEffect(() => {
-    const unsubscribe = photinoService.subscribeToOperationNotifications((notification) => {
+    const unsubscribe = bridgeService.subscribeToOperationNotifications((notification) => {
       const notificationType = notification.type as OperationNotificationType;
 
       // Convert the operation object from backend (dates are strings) to OperationProgress (dates are Date objects)

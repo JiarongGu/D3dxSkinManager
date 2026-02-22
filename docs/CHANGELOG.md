@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-02-22 - Comprehensive Code Quality Improvements ⭐⭐⭐⭐
+Fixed Console.WriteLine usage (5 Composition files → ILogger), NotImplementedException (2 files → graceful returns), frontend services (3 services → extend BaseModuleService).
+**Impact**: ✅ Consistent logging, no runtime exceptions, uniform service architecture
+**Details**: [changelogs/2026-02/2026-02-22-comprehensive-code-review.md](changelogs/2026-02/2026-02-22-comprehensive-code-review.md)
+
+### Refactored - 2026-02-22 - Frontend Architecture Improvements & Critical Fixes ⭐⭐⭐⭐⭐
+Major frontend refactoring based on comprehensive code review (152 files analyzed). Fixed critical architectural issues and anti-patterns.
+**Fixed**: SettingsService and SettingsFileService now extend BaseModuleService, removed window.location.reload anti-pattern, added i18n to ProfileSwitcher
+**Impact**: ✅ Consistent service architecture, proper state management, no page reloads on profile switch
+**Components**: settingsService.ts, settingsFileService.ts, ProfileSwitcher.tsx
+
+### Cleaned - 2026-02-22 - Frontend Code Cleanup & Obsolete Archive Removal ⭐⭐⭐
+Comprehensive frontend review and cleanup. Removed unused demo component (174 lines), deprecated Photino type aliases, and 6 obsolete archive files/folders (~2,053 lines).
+**Impact**: ✅ Cleaner codebase, reduced maintenance burden, faster navigation
+**Removed**: SlideInScreenDemo.tsx, PhotinoMessage/PhotinoResponse aliases, 4 archive docs, 2 archive folders
+
+### Updated - 2026-02-22 - Documentation Cleanup: Photino → WebView2 References ⭐⭐⭐
+Comprehensive documentation update across all files. Updated 19+ documentation files to reflect WebView2 migration: changed Photino.NET references to WebView2, photinoService → bridgeService, IPC transport details.
+**Impact**: ✅ Accurate documentation for new architecture
+**Files**: README.md, QUICKSTART.md, CURRENT_ARCHITECTURE.md, HOW_TO.md, BACKEND.md, FRONTEND.md, DEVELOPMENT.md, PROJECT_OVERVIEW.md, PROJECT_STRUCTURE.md, GUIDELINES.md, WORKFLOWS.md, INTERNATIONALIZATION.md
+
+### Optimized - 2026-02-22 - CustomSchemeHandler & File Dialog Performance ⭐⭐⭐⭐
+Optimized CustomSchemeHandler with LRU cache (500 items), content type caching, 4KB buffer streaming. Fixed SystemFileDialogService 2-5 second delay by reusing main UI thread.
+**Impact**: ✅ Faster image loading, instant file dialogs, no memory leaks
+**Components**: CustomSchemeHandler.cs, LruCache utility, SystemFileDialogService.cs
+
+### Migrated - 2026-02-22 - Photino.NET → WinForms + WebView2 ⭐⭐⭐⭐⭐
+Complete migration from Photino.NET to WinForms + WebView2 architecture. New composition layer, middleware pipeline with Lazy<T> caching, profile-scoped services, GPU acceleration.
+**Impact**: ✅ Better Windows integration, performance optimizations, standard WebView2 API
+**Details**: [docs/technical/winforms-webview2-migration.md](technical/winforms-webview2-migration.md)
+
 ### Added - 2026-02-21 - Classification Management with SHA-256 Thumbnail Deduplication ⭐⭐⭐⭐⭐
 Complete "Add Classification" feature with thumbnail support, SHA-256 deduplication, IPC-based validation, and file lock detection. FileTransferService for reusable file copying.
 **Impact**: ✅ Create classifications with thumbnails, automatic deduplication, duplicate prevention, file lock error handling

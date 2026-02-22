@@ -1,15 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Spin, Alert } from 'antd';
-import { CompactButton } from './compact';
-import { settingsService, GlobalSettings } from '../../modules/settings/services/settingsService';
-import { useProfile } from '../context/ProfileContext';
-import { systemService } from '../services/systemService';
+import React, { useState, useEffect } from "react";
+import { Spin, Alert } from "antd";
+import { CompactButton } from "./compact";
+import {
+  settingsService,
+  GlobalSettings,
+} from "../../modules/settings/services/settingsService";
+import { useProfile } from "../context/ProfileContext";
+import { systemService } from "../services/systemService";
+import { bridgeService } from "../services/bridgeService";
 
 /**
  * Initialization state for the application
  */
 interface InitState {
-  stage: 'loading-global' | 'loading-profiles' | 'selecting-profile' | 'ready' | 'error';
+  stage:
+    | "loading-global"
+    | "loading-profiles"
+    | "selecting-profile"
+    | "ready"
+    | "error";
   globalSettings: GlobalSettings | null;
   error: string | null;
 }
@@ -31,9 +40,9 @@ interface AppInitializerProps {
 export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
   const { selectedProfile, profiles, actions } = useProfile();
   const [state, setState] = useState<InitState>({
-    stage: 'loading-global',
+    stage: "loading-global",
     globalSettings: null,
-    error: null
+    error: null,
   });
 
   // Step 1: Load global settings
@@ -43,123 +52,124 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
 
   // Step 2: After global settings loaded, load profiles from ProfileContext
   useEffect(() => {
-    if (state.globalSettings && state.stage === 'loading-global') {
-      setState(prev => ({ ...prev, stage: 'loading-profiles' }));
+    if (state.globalSettings && state.stage === "loading-global") {
+      setState((prev) => ({ ...prev, stage: "loading-profiles" }));
       actions.loadProfiles();
     }
   }, [state.globalSettings, state.stage, actions]);
 
   // Step 3: After profiles loaded, select initial profile
   useEffect(() => {
-    if (profiles.length > 0 && state.stage === 'loading-profiles' && !selectedProfile) {
+    if (
+      profiles.length > 0 &&
+      state.stage === "loading-profiles" &&
+      !selectedProfile
+    ) {
       selectInitialProfile();
     }
   }, [profiles, state.stage, selectedProfile]);
 
   // Step 4: Mark as ready when profile is selected
   useEffect(() => {
-    if (selectedProfile && state.stage !== 'ready' && state.stage !== 'error') {
-      setState(prev => ({ ...prev, stage: 'ready' }));
+    if (selectedProfile && state.stage !== "ready" && state.stage !== "error") {
+      setState((prev) => ({ ...prev, stage: "ready" }));
     }
   }, [selectedProfile, state.stage]);
 
-  // Step 5: Initialize OLE drag-drop target when app is ready
-  useEffect(() => {
-    if (state.stage === 'ready') {
-      initializeDropTarget();
-    }
-  }, [state.stage]);
-
-  const initializeDropTarget = async () => {
-    try {
-      console.log('[AppInitializer] Initializing drop target...');
-      await systemService.sendMessage('INIT_DROP_TARGET');
-      console.log('[AppInitializer] Drop target initialized');
-    } catch (error) {
-      console.error('[AppInitializer] Failed to initialize drop target:', error);
-      // Non-fatal error - app can continue without drag-drop
-    }
-  };
-
   const loadGlobalSettings = async () => {
     try {
-      console.log('[AppInitializer] Loading global settings...');
+      console.log("[AppInitializer] Loading global settings...");
       // Load global settings - no profileId needed
       const settings = await settingsService.getGlobalSettings();
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        globalSettings: settings
+        globalSettings: settings,
       }));
 
-      console.log('[AppInitializer] Global settings loaded');
+      console.log("[AppInitializer] Global settings loaded");
     } catch (error) {
-      console.error('[AppInitializer] Failed to load global settings:', error);
-      setState(prev => ({
+      console.error("[AppInitializer] Failed to load global settings:", error);
+      setState((prev) => ({
         ...prev,
-        stage: 'error',
-        error: 'Failed to load global settings'
+        stage: "error",
+        error: "Failed to load global settings",
       }));
     }
   };
 
   const selectInitialProfile = async () => {
     try {
-      console.log('[AppInitializer] Selecting initial profile from', profiles.length, 'profiles');
+      console.log(
+        "[AppInitializer] Selecting initial profile from",
+        profiles.length,
+        "profiles",
+      );
 
       // Try to find the first profile or default profile
-      let profileToSelect = profiles.find(p => p.isActive) || profiles[0];
+      let profileToSelect = profiles.find((p) => p.isActive) || profiles[0];
 
       if (profileToSelect) {
-        console.log('[AppInitializer] Found profile to select:', profileToSelect.name, profileToSelect.id);
+        console.log(
+          "[AppInitializer] Found profile to select:",
+          profileToSelect.name,
+          profileToSelect.id,
+        );
         await actions.selectProfile(profileToSelect.id);
-        console.log('[AppInitializer] Profile selected successfully');
+        console.log("[AppInitializer] Profile selected successfully");
       } else {
         // No profiles exist - need to create one
-        console.log('[AppInitializer] No profiles found, showing create dialog');
-        setState(prev => ({
+        console.log(
+          "[AppInitializer] No profiles found, showing create dialog",
+        );
+        setState((prev) => ({
           ...prev,
-          stage: 'selecting-profile'
+          stage: "selecting-profile",
         }));
       }
     } catch (error) {
-      console.error('[AppInitializer] Failed to select initial profile:', error);
-      setState(prev => ({
+      console.error(
+        "[AppInitializer] Failed to select initial profile:",
+        error,
+      );
+      setState((prev) => ({
         ...prev,
-        stage: 'error',
-        error: 'Failed to select profile'
+        stage: "error",
+        error: "Failed to select profile",
       }));
     }
   };
 
   const handleProfileCreate = async (name: string, description?: string) => {
     try {
-      console.log('[AppInitializer] Creating new profile:', name);
+      console.log("[AppInitializer] Creating new profile:", name);
       const profile = await actions.createProfile(name, description);
-      console.log('[AppInitializer] Profile created:', profile.id);
+      console.log("[AppInitializer] Profile created:", profile.id);
       await actions.selectProfile(profile.id);
-      console.log('[AppInitializer] New profile selected');
-      setState(prev => ({ ...prev, stage: 'ready' }));
+      console.log("[AppInitializer] New profile selected");
+      setState((prev) => ({ ...prev, stage: "ready" }));
     } catch (error) {
-      console.error('[AppInitializer] Failed to create profile:', error);
-      setState(prev => ({
+      console.error("[AppInitializer] Failed to create profile:", error);
+      setState((prev) => ({
         ...prev,
-        stage: 'error',
-        error: 'Failed to create profile'
+        stage: "error",
+        error: "Failed to create profile",
       }));
     }
   };
 
   // Render based on initialization stage
-  if (state.stage === 'error') {
+  if (state.stage === "error") {
     return (
-      <div style={{
-        height: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20
-      }}>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}
+      >
         <Alert
           message="Initialization Error"
           description={state.error}
@@ -170,50 +180,59 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
     );
   }
 
-  if (state.stage === 'selecting-profile') {
+  if (state.stage === "selecting-profile") {
     // TODO: Show profile creation dialog
     return (
-      <div style={{
-        height: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'column',
-        gap: 20
-      }}>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: 20,
+        }}
+      >
         <Alert
           message="No Profiles Found"
           description="Please create your first profile to get started."
           type="info"
           showIcon
         />
-        <CompactButton type="primary" onClick={() => handleProfileCreate('Default', 'Default profile')}>
+        <CompactButton
+          type="primary"
+          onClick={() => handleProfileCreate("Default", "Default profile")}
+        >
           Create Default Profile
         </CompactButton>
       </div>
     );
   }
 
-  if (state.stage !== 'ready' || !selectedProfile) {
-    const loadingMessage = state.stage === 'loading-global'
-      ? 'Loading settings...'
-      : state.stage === 'loading-profiles'
-      ? 'Loading profiles...'
-      : 'Initializing...';
+  if (state.stage !== "ready" || !selectedProfile) {
+    const loadingMessage =
+      state.stage === "loading-global"
+        ? "Loading settings..."
+        : state.stage === "loading-profiles"
+          ? "Loading profiles..."
+          : "Initializing...";
 
     return (
-      <div style={{
-        height: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'column',
-        gap: 20
-      }}>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: 20,
+        }}
+      >
         <Spin size="large" />
-        <div style={{ color: '#666' }}>{loadingMessage}</div>
-        <div style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
-          Stage: {state.stage}, Profiles: {profiles.length}, Selected: {selectedProfile ? 'Yes' : 'No'}
+        <div style={{ color: "#666" }}>{loadingMessage}</div>
+        <div style={{ fontSize: "12px", color: "#999", marginTop: "10px" }}>
+          Stage: {state.stage}, Profiles: {profiles.length}, Selected:{" "}
+          {selectedProfile ? "Yes" : "No"}
         </div>
       </div>
     );

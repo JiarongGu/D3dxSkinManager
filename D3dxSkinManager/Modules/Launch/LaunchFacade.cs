@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Facades;
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Launch.Models;
 using D3dxSkinManager.Modules.Launch.Services;
 using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.System.Services;
 
 namespace D3dxSkinManager.Modules.Launch;
 
@@ -37,13 +38,13 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
     protected override string ModuleName => "LaunchFacade";
 
     private readonly I3DMigotoService _d3dMigotoService;
-    private readonly IProcessService _processService;
+    private readonly ISystemProcessService _processService;
     private readonly IProfileService _profileService;
     private readonly IPayloadHelper _payloadHelper;
 
     public LaunchFacade(
         I3DMigotoService d3dMigotoService,
-        IProcessService processService,
+        ISystemProcessService processService,
         IProfileService profileService,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
@@ -54,7 +55,7 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
-    protected override async Task<object?> RouteMessageAsync(MessageRequest request)
+    protected override async Task<object?> RouteMessageAsync(IpcRequest request)
     {
         return request.Type switch
         {
@@ -75,68 +76,68 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
     // 3DMigoto methods
     public async Task<List<D3DMigotoVersion>> GetAvailableVersionsAsync()
     {
-        return await _d3dMigotoService.GetAvailableVersionsAsync();
+        return await _d3dMigotoService.GetAvailableVersionsAsync().ConfigureAwait(false);
     }
 
     public async Task<string?> GetCurrentVersionAsync()
     {
-        return await _d3dMigotoService.GetCurrentVersionAsync();
+        return await _d3dMigotoService.GetCurrentVersionAsync().ConfigureAwait(false);
     }
 
     public async Task<DeploymentResult> DeployVersionAsync(string versionName)
     {
-        return await _d3dMigotoService.DeployVersionAsync(versionName);
+        return await _d3dMigotoService.DeployVersionAsync(versionName).ConfigureAwait(false);
     }
 
     public async Task<bool> Launch3DMigotoAsync()
     {
-        return await _d3dMigotoService.LaunchAsync();
+        return await _d3dMigotoService.LaunchAsync().ConfigureAwait(false);
     }
 
     // Game methods
     public async Task<bool> LaunchGameAsync(string? customArgs = null)
     {
-        var profile = await _profileService.GetActiveProfileAsync();
+        var profile = await _profileService.GetActiveProfileAsync().ConfigureAwait(false);
         if (profile == null)
         {
             throw new InvalidOperationException("No active profile found");
         }
 
-        var config = await _profileService.GetProfileConfigurationAsync(profile.Id);
+        var config = await _profileService.GetProfileConfigurationAsync(profile.Id).ConfigureAwait(false);
         if (config == null || string.IsNullOrEmpty(config.GamePath))
         {
             throw new InvalidOperationException("Game path not configured in active profile");
         }
 
         var args = customArgs ?? config.GameLaunchArgs;
-        await _processService.LaunchProcessAsync(config.GamePath, args, null);
+        await _processService.LaunchProcessAsync(config.GamePath, args, null).ConfigureAwait(false);
 
         return true;
     }
 
     public async Task<bool> LaunchCustomProgramAsync(string programPath, string? arguments = null)
     {
-        await _processService.LaunchProcessAsync(programPath, arguments, null);
+        await _processService.LaunchProcessAsync(programPath, arguments, null).ConfigureAwait(false);
         return true;
     }
 
     // Private helper methods for message handling
-    private async Task<DeploymentResult> DeployVersionAsync(MessageRequest request)
+    private async Task<DeploymentResult> DeployVersionAsync(IpcRequest request)
     {
         var versionName = _payloadHelper.GetRequiredValue<string>(request.Payload, "versionName");
-        return await DeployVersionAsync(versionName);
+        return await DeployVersionAsync(versionName).ConfigureAwait(false);
     }
 
-    private async Task<bool> LaunchGameAsync(MessageRequest request)
+    private async Task<bool> LaunchGameAsync(IpcRequest request)
     {
         var customArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "arguments");
-        return await LaunchGameAsync(customArgs);
+        return await LaunchGameAsync(customArgs).ConfigureAwait(false);
     }
 
-    private async Task<bool> LaunchCustomProgramAsync(MessageRequest request)
+    private async Task<bool> LaunchCustomProgramAsync(IpcRequest request)
     {
         var programPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "executablePath");
         var arguments = _payloadHelper.GetOptionalValue<string>(request.Payload, "arguments");
-        return await LaunchCustomProgramAsync(programPath, arguments);
+        return await LaunchCustomProgramAsync(programPath, arguments).ConfigureAwait(false);
     }
 }

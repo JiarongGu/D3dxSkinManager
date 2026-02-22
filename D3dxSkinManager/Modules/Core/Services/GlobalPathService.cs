@@ -1,5 +1,4 @@
-using System;
-using System.IO;
+using D3dxSkinManager.Modules.Core.Models;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
@@ -82,27 +81,26 @@ public interface IGlobalPathService
 /// </summary>
 public class GlobalPathService : IGlobalPathService
 {
-    private readonly string _baseDataPath;
-    private readonly string _basePath;
+    private readonly AppEnvironment _environment;
 
-    public GlobalPathService(string baseDataPath)
+    public GlobalPathService(AppEnvironment appEnvironment)
     {
-        _baseDataPath = baseDataPath ?? throw new ArgumentNullException(nameof(baseDataPath));
-        _basePath = AppDomain.CurrentDomain.BaseDirectory;
+        _environment = appEnvironment;
+        EnsureDirectoriesExist();
     }
 
     // Directory paths
-    public string BaseDataPath => _baseDataPath;
+    public string BaseDataPath => Path.Combine(_environment.BaseDirectory, "data");
 
-    public string ProfilesDirectory => Path.Combine(_baseDataPath, "profiles");
+    public string ProfilesDirectory => Path.Combine(BaseDataPath, "profiles");
 
-    public string GlobalSettingsDirectory => Path.Combine(_baseDataPath, "settings");
+    public string GlobalSettingsDirectory => Path.Combine(BaseDataPath, "settings");
 
     public string ProfilesConfigPath => Path.Combine(GlobalSettingsDirectory, "profiles.json");
 
     public string GlobalSettingsFilePath => Path.Combine(GlobalSettingsDirectory, "global.json");
 
-    public string FrontendPath => Path.Combine(_basePath, "wwwroot");
+    public string FrontendPath => Path.Combine(_environment.BaseDirectory, "wwwroot");
 
     public string FrontendIndexPath => Path.Combine(FrontendPath, "index.html");
 
@@ -114,7 +112,7 @@ public class GlobalPathService : IGlobalPathService
     public void EnsureDirectoriesExist()
     {
         // Create all standard global directories
-        Directory.CreateDirectory(_baseDataPath);
+        Directory.CreateDirectory(BaseDataPath);
         Directory.CreateDirectory(ProfilesDirectory);
         Directory.CreateDirectory(GlobalSettingsDirectory);
     }

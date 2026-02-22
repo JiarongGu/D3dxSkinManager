@@ -473,67 +473,49 @@ const MyComponent: React.FC = () => {
 
 ## Adding IPC Message Type
 
-### Step 1: Add TypeScript Type
+### Step 1: Add Message Type to TypeScript
 
-**File:** `D3dxSkinManager.Client/src/services/photino.ts`
+**File:** `D3dxSkinManager.Client/src/shared/types/message.types.ts`
 
 ```typescript
 export type MessageType =
-  | 'GET_ALL_MODS'
   | 'LOAD_MOD'
   | 'UNLOAD_MOD'
   | 'YOUR_NEW_MESSAGE'  // Add here
   | ...;
 ```
 
-### Step 2: Handle in Backend
+### Step 2: Handle in Backend Facade
 
-**File:** `D3dxSkinManager/Program.cs`
+**File:** `D3dxSkinManager/Modules/YourModule/YourModuleFacade.cs`
 
 ```csharp
-private static void OnWebMessageReceived(object? sender, string message)
+public class YourModuleFacade : BaseFacade, IYourModuleFacade
 {
-    var window = (PhotinoWindow?)sender;
-    if (window == null) return;
-
-    try
+    public override async Task<object?> HandleMessageAsync(string type, JsonElement? payload)
     {
-        // Parse message
-        var msg = JsonSerializer.Deserialize<IpcMessage>(message);
-
-        object? response = msg.Type switch
+        return type switch
         {
-            "GET_ALL_MODS" => await GetAllMods(),
-            "YOUR_NEW_MESSAGE" => await YourNewHandler(msg.Payload),  // Add here
-            _ => new { error = "Unknown message type" }
+            "YOUR_NEW_MESSAGE" => await YourNewHandler(payload),
+            _ => throw new InvalidOperationException($"Unknown message type: {type}")
         };
-
-        var json = JsonSerializer.Serialize(new {
-            id = msg.Id,
-            success = true,
-            data = response
-        });
-        window.SendWebMessage(json);
     }
-    catch (Exception ex)
+
+    private async Task<object> YourNewHandler(JsonElement? payload)
     {
-        // Error handling
+        var request = PayloadHelper.ExtractPayload<YourRequest>(payload);
+        // Implementation
+        return new { result = "success" };
     }
-}
-
-private static async Task<object> YourNewHandler(object? payload)
-{
-    // Implementation
-    return new { result = "success" };
 }
 ```
 
-### Step 3: Create Frontend Service Method
+### Step 3: Create Frontend Module Service Method
 
-**File:** `D3dxSkinManager.Client/src/services/yourService.ts`
+**File:** `D3dxSkinManager.Client/src/modules/yourModule/services/yourModuleService.ts`
 
 ```typescript
-import { photinoService } from './photino';
+import { BaseModuleService } from '../../../shared/services/baseModuleService';
 
 interface YourRequest {
   param1: string;
@@ -544,16 +526,17 @@ interface YourResponse {
   result: string;
 }
 
-export class YourService {
+class YourModuleService extends BaseModuleService {
+  constructor() {
+    super('YOUR_MODULE');
+  }
+
   async yourMethod(request: YourRequest): Promise<YourResponse> {
-    return photinoService.sendMessage<YourResponse>(
-      'YOUR_NEW_MESSAGE',
-      request
-    );
+    return this.sendMessage<YourResponse>('YOUR_NEW_MESSAGE', undefined, request);
   }
 }
 
-export const yourService = new YourService();
+export const yourModuleService = new YourModuleService();
 ```
 
 ### Step 4: Update Documentation

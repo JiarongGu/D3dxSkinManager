@@ -1,6 +1,6 @@
 import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Button, Space,  Badge } from 'antd';
+import { Button, Space, Badge } from 'antd';
 import {
   FolderOpenOutlined,
   SettingOutlined,
@@ -9,6 +9,8 @@ import {
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { ContextMenu, ContextMenuItem } from '../../../shared/components/menu/ContextMenu';
 import { Profile } from '../../../shared/types/profile.types';
+import { useTranslation } from 'react-i18next';
+import { useModsContext } from '../../mods/context/ModsContext';
 
 interface ProfileSwitcherProps {
   onManageClick?: () => void;
@@ -19,7 +21,9 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   onManageClick,
   onProfileSwitch
 }) => {
+  const { t } = useTranslation();
   const { state, actions } = useProfile();
+  const modsContext = useModsContext();
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const buttonRef = React.useRef<HTMLButtonElement>(null);
@@ -36,18 +40,21 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 
     try {
       await actions.selectProfile(profileId);
-      notification.success(`Switched to profile`);
+      notification.success(t('profiles.switched'));
 
       // Notify parent component
       if (onProfileSwitch && state.selectedProfile) {
         onProfileSwitch(state.selectedProfile);
       }
 
-      // Reload the page to refresh mod data
-      window.location.reload();
+      // Refresh mods data for the new profile instead of reloading the page
+      if (modsContext?.actions) {
+        await modsContext.actions.refreshMods();
+        await modsContext.actions.refreshClassificationTree();
+      }
     } catch (error) {
       console.error('Failed to switch profile:', error);
-      notification.error('Failed to switch profile');
+      notification.error(t('profiles.switchFailed'));
     }
   };
 
@@ -59,13 +66,13 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   const menuItems: ContextMenuItem[] = [
     {
       key: 'profiles-header',
-      label: `MOD PROFILES (${profiles.length})`,
+      label: `${t('profiles.menuHeader')} (${profiles.length})`,
       disabled: true
     },
     { type: 'divider' },
     ...profiles.map(profile => ({
       key: profile.id,
-      label: `${profile.name}${profile.modCount !== undefined ? ` (${profile.modCount} mods)` : ''}${profile.id === state.selectedProfile?.id ? ' ✓' : ''}`,
+      label: `${profile.name}${profile.modCount !== undefined ? ` (${profile.modCount} ${t('profiles.modCount')})` : ''}${profile.id === state.selectedProfile?.id ? ' ✓' : ''}`,
       icon: <FolderOpenOutlined />,
       onClick: () => {
         setMenuVisible(false);
@@ -75,7 +82,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
     { type: 'divider' },
     {
       key: 'manage',
-      label: 'Manage Profiles',
+      label: t('profiles.manage'),
       icon: <SettingOutlined />,
       onClick: () => {
         setMenuVisible(false);
@@ -143,7 +150,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
               )}
             </>
           )}
-          {!activeProfile && <span style={{ fontWeight: 500 }}>Select Profile</span>}
+          {!activeProfile && <span style={{ fontWeight: 500 }}>{t('profiles.selectProfile')}</span>}
         </Space>
       </Button>
 

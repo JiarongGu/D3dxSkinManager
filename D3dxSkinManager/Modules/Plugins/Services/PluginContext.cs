@@ -1,12 +1,86 @@
 using D3dxSkinManager.Modules.Mods;
 using D3dxSkinManager.Modules.Mods.Services;
-using D3dxSkinManager.Modules.Tools.Services;
-using D3dxSkinManager.Modules.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
-
-using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Context;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Event;
 
 namespace D3dxSkinManager.Modules.Plugins.Services;
+
+/// <summary>
+/// Provides plugins with access to core services and functionality.
+/// Acts as a service locator for plugin dependencies.
+/// </summary>
+public interface IPluginContext
+{
+    /// <summary>
+    /// Access to mod operations (get, load, unload, delete, import).
+    /// </summary>
+    IModFacade ModFacade { get; }
+
+    /// <summary>
+    /// Access to mod repository (data access layer).
+    /// </summary>
+    IModRepository ModRepository { get; }
+
+    /// <summary>
+    /// Access to file operations (SHA256, 7-Zip extraction).
+    /// </summary>
+    IFileHelper FileService { get; }
+
+    /// <summary>
+    /// Access to mod auto-detection service.
+    /// </summary>
+    IModAutoDetectionService ModAutoDetectionService { get; }
+
+    /// <summary>
+    /// Access to image processing service.
+    /// </summary>
+    IImageService ImageService { get; }
+
+    /// <summary>
+    /// Plugin data directory for storing plugin-specific files.
+    /// Format: {AppData}/plugins/{pluginId}/
+    /// </summary>
+    string GetPluginDataPath(string pluginId);
+
+    /// <summary>
+    /// Get a service from the DI container.
+    /// </summary>
+    /// <typeparam name="T">Service type</typeparam>
+    /// <returns>Service instance or null if not registered</returns>
+    T? GetService<T>() where T : class;
+
+    /// <summary>
+    /// Register an event handler for system events.
+    /// </summary>
+    /// <param name="eventType">Event type to listen for</param>
+    /// <param name="handler">Event handler callback</param>
+    /// <returns>Registration ID for unregistering later</returns>
+    string RegisterEventHandler(EventType eventType, Func<EventMessage, Task> handler);
+
+    /// <summary>
+    /// Unregister an event handler.
+    /// </summary>
+    /// <param name="registrationId">Registration ID from RegisterEventHandler</param>
+    void UnregisterEventHandler(string registrationId);
+
+    /// <summary>
+    /// Emit a custom event that other plugins can listen to.
+    /// </summary>
+    /// <param name="eventName">Custom event name</param>
+    /// <param name="data">Event data</param>
+    Task EmitEventAsync(string eventName, object? data = null);
+
+    /// <summary>
+    /// Log a message from the plugin.
+    /// </summary>
+    /// <param name="level">Log level</param>
+    /// <param name="message">Log message</param>
+    /// <param name="exception">Optional exception</param>
+    void Log(LogLevel level, string message, Exception? exception = null);
+}
 
 /// <summary>
 /// Default implementation of IPluginContext.
@@ -15,31 +89,32 @@ namespace D3dxSkinManager.Modules.Plugins.Services;
 public class PluginContext : IPluginContext
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly string _dataPath;
-    private readonly IPluginEventBus _eventBus;
+    private readonly IProfilePathService _profilePathService;
+    private readonly IEventBus _eventBus;
     private readonly ILogHelper _logger;
 
     public IModFacade ModFacade { get; }
     public IModRepository ModRepository { get; }
-    public IFileService FileService { get; }
+    public IFileHelper FileService { get; }
     public IModAutoDetectionService ModAutoDetectionService { get; }
     public IImageService ImageService { get; }
 
     public PluginContext(
         IServiceProvider serviceProvider,
         IProfileContext profileContext,
-        IPluginEventBus eventBus,
+        IProfilePathService profilePathService,
+        IEventBus eventBus,
         ILogHelper logger)
     {
         _serviceProvider = serviceProvider;
-        _dataPath = profileContext.ProfilePath;
+        _profilePathService = profilePathService;
         _eventBus = eventBus;
         _logger = logger;
 
         // Resolve core services
         ModFacade = _serviceProvider.GetRequiredService<IModFacade>();
         ModRepository = _serviceProvider.GetRequiredService<IModRepository>();
-        FileService = _serviceProvider.GetRequiredService<IFileService>();
+        FileService = _serviceProvider.GetRequiredService<IFileHelper>();
         ModAutoDetectionService = _serviceProvider.GetRequiredService<IModAutoDetectionService>();
         ImageService = _serviceProvider.GetRequiredService<IImageService>();
     }
@@ -49,7 +124,7 @@ public class PluginContext : IPluginContext
         if (string.IsNullOrWhiteSpace(pluginId))
             throw new ArgumentException("Plugin ID cannot be null or empty", nameof(pluginId));
 
-        var pluginDataPath = Path.Combine(_dataPath, "plugins", pluginId);
+        var pluginDataPath = Path.Combine(_profilePathService.PluginsDirectory, pluginId);
 
         // Create directory if it doesn't exist
         if (!Directory.Exists(pluginDataPath))
@@ -63,7 +138,7 @@ public class PluginContext : IPluginContext
         return _serviceProvider.GetService<T>();
     }
 
-    public string RegisterEventHandler(PluginEventType eventType, Func<PluginEventArgs, Task> handler)
+    public string RegisterEventHandler(EventType eventType, Func<EventMessage, Task> handler)
     {
         return _eventBus.RegisterHandler(eventType, handler);
     }
@@ -75,9 +150,9 @@ public class PluginContext : IPluginContext
 
     public Task EmitEventAsync(string eventName, object? data = null)
     {
-        return _eventBus.EmitAsync(new PluginEventArgs
+        return _eventBus.EmitAsync(new EventMessage
         {
-            EventType = PluginEventType.CustomEvent,
+            EventType = EventType.CustomEvent,
             EventName = eventName,
             Data = data
         });

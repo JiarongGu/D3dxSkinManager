@@ -1,12 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
-
-using D3dxSkinManager.Modules.Core.Services;
-using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Tools.Services;
 
@@ -55,6 +49,7 @@ public class ConfigurationService : IConfigurationService
     private readonly string _configPath;
     private readonly ILogHelper _logger;
     private Dictionary<string, object> _config;
+    private readonly Lazy<Task> _init;
 
     public ConfigurationService(IProfilePathService profilePaths, ILogHelper logger)
     {
@@ -62,23 +57,31 @@ public class ConfigurationService : IConfigurationService
         _logger = logger;
         _config = new Dictionary<string, object>();
 
-        // Load existing configuration
-        LoadAsync().Wait();
+        // Lazy initialization to avoid blocking constructor
+        _init = new Lazy<Task>(LoadAsync, isThreadSafe: true);
     }
+
+    private Task EnsureInitializedAsync() => _init.Value;
 
     public string? GetWorkDirectory()
     {
+        // Ensure initialized synchronously - this is safe because Lazy<Task> caches the result
+        _init.Value.ConfigureAwait(false).GetAwaiter().GetResult();
         return GetValue<string>("workDirectory");
     }
 
     public async Task SetWorkDirectoryAsync(string path)
     {
-        await SetValueAsync("workDirectory", path);
-        await SaveAsync();
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        await SetValueAsync("workDirectory", path).ConfigureAwait(false);
+        await SaveAsync().ConfigureAwait(false);
     }
 
     public T? GetValue<T>(string key, T? defaultValue = default)
     {
+        // Ensure initialized synchronously - this is safe because Lazy<Task> caches the result
+        _init.Value.ConfigureAwait(false).GetAwaiter().GetResult();
+
         if (_config.TryGetValue(key, out var value))
         {
             try
@@ -108,6 +111,8 @@ public class ConfigurationService : IConfigurationService
 
     public async Task SetValueAsync<T>(string key, T value)
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         if (value == null)
         {
             _config.Remove(key);
@@ -122,10 +127,12 @@ public class ConfigurationService : IConfigurationService
 
     public async Task SaveAsync()
     {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
         try
         {
             var json = JsonConvert.SerializeObject(_config, Formatting.Indented);
-            await File.WriteAllTextAsync(_configPath, json);
+            await File.WriteAllTextAsync(_configPath, json).ConfigureAwait(false);
             _logger.Info($"Configuration saved to {_configPath}", "ConfigurationService");
         }
         catch (Exception ex)
@@ -146,7 +153,7 @@ public class ConfigurationService : IConfigurationService
                 return;
             }
 
-            var json = await File.ReadAllTextAsync(_configPath);
+            var json = await File.ReadAllTextAsync(_configPath).ConfigureAwait(false);
             _config = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
                 ?? new Dictionary<string, object>();
 

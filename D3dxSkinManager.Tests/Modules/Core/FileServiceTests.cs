@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Core;
 
@@ -17,14 +17,14 @@ namespace D3dxSkinManager.Tests.Modules.Core;
 public class FileServiceTests : IDisposable
 {
     private readonly string _testDataPath;
-    private readonly FileService _service;
+    private readonly FileHelper _service;
     private readonly Mock<ILogHelper> _mockLogger = new();
 
     public FileServiceTests()
     {
         _testDataPath = Path.Combine(Path.GetTempPath(), $"FileServiceTests_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDataPath);
-        _service = new FileService(_mockLogger.Object);
+        _service = new FileHelper(_mockLogger.Object);
     }
 
     public void Dispose()

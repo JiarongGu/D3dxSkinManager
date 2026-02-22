@@ -287,10 +287,10 @@ interface ApiResponse {
 const response: ApiResponse = await fetch();
 ```
 
-#### ✅ DO: Use Generic Types for IPC Messages ⭐ NEW (2026-02-19)
+#### ✅ DO: Use Generic Types for IPC Messages ⭐ NEW (2026-02-19, Updated 2026-02-22)
 ```typescript
 // Define generic message types
-interface PhotinoMessage<TPayload = unknown> {
+interface IpcRequest<TPayload = unknown> {
   id: string;
   module: ModuleName;  // Union type, not string
   type: MessageType;
@@ -298,7 +298,7 @@ interface PhotinoMessage<TPayload = unknown> {
   payload?: TPayload;  // Type-safe payload
 }
 
-interface PhotinoResponse<TData = unknown> {
+interface IpcResponse<TData = unknown> {
   id: string;
   success: boolean;
   data?: TData;  // Type-safe response data
@@ -311,7 +311,7 @@ protected async sendMessage<T, TPayload = unknown>(
   profileId?: string,
   payload?: TPayload
 ): Promise<T> {
-  return photinoService.sendMessage<T>({
+  return bridgeService.sendMessage<T>({
     module: this.moduleName,
     type,
     profileId,
@@ -564,50 +564,63 @@ When modifying the database schema:
 
 ## IPC Communication Guidelines
 
-### Message Structure
+### Message Structure (Updated 2026-02-22 for WebView2)
 
 #### ✅ DO: Use Typed Messages
 ```typescript
 // Frontend
-interface PhotinoMessage {
+interface IpcRequest<TPayload = unknown> {
   id: string;
+  module: ModuleName;
   type: MessageType;
-  payload?: any;  // Make this more specific per message type
+  profileId?: string;
+  payload?: TPayload;
 }
 
 // Backend
-public class IpcMessage
+public class IpcRequest
 {
     public string Id { get; set; }
+    public string Module { get; set; }
     public string Type { get; set; }
-    public object? Payload { get; set; }
+    public string? ProfileId { get; set; }
+    public JsonElement? Payload { get; set; }
 }
 ```
 
 ### Adding New IPC Message Types
 
-1. **Add type to TypeScript enum:**
+1. **Add type to TypeScript:**
    ```typescript
-   // photino.ts
+   // src/shared/types/message.types.ts
    export type MessageType =
-     | 'GET_ALL_MODS'
      | 'LOAD_MOD'
+     | 'UNLOAD_MOD'
      | 'YOUR_NEW_TYPE';  // Add here
    ```
 
-2. **Handle in backend:**
+2. **Handle in backend facade:**
    ```csharp
-   // Program.cs - OnWebMessageReceived
-   case "YOUR_NEW_TYPE":
-       var result = await YourService.YourMethod(payload);
-       return new { success = true, data = result };
+   // Modules/YourModule/YourModuleFacade.cs
+   public override async Task<object?> HandleMessageAsync(string type, JsonElement? payload)
+   {
+       return type switch
+       {
+           "YOUR_NEW_TYPE" => await YourMethod(payload),
+           _ => throw new InvalidOperationException($"Unknown message type: {type}")
+       };
+   }
    ```
 
-3. **Create frontend wrapper:**
+3. **Create frontend module service method:**
    ```typescript
-   // modService.ts or new service
-   async yourMethod(param: string): Promise<Result> {
-     return photinoService.sendMessage<Result>('YOUR_NEW_TYPE', { param });
+   // modules/yourModule/services/yourModuleService.ts
+   class YourModuleService extends BaseModuleService {
+     constructor() { super('YOUR_MODULE'); }
+
+     async yourMethod(param: string): Promise<Result> {
+       return this.sendMessage<Result>('YOUR_NEW_TYPE', undefined, { param });
+     }
    }
    ```
 

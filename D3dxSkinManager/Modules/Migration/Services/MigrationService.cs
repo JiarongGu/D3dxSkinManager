@@ -4,11 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Steps;
 using D3dxSkinManager.Modules.Profiles;
-using D3dxSkinManager.Modules.Profiles.Services;
 
 namespace D3dxSkinManager.Modules.Migration.Services;
 
@@ -85,14 +85,14 @@ public class MigrationService : IMigrationService
             LogPath = logPath
         };
 
-        await step1.ExecuteAsync(context);
+        await step1.ExecuteAsync(context).ConfigureAwait(false);
 
         return context.Analysis ?? new MigrationAnalysis { IsValid = false };
     }
 
     /// <summary>
     /// Execute full migration workflow
-    /// Clear step-by-step process: 1â†’2â†’3â†’4â†’5â†’6
+    /// Clear step-by-step process: 1â†?â†?â†?â†?â†?
     /// </summary>
     public async Task<MigrationResult> MigrateAsync(
         MigrationOptions options,
@@ -111,23 +111,23 @@ public class MigrationService : IMigrationService
 
         try
         {
-            await LogAsync(logPath, "=== MIGRATION WORKFLOW STARTED ===");
-            await LogAsync(logPath, $"Source: {options.SourcePath}");
-            await LogAsync(logPath, $"Time: {DateTime.Now}");
-            await LogAsync(logPath, "");
+            await LogAsync(logPath, "=== MIGRATION WORKFLOW STARTED ===").ConfigureAwait(false);
+            await LogAsync(logPath, $"Source: {options.SourcePath}").ConfigureAwait(false);
+            await LogAsync(logPath, $"Time: {DateTime.Now}").ConfigureAwait(false);
+            await LogAsync(logPath, "").ConfigureAwait(false);
 
             // Execute each step in order
             foreach (var step in _steps)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                await LogAsync(logPath, $"--- Executing: Step {step.StepNumber} - {step.StepName} ---");
+                await LogAsync(logPath, $"--- Executing: Step {step.StepNumber} - {step.StepName} ---").ConfigureAwait(false);
                 _logger.Info($"Executing Step {step.StepNumber}: {step.StepName}", "Migration");
 
-                await step.ExecuteAsync(context, progress, cancellationToken);
+                await step.ExecuteAsync(context, progress, cancellationToken).ConfigureAwait(false);
 
-                await LogAsync(logPath, $"--- Step {step.StepNumber} Complete ---");
-                await LogAsync(logPath, "");
+                await LogAsync(logPath, $"--- Step {step.StepNumber} Complete ---").ConfigureAwait(false);
+                await LogAsync(logPath, "").ConfigureAwait(false);
             }
 
             // Finalize
@@ -140,13 +140,13 @@ public class MigrationService : IMigrationService
 
             context.Result.Success = true;
             context.Result.Duration = DateTime.Now - startTime;
-            await LogAsync(logPath, "");
-            await LogAsync(logPath, "=== MIGRATION COMPLETE ===");
-            await LogAsync(logPath, $"Duration: {context.Result.Duration.TotalSeconds:F1}s");
-            await LogAsync(logPath, $"Mods Migrated: {context.Result.ModsMigrated}");
-            await LogAsync(logPath, $"Archives Copied: {context.Result.ArchivesCopied}");
-            await LogAsync(logPath, $"Previews Copied: {context.Result.PreviewsCopied}");
-            await LogAsync(logPath, $"Classification Rules: {context.Result.ClassificationRulesCreated}");
+            await LogAsync(logPath, "").ConfigureAwait(false);
+            await LogAsync(logPath, "=== MIGRATION COMPLETE ===").ConfigureAwait(false);
+            await LogAsync(logPath, $"Duration: {context.Result.Duration.TotalSeconds:F1}s").ConfigureAwait(false);
+            await LogAsync(logPath, $"Mods Migrated: {context.Result.ModsMigrated}").ConfigureAwait(false);
+            await LogAsync(logPath, $"Archives Copied: {context.Result.ArchivesCopied}").ConfigureAwait(false);
+            await LogAsync(logPath, $"Previews Copied: {context.Result.PreviewsCopied}").ConfigureAwait(false);
+            await LogAsync(logPath, $"Classification Rules: {context.Result.ClassificationRulesCreated}").ConfigureAwait(false);
 
             progress?.Report(new MigrationProgress
             {
@@ -161,9 +161,9 @@ public class MigrationService : IMigrationService
         {
             context.Result.Success = false;
             context.Result.Errors.Add(ex.Message);
-            await LogAsync(logPath, "");
-            await LogAsync(logPath, "=== MIGRATION FAILED ===");
-            await LogAsync(logPath, $"ERROR: {ex.Message}");
+            await LogAsync(logPath, "").ConfigureAwait(false);
+            await LogAsync(logPath, "=== MIGRATION FAILED ===").ConfigureAwait(false);
+            await LogAsync(logPath, $"ERROR: {ex.Message}").ConfigureAwait(false);
             _logger.Error($"Migration failed: {ex.Message}", "Migration", ex);
 
             progress?.Report(new MigrationProgress
@@ -195,7 +195,7 @@ public class MigrationService : IMigrationService
             var logMessage = string.IsNullOrEmpty(message)
                 ? ""
                 : $"[{DateTime.Now:HH:mm:ss}] {message}";
-            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine);
+            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine).ConfigureAwait(false);
         }
         catch
         {

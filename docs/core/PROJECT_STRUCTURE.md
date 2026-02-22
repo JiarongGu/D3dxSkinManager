@@ -64,6 +64,19 @@ d3dxSkinManage-Rewrite/
 │   │   ├── IModService.cs              # Mod service interface
 │   │   └── ModService.cs               # Mod service implementation
 │   │
+│   ├── Composition/                    # WebView2 architecture
+│   │   ├── ApplicationBootstrapper.cs
+│   │   ├── ApplicationHost.cs
+│   │   ├── WebViewInitializer.cs
+│   │   ├── IpcCommunicationHandler.cs
+│   │   └── MessageDispatcher.cs
+│   │
+│   ├── Modules/                        # Business logic modules
+│   │   ├── Core/                       # Core services
+│   │   ├── Mods/                       # Mod management
+│   │   ├── Profiles/                   # Profile management
+│   │   └── ...                         # Other modules
+│   │
 │   ├── Program.cs                      # Entry point
 │   └── D3dxSkinManager.csproj          # Project file
 │
@@ -76,9 +89,12 @@ d3dxSkinManage-Rewrite/
 │   │   └── manifest.json               # PWA manifest
 │   │
 │   ├── src/                            # Source code
-│   │   ├── services/                   # API and utilities
-│   │   │   ├── photino.ts              # Photino IPC bridge
-│   │   │   └── modService.ts           # Mod API wrapper
+│   │   ├── modules/                    # Feature modules
+│   │   ├── shared/                     # Shared utilities
+│   │   │   ├── services/
+│   │   │   │   ├── bridgeService.ts    # WebView2 IPC bridge
+│   │   │   │   └── baseModuleService.ts # Base service class
+│   │   │   └── types/                  # TypeScript types
 │   │   │
 │   │   ├── App.css                     # App styles
 │   │   ├── App.tsx                     # Main component
@@ -162,15 +178,15 @@ D3dxSkinManager/
 │
 ├── Program.cs                   # Application entry point
 │   └─ Sections:
-│       ├─ Main()                     → Line 11
-│       ├─ Photino window setup       → Line 24-31
-│       └─ OnWebMessageReceived()     → Line 41-68
+│       ├─ Main()                     → Bootstraps application
+│       ├─ ApplicationBootstrapper    → Initializes services
+│       └─ ApplicationHost            → Creates WinForms + WebView2 window
 │
 └── D3dxSkinManager.csproj      # Project configuration
     └─ Contains:
-        ├─ TargetFramework: net8.0
+        ├─ TargetFramework: net10.0
         ├─ PackageReferences:
-        │   ├─ Photino.NET 4.0.16
+        │   ├─ Microsoft.Web.WebView2.WinForms
         │   ├─ Microsoft.Data.Sqlite 10.0.3
         │   └─ Newtonsoft.Json 13.0.4
         └─ Build settings
@@ -228,7 +244,7 @@ D3dxSkinManager.Client/
 │   │   │
 │   │   ├── services/               # Non-UI logic
 │   │   │   ├── baseModuleService.ts    # Base class for all services
-│   │   │   └── photinoService.ts       # IPC bridge to C# backend
+│   │   │   └── bridgeService.ts        # WebView2 IPC bridge to C# backend
 │   │   │
 │   │   └── types/                  # Shared TypeScript types
 │   │       ├── message.types.ts    # IPC message types (generic)
@@ -305,15 +321,16 @@ App (Main Layout)
 // Entry point chain
 index.tsx
   └─ imports App from './App'
-      └─ imports modService from './services/modService'
-          └─ imports photinoService from './services/photino'
+      └─ imports module services from modules/
+          └─ imports baseModuleService from shared/services/baseModuleService
+              └─ imports bridgeService from shared/services/bridgeService
 
 // Service dependencies
-modService.ts
-  └─ depends on: photino.ts
+modService.ts (extends BaseModuleService)
+  └─ depends on: bridgeService.ts
 
-photino.ts
-  └─ depends on: window.external (provided by Photino)
+bridgeService.ts
+  └─ depends on: chrome.webview API (provided by WebView2)
 
 // Type sharing
 modService.ts
@@ -327,8 +344,9 @@ modService.ts
 |------|---------|-------|------------|
 | **index.tsx** | React entry point | ~20 | Low |
 | **App.tsx** | Main UI component | ~220 | Medium |
-| **services/photino.ts** | IPC communication | ~150 | High |
-| **services/modService.ts** | Mod API wrapper | ~50 | Low |
+| **shared/services/bridgeService.ts** | WebView2 IPC communication | ~150 | High |
+| **shared/services/baseModuleService.ts** | Base service class | ~100 | Medium |
+| **modules/*/services/*.ts** | Module-specific services | ~50-200 | Low-Medium |
 
 ---
 
@@ -417,14 +435,14 @@ Routes to folder:
 
 **Naming:**
 - **PascalCase** for React components: `App.tsx`
-- **camelCase** for services/utilities: `modService.ts`, `photino.ts`
+- **camelCase** for services/utilities: `modService.ts`, `bridgeService.ts`
 - **kebab-case** for CSS: `app.css`, `index.css`
 
 **Examples:**
 ```
 ✅ App.tsx                (React component)
 ✅ modService.ts          (service)
-✅ photino.ts             (utility)
+✅ bridgeService.ts       (utility)
 ✅ app.css                (styles)
 ❌ app.tsx                (component should be PascalCase)
 ❌ ModService.ts          (service should be camelCase)

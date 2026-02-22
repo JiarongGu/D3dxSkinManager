@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Migration.Parsers;
 
@@ -19,7 +19,7 @@ public interface IPythonClassificationFileParser
     /// Parse Python classification directory containing text files
     /// </summary>
     /// <param name="classificationDirectory">Path to classification directory (e.g., home/Endfield/classification)</param>
-    /// <returns>Dictionary of categoryName â†’ List of objectNames</returns>
+    /// <returns>Dictionary of categoryName â†?List of objectNames</returns>
     Task<Dictionary<string, List<string>>> ParseAsync(string classificationDirectory);
 
     /// <summary>
@@ -63,7 +63,7 @@ public class PythonClassificationFileParser : IPythonClassificationFileParser
             try
             {
                 var categoryName = Path.GetFileName(file);
-                var lines = await File.ReadAllLinesAsync(file);
+                var lines = await File.ReadAllLinesAsync(file).ConfigureAwait(false);
 
                 // Parse each line as an object name
                 var objectNames = lines
@@ -101,7 +101,7 @@ public class PythonClassificationFileParser : IPythonClassificationFileParser
         {
             try
             {
-                var lines = await File.ReadAllLinesAsync(file);
+                var lines = await File.ReadAllLinesAsync(file).ConfigureAwait(false);
                 var objectCount = lines.Count(line => !string.IsNullOrWhiteSpace(line));
                 stats.TotalObjects += objectCount;
             }

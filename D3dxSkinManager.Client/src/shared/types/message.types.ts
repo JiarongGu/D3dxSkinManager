@@ -18,10 +18,10 @@ export type ModuleName =
 export type MessageType = string;
 
 /**
- * IPC message sent to backend (new format with module field)
+ * IPC message sent to backend (module-based routing)
  * @template TPayload - Type of the payload data (defaults to unknown for type safety)
  */
-export interface PhotinoMessage<TPayload = unknown> {
+export interface BridgeMessage<TPayload = unknown> {
   id: string;
   module: ModuleName;
   type: MessageType;
@@ -41,7 +41,7 @@ export interface ErrorDetails {
  * IPC response from backend
  * @template TData - Type of the response data (defaults to unknown for type safety)
  */
-export interface PhotinoResponse<TData = unknown> {
+export interface BridgeResponse<TData = unknown> {
   id: string;
   success: boolean;
   data?: TData;

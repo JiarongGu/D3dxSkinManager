@@ -1,0 +1,157 @@
+using System.Security.Cryptography;
+
+namespace D3dxSkinManager.Modules.Core.Helpers;
+
+/// <summary>
+/// Interface for file operations
+/// </summary>
+public interface IFileHelper
+{
+    Task<string> CalculateSha256Async(string filePath);
+
+    Task<bool> CopyFileAsync(string sourceFile, string destinationFile, bool overwrite = false);
+
+    Task<bool> MoveFileAsync(string sourceFile, string destinationFile);
+
+    Task<bool> CopyDirectoryAsync(string sourceDir, string targetDir, bool overwrite = true);
+
+    Task<bool> DeleteDirectoryAsync(string directory);
+
+    Task<bool> CreateDirectoryAsync(string directory);
+}
+
+/// <summary>
+/// Service for file operations: hashing, archive extraction, file copying
+/// Uses SevenZipSharp for archive extraction (supports ZIP, RAR, 7Z, TAR, GZIP, etc.)
+/// Responsibility: Low-level file system and archive operations
+/// </summary>
+public class FileHelper : IFileHelper
+{
+    private readonly ILogHelper _logger;
+
+    public FileHelper(ILogHelper logger)
+    {
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Calculate SHA256 hash of a file
+    /// </summary>
+    public async Task<string> CalculateSha256Async(string filePath)
+    {
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException("File not found for hash calculation", filePath);
+
+        using var sha256 = SHA256.Create();
+        await using var stream = File.OpenRead(filePath);
+
+        var hashBytes = await sha256.ComputeHashAsync(stream).ConfigureAwait(false);
+        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Copy a single file
+    /// </summary>
+    public async Task<bool> CopyFileAsync(string sourceFile, string destinationFile, bool overwrite = false)
+    {
+        if (!File.Exists(sourceFile))
+            throw new FileNotFoundException($"Source file not found: {sourceFile}");
+
+        // Create destination directory if it doesn't exist
+        var destDir = Path.GetDirectoryName(destinationFile);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+            Directory.CreateDirectory(destDir);
+
+        // Copy file
+        File.Copy(sourceFile, destinationFile, overwrite);
+
+        return await Task.FromResult(true).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Move a single file
+    /// </summary>
+    public async Task<bool> MoveFileAsync(string sourceFile, string destinationFile)
+    {
+        if (!File.Exists(sourceFile))
+            throw new FileNotFoundException($"Source file not found: {sourceFile}");
+
+        // Create destination directory if it doesn't exist
+        var destDir = Path.GetDirectoryName(destinationFile);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+            Directory.CreateDirectory(destDir);
+
+        // Move file
+        File.Move(sourceFile, destinationFile);
+
+        return await Task.FromResult(true).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Copy directory recursively
+    /// </summary>
+    public async Task<bool> CopyDirectoryAsync(string sourceDir, string targetDir, bool overwrite = true)
+    {
+        if (!Directory.Exists(sourceDir))
+            throw new DirectoryNotFoundException($"Source directory not found: {sourceDir}");
+
+        // Create target directory
+        Directory.CreateDirectory(targetDir);
+
+        // Copy all files
+        var files = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
+
+        foreach (var sourceFile in files)
+        {
+            var relativePath = Path.GetRelativePath(sourceDir, sourceFile);
+            var targetFile = Path.Combine(targetDir, relativePath);
+
+            // Create subdirectories if needed
+            var targetFileDir = Path.GetDirectoryName(targetFile);
+            if (targetFileDir != null && !Directory.Exists(targetFileDir))
+                Directory.CreateDirectory(targetFileDir);
+
+            // Copy file
+            File.Copy(sourceFile, targetFile, overwrite);
+        }
+
+        return await Task.FromResult(true).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Delete directory recursively
+    /// </summary>
+    public async Task<bool> DeleteDirectoryAsync(string directory)
+    {
+        if (!Directory.Exists(directory))
+            return true; // Already deleted
+
+        try
+        {
+            Directory.Delete(directory, recursive: true);
+            return await Task.FromResult(true).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to delete directory {directory}: {ex.Message}", "FileService", ex);
+            return false;
+        }
+    }
+
+    public Task<bool> CreateDirectoryAsync(string directory)
+    {
+        try
+        {
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            return Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to create directory {directory}: {ex.Message}", "FileService", ex);
+            return Task.FromResult(false);
+        }
+    }
+}

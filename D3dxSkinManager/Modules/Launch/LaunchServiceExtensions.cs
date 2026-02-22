@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using D3dxSkinManager.Modules.Launch.Services;
 
 namespace D3dxSkinManager.Modules.Launch;
@@ -14,12 +15,16 @@ public static class LaunchServiceExtensions
     /// </summary>
     public static IServiceCollection AddLaunchServices(this IServiceCollection services)
     {
+        Console.WriteLine("[LaunchFacade] Registering Launch services...");
+
         // Register 3DMigoto service
-        services.AddSingleton<I3DMigotoService, D3DMigotoService>();
+        services.TryAddSingleton<I3DMigotoService, D3DMigotoService>();
 
         // Register facade
-        services.AddSingleton<ILaunchFacade, LaunchFacade>();
+        services.TryAddSingleton<ILaunchFacade, LaunchFacade>();
+        services.TryAddSingleton<LaunchFacade>();
 
+        Console.WriteLine("[LaunchFacade] Launch services registered");
         return services;
     }
 }
