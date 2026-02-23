@@ -59,8 +59,11 @@ public interface IMigrationStep
 
 - Reads `classification.ini` files from Python
 - Uses `PythonClassificationFileParser`
-- Creates classification nodes (categories)
-- Uses `ClassificationRepository` (with service layer)
+- **Checks for existing classifications by name** (skips if already exists)
+- Creates classification nodes with auto-generated GUIDs (if not exists)
+- Updates auto-detection rules to use classification IDs instead of names
+- Uses `ClassificationService.GetNodeByNameAsync()` to check existence
+- **Idempotent**: Can be re-run safely, won't create duplicates
 
 ### Step 4: Migrate Classification Thumbnails
 **File**: `MigrationStep4MigrateClassificationThumbnails.cs`
@@ -77,9 +80,12 @@ public interface IMigrationStep
 
 - Parses `modsIndex/index_*.json` files
 - Uses `PythonModIndexParser`
+- **Checks if mod already exists by SHA** (skips if already exists)
+- **Queries database for classification ID by object name** using `ClassificationService.GetNodeByNameAsync()`
 - **Copies archives WITHOUT extensions** (matches Python format)
 - Auto-detects archive type using SharpCompress when needed
-- Creates mod entries using `ModManagementService`
+- Creates mod entries with classification IDs (not names) using `ModManagementService`
+- **Idempotent**: Can be re-run safely, won't duplicate mods or overwrite files
 
 **Archive Storage** (as of 2026-02-20):
 - Python: `resources/mods/{SHA}` (no extension)
@@ -146,13 +152,21 @@ Shared state across all steps:
 public class MigrationContext
 {
     public MigrationOptions Options { get; set; }
-    public string LogPath { get; set; }
+    public string LogPath { get. set; }
     public MigrationAnalysis? Analysis { get; set; }
     public string? EnvironmentName { get; set; }
     public string? EnvironmentPath { get; set; }
     public MigrationResult Result { get; set; }
 }
 ```
+
+**ID-Based Architecture**
+- Python version stores `mod.category = "Ayaka"` (object name)
+- New version stores `mod.category = "{GUID}"` (classification node ID)
+- Step 3 checks database for existing classifications by name (idempotent)
+- Step 5 queries database for classification ID by object name
+- No in-memory mapping needed - all lookups via database
+- This ensures referential integrity and supports adding mods to existing classifications
 
 ### `MigrationOptions`
 ```csharp
@@ -239,6 +253,42 @@ Stages:
 - Errors logged but migration continues for remaining items
 - Critical failures throw exceptions to stop migration
 - All errors collected in `MigrationResult.Errors`
+- Failed step number and name tracked in `MigrationResult.FailedAtStep` and `MigrationResult.FailedStepName`
+
+## Data Integrity
+
+### Classification Tree Integrity
+
+**Orphaned Classifications**
+- If a classification node references a parent that doesn't exist, it's treated as a root node
+- Implemented in `ClassificationService.RefreshTreeAsync()`
+- Ensures all classifications are visible even if parent was deleted
+- Example: Node with `parentId = "deleted-guid"` appears at root level
+
+**Unclassified Mods Detection**
+- Mods with `category = null` or `category = ""` are unclassified
+- Mods with `category = "Unknown"` are unclassified
+- **Mods with invalid category IDs** (not matching any classification) are unclassified
+- Implemented in `ModQueryService.GetUnclassifiedModsAsync()`
+- Queries database to validate category IDs against classification tree
+
+### Migration Idempotency
+
+**Step 3 (Classifications)**
+- Checks if classification already exists by name before creating
+- Skips existing classifications with log message
+- Safe to re-run migration without duplicates
+
+**Step 5 (Mods)**
+- Checks if mod already exists by SHA before creating
+- Skips existing mods with log message
+- Queries database for classification ID by object name (not in-memory mapping)
+- Safe to re-run migration, won't duplicate mods
+
+**Benefits**
+- Can retry failed migrations without starting over
+- Can add new mods to existing classifications
+- Database is source of truth for all lookups
 
 ## Testing
 

@@ -187,10 +187,32 @@ public class IpcCommunicationHandler
     {
         try
         {
-            var json = JsonSerializer.Serialize(response, _jsonOptions);
-            // PostWebMessageAsString expects a string and doesn't re-serialize
-            _webView.CoreWebView2.PostWebMessageAsString(json);
-            _logger.Debug($"Sent response: {json}", "IPC");
+            // Wrap response with category for frontend routing
+            var wrappedResponse = new
+            {
+                category = "ipc",
+                id = response.Id,
+                success = response.Success,
+                data = response.Data,
+                error = response.Error
+            };
+
+            var json = JsonSerializer.Serialize(wrappedResponse, _jsonOptions);
+
+            // Marshal to UI thread since WebView2 requires UI thread access (non-blocking)
+            if (_webView.InvokeRequired)
+            {
+                _webView.BeginInvoke(() =>
+                {
+                    _webView.CoreWebView2.PostWebMessageAsString(json);
+                });
+            }
+            else
+            {
+                _webView.CoreWebView2.PostWebMessageAsString(json);
+            }
+
+            _logger.Debug($"Sent IPC response: {response.Id}", "IPC");
         }
         catch (Exception ex)
         {
@@ -199,27 +221,42 @@ public class IpcCommunicationHandler
     }
 
     /// <summary>
-    /// Send a push message to React (not in response to a request)
+    /// Send a push notification to React (not in response to a request)
     /// </summary>
-    public void SendPushMessage(string type, object? data = null)
+    public void SendNotification(string type, object? data = null)
     {
         try
         {
+            var notificationId = Guid.NewGuid().ToString();
             var message = new
             {
-                type = "PUSH",
-                pushType = type,
+                category = "notification",
+                id = notificationId,
+                type = type,
                 data = data,
                 timestamp = DateTime.UtcNow
             };
 
             var json = JsonSerializer.Serialize(message, _jsonOptions);
-            _webView.CoreWebView2.PostWebMessageAsJson(json);
-            _logger.Debug($"Sent push message: {type}", "IPC");
+
+            // Marshal to UI thread since WebView2 requires UI thread access (non-blocking)
+            if (_webView.InvokeRequired)
+            {
+                _webView.BeginInvoke(() =>
+                {
+                    _webView.CoreWebView2.PostWebMessageAsString(json);
+                });
+            }
+            else
+            {
+                _webView.CoreWebView2.PostWebMessageAsString(json);
+            }
+
+            _logger.Debug($"Sent notification [{notificationId}]: {type}", "IPC");
         }
         catch (Exception ex)
         {
-            _logger.Error($"Error sending push message: {ex.Message}", "IPC", ex);
+            _logger.Error($"Error sending notification: {ex.Message}", "IPC", ex);
         }
     }
 

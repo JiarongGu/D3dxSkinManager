@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace D3dxSkinManager.Modules.Migration.Models;
 
 /// <summary>
@@ -18,4 +15,6 @@ public class MigrationResult
     public List<string> Errors { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
     public string? LogFilePath { get; set; }
+    public int? FailedAtStep { get; set; }
+    public string? FailedStepName { get; set; }
 }

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace D3dxSkinManager.Modules.Migration.Models;
 
 /// <summary>

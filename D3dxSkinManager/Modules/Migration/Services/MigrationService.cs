@@ -1,14 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Steps;
-using D3dxSkinManager.Modules.Profiles;
 
 namespace D3dxSkinManager.Modules.Migration.Services;
 
@@ -76,13 +69,10 @@ public class MigrationService : IMigrationService
         if (step1 == null)
             throw new InvalidOperationException("Step 1 (Analyze Source) not found");
 
-        var logPath = Path.Combine(_profilePaths.LogsDirectory, $"analysis_{DateTime.Now:yyyyMMdd_HHmmss}.log");
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-
         var context = new MigrationContext
         {
             Options = new MigrationOptions { SourcePath = pythonPath },
-            LogPath = logPath
+            LogPath = "" // No longer using separate log file
         };
 
         await step1.ExecuteAsync(context).ConfigureAwait(false);
@@ -100,34 +90,45 @@ public class MigrationService : IMigrationService
         CancellationToken cancellationToken = default)
     {
         var startTime = DateTime.Now;
-        var logPath = Path.Combine(_profilePaths.LogsDirectory, $"migration_{DateTime.Now:yyyyMMdd_HHmmss}.log");
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
 
         var context = new MigrationContext
         {
             Options = options,
-            LogPath = logPath
+            LogPath = "" // No longer using separate log file
         };
 
         try
         {
-            await LogAsync(logPath, "=== MIGRATION WORKFLOW STARTED ===").ConfigureAwait(false);
-            await LogAsync(logPath, $"Source: {options.SourcePath}").ConfigureAwait(false);
-            await LogAsync(logPath, $"Time: {DateTime.Now}").ConfigureAwait(false);
-            await LogAsync(logPath, "").ConfigureAwait(false);
+            _logger.Info("=== MIGRATION WORKFLOW STARTED ===", "Migration");
+            _logger.Info($"Source: {options.SourcePath}", "Migration");
+            _logger.Info($"Time: {DateTime.Now}", "Migration");
 
             // Execute each step in order
             foreach (var step in _steps)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                await LogAsync(logPath, $"--- Executing: Step {step.StepNumber} - {step.StepName} ---").ConfigureAwait(false);
-                _logger.Info($"Executing Step {step.StepNumber}: {step.StepName}", "Migration");
+                _logger.Info($"--- Executing: Step {step.StepNumber} - {step.StepName} ---", "Migration");
 
-                await step.ExecuteAsync(context, progress, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await step.ExecuteAsync(context, progress, cancellationToken).ConfigureAwait(false);
 
-                await LogAsync(logPath, $"--- Step {step.StepNumber} Complete ---").ConfigureAwait(false);
-                await LogAsync(logPath, "").ConfigureAwait(false);
+                    _logger.Info($"--- Step {step.StepNumber} Complete ---", "Migration");
+                }
+                catch (Exception stepEx)
+                {
+                    // Log step-specific error
+                    _logger.Error($"ERROR in Step {step.StepNumber} ({step.StepName}): {stepEx.Message}", "Migration", stepEx);
+
+                    // Record which step failed
+                    context.Result.FailedAtStep = step.StepNumber;
+                    context.Result.FailedStepName = step.StepName;
+                    context.Result.Errors.Add($"Step {step.StepNumber} ({step.StepName}): {stepEx.Message}");
+
+                    // Re-throw to stop migration
+                    throw;
+                }
             }
 
             // Finalize
@@ -140,13 +141,12 @@ public class MigrationService : IMigrationService
 
             context.Result.Success = true;
             context.Result.Duration = DateTime.Now - startTime;
-            await LogAsync(logPath, "").ConfigureAwait(false);
-            await LogAsync(logPath, "=== MIGRATION COMPLETE ===").ConfigureAwait(false);
-            await LogAsync(logPath, $"Duration: {context.Result.Duration.TotalSeconds:F1}s").ConfigureAwait(false);
-            await LogAsync(logPath, $"Mods Migrated: {context.Result.ModsMigrated}").ConfigureAwait(false);
-            await LogAsync(logPath, $"Archives Copied: {context.Result.ArchivesCopied}").ConfigureAwait(false);
-            await LogAsync(logPath, $"Previews Copied: {context.Result.PreviewsCopied}").ConfigureAwait(false);
-            await LogAsync(logPath, $"Classification Rules: {context.Result.ClassificationRulesCreated}").ConfigureAwait(false);
+            _logger.Info("=== MIGRATION COMPLETE ===", "Migration");
+            _logger.Info($"Duration: {context.Result.Duration.TotalSeconds:F1}s", "Migration");
+            _logger.Info($"Mods Migrated: {context.Result.ModsMigrated}", "Migration");
+            _logger.Info($"Archives Copied: {context.Result.ArchivesCopied}", "Migration");
+            _logger.Info($"Previews Copied: {context.Result.PreviewsCopied}", "Migration");
+            _logger.Info($"Classification Rules: {context.Result.ClassificationRulesCreated}", "Migration");
 
             progress?.Report(new MigrationProgress
             {
@@ -154,17 +154,13 @@ public class MigrationService : IMigrationService
                 CurrentTask = "Migration complete!",
                 PercentComplete = 100
             });
-
-            _logger.Info($"Migration complete in {context.Result.Duration.TotalSeconds:F1}s", "Migration");
         }
         catch (Exception ex)
         {
             context.Result.Success = false;
             context.Result.Errors.Add(ex.Message);
-            await LogAsync(logPath, "").ConfigureAwait(false);
-            await LogAsync(logPath, "=== MIGRATION FAILED ===").ConfigureAwait(false);
-            await LogAsync(logPath, $"ERROR: {ex.Message}").ConfigureAwait(false);
-            _logger.Error($"Migration failed: {ex.Message}", "Migration", ex);
+            _logger.Error("=== MIGRATION FAILED ===", "Migration");
+            _logger.Error($"ERROR: {ex.Message}", "Migration", ex);
 
             progress?.Report(new MigrationProgress
             {
@@ -174,7 +170,7 @@ public class MigrationService : IMigrationService
             });
         }
 
-        context.Result.LogFilePath = logPath;
+        context.Result.LogFilePath = ""; // No longer using separate log file
         return context.Result;
     }
 
@@ -186,20 +182,5 @@ public class MigrationService : IMigrationService
         // TODO: Implement validation logic
         await Task.CompletedTask;
         return true;
-    }
-
-    private async Task LogAsync(string logPath, string message)
-    {
-        try
-        {
-            var logMessage = string.IsNullOrEmpty(message)
-                ? ""
-                : $"[{DateTime.Now:HH:mm:ss}] {message}";
-            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine).ConfigureAwait(false);
-        }
-        catch
-        {
-            // Ignore logging errors
-        }
     }
 }

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
-import { bridgeService } from '../../shared/services/bridgeService';
+import { useCustomEventSubscription } from '../hooks/useEventSubscription';
 import { OperationProgress, OperationNotificationType } from '../types/operation.types';
 
 /**
@@ -122,41 +122,41 @@ interface OperationProviderProps {
 export const OperationProvider: React.FC<OperationProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(operationReducer, initialState);
 
-  // Subscribe to operation notifications from backend
-  useEffect(() => {
-    const unsubscribe = bridgeService.subscribeToOperationNotifications((notification) => {
-      const notificationType = notification.type as OperationNotificationType;
+  // Subscribe to operation notifications from backend via event bus
+  // Backend sends these as custom events with type "OPERATION_NOTIFICATION"
+  useCustomEventSubscription('OPERATION_NOTIFICATION', (data: any) => {
+    if (!data?.notification) return;
 
-      // Convert the operation object from backend (dates are strings) to OperationProgress (dates are Date objects)
-      const operation: OperationProgress = {
-        ...notification.operation,
-        startedAt: new Date(notification.operation.startedAt),
-        completedAt: notification.operation.completedAt ? new Date(notification.operation.completedAt) : undefined,
-      } as OperationProgress;
+    const notification = data.notification;
+    const notificationType = notification.type as OperationNotificationType;
 
-      console.log('[OperationContext] Received notification:', notificationType, operation);
+    // Convert the operation object from backend (dates are strings) to OperationProgress (dates are Date objects)
+    const operation: OperationProgress = {
+      ...notification.operation,
+      startedAt: new Date(notification.operation.startedAt),
+      completedAt: notification.operation.completedAt ? new Date(notification.operation.completedAt) : undefined,
+    } as OperationProgress;
 
-      switch (notificationType) {
-        case 'OperationStarted':
-          dispatch({ type: 'OPERATION_STARTED', payload: operation });
-          break;
-        case 'ProgressUpdate':
-          dispatch({ type: 'PROGRESS_UPDATE', payload: operation });
-          break;
-        case 'OperationCompleted':
-          dispatch({ type: 'OPERATION_COMPLETED', payload: operation });
-          break;
-        case 'OperationFailed':
-          dispatch({ type: 'OPERATION_FAILED', payload: operation });
-          break;
-        case 'OperationCancelled':
-          dispatch({ type: 'OPERATION_CANCELLED', payload: operation });
-          break;
-      }
-    });
+    console.log('[OperationContext] Received notification:', notificationType, operation);
 
-    return unsubscribe;
-  }, []);
+    switch (notificationType) {
+      case 'OperationStarted':
+        dispatch({ type: 'OPERATION_STARTED', payload: operation });
+        break;
+      case 'ProgressUpdate':
+        dispatch({ type: 'PROGRESS_UPDATE', payload: operation });
+        break;
+      case 'OperationCompleted':
+        dispatch({ type: 'OPERATION_COMPLETED', payload: operation });
+        break;
+      case 'OperationFailed':
+        dispatch({ type: 'OPERATION_FAILED', payload: operation });
+        break;
+      case 'OperationCancelled':
+        dispatch({ type: 'OPERATION_CANCELLED', payload: operation });
+        break;
+    }
+  });
 
   const clearCompleted = useCallback(() => {
     dispatch({ type: 'CLEAR_COMPLETED' });

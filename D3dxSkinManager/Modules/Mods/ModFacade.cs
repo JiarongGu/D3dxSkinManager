@@ -73,7 +73,6 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IImageService _imageService;
     private readonly IProfilePathService _profilePaths;
     private readonly IPathHelper _pathHelper;
-    private readonly INotificationService _operationService;
 
     public ModFacade(
         IModRepository repository,
@@ -86,7 +85,6 @@ public class ModFacade : BaseFacade, IModFacade
         IImageService imageService,
         IProfilePathService profilePaths,
         IPathHelper pathHelper,
-        INotificationService operationService,
         ILogHelper logger) : base(logger)
     {
         _repository = repository;
@@ -99,7 +97,6 @@ public class ModFacade : BaseFacade, IModFacade
         _imageService = imageService;
         _profilePaths = profilePaths;
         _pathHelper = pathHelper;
-        _operationService = operationService;
     }
 
     /// <summary>
@@ -190,17 +187,12 @@ public class ModFacade : BaseFacade, IModFacade
 
         var modName = mod.Name ?? $"Mod {sha.Substring(0, 8)}";
 
-        // Create operation for progress tracking
-        var progressReporter = _operationService.CreateOperation($"Loading: {modName}", metadata: new { sha });
-
         try
         {
             // CRITICAL: Unload all mods in the same category first to prevent conflicts
             // This ensures only one mod per category is loaded at a time
             if (!string.IsNullOrEmpty(mod.Category))
             {
-                await progressReporter.ReportProgressAsync(0, "Checking category conflicts...").ConfigureAwait(false);
-
                 var sameCategoryMods = await _repository.GetByCategoryAsync(mod.Category).ConfigureAwait(false);
                 var loadedSameCategoryMods = sameCategoryMods.Where(m => m.SHA != sha).ToList();
 
@@ -215,7 +207,6 @@ public class ModFacade : BaseFacade, IModFacade
 
                     foreach (var modToUnload in modsToUnload)
                     {
-                        await progressReporter.ReportProgressAsync(10, $"Unloading: {modToUnload.Name}...").ConfigureAwait(false);
                         var unloadSuccess = await _fileService.UnloadAsync(modToUnload.SHA).ConfigureAwait(false);
 
                         if (unloadSuccess)
@@ -233,8 +224,7 @@ public class ModFacade : BaseFacade, IModFacade
             }
 
             // Load the requested mod
-            await progressReporter.ReportProgressAsync(20, "Loading mod...").ConfigureAwait(false);
-            var success = await _fileService.LoadAsync(sha, progressReporter).ConfigureAwait(false);
+            var success = await _fileService.LoadAsync(sha).ConfigureAwait(false);
 
             if (!success)
             {

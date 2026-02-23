@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Tools.Services;
@@ -15,7 +11,7 @@ namespace D3dxSkinManager.Modules.Migration.Steps;
 /// </summary>
 public class MigrationStep2MigrateConfiguration : IMigrationStep
 {
-    private readonly IConfigurationService _configService;  // âœ?Using service!
+    private readonly IConfigurationService _configService;  // Using service!
     private readonly ILogHelper _logger;
 
     public int StepNumber => 2;
@@ -58,7 +54,7 @@ public class MigrationStep2MigrateConfiguration : IMigrationStep
     {
         try
         {
-            // âœ?Use ConfigurationService instead of manual file writes!
+            // Use ConfigurationService instead of manual file writes!
 
             // Set work directory
             if (!string.IsNullOrEmpty(config.GamePath))
@@ -89,7 +85,7 @@ public class MigrationStep2MigrateConfiguration : IMigrationStep
                 await _configService.SetValueAsync("ocd.height", config.Ocd.Height).ConfigureAwait(false);
             }
 
-            // âœ?Save using service (handles JSON serialization, error handling, etc.)
+            // Save using service (handles JSON serialization, error handling, etc.)
             await _configService.SaveAsync().ConfigureAwait(false);
             await LogAsync(logPath, "Configuration saved successfully").ConfigureAwait(false);
         }

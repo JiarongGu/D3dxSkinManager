@@ -177,32 +177,52 @@ public class ModQueryService : IModQueryService
     }
 
     /// <summary>
-    /// Get all mods that don't have a category assigned
-    /// Returns mods with empty or "Unknown" category
+    /// Get all mods that don't have a category assigned or have invalid categories
+    /// Returns mods with empty/Unknown category OR categories that don't match any classification ID
     /// </summary>
     public async Task<List<ModInfo>> GetUnclassifiedModsAsync()
     {
         var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
+        var allClassifications = await _classificationRepository.GetAllAsync().ConfigureAwait(false);
 
-        // Filter mods that don't have a category assigned
+        // Get all valid classification IDs
+        var validClassificationIds = new HashSet<string>(
+            allClassifications.Select(c => c.Id),
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        // Filter mods that:
+        // 1. Don't have a category assigned (null/empty/unknown)
+        // 2. Have a category that doesn't match any classification ID in the tree
         var unclassifiedMods = allMods
             .Where(mod => string.IsNullOrWhiteSpace(mod.Category) ||
-                         mod.Category.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+                         mod.Category.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                         !validClassificationIds.Contains(mod.Category))
             .ToList();
 
         return unclassifiedMods;
     }
 
     /// <summary>
-    /// Get count of mods that don't have a category assigned
+    /// Get count of mods that don't have a category assigned or have invalid categories
     /// </summary>
     public async Task<int> GetUnclassifiedCountAsync()
     {
         var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
+        var allClassifications = await _classificationRepository.GetAllAsync().ConfigureAwait(false);
 
-        // Count mods that don't have a category assigned
+        // Get all valid classification IDs
+        var validClassificationIds = new HashSet<string>(
+            allClassifications.Select(c => c.Id),
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        // Count mods that:
+        // 1. Don't have a category assigned (null/empty/unknown)
+        // 2. Have a category that doesn't match any classification ID in the tree
         var count = allMods.Count(mod => string.IsNullOrWhiteSpace(mod.Category) ||
-                                         mod.Category.Equals("Unknown", StringComparison.OrdinalIgnoreCase));
+                                         mod.Category.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                                         !validClassificationIds.Contains(mod.Category));
 
         return count;
     }

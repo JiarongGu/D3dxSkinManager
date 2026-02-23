@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Migration.Models;
 using System.Text.Json;
 

@@ -35,6 +35,11 @@ export const CompleteStep: React.FC = () => {
         description={
           result.success
             ? t('migration.complete.successDescription')
+            : result.failedAtStep && result.failedStepName
+            ? t('migration.complete.errorDescriptionWithStep', {
+                step: result.failedAtStep,
+                stepName: result.failedStepName
+              })
             : t('migration.complete.errorDescription')
         }
         type={result.success ? 'success' : 'warning'}

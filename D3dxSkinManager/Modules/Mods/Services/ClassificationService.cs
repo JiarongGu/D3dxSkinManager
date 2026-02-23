@@ -97,6 +97,11 @@ public class ClassificationService : IClassificationService
                     // Add to parent's children
                     parent.Children.Add(node);
                 }
+                else
+                {
+                    // Parent doesn't exist - treat as root node (orphaned classification)
+                    rootNodes.Add(node);
+                }
             }
 
             // Calculate mod counts for all nodes

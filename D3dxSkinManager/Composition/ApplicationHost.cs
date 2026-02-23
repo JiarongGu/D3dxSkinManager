@@ -12,6 +12,7 @@ using D3dxSkinManager.Modules.Plugins;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Event;
 
 namespace D3dxSkinManager.Composition;
 
@@ -24,6 +25,7 @@ public class ApplicationHost
     private WebView2 _webView = null!;
     private WebViewInitializer _webViewInitializer = null!;
     private IpcCommunicationHandler _ipcHandler = null!;
+    private EventBusIpcBridge _eventBridge = null!;
     private MessageDispatcher _messageDispatcher = null!;
     private ServiceProvider _serviceProvider = null!;
     private ProfileServiceRouter _profileRouter = null!;
@@ -121,6 +123,12 @@ public class ApplicationHost
             _ipcHandler = new IpcCommunicationHandler(_webView, _logger);
             _ipcHandler.Initialize();
 
+            // Initialize EventBus IPC Bridge (forwards backend events to frontend)
+            _logger.Info("Initializing EventBus IPC Bridge...", "Host");
+            var eventBus = _serviceProvider.GetRequiredService<IEventBus>();
+            _eventBridge = new EventBusIpcBridge(eventBus, _ipcHandler, _logger);
+            _eventBridge.Initialize();
+
             // Initialize Profile Service Router
             _logger.Info("Initializing profile service router...", "Host");
             _profileRouter = new ProfileServiceRouter(_serviceProvider, _logger);
@@ -171,6 +179,9 @@ public class ApplicationHost
     private void OnFormClosed(object? sender, FormClosedEventArgs e)
     {
         _logger.Info("Form closed, cleaning up...", "Host");
+
+        // Shutdown EventBus IPC Bridge
+        _eventBridge?.Shutdown();
 
         // TODO: Clean up components
         // - Save settings

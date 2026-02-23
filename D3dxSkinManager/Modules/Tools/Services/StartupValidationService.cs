@@ -330,21 +330,21 @@ public class StartupValidationService : IStartupValidationService
             var components = new List<string>();
 
             // Check SharpCompress (archive extraction)
-            components.Add("�?SharpCompress (archive extraction): Built-in");
+            components.Add("SharpCompress (archive extraction): Built-in");
 
             // Check .NET runtime
             var runtimeVersion = Environment.Version;
-            components.Add($"�?.NET Runtime: {runtimeVersion}");
+            components.Add($".NET Runtime: {runtimeVersion}");
 
             // Check Windows Forms (file dialogs)
             try
             {
                 var _ = typeof(Form);
-                components.Add("�?Windows Forms (file dialogs): Available");
+                components.Add("Windows Forms (file dialogs): Available");
             }
             catch
             {
-                components.Add("�?Windows Forms: Not available");
+                components.Add("Windows Forms: Not available");
             }
 
             result.IsValid = true;

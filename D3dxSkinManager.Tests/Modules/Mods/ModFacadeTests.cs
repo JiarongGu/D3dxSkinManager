@@ -34,7 +34,6 @@ public class ModFacadeTests
     private readonly Mock<IImageService> _mockImageService = new();
     private readonly Mock<IProfilePathService> _mockProfilePathService = new();
     private readonly Mock<IPathHelper> _mockPathHelper = new();
-    private readonly Mock<INotificationService> _mockOperationNotificationService = new();
     private readonly ModFacade _facade;
 
     public ModFacadeTests()
@@ -57,7 +56,6 @@ public class ModFacadeTests
             _mockImageService.Object,
             _mockProfilePathService.Object,
             _mockPathHelper.Object,
-            _mockOperationNotificationService.Object,
             _mockLogger.Object
         );
     }

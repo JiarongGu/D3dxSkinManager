@@ -1,15 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Parsers;
 using D3dxSkinManager.Modules.Mods.Services;
-using D3dxSkinManager.Modules.Profiles;
 
 namespace D3dxSkinManager.Modules.Migration.Steps;
 
@@ -27,6 +20,8 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
     private readonly IArchiveHelper _archiveService;
     private readonly IPythonModIndexParser _modIndexParser;
     private readonly IModManagementService _modManagementService;
+    private readonly IClassificationService _classificationService;
+    private readonly IModRepository _modRepository;
     private readonly ILogHelper _logger;
 
     public int StepNumber => 5;
@@ -38,6 +33,8 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         IArchiveHelper archiveService,
         IPythonModIndexParser modIndexParser,
         IModManagementService modManagementService,
+        IClassificationService classificationService,
+        IModRepository modRepository,
         ILogHelper logger)
     {
         _profilePaths = profilePaths;
@@ -45,6 +42,8 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         _archiveService = archiveService;
         _modIndexParser = modIndexParser;
         _modManagementService = modManagementService;
+        _classificationService = classificationService;
+        _modRepository = modRepository;
         _logger = logger;
     }
 
@@ -55,7 +54,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
     {
         if (!context.Options.MigrateMetadata && !context.Options.MigrateArchives)
         {
-            await LogAsync(context.LogPath, "Step 5: Skipping mods (disabled)");
+            _logger.Info("Step 5: Skipping mods (disabled)", "Migration");
             return;
         }
 
@@ -66,18 +65,18 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
             PercentComplete = 50
         });
 
-        await LogAsync(context.LogPath, "Step 5: Migrating mod archives and metadata").ConfigureAwait(false);
+        _logger.Info("Step 5: Migrating mod archives and metadata", "Migration");
 
         // Parse mod index files
         var modsIndexPath = Path.Combine(context.EnvironmentPath!, "modsIndex");
         if (!Directory.Exists(modsIndexPath))
         {
-            await LogAsync(context.LogPath, "WARNING: modsIndex directory not found").ConfigureAwait(false);
+            _logger.Warn("WARNING: modsIndex directory not found", "Migration");
             return;
         }
 
         var modEntries = await _modIndexParser.ParseAsync(modsIndexPath).ConfigureAwait(false);
-        await LogAsync(context.LogPath, $"Found {modEntries.Count} mod entries in index files").ConfigureAwait(false);
+        _logger.Info($"Found {modEntries.Count} mod entries in index files", "Migration");
 
         // Migrate mod archives and create mod entries
         int copied = 0;
@@ -87,13 +86,21 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         {
             try
             {
+                // Check if mod already exists in database (skip if exists)
+                var existingMod = await _modRepository.GetByIdAsync(modEntry.Sha).ConfigureAwait(false);
+                if (existingMod != null)
+                {
+                    _logger.Info($"Skipping existing mod: {modEntry.Name} ({modEntry.Sha})", "Migration");
+                    continue;
+                }
+
                 // Copy mod archive
                 // Python version stores archives in resources/mods/ without file extension
                 // We maintain the same approach - SharpCompress auto-detects format
                 var sourceArchivePath = Path.Combine(context.Options.SourcePath, "resources", "mods", modEntry.Sha);
                 if (!File.Exists(sourceArchivePath))
                 {
-                    await LogAsync(context.LogPath, $"WARNING: Archive not found for {modEntry.Name} ({modEntry.Sha})");
+                    _logger.Warn($"Archive not found for {modEntry.Name} ({modEntry.Sha})", "Migration");
                     continue;
                 }
 
@@ -107,7 +114,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 {
                     // Try to detect from file header
                     archiveType = await DetectArchiveTypeAsync(sourceArchivePath).ConfigureAwait(false);
-                    await LogAsync(context.LogPath, $"INFO: Detected archive type '{archiveType}' for {modEntry.Name}").ConfigureAwait(false);
+                    _logger.Info($"Detected archive type '{archiveType}' for {modEntry.Name}", "Migration");
                 }
 
                 // Store without extension (like Python version)
@@ -125,13 +132,29 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 }
                 copied++;
 
+                // Query database for classification ID by object name
+                string? classificationId = null;
+                if (!string.IsNullOrEmpty(modEntry.Object))
+                {
+                    var classificationNode = await _classificationService.GetNodeByNameAsync(modEntry.Object).ConfigureAwait(false);
+                    if (classificationNode != null)
+                    {
+                        classificationId = classificationNode.Id;
+                        _logger.Info($"Mapped '{modEntry.Object}' → ID: {classificationId}", "Migration");
+                    }
+                    else
+                    {
+                        _logger.Warn($"No classification found for object '{modEntry.Object}', mod will be unclassified", "Migration");
+                    }
+                }
+
                 // Create mod entry using service
                 var mod = await _modManagementService.GetOrCreateModAsync(
                     modEntry.Sha,
                     new CreateModRequest
                     {
                         SHA = modEntry.Sha,
-                        Category = modEntry.Object,
+                        Category = classificationId, // Uses classification ID from database lookup
                         Name = modEntry.Name,
                         Author = modEntry.Author,
                         Description = modEntry.Explain,
@@ -144,7 +167,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 if (mod != null)
                 {
                     created++;
-                    await LogAsync(context.LogPath, $"Migrated mod: {modEntry.Name} ({modEntry.Sha})");
+                    _logger.Info($"Migrated mod: {modEntry.Name} ({modEntry.Sha})", "Migration");
                 }
 
                 progress?.Report(new MigrationProgress
@@ -158,14 +181,14 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
             }
             catch (Exception ex)
             {
-                await LogAsync(context.LogPath, $"ERROR migrating mod {modEntry.Name}: {ex.Message}").ConfigureAwait(false);
+                _logger.Error($"ERROR migrating mod {modEntry.Name}: {ex.Message}", "Migration", ex);
             }
         }
 
         context.Result.ArchivesCopied = copied;
         context.Result.ModsMigrated = created;
 
-        await LogAsync(context.LogPath, $"Copied {copied} archives, created {created} mod entries").ConfigureAwait(false);
+        _logger.Info($"Copied {copied} archives, created {created} mod entries", "Migration");
         _logger.Info($"Step 5 complete: {copied} archives, {created} mods", "Migration");
     }
 
@@ -183,20 +206,6 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         {
             _logger.Error($"Error detecting archive type for {Path.GetFileName(filePath)}: {ex.Message}", "Migration", ex);
             return "zip"; // Default fallback
-        }
-    }
-
-    private async Task LogAsync(string logPath, string message)
-    {
-        try
-        {
-            var logMessage = $"[{DateTime.Now:HH:mm:ss}] {message}";
-            await File.AppendAllTextAsync(logPath, logMessage + Environment.NewLine).ConfigureAwait(false);
-            _logger.Info(message, "Migration");
-        }
-        catch
-        {
-            // Ignore logging errors
         }
     }
 }

@@ -47,9 +47,6 @@ public static class CoreServiceExtensions
         // Event emitter helper for null-safe plugin event emission
         AddSingleton<IEventEmitter, EventEmitter>(services);
 
-        // Operation notification service for progress reporting and operation monitoring
-        AddSingleton<INotificationService, NotificationService>(services);
-
         // Custom scheme handler for app:// URLs (image serving)
         AddSingleton<ICustomSchemeHandler, CustomSchemeHandler>(services);
 

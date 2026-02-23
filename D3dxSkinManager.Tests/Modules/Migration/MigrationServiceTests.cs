@@ -119,7 +119,7 @@ public class MigrationServiceTests : IDisposable
         var step2 = new MigrationStep2MigrateConfiguration(_mockConfigService.Object, _mockLogger.Object);
         var step3 = new MigrationStep3MigrateClassifications(_mockProfilePaths.Object, _mockModRepository.Object, _mockClassificationParser.Object, _mockClassificationService.Object, _mockAutoDetectionService.Object, _mockLogger.Object);
         var step4 = new MigrationStep4MigrateClassificationThumbnails(_mockProfilePaths.Object, _mockFileService.Object, _mockRedirectionParser.Object, _mockClassificationService.Object, _mockLogger.Object);
-        var step5 = new MigrationStep5MigrateModArchives(_mockProfilePaths.Object, _mockFileService.Object, _mockArchiveService.Object, _mockModIndexParser.Object, _mockModManagementService.Object, _mockLogger.Object);
+        var step5 = new MigrationStep5MigrateModArchives(_mockProfilePaths.Object, _mockFileService.Object, _mockArchiveService.Object, _mockModIndexParser.Object, _mockModManagementService.Object, _mockClassificationService.Object, _mockModRepository.Object, _mockLogger.Object);
         var step6 = new MigrationStep6MigrateModPreviews(_mockProfilePaths.Object, _mockFileService.Object, _mockImageService.Object, _mockLogger.Object);
 
         // Create service instance (orchestrator)

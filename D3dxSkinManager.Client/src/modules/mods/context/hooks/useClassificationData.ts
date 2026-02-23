@@ -4,6 +4,9 @@ import { ClassificationNode } from "../../../../shared/types/classification.type
 import { modService } from "../../services/modService";
 import { classificationService } from "../../../../shared/services/classificationService";
 import { useDelayedLoading } from "../../../../shared/hooks/useDelayedLoading";
+import { useEventSubscription } from "../../../../shared/hooks/useEventSubscription";
+import { EventType } from "../../../../shared/services/eventBus";
+import { useProfile } from "../../../../shared/context/ProfileContext";
 import {
   classificationReducer,
   initialClassificationState,
@@ -36,6 +39,7 @@ export function useClassificationData(): UseClassificationDataReturn {
     classificationReducer,
     initialClassificationState
   );
+  const { selectedProfileId } = useProfile();
 
   // Use delayed loading - only show loading state if operation takes >100ms
   const { loading, execute: executeWithDelayedLoading } = useDelayedLoading(100);
@@ -75,6 +79,13 @@ export function useClassificationData(): UseClassificationDataReturn {
       }
     }
   }, [executeWithDelayedLoading]);
+
+  // Subscribe to ClassificationTreeChanged event from backend
+  useEventSubscription(EventType.ClassificationTreeChanged, () => {
+    if (selectedProfileId) {
+      loadClassificationTree(selectedProfileId);
+    }
+  }, [selectedProfileId, loadClassificationTree]);
 
   const refreshClassificationTree = useCallback(
     async (profileId: string) => {

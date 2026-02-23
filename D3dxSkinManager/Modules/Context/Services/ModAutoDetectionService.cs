@@ -37,16 +37,34 @@ public class ModAutoDetectionService : IModAutoDetectionService
     private readonly string _rulePath;
     private readonly ILogHelper _logger;
     private readonly List<ModAutoDetectionRule> _rules = new();
-    private readonly Lazy<Task> _init;
+    private bool _initialized = false;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
 
     public ModAutoDetectionService(IProfilePathService profilePaths, ILogHelper logger)
     {
         _rulePath = profilePaths?.AutoDetectionRulesPath ?? throw new ArgumentNullException(nameof(profilePaths));
         _logger = logger;
-        _init = new Lazy<Task>(async () => await LoadRulesAsync(_rulePath), isThreadSafe: true);
     }
 
-    private Task EnsureInitializedAsync() => _init.Value;
+    private async Task EnsureInitializedAsync()
+    {
+        if (_initialized)
+            return;
+
+        await _initLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (!_initialized)
+            {
+                await LoadRulesInternalAsync(_rulePath).ConfigureAwait(false);
+                _initialized = true;
+            }
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
 
     /// <summary>
     /// Auto-detect object name from mod folder contents
@@ -89,10 +107,18 @@ public class ModAutoDetectionService : IModAutoDetectionService
     public async Task<bool> LoadRulesAsync(string rulesFilePath)
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>
+    /// Internal method to load rules without triggering initialization
+    /// </summary>
+    private async Task<bool> LoadRulesInternalAsync(string rulesFilePath)
+    {
         if (!File.Exists(rulesFilePath))
         {
             // Create default rules file
-            await CreateDefaultRulesAsync(rulesFilePath).ConfigureAwait(false);
+            await CreateDefaultRulesInternalAsync(rulesFilePath).ConfigureAwait(false);
         }
 
         try
@@ -154,13 +180,10 @@ public class ModAutoDetectionService : IModAutoDetectionService
     }
 
     /// <summary>
-    /// Create default classification rules
+    /// Create default classification rules (internal version without initialization check)
     /// </summary>
-    private async Task CreateDefaultRulesAsync(string rulesFilePath)
+    private async Task CreateDefaultRulesInternalAsync(string rulesFilePath)
     {
-
-        await EnsureInitializedAsync().ConfigureAwait(false);
-
         var defaultRules = new List<ModAutoDetectionRule>
             {
                 // Genshin Impact characters (example)
@@ -190,7 +213,25 @@ public class ModAutoDetectionService : IModAutoDetectionService
         if (directory != null && !Directory.Exists(directory))
             Directory.CreateDirectory(directory);
 
-        await SaveRulesAsync(rulesFilePath).ConfigureAwait(false);
+        await SaveRulesInternalAsync(rulesFilePath).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Internal save method without initialization check
+    /// </summary>
+    private async Task<bool> SaveRulesInternalAsync(string rulesFilePath)
+    {
+        try
+        {
+            await JsonHelper.SerializeToFileAsync(rulesFilePath, _rules).ConfigureAwait(false);
+            _logger.Info($"Saved {_rules.Count} rules to {rulesFilePath}", "ModAutoDetectionService");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to save rules: {ex.Message}", "ModAutoDetectionService", ex);
+            return false;
+        }
     }
 
     /// <summary>

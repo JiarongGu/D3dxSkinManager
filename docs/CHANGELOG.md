@@ -12,6 +12,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-02-24 - Migration & Classification Integrity Improvements ⭐⭐⭐⭐
+Fixed critical migration issues and improved data integrity for classification tree.
+**Impact**: ✅ Idempotent migration, proper ID-based references, orphaned node handling
+**Migration Changes**:
+- Step 3 now checks database for existing classifications by name (won't create duplicates)
+- Step 5 queries database for classification ID by object name (no in-memory mapping)
+- Mods now store classification IDs instead of names for referential integrity
+- Auto-detection rules use classification IDs
+- Both steps are idempotent (safe to re-run)
+**Classification Service**:
+- Orphaned classifications (invalid parentId) now treated as root nodes
+- Unclassified mods detection includes invalid category IDs
+- Added `draggable` attribute to ModList items for drag-and-drop
+**Frontend**:
+- Fixed CompleteStep.css colors for light theme (was using hardcoded white)
+- EventBusIpcBridge now uses BeginInvoke (non-blocking UI thread marshaling)
+**Files**: MigrationStep3MigrateClassifications.cs, MigrationStep5MigrateModArchives.cs, ClassificationService.cs, ModQueryService.cs, CompleteStep.css, IpcCommunicationHandler.cs
+**Removed**: NotificationService (replaced with EventBus pattern)
+**Docs**: Updated MIGRATION_ARCHITECTURE.md and TROUBLESHOOTING.md with idempotency and orphaned node handling
+
 ### Documentation - 2026-02-23 - Massive Documentation Cleanup ⭐⭐⭐⭐⭐
 Aggressive optimization for AI code generation efficiency.
 **Impact**: ✅ 70%+ reduction, focused purely on code generation patterns

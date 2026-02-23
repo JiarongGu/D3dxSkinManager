@@ -1,10 +1,6 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Services;
-using D3dxSkinManager.Modules.Plugins.Services;
 using D3dxSkinManager.Modules.Mods;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -77,12 +73,17 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
             _logger.Info("Refreshing classification tree after migration", "MigrationFacade");
             await _modFacade.RefreshClassificationTreeAsync().ConfigureAwait(false);
             _logger.Info("Classification tree refreshed successfully", "MigrationFacade");
+
+            // Emit event so frontend knows to reload classification tree
+            await _eventEmitter.EmitAsync(Core.Event.EventType.ClassificationTreeChanged, null, null).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger.Error($"Failed to refresh classification tree: {ex.Message}", "MigrationFacade", ex);
         }
 
+        // Also emit ModsRefreshed to trigger mod list reload
+        await _eventEmitter.EmitAsync(Core.Event.EventType.ModsRefreshed, null, null).ConfigureAwait(false);
         await _eventEmitter.EmitAsync(Core.Event.EventType.CustomEvent, "migration.completed", result).ConfigureAwait(false);
 
         return result;

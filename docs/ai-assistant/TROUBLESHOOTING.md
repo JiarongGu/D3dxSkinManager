@@ -186,6 +186,56 @@ Now file access errors generate **warnings** instead of failing validation.
 
 ---
 
+### Issue: Mods Show as Unclassified After Migration
+
+**Symptom:**
+- Migration completes successfully
+- Mods imported but show in "Unclassified" category
+- Classification tree exists but mods not linked
+
+**Root Cause:**
+Before 2026-02-24, migration stored object names instead of classification IDs:
+- Python: `mod.category = "Ayaka"` (object name)
+- Old migration: `mod.category = "Ayaka"` (name, not ID)
+- New system: expects `mod.category = "{guid}"` (classification ID)
+
+**Solution:**
+Fixed in commit 2026-02-24. Migration now:
+1. Step 3 creates classifications, checks for existing by name
+2. Step 5 queries database for classification ID by object name
+3. Stores classification ID in `mod.category` instead of name
+
+**If Already Migrated:**
+Re-run migration - it's now idempotent:
+- Won't duplicate classifications (checks by name)
+- Won't duplicate mods (checks by SHA)
+- Will update mod categories with correct IDs
+
+**Fixed:** 2026-02-24
+
+---
+
+### Issue: Classifications Missing Parent (Orphaned)
+
+**Symptom:**
+- Classification exists in database with `parentId = "some-guid"`
+- Parent with that GUID doesn't exist
+- Classification not visible in tree
+
+**Root Cause:**
+Parent classification was deleted but children still reference it
+
+**Solution:**
+Fixed in commit 2026-02-24. `ClassificationService.RefreshTreeAsync()` now treats orphaned classifications as root nodes:
+- If `parentId` references non-existent node, shows at root level
+- User can manually reorganize or delete
+
+**Automatic:** No action needed, orphaned nodes automatically appear at root
+
+**Fixed:** 2026-02-24
+
+---
+
 ### Error: `SqliteException: SQLite Error 1: 'no such table: Mods'`
 
 **Symptom:**

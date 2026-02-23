@@ -654,6 +654,7 @@
     "migration.complete.errorTitle": "Migration Completed with Errors",
     "migration.complete.successDescription": "Your mods and configuration have been successfully migrated.",
     "migration.complete.errorDescription": "Some errors occurred during migration. Check the log file for details.",
+    "migration.complete.errorDescriptionWithStep": "Migration failed at Step {{step}} ({{stepName}}). Check the log file for details.",
     "migration.complete.summary": "Migration Summary",
     "migration.complete.modsMigrated": "Mods Migrated",
     "migration.complete.archivesCopied": "Archives Copied",

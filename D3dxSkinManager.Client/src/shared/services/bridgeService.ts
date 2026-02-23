@@ -10,7 +10,7 @@ import {
   BridgeMessage,
   BridgeResponse,
 } from "../types/message.types";
-import { OperationNotificationMessage } from "../types/operation.types";
+import { eventBus, EventType } from "./eventBus";
 
 // WebView2 bridge interface
 declare global {
@@ -35,10 +35,6 @@ function isWebViewAvailable(): boolean {
 class BridgeService {
   private messageHandlers: Map<string, (response: BridgeResponse) => void> =
     new Map();
-  private operationNotificationHandlers: Array<
-    (notification: OperationNotificationMessage["notification"]) => void
-  > = [];
-  private filesDroppedHandlers: Array<(filePaths: string[]) => void> = [];
   // Global modules that don't require profileId
   private readonly globalModules = ["SETTINGS", "PROFILE", "SYSTEM"];
 
@@ -47,78 +43,26 @@ class BridgeService {
   }
 
   /**
-   * Subscribe to operation notifications from backend
-   * Returns unsubscribe function
+   * Initialize message receiver
+   * All messages have a category field that determines routing:
+   * - category: "ipc" -> IPC request/response
+   * - category: "notification" -> Push events/notifications -> emit to eventBus
    */
-  subscribeToOperationNotifications(
-    handler: (
-      notification: OperationNotificationMessage["notification"],
-    ) => void,
-  ): () => void {
-    this.operationNotificationHandlers.push(handler);
-    return () => {
-      const index = this.operationNotificationHandlers.indexOf(handler);
-      if (index > -1) {
-        this.operationNotificationHandlers.splice(index, 1);
-      }
-    };
-  }
-
-  /**
-   * Subscribe to file drop events from OS-level drag-drop
-   * Returns unsubscribe function
-   */
-  subscribeToFilesDropped(handler: (filePaths: string[]) => void): () => void {
-    this.filesDroppedHandlers.push(handler);
-    return () => {
-      const index = this.filesDroppedHandlers.indexOf(handler);
-      if (index > -1) {
-        this.filesDroppedHandlers.splice(index, 1);
-      }
-    };
-  }
-
   private initializeMessageReceiver() {
-    // Listen for messages from .NET backend
-    if (window.chrome?.webview?.addEventListener) {
-      window.chrome.webview.addEventListener("message", (event: any) => {
-        try {
-          const parsed = JSON.parse(event.data);
+    if (!window.chrome?.webview?.addEventListener) {
+      console.warn(
+        "[BridgeService] WebView2 not available - running in development mode",
+      );
+      return;
+    }
 
-          // Check if this is an operation notification (push message)
-          if (parsed.type === "OPERATION_NOTIFICATION") {
-            const operationNotification =
-              parsed as OperationNotificationMessage;
-            // Notify all subscribers
-            this.operationNotificationHandlers.forEach((handler) => {
-              try {
-                handler(operationNotification.notification);
-              } catch (error) {
-                console.error(
-                  "Error in operation notification handler:",
-                  error,
-                );
-              }
-            });
-            return;
-          }
+    window.chrome.webview.addEventListener("message", (event: any) => {
+      try {
+        const parsed = JSON.parse(event.data);
 
-          // Check if this is a FILES_DROPPED push message
-          if (parsed.type === "FILES_DROPPED") {
-            const filePaths = parsed.filePaths as string[];
-            console.log("[BridgeService] FILES_DROPPED received:", filePaths);
-            // Notify all subscribers
-            this.filesDroppedHandlers.forEach((handler) => {
-              try {
-                handler(filePaths);
-              } catch (error) {
-                console.error("Error in files dropped handler:", error);
-              }
-            });
-            return;
-          }
-
-          // Otherwise, it's a regular response message
+        // Route based on category
+        if (parsed.category === "ipc") {
+          // IPC request/response
           const response: BridgeResponse = parsed;
           const handler = this.messageHandlers.get(response.id);
 
@@ -126,15 +70,19 @@ class BridgeService {
             handler(response);
             this.messageHandlers.delete(response.id);
           }
-        } catch (error) {
-          console.error("Failed to parse message from backend:", error);
+        } else if (parsed.category === "notification") {
+          // Push notification/event - emit to eventBus
+          // Frontend subscribers use the 'type' to identify which event they want
+          eventBus.emit({
+            type: parsed.type as EventType,
+            eventName: parsed.eventName,
+            data: parsed.data,
+          });
         }
-      });
-    } else {
-      console.warn(
-        "[BridgeService] WebView2 not available - running in development mode",
-      );
-    }
+      } catch (error) {
+        console.error("[BridgeService] Failed to parse message:", error);
+      }
+    });
   }
 
   /**

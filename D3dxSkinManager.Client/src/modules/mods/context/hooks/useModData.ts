@@ -3,6 +3,9 @@ import { useReducer, useCallback, Dispatch, useEffect } from "react";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { modService } from "../../services/modService";
 import { useDelayedLoading } from "../../../../shared/hooks/useDelayedLoading";
+import { useEventSubscription } from "../../../../shared/hooks/useEventSubscription";
+import { EventType } from "../../../../shared/services/eventBus";
+import { useProfile } from "../../../../shared/context/ProfileContext";
 import {
   modsDataReducer,
   initialModsDataState,
@@ -30,6 +33,7 @@ export interface UseModDataReturn {
 
 export function useModData(): UseModDataReturn {
   const [state, dispatch] = useReducer(modsDataReducer, initialModsDataState);
+  const { selectedProfileId } = useProfile();
 
   // Use delayed loading - only show loading state if operation takes >100ms
   const { loading, execute: executeWithDelayedLoading } = useDelayedLoading(100);
@@ -64,6 +68,13 @@ export function useModData(): UseModDataReturn {
       }
     }
   }, [executeWithDelayedLoading]);
+
+  // Subscribe to ModsRefreshed event from backend
+  useEventSubscription(EventType.ModsRefreshed, () => {
+    if (selectedProfileId) {
+      loadMods(selectedProfileId);
+    }
+  }, [selectedProfileId, loadMods]);
 
   const refreshMods = useCallback(
     async (profileId: string) => {

@@ -86,6 +86,8 @@ export interface MigrationResult {
   duration: string;
   startTime: string;
   endTime: string;
+  failedAtStep?: number;
+  failedStepName?: string;
 }
 
 /**

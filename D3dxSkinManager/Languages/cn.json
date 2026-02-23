@@ -654,6 +654,7 @@
     "migration.complete.errorTitle": "迁移完成, 但有错误",
     "migration.complete.successDescription": "您的模组和配置已成功迁移。",
     "migration.complete.errorDescription": "迁移过程中发生了一些错误。请查看日志文件了解详情。",
+    "migration.complete.errorDescriptionWithStep": "迁移在步骤 {{step}} ({{stepName}}) 失败。请查看日志文件了解详情。",
     "migration.complete.summary": "迁移摘要",
     "migration.complete.modsMigrated": "已迁移模组",
     "migration.complete.archivesCopied": "已复制归档",
