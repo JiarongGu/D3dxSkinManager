@@ -6,6 +6,7 @@ using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Settings.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Settings;
 
@@ -18,6 +19,7 @@ public class SettingsFileServiceTests : IDisposable
     private readonly string _testDataPath;
     private readonly SettingsFileService _service;
     private readonly string _settingsDirectory;
+    private readonly Mock<IGlobalPathService> _mockGlobalPathService;
     private readonly IPathHelper _pathHelper;
     private readonly Mock<ILogHelper> _mockLogger = new();
 
@@ -26,8 +28,12 @@ public class SettingsFileServiceTests : IDisposable
         // Arrange - Create temp directory for each test
         _testDataPath = Path.Combine(Path.GetTempPath(), $"SettingsFileServiceTests_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDataPath);
-        _pathHelper = new PathHelper(_testDataPath);
-        _service = new SettingsFileService(_pathHelper, _mockLogger.Object);
+
+        _mockGlobalPathService = new Mock<IGlobalPathService>();
+        _mockGlobalPathService.Setup(x => x.BaseDataPath).Returns(_testDataPath);
+        _pathHelper = new PathHelper(_mockGlobalPathService.Object);
+
+        _service = new SettingsFileService(_mockGlobalPathService.Object, _mockLogger.Object);
         _settingsDirectory = Path.Combine(_testDataPath, "settings");
     }
 

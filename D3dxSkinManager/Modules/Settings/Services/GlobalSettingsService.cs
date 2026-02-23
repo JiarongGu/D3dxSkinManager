@@ -43,7 +43,7 @@ public class GlobalSettingsService : IGlobalSettingsService
     private readonly string _settingsFilePath;
     private GlobalSettings? _cachedSettings;
     private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly AppEnvironment _appEnvironment;
+    private readonly IAppEnvironment _appEnvironment;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -51,7 +51,7 @@ public class GlobalSettingsService : IGlobalSettingsService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public GlobalSettingsService(IGlobalPathService globalPaths, AppEnvironment appEnvironment)
+    public GlobalSettingsService(IGlobalPathService globalPaths, IAppEnvironment appEnvironment)
     {
         _appEnvironment = appEnvironment ?? throw new ArgumentNullException(nameof(appEnvironment));
         var globalPathsService = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));

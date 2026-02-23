@@ -145,7 +145,7 @@ public class ProfileServiceRouter : IDisposable
             throw new InvalidOperationException($"Profile not found: {profileId}");
 
         // Register core services and context
-        services.AddSingleton(_globalServices.GetRequiredService<AppEnvironment>());
+        services.AddSingleton(_globalServices.GetRequiredService<IAppEnvironment>());
         services.AddCoreServices(_globalServices);
         services.AddContextServices(profileId);
 

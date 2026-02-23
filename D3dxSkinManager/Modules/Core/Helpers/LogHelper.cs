@@ -77,7 +77,7 @@ public interface ILogHelper
 public class LogHelper : ILogHelper, IDisposable
 {
     private readonly IGlobalPathService _globalPaths;
-    private readonly AppEnvironment _appEnvironment;
+    private readonly IAppEnvironment _appEnvironment;
 
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private readonly string _logsBaseDirectory;
@@ -91,7 +91,7 @@ public class LogHelper : ILogHelper, IDisposable
     }
 
     // Constructor for DI (preferred)
-    public LogHelper(IGlobalPathService globalPaths, AppEnvironment appEnvironment)
+    public LogHelper(IGlobalPathService globalPaths, IAppEnvironment appEnvironment)
     {
         _globalPaths = globalPaths;
         _appEnvironment = appEnvironment;

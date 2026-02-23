@@ -8,6 +8,7 @@ using Xunit;
 using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Core;
 
@@ -17,6 +18,7 @@ namespace D3dxSkinManager.Tests.Modules.Core;
 public class ImageServiceTests : IDisposable
 {
     private readonly string _testDataPath;
+    private readonly Mock<IGlobalPathService> _mockGlobalPathService;
     private readonly PathHelper _pathHelper;
     private readonly Mock<IProfilePathService> _mockProfilePaths;
     private readonly Mock<IPathValidator> _mockPathValidator = new();
@@ -30,18 +32,19 @@ public class ImageServiceTests : IDisposable
         _testDataPath = Path.Combine(Path.GetTempPath(), $"test_imageservice_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDataPath);
 
-        _pathHelper = new PathHelper(_testDataPath);
+        _mockGlobalPathService = new Mock<IGlobalPathService>();
+        _mockGlobalPathService.Setup(x => x.BaseDataPath).Returns(_testDataPath);
+        _pathHelper = new PathHelper(_mockGlobalPathService.Object);
 
         // Mock ProfilePathService
         _mockProfilePaths = new Mock<IProfilePathService>();
         _mockProfilePaths.Setup(x => x.ProfilePath).Returns(_testDataPath);
         _mockProfilePaths.Setup(x => x.ThumbnailsDirectory).Returns(Path.Combine(_testDataPath, "thumbnails"));
         _mockProfilePaths.Setup(x => x.PreviewsDirectory).Returns(Path.Combine(_testDataPath, "previews"));
-        _mockProfilePaths.Setup(x => x.EnsureDirectoriesExist()).Callback(() =>
-        {
-            Directory.CreateDirectory(Path.Combine(_testDataPath, "thumbnails"));
-            Directory.CreateDirectory(Path.Combine(_testDataPath, "previews"));
-        });
+
+        // Create directories directly instead of mocking non-existent method
+        Directory.CreateDirectory(Path.Combine(_testDataPath, "thumbnails"));
+        Directory.CreateDirectory(Path.Combine(_testDataPath, "previews"));
 
         // Mock helper methods
         _mockProfilePaths.Setup(x => x.GetThumbnailPath(It.IsAny<string>(), It.IsAny<string>()))

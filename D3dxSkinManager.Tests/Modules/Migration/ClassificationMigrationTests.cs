@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
-using Xunit;
 using D3dxSkinManager.Modules.Migration.Steps;
 using D3dxSkinManager.Modules.Migration.Models;
-using D3dxSkinManager.Modules.Context;
+using D3dxSkinManager.Modules.Migration.Parsers;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Mods.Services;
@@ -22,21 +16,28 @@ namespace D3dxSkinManager.Tests.Modules.Migration;
 /// </summary>
 public class ClassificationMigrationTests
 {
-    private readonly Mock<IProfileContext> _mockProfileContext = new();
+    private readonly Mock<IProfilePathService> _mockProfilePaths = new();
+    private readonly Mock<IModRepository> _mockModRepository = new();
+    private readonly Mock<IPythonClassificationFileParser> _mockClassificationParser = new();
     private readonly Mock<ILogHelper> _mockLogHelper = new();
     private readonly Mock<IClassificationService> _mockClassificationService = new();
     private readonly Mock<IModAutoDetectionService> _mockAutoDetectionService = new();
     private readonly MigrationStep3MigrateClassifications _migrationStep;
+    private readonly string _testLogPath;
 
     public ClassificationMigrationTests()
     {
-        _mockProfileContext.Setup(p => p.ProfileDataPath).Returns(@"C:\TestProfile\data");
+        _testLogPath = Path.Combine(Path.GetTempPath(), "test_migration.log");
+
+        _mockProfilePaths.Setup(p => p.AutoDetectionRulesPath).Returns(@"C:\TestProfile\data\autodetection.json");
 
         _migrationStep = new MigrationStep3MigrateClassifications(
-            _mockProfileContext.Object,
-            _mockLogHelper.Object,
+            _mockProfilePaths.Object,
+            _mockModRepository.Object,
+            _mockClassificationParser.Object,
             _mockClassificationService.Object,
-            _mockAutoDetectionService.Object
+            _mockAutoDetectionService.Object,
+            _mockLogHelper.Object
         );
     }
 
@@ -44,15 +45,26 @@ public class ClassificationMigrationTests
     public async Task MigrateClassifications_ShouldCreateNodesWithGUIDs()
     {
         // Arrange
-        var analysis = new MigrationAnalysis
+        var testEnvPath = Path.Combine(Path.GetTempPath(), "test_env");
+        var classificationDir = Path.Combine(testEnvPath, "classification");
+        Directory.CreateDirectory(classificationDir);
+
+        var context = new MigrationContext
         {
-            HasData = true,
-            ModGroups = new Dictionary<string, List<string>>
-            {
-                { "Characters", new List<string> { "Character1", "Character2" } },
-                { "Weapons", new List<string> { "Sword", "Bow" } }
-            }
+            Options = new MigrationOptions { MigrateClassifications = true },
+            LogPath = _testLogPath,
+            EnvironmentPath = testEnvPath
         };
+
+        var classifications = new Dictionary<string, List<string>>
+        {
+            { "Characters", new List<string> { "Character1", "Character2" } },
+            { "Weapons", new List<string> { "Sword", "Bow" } }
+        };
+
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(classificationDir))
+            .ReturnsAsync(classifications);
 
         var createdNodes = new List<ClassificationNode>();
 
@@ -61,11 +73,11 @@ public class ClassificationMigrationTests
             .Setup(s => s.CreateNodeAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
-                It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<int>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()))
-            .ReturnsAsync((string nodeId, string name, string parentId, int priority, string desc, string thumb) =>
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync((string nodeId, string name, string? parentId, int priority, string? desc, string? thumb) =>
             {
                 var node = new ClassificationNode
                 {
@@ -79,11 +91,22 @@ public class ClassificationMigrationTests
                 return node;
             });
 
+        _mockAutoDetectionService
+            .Setup(s => s.AddRuleAsync(It.IsAny<ModAutoDetectionRule>()))
+            .Returns(Task.CompletedTask);
+
+        _mockAutoDetectionService
+            .Setup(s => s.SaveRulesAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        _mockModRepository
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
+            .ReturnsAsync(new List<ModInfo>());
+
         // Act
-        var result = await _migrationStep.ExecuteAsync(analysis, new MigrationOptions(), null);
+        await _migrationStep.ExecuteAsync(context);
 
         // Assert
-        result.Success.Should().BeTrue();
         createdNodes.Should().NotBeEmpty();
 
         // All created nodes should have valid GUIDs
@@ -105,20 +128,34 @@ public class ClassificationMigrationTests
             parentNodes.Any(p => p.Id == child.ParentId).Should().BeTrue(
                 $"Child {child.Name} should reference a valid parent GUID");
         }
+
+        // Cleanup
+        try { Directory.Delete(testEnvPath, true); } catch { }
     }
 
     [Fact]
     public async Task MigrateClassifications_ShouldHandleExistingPathBasedIds()
     {
         // Arrange - simulate migration with legacy path-based IDs
-        var analysis = new MigrationAnalysis
+        var testEnvPath = Path.Combine(Path.GetTempPath(), "test_env_path");
+        var classificationDir = Path.Combine(testEnvPath, "classification");
+        Directory.CreateDirectory(classificationDir);
+
+        var context = new MigrationContext
         {
-            HasData = true,
-            ModGroups = new Dictionary<string, List<string>>
-            {
-                { "Game.Characters", new List<string> { "Game.Characters.Hero" } }
-            }
+            Options = new MigrationOptions { MigrateClassifications = true },
+            LogPath = _testLogPath,
+            EnvironmentPath = testEnvPath
         };
+
+        var classifications = new Dictionary<string, List<string>>
+        {
+            { "Game.Characters", new List<string> { "Game.Characters.Hero" } }
+        };
+
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(classificationDir))
+            .ReturnsAsync(classifications);
 
         var createdNodes = new List<ClassificationNode>();
 
@@ -126,11 +163,11 @@ public class ClassificationMigrationTests
             .Setup(s => s.CreateNodeAsync(
                 It.IsAny<string>(), // Old path-based ID will be passed but ignored
                 It.IsAny<string>(),
-                It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<int>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()))
-            .ReturnsAsync((string oldId, string name, string parentId, int priority, string desc, string thumb) =>
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync((string oldId, string name, string? parentId, int priority, string? desc, string? thumb) =>
             {
                 // Service ignores oldId and generates GUID
                 var node = new ClassificationNode
@@ -145,12 +182,22 @@ public class ClassificationMigrationTests
                 return node;
             });
 
+        _mockAutoDetectionService
+            .Setup(s => s.AddRuleAsync(It.IsAny<ModAutoDetectionRule>()))
+            .Returns(Task.CompletedTask);
+
+        _mockAutoDetectionService
+            .Setup(s => s.SaveRulesAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        _mockModRepository
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
+            .ReturnsAsync(new List<ModInfo>());
+
         // Act
-        var result = await _migrationStep.ExecuteAsync(analysis, new MigrationOptions(), null);
+        await _migrationStep.ExecuteAsync(context);
 
         // Assert
-        result.Success.Should().BeTrue();
-
         // Even though old path-based IDs were provided, new GUIDs should be generated
         foreach (var node in createdNodes)
         {
@@ -158,30 +205,44 @@ public class ClassificationMigrationTests
             node.Id.Should().NotBe("Game.Characters"); // Should not use old ID
             Guid.TryParse(node.Id, out _).Should().BeTrue();
         }
+
+        // Cleanup
+        try { Directory.Delete(testEnvPath, true); } catch { }
     }
 
     [Fact]
     public async Task MigrateClassifications_ShouldPreventDuplicateNames()
     {
         // Arrange - attempt to create nodes with duplicate names at same level
-        var analysis = new MigrationAnalysis
+        var testEnvPath = Path.Combine(Path.GetTempPath(), "test_env_dup");
+        var classificationDir = Path.Combine(testEnvPath, "classification");
+        Directory.CreateDirectory(classificationDir);
+
+        var context = new MigrationContext
         {
-            HasData = true,
-            ModGroups = new Dictionary<string, List<string>>
-            {
-                { "Category", new List<string> { "Item", "Item" } } // Duplicate names
-            }
+            Options = new MigrationOptions { MigrateClassifications = true },
+            LogPath = _testLogPath,
+            EnvironmentPath = testEnvPath
         };
+
+        var classifications = new Dictionary<string, List<string>>
+        {
+            { "Category", new List<string> { "Item", "Item" } } // Duplicate names
+        };
+
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(classificationDir))
+            .ReturnsAsync(classifications);
 
         var callCount = 0;
         _mockClassificationService
             .Setup(s => s.CreateNodeAsync(
                 It.IsAny<string>(),
                 "Item",
-                It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<int>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()))
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .ReturnsAsync(() =>
             {
                 callCount++;
@@ -206,10 +267,10 @@ public class ClassificationMigrationTests
             .Setup(s => s.CreateNodeAsync(
                 It.IsAny<string>(),
                 "Category",
-                It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<int>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()))
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .ReturnsAsync(new ClassificationNode
             {
                 Id = Guid.NewGuid().ToString(),
@@ -217,36 +278,62 @@ public class ClassificationMigrationTests
                 ParentId = null
             });
 
+        _mockAutoDetectionService
+            .Setup(s => s.AddRuleAsync(It.IsAny<ModAutoDetectionRule>()))
+            .Returns(Task.CompletedTask);
+
+        _mockAutoDetectionService
+            .Setup(s => s.SaveRulesAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        _mockModRepository
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
+            .ReturnsAsync(new List<ModInfo>());
+
         // Act
-        var result = await _migrationStep.ExecuteAsync(analysis, new MigrationOptions(), null);
+        await _migrationStep.ExecuteAsync(context);
 
         // Assert
-        result.Success.Should().BeTrue(); // Migration continues despite duplicate
+        // Migration continues despite duplicate
         _mockClassificationService.Verify(
-            s => s.CreateNodeAsync(It.IsAny<string>(), "Item", It.IsAny<string>(),
-                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()),
+            s => s.CreateNodeAsync(It.IsAny<string>(), "Item", It.IsAny<string?>(),
+                It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>()),
             Times.Exactly(2)); // Both attempts should be made
+
+        // Cleanup
+        try { Directory.Delete(testEnvPath, true); } catch { }
     }
 
     [Fact]
     public async Task MigrateClassifications_ShouldCreateAutoDetectionRules()
     {
         // Arrange
-        var analysis = new MigrationAnalysis
+        var testEnvPath = Path.Combine(Path.GetTempPath(), "test_env_rules");
+        var classificationDir = Path.Combine(testEnvPath, "classification");
+        Directory.CreateDirectory(classificationDir);
+
+        var context = new MigrationContext
         {
-            HasData = true,
-            ModGroups = new Dictionary<string, List<string>>
-            {
-                { "Characters", new List<string> { "Hero", "Villain" } }
-            }
+            Options = new MigrationOptions { MigrateClassifications = true },
+            LogPath = _testLogPath,
+            EnvironmentPath = testEnvPath
         };
+
+        var classifications = new Dictionary<string, List<string>>
+        {
+            { "Characters", new List<string> { "Hero", "Villain" } }
+        };
+
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(classificationDir))
+            .ReturnsAsync(classifications);
 
         var capturedRules = new List<ModAutoDetectionRule>();
 
         _mockClassificationService
             .Setup(s => s.CreateNodeAsync(It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync((string nodeId, string name, string parentId, int priority, string desc, string thumb) =>
+                It.IsAny<string?>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .ReturnsAsync((string nodeId, string name, string? parentId, int priority, string? desc, string? thumb) =>
                 new ClassificationNode
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -259,57 +346,94 @@ public class ClassificationMigrationTests
             .Callback<ModAutoDetectionRule>(rule => capturedRules.Add(rule))
             .Returns(Task.CompletedTask);
 
+        _mockAutoDetectionService
+            .Setup(s => s.SaveRulesAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        _mockModRepository
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
+            .ReturnsAsync(new List<ModInfo>());
+
         // Act
-        var result = await _migrationStep.ExecuteAsync(analysis, new MigrationOptions(), null);
+        await _migrationStep.ExecuteAsync(context);
 
         // Assert
-        result.Success.Should().BeTrue();
         capturedRules.Should().HaveCount(2); // One for each leaf node
 
         // Rules should use the node names for pattern matching
         capturedRules.Should().Contain(r => r.Pattern == "*Hero*" && r.Category == "Hero");
         capturedRules.Should().Contain(r => r.Pattern == "*Villain*" && r.Category == "Villain");
+
+        // Cleanup
+        try { Directory.Delete(testEnvPath, true); } catch { }
     }
 
     [Fact]
     public async Task MigrateClassifications_WithEmptyData_ShouldReturnSuccess()
     {
         // Arrange
-        var analysis = new MigrationAnalysis
+        var testEnvPath = Path.Combine(Path.GetTempPath(), "test_env_empty");
+        var classificationDir = Path.Combine(testEnvPath, "classification");
+        Directory.CreateDirectory(classificationDir);
+
+        var context = new MigrationContext
         {
-            HasData = true,
-            ModGroups = new Dictionary<string, List<string>>() // Empty
+            Options = new MigrationOptions { MigrateClassifications = true },
+            LogPath = _testLogPath,
+            EnvironmentPath = testEnvPath
         };
 
+        var classifications = new Dictionary<string, List<string>>(); // Empty
+
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(classificationDir))
+            .ReturnsAsync(classifications);
+
+        _mockAutoDetectionService
+            .Setup(s => s.SaveRulesAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
         // Act
-        var result = await _migrationStep.ExecuteAsync(analysis, new MigrationOptions(), null);
+        await _migrationStep.ExecuteAsync(context);
 
         // Assert
-        result.Success.Should().BeTrue();
-        result.Message.Should().Contain("No classification");
         _mockClassificationService.Verify(
             s => s.CreateNodeAsync(It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()),
+                It.IsAny<string?>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>()),
             Times.Never);
+
+        // Cleanup
+        try { Directory.Delete(testEnvPath, true); } catch { }
     }
 
     [Fact]
     public async Task MigrateClassifications_WhenServiceThrows_ShouldContinueAndLogError()
     {
         // Arrange
-        var analysis = new MigrationAnalysis
+        var testEnvPath = Path.Combine(Path.GetTempPath(), "test_env_error");
+        var classificationDir = Path.Combine(testEnvPath, "classification");
+        Directory.CreateDirectory(classificationDir);
+
+        var context = new MigrationContext
         {
-            HasData = true,
-            ModGroups = new Dictionary<string, List<string>>
-            {
-                { "Category", new List<string> { "Item1", "Item2" } }
-            }
+            Options = new MigrationOptions { MigrateClassifications = true },
+            LogPath = _testLogPath,
+            EnvironmentPath = testEnvPath
         };
+
+        var classifications = new Dictionary<string, List<string>>
+        {
+            { "Category", new List<string> { "Item1", "Item2" } }
+        };
+
+        _mockClassificationParser
+            .Setup(p => p.ParseAsync(classificationDir))
+            .ReturnsAsync(classifications);
 
         var callCount = 0;
         _mockClassificationService
             .Setup(s => s.CreateNodeAsync(It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string?>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(() =>
             {
                 callCount++;
@@ -325,13 +449,28 @@ public class ClassificationMigrationTests
                 };
             });
 
+        _mockAutoDetectionService
+            .Setup(s => s.AddRuleAsync(It.IsAny<ModAutoDetectionRule>()))
+            .Returns(Task.CompletedTask);
+
+        _mockAutoDetectionService
+            .Setup(s => s.SaveRulesAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        _mockModRepository
+            .Setup(r => r.GetByCategoryAsync(It.IsAny<string>()))
+            .ReturnsAsync(new List<ModInfo>());
+
         // Act
-        var result = await _migrationStep.ExecuteAsync(analysis, new MigrationOptions(), null);
+        await _migrationStep.ExecuteAsync(context);
 
         // Assert
-        result.Success.Should().BeTrue(); // Migration should continue despite errors
+        // Migration should continue despite errors
         _mockLogHelper.Verify(
             l => l.Error(It.IsAny<string>(), It.IsAny<string>()),
             Times.AtLeastOnce); // Error should be logged
+
+        // Cleanup
+        try { Directory.Delete(testEnvPath, true); } catch { }
     }
 }

@@ -326,11 +326,11 @@ dotnet ef database update
 **Pattern:**
 ```csharp
 // Unit: Pure functions
-[Test]
+[Fact]
 public void PathHelper_ConvertsPath() { }
 
 // Integration: With dependencies
-[Test]
+[Fact]
 public async Task ModService_LoadsMod_WithDatabase() { }
 ```
 

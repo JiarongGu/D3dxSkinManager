@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using Xunit;
+using Moq;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Core;
@@ -11,16 +13,24 @@ namespace D3dxSkinManager.Tests.Modules.Core;
 public class PathHelperTests
 {
     private const string TestDataPath = @"C:\TestApp\data";
+    private readonly Mock<IGlobalPathService> _mockGlobalPathService;
+    private readonly PathHelper _helper;
+
+    public PathHelperTests()
+    {
+        _mockGlobalPathService = new Mock<IGlobalPathService>();
+        _mockGlobalPathService.Setup(x => x.BaseDataPath).Returns(TestDataPath);
+        _helper = new PathHelper(_mockGlobalPathService.Object);
+    }
 
     [Fact]
     public void ToRelativePath_PathUnderDataFolder_ReturnsRelativePath()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var absolutePath = Path.Combine(TestDataPath, "thumbnails", "abc123.png");
 
         // Act
-        var result = helper.ToRelativePath(absolutePath);
+        var result = _helper.ToRelativePath(absolutePath);
 
         // Assert
         Assert.NotNull(result);
@@ -32,11 +42,10 @@ public class PathHelperTests
     public void ToRelativePath_PathOutsideDataFolder_ReturnsAbsolutePath()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var externalPath = @"D:\Games\MyGame\mods";
 
         // Act
-        var result = helper.ToRelativePath(externalPath);
+        var result = _helper.ToRelativePath(externalPath);
 
         // Assert
         Assert.NotNull(result);
@@ -47,10 +56,9 @@ public class PathHelperTests
     public void ToRelativePath_NullPath_ReturnsNull()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
 
         // Act
-        var result = helper.ToRelativePath(null);
+        var result = _helper.ToRelativePath(null);
 
         // Assert
         Assert.Null(result);
@@ -60,10 +68,9 @@ public class PathHelperTests
     public void ToRelativePath_EmptyPath_ReturnsNull()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
 
         // Act
-        var result = helper.ToRelativePath(string.Empty);
+        var result = _helper.ToRelativePath(string.Empty);
 
         // Assert
         Assert.Null(result);
@@ -73,11 +80,10 @@ public class PathHelperTests
     public void ToRelativePath_NestedPath_ReturnsCorrectRelativePath()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var nestedPath = Path.Combine(TestDataPath, "profiles", "default", "mods", "archive.zip");
 
         // Act
-        var result = helper.ToRelativePath(nestedPath);
+        var result = _helper.ToRelativePath(nestedPath);
 
         // Assert
         Assert.NotNull(result);
@@ -88,11 +94,10 @@ public class PathHelperTests
     public void ToAbsolutePath_RelativePath_ReturnsAbsolutePath()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var relativePath = Path.Combine("thumbnails", "abc123.png");
 
         // Act
-        var result = helper.ToAbsolutePath(relativePath);
+        var result = _helper.ToAbsolutePath(relativePath);
 
         // Assert
         Assert.NotNull(result);
@@ -104,11 +109,10 @@ public class PathHelperTests
     public void ToAbsolutePath_AlreadyAbsolutePath_ReturnsUnchanged()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var absolutePath = @"D:\Games\MyGame\mods";
 
         // Act
-        var result = helper.ToAbsolutePath(absolutePath);
+        var result = _helper.ToAbsolutePath(absolutePath);
 
         // Assert
         Assert.NotNull(result);
@@ -119,10 +123,9 @@ public class PathHelperTests
     public void ToAbsolutePath_NullPath_ReturnsNull()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
 
         // Act
-        var result = helper.ToAbsolutePath(null);
+        var result = _helper.ToAbsolutePath(null);
 
         // Assert
         Assert.Null(result);
@@ -132,10 +135,9 @@ public class PathHelperTests
     public void ToAbsolutePath_EmptyPath_ReturnsNull()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
 
         // Act
-        var result = helper.ToAbsolutePath(string.Empty);
+        var result = _helper.ToAbsolutePath(string.Empty);
 
         // Assert
         Assert.Null(result);
@@ -145,11 +147,10 @@ public class PathHelperTests
     public void IsRelativePath_RelativePath_ReturnsTrue()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var relativePath = Path.Combine("thumbnails", "abc123.png");
 
         // Act
-        var result = helper.IsRelativePath(relativePath);
+        var result = _helper.IsRelativePath(relativePath);
 
         // Assert
         Assert.True(result);
@@ -159,11 +160,10 @@ public class PathHelperTests
     public void IsRelativePath_AbsolutePath_ReturnsFalse()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var absolutePath = @"C:\TestApp\data\thumbnails\abc123.png";
 
         // Act
-        var result = helper.IsRelativePath(absolutePath);
+        var result = _helper.IsRelativePath(absolutePath);
 
         // Assert
         Assert.False(result);
@@ -173,11 +173,10 @@ public class PathHelperTests
     public void IsUnderDataPath_PathUnderDataFolder_ReturnsTrue()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var pathUnderData = Path.Combine(TestDataPath, "thumbnails", "abc123.png");
 
         // Act
-        var result = helper.IsUnderDataPath(pathUnderData);
+        var result = _helper.IsUnderDataPath(pathUnderData);
 
         // Assert
         Assert.True(result);
@@ -187,11 +186,10 @@ public class PathHelperTests
     public void IsUnderDataPath_PathOutsideDataFolder_ReturnsFalse()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var externalPath = @"D:\Games\MyGame\mods";
 
         // Act
-        var result = helper.IsUnderDataPath(externalPath);
+        var result = _helper.IsUnderDataPath(externalPath);
 
         // Assert
         Assert.False(result);
@@ -201,12 +199,11 @@ public class PathHelperTests
     public void RoundTrip_RelativeToAbsoluteToRelative_PreservesPath()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var originalRelative = Path.Combine("thumbnails", "abc123.png");
 
         // Act
-        var absolute = helper.ToAbsolutePath(originalRelative);
-        var backToRelative = helper.ToRelativePath(absolute);
+        var absolute = _helper.ToAbsolutePath(originalRelative);
+        var backToRelative = _helper.ToRelativePath(absolute);
 
         // Assert
         Assert.Equal(originalRelative, backToRelative);
@@ -216,12 +213,11 @@ public class PathHelperTests
     public void RoundTrip_ExternalAbsolutePathRemains_Unchanged()
     {
         // Arrange
-        var helper = new PathHelper(TestDataPath);
         var externalPath = @"D:\Games\MyGame\mods";
 
         // Act
-        var relative = helper.ToRelativePath(externalPath);
-        var absolute = helper.ToAbsolutePath(relative);
+        var relative = _helper.ToRelativePath(externalPath);
+        var absolute = _helper.ToAbsolutePath(relative);
 
         // Assert
         Assert.Equal(externalPath, relative);
@@ -231,14 +227,11 @@ public class PathHelperTests
     [Fact]
     public void BaseDataPath_Property_ReturnsCorrectPath()
     {
-        // Arrange
-        var helper = new PathHelper(TestDataPath);
-
-        // Act
-        var result = helper.BaseDataPath;
+        // Arrange & Act
+        var result = _mockGlobalPathService.Object.BaseDataPath;
 
         // Assert
-        Assert.Equal(Path.GetFullPath(TestDataPath), result);
+        Assert.Equal(TestDataPath, result);
     }
 
     [Theory]
@@ -247,11 +240,8 @@ public class PathHelperTests
     [InlineData(@"C:\TestApp\data\cache\temp\extract", "cache\\temp\\extract")]
     public void ToRelativePath_VariousPaths_ReturnsExpectedRelative(string absolutePath, string expectedRelative)
     {
-        // Arrange
-        var helper = new PathHelper(TestDataPath);
-
         // Act
-        var result = helper.ToRelativePath(absolutePath);
+        var result = _helper.ToRelativePath(absolutePath);
 
         // Assert
         Assert.Equal(expectedRelative, result);
@@ -263,11 +253,8 @@ public class PathHelperTests
     [InlineData("cache\\temp\\extract", @"C:\TestApp\data\cache\temp\extract")]
     public void ToAbsolutePath_VariousPaths_ReturnsExpectedAbsolute(string relativePath, string expectedAbsolute)
     {
-        // Arrange
-        var helper = new PathHelper(TestDataPath);
-
         // Act
-        var result = helper.ToAbsolutePath(relativePath);
+        var result = _helper.ToAbsolutePath(relativePath);
 
         // Assert
         Assert.Equal(expectedAbsolute, result);

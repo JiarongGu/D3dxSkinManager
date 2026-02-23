@@ -30,10 +30,4 @@
 			<TargetPath>data\languages\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
 		</Content>
 	</ItemGroup>
-
-	<ItemGroup>
-	  <Reference Update="C:\Users\user\.nuget\packages\microsoft.web.webview2\1.0.3800.47\buildTransitive\..\\lib_manual\net5.0-windows10.0.17763.0\Microsoft.Web.WebView2.Wpf.dll">
-	    <Private>False</Private>
-	  </Reference>
-	</ItemGroup>
 </Project>

@@ -21,7 +21,7 @@ public class GlobalSettingsServiceTests : IDisposable
     private readonly string _testDataPath;
     private readonly GlobalSettingsService _service;
     private readonly Mock<IGlobalPathService> _mockGlobalPaths;
-    private readonly AppEnvironment _appEnvironment;
+    private readonly Mock<IAppEnvironment> _mockAppEnvironment;
 
     public GlobalSettingsServiceTests()
     {
@@ -41,15 +41,13 @@ public class GlobalSettingsServiceTests : IDisposable
             Directory.CreateDirectory(Path.Combine(_testDataPath, "settings"));
         });
 
-        // Create AppEnvironment for tests
-        _appEnvironment = new AppEnvironment
-        {
-            BaseDirectory = _testDataPath,
-            IsDevelopment = false,
-            MinimumLogLevel = LogLevel.Off
-        };
+        // Create mock AppEnvironment for tests - no file I/O needed!
+        _mockAppEnvironment = new Mock<IAppEnvironment>();
+        _mockAppEnvironment.Setup(x => x.BaseDirectory).Returns(_testDataPath);
+        _mockAppEnvironment.Setup(x => x.IsDevelopment).Returns(false);
+        _mockAppEnvironment.Setup(x => x.MinimumLogLevel).Returns(LogLevel.Off);
 
-        _service = new GlobalSettingsService(_mockGlobalPaths.Object, _appEnvironment);
+        _service = new GlobalSettingsService(_mockGlobalPaths.Object, _mockAppEnvironment.Object);
     }
 
     public void Dispose()
@@ -106,7 +104,7 @@ public class GlobalSettingsServiceTests : IDisposable
         await _service.UpdateSettingsAsync(newSettings);
 
         // Create new service instance to ensure reading from file
-        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _mockLogger.Object);
+        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _mockAppEnvironment.Object);
         var retrieved = await newService.GetSettingsAsync();
 
         // Assert
@@ -215,7 +213,7 @@ public class GlobalSettingsServiceTests : IDisposable
         await _service.UpdateSettingAsync("theme", "dark");
 
         // Create new service instance to ensure reading from file
-        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _appEnvironment);
+        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _mockAppEnvironment.Object);
         var settings = await newService.GetSettingsAsync();
 
         // Assert
@@ -250,7 +248,7 @@ public class GlobalSettingsServiceTests : IDisposable
         await _service.ResetSettingsAsync();
 
         // Create new service instance
-        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _appEnvironment);
+        var newService = new GlobalSettingsService(_mockGlobalPaths.Object, _mockAppEnvironment.Object);
         var settings = await newService.GetSettingsAsync();
 
         // Assert

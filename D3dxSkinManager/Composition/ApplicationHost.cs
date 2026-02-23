@@ -20,18 +20,18 @@ namespace D3dxSkinManager.Composition;
 /// </summary>
 public class ApplicationHost
 {
-    private Form _mainForm;
-    private WebView2 _webView;
-    private WebViewInitializer _webViewInitializer;
-    private IpcCommunicationHandler _ipcHandler;
-    private MessageDispatcher _messageDispatcher;
-    private ServiceProvider _serviceProvider;
-    private ProfileServiceRouter _profileRouter;
-    private IPerformanceMonitor _performanceMonitor;
+    private Form _mainForm = null!;
+    private WebView2 _webView = null!;
+    private WebViewInitializer _webViewInitializer = null!;
+    private IpcCommunicationHandler _ipcHandler = null!;
+    private MessageDispatcher _messageDispatcher = null!;
+    private ServiceProvider _serviceProvider = null!;
+    private ProfileServiceRouter _profileRouter = null!;
+    private IPerformanceMonitor _performanceMonitor = null!;
     private ILogHelper _logger;
-    private AppEnvironment _environment;
+    private readonly IAppEnvironment _environment;
 
-    public ApplicationHost(AppEnvironment environment, ILogHelper logHelper)
+    public ApplicationHost(IAppEnvironment environment, ILogHelper logHelper)
     {
         _logger = logHelper;
         _environment = environment;
@@ -91,7 +91,7 @@ public class ApplicationHost
             _logger.Info("Initializing services...", "Host");
             var services = new ServiceCollection();
 
-            // Register AppEnvironment first
+            // Register IAppEnvironment as interface for DI
             services.AddSingleton(_environment);
 
             ConfigureServices(services);

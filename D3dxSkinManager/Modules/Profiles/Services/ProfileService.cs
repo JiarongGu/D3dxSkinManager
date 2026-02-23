@@ -62,7 +62,7 @@ public interface IProfileService
     /// <summary>
     /// Import profile from configuration JSON
     /// </summary>
-    Task<Profile> ImportProfileConfigAsync(string configJson, string workDirectory);
+    Task<Profile?> ImportProfileConfigAsync(string configJson, string workDirectory);
 
     /// <summary>
     /// Get profile configuration
@@ -318,7 +318,7 @@ public class ProfileService : IProfileService
         return JsonHelper.Serialize(exportData);
     }
 
-    public async Task<Profile> ImportProfileConfigAsync(string configJson, string workDirectory)
+    public async Task<Profile?> ImportProfileConfigAsync(string configJson, string workDirectory)
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
 

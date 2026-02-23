@@ -54,15 +54,24 @@ public class SystemFileDialogService : ISystemFileDialogService
         // Try to use the main form's UI thread if available
         if (Application.OpenForms.Count > 0)
         {
-            var mainForm = Application.OpenForms[0];
+            var mainForm = Application.OpenForms[0]!; // OpenForms[0] is guaranteed non-null when Count > 0
             if (mainForm.InvokeRequired)
             {
-                // We're on a different thread, invoke on UI thread
-                return await Task.Run(() =>
+                // Use TaskCompletionSource to properly bridge synchronous Invoke with async
+                var tcs = new TaskCompletionSource<FileDialogResult>();
+                mainForm.BeginInvoke(new Action(() =>
                 {
-                    return (FileDialogResult)mainForm.Invoke(new Func<FileDialogResult>(() =>
-                        ShowOpenFileDialog(options, initialPath)));
-                });
+                    try
+                    {
+                        var result = ShowOpenFileDialog(options, initialPath);
+                        tcs.SetResult(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.SetException(ex);
+                    }
+                }));
+                return await tcs.Task.ConfigureAwait(false);
             }
             else
             {
@@ -142,15 +151,24 @@ public class SystemFileDialogService : ISystemFileDialogService
         // Try to use the main form's UI thread if available
         if (Application.OpenForms.Count > 0)
         {
-            var mainForm = Application.OpenForms[0];
+            var mainForm = Application.OpenForms[0]!; // OpenForms[0] is guaranteed non-null when Count > 0
             if (mainForm.InvokeRequired)
             {
-                // We're on a different thread, invoke on UI thread
-                return await Task.Run(() =>
+                // Use TaskCompletionSource to properly bridge synchronous Invoke with async
+                var tcs = new TaskCompletionSource<FileDialogResult>();
+                mainForm.BeginInvoke(new Action(() =>
                 {
-                    return (FileDialogResult)mainForm.Invoke(new Func<FileDialogResult>(() =>
-                        ShowFolderDialog(options, initialPath)));
-                });
+                    try
+                    {
+                        var result = ShowFolderDialog(options, initialPath);
+                        tcs.SetResult(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.SetException(ex);
+                    }
+                }));
+                return await tcs.Task.ConfigureAwait(false);
             }
             else
             {
@@ -216,15 +234,24 @@ public class SystemFileDialogService : ISystemFileDialogService
         // Try to use the main form's UI thread if available
         if (Application.OpenForms.Count > 0)
         {
-            var mainForm = Application.OpenForms[0];
+            var mainForm = Application.OpenForms[0]!; // OpenForms[0] is guaranteed non-null when Count > 0
             if (mainForm.InvokeRequired)
             {
-                // We're on a different thread, invoke on UI thread
-                return await Task.Run(() =>
+                // Use TaskCompletionSource to properly bridge synchronous Invoke with async
+                var tcs = new TaskCompletionSource<FileDialogResult>();
+                mainForm.BeginInvoke(new Action(() =>
                 {
-                    return (FileDialogResult)mainForm.Invoke(new Func<FileDialogResult>(() =>
-                        ShowSaveFileDialog(options, initialPath)));
-                });
+                    try
+                    {
+                        var result = ShowSaveFileDialog(options, initialPath);
+                        tcs.SetResult(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.SetException(ex);
+                    }
+                }));
+                return await tcs.Task.ConfigureAwait(false);
             }
             else
             {

@@ -63,7 +63,7 @@ public class MigrationServiceTests : IDisposable
 
         // Setup mocks
         _mockProfileContext = new Mock<IProfileContext>();
-        _mockProfileContext.Setup(x => x.ProfilePath).Returns(_testDataPath);
+        _mockProfileContext.Setup(x => x.ProfileId).Returns("test-profile");
 
         // Setup ProfilePathService mock with all standard paths
         _mockProfilePaths = new Mock<IProfilePathService>();

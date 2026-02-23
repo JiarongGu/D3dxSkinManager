@@ -86,9 +86,9 @@ public interface IGlobalPathService
 /// </summary>
 public class GlobalPathService : IGlobalPathService
 {
-    private readonly AppEnvironment _environment;
+    private readonly IAppEnvironment _environment;
 
-    public GlobalPathService(AppEnvironment appEnvironment)
+    public GlobalPathService(IAppEnvironment appEnvironment)
     {
         _environment = appEnvironment;
         EnsureDirectoriesExist();

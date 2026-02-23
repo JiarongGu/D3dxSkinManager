@@ -206,20 +206,18 @@ dotnet ef database update
 ### Backend Unit Test
 
 ```csharp
-[TestFixture]
 public class YourServiceTests
 {
-    private YourService _service;
-    private Mock<IFileService> _fileServiceMock;
+    private readonly YourService _service;
+    private readonly Mock<IFileService> _fileServiceMock;
 
-    [SetUp]
-    public void Setup()
+    public YourServiceTests()
     {
         _fileServiceMock = new Mock<IFileService>();
         _service = new YourService(_fileServiceMock.Object);
     }
 
-    [Test]
+    [Fact]
     public async Task DoSomething_ValidInput_ReturnsSuccess()
     {
         // Arrange
@@ -230,7 +228,7 @@ public class YourServiceTests
         var result = await _service.DoSomethingAsync("test");
 
         // Assert
-        Assert.IsTrue(result.Success);
+        result.Success.Should().BeTrue();
     }
 }
 ```
