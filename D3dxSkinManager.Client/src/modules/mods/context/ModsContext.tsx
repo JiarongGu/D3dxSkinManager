@@ -25,15 +25,15 @@ interface ModsState {
   // Mod Data
   mods: ModInfo[];
   loading: boolean;
-  error: string | null;
-  selectedMod: ModInfo | null;
+  error: string | undefined;
+  selectedMod: ModInfo | undefined;
   selectedMods: ModInfo[];
 
   // Classification
   classificationTree: ClassificationNode[];
   classificationLoading: boolean;
-  selectedClassification: ClassificationNode | null;
-  classificationFilteredMods: ModInfo[] | null;
+  selectedClassification: ClassificationNode | undefined;
+  classificationFilteredMods: ModInfo[] | undefined;
   classificationSearch: string;
 
   // UI State
@@ -46,9 +46,9 @@ interface ModsState {
   importWindowVisible: boolean;
   addModUnitVisible: boolean;
   batchEditUnitVisible: boolean;
-  modToEdit: ModInfo | null;
+  modToEdit: ModInfo | undefined;
   currentTags: string[];
-  currentEditTask: ImportTask | null;
+  currentEditTask: ImportTask | undefined;
   selectedTaskIds: string[];
   tagDialogContext: "mod" | "import";
 
@@ -74,14 +74,14 @@ interface ModsContextValue {
     loadUnclassifiedMods: () => Promise<void>;
 
     // Selection Actions
-    selectMod: (mod: ModInfo | null) => void;
+    selectMod: (mod: ModInfo | undefined) => void;
     selectMods: (mods: ModInfo[]) => void;
-    selectClassification: (node: ClassificationNode | null) => void;
+    selectClassification: (node: ClassificationNode | undefined) => void;
     clearClassificationFilter: () => void;
     setSelectedObject: (object: string) => void;
 
     // Mod Operations
-    importMod: (task: ImportTask) => Promise<ModInfo | null>;
+    importMod: (task: ImportTask) => Promise<ModInfo | undefined>;
     importMods: (tasks: ImportTask[]) => Promise<void>;
     updateMod: (sha: string, data: Partial<ModInfo>) => Promise<void>;
     deleteMod: (sha: string) => Promise<void>;
@@ -219,7 +219,7 @@ export const ModsProvider: React.FC<{
 
   const importMod = useCallback(
     async (task: ImportTask) => {
-      if (!selectedProfileId) return null;
+      if (!selectedProfileId) return undefined;
       return await importOps.importMod(selectedProfileId, task);
     },
     [selectedProfileId, importOps],
@@ -520,10 +520,10 @@ export const ModsProvider: React.FC<{
   );
 
   const clearClassificationFilter = useCallback(() => {
-    classificationData.selectClassification(null);
+    classificationData.selectClassification(undefined);
     classificationData.dispatch({
       type: "SET_CLASSIFICATION_FILTERED_MODS",
-      payload: null,
+      payload: undefined,
     });
   }, [classificationData]);
 

@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Refactored - 2026-02-23 - Frontend null → undefined Migration ⭐⭐⭐
+Migrated entire frontend codebase from using `null` to `undefined` for absent values, following JavaScript best practices.
+**Impact**: ✅ More idiomatic TypeScript, clearer semantics, prevents null vs undefined bugs
+**Scope**: All state variables, props, return types, and function parameters now use `undefined` instead of `null`
+**Components**: ModsContext, ClassificationTree, reducers, hooks, and all related components
+**Guideline**: Added to AI_GUIDE.md - Use `undefined` for absent values, reserve `null` only for intentional "empty" values
+
+### Fixed - 2026-02-23 - Classification Tree Empty Container Context Menu
+Fixed right-click context menu not appearing on empty classification tree container.
+**Impact**: ✅ Users can now add root classifications when tree is empty via right-click
+**Component**: ClassificationTree.tsx - Changed null to empty string for consistency
+
 ### Improved - 2026-02-23 - Classification Category Name Display ⭐⭐⭐
 Mod list now displays human-readable category names instead of GUIDs. Optimized refresh logic to only update when necessary using node relationship checks.
 **Impact**: ✅ User-friendly category display, efficient updates, follows useDelayedLoading pattern

@@ -12,7 +12,7 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 
 export interface ModEditDialogProps {
   visible: boolean;
-  mod: ModInfo | null;
+  mod: ModInfo | undefined;
   onSave: (modData: Partial<ModInfo>) => Promise<void>;
   onCancel: () => void;
 }

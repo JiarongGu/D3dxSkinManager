@@ -7,8 +7,8 @@ import { ModInfo } from "../../../../shared/types/mod.types";
 export interface ModsDataState {
   mods: ModInfo[];
   loading: boolean;
-  error: string | null;
-  selectedMod: ModInfo | null;
+  error: string | undefined;
+  selectedMod: ModInfo | undefined;
   selectedMods: ModInfo[];
 }
 
@@ -19,8 +19,8 @@ export interface ModsDataState {
 export type ModsDataAction =
   | { type: "SET_MODS"; payload: ModInfo[] }
   | { type: "SET_LOADING"; payload: boolean }
-  | { type: "SET_ERROR"; payload: string | null }
-  | { type: "SELECT_MOD"; payload: ModInfo | null }
+  | { type: "SET_ERROR"; payload: string | undefined }
+  | { type: "SELECT_MOD"; payload: ModInfo | undefined }
   | { type: "SELECT_MODS"; payload: ModInfo[] }
   | {
       type: "UPDATE_MOD_LOCAL";
@@ -37,7 +37,7 @@ export function modsDataReducer(
 ): ModsDataState {
   switch (action.type) {
     case "SET_MODS":
-      return { ...state, mods: action.payload, error: null };
+      return { ...state, mods: action.payload, error: undefined };
       // Don't set loading to false here - let useDelayedLoading handle it
 
     case "SET_LOADING":
@@ -78,7 +78,7 @@ export function modsDataReducer(
 export const initialModsDataState: ModsDataState = {
   mods: [],
   loading: false,
-  error: null,
-  selectedMod: null,
+  error: undefined,
+  selectedMod: undefined,
   selectedMods: [],
 };

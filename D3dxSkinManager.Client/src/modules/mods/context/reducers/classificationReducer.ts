@@ -8,8 +8,8 @@ import { ModInfo } from "../../../../shared/types/mod.types";
 export interface ClassificationState {
   classificationTree: ClassificationNode[];
   classificationLoading: boolean;
-  selectedClassification: ClassificationNode | null;
-  classificationFilteredMods: ModInfo[] | null;
+  selectedClassification: ClassificationNode | undefined;
+  classificationFilteredMods: ModInfo[] | undefined;
   classificationSearch: string;
 }
 
@@ -20,8 +20,8 @@ export interface ClassificationState {
 export type ClassificationAction =
   | { type: "SET_CLASSIFICATION_TREE"; payload: ClassificationNode[] }
   | { type: "SET_CLASSIFICATION_LOADING"; payload: boolean }
-  | { type: "SELECT_CLASSIFICATION"; payload: ClassificationNode | null }
-  | { type: "SET_CLASSIFICATION_FILTERED_MODS"; payload: ModInfo[] | null }
+  | { type: "SELECT_CLASSIFICATION"; payload: ClassificationNode | undefined }
+  | { type: "SET_CLASSIFICATION_FILTERED_MODS"; payload: ModInfo[] | undefined }
   | { type: "SET_CLASSIFICATION_SEARCH"; payload: string }
   | {
       type: "UPDATE_FILTERED_MOD";
@@ -63,7 +63,7 @@ export function classificationReducer(
       // If category is being updated and there's a classification filter active
       const shouldRemoveFromFilteredList =
         newCategory !== undefined &&
-        state.classificationFilteredMods !== null &&
+        state.classificationFilteredMods !== undefined &&
         selectedCategoryId !== undefined &&
         newCategory !== selectedCategoryId;
 
@@ -77,7 +77,7 @@ export function classificationReducer(
               state.classificationFilteredMods.map((mod) =>
                 mod.sha === sha ? { ...mod, ...data } : mod
               )
-          : null,
+          : undefined,
       };
     }
 
@@ -93,7 +93,7 @@ export function classificationReducer(
 export const initialClassificationState: ClassificationState = {
   classificationTree: [],
   classificationLoading: false,
-  selectedClassification: null,
-  classificationFilteredMods: null,
+  selectedClassification: undefined,
+  classificationFilteredMods: undefined,
   classificationSearch: "",
 };

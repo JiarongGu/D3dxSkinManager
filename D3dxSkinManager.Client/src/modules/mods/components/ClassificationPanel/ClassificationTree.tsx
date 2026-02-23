@@ -100,12 +100,12 @@ export interface ClassificationTreeProps {
   /**
    * Selected classification node
    */
-  selectedNode: ClassificationNode | null;
+  selectedNode: ClassificationNode | undefined;
 
   /**
    * Callback when a node is selected
    */
-  onSelect: (node: ClassificationNode | null) => void;
+  onSelect: (node: ClassificationNode | undefined) => void;
 
   /**
    * Search query for filtering tree
@@ -191,7 +191,7 @@ const ClassificationTreeInner: React.FC = () => {
   const draggedNodeKeyRef = React.useRef<string | null>(null);
 
   // Shared context menu handler
-  const handleContextMenu = React.useCallback((e: React.MouseEvent, nodeId: string | null) => {
+  const handleContextMenu = React.useCallback((e: React.MouseEvent, nodeId: string | undefined) => {
     e.preventDefault();
     setContextMenuPosition({ x: e.clientX, y: e.clientY });
     setContextMenuNode(nodeId);
@@ -199,7 +199,7 @@ const ClassificationTreeInner: React.FC = () => {
 
   // Shared context menu close handler
   const handleContextMenuClose = React.useCallback(() => {
-    setContextMenuNode(null);
+    setContextMenuNode(undefined);
     setContextMenuPosition({ x: 0, y: 0 });
   }, [setContextMenuNode, setContextMenuPosition]);
 
@@ -286,7 +286,7 @@ const ClassificationTreeInner: React.FC = () => {
       <>
         <div
           className="classification-tree-empty-container"
-          onContextMenu={(e) => handleContextMenu(e, null)}
+          onContextMenu={(e) => handleContextMenu(e, "")}
         >
           <Empty
             description={t('classification.tree.empty')}
@@ -295,7 +295,7 @@ const ClassificationTreeInner: React.FC = () => {
         </div>
         <TreeContextMenu
           items={contextMenuItems}
-          visible={contextMenuNode != null}
+          visible={contextMenuNode !== undefined}
           position={contextMenuPosition}
           onClose={handleContextMenuClose}
         />
@@ -363,7 +363,7 @@ const ClassificationTreeInner: React.FC = () => {
         </div>
         <TreeContextMenu
           items={contextMenuItems}
-          visible={contextMenuNode != null}
+          visible={contextMenuNode !== undefined}
           position={contextMenuPosition}
           onClose={handleContextMenuClose}
         />

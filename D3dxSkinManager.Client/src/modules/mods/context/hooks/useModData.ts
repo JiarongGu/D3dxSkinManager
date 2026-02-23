@@ -20,7 +20,7 @@ export interface UseModDataReturn {
   refreshMods: (profileId: string) => Promise<void>;
   updateMod: (profileId: string, sha: string, data: Partial<ModInfo>) => Promise<void>;
   deleteMod: (profileId: string, sha: string, onSuccess: () => Promise<void>) => Promise<void>;
-  selectMod: (mod: ModInfo | null) => void;
+  selectMod: (mod: ModInfo | undefined) => void;
   selectMods: (mods: ModInfo[]) => void;
 
   // Note: loadModInGame/unloadModFromGame are in ModsContext
@@ -106,7 +106,7 @@ export function useModData(): UseModDataReturn {
     []
   );
 
-  const selectMod = useCallback((mod: ModInfo | null) => {
+  const selectMod = useCallback((mod: ModInfo | undefined) => {
     dispatch({ type: "SELECT_MOD", payload: mod });
   }, []);
 

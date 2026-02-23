@@ -16,7 +16,7 @@ export interface UseImportOperationsReturn {
   dispatch: Dispatch<ImportAction>;
 
   // Actions
-  importMod: (profileId: string, task: ImportTask) => Promise<ModInfo | null>;
+  importMod: (profileId: string, task: ImportTask) => Promise<ModInfo | undefined>;
   importMods: (
     profileId: string,
     tasks: ImportTask[],
@@ -34,9 +34,9 @@ export function useImportOperations(): UseImportOperationsReturn {
   const [state, dispatch] = useReducer(importReducer, initialImportState);
 
   const importMod = useCallback(
-    async (profileId: string, task: ImportTask): Promise<ModInfo | null> => {
+    async (profileId: string, task: ImportTask): Promise<ModInfo | undefined> => {
       if (!profileId) {
-        return null;
+        return undefined;
       }
       try {
         dispatch({

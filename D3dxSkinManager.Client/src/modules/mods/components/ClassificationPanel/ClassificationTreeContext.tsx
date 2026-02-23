@@ -38,7 +38,7 @@ function filterTreeNodes(nodes: ClassificationNode[], searchLower: string): Clas
 /**
  * Find a ClassificationNode by ID in the tree
  */
-function findNodeById(nodes: ClassificationNode[], id: string): ClassificationNode | null {
+function findNodeById(nodes: ClassificationNode[], id: string): ClassificationNode | undefined {
   for (const node of nodes) {
     if (node.id === id) return node;
     if (node.children.length > 0) {
@@ -46,7 +46,7 @@ function findNodeById(nodes: ClassificationNode[], id: string): ClassificationNo
       if (found) return found;
     }
   }
-  return null;
+  return undefined;
 }
 
 /**
@@ -56,8 +56,8 @@ interface ClassificationTreeProviderProps {
   children: React.ReactNode;
   tree: ClassificationNode[];
   loading: boolean;
-  selectedNode: ClassificationNode | null;
-  onSelect: (node: ClassificationNode | null) => void;
+  selectedNode: ClassificationNode | undefined;
+  onSelect: (node: ClassificationNode | undefined) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   expandedKeys: React.Key[];
@@ -74,8 +74,8 @@ interface ClassificationTreeContextValue {
   // Props passed from parent
   tree: ClassificationNode[];
   loading: boolean;
-  selectedNode: ClassificationNode | null;
-  onSelect: (node: ClassificationNode | null) => void;
+  selectedNode: ClassificationNode | undefined;
+  onSelect: (node: ClassificationNode | undefined) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   expandedKeys: React.Key[];
@@ -88,8 +88,8 @@ interface ClassificationTreeContextValue {
   treeData: DataNode[];
 
   // Context menu state
-  contextMenuNode: string | null;
-  setContextMenuNode: (nodeId: string | null) => void;
+  contextMenuNode: string | undefined;
+  setContextMenuNode: (nodeId: string | undefined) => void;
   contextMenuItems: MenuProps['items'];
   contextMenuPosition: { x: number; y: number };
   setContextMenuPosition: (position: { x: number; y: number }) => void;
@@ -109,7 +109,7 @@ interface ClassificationTreeContextValue {
   handleToggleExpand: (nodeId: string) => void;
   handleSelect: (selectedKeys: React.Key[], info: any) => void;
   handleRightClick: (info: { event: any; node: any }) => void;
-  findNodeById: (id: string) => ClassificationNode | null;
+  findNodeById: (id: string) => ClassificationNode | undefined;
 }
 
 const ClassificationTreeContext = createContext<ClassificationTreeContextValue | undefined>(undefined);
@@ -132,7 +132,7 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
   onModsRefresh,
 }) => {
   const { t } = useTranslation();
-  const [contextMenuNode, setContextMenuNode] = useState<string | null>(null);
+  const [contextMenuNode, setContextMenuNode] = useState<string>();
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
   // Store frequently changing values in stable refs to avoid closure issues
@@ -243,7 +243,7 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
 
       // Handle selection (only if not already selected or if it's a leaf node)
       if (selectedKeys.length === 0) {
-        onSelect(null);
+        onSelect(undefined);
         return;
       }
 

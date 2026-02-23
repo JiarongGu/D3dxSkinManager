@@ -13,7 +13,7 @@ const { Search } = Input;
 interface ModListPanelProps {
   mods: ModInfo[];
   loading: boolean;
-  selectedMod: ModInfo | null;
+  selectedMod: ModInfo | undefined;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onLoad: (sha: string) => void;
@@ -21,7 +21,7 @@ interface ModListPanelProps {
   onDelete: (sha: string, name: string) => void;
   onEdit: (mod: ModInfo) => void;
   onRowClick: (mod: ModInfo) => void;
-  selectedClassification: ClassificationNode | null;
+  selectedClassification: ClassificationNode | undefined;
   selectedObject: string;
 }
 

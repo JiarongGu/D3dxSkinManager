@@ -166,7 +166,7 @@ export const ModHierarchicalView: React.FC = () => {
   };
 
   const handleClassificationSelect = useCallback(
-    (node: ClassificationNode | null) => {
+    (node: ClassificationNode | undefined) => {
       actions.selectClassification(node);
 
       if (node) {

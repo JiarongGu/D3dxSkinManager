@@ -20,9 +20,9 @@ export interface UIState {
   batchEditUnitVisible: boolean;
 
   // Edit State
-  modToEdit: ModInfo | null;
+  modToEdit: ModInfo | undefined;
   currentTags: string[];
-  currentEditTask: ImportTask | null;
+  currentEditTask: ImportTask | undefined;
   selectedTaskIds: string[];
   tagDialogContext: "mod" | "import";
 }
@@ -78,7 +78,7 @@ export function uiReducer(state: UIState, action: UIAction): UIState {
       return {
         ...state,
         editDialogVisible: false,
-        modToEdit: null,
+        modToEdit: undefined,
       };
 
     case "OPEN_TAG_DIALOG":
@@ -125,7 +125,7 @@ export function uiReducer(state: UIState, action: UIAction): UIState {
       return {
         ...state,
         addModUnitVisible: false,
-        currentEditTask: null,
+        currentEditTask: undefined,
       };
 
     case "OPEN_BATCH_EDIT_UNIT":
@@ -160,9 +160,9 @@ export const initialUIState: UIState = {
   importWindowVisible: false,
   addModUnitVisible: false,
   batchEditUnitVisible: false,
-  modToEdit: null,
+  modToEdit: undefined,
   currentTags: [],
-  currentEditTask: null,
+  currentEditTask: undefined,
   selectedTaskIds: [],
   tagDialogContext: "mod",
 };

@@ -27,7 +27,7 @@ export interface UseClassificationDataReturn {
     categoryId: string,
     onTreeMismatch?: () => void
   ) => Promise<boolean>;
-  selectClassification: (node: ClassificationNode | null) => void;
+  selectClassification: (node: ClassificationNode | undefined) => void;
   setClassificationSearch: (query: string) => void;
 }
 
@@ -165,7 +165,7 @@ export function useClassificationData(): UseClassificationDataReturn {
     []
   );
 
-  const selectClassification = useCallback((node: ClassificationNode | null) => {
+  const selectClassification = useCallback((node: ClassificationNode | undefined) => {
     dispatch({ type: "SELECT_CLASSIFICATION", payload: node });
   }, []);
 

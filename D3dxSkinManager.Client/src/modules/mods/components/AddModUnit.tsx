@@ -10,7 +10,7 @@ const { Option } = Select;
 
 interface AddModUnitProps {
   visible: boolean;
-  task: ImportTask | null;
+  task: ImportTask | undefined;
   onSave: (taskId: string, modData: Partial<ModInfo>) => void;
   onCancel: () => void;
   onOpenTagSelector?: (currentTags: string[]) => void;

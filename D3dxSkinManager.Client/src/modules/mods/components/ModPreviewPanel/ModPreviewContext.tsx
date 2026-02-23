@@ -4,7 +4,7 @@ import { modService } from '../../services/modService';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 
 interface ModViewState {
-  currentMod: ModInfo | null;
+  currentMod: ModInfo | undefined;
   previewPaths: string[];
   loadingPreviews: boolean;
   currentPreviewIndex: number;
@@ -14,7 +14,7 @@ interface ModViewState {
 interface ModViewContextType {
   state: ModViewState;
   actions: {
-    setCurrentMod: (mod: ModInfo | null) => void;
+    setCurrentMod: (mod: ModInfo | undefined) => void;
     setCurrentPreviewIndex: (index: number) => void;
     loadPreviewPaths: (sha: string) => Promise<void>;
     nextPreview: () => void;
@@ -24,7 +24,7 @@ interface ModViewContextType {
 
 const ModViewContext = createContext<ModViewContextType | undefined>(undefined);
 
-export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModInfo | null }> = ({ children, mod }) => {
+export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModInfo | undefined }> = ({ children, mod }) => {
   const { state: profileState } = useProfile();
   const [state, setState] = useState<ModViewState>({
     currentMod: mod,
@@ -86,7 +86,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
     }
   }, [state.currentMod?.sha, profileState.selectedProfile?.id, loadPreviewPaths]);
 
-  const setCurrentMod = useCallback((mod: ModInfo | null) => {
+  const setCurrentMod = useCallback((mod: ModInfo | undefined) => {
     setState((prev) => ({
       ...prev,
       currentMod: mod,

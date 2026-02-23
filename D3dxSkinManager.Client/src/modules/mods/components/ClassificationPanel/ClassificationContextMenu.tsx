@@ -3,7 +3,7 @@ import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@
 import type { MenuProps } from 'antd';
 
 interface ClassificationContextMenuProps {
-  nodeId: string | null;
+  nodeId: string | undefined;
   onAddClassification?: (parentId?: string) => void;
   onEditNode: (nodeId: string) => void;
   onDeleteNode: (nodeId: string) => void;
@@ -18,7 +18,7 @@ export function getClassificationContextMenu({
   onEditNode,
   onDeleteNode,
 }: ClassificationContextMenuProps): MenuProps['items'] {
-  // If nodeId is empty string or null, show "Add Classification" for root
+  // If nodeId is empty string or undefined, show "Add Classification" for root
   // If nodeId has a value, show both "Add Classification" (root) and "Add Sub-Classification" (child)
   const items: MenuProps['items'] = [
     {

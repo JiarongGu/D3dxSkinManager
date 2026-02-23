@@ -597,7 +597,7 @@ export const ModPreviewPanelContent: React.FC = () => {
   );
 };
 
-export const ModPreviewPanel: React.FC<{ mod: ModInfo | null }> = ({ mod }) => {
+export const ModPreviewPanel: React.FC<{ mod: ModInfo | undefined }> = ({ mod }) => {
   return (
     <ModPreviewProvider mod={mod}>
       <ModPreviewPanelContent />

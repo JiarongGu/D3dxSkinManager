@@ -64,8 +64,8 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [thumbnailPath, setThumbnailPath] = useState<string | undefined>();
-  const [thumbnailFileName, setThumbnailFileName] = useState<string | undefined>();
+  const [thumbnailPath, setThumbnailPath] = useState<string>();
+  const [thumbnailFileName, setThumbnailFileName] = useState<string>();
   const { closeScreen } = useSlideInScreen();
   const { selectedProfileId } = useProfile();
   const dropZoneRef = useRef<HTMLDivElement>(null);

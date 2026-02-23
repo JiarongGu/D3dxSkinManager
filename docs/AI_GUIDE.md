@@ -288,6 +288,18 @@ See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGE
    - Define interfaces for all data models
    - Use type guards where necessary
    - Document complex types with comments
+   - **⭐⭐⭐ CRITICAL: Use `undefined` for absent values, NOT `null`**
+     - ✅ **CORRECT**:
+       - Interfaces: `selectedMod: ModInfo | undefined`
+       - State hooks: `useState<ModInfo>()` or `useState<ModInfo>(undefined)` (TypeScript infers `| undefined`)
+     - ❌ **WRONG**:
+       - `selectedMod: ModInfo | null`
+       - `useState<ModInfo | null>(null)`
+       - `useState<ModInfo | undefined>(undefined)` (redundant - TypeScript already infers this)
+     - **Rationale**: JavaScript's `undefined` naturally represents "absence of value" (uninitialized variables, missing properties)
+     - **When to use `null`**: ONLY when you need an intentional "empty" value that's different from "not set"
+     - **Example of valid null use**: Database fields that can be explicitly set to NULL vs fields that haven't been set yet
+     - **Consistency**: All frontend state, props, and return types should use `undefined` for optional values
    - **Use generic types for IPC messages:**
      - ✅ `PhotinoMessage<TPayload = unknown>` and `PhotinoResponse<TData = unknown>`
      - ✅ `sendMessage<T, TPayload = unknown>(...)`

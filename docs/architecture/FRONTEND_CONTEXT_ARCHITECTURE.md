@@ -1,7 +1,7 @@
 # Frontend Context Architecture
 
-**Version:** 2.0
-**Last Updated:** 2026-02-19
+**Version:** 2.1
+**Last Updated:** 2026-02-23
 **Status:** ✅ Implemented
 
 ## Overview
@@ -80,11 +80,11 @@ The D3dxSkinManager frontend uses a **React Context-based architecture** that al
 ```typescript
 interface ProfileContextValue {
   // State (direct access, no nesting)
-  selectedProfile: Profile | null;
+  selectedProfile: Profile | undefined;
   selectedProfileId: string | undefined;  // ⚠️ undefined, not null
   profiles: Profile[];
   loading: boolean;
-  error: string | null;
+  error: string | undefined;
 
   // Actions
   actions: {
@@ -289,7 +289,7 @@ async getClassificationTree(profileId: string): Promise<ClassificationNode[]> {
 ```typescript
 const MyComponent: React.FC = () => {
   const { selectedProfile, selectedProfileId } = useProfile();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<DataType | undefined>(undefined);
 
   useEffect(() => {
     if (selectedProfileId) {

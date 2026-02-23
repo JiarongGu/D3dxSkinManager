@@ -17,8 +17,8 @@ const { Sider } = Layout;
 interface ClassificationPanelProps {
   tree: ClassificationNode[];
   loading: boolean;
-  selectedNode: ClassificationNode | null;
-  onSelect: (node: ClassificationNode | null) => void;
+  selectedNode: ClassificationNode | undefined;
+  onSelect: (node: ClassificationNode | undefined) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   expandedKeys: Key[];
