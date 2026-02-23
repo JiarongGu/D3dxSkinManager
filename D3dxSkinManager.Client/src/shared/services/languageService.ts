@@ -12,7 +12,7 @@ class LanguageService extends BaseModuleService {
   /**
    * Get language file by code
    */
-  async getLanguage(languageCode: string): Promise<LanguageSettings | null> {
+  async getLanguage(languageCode: string): Promise<LanguageSettings | undefined> {
     try {
       const response = await this.sendMessage<{ success: boolean; language?: LanguageSettings }>(
         'GET_LANGUAGE',
@@ -24,7 +24,7 @@ class LanguageService extends BaseModuleService {
         return response.language;
       }
 
-      return null;
+      return undefined;
     } catch (error) {
       console.error('[languageService] Failed to get language:', error);
       throw error;

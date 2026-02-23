@@ -159,18 +159,18 @@ export function useStableRef<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(
 ): [{ current: T1 }, { current: T2 }, { current: T3 }, { current: T4 }, { current: T5 }, { current: T6 }, { current: T7 }, { current: T8 }, { current: T9 }, { current: T10 }, { current: T11 }, { current: T12 }];
 export function useStableRef(...values: any[]): { current: any } | { current: any }[] {
   // For single value: Create a stable ref object
-  const singleRef = useRef<{ current: any } | null>(null);
+  const singleRef = useRef<{ current: any } | undefined>(undefined);
 
   // For multiple values: Create a stable array of ref objects
-  const multiRef = useRef<{ current: any }[] | null>(null);
+  const multiRef = useRef<{ current: any }[] | undefined>(undefined);
 
   // Initialize on first render only
   if (values.length === 1) {
-    if (singleRef.current === null) {
+    if (singleRef.current === undefined) {
       singleRef.current = { current: values[0] };
     }
   } else {
-    if (multiRef.current === null) {
+    if (multiRef.current === undefined) {
       multiRef.current = values.map((value) => ({ current: value }));
     }
   }

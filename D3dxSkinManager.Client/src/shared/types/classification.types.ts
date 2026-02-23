@@ -14,14 +14,14 @@ export interface ClassificationNode {
   name: string;
 
   /**
-   * Parent node ID (null for root nodes)
+   * Parent node ID (undefined for root nodes)
    */
-  parentId?: string | null;
+  parentId?: string;
 
   /**
    * Thumbnail image URL (file:/// protocol)
    */
-  thumbnail?: string | null;
+  thumbnail?: string;
 
   /**
    * Priority for sorting (higher = first)
@@ -31,12 +31,12 @@ export interface ClassificationNode {
   /**
    * Optional description
    */
-  description?: string | null;
+  description?: string;
 
   /**
    * Additional metadata (JSON object)
    */
-  metadata?: Record<string, string | number | boolean> | null;
+  metadata?: Record<string, string | number | boolean>;
 
   /**
    * Total number of mods in this node and all descendant nodes

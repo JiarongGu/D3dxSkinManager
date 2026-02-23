@@ -7,7 +7,7 @@ import logger from './logger';
  * Notification API instance - will be injected by NotificationProvider
  * This is set during app initialization to use the context-aware notification API
  */
-let notificationApi: any = null;
+let notificationApi: any = undefined;
 
 /**
  * Set the notification API instance (called during app initialization)

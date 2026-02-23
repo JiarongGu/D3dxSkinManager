@@ -19,8 +19,8 @@ interface InitState {
     | "selecting-profile"
     | "ready"
     | "error";
-  globalSettings: GlobalSettings | null;
-  error: string | null;
+  globalSettings: GlobalSettings | undefined;
+  error: string | undefined;
 }
 
 interface AppInitializerProps {
@@ -41,8 +41,8 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
   const { selectedProfile, profiles, actions } = useProfile();
   const [state, setState] = useState<InitState>({
     stage: "loading-global",
-    globalSettings: null,
-    error: null,
+    globalSettings: undefined,
+    error: undefined,
   });
 
   // Step 1: Load global settings

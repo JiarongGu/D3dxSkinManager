@@ -11,7 +11,7 @@ interface OperationState {
   activeOperations: OperationProgress[];
   completedOperations: OperationProgress[]; // Keep last 50 completed operations
   failedOperations: OperationProgress[]; // Keep last 50 failed operations
-  currentOperation: OperationProgress | null; // The most recent active operation (for status bar)
+  currentOperation: OperationProgress | undefined; // The most recent active operation (for status bar)
 }
 
 type OperationAction =
@@ -65,7 +65,7 @@ function operationReducer(state: OperationState, action: OperationAction): Opera
         ...state,
         activeOperations: remainingActive,
         completedOperations: newCompleted,
-        currentOperation: remainingActive.length > 0 ? remainingActive[remainingActive.length - 1] : null,
+        currentOperation: remainingActive.length > 0 ? remainingActive[remainingActive.length - 1] : undefined,
       };
     }
 
@@ -77,7 +77,7 @@ function operationReducer(state: OperationState, action: OperationAction): Opera
         ...state,
         activeOperations: remainingActive,
         failedOperations: newFailed,
-        currentOperation: remainingActive.length > 0 ? remainingActive[remainingActive.length - 1] : null,
+        currentOperation: remainingActive.length > 0 ? remainingActive[remainingActive.length - 1] : undefined,
       };
     }
 
@@ -87,7 +87,7 @@ function operationReducer(state: OperationState, action: OperationAction): Opera
       return {
         ...state,
         activeOperations: remainingActive,
-        currentOperation: remainingActive.length > 0 ? remainingActive[remainingActive.length - 1] : null,
+        currentOperation: remainingActive.length > 0 ? remainingActive[remainingActive.length - 1] : undefined,
       };
     }
 
@@ -112,7 +112,7 @@ const initialState: OperationState = {
   activeOperations: [],
   completedOperations: [],
   failedOperations: [],
-  currentOperation: null,
+  currentOperation: undefined,
 };
 
 interface OperationProviderProps {

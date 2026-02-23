@@ -117,7 +117,7 @@ export function useOptimisticUpdate<TData = any, TFetchParams = void>(
     normalizeForComparison,
   } = config;
 
-  const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const verificationTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   /**
    * Verify the expected result matches backend after a delay
@@ -127,7 +127,7 @@ export function useOptimisticUpdate<TData = any, TFetchParams = void>(
   const verify = useCallback(
     (expectedResult: TData, fetchParams: TFetchParams) => {
       // Clear any pending verification
-      if (verificationTimeoutRef.current) {
+      if (verificationTimeoutRef.current !== undefined) {
         clearTimeout(verificationTimeoutRef.current);
       }
 
@@ -180,9 +180,9 @@ export function useOptimisticUpdate<TData = any, TFetchParams = void>(
    * Cancel any pending verification
    */
   const cancel = useCallback(() => {
-    if (verificationTimeoutRef.current) {
+    if (verificationTimeoutRef.current !== undefined) {
       clearTimeout(verificationTimeoutRef.current);
-      verificationTimeoutRef.current = null;
+      verificationTimeoutRef.current = undefined;
     }
   }, []);
 

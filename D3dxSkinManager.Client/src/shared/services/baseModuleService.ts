@@ -46,8 +46,10 @@ export abstract class BaseModuleService {
   /**
    * Send a message and return a nullable result
    * Convenience method for get-by-id operations that might not find a result
+   * Backend returns null, but we convert to undefined for frontend consistency
    */
-  protected async sendNullableMessage<T, TPayload = unknown>(type: string, profileId?: string, payload?: TPayload): Promise<T | null> {
-    return this.sendMessage<T | null, TPayload>(type, profileId, payload);
+  protected async sendNullableMessage<T, TPayload = unknown>(type: string, profileId?: string, payload?: TPayload): Promise<T | undefined> {
+    const result = await this.sendMessage<T | null, TPayload>(type, profileId, payload);
+    return result ?? undefined;
   }
 }

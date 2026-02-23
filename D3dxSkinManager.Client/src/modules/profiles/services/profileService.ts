@@ -45,14 +45,14 @@ class ProfileService extends BaseModuleService {
   /**
    * Get currently active profile
    */
-  async getActiveProfile(): Promise<Profile | null> {
+  async getActiveProfile(): Promise<Profile | undefined> {
     return this.sendNullableMessage<Profile>('GET_ACTIVE');
   }
 
   /**
    * Get profile by ID
    */
-  async getProfileById(profileId: string): Promise<Profile | null> {
+  async getProfileById(profileId: string): Promise<Profile | undefined> {
     return this.sendNullableMessage<Profile>('GET_BY_ID', undefined, { profileId });
   }
 
@@ -117,7 +117,7 @@ class ProfileService extends BaseModuleService {
   /**
    * Get profile configuration
    */
-  async getProfileConfig(profileId: string): Promise<ProfileConfiguration | null> {
+  async getProfileConfig(profileId: string): Promise<ProfileConfiguration | undefined> {
     return this.sendNullableMessage<ProfileConfiguration>('GET_CONFIG', undefined, { profileId });
   }
 

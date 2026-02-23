@@ -13,12 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Refactored - 2026-02-23 - Frontend null → undefined Migration ⭐⭐⭐
-Migrated entire frontend codebase from using `null` to `undefined` for absent values, following JavaScript best practices.
-**Impact**: ✅ More idiomatic TypeScript, clearer semantics, prevents null vs undefined bugs
-**Scope**: All state variables, props, return types, and function parameters now use `undefined` instead of `null`
-**Components**: ModsContext, ClassificationTree, reducers, hooks, and all related components
-**Guideline**: Added to AI_GUIDE.md - Use `undefined` for absent values, reserve `null` only for intentional "empty" values
+### Refactored - 2026-02-23 - Complete Data Layer null → undefined Migration ⭐⭐⭐⭐
+Comprehensively migrated entire frontend data layer from `null` to `undefined` for absent values while preserving React's `null` for component semantics. This addresses JavaScript/TypeScript best practices where `undefined` is the natural "absence of value".
+**Impact**: ✅ Type-safe data layer, clearer semantics, eliminates null vs undefined confusion
+**Scope**:
+- Services (11 files): classificationService, profileService, modService, languageService, profileConfigService, launchService, migrationService, imageUrlHelper, notification, baseModuleService, etc.
+- Hooks (4 files): useDelayedLoading, useDragDrop, useOptimisticUpdate, useStableRef
+- Contexts (3 files): ProfileContext, OperationContext, AppInitializer
+- Components (9 files): ModsContext, ClassificationTree, ModList, ModHierarchicalView, ClassificationPanel operations, etc.
+- I18n system: Updated to use undefined for missing translations
+**Total**: 26 files with 146 insertions and 122 deletions
+**Key improvements**:
+- baseModuleService now auto-converts backend `null` to frontend `undefined`
+- All service return types: `Promise<T | null>` → `Promise<T | undefined>`
+- All data state: `Data | null` → `Data | undefined`
+- Preserved `null` for: React component returns (`return null;`), DOM refs (`useRef<HTMLElement>(null)`), conditional rendering
+- Backend compatibility maintained through automatic null/undefined conversion
+**Guideline**: AI_GUIDE.md clearly distinguishes - `undefined` for data layer, `null` for React/DOM requirements
 
 ### Fixed - 2026-02-23 - Classification Tree Empty Container Context Menu
 Fixed right-click context menu not appearing on empty classification tree container.

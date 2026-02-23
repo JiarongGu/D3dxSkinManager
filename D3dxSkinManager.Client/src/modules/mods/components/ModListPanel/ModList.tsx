@@ -31,7 +31,7 @@ interface ModListProps {
   onDelete: (sha: string, name: string) => void;
   onEdit?: (mod: ModInfo) => void;
   onRowClick?: (mod: ModInfo) => void;
-  selectedMod?: ModInfo | null;
+  selectedMod?: ModInfo;
 }
 
 export const ModList: React.FC<ModListProps> = ({
@@ -49,12 +49,12 @@ export const ModList: React.FC<ModListProps> = ({
   const observerTarget = useRef<HTMLDivElement>(null);
   const { state: profileState } = useProfile();
   const menuState = useContextMenu();
-  const [contextMenuMod, setContextMenuMod] = useState<ModInfo | null>(null);
+  const [contextMenuMod, setContextMenuMod] = useState<ModInfo>();
   const [checkedPaths, setCheckedPaths] = useState<{
-    originalPath: string | null;
-    workPath: string | null;
-    thumbnailPath: string | null;
-  } | null>(null);
+    originalPath: string | undefined;
+    workPath: string | undefined;
+    thumbnailPath: string | undefined;
+  }>();
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(
@@ -285,9 +285,9 @@ export const ModList: React.FC<ModListProps> = ({
                     } catch (error) {
                       console.error("Failed to check file paths:", error);
                       setCheckedPaths({
-                        originalPath: null,
-                        workPath: null,
-                        thumbnailPath: null,
+                        originalPath: undefined,
+                        workPath: undefined,
+                        thumbnailPath: undefined,
                       });
                     }
                   }
@@ -400,7 +400,7 @@ export const ModList: React.FC<ModListProps> = ({
           position={menuState.position}
           onClose={() => {
             menuState.hide();
-            setContextMenuMod(null);
+            setContextMenuMod(undefined);
           }}
         />
       )}

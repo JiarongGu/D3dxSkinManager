@@ -6,7 +6,7 @@ export type { ProfileConfiguration };
 /**
  * Get configuration for a specific profile
  */
-export const getProfileConfig = async (profileId: string): Promise<ProfileConfiguration | null> => {
+export const getProfileConfig = async (profileId: string): Promise<ProfileConfiguration | undefined> => {
   try {
     return await profileService.getProfileConfig(profileId);
   } catch (error) {
@@ -19,7 +19,7 @@ export const getProfileConfig = async (profileId: string): Promise<ProfileConfig
  * Get configuration for the currently selected profile
  * @deprecated Use getProfileConfig with explicit profileId instead
  */
-export const getActiveProfileConfig = async (profileId?: string): Promise<ProfileConfiguration | null> => {
+export const getActiveProfileConfig = async (profileId?: string): Promise<ProfileConfiguration | undefined> => {
   try {
     if (!profileId) {
       throw new Error('Profile ID is required');

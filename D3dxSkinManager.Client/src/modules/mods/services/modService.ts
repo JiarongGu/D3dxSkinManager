@@ -122,7 +122,7 @@ export class ModService extends BaseModuleService {
   /**
    * Get mod by SHA
    */
-  async getModBySha(profileId: string, sha: string): Promise<ModInfo | null> {
+  async getModBySha(profileId: string, sha: string): Promise<ModInfo | undefined> {
     return this.sendNullableMessage<ModInfo>('GET_BY_SHA', profileId, { sha });
   }
 
@@ -246,14 +246,14 @@ export class ModService extends BaseModuleService {
     profileId: string,
     sha: string
   ): Promise<{
-    originalPath: string | null;
-    workPath: string | null;
-    thumbnailPath: string | null;
+    originalPath: string | undefined;
+    workPath: string | undefined;
+    thumbnailPath: string | undefined;
   }> {
     return this.sendMessage<{
-      originalPath: string | null;
-      workPath: string | null;
-      thumbnailPath: string | null;
+      originalPath: string | undefined;
+      workPath: string | undefined;
+      thumbnailPath: string | undefined;
     }>('CHECK_FILE_PATHS', profileId, { sha });
   }
 

@@ -10,13 +10,13 @@ import logger from '../shared/utils/logger';
 const customBackend = {
   type: 'backend' as const,
   init: () => {},
-  read: async (language: string, namespace: string, callback: (error: Error | null, data?: any) => void) => {
+  read: async (language: string, namespace: string, callback: (error: Error | undefined, data?: any) => void) => {
     try {
       logger.info(`[i18n] Loading language: ${language}, namespace: ${namespace}`);
       const languageSettings = await languageService.getLanguage(language);
 
       if (languageSettings && languageSettings.translations) {
-        callback(null, languageSettings.translations);
+        callback(undefined, languageSettings.translations);
       } else {
         callback(new Error(`Language ${language} not found`));
       }

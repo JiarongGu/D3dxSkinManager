@@ -24,7 +24,7 @@ class LaunchService extends BaseModuleService {
     return this.sendArrayMessage<D3DMigotoVersion>('LAUNCH_GET_VERSIONS', profileId);
   }
 
-  async getCurrentVersion(profileId: string): Promise<string | null> {
+  async getCurrentVersion(profileId: string): Promise<string | undefined> {
     return this.sendNullableMessage<string>('LAUNCH_GET_CURRENT', profileId);
   }
 

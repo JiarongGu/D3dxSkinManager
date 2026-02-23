@@ -252,11 +252,11 @@ export const ModHierarchicalView: React.FC = () => {
     const unclassifiedNode: ClassificationNode = {
       id: "__unclassified__",
       name: "Unclassified",
-      parentId: null,
+      parentId: undefined,
       priority: 0,
       children: [],
-      thumbnail: null,
-      description: null,
+      thumbnail: undefined,
+      description: undefined,
     };
     handleClassificationSelect(unclassifiedNode);
   };

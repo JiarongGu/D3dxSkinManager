@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 function findNodeById(
   nodes: ClassificationNode[],
   id: string,
-): ClassificationNode | null {
+): ClassificationNode | undefined {
   for (const node of nodes) {
     if (node.id === id) return node;
     if (node.children.length > 0) {
@@ -23,7 +23,7 @@ function findNodeById(
       if (found) return found;
     }
   }
-  return null;
+  return undefined;
 }
 
 /**
@@ -38,7 +38,7 @@ function isDescendantOf(
   if (!ancestorNode) return false;
 
   // Check if nodeId exists in ancestor's subtree
-  return findNodeById(ancestorNode.children, nodeId) !== null;
+  return findNodeById(ancestorNode.children, nodeId) !== undefined;
 }
 
 /**
@@ -63,7 +63,7 @@ function isAncestorOf(
 function shouldRefreshModsForNodeUpdate(
   tree: ClassificationNode[],
   updatedNodeId: string,
-  selectedNodeId: string | null | undefined,
+  selectedNodeId: string | undefined,
 ): boolean {
   if (!selectedNodeId) return false;
 
@@ -83,7 +83,7 @@ function shouldRefreshModsForNodeUpdate(
 interface UseClassificationTreeOperationsProps {
   tree: ClassificationNode[];
   expandedKeys: React.Key[];
-  selectedClassificationId?: string | null;
+  selectedClassificationId?: string;
   onExpandedKeysChange: (keys: React.Key[]) => void;
   onRefreshTree?: () => Promise<void>;
   onModsRefresh?: () => Promise<void>;
@@ -166,7 +166,7 @@ export function useClassificationTreeOperations({
               nodeId,
               data.name,
               data.description,
-              thumbnailToUse || null
+              thumbnailToUse
             );
 
             // If parent changed, also move the node
@@ -175,7 +175,7 @@ export function useClassificationTreeOperations({
               moveSuccess = await classificationService.moveNode(
                 selectedProfileIdRef.current,
                 nodeId,
-                data.parentId || null,
+                data.parentId,
                 -1 // No specific drop position for edit operation (-1 means append at end)
               );
             }
@@ -289,7 +289,7 @@ export function useClassificationTreeOperations({
           await classificationService.moveNode(
             selectedProfileIdRef.current,
             dragNodeId,
-            null, // null parent = root level
+            undefined, // undefined parent = root level
             0
           );
 
@@ -310,7 +310,7 @@ export function useClassificationTreeOperations({
           const dropNode = findNodeById(currentTree, dropNodeId);
 
           // Determine the parent: if dropNode has no parent, we're at root level
-          const newParentId = dropNode ? dropNode.parentId || null : null;
+          const newParentId = dropNode ? dropNode.parentId : undefined;
 
           // Calculate the actual position within siblings
           let siblings: ClassificationNode[] = [];
@@ -381,7 +381,7 @@ export function useClassificationTreeOperations({
 
       try {
         // Find the node name from the tree
-        const findNodeName = (nodes: ClassificationNode[], id: string): string | null => {
+        const findNodeName = (nodes: ClassificationNode[], id: string): string | undefined => {
           for (const node of nodes) {
             if (node.id === id) {
               return node.name;
@@ -391,7 +391,7 @@ export function useClassificationTreeOperations({
               if (found) return found;
             }
           }
-          return null;
+          return undefined;
         };
 
         const nodeName = findNodeName(treeRef.current, nodeId) || nodeId;

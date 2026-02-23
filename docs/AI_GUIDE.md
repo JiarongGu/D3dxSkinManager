@@ -288,18 +288,31 @@ See [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGE
    - Define interfaces for all data models
    - Use type guards where necessary
    - Document complex types with comments
-   - **⭐⭐⭐ CRITICAL: Use `undefined` for absent values, NOT `null`**
-     - ✅ **CORRECT**:
+   - **⭐⭐⭐ CRITICAL: Use `undefined` for data, `null` ONLY where React/DOM requires it**
+     - ✅ **Use `undefined` for all data/business logic**:
        - Interfaces: `selectedMod: ModInfo | undefined`
-       - State hooks: `useState<ModInfo>()` or `useState<ModInfo>(undefined)` (TypeScript infers `| undefined`)
-     - ❌ **WRONG**:
-       - `selectedMod: ModInfo | null`
-       - `useState<ModInfo | null>(null)`
-       - `useState<ModInfo | undefined>(undefined)` (redundant - TypeScript already infers this)
-     - **Rationale**: JavaScript's `undefined` naturally represents "absence of value" (uninitialized variables, missing properties)
-     - **When to use `null`**: ONLY when you need an intentional "empty" value that's different from "not set"
-     - **Example of valid null use**: Database fields that can be explicitly set to NULL vs fields that haven't been set yet
-     - **Consistency**: All frontend state, props, and return types should use `undefined` for optional values
+       - State hooks: `useState<ModInfo>()` (NOT `useState<ModInfo | undefined>(undefined)`)
+       - Service returns: `Promise<Data | undefined>`
+       - Optional properties: `description?: string` (NOT `string | null`)
+       - Avoid redundant conversions: `value ?? undefined` is unnecessary if value is already `T | undefined`
+     - ✅ **Use `null` ONLY where React/DOM APIs require it**:
+       - Component returns: `return null;` (React requirement to render nothing)
+       - DOM element refs: `useRef<HTMLElement>(null)` (React DOM API requirement)
+       - Ref callbacks: `useState` setter can be used directly as ref callback
+       - React.ReactNode type already includes null (for conditional rendering)
+     - ❌ **AVOID these anti-patterns**:
+       - Data with `null`: `selectedMod: ModInfo | null` ❌
+       - Redundant type annotations: `useState<T | undefined>(undefined)` ❌
+       - Unnecessary conversions: `value ?? undefined` when value is already `T | undefined` ❌
+       - Complex ref wrappers: Creating callback refs to convert `null` to `undefined` ❌
+     - **Backend compatibility**:
+       - C# backend uses `null`, frontend uses `undefined`
+       - Use `baseModuleService.sendNullableMessage()` for automatic conversion
+       - This conversion happens ONLY at the API boundary, not throughout the app
+     - **Rationale**:
+       - JavaScript/TypeScript naturally uses `undefined` for "absence of value"
+       - React/DOM APIs were designed with `null` for historical reasons
+       - Don't fight the framework - use what each API expects
    - **Use generic types for IPC messages:**
      - ✅ `PhotinoMessage<TPayload = unknown>` and `PhotinoResponse<TData = unknown>`
      - ✅ `sendMessage<T, TPayload = unknown>(...)`

@@ -13,9 +13,9 @@
  * - "http://example.com/image.png" -> "http://example.com/image.png" (unchanged)
  * - "data:image/png;base64,..." -> "data:image/png;base64,..." (unchanged)
  */
-export function toAppUrl(path: string | null | undefined): string | null {
+export function toAppUrl(path: string | undefined): string | undefined {
   if (!path) {
-    return null;
+    return undefined;
   }
 
   // Already a full URL (http/https) - return as-is
@@ -44,6 +44,6 @@ export function toAppUrl(path: string | null | undefined): string | null {
  * @param paths - Array of file paths
  * @returns Array of app:// scheme URLs
  */
-export function toAppUrls(paths: (string | null | undefined)[]): (string | null)[] {
+export function toAppUrls(paths: (string | undefined)[]): (string | undefined)[] {
   return paths.map(toAppUrl);
 }

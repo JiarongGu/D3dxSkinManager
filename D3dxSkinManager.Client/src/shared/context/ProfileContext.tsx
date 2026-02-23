@@ -8,10 +8,10 @@ import { profileService } from '../../modules/profiles/services/profileService';
  * The frontend maintains the selected profile and includes it in every request.
  */
 interface ProfileState {
-  selectedProfile: Profile | null;
+  selectedProfile: Profile | undefined;
   profiles: Profile[];
   loading: boolean;
-  error: string | null;
+  error: string | undefined;
 }
 
 /**
@@ -19,11 +19,11 @@ interface ProfileState {
  */
 interface ProfileContextValue {
   state: ProfileState;
-  selectedProfile: Profile | null;
+  selectedProfile: Profile | undefined;
   selectedProfileId: string | undefined;
   profiles: Profile[];
   loading: boolean;
-  error: string | null;
+  error: string | undefined;
   actions: {
     setSelectedProfile: (profile: Profile) => void;
     loadProfiles: () => Promise<void>;
@@ -55,10 +55,10 @@ interface ProfileProviderProps {
  */
 export function ProfileProvider({ children, initialProfile }: ProfileProviderProps) {
   const [state, setState] = useState<ProfileState>({
-    selectedProfile: initialProfile || null,
+    selectedProfile: initialProfile,
     profiles: [],
     loading: false,
-    error: null
+    error: undefined
   });
 
   // Log when profile changes
@@ -75,7 +75,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
     setState(prev => ({
       ...prev,
       selectedProfile: profile,
-      error: null
+      error: undefined
     }));
   };
 
@@ -84,7 +84,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
    */
   const loadProfiles = async () => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setState(prev => ({ ...prev, loading: true, error: undefined }));
       const response = await profileService.getAllProfiles();
       setState(prev => ({
         ...prev,
@@ -107,7 +107,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
    */
   const selectProfile = async (profileId: string) => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setState(prev => ({ ...prev, loading: true, error: undefined }));
 
       // Find the profile in our list
       const profile = state.profiles.find(p => p.id === profileId);
@@ -153,7 +153,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
    */
   const createProfile = async (name: string, description?: string): Promise<Profile> => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setState(prev => ({ ...prev, loading: true, error: undefined }));
       const profile = await profileService.createProfile({ name, description });
 
       // Add to our list
@@ -180,7 +180,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
    */
   const updateProfile = async (profileId: string, name: string, description?: string) => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setState(prev => ({ ...prev, loading: true, error: undefined }));
       await profileService.updateProfile({ profileId, name, description });
 
       // Reload the profile
@@ -214,7 +214,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
         throw new Error('Cannot delete the currently selected profile');
       }
 
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setState(prev => ({ ...prev, loading: true, error: undefined }));
       await profileService.deleteProfile(profileId);
 
       setState(prev => ({

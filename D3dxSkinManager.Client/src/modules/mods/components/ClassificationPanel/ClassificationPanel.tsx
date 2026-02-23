@@ -69,7 +69,7 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
               selectedProfileId,
               data.name,
               data.name,
-              data.parentId || null,
+              data.parentId,
               100, // default priority
               data.description,
               data.thumbnail

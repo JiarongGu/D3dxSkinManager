@@ -22,7 +22,7 @@ import { useState, useRef, useCallback } from 'react';
  */
 export function useDelayedLoading(delayMs: number = 50) {
   const [loading, setLoading] = useState(false);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const isProcessingRef = useRef(false);
 
   /**
@@ -48,9 +48,9 @@ export function useDelayedLoading(delayMs: number = 50) {
         return result;
       } finally {
         // Clear timeout and reset state
-        if (loadingTimeoutRef.current) {
+        if (loadingTimeoutRef.current !== undefined) {
           clearTimeout(loadingTimeoutRef.current);
-          loadingTimeoutRef.current = null;
+          loadingTimeoutRef.current = undefined;
         }
         setLoading(false);
         isProcessingRef.current = false;
@@ -63,9 +63,9 @@ export function useDelayedLoading(delayMs: number = 50) {
    * Reset loading state (useful when unmounting or canceling)
    */
   const reset = useCallback(() => {
-    if (loadingTimeoutRef.current) {
+    if (loadingTimeoutRef.current !== undefined) {
       clearTimeout(loadingTimeoutRef.current);
-      loadingTimeoutRef.current = null;
+      loadingTimeoutRef.current = undefined;
     }
     setLoading(false);
     isProcessingRef.current = false;

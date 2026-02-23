@@ -103,7 +103,7 @@ class MigrationService extends BaseModuleService {
   /**
    * Auto-detect Python installation path
    */
-  async autoDetect(): Promise<string | null> {
+  async autoDetect(): Promise<string | undefined> {
     return this.sendNullableMessage<string>('AUTO_DETECT');
   }
 

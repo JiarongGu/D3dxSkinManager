@@ -17,7 +17,7 @@ export interface ShortcutConfig {
 
 export class KeyboardShortcutManager {
   private shortcuts: Map<string, ShortcutConfig> = new Map();
-  private activeContext: string | null = null;
+  private activeContext: string | undefined = undefined;
 
   constructor() {
     this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -40,7 +40,7 @@ export class KeyboardShortcutManager {
   /**
    * Set the active context for context-aware shortcuts
    */
-  setContext(context: string | null): void {
+  setContext(context: string | undefined): void {
     this.activeContext = context;
   }
 
