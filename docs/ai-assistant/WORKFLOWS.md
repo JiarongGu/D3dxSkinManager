@@ -259,6 +259,10 @@ describe('YourComponent', () => {
 dotnet build                    # Backend
 npm run build                   # Frontend
 
+# Development
+npm run dev                     # Start dev server with TypeScript checking
+npx tsc --noEmit                # Manual TypeScript check
+
 # Test
 dotnet test                     # Backend tests
 npm test                        # Frontend tests
@@ -272,6 +276,71 @@ git add -A                      # Stage all
 git commit -m "message"         # Commit
 git status                      # Check status
 ```
+
+---
+
+## TypeScript Best Practices
+
+### React.useRef with Initial Value
+
+```typescript
+// ✅ CORRECT: Provide initial value for optional types
+const draggedNodeKeyRef = React.useRef<string>(undefined);
+const screenIdRef = useRef<string>(undefined);
+
+// ❌ INCORRECT: Missing initial value
+const draggedNodeKeyRef = React.useRef<string>();  // TS Error!
+const screenIdRef = useRef<string | undefined>();  // Verbose
+```
+
+### Ref Callbacks with setState Functions
+
+```typescript
+// When using useDragDrop or custom hooks that return setState functions:
+
+// ✅ CORRECT: Wrap setState in callback ref
+const { containerRef } = useDragDrop(...handlers);
+<div ref={(el) => containerRef(el || undefined)} />
+
+// ❌ INCORRECT: Direct assignment (type mismatch)
+<div ref={containerRef} />  // TS Error!
+```
+
+### Migration Wizard Updates
+
+When updating migration options:
+1. Update backend enum in `MigrationOptions.cs`
+2. Update frontend enum in `migrationService.ts`
+3. Update UI component in `OptionsStep.tsx`
+4. Update i18n keys in `Languages/en.json` and `Languages/cn.json`
+5. Update documentation in `MIGRATION_ARCHITECTURE.md`
+
+### Vite TypeScript Checking
+
+The dev server uses `vite-plugin-checker` to show TypeScript errors in real-time:
+
+```typescript
+// vite.config.ts
+import checker from 'vite-plugin-checker';
+
+export default defineConfig({
+  plugins: [
+    checker({
+      typescript: true,
+      overlay: {
+        initialIsOpen: false,
+        position: 'br',
+      },
+      enableBuild: false, // Only check during dev
+    }),
+  ],
+});
+```
+
+Benefits:
+- TypeScript errors shown in terminal during `npm run dev`
+- Error overlay appears in browser (bottom-right)
+- Catches type errors immediately without manual `tsc` runs
 
 ---
 

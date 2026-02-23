@@ -114,7 +114,15 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 var destArchivePath = _profilePaths.GetModArchivePath(modEntry.Sha, "");
                 Directory.CreateDirectory(Path.GetDirectoryName(destArchivePath)!);
 
-                await _fileService.CopyFileAsync(sourceArchivePath, destArchivePath, overwrite: false).ConfigureAwait(false);
+                // Handle archive according to selected mode (Copy or Move)
+                if (context.Options.ArchiveMode == ArchiveHandling.Move)
+                {
+                    await _fileService.MoveFileAsync(sourceArchivePath, destArchivePath).ConfigureAwait(false);
+                }
+                else
+                {
+                    await _fileService.CopyFileAsync(sourceArchivePath, destArchivePath, overwrite: false).ConfigureAwait(false);
+                }
                 copied++;
 
                 // Create mod entry using service

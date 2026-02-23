@@ -21,7 +21,7 @@ export function useSlideInDialog({
   onClose,
 }: SlideInDialogOptions) {
   const { openScreen, closeScreen } = useSlideInScreen();
-  const screenIdRef = useRef<string>();
+  const screenIdRef = useRef<string>(undefined);
 
   useEffect(() => {
     if (visible && !screenIdRef.current) {

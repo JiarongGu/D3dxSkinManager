@@ -18,14 +18,11 @@ export enum MigrationStage {
 
 export enum ArchiveHandling {
   Copy = 'Copy',
-  Move = 'Move',
-  Link = 'Link'
+  Move = 'Move'
 }
 
 export enum PostMigrationAction {
-  Keep = 'Keep',
-  BackupAndRemove = 'BackupAndRemove',
-  Remove = 'Remove'
+  Keep = 'Keep'
 }
 
 export interface PythonConfiguration {
@@ -61,7 +58,7 @@ export interface MigrationOptions {
   migrateConfiguration: boolean;
   migrateClassifications: boolean;
   archiveMode: ArchiveHandling;
-  postAction: PostMigrationAction;
+  postAction?: PostMigrationAction; // Optional - defaults to Keep on backend
 }
 
 export interface MigrationProgress {

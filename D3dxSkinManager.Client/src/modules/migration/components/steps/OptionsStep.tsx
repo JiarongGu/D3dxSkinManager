@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Form, Input, Checkbox, Radio } from 'antd';
 import { CompactSpace, CompactAlert, CompactDivider } from '../../../../shared/components/compact';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
-import { ArchiveHandling, PostMigrationAction } from '../../services/migrationService';
+import { ArchiveHandling } from '../../services/migrationService';
 import { useTranslation } from 'react-i18next';
 import './MigrationSteps.css';
 
@@ -40,7 +40,6 @@ export const OptionsStep: React.FC = () => {
           migrateConfiguration: true,
           migrateClassifications: true,
           archiveMode: ArchiveHandling.Copy,
-          postAction: PostMigrationAction.Keep,
           environmentName: analysis?.activeEnvironment,
         }}
       >
@@ -48,12 +47,13 @@ export const OptionsStep: React.FC = () => {
           label={t('migration.options.environment')}
           name="environmentName"
           tooltip={t('migration.options.environmentTooltip')}
+          style={{ marginBottom: 16 }}
         >
           <Input placeholder={analysis?.activeEnvironment} />
         </Form.Item>
 
-        <Form.Item label={t('migration.options.whatToMigrate')}>
-          <CompactSpace vertical>
+        <Form.Item label={t('migration.options.whatToMigrate')} style={{ marginBottom: 16 }}>
+          <div className="compact-checkbox-group">
             <Form.Item name="migrateMetadata" valuePropName="checked" noStyle>
               <Checkbox>{t('migration.options.modMetadata')}</Checkbox>
             </Form.Item>
@@ -69,53 +69,32 @@ export const OptionsStep: React.FC = () => {
             <Form.Item name="migrateClassifications" valuePropName="checked" noStyle>
               <Checkbox>{t('migration.options.classificationRules')}</Checkbox>
             </Form.Item>
-          </CompactSpace>
+          </div>
         </Form.Item>
 
         <Form.Item
           label={t('migration.options.archiveHandling')}
           name="archiveMode"
           tooltip={t('migration.options.archiveHandlingTooltip')}
+          style={{ marginBottom: 16 }}
         >
           <Radio.Group>
-            <CompactSpace vertical>
-              <Radio value={ArchiveHandling.Copy}>
-                {t('migration.options.archiveCopy')}
-              </Radio>
-              <Radio value={ArchiveHandling.Move}>
-                {t('migration.options.archiveMove')}
-              </Radio>
-              <Radio value={ArchiveHandling.Link} disabled>
-                {t('migration.options.archiveLink')}
-              </Radio>
-            </CompactSpace>
+            <Radio value={ArchiveHandling.Copy}>
+              {t('migration.options.archiveCopy')}
+            </Radio>
+            <Radio value={ArchiveHandling.Move}>
+              {t('migration.options.archiveMove')}
+            </Radio>
           </Radio.Group>
         </Form.Item>
 
-        <Form.Item
-          label={t('migration.options.afterMigration')}
-          name="postAction"
-          tooltip={t('migration.options.afterMigrationTooltip')}
-        >
-          <Radio.Group>
-            <CompactSpace vertical>
-              <Radio value={PostMigrationAction.Keep}>{t('migration.options.postActionKeep')}</Radio>
-              <Radio value={PostMigrationAction.BackupAndRemove}>
-                {t('migration.options.postActionBackupRemove')}
-              </Radio>
-              <Radio value={PostMigrationAction.Remove}>
-                {t('migration.options.postActionRemove')}
-              </Radio>
-            </CompactSpace>
-          </Radio.Group>
-        </Form.Item>
-
-        <CompactDivider extraCompact />
+        <CompactDivider extraCompact style={{ margin: '12px 0' }} />
 
         <Form.Item
           name="createProfile"
           valuePropName="checked"
           tooltip={t('migration.options.createProfileTooltip')}
+          style={{ marginBottom: 12 }}
         >
           <Checkbox>{t('migration.options.createProfile')}</Checkbox>
         </Form.Item>

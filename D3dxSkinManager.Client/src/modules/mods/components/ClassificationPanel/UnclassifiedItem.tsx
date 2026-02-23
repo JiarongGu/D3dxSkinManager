@@ -34,7 +34,7 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
 
   return (
     <div
-      ref={containerRef}
+      ref={(el) => containerRef(el || undefined)}
       className={`unclassified-item ${isSelected ? 'selected' : ''}`}
       onClick={onClick}
       role="button"

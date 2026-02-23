@@ -1,6 +1,6 @@
 # Migration Service Architecture
 
-**Last Updated**: 2026-02-20
+**Last Updated**: 2026-02-24
 **Status**: ✅ Complete and refactored
 
 ## Overview
@@ -169,6 +169,19 @@ public class MigrationOptions
     public ArchiveHandling ArchiveMode { get; set; } = ArchiveHandling.Copy;
     public PostMigrationAction PostAction { get; set; } = PostMigrationAction.Keep;
 }
+
+// Archive Handling Options
+public enum ArchiveHandling
+{
+    Copy,    // Copy files (safe, requires extra space)
+    Move     // Move files (faster, modifies source)
+}
+
+// Post-Migration Options
+public enum PostMigrationAction
+{
+    Keep     // Keep Python installation intact (only option for now)
+}
 ```
 
 ### `MigrationResult`
@@ -276,6 +289,30 @@ public class MigrationStep7Example : IMigrationStep
 - [Migration Design](../migration/MIGRATION_DESIGN.md) - Original design doc
 - [Archive: 2026-02-19 Refactoring](../archive/2026-02-19-migration-refactoring/) - Historical refactoring docs
 
+## Migration Wizard UI
+
+The frontend provides a step-by-step wizard interface for migration:
+
+### Steps
+1. **Detection** - Select and validate Python installation
+2. **Options** - Configure migration settings
+3. **Migration** - Progress display during migration
+4. **Complete** - Results summary
+
+### Available Options
+- **What to Migrate**: Mod metadata, archives, previews, configuration, classification rules
+- **Archive Handling**:
+  - `Copy` - Safely copy files (requires extra disk space)
+  - `Move` - Move files (faster, modifies source directory)
+- **Post-Migration**: Python installation is always kept intact
+
+### UI Components
+- **Frontend**: `D3dxSkinManager.Client/src/modules/migration/`
+  - `components/MigrationWizard.tsx` - Main wizard component
+  - `components/steps/` - Individual step components
+  - `context/MigrationWizardContext.tsx` - State management
+  - `services/migrationService.ts` - IPC communication
+
 ## Key Achievements
 
 ✅ Reduced from 991 lines (god class) to 205 lines (thin orchestrator)
@@ -285,8 +322,10 @@ public class MigrationStep7Example : IMigrationStep
 ✅ Extensible: Easy to add new steps
 ✅ Archives stored without extensions (matches Python)
 ✅ Auto-detects archive types using SharpCompress
+✅ User-friendly wizard interface with clear options (2026-02-24)
 
 ---
 
 *Last refactored: 2026-02-19*
 *Archive storage fix: 2026-02-20*
+*UI simplified: 2026-02-24 - Removed symbolic link and post-migration removal options*

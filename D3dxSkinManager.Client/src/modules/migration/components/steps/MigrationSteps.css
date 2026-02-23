@@ -12,20 +12,44 @@
 
 /* Compact Form styling for migration steps */
 .migration-step-container .ant-form-item {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+.migration-step-container .ant-form-item-label {
+  padding-bottom: 4px;
 }
 
 .migration-step-container .ant-form-item-label > label {
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .migration-step-container .ant-input,
 .migration-step-container .ant-select-selector {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* Compact checkbox and radio groups */
 .migration-step-container .ant-checkbox-wrapper,
 .migration-step-container .ant-radio-wrapper {
-  font-size: 14px;
+  font-size: 13px;
+}
+
+/* Compact radio group - horizontal layout */
+.migration-step-container .ant-radio-group {
+  display: flex;
+  gap: 16px;
+}
+
+/* Compact checkbox group */
+.migration-step-container .compact-checkbox-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+
+@media (max-width: 768px) {
+  .migration-step-container .compact-checkbox-group {
+    grid-template-columns: 1fr;
+  }
 }

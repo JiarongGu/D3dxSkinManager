@@ -188,7 +188,7 @@ const ClassificationTreeInner: React.FC = () => {
   } = useClassificationTreeContext();
 
   // Track which node is being dragged
-  const draggedNodeKeyRef = React.useRef<string>();
+  const draggedNodeKeyRef = React.useRef<string>(undefined);
 
   // Shared context menu handler
   const handleContextMenu = React.useCallback((e: React.MouseEvent, nodeId: string | undefined) => {
@@ -323,7 +323,7 @@ const ClassificationTreeInner: React.FC = () => {
       </div>
 
       <div
-        ref={treeContainerRef}
+        ref={(el) => treeContainerRef(el || undefined)}
         className="classification-tree-scroll-container"
         onContextMenu={(e) => {
           // Handle context menu on empty areas (not on tree nodes)

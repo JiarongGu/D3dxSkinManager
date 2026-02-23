@@ -92,7 +92,7 @@ public class MigrationService : IMigrationService
 
     /// <summary>
     /// Execute full migration workflow
-    /// Clear step-by-step process: 1â†?â†?â†?â†?â†?
+    /// Clear step-by-step process
     /// </summary>
     public async Task<MigrationResult> MigrateAsync(
         MigrationOptions options,

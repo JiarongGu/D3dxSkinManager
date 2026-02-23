@@ -15,7 +15,7 @@ import {
   MigrationStep,
 } from '../context/MigrationWizardContext';
 import { DetectionStep, OptionsStep, ProgressStep, CompleteStep } from './steps';
-import { migrationService, MigrationOptions, ArchiveHandling, PostMigrationAction } from '../services/migrationService';
+import { migrationService, MigrationOptions, ArchiveHandling } from '../services/migrationService';
 import { profileService } from '../../profiles/services/profileService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import './MigrationWizard.css';
@@ -90,7 +90,6 @@ const MigrationWizardInner: React.FC<{
         migrateConfiguration: values.migrateConfiguration !== false,
         migrateClassifications: values.migrateClassifications !== false,
         archiveMode: values.archiveMode || ArchiveHandling.Copy,
-        postAction: values.postAction || PostMigrationAction.Keep,
       };
 
       const intervalId = setInterval(() => {
