@@ -81,7 +81,7 @@ public class ToolsFacade : BaseFacade, IToolsFacade
         var deletedCount = await _modFileService.CleanCacheAsync(category).ConfigureAwait(false);
 
         await _eventEmitter.EmitAsync(
-            Core.Event.EventType.CustomEvent,
+            EventType.CustomEvent,
             "cache.cleaned",
             new { category = category.ToString(), deletedCount });
 
@@ -95,7 +95,7 @@ public class ToolsFacade : BaseFacade, IToolsFacade
         if (success)
         {
             await _eventEmitter.EmitAsync(
-                Core.Event.EventType.CustomEvent,
+                EventType.CustomEvent,
                 "cache.item.deleted",
                 new { sha }).ConfigureAwait(false);
         }

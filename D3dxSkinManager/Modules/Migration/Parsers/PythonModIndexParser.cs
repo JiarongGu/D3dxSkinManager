@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
 
 namespace D3dxSkinManager.Modules.Migration.Parsers;
 
@@ -59,17 +59,18 @@ public class PythonModIndexParser : IPythonModIndexParser
             try
             {
                 var json = await File.ReadAllTextAsync(indexFile).ConfigureAwait(false);
-                var doc = JObject.Parse(json);
-                var modsObj = doc["mods"] as JObject;
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
 
-                if (modsObj == null)
+                if (!root.TryGetProperty("mods", out var modsElement) || modsElement.ValueKind != JsonValueKind.Object)
                 {
                     _logger.Warn($"No 'mods' object in {Path.GetFileName(indexFile)}", "PythonModIndexParser");
                     continue;
                 }
 
                 // Parse each mod entry
-                foreach (var prop in modsObj.Properties())
+                int modCount = 0;
+                foreach (var prop in modsElement.EnumerateObject())
                 {
                     var sha = prop.Name;
                     var modData = prop.Value;
@@ -77,23 +78,26 @@ public class PythonModIndexParser : IPythonModIndexParser
                     var entry = new PythonModEntry
                     {
                         Sha = sha,
-                        Object = modData["object"]?.ToString() ?? "Unknown",
-                        Type = modData["type"]?.ToString() ?? "7z",
-                        Name = modData["name"]?.ToString() ?? "Unknown",
-                        Author = modData["author"]?.ToString() ?? "",
-                        Grading = modData["grading"]?.ToString() ?? "G",
-                        Explain = modData["explain"]?.ToString() ?? "",
-                        Tags = modData["tags"]?.ToObject<List<string>>() ?? new List<string>()
+                        Object = modData.TryGetProperty("object", out var objProp) ? objProp.GetString() ?? "Unknown" : "Unknown",
+                        Type = modData.TryGetProperty("type", out var typeProp) ? typeProp.GetString() ?? "7z" : "7z",
+                        Name = modData.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "Unknown" : "Unknown",
+                        Author = modData.TryGetProperty("author", out var authorProp) ? authorProp.GetString() ?? "" : "",
+                        Grading = modData.TryGetProperty("grading", out var gradingProp) ? gradingProp.GetString() ?? "G" : "G",
+                        Explain = modData.TryGetProperty("explain", out var explainProp) ? explainProp.GetString() ?? "" : "",
+                        Tags = modData.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind == JsonValueKind.Array
+                            ? JsonSerializer.Deserialize<List<string>>(tagsProp.GetRawText()) ?? new List<string>()
+                            : new List<string>()
                     };
 
                     // Deduplicate by SHA
                     if (!allMods.Any(m => m.Sha == sha))
                     {
                         allMods.Add(entry);
+                        modCount++;
                     }
                 }
 
-                _logger.Info($"Parsed {Path.GetFileName(indexFile)}: {modsObj.Properties().Count()} mods", "PythonModIndexParser");
+                _logger.Info($"Parsed {Path.GetFileName(indexFile)}: {modCount} mods", "PythonModIndexParser");
             }
             catch (Exception ex)
             {

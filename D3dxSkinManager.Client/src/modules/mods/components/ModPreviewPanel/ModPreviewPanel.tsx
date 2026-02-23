@@ -2,6 +2,7 @@ import { notification } from '../../../../shared/utils/notification';
 import React, { useState } from "react";
 import { Typography, Button, Empty,  Space, Tag } from "antd";
 import { useTranslation } from 'react-i18next';
+import { v4 as uuidv4 } from 'uuid';
 import {
   CopyOutlined,
   LeftOutlined,
@@ -244,7 +245,7 @@ export const ModPreviewPanelContent: React.FC = () => {
 
           // Convert blob to file-like object
           const extension = imageType.split('/')[1] || 'png';
-          const fileName = `clipboard_${Date.now()}.${extension}`;
+          const fileName = `clipboard_${uuidv4()}.${extension}`;
           const file = new File([blob], fileName, { type: imageType });
 
           // Create a temporary path (backend will handle the actual file creation)

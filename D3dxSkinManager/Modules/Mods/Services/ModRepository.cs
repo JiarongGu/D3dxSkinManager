@@ -1,5 +1,5 @@
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
+using D3dxSkinManager.Modules.Core.Utilities;
 
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Context.Services;
@@ -144,7 +144,7 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@description", mod.Description ?? string.Empty);
         command.Parameters.AddWithValue("@type", mod.Type);
         command.Parameters.AddWithValue("@grading", mod.Grading);
-        command.Parameters.AddWithValue("@tags", JsonConvert.SerializeObject(mod.Tags));
+        command.Parameters.AddWithValue("@tags", JsonHelper.Serialize(mod.Tags));
 
         await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return mod;
@@ -178,7 +178,7 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@description", mod.Description ?? string.Empty);
         command.Parameters.AddWithValue("@type", mod.Type);
         command.Parameters.AddWithValue("@grading", mod.Grading);
-        command.Parameters.AddWithValue("@tags", JsonConvert.SerializeObject(mod.Tags));
+        command.Parameters.AddWithValue("@tags", JsonHelper.Serialize(mod.Tags));
 
         var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
@@ -302,7 +302,7 @@ public class ModRepository : IModRepository
             var tagsJson = reader.GetString(0);
             if (!string.IsNullOrEmpty(tagsJson))
             {
-                var tags = JsonConvert.DeserializeObject<List<string>>(tagsJson);
+                var tags = JsonHelper.Deserialize<List<string>>(tagsJson);
                 if (tags != null)
                 {
                     foreach (var tag in tags)
@@ -334,7 +334,7 @@ public class ModRepository : IModRepository
         var tagsJson = reader.GetString(reader.GetOrdinal("Tags"));
         var tags = string.IsNullOrEmpty(tagsJson)
             ? new List<string>()
-            : JsonConvert.DeserializeObject<List<string>>(tagsJson) ?? new List<string>();
+            : JsonHelper.Deserialize<List<string>>(tagsJson) ?? new List<string>();
 
         return new ModInfo
         {

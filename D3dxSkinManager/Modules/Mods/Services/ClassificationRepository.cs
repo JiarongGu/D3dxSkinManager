@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
+using D3dxSkinManager.Modules.Core.Utilities;
 
 using D3dxSkinManager.Modules.Mods.Models;
 
@@ -222,7 +222,7 @@ public class ClassificationRepository : IClassificationRepository
         command.Parameters.AddWithValue("@thumbnailPath", node.Thumbnail ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@priority", node.Priority);
         command.Parameters.AddWithValue("@description", node.Description ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@metadata", node.Metadata != null ? JsonConvert.SerializeObject(node.Metadata) : (object)DBNull.Value);
+        command.Parameters.AddWithValue("@metadata", node.Metadata != null ? JsonHelper.Serialize(node.Metadata) : (object)DBNull.Value);
 
         await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return node;
@@ -251,7 +251,7 @@ public class ClassificationRepository : IClassificationRepository
         command.Parameters.AddWithValue("@thumbnailPath", node.Thumbnail ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@priority", node.Priority);
         command.Parameters.AddWithValue("@description", node.Description ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@metadata", node.Metadata != null ? JsonConvert.SerializeObject(node.Metadata) : (object)DBNull.Value);
+        command.Parameters.AddWithValue("@metadata", node.Metadata != null ? JsonHelper.Serialize(node.Metadata) : (object)DBNull.Value);
 
         var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
@@ -371,7 +371,7 @@ public class ClassificationRepository : IClassificationRepository
         Dictionary<string, object>? metadata = null;
         if (!string.IsNullOrEmpty(metadataJson))
         {
-            metadata = JsonConvert.DeserializeObject<Dictionary<string, object>>(metadataJson);
+            metadata = JsonHelper.Deserialize<Dictionary<string, object>>(metadataJson);
         }
 
         return new ClassificationNode

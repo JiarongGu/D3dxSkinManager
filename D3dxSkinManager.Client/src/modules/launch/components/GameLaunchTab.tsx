@@ -13,6 +13,7 @@ import { UnityArgsDialog } from '../../core/components/dialogs/UnityArgsDialog';
 import { fileDialogService } from '../../../shared/services/systemService';
 import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
 import { useProfile } from '../../../shared/context/ProfileContext';
+import { PATH_PLACEHOLDERS, LAUNCH_ARG_EXAMPLES, MODULE_NAMES } from '../../../shared/constants/ui.constants';
 import './GameLaunchTab.css';
 
 export const GameLaunchTab: React.FC = () => {
@@ -219,7 +220,7 @@ export const GameLaunchTab: React.FC = () => {
               <Input.Group compact>
                 <Input
                   className="game-launch-input-with-button"
-                  placeholder={t('launch.game.gameExePlaceholder')}
+                  placeholder={PATH_PLACEHOLDERS.GAME_EXE}
                   readOnly
                 />
                 <CompactButton
@@ -239,7 +240,7 @@ export const GameLaunchTab: React.FC = () => {
               <Input.Group compact>
                 <Input
                   className="game-launch-input-with-small-button"
-                  placeholder={t('launch.game.launchArgsPlaceholder')}
+                  placeholder={LAUNCH_ARG_EXAMPLES.COMMON_ARGS}
                   onChange={handleLaunchArgsChange}
                 />
                 <Tooltip title={t('launch.game.unityArgsHelper')}>
@@ -247,7 +248,7 @@ export const GameLaunchTab: React.FC = () => {
                     icon={<PlusOutlined />}
                     onClick={handleOpenUnityArgsDialog}
                   >
-                    {t('launch.game.unity')}
+                    {MODULE_NAMES.UNITY}
                   </CompactButton>
                 </Tooltip>
               </Input.Group>
@@ -287,7 +288,7 @@ export const GameLaunchTab: React.FC = () => {
               <Input.Group compact>
                 <Input
                   className="game-launch-input-with-button"
-                  placeholder={t('launch.game.customProgramPlaceholder')}
+                  placeholder={PATH_PLACEHOLDERS.CUSTOM_PROGRAM}
                   readOnly
                 />
                 <CompactButton

@@ -4,6 +4,7 @@
  * Manages plugin loading, registration, and lifecycle.
  */
 
+import { v4 as uuidv4 } from 'uuid';
 import {
   Plugin,
   PluginContext,
@@ -18,7 +19,6 @@ import {
 class PluginRegistry {
   private plugins: Map<string, PluginMetadata> = new Map();
   private eventHandlers: Map<string, PluginEventHandler> = new Map();
-  private eventHandlerCounter = 0;
 
   /**
    * Register a plugin
@@ -113,7 +113,7 @@ class PluginRegistry {
    * Register an event handler
    */
   registerEventHandler(eventType: PluginEventType, handler: PluginEventHandler): string {
-    const registrationId = `${eventType}_${++this.eventHandlerCounter}_${Date.now()}`;
+    const registrationId = uuidv4();
     this.eventHandlers.set(registrationId, handler);
     return registrationId;
   }

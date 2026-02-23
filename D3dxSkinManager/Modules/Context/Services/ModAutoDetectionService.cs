@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
-using Newtonsoft.Json;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Utilities;
 
 namespace D3dxSkinManager.Modules.Context.Services;
 
@@ -97,8 +97,7 @@ public class ModAutoDetectionService : IModAutoDetectionService
 
         try
         {
-            var json = await File.ReadAllTextAsync(rulesFilePath).ConfigureAwait(false);
-            var rules = JsonConvert.DeserializeObject<List<ModAutoDetectionRule>>(json);
+            var rules = await JsonHelper.DeserializeFromFileAsync<List<ModAutoDetectionRule>>(rulesFilePath).ConfigureAwait(false);
 
             if (rules != null)
             {
@@ -143,8 +142,7 @@ public class ModAutoDetectionService : IModAutoDetectionService
 
         try
         {
-            var json = JsonConvert.SerializeObject(_rules, Formatting.Indented);
-            await File.WriteAllTextAsync(rulesFilePath, json).ConfigureAwait(false);
+            await JsonHelper.SerializeToFileAsync(rulesFilePath, _rules).ConfigureAwait(false);
             _logger.Info($"Saved {_rules.Count} rules to {rulesFilePath}", "ModAutoDetectionService");
             return true;
         }

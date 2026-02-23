@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
+using System.Text.Json;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Tools.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -241,7 +242,7 @@ public class StartupValidationService : IStartupValidationService
 
             // Try to parse configuration file
             var configJson = await File.ReadAllTextAsync(configPath).ConfigureAwait(false);
-            var config = JsonConvert.DeserializeObject<Dictionary<string, object>>(configJson);
+            var config = JsonHelper.Deserialize<Dictionary<string, object>>(configJson);
 
             if (config == null)
             {
@@ -329,21 +330,21 @@ public class StartupValidationService : IStartupValidationService
             var components = new List<string>();
 
             // Check SharpCompress (archive extraction)
-            components.Add("ï¿?SharpCompress (archive extraction): Built-in");
+            components.Add("ï¿½?SharpCompress (archive extraction): Built-in");
 
             // Check .NET runtime
             var runtimeVersion = Environment.Version;
-            components.Add($"ï¿?.NET Runtime: {runtimeVersion}");
+            components.Add($"ï¿½?.NET Runtime: {runtimeVersion}");
 
             // Check Windows Forms (file dialogs)
             try
             {
                 var _ = typeof(Form);
-                components.Add("ï¿?Windows Forms (file dialogs): Available");
+                components.Add("ï¿½?Windows Forms (file dialogs): Available");
             }
             catch
             {
-                components.Add("ï¿?Windows Forms: Not available");
+                components.Add("ï¿½?Windows Forms: Not available");
             }
 
             result.IsValid = true;

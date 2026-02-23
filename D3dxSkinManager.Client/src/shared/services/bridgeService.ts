@@ -3,6 +3,7 @@
  * Uses WebView2's chrome.webview API for IPC
  */
 
+import { v4 as uuidv4 } from 'uuid';
 import {
   MessageType,
   ModuleName,
@@ -38,7 +39,6 @@ class BridgeService {
     (notification: OperationNotificationMessage["notification"]) => void
   > = [];
   private filesDroppedHandlers: Array<(filePaths: string[]) => void> = [];
-  private messageId = 0;
   // Global modules that don't require profileId
   private readonly globalModules = ["SETTINGS", "PROFILE", "SYSTEM"];
 
@@ -156,7 +156,7 @@ class BridgeService {
     payload?: TPayload;
   }): Promise<T> {
     return new Promise((resolve, reject) => {
-      const id = `msg_${++this.messageId}_${Date.now()}`;
+      const id = uuidv4();
 
       // Determine if this module requires profileId
       const needsProfileId = !this.globalModules.includes(module.toUpperCase());

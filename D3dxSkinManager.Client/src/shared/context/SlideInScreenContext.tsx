@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface SlideInScreenConfig {
   id: string;
@@ -23,8 +24,6 @@ interface SlideInScreenProviderProps {
   children: ReactNode;
 }
 
-let screenIdCounter = 0;
-
 /**
  * Provider for managing slide-in screen stack
  */
@@ -32,7 +31,7 @@ export function SlideInScreenProvider({ children }: SlideInScreenProviderProps) 
   const [screens, setScreens] = useState<SlideInScreenConfig[]>([]);
 
   const openScreen = useCallback((config: Omit<SlideInScreenConfig, 'id'>) => {
-    const id = `screen_${++screenIdCounter}_${Date.now()}`;
+    const id = uuidv4();
     const newScreen: SlideInScreenConfig = {
       ...config,
       id,

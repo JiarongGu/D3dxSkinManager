@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -185,7 +185,7 @@ public class ModImportService : IModImportService
             try
             {
                 var json = await File.ReadAllTextAsync(metadataPath).ConfigureAwait(false);
-                var parsedMetadata = JsonConvert.DeserializeObject<ModMetadata>(json);
+                var parsedMetadata = JsonHelper.Deserialize<ModMetadata>(json);
                 if (parsedMetadata != null)
                 {
                     return parsedMetadata;

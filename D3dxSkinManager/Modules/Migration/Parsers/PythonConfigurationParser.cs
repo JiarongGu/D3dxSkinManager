@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Migration.Models;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
 
 namespace D3dxSkinManager.Modules.Migration.Parsers;
 
@@ -38,31 +38,32 @@ public class PythonConfigurationParser : IPythonConfigurationParser
             if (File.Exists(localConfigPath))
             {
                 var json = await File.ReadAllTextAsync(localConfigPath).ConfigureAwait(false);
-                var doc = JObject.Parse(json);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
 
-                config.StyleTheme = doc["style_theme"]?.ToString();
-                config.Uuid = doc["uuid"]?.ToString();
+                config.StyleTheme = root.TryGetProperty("style_theme", out var styleTheme) ? styleTheme.GetString() : null;
+                config.Uuid = root.TryGetProperty("uuid", out var uuid) ? uuid.GetString() : null;
 
                 // Parse main window position
-                if (doc["main_window_position_x"] != null)
+                if (root.TryGetProperty("main_window_position_x", out _))
                 {
                     config.WindowPosition = new PythonWindowPosition
                     {
-                        X = doc["main_window_position_x"]?.ToObject<int>() ?? 0,
-                        Y = doc["main_window_position_y"]?.ToObject<int>() ?? 0,
-                        Width = doc["main_window_position_width"]?.ToObject<int>() ?? 1200,
-                        Height = doc["main_window_position_height"]?.ToObject<int>() ?? 1080
+                        X = root.TryGetProperty("main_window_position_x", out var x) ? x.GetInt32() : 0,
+                        Y = root.TryGetProperty("main_window_position_y", out var y) ? y.GetInt32() : 0,
+                        Width = root.TryGetProperty("main_window_position_width", out var width) ? width.GetInt32() : 1200,
+                        Height = root.TryGetProperty("main_window_position_height", out var height) ? height.GetInt32() : 1080
                     };
                 }
 
                 // Parse OCD (On-screen display) settings
-                if (doc["ocd_window_name"] != null)
+                if (root.TryGetProperty("ocd_window_name", out _))
                 {
                     config.Ocd = new PythonOcdSettings
                     {
-                        WindowName = doc["ocd_window_name"]?.ToString(),
-                        Width = doc["ocd_window_width"]?.ToObject<int>() ?? 1920,
-                        Height = doc["ocd_window_height"]?.ToObject<int>() ?? 1080
+                        WindowName = root.TryGetProperty("ocd_window_name", out var windowName) ? windowName.GetString() : null,
+                        Width = root.TryGetProperty("ocd_window_width", out var ocdWidth) ? ocdWidth.GetInt32() : 1920,
+                        Height = root.TryGetProperty("ocd_window_height", out var ocdHeight) ? ocdHeight.GetInt32() : 1080
                     };
                 }
             }
@@ -74,10 +75,11 @@ public class PythonConfigurationParser : IPythonConfigurationParser
                 if (File.Exists(envConfigPath))
                 {
                     var json = await File.ReadAllTextAsync(envConfigPath).ConfigureAwait(false);
-                    var doc = JObject.Parse(json);
+                    using var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
 
-                    config.GamePath = doc["GamePath"]?.ToString();
-                    config.GameLaunchArgument = doc["game_launch_argument"]?.ToString();
+                    config.GamePath = root.TryGetProperty("GamePath", out var gamePath) ? gamePath.GetString() : null;
+                    config.GameLaunchArgument = root.TryGetProperty("game_launch_argument", out var gameLaunchArg) ? gameLaunchArg.GetString() : null;
                 }
             }
 

@@ -4,6 +4,7 @@ import { RocketOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { D3DMigotoTab } from './D3DMigotoTab';
 import { GameLaunchTab } from './GameLaunchTab';
+import { MODULE_NAMES } from '../../../shared/constants/ui.constants';
 import './LaunchView.css';
 
 const { TabPane } = Tabs;
@@ -19,7 +20,7 @@ export const LaunchView: React.FC = () => {
             tab={
               <span>
                 <RocketOutlined />
-                {t('launch.tabs.migoto')}
+                {MODULE_NAMES.MIGOTO}
               </span>
             }
             key="3dmigoto"

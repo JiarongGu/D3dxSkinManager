@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Form, Switch, Select, InputNumber, Space, Divider } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { SCREEN_RESOLUTIONS, RESOLUTION_DEFAULTS } from '../../../../shared/constants/ui.constants';
 import './UnityArgsDialog.css';
 
 const { Option } = Select;
@@ -238,7 +239,7 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
                 max={7680}
                 step={1}
                 className="unity-args-dimension-input"
-                placeholder={t('unityArgs.widthPlaceholder')}
+                placeholder={RESOLUTION_DEFAULTS.WIDTH}
               />
             </Form.Item>
 
@@ -255,7 +256,7 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
                 max={4320}
                 step={1}
                 className="unity-args-dimension-input"
-                placeholder={t('unityArgs.heightPlaceholder')}
+                placeholder={RESOLUTION_DEFAULTS.HEIGHT}
               />
             </Form.Item>
           </Space>
@@ -264,10 +265,10 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
         <div className="unity-args-info-box">
           <strong>{t('unityArgs.commonResolutions')}</strong>
           <div className="unity-args-info-resolutions">
-            • {t('unityArgs.resolutionFullHD')}<br />
-            • {t('unityArgs.resolution2K')}<br />
-            • {t('unityArgs.resolution4K')}<br />
-            • {t('unityArgs.resolutionHD')}<br />
+            • {SCREEN_RESOLUTIONS.FULL_HD.label}<br />
+            • {SCREEN_RESOLUTIONS['2K'].label}<br />
+            • {SCREEN_RESOLUTIONS['4K'].label}<br />
+            • {SCREEN_RESOLUTIONS.HD.label}<br />
           </div>
         </div>
       </Form>

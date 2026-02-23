@@ -1,6 +1,7 @@
-using Newtonsoft.Json;
+using System.Text.Json;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Utilities;
 
 namespace D3dxSkinManager.Modules.Tools.Services;
 
@@ -92,9 +93,9 @@ public class ConfigurationService : IConfigurationService
                 }
 
                 // Try to convert JSON values
-                if (value is Newtonsoft.Json.Linq.JToken jToken)
+                if (value is JsonElement jsonElement)
                 {
-                    return jToken.ToObject<T>();
+                    return JsonHelper.Deserialize<T>(jsonElement.GetRawText());
                 }
 
                 // Try direct conversion
@@ -131,8 +132,7 @@ public class ConfigurationService : IConfigurationService
 
         try
         {
-            var json = JsonConvert.SerializeObject(_config, Formatting.Indented);
-            await File.WriteAllTextAsync(_configPath, json).ConfigureAwait(false);
+            await JsonHelper.SerializeToFileAsync(_configPath, _config).ConfigureAwait(false);
             _logger.Info($"Configuration saved to {_configPath}", "ConfigurationService");
         }
         catch (Exception ex)
@@ -153,8 +153,7 @@ public class ConfigurationService : IConfigurationService
                 return;
             }
 
-            var json = await File.ReadAllTextAsync(_configPath).ConfigureAwait(false);
-            _config = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
+            _config = await JsonHelper.DeserializeFromFileAsync<Dictionary<string, object>>(_configPath).ConfigureAwait(false)
                 ?? new Dictionary<string, object>();
 
             _logger.Info($"Configuration loaded from {_configPath}", "ConfigurationService");
