@@ -1,18 +1,11 @@
-# D3dxSkinManager - Current Architecture Guide
+# D3dxSkinManager - Current Architecture
 
-**Last Updated:** 2026-02-22
+**Last Updated:** 2026-02-23
+**Status:** Current Implementation
 
 ## Overview
 
-D3dxSkinManager is a modern .NET 10 + WinForms + WebView2 + React application for managing game mods with a clean module-based architecture that aligns frontend and backend components.
-
-## Architecture Principles
-
-1. **Module-Based Organization** - Code organized by business domain (Mods, Profiles, Tools, etc.)
-2. **Explicit IPC Routing** - Messages use `{ module, type, payload }` format
-3. **Type Safety** - Strong typing across the IPC boundary
-4. **Separation of Concerns** - Clear boundaries between modules
-5. **DI-First** - Dependency injection throughout
+.NET 10 + WinForms + WebView2 + React application with module-based architecture aligned across frontend and backend.
 
 ## System Architecture
 
@@ -20,305 +13,83 @@ D3dxSkinManager is a modern .NET 10 + WinForms + WebView2 + React application fo
 ┌─────────────────────────────────────────────────────────────┐
 │                    Frontend (React + TypeScript)             │
 ├─────────────────────────────────────────────────────────────┤
-│  Components/Hooks                                            │
-│      ↓                                                       │
-│  Module Services (ModService, ProfileService, etc.)         │
-│      ↓                                                       │
-│  BaseModuleService (encapsulates module name)               │
-│      ↓                                                       │
-│  BridgeService (WebView2 IPC bridge)                         │
+│  Components → Module Services → BaseModuleService            │
+│                      ↓                                       │
+│              BridgeService (WebView2 IPC)                    │
 └──────────────────────────┬──────────────────────────────────┘
-                           │ IPC Messages
-                           │ { id, module, type, payload, profileId }
+                           │ { id, module, type, payload }
 ┌──────────────────────────┴──────────────────────────────────┐
-│                Backend (.NET 10 + WinForms + WebView2)        │
+│                Backend (.NET 10 + WinForms)                  │
 ├─────────────────────────────────────────────────────────────┤
-│  ApplicationHost (WinForms Form + WebView2)                  │
-│      ↓                                                       │
-│  IpcCommunicationHandler (WebView2 messages)                 │
-│      ↓                                                       │
-│  MessageDispatcher (Middleware pipeline)                     │
-│      ↓                                                       │
-│  ServiceRouter / ProfileServiceRouter                        │
-│      ↓                                                       │
-│  Module Facade (ModFacade, ProfileFacade, etc.)             │
-│      ↓                                                       │
-│  Services (Business Logic)                                   │
-│      ↓                                                       │
-│  Repositories/External Systems                               │
+│  ApplicationHost → IpcCommunicationHandler                   │
+│         ↓                                                    │
+│  MessageDispatcher → AppFacade (Top Router)                  │
+│         ↓                                                    │
+│  Module Facades → Services → Repositories                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Module Structure
 
-### Backend Modules
-
-Location: `D3dxSkinManager/Modules/{ModuleName}/`
-
-Each module contains:
+### Backend: `Modules/{ModuleName}/`
 ```
-Modules/{ModuleName}/
 ├── I{ModuleName}Facade.cs        # Facade interface
-├── {ModuleName}Facade.cs         # Facade implementation (IPC routing)
+├── {ModuleName}Facade.cs         # IPC routing
 ├── {ModuleName}ServiceExtensions.cs  # DI registration
-├── Models/                       # Module-specific models
-│   └── *.cs
-└── Services/                     # Module-specific services
-    ├── I*.cs                     # Service interfaces
-    └── *.cs                      # Service implementations
+├── Models/                       # Domain models
+└── Services/                     # Business logic
 ```
 
-**Available Modules:**
-- **Core** - Shared services (file system, process management, image handling)
-- **Mods** - Mod management and operations
-- **Profiles** - Profile management and switching
-- **D3DMigoto** - 3DMigoto version management
-- **Game** - Game detection and launching
-- **Tools** - Cache management, classification, validation
-- **Settings** - Application settings (global settings, settings files)
-- **SystemUtils** - System-level operations (file dialogs, file system operations, path utilities, process launching)
-- **Plugins** - Plugin management
-- **Warehouse** - Mod discovery (future)
-- **Migration** - Python-to-React migration
-
-### Frontend Modules
-
-Location: `D3dxSkinManager.Client/src/modules/{moduleName}/`
-
-Each module contains:
+### Frontend: `src/modules/{moduleName}/`
 ```
-modules/{moduleName}/
 ├── components/              # React components
-│   └── *.tsx
 ├── hooks/                   # Custom hooks
-│   └── use*.ts
 ├── services/                # Module service
-│   └── {moduleName}Service.ts
 └── types/                   # TypeScript types
-    └── *.types.ts
 ```
 
-## Module Separation: Settings vs SystemUtils
-
-### Settings Module (SETTINGS_*)
-**Responsibility:** Application settings and configuration management
-
-**IPC Prefix:** `SETTINGS_*`
-
-**Operations:**
-- Global settings (theme, log level, annotation level, window settings)
-- Settings file management (get, save, delete, list settings files)
-
-**Example Messages:**
-- `SETTINGS_GET_GLOBAL` - Retrieve global settings
-- `SETTINGS_UPDATE_GLOBAL` - Update global settings
-- `SETTINGS_GET_FILE` - Get a settings file content
-
-### SystemUtils Module (SYSTEM_*)
-**Responsibility:** System-level operations and utilities
-
-**IPC Prefix:** `SYSTEM_*`
-
-**Operations:**
-- File system operations (open file, open directory, open in explorer)
-- File dialogs (open file, open folder, save file)
-- Path utilities (convert relative to absolute paths)
-- Process operations (launch external processes)
-
-**Example Messages:**
-- `SYSTEM_OPEN_FILE_DIALOG` - Show open file dialog
-- `SYSTEM_OPEN_FILE_IN_EXPLORER` - Open file location in file explorer
-- `SYSTEM_GET_ABSOLUTE_PATH` - Convert relative path to absolute
-
-**Design Rationale:**
-Previously, SettingsFacade handled both settings and system operations, violating the single responsibility principle. The refactoring separates these concerns:
-- **Settings** focuses on application configuration
-- **SystemUtils** focuses on OS-level interactions
-
-This separation improves maintainability and makes each module's purpose clearer.
+### Available Modules
+- **Core** - Shared infrastructure
+- **Context** - Profile-scoped services
+- **Mods** - Mod management
+- **Profiles** - Profile management
+- **Launch** - Game launching + D3DMigoto
+- **Tools** - Cache, validation, classification
+- **Settings** - Application settings
+- **System** - System utilities
+- **Plugins** - Plugin management
+- **Migration** - Python migration
+- **Warehouse** - Mod discovery (planned)
 
 ## IPC Message Format
 
-### Message Structure
-
-**Type-Safe Generic Message Types (2026-02-19):**
-
 ```typescript
-// Generic message type with type-safe payload
 interface IpcRequest<TPayload = unknown> {
   id: string;                // Unique message ID
-  module: ModuleName;        // Target module (union type, not string)
-  type: MessageType;         // Action within module
-  profileId?: string;        // Profile context (top-level, not in payload)
-  payload?: TPayload;        // Optional typed data
+  module: ModuleName;        // Target module (union type)
+  type: string;              // Action within module
+  profileId?: string;        // Profile context (top-level)
+  payload?: TPayload;        // Typed data
 }
 
-// Generic response type with type-safe data
 interface IpcResponse<TData = unknown> {
   id: string;                // Matches request ID
   success: boolean;          // Operation status
-  data?: TData;              // Optional typed result
+  data?: TData;              // Result data
   error?: string;            // Error message if failed
 }
 
-// ModuleName is a union type, not string
-type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'SYSTEM' | 'TOOL' | 'PLUGIN' |
-                  'WAREHOUSE' | 'MIGRATION' | 'LAUNCH' | 'D3DMIGOTO';
-
-// MessageType is also a union type
-type MessageType = string; // Specific types per module
+type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'SYSTEM' |
+                  'TOOLS' | 'PLUGINS' | 'WAREHOUSE' | 'MIGRATION' | 'LAUNCH';
 ```
 
-**Key Type Safety Features:**
-- Generic payload types eliminate `any` usage
-- `ModuleName` union type prevents typos
-- Default generic parameters (`= unknown`) maintain backward compatibility
-- Profile ID at top level, not in payload
+## Frontend Patterns
 
-### Example Messages
-
+### BaseModuleService
 ```typescript
-// Get all mods
-{
-  id: "msg_1_1234567890",
-  module: "MOD",
-  type: "GET_ALL",
-  payload: undefined
-}
-
-// Load a specific mod
-{
-  id: "msg_2_1234567891",
-  module: "MOD",
-  type: "LOAD",
-  payload: { sha: "abc123" }
-}
-
-// Create a profile
-{
-  id: "msg_3_1234567892",
-  module: "PROFILE",
-  type: "CREATE",
-  payload: {
-    name: "My Profile",
-    workDirectory: "C:\\Games\\MyGame"
-  }
-}
-```
-
-## Frontend UI Components Architecture
-
-### Compact Components System
-
-**Location:** `D3dxSkinManager.Client/src/shared/components/compact/`
-
-The application uses a custom Compact components system for consistent UI styling and sizing:
-
-**Available Components:**
-- `CompactButton` - Consistent button sizing and styling
-- `CompactCard` - Card containers with proper spacing
-- `CompactSpace` - Layout spacing component
-- `CompactDivider` - Section dividers
-- `CompactText` - Typography with proper sizing
-- `CompactAlert` - Alert/notification messages
-- `CompactSection` - Page sections with consistent padding
-
-**Design Principles:**
-- **Consistent Sizing:** All components use standardized sizes for visual harmony
-- **Dark Theme Support:** Flat design (no shadows) to avoid Ant Design style mismatches
-- **Clean Imports:** All components exported through `compact/index.ts`
-- **Ant Design Wrapper:** Wraps Ant Design components with custom styling
-
-**Usage Pattern:**
-```typescript
-// ❌ Old way (inconsistent)
-import { Button, Card, Space } from 'antd';
-
-// ✅ New way (consistent)
-import { CompactButton, CompactCard, CompactSpace } from '../../../shared/components/compact';
-
-// Usage
-<CompactCard>
-  <CompactSpace direction="vertical">
-    <CompactButton type="primary" onClick={handleClick}>
-      Save
-    </CompactButton>
-  </CompactSpace>
-</CompactCard>
-```
-
-**Implementation:**
-```typescript
-// compact/CompactButton.tsx
-import { Button, ButtonProps } from 'antd';
-import './CompactButton.css';
-
-export const CompactButton: React.FC<ButtonProps> = (props) => {
-  return <Button {...props} className={`compact-button ${props.className || ''}`} />;
-};
-
-// CSS provides consistent sizing and dark theme support
-```
-
-## Error Handling Architecture
-
-### Frontend Error Handling Pattern (2026-02-19)
-
-**Standardized Pattern:**
-
-```typescript
-// ✅ Correct pattern
-try {
-  await someAsyncOperation();
-} catch (error: unknown) {
-  const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-  message.error(errorMessage);
-  console.error('Operation failed:', error);
-}
-
-// ❌ Incorrect patterns (avoid)
-catch (error: any) { ... }           // Uses 'any' type
-catch (error) { ... }                // Implicit 'any'
-catch (error: Error) { ... }         // Assumes error is Error type
-```
-
-**Key Principles:**
-- Always use `catch (error: unknown)` for type safety
-- Use type guards to check error type: `error instanceof Error`
-- Provide fallback message for non-Error objects
-- Log errors with context for debugging
-- User-facing messages should be clear and actionable
-
-**Example with Silent Handling:**
-```typescript
-try {
-  const config = await profileService.getProfileConfig(profileId);
-} catch (error: unknown) {
-  const errorMessage = error instanceof Error ? error.message : '';
-  // Silent handling for expected errors
-  if (!errorMessage.includes('Profile ID is required')) {
-    message.error('Failed to load profile configuration');
-    console.error('Failed to load profile config:', error);
-  }
-}
-```
-
-## Frontend Service Pattern
-
-### Base Service Class
-
-**Type-Safe BaseModuleService (2026-02-19):**
-
-```typescript
-// All module services extend BaseModuleService
 abstract class BaseModuleService {
   protected readonly moduleName: ModuleName;
 
-  constructor(moduleName: ModuleName) {
-    this.moduleName = moduleName;
-  }
-
-  // Core method with dual generics for type safety
   protected async sendMessage<T, TPayload = unknown>(
     type: string,
     profileId?: string,
@@ -331,457 +102,137 @@ abstract class BaseModuleService {
       payload
     });
   }
-
-  // Convenience methods with generic payload types
-  protected async sendBooleanMessage<TPayload = unknown>(
-    type: string,
-    profileId?: string,
-    payload?: TPayload
-  ): Promise<boolean> {
-    return this.sendMessage<boolean, TPayload>(type, profileId, payload);
-  }
-
-  protected async sendArrayMessage<T, TPayload = unknown>(
-    type: string,
-    profileId?: string,
-    payload?: TPayload
-  ): Promise<T[]> {
-    return this.sendMessage<T[], TPayload>(type, profileId, payload);
-  }
-
-  protected async sendNullableMessage<T, TPayload = unknown>(
-    type: string,
-    profileId?: string,
-    payload?: TPayload
-  ): Promise<T | null> {
-    return this.sendMessage<T | null, TPayload>(type, profileId, payload);
-  }
 }
-```
 
-**Key Changes:**
-- Dual generic parameters: `<T, TPayload = unknown>` for both request and response types
-- Profile ID as separate parameter (not in payload)
-- Default `unknown` type maintains backward compatibility
-- Eliminates all `any` types
-
-### Module Service Example
-
-```typescript
+// Example implementation
 class ModService extends BaseModuleService {
-  constructor() {
-    super('MOD');  // Module name set once
-  }
+  constructor() { super('MOD'); }
 
   async getAllMods(): Promise<ModInfo[]> {
     return this.sendArrayMessage<ModInfo>('GET_ALL');
   }
+}
+```
 
-  async loadMod(sha: string): Promise<boolean> {
-    return this.sendBooleanMessage('LOAD', { sha });
+### Error Handling
+```typescript
+// Always use unknown + type guard
+catch (error: unknown) {
+  const msg = error instanceof Error ? error.message : 'Unknown error';
+  message.error(msg);
+}
+```
+
+### Compact Components
+Use `CompactButton`, `CompactCard`, etc. from `shared/components/compact/` for consistent UI.
+
+## Backend Patterns
+
+### AppFacade (Top Router)
+```csharp
+public class AppFacade : IAppFacade {
+  public async Task<MessageResponse> HandleMessageAsync(MessageRequest request) {
+    var facade = GetFacadeByModuleName(request.Module);
+    return await facade.HandleMessageAsync(request);
+  }
+
+  private IModuleFacade? GetFacadeByModuleName(string moduleName) =>
+    moduleName.ToUpperInvariant() switch {
+      "MOD" => _modFacade,
+      "PROFILE" => _profileFacade,
+      // ... other modules
+      _ => null
+    };
+}
+```
+
+### Module Facade
+```csharp
+public class ModFacade : IModFacade {
+  public async Task<MessageResponse> HandleMessageAsync(MessageRequest request) {
+    object? responseData = request.Type switch {
+      "GET_ALL" => await GetAllModsAsync(),
+      "LOAD" => await LoadModAsync(request),
+      _ => throw new InvalidOperationException($"Unknown: {request.Type}")
+    };
+    return MessageResponse.CreateSuccess(request.Id, responseData);
   }
 }
-
-export const modService = new ModService();
 ```
-
-### Usage in Components
-
-```typescript
-import { modService } from '../services/modService';
-
-const MyComponent = () => {
-  const [mods, setMods] = useState<ModInfo[]>([]);
-
-  useEffect(() => {
-    modService.getAllMods().then(setMods);
-  }, []);
-
-  const handleLoad = (sha: string) => {
-    modService.loadMod(sha);
-  };
-
-  return (/* ... */);
-};
-```
-
-## Backend Routing Pattern
-
-### AppFacade (Top-Level Router)
-
-```csharp
-public class AppFacade : IAppFacade
-{
-    private readonly IModFacade _modFacade;
-    private readonly IProfileFacade _profileFacade;
-    // ... other facades
-
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
-    {
-        // Validate Module field is present
-        if (string.IsNullOrEmpty(request.Module))
-        {
-            throw new InvalidOperationException("Module field required");
-        }
-
-        return await RouteByModule(request);
-    }
-
-    private IModuleFacade? GetFacadeByModuleName(string moduleName)
-    {
-        return moduleName.ToUpperInvariant() switch
-        {
-            "MOD" or "MODS" => _modFacade,
-            "PROFILE" or "PROFILES" => _profileFacade,
-            // ... other modules
-            _ => null
-        };
-    }
-}
-```
-
-### Module Facade (Module-Level Router)
-
-```csharp
-public class ModFacade : IModFacade
-{
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
-    {
-        try
-        {
-            object? responseData = request.Type switch
-            {
-                "GET_ALL" => await GetAllModsAsync(),
-                "LOAD" => await LoadModAsync(request),
-                "UNLOAD" => await UnloadModAsync(request),
-                "DELETE" => await DeleteModAsync(request),
-                _ => throw new InvalidOperationException($"Unknown type: {request.Type}")
-            };
-
-            return MessageResponse.CreateSuccess(request.Id, responseData);
-        }
-        catch (Exception ex)
-        {
-            return MessageResponse.CreateError(request.Id, ex.Message);
-        }
-    }
-
-    private async Task<List<ModInfo>> GetAllModsAsync()
-    {
-        return await _repository.GetAllAsync();
-    }
-
-    // ... other methods
-}
-```
-
-## Dependency Injection
 
 ### Service Registration
-
 ```csharp
-// Main registration (orchestrates modules)
-public static IServiceCollection AddD3dxSkinManagerServices(
-    this IServiceCollection services,
-    string dataPath)
-{
-    // Register modules in dependency order
-    services.AddCoreServices();
-    services.AddImageService(dataPath);
-    services.AddProfilesServices(dataPath);
-    services.AddToolsServices(dataPath);
-    services.AddModsServices(dataPath);
-    services.AddD3DMigotoServices(dataPath);
-    services.AddGameServices();
-    services.AddSettingsServices();
-    services.AddPluginsServices();
-    services.AddWarehouseServices();
-    services.AddMigrationServices(dataPath);
-
-    // Register top-level facade
-    services.AddSingleton<IAppFacade, AppFacade>();
-
-    // Register plugin infrastructure
-    services.AddSingleton<ILogger, ConsoleLogger>();
-    services.AddSingleton<PluginRegistry>();
-    services.AddSingleton<PluginEventBus>();
-    services.AddSingleton<PluginContext>();
-
-    return services;
+// Module registration
+public static IServiceCollection AddModsServices(this IServiceCollection services) {
+  services.AddSingleton<IModRepository, ModRepository>();
+  services.AddSingleton<IModService, ModService>();
+  services.AddSingleton<IModFacade, ModFacade>();
+  return services;
 }
-```
 
-### Module Registration Example
-
-```csharp
-// ModsServiceExtensions.cs
-public static IServiceCollection AddModsServices(
-    this IServiceCollection services,
-    string dataPath)
-{
-    // Register repositories
-    services.AddSingleton<IModRepository>(sp =>
-        new ModRepository(dataPath));
-
-    // Register services
-    services.AddSingleton<IModArchiveService, ModArchiveService>();
-    services.AddSingleton<IModImportService, ModImportService>();
-    services.AddSingleton<IModQueryService, ModQueryService>();
-
-    // Register facade
-    services.AddSingleton<IModFacade, ModFacade>();
-
-    return services;
-}
+// Main registration
+services.AddCoreServices();
+services.AddSettingsServices();
+services.AddProfileServices();
+services.AddSingleton<IAppFacade, AppFacade>();
 ```
 
 ## Plugin System
 
-### Plugin Architecture
-
 ```csharp
-public interface IPlugin
-{
-    string Name { get; }
-    string Version { get; }
-    Task InitializeAsync(IPluginContext context);
-    Task ShutdownAsync();
+public interface IPlugin {
+  string Name { get; }
+  Task InitializeAsync(IPluginContext context);
 }
 
-public interface IMessageHandlerPlugin : IPlugin
-{
-    bool CanHandleMessage(string messageType);
-    Task<MessageResponse> HandleMessageAsync(MessageRequest request);
+public interface IMessageHandlerPlugin : IPlugin {
+  bool CanHandleMessage(string messageType);
+  Task<MessageResponse> HandleMessageAsync(MessageRequest request);
 }
 ```
 
-### Plugin Registration
-
-Plugins are discovered from `data/plugins/` directory and can:
-- Register services with DI container
+Plugins can:
 - Handle custom IPC messages
-- Subscribe to application events
-- Access core services through `IPluginContext`
+- Subscribe to events
+- Access core services via IPluginContext
 
-### Plugin Interception Flow
+## Data Flow Example
 
+**Loading a Mod:**
 ```
-IPC Message → Program.cs
+User Click → modService.loadMod(sha)
     ↓
-Check PluginRegistry.CanHandleMessage()
+{ module: 'MOD', type: 'LOAD', payload: { sha } }
     ↓
-If Yes: Route to plugin
-If No: Route to AppFacade → Module Facade
+IPC → AppFacade → ModFacade → ModService → ModRepository
+    ↓
+Response → IPC → Component Update
 ```
+
+## Adding New Features
+
+### Backend Module
+1. Create `Modules/NewModule/` folder
+2. Add facade interface & implementation
+3. Create service registration extension
+4. Register in AppFacade router
+
+### Frontend Module
+1. Create service extending BaseModuleService
+2. Define TypeScript types
+3. Build components using service
 
 ## Key Design Patterns
 
-### 1. Facade Pattern
-- **Purpose:** Provide unified interface for module operations
-- **Implementation:** Each module has a facade that routes IPC messages
-- **Example:** `ModFacade` routes to `ModRepository`, `ModImportService`, etc.
-
-### 2. Repository Pattern
-- **Purpose:** Abstract data access
-- **Implementation:** `ModRepository` handles mod storage
-- **Example:** `IModRepository.GetAllAsync()` retrieves mods from file system
-
-### 3. Service Layer Pattern
-- **Purpose:** Encapsulate business logic
-- **Implementation:** Services like `ModImportService`, `CacheService`
-- **Example:** `ModImportService.ImportAsync()` handles mod extraction and metadata
-
-### 4. Dependency Injection
-- **Purpose:** Loose coupling and testability
-- **Implementation:** .NET DI container with interface-based registration
-- **Example:** Facades depend on service interfaces, not implementations
-
-### 5. Event Bus Pattern
-- **Purpose:** Decouple plugins from core application
-- **Implementation:** `PluginEventBus` emits events (ApplicationStarted, ModLoaded, etc.)
-- **Example:** Plugins subscribe to events without tight coupling
-
-## Data Flow Examples
-
-### Example 1: Loading a Mod
-
-```
-1. User clicks "Load" button
-   ↓
-2. Component calls: modService.loadMod(sha)
-   ↓
-3. ModService sends: { module: 'MOD', type: 'LOAD', payload: { sha } }
-   ↓
-4. BridgeService → IPC (chrome.webview.postMessage) → IpcCommunicationHandler
-   ↓
-5. IpcCommunicationHandler → MessageDispatcher → ProfileServiceRouter
-   ↓
-6. Router dispatches to ModFacade
-   ↓
-7. ModFacade.HandleMessageAsync() routes to LoadModAsync()
-   ↓
-8. LoadModAsync() calls ModRepository.LoadAsync(sha)
-   ↓
-9. Repository loads mod files, emits ModLoaded event
-   ↓
-10. Success response travels back to frontend via CoreWebView2.PostWebMessageAsJson
-   ↓
-11. Component updates UI
-```
-
-### Example 2: Creating a Profile
-
-```
-1. User fills profile form, clicks "Create"
-   ↓
-2. Component calls: profileService.createProfile(request)
-   ↓
-3. ProfileService sends: { module: 'PROFILE', type: 'CREATE', payload: request }
-   ↓
-4. IPC → AppFacade → ProfileFacade
-   ↓
-5. ProfileFacade.CreateProfileAsync()
-   ↓
-6. ProfileService.CreateAsync() creates profile directories
-   ↓
-7. ProfileConfiguration written to file
-   ↓
-8. ProfileCreated event emitted
-   ↓
-9. New Profile returned to frontend
-   ↓
-10. UI updates with new profile
-```
-
-## File Structure
-
-```
-D3dxSkinManager/
-├── D3dxSkinManager/                 # Backend (.NET 10)
-│   ├── Configuration/               # DI registration
-│   ├── Facades/                     # Top-level facades
-│   │   ├── IAppFacade.cs
-│   │   └── AppFacade.cs
-│   ├── Modules/                     # Module implementations
-│   │   ├── Core/
-│   │   ├── Mods/
-│   │   ├── Profiles/
-│   │   └── ...
-│   ├── Plugins/                     # Plugin infrastructure
-│   └── Program.cs                   # Entry point
-│
-├── D3dxSkinManager.Client/          # Frontend (React + TypeScript)
-│   └── src/
-│       ├── modules/                 # Feature modules
-│       │   ├── mods/
-│       │   ├── profiles/
-│       │   └── ...
-│       ├── shared/                  # Shared utilities
-│       │   ├── services/
-│       │   │   ├── baseModuleService.ts
-│       │   │   ├── bridgeService.ts
-│       │   │   └── ...
-│       │   └── types/
-│       └── App.tsx
-│
-├── Plugins/                         # Plugin projects
-│   ├── ExamplePlugin/
-│   └── ...
-│
-└── docs/                            # Documentation
-    ├── architecture/
-    ├── core/
-    └── features/
-```
-
-## Adding a New Feature
-
-### 1. Backend (if new module needed)
-
-```csharp
-// 1. Create module folder: Modules/NewModule/
-
-// 2. Create facade interface
-public interface INewModuleFacade : IModuleFacade
-{
-    Task<MessageResponse> HandleMessageAsync(MessageRequest request);
-    // Module-specific methods
-}
-
-// 3. Create facade implementation
-public class NewModuleFacade : INewModuleFacade
-{
-    public async Task<MessageResponse> HandleMessageAsync(MessageRequest request)
-    {
-        object? responseData = request.Type switch
-        {
-            "ACTION1" => await Action1Async(request),
-            _ => throw new InvalidOperationException($"Unknown: {request.Type}")
-        };
-        return MessageResponse.CreateSuccess(request.Id, responseData);
-    }
-}
-
-// 4. Create service registration
-public static class NewModuleServiceExtensions
-{
-    public static IServiceCollection AddNewModuleServices(
-        this IServiceCollection services)
-    {
-        services.AddSingleton<INewModuleFacade, NewModuleFacade>();
-        return services;
-    }
-}
-
-// 5. Register in ServiceCollectionExtensions.cs
-services.AddNewModuleServices();
-
-// 6. Add to AppFacade.GetFacadeByModuleName()
-"NEWMODULE" => _newModuleFacade,
-```
-
-### 2. Frontend
-
-```typescript
-// 1. Create service class
-class NewModuleService extends BaseModuleService {
-  constructor() {
-    super('NEWMODULE');
-  }
-
-  async doAction(param: string): Promise<Result> {
-    return this.sendMessage<Result>('ACTION1', { param });
-  }
-}
-
-export const newModuleService = new NewModuleService();
-
-// 2. Use in components
-import { newModuleService } from '../services/newModuleService';
-
-const result = await newModuleService.doAction('value');
-```
+1. **Facade Pattern** - Unified module interfaces
+2. **Repository Pattern** - Data access abstraction
+3. **Service Layer** - Business logic encapsulation
+4. **Dependency Injection** - Interface-based registration
+5. **Event Bus** - Plugin decoupling
 
 ## Related Documentation
 
-- [APP_FACADE_REFACTORING.md](APP_FACADE_REFACTORING.md) - AppFacade design details
-- [FRONTEND_SERVICE_ARCHITECTURE.md](FRONTEND_SERVICE_ARCHITECTURE.md) - Frontend service pattern
-- [LEGACY_REMOVAL_COMPLETE.md](LEGACY_REMOVAL_COMPLETE.md) - Legacy IPC removal details
-- [SERVICE_REGISTRATION_ARCHITECTURE.md](SERVICE_REGISTRATION_ARCHITECTURE.md) - DI registration details
-- [MODULE_STRUCTURE.md](MODULE_STRUCTURE.md) - Module organization guidelines
-- [../../README.md](../../README.md) - Project overview
-
-## Summary
-
-D3dxSkinManager uses a modern, clean architecture with:
-- ✅ Module-based organization (frontend and backend aligned)
-- ✅ Explicit IPC routing with `{ module, type, payload }` format
-- ✅ Type-safe communication across IPC boundary
-- ✅ BaseModuleService pattern for frontend services
-- ✅ AppFacade for centralized backend routing
-- ✅ Module facades for domain-specific logic
-- ✅ Dependency injection throughout
-- ✅ Plugin system for extensibility
-- ✅ Clear separation of concerns
-
-This architecture provides excellent maintainability, testability, and scalability! 🚀
+- [MODULE_ARCHITECTURE.md](MODULE_ARCHITECTURE.md) - Module details
+- [APP_FACADE_REFACTORING.md](APP_FACADE_REFACTORING.md) - Routing details
+- [DOMAIN_DESIGN.md](DOMAIN_DESIGN.md) - Domain boundaries
+- [FRONTEND_CONTEXT_ARCHITECTURE.md](FRONTEND_CONTEXT_ARCHITECTURE.md) - React context
