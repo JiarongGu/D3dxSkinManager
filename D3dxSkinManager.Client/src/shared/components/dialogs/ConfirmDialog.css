@@ -104,3 +104,27 @@
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
+
+/* Dialog title with icon */
+.confirm-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirm-dialog-icon {
+  color: #faad14;
+  font-size: 22px;
+}
+
+/* Dialog footer */
+.confirm-dialog-footer {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/* Dialog content */
+.confirm-dialog-content {
+  font-size: 14px;
+  line-height: 1.5;
+}

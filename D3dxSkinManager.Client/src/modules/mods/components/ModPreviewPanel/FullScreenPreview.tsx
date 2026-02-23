@@ -56,28 +56,14 @@ export const FullScreenPreview: React.FC<FullScreenPreviewProps> = ({
     >
       {/* Loading spinner */}
       {!imageLoaded && !imageError && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 2,
-          }}
-        >
+        <div className="fullscreen-preview-loading">
           <Spin size="large" />
         </div>
       )}
 
       {/* Error message */}
       {imageError && (
-        <div
-          style={{
-            color: '#fff',
-            fontSize: '16px',
-            textAlign: 'center',
-          }}
-        >
+        <div className="fullscreen-preview-error">
           Failed to load image
         </div>
       )}
@@ -90,13 +76,6 @@ export const FullScreenPreview: React.FC<FullScreenPreviewProps> = ({
           onLoad={handleImageLoad}
           onError={handleImageError}
           className={imageLoaded ? 'fullscreen-preview-image loaded' : 'fullscreen-preview-image'}
-          style={{
-            maxWidth: 'calc(100vw - 100px)',
-            maxHeight: 'calc(100vh - 120px)',
-            width: 'auto',
-            height: 'auto',
-            objectFit: 'contain',
-          }}
         />
       )}
     </Modal>

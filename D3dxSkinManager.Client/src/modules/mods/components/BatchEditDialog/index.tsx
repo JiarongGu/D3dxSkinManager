@@ -8,6 +8,8 @@ import { ModTagSelectorDialog } from '../ModEditDialog/ModTagSelectorDialog';
 import { CompactButton } from '../../../../shared/components/compact/CompactButton';
 import { FieldRow } from './FieldRow';
 import { useProfile } from '../../../../shared/context/ProfileContext';
+import { useTranslation } from 'react-i18next';
+import './index.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -18,14 +20,6 @@ export interface BatchEditDialogProps {
   onSave: (modData: Partial<ModInfo>, fieldMask: string[]) => Promise<void>;
   onCancel: () => void;
 }
-
-// Age rating options
-const ageRatingOptions = [
-  { value: 'G', label: 'G - General' },
-  { value: 'P', label: 'P - Parental Guidance' },
-  { value: 'R', label: 'R - Restricted' },
-  { value: 'X', label: 'X - Adults Only' },
-];
 
 /**
  * Dialog for batch editing multiple mods
@@ -38,6 +32,7 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -46,6 +41,14 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
   const [authors, setAuthors] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const { state: profileState } = useProfile();
+
+  // Age rating options
+  const ageRatingOptions = [
+    { value: 'G', label: t('ageRating.general') },
+    { value: 'P', label: t('ageRating.parentalGuidance') },
+    { value: 'R', label: t('ageRating.restricted') },
+    { value: 'X', label: t('ageRating.adultsOnly') },
+  ];
 
   // Field enable/disable state
   const [enabledFields, setEnabledFields] = useState({
@@ -116,19 +119,19 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
       }
 
       if (fieldMask.length === 0) {
-        notification.warning('Please select at least one field to update');
+        notification.warning(t('batchEdit.selectOneField'));
         return;
       }
 
       setSaving(true);
       await onSave(modData, fieldMask);
 
-      notification.success(`${selectedMods.length} mod(s) updated successfully`);
+      notification.success(t('batchEditMods.modsUpdated', { count: selectedMods.length }));
       handleReset();
       onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
-      notification.error('Please check all required fields');
+      notification.error(t('batchEdit.checkFields'));
     } finally {
       setSaving(false);
     }
@@ -166,26 +169,26 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
 
   return (
     <Modal
-      title={`Batch Edit ${selectedMods.length} Mod(s)`}
+      title={t('batchEditMods.title', { count: selectedMods.length })}
       open={visible}
       onCancel={handleCancel}
       width={700}
       footer={[
         <CompactButton key="reset" onClick={handleReset}>
-          Reset
+          {t('batchEdit.reset')}
         </CompactButton>,
         <CompactButton key="cancel" onClick={handleCancel}>
-          Cancel
+          {t('common.cancel')}
         </CompactButton>,
         <CompactButton key="save" type="primary" onClick={handleSave} loading={saving}>
-          Apply to {selectedMods.length} Mod(s)
+          {t('batchEditMods.applyTo', { count: selectedMods.length })}
         </CompactButton>,
       ]}
     >
-      <Space orientation="vertical" style={{ width: '100%' }} size="large">
+      <Space orientation="vertical" className="batch-edit-dialog-container" size="large">
         <Alert
-          message="Batch Edit Mode"
-          description={`Check the fields you want to update for all ${selectedMods.length} selected mod(s). Unchecked fields will remain unchanged.`}
+          message={t('batchEditMods.alertTitle')}
+          description={t('batchEditMods.alertDescription', { count: selectedMods.length })}
           type="info"
           showIcon
         />
@@ -201,12 +204,12 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
             onToggle={() => handleFieldToggle('description')}
           >
             <Form.Item
-              label="Description"
+              label={t('addMod.description')}
               name="description"
-              style={{ flex: 1, marginBottom: 0 }}
+              className="batch-edit-dialog-field"
             >
               <TextArea
-                placeholder="Enter description for all selected mods..."
+                placeholder={t('batchEditMods.descriptionPlaceholder')}
                 rows={3}
                 disabled={!enabledFields.description}
                 showCount
@@ -215,7 +218,7 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
             </Form.Item>
           </FieldRow>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Divider className="batch-edit-dialog-divider" />
 
           {/* Author */}
           <FieldRow
@@ -223,12 +226,12 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
             onToggle={() => handleFieldToggle('author')}
           >
             <Form.Item
-              label="Author"
+              label={t('addMod.author')}
               name="author"
-              style={{ flex: 1, marginBottom: 0 }}
+              className="batch-edit-dialog-field"
             >
               <AutoComplete
-                placeholder="Set author for all selected mods"
+                placeholder={t('batchEditMods.authorPlaceholder')}
                 disabled={!enabledFields.author}
                 options={authors.map(author => ({ value: author }))}
                 filterOption={(inputValue, option) =>
@@ -238,7 +241,7 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
             </Form.Item>
           </FieldRow>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Divider className="batch-edit-dialog-divider" />
 
           {/* Category */}
           <FieldRow
@@ -246,12 +249,12 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
             onToggle={() => handleFieldToggle('category')}
           >
             <Form.Item
-              label="Category"
+              label={t('addMod.category')}
               name="category"
-              style={{ flex: 1, marginBottom: 0 }}
+              className="batch-edit-dialog-field"
             >
               <AutoComplete
-                placeholder="Set category for all selected mods"
+                placeholder={t('batchEditMods.categoryPlaceholder')}
                 disabled={!enabledFields.category}
                 options={categories.map(cat => ({ value: cat }))}
                 filterOption={(inputValue, option) =>
@@ -261,7 +264,7 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
             </Form.Item>
           </FieldRow>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Divider className="batch-edit-dialog-divider" />
 
           {/* Age Rating */}
           <FieldRow
@@ -269,11 +272,11 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
             onToggle={() => handleFieldToggle('grading')}
           >
             <Form.Item
-              label="Age Rating"
+              label={t('addMod.grading')}
               name="grading"
-              style={{ flex: 1, marginBottom: 0 }}
+              className="batch-edit-dialog-field"
             >
-              <Select placeholder="Select age rating" disabled={!enabledFields.grading}>
+              <Select placeholder={t('batchEditMods.ageRatingPlaceholder')} disabled={!enabledFields.grading}>
                 {ageRatingOptions.map(option => (
                   <Option key={option.value} value={option.value}>
                     {option.label}
@@ -283,7 +286,7 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
             </Form.Item>
           </FieldRow>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Divider className="batch-edit-dialog-divider" />
 
           {/* Tags */}
           <FieldRow
@@ -291,15 +294,15 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
             onToggle={() => handleFieldToggle('tags')}
           >
             <Form.Item
-              label="Tags"
-              style={{ flex: 1, marginBottom: 0 }}
+              label={t('addMod.tags')}
+              className="batch-edit-dialog-field"
             >
               <MultiTagInput
                 value={selectedTags}
                 onChange={setSelectedTags}
                 availableTags={availableTags}
                 onOpenTagSelector={handleOpenTagSelector}
-                placeholder="Type to add tags..."
+                placeholder={t('batchEditMods.tagsPlaceholder')}
               />
             </Form.Item>
           </FieldRow>
@@ -310,8 +313,8 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
         <Alert
           message={
             Object.values(enabledFields).filter(Boolean).length > 0
-              ? `${Object.values(enabledFields).filter(Boolean).length} field(s) will be updated`
-              : 'No fields selected for update'
+              ? t('batchEditMods.summaryFields', { count: Object.values(enabledFields).filter(Boolean).length })
+              : t('batchEditMods.summaryNoFields')
           }
           type={Object.values(enabledFields).filter(Boolean).length > 0 ? 'success' : 'warning'}
         />

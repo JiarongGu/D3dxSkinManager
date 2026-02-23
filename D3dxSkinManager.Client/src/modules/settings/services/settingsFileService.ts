@@ -26,20 +26,20 @@ class SettingsFileService extends BaseModuleService {
 
   /**
    * Get a settings file by name (without .json extension)
-   * Returns the parsed JSON object, or null if file doesn't exist
+   * Returns the parsed JSON object, or undefined if file doesn't exist
    */
-  async getSettingsFile<T extends Record<string, unknown> = Record<string, unknown>>(filename: string): Promise<T | null> {
+  async getSettingsFile<T extends Record<string, unknown> = Record<string, unknown>>(filename: string): Promise<T | undefined> {
     try {
       const response = await this.sendMessage<SettingsFileResponse>('GET_FILE', undefined, { filename });
 
       if (!response.success || !response.content) {
-        return null;
+        return undefined;
       }
 
       return JSON.parse(response.content) as T;
     } catch (error) {
       console.error(`[SettingsFileService] Failed to get settings file '${filename}':`, error);
-      return null;
+      return undefined;
     }
   }
 

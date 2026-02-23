@@ -147,7 +147,7 @@ export interface DragDropHandler {
 export function useDragDrop<T extends HTMLElement = HTMLElement>(
   ...handlers: DragDropHandler[]
 ) {
-  const [container, setContainer] = useState<T | null>(null);
+  const [container, setContainer] = useState<T>();
   const handlersMapRef = useRef<Record<string, DragDropHandler>>(
     handlers.reduce<Record<string, DragDropHandler>>((map, handler) => {
       map[handler.eventType] = handler;

@@ -1,0 +1,10 @@
+/* Shared styles for all migration steps */
+.migration-step-container {
+  width: 100%;
+}
+
+/* Progress Step */
+.progress-step-paragraph {
+  margin-top: 16px;
+  text-align: center;
+}

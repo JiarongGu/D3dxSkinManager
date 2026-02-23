@@ -3,6 +3,10 @@
 }
 
 .multi-tag-input-select {
+  flex: 1;
+}
+
+.multi-tag-input-compact {
   width: 100%;
 }
 

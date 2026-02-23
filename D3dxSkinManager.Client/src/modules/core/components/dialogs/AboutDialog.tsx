@@ -30,7 +30,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
     <Modal
       title={
         <>
-          <InfoCircleOutlined style={{ marginRight: 8 }} />
+          <InfoCircleOutlined className="about-dialog-icon" />
           {t('about.title')}
         </>
       }
@@ -67,7 +67,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
         {/* Tech Stack */}
         <div>
           <Title level={5}>
-            <LinkOutlined style={{ marginRight: 8 }} />
+            <LinkOutlined className="about-dialog-icon" />
             {t('about.techStack')}
           </Title>
           <Space wrap>
@@ -99,7 +99,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
         {/* Credits */}
         <div>
           <Title level={5}>
-            <CopyrightOutlined style={{ marginRight: 8 }} />
+            <CopyrightOutlined className="about-dialog-icon" />
             {t('about.credits')}
           </Title>
           <Space orientation="vertical" size="small">
@@ -118,7 +118,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
         {/* Links */}
         <div>
           <Title level={5}>
-            <GithubOutlined style={{ marginRight: 8 }} />
+            <GithubOutlined className="about-dialog-icon" />
             {t('about.resources')}
           </Title>
           <Space orientation="vertical">

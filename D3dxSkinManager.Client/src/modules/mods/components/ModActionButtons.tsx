@@ -3,6 +3,7 @@ import { Tooltip } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { CompactButton, CompactSpace } from '../../../shared/components/compact';
 import { ModInfo } from '../../../shared/types/mod.types';
+import './ModActionButtons.css';
 
 interface ModActionButtonsProps {
   mod: ModInfo;
@@ -24,7 +25,7 @@ export const ModActionButtons: React.FC<ModActionButtonsProps> = ({
           size="medium"
           danger
           onClick={() => onUnload(mod.sha)}
-          style={{ minWidth: '80px' }}
+          className="mod-action-button"
         >
           Unload
         </CompactButton>
@@ -34,7 +35,7 @@ export const ModActionButtons: React.FC<ModActionButtonsProps> = ({
           type="primary"
           onClick={() => onLoad(mod.sha)}
           disabled={!mod.isAvailable}
-          style={{ minWidth: '80px' }}
+          className="mod-action-button"
         >
           Load
         </CompactButton>
@@ -43,7 +44,7 @@ export const ModActionButtons: React.FC<ModActionButtonsProps> = ({
         <CompactButton
           size="medium"
           danger
-          icon={<DeleteOutlined style={{ fontSize: '16px' }} />}
+          icon={<DeleteOutlined className="mod-action-delete-icon" />}
           onClick={() => onDelete(mod.sha, mod.name)}
         />
       </Tooltip>

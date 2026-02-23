@@ -1,0 +1,36 @@
+/* ProfileSwitcher Button */
+.profile-switcher-button {
+  background: rgba(24, 144, 255, 0.1);
+  border: 1px solid rgba(24, 144, 255, 0.3);
+  color: white;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 4px 12px;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.profile-switcher-button:hover {
+  background: rgba(24, 144, 255, 0.2) !important;
+  border-color: rgba(24, 144, 255, 0.5) !important;
+}
+
+/* Profile Name */
+.profile-switcher-name {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.profile-switcher-placeholder {
+  font-weight: 500;
+}
+
+/* Mod Count Badge */
+.profile-switcher-badge {
+  background-color: #52c41a;
+  font-size: 10px;
+  height: 18px;
+  line-height: 18px;
+  padding: 0 6px;
+}

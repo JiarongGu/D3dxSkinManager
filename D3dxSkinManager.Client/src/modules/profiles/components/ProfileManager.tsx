@@ -42,7 +42,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
+  const [editingProfile, setEditingProfile] = useState<Profile>();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -110,7 +110,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       });
 
       message.success(t('profiles.notifications.updateSuccess'));
-      setEditingProfile(null);
+      setEditingProfile(undefined);
       await loadProfiles();
 
       // Reload profiles in the context to update ProfileSwitcher
@@ -378,8 +378,8 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       {/* Edit Profile Dialog */}
       <Modal
         title={t('profiles.dialog.editTitle')}
-        open={editingProfile !== null}
-        onCancel={() => setEditingProfile(null)}
+        open={editingProfile !== undefined}
+        onCancel={() => setEditingProfile(undefined)}
         onOk={handleEdit}
         width={600}
       >

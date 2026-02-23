@@ -4,6 +4,8 @@ import { Modal, Form, Input, Select, Button, Space, Card, Image } from 'antd';
 import { TagsOutlined, FolderOutlined, FileZipOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { ImportTask } from './AddModWindow';
+import { useTranslation } from 'react-i18next';
+import './AddModUnit.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -28,6 +30,7 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
   onCancel,
   onOpenTagSelector,
 }) => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -64,11 +67,11 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
       setSaving(true);
       onSave(task.id, modData);
 
-      notification.success('Task updated successfully');
+      notification.success(t('addMod.taskUpdated'));
       onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
-      notification.error('Please check all required fields');
+      notification.error(t('addMod.checkFields'));
     } finally {
       setSaving(false);
     }
@@ -78,7 +81,7 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
     if (onOpenTagSelector) {
       onOpenTagSelector(selectedTags);
     } else {
-      notification.info('Tag selector not implemented yet');
+      notification.info(t('addMod.tagSelectorNotImplemented'));
     }
   };
 
@@ -91,53 +94,53 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
 
   // Grading options
   const gradingOptions = [
-    { value: 0, label: 'Not Rated' },
-    { value: 1, label: '�?Poor' },
-    { value: 2, label: '★★ Fair' },
-    { value: 3, label: '★★�?Good' },
-    { value: 4, label: '★★★★ Very Good' },
-    { value: 5, label: '★★★★�?Excellent' },
+    { value: 0, label: t('grading.notRated') },
+    { value: 1, label: t('grading.poor') },
+    { value: 2, label: t('grading.fair') },
+    { value: 3, label: t('grading.good') },
+    { value: 4, label: t('grading.veryGood') },
+    { value: 5, label: t('grading.excellent') },
   ];
 
   if (!task) return null;
 
   return (
     <Modal
-      title={`Edit Import Task - ${task.id}`}
+      title={t('addMod.title', { id: task.id })}
       open={visible}
       onCancel={onCancel}
       width={700}
       footer={[
         <Button key="cancel" onClick={onCancel}>
-          Cancel
+          {t('common.cancel')}
         </Button>,
         <Button key="save" type="primary" onClick={handleSave} loading={saving}>
-          Save Changes
+          {t('addMod.saveChanges')}
         </Button>,
       ]}
     >
-      <Space orientation="vertical" style={{ width: '100%' }} size="large">
+      <Space orientation="vertical" className="add-mod-unit-container" size="large">
         {/* File Info Card */}
-        <Card size="small" style={{ background: '#f5f5f5' }}>
-          <Space orientation="vertical" style={{ width: '100%' }}>
+        <Card size="small" className="add-mod-unit-file-card">
+          <Space orientation="vertical" className="add-mod-unit-file-info">
             <Space>
               {task.fileType === 'archive' ? <FileZipOutlined /> : <FolderOutlined />}
-              <strong>Source File:</strong>
-              <span style={{ fontSize: '12px', color: '#595959' }}>{task.fileName}</span>
+              <strong>{t('addMod.sourceFile')}</strong>
+              <span className="add-mod-unit-file-name">{task.fileName}</span>
             </Space>
-            <div style={{ fontSize: '11px', color: '#8c8c8c' }}>
-              Path: {task.filePath}
+            <div className="add-mod-unit-file-path">
+              {t('addMod.path')} {task.filePath}
             </div>
           </Space>
         </Card>
 
         {/* Preview Thumbnail */}
         {task.thumbnailUrl && (
-          <div style={{ textAlign: 'center' }}>
+          <div className="add-mod-unit-preview-container">
             <Image
               src={task.thumbnailUrl}
               alt="Mod Preview"
-              style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px' }}
+              className="add-mod-unit-preview-image"
               fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
             />
           </div>
@@ -151,32 +154,32 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
         >
           {/* Name - Required */}
           <Form.Item
-            label="Mod Name"
+            label={t('addMod.modName')}
             name="name"
-            rules={[{ required: true, message: 'Please enter mod name' }]}
-            tooltip="Display name for this mod"
+            rules={[{ required: true, message: t('addMod.modNameRequired') }]}
+            tooltip={t('addMod.modNameTooltip')}
           >
-            <Input placeholder="Enter mod name" />
+            <Input placeholder={t('addMod.modNamePlaceholder')} />
           </Form.Item>
 
           {/* Category - Required */}
           <Form.Item
-            label="Category"
+            label={t('addMod.category')}
             name="category"
-            rules={[{ required: true, message: 'Please enter category' }]}
-            tooltip="Character name or object type (e.g., Character, Weapon)"
+            rules={[{ required: true, message: t('addMod.categoryRequired') }]}
+            tooltip={t('addMod.categoryTooltip')}
           >
-            <Input placeholder="e.g., Character, Weapon, UI" />
+            <Input placeholder={t('addMod.categoryPlaceholder')} />
           </Form.Item>
 
           {/* Description */}
           <Form.Item
-            label="Description"
+            label={t('addMod.description')}
             name="description"
-            tooltip="Optional description of what this mod changes"
+            tooltip={t('addMod.descriptionTooltip')}
           >
             <TextArea
-              placeholder="Describe what this mod changes..."
+              placeholder={t('addMod.descriptionPlaceholder')}
               rows={3}
               showCount
               maxLength={500}
@@ -185,20 +188,20 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
 
           {/* Author */}
           <Form.Item
-            label="Author"
+            label={t('addMod.author')}
             name="author"
-            tooltip="Mod creator's name"
+            tooltip={t('addMod.authorTooltip')}
           >
-            <Input placeholder="Enter author name" />
+            <Input placeholder={t('addMod.authorPlaceholder')} />
           </Form.Item>
 
           {/* Grading */}
           <Form.Item
-            label="Grading"
+            label={t('addMod.grading')}
             name="grading"
-            tooltip="Your rating of this mod's quality"
+            tooltip={t('addMod.gradingTooltip')}
           >
-            <Select placeholder="Select grading">
+            <Select placeholder={t('addMod.gradingPlaceholder')}>
               {gradingOptions.map(option => (
                 <Option key={option.value} value={option.value}>
                   {option.label}
@@ -209,22 +212,22 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
 
           {/* Tags */}
           <Form.Item
-            label="Tags"
-            tooltip="Categorize this mod with tags"
+            label={t('addMod.tags')}
+            tooltip={t('addMod.tagsTooltip')}
           >
-            <Space orientation="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" className="add-mod-unit-tags-container">
               <Button
                 icon={<TagsOutlined />}
                 onClick={handleOpenTagSelector}
                 block
               >
                 {selectedTags.length > 0
-                  ? `Selected Tags: ${selectedTags.join(', ')}`
-                  : 'Select Tags...'}
+                  ? t('addMod.selectedTags', { tags: selectedTags.join(', ') })
+                  : t('addMod.selectTags')}
               </Button>
               {selectedTags.length > 0 && (
-                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                  {selectedTags.length} tag(s) selected
+                <div className="add-mod-unit-tags-count">
+                  {t('addMod.tagsCount', { count: selectedTags.length })}
                 </div>
               )}
             </Space>

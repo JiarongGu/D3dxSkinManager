@@ -7,6 +7,7 @@ import {
   CompactAlert,
   CompactButton,
 } from '../../../shared/components/compact';
+import './ToolsCommon.css';
 
 interface PythonMigrationToolProps {
   onMigrationComplete?: () => void;
@@ -31,7 +32,7 @@ export const PythonMigrationTool: React.FC<PythonMigrationToolProps> = ({ onMigr
       <CompactCard
         title={<><ImportOutlined /> Python Migration</>}
       >
-        <CompactSpace vertical style={{ width: '100%' }}>
+        <CompactSpace vertical className="tool-container">
           <CompactAlert
             title="Migrate from Python Version"
             description="Import your mods, previews, and configuration from the Python d3dxSkinManage installation to this React version."

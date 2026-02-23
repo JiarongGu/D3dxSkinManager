@@ -57,14 +57,13 @@ export const MultiTagInput: React.FC<MultiTagInputProps> = ({
 
   return (
     <div className="multi-tag-input">
-      <Space.Compact style={{ width: '100%' }}>
+      <Space.Compact className="multi-tag-input-compact">
         <Select
           mode="tags"
           value={value}
           onChange={handleChange}
           onSearch={handleSearch}
           placeholder={placeholder}
-          style={{ flex: 1 }}
           className="multi-tag-input-select"
           maxTagCount="responsive"
           maxTagTextLength={maxTagTextLength}

@@ -2,6 +2,8 @@ import { notification } from '../../../shared/utils/notification';
 import React, { useState, useCallback, DragEvent } from 'react';
 import { InboxOutlined } from '@ant-design/icons';
 import { FileTypeRouter } from '../../../shared/utils/fileTypeRouter';
+import { useTranslation } from 'react-i18next';
+import './DragDropZone.css';
 
 export interface DragDropZoneProps {
   onFilesDrop: (files: File[]) => void;
@@ -28,6 +30,7 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
   router,
   enableRouting = false,
 }) => {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
 
@@ -127,7 +130,7 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
     const { files, items } = e.dataTransfer;
 
     if (!files || files.length === 0) {
-      notification.warning('No files detected');
+      notification.warning(t('dragDrop.noFiles'));
       return;
     }
 
@@ -149,7 +152,7 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
     // Show rejection message if any
     if (rejectedFiles.length > 0) {
       notification.warning(
-        `${rejectedFiles.length} file(s) rejected. Accepted types: ${accept?.join(', ')}`
+        t('dragDrop.filesRejected', { count: rejectedFiles.length, types: accept?.join(', ') })
       );
     }
 
@@ -162,21 +165,21 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
           // Show summary message
           const messages: string[] = [];
           if (summary.byType.image > 0) {
-            messages.push(`${summary.byType.image} preview image(s)`);
+            messages.push(t('dragDrop.previewImages', { count: summary.byType.image }));
           }
           if (summary.byType.archive > 0) {
-            messages.push(`${summary.byType.archive} mod archive(s)`);
+            messages.push(t('dragDrop.modArchives', { count: summary.byType.archive }));
           }
           if (summary.skipped > 0) {
-            messages.push(`${summary.skipped} skipped`);
+            messages.push(t('dragDrop.skipped', { count: summary.skipped }));
           }
 
           if (messages.length > 0) {
-            notification.success(`Processed: ${messages.join(', ')}`);
+            notification.success(t('dragDrop.processed', { summary: messages.join(', ') }));
           }
         }).catch(error => {
           console.error('File routing error:', error);
-          notification.error('Failed to process some files');
+          notification.error(t('dragDrop.processFailed'));
         });
       } else {
         // Categorize files
@@ -199,13 +202,13 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
 
         // Show success message
         if (images.length > 0) {
-          notification.success(`${images.length} preview image(s) ready to add`);
+          notification.success(t('dragDrop.previewImagesReady', { count: images.length }));
         }
         if (archives.length > 0) {
-          notification.success(`${archives.length} mod archive(s) ready to add`);
+          notification.success(t('dragDrop.modArchivesReady', { count: archives.length }));
         }
         if (others.length > 0) {
-          notification.info(`${others.length} other file(s) detected`);
+          notification.info(t('dragDrop.otherFilesDetected', { count: others.length }));
         }
       }
     }
@@ -217,42 +220,19 @@ export const DragDropZone: React.FC<DragDropZoneProps> = ({
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      style={{ position: 'relative', width: '100%', height: '100%' }}
+      className="drag-drop-zone-container"
     >
       {children}
 
       {/* Drag overlay */}
       {showOverlay && isDragging && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(24, 144, 255, 0.1)',
-            border: '2px dashed #1890ff',
-            borderRadius: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            pointerEvents: 'none',
-          }}
-        >
-          <div
-            style={{
-              textAlign: 'center',
-              color: '#1890ff',
-              fontSize: '24px',
-              fontWeight: 600,
-            }}
-          >
-            <InboxOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
-            <div>Drop files here</div>
+        <div className="drag-drop-zone-overlay">
+          <div className="drag-drop-zone-overlay-content">
+            <InboxOutlined className="drag-drop-zone-overlay-icon" />
+            <div>{t('dragDrop.dropFilesHere')}</div>
             {accept && accept.length > 0 && (
-              <div style={{ fontSize: '14px', marginTop: '8px', opacity: 0.8 }}>
-                Accepted: {accept.join(', ')}
+              <div className="drag-drop-zone-accepted-types">
+                {t('dragDrop.accepted', { types: accept.join(', ') })}
               </div>
             )}
           </div>

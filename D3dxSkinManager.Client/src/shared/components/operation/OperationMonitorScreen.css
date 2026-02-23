@@ -1,0 +1,131 @@
+/* OperationMonitorScreen Container */
+.operation-monitor-screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-container);
+}
+
+/* Header */
+.operation-monitor-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-spotlight);
+}
+
+.operation-monitor-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.operation-monitor-title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.operation-monitor-subtitle {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+}
+
+/* Content */
+.operation-monitor-content {
+  flex: 1;
+  overflow: auto;
+}
+
+.operation-monitor-tabs {
+  padding: 0;
+}
+
+.operation-monitor-tab-bar {
+  padding: 0 16px;
+  margin-bottom: 0;
+}
+
+/* Operation Item */
+.operation-item {
+  padding: 12px 0;
+}
+
+.operation-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.operation-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.operation-name {
+  font-weight: 500;
+}
+
+.operation-duration {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+/* Status Icons */
+.operation-status-icon-running {
+  color: var(--color-primary);
+}
+
+.operation-status-icon-completed {
+  color: var(--color-success);
+}
+
+.operation-status-icon-failed {
+  color: var(--color-error);
+}
+
+.operation-status-icon-cancelled {
+  color: var(--color-warning);
+}
+
+/* Operation Details */
+.operation-progress {
+  margin-bottom: 8px;
+}
+
+.operation-current-step {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.operation-error {
+  font-size: 12px;
+  color: var(--color-error);
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: var(--color-error-bg);
+  border-radius: 4px;
+}
+
+.operation-metadata {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+}
+
+/* Empty States */
+.operation-empty {
+  margin-top: 40px;
+}
+
+/* List */
+.operation-list {
+  background: transparent;
+}
+
+/* Clear Button Container */
+.operation-clear-container {
+  padding: 8px 16px;
+  text-align: right;
+}

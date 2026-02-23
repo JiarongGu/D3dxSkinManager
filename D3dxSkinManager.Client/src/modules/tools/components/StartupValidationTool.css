@@ -1,0 +1,57 @@
+/* StartupValidationTool Container */
+.validation-container {
+  width: 100%;
+}
+
+/* Validation Result Card */
+.validation-result-card {
+  margin-bottom: 8px;
+}
+
+.validation-result-card-success {
+  border-left: 4px solid var(--color-success);
+}
+
+.validation-result-card-error {
+  border-left: 4px solid var(--color-error);
+}
+
+.validation-result-card-warning {
+  border-left: 4px solid var(--color-warning);
+}
+
+.validation-result-card-info {
+  border-left: 4px solid var(--color-primary);
+}
+
+/* Validation Icons */
+.validation-icon-success {
+  color: var(--color-success);
+  font-size: 16px;
+}
+
+.validation-icon-error {
+  color: var(--color-error);
+  font-size: 16px;
+}
+
+.validation-icon-warning {
+  color: var(--color-warning);
+  font-size: 16px;
+}
+
+.validation-icon-info {
+  color: var(--color-primary);
+  font-size: 16px;
+}
+
+/* Validation Text */
+.validation-check-name {
+  font-weight: 500;
+}
+
+.validation-message {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  white-space: pre-wrap;
+}

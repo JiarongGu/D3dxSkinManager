@@ -25,7 +25,7 @@ export const PluginsView: React.FC = () => {
   const { t } = useTranslation();
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedPlugin, setSelectedPlugin] = useState<PluginInfo | null>(null);
+  const [selectedPlugin, setSelectedPlugin] = useState<PluginInfo>();
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {

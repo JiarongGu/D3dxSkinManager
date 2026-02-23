@@ -11,6 +11,7 @@ import { ContextMenu, ContextMenuItem } from '../../../shared/components/menu/Co
 import { Profile } from '../../../shared/types/profile.types';
 import { useTranslation } from 'react-i18next';
 import { useModsContext } from '../../mods/context/ModsContext';
+import './ProfileSwitcher.css';
 
 interface ProfileSwitcherProps {
   onManageClick?: () => void;
@@ -98,17 +99,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
       <Button
         ref={buttonRef}
         icon={<ThunderboltOutlined />}
-        style={{
-          background: 'rgba(24, 144, 255, 0.1)',
-          border: '1px solid rgba(24, 144, 255, 0.3)',
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          height: '100%',
-          padding: '4px 12px',
-          borderRadius: '4px',
-          transition: 'all 0.3s'
-        }}
+        className="profile-switcher-button"
         loading={state.loading}
         disabled={state.loading}
         onClick={() => {
@@ -123,34 +114,20 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
           }
           setMenuVisible(true);
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(24, 144, 255, 0.2)';
-          e.currentTarget.style.borderColor = 'rgba(24, 144, 255, 0.5)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(24, 144, 255, 0.1)';
-          e.currentTarget.style.borderColor = 'rgba(24, 144, 255, 0.3)';
-        }}
       >
         <Space size={8}>
           {activeProfile && (
             <>
-              <span style={{ fontWeight: 500, fontSize: '13px' }}>{activeProfile.name}</span>
+              <span className="profile-switcher-name">{activeProfile.name}</span>
               {activeProfile.modCount !== undefined && activeProfile.modCount > 0 && (
                 <Badge
                   count={activeProfile.modCount}
-                  style={{
-                    backgroundColor: '#52c41a',
-                    fontSize: '10px',
-                    height: '18px',
-                    lineHeight: '18px',
-                    padding: '0 6px'
-                  }}
+                  className="profile-switcher-badge"
                 />
               )}
             </>
           )}
-          {!activeProfile && <span style={{ fontWeight: 500 }}>{t('profiles.switcher.selectProfile')}</span>}
+          {!activeProfile && <span className="profile-switcher-placeholder">{t('profiles.switcher.selectProfile')}</span>}
         </Space>
       </Button>
 

@@ -2,6 +2,8 @@ import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Switch, Select, InputNumber, Space, Divider } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import './UnityArgsDialog.css';
 
 const { Option } = Select;
 
@@ -22,6 +24,7 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
 
@@ -112,11 +115,11 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
       const argsString = buildArgsFromForm(values);
       onSave(argsString);
 
-      notification.success('Unity launch arguments updated');
+      notification.success(t('unityArgs.updated'));
       onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
-      notification.error('Please check all fields');
+      notification.error(t('unityArgs.checkFields'));
     } finally {
       setSaving(false);
     }
@@ -131,58 +134,38 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
       title={
         <Space size={8}>
           <SettingOutlined />
-          <span>Unity Launch Arguments</span>
+          <span>{t('unityArgs.title')}</span>
         </Space>
       }
       open={visible}
       onCancel={onCancel}
       width={600}
       footer={[
-        <Space key="actions" style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Space key="actions" className="unity-args-footer">
           <Space>
             <button
               key="reset"
               onClick={handleReset}
-              style={{
-                padding: '4px 15px',
-                border: '1px solid #d9d9d9',
-                borderRadius: '2px',
-                background: '#fff',
-                cursor: 'pointer',
-              }}
+              className="unity-args-button"
             >
-              Reset
+              {t('unityArgs.reset')}
             </button>
           </Space>
           <Space>
             <button
               key="cancel"
               onClick={onCancel}
-              style={{
-                padding: '4px 15px',
-                border: '1px solid #d9d9d9',
-                borderRadius: '2px',
-                background: '#fff',
-                cursor: 'pointer',
-              }}
+              className="unity-args-button"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               key="save"
               onClick={handleSave}
               disabled={saving}
-              style={{
-                padding: '4px 15px',
-                border: 'none',
-                borderRadius: '2px',
-                background: '#1890ff',
-                color: '#fff',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.6 : 1,
-              }}
+              className="unity-args-button-primary"
             >
-              {saving ? 'Saving...' : 'OK'}
+              {saving ? t('unityArgs.saving') : t('unityArgs.ok')}
             </button>
           </Space>
         </Space>,
@@ -202,98 +185,89 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
       >
         {/* Borderless Window */}
         <Form.Item
-          label="Borderless Window"
+          label={t('unityArgs.borderless')}
           name="borderless"
           valuePropName="checked"
-          tooltip="Launch game in borderless window mode (-popupwindow)"
+          tooltip={t('unityArgs.borderlessTooltip')}
         >
-          <Switch checkedChildren="Enabled" unCheckedChildren="Disabled" />
+          <Switch checkedChildren={t('unityArgs.enabled')} unCheckedChildren={t('unityArgs.disabled')} />
         </Form.Item>
 
-        <Divider style={{ margin: '16px 0' }} />
+        <Divider className="unity-args-divider" />
 
         {/* Popup Window */}
         <Form.Item
-          label="Popup Window Mode"
+          label={t('unityArgs.popupWindow')}
           name="popupWindow"
-          tooltip="Control popup window behavior"
+          tooltip={t('unityArgs.popupWindowTooltip')}
         >
           <Select>
-            <Option value="not-set">不设置 (Not Set)</Option>
-            <Option value="enabled">Enabled (-popupwindow)</Option>
+            <Option value="not-set">{t('unityArgs.notSet')}</Option>
+            <Option value="enabled">{t('unityArgs.popupWindowEnabled')}</Option>
           </Select>
         </Form.Item>
 
-        <Divider style={{ margin: '16px 0' }} />
+        <Divider className="unity-args-divider" />
 
         {/* Fullscreen */}
         <Form.Item
-          label="Fullscreen Mode"
+          label={t('unityArgs.fullscreen')}
           name="fullscreen"
-          tooltip="Control fullscreen mode (0=windowed, 1=fullscreen)"
+          tooltip={t('unityArgs.fullscreenTooltip')}
         >
           <Select>
-            <Option value="not-set">不设置 (Not Set)</Option>
-            <Option value="0">0 - Windowed Mode</Option>
-            <Option value="1">1 - Fullscreen Mode</Option>
+            <Option value="not-set">{t('unityArgs.notSet')}</Option>
+            <Option value="0">{t('unityArgs.windowedMode')}</Option>
+            <Option value="1">{t('unityArgs.fullscreenMode')}</Option>
           </Select>
         </Form.Item>
 
-        <Divider style={{ margin: '16px 0' }} />
+        <Divider className="unity-args-divider" />
 
         {/* Screen Dimensions */}
-        <Form.Item label="Screen Dimensions">
-          <Space size="middle" style={{ width: '100%' }}>
+        <Form.Item label={t('unityArgs.screenDimensions')}>
+          <Space size="middle" className="unity-args-dimensions-container">
             <Form.Item
-              label="Width"
+              label={t('unityArgs.width')}
               name="screenWidth"
-              style={{ marginBottom: 0, flex: 1 }}
-              tooltip="Screen width in pixels (-screen-width)"
+              className="unity-args-dimension-item"
+              tooltip={t('unityArgs.widthTooltip')}
             >
               <InputNumber
                 min={640}
                 max={7680}
                 step={1}
-                style={{ width: '100%' }}
-                placeholder="1920"
+                className="unity-args-dimension-input"
+                placeholder={t('unityArgs.widthPlaceholder')}
               />
             </Form.Item>
 
-            <span style={{ paddingTop: '30px' }}>×</span>
+            <span className="unity-args-dimension-separator">×</span>
 
             <Form.Item
-              label="Height"
+              label={t('unityArgs.height')}
               name="screenHeight"
-              style={{ marginBottom: 0, flex: 1 }}
-              tooltip="Screen height in pixels (-screen-height)"
+              className="unity-args-dimension-item"
+              tooltip={t('unityArgs.heightTooltip')}
             >
               <InputNumber
                 min={480}
                 max={4320}
                 step={1}
-                style={{ width: '100%' }}
-                placeholder="1080"
+                className="unity-args-dimension-input"
+                placeholder={t('unityArgs.heightPlaceholder')}
               />
             </Form.Item>
           </Space>
         </Form.Item>
 
-        <div
-          style={{
-            marginTop: '24px',
-            padding: '12px',
-            background: '#f5f5f5',
-            borderRadius: '4px',
-            fontSize: '12px',
-            color: '#595959',
-          }}
-        >
-          <strong>Common Resolutions:</strong>
-          <div style={{ marginTop: '8px' }}>
-            • 1920×1080 (Full HD)<br />
-            • 2560×1440 (2K)<br />
-            • 3840×2160 (4K)<br />
-            • 1280×720 (HD)<br />
+        <div className="unity-args-info-box">
+          <strong>{t('unityArgs.commonResolutions')}</strong>
+          <div className="unity-args-info-resolutions">
+            • {t('unityArgs.resolutionFullHD')}<br />
+            • {t('unityArgs.resolution2K')}<br />
+            • {t('unityArgs.resolution4K')}<br />
+            • {t('unityArgs.resolutionHD')}<br />
           </div>
         </div>
       </Form>

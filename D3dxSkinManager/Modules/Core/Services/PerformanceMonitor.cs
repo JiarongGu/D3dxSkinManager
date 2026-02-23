@@ -1,7 +1,4 @@
-using System;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Helpers;
 using Timer = System.Threading.Timer;
 

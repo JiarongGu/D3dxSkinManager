@@ -1,0 +1,10 @@
+/* StatusIcon */
+.status-icon-loaded {
+  color: #52c41a;
+  font-size: 20px;
+}
+
+.status-icon-not-loaded {
+  color: #d9d9d9;
+  font-size: 20px;
+}

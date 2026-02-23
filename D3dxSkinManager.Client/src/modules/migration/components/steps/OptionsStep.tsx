@@ -2,12 +2,15 @@ import React, { useEffect } from 'react';
 import { Space, Alert, Form, Input, Checkbox, Radio, Divider } from 'antd';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { ArchiveHandling, PostMigrationAction } from '../../services/migrationService';
+import { useTranslation } from 'react-i18next';
+import './MigrationSteps.css';
 
 /**
  * Step 2: Options
  * Configure migration options
  */
 export const OptionsStep: React.FC = () => {
+  const { t } = useTranslation();
   const { setForm, analysis } = useMigrationWizard();
   const [localForm] = Form.useForm();
 
@@ -17,10 +20,10 @@ export const OptionsStep: React.FC = () => {
   }, [localForm, setForm]);
 
   return (
-    <Space orientation="vertical" style={{ width: '100%' }} size="large">
+    <Space orientation="vertical" className="migration-step-container" size="large">
       <Alert
-        title="Configure Migration"
-        description="Select what to migrate and how to handle the original files."
+        title={t('migration.options.title')}
+        description={t('migration.options.description')}
         type="info"
         showIcon
       />
@@ -40,66 +43,66 @@ export const OptionsStep: React.FC = () => {
         }}
       >
         <Form.Item
-          label="Environment"
+          label={t('migration.options.environment')}
           name="environmentName"
-          tooltip="Which environment to migrate from (if Python installation has multiple)"
+          tooltip={t('migration.options.environmentTooltip')}
         >
           <Input placeholder={analysis?.activeEnvironment} size="large" />
         </Form.Item>
 
-        <Form.Item label="What to Migrate">
+        <Form.Item label={t('migration.options.whatToMigrate')}>
           <Space orientation="vertical">
             <Form.Item name="migrateMetadata" valuePropName="checked" noStyle>
-              <Checkbox>Mod Metadata (names, authors, descriptions)</Checkbox>
+              <Checkbox>{t('migration.options.modMetadata')}</Checkbox>
             </Form.Item>
             <Form.Item name="migrateArchives" valuePropName="checked" noStyle>
-              <Checkbox>Mod Archives (.7z, .zip files)</Checkbox>
+              <Checkbox>{t('migration.options.modArchives')}</Checkbox>
             </Form.Item>
             <Form.Item name="migratePreviews" valuePropName="checked" noStyle>
-              <Checkbox>Preview Images</Checkbox>
+              <Checkbox>{t('migration.options.previewImages')}</Checkbox>
             </Form.Item>
             <Form.Item name="migrateConfiguration" valuePropName="checked" noStyle>
-              <Checkbox>Configuration Settings</Checkbox>
+              <Checkbox>{t('migration.options.configSettings')}</Checkbox>
             </Form.Item>
             <Form.Item name="migrateClassifications" valuePropName="checked" noStyle>
-              <Checkbox>Classification Rules</Checkbox>
+              <Checkbox>{t('migration.options.classificationRules')}</Checkbox>
             </Form.Item>
           </Space>
         </Form.Item>
 
         <Form.Item
-          label="Archive Handling"
+          label={t('migration.options.archiveHandling')}
           name="archiveMode"
-          tooltip="How to transfer archive files"
+          tooltip={t('migration.options.archiveHandlingTooltip')}
         >
           <Radio.Group>
             <Space orientation="vertical">
               <Radio value={ArchiveHandling.Copy}>
-                Copy (safe, keeps original intact)
+                {t('migration.options.archiveCopy')}
               </Radio>
               <Radio value={ArchiveHandling.Move}>
-                Move (frees space, removes original)
+                {t('migration.options.archiveMove')}
               </Radio>
               <Radio value={ArchiveHandling.Link} disabled>
-                Symbolic Link (not implemented)
+                {t('migration.options.archiveLink')}
               </Radio>
             </Space>
           </Radio.Group>
         </Form.Item>
 
         <Form.Item
-          label="After Migration"
+          label={t('migration.options.afterMigration')}
           name="postAction"
-          tooltip="What to do with the Python installation after migration"
+          tooltip={t('migration.options.afterMigrationTooltip')}
         >
           <Radio.Group>
             <Space orientation="vertical">
-              <Radio value={PostMigrationAction.Keep}>Keep (recommended)</Radio>
+              <Radio value={PostMigrationAction.Keep}>{t('migration.options.postActionKeep')}</Radio>
               <Radio value={PostMigrationAction.BackupAndRemove}>
-                Backup & Remove
+                {t('migration.options.postActionBackupRemove')}
               </Radio>
               <Radio value={PostMigrationAction.Remove}>
-                Remove (not recommended)
+                {t('migration.options.postActionRemove')}
               </Radio>
             </Space>
           </Radio.Group>
@@ -110,9 +113,9 @@ export const OptionsStep: React.FC = () => {
         <Form.Item
           name="createProfile"
           valuePropName="checked"
-          tooltip="Create a new profile for this migrated configuration"
+          tooltip={t('migration.options.createProfileTooltip')}
         >
-          <Checkbox>Create new profile from this migration</Checkbox>
+          <Checkbox>{t('migration.options.createProfile')}</Checkbox>
         </Form.Item>
 
         <Form.Item
@@ -125,22 +128,22 @@ export const OptionsStep: React.FC = () => {
             getFieldValue('createProfile') ? (
               <>
                 <Form.Item
-                  label="Profile Name"
+                  label={t('migration.options.profileName')}
                   name="profileName"
-                  rules={[{ required: true, message: 'Please enter profile name' }]}
+                  rules={[{ required: true, message: t('migration.options.profileNameRequired') }]}
                 >
                   <Input
-                    placeholder={analysis?.activeEnvironment || 'Profile Name'}
+                    placeholder={analysis?.activeEnvironment || t('migration.options.profileNamePlaceholder')}
                     size="large"
                   />
                 </Form.Item>
                 <Form.Item
-                  label="Work Directory"
+                  label={t('migration.options.workDirectory')}
                   name="workDirectory"
-                  tooltip="Directory where 3DMigoto d3dx.dll is loaded"
+                  tooltip={t('migration.options.workDirectoryTooltip')}
                 >
                   <Input
-                    placeholder="Leave empty to use Python installation directory"
+                    placeholder={t('migration.options.workDirectoryPlaceholder')}
                     size="large"
                   />
                 </Form.Item>

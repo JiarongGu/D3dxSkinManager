@@ -123,7 +123,7 @@ export class ModService extends BaseModuleService {
    * Get mod by SHA
    */
   async getModBySha(profileId: string, sha: string): Promise<ModInfo | undefined> {
-    return this.sendNullableMessage<ModInfo>('GET_BY_SHA', profileId, { sha });
+    return this.sendOptionalMessage<ModInfo>('GET_BY_SHA', profileId, { sha });
   }
 
   /**

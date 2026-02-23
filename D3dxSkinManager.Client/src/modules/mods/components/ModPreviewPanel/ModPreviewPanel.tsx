@@ -392,17 +392,17 @@ export const ModPreviewPanelContent: React.FC = () => {
           <Space size="small">
             {mod.isLoaded ? (
               <Tag
-                icon={<CheckCircleOutlined style={{ fontSize: '16px' }} />}
+                icon={<CheckCircleOutlined className="mod-preview-tag-icon" />}
                 color="success"
-                style={{ fontSize: '14px', padding: '4px 12px', fontWeight: 500 }}
+                className="mod-preview-tag"
               >
                 {t('mods.preview.loaded')}
               </Tag>
             ) : (
               <Tag
-                icon={<CloseCircleOutlined style={{ fontSize: '16px' }} />}
+                icon={<CloseCircleOutlined className="mod-preview-tag-icon" />}
                 color="default"
-                style={{ fontSize: '14px', padding: '4px 12px' }}
+                className="mod-preview-tag-default"
               >
                 {t('mods.preview.notLoaded')}
               </Tag>
@@ -448,7 +448,7 @@ export const ModPreviewPanelContent: React.FC = () => {
                   title={t('mods.preview.previous')}
                 >
                   <div className="mod-preview-nav-icon">
-                    <LeftOutlined style={{ fontSize: "12px" }} />
+                    <LeftOutlined className="mod-preview-nav-icon-arrow" />
                   </div>
                 </div>
               )}
@@ -461,7 +461,7 @@ export const ModPreviewPanelContent: React.FC = () => {
                   title={t('mods.preview.next')}
                 >
                   <div className="mod-preview-nav-icon">
-                    <RightOutlined style={{ fontSize: "12px" }} />
+                    <RightOutlined className="mod-preview-nav-icon-arrow" />
                   </div>
                 </div>
               )}
@@ -495,7 +495,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         {mod.author && (
           <div className="mod-preview-info-item">
             <Text type="secondary" className="mod-preview-info-label">
-              <UserOutlined style={{ marginRight: "4px" }} />
+              <UserOutlined className="mod-preview-info-icon" />
               {t('mods.details.author')}
             </Text>
             <Text className="mod-preview-info-value">{mod.author}</Text>
@@ -509,12 +509,12 @@ export const ModPreviewPanelContent: React.FC = () => {
               type="secondary"
               className="mod-preview-info-label mod-preview-info-label-with-margin"
             >
-              <TagsOutlined style={{ marginRight: "4px" }} />
+              <TagsOutlined className="mod-preview-info-icon" />
               {t('mods.details.tags')}
             </Text>
             <Space size={[4, 4]} wrap>
               {mod.tags.map((tag, index) => (
-                <Tag key={index} style={{ fontSize: "11px", margin: 0 }}>
+                <Tag key={index} className="mod-preview-mod-tag">
                   {tag}
                 </Tag>
               ))}
@@ -589,7 +589,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         okText={t('common.delete')}
         cancelText={t('common.cancel')}
         okType="danger"
-        icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: '22px' }} />}
+        icon={<ExclamationCircleOutlined className="mod-preview-confirm-icon" />}
         onOk={handleDeleteConfirm}
         onCancel={() => setDeleteConfirmVisible(false)}
       />

@@ -188,7 +188,7 @@ const ClassificationTreeInner: React.FC = () => {
   } = useClassificationTreeContext();
 
   // Track which node is being dragged
-  const draggedNodeKeyRef = React.useRef<string | null>(null);
+  const draggedNodeKeyRef = React.useRef<string>();
 
   // Shared context menu handler
   const handleContextMenu = React.useCallback((e: React.MouseEvent, nodeId: string | undefined) => {
@@ -355,10 +355,9 @@ const ClassificationTreeInner: React.FC = () => {
               }
             }}
             onDragEnd={() => {
-              draggedNodeKeyRef.current = null;
+              draggedNodeKeyRef.current = undefined;
             }}
             treeData={treeData}
-            style={{ background: "transparent" }}
           />
         </div>
         <TreeContextMenu

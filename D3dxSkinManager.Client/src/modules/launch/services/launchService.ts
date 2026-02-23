@@ -25,7 +25,7 @@ class LaunchService extends BaseModuleService {
   }
 
   async getCurrentVersion(profileId: string): Promise<string | undefined> {
-    return this.sendNullableMessage<string>('LAUNCH_GET_CURRENT', profileId);
+    return this.sendOptionalMessage<string>('LAUNCH_GET_CURRENT', profileId);
   }
 
   async deployVersion(profileId: string, versionName: string): Promise<DeploymentResult> {

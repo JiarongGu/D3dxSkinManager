@@ -6,6 +6,7 @@
 /* Remove left padding/margin to use full width */
 .classification-tree {
   overflow: visible !important;
+  background: transparent;
 }
 
 /* Allow overflow to show full selection */

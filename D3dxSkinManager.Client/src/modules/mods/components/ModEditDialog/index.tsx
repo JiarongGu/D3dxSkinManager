@@ -9,6 +9,7 @@ import { BasicInfoSection } from './BasicInfoSection';
 import { MetadataSection } from './MetadataSection';
 import { TagsSection } from './TagsSection';
 import { useProfile } from '../../../../shared/context/ProfileContext';
+import './ModEditDialog.css';
 
 export interface ModEditDialogProps {
   visible: boolean;
@@ -133,7 +134,7 @@ export const ModEditDialog: React.FC<ModEditDialogProps> = ({
         {/* Read-only SHA display */}
         {mod && (
           <Form.Item label="SHA Hash" tooltip="Unique identifier (read-only)">
-            <Input value={mod.sha} disabled style={{ fontFamily: 'monospace' }} />
+            <Input value={mod.sha} disabled className="mod-edit-dialog-sha-input" />
           </Form.Item>
         )}
       </Form>

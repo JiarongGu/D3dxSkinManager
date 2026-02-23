@@ -1,0 +1,24 @@
+/* MetadataSection Container */
+.metadata-section-container {
+  width: 100%;
+}
+
+/* Form Items */
+.metadata-section-author,
+.metadata-section-category {
+  flex: 1;
+  min-width: 200px;
+}
+
+.metadata-section-grading {
+  width: 180px;
+}
+
+/* Age Rating Tooltip */
+.metadata-age-rating-tooltip {
+  margin-bottom: 8px;
+}
+
+.metadata-age-rating-option {
+  margin-bottom: 4px;
+}

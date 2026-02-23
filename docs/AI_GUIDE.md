@@ -45,9 +45,19 @@ const [mod, setMod] = useState<ModInfo>();  // undefined by default
 // ✅ null ONLY for React render returns
 if (!data) return null;  // React component return
 
-// ✅ Error handling with unknown
-catch (error: unknown) {
-  const msg = error instanceof Error ? error.message : 'Unknown';
+// ✅ Error handling with ErrorCode system
+import { handleError, isErrorCode, ErrorCodes } from '@/shared/utils/errorHandler';
+
+try {
+  await modService.loadMod(profileId, sha);
+} catch (error: unknown) {
+  // handleError shows user-friendly message and returns structured error
+  const modError = handleError(error);
+
+  // Optional: Check for specific error codes
+  if (isErrorCode(error, ErrorCodes.MOD_FOLDER_IN_USE)) {
+    // Handle specific error case
+  }
 }
 ```
 
@@ -60,6 +70,54 @@ catch (error: unknown) {
 ---
 
 ## 📊 Implementation Patterns
+
+### Error Handling Pattern
+
+**Backend: Throw ModException with ErrorCode**
+```csharp
+using D3dxSkinManager.Modules.Core.Models;
+
+// In service method:
+if (Directory.Exists(modPath) && IsDirectoryInUse(modPath))
+{
+    throw new ModException(
+        ErrorCodes.MOD_FOLDER_IN_USE,
+        "Mod folder is currently in use",
+        new { modPath }  // Optional context data
+    );
+}
+
+// BaseFacade automatically catches and formats error response with:
+// - errorCode: "MOD_FOLDER_IN_USE"
+// - data: { modPath: "..." }
+```
+
+**Frontend: Use handleError utility**
+```typescript
+import { handleError, isErrorCode, ErrorCodes } from '@/shared/utils/errorHandler';
+
+try {
+  await modService.loadMod(profileId, sha);
+  notification.success('Mod loaded successfully');
+} catch (error: unknown) {
+  // handleError automatically:
+  // 1. Shows user-friendly message from error code mapping
+  // 2. Returns structured ModOperationError
+  const modError = handleError(error);
+
+  // Optional: Handle specific error codes
+  if (isErrorCode(error, ErrorCodes.MOD_FOLDER_IN_USE)) {
+    // Custom handling for this specific error
+    console.log('Mod folder is locked');
+  }
+}
+```
+
+**Adding New Error Codes**
+1. Add to `ErrorCodes.cs` (backend)
+2. Add to `errorCodes.ts` (frontend)
+3. Add user message to `ERROR_MESSAGES` in `errorHandler.ts`
+4. Add i18n keys to `en.json` and `cn.json` (optional, for translated messages)
 
 ### Backend Service Pattern
 ```csharp
@@ -288,11 +346,35 @@ type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'SYSTEM' |
 3. **NEVER** process data in frontend (backend only)
 4. **NEVER** use imperative modals (causes flashing)
 5. **NEVER** hardcode colors (use CSS variables)
-6. **NEVER** skip error type guards (`error: unknown`)
+6. **NEVER** use `(error as Error).message` - use `handleError()` from errorHandler
 7. **NEVER** commit without user approval
 8. **NEVER** use factory functions with AddSingleton helper
 9. **NEVER** access other module's repositories directly
 10. **NEVER** put business logic in facades (services only)
+
+### ❌ Wrong Error Handling
+```typescript
+// ❌ DON'T: Manual error message extraction
+catch (error) {
+  notification.error('Failed: ' + (error as Error).message);
+}
+
+// ❌ DON'T: Missing error code handling
+catch (error: unknown) {
+  const msg = error instanceof Error ? error.message : 'Unknown';
+  notification.error(msg);
+}
+```
+
+### ✅ Correct Error Handling
+```typescript
+// ✅ DO: Use handleError utility
+import { handleError } from '@/shared/utils/errorHandler';
+
+catch (error: unknown) {
+  handleError(error);  // Shows user-friendly message automatically
+}
+```
 
 ---
 

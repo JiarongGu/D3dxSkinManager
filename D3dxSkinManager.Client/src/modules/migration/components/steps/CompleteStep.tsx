@@ -1,6 +1,8 @@
 import React from 'react';
 import { Space, Alert, Card, Row, Col, Statistic, Divider, List, Typography } from 'antd';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
+import { useTranslation } from 'react-i18next';
+import './MigrationSteps.css';
 
 const { Text } = Typography;
 
@@ -9,13 +11,14 @@ const { Text } = Typography;
  * Shows migration results
  */
 export const CompleteStep: React.FC = () => {
+  const { t } = useTranslation();
   const { result } = useMigrationWizard();
 
   if (!result) {
     return (
       <Alert
-        title="No Results"
-        description="Migration result is not available."
+        title={t('migration.complete.noResults')}
+        description={t('migration.complete.noResultsDescription')}
         type="warning"
         showIcon
       />
@@ -23,31 +26,31 @@ export const CompleteStep: React.FC = () => {
   }
 
   return (
-    <Space orientation="vertical" style={{ width: '100%' }} size="large">
+    <Space orientation="vertical" className="migration-step-container" size="large">
       <Alert
-        title={result.success ? 'Migration Successful!' : 'Migration Completed with Errors'}
+        title={result.success ? t('migration.complete.successTitle') : t('migration.complete.errorTitle')}
         description={
           result.success
-            ? 'Your mods and configuration have been successfully migrated.'
-            : 'Some errors occurred during migration. Check the log file for details.'
+            ? t('migration.complete.successDescription')
+            : t('migration.complete.errorDescription')
         }
         type={result.success ? 'success' : 'warning'}
         showIcon
       />
 
-      <Card title="Migration Summary">
+      <Card title={t('migration.complete.summary')}>
         <Row gutter={[16, 16]}>
           <Col span={12}>
-            <Statistic title="Mods Migrated" value={result.modsMigrated} />
+            <Statistic title={t('migration.complete.modsMigrated')} value={result.modsMigrated} />
           </Col>
           <Col span={12}>
-            <Statistic title="Archives Copied" value={result.archivesCopied} />
+            <Statistic title={t('migration.complete.archivesCopied')} value={result.archivesCopied} />
           </Col>
           <Col span={12}>
-            <Statistic title="Previews Copied" value={result.previewsCopied} />
+            <Statistic title={t('migration.complete.previewsCopied')} value={result.previewsCopied} />
           </Col>
           <Col span={12}>
-            <Statistic title="Duration" value={result.duration} />
+            <Statistic title={t('migration.complete.duration')} value={result.duration} />
           </Col>
         </Row>
 
@@ -55,7 +58,7 @@ export const CompleteStep: React.FC = () => {
           <>
             <Divider />
             <Alert
-              title={`${result.warnings.length} Warning(s)`}
+              title={t('migration.complete.warningsCount', { count: result.warnings.length })}
               description={
                 <List
                   size="small"
@@ -73,7 +76,7 @@ export const CompleteStep: React.FC = () => {
           <>
             <Divider />
             <Alert
-              title={`${result.errors.length} Error(s)`}
+              title={t('migration.complete.errorsCount', { count: result.errors.length })}
               description={
                 <List
                   size="small"
@@ -88,7 +91,7 @@ export const CompleteStep: React.FC = () => {
         )}
 
         <Divider />
-        <Text type="secondary">Log file: {result.logFilePath}</Text>
+        <Text type="secondary">{t('migration.complete.logFile', { path: result.logFilePath })}</Text>
       </Card>
     </Space>
   );

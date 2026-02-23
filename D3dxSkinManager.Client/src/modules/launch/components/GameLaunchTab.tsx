@@ -209,7 +209,7 @@ export const GameLaunchTab: React.FC = () => {
           {/* Game Configuration */}
           <CompactCard
             title={<><PlayCircleOutlined /> {t('launch.game.gameConfig')}</>}
-            style={{ marginBottom: '24px' }}
+            className="game-launch-card"
           >
             <Form.Item
               label={t('launch.game.gameExePath')}
@@ -218,7 +218,7 @@ export const GameLaunchTab: React.FC = () => {
             >
               <Input.Group compact>
                 <Input
-                  style={{ width: 'calc(100% - 100px)' }}
+                  className="game-launch-input-with-button"
                   placeholder={t('launch.game.gameExePlaceholder')}
                   readOnly
                 />
@@ -238,7 +238,7 @@ export const GameLaunchTab: React.FC = () => {
             >
               <Input.Group compact>
                 <Input
-                  style={{ width: 'calc(100% - 80px)' }}
+                  className="game-launch-input-with-small-button"
                   placeholder={t('launch.game.launchArgsPlaceholder')}
                   onChange={handleLaunchArgsChange}
                 />
@@ -277,7 +277,7 @@ export const GameLaunchTab: React.FC = () => {
           {/* Custom Launch Program */}
           <CompactCard
             title={<><SettingOutlined /> {t('launch.game.customProgram')}</>}
-            style={{ marginBottom: '24px' }}
+            className="game-launch-card"
           >
             <Form.Item
               label={t('launch.game.customProgramPath')}
@@ -286,7 +286,7 @@ export const GameLaunchTab: React.FC = () => {
             >
               <Input.Group compact>
                 <Input
-                  style={{ width: 'calc(100% - 100px)' }}
+                  className="game-launch-input-with-button"
                   placeholder={t('launch.game.customProgramPlaceholder')}
                   readOnly
                 />

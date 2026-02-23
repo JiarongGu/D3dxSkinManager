@@ -4,6 +4,8 @@ import { Modal, Table, Button, Space, Tag, Progress,  Divider } from 'antd';
 import { CheckOutlined, CloseOutlined, LoadingOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../shared/types/mod.types';
 import type { ColumnsType } from 'antd/es/table';
+import { useTranslation } from 'react-i18next';
+import './AddModWindow.css';
 
 export type TaskStatus = 'pending' | 'processing' | 'success' | 'error' | 'skipped';
 
@@ -45,83 +47,84 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
   onBatchEdit,
   processing,
 }) => {
+  const { t } = useTranslation();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   // Task status icon renderer
   const renderStatusIcon = (status: TaskStatus): React.ReactNode => {
     switch (status) {
       case 'pending':
-        return <Tag color="default">Pending</Tag>;
+        return <Tag color="default">{t('importWindow.pending')}</Tag>;
       case 'processing':
-        return <Tag icon={<LoadingOutlined />} color="processing">Processing</Tag>;
+        return <Tag icon={<LoadingOutlined />} color="processing">{t('importWindow.processing')}</Tag>;
       case 'success':
-        return <Tag icon={<CheckOutlined />} color="success">Success</Tag>;
+        return <Tag icon={<CheckOutlined />} color="success">{t('importWindow.success')}</Tag>;
       case 'error':
-        return <Tag icon={<CloseOutlined />} color="error">Error</Tag>;
+        return <Tag icon={<CloseOutlined />} color="error">{t('importWindow.error')}</Tag>;
       case 'skipped':
-        return <Tag color="warning">Skipped</Tag>;
+        return <Tag color="warning">{t('importWindow.skipped')}</Tag>;
       default:
-        return <Tag>Unknown</Tag>;
+        return <Tag>{t('importWindow.unknown')}</Tag>;
     }
   };
 
   // Table columns configuration
   const columns: ColumnsType<ImportTask> = [
     {
-      title: 'Task ID',
+      title: t('importWindow.taskId'),
       dataIndex: 'id',
       key: 'id',
       width: 100,
       fixed: 'left',
     },
     {
-      title: 'File Name',
+      title: t('importWindow.fileName'),
       dataIndex: 'fileName',
       key: 'fileName',
       width: 200,
       ellipsis: true,
     },
     {
-      title: 'Type',
+      title: t('importWindow.type'),
       dataIndex: 'fileType',
       key: 'fileType',
       width: 100,
       render: (fileType: string) => (
         <Tag color={fileType === 'archive' ? 'blue' : 'green'}>
-          {fileType === 'archive' ? 'Archive' : 'Folder'}
+          {fileType === 'archive' ? t('importWindow.archive') : t('importWindow.folder')}
         </Tag>
       ),
     },
     {
-      title: 'Mod Name',
+      title: t('importWindow.modName'),
       key: 'modName',
       width: 180,
       ellipsis: true,
-      render: (_, record) => record.modData.name || <span style={{ color: '#8c8c8c' }}>Not set</span>,
+      render: (_, record) => record.modData.name || <span className="add-mod-window-not-set">{t('importWindow.notSet')}</span>,
     },
     {
-      title: 'Category',
+      title: t('importWindow.category'),
       key: 'category',
       width: 150,
       ellipsis: true,
-      render: (_, record) => record.modData.category || <span style={{ color: '#8c8c8c' }}>Not set</span>,
+      render: (_, record) => record.modData.category || <span className="add-mod-window-not-set">{t('importWindow.notSet')}</span>,
     },
     {
-      title: 'Author',
+      title: t('importWindow.author'),
       key: 'author',
       width: 120,
       ellipsis: true,
-      render: (_, record) => record.modData.author || <span style={{ color: '#8c8c8c' }}>Not set</span>,
+      render: (_, record) => record.modData.author || <span className="add-mod-window-not-set">{t('importWindow.notSet')}</span>,
     },
     {
-      title: 'Status',
+      title: t('importWindow.status'),
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: renderStatusIcon,
     },
     {
-      title: 'Progress',
+      title: t('importWindow.progress'),
       dataIndex: 'progress',
       key: 'progress',
       width: 120,
@@ -139,7 +142,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
       },
     },
     {
-      title: 'Actions',
+      title: t('importWindow.actions'),
       key: 'actions',
       width: 120,
       fixed: 'right',
@@ -151,7 +154,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
             size="small"
             onClick={() => onEditTask(record)}
             disabled={record.status === 'processing' || record.status === 'success'}
-            title="Edit Task"
+            title={t('importWindow.editTask')}
           />
           <Button
             type="text"
@@ -160,7 +163,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
             size="small"
             onClick={() => handleRemoveTask(record.id)}
             disabled={record.status === 'processing'}
-            title="Remove Task"
+            title={t('importWindow.removeTask')}
           />
         </Space>
       ),
@@ -201,7 +204,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
   // Handle batch edit
   const handleBatchEdit = () => {
     if (selectedRowKeys.length === 0) {
-      notification.warning('Please select at least one task to edit');
+      notification.warning(t('importWindow.selectTaskToEdit'));
       return;
     }
     onBatchEdit(selectedRowKeys as string[]);
@@ -215,7 +218,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
     );
 
     if (invalidTasks.length > 0) {
-      notification.error(`${invalidTasks.length} task(s) missing required fields (Name, Category)`);
+      notification.error(t('importWindow.missingFields', { count: invalidTasks.length }));
       return;
     }
 
@@ -233,21 +236,21 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
 
   return (
     <Modal
-      title="Import Mods - Task Queue"
+      title={t('importWindow.title')}
       open={visible}
       onCancel={onCancel}
       width={1200}
-      style={{ top: 20 }}
+      className="add-mod-window-modal"
       footer={[
-        <Space key="stats" style={{ float: 'left' }}>
-          <span>Total: {stats.total}</span>
+        <Space key="stats" className="add-mod-window-stats">
+          <span>{t('importWindow.total')}: {stats.total}</span>
           <Divider type="vertical" />
-          <span>Pending: <Tag color="default">{stats.pending}</Tag></span>
-          <span>Success: <Tag color="success">{stats.success}</Tag></span>
-          {stats.error > 0 && <span>Error: <Tag color="error">{stats.error}</Tag></span>}
+          <span>{t('importWindow.pending')}: <Tag color="default">{stats.pending}</Tag></span>
+          <span>{t('importWindow.success')}: <Tag color="success">{stats.success}</Tag></span>
+          {stats.error > 0 && <span>{t('importWindow.error')}: <Tag color="error">{stats.error}</Tag></span>}
         </Space>,
         <Button key="cancel" onClick={onCancel} disabled={processing}>
-          Cancel
+          {t('importWindow.cancel')}
         </Button>,
         <Button
           key="confirm"
@@ -256,25 +259,25 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
           loading={processing}
           disabled={tasks.length === 0 || stats.pending === 0}
         >
-          {processing ? `Processing... (${stats.success}/${stats.total})` : `Import ${stats.pending} Mod(s)`}
+          {processing ? t('importWindow.processingStatus', { success: stats.success, total: stats.total }) : t('importWindow.import', { count: stats.pending })}
         </Button>,
       ]}
     >
-      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" className="add-mod-window-container" size="middle">
         {/* Toolbar */}
         <Space wrap>
           <Button onClick={handleSelectAll} disabled={processing}>
-            Select All Pending
+            {t('importWindow.selectAllPending')}
           </Button>
           <Button onClick={handleClearSelection} disabled={processing}>
-            Clear Selection
+            {t('importWindow.clearSelection')}
           </Button>
           <Button
             icon={<EditOutlined />}
             onClick={handleBatchEdit}
             disabled={processing || selectedRowKeys.length === 0}
           >
-            Batch Edit ({selectedRowKeys.length})
+            {t('importWindow.batchEdit', { count: selectedRowKeys.length })}
           </Button>
         </Space>
 
@@ -292,9 +295,9 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
 
         {/* Status Message */}
         {processing && (
-          <div style={{ textAlign: 'center', padding: '8px', background: '#f0f0f0', borderRadius: '4px' }}>
-            <LoadingOutlined style={{ marginRight: '8px' }} />
-            Processing tasks... Please wait.
+          <div className="add-mod-window-processing">
+            <LoadingOutlined className="add-mod-window-processing-icon" />
+            {t('importWindow.processingMessage')}
           </div>
         )}
       </Space>

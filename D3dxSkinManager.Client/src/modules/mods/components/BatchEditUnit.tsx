@@ -4,6 +4,8 @@ import { Modal, Form, Input, Select, Button, Space, Checkbox, Divider, Alert } f
 import { TagsOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { ImportTask } from './AddModWindow';
+import { useTranslation } from 'react-i18next';
+import './BatchEditUnit.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -28,6 +30,7 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
   onCancel,
   onOpenTagSelector,
 }) => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -75,7 +78,7 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
       }
 
       if (fieldMask.length === 0) {
-        notification.warning('Please select at least one field to update');
+        notification.warning(t('batchEdit.selectOneField'));
         return;
       }
 
@@ -83,12 +86,12 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
       const taskIds = selectedTasks.map(task => task.id);
       onSave(taskIds, modData, fieldMask);
 
-      notification.success(`${selectedTasks.length} task(s) updated successfully`);
+      notification.success(t('batchEdit.tasksUpdated', { count: selectedTasks.length }));
       handleReset();
       onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
-      notification.error('Please check all required fields');
+      notification.error(t('batchEdit.checkFields'));
     } finally {
       setSaving(false);
     }
@@ -115,42 +118,42 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
     if (onOpenTagSelector) {
       onOpenTagSelector(selectedTags);
     } else {
-      notification.info('Tag selector not implemented yet');
+      notification.info(t('addMod.tagSelectorNotImplemented'));
     }
   };
 
   // Grading options
   const gradingOptions = [
-    { value: 0, label: 'Not Rated' },
-    { value: 1, label: '�?Poor' },
-    { value: 2, label: '★★ Fair' },
-    { value: 3, label: '★★�?Good' },
-    { value: 4, label: '★★★★ Very Good' },
-    { value: 5, label: '★★★★�?Excellent' },
+    { value: 0, label: t('grading.notRated') },
+    { value: 1, label: t('grading.poor') },
+    { value: 2, label: t('grading.fair') },
+    { value: 3, label: t('grading.good') },
+    { value: 4, label: t('grading.veryGood') },
+    { value: 5, label: t('grading.excellent') },
   ];
 
   return (
     <Modal
-      title={`Batch Edit ${selectedTasks.length} Import Task(s)`}
+      title={t('batchEdit.title', { count: selectedTasks.length })}
       open={visible}
       onCancel={handleCancel}
       width={700}
       footer={[
         <Button key="reset" onClick={handleReset}>
-          Reset
+          {t('batchEdit.reset')}
         </Button>,
         <Button key="cancel" onClick={handleCancel}>
-          Cancel
+          {t('common.cancel')}
         </Button>,
         <Button key="save" type="primary" onClick={handleSave} loading={saving}>
-          Apply to {selectedTasks.length} Task(s)
+          {t('batchEdit.applyTo', { count: selectedTasks.length })}
         </Button>,
       ]}
     >
-      <Space orientation="vertical" style={{ width: '100%' }} size="large">
+      <Space orientation="vertical" className="batch-edit-unit-container" size="large">
         <Alert
-          title="Batch Edit Mode"
-          description={`Check the fields you want to update for all ${selectedTasks.length} selected import task(s). Unchecked fields will remain unchanged.`}
+          title={t('batchEdit.alertTitle')}
+          description={t('batchEdit.alertDescription', { count: selectedTasks.length })}
           type="info"
           showIcon
         />
@@ -161,19 +164,19 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
           autoComplete="off"
         >
           {/* Description */}
-          <Space align="start" style={{ width: '100%' }}>
+          <Space align="start" className="batch-edit-unit-field-row">
             <Checkbox
               checked={enabledFields.description}
               onChange={() => handleFieldToggle('description')}
-              style={{ marginTop: '30px' }}
+              className="batch-edit-unit-checkbox"
             />
             <Form.Item
-              label="Description"
+              label={t('addMod.description')}
               name="description"
-              style={{ flex: 1, marginBottom: 0 }}
+              className="batch-edit-unit-field"
             >
               <TextArea
-                placeholder="Enter description for all selected tasks..."
+                placeholder={t('batchEdit.descriptionPlaceholder')}
                 rows={3}
                 disabled={!enabledFields.description}
                 showCount
@@ -182,63 +185,63 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
             </Form.Item>
           </Space>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Divider className="batch-edit-unit-divider" />
 
           {/* Author */}
-          <Space align="start" style={{ width: '100%' }}>
+          <Space align="start" className="batch-edit-unit-field-row">
             <Checkbox
               checked={enabledFields.author}
               onChange={() => handleFieldToggle('author')}
-              style={{ marginTop: '30px' }}
+              className="batch-edit-unit-checkbox"
             />
             <Form.Item
-              label="Author"
+              label={t('addMod.author')}
               name="author"
-              style={{ flex: 1, marginBottom: 0 }}
+              className="batch-edit-unit-field"
             >
               <Input
-                placeholder="Set author for all selected tasks"
+                placeholder={t('batchEdit.authorPlaceholder')}
                 disabled={!enabledFields.author}
               />
             </Form.Item>
           </Space>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Divider className="batch-edit-unit-divider" />
 
           {/* Category */}
-          <Space align="start" style={{ width: '100%' }}>
+          <Space align="start" className="batch-edit-unit-field-row">
             <Checkbox
               checked={enabledFields.category}
               onChange={() => handleFieldToggle('category')}
-              style={{ marginTop: '30px' }}
+              className="batch-edit-unit-checkbox"
             />
             <Form.Item
-              label="Category"
+              label={t('addMod.category')}
               name="category"
-              style={{ flex: 1, marginBottom: 0 }}
+              className="batch-edit-unit-field"
             >
               <Input
-                placeholder="Set category for all selected tasks"
+                placeholder={t('batchEdit.categoryPlaceholder')}
                 disabled={!enabledFields.category}
               />
             </Form.Item>
           </Space>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Divider className="batch-edit-unit-divider" />
 
           {/* Grading */}
-          <Space align="start" style={{ width: '100%' }}>
+          <Space align="start" className="batch-edit-unit-field-row">
             <Checkbox
               checked={enabledFields.grading}
               onChange={() => handleFieldToggle('grading')}
-              style={{ marginTop: '30px' }}
+              className="batch-edit-unit-checkbox"
             />
             <Form.Item
-              label="Grading"
+              label={t('addMod.grading')}
               name="grading"
-              style={{ flex: 1, marginBottom: 0 }}
+              className="batch-edit-unit-field"
             >
-              <Select placeholder="Select grading" disabled={!enabledFields.grading}>
+              <Select placeholder={t('addMod.gradingPlaceholder')} disabled={!enabledFields.grading}>
                 {gradingOptions.map(option => (
                   <Option key={option.value} value={option.value}>
                     {option.label}
@@ -248,18 +251,18 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
             </Form.Item>
           </Space>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Divider className="batch-edit-unit-divider" />
 
           {/* Tags */}
-          <Space align="start" style={{ width: '100%' }}>
+          <Space align="start" className="batch-edit-unit-field-row">
             <Checkbox
               checked={enabledFields.tags}
               onChange={() => handleFieldToggle('tags')}
-              style={{ marginTop: '30px' }}
+              className="batch-edit-unit-checkbox"
             />
             <Form.Item
-              label="Tags"
-              style={{ flex: 1, marginBottom: 0 }}
+              label={t('addMod.tags')}
+              className="batch-edit-unit-field"
             >
               <Button
                 icon={<TagsOutlined />}
@@ -268,8 +271,8 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
                 block
               >
                 {selectedTags.length > 0
-                  ? `Selected Tags: ${selectedTags.join(', ')}`
-                  : 'Select Tags...'}
+                  ? t('addMod.selectedTags', { tags: selectedTags.join(', ') })
+                  : t('addMod.selectTags')}
               </Button>
             </Form.Item>
           </Space>
@@ -279,8 +282,8 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
         <Alert
           title={
             Object.values(enabledFields).filter(Boolean).length > 0
-              ? `${Object.values(enabledFields).filter(Boolean).length} field(s) will be updated for ${selectedTasks.length} task(s)`
-              : 'No fields selected for update'
+              ? t('batchEdit.summaryFields', { count: Object.values(enabledFields).filter(Boolean).length, taskCount: selectedTasks.length })
+              : t('batchEdit.summaryNoFields')
           }
           type={Object.values(enabledFields).filter(Boolean).length > 0 ? 'success' : 'warning'}
         />

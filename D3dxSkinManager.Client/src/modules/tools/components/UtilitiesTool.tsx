@@ -8,6 +8,7 @@ import {
   CompactSection,
   CompactButton,
 } from '../../../shared/components/compact';
+import './ToolsCommon.css';
 
 /**
  * UtilitiesTool - Various utility functions for the application
@@ -19,7 +20,7 @@ import {
 export const UtilitiesTool: React.FC = () => {
   return (
     <CompactCard title="Utilities">
-      <CompactSpace vertical style={{ width: '100%' }}>
+      <CompactSpace vertical className="tool-container">
         <CompactSection title="Mod Order Management">
           <CompactParagraph>Modify the loading order of mods</CompactParagraph>
           <CompactButton icon={<ReloadOutlined />}>

@@ -20,6 +20,8 @@ import {
   CompactButton,
 } from '../../../shared/components/compact';
 import { useProfile } from '../../../shared/context/ProfileContext';
+import { useTranslation } from 'react-i18next';
+import './CacheManagementTool.css';
 
 /**
  * CacheManagementTool - Manage mod cache files
@@ -31,9 +33,10 @@ import { useProfile } from '../../../shared/context/ProfileContext';
  * - Browse and delete individual cache items
  */
 export const CacheManagementTool: React.FC = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [cacheItems, setCacheItems] = useState<CacheItem[]>([]);
-  const [cacheStats, setCacheStats] = useState<CacheStatistics | null>(null);
+  const [cacheStats, setCacheStats] = useState<CacheStatistics>();
   const { state: profileState } = useProfile();
 
   // Categorize cache items by category
@@ -235,10 +238,10 @@ export const CacheManagementTool: React.FC = () => {
     <CompactCard
       title={<><DeleteOutlined /> Cache Management</>}
     >
-      <CompactSpace vertical style={{ width: '100%' }}>
+      <CompactSpace vertical className="cache-management-container">
 
         {/* Scan Cache Section */}
-        <CompactSpace style={{ marginBottom: '8px' }}>
+        <CompactSpace className="cache-management-scan-section">
           <CompactButton
             type="primary"
             icon={<ReloadOutlined />}
@@ -272,7 +275,7 @@ export const CacheManagementTool: React.FC = () => {
                     title="Invalid Cache"
                     value={cacheStats.invalidCount}
                     suffix={`items (${cacheService.formatBytesToMiB(cacheStats.invalidSizeBytes)})`}
-                    prefix={<ExclamationCircleOutlined style={{ color: 'var(--color-error)' }} />}
+                    prefix={<ExclamationCircleOutlined className="cache-stat-icon-error" />}
                     valueStyle={{ fontSize: '16px' }}
                   />
                   <CompactButton
@@ -282,7 +285,7 @@ export const CacheManagementTool: React.FC = () => {
                     onClick={() => handleCleanCache(CacheCategory.Invalid, 'Invalid')}
                     loading={loading}
                     disabled={cacheStats.invalidCount === 0}
-                    style={{ marginTop: '8px', width: '100%' }}
+                    className="cache-clean-button"
                   >
                     Clean Invalid
                   </CompactButton>
@@ -295,7 +298,7 @@ export const CacheManagementTool: React.FC = () => {
                     title="Rarely Used Cache"
                     value={cacheStats.rarelyUsedCount}
                     suffix={`items (${cacheService.formatBytesToMiB(cacheStats.rarelyUsedSizeBytes)})`}
-                    prefix={<WarningOutlined style={{ color: 'var(--color-warning)' }} />}
+                    prefix={<WarningOutlined className="cache-stat-icon-warning" />}
                     valueStyle={{ fontSize: '16px' }}
                   />
                   <CompactButton
@@ -304,7 +307,7 @@ export const CacheManagementTool: React.FC = () => {
                     onClick={() => handleCleanCache(CacheCategory.RarelyUsed, 'Rarely Used')}
                     loading={loading}
                     disabled={cacheStats.rarelyUsedCount === 0}
-                    style={{ marginTop: '8px', width: '100%' }}
+                    className="cache-clean-button"
                   >
                     Clean Rarely Used
                   </CompactButton>
@@ -317,7 +320,7 @@ export const CacheManagementTool: React.FC = () => {
                     title="Frequently Used Cache"
                     value={cacheStats.frequentlyUsedCount}
                     suffix={`items (${cacheService.formatBytesToMiB(cacheStats.frequentlyUsedSizeBytes)})`}
-                    prefix={<CheckCircleOutlined style={{ color: 'var(--color-success)' }} />}
+                    prefix={<CheckCircleOutlined className="cache-stat-icon-success" />}
                     valueStyle={{ fontSize: '16px' }}
                   />
                   <CompactButton
@@ -327,7 +330,7 @@ export const CacheManagementTool: React.FC = () => {
                     onClick={() => handleCleanCache(CacheCategory.FrequentlyUsed, 'Frequently Used')}
                     loading={loading}
                     disabled={cacheStats.frequentlyUsedCount === 0}
-                    style={{ marginTop: '8px', width: '100%' }}
+                    className="cache-clean-button"
                   >
                     Clean Frequently Used
                   </CompactButton>
@@ -338,7 +341,7 @@ export const CacheManagementTool: React.FC = () => {
             <CompactAlert
               message="Cache Categories Explained"
               description={
-                <ul style={{ marginBottom: 0, paddingLeft: '20px' }}>
+                <ul className="cache-description-list">
                   <li><strong>Invalid Cache:</strong> Cache with no matching mod in database. Safe to delete.</li>
                   <li><strong>Rarely Used Cache:</strong> Cache for mods that exist but are not loaded. Can be deleted if space is needed.</li>
                   <li><strong>Frequently Used Cache:</strong> Cache for currently loaded mods. Deleting may require re-importing them.</li>

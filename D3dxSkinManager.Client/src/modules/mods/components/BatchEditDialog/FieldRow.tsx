@@ -1,5 +1,6 @@
 import React from 'react';
 import { Space, Checkbox } from 'antd';
+import './FieldRow.css';
 
 export interface FieldRowProps {
   checked: boolean;
@@ -17,11 +18,11 @@ export const FieldRow: React.FC<FieldRowProps> = ({
   children,
 }) => {
   return (
-    <Space align="start" style={{ width: '100%' }}>
+    <Space align="start" className="field-row-container">
       <Checkbox
         checked={checked}
         onChange={onToggle}
-        style={{ marginTop: '30px' }}
+        className="field-row-checkbox"
       />
       {children}
     </Space>

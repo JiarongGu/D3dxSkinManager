@@ -14,6 +14,8 @@ import { FileTextOutlined, ClearOutlined } from '@ant-design/icons';
 import type { UIPlugin, PluginContext, PluginEventArgs } from '../PluginTypes';
 import { bridgeService } from '../../../../shared/services/bridgeService';
 import { useProfile } from '../../../../shared/context/ProfileContext';
+import { useTranslation } from 'react-i18next';
+import './ExamplePlugin.css';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -59,6 +61,7 @@ export class ModLogViewerPlugin implements UIPlugin {
  * Tab component for viewing mod logs
  */
 const ModLogViewerTab: React.FC = () => {
+  const { t } = useTranslation();
   const [log, setLog] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const { state: profileState } = useProfile();
@@ -72,9 +75,9 @@ const ModLogViewerTab: React.FC = () => {
         type: 'GET_MOD_LOG',
         profileId: profileState.selectedProfile?.id
       });
-      setLog(response.log || 'No logs available');
+      setLog(response.log || t('plugins.modLog.noLogs'));
     } catch (err: any) {
-      notification.error(`Failed to load log: ${err.message}`);
+      notification.error(t('plugins.modLog.loadFailed', { error: err.message }));
       console.error('Error loading log:', err);
     } finally {
       setLoading(false);
@@ -88,10 +91,10 @@ const ModLogViewerTab: React.FC = () => {
         type: 'CLEAR_MOD_LOG',
         profileId: profileState.selectedProfile?.id
       });
-      notification.success('Log cleared');
+      notification.success(t('plugins.modLog.logCleared'));
       setLog('');
     } catch (err: any) {
-      notification.error(`Failed to clear log: ${err.message}`);
+      notification.error(t('plugins.modLog.clearFailed', { error: err.message }));
     }
   };
 
@@ -100,41 +103,33 @@ const ModLogViewerTab: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div className="mod-log-viewer-container">
       <Card>
         <Title level={3}>
-          <FileTextOutlined /> Mod Operation Logs
+          <FileTextOutlined /> {t('plugins.modLog.title')}
         </Title>
         <Paragraph>
-          This plugin displays logs from the ModLogger backend plugin. It demonstrates
-          how frontend and backend plugins can work together.
+          {t('plugins.modLog.description')}
         </Paragraph>
 
-        <Space style={{ marginBottom: '16px' }}>
+        <Space className="mod-log-viewer-actions">
           <Button type="primary" onClick={loadLog} loading={loading}>
-            Refresh Log
+            {t('plugins.modLog.refreshLog')}
           </Button>
           <Button icon={<ClearOutlined />} onClick={clearLog}>
-            Clear Log
+            {t('plugins.modLog.clearLog')}
           </Button>
         </Space>
 
-        <Card
-          style={{
-            backgroundColor: '#1e1e1e',
-            color: '#d4d4d4',
-            maxHeight: '500px',
-            overflow: 'auto'
-          }}
-        >
-          <pre style={{ margin: 0, fontFamily: 'monospace', fontSize: '12px' }}>
-            {log || 'Loading...'}
+        <Card className="mod-log-viewer-log-card">
+          <pre className="mod-log-viewer-log-pre">
+            {log || t('plugins.modLog.loading')}
           </pre>
         </Card>
 
-        <Paragraph style={{ marginTop: '16px', color: '#888' }}>
+        <Paragraph className="mod-log-viewer-footer">
           <Text type="secondary">
-            Backend plugin: ModLogger | Frontend plugin: ModLogViewer
+            {t('plugins.modLog.pluginInfo')}
           </Text>
         </Paragraph>
       </Card>

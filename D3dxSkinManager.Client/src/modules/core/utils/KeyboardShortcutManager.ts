@@ -110,7 +110,7 @@ export class KeyboardShortcutManager {
   /**
    * Get shortcuts for a specific context
    */
-  getShortcutsForContext(context: string | null): Array<{ id: string; config: ShortcutConfig }> {
+  getShortcutsForContext(context?: string): Array<{ id: string; config: ShortcutConfig }> {
     return this.getShortcuts().filter(({ config }) =>
       config.context === context || !config.context
     );

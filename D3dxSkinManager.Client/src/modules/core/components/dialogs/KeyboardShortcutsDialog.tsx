@@ -80,7 +80,7 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
     <Modal
       title={
         <>
-          <CodeOutlined style={{ marginRight: 8 }} />
+          <CodeOutlined className="keyboard-shortcuts-icon" />
           {t('shortcuts.title')}
         </>
       }
@@ -94,7 +94,10 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
         {groupedShortcuts.map((group, index) => (
           <div key={group.title}>
             {index > 0 && <Divider />}
-            <Title level={5} className="keyboard-shortcuts-group-title" style={{ marginTop: index > 0 ? 16 : 0 }}>
+            <Title
+              level={5}
+              className={index === 0 ? "keyboard-shortcuts-group-title keyboard-shortcuts-group-title-first" : "keyboard-shortcuts-group-title keyboard-shortcuts-group-title-subsequent"}
+            >
               {group.title}
             </Title>
             <Table
@@ -104,7 +107,7 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
               rowKey="id"
               size="small"
               showHeader={false}
-              style={{ marginBottom: 0 }}
+              className="keyboard-shortcuts-table"
             />
           </div>
         ))}

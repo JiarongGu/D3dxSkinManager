@@ -7,6 +7,8 @@ import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { migrationService } from '../../services/migrationService';
 import { fileDialogService } from '../../../../shared/services/systemService';
 import { useProfile } from '../../../../shared/context/ProfileContext';
+import { useTranslation } from 'react-i18next';
+import './DetectionStep.css';
 
 const { Text } = Typography;
 
@@ -15,6 +17,7 @@ const { Text } = Typography;
  * Allows user to select Python installation directory and analyzes it
  */
 export const DetectionStep: React.FC = () => {
+  const { t } = useTranslation();
   const {
     pythonPath,
     setPythonPath,
@@ -34,13 +37,13 @@ export const DetectionStep: React.FC = () => {
       const detectedPath = await migrationService.autoDetect();
       if (detectedPath) {
         setPythonPath(detectedPath);
-        notification.success('Python installation detected');
+        notification.success(t('migration.detection.pythonDetected'));
         await handleAnalyze(detectedPath);
       } else {
-        notification.warning('Could not auto-detect Python installation. Please browse manually.');
+        notification.warning(t('migration.detection.autoDetectFailed'));
       }
     } catch (error) {
-      notification.error('Failed to auto-detect Python installation');
+      notification.error(t('migration.detection.autoDetectError'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -53,7 +56,7 @@ export const DetectionStep: React.FC = () => {
   const handleBrowse = async () => {
     try {
       const result = await fileDialogService.openFolderDialog({
-        title: 'Select Python d3dxSkinManage Installation Directory',
+        title: t('migration.detection.selectPythonDir'),
         defaultPath: 'E:\\Games',
         rememberPathKey: 'migration_python_install',
       });
@@ -63,7 +66,7 @@ export const DetectionStep: React.FC = () => {
         await handleAnalyze(result.filePath);
       }
     } catch (error) {
-      notification.error('Failed to browse for directory');
+      notification.error(t('migration.detection.browseFailed'));
       console.error(error);
     }
   };
@@ -73,7 +76,7 @@ export const DetectionStep: React.FC = () => {
    */
   const handleAnalyze = async (path: string) => {
     if (!profileState.selectedProfile?.id) {
-      notification.error('No profile selected');
+      notification.error(t('migration.detection.noProfileSelected'));
       return;
     }
     const profileId = profileState.selectedProfile.id;
@@ -84,12 +87,12 @@ export const DetectionStep: React.FC = () => {
       setAnalysis(analysisResult);
 
       if (!analysisResult.isValid) {
-        notification.error(`Invalid Python installation directory: ${analysisResult.errors.join(', ')}`);
+        notification.error(t('migration.detection.invalidInstallation', { errors: analysisResult.errors.join(', ') }));
       } else {
-        notification.success(`Found ${analysisResult.totalMods} mods ready to migrate`);
+        notification.success(t('migration.detection.modsFound', { count: analysisResult.totalMods }));
       }
     } catch (error) {
-      notification.error('Failed to analyze Python installation');
+      notification.error(t('migration.detection.analyzeFailed'));
       console.error('Analysis error:', error);
       // Set a failed analysis state so user can see the error
       setAnalysis({
@@ -111,16 +114,16 @@ export const DetectionStep: React.FC = () => {
   };
 
   return (
-    <Space orientation="vertical" style={{ width: '100%' }} size="large">
+    <Space orientation="vertical" className="detection-step-container" size="large">
       <Alert
-        title="Migrate from Python Version"
-        description="This wizard will help you migrate your mods, previews, and configuration from the Python d3dxSkinManage to this React version."
+        title={t('migration.detection.title')}
+        description={t('migration.detection.description')}
         type="info"
         showIcon
       />
 
-      <Card title="Step 1: Locate Python Installation">
-        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+      <Card title={t('migration.detection.step1Title')}>
+        <Space orientation="vertical" className="detection-step-inner-container" size="middle">
           <CompactButton
             type="primary"
             icon={<FolderOpenOutlined />}
@@ -128,7 +131,7 @@ export const DetectionStep: React.FC = () => {
             loading={loading}
             block
           >
-            Auto-Detect Python Installation
+            {t('migration.detection.autoDetect')}
           </CompactButton>
 
           <CompactButton
@@ -136,12 +139,12 @@ export const DetectionStep: React.FC = () => {
             onClick={handleBrowse}
             block
           >
-            Browse for Python Installation Directory
+            {t('migration.detection.browse')}
           </CompactButton>
 
           {pythonPath && (
             <Alert
-              title="Selected Path"
+              title={t('migration.detection.selectedPath')}
               description={pythonPath}
               type="info"
             />
@@ -150,42 +153,39 @@ export const DetectionStep: React.FC = () => {
           {analysis && (
             <Card
               size="small"
-              title="Analysis Result"
-              style={{
-                background: 'var(--color-bg-elevated)',
-                borderColor: 'var(--color-border-secondary)',
-              }}
+              title={t('migration.detection.analysisResult')}
+              className="detection-step-analysis-card"
             >
               {analysis.isValid ? (
                 <>
                   <Row gutter={16}>
                     <Col span={12}>
-                      <Statistic title="Total Mods" value={analysis.totalMods} />
+                      <Statistic title={t('migration.detection.totalMods')} value={analysis.totalMods} />
                     </Col>
                     <Col span={12}>
                       <Statistic
-                        title="Archive Size"
-                        value={analysis.totalArchiveSizeFormatted || 'N/A'}
+                        title={t('migration.detection.archiveSize')}
+                        value={analysis.totalArchiveSizeFormatted || t('migration.detection.notAvailable')}
                       />
                     </Col>
                   </Row>
-                  <Divider style={{ margin: '12px 0' }} />
+                  <Divider className="detection-step-divider" />
                   <Row gutter={16}>
                     <Col span={12}>
                       <Statistic
-                        title="Preview Size"
-                        value={analysis.totalPreviewSizeFormatted || 'N/A'}
+                        title={t('migration.detection.previewSize')}
+                        value={analysis.totalPreviewSizeFormatted || t('migration.detection.notAvailable')}
                       />
                     </Col>
                     <Col span={12}>
-                      <Text>Environments: {analysis.environments.join(', ')}</Text>
+                      <Text>{t('migration.detection.environments', { envs: analysis.environments.join(', ') })}</Text>
                     </Col>
                   </Row>
                   {analysis.warnings.length > 0 && (
                     <>
-                      <Divider style={{ margin: '12px 0' }} />
+                      <Divider className="detection-step-divider" />
                       <Alert
-                        title="Warnings"
+                        title={t('migration.detection.warnings')}
                         description={
                           <List
                             size="small"
@@ -201,7 +201,7 @@ export const DetectionStep: React.FC = () => {
                 </>
               ) : (
                 <Alert
-                  title="Invalid Installation"
+                  title={t('migration.detection.invalidInstallationTitle')}
                   description={analysis.errors.join('\n')}
                   type="error"
                   showIcon

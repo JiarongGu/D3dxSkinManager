@@ -27,13 +27,13 @@ interface MigrationWizardContextState {
   // Step 1: Detection
   pythonPath: string;
   setPythonPath: (path: string) => void;
-  analysis: MigrationAnalysis | null;
-  setAnalysis: (analysis: MigrationAnalysis | null) => void;
+  analysis: MigrationAnalysis | undefined;
+  setAnalysis: (analysis: MigrationAnalysis | undefined) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
 
   // Step 2: Options
-  form: FormInstance | null;
+  form: FormInstance | undefined;
   setForm: (form: FormInstance) => void;
 
   // Step 3: Progress
@@ -43,8 +43,8 @@ interface MigrationWizardContextState {
   setMigrationProgress: (progress: number | ((prev: number) => number)) => void;
 
   // Step 4: Complete
-  result: MigrationResult | null;
-  setResult: (result: MigrationResult | null) => void;
+  result: MigrationResult | undefined;
+  setResult: (result: MigrationResult | undefined) => void;
 
   // Navigation
   goToNextStep: () => void;
@@ -84,19 +84,19 @@ export const MigrationWizardProvider: React.FC<MigrationWizardProviderProps> = (
 
   // Step 1: Detection
   const [pythonPath, setPythonPath] = useState<string>('');
-  const [analysis, setAnalysis] = useState<MigrationAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<MigrationAnalysis>();
   const [loading, setLoading] = useState<boolean>(false);
 
   // Step 2: Options
   // Form instance is created in OptionsStep to avoid unconnected form warning
-  const [form, setForm] = useState<FormInstance | null>(null);
+  const [form, setForm] = useState<FormInstance>();
 
   // Step 3: Progress
   const [migrating, setMigrating] = useState<boolean>(false);
   const [migrationProgress, setMigrationProgress] = useState<number>(0);
 
   // Step 4: Complete
-  const [result, setResult] = useState<MigrationResult | null>(null);
+  const [result, setResult] = useState<MigrationResult>();
 
   /**
    * Navigate to next step
@@ -122,11 +122,11 @@ export const MigrationWizardProvider: React.FC<MigrationWizardProviderProps> = (
   const resetWizard = () => {
     setCurrentStep(MigrationStep.Detection);
     setPythonPath('');
-    setAnalysis(null);
+    setAnalysis(undefined);
     setLoading(false);
     setMigrating(false);
     setMigrationProgress(0);
-    setResult(null);
+    setResult(undefined);
     form?.resetFields();
   };
 

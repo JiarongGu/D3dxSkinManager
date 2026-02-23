@@ -88,8 +88,27 @@
   transition: opacity 0.2s ease-in-out;
   border-radius: 0;
   box-shadow: none;
+  max-width: calc(100vw - 100px);
+  max-height: calc(100vh - 120px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
 }
 
 .fullscreen-preview-image.loaded {
   opacity: 1;
+}
+
+.fullscreen-preview-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.fullscreen-preview-error {
+  color: #fff;
+  font-size: 16px;
+  text-align: center;
 }

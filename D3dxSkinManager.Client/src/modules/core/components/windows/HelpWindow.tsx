@@ -12,6 +12,7 @@ import {
   ToolOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
+import './HelpWindow.css';
 
 const { Title, Text, Paragraph } = Typography;
 const { Panel } = Collapse;
@@ -25,7 +26,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
   const [activeTab, setActiveTab] = useState('quickstart');
 
   const quickStartContent = (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" className="help-window-container">
       <Alert
         title="Welcome to d3dx Skin Manager!"
         description="Get started with mod management in just a few steps."
@@ -47,7 +48,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         <Paragraph>
           You can import mods in several ways:
         </Paragraph>
-        <ul style={{ lineHeight: '2' }}>
+        <ul className="help-window-list">
           <li><strong>Drag & Drop:</strong> Simply drag .zip files or folders into the mod table</li>
           <li><strong>Context Menu:</strong> Right-click in the mod table → "Add Archive as Mod"</li>
           <li><strong>Mod Warehouse:</strong> Browse and download from online repositories</li>
@@ -78,7 +79,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         <Paragraph>
           Mods are organized into a three-level hierarchy:
         </Paragraph>
-        <ul style={{ lineHeight: '2' }}>
+        <ul className="help-window-list">
           <li><strong>Classification:</strong> Top-level category (Character, Weapon, etc.)</li>
           <li><strong>Object:</strong> Specific object or character name</li>
           <li><strong>Mod:</strong> Individual mod file</li>
@@ -92,7 +93,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         <Paragraph>
           Powerful search capabilities:
         </Paragraph>
-        <ul style={{ lineHeight: '2' }}>
+        <ul className="help-window-list">
           <li>Search by name, author, or tags</li>
           <li>Use <Tag>!</Tag> prefix for negation (e.g., <Tag>!NSFW</Tag>)</li>
           <li>Filter by grading (G, P, R, X)</li>
@@ -104,7 +105,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         <Paragraph>
           Efficiently manage multiple mods:
         </Paragraph>
-        <ul style={{ lineHeight: '2' }}>
+        <ul className="help-window-list">
           <li><strong>Batch Edit:</strong> Select multiple mods and edit properties together</li>
           <li><strong>Import Queue:</strong> Add multiple files and configure before importing</li>
           <li><strong>Tag Management:</strong> Apply tags to multiple mods at once</li>
@@ -115,7 +116,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         <Paragraph>
           Right-click on any mod for quick actions:
         </Paragraph>
-        <ul style={{ lineHeight: '2' }}>
+        <ul className="help-window-list">
           <li>Load/Unload mod</li>
           <li>Edit mod information</li>
           <li>Export mod file</li>
@@ -131,7 +132,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
           Press <Tag>?</Tag> or <Tag>Ctrl + /</Tag> to view all keyboard shortcuts.
           Common shortcuts include:
         </Paragraph>
-        <ul style={{ lineHeight: '2' }}>
+        <ul className="help-window-list">
           <li><Tag>Ctrl + F</Tag> - Focus search</li>
           <li><Tag>F5</Tag> - Refresh list</li>
           <li><Tag>Delete</Tag> - Delete selected item</li>
@@ -153,7 +154,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
   );
 
   const troubleshootingContent = (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" className="help-window-container">
       <Alert
         title="Common Issues & Solutions"
         type="warning"
@@ -163,7 +164,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
 
       <Collapse accordion>
         <Panel header="Mods not appearing in game" key="1">
-          <ul style={{ lineHeight: '2' }}>
+          <ul className="help-window-list">
             <li>Ensure mods are <Tag color="green">Loaded</Tag> (green status indicator)</li>
             <li>Check game path is correctly configured in Settings</li>
             <li>Verify 3DMigoto is properly installed</li>
@@ -172,7 +173,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         </Panel>
 
         <Panel header="Import fails or gets stuck" key="2">
-          <ul style={{ lineHeight: '2' }}>
+          <ul className="help-window-list">
             <li>Check file format (should be .zip, .rar, .7z, or folder)</li>
             <li>Ensure mod structure is correct (contains .ini or .buf files)</li>
             <li>Try importing one file at a time</li>
@@ -181,7 +182,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         </Panel>
 
         <Panel header="Thumbnails not showing" key="3">
-          <ul style={{ lineHeight: '2' }}>
+          <ul className="help-window-list">
             <li>Thumbnails must be in PNG or JPG format</li>
             <li>Check Thumbnail Algorithm setting in Settings</li>
             <li>Try dragging preview images directly onto the mod table</li>
@@ -190,7 +191,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         </Panel>
 
         <Panel header="Game won't launch" key="4">
-          <ul style={{ lineHeight: '2' }}>
+          <ul className="help-window-list">
             <li>Verify game path points to the executable (.exe)</li>
             <li>Check launch arguments are correct</li>
             <li>Try launching game directly first</li>
@@ -202,7 +203,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
   );
 
   const tipsContent = (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" className="help-window-container">
       <Alert
         title="Pro Tips & Best Practices"
         type="success"
@@ -212,7 +213,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
 
       <div>
         <Title level={5}>Organization Tips</Title>
-        <ul style={{ lineHeight: '2' }}>
+        <ul className="help-window-list">
           <li>Use descriptive names for your mods</li>
           <li>Add tags for easy filtering (Character, HD, NSFW, etc.)</li>
           <li>Set proper grading to filter content</li>
@@ -223,7 +224,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
 
       <div>
         <Title level={5}>Performance Tips</Title>
-        <ul style={{ lineHeight: '2' }}>
+        <ul className="help-window-list">
           <li>Clear cache regularly (Tools → Cache Management)</li>
           <li>Don't load too many mods simultaneously</li>
           <li>Use batch operations instead of one-by-one edits</li>
@@ -233,7 +234,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
 
       <div>
         <Title level={5}>Workflow Tips</Title>
-        <ul style={{ lineHeight: '2' }}>
+        <ul className="help-window-list">
           <li>Use import queue for bulk imports</li>
           <li>Create classification hierarchies that match your game structure</li>
           <li>Use context menus (right-click) for quick actions</li>
@@ -291,7 +292,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
     <Modal
       title={
         <>
-          <QuestionCircleOutlined style={{ marginRight: 8 }} />
+          <QuestionCircleOutlined className="help-window-title-icon" />
           Help & Documentation
         </>
       }

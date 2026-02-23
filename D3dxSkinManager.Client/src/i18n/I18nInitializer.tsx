@@ -34,16 +34,8 @@ export const I18nInitializer: React.FC<I18nInitializerProps> = ({ children }) =>
 
   if (!isInitialized) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          width: '100vw',
-        }}
-      >
-        <Spin size="large" description="Loading..." />
+      <div className="i18n-loading-container">
+        <Spin size="large" />
       </div>
     );
   }

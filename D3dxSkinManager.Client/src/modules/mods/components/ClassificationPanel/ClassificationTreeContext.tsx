@@ -9,6 +9,7 @@ import { getClassificationContextMenu } from './ClassificationContextMenu';
 import { useClassificationTreeOperations } from './useClassificationTreeOperations';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
 import { ConfirmDialog } from '../../../../shared/components/dialogs/ConfirmDialog';
+import './ClassificationTreeContext.css';
 
 /**
  * Recursively filter tree nodes by search query
@@ -317,7 +318,7 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
         okText={t('common.delete')}
         cancelText={t('common.cancel')}
         okType="danger"
-        icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+        icon={<ExclamationCircleOutlined className="classification-tree-delete-icon" />}
         onOk={handleDeleteConfirm}
         onCancel={closeDeleteConfirmation}
       />

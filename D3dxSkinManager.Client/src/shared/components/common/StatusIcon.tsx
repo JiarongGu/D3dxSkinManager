@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import './StatusIcon.css';
 
 export interface StatusIconProps {
   isLoaded: boolean;
@@ -7,8 +8,8 @@ export interface StatusIconProps {
 
 export const StatusIcon: React.FC<StatusIconProps> = ({ isLoaded }) => {
   return isLoaded ? (
-    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '20px' }} />
+    <CheckCircleOutlined className="status-icon-loaded" />
   ) : (
-    <CloseCircleOutlined style={{ color: '#d9d9d9', fontSize: '20px' }} />
+    <CloseCircleOutlined className="status-icon-not-loaded" />
   );
 };

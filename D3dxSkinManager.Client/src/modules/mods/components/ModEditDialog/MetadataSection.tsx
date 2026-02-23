@@ -1,6 +1,7 @@
 import React from 'react';
 import { Form, Space, Select, AutoComplete } from 'antd';
 import { useTranslation } from 'react-i18next';
+import './MetadataSection.css';
 
 const { Option } = Select;
 
@@ -30,9 +31,9 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
   // Tooltip content for age rating
   const ageRatingTooltip = (
     <div>
-      <div style={{ marginBottom: '8px' }}><strong>{t('mods.edit.ageRating.guidelines')}</strong></div>
+      <div className="metadata-age-rating-tooltip"><strong>{t('mods.edit.ageRating.guidelines')}</strong></div>
       {ageRatingOptions.map(option => (
-        <div key={option.value} style={{ marginBottom: '4px' }}>
+        <div key={option.value} className="metadata-age-rating-option">
           <strong>{option.label}:</strong> {option.description}
         </div>
       ))}
@@ -40,11 +41,11 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
   );
 
   return (
-    <Space style={{ width: '100%' }} size="middle">
+    <Space className="metadata-section-container" size="middle">
       <Form.Item
         label={t('mods.edit.author')}
         name="author"
-        style={{ flex: 1, minWidth: '200px' }}
+        className="metadata-section-author"
       >
         <AutoComplete
           placeholder={t('mods.edit.authorPlaceholder')}
@@ -58,7 +59,7 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
       <Form.Item
         label={t('mods.edit.category')}
         name="category"
-        style={{ flex: 1, minWidth: '200px' }}
+        className="metadata-section-category"
       >
         <AutoComplete
           placeholder={t('mods.edit.categoryPlaceholder')}
@@ -73,7 +74,7 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
         label={t('mods.edit.ageRating.label')}
         name="grading"
         tooltip={ageRatingTooltip}
-        style={{ width: '180px' }}
+        className="metadata-section-grading"
       >
         <Select placeholder={t('mods.edit.ageRating.placeholder')}>
           {ageRatingOptions.map(option => (

@@ -44,12 +44,11 @@ export abstract class BaseModuleService {
   }
 
   /**
-   * Send a message and return a nullable result
+   * Send a message and return an optional result
    * Convenience method for get-by-id operations that might not find a result
-   * Backend returns null, but we convert to undefined for frontend consistency
+   * Backend omits null fields via JsonIgnoreCondition.WhenWritingNull
    */
-  protected async sendNullableMessage<T, TPayload = unknown>(type: string, profileId?: string, payload?: TPayload): Promise<T | undefined> {
-    const result = await this.sendMessage<T | null, TPayload>(type, profileId, payload);
-    return result ?? undefined;
+  protected async sendOptionalMessage<T, TPayload = unknown>(type: string, profileId?: string, payload?: TPayload): Promise<T | undefined> {
+    return this.sendMessage<T | undefined, TPayload>(type, profileId, payload);
   }
 }

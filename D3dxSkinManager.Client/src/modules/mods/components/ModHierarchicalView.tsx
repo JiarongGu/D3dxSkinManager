@@ -31,6 +31,7 @@ import { BatchEditUnit } from "./BatchEditUnit";
 import { createDefaultFileRouter } from "../../../shared/utils/fileTypeRouter";
 import { useModsContext } from "../context/ModsContext";
 import { useProfile } from "../../../shared/context/ProfileContext";
+import './ModHierarchicalView.css';
 
 export const ModHierarchicalView: React.FC = () => {
   const { state, actions } = useModsContext();
@@ -507,9 +508,7 @@ export const ModHierarchicalView: React.FC = () => {
         router={fileRouter}
         enableRouting={true}
       >
-        <Layout
-          style={{ height: "100%", background: "var(--color-bg-container)" }}
-        >
+        <Layout className="mod-hierarchical-view-layout">
           {/* Classification Tree - Left Panel */}
           <ClassificationPanel
             tree={state.classificationTree}
@@ -546,14 +545,7 @@ export const ModHierarchicalView: React.FC = () => {
           />
 
           {/* Preview Panel - Right Panel */}
-          <Layout.Content
-            style={{
-              background: "var(--color-sider-bg) !important",
-              borderLeft: "1px solid var(--color-border-secondary)",
-              height: "100%",
-              overflow: "auto",
-            }}
-          >
+          <Layout.Content className="mod-hierarchical-view-preview">
             <ModPreviewPanel mod={state.selectedMod} />
           </Layout.Content>
         </Layout>

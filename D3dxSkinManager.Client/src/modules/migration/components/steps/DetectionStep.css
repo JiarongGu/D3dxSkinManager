@@ -1,0 +1,19 @@
+/* DetectionStep Container */
+.detection-step-container {
+  width: 100%;
+}
+
+.detection-step-inner-container {
+  width: 100%;
+}
+
+/* Analysis Result Card */
+.detection-step-analysis-card {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-secondary);
+}
+
+/* Dividers */
+.detection-step-divider {
+  margin: 12px 0;
+}

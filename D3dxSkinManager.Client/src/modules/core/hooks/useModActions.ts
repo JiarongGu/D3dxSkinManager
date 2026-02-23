@@ -9,8 +9,9 @@ export const useModActions = (profileId: string, onModsChange: () => Promise<voi
       await modService.loadMod(profileId,sha);
       notification.success('Mod loaded successfully');
       await onModsChange();
-    } catch (error) {
-      notification.error('Failed to load mod: ' + (error as Error).message);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      notification.error('Failed to load mod: ' + msg);
     }
   }, [profileId, onModsChange]);
 
@@ -19,8 +20,9 @@ export const useModActions = (profileId: string, onModsChange: () => Promise<voi
       await modService.unloadMod(profileId, sha);
       notification.success('Mod unloaded successfully');
       await onModsChange();
-    } catch (error) {
-      notification.error('Failed to unload mod: ' + (error as Error).message);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      notification.error('Failed to unload mod: ' + msg);
     }
   }, [profileId, onModsChange]);
 
@@ -39,8 +41,9 @@ export const useModActions = (profileId: string, onModsChange: () => Promise<voi
           if (onFiltersChange) {
             await onFiltersChange();
           }
-        } catch (error) {
-          notification.error('Failed to delete mod: ' + (error as Error).message);
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          notification.error('Failed to delete mod: ' + msg);
         }
       }
     });

@@ -29,7 +29,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   okText = 'OK',
   cancelText = 'Cancel',
   okType = 'primary',
-  icon = <ExclamationCircleOutlined style={{ color: '#faad14', fontSize: '22px' }} />,
+  icon = <ExclamationCircleOutlined className="confirm-dialog-icon" />,
   onOk,
   onCancel,
 }) => {
@@ -60,7 +60,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     <Modal
       className="confirm-dialog"
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="confirm-dialog-title">
           {icon}
           <span>{title}</span>
         </div>
@@ -76,7 +76,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </div>
       }
       footer={
-        <CompactSpace style={{ justifyContent: 'flex-end', width: '100%' }}>
+        <CompactSpace className="confirm-dialog-footer">
           <CompactButton onClick={onCancel}>
             {cancelText}
           </CompactButton>
@@ -100,7 +100,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       }
       width={420}
     >
-      <div style={{ fontSize: '14px', lineHeight: '1.5' }}>
+      <div className="confirm-dialog-content">
         {content}
       </div>
     </Modal>

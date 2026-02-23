@@ -26,3 +26,19 @@
 .keyboard-shortcuts-tip-text {
   font-size: 13px;
 }
+
+.keyboard-shortcuts-icon {
+  margin-right: 8px;
+}
+
+.keyboard-shortcuts-group-title-first {
+  margin-top: 0;
+}
+
+.keyboard-shortcuts-group-title-subsequent {
+  margin-top: 16px;
+}
+
+.keyboard-shortcuts-table {
+  margin-bottom: 0;
+}

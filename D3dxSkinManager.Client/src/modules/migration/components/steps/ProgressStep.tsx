@@ -2,6 +2,8 @@ import React from 'react';
 import { Space, Alert, Card, Progress, Typography } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
+import { useTranslation } from 'react-i18next';
+import './MigrationSteps.css';
 
 const { Paragraph } = Typography;
 
@@ -10,13 +12,14 @@ const { Paragraph } = Typography;
  * Shows migration progress
  */
 export const ProgressStep: React.FC = () => {
+  const { t } = useTranslation();
   const { migrating, migrationProgress } = useMigrationWizard();
 
   return (
-    <Space orientation="vertical" style={{ width: '100%' }} size="large">
+    <Space orientation="vertical" className="migration-step-container" size="large">
       <Alert
-        title="Migration in Progress"
-        description="Please wait while your data is being migrated. This may take several minutes depending on the number of mods."
+        title={t('migration.progress.title')}
+        description={t('migration.progress.description')}
         type="info"
         showIcon
         icon={<LoadingOutlined />}
@@ -31,8 +34,8 @@ export const ProgressStep: React.FC = () => {
             '100%': '#87d068',
           }}
         />
-        <Paragraph style={{ marginTop: 16, textAlign: 'center' }}>
-          {migrating ? 'Migrating data...' : 'Migration complete!'}
+        <Paragraph className="progress-step-paragraph">
+          {migrating ? t('migration.progress.migrating') : t('migration.progress.complete')}
         </Paragraph>
       </Card>
     </Space>

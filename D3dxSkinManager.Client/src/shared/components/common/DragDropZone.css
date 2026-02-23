@@ -1,0 +1,42 @@
+/* DragDropZone Container */
+.drag-drop-zone-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Drag Overlay */
+.drag-drop-zone-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(24, 144, 255, 0.1);
+  border: 2px dashed #1890ff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* Overlay Content */
+.drag-drop-zone-overlay-content {
+  text-align: center;
+  color: #1890ff;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.drag-drop-zone-overlay-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.drag-drop-zone-accepted-types {
+  font-size: 14px;
+  margin-top: 8px;
+  opacity: 0.8;
+}

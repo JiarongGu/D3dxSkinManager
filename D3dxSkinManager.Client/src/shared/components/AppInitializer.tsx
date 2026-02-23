@@ -8,6 +8,8 @@ import {
 import { useProfile } from "../context/ProfileContext";
 import { systemService } from "../services/systemService";
 import { bridgeService } from "../services/bridgeService";
+import { useTranslation } from 'react-i18next';
+import './AppInitializer.css';
 
 /**
  * Initialization state for the application
@@ -38,6 +40,7 @@ interface AppInitializerProps {
  * 5. Render children when ready
  */
 export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
+  const { t } = useTranslation();
   const { selectedProfile, profiles, actions } = useProfile();
   const [state, setState] = useState<InitState>({
     stage: "loading-global",
@@ -93,7 +96,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       setState((prev) => ({
         ...prev,
         stage: "error",
-        error: "Failed to load global settings",
+        error: t('app.init.loadGlobalSettingsFailed'),
       }));
     }
   };
@@ -135,7 +138,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       setState((prev) => ({
         ...prev,
         stage: "error",
-        error: "Failed to select profile",
+        error: t('app.init.selectProfileFailed'),
       }));
     }
   };
@@ -153,7 +156,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       setState((prev) => ({
         ...prev,
         stage: "error",
-        error: "Failed to create profile",
+        error: t('app.init.createProfileFailed'),
       }));
     }
   };
@@ -161,17 +164,9 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
   // Render based on initialization stage
   if (state.stage === "error") {
     return (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20,
-        }}
-      >
+      <div className="app-initializer-error-container">
         <Alert
-          message="Initialization Error"
+          message={t('app.init.errorTitle')}
           description={state.error}
           type="error"
           showIcon
@@ -183,19 +178,10 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
   if (state.stage === "selecting-profile") {
     // TODO: Show profile creation dialog
     return (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "column",
-          gap: 20,
-        }}
-      >
+      <div className="app-initializer-selecting-container">
         <Alert
-          message="No Profiles Found"
-          description="Please create your first profile to get started."
+          message={t('app.init.noProfilesTitle')}
+          description={t('app.init.noProfilesDescription')}
           type="info"
           showIcon
         />
@@ -203,7 +189,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
           type="primary"
           onClick={() => handleProfileCreate("Default", "Default profile")}
         >
-          Create Default Profile
+          {t('app.init.createDefaultProfile')}
         </CompactButton>
       </div>
     );
@@ -212,27 +198,21 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
   if (state.stage !== "ready" || !selectedProfile) {
     const loadingMessage =
       state.stage === "loading-global"
-        ? "Loading settings..."
+        ? t('app.init.loadingSettings')
         : state.stage === "loading-profiles"
-          ? "Loading profiles..."
-          : "Initializing...";
+          ? t('app.init.loadingProfiles')
+          : t('app.init.initializing');
 
     return (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "column",
-          gap: 20,
-        }}
-      >
+      <div className="app-initializer-loading-container">
         <Spin size="large" />
-        <div style={{ color: "#666" }}>{loadingMessage}</div>
-        <div style={{ fontSize: "12px", color: "#999", marginTop: "10px" }}>
-          Stage: {state.stage}, Profiles: {profiles.length}, Selected:{" "}
-          {selectedProfile ? "Yes" : "No"}
+        <div className="app-initializer-loading-message">{loadingMessage}</div>
+        <div className="app-initializer-debug-info">
+          {t('app.init.debugInfo', {
+            stage: state.stage,
+            profileCount: profiles.length,
+            selected: selectedProfile ? t('common.yes') : t('common.no')
+          })}
         </div>
       </div>
     );

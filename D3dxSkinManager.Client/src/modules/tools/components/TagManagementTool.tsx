@@ -10,6 +10,7 @@ import {
   CompactSection,
   CompactButton,
 } from '../../../shared/components/compact';
+import './ToolsCommon.css';
 
 /**
  * TagManagementTool - Manage mod tags and categories
@@ -27,7 +28,7 @@ export const TagManagementTool: React.FC = () => {
       <CompactCard
         title={<><TagsOutlined /> Tag Management</>}
       >
-        <CompactSpace vertical style={{ width: '100%' }}>
+        <CompactSpace vertical className="tool-container">
           <CompactParagraph>Manage mod tags and categories</CompactParagraph>
           <CompactSpace>
             <CompactButton
@@ -74,7 +75,7 @@ export const TagManagementTool: React.FC = () => {
           </CompactButton>,
         ]}
       >
-        <CompactSpace vertical style={{ width: '100%' }}>
+        <CompactSpace vertical className="tool-container">
           <CompactSection title="Existing Tags">
             <CompactSpace wrap>
               <Tag closable>Custom Tag 1</Tag>

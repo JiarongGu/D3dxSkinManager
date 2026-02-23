@@ -1,0 +1,14 @@
+/* HelpWindow Container */
+.help-window-container {
+  width: 100%;
+}
+
+/* List styling */
+.help-window-list {
+  line-height: 2;
+}
+
+/* Title Icon */
+.help-window-title-icon {
+  margin-right: 8px;
+}

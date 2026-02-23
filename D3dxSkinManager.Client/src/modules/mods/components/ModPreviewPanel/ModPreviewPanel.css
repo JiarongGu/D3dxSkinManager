@@ -215,3 +215,41 @@
 .mod-preview-sha-button {
   flex-shrink: 0;
 }
+
+/* Tag Icons */
+.mod-preview-tag-icon {
+  font-size: 16px;
+}
+
+.mod-preview-tag {
+  font-size: 14px;
+  padding: 4px 12px;
+  font-weight: 500;
+}
+
+.mod-preview-tag-default {
+  font-size: 14px;
+  padding: 4px 12px;
+}
+
+/* Navigation Icons */
+.mod-preview-nav-icon-arrow {
+  font-size: 12px;
+}
+
+/* Info Section Icons */
+.mod-preview-info-icon {
+  margin-right: 4px;
+}
+
+/* Mod Tags */
+.mod-preview-mod-tag {
+  font-size: 11px;
+  margin: 0;
+}
+
+/* Confirm Dialog Icon */
+.mod-preview-confirm-icon {
+  color: #ff4d4f;
+  font-size: 22px;
+}

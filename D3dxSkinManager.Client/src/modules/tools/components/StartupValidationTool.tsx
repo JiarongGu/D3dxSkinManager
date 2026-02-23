@@ -14,6 +14,8 @@ import {
   CompactAlert,
   CompactButton,
 } from '../../../shared/components/compact';
+import { useTranslation } from 'react-i18next';
+import './StartupValidationTool.css';
 
 /**
  * StartupValidationTool - Validates system startup requirements
@@ -24,7 +26,8 @@ import {
  * - Show detailed messages for each check
  */
 export const StartupValidationTool: React.FC = () => {
-  const [validationReport, setValidationReport] = useState<StartupValidationReport | null>(null);
+  const { t } = useTranslation();
+  const [validationReport, setValidationReport] = useState<StartupValidationReport>();
   const [validationLoading, setValidationLoading] = useState(false);
 
   /**
@@ -37,23 +40,37 @@ export const StartupValidationTool: React.FC = () => {
       setValidationReport(report);
 
       if (report.isValid) {
-        notification.success('All validation checks passed!');
+        notification.success(t('validation.allPassed'));
       } else if (report.errorCount > 0) {
-        notification.error(`Validation failed: ${report.errorCount} errors, ${report.warningCount} warnings`);
+        notification.error(t('validation.failed', { errorCount: report.errorCount, warningCount: report.warningCount }));
       } else {
-        notification.warning(`Validation passed with ${report.warningCount} warnings`);
+        notification.warning(t('validation.passedWithWarnings', { warningCount: report.warningCount }));
       }
     } catch (error) {
-      notification.error('Failed to run validation');
+      notification.error(t('validation.runFailed'));
       console.error(error);
     } finally {
       setValidationLoading(false);
     }
   };
 
+  const getCardClass = (result: any) => {
+    if (result.isValid) return 'validation-result-card validation-result-card-success';
+    if (result.severity === ValidationSeverity.Error) return 'validation-result-card validation-result-card-error';
+    if (result.severity === ValidationSeverity.Warning) return 'validation-result-card validation-result-card-warning';
+    return 'validation-result-card validation-result-card-info';
+  };
+
+  const getIconComponent = (result: any) => {
+    if (result.isValid) return <CheckCircleOutlined className="validation-icon-success" />;
+    if (result.severity === ValidationSeverity.Error) return <ExclamationCircleOutlined className="validation-icon-error" />;
+    if (result.severity === ValidationSeverity.Warning) return <WarningOutlined className="validation-icon-warning" />;
+    return <ExclamationCircleOutlined className="validation-icon-info" />;
+  };
+
   return (
     <CompactCard
-      title={<><CheckCircleOutlined /> Startup Validation</>}
+      title={<><CheckCircleOutlined /> {t('validation.title')}</>}
       extra={
         <CompactButton
           type="primary"
@@ -61,15 +78,15 @@ export const StartupValidationTool: React.FC = () => {
           onClick={handleRunValidation}
           loading={validationLoading}
         >
-          Run Validation
+          {t('validation.runValidation')}
         </CompactButton>
       }
     >
-      <CompactSpace vertical style={{ width: '100%' }}>
+      <CompactSpace vertical className="validation-container">
         {!validationReport && (
           <CompactAlert
-            title="System Validation"
-            description="Click 'Run Validation' to check directories, 3DMigoto installation, configuration, database, and required components."
+            title={t('validation.systemValidation')}
+            description={t('validation.description')}
             type="info"
             showIcon
           />
@@ -79,38 +96,26 @@ export const StartupValidationTool: React.FC = () => {
           <>
             {/* Validation Summary */}
             <CompactAlert
-              title={validationReport.isValid ? 'All Checks Passed' : 'Validation Issues Found'}
-              description={`${validationReport.results.filter(r => r.isValid).length}/${validationReport.results.length} checks passed. ${
-                validationReport.errorCount > 0 ? `${validationReport.errorCount} errors, ` : ''
-              }${validationReport.warningCount > 0 ? `${validationReport.warningCount} warnings` : ''}`}
+              title={validationReport.isValid ? t('validation.summaryPassed') : t('validation.summaryFailed')}
+              description={t('validation.summaryDetails', {
+                passed: validationReport.results.filter(r => r.isValid).length,
+                total: validationReport.results.length,
+                errors: validationReport.errorCount > 0 ? t('validation.errors', { count: validationReport.errorCount }) : '',
+                warnings: validationReport.warningCount > 0 ? t('validation.warnings', { count: validationReport.warningCount }) : ''
+              })}
               type={validationReport.isValid ? (validationReport.warningCount > 0 ? 'warning' : 'success') : 'error'}
               showIcon
             />
 
             {/* Validation Results */}
-            <CompactSpace orientation="vertical" style={{ width: '100%' }}>
+            <CompactSpace orientation="vertical" className="validation-container">
               {validationReport.results.map((result, index) => (
-                <Card key={index} size="small" style={{
-                  borderLeft: `4px solid ${
-                    result.isValid ? 'var(--color-success)' :
-                    result.severity === ValidationSeverity.Error ? 'var(--color-error)' :
-                    result.severity === ValidationSeverity.Warning ? 'var(--color-warning)' : 'var(--color-primary)'
-                  }`,
-                  marginBottom: '8px'
-                }}>
+                <Card key={index} size="small" className={getCardClass(result)}>
                   <CompactSpace>
-                    {result.isValid ? (
-                      <CheckCircleOutlined style={{ color: 'var(--color-success)', fontSize: '16px' }} />
-                    ) : result.severity === ValidationSeverity.Error ? (
-                      <ExclamationCircleOutlined style={{ color: 'var(--color-error)', fontSize: '16px' }} />
-                    ) : result.severity === ValidationSeverity.Warning ? (
-                      <WarningOutlined style={{ color: 'var(--color-warning)', fontSize: '16px' }} />
-                    ) : (
-                      <ExclamationCircleOutlined style={{ color: 'var(--color-primary)', fontSize: '16px' }} />
-                    )}
+                    {getIconComponent(result)}
                     <div>
-                      <div style={{ fontWeight: 500 }}>{result.checkName}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', whiteSpace: 'pre-wrap' }}>
+                      <div className="validation-check-name">{result.checkName}</div>
+                      <div className="validation-message">
                         {result.message}
                       </div>
                     </div>

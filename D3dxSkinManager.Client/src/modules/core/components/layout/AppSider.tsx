@@ -8,6 +8,7 @@ import {
   RocketOutlined,
   PlayCircleOutlined
 } from '@ant-design/icons';
+import './AppSider.css';
 
 const { Sider } = Layout;
 
@@ -18,11 +19,11 @@ interface AppSiderProps {
 
 export const AppSider: React.FC<AppSiderProps> = ({ selectedTab, onTabChange }) => {
   return (
-    <Sider width={160} style={{ background: '#fff' }}>
+    <Sider width={160} className="app-sider">
       <Menu
         mode="inline"
         selectedKeys={[selectedTab]}
-        style={{ height: '100%', borderRight: 0 }}
+        className="app-sider-menu"
         items={[
           {
             key: 'mods',

@@ -11,6 +11,7 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 import { classificationService } from '../../../../shared/services/classificationService';
 import { useTranslation } from 'react-i18next';
 import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
+import './ClassificationPanel.css';
 
 const { Sider } = Layout;
 
@@ -107,24 +108,10 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
   return (
     <Sider
       width={250}
-      style={{
-        borderRight: '1px solid var(--color-border-secondary)',
-        height: '100%',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
+      className="classification-panel-sider"
     >
       {/* Tree container with flex constraint to allow scrolling */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          height: 'calc(100% - 40px)',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+      <div className="classification-panel-tree-container">
         <ClassificationTree
           tree={tree}
           loading={loading || delayedLoading}
@@ -141,12 +128,7 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
       </div>
 
       {/* Unclassified Item - fixed at bottom, doesn't scroll */}
-      <div
-        style={{
-          borderTop: '1px solid var(--color-border-secondary)',
-          height: '40px',
-        }}
-      >
+      <div className="classification-panel-unclassified-container">
         <UnclassifiedItem
           count={unclassifiedCount}
           isSelected={isUnclassifiedSelected}

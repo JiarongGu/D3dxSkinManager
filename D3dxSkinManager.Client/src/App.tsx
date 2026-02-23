@@ -123,21 +123,13 @@ const AppContent: React.FC = () => {
 
   return (
     <AnnotationProvider initialLevel="all">
-      <Layout style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Layout className="app-main-layout">
         {/* Fixed Header with Tabs */}
         <AppHeader selectedTab={selectedTab} onTabChange={setSelectedTab} />
 
         {/* Main Content Area - Scrollable */}
-        <Layout style={{ flex: 1, overflow: 'hidden' }}>
-          <Content
-            style={{
-              padding: "0",
-              margin: 0,
-              background: 'var(--color-bg-container)',
-              height: '100%',
-              overflow: 'hidden',
-            }}
-          >
+        <Layout className="app-content-layout">
+          <Content className="app-content">
             {selectedTab === 'mods' && (
               <ModHierarchicalView />
             )}

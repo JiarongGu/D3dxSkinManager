@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace D3dxSkinManager.Modules.Core.Utilities;
@@ -11,12 +12,14 @@ public static class JsonHelper
 {
     /// <summary>
     /// Default JSON serialization options used throughout the application
+    /// Omits null values to align with frontend undefined convention
     /// </summary>
     public static JsonSerializerOptions DefaultOptions { get; } = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
     /// <summary>

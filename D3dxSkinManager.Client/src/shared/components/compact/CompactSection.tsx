@@ -1,6 +1,7 @@
 import React from 'react';
 import { CompactTitle } from './CompactText';
 import { CompactSpace } from './CompactSpace';
+import './CompactSection.css';
 
 /**
  * CompactSection - A semantic section component with consistent compact styling
@@ -47,7 +48,7 @@ export const CompactSection: React.FC<CompactSectionProps> = ({
           {title}
         </CompactTitle>
       )}
-      <CompactSpace vertical style={{ width: '100%' }} size={spacing}>
+      <CompactSpace vertical className="compact-section-space" size={spacing}>
         {children}
       </CompactSpace>
     </div>

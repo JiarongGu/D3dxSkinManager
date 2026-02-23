@@ -9,6 +9,8 @@ import { toAppUrl } from '../../../../shared/utils/imageUrlHelper';
 import { classificationService } from '../../../../shared/services/classificationService';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { CompactInput, CompactTextArea, CompactSelect, CompactButton, CompactPrimaryButton, CompactUpload } from '../../../../shared/components/compact';
+import { useTranslation } from 'react-i18next';
+import './ClassificationScreen.css';
 
 interface ClassificationScreenProps {
   /**
@@ -62,6 +64,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
   onSave,
   screenId
 }) => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [thumbnailPath, setThumbnailPath] = useState<string>();
@@ -80,7 +83,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
       const ext = file.name.toLowerCase().match(/\.[^.]+$/)?.[0];
 
       if (!ext || !imageExtensions.includes(ext)) {
-        notification.warning('Please drop an image file');
+        notification.warning(t('classification.screen.dropImageOnly'));
         return;
       }
 
@@ -99,14 +102,14 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
           console.log('[ClassificationScreen] Using object URL for preview:', objectUrl);
         } catch (error) {
           console.error('[ClassificationScreen] Error processing file:', error);
-          notification.error('Failed to process dropped file');
+          notification.error(t('classification.screen.dropImageFailed'));
         }
       };
 
       reader.readAsDataURL(file);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      notification.error(`Failed to set thumbnail: ${errorMessage}`);
+      notification.error(`${t('classification.screen.selectThumbnailFailed')}: ${errorMessage}`);
       console.error('[ClassificationScreen] Failed to set thumbnail:', error);
     }
   };
@@ -149,7 +152,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
         description: values.description
       });
 
-      notification.success('Classification saved successfully');
+      notification.success(t('classification.screen.saved'));
       closeScreen(screenId);
     } catch (error: any) {
       if (error.errorFields) {
@@ -157,7 +160,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
         return;
       }
       console.error('Failed to save classification:', error);
-      notification.error('Failed to save classification');
+      notification.error(t('classification.screen.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -170,9 +173,9 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
   const handleBrowseThumbnail = async () => {
     try {
       const result = await systemService.openFileDialog({
-        title: 'Select Classification Thumbnail',
+        title: t('classification.screen.selectThumbnailTitle'),
         filters: [
-          { name: 'Image Files', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] }
+          { name: t('classification.screen.imageFiles'), extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] }
         ],
         rememberPathKey: 'classificationThumbnail'
       });
@@ -184,7 +187,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      notification.error(`Failed to select thumbnail: ${errorMessage}`);
+      notification.error(`${t('classification.screen.selectThumbnailFailed')}: ${errorMessage}`);
     }
   };
 
@@ -206,17 +209,17 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
           <Col span={12}>
             <Form.Item
               name="name"
-              label="Classification Name"
+              label={t('classification.screen.nameLabel')}
               rules={[
-                { required: true, message: 'Please enter a classification name' },
-                { min: 1, max: 100, message: 'Name must be between 1 and 100 characters' },
+                { required: true, message: t('classification.screen.nameRequired') },
+                { min: 1, max: 100, message: t('classification.screen.nameLength') },
                 ...(!editNode ? [{
                   validator: async (_: any, value: string) => {
                     if (!value || !selectedProfileId) return Promise.resolve();
                     // Check if nodeId already exists in database (name is used as nodeId in creation)
                     const exists = await classificationService.nodeExists(selectedProfileId, value);
                     if (exists) {
-                      return Promise.reject('A classification with this name already exists. Please use a different name.');
+                      return Promise.reject(t('classification.screen.nameExists'));
                     }
                     return Promise.resolve();
                   }
@@ -224,7 +227,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
               ]}
             >
               <CompactInput
-                placeholder="e.g., Character, Weapon, Outfit"
+                placeholder={t('classification.screen.namePlaceholder')}
                 autoFocus
               />
             </Form.Item>
@@ -232,17 +235,17 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
           <Col span={12}>
             <Form.Item
               name="parentId"
-              label="Parent Classification"
+              label={t('classification.screen.parentLabel')}
             >
               <CompactSelect
-                placeholder="Root (No Parent)"
+                placeholder={t('classification.screen.parentPlaceholder')}
                 allowClear
                 showSearch
                 filterOption={(input, option) =>
                   (option?.label?.toString().toLowerCase() ?? '').includes(input.toLowerCase())
                 }
                 options={[
-                  { value: '', label: '(Root - No Parent)' },
+                  { value: '', label: t('classification.screen.rootNoParent') },
                   ...allNodes.map(node => ({
                     value: node.id,
                     label: node.name
@@ -256,10 +259,10 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
         {/* Compact description - smaller textarea */}
         <Form.Item
           name="description"
-          label="Description (Optional)"
+          label={t('classification.screen.descriptionLabel')}
         >
           <CompactTextArea
-            placeholder="Optional description"
+            placeholder={t('classification.screen.descriptionPlaceholder')}
             rows={3}
             maxLength={500}
             showCount
@@ -268,7 +271,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
 
         {/* Thumbnail with drag-drop area or preview */}
         <Form.Item
-          label="Thumbnail (Optional)"
+          label={t('classification.screen.thumbnailLabel')}
         >
           {!thumbnailPath ? (
             // Drag-drop area when no image selected - with OS-level drop zone
@@ -276,51 +279,25 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
               <CompactUpload
                 onSelect={handleBrowseThumbnail}
                 onDrop={handleDropThumbnail}
-                title="Click or drag to select image file"
-                subtitle="PNG, JPG, JPEG, GIF, BMP, WEBP"
+                title={t('classification.screen.thumbnailUploadTitle')}
+                subtitle={t('classification.screen.thumbnailUploadSubtitle')}
               />
             </div>
           ) : (
             // Image preview when selected
-            <div style={{ position: 'relative' }}>
-              <div style={{
-                width: '100%',
-                height: '160px',
-                border: '1px solid var(--color-border-secondary)',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                background: 'var(--color-bg-container)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+            <div className="classification-screen-thumbnail-container">
+              <div className="classification-screen-thumbnail-preview">
                 <img
                   src={toAppUrl(thumbnailPath) || undefined}
-                  alt="Thumbnail preview"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain'
-                  }}
+                  alt={t('classification.screen.thumbnailPreview')}
+                  className="classification-screen-thumbnail-image"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
                   }}
                 />
               </div>
-              <div style={{
-                marginTop: '8px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div style={{
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '12px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1
-                }}>
+              <div className="classification-screen-thumbnail-info">
+                <div className="classification-screen-thumbnail-filename">
                   {thumbnailFileName}
                 </div>
                 <Space size={4}>
@@ -329,7 +306,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
                     onClick={handleBrowseThumbnail}
                     size="small"
                   >
-                    Change
+                    {t('classification.screen.changeButton')}
                   </CompactButton>
                   <CompactButton
                     danger
@@ -339,7 +316,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
                     }}
                     size="small"
                   >
-                    Remove
+                    {t('classification.screen.removeButton')}
                   </CompactButton>
                 </Space>
               </div>
@@ -351,14 +328,14 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
       <div className="slide-in-screen-footer">
         <Space>
           <CompactButton onClick={handleCancel} size="large">
-            Cancel
+            {t('classification.screen.cancelButton')}
           </CompactButton>
           <CompactPrimaryButton
             onClick={handleSubmit}
             loading={loading}
             size="large"
           >
-            Save Classification
+            {t('classification.screen.saveButton')}
           </CompactPrimaryButton>
         </Space>
       </div>
@@ -371,6 +348,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
  */
 export function useClassificationScreen() {
   const { openScreen } = useSlideInScreen();
+  const { t } = useTranslation();
 
   const openClassificationScreen = (props: ClassificationScreenProps) => {
     // Create a wrapper that will receive the screenId
@@ -380,7 +358,7 @@ export function useClassificationScreen() {
       <ClassificationScreenContent {...props} screenId={actualScreenId} />
     );
 
-    const title = props.editNode ? 'Edit Classification' : 'Add Classification';
+    const title = props.editNode ? t('classification.screen.title.edit') : t('classification.screen.title.add');
 
     actualScreenId = openScreen({
       title,

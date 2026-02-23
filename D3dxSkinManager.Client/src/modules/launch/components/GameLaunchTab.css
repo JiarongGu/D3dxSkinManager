@@ -9,3 +9,15 @@
   align-items: center;
   justify-content: center;
 }
+
+.game-launch-card {
+  margin-bottom: 24px;
+}
+
+.game-launch-input-with-button {
+  width: calc(100% - 100px);
+}
+
+.game-launch-input-with-small-button {
+  width: calc(100% - 80px);
+}

@@ -10,12 +10,15 @@ import {
 import { useOperation } from '../../context/OperationContext';
 import { OperationProgress, OperationStatus } from '../../types/operation.types';
 import { CompactButton } from '../compact';
+import { useTranslation } from 'react-i18next';
+import './OperationMonitorScreen.css';
 
 interface OperationMonitorScreenProps {
   onClose: () => void;
 }
 
 const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose }) => {
+  const { t } = useTranslation();
   const { state, actions } = useOperation();
   const { activeOperations, completedOperations, failedOperations } = state;
   const [activeTab, setActiveTab] = useState<string>('active');
@@ -37,13 +40,13 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
   const getStatusIcon = (status: OperationStatus) => {
     switch (status) {
       case 'Running':
-        return <LoadingOutlined style={{ color: 'var(--color-primary)' }} spin />;
+        return <LoadingOutlined className="operation-status-icon-running" spin />;
       case 'Completed':
-        return <CheckCircleOutlined style={{ color: 'var(--color-success)' }} />;
+        return <CheckCircleOutlined className="operation-status-icon-completed" />;
       case 'Failed':
-        return <CloseCircleOutlined style={{ color: 'var(--color-error)' }} />;
+        return <CloseCircleOutlined className="operation-status-icon-failed" />;
       case 'Cancelled':
-        return <StopOutlined style={{ color: 'var(--color-warning)' }} />;
+        return <StopOutlined className="operation-status-icon-cancelled" />;
     }
   };
 
@@ -55,7 +58,13 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
       Failed: 'red',
       Cancelled: 'orange',
     };
-    return <Tag color={colors[status]}>{status}</Tag>;
+    const labels = {
+      Running: t('operationMonitor.status.running'),
+      Completed: t('operationMonitor.status.completed'),
+      Failed: t('operationMonitor.status.failed'),
+      Cancelled: t('operationMonitor.status.cancelled'),
+    };
+    return <Tag color={colors[status]}>{labels[status]}</Tag>;
   };
 
   // Render operation item
@@ -64,18 +73,18 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
 
     const content = (
       <>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="operation-header">
+          <div className="operation-info">
             {getStatusIcon(operation.status)}
-            <span style={{ fontWeight: 500 }}>{operation.operationName}</span>
+            <span className="operation-name">{operation.operationName}</span>
             {getStatusTag(operation.status)}
           </div>
-          <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+          <span className="operation-duration">
             {formatDuration(operation.startedAt, operation.completedAt)}
           </span>
         </div>
         {isActive && (
-          <div style={{ marginBottom: 8 }}>
+          <div className="operation-progress">
             <Progress
               percent={operation.percentComplete}
               size="small"
@@ -85,26 +94,17 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
           </div>
         )}
         {operation.currentStep && (
-          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+          <div className="operation-current-step">
             {operation.currentStep}
           </div>
         )}
         {operation.errorMessage && (
-          <div
-            style={{
-              fontSize: '12px',
-              color: 'var(--color-error)',
-              marginTop: 8,
-              padding: '6px 8px',
-              background: 'var(--color-error-bg)',
-              borderRadius: '4px',
-            }}
-          >
-            <strong>Error:</strong> {operation.errorMessage}
+          <div className="operation-error">
+            <strong>{t('operationMonitor.error')}:</strong> {operation.errorMessage}
           </div>
         )}
         {operation.metadata && (
-          <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: 4 }}>
+          <div className="operation-metadata">
             {typeof operation.metadata === 'string'
               ? operation.metadata
               : JSON.stringify(operation.metadata)}
@@ -113,7 +113,7 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
       </>
     );
 
-    return <div style={{ padding: '12px 0' }}>{content}</div>;
+    return <div className="operation-item">{content}</div>;
   };
 
   // Tab items
@@ -122,15 +122,15 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
       key: 'active',
       label: (
         <Badge count={activeOperations.length} offset={[10, 0]}>
-          <span>Active</span>
+          <span>{t('operationMonitor.tabs.active')}</span>
         </Badge>
       ),
       children: (
         <>
           {activeOperations.length === 0 ? (
             <Empty
-              description="No active operations"
-              style={{ marginTop: 40 }}
+              description={t('operationMonitor.empty.active')}
+              className="operation-empty"
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
           ) : (
@@ -138,7 +138,7 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
               dataSource={activeOperations}
               renderItem={renderOperation}
               rowKey={(item) => item.operationId}
-              style={{ background: 'transparent' }}
+              className="operation-list"
             />
           )}
         </>
@@ -148,33 +148,33 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
       key: 'completed',
       label: (
         <Badge count={completedOperations.length} offset={[10, 0]} color="green">
-          <span>Completed</span>
+          <span>{t('operationMonitor.tabs.completed')}</span>
         </Badge>
       ),
       children: (
         <>
           {completedOperations.length === 0 ? (
             <Empty
-              description="No completed operations"
-              style={{ marginTop: 40 }}
+              description={t('operationMonitor.empty.completed')}
+              className="operation-empty"
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
           ) : (
             <>
-              <div style={{ padding: '8px 16px', textAlign: 'right' }}>
+              <div className="operation-clear-container">
                 <CompactButton
                   size="small"
                   icon={<DeleteOutlined />}
                   onClick={actions.clearCompleted}
                 >
-                  Clear All
+                  {t('operationMonitor.clearAll')}
                 </CompactButton>
               </div>
               <List
                 dataSource={completedOperations}
                 renderItem={renderOperation}
                 rowKey={(item) => item.operationId}
-                style={{ background: 'transparent' }}
+                className="operation-list"
               />
             </>
           )}
@@ -185,34 +185,34 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
       key: 'failed',
       label: (
         <Badge count={failedOperations.length} offset={[10, 0]} color="red">
-          <span>Failed</span>
+          <span>{t('operationMonitor.tabs.failed')}</span>
         </Badge>
       ),
       children: (
         <>
           {failedOperations.length === 0 ? (
             <Empty
-              description="No failed operations"
-              style={{ marginTop: 40 }}
+              description={t('operationMonitor.empty.failed')}
+              className="operation-empty"
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
           ) : (
             <>
-              <div style={{ padding: '8px 16px', textAlign: 'right' }}>
+              <div className="operation-clear-container">
                 <CompactButton
                   size="small"
                   icon={<DeleteOutlined />}
                   onClick={actions.clearFailed}
                   danger
                 >
-                  Clear All
+                  {t('operationMonitor.clearAll')}
                 </CompactButton>
               </div>
               <List
                 dataSource={failedOperations}
                 renderItem={renderOperation}
                 rowKey={(item) => item.operationId}
-                style={{ background: 'transparent' }}
+                className="operation-list"
               />
             </>
           )}
@@ -225,40 +225,27 @@ const OperationMonitorScreen: React.FC<OperationMonitorScreenProps> = ({ onClose
   const totalCount = activeOperations.length + completedOperations.length + failedOperations.length;
 
   return (
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--color-bg-container)',
-      }}
-    >
+    <div className="operation-monitor-screen">
       {/* Header */}
-      <div
-        style={{
-          padding: '16px 24px',
-          borderBottom: '1px solid var(--color-border-secondary)',
-          background: 'var(--color-bg-spotlight)',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="operation-monitor-header">
+        <div className="operation-monitor-header-content">
           <div>
-            <h2 style={{ margin: 0, fontSize: '18px' }}>Operation Monitor</h2>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: 4 }}>
-              {totalCount} total operation{totalCount !== 1 ? 's' : ''}
+            <h2 className="operation-monitor-title">{t('operationMonitor.title')}</h2>
+            <div className="operation-monitor-subtitle">
+              {t('operationMonitor.totalOperations', { count: totalCount })}
             </div>
           </div>
-          <CompactButton onClick={onClose}>Close</CompactButton>
+          <CompactButton onClick={onClose}>{t('operationMonitor.close')}</CompactButton>
         </div>
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div className="operation-monitor-content">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
           items={tabItems}
-          style={{ padding: '0' }}
+          className="operation-monitor-tabs"
           tabBarStyle={{ padding: '0 16px', marginBottom: 0 }}
         />
       </div>

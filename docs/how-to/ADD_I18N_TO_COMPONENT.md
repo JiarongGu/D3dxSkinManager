@@ -90,7 +90,7 @@ Add keys to **both** `en.json` and `cn.json`:
   "translations": {
     "namespace.saveChanges": "保存更改",
     "namespace.enterName": "输入名称...",
-    "namespace.operationCompleted": "操作完成！"
+    "namespace.operationCompleted": "操作完成!"
   }
 }
 ```
@@ -260,7 +260,7 @@ export const ModEditForm: React.FC = () => {
   "mods.edit.namePlaceholder": "输入模组名称...",
   "mods.edit.authorPlaceholder": "输入作者...",
   "mods.edit.saveChanges": "保存更改",
-  "mods.edit.updateSuccess": "模组更新成功！"
+  "mods.edit.updateSuccess": "模组更新成功!"
 }
 ```
 

@@ -4,6 +4,7 @@ import { Modal, Table, Button, Input, Form, Space, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { Profile } from '../../../shared/types/profile.types';
+import './ProfileManagementModal.css';
 
 interface ProfileManagementModalProps {
   visible: boolean;
@@ -17,7 +18,7 @@ interface ProfileManagementModalProps {
 export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ visible, onClose }) => {
   const { state, actions } = useProfile();
   const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
+  const [editingProfile, setEditingProfile] = useState<Profile>();
   const [form] = Form.useForm();
 
   const handleCreate = async (values: { name: string; description?: string }) => {
@@ -37,7 +38,7 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
     try {
       await actions.updateProfile(editingProfile.id, values.name, values.description);
       notification.success('Profile updated successfully');
-      setEditingProfile(null);
+      setEditingProfile(undefined);
       form.resetFields();
     } catch (error) {
       notification.error('Failed to update profile');
@@ -70,7 +71,7 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
       render: (text: string, record: Profile) => (
         <Space>
           {text}
-          {record.isActive && <span style={{ color: '#52c41a' }}>(Active)</span>}
+          {record.isActive && <span className="profile-active-label">(Active)</span>}
         </Space>
       ),
     },
@@ -147,7 +148,7 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
           </Button>,
         ]}
       >
-        <Space orientation="vertical" style={{ width: '100%' }} size="large">
+        <Space orientation="vertical" className="profile-modal-container" size="large">
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -197,7 +198,7 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
         title="Edit Profile"
         open={!!editingProfile}
         onCancel={() => {
-          setEditingProfile(null);
+          setEditingProfile(undefined);
           form.resetFields();
         }}
         onOk={() => form.submit()}

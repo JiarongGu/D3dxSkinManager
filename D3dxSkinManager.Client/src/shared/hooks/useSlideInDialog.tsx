@@ -21,7 +21,7 @@ export function useSlideInDialog({
   onClose,
 }: SlideInDialogOptions) {
   const { openScreen, closeScreen } = useSlideInScreen();
-  const screenIdRef = useRef<string | null>(null);
+  const screenIdRef = useRef<string>();
 
   useEffect(() => {
     if (visible && !screenIdRef.current) {
@@ -35,7 +35,7 @@ export function useSlideInDialog({
     } else if (!visible && screenIdRef.current) {
       // Close screen
       closeScreen(screenIdRef.current);
-      screenIdRef.current = null;
+      screenIdRef.current = undefined;
     }
   }, [visible, title, content, width, openScreen, closeScreen, onClose]);
 

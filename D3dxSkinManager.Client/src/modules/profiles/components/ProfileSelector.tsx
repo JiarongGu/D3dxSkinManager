@@ -2,6 +2,7 @@ import React from 'react';
 import { Select, Button, Space, Spin } from 'antd';
 import { UserOutlined, SettingOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
+import './ProfileSelector.css';
 
 interface ProfileSelectorProps {
   onManageProfiles?: () => void;
@@ -28,11 +29,11 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onManageProfil
 
   return (
     <Space>
-      <UserOutlined style={{ color: '#1890ff' }} />
+      <UserOutlined className="profile-selector-icon" />
       <Select
         value={state.selectedProfile?.id}
         onChange={handleProfileChange}
-        style={{ width: 150 }}
+        className="profile-selector-dropdown"
         size="small"
         loading={state.loading}
         options={state.profiles.map(profile => ({

@@ -18,6 +18,7 @@ import { DetectionStep, OptionsStep, ProgressStep, CompleteStep } from './steps'
 import { migrationService, MigrationOptions, ArchiveHandling, PostMigrationAction } from '../services/migrationService';
 import { profileService } from '../../profiles/services/profileService';
 import { useProfile } from '../../../shared/context/ProfileContext';
+import './MigrationWizard.css';
 
 interface MigrationWizardProps {
   visible: boolean;
@@ -192,7 +193,7 @@ const MigrationWizardInner: React.FC<{
     <div>
       <Steps
         current={currentStep}
-        style={{ marginBottom: 24 }}
+        className="migration-wizard-steps"
         items={[
           { title: 'Detection', icon: <FolderOpenOutlined /> },
           { title: 'Options', icon: <InfoCircleOutlined /> },
