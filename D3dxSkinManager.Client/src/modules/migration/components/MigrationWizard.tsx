@@ -1,13 +1,13 @@
 import { notification } from '../../../shared/utils/notification';
 import React from 'react';
-import { Steps, Space } from 'antd';
+import { Steps } from 'antd';
 import {
   FolderOpenOutlined,
   CheckCircleOutlined,
-  LoadingOutlined,
+  SyncOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { CompactButton } from '../../../shared/components/compact';
+import { CompactButton, CompactSpace } from '../../../shared/components/compact';
 import { useSlideInDialog } from '../../../shared/hooks/useSlideInDialog';
 import {
   MigrationWizardProvider,
@@ -158,7 +158,7 @@ const MigrationWizardInner: React.FC<{
   const renderFooter = () => {
     return (
       <div className="slide-in-screen-footer">
-        <Space>
+        <CompactSpace>
           {currentStep === MigrationStep.Detection && (
             <CompactButton onClick={handleClose}>Cancel</CompactButton>
           )}
@@ -184,7 +184,7 @@ const MigrationWizardInner: React.FC<{
               Close
             </CompactButton>
           )}
-        </Space>
+        </CompactSpace>
       </div>
     );
   };
@@ -197,7 +197,7 @@ const MigrationWizardInner: React.FC<{
         items={[
           { title: 'Detection', icon: <FolderOpenOutlined /> },
           { title: 'Options', icon: <InfoCircleOutlined /> },
-          { title: 'Migration', icon: <LoadingOutlined /> },
+          { title: 'Migration', icon: <SyncOutlined /> },
           { title: 'Complete', icon: <CheckCircleOutlined /> },
         ]}
       />

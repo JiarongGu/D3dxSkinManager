@@ -1,4 +1,21 @@
 /* MigrationWizard */
 .migration-wizard-steps {
-  margin-bottom: 24px;
+  margin-bottom: 12px;
+}
+
+/* Compact Steps styling */
+.migration-wizard-steps .ant-steps-item-icon {
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  font-size: 14px;
+}
+
+.migration-wizard-steps .ant-steps-item-title {
+  font-size: 14px;
+  line-height: 28px;
+}
+
+.migration-wizard-steps .ant-steps-item-description {
+  font-size: 12px;
 }

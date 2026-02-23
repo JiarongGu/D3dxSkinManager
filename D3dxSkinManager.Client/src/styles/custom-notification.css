@@ -12,19 +12,75 @@
   pointer-events: auto !important;
 }
 
-/* Position at bottom center with NO spacing */
-.ant-notification-bottom {
+/* Disable ALL default Ant Design motion/animations to prevent jiggle */
+.ant-notification-notice {
+  animation-name: slideInFromTopCenter !important;
+  animation-duration: 0.3s !important;
+  animation-timing-function: ease-out !important;
+  animation-fill-mode: both !important;
+}
+
+/* Override any motion classes that Ant Design adds */
+.ant-notification-notice.ant-move-up-appear,
+.ant-notification-notice.ant-move-up-enter,
+.ant-notification-notice.ant-move-down-appear,
+.ant-notification-notice.ant-move-down-enter {
+  animation-name: slideInFromTopCenter !important;
+  animation-duration: 0.3s !important;
+}
+
+/* Position at top center with NO spacing */
+.ant-notification-top {
+  top: 24px !important;
   left: 50% !important;
-  transform: translateX(-50%);
-  bottom: 24px !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
   margin: 0 !important;
   padding: 0 !important;
-  gap: 0 !important;
+  gap: 8px !important;
+  width: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
 }
 
 /* Remove ALL spacing between notifications */
-.ant-notification-bottom .ant-notification-notice {
-  margin-bottom: 0 !important;
+.ant-notification-top .ant-notification-notice {
+  margin-bottom: 8px !important;
+  /* No transform on individual notices */
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+}
+
+/* Smooth slide-in animation from top - NO jiggle! */
+.ant-notification-top .ant-notification-notice {
+  animation: slideInFromTopCenter 0.3s ease-out !important;
+}
+
+@keyframes slideInFromTopCenter {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth fade-out animation */
+.ant-notification-top .ant-notification-notice.ant-notification-notice-close {
+  animation: fadeOut 0.2s ease-out !important;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 /* Make wrapper completely transparent - our custom component handles all styling */
@@ -38,6 +94,8 @@
   height: auto !important;
   line-height: normal !important;
   border-radius: var(--border-radius-base) !important;
+  /* Override any default transitions that cause jiggle */
+  transition: none !important;
 }
 
 /* Remove all default Ant Design notification styling from content */

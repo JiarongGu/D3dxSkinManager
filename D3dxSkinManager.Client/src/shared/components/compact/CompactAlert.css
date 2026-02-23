@@ -16,7 +16,28 @@
 .compact-alert.compact-alert-extra.ant-alert {
   padding: 6px 10px !important;
   margin-bottom: 8px;
-  font-size: 13px !important;
+  font-size: 14px !important;
+}
+
+/* Dark theme background colors - very subtle for dark mode */
+.compact-alert.ant-alert-info {
+  background-color: rgba(24, 144, 255, 0.05) !important;
+  border-color: rgba(24, 144, 255, 0.15) !important;
+}
+
+.compact-alert.ant-alert-success {
+  background-color: rgba(82, 196, 26, 0.05) !important;
+  border-color: rgba(82, 196, 26, 0.15) !important;
+}
+
+.compact-alert.ant-alert-warning {
+  background-color: rgba(250, 173, 20, 0.05) !important;
+  border-color: rgba(250, 173, 20, 0.15) !important;
+}
+
+.compact-alert.ant-alert-error {
+  background-color: rgba(255, 77, 79, 0.05) !important;
+  border-color: rgba(255, 77, 79, 0.15) !important;
 }
 
 /* Smaller icon size */
@@ -57,18 +78,18 @@
 }
 
 .compact-alert.compact-alert-extra.ant-alert .ant-alert-message {
-  font-size: 13px !important;
+  font-size: 14px !important;
 }
 
 /* Description styling */
 .compact-alert.ant-alert .ant-alert-description {
-  font-size: 13px !important;
+  font-size: 14px !important;
   line-height: 1.5 !important;
   margin-top: 4px !important;
 }
 
 .compact-alert.compact-alert-extra.ant-alert .ant-alert-description {
-  font-size: 12px !important;
+  font-size: 14px !important;
   margin-top: 3px !important;
 }
 
@@ -78,5 +99,5 @@
 }
 
 .compact-alert.compact-alert-extra.ant-alert .ant-alert-close-icon {
-  font-size: 11px !important;
+  font-size: 12px !important;
 }

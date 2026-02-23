@@ -1,8 +1,10 @@
 import React from 'react';
-import { Space, Alert, Card, Row, Col, Statistic, Divider, List, Typography } from 'antd';
+import { Row, Col, List, Typography } from 'antd';
+import { CompactSpace, CompactAlert, CompactCard, CompactDivider } from '../../../../shared/components/compact';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { useTranslation } from 'react-i18next';
 import './MigrationSteps.css';
+import './CompleteStep.css';
 
 const { Text } = Typography;
 
@@ -16,18 +18,19 @@ export const CompleteStep: React.FC = () => {
 
   if (!result) {
     return (
-      <Alert
+      <CompactAlert
         title={t('migration.complete.noResults')}
         description={t('migration.complete.noResultsDescription')}
         type="warning"
         showIcon
+        extraCompact
       />
     );
   }
 
   return (
-    <Space orientation="vertical" className="migration-step-container" size="large">
-      <Alert
+    <CompactSpace vertical className="migration-step-container">
+      <CompactAlert
         title={result.success ? t('migration.complete.successTitle') : t('migration.complete.errorTitle')}
         description={
           result.success
@@ -36,28 +39,41 @@ export const CompleteStep: React.FC = () => {
         }
         type={result.success ? 'success' : 'warning'}
         showIcon
+        extraCompact
       />
 
-      <Card title={t('migration.complete.summary')}>
-        <Row gutter={[16, 16]}>
+      <CompactCard title={t('migration.complete.summary')} extraCompact className="complete-step-card">
+        <Row gutter={8}>
           <Col span={12}>
-            <Statistic title={t('migration.complete.modsMigrated')} value={result.modsMigrated} />
+            <div className="complete-step-stat">
+              <div className="complete-step-stat-label">{t('migration.complete.modsMigrated')}</div>
+              <div className="complete-step-stat-value">{result.modsMigrated}</div>
+            </div>
           </Col>
           <Col span={12}>
-            <Statistic title={t('migration.complete.archivesCopied')} value={result.archivesCopied} />
+            <div className="complete-step-stat">
+              <div className="complete-step-stat-label">{t('migration.complete.archivesCopied')}</div>
+              <div className="complete-step-stat-value">{result.archivesCopied}</div>
+            </div>
           </Col>
           <Col span={12}>
-            <Statistic title={t('migration.complete.previewsCopied')} value={result.previewsCopied} />
+            <div className="complete-step-stat">
+              <div className="complete-step-stat-label">{t('migration.complete.previewsCopied')}</div>
+              <div className="complete-step-stat-value">{result.previewsCopied}</div>
+            </div>
           </Col>
           <Col span={12}>
-            <Statistic title={t('migration.complete.duration')} value={result.duration} />
+            <div className="complete-step-stat">
+              <div className="complete-step-stat-label">{t('migration.complete.duration')}</div>
+              <div className="complete-step-stat-value">{result.duration}</div>
+            </div>
           </Col>
         </Row>
 
         {result.warnings.length > 0 && (
           <>
-            <Divider />
-            <Alert
+            <CompactDivider extraCompact />
+            <CompactAlert
               title={t('migration.complete.warningsCount', { count: result.warnings.length })}
               description={
                 <List
@@ -68,14 +84,15 @@ export const CompleteStep: React.FC = () => {
               }
               type="warning"
               showIcon
+              extraCompact
             />
           </>
         )}
 
         {result.errors.length > 0 && (
           <>
-            <Divider />
-            <Alert
+            <CompactDivider extraCompact />
+            <CompactAlert
               title={t('migration.complete.errorsCount', { count: result.errors.length })}
               description={
                 <List
@@ -86,13 +103,14 @@ export const CompleteStep: React.FC = () => {
               }
               type="error"
               showIcon
+              extraCompact
             />
           </>
         )}
 
-        <Divider />
+        <CompactDivider extraCompact />
         <Text type="secondary">{t('migration.complete.logFile', { path: result.logFilePath })}</Text>
-      </Card>
-    </Space>
+      </CompactCard>
+    </CompactSpace>
   );
 };

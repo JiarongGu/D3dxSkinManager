@@ -324,6 +324,19 @@ type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'SYSTEM' |
 --text-color: rgba(255, 255, 255, 0.85)
 ```
 
+### Font Size Guidelines
+- **Regular text**: 14px (default for descriptions, body text, form inputs, labels)
+- **Small text**: 12px (minimum allowed, for secondary info, hints, descriptions in compact variants)
+- **NEVER** go below 12px for readability
+- **NEVER** use 13px or other intermediate sizes - stick to 12px or 14px only
+
+### Notification Animation Guidelines
+- Notifications are positioned at **top center** with `placement: 'top'`
+- Use **smooth slide-in from top** animation (0.3s ease-out)
+- **NEVER** use default Ant Design motion (causes jiggle)
+- Custom CSS animation overrides all default transitions in `custom-notification.css`
+- Position: 24px from top, centered horizontally
+
 ---
 
 ## 🎯 Common Tasks
@@ -351,6 +364,7 @@ type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'SYSTEM' |
 8. **NEVER** use factory functions with AddSingleton helper
 9. **NEVER** access other module's repositories directly
 10. **NEVER** put business logic in facades (services only)
+11. **NEVER** use font sizes below 12px or between 12px and 14px (only use 12px or 14px)
 
 ### ❌ Wrong Error Handling
 ```typescript

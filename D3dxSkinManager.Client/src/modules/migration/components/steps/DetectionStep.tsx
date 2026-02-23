@@ -1,16 +1,14 @@
 import { notification } from '../../../../shared/utils/notification';
 import React from 'react';
-import { Space, Alert, Card, Row, Col, Statistic, Divider, List, Typography } from 'antd';
+import { Row, Col, List } from 'antd';
 import { FolderOpenOutlined } from '@ant-design/icons';
-import { CompactButton } from '../../../../shared/components/compact';
+import { CompactButton, CompactAlert, CompactCard, CompactSpace, CompactDivider } from '../../../../shared/components/compact';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { migrationService } from '../../services/migrationService';
 import { fileDialogService } from '../../../../shared/services/systemService';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { useTranslation } from 'react-i18next';
 import './DetectionStep.css';
-
-const { Text } = Typography;
 
 /**
  * Step 1: Detection
@@ -27,28 +25,6 @@ export const DetectionStep: React.FC = () => {
     setLoading,
   } = useMigrationWizard();
   const { state: profileState } = useProfile();
-
-  /**
-   * Auto-detect Python installation
-   */
-  const handleAutoDetect = async () => {
-    try {
-      setLoading(true);
-      const detectedPath = await migrationService.autoDetect();
-      if (detectedPath) {
-        setPythonPath(detectedPath);
-        notification.success(t('migration.detection.pythonDetected'));
-        await handleAnalyze(detectedPath);
-      } else {
-        notification.warning(t('migration.detection.autoDetectFailed'));
-      }
-    } catch (error) {
-      notification.error(t('migration.detection.autoDetectError'));
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   /**
    * Browse for Python installation directory
@@ -114,27 +90,26 @@ export const DetectionStep: React.FC = () => {
   };
 
   return (
-    <Space orientation="vertical" className="detection-step-container" size="large">
-      <Alert
+    <CompactSpace vertical className="detection-step-container">
+      <CompactAlert
         title={t('migration.detection.title')}
         description={t('migration.detection.description')}
         type="info"
         showIcon
+        extraCompact
       />
 
-      <Card title={t('migration.detection.step1Title')}>
-        <Space orientation="vertical" className="detection-step-inner-container" size="middle">
+      <CompactCard title={t('migration.detection.step1Title')} extraCompact>
+        <CompactSpace vertical className="detection-step-inner-container">
+          {pythonPath && (
+            <CompactAlert
+              description={pythonPath}
+              type="info"
+              extraCompact
+            />
+          )}
           <CompactButton
             type="primary"
-            icon={<FolderOpenOutlined />}
-            onClick={handleAutoDetect}
-            loading={loading}
-            block
-          >
-            {t('migration.detection.autoDetect')}
-          </CompactButton>
-
-          <CompactButton
             icon={<FolderOpenOutlined />}
             onClick={handleBrowse}
             block
@@ -142,49 +117,49 @@ export const DetectionStep: React.FC = () => {
             {t('migration.detection.browse')}
           </CompactButton>
 
-          {pythonPath && (
-            <Alert
-              title={t('migration.detection.selectedPath')}
-              description={pythonPath}
-              type="info"
-            />
-          )}
 
           {analysis && (
-            <Card
+            <CompactCard
               size="small"
               title={t('migration.detection.analysisResult')}
               className="detection-step-analysis-card"
+              extraCompact
             >
               {analysis.isValid ? (
                 <>
-                  <Row gutter={16}>
+                  <Row gutter={8}>
                     <Col span={12}>
-                      <Statistic title={t('migration.detection.totalMods')} value={analysis.totalMods} />
+                      <div className="detection-step-stat">
+                        <div className="detection-step-stat-label">{t('migration.detection.totalMods')}</div>
+                        <div className="detection-step-stat-value">{analysis.totalMods}</div>
+                      </div>
                     </Col>
                     <Col span={12}>
-                      <Statistic
-                        title={t('migration.detection.archiveSize')}
-                        value={analysis.totalArchiveSizeFormatted || t('migration.detection.notAvailable')}
-                      />
+                      <div className="detection-step-stat">
+                        <div className="detection-step-stat-label">{t('migration.detection.archiveSize')}</div>
+                        <div className="detection-step-stat-value">{analysis.totalArchiveSizeFormatted || t('migration.detection.notAvailable')}</div>
+                      </div>
                     </Col>
                   </Row>
-                  <Divider className="detection-step-divider" />
-                  <Row gutter={16}>
+                  <CompactDivider extraCompact />
+                  <Row gutter={8}>
                     <Col span={12}>
-                      <Statistic
-                        title={t('migration.detection.previewSize')}
-                        value={analysis.totalPreviewSizeFormatted || t('migration.detection.notAvailable')}
-                      />
+                      <div className="detection-step-stat">
+                        <div className="detection-step-stat-label">{t('migration.detection.previewSize')}</div>
+                        <div className="detection-step-stat-value">{analysis.totalPreviewSizeFormatted || t('migration.detection.notAvailable')}</div>
+                      </div>
                     </Col>
                     <Col span={12}>
-                      <Text>{t('migration.detection.environments', { envs: analysis.environments.join(', ') })}</Text>
+                      <div className="detection-step-stat">
+                        <div className="detection-step-stat-label">{t('migration.detection.environmentsLabel')}</div>
+                        <div className="detection-step-stat-value">{analysis.environments.join(', ')}</div>
+                      </div>
                     </Col>
                   </Row>
                   {analysis.warnings.length > 0 && (
                     <>
-                      <Divider className="detection-step-divider" />
-                      <Alert
+                      <CompactDivider extraCompact />
+                      <CompactAlert
                         title={t('migration.detection.warnings')}
                         description={
                           <List
@@ -195,22 +170,24 @@ export const DetectionStep: React.FC = () => {
                         }
                         type="warning"
                         showIcon
+                        extraCompact
                       />
                     </>
                   )}
                 </>
               ) : (
-                <Alert
+                <CompactAlert
                   title={t('migration.detection.invalidInstallationTitle')}
                   description={analysis.errors.join('\n')}
                   type="error"
                   showIcon
+                  extraCompact
                 />
               )}
-            </Card>
+            </CompactCard>
           )}
-        </Space>
-      </Card>
-    </Space>
+        </CompactSpace>
+      </CompactCard>
+    </CompactSpace>
   );
 };

@@ -1,41 +1,31 @@
-/* DetectionStep Container */
-.detection-step-container {
-  width: 100%;
-}
-
-.detection-step-inner-container {
-  width: 100%;
-}
-
-/* Analysis Result Card */
-.detection-step-analysis-card {
+/* CompleteStep Container */
+.complete-step-card {
   background: var(--color-bg-elevated);
   border-color: var(--color-border-secondary);
-  margin-top: 8px;
 }
 
 /* Compact Row spacing */
-.detection-step-analysis-card .ant-row {
+.complete-step-card .ant-row {
   margin-bottom: 0;
 }
 
 /* Compact List */
-.detection-step-analysis-card .ant-list-item {
+.complete-step-card .ant-list-item {
   padding: 4px 0;
 }
 
 /* Custom stat display (replaces Ant Design Statistic component) */
-.detection-step-stat {
+.complete-step-stat {
   margin-bottom: 0;
 }
 
-.detection-step-stat-label {
+.complete-step-stat-label {
   font-size: 12px;
   margin-bottom: 2px;
   color: rgba(255, 255, 255, 0.65);
 }
 
-.detection-step-stat-value {
+.complete-step-stat-value {
   font-size: 16px;
   line-height: 1.2;
   font-weight: 500;

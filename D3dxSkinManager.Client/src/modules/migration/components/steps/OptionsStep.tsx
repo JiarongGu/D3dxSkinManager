@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Space, Alert, Form, Input, Checkbox, Radio, Divider } from 'antd';
+import { Form, Input, Checkbox, Radio } from 'antd';
+import { CompactSpace, CompactAlert, CompactDivider } from '../../../../shared/components/compact';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { ArchiveHandling, PostMigrationAction } from '../../services/migrationService';
 import { useTranslation } from 'react-i18next';
@@ -20,12 +21,13 @@ export const OptionsStep: React.FC = () => {
   }, [localForm, setForm]);
 
   return (
-    <Space orientation="vertical" className="migration-step-container" size="large">
-      <Alert
+    <CompactSpace vertical className="migration-step-container">
+      <CompactAlert
         title={t('migration.options.title')}
         description={t('migration.options.description')}
         type="info"
         showIcon
+        extraCompact
       />
 
       <Form
@@ -47,11 +49,11 @@ export const OptionsStep: React.FC = () => {
           name="environmentName"
           tooltip={t('migration.options.environmentTooltip')}
         >
-          <Input placeholder={analysis?.activeEnvironment} size="large" />
+          <Input placeholder={analysis?.activeEnvironment} />
         </Form.Item>
 
         <Form.Item label={t('migration.options.whatToMigrate')}>
-          <Space orientation="vertical">
+          <CompactSpace vertical>
             <Form.Item name="migrateMetadata" valuePropName="checked" noStyle>
               <Checkbox>{t('migration.options.modMetadata')}</Checkbox>
             </Form.Item>
@@ -67,7 +69,7 @@ export const OptionsStep: React.FC = () => {
             <Form.Item name="migrateClassifications" valuePropName="checked" noStyle>
               <Checkbox>{t('migration.options.classificationRules')}</Checkbox>
             </Form.Item>
-          </Space>
+          </CompactSpace>
         </Form.Item>
 
         <Form.Item
@@ -76,7 +78,7 @@ export const OptionsStep: React.FC = () => {
           tooltip={t('migration.options.archiveHandlingTooltip')}
         >
           <Radio.Group>
-            <Space orientation="vertical">
+            <CompactSpace vertical>
               <Radio value={ArchiveHandling.Copy}>
                 {t('migration.options.archiveCopy')}
               </Radio>
@@ -86,7 +88,7 @@ export const OptionsStep: React.FC = () => {
               <Radio value={ArchiveHandling.Link} disabled>
                 {t('migration.options.archiveLink')}
               </Radio>
-            </Space>
+            </CompactSpace>
           </Radio.Group>
         </Form.Item>
 
@@ -96,7 +98,7 @@ export const OptionsStep: React.FC = () => {
           tooltip={t('migration.options.afterMigrationTooltip')}
         >
           <Radio.Group>
-            <Space orientation="vertical">
+            <CompactSpace vertical>
               <Radio value={PostMigrationAction.Keep}>{t('migration.options.postActionKeep')}</Radio>
               <Radio value={PostMigrationAction.BackupAndRemove}>
                 {t('migration.options.postActionBackupRemove')}
@@ -104,11 +106,11 @@ export const OptionsStep: React.FC = () => {
               <Radio value={PostMigrationAction.Remove}>
                 {t('migration.options.postActionRemove')}
               </Radio>
-            </Space>
+            </CompactSpace>
           </Radio.Group>
         </Form.Item>
 
-        <Divider />
+        <CompactDivider extraCompact />
 
         <Form.Item
           name="createProfile"
@@ -134,7 +136,6 @@ export const OptionsStep: React.FC = () => {
                 >
                   <Input
                     placeholder={analysis?.activeEnvironment || t('migration.options.profileNamePlaceholder')}
-                    size="large"
                   />
                 </Form.Item>
                 <Form.Item
@@ -144,7 +145,6 @@ export const OptionsStep: React.FC = () => {
                 >
                   <Input
                     placeholder={t('migration.options.workDirectoryPlaceholder')}
-                    size="large"
                   />
                 </Form.Item>
               </>
@@ -152,6 +152,6 @@ export const OptionsStep: React.FC = () => {
           }
         </Form.Item>
       </Form>
-    </Space>
+    </CompactSpace>
   );
 };

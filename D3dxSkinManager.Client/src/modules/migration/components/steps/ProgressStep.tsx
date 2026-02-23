@@ -1,6 +1,7 @@
 import React from 'react';
-import { Space, Alert, Card, Progress, Typography } from 'antd';
+import { Progress, Typography } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
+import { CompactSpace, CompactAlert, CompactCard } from '../../../../shared/components/compact';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { useTranslation } from 'react-i18next';
 import './MigrationSteps.css';
@@ -16,16 +17,17 @@ export const ProgressStep: React.FC = () => {
   const { migrating, migrationProgress } = useMigrationWizard();
 
   return (
-    <Space orientation="vertical" className="migration-step-container" size="large">
-      <Alert
+    <CompactSpace vertical className="migration-step-container">
+      <CompactAlert
         title={t('migration.progress.title')}
         description={t('migration.progress.description')}
         type="info"
         showIcon
         icon={<LoadingOutlined />}
+        extraCompact
       />
 
-      <Card>
+      <CompactCard extraCompact>
         <Progress
           percent={migrationProgress}
           status={migrating ? 'active' : 'success'}
@@ -37,7 +39,7 @@ export const ProgressStep: React.FC = () => {
         <Paragraph className="progress-step-paragraph">
           {migrating ? t('migration.progress.migrating') : t('migration.progress.complete')}
         </Paragraph>
-      </Card>
-    </Space>
+      </CompactCard>
+    </CompactSpace>
   );
 };
