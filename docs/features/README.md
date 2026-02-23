@@ -1,7 +1,7 @@
 # Feature Documentation Index
 
 **Project:** D3dxSkinManager
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-23
 
 ---
 
@@ -27,6 +27,19 @@ This folder contains detailed documentation for each feature in D3dxSkinManager.
 ---
 
 ## Core Features (v1.0)
+
+### ✅ Classification System
+**Status:** Complete
+**File:** [CLASSIFICATION_SYSTEM.md](CLASSIFICATION_SYSTEM.md)
+
+**Description:** Hierarchical tree structure for organizing mods with GUID-based IDs and smart refresh logic.
+
+**Key Components:**
+- Backend: `ClassificationService.cs`, `ModFacade.PopulateCategoryNamesBulkAsync()`
+- Frontend: `ClassificationPanel/`, `useClassificationTreeOperations.tsx`
+- Features: GUID stability, hierarchical display, drag & drop
+
+---
 
 ### ✅ Mod Listing
 **Status:** Complete

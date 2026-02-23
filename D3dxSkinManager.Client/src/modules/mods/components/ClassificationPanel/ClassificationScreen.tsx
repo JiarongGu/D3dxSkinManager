@@ -22,6 +22,11 @@ interface ClassificationScreenProps {
   tree: ClassificationNode[];
 
   /**
+   * Node to edit (if editing existing classification)
+   */
+  editNode?: ClassificationNode;
+
+  /**
    * Callback when classification is saved
    */
   onSave: (data: {
@@ -53,6 +58,7 @@ function flattenTree(nodes: ClassificationNode[]): ClassificationNode[] {
 export const ClassificationScreenContent: React.FC<ClassificationScreenProps & { screenId: string }> = ({
   parentId,
   tree,
+  editNode,
   onSave,
   screenId
 }) => {
@@ -108,14 +114,28 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
   // Initialize form
   useEffect(() => {
     form.resetFields();
-    setThumbnailPath(undefined);
-    setThumbnailFileName(undefined);
 
-    // Set parent if provided
-    if (parentId) {
-      form.setFieldsValue({ parentId });
+    if (editNode) {
+      // Edit mode - populate with existing node data
+      form.setFieldsValue({
+        name: editNode.name,
+        parentId: editNode.parentId || '',
+        description: editNode.description
+      });
+      setThumbnailPath(editNode.thumbnail || undefined);
+      if (editNode.thumbnail) {
+        const fileName = editNode.thumbnail.split(/[\\/]/).pop() || editNode.thumbnail;
+        setThumbnailFileName(fileName);
+      }
+    } else {
+      // Create mode - clear and set parent if provided
+      setThumbnailPath(undefined);
+      setThumbnailFileName(undefined);
+      if (parentId) {
+        form.setFieldsValue({ parentId });
+      }
     }
-  }, [parentId, form]);
+  }, [parentId, editNode, form]);
 
   const handleSubmit = async () => {
     try {
@@ -190,8 +210,8 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
               rules={[
                 { required: true, message: 'Please enter a classification name' },
                 { min: 1, max: 100, message: 'Name must be between 1 and 100 characters' },
-                {
-                  validator: async (_, value) => {
+                ...(!editNode ? [{
+                  validator: async (_: any, value: string) => {
                     if (!value || !selectedProfileId) return Promise.resolve();
                     // Check if nodeId already exists in database (name is used as nodeId in creation)
                     const exists = await classificationService.nodeExists(selectedProfileId, value);
@@ -200,7 +220,7 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
                     }
                     return Promise.resolve();
                   }
-                }
+                }] : [])
               ]}
             >
               <CompactInput
@@ -303,14 +323,25 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
                 }}>
                   {thumbnailFileName}
                 </div>
-                <CompactButton
-                  icon={<FolderOpenOutlined />}
-                  onClick={handleBrowseThumbnail}
-                  size="small"
-                  style={{ marginLeft: '8px' }}
-                >
-                  Change
-                </CompactButton>
+                <Space size={4}>
+                  <CompactButton
+                    icon={<FolderOpenOutlined />}
+                    onClick={handleBrowseThumbnail}
+                    size="small"
+                  >
+                    Change
+                  </CompactButton>
+                  <CompactButton
+                    danger
+                    onClick={() => {
+                      setThumbnailPath(undefined);
+                      setThumbnailFileName(undefined);
+                    }}
+                    size="small"
+                  >
+                    Remove
+                  </CompactButton>
+                </Space>
               </div>
             </div>
           )}
@@ -349,8 +380,10 @@ export function useClassificationScreen() {
       <ClassificationScreenContent {...props} screenId={actualScreenId} />
     );
 
+    const title = props.editNode ? 'Edit Classification' : 'Add Classification';
+
     actualScreenId = openScreen({
-      title: 'Add Classification',
+      title,
       width: '50%',
       content: <ContentWrapper />,
     });

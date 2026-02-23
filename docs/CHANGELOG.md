@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved - 2026-02-23 - Classification Category Name Display ⭐⭐⭐
+Mod list now displays human-readable category names instead of GUIDs. Optimized refresh logic to only update when necessary using node relationship checks.
+**Impact**: ✅ User-friendly category display, efficient updates, follows useDelayedLoading pattern
+**Backend**: ModFacade.PopulateCategoryNamesBulkAsync maps IDs to names
+**Frontend**: Smart refresh - only when name changes AND (current node OR descendant)
+
 ### Fixed - 2026-02-23 - First Boot & Context Menu Issues ⭐⭐
 Fixed three critical UX issues: Lazy<T> re-entrancy error on first boot, context menu not appearing on empty classification panel, and context menu not working on empty whitespace in tree.
 **Impact**: ✅ Application boots successfully on first run, context menus work consistently

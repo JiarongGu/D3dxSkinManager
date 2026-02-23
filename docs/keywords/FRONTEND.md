@@ -259,6 +259,7 @@
   - **ClassificationTree.tsx** - Hierarchical tree component
   - **ClassificationTreeContext.tsx** - Tree operations context
   - **useClassificationTreeOperations.tsx** - Tree manipulation hook
+    - shouldRefreshModsForNodeUpdate() - Smart refresh logic (2026-02-23)
   - **useModCategoryUpdate.ts** - Custom hook for mod category updates via drag-and-drop (2026-02-20)
   - **ClassificationContextMenu.tsx** - Right-click context menu
   - **UnclassifiedItem.tsx** - Unclassified mods indicator (drag-and-drop support added 2026-02-20)

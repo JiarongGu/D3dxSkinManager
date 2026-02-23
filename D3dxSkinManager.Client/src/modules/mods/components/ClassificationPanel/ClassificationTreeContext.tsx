@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
 import type { DataNode } from 'antd/es/tree';
 import type { MenuProps } from 'antd';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { ClassificationNode } from '../../../../shared/types/classification.types';
 import { convertToDataNode } from './TreeNodeConverter';
 import { getClassificationContextMenu } from './ClassificationContextMenu';
 import { useClassificationTreeOperations } from './useClassificationTreeOperations';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
+import { ConfirmDialog } from '../../../../shared/components/dialogs/ConfirmDialog';
 
 /**
  * Recursively filter tree nodes by search query
@@ -128,6 +131,7 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
   onRefreshTree,
   onModsRefresh,
 }) => {
+  const { t } = useTranslation();
   const [contextMenuNode, setContextMenuNode] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -140,11 +144,16 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
     handleDeleteNode,
     handleNodeReorder,
     handleModClassify,
+    deleteConfirmation,
+    handleDeleteConfirm,
+    closeDeleteConfirmation,
   } = useClassificationTreeOperations({
     tree,
     expandedKeys,
+    selectedClassificationId: selectedNode?.id,
     onExpandedKeysChange,
-    onRefreshTree, // ✅ Pass refresh callback
+    onRefreshTree, // ✅ Pass tree refresh callback
+    onModsRefresh, // ✅ Pass mods refresh callback
   });
 
   // Get context menu items
@@ -298,6 +307,20 @@ export const ClassificationTreeProvider: React.FC<ClassificationTreeProviderProp
   return (
     <ClassificationTreeContext.Provider value={contextValue}>
       {children}
+      <ConfirmDialog
+        visible={deleteConfirmation.visible}
+        title={t('classification.delete.title')}
+        content={deleteConfirmation.hasChildren
+          ? t('classification.delete.withChildrenMessage', { name: deleteConfirmation.nodeName })
+          : t('classification.delete.message', { name: deleteConfirmation.nodeName })
+        }
+        okText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        okType="danger"
+        icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+        onOk={handleDeleteConfirm}
+        onCancel={closeDeleteConfirmation}
+      />
     </ClassificationTreeContext.Provider>
   );
 };

@@ -1,13 +1,13 @@
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useState } from "react";
 import { App } from "antd";
-import { ExclamationCircleOutlined } from "@ant-design/icons";
-import { Input } from "antd";
 import { ClassificationNode } from "../../../../shared/types/classification.types";
 import { classificationService } from "../../../../shared/services/classificationService";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useModCategoryUpdate } from "./useModCategoryUpdate";
 import { notification } from "../../../../shared/utils/notification";
 import { useStableRef } from "../../../../shared/hooks/useStableRef";
+import { useClassificationScreen } from "./ClassificationScreen";
+import { useTranslation } from "react-i18next";
 
 /**
  * Find a ClassificationNode by ID in the tree
@@ -26,11 +26,67 @@ function findNodeById(
   return null;
 }
 
+/**
+ * Check if nodeId is a descendant of ancestorId in the tree
+ */
+function isDescendantOf(
+  nodes: ClassificationNode[],
+  nodeId: string,
+  ancestorId: string,
+): boolean {
+  const ancestorNode = findNodeById(nodes, ancestorId);
+  if (!ancestorNode) return false;
+
+  // Check if nodeId exists in ancestor's subtree
+  return findNodeById(ancestorNode.children, nodeId) !== null;
+}
+
+/**
+ * Check if nodeId is an ancestor of descendantId in the tree
+ */
+function isAncestorOf(
+  nodes: ClassificationNode[],
+  nodeId: string,
+  descendantId: string,
+): boolean {
+  return isDescendantOf(nodes, descendantId, nodeId);
+}
+
+/**
+ * Check if updating a node should trigger a mod list refresh
+ * Returns true if:
+ * - The updated node is the currently selected node
+ * - The updated node is a descendant of the selected node (its mods are shown in current view)
+ *
+ * Does NOT refresh if updated node is an ancestor (doesn't affect current view)
+ */
+function shouldRefreshModsForNodeUpdate(
+  tree: ClassificationNode[],
+  updatedNodeId: string,
+  selectedNodeId: string | null | undefined,
+): boolean {
+  if (!selectedNodeId) return false;
+
+  // Check if it's the same node
+  if (updatedNodeId === selectedNodeId) return true;
+
+  // Check if updated node is a descendant of selected node
+  // (i.e., updated node's mods are being shown as part of selected node)
+  if (isDescendantOf(tree, updatedNodeId, selectedNodeId)) return true;
+
+  // Do NOT refresh if updated node is an ancestor
+  // (that doesn't affect the current mod list view)
+
+  return false;
+}
+
 interface UseClassificationTreeOperationsProps {
   tree: ClassificationNode[];
   expandedKeys: React.Key[];
+  selectedClassificationId?: string | null;
   onExpandedKeysChange: (keys: React.Key[]) => void;
   onRefreshTree?: () => Promise<void>;
+  onModsRefresh?: () => Promise<void>;
 }
 
 /**
@@ -40,116 +96,172 @@ interface UseClassificationTreeOperationsProps {
 export function useClassificationTreeOperations({
   tree,
   expandedKeys,
+  selectedClassificationId,
   onExpandedKeysChange,
   onRefreshTree,
+  onModsRefresh,
 }: UseClassificationTreeOperationsProps) {
   const { modal } = App.useApp();
+  const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
   const { updateModCategory } = useModCategoryUpdate({ onRefreshTree });
+  const { openClassificationScreen } = useClassificationScreen();
 
   const [treeRef, selectedProfileIdRef] = useStableRef(tree, selectedProfileId);
 
-  // Edit node handler
+  // State for delete confirmation dialog
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    visible: boolean;
+    nodeId: string;
+    nodeName: string;
+    hasChildren: boolean;
+  }>({ visible: false, nodeId: '', nodeName: '', hasChildren: false });
+
+  // Edit node handler - now uses slide-in screen instead of modal
   const handleEditNode = useCallback(
     async (nodeId: string) => {
       const node = findNodeById(treeRef.current, nodeId);
       if (!node) return;
 
-      modal.confirm({
-        title: "Edit Classification",
-        icon: <ExclamationCircleOutlined />,
-        centered: true,
-        content: (
-          <div style={{ marginTop: "16px" }}>
-            <label style={{ display: "block", marginBottom: "8px" }}>
-              Name:
-            </label>
-            <Input id="edit-name-input" defaultValue={node.name} />
-          </div>
-        ),
-        onOk: async () => {
-          const input = document.getElementById(
-            "edit-name-input",
-          ) as HTMLInputElement;
-          const newName = input?.value?.trim();
-
-          if (!newName) {
-            notification.error("Name cannot be empty");
-            return Promise.reject();
+      openClassificationScreen({
+        tree: treeRef.current,
+        editNode: node,
+        onSave: async (data) => {
+          if (!selectedProfileIdRef.current) {
+            notification.error(t('errors.noProfileSelected'));
+            return;
           }
 
-          if (!selectedProfileIdRef.current) return;
-
           try {
+            // With stable IDs, we don't need to worry about cascading updates
+            // Just check for name uniqueness (handled by backend)
+
+            // Check if thumbnail is being changed
+            let thumbnailToUse = data.thumbnail;
+            if (data.thumbnail !== node.thumbnail) {
+              if (data.thumbnail && node.thumbnail) {
+                // Replacing existing thumbnail
+                await new Promise<void>((resolve, reject) => {
+                  modal.confirm({
+                    title: t('classification.edit.replaceThumbnail'),
+                    content: t('classification.edit.replaceThumbnailMessage'),
+                    okText: t('common.replace'),
+                    cancelText: t('common.keepExisting'),
+                    onOk: () => resolve(),
+                    onCancel: () => {
+                      thumbnailToUse = node.thumbnail || undefined; // Keep existing thumbnail, convert null to undefined
+                      resolve();
+                    }
+                  });
+                });
+              }
+            }
+
+            // Check if parent has changed
+            const parentChanged = data.parentId !== node.parentId;
+
+            // Perform the update
             const response = await classificationService.updateNode(
               selectedProfileIdRef.current,
               nodeId,
-              newName
+              data.name,
+              data.description,
+              thumbnailToUse || null
             );
 
-            if (response) {
-              notification.success("Classification updated successfully");
+            // If parent changed, also move the node
+            let moveSuccess = true;
+            if (response && parentChanged) {
+              moveSuccess = await classificationService.moveNode(
+                selectedProfileIdRef.current,
+                nodeId,
+                data.parentId || null,
+                -1 // No specific drop position for edit operation (-1 means append at end)
+              );
+            }
+
+            if (response && moveSuccess) {
+              notification.success(t('classification.updateSuccess', { name: data.name }));
+
+              // Refresh the tree to show updated name and/or new parent
+              if (onRefreshTree) {
+                await onRefreshTree();
+              }
+
+              // Only refresh mods if:
+              // 1. The name actually changed AND
+              // 2. The updated node affects the current mod list view (current node or its descendants)
+              const nameChanged = data.name !== node.name;
+              if (onModsRefresh && nameChanged && shouldRefreshModsForNodeUpdate(treeRef.current, nodeId, selectedClassificationId)) {
+                await onModsRefresh();
+              }
+            } else if (response && !moveSuccess && parentChanged) {
+              notification.error(t('classification.moveError', { name: data.name }));
+              // Still refresh to show the name/description changes even if move failed
               if (onRefreshTree) {
                 await onRefreshTree();
               }
             } else {
-              notification.error("Failed to update classification");
+              notification.error(t('classification.updateFailed', { name: data.name }));
             }
           } catch (error) {
             console.error("Error updating classification:", error);
-            notification.error("Failed to update classification");
+            if (error instanceof Error && error.message !== 'User cancelled') {
+              notification.error(t('classification.updateError', {
+                error: error.message || 'Unknown error'
+              }));
+            }
           }
         },
       });
     },
-    [modal, onRefreshTree],
+    [openClassificationScreen, onRefreshTree, onModsRefresh, modal, t],
   );
 
-  // Delete node handler
+  // Delete node handler - opens confirmation dialog
   const handleDeleteNode = useCallback(
     async (nodeId: string) => {
       const node = findNodeById(treeRef.current, nodeId);
       if (!node) return;
 
       const hasChildren = node.children && node.children.length > 0;
-      const warningMessage = hasChildren
-        ? `Are you sure you want to delete "${node.name}" and all its sub-classifications?`
-        : `Are you sure you want to delete "${node.name}"?`;
 
-      modal.confirm({
-        title: "Delete Classification",
-        icon: <ExclamationCircleOutlined />,
-        centered: true,
-        content: warningMessage,
-        okText: "Delete",
-        okType: "danger",
-        cancelText: "Cancel",
-        onOk: async () => {
-          if (!selectedProfileIdRef.current) return;
-
-          try {
-            const response = await classificationService.deleteNode(
-              selectedProfileIdRef.current,
-              nodeId
-            );
-
-            if (response) {
-              notification.success("Classification deleted successfully");
-              if (onRefreshTree) {
-                await onRefreshTree();
-              }
-            } else {
-              notification.error("Failed to delete classification");
-            }
-          } catch (error) {
-            console.error("Error deleting classification:", error);
-            notification.error("Failed to delete classification");
-          }
-        },
+      // Open the confirmation dialog
+      setDeleteConfirmation({
+        visible: true,
+        nodeId,
+        nodeName: node.name,
+        hasChildren
       });
     },
-    [modal, onRefreshTree],
+    [],
   );
+
+  // Handle the actual deletion after confirmation
+  const handleDeleteConfirm = useCallback(async () => {
+    const { nodeId } = deleteConfirmation;
+    if (!selectedProfileIdRef.current || !nodeId) return;
+
+    try {
+      const response = await classificationService.deleteNode(
+        selectedProfileIdRef.current,
+        nodeId
+      );
+
+      if (response) {
+        notification.success(t('classification.deleteSuccess'));
+        setDeleteConfirmation({ visible: false, nodeId: '', nodeName: '', hasChildren: false });
+        if (onRefreshTree) {
+          await onRefreshTree();
+        }
+      } else {
+        notification.error(t('classification.deleteFailed'));
+      }
+    } catch (error) {
+      console.error("Error deleting classification:", error);
+      notification.error(t('classification.deleteError'));
+    }
+  }, [deleteConfirmation.nodeId, onRefreshTree, t]);
 
   // Simplified node reorder handler - just takes node IDs and drop type
   // dropNodeId can be empty string to indicate dropping to root level
@@ -303,5 +415,9 @@ export function useClassificationTreeOperations({
     handleDeleteNode,
     handleNodeReorder,
     handleModClassify,
+    // Expose delete confirmation state and handlers for the component to use
+    deleteConfirmation,
+    handleDeleteConfirm,
+    closeDeleteConfirmation: () => setDeleteConfirmation({ visible: false, nodeId: '', nodeName: '', hasChildren: false })
   };
 }

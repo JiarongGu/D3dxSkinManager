@@ -9,6 +9,10 @@
   padding: 0 !important;
 }
 
+.confirm-dialog .ant-modal-container {
+  padding: 24px 24px 16px !important;
+}
+
 /*
  * Disable ALL animations and transitions to prevent size changes
  * Trade-off: No smooth color transitions, but no size change glitches
@@ -39,19 +43,19 @@
 
 .confirm-dialog .ant-modal-header {
   border-bottom: none !important;
-  padding: 16px 8px 8px 8px !important; /* Increased top padding to 16px for better spacing */
+  padding: 0px !important; /* Increased top padding to 16px for better spacing */
   margin-bottom: 12px !important;
   background: transparent !important;
 }
 
 .confirm-dialog .ant-modal-body {
-  padding: 0 8px !important;
+  padding: 8px !important;
   margin-bottom: 16px !important;
 }
 
 .confirm-dialog .ant-modal-footer {
   border-top: none !important;
-  padding: 0 8px 8px 8px !important;
+  padding: 0 !important;
   margin-top: 0 !important;
 }
 

@@ -1,6 +1,7 @@
 export interface ModInfo {
   sha: string;
   category: string;
+  categoryName?: string;  // Human-readable category name for display
   name: string;
   author: string;
   description: string;

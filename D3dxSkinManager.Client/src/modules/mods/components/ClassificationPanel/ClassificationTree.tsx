@@ -57,20 +57,28 @@ const extractNodeId = (target: Element | null): string => {
 const convertMenuItems = (items: MenuProps['items']): ContextMenuItem[] => {
   if (!items) return [];
   return items
-    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .filter((item): item is NonNullable<typeof item> => item != null)
     .map(item => {
       // Handle divider type
       if ('type' in item && item.type === 'divider') {
         return { type: 'divider' as const };
       }
-      // Handle regular menu items
+      // Handle regular menu items - Ant Design's ItemType has these properties
+      const menuItem = item as {
+        key?: string | number;
+        label?: React.ReactNode;
+        icon?: React.ReactNode;
+        danger?: boolean;
+        disabled?: boolean;
+        onClick?: () => void;
+      };
       return {
-        key: String((item as any).key || ''),
-        label: String((item as any).label || ''),
-        icon: (item as any).icon,
-        danger: (item as any).danger,
-        disabled: (item as any).disabled,
-        onClick: (item as any).onClick,
+        key: String(menuItem.key || ''),
+        label: String(menuItem.label || ''),
+        icon: menuItem.icon,
+        danger: menuItem.danger,
+        disabled: menuItem.disabled,
+        onClick: menuItem.onClick,
       };
     });
 };
@@ -136,6 +144,25 @@ export interface ClassificationTreeProps {
 }
 
 /**
+ * Shared context menu component
+ */
+interface TreeContextMenuProps {
+  items: MenuProps['items'];
+  visible: boolean;
+  position: { x: number; y: number };
+  onClose: () => void;
+}
+
+const TreeContextMenu: React.FC<TreeContextMenuProps> = ({ items, visible, position, onClose }) => (
+  <ContextMenu
+    items={convertMenuItems(items)}
+    visible={visible}
+    position={position}
+    onClose={onClose}
+  />
+);
+
+/**
  * Internal tree component that uses the context
  */
 const ClassificationTreeInner: React.FC = () => {
@@ -162,6 +189,19 @@ const ClassificationTreeInner: React.FC = () => {
 
   // Track which node is being dragged
   const draggedNodeKeyRef = React.useRef<string | null>(null);
+
+  // Shared context menu handler
+  const handleContextMenu = React.useCallback((e: React.MouseEvent, nodeId: string | null) => {
+    e.preventDefault();
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setContextMenuNode(nodeId);
+  }, [setContextMenuPosition, setContextMenuNode]);
+
+  // Shared context menu close handler
+  const handleContextMenuClose = React.useCallback(() => {
+    setContextMenuNode(null);
+    setContextMenuPosition({ x: 0, y: 0 });
+  }, [setContextMenuNode, setContextMenuPosition]);
 
   // Enhanced drag and drop with simplified API
   const { containerRef: treeContainerRef } = useDragDrop<HTMLDivElement>(
@@ -246,25 +286,18 @@ const ClassificationTreeInner: React.FC = () => {
       <>
         <div
           className="classification-tree-empty-container"
-          onContextMenu={(e) => {
-            e.preventDefault();
-            setContextMenuPosition({ x: e.clientX, y: e.clientY });
-            setContextMenuNode(null); // null for empty tree
-          }}
+          onContextMenu={(e) => handleContextMenu(e, null)}
         >
           <Empty
             description={t('classification.tree.empty')}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </div>
-        <ContextMenu
-          items={convertMenuItems(contextMenuItems)}
-          visible={contextMenuNode !== undefined}
+        <TreeContextMenu
+          items={contextMenuItems}
+          visible={contextMenuNode != null}
           position={contextMenuPosition}
-          onClose={() => {
-            setContextMenuNode(undefined as any);
-            setContextMenuPosition({ x: 0, y: 0 });
-          }}
+          onClose={handleContextMenuClose}
         />
       </>
     );
@@ -297,10 +330,8 @@ const ClassificationTreeInner: React.FC = () => {
           const target = e.target as HTMLElement;
           // Check if click is on tree node or empty area
           if (!target.closest(".ant-tree-node-content-wrapper")) {
-            e.preventDefault();
             e.stopPropagation();
-            setContextMenuPosition({ x: e.clientX, y: e.clientY });
-            setContextMenuNode(""); // Empty string for empty area context menu
+            handleContextMenu(e, ""); // Empty string for empty area context menu
           }
         }}
       >
@@ -330,14 +361,11 @@ const ClassificationTreeInner: React.FC = () => {
             style={{ background: "transparent" }}
           />
         </div>
-        <ContextMenu
-          items={convertMenuItems(contextMenuItems)}
-          visible={contextMenuNode !== undefined}
+        <TreeContextMenu
+          items={contextMenuItems}
+          visible={contextMenuNode != null}
           position={contextMenuPosition}
-          onClose={() => {
-            setContextMenuNode(undefined as any);
-            setContextMenuPosition({ x: 0, y: 0 });
-          }}
+          onClose={handleContextMenuClose}
         />
       </div>
     </div>

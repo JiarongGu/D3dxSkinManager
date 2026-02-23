@@ -320,7 +320,7 @@ export const ModList: React.FC<ModListProps> = ({
                     )}
                     {mod.category && mod.category.trim() !== "" && (
                       <Tag color="geekblue" className="mod-list-item-tag">
-                        {mod.category}
+                        {mod.categoryName || mod.category}
                       </Tag>
                     )}
                     {mod.tags &&

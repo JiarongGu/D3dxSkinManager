@@ -40,7 +40,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 
     try {
       await actions.selectProfile(profileId);
-      notification.success(t('profiles.switched'));
+      notification.success(t('profiles.notifications.switched'));
 
       // Notify parent component
       if (onProfileSwitch && state.selectedProfile) {
@@ -54,7 +54,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
       }
     } catch (error) {
       console.error('Failed to switch profile:', error);
-      notification.error(t('profiles.switchFailed'));
+      notification.error(t('profiles.notifications.switchFailed'));
     }
   };
 
@@ -66,13 +66,13 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   const menuItems: ContextMenuItem[] = [
     {
       key: 'profiles-header',
-      label: `${t('profiles.menuHeader')} (${profiles.length})`,
+      label: `${t('profiles.switcher.header')} (${profiles.length})`,
       disabled: true
     },
     { type: 'divider' },
     ...profiles.map(profile => ({
       key: profile.id,
-      label: `${profile.name}${profile.modCount !== undefined ? ` (${profile.modCount} ${t('profiles.modCount')})` : ''}${profile.id === state.selectedProfile?.id ? ' ✓' : ''}`,
+      label: `${profile.name}${profile.modCount !== undefined ? ` (${t('profiles.switcher.modCount', { count: profile.modCount })})` : ''}${profile.id === state.selectedProfile?.id ? ' ✓' : ''}`,
       icon: <FolderOpenOutlined />,
       onClick: () => {
         setMenuVisible(false);
@@ -82,7 +82,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
     { type: 'divider' },
     {
       key: 'manage',
-      label: t('profiles.manage'),
+      label: t('profiles.switcher.manage'),
       icon: <SettingOutlined />,
       onClick: () => {
         setMenuVisible(false);
@@ -150,7 +150,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
               )}
             </>
           )}
-          {!activeProfile && <span style={{ fontWeight: 500 }}>{t('profiles.selectProfile')}</span>}
+          {!activeProfile && <span style={{ fontWeight: 500 }}>{t('profiles.switcher.selectProfile')}</span>}
         </Space>
       </Button>
 

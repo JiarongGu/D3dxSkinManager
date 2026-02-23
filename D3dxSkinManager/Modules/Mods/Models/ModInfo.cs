@@ -6,7 +6,8 @@ namespace D3dxSkinManager.Modules.Mods.Models;
 public class ModInfo
 {
     public string SHA { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;  // Classification ID (may be GUID or legacy path)
+    public string CategoryName { get; set; } = string.Empty;  // Human-readable category name for display
     public string Name { get; set; } = string.Empty;
     public string Author { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;

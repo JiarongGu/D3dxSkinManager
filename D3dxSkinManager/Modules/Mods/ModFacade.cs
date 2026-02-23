@@ -153,6 +153,9 @@ public class ModFacade : BaseFacade, IModFacade
         // Populate status flags from file system (bulk operation for better performance)
         PopulateStatusFlagsBulk(mods);
 
+        // Populate human-readable category names from classification service
+        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+
         return mods;
     }
 
@@ -163,7 +166,11 @@ public class ModFacade : BaseFacade, IModFacade
         // Populate status flags from file system for single mod
         if (mod != null)
         {
-            PopulateStatusFlagsBulk(new List<ModInfo> { mod });
+            var modList = new List<ModInfo> { mod };
+            PopulateStatusFlagsBulk(modList);
+
+            // Populate human-readable category name from classification service
+            await PopulateCategoryNamesBulkAsync(modList).ConfigureAwait(false);
         }
 
         return mod;
@@ -315,6 +322,9 @@ public class ModFacade : BaseFacade, IModFacade
         // Populate status flags from file system
         PopulateStatusFlagsBulk(mods);
 
+        // Populate human-readable category names from classification service
+        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+
         return mods;
     }
 
@@ -339,6 +349,9 @@ public class ModFacade : BaseFacade, IModFacade
 
         // Populate status flags from file system
         PopulateStatusFlagsBulk(mods);
+
+        // Populate human-readable category names from classification service
+        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
 
         return mods;
     }
@@ -690,6 +703,9 @@ public class ModFacade : BaseFacade, IModFacade
         // Populate status flags from file system
         PopulateStatusFlagsBulk(mods);
 
+        // Populate human-readable category names from classification service
+        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+
         return mods;
     }
 
@@ -702,6 +718,9 @@ public class ModFacade : BaseFacade, IModFacade
 
         // Populate status flags from file system
         PopulateStatusFlagsBulk(mods);
+
+        // Populate human-readable category names from classification service
+        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
 
         return mods;
     }
@@ -756,11 +775,11 @@ public class ModFacade : BaseFacade, IModFacade
     }
 
     /// <summary>
-    /// Create a new classification node
+    /// Create a new classification node with auto-generated GUID
     /// </summary>
     private async Task<ClassificationNode?> CreateClassificationNodeAsync(IpcRequest request)
     {
-        var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
+        var nodeId = _payloadHelper.GetOptionalValue<string>(request.Payload, "nodeId"); // Deprecated, will be ignored
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
         var parentId = _payloadHelper.GetOptionalValue<string>(request.Payload, "parentId");
         var priorityValue = _payloadHelper.GetOptionalValue<int?>(request.Payload, "priority");
@@ -768,40 +787,42 @@ public class ModFacade : BaseFacade, IModFacade
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
         var thumbnail = _payloadHelper.GetOptionalValue<string>(request.Payload, "thumbnail");
 
-        // Check if node already exists before attempting to create
-        if (await _classificationService.NodeExistsAsync(nodeId))
-        {
-            throw new InvalidOperationException($"Classification with name '{name}' already exists. Please use a different name.");
-        }
+        // The service will check for name uniqueness at the same level and auto-generate a GUID
+        // nodeId parameter is deprecated and will be ignored
+        var node = await _classificationService.CreateNodeAsync(string.Empty, name, parentId, priority, description, thumbnail).ConfigureAwait(false);
 
-        var node = await _classificationService.CreateNodeAsync(nodeId, name, parentId, priority, description, thumbnail).ConfigureAwait(false);
+        if (node == null)
+        {
+            throw new InvalidOperationException($"Classification with name '{name}' already exists at this level. Please use a different name.");
+        }
 
         if (node != null)
         {
             await _eventEmitter.EmitAsync(
                 Core.Event.EventType.ClassificationTreeChanged,
-                data: new { nodeId, name, parentId, created = true }).ConfigureAwait(false);
+                data: new { nodeId = node.Id, name, parentId, created = true }).ConfigureAwait(false);
         }
 
         return node;
     }
 
     /// <summary>
-    /// Update a classification node's name and icon
+    /// Update a classification node's name, description, and thumbnail
     /// </summary>
     private async Task<bool> UpdateClassificationNodeAsync(IpcRequest request)
     {
         var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
         var icon = _payloadHelper.GetOptionalValue<string>(request.Payload, "icon");
 
-        var success = await _classificationService.UpdateNodeAsync(nodeId, name, icon).ConfigureAwait(false);
+        var success = await _classificationService.UpdateNodeAsync(nodeId, name, description, icon).ConfigureAwait(false);
 
         if (success)
         {
             await _eventEmitter.EmitAsync(
                 Core.Event.EventType.ClassificationTreeChanged,
-                data: new { nodeId, name, icon }).ConfigureAwait(false);
+                data: new { nodeId, name, description, icon }).ConfigureAwait(false);
         }
 
         return success;
@@ -946,5 +967,66 @@ public class ModFacade : BaseFacade, IModFacade
 
         // Note: Disabled mods have their work directory renamed to DISABLED-{SHA}
         // So they're automatically excluded from the loadedDirectories set
+    }
+
+    /// <summary>
+    /// Populates CategoryName field for all mods based on their Category (classification ID)
+    /// Maps classification IDs (which may be GUIDs) to human-readable names
+    /// </summary>
+    private async Task PopulateCategoryNamesBulkAsync(List<ModInfo> mods)
+    {
+        // Get unique category IDs from all mods
+        var categoryIds = mods
+            .Where(m => !string.IsNullOrEmpty(m.Category))
+            .Select(m => m.Category)
+            .Distinct()
+            .ToList();
+
+        if (!categoryIds.Any())
+        {
+            // No categories to look up
+            return;
+        }
+
+        // Get the classification tree once
+        var classificationTree = await _classificationService.GetClassificationTreeAsync().ConfigureAwait(false);
+
+        // Build a flat dictionary for quick lookups
+        var nodeMap = new Dictionary<string, string>();
+        BuildNodeMap(classificationTree, nodeMap);
+
+        // Populate CategoryName for each mod
+        foreach (var mod in mods)
+        {
+            if (string.IsNullOrEmpty(mod.Category))
+            {
+                mod.CategoryName = string.Empty;
+            }
+            else if (nodeMap.TryGetValue(mod.Category, out var categoryName))
+            {
+                mod.CategoryName = categoryName;
+            }
+            else
+            {
+                // If we can't find the category in the tree, use the ID as fallback
+                // This handles legacy paths or deleted categories
+                mod.CategoryName = mod.Category;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Recursively builds a flat dictionary of node ID to node name
+    /// </summary>
+    private void BuildNodeMap(List<ClassificationNode> nodes, Dictionary<string, string> nodeMap)
+    {
+        foreach (var node in nodes)
+        {
+            nodeMap[node.Id] = node.Name;
+            if (node.Children != null && node.Children.Any())
+            {
+                BuildNodeMap(node.Children, nodeMap);
+            }
+        }
     }
 }

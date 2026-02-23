@@ -20,7 +20,7 @@ public interface IClassificationService
     Task<bool> RefreshTreeAsync();
     Task<bool> MoveNodeAsync(string nodeId, string? newParentId, int? dropPosition = null);
     Task<bool> ReorderNodeAsync(string nodeId, int newPosition);
-    Task<bool> UpdateNodeAsync(string nodeId, string name, string? icon = null);
+    Task<bool> UpdateNodeAsync(string nodeId, string name, string? description = null, string? thumbnailPath = null);
     Task<bool> SetNodeThumbnailAsync(string nodeId, string thumbnailPath);
     Task<ClassificationNode?> GetNodeByNameAsync(string name);
     Task<bool> DeleteNodeAsync(string nodeId);
@@ -261,16 +261,54 @@ public class ClassificationService : IClassificationService
 
     /// <summary>
     /// Update a classification node's name
+    /// Uses stable IDs - only the display name changes, ID remains the same
     /// </summary>
-    public async Task<bool> UpdateNodeAsync(string nodeId, string name, string? icon = null)
+    public async Task<bool> UpdateNodeAsync(string nodeId, string name, string? description = null, string? thumbnailPath = null)
     {
         try
         {
             var node = await _repository.GetByIdAsync(nodeId).ConfigureAwait(false);
             if (node == null) return false;
 
+            // Check if name would conflict with siblings (ensure uniqueness at same level)
+            if (node.Name != name)
+            {
+                var allNodes = await _repository.GetAllAsync().ConfigureAwait(false);
+                var siblings = allNodes.Where(n => n.ParentId == node.ParentId && n.Id != nodeId).ToList();
+
+                // Check for name uniqueness among siblings
+                if (siblings.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    // A sibling with this name already exists
+                    Console.WriteLine($"Classification with name '{name}' already exists at this level");
+                    return false;
+                }
+            }
+
+            // Handle thumbnail change if needed
+            if (thumbnailPath != node.Thumbnail)
+            {
+                // Copy new thumbnail to data folder if provided
+                if (thumbnailPath != null)
+                {
+                    var copiedPath = await _fileTransferService.CopyToManagedDirectoryAsync(
+                        thumbnailPath,
+                        _profilePaths.ThumbnailsDirectory,
+                        true
+                    ).ConfigureAwait(false);
+                    node.Thumbnail = copiedPath;
+                }
+                else
+                {
+                    node.Thumbnail = null;
+                }
+                // Note: Old thumbnails are not deleted here to avoid file lock issues
+                // A separate cleanup tool can be used to remove orphaned thumbnails later
+            }
+
+            // Update fields - ID remains stable
             node.Name = name;
-            // Note: Icon parameter is kept for API compatibility but not used in the current model
+            node.Description = description;
 
             var updated = await _repository.UpdateAsync(node).ConfigureAwait(false);
             if (updated)
@@ -280,8 +318,10 @@ public class ClassificationService : IClassificationService
 
             return updated;
         }
-        catch
+        catch (Exception ex)
         {
+            // Log the error for debugging
+            Console.WriteLine($"Error updating classification node: {ex.Message}");
             return false;
         }
     }
@@ -311,11 +351,11 @@ public class ClassificationService : IClassificationService
     }
 
     /// <summary>
-    /// Create a new classification node
-    /// Returns null if node already exists
+    /// Create a new classification node with auto-generated GUID
+    /// Returns null if name already exists at the same level
     /// </summary>
     public async Task<ClassificationNode?> CreateNodeAsync(
-        string nodeId,
+        string nodeId, // This parameter is deprecated - will be ignored, kept for backward compatibility
         string name,
         string? parentId = null,
         int priority = 100,
@@ -324,10 +364,24 @@ public class ClassificationService : IClassificationService
     {
         try
         {
-            // Check if node already exists
-            if (await _repository.ExistsAsync(nodeId))
+            // Generate a new GUID for the node ID (ignoring the passed nodeId parameter)
+            var generatedId = Guid.NewGuid().ToString();
+
+            // Check if name already exists at the same level (siblings must have unique names)
+            var allNodes = await _repository.GetAllAsync().ConfigureAwait(false);
+            var siblings = allNodes.Where(n => n.ParentId == parentId).ToList();
+
+            if (siblings.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
             {
-                return null; // Already exists
+                Console.WriteLine($"[ClassificationService] Node with name '{name}' already exists at this level");
+                return null; // Name conflict at same level
+            }
+
+            // Check if the generated ID already exists (extremely unlikely with GUIDs)
+            if (await _repository.ExistsAsync(generatedId))
+            {
+                // Try again with a new GUID (this should almost never happen)
+                generatedId = Guid.NewGuid().ToString();
             }
 
             // Copy thumbnail to data folder if provided
@@ -351,7 +405,7 @@ public class ClassificationService : IClassificationService
 
             var node = new ClassificationNode
             {
-                Id = nodeId,
+                Id = generatedId, // Use the generated GUID
                 Name = name,
                 ParentId = parentId,
                 Thumbnail = relativeThumbnailPath,
@@ -418,13 +472,9 @@ public class ClassificationService : IClassificationService
 
     /// <summary>
     /// Recursively delete a node and all its children
-    /// Thumbnails are deleted BEFORE node deletion to catch file lock errors
     /// </summary>
     private async Task DeleteNodeAndChildrenRecursiveAsync(string nodeId)
     {
-        // Get the node to check for thumbnail
-        var node = await _repository.GetByIdAsync(nodeId).ConfigureAwait(false);
-
         // Get all children
         var children = await _repository.GetChildrenAsync(nodeId).ConfigureAwait(false);
 
@@ -434,17 +484,17 @@ public class ClassificationService : IClassificationService
             await DeleteNodeAndChildrenRecursiveAsync(child.Id).ConfigureAwait(false);
         }
 
-        // IMPORTANT: Delete thumbnail BEFORE deleting the node
-        // This allows us to catch file lock errors and stop the deletion
-        if (node?.Thumbnail != null)
-        {
-            await CleanupThumbnailIfUnusedAsync(node.Thumbnail).ConfigureAwait(false);
-        }
-
-        // Delete the node itself (only after thumbnail is successfully deleted)
+        // Delete the node itself
         await _repository.DeleteAsync(nodeId).ConfigureAwait(false);
+
+        // Note: Thumbnails are not deleted here to avoid file lock issues
+        // A separate cleanup tool can be used to remove orphaned thumbnails later
     }
 
+    // NOTE: Thumbnail cleanup has been temporarily disabled to avoid file lock issues
+    // A comprehensive cleanup tool should be created later for orphaned thumbnails
+
+    /* Commented out for now - will be replaced with a dedicated cleanup tool
     /// <summary>
     /// Delete thumbnail file if no other classification nodes are using it
     /// and it's in our data folder
@@ -495,6 +545,7 @@ public class ClassificationService : IClassificationService
             }
         }
     }
+    */
 
     /// <summary>
     /// Calculate mod counts for all nodes recursively

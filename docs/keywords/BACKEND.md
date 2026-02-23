@@ -176,6 +176,7 @@
   - Constructor (DI) → `:69-88`
   - RouteMessageAsync → `:93-124` (IPC message routing)
   - GetAllModsAsync → `:128-132`
+  - PopulateCategoryNamesBulkAsync → `:956-996` (Maps classification IDs to names)
   - LoadModAsync → `:140-149`
   - UnloadModAsync → `:151-160`
   - ImportModAsync → `:167-177`
