@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useSlideInScreenContext } from '../context/SlideInScreenContext';
+import { useCurrentSlideInScreenId } from '../components/common/SlideInScreen';
 
 interface SlideInDialogOptions {
   visible: boolean;
@@ -12,6 +13,11 @@ interface SlideInDialogOptions {
 /**
  * Hook to manage dialog-to-slideIn screen migration
  * Provides a bridge between old visible prop pattern and new slide-in system
+ *
+ * Level tracking:
+ * - Level is automatically determined based on current screen stack depth
+ * - Child screens (screens opened from within other screens) get higher levels
+ * - Same-level screens automatically close when a new one opens
  */
 export function useSlideInScreen({
   visible,
@@ -21,23 +27,24 @@ export function useSlideInScreen({
   onClose,
 }: SlideInDialogOptions) {
   const { openScreen, closeScreen } = useSlideInScreenContext();
+  const parentScreenId = useCurrentSlideInScreenId();
   const screenIdRef = useRef<string>(undefined);
 
   useEffect(() => {
     if (visible && !screenIdRef.current) {
-      // Open screen
+      // Open screen with parent ID (if called from within another screen)
       screenIdRef.current = openScreen({
         title,
         width,
         content,
         onClose,
-      });
+      }, parentScreenId);
     } else if (!visible && screenIdRef.current) {
       // Close screen
       closeScreen(screenIdRef.current);
       screenIdRef.current = undefined;
     }
-  }, [visible, title, content, width, openScreen, closeScreen, onClose]);
+  }, [visible, title, content, width, openScreen, closeScreen, onClose, parentScreenId]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -1,8 +1,15 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, createContext, useContext } from 'react';
 import { CloseOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 import { useSlideInScreenContext } from '../../context/SlideInScreenContext';
 import './SlideInScreen.css';
+
+// Context to track which screen we're currently inside
+const CurrentSlideInScreenContext = createContext<string | undefined>(undefined);
+
+export function useCurrentSlideInScreenId(): string | undefined {
+  return useContext(CurrentSlideInScreenContext);
+}
 
 export interface SlideInScreenProps {
   id: string;
@@ -78,7 +85,9 @@ export function SlideInScreen({
 
         {/* Content */}
         <div className="slide-in-screen-content">
-          {children}
+          <CurrentSlideInScreenContext.Provider value={id}>
+            {children}
+          </CurrentSlideInScreenContext.Provider>
         </div>
       </div>
     </div>
@@ -98,13 +107,13 @@ export function SlideInScreenManager() {
 
   return (
     <div className="slide-in-screen-manager">
-      {screens.map((screen, index) => (
+      {screens.map((screen) => (
         <SlideInScreen
           key={screen.id}
           id={screen.id}
           title={screen.title}
           width={screen.width}
-          level={index + 1}
+          level={screen.level}
           onClose={() => closeScreen(screen.id)}
           isClosing={screen.isClosing}
         >

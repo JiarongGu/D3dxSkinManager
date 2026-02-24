@@ -8,14 +8,18 @@ export interface SlideInScreenConfig {
   width?: string;
   onClose?: () => void;
   isClosing?: boolean;
+  level: number;
+  parentId?: string;
 }
 
 interface SlideInScreenContextValue {
   screens: SlideInScreenConfig[];
-  openScreen: (config: Omit<SlideInScreenConfig, 'id'>) => string;
+  openScreen: (config: Omit<SlideInScreenConfig, 'id' | 'level' | 'parentId'>, parentId?: string) => string;
   closeScreen: (id: string) => void;
   closeTopScreen: () => void;
   closeAllScreens: () => void;
+  getCurrentLevel: () => number;
+  currentScreenId?: string;
 }
 
 const SlideInScreenContext = createContext<SlideInScreenContextValue | undefined>(undefined);
@@ -29,17 +33,66 @@ interface SlideInScreenProviderProps {
  */
 export function SlideInScreenProvider({ children }: SlideInScreenProviderProps) {
   const [screens, setScreens] = useState<SlideInScreenConfig[]>([]);
+  const [currentScreenId, setCurrentScreenId] = useState<string | undefined>(undefined);
 
-  const openScreen = useCallback((config: Omit<SlideInScreenConfig, 'id'>) => {
+  const getCurrentLevel = useCallback(() => {
+    if (!currentScreenId) return 0;
+    const currentScreen = screens.find(s => s.id === currentScreenId);
+    return currentScreen?.level ?? 0;
+  }, [screens, currentScreenId]);
+
+  const openScreen = useCallback((config: Omit<SlideInScreenConfig, 'id' | 'level' | 'parentId'>, parentId?: string) => {
     const id = uuidv4();
+
+    // Calculate level based on parent
+    let level = 1;
+    if (parentId) {
+      const parent = screens.find(s => s.id === parentId);
+      level = parent ? parent.level + 1 : 1;
+    }
+
+    // Close other screens at the same level (siblings)
+    const screensToClose = screens.filter(s => s.level === level && !s.isClosing);
+
+    // Use a single state update to mark all screens as closing
+    if (screensToClose.length > 0) {
+      setScreens(prev =>
+        prev.map(screen =>
+          screensToClose.some(s => s.id === screen.id)
+            ? { ...screen, isClosing: true }
+            : screen
+        )
+      );
+
+      // Remove screens after animation and call their onClose callbacks
+      setTimeout(() => {
+        setScreens(prev => {
+          const removedScreens = prev.filter(screen =>
+            screensToClose.some(s => s.id === screen.id)
+          );
+
+          // Call onClose for each removed screen
+          removedScreens.forEach(screen => {
+            if (screen.onClose) {
+              setTimeout(() => screen.onClose?.(), 0);
+            }
+          });
+
+          return prev.filter(screen => !screensToClose.some(s => s.id === screen.id));
+        });
+      }, 200); // Match animation duration
+    }
+
     const newScreen: SlideInScreenConfig = {
       ...config,
       id,
+      level,
+      parentId,
     };
 
     setScreens(prev => [...prev, newScreen]);
     return id;
-  }, []);
+  }, [screens]);
 
   const closeScreen = useCallback((id: string) => {
     // Mark screen as closing, which triggers animation
@@ -90,6 +143,8 @@ export function SlideInScreenProvider({ children }: SlideInScreenProviderProps) 
         closeScreen,
         closeTopScreen,
         closeAllScreens,
+        getCurrentLevel,
+        currentScreenId,
       }}
     >
       {children}

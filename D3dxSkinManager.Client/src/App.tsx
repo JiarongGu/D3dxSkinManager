@@ -50,7 +50,13 @@ const AppContent: React.FC = () => {
   const { currentOperation, activeOperations } = operationState;
 
   // Get slide-in screen controls
-  const { openScreen, closeScreen } = useSlideInScreenContext();
+  const { openScreen, closeScreen, closeAllScreens } = useSlideInScreenContext();
+
+  // Handle tab change - close all slide-in screens
+  const handleTabChange = useCallback((tab: string) => {
+    closeAllScreens();
+    setSelectedTab(tab);
+  }, [closeAllScreens]);
 
   // Derive progress from current operation
   const operationProgress = currentOperation?.percentComplete || 0;
@@ -107,7 +113,7 @@ const AppContent: React.FC = () => {
     <AnnotationProvider initialLevel="all">
       <Layout className="app-main-layout">
         {/* Fixed Header with Tabs */}
-        <AppHeader selectedTab={selectedTab} onTabChange={setSelectedTab} />
+        <AppHeader selectedTab={selectedTab} onTabChange={handleTabChange} />
 
         {/* Main Content Area - Scrollable */}
         <Layout className="app-content-layout">
