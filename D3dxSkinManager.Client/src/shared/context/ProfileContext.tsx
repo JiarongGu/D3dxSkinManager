@@ -61,11 +61,9 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
     error: undefined
   });
 
-  // Log when profile changes
+  // Track when profile changes
   useEffect(() => {
-    if (state.selectedProfile) {
-      console.log('[ProfileContext] Selected profile set:', state.selectedProfile.name, state.selectedProfile.id);
-    }
+    // Profile changed
   }, [state.selectedProfile]);
 
   /**

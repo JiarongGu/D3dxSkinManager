@@ -16,7 +16,7 @@ import { ModInfo } from "../../../../shared/types/mod.types";
 import { fileDialogService } from "../../../../shared/services/systemService";
 import { modService } from "../../services/modService";
 import { cacheService } from "../../../tools/services/cacheService";
-import { GradingTag } from "../../../../shared/components/common/GradingTag";
+import { GradingTag } from "../GradingTag";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useMods } from "../../hooks/useMods";
 import { useDelayedLoading } from "../../../../shared/hooks/useDelayedLoading";
@@ -233,7 +233,28 @@ export const ModList: React.FC<ModListProps> = ({
     },
     { type: "divider" as const },
 
-    // Group 3: File Operations
+    // Group 3: Copy Operations
+    {
+      key: "copy-sha",
+      label: t('contextMenu.copySHA'),
+      icon: <CopyOutlined />,
+      onClick: () => {
+        navigator.clipboard.writeText(mod.sha);
+        notification.success(t('mods.notifications.shaCopied'));
+      },
+    },
+    {
+      key: "copy-name",
+      label: t('contextMenu.copyName'),
+      icon: <CopyOutlined />,
+      onClick: () => {
+        navigator.clipboard.writeText(mod.name);
+        notification.success(t('mods.notifications.nameCopied'));
+      },
+    },
+    { type: "divider" as const },
+
+    // Group 4: File Operations
     {
       key: "view-original",
       label: t('contextMenu.viewOriginalFile'),
@@ -282,27 +303,6 @@ export const ModList: React.FC<ModListProps> = ({
             notification.error(t('mods.notifications.openPreviewFailed'));
           }
         }
-      },
-    },
-    { type: "divider" as const },
-
-    // Group 4: Copy Operations
-    {
-      key: "copy-sha",
-      label: t('contextMenu.copySHA'),
-      icon: <CopyOutlined />,
-      onClick: () => {
-        navigator.clipboard.writeText(mod.sha);
-        notification.success(t('mods.notifications.shaCopied'));
-      },
-    },
-    {
-      key: "copy-name",
-      label: t('contextMenu.copyName'),
-      icon: <CopyOutlined />,
-      onClick: () => {
-        navigator.clipboard.writeText(mod.name);
-        notification.success(t('mods.notifications.nameCopied'));
       },
     },
     { type: "divider" as const },

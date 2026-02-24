@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import { ProfileSwitcher } from "../../../profiles/components/ProfileSwitcher";
 import { ProfileManager } from "../../../profiles/components/ProfileManager";
-import { useSlideInScreen } from "../../../../shared/context/SlideInScreenContext";
+import { useSlideInScreenContext } from "../../../../shared/context/SlideInScreenContext";
 import { useTranslation } from "react-i18next";
 import "./AppHeader.css";
 
@@ -30,7 +30,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   selectedTab,
   onTabChange,
 }) => {
-  const { openScreen } = useSlideInScreen();
+  const { openScreen } = useSlideInScreenContext();
   const { t } = useTranslation();
 
   const tabs: TabItem[] = [

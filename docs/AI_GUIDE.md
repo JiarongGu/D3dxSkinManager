@@ -445,6 +445,63 @@ _progressReporter.CompleteOperation(operationId, "Mod loaded successfully");
 <Modal visible={visible}>  // Old prop name
 ```
 
+### Slide-In Screen Pattern (CRITICAL)
+
+**IMPORTANT:** `useSlideInScreen` captures the `content` prop only once when the screen opens. It does NOT update the content when props change!
+
+```typescript
+// ❌ WRONG: Content won't update when selectedTags changes
+export const ModEditScreen: React.FC = () => {
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  const formContent = (
+    <Form>
+      <TagsSection tags={selectedTags} />  // This won't update!
+    </Form>
+  );
+
+  useSlideInScreen({
+    visible,
+    content: formContent,  // Captured once, never updates
+  });
+};
+
+// ✅ CORRECT: Create a self-contained component that manages its own state
+const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
+  // All state lives HERE
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // Initialize from mod prop (acceptable - used only once on mount)
+  useEffect(() => {
+    if (mod) {
+      setSelectedTags(mod.tags || []);
+    }
+  }, [mod]);
+
+  return (
+    <Form>
+      <TagsSection tags={selectedTags} />  // Updates correctly!
+    </Form>
+  );
+};
+
+export const ModEditScreen: React.FC = () => {
+  const mod = useModsStore(s => s.modToEdit);
+
+  useSlideInScreen({
+    visible,
+    content: <ModEditFormContent mod={mod} />,  // Component re-renders on state changes
+  });
+};
+```
+
+**Key Rules:**
+1. **NEVER** pass props to content that need to update during the screen's lifetime
+2. **ALWAYS** create a separate component that subscribes to the store or manages state internally
+3. The content component should be **fully self-contained** - manage state internally
+4. **OK to pass initial values** as props (e.g., `mod` for form initialization) - these won't change during screen lifetime
+5. Use Zustand store subscriptions inside the content component for reactive updates on changing data
+
 ---
 
 ## 📊 RAG Retrieval Strategy

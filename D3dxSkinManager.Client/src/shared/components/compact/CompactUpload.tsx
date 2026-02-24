@@ -86,7 +86,6 @@ export const CompactUpload: React.FC<CompactUploadProps> = ({
         const entry = (item as any).webkitGetAsEntry();
         if (entry) {
           filePath = entry.fullPath;
-          console.log('[CompactUpload] webkitGetAsEntry fullPath:', filePath);
         }
       }
 
@@ -97,20 +96,6 @@ export const CompactUpload: React.FC<CompactUploadProps> = ({
         // Also check for electron-style file.path
         const electronPath = (file as any).path;
 
-        console.log('[CompactUpload] File dropped:', {
-          fileName: file.name,
-          webkitFullPath: filePath,
-          electronPath: electronPath,
-          fileSize: file.size,
-          fileType: file.type,
-          // Check all possible path properties
-          allProperties: Object.keys(file),
-          // Try to get the internal file path if available
-          webkitRelativePath: (file as any).webkitRelativePath,
-          // Log the entire file object
-          fileObject: file
-        });
-
         // Pass both file and path (if available)
         onDrop(file, filePath || electronPath);
       }
@@ -118,13 +103,6 @@ export const CompactUpload: React.FC<CompactUploadProps> = ({
       // Fallback to files array
       const file = e.dataTransfer.files[0];
       const electronPath = (file as any).path;
-
-      console.log('[CompactUpload] File dropped (fallback):', {
-        fileName: file.name,
-        electronPath: electronPath,
-        fileSize: file.size,
-        fileType: file.type
-      });
 
       onDrop(file, electronPath);
     }

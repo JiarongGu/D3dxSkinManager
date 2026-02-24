@@ -40,8 +40,6 @@ export const usePluginSystem = () => {
     setPluginCount(pluginRegistry.getPluginCount());
     setInitialized(true);
 
-    console.log('[Plugin System] Initialized');
-
     // Cleanup
     return () => {
       const plugins = pluginRegistry.getAllPlugins();

@@ -21,7 +21,7 @@ interface FormDialogProps {
   onCancel: () => void;
   width?: number;
   footer?: React.ReactNode;
-  destroyOnClose?: boolean;
+  destroyOnHidden?: boolean;
 }
 
 export const FormDialog: React.FC<FormDialogProps> = ({
@@ -34,7 +34,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   onCancel,
   width = 520,
   footer,
-  destroyOnClose = false,
+  destroyOnHidden = false,
 }) => {
   const { loading, execute, reset } = useDelayedLoading(50);
 
@@ -95,7 +95,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
       }
       footer={modalFooter}
       width={width}
-      destroyOnClose={destroyOnClose}
+      destroyOnHidden={destroyOnHidden}
     >
       <div className="form-dialog-content">
         {children}

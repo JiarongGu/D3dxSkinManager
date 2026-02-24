@@ -240,7 +240,7 @@
     "contextMenu.copySHA": "Copy SHA",
     "contextMenu.deleteCachedMod": "Delete Cached Mod",
     "contextMenu.deleteMod": "Delete Mod",
-    "contextMenu.editModInfo": "Edit Mod Information",
+    "contextMenu.editModInfo": "Edit Mod Info",
     "contextMenu.exportMod": "Export Mod File",
     "contextMenu.loadMod": "Load Mod",
     "contextMenu.openPreviewFolder": "Open Preview Folder",

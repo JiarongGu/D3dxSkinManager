@@ -273,7 +273,7 @@ public class StartupValidationService : IStartupValidationService
 
         try
         {
-            var dbPath = _profilePathService.ModDatabasePath;
+            var dbPath = _profilePathService.ProfileDatabasePath;
 
             // Check if database directory is writable
             var dbDirectory = Path.GetDirectoryName(dbPath);

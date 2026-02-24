@@ -44,35 +44,12 @@ public class ClassificationRepository : IClassificationRepository
 
     public ClassificationRepository(IProfilePathService profilePaths)
     {
-        var dbPath = profilePaths.ClassificationsDatabasePath;
-        _connectionString = $"Data Source={dbPath}";
-        _init = new Lazy<Task>(InitializeDatabaseAsync, isThreadSafe: true);
+        _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
+        // No initialization needed - ModRepository creates the schema
+        _init = new Lazy<Task>(() => Task.CompletedTask, isThreadSafe: true);
     }
 
     private Task EnsureInitializedAsync() => _init.Value;
-
-    private async Task InitializeDatabaseAsync()
-    {
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var createTableCmd = connection.CreateCommand();
-        createTableCmd.CommandText = @"
-            CREATE TABLE IF NOT EXISTS Classifications (
-                Id TEXT PRIMARY KEY,
-                Name TEXT NOT NULL UNIQUE COLLATE NOCASE,
-                ParentId TEXT NULL,
-                ThumbnailPath TEXT NULL,
-                Priority INTEGER DEFAULT 0,
-                Description TEXT NULL,
-                Metadata TEXT NULL,
-                FOREIGN KEY (ParentId) REFERENCES Classifications(Id) ON DELETE CASCADE
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_classifications_parent ON Classifications(ParentId);
-        ";
-        await createTableCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-    }
 
     public async Task<List<ClassificationNode>> GetAllAsync()
     {

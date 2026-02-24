@@ -36,7 +36,7 @@ public class ModRepository : IModRepository
 
     public ModRepository(IProfilePathService profilePaths)
     {
-        _connectionString = $"Data Source={profilePaths.ModDatabasePath}";
+        _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
         _init = new Lazy<Task>(InitializeDatabaseAsync, isThreadSafe: true);
     }
 
@@ -47,8 +47,32 @@ public class ModRepository : IModRepository
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
-        var createTableCmd = connection.CreateCommand();
-        createTableCmd.CommandText = @"
+        // Enable foreign keys
+        var pragmaCmd = connection.CreateCommand();
+        pragmaCmd.CommandText = "PRAGMA foreign_keys = ON;";
+        await pragmaCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+        // Create Classifications table first (referenced by Mods)
+        var createClassificationsCmd = connection.CreateCommand();
+        createClassificationsCmd.CommandText = @"
+            CREATE TABLE IF NOT EXISTS Classifications (
+                Id TEXT PRIMARY KEY,
+                Name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                ParentId TEXT NULL,
+                ThumbnailPath TEXT NULL,
+                Priority INTEGER DEFAULT 0,
+                Description TEXT NULL,
+                Metadata TEXT NULL,
+                FOREIGN KEY (ParentId) REFERENCES Classifications(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_classifications_parent ON Classifications(ParentId);
+        ";
+        await createClassificationsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+        // Create Mods table with foreign key to Classifications
+        var createModsCmd = connection.CreateCommand();
+        createModsCmd.CommandText = @"
             CREATE TABLE IF NOT EXISTS Mods (
                 SHA TEXT PRIMARY KEY,
                 Category TEXT NOT NULL,
@@ -59,13 +83,14 @@ public class ModRepository : IModRepository
                 Grading TEXT DEFAULT 'G',
                 Tags TEXT,
                 CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-                UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+                UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (Category) REFERENCES Classifications(Id) ON DELETE RESTRICT
             );
 
-            CREATE INDEX IF NOT EXISTS idx_category ON Mods(Category);
-            CREATE INDEX IF NOT EXISTS idx_author ON Mods(Author);
+            CREATE INDEX IF NOT EXISTS idx_mods_category ON Mods(Category);
+            CREATE INDEX IF NOT EXISTS idx_mods_author ON Mods(Author);
         ";
-        await createTableCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+        await createModsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
 
     public async Task<List<ModInfo>> GetAllAsync()

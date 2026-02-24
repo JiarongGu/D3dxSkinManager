@@ -28,14 +28,12 @@ export const GameLaunchTab: React.FC = () => {
     const loadConfig = async () => {
       // Only load if we have a selected profile
       if (!profileState.selectedProfile) {
-        console.log('[GameLaunchTab] No profile selected, skipping config load');
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
-        console.log('[GameLaunchTab] Loading config for profile:', profileState.selectedProfile.name);
         const config = await getActiveProfileConfig(profileState.selectedProfile.id);
         if (config) {
           form.setFieldsValue({

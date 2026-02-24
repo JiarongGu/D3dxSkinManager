@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Form } from 'antd';
+import { Form, Space } from 'antd';
+import { TagsOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { MultiTagInput } from '../../../../shared/components/common/MultiTagInput';
-import { ModTagSelectorDialog } from './ModTagSelectorDialog';
+import { MultiTagInput } from '../MultiTagInput';
+import { TagSelectorDialog } from '../TagSelectorDialog';
+import { CompactButton } from '../../../../shared/components/compact/CompactButton';
 
 export interface TagsSectionProps {
   tags: string[];
@@ -12,7 +14,7 @@ export interface TagsSectionProps {
 
 /**
  * Tags section for mod editing
- * Includes multi-tag input with autocomplete and full tag selector dialog
+ * Uses inline MultiTagInput with autocomplete and full tag selector dialog
  */
 export const TagsSection: React.FC<TagsSectionProps> = ({
   tags,
@@ -21,6 +23,10 @@ export const TagsSection: React.FC<TagsSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const [tagSelectorVisible, setTagSelectorVisible] = useState(false);
+
+  const handleTagsChange = (newTags: string[]) => {
+    onTagsChange(newTags);
+  };
 
   const handleOpenTagSelector = () => {
     setTagSelectorVisible(true);
@@ -41,16 +47,22 @@ export const TagsSection: React.FC<TagsSectionProps> = ({
         label={t('mods.edit.tags')}
         tooltip={t('mods.edit.tagsTooltip')}
       >
-        <MultiTagInput
-          value={tags}
-          onChange={onTagsChange}
-          availableTags={availableTags}
-          onOpenTagSelector={handleOpenTagSelector}
-          placeholder={t('mods.edit.tagsPlaceholder')}
-        />
+        <Space.Compact style={{ width: '100%' }}>
+          <MultiTagInput
+            value={tags}
+            onChange={handleTagsChange}
+            availableTags={availableTags}
+            placeholder={t('mods.edit.tagsPlaceholder')}
+          />
+          <CompactButton
+            icon={<TagsOutlined />}
+            onClick={handleOpenTagSelector}
+            title="Open tag selector"
+          />
+        </Space.Compact>
       </Form.Item>
 
-      <ModTagSelectorDialog
+      <TagSelectorDialog
         visible={tagSelectorVisible}
         availableTags={availableTags}
         selectedTags={tags}

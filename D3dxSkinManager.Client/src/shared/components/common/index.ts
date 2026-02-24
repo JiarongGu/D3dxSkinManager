@@ -8,8 +8,8 @@
 export { ContextMenu } from '../menu/ContextMenu';
 export type { ContextMenuItem, ContextMenuProps } from '../menu/ContextMenu';
 
-export { GradingTag } from './GradingTag';
-export type { GradingTagProps } from './GradingTag';
+export { GradingTag } from '../../../modules/mods/components/GradingTag';
+export type { GradingTagProps } from '../../../modules/mods/components/GradingTag';
 
 export { StatusIcon } from './StatusIcon';
 export type { StatusIconProps } from './StatusIcon';
@@ -19,9 +19,6 @@ export type { AnnotationLevel, TooltipLevel } from './TooltipSystem';
 
 export { SlideInScreen } from './SlideInScreen';
 export type { SlideInScreenProps } from './SlideInScreen';
-
-export { MultiTagInput } from './MultiTagInput';
-export type { MultiTagInputProps } from './MultiTagInput';
 
 export { CloseButton } from './CloseButton';
 export type { CloseButtonProps } from './CloseButton';

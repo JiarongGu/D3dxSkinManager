@@ -1,10 +1,11 @@
 import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Space, Divider, Alert,  AutoComplete } from 'antd';
+import { TagsOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { modService } from '../../services/modService';
-import { MultiTagInput } from '../../../../shared/components/common/MultiTagInput';
-import { ModTagSelectorDialog } from '../ModEditScreen/ModTagSelectorDialog';
+import { MultiTagInput } from '../MultiTagInput';
+import { TagSelectorDialog } from '../TagSelectorDialog';
 import { CompactButton } from '../../../../shared/components/compact/CompactButton';
 import { FieldRow } from './FieldRow';
 import { useProfile } from '../../../../shared/context/ProfileContext';
@@ -302,13 +303,19 @@ export const BatchEditDialog: React.FC = () => {
               label={t('addMod.tags')}
               className="batch-edit-dialog-field"
             >
-              <MultiTagInput
-                value={selectedTags}
-                onChange={setSelectedTags}
-                availableTags={availableTags}
-                onOpenTagSelector={handleOpenTagSelector}
-                placeholder={t('batchEditMods.tagsPlaceholder')}
-              />
+              <Space.Compact style={{ width: '100%' }}>
+                <MultiTagInput
+                  value={selectedTags}
+                  onChange={setSelectedTags}
+                  availableTags={availableTags}
+                  placeholder={t('batchEditMods.tagsPlaceholder')}
+                />
+                <CompactButton
+                  icon={<TagsOutlined />}
+                  onClick={handleOpenTagSelector}
+                  title="Open tag selector"
+                />
+              </Space.Compact>
             </Form.Item>
           </FieldRow>
 
@@ -326,7 +333,7 @@ export const BatchEditDialog: React.FC = () => {
       </Space>
 
       {/* Tag Selector Dialog */}
-      <ModTagSelectorDialog
+      <TagSelectorDialog
         visible={tagSelectorVisible}
         availableTags={availableTags}
         selectedTags={selectedTags}

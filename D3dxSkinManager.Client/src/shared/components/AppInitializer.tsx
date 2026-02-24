@@ -6,8 +6,6 @@ import {
   GlobalSettings,
 } from "../../modules/settings/services/settingsService";
 import { useProfile } from "../context/ProfileContext";
-import { systemService } from "../services/systemService";
-import { bridgeService } from "../services/bridgeService";
 import { useTranslation } from 'react-i18next';
 import './AppInitializer.css';
 
@@ -81,7 +79,6 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
 
   const loadGlobalSettings = async () => {
     try {
-      console.log("[AppInitializer] Loading global settings...");
       // Load global settings - no profileId needed
       const settings = await settingsService.getGlobalSettings();
 
@@ -89,8 +86,6 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
         ...prev,
         globalSettings: settings,
       }));
-
-      console.log("[AppInitializer] Global settings loaded");
     } catch (error) {
       console.error("[AppInitializer] Failed to load global settings:", error);
       setState((prev) => ({
@@ -103,28 +98,13 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
 
   const selectInitialProfile = async () => {
     try {
-      console.log(
-        "[AppInitializer] Selecting initial profile from",
-        profiles.length,
-        "profiles",
-      );
-
       // Try to find the first profile or default profile
       let profileToSelect = profiles.find((p) => p.isActive) || profiles[0];
 
       if (profileToSelect) {
-        console.log(
-          "[AppInitializer] Found profile to select:",
-          profileToSelect.name,
-          profileToSelect.id,
-        );
         await actions.selectProfile(profileToSelect.id);
-        console.log("[AppInitializer] Profile selected successfully");
       } else {
         // No profiles exist - need to create one
-        console.log(
-          "[AppInitializer] No profiles found, showing create dialog",
-        );
         setState((prev) => ({
           ...prev,
           stage: "selecting-profile",
@@ -145,11 +125,8 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
 
   const handleProfileCreate = async (name: string, description?: string) => {
     try {
-      console.log("[AppInitializer] Creating new profile:", name);
       const profile = await actions.createProfile(name, description);
-      console.log("[AppInitializer] Profile created:", profile.id);
       await actions.selectProfile(profile.id);
-      console.log("[AppInitializer] New profile selected");
       setState((prev) => ({ ...prev, stage: "ready" }));
     } catch (error) {
       console.error("[AppInitializer] Failed to create profile:", error);

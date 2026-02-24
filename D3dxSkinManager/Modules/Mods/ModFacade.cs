@@ -45,6 +45,14 @@ public interface IModFacade : IModuleFacade
     // Classification Operations
     Task<List<ClassificationNode>> GetClassificationTreeAsync();
     Task<bool> RefreshClassificationTreeAsync();
+
+    // Tag Management Operations
+    Task<List<string>> SearchTagsAsync(string searchTerm);
+    Task<bool> AddTagToModAsync(string sha, string tag);
+    Task<bool> RemoveTagFromModAsync(string sha, string tag);
+    Task<int> RenameTagGloballyAsync(string oldTag, string newTag);
+    Task<int> DeleteTagGloballyAsync(string tag);
+    Task<int> GetTagUsageCountAsync(string tag);
 }
 
 /// <summary>
@@ -61,6 +69,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModImportService _importService;
     private readonly IModQueryService _queryService;
     private readonly IClassificationService _classificationService;
+    private readonly ITagRepository _tagRepository;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitter _eventEmitter;
     private readonly IImageService _imageService;
@@ -73,6 +82,7 @@ public class ModFacade : BaseFacade, IModFacade
         IModImportService importService,
         IModQueryService queryService,
         IClassificationService classificationService,
+        ITagRepository tagRepository,
         IPayloadHelper payloadHelper,
         IEventEmitter eventEmitter,
         IImageService imageService,
@@ -85,6 +95,7 @@ public class ModFacade : BaseFacade, IModFacade
         _importService = importService;
         _queryService = queryService;
         _classificationService = classificationService;
+        _tagRepository = tagRepository;
         _payloadHelper = payloadHelper;
         _eventEmitter = eventEmitter;
         _imageService = imageService;
@@ -131,6 +142,12 @@ public class ModFacade : BaseFacade, IModFacade
             "CHECK_CLASSIFICATION_NODE_EXISTS" => await CheckClassificationNodeExistsAsync(request),
             "CHECK_CLASSIFICATION_NAME_EXISTS" => await CheckClassificationNameExistsAsync(request),
             "CHECK_FILE_PATHS" => await CheckFilePathsAsync(request),
+            "SEARCH_TAGS" => await SearchTagsAsync(request),
+            "ADD_TAG_TO_MOD" => await AddTagToModAsync(request),
+            "REMOVE_TAG_FROM_MOD" => await RemoveTagFromModAsync(request),
+            "RENAME_TAG_GLOBALLY" => await RenameTagGloballyAsync(request),
+            "DELETE_TAG_GLOBALLY" => await DeleteTagGloballyAsync(request),
+            "GET_TAG_USAGE_COUNT" => await GetTagUsageCountAsync(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -1045,5 +1062,96 @@ public class ModFacade : BaseFacade, IModFacade
                 BuildNodeMap(node.Children, nodeMap);
             }
         }
+    }
+
+    // ============= Tag Management Methods =============
+
+    public async Task<List<string>> SearchTagsAsync(string searchTerm)
+    {
+        return await _tagRepository.SearchTagsAsync(searchTerm);
+    }
+
+    private async Task<List<string>> SearchTagsAsync(IpcRequest request)
+    {
+        var searchTerm = _payloadHelper.GetOptionalValue<string>(request.Payload, "searchTerm") ?? string.Empty;
+        return await SearchTagsAsync(searchTerm);
+    }
+
+    public async Task<bool> AddTagToModAsync(string sha, string tag)
+    {
+        return await _tagRepository.AddTagToModAsync(sha, tag);
+    }
+
+    private async Task<bool> AddTagToModAsync(IpcRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var tag = _payloadHelper.GetRequiredValue<string>(request.Payload, "tag");
+
+        if (string.IsNullOrEmpty(sha) || string.IsNullOrEmpty(tag))
+            throw new ArgumentException("SHA and tag are required");
+
+        return await AddTagToModAsync(sha, tag);
+    }
+
+    public async Task<bool> RemoveTagFromModAsync(string sha, string tag)
+    {
+        return await _tagRepository.RemoveTagFromModAsync(sha, tag);
+    }
+
+    private async Task<bool> RemoveTagFromModAsync(IpcRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var tag = _payloadHelper.GetRequiredValue<string>(request.Payload, "tag");
+
+        if (string.IsNullOrEmpty(sha) || string.IsNullOrEmpty(tag))
+            throw new ArgumentException("SHA and tag are required");
+
+        return await RemoveTagFromModAsync(sha, tag);
+    }
+
+    public async Task<int> RenameTagGloballyAsync(string oldTag, string newTag)
+    {
+        return await _tagRepository.RenameTagGloballyAsync(oldTag, newTag);
+    }
+
+    private async Task<int> RenameTagGloballyAsync(IpcRequest request)
+    {
+        var oldTag = _payloadHelper.GetRequiredValue<string>(request.Payload, "oldTag");
+        var newTag = _payloadHelper.GetRequiredValue<string>(request.Payload, "newTag");
+
+        if (string.IsNullOrEmpty(oldTag) || string.IsNullOrEmpty(newTag))
+            throw new ArgumentException("Old tag and new tag are required");
+
+        return await RenameTagGloballyAsync(oldTag, newTag);
+    }
+
+    public async Task<int> DeleteTagGloballyAsync(string tag)
+    {
+        return await _tagRepository.DeleteTagGloballyAsync(tag);
+    }
+
+    private async Task<int> DeleteTagGloballyAsync(IpcRequest request)
+    {
+        var tag = _payloadHelper.GetRequiredValue<string>(request.Payload, "tag");
+
+        if (string.IsNullOrEmpty(tag))
+            throw new ArgumentException("Tag is required");
+
+        return await DeleteTagGloballyAsync(tag);
+    }
+
+    public async Task<int> GetTagUsageCountAsync(string tag)
+    {
+        return await _tagRepository.GetTagUsageCountAsync(tag);
+    }
+
+    private async Task<int> GetTagUsageCountAsync(IpcRequest request)
+    {
+        var tag = _payloadHelper.GetRequiredValue<string>(request.Payload, "tag");
+
+        if (string.IsNullOrEmpty(tag))
+            throw new ArgumentException("Tag is required");
+
+        return await GetTagUsageCountAsync(tag);
     }
 }

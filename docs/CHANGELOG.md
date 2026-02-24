@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-02-25 - ModEditScreen Form Initialization and Dropdown Styling ⭐⭐
+Fixed form not populating with initial values when editing mods and improved tag dropdown styling.
+**Impact**: ✅ Form fields now properly initialize with mod values, tag dropdown has better dark theme appearance
+**Changes**:
+- ModEditFormContent now accepts `mod` as prop for initialization (follows `undefined` convention, not `null`)
+- Simplified initialization logic - triggers when `mod` prop is available
+- Removed unnecessary `useStableRef` usage
+- Enhanced MultiTagInput dropdown: darker background, subtle selection highlight, 1px gaps between items
+- Removed debug console.log statements
+**Pattern**: useSlideInScreen captures content once - pass initial values as props, manage changing state internally
+**Files**: ModEditScreen.tsx, TagsSection.tsx, MultiTagInput.css
+**Docs**: Updated AI_GUIDE.md Slide-In Screen Pattern section with clarification on passing initial value props
+
 ### Fixed - 2026-02-24 - Classification-Filtered Mod List Refresh After Deletion ⭐⭐⭐
 Fixed mod list not refreshing properly when deleting a mod while viewing a classification. Now refreshes both the main mod list and the classification-filtered mods list.
 **Impact**: ✅ Deleted mods immediately disappear from both lists, UI stays in sync with backend state

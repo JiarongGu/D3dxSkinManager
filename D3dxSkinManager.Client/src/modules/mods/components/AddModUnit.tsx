@@ -1,12 +1,13 @@
 import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Button, Space, Card, Image } from 'antd';
-import { TagsOutlined, FolderOutlined, FileZipOutlined } from '@ant-design/icons';
+import { FolderOutlined, FileZipOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { ImportTask } from './AddModWindow';
 import { useTranslation } from 'react-i18next';
 import { useModsStore } from '../store/modsStore';
 import { useMods } from '../hooks/useMods';
+import { MultiTagInput } from './MultiTagInput';
 import './AddModUnit.css';
 
 const { TextArea } = Input;
@@ -25,9 +26,10 @@ export const AddModUnit: React.FC = () => {
   // Subscribe to state this component needs
   const visible = useModsStore(s => s.addModUnitVisible);
   const task = useModsStore(s => s.currentEditTask);
+  const availableTags = useModsStore(s => s.availableTags);
 
   // Get operations
-  const { saveAddModUnit, closeAddModUnit, openTagDialog } = useMods();
+  const { saveAddModUnit, closeAddModUnit } = useMods();
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -81,11 +83,7 @@ export const AddModUnit: React.FC = () => {
     }
   };
 
-  const handleOpenTagSelector = () => {
-    openTagDialog('import', selectedTags, task);
-  };
-
-  // Update tags from parent (called by TagSelectDialog)
+  // Update tags when they change from the store
   useEffect(() => {
     if (visible && task && task.modData.tags) {
       setSelectedTags(task.modData.tags);
@@ -215,22 +213,12 @@ export const AddModUnit: React.FC = () => {
             label={t('addMod.tags')}
             tooltip={t('addMod.tagsTooltip')}
           >
-            <Space orientation="vertical" className="add-mod-unit-tags-container">
-              <Button
-                icon={<TagsOutlined />}
-                onClick={handleOpenTagSelector}
-                block
-              >
-                {selectedTags.length > 0
-                  ? t('addMod.selectedTags', { tags: selectedTags.join(', ') })
-                  : t('addMod.selectTags')}
-              </Button>
-              {selectedTags.length > 0 && (
-                <div className="add-mod-unit-tags-count">
-                  {t('addMod.tagsCount', { count: selectedTags.length })}
-                </div>
-              )}
-            </Space>
+            <MultiTagInput
+              value={selectedTags}
+              onChange={setSelectedTags}
+              availableTags={availableTags}
+              placeholder={t('addMod.tagsPlaceholder')}
+            />
           </Form.Item>
         </Form>
       </Space>

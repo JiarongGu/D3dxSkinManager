@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Form, Space, Row, Col } from "antd";
 import { FolderOpenOutlined } from "@ant-design/icons";
 import { ClassificationNode } from "../../../../shared/types/classification.types";
-import { useSlideInScreen } from "../../../../shared/context/SlideInScreenContext";
+import { useSlideInScreenContext } from "../../../../shared/context/SlideInScreenContext";
 import { systemService } from "../../../../shared/services/systemService";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
 import { classificationService } from "../../../../shared/services/classificationService";
@@ -73,7 +73,7 @@ export const ClassificationScreenContent: React.FC<
   const [loading, setLoading] = useState(false);
   const [thumbnailPath, setThumbnailPath] = useState<string>();
   const [thumbnailFileName, setThumbnailFileName] = useState<string>();
-  const { closeScreen } = useSlideInScreen();
+  const { closeScreen } = useSlideInScreenContext();
   const { selectedProfileId } = useProfile();
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -85,10 +85,6 @@ export const ClassificationScreenContent: React.FC<
       if (files.length === 0) return;
 
       const filePath = files[0]; // Take first file
-      console.log(
-        "[ClassificationScreen] Drop zone file drop - real path:",
-        filePath,
-      );
 
       // Check if it's an image file
       const imageExtensions = [
@@ -110,16 +106,12 @@ export const ClassificationScreenContent: React.FC<
       setThumbnailPath(filePath);
       const fileName = filePath.split(/[\\/]/).pop() || filePath;
       setThumbnailFileName(fileName);
-
-      console.log("[ClassificationScreen] Thumbnail set to:", filePath);
     },
   });
 
   // Handle file drops from CompactUpload component (browser-level drops)
   const handleDropThumbnail = async (file: File, filePath?: string) => {
     try {
-      console.log("[ClassificationScreen] Browser file drop:", file, filePath);
-
       // Check if it's an image file
       const imageExtensions = [
         ".png",
@@ -140,7 +132,6 @@ export const ClassificationScreenContent: React.FC<
       if (filePath && filePath.length > 1) {
         setThumbnailPath(filePath);
         setThumbnailFileName(file.name);
-        console.log("[ClassificationScreen] Using webkit file path:", filePath);
         return;
       }
 
@@ -148,11 +139,6 @@ export const ClassificationScreenContent: React.FC<
       const objectUrl = URL.createObjectURL(file);
       setThumbnailPath(objectUrl);
       setThumbnailFileName(file.name);
-
-      console.log(
-        "[ClassificationScreen] Using object URL for preview:",
-        objectUrl,
-      );
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
@@ -420,7 +406,7 @@ export const ClassificationScreenContent: React.FC<
  * Hook to open classification screen
  */
 export function useClassificationScreen() {
-  const { openScreen } = useSlideInScreen();
+  const { openScreen } = useSlideInScreenContext();
   const { t } = useTranslation();
 
   const openClassificationScreen = (props: ClassificationScreenProps) => {

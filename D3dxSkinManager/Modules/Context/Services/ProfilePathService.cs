@@ -15,9 +15,9 @@ public interface IProfilePathService
     // Standard file name constants
 
     /// <summary>
-    /// Standard name for mod database file
+    /// Standard name for profile database file (consolidated mods + classifications)
     /// </summary>
-    string ModDatabaseFileName { get; }
+    string ProfileDatabaseFileName { get; }
 
     /// <summary>
     /// Standard name for profile config file
@@ -79,14 +79,10 @@ public interface IProfilePathService
     string TdMigotoDirectory { get; }
 
     /// <summary>
-    /// Mod database path (data/profiles/{profileId}/mods.db)
+    /// Profile database path (data/profiles/{profileId}/profile.db)
+    /// Contains mods, classifications, and all profile-related data
     /// </summary>
-    string ModDatabasePath { get; }
-
-    /// <summary>
-    /// Classifications database path (data/profiles/{profileId}/classifications.db)
-    /// </summary>
-    string ClassificationsDatabasePath { get; }
+    string ProfileDatabasePath { get; }
 
     /// <summary>
     /// Profile configuration file path (data/profiles/{profileId}/config.json)
@@ -150,8 +146,7 @@ public class ProfilePathService : IProfilePathService
     }
 
     // Standard file name constants
-    public string ModDatabaseFileName => "mods.db";
-    public string ClassificationsDatabaseFileName => "classifications.db";
+    public string ProfileDatabaseFileName => "profile.db";
     public string ConfigFileName => "config.json";
     public string AutoDetectionRulesFileName => "auto_detection_rules.json";
 
@@ -175,9 +170,7 @@ public class ProfilePathService : IProfilePathService
     public string TdMigotoDirectory => Path.Combine(ProfilePath, "3dmigoto");
 
     // File paths using constants
-    public string ModDatabasePath => Path.Combine(ProfilePath, ModDatabaseFileName);
-
-    public string ClassificationsDatabasePath => Path.Combine(ProfilePath, ClassificationsDatabaseFileName);
+    public string ProfileDatabasePath => Path.Combine(ProfilePath, ProfileDatabaseFileName);
 
     public string ConfigPath => Path.Combine(ProfilePath, ConfigFileName);
 

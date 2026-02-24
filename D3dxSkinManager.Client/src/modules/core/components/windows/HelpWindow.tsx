@@ -118,7 +118,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         </Paragraph>
         <ul className="help-window-list">
           <li>Load/Unload mod</li>
-          <li>Edit mod information</li>
+          <li>Edit mod info</li>
           <li>Export mod file</li>
           <li>Copy SHA or name</li>
           <li>View original/work/cache files</li>

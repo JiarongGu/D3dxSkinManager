@@ -8,7 +8,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { CompactButton, CompactSpace } from '../../../shared/components/compact';
-import { useSlideInDialog } from '../../../shared/hooks/useSlideInDialog';
+import { useSlideInScreen } from '../../../shared/hooks/useSlideInScreen';
 import {
   MigrationWizardProvider,
   useMigrationWizard,
@@ -226,7 +226,7 @@ export const MigrationWizard: React.FC<MigrationWizardProps> = ({
     </MigrationWizardProvider>
   );
 
-  useSlideInDialog({
+  useSlideInScreen({
     visible,
     title: 'Python to React Migration Wizard',
     content,

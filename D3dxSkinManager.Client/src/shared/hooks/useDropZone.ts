@@ -94,7 +94,6 @@ export function useDropZone(options: {
     // If disabled or element not in DOM, hide the zone if it was previously registered
     if (!enabled || !targetRef.current) {
       if (isRegisteredRef.current) {
-        console.log('[useDropZone] Disabled or element removed - hiding zone:', zoneId);
         bridgeService.sendMessage({
           module: 'DROP_ZONE',
           type: 'HIDE',
@@ -162,20 +161,17 @@ export function useDropZone(options: {
 
         if (!isRegisteredRef.current) {
           // Register new zone
-          console.log('[useDropZone] Registering zone:', zoneId, bounds);
           bridgeService.sendMessage({
             module: 'DROP_ZONE',
             type: 'REGISTER',
             payload: bounds
           }).then(() => {
             isRegisteredRef.current = true;
-            console.log('[useDropZone] Zone registered:', zoneId);
           }).catch(err => {
             console.error('[useDropZone] Failed to register zone:', err);
           });
         } else {
           // Update existing zone (and show it if it was hidden)
-          console.log('[useDropZone] Updating zone:', zoneId, bounds);
           bridgeService.sendMessage({
             module: 'DROP_ZONE',
             type: 'UPDATE',
@@ -248,13 +244,11 @@ export function useDropZone(options: {
     const unsubscribeDragEnter = eventBus.on(EventType.DropZoneDragEnter, (event) => {
       if (!event?.data || (event.data as any).zoneId !== zoneId) return;
       element.classList.add(classesRef.current.drop);
-      console.log('[useDropZone] Drag enter - adding class:', classesRef.current.drop);
     });
 
     const unsubscribeDragLeave = eventBus.on(EventType.DropZoneDragLeave, (event) => {
       if (!event?.data || (event.data as any).zoneId !== zoneId) return;
       element.classList.remove(classesRef.current.drop);
-      console.log('[useDropZone] Drag leave - removing class:', classesRef.current.drop);
     });
 
     return () => {
@@ -276,17 +270,13 @@ export function useDropZone(options: {
     const unsubscribeClick = eventBus.on(EventType.DropZoneClick, (event) => {
       if (!event?.data || (event.data as any).zoneId !== zoneId) return;
 
-      console.log('[useDropZone] Click event received, triggering element click');
-
       // Find the first clickable child element (role="button" or button/a tag)
       const clickableChild = element.querySelector('[role="button"], button, a');
 
       if (clickableChild instanceof HTMLElement) {
-        console.log('[useDropZone] Clicking child element:', clickableChild);
         clickableChild.click();
       } else {
         // Fallback: click the element itself
-        console.log('[useDropZone] No clickable child found, clicking element directly');
         element.click();
       }
     });
@@ -305,14 +295,12 @@ export function useDropZone(options: {
     const unsubscribeMouseEnter = eventBus.on(EventType.DropZoneMouseEnter, (event) => {
       if (!event?.data || (event.data as any).zoneId !== zoneId) return;
 
-      console.log('[useDropZone] Mouse enter event received, adding hover class:', classesRef.current.hover);
       element.classList.add(classesRef.current.hover);
     });
 
     const unsubscribeMouseLeave = eventBus.on(EventType.DropZoneMouseLeave, (event) => {
       if (!event?.data || (event.data as any).zoneId !== zoneId) return;
 
-      console.log('[useDropZone] Mouse leave event received, removing hover class:', classesRef.current.hover);
       element.classList.remove(classesRef.current.hover);
     });
 
@@ -328,11 +316,8 @@ export function useDropZone(options: {
   useEffect(() => {
     const unsubscribe = eventBus.on(EventType.DropZoneFileDrop, (event) => {
       if (!event) {
-        console.warn('[useDropZone] Received undefined event');
         return;
       }
-
-      console.log('[useDropZone] Raw event received:', event);
 
       const data = event.data as DropZoneFileDropData;
 
@@ -348,11 +333,8 @@ export function useDropZone(options: {
 
       // Only handle drops for our zone
       if (data.zoneId !== zoneId) {
-        console.log('[useDropZone] Drop for different zone, ignoring:', data.zoneId);
         return;
       }
-
-      console.log('[useDropZone] Files dropped on zone:', zoneId, data.files);
 
       // Remove drag-over styling
       if (targetRef.current) {
@@ -370,7 +352,6 @@ export function useDropZone(options: {
   useEffect(() => {
     return () => {
       if (isRegisteredRef.current) {
-        console.log('[useDropZone] Unregistering zone:', zoneId);
         bridgeService.sendMessage({
           module: 'DROP_ZONE',
           type: 'UNREGISTER',

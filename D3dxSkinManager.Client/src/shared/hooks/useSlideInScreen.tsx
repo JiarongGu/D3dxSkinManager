@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useSlideInScreen } from '../context/SlideInScreenContext';
+import { useSlideInScreenContext } from '../context/SlideInScreenContext';
 
 interface SlideInDialogOptions {
   visible: boolean;
@@ -13,14 +13,14 @@ interface SlideInDialogOptions {
  * Hook to manage dialog-to-slideIn screen migration
  * Provides a bridge between old visible prop pattern and new slide-in system
  */
-export function useSlideInDialog({
+export function useSlideInScreen({
   visible,
   title,
   content,
   width = '60%',
   onClose,
 }: SlideInDialogOptions) {
-  const { openScreen, closeScreen } = useSlideInScreen();
+  const { openScreen, closeScreen } = useSlideInScreenContext();
   const screenIdRef = useRef<string>(undefined);
 
   useEffect(() => {

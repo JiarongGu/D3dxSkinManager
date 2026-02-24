@@ -1,0 +1,1 @@
+export { MultiTagInput } from "./MultiTagInput";

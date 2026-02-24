@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { CloseOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
-import { useSlideInScreen } from '../../context/SlideInScreenContext';
+import { useSlideInScreenContext } from '../../context/SlideInScreenContext';
 import './SlideInScreen.css';
 
 export interface SlideInScreenProps {
@@ -90,7 +90,7 @@ export function SlideInScreen({
  * Must be placed inside SlideInScreenProvider
  */
 export function SlideInScreenManager() {
-  const { screens, closeScreen } = useSlideInScreen();
+  const { screens, closeScreen } = useSlideInScreenContext();
 
   if (screens.length === 0) {
     return null;

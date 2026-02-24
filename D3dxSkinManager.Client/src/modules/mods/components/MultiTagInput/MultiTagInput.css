@@ -1,0 +1,29 @@
+/* MultiTagInput - uses Ant Design Select with mode="tags" */
+.multi-tag-input {
+  width: 100%;
+}
+
+/* Ensure proper styling inheritance from Ant Design */
+.multi-tag-input .ant-select-selector {
+  min-height: 32px !important;
+}
+
+/* Dropdown options */
+.multi-tag-input-dropdown .ant-select-item {
+  font-size: 14px;
+  padding: 8px 12px;
+  margin-bottom: 1px;
+  border-radius: 2px;
+}
+
+.multi-tag-input-dropdown .ant-select-item:last-child {
+  margin-bottom: 0;
+}
+
+/* "Not found" message styling */
+.multi-tag-input-dropdown .ant-select-item-empty {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 14px;
+  padding: 12px;
+  text-align: center;
+}

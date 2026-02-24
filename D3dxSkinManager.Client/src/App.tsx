@@ -12,7 +12,7 @@ import { PluginsView } from './modules/plugins/components/PluginsView';
 import { AnnotationProvider } from './shared/components/common/TooltipSystem';
 import { ProfileProvider } from './shared/context/ProfileContext';
 import { ThemeProvider, useTheme } from './shared/context/ThemeContext';
-import { SlideInScreenProvider, useSlideInScreen } from './shared/context/SlideInScreenContext';
+import { SlideInScreenProvider, useSlideInScreenContext } from './shared/context/SlideInScreenContext';
 import { I18nInitializer } from './i18n/I18nInitializer';
 import { SlideInScreenManager } from './shared/components/common/SlideInScreen';
 import { AppInitializer } from './shared/components/AppInitializer';
@@ -50,7 +50,7 @@ const AppContent: React.FC = () => {
   const { currentOperation, activeOperations } = operationState;
 
   // Get slide-in screen controls
-  const { openScreen, closeScreen } = useSlideInScreen();
+  const { openScreen, closeScreen } = useSlideInScreenContext();
 
   // Derive progress from current operation
   const operationProgress = currentOperation?.percentComplete || 0;

@@ -47,7 +47,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
         try {
           const settings = await settingsService.getGlobalSettings();
           const themeValue = settings.theme as ThemeMode;
-          console.log('[ThemeContext] Loaded theme from backend:', themeValue);
           setThemeState(themeValue);
           setIsLoading(false);
           return; // Success - exit retry loop

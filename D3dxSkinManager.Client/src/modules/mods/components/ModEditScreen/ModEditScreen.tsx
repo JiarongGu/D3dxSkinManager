@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Form, Input, Space } from 'antd';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { modService } from '../../services/modService';
-import { useSlideInDialog } from '../../../../shared/hooks/useSlideInDialog';
+import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
 import { CompactButton } from '../../../../shared/components/compact/CompactButton';
 import { BasicInfoSection } from './BasicInfoSection';
 import { MetadataSection } from './MetadataSection';
@@ -14,30 +14,27 @@ import { useMods } from '../../hooks/useMods';
 import './ModEditScreen.css';
 
 /**
- * Slide-in screen for editing mod properties
- * Single mod editing with full form
- * Refactored into smaller section components for better maintainability
- *
- * NEW ARCHITECTURE:
- * - Subscribes to its own state (visible, modToEdit) from useModsStore
- * - Calls operations directly via useMods()
- * - No props needed from parent!
+ * Form content component - contains all state and logic for editing a mod
  */
-export const ModEditScreen: React.FC = () => {
-  // Subscribe to state this component needs
+const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
+  // Subscribe to state from store
   const visible = useModsStore(s => s.editDialogVisible);
-  const mod = useModsStore(s => s.modToEdit);
   const classificationTree = useModsStore(s => s.classificationTree);
-
-  // Get operations
+  const { state: profileState } = useProfile();
   const { updateMod, closeEditDialog } = useMods();
+
+  // Local state
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [authors, setAuthors] = useState<string[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const { state: profileState } = useProfile();
+
+  // Wrapper for setSelectedTags
+  const handleTagsChange = (newTags: string[]) => {
+    setSelectedTags(newTags);
+  };
 
   // Build category options from classification tree
   useEffect(() => {
@@ -78,9 +75,9 @@ export const ModEditScreen: React.FC = () => {
     }
   }, [visible, profileState.selectedProfile?.id]);
 
-  // Initialize form when mod changes
+  // Initialize form when mod is available
   useEffect(() => {
-    if (mod && visible) {
+    if (mod) {
       form.setFieldsValue({
         name: mod.name,
         description: mod.description || '',
@@ -90,7 +87,7 @@ export const ModEditScreen: React.FC = () => {
       });
       setSelectedTags(mod.tags || []);
     }
-  }, [mod, visible, form]);
+  }, [mod, form]);
 
   const handleSave = async () => {
     if (!mod) return;
@@ -124,8 +121,7 @@ export const ModEditScreen: React.FC = () => {
     closeEditDialog();
   };
 
-  // Render form content
-  const formContent = (
+  return (
     <div>
       <Form
         form={form}
@@ -145,7 +141,7 @@ export const ModEditScreen: React.FC = () => {
         <TagsSection
           tags={selectedTags}
           availableTags={availableTags}
-          onTagsChange={setSelectedTags}
+          onTagsChange={handleTagsChange}
         />
 
         {/* Read-only SHA display */}
@@ -169,14 +165,23 @@ export const ModEditScreen: React.FC = () => {
       </div>
     </div>
   );
+};
 
-  // Use slide-in screen
-  useSlideInDialog({
+/**
+ * Slide-in screen for editing mod properties
+ * Lightweight wrapper that manages the slide-in dialog
+ */
+export const ModEditScreen: React.FC = () => {
+  const visible = useModsStore(s => s.editDialogVisible);
+  const mod = useModsStore(s => s.modToEdit);
+  const { closeEditDialog } = useMods();
+
+  useSlideInScreen({
     visible,
     title: mod ? `Edit Mod: ${mod.name}` : 'Edit Mod',
-    content: formContent,
+    content: <ModEditFormContent mod={mod} />,
     width: '55%',
-    onClose: handleCancel,
+    onClose: closeEditDialog,
   });
 
   return null;

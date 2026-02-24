@@ -31,9 +31,6 @@ export const SettingsView: React.FC = () => {
   useEffect(() => {
     const loadThumbnailAlgorithm = async () => {
       if (!selectedProfileId) {
-        console.log(
-          "[SettingsView] No profile selected, skipping thumbnail algorithm load",
-        );
         return;
       }
 

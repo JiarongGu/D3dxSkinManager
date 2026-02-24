@@ -100,7 +100,7 @@ export function SlideInScreenProvider({ children }: SlideInScreenProviderProps) 
 /**
  * Hook to access slide-in screen context
  */
-export function useSlideInScreen() {
+export function useSlideInScreenContext() {
   const context = useContext(SlideInScreenContext);
   if (!context) {
     throw new Error('useSlideInScreen must be used within a SlideInScreenProvider');

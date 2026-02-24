@@ -20,6 +20,7 @@ public static class ModsServiceExtensions
         //// Register data layer (repositories) - using profile-specific paths
         services.TryAddSingleton<IModRepository, ModRepository>();
         services.TryAddSingleton<IClassificationRepository, ClassificationRepository>();
+        services.TryAddSingleton<ITagRepository, TagRepository>();
 
         //// Register domain services
         services.TryAddSingleton<IModFileService, ModFileService>();

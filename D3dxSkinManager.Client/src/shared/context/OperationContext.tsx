@@ -137,8 +137,6 @@ export const OperationProvider: React.FC<OperationProviderProps> = ({ children }
       completedAt: notification.operation.completedAt ? new Date(notification.operation.completedAt) : undefined,
     } as OperationProgress;
 
-    console.log('[OperationContext] Received notification:', notificationType, operation);
-
     switch (notificationType) {
       case 'OperationStarted':
         dispatch({ type: 'OPERATION_STARTED', payload: operation });

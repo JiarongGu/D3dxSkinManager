@@ -113,6 +113,50 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Search tags by search term (case-insensitive substring match)
+   */
+  async searchTags(profileId: string, searchTerm: string): Promise<string[]> {
+    return this.sendArrayMessage<string>('SEARCH_TAGS', profileId, { searchTerm });
+  }
+
+  /**
+   * Add a tag to a specific mod
+   */
+  async addTagToMod(profileId: string, sha: string, tag: string): Promise<boolean> {
+    return this.sendBooleanMessage('ADD_TAG_TO_MOD', profileId, { sha, tag });
+  }
+
+  /**
+   * Remove a tag from a specific mod
+   */
+  async removeTagFromMod(profileId: string, sha: string, tag: string): Promise<boolean> {
+    return this.sendBooleanMessage('REMOVE_TAG_FROM_MOD', profileId, { sha, tag });
+  }
+
+  /**
+   * Rename a tag globally across all mods
+   * Returns the number of mods updated
+   */
+  async renameTagGlobally(profileId: string, oldTag: string, newTag: string): Promise<number> {
+    return this.sendMessage<number>('RENAME_TAG_GLOBALLY', profileId, { oldTag, newTag });
+  }
+
+  /**
+   * Delete a tag globally from all mods
+   * Returns the number of mods updated
+   */
+  async deleteTagGlobally(profileId: string, tag: string): Promise<number> {
+    return this.sendMessage<number>('DELETE_TAG_GLOBALLY', profileId, { tag });
+  }
+
+  /**
+   * Get the number of mods using a specific tag
+   */
+  async getTagUsageCount(profileId: string, tag: string): Promise<number> {
+    return this.sendMessage<number>('GET_TAG_USAGE_COUNT', profileId, { tag });
+  }
+
+  /**
    * Search mods by keyword (supports ! for negation, space-separated for AND)
    */
   async searchMods(profileId: string, searchTerm: string): Promise<ModInfo[]> {

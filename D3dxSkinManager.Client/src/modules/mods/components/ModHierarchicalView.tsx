@@ -7,7 +7,6 @@ import { ClassificationPanel } from "./ClassificationPanel";
 import { ModListPanel } from "./ModListPanel";
 import { ModEditScreen } from "./ModEditScreen/ModEditScreen";
 import { BatchEditDialog } from "./BatchEditDialog";
-import { ImportTagSelectorDialog } from "./ImportTagSelectorDialog/ImportTagSelectorDialog";
 import { AddModWindow } from "./AddModWindow";
 import { AddModUnit } from "./AddModUnit";
 import { BatchEditUnit } from "./BatchEditUnit";
@@ -156,7 +155,6 @@ export const ModHierarchicalView: React.FC = () => {
       {/* All dialogs/screens now subscribe to their own state - no props needed! */}
       <ModEditScreen />
       <BatchEditDialog />
-      <ImportTagSelectorDialog />
       <AddModWindow />
       <BatchEditUnit />
     </>

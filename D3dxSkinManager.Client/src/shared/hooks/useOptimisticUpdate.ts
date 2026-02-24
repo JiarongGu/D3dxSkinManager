@@ -134,10 +134,6 @@ export function useOptimisticUpdate<TData = any, TFetchParams = void>(
       // Schedule verification after delay
       verificationTimeoutRef.current = setTimeout(async () => {
         try {
-          if (enableLogging) {
-            console.log('[OptimisticUpdate] Starting verification...');
-          }
-
           // Fetch backend state
           const backendResult = await fetchFn(fetchParams);
 

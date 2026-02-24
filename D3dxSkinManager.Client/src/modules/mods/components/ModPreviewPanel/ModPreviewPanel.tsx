@@ -1,8 +1,8 @@
-import { notification } from '../../../../shared/utils/notification';
+import { notification } from "../../../../shared/utils/notification";
 import React, { useState } from "react";
-import { Typography, Button, Empty,  Space, Tag, Spin } from "antd";
-import { useTranslation } from 'react-i18next';
-import { v4 as uuidv4 } from 'uuid';
+import { Typography, Button, Empty, Space, Tag, Spin } from "antd";
+import { useTranslation } from "react-i18next";
+import { v4 as uuidv4 } from "uuid";
 import {
   CopyOutlined,
   LeftOutlined,
@@ -19,15 +19,18 @@ import {
   PlusOutlined,
   SnippetsOutlined,
 } from "@ant-design/icons";
-import { ContextMenu, ContextMenuItem } from "../../../../shared/components/menu/ContextMenu";
+import {
+  ContextMenu,
+  ContextMenuItem,
+} from "../../../../shared/components/menu/ContextMenu";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
-import { GradingTag } from "../../../../shared/components/common/GradingTag";
+import { GradingTag } from "../GradingTag";
 import { FullScreenPreview } from "./FullScreenPreview";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
 import { ModPreviewProvider, useModView } from "./ModPreviewContext";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { useProfile } from "../../../../shared/context/ProfileContext";
-import { useModsStore } from '../../store/modsStore';
+import { useModsStore } from "../../store/modsStore";
 import { modService } from "../../services/modService";
 import { fileDialogService } from "../../../../shared/services/systemService";
 import "./ModPreviewPanel.css";
@@ -40,7 +43,7 @@ export const ModPreviewPanelContent: React.FC = () => {
   const { selectedProfileId } = useProfile();
 
   // Subscribe to preview loading state
-  const previewLoading = useModsStore(s => s.previewLoading);
+  const previewLoading = useModsStore((s) => s.previewLoading);
 
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [fullScreenImageSrc, setFullScreenImageSrc] = useState<string>("");
@@ -48,7 +51,10 @@ export const ModPreviewPanelContent: React.FC = () => {
   const [showLeftButton, setShowLeftButton] = useState(false);
   const [showRightButton, setShowRightButton] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
-  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [contextMenuPosition, setContextMenuPosition] = useState({
+    x: 0,
+    y: 0,
+  });
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   const mod = state.currentMod;
@@ -62,7 +68,7 @@ export const ModPreviewPanelContent: React.FC = () => {
   const handleCopySHA = () => {
     if (!mod) return;
     navigator.clipboard.writeText(mod.sha);
-    notification.success(t('mods.notifications.shaCopied'));
+    notification.success(t("mods.notifications.shaCopied"));
   };
 
   const handleImageClick = (imageSrc: string) => {
@@ -129,13 +135,17 @@ export const ModPreviewPanelContent: React.FC = () => {
     const currentImagePath = allImagePaths[currentImageIndex];
 
     try {
-      await modService.setThumbnail(selectedProfileId, mod.sha, currentImagePath);
-      notification.success(t('mods.preview.thumbnailUpdated'));
+      await modService.setThumbnail(
+        selectedProfileId,
+        mod.sha,
+        currentImagePath,
+      );
+      notification.success(t("mods.preview.thumbnailUpdated"));
       // Refresh preview to update UI
       await actions.loadPreviewPaths(mod.sha);
     } catch (error) {
       console.error("Error setting thumbnail:", error);
-      notification.error(t('mods.preview.thumbnailUpdateFailed'));
+      notification.error(t("mods.preview.thumbnailUpdateFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -148,7 +158,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       await fileDialogService.openFileInExplorer(currentImagePath);
     } catch (error) {
       console.error("Error opening in explorer:", error);
-      notification.error(t('mods.preview.openExplorerFailed'));
+      notification.error(t("mods.preview.openExplorerFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -159,12 +169,13 @@ export const ModPreviewPanelContent: React.FC = () => {
 
     try {
       // Convert relative path to absolute for clipboard
-      const absolutePath = await fileDialogService.getAbsolutePath(currentImagePath);
+      const absolutePath =
+        await fileDialogService.getAbsolutePath(currentImagePath);
       await navigator.clipboard.writeText(absolutePath);
-      notification.success(t('mods.preview.pathCopied'));
+      notification.success(t("mods.preview.pathCopied"));
     } catch (error) {
       console.error("Error copying image path:", error);
-      notification.error(t('mods.preview.pathCopyFailed'));
+      notification.error(t("mods.preview.pathCopyFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -180,15 +191,20 @@ export const ModPreviewPanelContent: React.FC = () => {
     const totalImages = allImagePaths.length;
 
     try {
-      await modService.deletePreview(selectedProfileId, mod.sha, currentImagePath);
-      notification.success(t('mods.preview.imageDeleted'));
+      await modService.deletePreview(
+        selectedProfileId,
+        mod.sha,
+        currentImagePath,
+      );
+      notification.success(t("mods.preview.imageDeleted"));
 
       // Determine the new index after deletion
       // If we're deleting the last image, move back one position
       // Otherwise, stay at the same index (which will show the next image after deletion)
-      const newIndex = currentImageIndex >= totalImages - 1
-        ? Math.max(0, currentImageIndex - 1)
-        : currentImageIndex;
+      const newIndex =
+        currentImageIndex >= totalImages - 1
+          ? Math.max(0, currentImageIndex - 1)
+          : currentImageIndex;
 
       // Refresh preview to update UI
       await actions.loadPreviewPaths(mod.sha);
@@ -197,7 +213,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       setCurrentImageIndex(newIndex);
     } catch (error) {
       console.error("Error deleting preview:", error);
-      notification.error(t('mods.preview.imageDeleteFailed'));
+      notification.error(t("mods.preview.imageDeleteFailed"));
     }
     setDeleteConfirmVisible(false);
   };
@@ -207,22 +223,29 @@ export const ModPreviewPanelContent: React.FC = () => {
 
     try {
       const result = await fileDialogService.openFileDialog({
-        title: t('mods.preview.selectImage'),
+        title: t("mods.preview.selectImage"),
         filters: [
-          { name: t('mods.preview.imageFiles'), extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"] }
+          {
+            name: t("mods.preview.imageFiles"),
+            extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
+          },
         ],
-        rememberPathKey: 'mod-preview-import'
+        rememberPathKey: "mod-preview-import",
       });
 
       if (result.success && result.filePath) {
-        await modService.importPreviewImage(selectedProfileId, mod.sha, result.filePath);
-        notification.success(t('mods.preview.imageAdded'));
+        await modService.importPreviewImage(
+          selectedProfileId,
+          mod.sha,
+          result.filePath,
+        );
+        notification.success(t("mods.preview.imageAdded"));
         // Refresh preview to update UI
         await actions.loadPreviewPaths(mod.sha);
       }
     } catch (error) {
       console.error("Error adding preview from file:", error);
-      notification.error(t('mods.preview.imageAddFailed'));
+      notification.error(t("mods.preview.imageAddFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -233,7 +256,7 @@ export const ModPreviewPanelContent: React.FC = () => {
     try {
       // Check if clipboard API is available
       if (!navigator.clipboard || !navigator.clipboard.read) {
-        notification.warning(t('mods.preview.clipboardNotSupported'));
+        notification.warning(t("mods.preview.clipboardNotSupported"));
         setContextMenuVisible(false);
         return;
       }
@@ -243,30 +266,30 @@ export const ModPreviewPanelContent: React.FC = () => {
 
       for (const item of clipboardItems) {
         // Look for image types
-        const imageType = item.types.find(type => type.startsWith('image/'));
+        const imageType = item.types.find((type) => type.startsWith("image/"));
 
         if (imageType) {
           const blob = await item.getType(imageType);
 
           // Convert blob to file-like object
-          const extension = imageType.split('/')[1] || 'png';
+          const extension = imageType.split("/")[1] || "png";
           const fileName = `clipboard_${uuidv4()}.${extension}`;
           const file = new File([blob], fileName, { type: imageType });
 
           // Create a temporary path (backend will handle the actual file creation)
           // For now, we'll need to upload the blob - this requires a backend endpoint
-          notification.info(t('mods.preview.clipboardRequiresBackend'));
+          notification.info(t("mods.preview.clipboardRequiresBackend"));
           imageFound = true;
           break;
         }
       }
 
       if (!imageFound) {
-        notification.warning(t('mods.preview.noImageInClipboard'));
+        notification.warning(t("mods.preview.noImageInClipboard"));
       }
     } catch (error) {
       console.error("Error pasting from clipboard:", error);
-      notification.error(t('mods.preview.clipboardPasteFailed'));
+      notification.error(t("mods.preview.clipboardPasteFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -281,13 +304,13 @@ export const ModPreviewPanelContent: React.FC = () => {
     ? [
         {
           key: "add-from-file",
-          label: t('mods.preview.addFromFile'),
+          label: t("mods.preview.addFromFile"),
           icon: <PlusOutlined />,
           onClick: handleAddFromFile,
         },
         {
           key: "paste-clipboard",
-          label: t('mods.preview.pasteFromClipboard'),
+          label: t("mods.preview.pasteFromClipboard"),
           icon: <SnippetsOutlined />,
           onClick: handlePasteFromClipboard,
         },
@@ -296,7 +319,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         },
         {
           key: "set-thumbnail",
-          label: t('mods.preview.setAsThumbnail'),
+          label: t("mods.preview.setAsThumbnail"),
           icon: <PictureOutlined />,
           onClick: handleSetAsThumbnail,
           disabled: isCurrentImageThumbnail,
@@ -306,13 +329,13 @@ export const ModPreviewPanelContent: React.FC = () => {
         },
         {
           key: "open-explorer",
-          label: t('mods.preview.openInExplorer'),
+          label: t("mods.preview.openInExplorer"),
           icon: <FolderOpenOutlined />,
           onClick: handleOpenInExplorer,
         },
         {
           key: "copy-path",
-          label: t('mods.preview.copyImagePath'),
+          label: t("mods.preview.copyImagePath"),
           icon: <CopyOutlined />,
           onClick: handleCopyImagePath,
         },
@@ -321,7 +344,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         },
         {
           key: "delete",
-          label: t('mods.preview.deletePreview'),
+          label: t("mods.preview.deletePreview"),
           icon: <DeleteOutlined />,
           danger: true,
           onClick: handleDeletePreview,
@@ -330,13 +353,13 @@ export const ModPreviewPanelContent: React.FC = () => {
     : [
         {
           key: "add-from-file",
-          label: t('mods.preview.addFromFile'),
+          label: t("mods.preview.addFromFile"),
           icon: <PlusOutlined />,
           onClick: handleAddFromFile,
         },
         {
           key: "paste-clipboard",
-          label: t('mods.preview.pasteFromClipboard'),
+          label: t("mods.preview.pasteFromClipboard"),
           icon: <SnippetsOutlined />,
           onClick: handlePasteFromClipboard,
         },
@@ -345,23 +368,29 @@ export const ModPreviewPanelContent: React.FC = () => {
         },
         {
           key: "open-preview-folder",
-          label: t('mods.preview.openPreviewsFolder'),
+          label: t("mods.preview.openPreviewsFolder"),
           icon: <FolderOpenOutlined />,
           onClick: async () => {
             if (!mod) return;
             try {
               // Get preview paths to determine folder location
-              const previewPaths = await modService.getPreviewPaths(selectedProfileId!, mod.sha);
+              const previewPaths = await modService.getPreviewPaths(
+                selectedProfileId!,
+                mod.sha,
+              );
               if (previewPaths.length > 0) {
                 // Open the folder containing the first preview
-                const folderPath = previewPaths[0].substring(0, previewPaths[0].lastIndexOf("\\"));
+                const folderPath = previewPaths[0].substring(
+                  0,
+                  previewPaths[0].lastIndexOf("\\"),
+                );
                 await fileDialogService.openDirectory(folderPath);
               } else {
-                notification.info(t('mods.preview.noPreviewFolder'));
+                notification.info(t("mods.preview.noPreviewFolder"));
               }
             } catch (error) {
               console.error("Error opening preview folder:", error);
-              notification.error(t('mods.preview.openFolderFailed'));
+              notification.error(t("mods.preview.openFolderFailed"));
             }
             setContextMenuVisible(false);
           },
@@ -372,7 +401,7 @@ export const ModPreviewPanelContent: React.FC = () => {
     return (
       <div className="mod-preview-empty">
         <Empty
-          description={t('mods.preview.selectMod')}
+          description={t("mods.preview.selectMod")}
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       </div>
@@ -402,7 +431,7 @@ export const ModPreviewPanelContent: React.FC = () => {
                 color="success"
                 className="mod-preview-tag"
               >
-                {t('mods.preview.loaded')}
+                {t("mods.preview.loaded")}
               </Tag>
             ) : (
               <Tag
@@ -410,7 +439,7 @@ export const ModPreviewPanelContent: React.FC = () => {
                 color="default"
                 className="mod-preview-tag-default"
               >
-                {t('mods.preview.notLoaded')}
+                {t("mods.preview.notLoaded")}
               </Tag>
             )}
             <GradingTag grading={mod.grading} />
@@ -419,7 +448,11 @@ export const ModPreviewPanelContent: React.FC = () => {
       </div>
 
       {/* Image Preview Section */}
-      <Spin spinning={previewLoading} description={t('mods.preview.loadingImages')} wrapperClassName="mod-preview-spin-wrapper">
+      <Spin
+        spinning={previewLoading}
+        description={t("mods.preview.loadingImages")}
+        classNames={{ root: "mod-preview-spin-wrapper" }}
+      >
         <div className="mod-preview-image-section">
           {allImagePaths.length > 0 ? (
             <>
@@ -430,70 +463,73 @@ export const ModPreviewPanelContent: React.FC = () => {
                 onMouseLeave={handleMouseLeave}
                 onContextMenu={handleImageContextMenu}
               >
-              <img
-                key={`${allImagePaths[currentImageIndex]}-${cacheTimestamp}`}
-                className="mod-preview-image"
-                alt={t('mods.preview.imageAlt', { name: mod.name, index: currentImageIndex + 1 })}
-                src={toAppUrl(allImagePaths[currentImageIndex]) || undefined}
-                onClick={() =>
-                  handleImageClick(
-                    toAppUrl(allImagePaths[currentImageIndex]) || "",
-                  )
-                }
-                title={t('mods.preview.clickFullScreen')}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src =
-                    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-                }}
-              />
+                <img
+                  key={`${allImagePaths[currentImageIndex]}-${cacheTimestamp}`}
+                  className="mod-preview-image"
+                  alt={t("mods.preview.imageAlt", {
+                    name: mod.name,
+                    index: currentImageIndex + 1,
+                  })}
+                  src={toAppUrl(allImagePaths[currentImageIndex]) || undefined}
+                  onClick={() =>
+                    handleImageClick(
+                      toAppUrl(allImagePaths[currentImageIndex]) || "",
+                    )
+                  }
+                  title={t("mods.preview.clickFullScreen")}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+                  }}
+                />
 
-              {/* Left Navigation Button - Windows Gallery style */}
-              {showLeftButton && (
-                <div
-                  className="mod-preview-nav-button mod-preview-nav-button-left"
-                  onClick={handlePreviousImage}
-                  title={t('mods.preview.previous')}
-                >
-                  <div className="mod-preview-nav-icon">
-                    <LeftOutlined className="mod-preview-nav-icon-arrow" />
+                {/* Left Navigation Button - Windows Gallery style */}
+                {showLeftButton && (
+                  <div
+                    className="mod-preview-nav-button mod-preview-nav-button-left"
+                    onClick={handlePreviousImage}
+                    title={t("mods.preview.previous")}
+                  >
+                    <div className="mod-preview-nav-icon">
+                      <LeftOutlined className="mod-preview-nav-icon-arrow" />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Right Navigation Button - Windows Gallery style */}
-              {showRightButton && (
-                <div
-                  className="mod-preview-nav-button mod-preview-nav-button-right"
-                  onClick={handleNextImage}
-                  title={t('mods.preview.next')}
-                >
-                  <div className="mod-preview-nav-icon">
-                    <RightOutlined className="mod-preview-nav-icon-arrow" />
+                {/* Right Navigation Button - Windows Gallery style */}
+                {showRightButton && (
+                  <div
+                    className="mod-preview-nav-button mod-preview-nav-button-right"
+                    onClick={handleNextImage}
+                    title={t("mods.preview.next")}
+                  >
+                    <div className="mod-preview-nav-icon">
+                      <RightOutlined className="mod-preview-nav-icon-arrow" />
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Image Counter - Only show if multiple images */}
-            {hasMultipleImages && (
-              <div className="mod-preview-image-counter">
-                <Text type="secondary" className="mod-preview-counter-text">
-                  {currentImageIndex + 1} / {allImagePaths.length}
-                </Text>
+                )}
               </div>
-            )}
-          </>
-        ) : (
-          <div
-            className="mod-preview-no-image"
-            onContextMenu={handleImageContextMenu}
-          >
-            <Empty
-              description={t('mods.preview.noPreview')}
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          </div>
-        )}
+
+              {/* Image Counter - Only show if multiple images */}
+              {hasMultipleImages && (
+                <div className="mod-preview-image-counter">
+                  <Text type="secondary" className="mod-preview-counter-text">
+                    {currentImageIndex + 1} / {allImagePaths.length}
+                  </Text>
+                </div>
+              )}
+            </>
+          ) : (
+            <div
+              className="mod-preview-no-image"
+              onContextMenu={handleImageContextMenu}
+            >
+              <Empty
+                description={t("mods.preview.noPreview")}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            </div>
+          )}
         </div>
       </Spin>
 
@@ -504,7 +540,7 @@ export const ModPreviewPanelContent: React.FC = () => {
           <div className="mod-preview-info-item">
             <Text type="secondary" className="mod-preview-info-label">
               <UserOutlined className="mod-preview-info-icon" />
-              {t('mods.details.author')}
+              {t("mods.details.author")}
             </Text>
             <Text className="mod-preview-info-value">{mod.author}</Text>
           </div>
@@ -518,7 +554,7 @@ export const ModPreviewPanelContent: React.FC = () => {
               className="mod-preview-info-label mod-preview-info-label-with-margin"
             >
               <TagsOutlined className="mod-preview-info-icon" />
-              {t('mods.details.tags')}
+              {t("mods.details.tags")}
             </Text>
             <Space size={[4, 4]} wrap>
               {mod.tags.map((tag, index) => (
@@ -537,11 +573,15 @@ export const ModPreviewPanelContent: React.FC = () => {
               type="secondary"
               className="mod-preview-info-label mod-preview-info-label-with-margin"
             >
-              {t('mods.details.description')}
+              {t("mods.details.description")}
             </Text>
             <Paragraph
               className="mod-preview-description"
-              ellipsis={{ rows: 3, expandable: true, symbol: t('common.showMore') }}
+              ellipsis={{
+                rows: 3,
+                expandable: true,
+                symbol: t("common.showMore"),
+              }}
             >
               {mod.description}
             </Paragraph>
@@ -558,7 +598,7 @@ export const ModPreviewPanelContent: React.FC = () => {
           <Text
             className="mod-preview-sha-value"
             onClick={handleCopySHA}
-            title={t('mods.preview.clickCopySHA')}
+            title={t("mods.preview.clickCopySHA")}
           >
             {mod.sha}
           </Text>
@@ -567,7 +607,7 @@ export const ModPreviewPanelContent: React.FC = () => {
             size="small"
             icon={<CopyOutlined />}
             onClick={handleCopySHA}
-            title={t('mods.preview.copySHATooltip')}
+            title={t("mods.preview.copySHATooltip")}
             className="mod-preview-sha-button"
           />
         </div>
@@ -592,12 +632,14 @@ export const ModPreviewPanelContent: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         visible={deleteConfirmVisible}
-        title={t('mods.preview.deleteImageTitle')}
-        content={t('mods.preview.deleteImageConfirm')}
-        okText={t('common.delete')}
-        cancelText={t('common.cancel')}
+        title={t("mods.preview.deleteImageTitle")}
+        content={t("mods.preview.deleteImageConfirm")}
+        okText={t("common.delete")}
+        cancelText={t("common.cancel")}
         okType="danger"
-        icon={<ExclamationCircleOutlined className="mod-preview-confirm-icon" />}
+        icon={
+          <ExclamationCircleOutlined className="mod-preview-confirm-icon" />
+        }
         onOk={handleDeleteConfirm}
         onCancel={() => setDeleteConfirmVisible(false)}
       />
@@ -614,7 +656,7 @@ export const ModPreviewPanelContent: React.FC = () => {
  */
 export const ModPreviewPanel: React.FC = () => {
   // Subscribe to selectedMod
-  const mod = useModsStore(s => s.selectedMod);
+  const mod = useModsStore((s) => s.selectedMod);
 
   return (
     <ModPreviewProvider mod={mod}>

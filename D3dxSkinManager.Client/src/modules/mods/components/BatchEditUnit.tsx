@@ -1,11 +1,11 @@
 import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
 import { Modal, Form, Input, Select, Button, Space, Checkbox, Divider, Alert } from 'antd';
-import { TagsOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { useTranslation } from 'react-i18next';
 import { useModsStore } from '../store/modsStore';
 import { useMods } from '../hooks/useMods';
+import { MultiTagInput } from './MultiTagInput';
 import './BatchEditUnit.css';
 
 const { TextArea } = Input;
@@ -25,12 +25,13 @@ export const BatchEditUnit: React.FC = () => {
   const visible = useModsStore(s => s.batchEditUnitVisible);
   const selectedTaskIds = useModsStore(s => s.selectedTaskIds);
   const importTasks = useModsStore(s => s.importTasks);
+  const availableTags = useModsStore(s => s.availableTags);
 
   // Compute selected tasks
   const selectedTasks = importTasks.filter(task => selectedTaskIds.includes(task.id));
 
   // Get operations
-  const { saveBatchEditUnit, closeBatchEditUnit, openTagDialog } = useMods();
+  const { saveBatchEditUnit, closeBatchEditUnit } = useMods();
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -112,10 +113,6 @@ export const BatchEditUnit: React.FC = () => {
   const handleCancel = () => {
     handleReset();
     closeBatchEditUnit();
-  };
-
-  const handleOpenTagSelector = () => {
-    openTagDialog('import', selectedTags);
   };
 
   // Grading options
@@ -260,16 +257,13 @@ export const BatchEditUnit: React.FC = () => {
               label={t('addMod.tags')}
               className="batch-edit-unit-field"
             >
-              <Button
-                icon={<TagsOutlined />}
-                onClick={handleOpenTagSelector}
+              <MultiTagInput
+                value={selectedTags}
+                onChange={setSelectedTags}
+                availableTags={availableTags}
+                placeholder={t('addMod.tagsPlaceholder')}
                 disabled={!enabledFields.tags}
-                block
-              >
-                {selectedTags.length > 0
-                  ? t('addMod.selectedTags', { tags: selectedTags.join(', ') })
-                  : t('addMod.selectTags')}
-              </Button>
+              />
             </Form.Item>
           </Space>
         </Form>

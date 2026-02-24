@@ -62,10 +62,6 @@ export const AnnotationProvider: React.FC<AnnotationProviderProps> = ({
           const settings = await settingsService.getGlobalSettings();
           const level = settings.annotationLevel as AnnotationLevel;
           if (level && ["all", "more", "less", "off"].includes(level)) {
-            console.log(
-              "[AnnotationProvider] Loaded annotation level from backend:",
-              level,
-            );
             setAnnotationLevel(level);
             return; // Success - exit retry loop
           }
@@ -206,7 +202,7 @@ export const annotations = {
     },
     editButton: {
       level: 1 as TooltipLevel,
-      title: "Edit mod information (name, description, author, tags, grading)",
+      title: "Edit mod info (name, description, author, tags, grading)",
     },
     shaColumn: {
       level: 3 as TooltipLevel,
