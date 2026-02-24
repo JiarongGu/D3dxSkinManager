@@ -251,6 +251,7 @@ export const ModList: React.FC<ModListProps> = ({
             return (
               <div
                 key={mod.sha}
+                data-mod-sha={mod.sha}
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.setData("application/mod-sha", mod.sha);

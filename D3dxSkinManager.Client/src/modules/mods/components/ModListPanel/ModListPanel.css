@@ -31,9 +31,25 @@
 }
 
 .mod-list-panel-content {
-  flex: 1;
-  height: calc(100% - 48px);
+  height: calc(100% - 48px - 40px); /* Total height - search bar - status bar */
   overflow: auto;
+  flex-shrink: 0;
+}
+
+.mod-list-panel-status-bar-container {
+  height: 40px;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* More obvious border for light theme */
+[data-theme="light"] .mod-list-panel-status-bar-container {
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* More obvious border for dark theme */
+[data-theme="dark"] .mod-list-panel-status-bar-container {
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .mod-list-panel-content-empty-container {

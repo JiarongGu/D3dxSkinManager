@@ -1,0 +1,80 @@
+/* Match UnclassifiedItem styling with gradient background */
+.mod-list-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  cursor: default;
+  transition: background 0.2s;
+  min-height: 40px;
+  height: 40px;
+  user-select: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.06));
+}
+
+.mod-list-status-bar-clickable {
+  cursor: pointer;
+}
+
+.mod-list-status-bar-clickable:hover {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.10));
+}
+
+.mod-list-status-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.mod-list-status-bar-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.mod-list-status-bar-icon-active {
+  color: var(--color-success);
+}
+
+.mod-list-status-bar-icon-inactive {
+  color: var(--color-text-secondary);
+}
+
+.mod-list-status-bar-text {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-list-status-bar-text-active {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.mod-list-status-bar-text-inactive {
+  color: var(--color-text-secondary);
+}
+
+/* Light theme specific styles */
+[data-theme="light"] .mod-list-status-bar {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.06));
+}
+
+[data-theme="light"] .mod-list-status-bar-clickable:hover {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.10));
+}
+
+[data-theme="light"] .mod-list-status-bar-icon-active {
+  color: #52c41a;
+}
+
+/* Dark theme specific styles */
+[data-theme="dark"] .mod-list-status-bar {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.08));
+}
+
+[data-theme="dark"] .mod-list-status-bar-clickable:hover {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.12));
+}

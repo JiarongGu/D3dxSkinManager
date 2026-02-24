@@ -4,6 +4,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { ClassificationNode } from '../../../../shared/types/classification.types';
 import { ModList } from './ModList';
+import { ModListStatusBar } from './ModListStatusBar';
 import { useTranslation } from 'react-i18next';
 import './ModListPanel.css';
 
@@ -40,6 +41,21 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
   selectedObject,
 }) => {
   const { t } = useTranslation();
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  const handleLoadedModClick = (mod: ModInfo) => {
+    // Scroll to the loaded mod and select it
+    onRowClick(mod);
+
+    // Scroll the mod into view
+    if (contentRef.current) {
+      // Find the mod element by its SHA
+      const modElement = contentRef.current.querySelector(`[data-mod-sha="${mod.sha}"]`);
+      if (modElement) {
+        modElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  };
 
   if (!selectedClassification && !selectedObject) {
     return (
@@ -69,7 +85,7 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
       </div>
 
       {/* Mod List or Empty State */}
-      <div className="mod-list-panel-content">
+      <div className="mod-list-panel-content" ref={contentRef}>
         {mods.length > 0 ? (
           <ModList
             mods={mods}
@@ -97,6 +113,16 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
             />
           </div>
         )}
+      </div>
+
+      {/* Status Bar at Bottom - fixed container like UnclassifiedItem */}
+      <div className="mod-list-panel-status-bar-container">
+        <ModListStatusBar
+          mods={mods}
+          selectedClassification={selectedClassification}
+          selectedObject={selectedObject}
+          onLoadedModClick={handleLoadedModClick}
+        />
       </div>
     </Sider>
   );
