@@ -10,7 +10,8 @@ export type ModuleName =
   | 'SETTINGS'
   | 'SYSTEM'
   | 'MIGRATION'
-  | 'PROFILE';
+  | 'PROFILE'
+  | 'DROP_ZONE'; // WinForms drop zone overlay management
 
 /**
  * Message types for module-based routing

@@ -1,6 +1,7 @@
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Plugins.Services;
+using D3dxSkinManager.Modules.Context;
 
 namespace D3dxSkinManager.Modules.Context.Services
 {
@@ -45,7 +46,7 @@ namespace D3dxSkinManager.Modules.Context.Services
 
             await _pluginEventBus.EmitAsync(new EventMessage
             {
-                EventType = EventType.ApplicationStarted
+                EventType = ContextEvents.APPLICATION_STARTED
             }).ConfigureAwait(false);
         }
 
@@ -58,7 +59,7 @@ namespace D3dxSkinManager.Modules.Context.Services
             //await _imageServerService.StopAsync().ConfigureAwait(false);
             await _pluginEventBus.EmitAsync(new EventMessage
             {
-                EventType = EventType.ApplicationShutdown
+                EventType = ContextEvents.APPLICATION_SHUTDOWN
             }).ConfigureAwait(false);
 
             var plugins = _pluginRegistry.GetAllPlugins().ToList();

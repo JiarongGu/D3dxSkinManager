@@ -100,8 +100,9 @@ public class WebViewInitializer
         settings.IsZoomControlEnabled = false;
         settings.IsBuiltInErrorPageEnabled = false;
 
-        // Allow external drop
-        _webView.AllowExternalDrop = true;
+        // Disable external drop to prevent browser from loading dropped files
+        // We handle drops at the Form level to capture real file paths
+        _webView.AllowExternalDrop = false;
 
         // Set default background color to prevent white flash
         _webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(26, 26, 26); // #1a1a1a

@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Plugins;
 
 namespace D3dxSkinManager.Modules.Plugins.Services;
 
@@ -55,10 +56,10 @@ public interface IPluginContext
     /// <summary>
     /// Register an event handler for system events.
     /// </summary>
-    /// <param name="eventType">Event type to listen for</param>
+    /// <param name="eventType">Event type constant to listen for (SCREAMING_SNAKE_CASE)</param>
     /// <param name="handler">Event handler callback</param>
     /// <returns>Registration ID for unregistering later</returns>
-    string RegisterEventHandler(EventType eventType, Func<EventMessage, Task> handler);
+    string RegisterEventHandler(string eventType, Func<EventMessage, Task> handler);
 
     /// <summary>
     /// Unregister an event handler.
@@ -138,7 +139,7 @@ public class PluginContext : IPluginContext
         return _serviceProvider.GetService<T>();
     }
 
-    public string RegisterEventHandler(EventType eventType, Func<EventMessage, Task> handler)
+    public string RegisterEventHandler(string eventType, Func<EventMessage, Task> handler)
     {
         return _eventBus.RegisterHandler(eventType, handler);
     }
@@ -152,7 +153,7 @@ public class PluginContext : IPluginContext
     {
         return _eventBus.EmitAsync(new EventMessage
         {
-            EventType = EventType.CustomEvent,
+            EventType = PluginEvents.CUSTOM_EVENT,
             EventName = eventName,
             Data = data
         });

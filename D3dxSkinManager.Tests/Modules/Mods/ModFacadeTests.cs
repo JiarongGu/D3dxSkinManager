@@ -234,7 +234,7 @@ public class ModFacadeTests
         await _facade.LoadModAsync("sha123");
 
         // Assert
-        _mockEventEmitter.Verify(e => e.EmitAsync(EventType.ModLoaded, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(ModEvents.MOD_LOADED, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -279,7 +279,7 @@ public class ModFacadeTests
         await _facade.UnloadModAsync("sha123");
 
         // Assert
-        _mockEventEmitter.Verify(e => e.EmitAsync(EventType.ModUnloaded, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(ModEvents.MOD_UNLOADED, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -359,7 +359,7 @@ public class ModFacadeTests
         await _facade.ImportModAsync("test.zip");
 
         // Assert
-        _mockEventEmitter.Verify(e => e.EmitAsync(EventType.ModImported, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(ModEvents.MOD_IMPORTED, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion
@@ -413,7 +413,7 @@ public class ModFacadeTests
         await _facade.DeleteModAsync("sha123");
 
         // Assert
-        _mockEventEmitter.Verify(e => e.EmitAsync(EventType.ModDeleted, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
+        _mockEventEmitter.Verify(e => e.EmitAsync(ModEvents.MOD_DELETED, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
     }
 
     #endregion

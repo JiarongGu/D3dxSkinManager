@@ -31,8 +31,8 @@ public class EventBusIpcBridge
     {
         _logger.Info("Initializing EventBus IPC Bridge", "EventBridge");
 
-        // Subscribe to all event types
-        foreach (EventType eventType in Enum.GetValues(typeof(EventType)))
+        // Subscribe to all core event types
+        foreach (var eventType in CoreEvents.All)
         {
             var registrationId = _eventBus.RegisterHandler(eventType, async (message) =>
             {
@@ -47,7 +47,7 @@ public class EventBusIpcBridge
 
     /// <summary>
     /// Forward a backend event to the frontend via IPC
-    /// Sends as notification with type = EventType name
+    /// Uses event type string as-is (SCREAMING_SNAKE_CASE constant)
     /// </summary>
     private async Task ForwardEventToFrontend(EventMessage message)
     {
@@ -55,9 +55,9 @@ public class EventBusIpcBridge
         {
             _logger.Debug($"Forwarding event to frontend: {message.EventType}", "EventBridge");
 
-            // Send notification with EventType as the type
+            // Send notification with event type string
             _ipcHandler.SendNotification(
-                type: message.EventType.ToString(),
+                type: message.EventType,
                 data: new
                 {
                     eventName = message.EventName,

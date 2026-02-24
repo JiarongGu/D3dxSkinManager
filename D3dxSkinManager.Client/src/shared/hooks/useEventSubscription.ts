@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { eventBus, EventType } from '../services/eventBus';
+import { eventBus, EventType, Event } from '../services/eventBus';
 
 /**
  * Hook for subscribing to backend events
  * Automatically manages subscription lifecycle
+ * Unwraps event data for convenience
  *
  * @example
  * ```tsx
@@ -19,7 +20,12 @@ export function useEventSubscription<T = unknown>(
   deps: React.DependencyList = []
 ): void {
   useEffect(() => {
-    const subscription = eventBus.subscribe<T>(eventType, handler);
+    // Wrap handler to unwrap event.data
+    const wrappedHandler = (event: Event<T> | undefined) => {
+      handler(event?.data);
+    };
+
+    const subscription = eventBus.subscribe<Event<T>>(eventType, wrappedHandler);
 
     return () => {
       subscription.unsubscribe();
@@ -30,6 +36,7 @@ export function useEventSubscription<T = unknown>(
 
 /**
  * Hook for subscribing to custom backend events
+ * Unwraps event data for convenience
  *
  * @example
  * ```tsx
@@ -44,7 +51,12 @@ export function useCustomEventSubscription<T = unknown>(
   deps: React.DependencyList = []
 ): void {
   useEffect(() => {
-    const subscription = eventBus.subscribeToCustomEvent<T>(eventName, handler);
+    // Wrap handler to unwrap event.data
+    const wrappedHandler = (event: Event<T> | undefined) => {
+      handler(event?.data);
+    };
+
+    const subscription = eventBus.subscribeToCustomEvent<Event<T>>(eventName, wrappedHandler);
 
     return () => {
       subscription.unsubscribe();

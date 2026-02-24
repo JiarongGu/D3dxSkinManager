@@ -30,6 +30,7 @@ public class ApplicationHost
     private ServiceProvider _serviceProvider = null!;
     private ProfileServiceRouter _profileRouter = null!;
     private IPerformanceMonitor _performanceMonitor = null!;
+    private DropZoneManager _dropZoneManager = null!;
     private ILogHelper _logger;
     private readonly IAppEnvironment _environment;
 
@@ -72,6 +73,9 @@ public class ApplicationHost
         _mainForm.Load += OnFormLoad;
         _mainForm.FormClosed += OnFormClosed;
         _mainForm.Resize += OnFormResize;
+
+        // Note: File drops are handled by DropZoneManager with transparent overlays
+        // positioned by the frontend to match web elements exactly
 
         // Resume layout after all controls are added
         _mainForm.ResumeLayout(false);
@@ -122,6 +126,10 @@ public class ApplicationHost
             _logger.Info("Initializing IPC communication...", "Host");
             _ipcHandler = new IpcCommunicationHandler(_webView, _logger);
             _ipcHandler.Initialize();
+
+            // Initialize Drop Zone Manager
+            _logger.Info("Initializing drop zone manager...", "Host");
+            _dropZoneManager = new DropZoneManager(_webView, _mainForm, _logger, _ipcHandler);
 
             // Initialize EventBus IPC Bridge (forwards backend events to frontend)
             _logger.Info("Initializing EventBus IPC Bridge...", "Host");
@@ -191,6 +199,7 @@ public class ApplicationHost
         _logger.Info("Cleanup completed", "Host");
     }
 
+
     /// <summary>
     /// Configure application services
     /// </summary>
@@ -246,7 +255,7 @@ public class ApplicationHost
         _messageDispatcher.UseSystemFacade(_serviceProvider);
         _messageDispatcher.UseProfileFacade(_serviceProvider);
 
-        // Register built-in module routes (APP, TEST)
+        // Register built-in module routes (APP, TEST, DROP_ZONE)
         _messageDispatcher.MapModule("APP", routes =>
         {
             routes.Route("PING", message => new { message = "pong", timestamp = DateTime.UtcNow });
@@ -262,6 +271,55 @@ public class ApplicationHost
             {
                 status = "ready",
                 uptime = DateTime.UtcNow.Subtract(System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds
+            });
+        });
+
+        // Register DROP_ZONE module for managing WinForms drop overlays
+        _messageDispatcher.MapModule("DROP_ZONE", routes =>
+        {
+            routes.Route("REGISTER", message =>
+            {
+                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
+                var x = message.Payload?.GetProperty("x").GetInt32() ?? 0;
+                var y = message.Payload?.GetProperty("y").GetInt32() ?? 0;
+                var width = message.Payload?.GetProperty("width").GetInt32() ?? 0;
+                var height = message.Payload?.GetProperty("height").GetInt32() ?? 0;
+
+                _dropZoneManager.RegisterZone(zoneId, x, y, width, height);
+                return new { success = true, zoneId };
+            });
+
+            routes.Route("UPDATE", message =>
+            {
+                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
+                var x = message.Payload?.GetProperty("x").GetInt32() ?? 0;
+                var y = message.Payload?.GetProperty("y").GetInt32() ?? 0;
+                var width = message.Payload?.GetProperty("width").GetInt32() ?? 0;
+                var height = message.Payload?.GetProperty("height").GetInt32() ?? 0;
+
+                _dropZoneManager.UpdateZoneBounds(zoneId, x, y, width, height);
+                return new { success = true };
+            });
+
+            routes.Route("SHOW", message =>
+            {
+                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
+                _dropZoneManager.ShowZone(zoneId);
+                return new { success = true };
+            });
+
+            routes.Route("HIDE", message =>
+            {
+                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
+                _dropZoneManager.HideZone(zoneId);
+                return new { success = true };
+            });
+
+            routes.Route("UNREGISTER", message =>
+            {
+                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
+                _dropZoneManager.UnregisterZone(zoneId);
+                return new { success = true };
             });
         });
 

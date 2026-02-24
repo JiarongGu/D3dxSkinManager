@@ -5,7 +5,7 @@ namespace D3dxSkinManager.Modules.Core.Event;
 
 public interface IEventBus
 {
-    string RegisterHandler(EventType eventType, Func<EventMessage, Task> handler);
+    string RegisterHandler(string eventType, Func<EventMessage, Task> handler);
 
     void UnregisterHandler(string registrationId);
 
@@ -31,10 +31,10 @@ public class EventBus : IEventBus
     /// <summary>
     /// Register an event handler.
     /// </summary>
-    /// <param name="eventType">Event type to listen for</param>
+    /// <param name="eventType">Event type constant to listen for (SCREAMING_SNAKE_CASE)</param>
     /// <param name="handler">Event handler callback</param>
     /// <returns>Registration ID for unregistering later</returns>
-    public string RegisterHandler(EventType eventType, Func<EventMessage, Task> handler)
+    public string RegisterHandler(string eventType, Func<EventMessage, Task> handler)
     {
         lock (_lock)
         {

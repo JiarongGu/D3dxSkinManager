@@ -39,11 +39,11 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         _context.Log(LogLevel.Info, $"[{Name}] Log file: {_logFilePath}");
 
         // Register event handlers
-        _context.RegisterEventHandler(EventType.ApplicationStarted, OnApplicationStarted);
-        _context.RegisterEventHandler(EventType.ModLoaded, OnModLoaded);
-        _context.RegisterEventHandler(EventType.ModUnloaded, OnModUnloaded);
-        _context.RegisterEventHandler(EventType.ModImported, OnModImported);
-        _context.RegisterEventHandler(EventType.ModDeleted, OnModDeleted);
+        _context.RegisterEventHandler(CoreEvents.APPLICATION_STARTED, OnApplicationStarted);
+        _context.RegisterEventHandler(CoreEvents.MOD_LOADED, OnModLoaded);
+        _context.RegisterEventHandler(CoreEvents.MOD_UNLOADED, OnModUnloaded);
+        _context.RegisterEventHandler(CoreEvents.MOD_IMPORTED, OnModImported);
+        _context.RegisterEventHandler(CoreEvents.MOD_DELETED, OnModDeleted);
 
         // Write startup message to log file
         await WriteLogAsync("=== Mod Logger Plugin Started ===");

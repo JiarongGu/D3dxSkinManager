@@ -98,7 +98,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     public async Task<Profile> CreateProfileAsync(CreateProfileRequest createRequest)
     {
         var profile = await _profileService.CreateProfileAsync(createRequest).ConfigureAwait(false);
-        await _eventEmitter.EmitAsync(Core.Event.EventType.CustomEvent, "profile.created", profile).ConfigureAwait(false);
+        await _eventEmitter.EmitAsync(ProfileEvents.CUSTOM_EVENT, "profile.created", profile).ConfigureAwait(false);
 
         return profile;
     }
@@ -109,7 +109,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(Core.Event.EventType.CustomEvent, "profile.updated", updateRequest).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ProfileEvents.CUSTOM_EVENT, "profile.updated", updateRequest).ConfigureAwait(false);
         }
 
         return success;
@@ -121,7 +121,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(Core.Event.EventType.CustomEvent, "profile.deleted", new { ProfileId = profileId }).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ProfileEvents.CUSTOM_EVENT, "profile.deleted", new { ProfileId = profileId }).ConfigureAwait(false);
         }
 
         return success;
@@ -130,7 +130,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     public async Task<Profile> DuplicateProfileAsync(string sourceProfileId, string newName)
     {
         var profile = await _profileService.DuplicateProfileAsync(sourceProfileId, newName).ConfigureAwait(false);
-        await _eventEmitter.EmitAsync(Core.Event.EventType.CustomEvent, "profile.duplicated", profile).ConfigureAwait(false);
+        await _eventEmitter.EmitAsync(ProfileEvents.CUSTOM_EVENT, "profile.duplicated", profile).ConfigureAwait(false);
 
         return profile;
     }
@@ -270,7 +270,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         await _profileService.SwitchProfileAsync(profileId).ConfigureAwait(false);
 
         var activeProfile = await _profileService.GetActiveProfileAsync().ConfigureAwait(false);
-        await _eventEmitter.EmitAsync(Core.Event.EventType.CustomEvent, "profile.switched", activeProfile).ConfigureAwait(false);
+        await _eventEmitter.EmitAsync(ProfileEvents.CUSTOM_EVENT, "profile.switched", activeProfile).ConfigureAwait(false);
 
         // Return the same response as GET_ALL
         return await GetAllProfilesAsync().ConfigureAwait(false);

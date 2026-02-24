@@ -4,21 +4,29 @@
  */
 
 // Event type enum matching backend EventType
+// All events use SCREAMING_SNAKE_CASE for consistency with IPC notification format
 export enum EventType {
-  ApplicationStarted = 'ApplicationStarted',
-  ApplicationShutdown = 'ApplicationShutdown',
-  ModLoaded = 'ModLoaded',
-  ModUnloaded = 'ModUnloaded',
-  ModDeleted = 'ModDeleted',
-  ModImported = 'ModImported',
-  ModsRefreshed = 'ModsRefreshed',
-  ClassificationTreeChanged = 'ClassificationTreeChanged',
-  CustomEvent = 'CustomEvent',
-  LogLevelChanged = 'LogLevelChanged',
+  ApplicationStarted = 'APPLICATION_STARTED',
+  ApplicationShutdown = 'APPLICATION_SHUTDOWN',
+  ModLoaded = 'MOD_LOADED',
+  ModUnloaded = 'MOD_UNLOADED',
+  ModDeleted = 'MOD_DELETED',
+  ModImported = 'MOD_IMPORTED',
+  ModsRefreshed = 'MODS_REFRESHED',
+  ClassificationTreeChanged = 'CLASSIFICATION_TREE_CHANGED',
+  CustomEvent = 'CUSTOM_EVENT',
+  LogLevelChanged = 'LOG_LEVEL_CHANGED',
+  // Drop zone events
+  DropZoneClick = 'DROP_ZONE_CLICK',
+  DropZoneDragEnter = 'DROP_ZONE_DRAG_ENTER',
+  DropZoneDragLeave = 'DROP_ZONE_DRAG_LEAVE',
+  DropZoneFileDrop = 'DROP_ZONE_FILE_DROP',
+  DropZoneMouseEnter = 'DROP_ZONE_MOUSE_ENTER',
+  DropZoneMouseLeave = 'DROP_ZONE_MOUSE_LEAVE',
 }
 
 // Event payload types
-export interface BackendEvent<T = unknown> {
+export interface Event<T = unknown> {
   type: EventType;
   eventName?: string; // For CustomEvent
   data?: T;
@@ -81,14 +89,14 @@ class EventBus {
    * Emit an event to all subscribers
    * Called by bridge service when receiving backend events
    */
-  emit<T = unknown>(event: BackendEvent<T>): void {
+  emit<T = unknown>(event: Event<T>): void {
     const key = this.getEventKey(event.type, event.eventName);
     const handlers = this.handlers.get(key);
 
     if (handlers && handlers.size > 0) {
       handlers.forEach((handler) => {
         try {
-          handler(event.data);
+          handler(event);
         } catch (error) {
           console.error(`Error in event handler for ${key}:`, error);
         }
@@ -130,6 +138,18 @@ class EventBus {
       total += handlers.size;
     });
     return total;
+  }
+
+  /**
+   * Convenience method for subscribing to events
+   * Returns a function that unsubscribes when called
+   */
+  on<T = unknown>(
+    eventType: EventType | string,
+    handler: EventHandler<Event<T>>
+  ): () => void {
+    const subscription = this.subscribe(eventType, handler as EventHandler);
+    return () => subscription.unsubscribe();
   }
 }
 

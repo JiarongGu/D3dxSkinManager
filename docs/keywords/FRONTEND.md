@@ -518,6 +518,55 @@
   - Fixed: 2026-02-21 - Dragleave flickering, gap detection, React state management
   - See: [changelogs/2026-02/2026-02-21-usedragdrop-hook-fixes.md](../changelogs/2026-02/2026-02-21-usedragdrop-hook-fixes.md)
 
+- **useDropZone** → `src/shared/hooks/useDropZone.ts`
+  - OS-level file drop hook using WinForms overlay for real file paths
+  - Integrates with backend DropZoneOverlay via EventBus IPC
+  - **Architecture:** WinForms transparent overlay panel → Backend events → Frontend EventBus → CSS class application
+  - **Signature:**
+    ```typescript
+    useDropZone({
+      targetRef: React.RefObject<HTMLElement | null>,
+      onDrop: (files: string[]) => void,
+      enabled?: boolean,
+      zoneId?: string,
+      classes?: { hover?: string; drop?: string; }
+    })
+    ```
+  - **Parameters:**
+    - `targetRef` - Ref to target element for overlay positioning
+    - `onDrop` - Callback with array of absolute file paths
+    - `enabled` - Enable/disable drop zone (default: true)
+    - `zoneId` - Custom zone identifier (default: auto-generated UUID)
+    - `classes` - Custom CSS class names for visual states
+      - `hover` - Class applied on mouse enter (default: 'drop-zone-hover')
+      - `drop` - Class applied when dragging files (default: 'drop-zone-drop')
+  - **Event Flow:**
+    1. Mouse/drag enters overlay → Backend sends MOUSE_ENTER/DRAG_ENTER event
+    2. EventBus receives event → Hook adds CSS class to targetRef element
+    3. Mouse/drag leaves → Backend sends MOUSE_LEAVE/DRAG_LEAVE → Hook removes class
+    4. Files dropped → Backend sends FILE_DROP with file paths → onDrop callback
+    5. Click overlay → Backend sends CLICK → Hook finds clickable child and clicks it
+  - **Visual Feedback:** Self-contained CSS file (useDropZone.css)
+    - `.drop-zone-hover` - Mouse over state (matches CompactUpload hover style)
+    - `.drop-zone-drop` - Dragging files state (drag-over visual feedback)
+    - Theme-aware styles for both light and dark modes
+  - **Auto-tracking:** Uses ResizeObserver & IntersectionObserver for position/size updates
+  - **Lifecycle:** Auto-registers on mount, auto-unregisters on unmount or when element removed
+  - **Click Forwarding:** Finds clickable children (`[role="button"]`, `button`, `a`) and triggers click
+  - **Usage Example:**
+    ```typescript
+    const dropZoneRef = useRef<HTMLDivElement>(null);
+    useDropZone({
+      targetRef: dropZoneRef,
+      onDrop: (files) => handleFileDrop(files),
+      classes: { hover: 'custom-hover', drop: 'custom-drop' } // Optional
+    });
+
+    return <div ref={dropZoneRef}><CompactUpload /></div>;
+    ```
+  - Created: 2026-02-24
+  - Updated: 2026-02-24 - Added customizable CSS classes with useRef optimization
+
 - **useDelayedLoading** → `src/shared/hooks/useDelayedLoading.ts`
   - Delays loading state changes to prevent flicker
   - Returns: isDelayedLoading boolean

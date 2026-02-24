@@ -10,7 +10,10 @@ public interface IEventEmitter
     /// Emits an event to the plugin event bus if available.
     /// Silently returns if event bus is not available.
     /// </summary>
-    Task EmitAsync(EventType eventType, string? eventName = null, object? data = null);
+    /// <param name="eventType">Event type constant (SCREAMING_SNAKE_CASE)</param>
+    /// <param name="eventName">Optional event name for CUSTOM_EVENT types</param>
+    /// <param name="data">Event data payload</param>
+    Task EmitAsync(string eventType, string? eventName = null, object? data = null);
 }
 
 /// <summary>
@@ -26,7 +29,7 @@ public class EventEmitter : IEventEmitter
     }
 
     /// <inheritdoc />
-    public async Task EmitAsync(EventType eventType, string? eventName = null, object? data = null)
+    public async Task EmitAsync(string eventType, string? eventName = null, object? data = null)
     {
         if (_eventBus == null)
         {

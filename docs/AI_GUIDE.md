@@ -184,6 +184,135 @@ public class ModFacade : IModFacade {
 }
 ```
 
+### IPC Event Notifications
+
+**CRITICAL: Event Naming Convention**
+
+All IPC notifications use **SCREAMING_SNAKE_CASE constants** defined at **module level**:
+
+```csharp
+// Backend: Define event constants at module level
+// Example: Composition/DropZoneEvents.cs
+namespace D3dxSkinManager.Composition;
+
+public static class DropZoneEvents
+{
+    public const string CLICK = "DROP_ZONE_CLICK";
+    public const string DRAG_ENTER = "DROP_ZONE_DRAG_ENTER";
+    public const string DRAG_LEAVE = "DROP_ZONE_DRAG_LEAVE";
+    public const string FILE_DROP = "DROP_ZONE_FILE_DROP";
+    public const string MOUSE_ENTER = "DROP_ZONE_MOUSE_ENTER";
+    public const string MOUSE_LEAVE = "DROP_ZONE_MOUSE_LEAVE";
+}
+
+// Example: Modules/Mods/ModEvents.cs
+namespace D3dxSkinManager.Modules.Mods;
+
+public static class ModEvents
+{
+    public const string MOD_LOADED = "MOD_LOADED";
+    public const string MOD_UNLOADED = "MOD_UNLOADED";
+    public const string MOD_DELETED = "MOD_DELETED";
+    public const string CLASSIFICATION_TREE_CHANGED = "CLASSIFICATION_TREE_CHANGED";
+    public const string CUSTOM_EVENT = "CUSTOM_EVENT";
+}
+
+// Core events (Modules/Core/Event/CoreEvents.cs)
+public static class CoreEvents
+{
+    public const string APPLICATION_STARTED = "APPLICATION_STARTED";
+    public const string APPLICATION_SHUTDOWN = "APPLICATION_SHUTDOWN";
+    public const string MOD_LOADED = "MOD_LOADED";
+    // ... etc
+
+    public static readonly string[] All = new[] { APPLICATION_STARTED, APPLICATION_SHUTDOWN, ... };
+}
+
+// ✅ CORRECT: Use module-level constants
+_ipcHandler.SendNotification(DropZoneEvents.CLICK, new { zoneId, position });
+_eventEmitter.EmitAsync(ModEvents.MOD_LOADED, data: new { Sha = sha });
+
+// ❌ WRONG: Don't use string literals
+_ipcHandler.SendNotification("DROP_ZONE_CLICK", new { zoneId, position });
+_eventEmitter.EmitAsync("MOD_LOADED", data: new { Sha = sha });
+```
+
+```typescript
+// Frontend: EventType enum maps notification names (all SCREAMING_SNAKE_CASE)
+export enum EventType {
+  // Standard events: PascalCase = SCREAMING_SNAKE_CASE
+  ApplicationStarted = 'APPLICATION_STARTED',
+  ModLoaded = 'MOD_LOADED',
+  ClassificationTreeChanged = 'CLASSIFICATION_TREE_CHANGED',
+
+  // Custom notifications: PascalCase = SCREAMING_SNAKE_CASE
+  DropZoneClick = 'DROP_ZONE_CLICK',
+  DropZoneDragEnter = 'DROP_ZONE_DRAG_ENTER',
+  DropZoneDragLeave = 'DROP_ZONE_DRAG_LEAVE',
+  DropZoneFileDrop = 'DROP_ZONE_FILE_DROP',
+  DropZoneMouseEnter = 'DROP_ZONE_MOUSE_ENTER',
+  DropZoneMouseLeave = 'DROP_ZONE_MOUSE_LEAVE',
+}
+
+// ✅ CORRECT: Subscribe using the EventType enum
+import { eventBus, EventType } from '../services/eventBus';
+
+eventBus.on(EventType.DropZoneClick, (event) => {
+  console.log(event.data);  // { zoneId, position }
+});
+
+// ❌ WRONG: Don't use string literals
+eventBus.on('DROP_ZONE_CLICK', (event) => {  // Type-unsafe, avoid!
+  console.log(event.data);
+});
+```
+
+**When to Add New Event Types:**
+
+1. **Create/Update module event constants file** → e.g., `Modules/YourModule/YourModuleEvents.cs`
+   ```csharp
+   public static class YourModuleEvents
+   {
+       public const string NEW_EVENT = "NEW_EVENT";
+   }
+   ```
+
+2. **Frontend EventType enum** → Add matching entry in `eventBus.ts`
+   ```typescript
+   export enum EventType {
+       NewEvent = 'NEW_EVENT',  // PascalCase = SCREAMING_SNAKE_CASE
+   }
+   ```
+
+3. **If core system event** → Add to `CoreEvents.All` array for automatic EventBusIpcBridge subscription
+
+4. **Document in this guide** to maintain consistency
+
+**Module Event Constants Files:**
+- `Composition/DropZoneEvents.cs` - Drop zone events
+- `Modules/Mods/ModEvents.cs` - Mod operation events
+- `Modules/Profiles/ProfileEvents.cs` - Profile events
+- `Modules/Tools/ToolsEvents.cs` - Tools events
+- `Modules/Migration/MigrationEvents.cs` - Migration events
+- `Modules/Context/ContextEvents.cs` - Context lifecycle events
+- `Modules/Plugins/PluginEvents.cs` - Plugin events
+- `Modules/Core/Event/CoreEvents.cs` - Core system events
+
+**Naming Pattern:**
+- Backend constant: `DROP_ZONE_CLICK` → Frontend enum: `DropZoneClick = 'DROP_ZONE_CLICK'`
+- Both use SCREAMING_SNAKE_CASE strings for the actual event name
+- Frontend enum keys use PascalCase for TypeScript convention
+- Module event class naming: `{ModuleName}Events` (e.g., `ModEvents`, `DropZoneEvents`)
+
+**Event Structure:**
+```typescript
+interface Event<T = unknown> {
+  type: EventType;      // Matches EventType enum value
+  eventName?: string;   // For CustomEvent only
+  data?: T;            // Event payload
+}
+```
+
 ### React Context Pattern
 ```typescript
 // Context with ProfileId awareness
