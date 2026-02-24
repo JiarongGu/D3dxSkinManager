@@ -8,12 +8,13 @@ Unified logging system with frontend-backend integration, daily rotation, and co
 
 | Level | Value | Use Case |
 |-------|-------|----------|
-| **ALL** | 4 | Trace everything (deep debugging) |
-| **DEBUG** | 0 | Development diagnostics |
-| **INFO** | 1 | Normal operations (recommended) |
-| **WARN** | 2 | Potential issues |
-| **ERROR** | 3 | Failures/exceptions |
-| **OFF** | -1 | Silent mode (default) |
+| **VERBOSE** | 0 | Extremely detailed (high-frequency events like mouse movements, IPC messages) |
+| **DEBUG** | 1 | Development diagnostics |
+| **INFO** | 2 | Normal operations (recommended default) |
+| **WARN** | 3 | Potential issues |
+| **ERROR** | 4 | Failures/exceptions |
+| **ALL** | -1 | Show everything (includes VERBOSE) |
+| **OFF** | -2 | Silent mode |
 
 ## Architecture
 
@@ -62,6 +63,7 @@ public class ModService
         {
             // Load mod
             _logger.Debug($"Mod loaded: {sha}");
+            _logger.Verbose($"Cache lookup for mod: {sha}"); // High-frequency operation
         }
         catch (Exception ex)
         {
@@ -108,6 +110,7 @@ const logger = useLogger();
 logger.info('Mod loaded successfully');
 logger.error('Failed to load mod', error);
 logger.debug('Cache hit for', modId);
+logger.verbose('Mouse enter event', zoneId); // High-frequency events
 ```
 
 ## Configuration
@@ -116,7 +119,7 @@ logger.debug('Cache hit for', modId);
 ```csharp
 public class GlobalSettings
 {
-    public LogLevel MinimumLogLevel { get; set; } = LogLevel.Off;
+    public LogLevel MinimumLogLevel { get; set; } = LogLevel.Info; // Default to INFO in dev mode
     public bool EnableFrontendLogging { get; set; } = false;
 }
 ```
@@ -150,8 +153,9 @@ data/
 
 ### Log Format
 ```
-[14:23:45] [INFO] [ModService] Loading mod: abc123
-[14:23:46] [ERROR] [ModService] Failed to load mod: File not found
+[14:23:45] [INFO   ] [ModService] Loading mod: abc123
+[14:23:45] [VERBOSE] [IPC] Sent IPC response: abc-123
+[14:23:46] [ERROR  ] [ModService] Failed to load mod: File not found
 ```
 
 ## Best Practices
@@ -160,8 +164,10 @@ data/
 2. **Class Name Context** - Always include source class
 3. **Structured Messages** - Use consistent format
 4. **Exception Details** - Log full exception info at ERROR level
-5. **Performance** - Use DEBUG for detailed traces
-6. **User Actions** - Log at INFO level
+5. **High-Frequency Events** - Use VERBOSE for mouse events, IPC messages, frequent operations
+6. **Development Diagnostics** - Use DEBUG for detailed traces
+7. **User Actions** - Log at INFO level
+8. **Console Output** - Respects log level settings in dev mode (defaults to INFO)
 
 ## Performance Considerations
 

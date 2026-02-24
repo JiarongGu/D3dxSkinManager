@@ -9,23 +9,26 @@ namespace D3dxSkinManager.Modules.Core.Helpers;
 /// </summary>
 public enum LogLevel
 {
+    /// <summary>Verbose - Extremely detailed diagnostic information (high-frequency events like mouse movements, IPC messages)</summary>
+    Verbose = 0,
+
     /// <summary>Debug - Verbose diagnostic information</summary>
-    Debug = 0,
+    Debug = 1,
 
     /// <summary>Info - General informational messages</summary>
-    Info = 1,
+    Info = 2,
 
     /// <summary>Warn - Warning messages</summary>
-    Warn = 2,
+    Warn = 3,
 
     /// <summary>Error - Error messages</summary>
-    Error = 3,
+    Error = 4,
 
     /// <summary>All - Show everything (special value for filtering)</summary>
-    All = 4,
+    All = -1,
 
     /// <summary>Off - Disable all logging (special value for filtering)</summary>
-    Off = -1
+    Off = -2
 }
 
 /// <summary>
@@ -37,6 +40,11 @@ public interface ILogHelper
     /// Gets or sets the minimum log level that will be output
     /// </summary>
     LogLevel MinimumLevel { get; set; }
+
+    /// <summary>
+    /// Log a verbose message (high-frequency events like mouse movements, IPC messages)
+    /// </summary>
+    void Verbose(string message, string? source = null);
 
     /// <summary>
     /// Log a debug message (verbose diagnostic information)
@@ -108,6 +116,11 @@ public class LogHelper : ILogHelper, IDisposable
         return new LogHelper(globalPaths, environment);
     }
 
+    public void Verbose(string message, string? source = null)
+    {
+        Log(LogLevel.Verbose, message, source);
+    }
+
     public void Debug(string message, string? source = null)
     {
         Log(LogLevel.Debug, message, source);
@@ -148,18 +161,18 @@ public class LogHelper : ILogHelper, IDisposable
         }
 
         // LOGGING BEHAVIOR:
-        // - Console Output: Development mode ONLY (always shows all logs regardless of settings)
+        // - Console Output: Development mode ONLY (respects log level settings, defaults to INFO)
         // - File Output: Respects log level settings in both dev and prod modes
         // - Production: No console output at all, only file output based on settings
-        // - Log Level Settings: Apply ONLY to file output, not console
+        // - Log Level Settings: Apply to both console and file output
 
-        // Console: Development only, shows everything
-        if (_appEnvironment.IsDevelopment)
+        // Console: Development only, respects log level settings
+        if (_appEnvironment.IsDevelopment && ShouldLog(level))
         {
             WriteToConsole(level, logEntry);
         }
 
-        // File: Respects log level settings (OFF, DEBUG, INFO, WARNING, ERROR, ALL)
+        // File: Respects log level settings (OFF, VERBOSE, DEBUG, INFO, WARNING, ERROR, ALL)
         if (ShouldLog(level))
         {
             _ = WriteToFileAsync(level, logEntry, source);
@@ -168,13 +181,13 @@ public class LogHelper : ILogHelper, IDisposable
 
     private bool ShouldLog(LogLevel level)
     {
-        // Skip logging if disabled (Off=-1)
+        // Skip logging if disabled (Off=-2)
         if (_appEnvironment.MinimumLogLevel == LogLevel.Off)
         {
             return false;
         }
 
-        // Log everything if minimum is All=4
+        // Log everything if minimum is All=-1
         if (_appEnvironment.MinimumLogLevel == LogLevel.All)
         {
             return true;
@@ -206,6 +219,7 @@ public class LogHelper : ILogHelper, IDisposable
             // Color-code by level
             Console.ForegroundColor = level switch
             {
+                LogLevel.Verbose => ConsoleColor.DarkGray,
                 LogLevel.Debug => ConsoleColor.Gray,
                 LogLevel.Info => ConsoleColor.White,
                 LogLevel.Warn => ConsoleColor.Yellow,

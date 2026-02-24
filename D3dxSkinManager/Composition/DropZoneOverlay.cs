@@ -128,18 +128,18 @@ public class DropZoneOverlay : Panel
 
     private void OnMouseDown(object? sender, MouseEventArgs e)
     {
-        _logger.Debug($"MouseDown on zone {ZoneId} at {e.Location}, button: {e.Button}", "DropZone");
+        _logger.Verbose($"MouseDown on zone {ZoneId} at {e.Location}, button: {e.Button}", "DropZone");
     }
 
     private void OnMouseEnter(object? sender, EventArgs e)
     {
-        _logger.Debug($"Mouse enter zone: {ZoneId}", "DropZone");
+        _logger.Verbose($"Mouse enter zone: {ZoneId}", "DropZone");
         _onMouseEnter?.Invoke(ZoneId);
     }
 
     private void OnMouseLeave(object? sender, EventArgs e)
     {
-        _logger.Debug($"Mouse leave zone: {ZoneId}", "DropZone");
+        _logger.Verbose($"Mouse leave zone: {ZoneId}", "DropZone");
         _onMouseLeave?.Invoke(ZoneId);
     }
 
@@ -301,13 +301,13 @@ public class DropZoneManager
 
     private void OnMouseEnter(string zoneId)
     {
-        _logger.Debug($"Mouse enter zone {zoneId}", "DropZoneManager");
+        _logger.Verbose($"Mouse enter zone {zoneId}", "DropZoneManager");
         _ipcHandler?.SendNotification(DropZoneEvents.MOUSE_ENTER, new { zoneId });
     }
 
     private void OnMouseLeave(string zoneId)
     {
-        _logger.Debug($"Mouse leave zone {zoneId}", "DropZoneManager");
+        _logger.Verbose($"Mouse leave zone {zoneId}", "DropZoneManager");
         _ipcHandler?.SendNotification(DropZoneEvents.MOUSE_LEAVE, new { zoneId });
     }
 

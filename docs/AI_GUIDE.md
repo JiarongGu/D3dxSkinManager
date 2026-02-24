@@ -71,6 +71,19 @@ try {
 
 ## 📊 Implementation Patterns
 
+### Logging Levels
+
+Backend and frontend both support these log levels (in order of verbosity):
+- **VERBOSE (0)**: High-frequency events (mouse movements, IPC messages, frequent operations)
+- **DEBUG (1)**: Development diagnostics
+- **INFO (2)**: Normal operations (default in dev mode)
+- **WARN (3)**: Potential issues
+- **ERROR (4)**: Failures/exceptions
+- **ALL (-1)**: Show everything including VERBOSE
+- **OFF (-2)**: Disable all logging
+
+**Important**: Console output in development mode respects the log level setting (defaults to INFO). This means VERBOSE and DEBUG logs won't appear in console unless explicitly enabled.
+
 ### Error Handling Pattern
 
 **Backend: Throw ModException with ErrorCode**

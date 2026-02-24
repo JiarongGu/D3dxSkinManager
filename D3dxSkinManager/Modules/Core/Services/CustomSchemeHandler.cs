@@ -75,7 +75,7 @@ public class CustomSchemeHandler : ICustomSchemeHandler
 
         try
         {
-            _logger.Debug($"Request: {url}", "CustomScheme");
+            _logger.Verbose($"Request: {url}", "CustomScheme");
 
             // Fast validation: check scheme prefix
             if (!url.StartsWith(SchemePrefix, StringComparison.OrdinalIgnoreCase))
@@ -116,7 +116,7 @@ public class CustomSchemeHandler : ICustomSchemeHandler
             // Get cached content type
             contentType = GetCachedContentType(absolutePath);
 
-            _logger.Debug($"Serving: {absolutePath} ({contentType})", "CustomScheme");
+            _logger.Verbose($"Serving: {absolutePath} ({contentType})", "CustomScheme");
 
             // Return optimized file stream with buffer
             return new FileStream(

@@ -1,17 +1,18 @@
 /**
- * Log Levels (matching Python implementation)
+ * Log Levels (matching backend C# implementation)
  * Lower number = more verbose
  */
 export enum LogLevel {
-  DEBUG = 0,    // Debug
-  INFO = 1,     // Info
-  WARN = 2,     // Warnings
-  ERROR = 3,    // Errors
-  ALL = 4,     // Show everything
-  OFF = -1,     // Disable logging
+  VERBOSE = 0,  // Extremely detailed (high-frequency events)
+  DEBUG = 1,    // Debug
+  INFO = 2,     // Info
+  WARN = 3,     // Warnings
+  ERROR = 4,    // Errors
+  ALL = -1,     // Show everything
+  OFF = -2,     // Disable logging
 }
 
-export type LogLevelName = 'ALL' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'OFF';
+export type LogLevelName = 'ALL' | 'VERBOSE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'OFF';
 
 /**
  * Logger class with level-based filtering
@@ -124,7 +125,7 @@ export class Logger {
       return true;
     }
 
-    // Otherwise, log if level >= currentLevel
+    // Otherwise, log if level >= currentLevel (higher or equal importance)
     return level >= this.currentLevel;
   }
 
@@ -156,6 +157,16 @@ export class Logger {
     } catch (error) {
       // Silently fail - don't create infinite loop if logging itself fails
       // Just log to console as fallback
+    }
+  }
+
+  /**
+   * Log a verbose message (high-frequency events)
+   */
+  verbose(message: string, ...args: any[]): void {
+    if (this.shouldLog(LogLevel.VERBOSE)) {
+      console.log(`[VERBOSE] ${message}`, ...args);
+      this.sendToBackend(LogLevel.VERBOSE, message, args); // Fire and forget
     }
   }
 
@@ -205,6 +216,7 @@ export class Logger {
   static getLevelOptions(): Array<{ value: string; label: string; description: string }> {
     return [
       { value: 'ALL', label: 'All', description: 'Show all log messages' },
+      { value: 'VERBOSE', label: 'Verbose', description: 'Extremely detailed (high-frequency events)' },
       { value: 'DEBUG', label: 'Debug', description: 'Debug information and above' },
       { value: 'INFO', label: 'Info', description: 'Information, warnings and errors' },
       { value: 'WARN', label: 'Warn', description: 'Warnings and errors' },

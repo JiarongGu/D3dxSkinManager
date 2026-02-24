@@ -71,7 +71,7 @@ public class IpcCommunicationHandler
         try
         {
             var json = e.TryGetWebMessageAsString();
-            _logger.Debug($"Received message: {json}", "IPC");
+            _logger.Verbose($"Received message: {json}", "IPC");
 
             // Parse the message
             var message = JsonSerializer.Deserialize<IpcRequest>(json, _jsonOptions);
@@ -212,7 +212,7 @@ public class IpcCommunicationHandler
                 _webView.CoreWebView2.PostWebMessageAsString(json);
             }
 
-            _logger.Debug($"Sent IPC response: {response.Id}", "IPC");
+            _logger.Verbose($"Sent IPC response: {response.Id}", "IPC");
         }
         catch (Exception ex)
         {
@@ -252,7 +252,7 @@ public class IpcCommunicationHandler
                 _webView.CoreWebView2.PostWebMessageAsString(json);
             }
 
-            _logger.Debug($"Sent notification [{notificationId}]: {type}", "IPC");
+            _logger.Verbose($"Sent notification [{notificationId}]: {type}", "IPC");
         }
         catch (Exception ex)
         {

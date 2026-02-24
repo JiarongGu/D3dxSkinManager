@@ -223,12 +223,13 @@ public class SystemFacade : BaseFacade, ISystemFacade
         var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
         var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
         var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
+        var filters = _payloadHelper.GetOptionalValue<List<FileDialogFilter>>(request.Payload, "filters");
 
         var options = new FileDialogOptions
         {
             Title = title,
             DefaultPath = defaultPath,
-            Filters = null,
+            Filters = filters,
             RememberPathKey = rememberPathKey
         };
 
@@ -256,11 +257,13 @@ public class SystemFacade : BaseFacade, ISystemFacade
         var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
         var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
         var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
+        var filters = _payloadHelper.GetOptionalValue<List<FileDialogFilter>>(request.Payload, "filters");
 
         var options = new FileDialogOptions
         {
             Title = title,
             DefaultPath = defaultPath,
+            Filters = filters,
             RememberPathKey = rememberPathKey
         };
 
