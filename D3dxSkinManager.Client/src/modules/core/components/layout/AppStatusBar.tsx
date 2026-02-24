@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Space, Tag, Progress, Button } from 'antd';
 import {
   CheckCircleOutlined,
@@ -7,14 +7,13 @@ import {
 } from '@ant-design/icons';
 import { AnnotatedTooltip, annotations } from '../../../../shared/components/common/TooltipSystem';
 import { useTranslation } from 'react-i18next';
+import { useMods } from '../../../mods';
 import './AppStatusBar.css';
 
 export type StatusType = 'normal' | 'warning' | 'error';
 
 interface AppStatusBarProps {
   serverStatus: 'connected' | 'disconnected' | 'connecting';
-  modsLoaded: number;
-  modsTotal: number;
   statusMessage?: string;
   statusType?: StatusType;
   progressPercent?: number;
@@ -27,8 +26,6 @@ interface AppStatusBarProps {
 
 export const AppStatusBar: React.FC<AppStatusBarProps> = ({
   serverStatus,
-  modsLoaded,
-  modsTotal,
   statusMessage,
   statusType = 'normal',
   progressPercent = 0,
@@ -39,6 +36,17 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
   onProgressClick,
 }) => {
   const { t } = useTranslation();
+
+  // Get mod data from store
+  const { state } = useMods();
+  const { mods } = state;
+
+  // Calculate loaded mods count
+  const modsLoaded = useMemo(() => {
+    return mods.filter((mod) => mod.isLoaded).length;
+  }, [mods]);
+
+  const modsTotal = mods.length;
 
   const getServerStatusIcon = () => {
     const iconClass = `app-status-bar-status-icon-${serverStatus}`;

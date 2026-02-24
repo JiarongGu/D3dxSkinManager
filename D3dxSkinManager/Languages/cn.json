@@ -416,6 +416,7 @@
     "mods.preview.imageDeleteFailed": "删除预览图像失败",
     "mods.preview.imageDeleted": "预览图像已删除",
     "mods.preview.imageFiles": "图像文件",
+    "mods.preview.loadingImages": "正在加载图像...",
     "mods.preview.loaded": "已加载",
     "mods.preview.next": "下一个",
     "mods.preview.noImageInClipboard": "剪贴板中未找到图像",

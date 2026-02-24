@@ -4,34 +4,34 @@ import { Modal, Form, Input, Select, Space, Divider, Alert,  AutoComplete } from
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { modService } from '../../services/modService';
 import { MultiTagInput } from '../../../../shared/components/common/MultiTagInput';
-import { ModTagSelectorDialog } from '../ModEditDialog/ModTagSelectorDialog';
+import { ModTagSelectorDialog } from '../ModEditScreen/ModTagSelectorDialog';
 import { CompactButton } from '../../../../shared/components/compact/CompactButton';
 import { FieldRow } from './FieldRow';
 import { useProfile } from '../../../../shared/context/ProfileContext';
+import { useModsStore } from '../../store/modsStore';
+import { useMods } from '../../hooks/useMods';
 import { useTranslation } from 'react-i18next';
 import './index.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-export interface BatchEditDialogProps {
-  visible: boolean;
-  selectedMods: ModInfo[];
-  onSave: (modData: Partial<ModInfo>, fieldMask: string[]) => Promise<void>;
-  onCancel: () => void;
-}
-
 /**
  * Dialog for batch editing multiple mods
  * Uses checkboxes to select which fields to update
- * Refactored to use CompactButton and modern components
+ *
+ * NEW ARCHITECTURE:
+ * - Subscribes to its own state from useModsStore
+ * - Calls batchUpdateMetadata operation directly
+ * - No props needed!
  */
-export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
-  visible,
-  selectedMods,
-  onSave,
-  onCancel,
-}) => {
+export const BatchEditDialog: React.FC = () => {
+  // Subscribe to state this component needs
+  const visible = useModsStore(s => s.batchEditDialogVisible);
+  const selectedMods = useModsStore(s => s.selectedMods);
+
+  // Get operations
+  const { batchUpdateMetadata, closeBatchEditDialog } = useMods();
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -124,11 +124,16 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
       }
 
       setSaving(true);
-      await onSave(modData, fieldMask);
 
-      notification.success(t('batchEditMods.modsUpdated', { count: selectedMods.length }));
+      // Call operation directly - it handles everything
+      await batchUpdateMetadata(
+        selectedMods.map(m => m.sha),
+        modData,
+        fieldMask
+      );
+
       handleReset();
-      onCancel();
+      closeBatchEditDialog();
     } catch (error) {
       console.error('Validation failed:', error);
       notification.error(t('batchEdit.checkFields'));
@@ -151,7 +156,7 @@ export const BatchEditDialog: React.FC<BatchEditDialogProps> = ({
 
   const handleCancel = () => {
     handleReset();
-    onCancel();
+    closeBatchEditDialog();
   };
 
   const handleOpenTagSelector = () => {

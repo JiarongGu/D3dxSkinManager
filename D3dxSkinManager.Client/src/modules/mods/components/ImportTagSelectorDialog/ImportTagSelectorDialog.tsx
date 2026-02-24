@@ -3,17 +3,11 @@ import { Input, Checkbox, Empty, Space } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useSlideInDialog } from '../../../../shared/hooks/useSlideInDialog';
 import { CompactButton } from '../../../../shared/components/compact/CompactButton';
+import { useModsStore } from '../../store/modsStore';
+import { useMods } from '../../hooks/useMods';
 import './ImportTagSelectorDialog.css';
 
 const { Search } = Input;
-
-export interface ImportTagSelectorDialogProps {
-  visible: boolean;
-  availableTags: string[];
-  selectedTags: string[];
-  onConfirm: (selectedTags: string[]) => void;
-  onCancel: () => void;
-}
 
 /**
  * Dialog for selecting tags during import workflow
@@ -23,14 +17,19 @@ export interface ImportTagSelectorDialogProps {
  * - Checkbox selection
  * - Shows selected count
  * - Select All/Deselect All actions
+ *
+ * NEW ARCHITECTURE:
+ * - Subscribes to its own state from useModsStore
+ * - No props needed - gets everything from store
  */
-export const ImportTagSelectorDialog: React.FC<ImportTagSelectorDialogProps> = ({
-  visible,
-  availableTags,
-  selectedTags,
-  onConfirm,
-  onCancel,
-}) => {
+export const ImportTagSelectorDialog: React.FC = () => {
+  // Subscribe to state this component needs
+  const visible = useModsStore(s => s.tagDialogVisible);
+  const availableTags = useModsStore(s => s.availableTags);
+  const selectedTags = useModsStore(s => s.currentTags);
+
+  // Get operations
+  const { saveTagsForImport, closeTagDialog } = useMods();
   const [searchTerm, setSearchTerm] = useState('');
   const [localSelectedTags, setLocalSelectedTags] = useState<string[]>(selectedTags);
 
@@ -62,7 +61,7 @@ export const ImportTagSelectorDialog: React.FC<ImportTagSelectorDialogProps> = (
   };
 
   const handleConfirm = () => {
-    onConfirm(localSelectedTags);
+    saveTagsForImport(localSelectedTags);
   };
 
   const handleSelectAll = () => {
@@ -131,7 +130,7 @@ export const ImportTagSelectorDialog: React.FC<ImportTagSelectorDialogProps> = (
       {/* Footer with action buttons */}
       <div className="slide-in-screen-footer">
         <Space>
-          <CompactButton onClick={onCancel}>
+          <CompactButton onClick={closeTagDialog}>
             Cancel
           </CompactButton>
           <CompactButton type="primary" onClick={handleConfirm}>
@@ -147,7 +146,7 @@ export const ImportTagSelectorDialog: React.FC<ImportTagSelectorDialogProps> = (
     title: 'Select Tags for Import',
     content,
     width: '40%',
-    onClose: onCancel,
+    onClose: closeTagDialog,
   });
 
   return null;

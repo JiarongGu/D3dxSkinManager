@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { useModsContext } from "../../context/ModsContext";
+import { useMods } from "../../hooks/useMods";
+import { useModsStore } from "../../store/modsStore";
 import { useStableRef } from "../../../../shared/hooks/useStableRef";
 import { notification } from "../../../../shared/utils/notification";
 
@@ -15,11 +16,11 @@ interface UseModCategoryUpdateProps {
 export function useModCategoryUpdate({
   onRefreshTree,
 }: UseModCategoryUpdateProps) {
-  const { state, actions } = useModsContext();
-  const { updateModCategory: updateModCategoryOptimistic } = actions;
+  const { updateModCategory: updateModCategoryOp } = useMods();
+  const mods = useModsStore(s => s.mods);
 
   // Store mods in a stable ref to avoid closure issues
-  const modsRef = useStableRef(state.mods);
+  const modsRef = useStableRef(mods);
 
   /**
    * Update a mod's category with optimistic updates
@@ -34,10 +35,9 @@ export function useModCategoryUpdate({
       const modName = mod?.name || modSha;
 
       try {
-        // Use optimistic update from ModsContext - handles state updates automatically
-        // The optimistic update will trigger verification after 50ms
-        // If verification detects a mismatch OR error occurs, the onMismatch callback will refresh the tree
-        const success = await updateModCategoryOptimistic(
+        // Use new category operation - handles optimistic updates and verification automatically
+        // If verification detects a mismatch, the onMismatch callback will refresh the tree
+        const success = await updateModCategoryOp(
           modSha,
           categoryId,
           onRefreshTree, // Only called when verification mismatch or error occurs
@@ -56,7 +56,7 @@ export function useModCategoryUpdate({
         return false;
       }
     },
-    [updateModCategoryOptimistic, onRefreshTree], // modsRef is stable
+    [updateModCategoryOp, onRefreshTree], // modsRef is stable
   );
 
   return { updateModCategory };

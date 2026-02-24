@@ -18,7 +18,7 @@ import { modService } from "../../services/modService";
 import { cacheService } from "../../../tools/services/cacheService";
 import { GradingTag } from "../../../../shared/components/common/GradingTag";
 import { useProfile } from "../../../../shared/context/ProfileContext";
-import { useMods } from "../../context/ModsContext";
+import { useMods } from "../../hooks/useMods";
 import { useDelayedLoading } from "../../../../shared/hooks/useDelayedLoading";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
 import {
@@ -54,7 +54,7 @@ export const ModList: React.FC<ModListProps> = ({
   const [displayCount, setDisplayCount] = useState(50);
   const observerTarget = useRef<HTMLDivElement>(null);
   const { state: profileState } = useProfile();
-  const { actions } = useMods();
+  const { updateModLocal } = useMods();
   const { loading: deletingCache, execute: executeDeleteCache } = useDelayedLoading(100);
   const menuState = useContextMenu();
   const [contextMenuMod, setContextMenuMod] = useState<ModInfo>();
@@ -148,7 +148,7 @@ export const ModList: React.FC<ModListProps> = ({
 
           // Update local mod state to set isLoaded=false (no backend fetch)
           // This rebuilds the mods array locally
-          actions.updateModLocal(mod.sha, { isLoaded: false });
+          updateModLocal(mod.sha, { isLoaded: false });
 
           // Refresh checked paths after deletion
           if (contextMenuMod?.sha === mod.sha) {

@@ -7,7 +7,7 @@ const { Option } = Select;
 
 export interface MetadataSectionProps {
   authors: string[];
-  categories: string[];
+  categoryOptions: Array<{ id: string; name: string }>;
 }
 
 /**
@@ -16,7 +16,7 @@ export interface MetadataSectionProps {
  */
 export const MetadataSection: React.FC<MetadataSectionProps> = ({
   authors,
-  categories,
+  categoryOptions,
 }) => {
   const { t } = useTranslation();
 
@@ -61,12 +61,16 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
         name="category"
         className="metadata-section-category"
       >
-        <AutoComplete
+        <Select
+          showSearch
           placeholder={t('mods.edit.categoryPlaceholder')}
-          options={categories.map(cat => ({ value: cat }))}
-          filterOption={(inputValue, option) =>
-            option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
           }
+          options={categoryOptions.map(cat => ({
+            value: cat.id,
+            label: cat.name
+          }))}
         />
       </Form.Item>
 

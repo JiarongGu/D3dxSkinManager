@@ -8,6 +8,8 @@ import { UnclassifiedItem } from './UnclassifiedItem';
 import { useClassificationScreen } from './ClassificationScreen';
 import { useModCategoryUpdate } from './useModCategoryUpdate';
 import { useProfile } from '../../../../shared/context/ProfileContext';
+import { useModsStore } from '../../store/modsStore';
+import { useMods } from '../../hooks/useMods';
 import { classificationService } from '../../../../shared/services/classificationService';
 import { useTranslation } from 'react-i18next';
 import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
@@ -16,36 +18,40 @@ import './ClassificationPanel.css';
 const { Sider } = Layout;
 
 interface ClassificationPanelProps {
-  tree: ClassificationNode[];
-  loading: boolean;
-  selectedNode: ClassificationNode | undefined;
-  onSelect: (node: ClassificationNode | undefined) => void;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  expandedKeys: Key[];
-  onExpandedKeysChange: (keys: Key[]) => void;
+  onSelect: (node: ClassificationNode | undefined) => void; // Coordination callback with load logic
   onRefreshTree: () => Promise<void>;
   onModsRefresh?: () => Promise<void>;
   unclassifiedCount: number;
   onUnclassifiedClick: () => void;
-  isUnclassifiedSelected: boolean;
 }
 
+/**
+ * ClassificationPanel
+ *
+ * NEW ARCHITECTURE:
+ * - Subscribes to its own state from useModsStore
+ * - Receives coordination callbacks from parent (onSelect includes load logic)
+ * - Much cleaner - reduced from 13 props to 5!
+ */
 export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
-  tree,
-  loading,
-  selectedNode,
   onSelect,
-  searchQuery,
-  onSearchChange,
-  expandedKeys,
-  onExpandedKeysChange,
   onRefreshTree,
   onModsRefresh,
   unclassifiedCount,
   onUnclassifiedClick,
-  isUnclassifiedSelected,
 }) => {
+  // Subscribe to state this component needs
+  const tree = useModsStore(s => s.classificationTree);
+  const loading = useModsStore(s => s.classificationLoading);
+  const selectedNode = useModsStore(s => s.selectedClassification);
+  const searchQuery = useModsStore(s => s.classificationSearch);
+  const expandedKeys = useModsStore(s => s.expandedKeys);
+
+  // Get operations
+  const { setClassificationSearch, setExpandedKeys } = useMods();
+
+  // Is unclassified selected?
+  const isUnclassifiedSelected = selectedNode?.id === "__unclassified__";
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
   const { openClassificationScreen } = useClassificationScreen();
@@ -118,9 +124,9 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
           selectedNode={selectedNode}
           onSelect={onSelect}
           searchQuery={searchQuery}
-          onSearchChange={onSearchChange}
+          onSearchChange={setClassificationSearch}
           expandedKeys={expandedKeys}
-          onExpandedKeysChange={onExpandedKeysChange}
+          onExpandedKeysChange={setExpandedKeys}
           onRefreshTree={onRefreshTree}
           onModsRefresh={onModsRefresh}
           onAddClassification={handleAddClassification}

@@ -8,9 +8,6 @@
 export { ContextMenu } from '../menu/ContextMenu';
 export type { ContextMenuItem, ContextMenuProps } from '../menu/ContextMenu';
 
-export { DragDropZone } from './DragDropZone';
-export type { DragDropZoneProps } from './DragDropZone';
-
 export { GradingTag } from './GradingTag';
 export type { GradingTagProps } from './GradingTag';
 

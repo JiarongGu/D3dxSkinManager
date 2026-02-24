@@ -8,7 +8,7 @@ public class GlobalSettings
     /// <summary>
     /// Theme mode: light, dark, or auto
     /// </summary>
-    public string Theme { get; set; } = "light";
+    public string Theme { get; set; } = "dark";
 
     /// <summary>
     /// Annotation/tooltip level: all, more, less, off

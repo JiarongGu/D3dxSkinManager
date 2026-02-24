@@ -1,224 +1,84 @@
-import { notification } from '../../../shared/utils/notification';
-import React, { useMemo, useCallback, useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Layout } from "antd";
-import {
-  FolderOutlined,
-  AppstoreOutlined,
-} from "@ant-design/icons";
-import type { DataNode } from "antd/es/tree";
-import { ModInfo } from "../../../shared/types/mod.types";
 import { ClassificationNode } from "../../../shared/types/classification.types";
 
 import { ModPreviewPanel } from "./ModPreviewPanel";
 import { ClassificationPanel } from "./ClassificationPanel";
 import { ModListPanel } from "./ModListPanel";
-import { DragDropZone } from "../../../shared/components/common/DragDropZone";
-import { ModEditDialog } from "./ModEditDialog";
+import { ModEditScreen } from "./ModEditScreen/ModEditScreen";
 import { BatchEditDialog } from "./BatchEditDialog";
 import { ImportTagSelectorDialog } from "./ImportTagSelectorDialog/ImportTagSelectorDialog";
-import {
-  AddModWindow,
-  ImportTask,
-  TaskStatus,
-} from "./AddModWindow";
+import { AddModWindow } from "./AddModWindow";
 import { AddModUnit } from "./AddModUnit";
 import { BatchEditUnit } from "./BatchEditUnit";
-import { createDefaultFileRouter } from "../../../shared/utils/fileTypeRouter";
-import { useModsContext } from "../context/ModsContext";
+import { useModsStore } from "../store/modsStore";
+import { useMods } from "../hooks/useMods";
 import { useProfile } from "../../../shared/context/ProfileContext";
 import './ModHierarchicalView.css';
 
+/**
+ * ModHierarchicalView - Main mods management view
+ *
+ * FINAL ARCHITECTURE - Minimal prop drilling:
+ * - This component ONLY handles layout and local coordination logic
+ * - Child components (dialogs, panels) subscribe to their own state via useModsStore
+ * - Only passes down callbacks for complex coordination (like refresh after category change)
+ * - Much cleaner, better performance, easier to maintain!
+ */
 export const ModHierarchicalView: React.FC = () => {
-  const { state, actions } = useModsContext();
+  // Only subscribe to what THIS component uses for its coordination logic
+  const mods = useModsStore(s => s.mods);
+  const selectedClassification = useModsStore(s => s.selectedClassification);
+
+  // Operations for coordination
+  const {
+    refreshMods,
+    loadModsByClassification,
+    loadUnclassifiedMods,
+    setSelectedClassification,
+    clearClassificationFilter,
+    refreshClassificationTree,
+    setAvailableTags,
+  } = useMods();
+
+  // Local state (not in global store)
   const [unclassifiedCount, setUnclassifiedCount] = useState<number>(0);
-  const [availableTagsForImport, setAvailableTagsForImport] = useState<
-    string[]
-  >([]);
   const { state: profileState } = useProfile();
 
-  // Build classification tree from mods with search filtering
-  const classificationTree = useMemo((): DataNode[] => {
-    const objectMap = new Map<string, ModInfo[]>();
-
-    state.mods.forEach((mod) => {
-      const categoryName = mod.category || "Uncategorized";
-      if (!objectMap.has(categoryName)) {
-        objectMap.set(categoryName, []);
-      }
-      objectMap.get(categoryName)!.push(mod);
-    });
-
-    let sortedObjects = Array.from(objectMap.entries()).sort(([a], [b]) =>
-      a.localeCompare(b),
-    );
-
-    // Apply classification search filter
-    if (state.classificationSearch) {
-      const searchLower = state.classificationSearch.toLowerCase();
-      sortedObjects = sortedObjects.filter(([categoryName]) =>
-        categoryName.toLowerCase().includes(searchLower),
-      );
-    }
-
-    const totalMods = state.mods.length;
-    const filteredObjectMods = sortedObjects.reduce(
-      (sum, [, mods]) => sum + mods.length,
-      0,
-    );
-
-    return [
-      {
-        key: "all",
-        title: state.classificationSearch
-          ? `All Mods [${filteredObjectMods}/${totalMods}]`
-          : `All Mods (${totalMods})`,
-        icon: <AppstoreOutlined />,
-        children: sortedObjects.map(([categoryName, objectMods]) => ({
-          key: categoryName,
-          title: `${categoryName} (${objectMods.length})`,
-          icon: <FolderOutlined />,
-          isLeaf: true,
-        })),
-      },
-    ];
-  }, [state.mods, state.classificationSearch]);
-
-  // Get mods for selected object/classification with mod search filtering
-  const filteredMods = useMemo(() => {
-    // If no classification and no object selected, return empty array
-    if (!state.selectedClassification && !state.selectedObject) {
-      return [];
-    }
-
-    // If a classification is selected, only use classification-filtered mods
-    // Don't fall back to all mods while loading to prevent flash
-    let result: ModInfo[];
-    if (state.selectedClassification) {
-      // When classification is selected, only show classificationFilteredMods
-      // Return empty array if still loading (null) to avoid showing all mods flash
-      result = state.classificationFilteredMods || [];
-    } else {
-      // No classification selected, use all mods (for object filtering)
-      result = state.mods;
-    }
-
-    // Filter by selected object (only if no classification is selected)
-    if (
-      !state.selectedClassification &&
-      state.selectedObject &&
-      state.selectedObject !== "all"
-    ) {
-      result = result.filter((mod) => mod.category === state.selectedObject);
-    }
-
-    // Apply mod search filter
-    if (state.searchQuery) {
-      const searchLower = state.searchQuery.toLowerCase();
-      result = result.filter(
-        (mod) =>
-          mod.name.toLowerCase().includes(searchLower) ||
-          (mod.author && mod.author.toLowerCase().includes(searchLower)) ||
-          (mod.tags &&
-            mod.tags.some((tag) => tag.toLowerCase().includes(searchLower))),
-      );
-    }
-
-    // Add "Unload" option at the beginning if object is selected and has loaded mod
-    if (state.selectedObject && state.selectedObject !== "all") {
-      const hasLoadedMod = result.some((mod) => mod.isLoaded);
-      if (hasLoadedMod) {
-        const unloadOption: ModInfo = {
-          sha: "__UNLOAD__",
-          name: "- [X] Unload This Object -",
-          category: state.selectedObject,
-          author: "",
-          tags: [],
-          grading: "",
-          description: "",
-          isLoaded: false,
-          type: "special",
-          isAvailable: true,
-        };
-        result = [unloadOption, ...result];
-      }
-    }
-
-    return result;
-  }, [
-    state.mods,
-    state.classificationFilteredMods,
-    state.selectedObject,
-    state.selectedClassification,
-    state.searchQuery,
-  ]);
-
-  const handleModSelect = (mod: ModInfo) => {
-    actions.selectMod(mod);
-  };
-
-  const handleClassificationSelect = useCallback(
-    (node: ClassificationNode | undefined) => {
-      actions.selectClassification(node);
-
-      if (node) {
-        // Check if this is the unclassified node
-        if (node.id === "__unclassified__") {
-          // Load unclassified mods
-          actions.loadUnclassifiedMods();
-        } else {
-          // Load mods filtered by this classification node
-          actions.loadModsByClassification(node.id);
-        }
-      } else {
-        // Clear classification filter (show all mods)
-        actions.clearClassificationFilter();
-      }
-    },
-    [actions],
-  );
-
-  // Load unclassified count when component mounts or mods change
+  // Load unclassified count
   useEffect(() => {
-    const loadUnclassifiedCount = async () => {
-      if (!profileState.selectedProfile?.id) {
-        return;
-      }
-      const profileId = profileState.selectedProfile.id;
+    const load = async () => {
+      if (!profileState.selectedProfile?.id) return;
       try {
         const { modService } = await import("../services/modService");
-        const count = await modService.getUnclassifiedCount(profileId);
+        const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
         setUnclassifiedCount(count);
       } catch (error) {
         console.error("Failed to load unclassified count:", error);
       }
     };
+    load();
+  }, [mods.length, profileState.selectedProfile?.id]);
 
-    loadUnclassifiedCount();
-  }, [state.mods.length, profileState.selectedProfile?.id]); // Reload when mods count changes
-
-  // Load available tags for import workflow
+  // Load available tags into store
   useEffect(() => {
-    const loadAvailableTags = async () => {
-      if (!profileState.selectedProfile?.id) {
-        return;
-      }
-      const profileId = profileState.selectedProfile.id;
+    const load = async () => {
+      if (!profileState.selectedProfile?.id) return;
       try {
         const { modService } = await import("../services/modService");
-        const tags = await modService.getTags(profileId);
-        setAvailableTagsForImport(tags);
+        const tags = await modService.getTags(profileState.selectedProfile.id);
+        setAvailableTags(tags);
       } catch (error) {
-        console.error("Failed to load available tags:", error);
+        console.error("Failed to load tags:", error);
       }
     };
+    load();
+  }, [mods.length, profileState.selectedProfile?.id, setAvailableTags]);
 
-    loadAvailableTags();
-  }, [state.mods.length, profileState.selectedProfile?.id]); // Reload when mods count changes
-
-  // Custom refresh handler that also reloads classification-filtered mods if a classification is selected
+  // Coordination: refresh after category change
   const handleModsRefreshAfterCategoryChange = useCallback(async () => {
-    // Always refresh the full mods list
-    await actions.refreshMods();
+    const p = refreshMods();
+    if (p) await p;
 
     // Reload unclassified count
     if (profileState.selectedProfile?.id) {
@@ -227,19 +87,39 @@ export const ModHierarchicalView: React.FC = () => {
         const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
         setUnclassifiedCount(count);
       } catch (error) {
-        console.error("Failed to reload unclassified count:", error);
+        console.error("Failed to reload count:", error);
       }
     }
 
-    // If a classification is selected, also reload the filtered mods for that classification
-    if (state.selectedClassification && state.selectedClassification.id !== "__unclassified__") {
-      await actions.loadModsByClassification(state.selectedClassification.id);
-    } else if (state.selectedClassification?.id === "__unclassified__") {
-      await actions.loadUnclassifiedMods();
+    // Reload classification filtered mods if needed
+    if (selectedClassification?.id && selectedClassification.id !== "__unclassified__") {
+      const p2 = loadModsByClassification(selectedClassification.id);
+      if (p2) await p2;
+    } else if (selectedClassification?.id === "__unclassified__") {
+      const p3 = loadUnclassifiedMods();
+      if (p3) await p3;
     }
-  }, [actions, state.selectedClassification, profileState.selectedProfile?.id]);
+  }, [refreshMods, selectedClassification, profileState.selectedProfile?.id, loadModsByClassification, loadUnclassifiedMods]);
 
-  const handleUnclassifiedClick = () => {
+  // Classification selection handler
+  const handleClassificationSelect = useCallback(
+    (node: ClassificationNode | undefined) => {
+      setSelectedClassification(node);
+
+      if (node) {
+        if (node.id === "__unclassified__") {
+          void loadUnclassifiedMods();
+        } else {
+          void loadModsByClassification(node.id);
+        }
+      } else {
+        clearClassificationFilter();
+      }
+    },
+    [setSelectedClassification, loadUnclassifiedMods, loadModsByClassification, clearClassificationFilter],
+  );
+
+  const handleUnclassifiedClick = useCallback(() => {
     const unclassifiedNode: ClassificationNode = {
       id: "__unclassified__",
       name: "Unclassified",
@@ -250,296 +130,35 @@ export const ModHierarchicalView: React.FC = () => {
       description: undefined,
     };
     handleClassificationSelect(unclassifiedNode);
-  };
-
-  // Dialog handlers
-  const handleOpenModEdit = (mod: ModInfo) => {
-    actions.openEditDialog(mod);
-  };
-
-  const handleSaveModEdit = async (modData: Partial<ModInfo>) => {
-    await actions.updateMod(state.modToEdit!.sha, modData);
-    actions.closeEditDialog();
-  };
-
-  const handleOpenBatchEdit = (mods: ModInfo[]) => {
-    actions.openBatchEditDialog(mods);
-  };
-
-  const handleSaveBatchEdit = async (
-    modData: Partial<ModInfo>,
-    fieldMask: string[],
-  ) => {
-    await actions.batchUpdateMetadata(
-      state.selectedMods.map((m) => m.sha),
-      modData,
-      fieldMask,
-    );
-    actions.closeBatchEditDialog();
-  };
-
-  // File drop handlers for router
-  const handleArchiveDrop = useCallback(
-    (files: File[]) => {
-      // Create import tasks from archive files
-      const newTasks: ImportTask[] = files.map((file) => {
-        const fileName = file.name;
-
-        return {
-          id: `TASK-${state.taskIdCounter + files.indexOf(file)}`,
-          filePath: file.name, // In real implementation, would be full path
-          fileName: fileName,
-          fileType: "archive" as "archive" | "folder",
-          status: "pending" as TaskStatus,
-          progress: 0,
-          modData: {
-            name: fileName.replace(/\.(zip|rar|7z|tar|gz)$/i, ""),
-            category: "",
-            author: "",
-            description: "",
-            grading: "",
-            tags: [],
-          },
-        };
-      });
-
-      actions.addImportTasks(newTasks);
-      actions.openImportWindow();
-    },
-    [state.taskIdCounter, actions],
-  );
-
-  const handleImageDrop = useCallback(
-    async (files: File[]) => {
-      // Handle preview image imports
-      if (!state.selectedMod) {
-        notification.warning("Please select a mod to add preview image");
-        return;
-      }
-
-      if (files.length === 0) return;
-
-      // For now, just show a message about preview image import
-      // In a full implementation, we would upload the file to backend
-      notification.info(
-        `Preview image import for mod: ${state.selectedMod.name} (${files.length} image(s))`,
-      );
-
-      // TODO: Upload image file to backend and call importPreviewImage
-      // This would require file upload infrastructure
-      console.log("Image drop:", files, "Target mod:", state.selectedMod.sha);
-    },
-    [state.selectedMod],
-  );
-
-  // Import task management handlers (fallback for non-routed drops)
-  const handleFilesDrop = (files: File[]) => {
-    // Create import tasks from dropped files
-    const newTasks: ImportTask[] = files.map((file) => {
-      const fileName = file.name;
-      const fileType = fileName.match(/\.(zip|rar|7z|tar|gz)$/i)
-        ? "archive"
-        : "folder";
-
-      return {
-        id: `TASK-${state.taskIdCounter + files.indexOf(file)}`,
-        filePath: file.name, // In real implementation, would be full path
-        fileName: fileName,
-        fileType: fileType,
-        status: "pending" as TaskStatus,
-        progress: 0,
-        modData: {
-          name: fileName.replace(/\.(zip|rar|7z|tar|gz)$/i, ""),
-          category: "",
-          author: "",
-          description: "",
-          grading: "",
-          tags: [],
-        },
-      };
-    });
-
-    actions.addImportTasks(newTasks);
-    actions.openImportWindow();
-    notification.success(`${files.length} file(s) added to import queue`);
-  };
-
-  // Create file router
-  const fileRouter = useMemo(() => {
-    return createDefaultFileRouter({
-      onImageDrop: handleImageDrop,
-      onArchiveDrop: handleArchiveDrop,
-    });
-  }, [handleImageDrop, handleArchiveDrop]);
-
-  const handleEditImportTask = (task: ImportTask) => {
-    actions.openAddModUnit(task);
-  };
-
-  const handleSaveImportTask = (taskId: string, modData: Partial<ModInfo>) => {
-    const task = state.importTasks.find((t) => t.id === taskId);
-    if (task) {
-      actions.saveAddModUnit({
-        ...task,
-        modData: { ...task.modData, ...modData },
-      });
-    }
-  };
-
-  const handleRemoveImportTask = (taskId: string) => {
-    actions.removeImportTask(taskId);
-    notification.info("Task removed from queue");
-  };
-
-  const handleBatchEditImportTasks = (taskIds: string[]) => {
-    actions.openBatchEditUnit(taskIds);
-  };
-
-  const handleSaveBatchEditUnit = (
-    taskIds: string[],
-    modData: Partial<ModInfo>,
-    fieldMask: string[],
-  ) => {
-    // Filter the modData to only include fields in the fieldMask
-    const filteredData: Partial<ModInfo> = {};
-    fieldMask.forEach((field) => {
-      if (field in modData) {
-        (filteredData as any)[field] = (modData as any)[field];
-      }
-    });
-    actions.saveBatchEditUnit(filteredData);
-  };
-
-  const handleConfirmImport = async (tasks: ImportTask[]) => {
-    await actions.importMods(tasks);
-  };
-
-  const handleOpenTagSelectorForImport = (tags: string[]) => {
-    actions.openTagDialog(tags, "import");
-  };
-
-  const handleSaveTagsImport = (tags: string[]) => {
-    actions.saveTagsForImport(tags);
-  };
+  }, [handleClassificationSelect]);
 
   return (
     <>
-      <DragDropZone
-        onFilesDrop={handleFilesDrop}
-        accept={[
-          ".zip",
-          ".rar",
-          ".7z",
-          ".tar",
-          ".gz",
-          ".png",
-          ".jpg",
-          ".jpeg",
-          ".gif",
-          ".bmp",
-          ".webp",
-        ]}
-        router={fileRouter}
-        enableRouting={true}
-      >
-        <Layout className="mod-hierarchical-view-layout">
-          {/* Classification Tree - Left Panel */}
-          <ClassificationPanel
-            tree={state.classificationTree}
-            loading={state.classificationLoading}
-            selectedNode={state.selectedClassification}
-            onSelect={handleClassificationSelect}
-            searchQuery={state.classificationSearch}
-            onSearchChange={actions.setClassificationSearch}
-            expandedKeys={state.expandedKeys}
-            onExpandedKeysChange={actions.setExpandedKeys}
-            onRefreshTree={actions.refreshClassificationTree}
-            onModsRefresh={handleModsRefreshAfterCategoryChange}
-            unclassifiedCount={unclassifiedCount}
-            onUnclassifiedClick={handleUnclassifiedClick}
-            isUnclassifiedSelected={
-              state.selectedClassification?.id === "__unclassified__"
-            }
-          />
+      <Layout className="mod-hierarchical-view-layout">
+        {/* Classification Tree - subscribes to its own state inside */}
+        <ClassificationPanel
+          onSelect={handleClassificationSelect}
+          onRefreshTree={async () => { const p = refreshClassificationTree(); if (p) await p; }}
+          onModsRefresh={handleModsRefreshAfterCategoryChange}
+          unclassifiedCount={unclassifiedCount}
+          onUnclassifiedClick={handleUnclassifiedClick}
+        />
 
-          {/* Mods Table - Center Panel */}
-          <ModListPanel
-            mods={filteredMods}
-            loading={state.loading}
-            selectedMod={state.selectedMod}
-            searchQuery={state.searchQuery}
-            onSearchChange={actions.setSearchQuery}
-            onLoad={actions.loadModInGame}
-            onUnload={actions.unloadModFromGame}
-            onDelete={actions.deleteMod}
-            onEdit={handleOpenModEdit}
-            onRowClick={handleModSelect}
-            selectedClassification={state.selectedClassification}
-            selectedObject={state.selectedObject}
-          />
+        {/* Mods List - subscribes to its own state inside */}
+        <ModListPanel />
 
-          {/* Preview Panel - Right Panel */}
-          <Layout.Content className="mod-hierarchical-view-preview">
-            <ModPreviewPanel mod={state.selectedMod} />
-          </Layout.Content>
-        </Layout>
-      </DragDropZone>
+        {/* Preview - subscribes to selectedMod inside */}
+        <Layout.Content className="mod-hierarchical-view-preview">
+          <ModPreviewPanel />
+        </Layout.Content>
+      </Layout>
 
-      {/* Dialogs */}
-      <ModEditDialog
-        visible={state.editDialogVisible}
-        mod={state.modToEdit}
-        onSave={handleSaveModEdit}
-        onCancel={actions.closeEditDialog}
-      />
-
-      <BatchEditDialog
-        visible={state.batchEditDialogVisible}
-        selectedMods={state.selectedMods}
-        onSave={handleSaveBatchEdit}
-        onCancel={actions.closeBatchEditDialog}
-      />
-
-      {/* Import Tag Selector Dialog - Used for Import Workflow Only */}
-      <ImportTagSelectorDialog
-        visible={state.tagDialogVisible}
-        availableTags={availableTagsForImport}
-        selectedTags={state.currentTags}
-        onConfirm={handleSaveTagsImport}
-        onCancel={actions.closeTagDialog}
-      />
-
-      {/* Import Window */}
-      <AddModWindow
-        visible={state.importWindowVisible}
-        tasks={state.importTasks}
-        onConfirm={handleConfirmImport}
-        onCancel={actions.closeImportWindow}
-        onEditTask={handleEditImportTask}
-        onRemoveTask={handleRemoveImportTask}
-        onBatchEdit={handleBatchEditImportTasks}
-        processing={state.importProcessing}
-      />
-
-      {/* Import Task Edit Dialog */}
-      <AddModUnit
-        visible={state.addModUnitVisible}
-        task={state.currentEditTask}
-        onSave={handleSaveImportTask}
-        onCancel={actions.closeAddModUnit}
-        onOpenTagSelector={handleOpenTagSelectorForImport}
-      />
-
-      {/* Import Task Batch Edit Dialog */}
-      <BatchEditUnit
-        visible={state.batchEditUnitVisible}
-        selectedTasks={state.importTasks.filter((t) =>
-          state.selectedTaskIds.includes(t.id),
-        )}
-        onSave={handleSaveBatchEditUnit}
-        onCancel={actions.closeBatchEditUnit}
-        onOpenTagSelector={handleOpenTagSelectorForImport}
-      />
+      {/* All dialogs/screens now subscribe to their own state - no props needed! */}
+      <ModEditScreen />
+      <BatchEditDialog />
+      <ImportTagSelectorDialog />
+      <AddModWindow />
+      <BatchEditUnit />
     </>
   );
 };

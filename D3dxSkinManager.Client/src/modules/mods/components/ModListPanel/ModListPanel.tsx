@@ -1,51 +1,99 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Layout, Empty, Input } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
-import { ClassificationNode } from '../../../../shared/types/classification.types';
 import { ModList } from './ModList';
 import { ModListStatusBar } from './ModListStatusBar';
+import { useModsStore } from '../../store/modsStore';
+import { useMods } from '../../hooks/useMods';
 import { useTranslation } from 'react-i18next';
 import './ModListPanel.css';
 
 const { Sider } = Layout;
 const { Search } = Input;
 
-interface ModListPanelProps {
-  mods: ModInfo[];
-  loading: boolean;
-  selectedMod: ModInfo | undefined;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  onLoad: (sha: string) => void;
-  onUnload: (sha: string) => void;
-  onDelete: (sha: string, name: string) => void;
-  onEdit: (mod: ModInfo) => void;
-  onRowClick: (mod: ModInfo) => void;
-  selectedClassification: ClassificationNode | undefined;
-  selectedObject: string;
-}
+/**
+ * ModListPanel
+ *
+ * NEW ARCHITECTURE:
+ * - Subscribes to its own state from useModsStore
+ * - Gets operations from useMods()
+ * - No props needed!
+ */
+export const ModListPanel: React.FC = () => {
+  // Subscribe to state this component needs
+  const mods = useModsStore(s => s.mods);
+  const loading = useModsStore(s => s.modsLoading); // Mod list panel loading state
+  const selectedMod = useModsStore(s => s.selectedMod);
+  const searchQuery = useModsStore(s => s.searchQuery);
+  const selectedClassification = useModsStore(s => s.selectedClassification);
+  const selectedObject = useModsStore(s => s.selectedObject);
+  const classificationFilteredMods = useModsStore(s => s.classificationFilteredMods);
 
-export const ModListPanel: React.FC<ModListPanelProps> = ({
-  mods,
-  loading,
-  selectedMod,
-  searchQuery,
-  onSearchChange,
-  onLoad,
-  onUnload,
-  onDelete,
-  onEdit,
-  onRowClick,
-  selectedClassification,
-  selectedObject,
-}) => {
+  // Get operations
+  const {
+    setSearchQuery,
+    loadModInGame,
+    unloadModFromGame,
+    deleteMod,
+    openEditDialog,
+    selectMod,
+  } = useMods();
   const { t } = useTranslation();
   const contentRef = React.useRef<HTMLDivElement>(null);
 
+  // Compute filtered mods based on search and classification
+  const filteredMods = useMemo(() => {
+    // If a classification is selected, use classification-filtered mods
+    let result: ModInfo[];
+    if (selectedClassification) {
+      result = classificationFilteredMods || [];
+    } else {
+      result = mods;
+    }
+
+    // Filter by selected object (only if no classification is selected)
+    if (!selectedClassification && selectedObject && selectedObject !== "all") {
+      result = result.filter((mod: ModInfo) => mod.category === selectedObject);
+    }
+
+    // Apply mod search filter
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      result = result.filter(
+        (mod: ModInfo) =>
+          mod.name.toLowerCase().includes(searchLower) ||
+          (mod.author && mod.author.toLowerCase().includes(searchLower)) ||
+          (mod.tags && mod.tags.some((tag: string) => tag.toLowerCase().includes(searchLower)))
+      );
+    }
+
+    // Add "Unload" option at the beginning if object is selected and has loaded mod
+    if (selectedObject && selectedObject !== "all") {
+      const hasLoadedMod = result.some((mod: ModInfo) => mod.isLoaded);
+      if (hasLoadedMod) {
+        const unloadOption: ModInfo = {
+          sha: "__UNLOAD__",
+          name: "- [X] Unload This Object -",
+          category: selectedObject,
+          author: "",
+          tags: [],
+          grading: "",
+          description: "",
+          isLoaded: false,
+          type: "special",
+          isAvailable: true,
+        };
+        result = [unloadOption, ...result];
+      }
+    }
+
+    return result;
+  }, [mods, classificationFilteredMods, selectedObject, selectedClassification, searchQuery]);
+
   const handleLoadedModClick = (mod: ModInfo) => {
     // Scroll to the loaded mod and select it
-    onRowClick(mod);
+    selectMod(mod);
 
     // Scroll the mod into view
     if (contentRef.current) {
@@ -78,7 +126,7 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
         <Search
           placeholder={t('mods.list.searchPlaceholder')}
           value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value)}
           allowClear
           prefix={<SearchOutlined />}
         />
@@ -86,15 +134,15 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
 
       {/* Mod List or Empty State */}
       <div className="mod-list-panel-content" ref={contentRef}>
-        {mods.length > 0 ? (
+        {filteredMods.length > 0 ? (
           <ModList
-            mods={mods}
+            mods={filteredMods}
             loading={loading}
-            onLoad={onLoad}
-            onUnload={onUnload}
-            onDelete={onDelete}
-            onEdit={onEdit}
-            onRowClick={onRowClick}
+            onLoad={loadModInGame}
+            onUnload={unloadModFromGame}
+            onDelete={deleteMod}
+            onEdit={openEditDialog}
+            onRowClick={selectMod}
             selectedMod={selectedMod}
           />
         ) : (
@@ -118,7 +166,7 @@ export const ModListPanel: React.FC<ModListPanelProps> = ({
       {/* Status Bar at Bottom - fixed container like UnclassifiedItem */}
       <div className="mod-list-panel-status-bar-container">
         <ModListStatusBar
-          mods={mods}
+          mods={filteredMods}
           selectedClassification={selectedClassification}
           selectedObject={selectedObject}
           onLoadedModClick={handleLoadedModClick}

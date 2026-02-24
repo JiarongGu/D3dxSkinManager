@@ -5,31 +5,29 @@ import { TagsOutlined, FolderOutlined, FileZipOutlined } from '@ant-design/icons
 import { ModInfo } from '../../../shared/types/mod.types';
 import { ImportTask } from './AddModWindow';
 import { useTranslation } from 'react-i18next';
+import { useModsStore } from '../store/modsStore';
+import { useMods } from '../hooks/useMods';
 import './AddModUnit.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-interface AddModUnitProps {
-  visible: boolean;
-  task: ImportTask | undefined;
-  onSave: (taskId: string, modData: Partial<ModInfo>) => void;
-  onCancel: () => void;
-  onOpenTagSelector?: (currentTags: string[]) => void;
-}
-
 /**
  * Single mod import form component
  * Allows editing all properties for a single import task
  * Similar to ModEditDialog but for new imports
+ *
+ * NEW ARCHITECTURE:
+ * - Subscribes to its own state from useModsStore
+ * - No props needed - gets everything from store
  */
-export const AddModUnit: React.FC<AddModUnitProps> = ({
-  visible,
-  task,
-  onSave,
-  onCancel,
-  onOpenTagSelector,
-}) => {
+export const AddModUnit: React.FC = () => {
+  // Subscribe to state this component needs
+  const visible = useModsStore(s => s.addModUnitVisible);
+  const task = useModsStore(s => s.currentEditTask);
+
+  // Get operations
+  const { saveAddModUnit, closeAddModUnit, openTagDialog } = useMods();
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -65,10 +63,16 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
       };
 
       setSaving(true);
-      onSave(task.id, modData);
+
+      // Update task with new modData
+      const updatedTask: ImportTask = {
+        ...task,
+        modData,
+      };
+
+      saveAddModUnit(updatedTask);
 
       notification.success(t('addMod.taskUpdated'));
-      onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
       notification.error(t('addMod.checkFields'));
@@ -78,11 +82,7 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
   };
 
   const handleOpenTagSelector = () => {
-    if (onOpenTagSelector) {
-      onOpenTagSelector(selectedTags);
-    } else {
-      notification.info(t('addMod.tagSelectorNotImplemented'));
-    }
+    openTagDialog('import', selectedTags, task);
   };
 
   // Update tags from parent (called by TagSelectDialog)
@@ -108,10 +108,10 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
     <Modal
       title={t('addMod.title', { id: task.id })}
       open={visible}
-      onCancel={onCancel}
+      onCancel={closeAddModUnit}
       width={700}
       footer={[
-        <Button key="cancel" onClick={onCancel}>
+        <Button key="cancel" onClick={closeAddModUnit}>
           {t('common.cancel')}
         </Button>,
         <Button key="save" type="primary" onClick={handleSave} loading={saving}>

@@ -1,6 +1,6 @@
 import { notification } from '../../../../shared/utils/notification';
 import React, { useState } from "react";
-import { Typography, Button, Empty,  Space, Tag } from "antd";
+import { Typography, Button, Empty,  Space, Tag, Spin } from "antd";
 import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -27,6 +27,7 @@ import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
 import { ModPreviewProvider, useModView } from "./ModPreviewContext";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { useProfile } from "../../../../shared/context/ProfileContext";
+import { useModsStore } from '../../store/modsStore';
 import { modService } from "../../services/modService";
 import { fileDialogService } from "../../../../shared/services/systemService";
 import "./ModPreviewPanel.css";
@@ -37,6 +38,10 @@ export const ModPreviewPanelContent: React.FC = () => {
   const { t } = useTranslation();
   const { state, actions } = useModView();
   const { selectedProfileId } = useProfile();
+
+  // Subscribe to preview loading state
+  const previewLoading = useModsStore(s => s.previewLoading);
+
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [fullScreenImageSrc, setFullScreenImageSrc] = useState<string>("");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -414,16 +419,17 @@ export const ModPreviewPanelContent: React.FC = () => {
       </div>
 
       {/* Image Preview Section */}
-      <div className="mod-preview-image-section">
-        {allImagePaths.length > 0 ? (
-          <>
-            {/* Image Display */}
-            <div
-              className="mod-preview-image-container"
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
-              onContextMenu={handleImageContextMenu}
-            >
+      <Spin spinning={previewLoading} description={t('mods.preview.loadingImages')} wrapperClassName="mod-preview-spin-wrapper">
+        <div className="mod-preview-image-section">
+          {allImagePaths.length > 0 ? (
+            <>
+              {/* Image Display */}
+              <div
+                className="mod-preview-image-container"
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                onContextMenu={handleImageContextMenu}
+              >
               <img
                 key={`${allImagePaths[currentImageIndex]}-${cacheTimestamp}`}
                 className="mod-preview-image"
@@ -488,7 +494,8 @@ export const ModPreviewPanelContent: React.FC = () => {
             />
           </div>
         )}
-      </div>
+        </div>
+      </Spin>
 
       {/* Info Section */}
       <div className="mod-preview-info">
@@ -598,7 +605,17 @@ export const ModPreviewPanelContent: React.FC = () => {
   );
 };
 
-export const ModPreviewPanel: React.FC<{ mod: ModInfo | undefined }> = ({ mod }) => {
+/**
+ * ModPreviewPanel wrapper
+ *
+ * NEW ARCHITECTURE:
+ * - Subscribes to selectedMod from store
+ * - No props needed!
+ */
+export const ModPreviewPanel: React.FC = () => {
+  // Subscribe to selectedMod
+  const mod = useModsStore(s => s.selectedMod);
+
   return (
     <ModPreviewProvider mod={mod}>
       <ModPreviewPanelContent />

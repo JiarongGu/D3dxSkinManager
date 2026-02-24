@@ -3,33 +3,34 @@ import React, { useState } from 'react';
 import { Modal, Form, Input, Select, Button, Space, Checkbox, Divider, Alert } from 'antd';
 import { TagsOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../shared/types/mod.types';
-import { ImportTask } from './AddModWindow';
 import { useTranslation } from 'react-i18next';
+import { useModsStore } from '../store/modsStore';
+import { useMods } from '../hooks/useMods';
 import './BatchEditUnit.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-interface BatchEditUnitProps {
-  visible: boolean;
-  selectedTasks: ImportTask[];
-  onSave: (taskIds: string[], modData: Partial<ModInfo>, fieldMask: string[]) => void;
-  onCancel: () => void;
-  onOpenTagSelector?: (currentTags: string[]) => void;
-}
-
 /**
  * Batch edit component for import tasks
  * Similar to BatchEditDialog but for import tasks
  * Uses checkboxes to select which fields to update
+ *
+ * NEW ARCHITECTURE:
+ * - Subscribes to its own state from useModsStore
+ * - No props needed - gets everything from store
  */
-export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
-  visible,
-  selectedTasks,
-  onSave,
-  onCancel,
-  onOpenTagSelector,
-}) => {
+export const BatchEditUnit: React.FC = () => {
+  // Subscribe to state this component needs
+  const visible = useModsStore(s => s.batchEditUnitVisible);
+  const selectedTaskIds = useModsStore(s => s.selectedTaskIds);
+  const importTasks = useModsStore(s => s.importTasks);
+
+  // Compute selected tasks
+  const selectedTasks = importTasks.filter(task => selectedTaskIds.includes(task.id));
+
+  // Get operations
+  const { saveBatchEditUnit, closeBatchEditUnit, openTagDialog } = useMods();
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -83,12 +84,11 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
       }
 
       setSaving(true);
-      const taskIds = selectedTasks.map(task => task.id);
-      onSave(taskIds, modData, fieldMask);
+
+      saveBatchEditUnit(modData);
 
       notification.success(t('batchEdit.tasksUpdated', { count: selectedTasks.length }));
       handleReset();
-      onCancel();
     } catch (error) {
       console.error('Validation failed:', error);
       notification.error(t('batchEdit.checkFields'));
@@ -111,15 +111,11 @@ export const BatchEditUnit: React.FC<BatchEditUnitProps> = ({
 
   const handleCancel = () => {
     handleReset();
-    onCancel();
+    closeBatchEditUnit();
   };
 
   const handleOpenTagSelector = () => {
-    if (onOpenTagSelector) {
-      onOpenTagSelector(selectedTags);
-    } else {
-      notification.info(t('addMod.tagSelectorNotImplemented'));
-    }
+    openTagDialog('import', selectedTags);
   };
 
   // Grading options

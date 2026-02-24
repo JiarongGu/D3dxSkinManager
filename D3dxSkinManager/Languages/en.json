@@ -416,6 +416,7 @@
     "mods.preview.imageDeleteFailed": "Failed to delete preview image",
     "mods.preview.imageDeleted": "Preview image deleted",
     "mods.preview.imageFiles": "Image Files",
+    "mods.preview.loadingImages": "Loading images...",
     "mods.preview.loaded": "Loaded",
     "mods.preview.next": "Next",
     "mods.preview.noImageInClipboard": "No image found in clipboard",

@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Layout, ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
-import { notification, setNotificationApi } from './shared/utils/notification';
+import { setNotificationApi } from './shared/utils/notification';
 import { AppHeader } from './modules/core/components/layout/AppHeader';
 import { AppStatusBar, StatusType } from './modules/core/components/layout/AppStatusBar';
 import { ModHierarchicalView } from './modules/mods/components/ModHierarchicalView';
-import { ModsProvider } from './modules/mods/context/ModsContext';
+import { ModsProvider } from './modules/mods';
 import { LaunchView } from './modules/launch/components/LaunchView';
 import { SettingsView } from './modules/settings/components/SettingsView';
 import { ToolsView } from './modules/tools/components/ToolsView';
@@ -18,7 +18,6 @@ import { SlideInScreenManager } from './shared/components/common/SlideInScreen';
 import { AppInitializer } from './shared/components/AppInitializer';
 import { OperationProvider, useOperation } from './shared/context/OperationContext';
 import OperationMonitorScreen from './shared/components/operation/OperationMonitorScreen';
-import { useModsContext } from './modules/mods/context/ModsContext';
 import { keyboardManager, SHORTCUTS } from './modules/core/utils/KeyboardShortcutManager';
 import { KeyboardShortcutsDialog } from './modules/core/components/dialogs/KeyboardShortcutsDialog';
 import { AboutDialog } from './modules/core/components/dialogs/AboutDialog';
@@ -46,21 +45,12 @@ const AppContent: React.FC = () => {
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [progressVisible, setProgressVisible] = useState<boolean>(false);
 
-  // Get mod data from ModsContext
-  const { state, actions } = useModsContext();
-  const { mods } = state;
-
   // Get operation data from OperationContext
   const { state: operationState } = useOperation();
   const { currentOperation, activeOperations } = operationState;
 
   // Get slide-in screen controls
   const { openScreen, closeScreen } = useSlideInScreen();
-
-  // Calculate loaded mods count
-  const modsLoadedCount = useMemo(() => {
-    return mods.filter((mod) => mod.isLoaded).length;
-  }, [mods]);
 
   // Derive progress from current operation
   const operationProgress = currentOperation?.percentComplete || 0;
@@ -97,14 +87,6 @@ const AppContent: React.FC = () => {
       callback: () => setShortcutsDialogVisible(true),
     });
 
-    keyboardManager.register('refresh', {
-      ...SHORTCUTS.REFRESH,
-      callback: () => {
-        actions.loadMods();
-        notification.success('Refreshed successfully');
-      },
-    });
-
     keyboardManager.register('operation-monitor', {
       key: 'o',
       ctrlKey: true,
@@ -119,7 +101,7 @@ const AppContent: React.FC = () => {
     return () => {
       keyboardManager.stop();
     };
-  }, [actions, handleOperationMonitorClick]);
+  }, [handleOperationMonitorClick]);
 
   return (
     <AnnotationProvider initialLevel="all">
@@ -137,7 +119,7 @@ const AppContent: React.FC = () => {
               <LaunchView />
             )}
             {selectedTab === 'tools' && (
-              <ToolsView onModsChanged={actions.loadMods} />
+              <ToolsView />
             )}
             {selectedTab === 'plugins' && (
               <PluginsView />
@@ -151,8 +133,6 @@ const AppContent: React.FC = () => {
         {/* Fixed Footer */}
         <AppStatusBar
           serverStatus="connected"
-          modsLoaded={modsLoadedCount}
-          modsTotal={mods.length}
           statusMessage={statusMessage}
           statusType={statusType}
           progressPercent={isOperationActive ? operationProgress : progressPercent}

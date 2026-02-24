@@ -10,7 +10,6 @@ import { useProfile } from '../../../shared/context/ProfileContext';
 import { ContextMenu, ContextMenuItem } from '../../../shared/components/menu/ContextMenu';
 import { Profile } from '../../../shared/types/profile.types';
 import { useTranslation } from 'react-i18next';
-import { useModsContext } from '../../mods/context/ModsContext';
 import './ProfileSwitcher.css';
 
 interface ProfileSwitcherProps {
@@ -24,7 +23,6 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 }) => {
   const { t } = useTranslation();
   const { state, actions } = useProfile();
-  const modsContext = useModsContext();
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const buttonRef = React.useRef<HTMLButtonElement>(null);
@@ -48,11 +46,8 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
         onProfileSwitch(state.selectedProfile);
       }
 
-      // Refresh mods data for the new profile instead of reloading the page
-      if (modsContext?.actions) {
-        await modsContext.actions.refreshMods();
-        await modsContext.actions.refreshClassificationTree();
-      }
+      // NOTE: No manual refresh needed - ModsProvider reactively listens to profile changes
+      // and will automatically refresh mods and classification tree
     } catch (error) {
       console.error('Failed to switch profile:', error);
       notification.error(t('profiles.notifications.switchFailed'));

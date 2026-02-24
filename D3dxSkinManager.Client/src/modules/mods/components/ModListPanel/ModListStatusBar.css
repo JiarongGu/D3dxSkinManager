@@ -59,11 +59,11 @@
 
 /* Light theme specific styles */
 [data-theme="light"] .mod-list-status-bar {
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.06));
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.04));
 }
 
 [data-theme="light"] .mod-list-status-bar-clickable:hover {
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.10));
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.08));
 }
 
 [data-theme="light"] .mod-list-status-bar-icon-active {

@@ -2,11 +2,12 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { modService } from '../../services/modService';
 import { useProfile } from '../../../../shared/context/ProfileContext';
+import { useModsStore } from '../../store/modsStore';
+import { executeWithDelayedLoading } from '../../../../shared/utils/delayedLoading';
 
 interface ModViewState {
   currentMod: ModInfo | undefined;
   previewPaths: string[];
-  loadingPreviews: boolean;
   currentPreviewIndex: number;
   cacheTimestamp: number; // Used to bust browser cache when images change
 }
@@ -26,10 +27,11 @@ const ModViewContext = createContext<ModViewContextType | undefined>(undefined);
 
 export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModInfo | undefined }> = ({ children, mod }) => {
   const { state: profileState } = useProfile();
+  const setPreviewLoading = useModsStore(s => s.setPreviewLoading);
+
   const [state, setState] = useState<ModViewState>({
     currentMod: mod,
     previewPaths: [],
-    loadingPreviews: false,
     currentPreviewIndex: 0,
     cacheTimestamp: Date.now(),
   });
@@ -40,36 +42,36 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
 
   const loadPreviewPaths = useCallback(
     async (sha: string) => {
-      if (!profileState.selectedProfile?.id) {
+      const profileId = profileState.selectedProfile?.id;
+      if (!profileId) {
         return;
       }
 
-      setState((prev) => ({ ...prev, loadingPreviews: true }));
-
       try {
-        const paths = await modService.getPreviewPaths(
-          profileState.selectedProfile.id,
-          sha
+        await executeWithDelayedLoading(
+          async () => {
+            const paths = await modService.getPreviewPaths(profileId, sha);
+            setState((prev) => ({
+              ...prev,
+              previewPaths: paths,
+              currentPreviewIndex: 0,
+              cacheTimestamp: Date.now(), // Bust browser cache
+            }));
+          },
+          setPreviewLoading,
+          100
         );
-        setState((prev) => ({
-          ...prev,
-          previewPaths: paths,
-          loadingPreviews: false,
-          currentPreviewIndex: 0,
-          cacheTimestamp: Date.now(), // Bust browser cache
-        }));
       } catch (error) {
         console.error('Failed to load preview paths:', error);
         setState((prev) => ({
           ...prev,
           previewPaths: [],
-          loadingPreviews: false,
           currentPreviewIndex: 0,
           cacheTimestamp: Date.now(), // Bust browser cache
         }));
       }
     },
-    [profileState.selectedProfile?.id]
+    [profileState.selectedProfile?.id, setPreviewLoading]
   );
 
   // Load preview paths when mod changes

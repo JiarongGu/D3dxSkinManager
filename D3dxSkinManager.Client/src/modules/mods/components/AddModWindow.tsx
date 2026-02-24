@@ -5,6 +5,8 @@ import { CheckOutlined, CloseOutlined, LoadingOutlined, DeleteOutlined, EditOutl
 import { ModInfo } from '../../../shared/types/mod.types';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
+import { useModsStore } from '../store/modsStore';
+import { useMods } from '../hooks/useMods';
 import './AddModWindow.css';
 
 export type TaskStatus = 'pending' | 'processing' | 'success' | 'error' | 'skipped';
@@ -21,32 +23,29 @@ export interface ImportTask {
   thumbnailUrl?: string; // Preview image URL
 }
 
-interface AddModWindowProps {
-  visible: boolean;
-  tasks: ImportTask[];
-  onConfirm: (tasks: ImportTask[]) => Promise<void>;
-  onCancel: () => void;
-  onEditTask: (task: ImportTask) => void;
-  onRemoveTask: (taskId: string) => void;
-  onBatchEdit: (taskIds: string[]) => void;
-  processing: boolean;
-}
-
 /**
  * Import/Add Mod Window with task queue
  * Displays all pending mod imports in a table format
  * Supports batch operations and task management
+ *
+ * NEW ARCHITECTURE:
+ * - Subscribes to its own state from useModsStore
+ * - No props needed - gets everything from store
  */
-export const AddModWindow: React.FC<AddModWindowProps> = ({
-  visible,
-  tasks,
-  onConfirm,
-  onCancel,
-  onEditTask,
-  onRemoveTask,
-  onBatchEdit,
-  processing,
-}) => {
+export const AddModWindow: React.FC = () => {
+  // Subscribe to state this component needs
+  const visible = useModsStore(s => s.addModWindowVisible);
+  const tasks = useModsStore(s => s.importTasks);
+  const processing = useModsStore(s => s.importProcessing);
+
+  // Get operations
+  const {
+    importMods,
+    closeAddModWindow,
+    openAddModUnit,
+    removeImportTask,
+    openBatchEditUnit,
+  } = useMods();
   const { t } = useTranslation();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
@@ -152,7 +151,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
             type="text"
             icon={<EditOutlined />}
             size="small"
-            onClick={() => onEditTask(record)}
+            onClick={() => openAddModUnit(record)}
             disabled={record.status === 'processing' || record.status === 'success'}
             title={t('importWindow.editTask')}
           />
@@ -183,7 +182,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
 
   // Handle remove task
   const handleRemoveTask = (taskId: string) => {
-    onRemoveTask(taskId);
+    removeImportTask(taskId);
     // Remove from selection if selected
     setSelectedRowKeys(prev => prev.filter(key => key !== taskId));
   };
@@ -207,7 +206,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
       notification.warning(t('importWindow.selectTaskToEdit'));
       return;
     }
-    onBatchEdit(selectedRowKeys as string[]);
+    openBatchEditUnit(selectedRowKeys as string[]);
   };
 
   // Handle confirm
@@ -222,7 +221,8 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
       return;
     }
 
-    await onConfirm(tasks);
+    const promise = importMods(tasks);
+    if (promise) await promise;
   };
 
   // Calculate statistics
@@ -238,7 +238,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
     <Modal
       title={t('importWindow.title')}
       open={visible}
-      onCancel={onCancel}
+      onCancel={closeAddModWindow}
       width={1200}
       className="add-mod-window-modal"
       footer={[
@@ -249,7 +249,7 @@ export const AddModWindow: React.FC<AddModWindowProps> = ({
           <span>{t('importWindow.success')}: <Tag color="success">{stats.success}</Tag></span>
           {stats.error > 0 && <span>{t('importWindow.error')}: <Tag color="error">{stats.error}</Tag></span>}
         </Space>,
-        <Button key="cancel" onClick={onCancel} disabled={processing}>
+        <Button key="cancel" onClick={closeAddModWindow} disabled={processing}>
           {t('importWindow.cancel')}
         </Button>,
         <Button

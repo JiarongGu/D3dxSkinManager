@@ -1,7 +1,7 @@
 # AI Assistant Guide
 
-**Version:** 2.1
-**Last Updated:** 2026-02-23
+**Version:** 2.2
+**Last Updated:** 2026-02-25
 **Critical:** NEVER commit without explicit user approval!
 
 ---
@@ -326,24 +326,77 @@ interface Event<T = unknown> {
 }
 ```
 
-### React Context Pattern
+### State Management Pattern (Zustand)
+
+**CURRENT ARCHITECTURE:** We use Zustand for global state management, NOT React Context.
+
 ```typescript
-// Context with ProfileId awareness
+// 1. Zustand Store (store/modsStore.ts)
+export const useModsStore = create<ModsState>((set, get) => ({
+  // State
+  mods: [],
+  modsLoading: false,
+
+  // Actions
+  setMods: (mods) => set({ mods }),
+  setModsLoading: (loading) => set({ modsLoading: loading }),
+
+  // Reset
+  reset: () => set(initialState),
+}));
+
+// 2. Provider handles lifecycle only (ModsProvider.tsx)
 export const ModsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { selectedProfileId } = useProfile();
-  const [state, dispatch] = useReducer(modsReducer, initialState);
+  const reset = useModsStore((state) => state.reset);
 
+  // Subscribe to backend events (NO module-level eventBus anymore)
   useEffect(() => {
-    if (selectedProfileId) {
-      loadMods(selectedProfileId);
-    } else {
-      dispatch({ type: 'RESET' });
-    }
+    if (!selectedProfileId) return;
+
+    const unsubscribeModsRefreshed = eventBus.on(EventType.ModsRefreshed, () => {
+      modOps.refreshMods(selectedProfileId);
+    });
+
+    return () => {
+      unsubscribeModsRefreshed();
+    };
   }, [selectedProfileId]);
 
-  return <ModsContext.Provider value={{ state, actions }}>{children}</ModsContext.Provider>;
+  // Load data on profile change
+  useEffect(() => {
+    if (selectedProfileId) {
+      void Promise.all([
+        modOps.loadMods(selectedProfileId),
+        classificationOps.loadClassificationTree(selectedProfileId),
+      ]);
+    } else {
+      reset();
+    }
+  }, [selectedProfileId, reset]);
+
+  return <>{children}</>;
 };
+
+// 3. Components use hooks directly
+function MyComponent() {
+  const mods = useModsStore((state) => state.mods);
+  const setMods = useModsStore((state) => state.setMods);
+
+  // Call operations directly
+  const handleDelete = async (sha: string) => {
+    await modOps.deleteMod(profileId, sha);
+  };
+}
 ```
+
+**Key Differences from Old Context Pattern:**
+- ✅ Zustand for state (not React Context)
+- ✅ Operations are imported functions (not context methods)
+- ✅ Backend events subscribed in Provider (not module-level eventBus)
+- ✅ Provider only handles lifecycle, not state management
+- ❌ NO module-level event subscriptions anymore
+- ❌ NO React Context with state passed through
 
 ### Repository Pattern
 ```csharp
