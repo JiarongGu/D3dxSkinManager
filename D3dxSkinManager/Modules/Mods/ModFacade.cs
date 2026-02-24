@@ -136,6 +136,7 @@ public class ModFacade : BaseFacade, IModFacade
             "UPDATE_CLASSIFICATION_NODE" => await UpdateClassificationNodeAsync(request),
             "DELETE_CLASSIFICATION_NODE" => await DeleteClassificationNodeAsync(request),
             "CHECK_CLASSIFICATION_NODE_EXISTS" => await CheckClassificationNodeExistsAsync(request),
+            "CHECK_CLASSIFICATION_NAME_EXISTS" => await CheckClassificationNameExistsAsync(request),
             "CHECK_FILE_PATHS" => await CheckFilePathsAsync(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -838,13 +839,35 @@ public class ModFacade : BaseFacade, IModFacade
     }
 
     /// <summary>
-    /// Check if a classification node exists by nodeId
-    /// Used for form validation to prevent duplicates
+    /// Check if a classification node exists by nodeId (GUID)
     /// </summary>
     private async Task<bool> CheckClassificationNodeExistsAsync(IpcRequest request)
     {
         var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
         return await _classificationService.NodeExistsAsync(nodeId).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Check if a classification name already exists in the database
+    /// Used for form validation to prevent duplicate names
+    /// </summary>
+    private async Task<bool> CheckClassificationNameExistsAsync(IpcRequest request)
+    {
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        var excludeNodeId = _payloadHelper.GetOptionalValue<string>(request.Payload, "excludeNodeId");
+
+        var node = await _classificationService.GetNodeByNameAsync(name).ConfigureAwait(false);
+
+        // If no node found with this name, it doesn't exist
+        if (node == null) return false;
+
+        // If we're editing a node, exclude it from the check
+        if (!string.IsNullOrEmpty(excludeNodeId) && node.Id == excludeNodeId)
+        {
+            return false; // Same node, not a duplicate
+        }
+
+        return true; // Name exists
     }
 
     /// <summary>

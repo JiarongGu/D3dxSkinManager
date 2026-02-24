@@ -36,12 +36,26 @@ class ClassificationService extends BaseModuleService {
   }
 
   /**
-   * Check if a classification node exists in the database by nodeId
+   * Check if a classification node exists in the database by nodeId (GUID)
    * Returns true if exists, false otherwise
-   * Use this for validation to ensure data integrity
    */
   async nodeExists(profileId: string, nodeId: string): Promise<boolean> {
     return this.sendMessage<boolean>('CHECK_CLASSIFICATION_NODE_EXISTS', profileId, { nodeId });
+  }
+
+  /**
+   * Check if a classification name already exists in the database (case-insensitive)
+   * Returns true if exists, false otherwise
+   * Use this for form validation to prevent duplicate names
+   * @param profileId - The profile ID
+   * @param name - The classification name to check
+   * @param excludeNodeId - Optional node ID to exclude from check (for edit validation)
+   */
+  async nameExists(profileId: string, name: string, excludeNodeId?: string): Promise<boolean> {
+    return this.sendMessage<boolean>('CHECK_CLASSIFICATION_NAME_EXISTS', profileId, {
+      name,
+      excludeNodeId
+    });
   }
 
   /**

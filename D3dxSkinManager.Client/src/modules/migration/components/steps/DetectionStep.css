@@ -32,12 +32,12 @@
 .detection-step-stat-label {
   font-size: 12px;
   margin-bottom: 2px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--color-text-secondary);
 }
 
 .detection-step-stat-value {
   font-size: 16px;
   line-height: 1.2;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--color-text);
 }

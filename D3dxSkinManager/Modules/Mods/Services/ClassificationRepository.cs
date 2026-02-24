@@ -60,7 +60,7 @@ public class ClassificationRepository : IClassificationRepository
         createTableCmd.CommandText = @"
             CREATE TABLE IF NOT EXISTS Classifications (
                 Id TEXT PRIMARY KEY,
-                Name TEXT NOT NULL,
+                Name TEXT NOT NULL UNIQUE COLLATE NOCASE,
                 ParentId TEXT NULL,
                 ThumbnailPath TEXT NULL,
                 Priority INTEGER DEFAULT 0,
@@ -70,7 +70,6 @@ public class ClassificationRepository : IClassificationRepository
             );
 
             CREATE INDEX IF NOT EXISTS idx_classifications_parent ON Classifications(ParentId);
-            CREATE INDEX IF NOT EXISTS idx_classifications_name ON Classifications(Name);
         ";
         await createTableCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }

@@ -270,17 +270,17 @@ public class ClassificationService : IClassificationService
             var node = await _repository.GetByIdAsync(nodeId).ConfigureAwait(false);
             if (node == null) return false;
 
-            // Check if name would conflict with siblings (ensure uniqueness at same level)
+            // Check if name would conflict globally (ensure uniqueness across entire database)
             if (node.Name != name)
             {
                 var allNodes = await _repository.GetAllAsync().ConfigureAwait(false);
-                var siblings = allNodes.Where(n => n.ParentId == node.ParentId && n.Id != nodeId).ToList();
+                var otherNodes = allNodes.Where(n => n.Id != nodeId).ToList();
 
-                // Check for name uniqueness among siblings
-                if (siblings.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                // Check for name uniqueness globally
+                if (otherNodes.Any(n => n.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
                 {
-                    // A sibling with this name already exists
-                    Console.WriteLine($"Classification with name '{name}' already exists at this level");
+                    // Another node with this name already exists
+                    Console.WriteLine($"Classification with name '{name}' already exists");
                     return false;
                 }
             }
@@ -367,14 +367,13 @@ public class ClassificationService : IClassificationService
             // Generate a new GUID for the node ID (ignoring the passed nodeId parameter)
             var generatedId = Guid.NewGuid().ToString();
 
-            // Check if name already exists at the same level (siblings must have unique names)
+            // Check if name already exists globally (classification names must be unique across entire database)
             var allNodes = await _repository.GetAllAsync().ConfigureAwait(false);
-            var siblings = allNodes.Where(n => n.ParentId == parentId).ToList();
 
-            if (siblings.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            if (allNodes.Any(n => n.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
             {
-                Console.WriteLine($"[ClassificationService] Node with name '{name}' already exists at this level");
-                return null; // Name conflict at same level
+                Console.WriteLine($"[ClassificationService] Node with name '{name}' already exists");
+                return null; // Name conflict - must be globally unique
             }
 
             // Check if the generated ID already exists (extremely unlikely with GUIDs)

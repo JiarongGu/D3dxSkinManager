@@ -213,17 +213,21 @@ export const ClassificationScreenContent: React.FC<ClassificationScreenProps & {
               rules={[
                 { required: true, message: t('classification.screen.nameRequired') },
                 { min: 1, max: 100, message: t('classification.screen.nameLength') },
-                ...(!editNode ? [{
+                {
                   validator: async (_: any, value: string) => {
                     if (!value || !selectedProfileId) return Promise.resolve();
-                    // Check if nodeId already exists in database (name is used as nodeId in creation)
-                    const exists = await classificationService.nodeExists(selectedProfileId, value);
+                    // Check if classification name already exists in database (case-insensitive)
+                    const exists = await classificationService.nameExists(
+                      selectedProfileId,
+                      value,
+                      editNode?.id // Exclude current node when editing
+                    );
                     if (exists) {
                       return Promise.reject(t('classification.screen.nameExists'));
                     }
                     return Promise.resolve();
                   }
-                }] : [])
+                }
               ]}
             >
               <CompactInput

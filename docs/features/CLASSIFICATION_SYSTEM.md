@@ -18,7 +18,7 @@ The Classification System provides a hierarchical tree structure for organizing 
 - **Purpose:** Manages classification tree in SQLite database
 - **Key Features:**
   - GUID-based node IDs for stability (no cascading updates on rename)
-  - Name uniqueness enforced at sibling level
+  - Name uniqueness enforced globally across entire database (case-insensitive)
   - Hierarchical parent-child relationships
   - Priority-based ordering
 
@@ -155,7 +155,7 @@ interface ModInfo {
 - **Location:** `D3dxSkinManager.Tests/Modules/Mods/ClassificationServiceGuidTests.cs`
 - **Coverage:**
   - GUID generation
-  - Name uniqueness at sibling level
+  - Name uniqueness globally across database (case-insensitive)
   - Tree operations (create, update, delete)
   - No cascading updates on rename
 
