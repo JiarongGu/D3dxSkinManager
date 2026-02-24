@@ -100,9 +100,9 @@ public class WebViewInitializer
         settings.IsZoomControlEnabled = false;
         settings.IsBuiltInErrorPageEnabled = false;
 
-        // Disable external drop to prevent browser from loading dropped files
-        // We handle drops at the Form level to capture real file paths
-        _webView.AllowExternalDrop = false;
+        // Allow external drop to enable internal drag-drop between React components
+        // External file drops are still captured by DropZoneOverlay at Form level
+        _webView.AllowExternalDrop = true;
 
         // Set default background color to prevent white flash
         _webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(26, 26, 26); // #1a1a1a

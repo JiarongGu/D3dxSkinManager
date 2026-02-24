@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { Modal, Table, Tag, Typography, Divider } from 'antd';
+import { Table, Tag, Typography, Divider } from 'antd';
 import { CodeOutlined } from '@ant-design/icons';
+import { InfoDialog } from '../../../../shared/components/dialogs';
 import { KeyboardShortcutManager, ShortcutConfig } from '../../utils/KeyboardShortcutManager';
 import { useTranslation } from 'react-i18next';
 import './KeyboardShortcutsDialog.css';
@@ -77,18 +78,17 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
   ];
 
   return (
-    <Modal
+    <InfoDialog
       title={
         <>
           <CodeOutlined className="keyboard-shortcuts-icon" />
           {t('shortcuts.title')}
         </>
       }
-      open={visible}
-      onCancel={onClose}
-      footer={null}
+      visible={visible}
+      onClose={onClose}
       width={700}
-      styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
+      bodyStyle={{ maxHeight: '70vh', overflowY: 'auto' }}
     >
       <div className="keyboard-shortcuts-content">
         {groupedShortcuts.map((group, index) => (
@@ -120,6 +120,6 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
           </Text>
         </div>
       </div>
-    </Modal>
+    </InfoDialog>
   );
 };

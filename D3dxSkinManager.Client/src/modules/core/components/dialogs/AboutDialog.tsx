@@ -4,13 +4,14 @@
  */
 
 import React from 'react';
-import { Modal, Typography, Space, Divider, Tag } from 'antd';
+import { Typography, Space, Divider, Tag } from 'antd';
 import {
   GithubOutlined,
   InfoCircleOutlined,
   CopyrightOutlined,
   LinkOutlined
 } from '@ant-design/icons';
+import { InfoDialog } from '../../../../shared/components/dialogs';
 import { useTranslation } from 'react-i18next';
 import './AboutDialog.css';
 
@@ -27,16 +28,15 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
   const buildDate = '2026-02-17';
 
   return (
-    <Modal
+    <InfoDialog
       title={
         <>
           <InfoCircleOutlined className="about-dialog-icon" />
           {t('about.title')}
         </>
       }
-      open={visible}
-      onCancel={onClose}
-      footer={null}
+      visible={visible}
+      onClose={onClose}
       width={600}
     >
       <Space orientation="vertical" size="large" className="about-dialog-content">
@@ -148,6 +148,6 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ visible, onClose }) =>
           </Text>
         </div>
       </Space>
-    </Modal>
+    </InfoDialog>
   );
 };

@@ -1,0 +1,81 @@
+/**
+ * InfoDialog Styles
+ * Consistent styling for information display dialogs
+ */
+
+/* Remove all borders and make compact */
+.info-dialog .ant-modal-content {
+  padding: 0 !important;
+}
+
+.info-dialog .ant-modal-container {
+  padding: 24px 24px 16px !important;
+}
+
+.info-dialog .ant-modal-header {
+  border-bottom: none !important;
+  padding: 0px !important;
+  margin-bottom: 16px !important;
+  background: transparent !important;
+}
+
+.info-dialog .ant-modal-body {
+  padding: 8px !important;
+  margin-bottom: 16px !important;
+}
+
+.info-dialog .ant-modal-footer {
+  border-top: none !important;
+  padding: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* Square close button design - theme-aware */
+[data-theme="dark"] .info-dialog-close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--border-radius-base);
+  cursor: pointer;
+  transition: none;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+[data-theme="dark"] .info-dialog-close-button:hover {
+  background: var(--color-bg-spotlight);
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-base);
+}
+
+[data-theme="light"] .info-dialog-close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(240, 240, 245, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: var(--border-radius-base);
+  cursor: pointer;
+  transition: none;
+  color: rgba(0, 0, 0, 0.8);
+  font-size: 14px;
+}
+
+[data-theme="light"] .info-dialog-close-button:hover {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Dialog content */
+.info-dialog-content {
+  font-size: 14px;
+  line-height: 1.6;
+}

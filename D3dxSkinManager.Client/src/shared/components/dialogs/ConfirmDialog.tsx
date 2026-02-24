@@ -12,8 +12,8 @@ import './ConfirmDialog.css';
 
 interface ConfirmDialogProps {
   visible: boolean;
-  title: string;
-  content: string;
+  title: React.ReactNode;
+  content: React.ReactNode;
   okText?: string;
   cancelText?: string;
   okType?: 'primary' | 'danger' | 'default';

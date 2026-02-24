@@ -1,6 +1,6 @@
 import { notification } from '../../../shared/utils/notification';
 import React, { useState, useMemo } from 'react';
-import { Card,  Table, Tag, Modal, Statistic, Row, Col } from 'antd';
+import { Card,  Table, Tag, Statistic, Row, Col } from 'antd';
 import {
   DeleteOutlined,
   ClearOutlined,
@@ -19,6 +19,7 @@ import {
   CompactSection,
   CompactButton,
 } from '../../../shared/components/compact';
+import { ConfirmDialog } from '../../../shared/components/dialogs';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useTranslation } from 'react-i18next';
 import './CacheManagementTool.css';
@@ -38,6 +39,8 @@ export const CacheManagementTool: React.FC = () => {
   const [cacheItems, setCacheItems] = useState<CacheItem[]>([]);
   const [cacheStats, setCacheStats] = useState<CacheStatistics>();
   const { state: profileState } = useProfile();
+  const [cleanConfirm, setCleanConfirm] = useState<{ visible: boolean; category?: CacheCategory; categoryName?: string }>({ visible: false });
+  const [deleteItemConfirm, setDeleteItemConfirm] = useState<{ visible: boolean; item?: CacheItem }>({ visible: false });
 
   // Categorize cache items by category
   const categorizedCache = useMemo(() => {
@@ -70,9 +73,9 @@ export const CacheManagementTool: React.FC = () => {
   };
 
   /**
-   * Clean cache by category
+   * Show clean cache confirmation dialog
    */
-  const handleCleanCache = async (category: CacheCategory, categoryName: string) => {
+  const handleCleanCache = (category: CacheCategory, categoryName: string) => {
     const count = categorizedCache[
       category === CacheCategory.Invalid ? 'invalid' :
       category === CacheCategory.RarelyUsed ? 'rarelyUsed' :
@@ -84,73 +87,73 @@ export const CacheManagementTool: React.FC = () => {
       return;
     }
 
-    Modal.confirm({
-      title: `Clean ${categoryName} Cache?`,
-      content: `This will delete ${count} cache item(s). ${
-        category === CacheCategory.FrequentlyUsed
-          ? 'WARNING: These are caches for currently loaded mods. Deleting may require re-importing them.'
-          : ''
-      }`,
-      okText: 'Delete',
-      okType: category === CacheCategory.FrequentlyUsed ? 'danger' : 'primary',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        if (!profileState.selectedProfile?.id) {
-          notification.error('No profile selected. Cannot clean cache.');
-          return;
-        }
-        const profileId = profileState.selectedProfile.id;
-        try {
-          setLoading(true);
-          const deletedCount = await cacheService.cleanCache(profileId, category);
-          notification.success(`${deletedCount} ${categoryName} cache item(s) deleted`);
-
-          // Refresh cache list
-          await handleScanCache();
-        } catch (error) {
-          notification.error(`Failed to clean ${categoryName} cache`);
-          console.error(error);
-        } finally {
-          setLoading(false);
-        }
-      },
-    });
+    setCleanConfirm({ visible: true, category, categoryName });
   };
 
   /**
-   * Delete individual cache item
+   * Execute clean cache after confirmation
    */
-  const handleDeleteCacheItem = async (item: CacheItem) => {
-    Modal.confirm({
-      title: 'Delete cache item?',
-      content: `Delete cache for SHA: ${item.sha}? (${cacheService.formatBytes(item.sizeBytes)})`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        if (!profileState.selectedProfile?.id) {
-          notification.error('No profile selected. Cannot delete cache item.');
-          return;
-        }
-        const profileId = profileState.selectedProfile.id;
-        try {
-          setLoading(true);
-          const success = await cacheService.deleteCacheItem(profileId, item.sha);
-          if (success) {
-            notification.success('Cache item deleted');
-            // Refresh cache list
-            await handleScanCache();
-          } else {
-            notification.error('Failed to delete cache item');
-          }
-        } catch (error) {
-          notification.error('Failed to delete cache item');
-          console.error(error);
-        } finally {
-          setLoading(false);
-        }
-      },
-    });
+  const handleConfirmCleanCache = async () => {
+    const { category, categoryName } = cleanConfirm;
+    if (!category || !categoryName || !profileState.selectedProfile?.id) {
+      notification.error('No profile selected. Cannot clean cache.');
+      setCleanConfirm({ visible: false });
+      return;
+    }
+
+    const profileId = profileState.selectedProfile.id;
+    try {
+      setLoading(true);
+      const deletedCount = await cacheService.cleanCache(profileId, category);
+      notification.success(`${deletedCount} ${categoryName} cache item(s) deleted`);
+
+      // Refresh cache list
+      await handleScanCache();
+    } catch (error) {
+      notification.error(`Failed to clean ${categoryName} cache`);
+      console.error(error);
+    } finally {
+      setLoading(false);
+      setCleanConfirm({ visible: false });
+    }
+  };
+
+  /**
+   * Show delete cache item confirmation dialog
+   */
+  const handleDeleteCacheItem = (item: CacheItem) => {
+    setDeleteItemConfirm({ visible: true, item });
+  };
+
+  /**
+   * Execute delete cache item after confirmation
+   */
+  const handleConfirmDeleteCacheItem = async () => {
+    const item = deleteItemConfirm.item;
+    if (!item || !profileState.selectedProfile?.id) {
+      notification.error('No profile selected. Cannot delete cache item.');
+      setDeleteItemConfirm({ visible: false });
+      return;
+    }
+
+    const profileId = profileState.selectedProfile.id;
+    try {
+      setLoading(true);
+      const success = await cacheService.deleteCacheItem(profileId, item.sha);
+      if (success) {
+        notification.success('Cache item deleted');
+        // Refresh cache list
+        await handleScanCache();
+      } else {
+        notification.error('Failed to delete cache item');
+      }
+    } catch (error) {
+      notification.error('Failed to delete cache item');
+      console.error(error);
+    } finally {
+      setLoading(false);
+      setDeleteItemConfirm({ visible: false });
+    }
   };
 
   /**
@@ -367,6 +370,38 @@ export const CacheManagementTool: React.FC = () => {
           />
         </CompactSection>
       </CompactSpace>
+
+      {/* Clean Cache Confirmation Dialog */}
+      <ConfirmDialog
+        visible={cleanConfirm.visible}
+        title={`Clean ${cleanConfirm.categoryName} Cache?`}
+        content={`This will delete ${categorizedCache[
+          cleanConfirm.category === CacheCategory.Invalid ? 'invalid' :
+          cleanConfirm.category === CacheCategory.RarelyUsed ? 'rarelyUsed' :
+          'frequentlyUsed'
+        ]?.length || 0} cache item(s). ${
+          cleanConfirm.category === CacheCategory.FrequentlyUsed
+            ? 'WARNING: These are caches for currently loaded mods. Deleting may require re-importing them.'
+            : ''
+        }`}
+        okText="Delete"
+        cancelText="Cancel"
+        okType={cleanConfirm.category === CacheCategory.FrequentlyUsed ? 'danger' : 'primary'}
+        onOk={handleConfirmCleanCache}
+        onCancel={() => setCleanConfirm({ visible: false })}
+      />
+
+      {/* Delete Cache Item Confirmation Dialog */}
+      <ConfirmDialog
+        visible={deleteItemConfirm.visible}
+        title="Delete cache item?"
+        content={`Delete cache for SHA: ${deleteItemConfirm.item?.sha || ''}? (${cacheService.formatBytes(deleteItemConfirm.item?.sizeBytes || 0)})`}
+        okText="Delete"
+        cancelText="Cancel"
+        okType="danger"
+        onOk={handleConfirmDeleteCacheItem}
+        onCancel={() => setDeleteItemConfirm({ visible: false })}
+      />
     </CompactCard>
   );
 };

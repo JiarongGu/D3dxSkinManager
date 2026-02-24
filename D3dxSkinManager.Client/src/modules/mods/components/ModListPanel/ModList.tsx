@@ -9,12 +9,18 @@ import {
   ExportOutlined,
   FolderOpenOutlined,
   FileZipOutlined,
+  ClearOutlined,
+  CopyOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { fileDialogService } from "../../../../shared/services/systemService";
 import { modService } from "../../services/modService";
+import { cacheService } from "../../../tools/services/cacheService";
 import { GradingTag } from "../../../../shared/components/common/GradingTag";
 import { useProfile } from "../../../../shared/context/ProfileContext";
+import { useMods } from "../../context/ModsContext";
+import { useDelayedLoading } from "../../../../shared/hooks/useDelayedLoading";
+import { ConfirmDialog } from "../../../../shared/components/dialogs";
 import {
   ContextMenu,
   ContextMenuItem,
@@ -48,6 +54,8 @@ export const ModList: React.FC<ModListProps> = ({
   const [displayCount, setDisplayCount] = useState(50);
   const observerTarget = useRef<HTMLDivElement>(null);
   const { state: profileState } = useProfile();
+  const { actions } = useMods();
+  const { loading: deletingCache, execute: executeDeleteCache } = useDelayedLoading(100);
   const menuState = useContextMenu();
   const [contextMenuMod, setContextMenuMod] = useState<ModInfo>();
   const [checkedPaths, setCheckedPaths] = useState<{
@@ -55,6 +63,7 @@ export const ModList: React.FC<ModListProps> = ({
     cachePath: string | undefined;
     thumbnailPath: string | undefined;
   }>();
+  const [deleteConfirm, setDeleteConfirm] = useState<{ visible: boolean; mod?: ModInfo }>({ visible: false });
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(
@@ -93,8 +102,77 @@ export const ModList: React.FC<ModListProps> = ({
 
   const displayedMods = mods.slice(0, displayCount);
 
+  /**
+   * Show delete mod confirmation dialog
+   */
+  const handleShowDeleteConfirm = (mod: ModInfo) => {
+    setDeleteConfirm({ visible: true, mod });
+  };
+
+  /**
+   * Execute delete mod after confirmation
+   */
+  const handleConfirmDelete = async () => {
+    const mod = deleteConfirm.mod;
+    if (!mod) {
+      setDeleteConfirm({ visible: false });
+      return;
+    }
+
+    await onDelete(mod.sha, mod.name);
+    setDeleteConfirm({ visible: false });
+  };
+
+  /**
+   * Delete cached mod (no confirmation needed)
+   * Deletes cache for both loaded and unloaded mods:
+   * - Loaded: {SHA}/ directory
+   * - Unloaded: DISABLED-{SHA}/ directory
+   * Updates local mod state to set isLoaded=false without backend fetch.
+   * Uses delayed loading to show spinner only if operation takes >100ms.
+   */
+  const handleDeleteCachedMod = async (mod: ModInfo) => {
+    if (!profileState.selectedProfile?.id) {
+      notification.error(t('mods.notifications.noProfileSelected'));
+      return;
+    }
+
+    const profileId = profileState.selectedProfile.id;
+
+    await executeDeleteCache(async () => {
+      try {
+        // Delete the cache
+        const success = await cacheService.deleteCacheItem(profileId, mod.sha);
+        if (success) {
+          notification.success(t('mods.notifications.cacheDeleted', { name: mod.name }));
+
+          // Update local mod state to set isLoaded=false (no backend fetch)
+          // This rebuilds the mods array locally
+          actions.updateModLocal(mod.sha, { isLoaded: false });
+
+          // Refresh checked paths after deletion
+          if (contextMenuMod?.sha === mod.sha) {
+            try {
+              const paths = await modService.checkFilePaths(profileId, mod.sha);
+              setCheckedPaths(paths);
+            } catch (error) {
+              console.error('Failed to refresh file paths:', error);
+            }
+          }
+        } else {
+          notification.error(t('mods.notifications.deleteCacheFailed'));
+          console.error('Delete cache returned false for SHA:', mod.sha);
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        notification.error(`${t('mods.notifications.deleteCacheFailed')}: ${errorMessage}`);
+        console.error('Failed to delete cached mod:', error);
+      }
+    });
+  };
+
   const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => [
-    // Load/Unload
+    // Group 1: Load/Unload Operations
     !mod.isLoaded
       ? {
           key: "load",
@@ -110,7 +188,7 @@ export const ModList: React.FC<ModListProps> = ({
         },
     { type: "divider" as const },
 
-    // Edit & Export
+    // Group 2: Edit & Export Operations
     {
       key: "edit",
       label: t('contextMenu.editModInfo'),
@@ -155,26 +233,7 @@ export const ModList: React.FC<ModListProps> = ({
     },
     { type: "divider" as const },
 
-    // Copy operations
-    {
-      key: "copy-sha",
-      label: t('contextMenu.copySHA'),
-      onClick: () => {
-        navigator.clipboard.writeText(mod.sha);
-        notification.success(t('mods.notifications.shaCopied'));
-      },
-    },
-    {
-      key: "copy-name",
-      label: t('contextMenu.copyName'),
-      onClick: () => {
-        navigator.clipboard.writeText(mod.name);
-        notification.success(t('mods.notifications.nameCopied'));
-      },
-    },
-    { type: "divider" as const },
-
-    // File viewing operations
+    // Group 3: File Operations
     {
       key: "view-original",
       label: t('contextMenu.viewOriginalFile'),
@@ -227,19 +286,47 @@ export const ModList: React.FC<ModListProps> = ({
     },
     { type: "divider" as const },
 
-    // Delete
+    // Group 4: Copy Operations
+    {
+      key: "copy-sha",
+      label: t('contextMenu.copySHA'),
+      icon: <CopyOutlined />,
+      onClick: () => {
+        navigator.clipboard.writeText(mod.sha);
+        notification.success(t('mods.notifications.shaCopied'));
+      },
+    },
+    {
+      key: "copy-name",
+      label: t('contextMenu.copyName'),
+      icon: <CopyOutlined />,
+      onClick: () => {
+        navigator.clipboard.writeText(mod.name);
+        notification.success(t('mods.notifications.nameCopied'));
+      },
+    },
+    { type: "divider" as const },
+
+    // Group 5: Destructive Operations
+    {
+      key: "delete-cache",
+      label: t('contextMenu.deleteCachedMod'),
+      icon: <ClearOutlined />,
+      disabled: !checkedPaths?.cachePath,
+      onClick: () => handleDeleteCachedMod(mod),
+    },
     {
       key: "delete",
       label: t('contextMenu.deleteMod'),
       icon: <DeleteOutlined />,
       danger: true,
-      onClick: () => onDelete(mod.sha, mod.name),
+      onClick: () => handleShowDeleteConfirm(mod),
     },
   ];
 
   return (
     <div className="mod-list-container">
-      {loading ? (
+      {loading || deletingCache ? (
         <div className="mod-list-loading-container">
           <Spin size="large" />
         </div>
@@ -395,6 +482,18 @@ export const ModList: React.FC<ModListProps> = ({
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        visible={deleteConfirm.visible}
+        title={t('contextMenu.deleteMod')}
+        content={t('mods.notifications.confirmDelete', { name: deleteConfirm.mod?.name || '' })}
+        okText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        okType="danger"
+        onOk={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm({ visible: false })}
+      />
     </div>
   );
 };

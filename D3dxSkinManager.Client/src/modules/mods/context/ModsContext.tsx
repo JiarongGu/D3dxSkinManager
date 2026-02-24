@@ -84,6 +84,7 @@ interface ModsContextValue {
     importMod: (task: ImportTask) => Promise<ModInfo | undefined>;
     importMods: (tasks: ImportTask[]) => Promise<void>;
     updateMod: (sha: string, data: Partial<ModInfo>) => Promise<void>;
+    updateModLocal: (sha: string, data: Partial<ModInfo>) => void;
     deleteMod: (sha: string) => Promise<void>;
     loadModInGame: (sha: string) => Promise<void>;
     unloadModFromGame: (sha: string) => Promise<void>;
@@ -253,12 +254,44 @@ export const ModsProvider: React.FC<{
     [selectedProfileId, modData, classificationData],
   );
 
+  const updateModLocal = useCallback(
+    (sha: string, data: Partial<ModInfo>) => {
+      // Update local state only (no backend call)
+      modData.dispatch({
+        type: "UPDATE_MOD_LOCAL",
+        payload: { sha, data },
+      });
+
+      // Also update the filtered mod if classification is active
+      classificationData.dispatch({
+        type: "UPDATE_FILTERED_MOD",
+        payload: { sha, data },
+      });
+    },
+    [modData, classificationData],
+  );
+
   const deleteMod = useCallback(
     async (sha: string) => {
       if (!selectedProfileId) return;
-      await modData.deleteMod(selectedProfileId, sha, () => refreshMods());
+      await modData.deleteMod(selectedProfileId, sha, async () => {
+        // Refresh the main mod list
+        await refreshMods();
+
+        // If a classification is selected, also reload the filtered mods for that classification
+        if (classificationData.state.selectedClassification) {
+          if (classificationData.state.selectedClassification.id === "__unclassified__") {
+            await classificationData.loadUnclassifiedMods(selectedProfileId);
+          } else {
+            await classificationData.loadModsByClassification(
+              selectedProfileId,
+              classificationData.state.selectedClassification.id
+            );
+          }
+        }
+      });
     },
-    [selectedProfileId, modData, refreshMods],
+    [selectedProfileId, modData, refreshMods, classificationData],
   );
 
   const loadModInGame = useCallback(
@@ -604,6 +637,7 @@ export const ModsProvider: React.FC<{
         importMod,
         importMods,
         updateMod,
+        updateModLocal,
         deleteMod,
         loadModInGame,
         unloadModFromGame,

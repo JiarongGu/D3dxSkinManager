@@ -22,10 +22,6 @@
   align-items: flex-start;
 }
 
-.mod-list-item:active {
-  opacity: 0.7;
-}
-
 .mod-list-item-selected {
   background: var(--color-primary-bg);
   border-left: 3px solid var(--color-primary);

@@ -506,22 +506,38 @@ public class ModFileService : IModFileService
     }
 
     /// <summary>
-    /// Delete specific cache by SHA
+    /// Delete specific cache by SHA (both active and disabled cache)
     /// </summary>
     public Task<bool> DeleteCacheAsync(string sha)
     {
-        var cachePath = GetCachePath(sha);
-
-        if (string.IsNullOrEmpty(cachePath) || !Directory.Exists(cachePath))
-        {
-            return Task.FromResult(false);
-        }
+        bool anyDeleted = false;
 
         try
         {
-            Directory.Delete(cachePath, recursive: true);
-            _logger.Info($"Deleted cache for SHA: {sha}", "ModFileService");
-            return Task.FromResult(true);
+            // Delete active/loaded cache: {SHA}
+            var activeCachePath = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+            if (Directory.Exists(activeCachePath))
+            {
+                Directory.Delete(activeCachePath, recursive: true);
+                _logger.Info($"Deleted active cache for SHA: {sha}", "ModFileService");
+                anyDeleted = true;
+            }
+
+            // Delete disabled/unloaded cache: DISABLED-{SHA}
+            var disabledCachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
+            if (Directory.Exists(disabledCachePath))
+            {
+                Directory.Delete(disabledCachePath, recursive: true);
+                _logger.Info($"Deleted disabled cache for SHA: {sha}", "ModFileService");
+                anyDeleted = true;
+            }
+
+            if (!anyDeleted)
+            {
+                _logger.Warn($"No cache found to delete for SHA: {sha}", "ModFileService");
+            }
+
+            return Task.FromResult(anyDeleted);
         }
         catch (Exception ex)
         {

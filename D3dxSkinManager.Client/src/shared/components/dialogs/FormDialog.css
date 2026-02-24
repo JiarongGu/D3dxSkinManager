@@ -1,0 +1,107 @@
+/**
+ * FormDialog Styles
+ * Consistent styling for form-based dialogs
+ */
+
+/* Remove all borders and make compact */
+.form-dialog .ant-modal-content {
+  padding: 0 !important;
+}
+
+.form-dialog .ant-modal-container {
+  padding: 24px 24px 16px !important;
+}
+
+/* Disable ALL animations and transitions */
+.form-dialog .ant-btn::after,
+.form-dialog .ant-btn .ant-wave {
+  display: none !important;
+}
+
+.form-dialog .ant-btn,
+.form-dialog .ant-btn:hover,
+.form-dialog .ant-btn:focus,
+.form-dialog .ant-btn:active,
+.form-dialog .ant-btn *,
+.form-dialog .ant-btn::after {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+.form-dialog .ant-btn {
+  will-change: auto !important;
+}
+
+.form-dialog .ant-modal-header {
+  border-bottom: none !important;
+  padding: 0px !important;
+  margin-bottom: 16px !important;
+  background: transparent !important;
+}
+
+.form-dialog .ant-modal-body {
+  padding: 8px !important;
+  margin-bottom: 16px !important;
+}
+
+.form-dialog .ant-modal-footer {
+  border-top: none !important;
+  padding: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* Square close button design - theme-aware */
+[data-theme="dark"] .form-dialog-close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--border-radius-base);
+  cursor: pointer;
+  transition: none;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+[data-theme="dark"] .form-dialog-close-button:hover {
+  background: var(--color-bg-spotlight);
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-base);
+}
+
+[data-theme="light"] .form-dialog-close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(240, 240, 245, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: var(--border-radius-base);
+  cursor: pointer;
+  transition: none;
+  color: rgba(0, 0, 0, 0.8);
+  font-size: 14px;
+}
+
+[data-theme="light"] .form-dialog-close-button:hover {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Dialog footer */
+.form-dialog-footer {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/* Dialog content */
+.form-dialog-content {
+  font-size: 14px;
+}

@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-02-24 - Classification-Filtered Mod List Refresh After Deletion ⭐⭐⭐
+Fixed mod list not refreshing properly when deleting a mod while viewing a classification. Now refreshes both the main mod list and the classification-filtered mods list.
+**Impact**: ✅ Deleted mods immediately disappear from both lists, UI stays in sync with backend state
+**Component**: ModsContext.tsx - deleteMod now refreshes classification-filtered mods when a classification is selected
+**Pattern**: Follows same refresh logic as handleModsRefreshAfterCategoryChange in ModHierarchicalView
+
 ### Fixed - 2026-02-24 - Migration & Classification Integrity Improvements ⭐⭐⭐⭐
 Fixed critical migration issues and improved data integrity for classification tree.
 **Impact**: ✅ Idempotent migration, proper ID-based references, orphaned node handling

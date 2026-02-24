@@ -1,6 +1,6 @@
 import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Form, Select, Alert, Spin, Row, Col, Modal } from 'antd';
+import { Form, Select, Alert, Spin, Row, Col } from 'antd';
 import {
   FolderOpenOutlined,
   RocketOutlined,
@@ -8,6 +8,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
+import { ConfirmDialog } from '../../../shared/components/dialogs';
 import { fileDialogService } from '../../../shared/services/systemService';
 import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
 import { launchService, D3DMigotoVersion } from '../services/launchService';
@@ -25,6 +26,7 @@ export const D3DMigotoTab: React.FC = () => {
   const [d3dVersions, setD3dVersions] = useState<D3DMigotoVersion[]>([]);
   const [d3dLoading, setD3dLoading] = useState(false);
   const { state: profileState } = useProfile();
+  const [deployConfirm, setDeployConfirm] = useState<{ visible: boolean; version?: D3DMigotoVersion }>({ visible: false });
 
   // Load configuration when profile changes
   useEffect(() => {
@@ -123,41 +125,40 @@ export const D3DMigotoTab: React.FC = () => {
   };
 
   /**
-   * Deploy a 3DMigoto version
+   * Show deploy confirmation dialog
    */
-  const handleDeploy3DMigoto = async (version: D3DMigotoVersion) => {
-    Modal.confirm({
-      title: t('launch.d3dmigoto.deployTitle', { version: version.name }),
-      content: t('launch.d3dmigoto.deployContent', {
-        version: version.name,
-        size: version.sizeFormatted
-      }),
-      okText: t('launch.d3dmigoto.deploy'),
-      okType: 'primary',
-      cancelText: t('common.cancel'),
-      onOk: async () => {
-        if (!profileState.selectedProfile) {
-          notification.error(t('launch.notifications.noProfileSelected'));
-          return;
-        }
-        try {
-          setD3dLoading(true);
-          const result = await launchService.deployVersion(profileState.selectedProfile.id, version.name);
+  const handleDeploy3DMigoto = (version: D3DMigotoVersion) => {
+    setDeployConfirm({ visible: true, version });
+  };
 
-          if (result.success) {
-            notification.success(result.message || t('launch.d3dmigoto.deploySuccess'));
-            await handleLoad3DMigotoVersions(); // Refresh list
-          } else {
-            notification.error(result.error || t('launch.d3dmigoto.deployFailed'));
-          }
-        } catch (error) {
-          notification.error(t('launch.d3dmigoto.deployVersionFailed'));
-          logger.error('Failed to deploy 3DMigoto version:', error);
-        } finally {
-          setD3dLoading(false);
-        }
+  /**
+   * Execute deployment after confirmation
+   */
+  const handleConfirmDeploy = async () => {
+    const version = deployConfirm.version;
+    if (!version || !profileState.selectedProfile) {
+      notification.error(t('launch.notifications.noProfileSelected'));
+      setDeployConfirm({ visible: false });
+      return;
+    }
+
+    try {
+      setD3dLoading(true);
+      const result = await launchService.deployVersion(profileState.selectedProfile.id, version.name);
+
+      if (result.success) {
+        notification.success(result.message || t('launch.d3dmigoto.deploySuccess'));
+        await handleLoad3DMigotoVersions(); // Refresh list
+      } else {
+        notification.error(result.error || t('launch.d3dmigoto.deployFailed'));
       }
-    });
+    } catch (error) {
+      notification.error(t('launch.d3dmigoto.deployVersionFailed'));
+      logger.error('Failed to deploy 3DMigoto version:', error);
+    } finally {
+      setD3dLoading(false);
+      setDeployConfirm({ visible: false });
+    }
   };
 
   /**
@@ -302,6 +303,21 @@ export const D3DMigotoTab: React.FC = () => {
             </CompactSpace>
           </CompactCard>
         </Form>
+
+      {/* Deploy Confirmation Dialog */}
+      <ConfirmDialog
+        visible={deployConfirm.visible}
+        title={t('launch.d3dmigoto.deployTitle', { version: deployConfirm.version?.name || '' })}
+        content={t('launch.d3dmigoto.deployContent', {
+          version: deployConfirm.version?.name || '',
+          size: deployConfirm.version?.sizeFormatted || ''
+        })}
+        okText={t('launch.d3dmigoto.deploy')}
+        cancelText={t('common.cancel')}
+        okType="primary"
+        onOk={handleConfirmDeploy}
+        onCancel={() => setDeployConfirm({ visible: false })}
+      />
     </div>
   );
 };
