@@ -247,12 +247,12 @@ export class ModService extends BaseModuleService {
     sha: string
   ): Promise<{
     originalPath: string | undefined;
-    workPath: string | undefined;
+    cachePath: string | undefined;
     thumbnailPath: string | undefined;
   }> {
     return this.sendMessage<{
       originalPath: string | undefined;
-      workPath: string | undefined;
+      cachePath: string | undefined;
       thumbnailPath: string | undefined;
     }>('CHECK_FILE_PATHS', profileId, { sha });
   }
@@ -264,7 +264,6 @@ export class ModService extends BaseModuleService {
    */
   getModFilePaths(mod: ModInfo): {
     originalFile?: string;
-    workDirectory?: string;
     cacheDirectory?: string;
   } {
     // Note: These are placeholder paths based on expected mod structure
@@ -272,7 +271,6 @@ export class ModService extends BaseModuleService {
     // For now, return undefined as backend will handle path resolution
     return {
       originalFile: mod.originalPath,
-      workDirectory: mod.workPath,
       cacheDirectory: mod.cachePath,
     };
   }

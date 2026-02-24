@@ -52,7 +52,7 @@ export const ModList: React.FC<ModListProps> = ({
   const [contextMenuMod, setContextMenuMod] = useState<ModInfo>();
   const [checkedPaths, setCheckedPaths] = useState<{
     originalPath: string | undefined;
-    workPath: string | undefined;
+    cachePath: string | undefined;
     thumbnailPath: string | undefined;
   }>();
 
@@ -194,17 +194,17 @@ export const ModList: React.FC<ModListProps> = ({
       },
     },
     {
-      key: "view-work",
-      label: t('contextMenu.openWorkFolder'),
+      key: "view-cache",
+      label: t('contextMenu.openCacheFolder'),
       icon: <FolderOpenOutlined />,
-      disabled: !checkedPaths?.workPath,
+      disabled: !checkedPaths?.cachePath,
       onClick: async () => {
-        if (checkedPaths?.workPath) {
+        if (checkedPaths?.cachePath) {
           try {
-            await fileDialogService.openDirectory(checkedPaths.workPath);
-            notification.success(t('mods.notifications.openedWork'));
+            await fileDialogService.openDirectory(checkedPaths.cachePath);
+            notification.success(t('mods.notifications.openedCache'));
           } catch (error) {
-            notification.error(t('mods.notifications.openWorkFailed'));
+            notification.error(t('mods.notifications.openCacheFailed'));
           }
         }
       },
@@ -236,17 +236,6 @@ export const ModList: React.FC<ModListProps> = ({
       onClick: () => onDelete(mod.sha, mod.name),
     },
   ];
-
-  const handleUnloadClick = (mod: ModInfo) => {
-    // Find the loaded mod for this object and unload it
-    const loadedMod = mods.find(
-      (m) => m.category === mod.category && m.isLoaded,
-    );
-    if (loadedMod) {
-      onUnload(loadedMod.sha);
-      notification.success(t('mods.notifications.unloadingObject', { category: mod.category }));
-    }
-  };
 
   return (
     <div className="mod-list-container">
@@ -287,7 +276,7 @@ export const ModList: React.FC<ModListProps> = ({
                       console.error("Failed to check file paths:", error);
                       setCheckedPaths({
                         originalPath: undefined,
-                        workPath: undefined,
+                        cachePath: undefined,
                         thumbnailPath: undefined,
                       });
                     }

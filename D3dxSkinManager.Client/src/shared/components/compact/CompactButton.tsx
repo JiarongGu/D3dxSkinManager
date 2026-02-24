@@ -77,12 +77,42 @@ export const CompactDangerButton: React.FC<CompactButtonProps> = (props) => (
   <CompactButton danger {...props} />
 );
 
+/**
+ * CompactButton.Warning - Warning button (convenience wrapper)
+ */
+export const CompactWarningButton: React.FC<CompactButtonProps> = ({
+  className = '',
+  ...props
+}) => (
+  <CompactButton
+    type="primary"
+    className={`compact-button-warning ${className}`.trim()}
+    {...props}
+  />
+);
+
+/**
+ * CompactButton.Success - Success button (convenience wrapper)
+ */
+export const CompactSuccessButton: React.FC<CompactButtonProps> = ({
+  className = '',
+  ...props
+}) => (
+  <CompactButton
+    type="primary"
+    className={`compact-button-success ${className}`.trim()}
+    {...props}
+  />
+);
+
 // Create a compound component pattern
 const CompactButtonNamespace = Object.assign(CompactButton, {
   Primary: CompactPrimaryButton,
   Text: CompactTextButton,
   Link: CompactLinkButton,
   Danger: CompactDangerButton,
+  Warning: CompactWarningButton,
+  Success: CompactSuccessButton,
 });
 
 export default CompactButtonNamespace;

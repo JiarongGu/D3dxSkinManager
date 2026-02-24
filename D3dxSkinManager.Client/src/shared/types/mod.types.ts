@@ -15,8 +15,8 @@ export interface ModInfo {
   // The first preview image (sorted alphabetically) is used as the thumbnail
   // File paths (for viewing operations - populated on-demand, not stored in DB)
   originalPath?: string;  // Path to original archive file
-  workPath?: string;      // Path to extracted/working directory
-  cachePath?: string;     // Path to cache directory (for disabled mods)
+  cachePath?: string;     // Path to cache directory (extracted files in active/loaded state)
+  // Note: workPath is deprecated - use cachePath instead. Cache folder can be in loaded or unloaded/disabled mode
 }
 
 export type GradingLevel = 'G' | 'P' | 'R' | 'X';

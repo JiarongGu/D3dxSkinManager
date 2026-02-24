@@ -24,24 +24,35 @@
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
 
-/* Dark theme - Flat design without shadows */
+/* Dark theme - subtle glow/highlight for depth (only for default buttons) */
 [data-theme="dark"] .compact-button.ant-btn {
-  box-shadow: none;
+  box-shadow: 0 1px 2px rgba(255, 255, 255, 0.05);
 }
 
 [data-theme="dark"] .compact-button.ant-btn:not(:disabled):not(.ant-btn-disabled):hover {
-  box-shadow: none;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.08);
   border-color: var(--color-primary);
 }
 
-/* Primary button - subtle border highlight on hover instead of shadow */
+/* Primary button - subtle border and background tint (like danger/warning buttons) */
 [data-theme="dark"] .compact-button.ant-btn.ant-btn-primary {
+  background: rgba(23, 125, 220, 0.02);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   box-shadow: none;
 }
 
 [data-theme="dark"] .compact-button.ant-btn.ant-btn-primary:not(:disabled):not(.ant-btn-disabled):hover {
+  border-color: #3c9ae8;
+  color: #3c9ae8;
+  background: rgba(60, 154, 232, 0.05);
   box-shadow: none;
-  filter: brightness(1.1);
+}
+
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-primary:not(:disabled):not(.ant-btn-disabled):active {
+  border-color: #177ddc;
+  color: #177ddc;
+  background: rgba(23, 125, 220, 0.08);
 }
 
 /* Danger button - deeper/darker on hover with subtle background tint */
@@ -52,14 +63,14 @@
 [data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):hover {
   border-color: #d9363e !important;
   color: #d9363e !important;
-  background: rgba(217, 54, 62, 0.08) !important;
+  background: rgba(217, 54, 62, 0.02) !important;
   box-shadow: none;
 }
 
 [data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):active {
   border-color: #cf1322 !important;
   color: #cf1322 !important;
-  background: rgba(207, 19, 34, 0.12) !important;
+  background: rgba(207, 19, 34, 0.05) !important;
 }
 
 [data-theme="light"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):hover {
@@ -72,6 +83,88 @@
   border-color: #a8071a !important;
   color: #a8071a !important;
   background: rgba(168, 7, 26, 0.1) !important;
+}
+
+/* Warning button - subtle warning style similar to danger button */
+/* Light theme - filled warning button */
+[data-theme="light"] .compact-button.ant-btn.compact-button-warning {
+  background-color: var(--color-warning);
+  border-color: var(--color-warning);
+  color: #fff;
+}
+
+[data-theme="light"] .compact-button.ant-btn.compact-button-warning:not(:disabled):not(.ant-btn-disabled):hover {
+  background-color: #ffc53d;
+  border-color: #ffc53d;
+  color: #fff;
+}
+
+[data-theme="light"] .compact-button.ant-btn.compact-button-warning:not(:disabled):not(.ant-btn-disabled):active {
+  background-color: #d48806;
+  border-color: #d48806;
+  color: #fff;
+}
+
+/* Dark theme - subtle border and background tint (like danger button) */
+[data-theme="dark"] .compact-button.ant-btn.compact-button-warning {
+  background: rgba(216, 150, 20, 0.02);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .compact-button.ant-btn.compact-button-warning:not(:disabled):not(.ant-btn-disabled):hover {
+  border-color: #e8ab13;
+  color: #e8ab13;
+  background: rgba(232, 171, 19, 0.05);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .compact-button.ant-btn.compact-button-warning:not(:disabled):not(.ant-btn-disabled):active {
+  border-color: #faad14;
+  color: #faad14;
+  background: rgba(250, 173, 20, 0.08);
+}
+
+/* Success button - subtle success style similar to other buttons */
+/* Light theme - filled success button */
+[data-theme="light"] .compact-button.ant-btn.compact-button-success {
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+  color: #fff;
+}
+
+[data-theme="light"] .compact-button.ant-btn.compact-button-success:not(:disabled):not(.ant-btn-disabled):hover {
+  background-color: #73d13d;
+  border-color: #73d13d;
+  color: #fff;
+}
+
+[data-theme="light"] .compact-button.ant-btn.compact-button-success:not(:disabled):not(.ant-btn-disabled):active {
+  background-color: #389e0d;
+  border-color: #389e0d;
+  color: #fff;
+}
+
+/* Dark theme - subtle border and background tint */
+[data-theme="dark"] .compact-button.ant-btn.compact-button-success {
+  background: rgba(73, 170, 25, 0.02);
+  border-color: var(--color-success);
+  color: var(--color-success);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .compact-button.ant-btn.compact-button-success:not(:disabled):not(.ant-btn-disabled):hover {
+  border-color: #5ec232;
+  color: #5ec232;
+  background: rgba(94, 194, 50, 0.05);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .compact-button.ant-btn.compact-button-success:not(:disabled):not(.ant-btn-disabled):active {
+  border-color: #49aa19;
+  color: #49aa19;
+  background: rgba(73, 170, 25, 0.08);
 }
 
 /* Large size - 40px height */

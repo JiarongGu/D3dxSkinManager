@@ -47,9 +47,11 @@ public interface IProfilePathService
     string WorkDirectory { get; }
 
     /// <summary>
-    /// Work mods directory (data/profiles/{profileId}/work/Mods/)
+    /// Cache mods directory (data/profiles/{profileId}/work/Mods/)
+    /// Contains extracted mod folders in either active ({SHA}) or disabled (DISABLED-{SHA}) state
+    /// This is a cache folder that can be in loaded or unloaded/disabled mode
     /// </summary>
-    string WorkModsDirectory { get; }
+    string CacheModsDirectory { get; }
 
     /// <summary>
     /// Thumbnails directory (data/profiles/{profileId}/thumbnails/)
@@ -160,7 +162,7 @@ public class ProfilePathService : IProfilePathService
 
     public string WorkDirectory => Path.Combine(ProfilePath, "work");
 
-    public string WorkModsDirectory => Path.Combine(ProfilePath, "work", "Mods");
+    public string CacheModsDirectory => Path.Combine(ProfilePath, "work", "Mods");
 
     public string ThumbnailsDirectory => Path.Combine(ProfilePath, "thumbnails");
 
@@ -191,7 +193,7 @@ public class ProfilePathService : IProfilePathService
         // Create all standard directories
         Directory.CreateDirectory(ModsDirectory);
         Directory.CreateDirectory(WorkDirectory);
-        Directory.CreateDirectory(WorkModsDirectory);
+        Directory.CreateDirectory(CacheModsDirectory);
         Directory.CreateDirectory(ThumbnailsDirectory);
         Directory.CreateDirectory(PreviewsDirectory);
         Directory.CreateDirectory(LogsDirectory);

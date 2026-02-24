@@ -4,8 +4,6 @@ import { Layout } from "antd";
 import {
   FolderOutlined,
   AppstoreOutlined,
-  EditOutlined,
-  PlusOutlined,
 } from "@ant-design/icons";
 import type { DataNode } from "antd/es/tree";
 import { ModInfo } from "../../../shared/types/mod.types";
@@ -14,9 +12,6 @@ import { ClassificationNode } from "../../../shared/types/classification.types";
 import { ModPreviewPanel } from "./ModPreviewPanel";
 import { ClassificationPanel } from "./ClassificationPanel";
 import { ModListPanel } from "./ModListPanel";
-import {
-  ContextMenuItem,
-} from "../../../shared/components/menu/ContextMenu";
 import { DragDropZone } from "../../../shared/components/common/DragDropZone";
 import { ModEditDialog } from "./ModEditDialog";
 import { BatchEditDialog } from "./BatchEditDialog";
@@ -157,11 +152,6 @@ export const ModHierarchicalView: React.FC = () => {
     state.searchQuery,
   ]);
 
-  const handleTreeSelect = (selectedKeys: React.Key[]) => {
-    const key = selectedKeys[0] as string;
-    actions.setSelectedObject(key || "");
-  };
-
   const handleModSelect = (mod: ModInfo) => {
     actions.selectMod(mod);
   };
@@ -260,62 +250,6 @@ export const ModHierarchicalView: React.FC = () => {
       description: undefined,
     };
     handleClassificationSelect(unclassifiedNode);
-  };
-
-  // Context menu handlers for classification tree
-  const handleModifyClassification = (category: string) => {
-    // TODO: Open modify classification dialog
-    notification.info(`Modify classification: ${category}`);
-  };
-
-  const handleAddClassification = () => {
-    // TODO: Open add classification dialog
-    notification.info("Add new classification");
-  };
-
-  const handleCopyObjectName = (category: string) => {
-    navigator.clipboard.writeText(category);
-    notification.success(`Copied category: ${category}`);
-  };
-
-  // Get context menu items for tree node
-  const getTreeNodeContextMenu = (
-    nodeKey: string,
-    nodeTitle: string,
-  ): ContextMenuItem[] => {
-    // Root "All Mods" node
-    if (nodeKey === "all") {
-      return [
-        {
-          key: "add-classification",
-          label: "Add New Classification",
-          icon: <PlusOutlined />,
-          onClick: handleAddClassification,
-        },
-      ];
-    }
-
-    // Object/classification node
-    return [
-      {
-        key: "modify",
-        label: "Modify Classification",
-        icon: <EditOutlined />,
-        onClick: () => handleModifyClassification(nodeKey),
-      },
-      {
-        key: "copy",
-        label: "Copy Object Name",
-        onClick: () => handleCopyObjectName(nodeKey),
-      },
-      { key: "divider-1", type: "divider" },
-      {
-        key: "add-classification",
-        label: "Add New Classification",
-        icon: <PlusOutlined />,
-        onClick: handleAddClassification,
-      },
-    ];
   };
 
   // Dialog handlers

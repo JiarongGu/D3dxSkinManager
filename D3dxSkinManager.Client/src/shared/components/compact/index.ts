@@ -9,7 +9,7 @@
  */
 
 // Button components
-export { default as CompactButton, CompactPrimaryButton, CompactTextButton, CompactLinkButton, CompactDangerButton } from './CompactButton';
+export { default as CompactButton, CompactPrimaryButton, CompactTextButton, CompactLinkButton, CompactDangerButton, CompactWarningButton, CompactSuccessButton } from './CompactButton';
 export type { CompactButtonProps, CompactButtonSize } from './CompactButton';
 
 // Card component

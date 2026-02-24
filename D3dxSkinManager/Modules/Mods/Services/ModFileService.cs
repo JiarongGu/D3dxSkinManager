@@ -77,8 +77,9 @@ public class ModFileService : IModFileService
     #region Load/Unload Operations
 
     /// <summary>
-    /// Load a mod by extracting its archive to work directory
-    /// If mod is cached (disabled), just rename it to enable
+    /// Load a mod by extracting its archive to cache directory
+    /// If mod is already cached (disabled state), just rename it to enable
+    /// Cache can be in loaded (active) or unloaded/disabled mode
     /// Detects and updates archive type if needed
     /// </summary>
     public async Task<bool> LoadAsync(string sha, IProgressReporter? progressReporter = null)
@@ -100,8 +101,8 @@ public class ModFileService : IModFileService
                     new { sha, archivePath });
             }
 
-            var targetDirectory = Path.Combine(_profilePaths.WorkModsDirectory, sha);
-            var disabledDirectory = Path.Combine(_profilePaths.WorkModsDirectory, $"{DISABLED_PREFIX}{sha}");
+            var targetDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+            var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
 
             // If already extracted as disabled cache, just rename it (remove DISABLED- prefix)
             if (Directory.Exists(disabledDirectory))
@@ -219,7 +220,7 @@ public class ModFileService : IModFileService
                 mod.Type = normalizedDetectedType;
                 await _repository.UpdateAsync(mod).ConfigureAwait(false);
 
-                _logger.Info($"Updated mod type: {sha} ({oldType ?? "empty"} â†?{normalizedDetectedType})", "ModFileService");
+                _logger.Info($"Updated mod type: {sha} ({oldType ?? "empty"} ï¿½?{normalizedDetectedType})", "ModFileService");
             }
         }
         catch (Exception ex)
@@ -230,21 +231,21 @@ public class ModFileService : IModFileService
     }
 
     /// <summary>
-    /// Unload a mod by renaming its work directory to DISABLED-{SHA} (creates cache)
+    /// Unload a mod by renaming its cache directory to DISABLED-{SHA} (disables cache)
     /// </summary>
     public async Task<bool> UnloadAsync(string sha)
     {
         try
         {
-            var workDirectory = Path.Combine(_profilePaths.WorkModsDirectory, sha);
-            if (!Directory.Exists(workDirectory))
+            var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+            if (!Directory.Exists(cacheDirectory))
             {
                 _logger.Warn($"Mod not loaded: {sha}", "ModFileService");
                 return false;
             }
 
-            // Rename to DISABLED-{SHA} instead of deleting (creates cache for fast re-enable)
-            var disabledDirectory = Path.Combine(_profilePaths.WorkModsDirectory, $"{DISABLED_PREFIX}{sha}");
+            // Rename to DISABLED-{SHA} instead of deleting (disables cache for fast re-enable)
+            var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
             if (Directory.Exists(disabledDirectory))
             {
                 Directory.Delete(disabledDirectory, true);
@@ -252,8 +253,8 @@ public class ModFileService : IModFileService
 
             try
             {
-                Directory.Move(workDirectory, disabledDirectory);
-                _logger.Info($"Unloaded mod (cached): {sha}", "ModFileService");
+                Directory.Move(cacheDirectory, disabledDirectory);
+                _logger.Info($"Unloaded mod (disabled cache): {sha}", "ModFileService");
                 return await Task.FromResult(true).ConfigureAwait(false);
             }
             catch (IOException ioEx)
@@ -262,9 +263,9 @@ public class ModFileService : IModFileService
                 _logger.Error($"Cannot unload mod {sha} - folder is in use: {ioEx.Message}", "ModFileService", ioEx);
                 throw new Core.Models.ModException(
                     Core.Models.ErrorCodes.MOD_FOLDER_IN_USE,
-                    $"Cannot unload mod - the folder is currently in use by another process. Please close any programs accessing: {workDirectory}",
+                    $"Cannot unload mod - the folder is currently in use by another process. Please close any programs accessing: {cacheDirectory}",
                     ioEx,
-                    new { sha, path = workDirectory });
+                    new { sha, path = cacheDirectory });
             }
             catch (UnauthorizedAccessException authEx)
             {
@@ -274,7 +275,7 @@ public class ModFileService : IModFileService
                     Core.Models.ErrorCodes.FILE_ACCESS_DENIED,
                     $"Access denied when unloading mod. Please run with appropriate permissions.",
                     authEx,
-                    new { sha, path = workDirectory });
+                    new { sha, path = cacheDirectory });
             }
         }
         catch (Core.Models.ModException)
@@ -295,7 +296,7 @@ public class ModFileService : IModFileService
     }
 
     /// <summary>
-    /// Delete a mod permanently (archive + work directory + cache + images)
+    /// Delete a mod permanently (archive + cache directory + disabled cache + images)
     /// </summary>
     public async Task<bool> DeleteAsync(string sha, string? previewPath)
     {
@@ -312,17 +313,17 @@ public class ModFileService : IModFileService
                 deleted = true;
             }
 
-            // Delete active work directory
-            var workDirectory = Path.Combine(_profilePaths.WorkModsDirectory, sha);
-            if (Directory.Exists(workDirectory))
+            // Delete active cache directory
+            var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+            if (Directory.Exists(cacheDirectory))
             {
-                Directory.Delete(workDirectory, true);
-                _logger.Info($"Deleted work directory: {workDirectory}", "ModFileService");
+                Directory.Delete(cacheDirectory, true);
+                _logger.Info($"Deleted cache directory: {cacheDirectory}", "ModFileService");
                 deleted = true;
             }
 
             // Delete disabled cache directory
-            var disabledDirectory = Path.Combine(_profilePaths.WorkModsDirectory, $"{DISABLED_PREFIX}{sha}");
+            var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
             if (Directory.Exists(disabledDirectory))
             {
                 Directory.Delete(disabledDirectory, true);
@@ -392,7 +393,7 @@ public class ModFileService : IModFileService
     {
         var cacheItems = new List<CacheItem>();
 
-        if (!Directory.Exists(_profilePaths.WorkModsDirectory))
+        if (!Directory.Exists(_profilePaths.CacheModsDirectory))
         {
             return cacheItems;
         }
@@ -403,7 +404,7 @@ public class ModFileService : IModFileService
         var loadedShas = (await _repository.GetLoadedIdsAsync()).ToHashSet();
 
         // Scan for disabled cache directories
-        var directories = Directory.GetDirectories(_profilePaths.WorkModsDirectory);
+        var directories = Directory.GetDirectories(_profilePaths.CacheModsDirectory);
 
         foreach (var dir in directories)
         {
@@ -544,7 +545,7 @@ public class ModFileService : IModFileService
     /// </summary>
     public string? GetCachePath(string sha)
     {
-        var cachePath = Path.Combine(_profilePaths.WorkModsDirectory, $"{DISABLED_PREFIX}{sha}");
+        var cachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
         return Directory.Exists(cachePath) ? cachePath : null;
     }
 

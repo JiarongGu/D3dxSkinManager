@@ -237,6 +237,3 @@ export const AddModUnit: React.FC<AddModUnitProps> = ({
     </Modal>
   );
 };
-
-// Export callback type for tag selection
-export type TagSelectionCallback = (tags: string[]) => void;

@@ -880,7 +880,7 @@ public class ModFacade : BaseFacade, IModFacade
         var result = new
         {
             originalPath = CheckOriginalPath(mod.SHA),
-            workPath = CheckWorkPath(mod.SHA),
+            cachePath = CheckCachePath(mod.SHA),
             thumbnailPath = CheckPreviewFolderPath(mod.SHA)
         };
 
@@ -901,15 +901,26 @@ public class ModFacade : BaseFacade, IModFacade
     }
 
     /// <summary>
-    /// Checks if work directory exists (extracted files)
+    /// Checks if cache directory exists (extracted files in active/loaded or disabled/unloaded state)
+    /// Cache folder can be in either loaded ({SHA}) or unloaded/disabled (DISABLED-{SHA}) mode
+    /// Returns the path to whichever exists
     /// </summary>
-    private string? CheckWorkPath(string sha)
+    private string? CheckCachePath(string sha)
     {
-        var workPath = Path.Combine(_profilePaths.WorkModsDirectory, sha);
-        if (Directory.Exists(workPath))
+        // Check for active/loaded cache first
+        var activeCachePath = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+        if (Directory.Exists(activeCachePath))
         {
-            return _pathHelper.ToRelativePath(workPath) ?? workPath;
+            return _pathHelper.ToRelativePath(activeCachePath) ?? activeCachePath;
         }
+
+        // Check for disabled/unloaded cache
+        var disabledCachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"DISABLED-{sha}");
+        if (Directory.Exists(disabledCachePath))
+        {
+            return _pathHelper.ToRelativePath(disabledCachePath) ?? disabledCachePath;
+        }
+
         return null;
     }
 
@@ -955,9 +966,9 @@ public class ModFacade : BaseFacade, IModFacade
                 .ToHashSet()
             : new HashSet<string>();
 
-        // Get all directories in work/Mods directory (for IsLoaded check)
-        var loadedDirectories = Directory.Exists(_profilePaths.WorkModsDirectory)
-            ? Directory.GetDirectories(_profilePaths.WorkModsDirectory)
+        // Get all directories in cache mods directory (for IsLoaded check)
+        var loadedDirectories = Directory.Exists(_profilePaths.CacheModsDirectory)
+            ? Directory.GetDirectories(_profilePaths.CacheModsDirectory)
                 .Select(Path.GetFileName)
                 .Where(d => !string.IsNullOrEmpty(d) && !d.StartsWith("DISABLED-"))
                 .Select(d => d!)
@@ -971,7 +982,7 @@ public class ModFacade : BaseFacade, IModFacade
             mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
         }
 
-        // Note: Disabled mods have their work directory renamed to DISABLED-{SHA}
+        // Note: Disabled mods have their cache directory renamed to DISABLED-{SHA}
         // So they're automatically excluded from the loadedDirectories set
     }
 
