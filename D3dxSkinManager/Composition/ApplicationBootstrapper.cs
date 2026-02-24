@@ -31,9 +31,16 @@ public static class ApplicationBootstrapper
         // Initialize WinForms
         InitializeWinForms();
 
-        // Create and run application host
+        // Create application host
         var host = new ApplicationHost(appEnv, _logger);
+
+        // Initialize services early (needed for window state loading)
+        host.InitializeServices();
+
+        // Create main form (window state already loaded, no visual jump)
         host.CreateMainForm();
+
+        // Run the application
         host.Run();
     }
 

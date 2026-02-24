@@ -1,9 +1,10 @@
 import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
-import { Form, Select } from 'antd';
+import { Form, Select, Button } from 'antd';
 import {
   SettingOutlined,
   InfoCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { CompactCard, CompactSpace } from '../../../shared/components/compact';
 import { useAnnotation, getAnnotationLevelLabel, getAnnotationLevelDescription, AnnotationLevel } from '../../../shared/components/common/TooltipSystem';
@@ -124,6 +125,16 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleResetWindowState = async () => {
+    try {
+      await settingsService.resetWindowState();
+      notification.success(t('settings.notifications.windowStateReset'));
+    } catch (error) {
+      notification.error(t('settings.notifications.windowStateResetFailed'));
+      console.error('[SettingsView] Failed to reset window state:', error);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.contentWrapper}>
@@ -139,72 +150,84 @@ export const SettingsView: React.FC = () => {
         }}
       >
         <CompactCard title={<><SettingOutlined /> {t('settings.global.title')}</>} className={styles.cardMargin}>
-          <Form.Item
-            label={t('settings.global.theme.label')}
-            name="theme"
-            tooltip={t('settings.global.theme.tooltip')}
-          >
-            <Select onChange={handleThemeChange}>
-              <Option value="light">{t('settings.theme.light')}</Option>
-              <Option value="dark">{t('settings.theme.dark')}</Option>
-              <Option value="auto">{t('settings.theme.auto')}</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label={t('settings.global.language.label')}
-            name="language"
-            tooltip={t('settings.global.language.tooltip')}
-          >
-            <Select value={i18n.language} onChange={handleLanguageChange}>
-              {AVAILABLE_LANGUAGES.map(lang => (
-                <Option key={lang.code} value={lang.code}>
-                  {lang.name}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label={t('settings.global.logLevel.label')}
-            name="logLevel"
-            tooltip={t('settings.global.logLevel.tooltip')}
-          >
-            <Select value={logLevel} onChange={handleLogLevelChange}>
-              {Logger.getLevelOptions().map(option => (
-                <Option key={option.value} value={option.value} title={option.description}>
-                  {option.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label={
-              <CompactSpace>
-                <span>{t('settings.global.annotationLevel.label')}</span>
-                <InfoCircleOutlined className={styles.primaryIcon} />
-              </CompactSpace>
-            }
-            name="annotationLevel"
-            tooltip={t('settings.global.annotationLevel.tooltip')}
-          >
-            <Select
-              value={selectedAnnotationLevel}
-              onChange={handleAnnotationLevelChange}
+          <div className={styles.formGrid}>
+            <Form.Item
+              label={t('settings.global.theme.label')}
+              name="theme"
+              tooltip={t('settings.global.theme.tooltip')}
             >
-              <Option value="all">{getAnnotationLevelLabel('all')}</Option>
-              <Option value="more">{getAnnotationLevelLabel('more')}</Option>
-              <Option value="less">{getAnnotationLevelLabel('less')}</Option>
-              <Option value="off">{getAnnotationLevelLabel('off')}</Option>
-            </Select>
-          </Form.Item>
+              <Select onChange={handleThemeChange}>
+                <Option value="light">{t('settings.theme.light')}</Option>
+                <Option value="dark">{t('settings.theme.dark')}</Option>
+                <Option value="auto">{t('settings.theme.auto')}</Option>
+              </Select>
+            </Form.Item>
 
-          {selectedAnnotationLevel && (
-            <div className={styles.annotationDescription}>
-              {getAnnotationLevelDescription(selectedAnnotationLevel)}
+            <Form.Item
+              label={t('settings.global.language.label')}
+              name="language"
+              tooltip={t('settings.global.language.tooltip')}
+            >
+              <Select value={i18n.language} onChange={handleLanguageChange}>
+                {AVAILABLE_LANGUAGES.map(lang => (
+                  <Option key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label={t('settings.global.logLevel.label')}
+              name="logLevel"
+              tooltip={t('settings.global.logLevel.tooltip')}
+            >
+              <Select value={logLevel} onChange={handleLogLevelChange}>
+                {Logger.getLevelOptions().map(option => (
+                  <Option key={option.value} value={option.value} title={option.description}>
+                    {option.label}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label={
+                <CompactSpace>
+                  <span>{t('settings.global.annotationLevel.label')}</span>
+                  <InfoCircleOutlined className={styles.primaryIcon} />
+                </CompactSpace>
+              }
+              name="annotationLevel"
+              tooltip={t('settings.global.annotationLevel.tooltip')}
+            >
+              <Select
+                value={selectedAnnotationLevel}
+                onChange={handleAnnotationLevelChange}
+              >
+                <Option value="all">{getAnnotationLevelLabel('all')}</Option>
+                <Option value="more">{getAnnotationLevelLabel('more')}</Option>
+                <Option value="less">{getAnnotationLevelLabel('less')}</Option>
+                <Option value="off">{getAnnotationLevelLabel('off')}</Option>
+              </Select>
+            </Form.Item>
+
+            {selectedAnnotationLevel && (
+              <div className={`${styles.annotationDescription} ${styles.fullWidth}`}>
+                {getAnnotationLevelDescription(selectedAnnotationLevel)}
+              </div>
+            )}
+
+            <div className={styles.fullWidth}>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={handleResetWindowState}
+                block
+              >
+                {t('settings.global.resetWindowState')}
+              </Button>
             </div>
-          )}
+          </div>
         </CompactCard>
 
         <CompactCard title={t('settings.profile.title')} className={styles.cardMargin}>

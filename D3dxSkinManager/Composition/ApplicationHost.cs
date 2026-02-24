@@ -13,6 +13,8 @@ using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Settings;
+using D3dxSkinManager.Modules.Settings.Services;
 
 namespace D3dxSkinManager.Composition;
 
@@ -31,6 +33,7 @@ public class ApplicationHost
     private ProfileServiceRouter _profileRouter = null!;
     private IPerformanceMonitor _performanceMonitor = null!;
     private DropZoneManager _dropZoneManager = null!;
+    private IWindowStateService _windowStateService = null!;
     private ILogHelper _logger;
     private readonly IAppEnvironment _environment;
 
@@ -43,22 +46,75 @@ public class ApplicationHost
     public Form MainForm => _mainForm;
 
     /// <summary>
+    /// Initialize services before creating the form (for early window state loading)
+    /// </summary>
+    public void InitializeServices()
+    {
+        _logger.Info("Initializing services early for window state...", "Host");
+        var services = new ServiceCollection();
+
+        // Register IAppEnvironment as interface for DI
+        services.AddSingleton(_environment);
+
+        ConfigureServices(services);
+        _serviceProvider = services.BuildServiceProvider();
+
+        // Update logger and get window state service
+        _logger = _serviceProvider.GetRequiredService<ILogHelper>();
+        _windowStateService = _serviceProvider.GetRequiredService<IWindowStateService>();
+
+        _logger.Info("Services initialized", "Host");
+    }
+
+    /// <summary>
     /// Create and configure the main application form
     /// </summary>
     public void CreateMainForm()
     {
-        // Create temporary logger until DI is ready
         _logger.Info("Creating main form...", "Host");
+
+        // Load window state BEFORE creating the form to prevent visual jump
+        var (width, height, x, y, maximized) = _windowStateService.LoadWindowStateAsync().GetAwaiter().GetResult();
 
         // Suspend layout during form creation for better performance
         _mainForm = new OptimizedForm();
         _mainForm.SuspendLayout();
 
         _mainForm.Text = "D3dxSkinManager";
-        _mainForm.Width = 1280;
-        _mainForm.Height = 800;
-        _mainForm.StartPosition = FormStartPosition.CenterScreen;
+
+        // Apply loaded window state immediately
+        _mainForm.Width = width;
+        _mainForm.Height = height;
+        _mainForm.StartPosition = FormStartPosition.Manual;
         _mainForm.BackColor = Color.FromArgb(26, 26, 26); // Match WebView2 background
+
+        // Apply position if saved and valid
+        if (x.HasValue && y.HasValue)
+        {
+            if (_windowStateService.IsPositionValid(x.Value, y.Value, width, height, _mainForm))
+            {
+                _mainForm.Left = x.Value;
+                _mainForm.Top = y.Value;
+                _logger.Info($"Applied saved window position: ({x.Value}, {y.Value})", "Host");
+            }
+            else
+            {
+                CenterFormOnScreen();
+                _logger.Info("Saved position invalid, centered on screen", "Host");
+            }
+        }
+        else
+        {
+            CenterFormOnScreen();
+            _logger.Info("No saved position, centered on screen", "Host");
+        }
+
+        // Apply maximized state
+        if (maximized)
+        {
+            _mainForm.WindowState = FormWindowState.Maximized;
+            _logger.Info("Applied maximized state", "Host");
+        }
 
         // Create WebView2 control
         _webView = new WebView2
@@ -93,18 +149,7 @@ public class ApplicationHost
         {
             _logger.Info("Form loaded, initializing components...", "Host");
 
-            // Initialize services first (needed for custom scheme handler)
-            _logger.Info("Initializing services...", "Host");
-            var services = new ServiceCollection();
-
-            // Register IAppEnvironment as interface for DI
-            services.AddSingleton(_environment);
-
-            ConfigureServices(services);
-            _serviceProvider = services.BuildServiceProvider();
-
-            // Update logger to use DI version
-            _logger = _serviceProvider.GetRequiredService<ILogHelper>();
+            // Services already initialized in InitializeServices(), just get remaining dependencies
             _performanceMonitor = _serviceProvider.GetRequiredService<IPerformanceMonitor>();
 
             // Track WebView2 initialization performance
@@ -137,6 +182,13 @@ public class ApplicationHost
             _eventBridge = new EventBusIpcBridge(eventBus, _ipcHandler, _logger);
             _eventBridge.Initialize();
 
+            // Subscribe to window state reset events
+            eventBus.RegisterHandler(SettingsEvents.WINDOW_STATE_RESET, async (eventMessage) =>
+            {
+                _logger.Info("Received window state reset event", "Host");
+                await HandleWindowStateResetAsync(eventMessage);
+            });
+
             // Initialize Profile Service Router
             _logger.Info("Initializing profile service router...", "Host");
             _profileRouter = new ProfileServiceRouter(_serviceProvider, _logger);
@@ -149,7 +201,6 @@ public class ApplicationHost
             _messageDispatcher.Initialize();
 
             // TODO: Initialize other components here
-            // - Settings Service
             // - Mod Service
             // - Profile Service
             // - etc.
@@ -166,6 +217,80 @@ public class ApplicationHost
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
+    }
+
+    /// <summary>
+    /// Center the form on the primary screen
+    /// </summary>
+    private void CenterFormOnScreen()
+    {
+        var screen = Screen.PrimaryScreen;
+        if (screen != null)
+        {
+            var workingArea = screen.WorkingArea;
+            _mainForm.Left = workingArea.Left + (workingArea.Width - _mainForm.Width) / 2;
+            _mainForm.Top = workingArea.Top + (workingArea.Height - _mainForm.Height) / 2;
+        }
+    }
+
+    /// <summary>
+    /// Handle window state reset event from SettingsFacade
+    /// </summary>
+    private Task HandleWindowStateResetAsync(EventMessage eventMessage)
+    {
+        try
+        {
+            var data = eventMessage.Data as dynamic;
+            if (data == null)
+            {
+                _logger.Warn("Window state reset event received with no data", "Host");
+                return Task.CompletedTask;
+            }
+
+            int width = data.Width;
+            int height = data.Height;
+
+            _logger.Info($"Applying window state reset: {width}x{height}", "Host");
+
+            // Apply changes on UI thread
+            if (_mainForm.InvokeRequired)
+            {
+                _mainForm.Invoke(() => ApplyWindowStateReset(width, height));
+            }
+            else
+            {
+                ApplyWindowStateReset(width, height);
+            }
+
+            _logger.Info("Window state reset applied successfully", "Host");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to apply window state reset: {ex.Message}", "Host", ex);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Apply window state reset to the form (must be called on UI thread)
+    /// </summary>
+    private void ApplyWindowStateReset(int width, int height)
+    {
+        // Reset to normal state first if maximized
+        if (_mainForm.WindowState == FormWindowState.Maximized)
+        {
+            _mainForm.WindowState = FormWindowState.Normal;
+        }
+
+        // Apply size
+        _mainForm.Width = width;
+        _mainForm.Height = height;
+
+        // Center the window on primary screen
+        CenterFormOnScreen();
+
+        _logger.Info($"Window reset to {width}x{height} and centered", "Host");
     }
 
     /// <summary>
@@ -188,11 +313,24 @@ public class ApplicationHost
     {
         _logger.Info("Form closed, cleaning up...", "Host");
 
+        // Save window state
+        if (_windowStateService != null)
+        {
+            try
+            {
+                _windowStateService.SaveWindowStateAsync(_mainForm).Wait();
+                _logger.Info("Window state saved", "Host");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to save window state: {ex.Message}", "Host", ex);
+            }
+        }
+
         // Shutdown EventBus IPC Bridge
         _eventBridge?.Shutdown();
 
         // TODO: Clean up components
-        // - Save settings
         // - Close connections
         // - Dispose resources
 

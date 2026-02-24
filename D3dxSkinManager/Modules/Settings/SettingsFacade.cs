@@ -1,6 +1,7 @@
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Settings.Models;
 using D3dxSkinManager.Modules.Settings.Services;
 
@@ -34,18 +35,24 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
     private readonly IGlobalSettingsService _globalSettingsService;
     private readonly ISettingsFileService _settingsFileService;
     private readonly ILanguageService _languageService;
+    private readonly IWindowStateService _windowStateService;
+    private readonly IEventBus _eventBus;
     private readonly IPayloadHelper _payloadHelper;
 
     public SettingsFacade(
         IGlobalSettingsService globalSettingsService,
         ISettingsFileService settingsFileService,
         ILanguageService languageService,
+        IWindowStateService windowStateService,
+        IEventBus eventBus,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
         _globalSettingsService = globalSettingsService ?? throw new ArgumentNullException(nameof(globalSettingsService));
         _settingsFileService = settingsFileService ?? throw new ArgumentNullException(nameof(settingsFileService));
         _languageService = languageService ?? throw new ArgumentNullException(nameof(languageService));
+        _windowStateService = windowStateService ?? throw new ArgumentNullException(nameof(windowStateService));
+        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -70,6 +77,9 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
             "GET_LANGUAGE" => await GetLanguageHandlerAsync(request),
             "GET_AVAILABLE_LANGUAGES" => await GetAvailableLanguagesHandlerAsync(request),
             "LANGUAGE_EXISTS" => await LanguageExistsHandlerAsync(request),
+
+            // Window state
+            "RESET_WINDOW_STATE" => await ResetWindowStateHandlerAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -216,5 +226,42 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
         var exists = await _languageService.LanguageExistsAsync(languageCode).ConfigureAwait(false);
 
         return new { exists };
+    }
+
+    // Window State Handlers
+
+    private async Task<object> ResetWindowStateHandlerAsync(IpcRequest request)
+    {
+        _logger.Info("Resetting window state to defaults", "SettingsFacade");
+
+        var settings = await _globalSettingsService.GetSettingsAsync().ConfigureAwait(false);
+
+        // Reset window settings to null/defaults
+        settings.Window.X = null;
+        settings.Window.Y = null;
+        settings.Window.Width = null;
+        settings.Window.Height = null;
+        settings.Window.Maximized = false;
+
+        await _globalSettingsService.UpdateSettingsAsync(settings).ConfigureAwait(false);
+
+        // Load the default window state values to send in event
+        var (width, height, x, y, maximized) = await _windowStateService.LoadWindowStateAsync().ConfigureAwait(false);
+
+        // Emit event for ApplicationHost to handle window state reset
+        await _eventBus.EmitAsync(new EventMessage
+        {
+            EventType = SettingsEvents.WINDOW_STATE_RESET,
+            Data = new
+            {
+                Width = width,
+                Height = height,
+                Maximized = false  // Always reset to non-maximized state
+            }
+        });
+
+        _logger.Info("Window state reset event emitted successfully", "SettingsFacade");
+
+        return new { success = true, message = "Window state reset to defaults and applied immediately" };
     }
 }

@@ -62,6 +62,18 @@ class SettingsService {
       payload: {}
     });
   }
+
+  /**
+   * Reset window state (size and position) to defaults
+   * Window will be centered on next restart
+   */
+  async resetWindowState(): Promise<SettingsUpdateResult> {
+    return await bridgeService.sendMessage<SettingsUpdateResult>({
+      module: 'SETTINGS',
+      type: 'RESET_WINDOW_STATE',
+      payload: {}
+    });
+  }
 }
 
 export const settingsService = new SettingsService();

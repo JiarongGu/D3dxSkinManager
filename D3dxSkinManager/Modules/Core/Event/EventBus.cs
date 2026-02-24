@@ -21,7 +21,6 @@ public class EventBus : IEventBus
     private readonly ILogHelper _logger;
     private readonly Dictionary<string, Func<EventMessage, Task>> _handlers = new();
     private readonly object _lock = new();
-    private int _registrationCounter = 0;
 
     public EventBus(ILogHelper logger)
     {
@@ -38,7 +37,7 @@ public class EventBus : IEventBus
     {
         lock (_lock)
         {
-            var registrationId = $"{eventType}_{++_registrationCounter}_{Guid.NewGuid()}";
+            var registrationId = $"{eventType}_{Guid.NewGuid()}";
             _handlers[registrationId] = handler;
             return registrationId;
         }
