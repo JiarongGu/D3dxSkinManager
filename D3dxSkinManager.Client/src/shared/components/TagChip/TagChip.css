@@ -1,0 +1,48 @@
+/* Tag chip with theme-aware styling */
+.tag-chip {
+  font-size: 14px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+  transition: all 0.2s ease;
+  border-width: 1.5px;
+  border-style: solid;
+  font-weight: 500;
+}
+
+/* Override Ant Design's default tag styling */
+.tag-chip.ant-tag {
+  border-width: 1.5px;
+}
+
+/* Transparent background for all themes */
+.tag-chip {
+  background: transparent !important;
+}
+
+.tag-chip-small {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 8px;
+  border-width: 1px;
+}
+
+.tag-chip-large {
+  font-size: 16px;
+  padding: 4px 14px;
+  border-radius: 12px;
+  border-width: 2px;
+}
+
+.tag-chip-clickable {
+  cursor: pointer;
+}
+
+.tag-chip-clickable:hover {
+  opacity: 0.85;
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}

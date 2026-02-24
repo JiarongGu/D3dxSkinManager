@@ -551,7 +551,7 @@ export const ModPreviewPanelContent: React.FC = () => {
           <div className="mod-preview-info-item">
             <Text
               type="secondary"
-              className="mod-preview-info-label mod-preview-info-label-with-margin"
+              className="mod-preview-info-label"
             >
               <TagsOutlined className="mod-preview-info-icon" />
               {t("mods.details.tags")}
@@ -571,7 +571,7 @@ export const ModPreviewPanelContent: React.FC = () => {
           <div className="mod-preview-info-item">
             <Text
               type="secondary"
-              className="mod-preview-info-label mod-preview-info-label-with-margin"
+              className="mod-preview-info-label"
             >
               {t("mods.details.description")}
             </Text>

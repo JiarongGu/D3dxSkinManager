@@ -4,47 +4,46 @@ namespace D3dxSkinManager.Modules.Mods.Services;
 
 /// <summary>
 /// Interface for tag repository
-/// Manages tag operations within the mods module
+/// Manages the master Tags table (authoritative source for tag definitions)
+/// Note: Mods.Tags column stores which tags each mod uses (managed by ModRepository)
 /// </summary>
 public interface ITagRepository
 {
     /// <summary>
-    /// Get all unique tags from all mods
+    /// Get all tags from the Tags table
     /// </summary>
-    Task<List<string>> GetAllTagsAsync();
+    Task<List<Tag>> GetAllAsync();
 
     /// <summary>
-    /// Search tags by search term (case-insensitive substring match)
+    /// Get a specific tag by name
     /// </summary>
-    Task<List<string>> SearchTagsAsync(string searchTerm);
+    Task<Tag?> GetByNameAsync(string name);
 
     /// <summary>
-    /// Add a tag to a specific mod
+    /// Create or update a tag
     /// </summary>
-    Task<bool> AddTagToModAsync(string sha, string tag);
+    Task<bool> UpsertAsync(Tag tag);
 
     /// <summary>
-    /// Remove a tag from a specific mod
+    /// Delete a tag from the Tags table
+    /// Note: This only removes the tag definition, not tag references in Mods.Tags
+    /// Mods will keep their tags, but the tag won't appear in autocomplete/dialogs
     /// </summary>
-    Task<bool> RemoveTagFromModAsync(string sha, string tag);
+    Task<bool> DeleteAsync(string name);
 
     /// <summary>
-    /// Rename a tag globally across all mods
+    /// Get all unique tag names that are actually used in mods (from Mods.Tags)
+    /// This is different from GetAllAsync which returns tags from Tags table
     /// </summary>
-    Task<int> RenameTagGloballyAsync(string oldTag, string newTag);
+    Task<List<string>> GetUsedTagNamesAsync();
 
     /// <summary>
-    /// Delete a tag globally from all mods
+    /// Get count of mods using a specific tag (searches Mods.Tags)
     /// </summary>
-    Task<int> DeleteTagGloballyAsync(string tag);
+    Task<int> GetUsageCountAsync(string name);
 
     /// <summary>
-    /// Get tags for a specific mod
+    /// Search tags by name (case-insensitive substring match)
     /// </summary>
-    Task<List<string>> GetTagsForModAsync(string sha);
-
-    /// <summary>
-    /// Get count of mods using a specific tag
-    /// </summary>
-    Task<int> GetTagUsageCountAsync(string tag);
+    Task<List<Tag>> SearchAsync(string searchTerm);
 }

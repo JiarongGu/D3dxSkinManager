@@ -27,6 +27,31 @@ export const SettingsView: React.FC = () => {
     "similarity-threshold",
   );
 
+  // Load log level from backend on mount
+  useEffect(() => {
+    const loadLogLevel = async () => {
+      try {
+        const settings = await settingsService.getGlobalSettings();
+        if (settings?.logLevel) {
+          setLogLevel(settings.logLevel);
+          form.setFieldValue("logLevel", settings.logLevel);
+        } else {
+          // Fallback to current logger level
+          const currentLevel = logger.getCurrentLevelName();
+          setLogLevel(currentLevel);
+          form.setFieldValue("logLevel", currentLevel);
+        }
+      } catch (error) {
+        console.error("[SettingsView] Failed to load log level:", error);
+        // Fallback to current logger level
+        const currentLevel = logger.getCurrentLevelName();
+        setLogLevel(currentLevel);
+        form.setFieldValue("logLevel", currentLevel);
+      }
+    };
+    loadLogLevel();
+  }, [form]);
+
   // Load thumbnail algorithm from profile config
   useEffect(() => {
     const loadThumbnailAlgorithm = async () => {
@@ -52,12 +77,11 @@ export const SettingsView: React.FC = () => {
     loadThumbnailAlgorithm();
   }, [form, selectedProfileId]);
 
-  // Initialize form with log level, theme, and language
+  // Initialize form with theme and language
   useEffect(() => {
     form.setFieldsValue({
       theme: theme,
       language: i18n.language,
-      logLevel: logger.getCurrentLevelName(),
     });
   }, [theme, i18n.language, form]);
 
@@ -147,7 +171,6 @@ export const SettingsView: React.FC = () => {
           initialValues={{
             theme: theme,
             language: i18n.language,
-            logLevel: logger.getCurrentLevelName(),
             thumbnailAlgorithm: thumbnailAlgorithm,
             migotoVersion: "3dmigoto",
           }}
@@ -192,7 +215,7 @@ export const SettingsView: React.FC = () => {
                 name="logLevel"
                 tooltip={t("settings.global.logLevel.tooltip")}
               >
-                <Select value={logLevel} onChange={handleLogLevelChange}>
+                <Select onChange={handleLogLevelChange}>
                   {Logger.getLevelOptions().map((option) => (
                     <Option
                       key={option.value}

@@ -34,8 +34,8 @@
 .mod-preview-title {
   margin: 0;
   margin-bottom: 4px;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 18px !important;
+  font-weight: 600 !important;
 }
 
 .mod-preview-category {
@@ -166,7 +166,8 @@
 
 /* Info Section */
 .mod-preview-info {
-  padding: 16px;
+  margin-top: 16px;
+  padding: 4px 16px;
   border-top: 1px solid var(--color-border);
   max-height: 200px;
   overflow: auto;
@@ -174,6 +175,10 @@
 
 .mod-preview-info-item {
   margin-bottom: 12px;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
 }
 
 .mod-preview-info-item:last-child {
@@ -183,11 +188,7 @@
 .mod-preview-info-label {
   font-size: 12px;
   display: block;
-  margin-bottom: 4px;
-}
-
-.mod-preview-info-label-with-margin {
-  margin-bottom: 6px;
+  margin-bottom: 0;
 }
 
 .mod-preview-info-value {
@@ -202,7 +203,7 @@
 
 /* SHA Section - Fixed at Bottom */
 .mod-preview-sha {
-  padding: 8px 16px;
+  padding: 4px 16px;
   background: var(--color-bg-container);
   border-top: 1px solid var(--color-border);
 }

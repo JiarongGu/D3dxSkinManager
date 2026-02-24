@@ -1,8 +1,8 @@
 import { BaseModuleService } from '../../../shared/services/baseModuleService';
-import { ModInfo, ModLoadResult } from '../../../shared/types/mod.types';
+import { ModInfo, ModLoadResult, Tag } from '../../../shared/types/mod.types';
 
 // Re-export types for backwards compatibility
-export type { ModInfo, ModLoadResult };
+export type { ModInfo, ModLoadResult, Tag };
 
 /**
  * Service for mod management operations
@@ -106,47 +106,48 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Get all unique tags
+   * Get all unique tag names actually used in mods (from Mods.Tags column)
+   * For backward compatibility - use getAllTags() for Tag objects with colors
    */
   async getTags(profileId: string): Promise<string[]> {
     return this.sendArrayMessage<string>('GET_TAGS', profileId);
   }
 
+  // ============= Tag Management (Tags Table) =============
+
   /**
-   * Search tags by search term (case-insensitive substring match)
+   * Get all tags from Tags table (master tag definitions with colors)
    */
-  async searchTags(profileId: string, searchTerm: string): Promise<string[]> {
-    return this.sendArrayMessage<string>('SEARCH_TAGS', profileId, { searchTerm });
+  async getAllTags(profileId: string): Promise<Tag[]> {
+    return this.sendArrayMessage<Tag>('GET_ALL_TAGS', profileId);
   }
 
   /**
-   * Add a tag to a specific mod
+   * Get a specific tag by name from Tags table
    */
-  async addTagToMod(profileId: string, sha: string, tag: string): Promise<boolean> {
-    return this.sendBooleanMessage('ADD_TAG_TO_MOD', profileId, { sha, tag });
+  async getTagByName(profileId: string, name: string): Promise<Tag | undefined> {
+    return this.sendOptionalMessage<Tag>('GET_TAG_BY_NAME', profileId, { name });
   }
 
   /**
-   * Remove a tag from a specific mod
+   * Create or update a tag in Tags table
    */
-  async removeTagFromMod(profileId: string, sha: string, tag: string): Promise<boolean> {
-    return this.sendBooleanMessage('REMOVE_TAG_FROM_MOD', profileId, { sha, tag });
+  async upsertTag(profileId: string, name: string, color: string): Promise<boolean> {
+    return this.sendBooleanMessage('UPSERT_TAG', profileId, { name, color });
   }
 
   /**
-   * Rename a tag globally across all mods
-   * Returns the number of mods updated
+   * Delete a tag from Tags table (doesn't affect mod.tags, only removes from autocomplete)
    */
-  async renameTagGlobally(profileId: string, oldTag: string, newTag: string): Promise<number> {
-    return this.sendMessage<number>('RENAME_TAG_GLOBALLY', profileId, { oldTag, newTag });
+  async deleteTag(profileId: string, name: string): Promise<boolean> {
+    return this.sendBooleanMessage('DELETE_TAG', profileId, { name });
   }
 
   /**
-   * Delete a tag globally from all mods
-   * Returns the number of mods updated
+   * Get all unique tag names that are actually used in mods
    */
-  async deleteTagGlobally(profileId: string, tag: string): Promise<number> {
-    return this.sendMessage<number>('DELETE_TAG_GLOBALLY', profileId, { tag });
+  async getUsedTagNames(profileId: string): Promise<string[]> {
+    return this.sendArrayMessage<string>('GET_USED_TAG_NAMES', profileId);
   }
 
   /**
@@ -154,6 +155,14 @@ export class ModService extends BaseModuleService {
    */
   async getTagUsageCount(profileId: string, tag: string): Promise<number> {
     return this.sendMessage<number>('GET_TAG_USAGE_COUNT', profileId, { tag });
+  }
+
+  /**
+   * Search tags by name (case-insensitive substring match)
+   * Returns full Tag objects with colors
+   */
+  async searchTags(profileId: string, searchTerm: string): Promise<Tag[]> {
+    return this.sendArrayMessage<Tag>('SEARCH_TAGS', profileId, { searchTerm });
   }
 
   /**

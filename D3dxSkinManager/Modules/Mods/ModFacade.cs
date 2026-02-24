@@ -46,13 +46,14 @@ public interface IModFacade : IModuleFacade
     Task<List<ClassificationNode>> GetClassificationTreeAsync();
     Task<bool> RefreshClassificationTreeAsync();
 
-    // Tag Management Operations
-    Task<List<string>> SearchTagsAsync(string searchTerm);
-    Task<bool> AddTagToModAsync(string sha, string tag);
-    Task<bool> RemoveTagFromModAsync(string sha, string tag);
-    Task<int> RenameTagGloballyAsync(string oldTag, string newTag);
-    Task<int> DeleteTagGloballyAsync(string tag);
+    // Tag Management Operations (Tags table - master tag definitions)
+    Task<List<Tag>> GetAllTagsAsync();
+    Task<Tag?> GetTagByNameAsync(string name);
+    Task<bool> UpsertTagAsync(string name, string color);
+    Task<bool> DeleteTagAsync(string name);
+    Task<List<string>> GetUsedTagNamesAsync();
     Task<int> GetTagUsageCountAsync(string tag);
+    Task<List<Tag>> SearchTagsAsync(string searchTerm);
 }
 
 /// <summary>
@@ -142,12 +143,13 @@ public class ModFacade : BaseFacade, IModFacade
             "CHECK_CLASSIFICATION_NODE_EXISTS" => await CheckClassificationNodeExistsAsync(request),
             "CHECK_CLASSIFICATION_NAME_EXISTS" => await CheckClassificationNameExistsAsync(request),
             "CHECK_FILE_PATHS" => await CheckFilePathsAsync(request),
-            "SEARCH_TAGS" => await SearchTagsAsync(request),
-            "ADD_TAG_TO_MOD" => await AddTagToModAsync(request),
-            "REMOVE_TAG_FROM_MOD" => await RemoveTagFromModAsync(request),
-            "RENAME_TAG_GLOBALLY" => await RenameTagGloballyAsync(request),
-            "DELETE_TAG_GLOBALLY" => await DeleteTagGloballyAsync(request),
+            "GET_ALL_TAGS" => await GetAllTagsAsync(),
+            "GET_TAG_BY_NAME" => await GetTagByNameAsync(request),
+            "UPSERT_TAG" => await UpsertTagAsync(request),
+            "DELETE_TAG" => await DeleteTagAsync(request),
+            "GET_USED_TAG_NAMES" => await GetUsedTagNamesAsync(),
             "GET_TAG_USAGE_COUNT" => await GetTagUsageCountAsync(request),
+            "SEARCH_TAGS" => await SearchTagsAsync(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -164,6 +166,9 @@ public class ModFacade : BaseFacade, IModFacade
         // Populate human-readable category names from classification service
         await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
 
+        // Populate tag metadata with colors (bulk operation to avoid N+1 queries)
+        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
+
         return mods;
     }
 
@@ -179,6 +184,9 @@ public class ModFacade : BaseFacade, IModFacade
 
             // Populate human-readable category name from classification service
             await PopulateCategoryNamesBulkAsync(modList).ConfigureAwait(false);
+
+            // Populate tag metadata with colors
+            await PopulateTagMetadataBulkAsync(modList).ConfigureAwait(false);
         }
 
         return mod;
@@ -326,6 +334,9 @@ public class ModFacade : BaseFacade, IModFacade
         // Populate human-readable category names from classification service
         await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
 
+        // Populate tag metadata with colors
+        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
+
         return mods;
     }
 
@@ -341,7 +352,9 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<List<string>> GetTagsAsync()
     {
-        return await _repository.GetAllTagsAsync().ConfigureAwait(false);
+        // This method returns tag names used in mods (for backward compatibility)
+        // Use GetAllTagsAsync() for full Tag objects with colors
+        return await _tagRepository.GetUsedTagNamesAsync().ConfigureAwait(false);
     }
 
     public async Task<List<ModInfo>> SearchModsAsync(string searchTerm)
@@ -353,6 +366,9 @@ public class ModFacade : BaseFacade, IModFacade
 
         // Populate human-readable category names from classification service
         await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+
+        // Populate tag metadata with colors
+        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
 
         return mods;
     }
@@ -707,6 +723,9 @@ public class ModFacade : BaseFacade, IModFacade
         // Populate human-readable category names from classification service
         await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
 
+        // Populate tag metadata with colors
+        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
+
         return mods;
     }
 
@@ -722,6 +741,9 @@ public class ModFacade : BaseFacade, IModFacade
 
         // Populate human-readable category names from classification service
         await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+
+        // Populate tag metadata with colors
+        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
 
         return mods;
     }
@@ -1064,85 +1086,108 @@ public class ModFacade : BaseFacade, IModFacade
         }
     }
 
+    /// <summary>
+    /// Populates TagsWithMetadata field for all mods with Tag objects containing colors
+    /// Performs a single database query to load all unique tags, avoiding N+1 query problem
+    /// </summary>
+    private async Task PopulateTagMetadataBulkAsync(List<ModInfo> mods)
+    {
+        // Collect all unique tag names used across all mods
+        var allTagNames = mods
+            .SelectMany(m => m.Tags)
+            .Distinct()
+            .ToList();
+
+        if (!allTagNames.Any())
+        {
+            // No tags to look up
+            return;
+        }
+
+        // Load all tags from database in a single query
+        var allTags = await _tagRepository.GetAllAsync().ConfigureAwait(false);
+
+        // Build a dictionary for quick lookups
+        var tagMap = allTags.ToDictionary(t => t.Name, t => t);
+
+        // Populate TagsWithMetadata for each mod
+        foreach (var mod in mods)
+        {
+            mod.TagsWithMetadata = mod.Tags
+                .Where(tagName => tagMap.ContainsKey(tagName))
+                .Select(tagName => tagMap[tagName])
+                .ToList();
+        }
+    }
+
     // ============= Tag Management Methods =============
 
-    public async Task<List<string>> SearchTagsAsync(string searchTerm)
+    public async Task<List<Tag>> GetAllTagsAsync()
     {
-        return await _tagRepository.SearchTagsAsync(searchTerm);
+        return await _tagRepository.GetAllAsync();
     }
 
-    private async Task<List<string>> SearchTagsAsync(IpcRequest request)
+    public async Task<Tag?> GetTagByNameAsync(string name)
     {
-        var searchTerm = _payloadHelper.GetOptionalValue<string>(request.Payload, "searchTerm") ?? string.Empty;
-        return await SearchTagsAsync(searchTerm);
+        return await _tagRepository.GetByNameAsync(name);
     }
 
-    public async Task<bool> AddTagToModAsync(string sha, string tag)
+    private async Task<Tag?> GetTagByNameAsync(IpcRequest request)
     {
-        return await _tagRepository.AddTagToModAsync(sha, tag);
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+
+        if (string.IsNullOrEmpty(name))
+            throw new ArgumentException("Tag name is required");
+
+        return await GetTagByNameAsync(name);
     }
 
-    private async Task<bool> AddTagToModAsync(IpcRequest request)
+    public async Task<bool> UpsertTagAsync(string name, string color)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        var tag = _payloadHelper.GetRequiredValue<string>(request.Payload, "tag");
+        var tag = new Tag
+        {
+            Name = name,
+            Color = color,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-        if (string.IsNullOrEmpty(sha) || string.IsNullOrEmpty(tag))
-            throw new ArgumentException("SHA and tag are required");
-
-        return await AddTagToModAsync(sha, tag);
+        return await _tagRepository.UpsertAsync(tag);
     }
 
-    public async Task<bool> RemoveTagFromModAsync(string sha, string tag)
+    private async Task<bool> UpsertTagAsync(IpcRequest request)
     {
-        return await _tagRepository.RemoveTagFromModAsync(sha, tag);
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        var color = _payloadHelper.GetRequiredValue<string>(request.Payload, "color");
+
+        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(color))
+            throw new ArgumentException("Tag name and color are required");
+
+        return await UpsertTagAsync(name, color);
     }
 
-    private async Task<bool> RemoveTagFromModAsync(IpcRequest request)
+    public async Task<bool> DeleteTagAsync(string name)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        var tag = _payloadHelper.GetRequiredValue<string>(request.Payload, "tag");
-
-        if (string.IsNullOrEmpty(sha) || string.IsNullOrEmpty(tag))
-            throw new ArgumentException("SHA and tag are required");
-
-        return await RemoveTagFromModAsync(sha, tag);
+        return await _tagRepository.DeleteAsync(name);
     }
 
-    public async Task<int> RenameTagGloballyAsync(string oldTag, string newTag)
+    private async Task<bool> DeleteTagAsync(IpcRequest request)
     {
-        return await _tagRepository.RenameTagGloballyAsync(oldTag, newTag);
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+
+        if (string.IsNullOrEmpty(name))
+            throw new ArgumentException("Tag name is required");
+
+        return await DeleteTagAsync(name);
     }
 
-    private async Task<int> RenameTagGloballyAsync(IpcRequest request)
+    public async Task<List<string>> GetUsedTagNamesAsync()
     {
-        var oldTag = _payloadHelper.GetRequiredValue<string>(request.Payload, "oldTag");
-        var newTag = _payloadHelper.GetRequiredValue<string>(request.Payload, "newTag");
-
-        if (string.IsNullOrEmpty(oldTag) || string.IsNullOrEmpty(newTag))
-            throw new ArgumentException("Old tag and new tag are required");
-
-        return await RenameTagGloballyAsync(oldTag, newTag);
-    }
-
-    public async Task<int> DeleteTagGloballyAsync(string tag)
-    {
-        return await _tagRepository.DeleteTagGloballyAsync(tag);
-    }
-
-    private async Task<int> DeleteTagGloballyAsync(IpcRequest request)
-    {
-        var tag = _payloadHelper.GetRequiredValue<string>(request.Payload, "tag");
-
-        if (string.IsNullOrEmpty(tag))
-            throw new ArgumentException("Tag is required");
-
-        return await DeleteTagGloballyAsync(tag);
+        return await _tagRepository.GetUsedTagNamesAsync();
     }
 
     public async Task<int> GetTagUsageCountAsync(string tag)
     {
-        return await _tagRepository.GetTagUsageCountAsync(tag);
+        return await _tagRepository.GetUsageCountAsync(tag);
     }
 
     private async Task<int> GetTagUsageCountAsync(IpcRequest request)
@@ -1153,5 +1198,16 @@ public class ModFacade : BaseFacade, IModFacade
             throw new ArgumentException("Tag is required");
 
         return await GetTagUsageCountAsync(tag);
+    }
+
+    public async Task<List<Tag>> SearchTagsAsync(string searchTerm)
+    {
+        return await _tagRepository.SearchAsync(searchTerm);
+    }
+
+    private async Task<List<Tag>> SearchTagsAsync(IpcRequest request)
+    {
+        var searchTerm = _payloadHelper.GetOptionalValue<string>(request.Payload, "searchTerm") ?? string.Empty;
+        return await SearchTagsAsync(searchTerm);
     }
 }

@@ -14,6 +14,7 @@ public class ModInfo
     public string Type { get; set; } = "7z";
     public string Grading { get; set; } = "G";
     public List<string> Tags { get; set; } = new();
+    public List<Tag> TagsWithMetadata { get; set; } = new(); // Tag objects with color information (populated on-demand)
 
     // Status flags (populated on-demand from file system, not stored in DB)
     public bool IsLoaded { get; set; }      // True if work directory exists without DISABLED- prefix

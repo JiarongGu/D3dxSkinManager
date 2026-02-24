@@ -12,6 +12,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-25 - Comprehensive Tag Management System with Color Customization ⭐⭐⭐⭐
+Implemented a complete tag management system with master Tags table, color customization, real-time synchronization, and intelligent color pre-generation.
+**Impact**: ✅ Professional tag organization, theme-aware styling, optimized performance (eliminated N+1 queries), consistent UX
+**Architecture**:
+- **Two-table system**: Tags table (master with colors) + Mods.Tags (JSON array references)
+- **Centralized color management**: `tagColorsMap` state shared across MultiTagInput and TagManagementDialog
+- **Pre-generation**: Random colors assigned when typing new tags, saved to database on mod save
+- **Bulk loading**: `PopulateTagMetadataBulkAsync()` loads all tag colors with mod list (eliminates N+1 queries)
+**Backend** (C#):
+- New `Tag` model with name, color, timestamps
+- `TagRepository` with CRUD operations, search, usage tracking
+- `ModFacade.PopulateTagMetadataBulkAsync()` for bulk tag metadata loading
+- `ModInfo.TagsWithMetadata` property for pre-loaded tag colors
+- IPC handlers: `GET_ALL_TAGS`, `UPSERT_TAG`, `DELETE_TAG`
+**Frontend** (React/TypeScript):
+- **TagManagementDialog**: Visual tag selector with color picker, delete, theme-aware borders, consistent UI (always show controls)
+- **TagChip**: Reusable colored tag component with default fallback styling
+- **MultiTagInput**: Autocomplete with instant color feedback, pre-generates colors for new tags
+- **Color palette**: 10 theme-compatible colors matching backend
+- **Real-time sync**: Color changes in dialog immediately reflected in input
+- **Smart save**: Only saves to database for existing tags (deferred save for new tags)
+**UX Improvements**:
+- Debounced color saves (500ms) to reduce database writes
+- Tags show "+x more" when exceeding display limit
+- Compact grid layout for tag management dialog
+- Border radius reduced from 10px to 4px (less round, more modern)
+- Theme-aware borders: light (#d9d9d9) / dark (#424242) for unselected state
+- Deleted tags automatically removed from autocomplete
+**Files**: TagRepository.cs, ModFacade.cs, ModInfo.cs, TagMetadata.cs, TagManagementDialog.tsx/css, TagChip.tsx/css, MultiTagInput.tsx/css, ModList.tsx/css, ModEditScreen.tsx, TagsSection.tsx, BatchEditDialog/index.tsx, modService.ts, SettingsView.tsx, mod.types.ts, en.json
+**Dependencies**: lodash-es (for debounce utility with tree-shaking)
+**Pattern**: Frontend manages color palette; backend stores colors; centralized state via tagColorsMap
+
+### Refactored - 2026-02-25 - Remove Debug Console Logs from Frontend ⭐⭐
+Cleaned up all debug console.log statements throughout the frontend codebase.
+**Impact**: ✅ Cleaner console output, better production readiness, preserved intentional logging
+**Changes**:
+- Removed 37 debug console.log statements from 12 files
+- Preserved console.error, console.warn, console.info for production logging
+- Preserved logger.ts implementation (uses console.log internally)
+**Files**: useDropZone.ts (13 logs), AppInitializer.tsx (8 logs), ClassificationScreen.tsx (5 logs), CompactUpload.tsx (3 logs), GameLaunchTab.tsx (2 logs), and 7 others
+**Pattern**: Use logger utility for structured logging instead of raw console.log
+
 ### Fixed - 2026-02-25 - ModEditScreen Form Initialization and Dropdown Styling ⭐⭐
 Fixed form not populating with initial values when editing mods and improved tag dropdown styling.
 **Impact**: ✅ Form fields now properly initialize with mod values, tag dropdown has better dark theme appearance

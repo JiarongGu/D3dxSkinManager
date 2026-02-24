@@ -21,7 +21,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   const visible = useModsStore(s => s.editDialogVisible);
   const classificationTree = useModsStore(s => s.classificationTree);
   const { state: profileState } = useProfile();
-  const { updateMod, closeEditDialog } = useMods();
+  const { updateMod, updateModLocal, closeEditDialog } = useMods();
 
   // Local state
   const [form] = Form.useForm();
@@ -30,10 +30,24 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   const [authors, setAuthors] = useState<string[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  // Map to store all tag colors (both from database and newly generated)
+  const [tagColorsMap, setTagColorsMap] = useState<Map<string, string>>(new Map());
 
   // Wrapper for setSelectedTags
   const handleTagsChange = (newTags: string[]) => {
     setSelectedTags(newTags);
+  };
+
+  // Refresh available tags when a tag is deleted
+  const handleTagDeleted = async () => {
+    if (!profileState.selectedProfile?.id) return;
+
+    try {
+      const tagsFromTable = await modService.getAllTags(profileState.selectedProfile.id);
+      setAvailableTags(tagsFromTable.map(t => t.name));
+    } catch (error) {
+      console.error('Failed to refresh tags:', error);
+    }
   };
 
   // Build category options from classification tree
@@ -59,12 +73,16 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
         return;
       }
       try {
-        const [authorsData, tagsData] = await Promise.all([
+        const [authorsData, tagsFromTable] = await Promise.all([
           modService.getAuthors(profileState.selectedProfile.id),
-          modService.getTags(profileState.selectedProfile.id)
+          modService.getAllTags(profileState.selectedProfile.id) // Get tags from Tags table only
         ]);
         setAuthors(authorsData);
-        setAvailableTags(tagsData);
+        setAvailableTags(tagsFromTable.map(t => t.name));
+
+        // Initialize tag colors map with existing tags from database
+        const colorsMap = new Map(tagsFromTable.map(t => [t.name, t.color]));
+        setTagColorsMap(colorsMap);
       } catch (error) {
         console.error('Failed to load autocomplete data:', error);
       }
@@ -90,7 +108,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   }, [mod, form]);
 
   const handleSave = async () => {
-    if (!mod) return;
+    if (!mod || !profileState.selectedProfile?.id) return;
 
     try {
       const values = await form.validateFields();
@@ -101,11 +119,44 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
         tags: selectedTags,
       };
 
-      // Call operation directly - it handles everything
+      // Get all existing tags from database
+      const existingTags = await modService.getAllTags(profileState.selectedProfile.id);
+      const existingTagNames = new Set(existingTags.map(t => t.name));
+
+      // Find new tags that need to be saved to Tags table
+      const newTags = selectedTags.filter(tagName => !existingTagNames.has(tagName));
+
+      // Save new tags with their pre-generated colors to Tags table
+      if (newTags.length > 0) {
+        try {
+          await Promise.all(
+            newTags.map(tagName => {
+              const color = tagColorsMap.get(tagName) || '#1890ff'; // Fallback color
+              return modService.upsertTag(profileState.selectedProfile!.id, tagName, color);
+            })
+          );
+        } catch (tagSaveError) {
+          console.error('Failed to save new tags:', tagSaveError);
+          // Continue with mod save even if tag save fails
+        }
+      }
+
+      // Save mod metadata
       await updateMod(mod.sha, modData);
+
+      // Refresh the mod to get updated tagsWithMetadata with colors
+      try {
+        const updatedMod = await modService.getModBySha(profileState.selectedProfile.id, mod.sha);
+        if (updatedMod) {
+          updateModLocal(mod.sha, updatedMod);
+        }
+      } catch (refreshError) {
+        console.error('Failed to refresh mod after save:', refreshError);
+      }
 
       form.resetFields();
       setSelectedTags([]);
+      setTagColorsMap(new Map());
       closeEditDialog();
     } catch (error) {
       console.error('Validation failed:', error);
@@ -118,6 +169,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   const handleCancel = () => {
     form.resetFields();
     setSelectedTags([]);
+    setTagColorsMap(new Map());
     closeEditDialog();
   };
 
@@ -142,6 +194,9 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
           tags={selectedTags}
           availableTags={availableTags}
           onTagsChange={handleTagsChange}
+          onTagDeleted={handleTagDeleted}
+          tagColorsMap={tagColorsMap}
+          setTagColorsMap={setTagColorsMap}
         />
 
         {/* Read-only SHA display */}

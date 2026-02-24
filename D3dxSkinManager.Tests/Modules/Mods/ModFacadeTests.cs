@@ -28,6 +28,7 @@ public class ModFacadeTests
     private readonly Mock<IModImportService> _mockImportService;
     private readonly Mock<IModQueryService> _mockQueryService;
     private readonly Mock<IClassificationService> _mockClassificationService;
+    private readonly Mock<ITagRepository> _mockTagRepository = new();
     private readonly Mock<IPayloadHelper> _mockPayloadHelper;
     private readonly Mock<IEventEmitter> _mockEventEmitter = new();
     private readonly Mock<ILogHelper> _mockLogger = new();
@@ -45,12 +46,16 @@ public class ModFacadeTests
         _mockClassificationService = new Mock<IClassificationService>();
         _mockPayloadHelper = new Mock<IPayloadHelper>();
 
+        // Setup TagRepository to return empty list by default
+        _mockTagRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Tag>());
+
         _facade = new ModFacade(
             _mockRepository.Object,
             _mockFileService.Object,
             _mockImportService.Object,
             _mockQueryService.Object,
             _mockClassificationService.Object,
+            _mockTagRepository.Object,
             _mockPayloadHelper.Object,
             _mockEventEmitter.Object,
             _mockImageService.Object,

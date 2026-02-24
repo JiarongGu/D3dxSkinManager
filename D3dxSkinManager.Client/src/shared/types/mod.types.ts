@@ -8,6 +8,7 @@ export interface ModInfo {
   type: string;
   grading: string;
   tags: string[];
+  tagsWithMetadata?: Tag[];  // Tag objects with colors (populated by backend)
   isLoaded: boolean;
   isAvailable: boolean;
   // Note: Preview images and thumbnails are stored dynamically in previews/{SHA}/ folder
@@ -44,4 +45,19 @@ export interface ModLoadResult {
   unloadedModShas: string[];
   /** Whether the load operation succeeded */
   success: boolean;
+}
+
+/**
+ * Tag definition from Tags table (master list)
+ * Tags are defined here with colors, then referenced by name in mod.tags
+ */
+export interface Tag {
+  /** Tag name (unique identifier) */
+  name: string;
+  /** Tag color in hex format (e.g., "#1890ff") */
+  color: string;
+  /** When this tag was created */
+  createdAt: string;
+  /** When this tag was last updated */
+  updatedAt: string;
 }

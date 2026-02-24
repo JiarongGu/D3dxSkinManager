@@ -5,7 +5,7 @@ import { TagsOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { modService } from '../../services/modService';
 import { MultiTagInput } from '../MultiTagInput';
-import { TagSelectorDialog } from '../TagSelectorDialog';
+import { TagManagementDialog } from '../TagManagementDialog';
 import { CompactButton } from '../../../../shared/components/compact/CompactButton';
 import { FieldRow } from './FieldRow';
 import { useProfile } from '../../../../shared/context/ProfileContext';
@@ -41,6 +41,7 @@ export const BatchEditDialog: React.FC = () => {
   const [tagSelectorVisible, setTagSelectorVisible] = useState(false);
   const [authors, setAuthors] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [tagColorsMap, setTagColorsMap] = useState<Map<string, string>>(new Map());
   const { state: profileState } = useProfile();
 
   // Age rating options
@@ -68,14 +69,18 @@ export const BatchEditDialog: React.FC = () => {
       }
       const profileId = profileState.selectedProfile.id;
       try {
-        const [tagsData, authorsData, categoriesData] = await Promise.all([
-          modService.getTags(profileId),
+        const [tagsFromTable, authorsData, categoriesData] = await Promise.all([
+          modService.getAllTags(profileId), // Get tags from Tags table only
           modService.getAuthors(profileId),
           modService.getObjectNames(profileId),
         ]);
-        setAvailableTags(tagsData);
+        setAvailableTags(tagsFromTable.map(t => t.name));
         setAuthors(authorsData);
         setCategories(categoriesData);
+
+        // Initialize tag colors map with existing tags from database
+        const colorsMap = new Map(tagsFromTable.map(t => [t.name, t.color]));
+        setTagColorsMap(colorsMap);
       } catch (error) {
         console.error('Failed to load autocomplete data:', error);
       }
@@ -126,6 +131,28 @@ export const BatchEditDialog: React.FC = () => {
 
       setSaving(true);
 
+      // Get all existing tags from database
+      const existingTags = await modService.getAllTags(profileState.selectedProfile!.id);
+      const existingTagNames = new Set(existingTags.map(t => t.name));
+
+      // Find new tags that need to be saved to Tags table
+      const newTags = selectedTags.filter(tagName => !existingTagNames.has(tagName));
+
+      // Save new tags with their pre-generated colors to Tags table
+      if (newTags.length > 0 && profileState.selectedProfile?.id) {
+        try {
+          await Promise.all(
+            newTags.map(tagName => {
+              const color = tagColorsMap.get(tagName) || '#1890ff'; // Fallback color
+              return modService.upsertTag(profileState.selectedProfile!.id, tagName, color);
+            })
+          );
+        } catch (tagSaveError) {
+          console.error('Failed to save new tags:', tagSaveError);
+          // Continue with mod save even if tag save fails
+        }
+      }
+
       // Call operation directly - it handles everything
       await batchUpdateMetadata(
         selectedMods.map(m => m.sha),
@@ -146,6 +173,7 @@ export const BatchEditDialog: React.FC = () => {
   const handleReset = () => {
     form.resetFields();
     setSelectedTags([]);
+    setTagColorsMap(new Map());
     setEnabledFields({
       description: false,
       grading: false,
@@ -171,6 +199,17 @@ export const BatchEditDialog: React.FC = () => {
 
   const handleTagSelectorCancel = () => {
     setTagSelectorVisible(false);
+  };
+
+  const handleTagDeleted = async () => {
+    if (!profileState.selectedProfile?.id) return;
+
+    try {
+      const tagsFromTable = await modService.getAllTags(profileState.selectedProfile.id);
+      setAvailableTags(tagsFromTable.map(t => t.name));
+    } catch (error) {
+      console.error('Failed to refresh tags:', error);
+    }
   };
 
   return (
@@ -309,6 +348,8 @@ export const BatchEditDialog: React.FC = () => {
                   onChange={setSelectedTags}
                   availableTags={availableTags}
                   placeholder={t('batchEditMods.tagsPlaceholder')}
+                  tagColorsMap={tagColorsMap}
+                  setTagColorsMap={setTagColorsMap}
                 />
                 <CompactButton
                   icon={<TagsOutlined />}
@@ -332,13 +373,16 @@ export const BatchEditDialog: React.FC = () => {
         />
       </Space>
 
-      {/* Tag Selector Dialog */}
-      <TagSelectorDialog
+      {/* Tag Management Dialog */}
+      <TagManagementDialog
         visible={tagSelectorVisible}
-        availableTags={availableTags}
         selectedTags={selectedTags}
         onConfirm={handleTagSelectorConfirm}
         onCancel={handleTagSelectorCancel}
+        onTagDeleted={handleTagDeleted}
+        title={t('batchEdit.manageTags')}
+        tagColorsMap={tagColorsMap}
+        setTagColorsMap={setTagColorsMap}
       />
     </Modal>
   );

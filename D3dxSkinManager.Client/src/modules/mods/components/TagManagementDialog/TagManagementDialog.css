@@ -1,0 +1,152 @@
+.tag-management-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 400px;
+  max-height: 600px;
+}
+
+.tag-management-search {
+  width: 100%;
+}
+
+.tag-management-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tag-management-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tag-management-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Tag sections */
+.tag-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tag-section-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tag-section-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px;
+}
+
+/* Tag items - using same colors as ModList */
+.tag-management-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  min-width: 0;
+}
+
+/* Default border - theme specific */
+[data-theme="light"] .tag-management-item {
+  border: 1px solid #d9d9d9;
+}
+
+[data-theme="dark"] .tag-management-item {
+  border: 1px solid #424242;
+}
+
+/* Hover state - matches ModList item hover */
+[data-theme="light"] .tag-management-item:hover {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .tag-management-item:hover {
+  background: var(--color-bg-container);
+  border-color: var(--color-primary);
+}
+
+/* Selected state - matches ModList selected item */
+.tag-management-item.selected {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary) !important;
+}
+
+.tag-management-item.selected:hover {
+  background: var(--color-primary-bg-hover);
+  border-color: var(--color-primary) !important;
+}
+
+.tag-management-item-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tag-management-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 1;
+}
+
+/* Tag chip styling inside dialog */
+.tag-management-dialog .tag-chip {
+  font-size: 14px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.tag-new-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* Scrollbar styling */
+.tag-management-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tag-management-list::-webkit-scrollbar-track {
+  background: var(--background-color);
+  border-radius: 3px;
+}
+
+.tag-management-list::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.tag-management-list::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}

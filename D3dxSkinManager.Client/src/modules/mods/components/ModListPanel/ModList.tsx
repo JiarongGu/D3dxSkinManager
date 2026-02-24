@@ -17,6 +17,7 @@ import { fileDialogService } from "../../../../shared/services/systemService";
 import { modService } from "../../services/modService";
 import { cacheService } from "../../../tools/services/cacheService";
 import { GradingTag } from "../GradingTag";
+import { TagChip } from "../../../../shared/components/TagChip";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useMods } from "../../hooks/useMods";
 import { useDelayedLoading } from "../../../../shared/hooks/useDelayedLoading";
@@ -402,13 +403,21 @@ export const ModList: React.FC<ModListProps> = ({
                       </Tag>
                     )}
                     {mod.tags &&
-                      mod.tags.slice(0, 3).map((tag) => (
-                        <Tag key={tag} className="mod-list-item-tag">
-                          {tag}
-                        </Tag>
-                      ))}
+                      mod.tags.slice(0, 3).map((tagName) => {
+                        // Use pre-loaded tag data if available
+                        const tagData = mod.tagsWithMetadata?.find(t => t.name === tagName);
+                        return (
+                          <TagChip
+                            key={tagName}
+                            tagName={tagName}
+                            tag={tagData}
+                            size="small"
+                            className="mod-list-item-tag"
+                          />
+                        );
+                      })}
                     {mod.tags && mod.tags.length > 3 && (
-                      <Tag className="mod-list-item-tag">
+                      <Tag className="mod-list-item-tag" color="default">
                         +{mod.tags.length - 3} {t('mods.list.more')}
                       </Tag>
                     )}

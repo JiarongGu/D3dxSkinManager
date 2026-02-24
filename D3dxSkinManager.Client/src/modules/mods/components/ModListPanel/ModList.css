@@ -71,8 +71,23 @@
   user-select: none;
 }
 
+/* Consistent sizing for all tags in mod list */
 .mod-list-item-tag {
   margin: 0;
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 8px;
+  border-width: 1px;
+  line-height: 18px;
+}
+
+/* Darker background for mod list tags in dark theme */
+.mod-list-item-tag {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="light"] .mod-list-item-tag {
+  background: transparent !important;
 }
 
 .mod-list-item-actions {
@@ -86,8 +101,12 @@
   justify-content: center;
 }
 
+.mod-list-item-action-button:hover {
+  background: var(--color-bg-elevated) !important;
+}
+
 .mod-list-item-action-icon {
-  font-size: 18px;
+  font-size: 16px !important;
 }
 
 .mod-list-scroll-trigger {

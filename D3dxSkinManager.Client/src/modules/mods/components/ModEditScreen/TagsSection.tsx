@@ -3,13 +3,16 @@ import { Form, Space } from 'antd';
 import { TagsOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { MultiTagInput } from '../MultiTagInput';
-import { TagSelectorDialog } from '../TagSelectorDialog';
+import { TagManagementDialog } from '../TagManagementDialog';
 import { CompactButton } from '../../../../shared/components/compact/CompactButton';
 
 export interface TagsSectionProps {
   tags: string[];
   availableTags: string[];
   onTagsChange: (tags: string[]) => void;
+  onTagDeleted?: () => void; // Callback to refresh available tags
+  tagColorsMap: Map<string, string>;
+  setTagColorsMap: (map: Map<string, string>) => void;
 }
 
 /**
@@ -20,6 +23,9 @@ export const TagsSection: React.FC<TagsSectionProps> = ({
   tags,
   availableTags,
   onTagsChange,
+  onTagDeleted,
+  tagColorsMap,
+  setTagColorsMap,
 }) => {
   const { t } = useTranslation();
   const [tagSelectorVisible, setTagSelectorVisible] = useState(false);
@@ -53,6 +59,8 @@ export const TagsSection: React.FC<TagsSectionProps> = ({
             onChange={handleTagsChange}
             availableTags={availableTags}
             placeholder={t('mods.edit.tagsPlaceholder')}
+            tagColorsMap={tagColorsMap}
+            setTagColorsMap={setTagColorsMap}
           />
           <CompactButton
             icon={<TagsOutlined />}
@@ -62,12 +70,15 @@ export const TagsSection: React.FC<TagsSectionProps> = ({
         </Space.Compact>
       </Form.Item>
 
-      <TagSelectorDialog
+      <TagManagementDialog
         visible={tagSelectorVisible}
-        availableTags={availableTags}
         selectedTags={tags}
         onConfirm={handleTagSelectorConfirm}
         onCancel={handleTagSelectorCancel}
+        onTagDeleted={onTagDeleted}
+        title={t('mods.edit.manageTags')}
+        tagColorsMap={tagColorsMap}
+        setTagColorsMap={setTagColorsMap}
       />
     </>
   );
