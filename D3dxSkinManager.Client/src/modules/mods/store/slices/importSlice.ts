@@ -2,7 +2,7 @@
  * Import slice - manages import task queue state
  */
 
-import { ImportTask } from '../../components/AddModWindow';
+import { ImportTask } from '../../types/importTask.types';
 
 export interface ImportSliceState {
   importTasks: ImportTask[];

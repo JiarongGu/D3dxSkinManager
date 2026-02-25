@@ -1,14 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using D3dxSkinManager.Modules.Core.Utilities;
-
 using D3dxSkinManager.Modules.Mods.Models;
-
-using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
@@ -45,11 +37,35 @@ public class ClassificationRepository : IClassificationRepository
     public ClassificationRepository(IProfilePathService profilePaths)
     {
         _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
-        // No initialization needed - ModRepository creates the schema
-        _init = new Lazy<Task>(() => Task.CompletedTask, isThreadSafe: true);
+        _init = new Lazy<Task>(InitializeDatabaseAsync, isThreadSafe: true);
     }
 
     private Task EnsureInitializedAsync() => _init.Value;
+
+    private async Task InitializeDatabaseAsync()
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
+
+        // Create Classifications table
+        var createClassificationsCmd = connection.CreateCommand();
+        createClassificationsCmd.CommandText = @"
+            CREATE TABLE IF NOT EXISTS Classifications (
+                Id TEXT PRIMARY KEY,
+                Name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                ParentId TEXT NULL,
+                ThumbnailPath TEXT NULL,
+                Priority INTEGER DEFAULT 0,
+                Description TEXT NULL,
+                Metadata TEXT NULL,
+                CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_classifications_parent ON Classifications(ParentId);
+        ";
+        await createClassificationsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+    }
 
     public async Task<List<ClassificationNode>> GetAllAsync()
     {
@@ -217,7 +233,8 @@ public class ClassificationRepository : IClassificationRepository
                 ThumbnailPath = @thumbnailPath,
                 Priority = @priority,
                 Description = @description,
-                Metadata = @metadata
+                Metadata = @metadata,
+                UpdatedAt = CURRENT_TIMESTAMP
             WHERE Id = @id
         ";
 
@@ -359,7 +376,9 @@ public class ClassificationRepository : IClassificationRepository
             Priority = Convert.ToInt32(reader["Priority"]),
             Description = reader["Description"] as string,
             Metadata = metadata,
-            Children = new List<ClassificationNode>()
+            Children = new List<ClassificationNode>(),
+            CreatedAt = DateTime.Parse(reader["CreatedAt"].ToString() ?? DateTime.UtcNow.ToString()),
+            UpdatedAt = DateTime.Parse(reader["UpdatedAt"].ToString() ?? DateTime.UtcNow.ToString())
         };
     }
 }

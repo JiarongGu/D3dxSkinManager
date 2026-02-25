@@ -249,15 +249,11 @@ public class SettingsFacade : BaseFacade, ISettingsFacade
         var (width, height, x, y, maximized) = await _windowStateService.LoadWindowStateAsync().ConfigureAwait(false);
 
         // Emit event for ApplicationHost to handle window state reset
-        await _eventBus.EmitAsync(new EventMessage
+        await _eventBus.EmitAsync(ModuleNames.SETTING, SettingsEvents.WINDOW_STATE_RESET, new
         {
-            EventType = SettingsEvents.WINDOW_STATE_RESET,
-            Data = new
-            {
-                Width = width,
-                Height = height,
-                Maximized = false  // Always reset to non-maximized state
-            }
+            Width = width,
+            Height = height,
+            Maximized = false  // Always reset to non-maximized state
         });
 
         _logger.Info("Window state reset event emitted successfully", "SettingsFacade");

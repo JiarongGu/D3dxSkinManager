@@ -1,9 +1,11 @@
 namespace D3dxSkinManager.Modules.Tools;
 
 /// <summary>
-/// Tools module event type constants for IPC notifications.
+/// Tools module event type constants.
+/// Used with ModuleNames.TOOL as the module identifier.
 /// </summary>
 public static class ToolsEvents
 {
-    public const string CUSTOM_EVENT = "CUSTOM_EVENT";
+    public const string CACHE_CLEANED = "CACHE_CLEANED";
+    public const string CACHE_ITEM_DELETED = "CACHE_ITEM_DELETED";
 }

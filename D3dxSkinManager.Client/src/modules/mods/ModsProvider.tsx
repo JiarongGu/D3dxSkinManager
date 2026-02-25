@@ -6,7 +6,7 @@
 import React, { useEffect } from 'react';
 import { useProfile } from '../../shared/context/ProfileContext';
 import { useModsStore } from './store/modsStore';
-import { eventBus, EventType } from '../../shared/services/eventBus';
+import { eventBus, ModEventType, Module } from '../../shared/services/eventBus';
 import * as modOps from './operations/modOperations';
 import * as classificationOps from './operations/classificationOperations';
 
@@ -35,12 +35,13 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
     if (!selectedProfileId) return;
 
     // Subscribe to backend mod events
-    const unsubscribeModsRefreshed = eventBus.on(EventType.ModsRefreshed, () => {
+    const unsubscribeModsRefreshed = eventBus.subscribe(Module.MOD, ModEventType.REFRESHED, () => {
       modOps.refreshMods(selectedProfileId);
     });
 
-    const unsubscribeClassificationTreeChanged = eventBus.on(
-      EventType.ClassificationTreeChanged,
+    const unsubscribeClassificationTreeChanged = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.CLASSIFICATION_TREE_CHANGED,
       () => {
         classificationOps.refreshClassificationTree(selectedProfileId);
       }

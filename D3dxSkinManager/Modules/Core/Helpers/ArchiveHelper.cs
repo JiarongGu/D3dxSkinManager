@@ -15,12 +15,23 @@ public class ExtractionResult
 }
 
 /// <summary>
+/// Archive format for compression
+/// </summary>
+public enum ArchiveFormat
+{
+    Zip,
+    SevenZip,
+    Tar
+}
+
+/// <summary>
 /// Interface for archive operations
 /// </summary>
 public interface IArchiveHelper
 {
     Task<string?> DetectArchiveTypeAsync(string archivePath);
     Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory);
+    Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.Zip);
 }
 
 /// <summary>
@@ -179,6 +190,75 @@ public class ArchiveHelper : IArchiveHelper
                 result.ErrorMessage = ex.Message;
                 _logger.Error($"Extraction failed: {ex.Message}", "ArchiveService", ex);
                 throw new InvalidOperationException($"Archive extraction failed: {ex.Message}", ex);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Compress a folder into an archive file
+    /// Supports: ZIP, 7Z, TAR formats
+    /// </summary>
+    /// <param name="folderPath">Path to folder to compress</param>
+    /// <param name="outputPath">Output archive file path</param>
+    /// <param name="format">Archive format (default: ZIP)</param>
+    /// <returns>Path to created archive</returns>
+    public async Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.Zip)
+    {
+        if (!Directory.Exists(folderPath))
+            throw new DirectoryNotFoundException($"Folder not found: {folderPath}");
+
+        return await Task.Run(() =>
+        {
+            try
+            {
+                _logger.Info($"Compressing folder: {Path.GetFileName(folderPath)} -> {Path.GetFileName(outputPath)}", "ArchiveService");
+
+                // Set library path for 7z.dll
+                var platformFolder = Environment.Is64BitProcess ? "x64" : "x86";
+                var libraryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, platformFolder, "7z.dll");
+
+                if (File.Exists(libraryPath))
+                {
+                    SharpSevenZipBase.SetLibraryPath(libraryPath);
+                }
+                else
+                {
+                    _logger.Warn($"7z.dll not found at: {libraryPath}", "ArchiveService");
+                }
+
+                // Create output directory if needed
+                var outputDir = Path.GetDirectoryName(outputPath);
+                if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
+                {
+                    Directory.CreateDirectory(outputDir);
+                }
+
+                // Create compressor with specified format
+                var compressor = new SharpSevenZipCompressor
+                {
+                    ArchiveFormat = format switch
+                    {
+                        ArchiveFormat.SevenZip => OutArchiveFormat.SevenZip,
+                        ArchiveFormat.Tar => OutArchiveFormat.Tar,
+                        ArchiveFormat.Zip => OutArchiveFormat.Zip,
+                        _ => OutArchiveFormat.Zip
+                    },
+                    CompressionLevel = CompressionLevel.Normal,
+                    PreserveDirectoryRoot = false  // Don't include root folder name in archive
+                };
+
+                // Compress the directory
+                compressor.CompressDirectory(folderPath, outputPath);
+
+                var fileInfo = new FileInfo(outputPath);
+                _logger.Info($"Compressed to {Path.GetFileName(outputPath)} ({fileInfo.Length / 1024} KB)", "ArchiveService");
+
+                return outputPath;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Folder compression failed: {ex.Message}", "ArchiveService", ex);
+                throw new InvalidOperationException($"Failed to compress folder: {ex.Message}", ex);
             }
         });
     }

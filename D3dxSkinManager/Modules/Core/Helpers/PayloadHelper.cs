@@ -25,6 +25,12 @@ public interface IPayloadHelper
 /// </summary>
 public class PayloadHelper : IPayloadHelper
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
     public T GetRequiredValue<T>(JsonElement? payload, string key)
     {
         if (payload == null || !payload.Value.TryGetProperty(key, out var value))
@@ -38,7 +44,7 @@ public class PayloadHelper : IPayloadHelper
             {
                 return (T)(object)value.GetString()!;
             }
-            return JsonSerializer.Deserialize<T>(value.GetRawText())!;
+            return JsonSerializer.Deserialize<T>(value.GetRawText(), JsonOptions)!;
         }
         catch (Exception ex)
         {
@@ -59,7 +65,7 @@ public class PayloadHelper : IPayloadHelper
             {
                 return (T)(object)value.GetString()!;
             }
-            return JsonSerializer.Deserialize<T>(value.GetRawText());
+            return JsonSerializer.Deserialize<T>(value.GetRawText(), JsonOptions);
         }
         catch
         {

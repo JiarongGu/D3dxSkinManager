@@ -56,10 +56,11 @@ public interface IPluginContext
     /// <summary>
     /// Register an event handler for system events.
     /// </summary>
-    /// <param name="eventType">Event type constant to listen for (SCREAMING_SNAKE_CASE)</param>
+    /// <param name="modulePattern">Module pattern ("*" for all modules, or specific module like "MOD")</param>
+    /// <param name="typePattern">Type pattern ("*" for all types, or specific type like "LOADED")</param>
     /// <param name="handler">Event handler callback</param>
     /// <returns>Registration ID for unregistering later</returns>
-    string RegisterEventHandler(string eventType, Func<EventMessage, Task> handler);
+    string RegisterEventHandler(string modulePattern, string typePattern, Func<EventMessage, Task> handler);
 
     /// <summary>
     /// Unregister an event handler.
@@ -139,9 +140,9 @@ public class PluginContext : IPluginContext
         return _serviceProvider.GetService<T>();
     }
 
-    public string RegisterEventHandler(string eventType, Func<EventMessage, Task> handler)
+    public string RegisterEventHandler(string modulePattern, string typePattern, Func<EventMessage, Task> handler)
     {
-        return _eventBus.RegisterHandler(eventType, handler);
+        return _eventBus.RegisterHandler(modulePattern, typePattern, handler);
     }
 
     public void UnregisterEventHandler(string registrationId)
@@ -151,12 +152,8 @@ public class PluginContext : IPluginContext
 
     public Task EmitEventAsync(string eventName, object? data = null)
     {
-        return _eventBus.EmitAsync(new EventMessage
-        {
-            EventType = PluginEvents.CUSTOM_EVENT,
-            EventName = eventName,
-            Data = data
-        });
+        // Plugins can emit custom events with dynamic event names
+        return _eventBus.EmitAsync(ModuleNames.PLUGIN, eventName, data);
     }
 
     public void Log(LogLevel level, string message, Exception? exception = null)

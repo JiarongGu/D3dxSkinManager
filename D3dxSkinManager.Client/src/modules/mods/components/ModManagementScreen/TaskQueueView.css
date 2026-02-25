@@ -1,0 +1,142 @@
+/* Task Queue Container */
+.task-queue-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 16px;
+  padding: 16px;
+}
+
+.task-queue-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 48px;
+}
+
+/* Toolbar */
+.task-queue-toolbar {
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Task List */
+.task-queue-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: var(--card-background);
+}
+
+.task-queue-list .ant-list-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.2s;
+}
+
+.task-queue-list .ant-list-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.task-queue-item-processing {
+  background: rgba(24, 144, 255, 0.05) !important;
+  border-left: 3px solid #1890ff !important;
+}
+
+/* Task Item Content */
+.task-queue-item-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.task-queue-item-icon {
+  font-size: 20px;
+  margin-top: 4px;
+}
+
+.task-queue-icon-pending {
+  color: #8c8c8c;
+}
+
+.task-queue-icon-processing {
+  color: #1890ff;
+}
+
+.task-queue-icon-success {
+  color: #52c41a;
+}
+
+.task-queue-icon-error {
+  color: #ff4d4f;
+}
+
+.task-queue-icon-cancelled {
+  color: #8c8c8c;
+}
+
+/* Task Info */
+.task-queue-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-queue-item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.task-queue-item-filename {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.task-queue-item-metadata {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.task-queue-item-message {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.task-queue-item-progress {
+  margin-top: 8px;
+  max-width: 400px;
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .task-queue-toolbar {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .task-queue-list {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .task-queue-toolbar {
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .task-queue-list {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .task-queue-list .ant-list-item:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .task-queue-item-processing {
+  background: rgba(24, 144, 255, 0.08) !important;
+}

@@ -3,7 +3,7 @@
  */
 
 import { ModInfo } from '../../../../shared/types/mod.types';
-import { ImportTask } from '../../components/AddModWindow';
+import { ImportTask } from '../../types/importTask.types';
 
 export interface UISliceState {
   // Object filter

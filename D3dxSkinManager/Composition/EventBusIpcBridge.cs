@@ -25,44 +25,41 @@ public class EventBusIpcBridge
     }
 
     /// <summary>
-    /// Initialize the bridge by subscribing to all event types
+    /// Initialize the bridge by subscribing to ALL event types using wildcard
+    /// This ensures all events from any module are forwarded to frontend
     /// </summary>
     public void Initialize()
     {
-        _logger.Info("Initializing EventBus IPC Bridge", "EventBridge");
+        _logger.Info("Initializing EventBus IPC Bridge - forwarding all events", "EventBridge");
 
-        // Subscribe to all core event types
-        foreach (var eventType in CoreEvents.All)
+        // Subscribe to ALL events with wildcard pattern (all modules, all types)
+        var registrationId = _eventBus.RegisterHandler("*", "*", async (message) =>
         {
-            var registrationId = _eventBus.RegisterHandler(eventType, async (message) =>
-            {
-                await ForwardEventToFrontend(message);
-            });
+            await ForwardEventToFrontend(message);
+        });
 
-            _registrationIds.Add(registrationId);
-        }
+        _registrationIds.Add(registrationId);
 
-        _logger.Info($"EventBus IPC Bridge initialized - subscribed to {_registrationIds.Count} event types", "EventBridge");
+        _logger.Info("EventBus IPC Bridge initialized - forwarding all events to frontend", "EventBridge");
     }
 
     /// <summary>
     /// Forward a backend event to the frontend via IPC
-    /// Uses event type string as-is (SCREAMING_SNAKE_CASE constant)
+    /// Forwards Module and Type separately, following IpcRequest pattern
     /// </summary>
     private async Task ForwardEventToFrontend(EventMessage message)
     {
         try
         {
-            _logger.Debug($"Forwarding event to frontend: {message.EventType}", "EventBridge");
+            var eventId = $"{message.Module}.{message.Type}";
+            _logger.Verbose($"Forwarding event to frontend: {eventId}", "EventBridge");
 
-            // Send notification with event type string
+            // Send notification with Module, Type, and Payload at top level
+            // Frontend will receive: { category: "notification", module, type, payload }
             _ipcHandler.SendNotification(
-                type: message.EventType,
-                data: new
-                {
-                    eventName = message.EventName,
-                    data = message.Data
-                }
+                module: message.Module,
+                type: message.Type,
+                payload: message.Payload
             );
 
             await Task.CompletedTask;

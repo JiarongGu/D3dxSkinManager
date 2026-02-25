@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { bridgeService } from '../services/bridgeService';
-import { eventBus, EventType } from '../services/eventBus';
+import { eventBus, DropZoneEventType, Module } from '../services/eventBus';
 import { v4 as uuidv4 } from 'uuid';
 import './useDropZone.css';
 
@@ -241,13 +241,13 @@ export function useDropZone(options: {
     const element = targetRef.current;
 
     // Subscribe to backend drag enter/leave/drop notifications
-    const unsubscribeDragEnter = eventBus.on(EventType.DropZoneDragEnter, (event) => {
-      if (!event?.data || (event.data as any).zoneId !== zoneId) return;
+    const unsubscribeDragEnter = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.DRAG_ENTER, (event) => {
+      if (!event?.payload || (event.payload as any).zoneId !== zoneId) return;
       element.classList.add(classesRef.current.drop);
     });
 
-    const unsubscribeDragLeave = eventBus.on(EventType.DropZoneDragLeave, (event) => {
-      if (!event?.data || (event.data as any).zoneId !== zoneId) return;
+    const unsubscribeDragLeave = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.DRAG_LEAVE, (event) => {
+      if (!event?.payload || (event.payload as any).zoneId !== zoneId) return;
       element.classList.remove(classesRef.current.drop);
     });
 
@@ -267,8 +267,8 @@ export function useDropZone(options: {
 
     const element = targetRef.current;
 
-    const unsubscribeClick = eventBus.on(EventType.DropZoneClick, (event) => {
-      if (!event?.data || (event.data as any).zoneId !== zoneId) return;
+    const unsubscribeClick = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.CLICK, (event) => {
+      if (!event?.payload || (event.payload as any).zoneId !== zoneId) return;
 
       // Find the first clickable child element (role="button" or button/a tag)
       const clickableChild = element.querySelector('[role="button"], button, a');
@@ -292,14 +292,14 @@ export function useDropZone(options: {
 
     const element = targetRef.current;
 
-    const unsubscribeMouseEnter = eventBus.on(EventType.DropZoneMouseEnter, (event) => {
-      if (!event?.data || (event.data as any).zoneId !== zoneId) return;
+    const unsubscribeMouseEnter = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.MOUSE_ENTER, (event) => {
+      if (!event?.payload || (event.payload as any).zoneId !== zoneId) return;
 
       element.classList.add(classesRef.current.hover);
     });
 
-    const unsubscribeMouseLeave = eventBus.on(EventType.DropZoneMouseLeave, (event) => {
-      if (!event?.data || (event.data as any).zoneId !== zoneId) return;
+    const unsubscribeMouseLeave = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.MOUSE_LEAVE, (event) => {
+      if (!event?.payload || (event.payload as any).zoneId !== zoneId) return;
 
       element.classList.remove(classesRef.current.hover);
     });
@@ -314,20 +314,20 @@ export function useDropZone(options: {
 
   // Subscribe to drop events
   useEffect(() => {
-    const unsubscribe = eventBus.on(EventType.DropZoneFileDrop, (event) => {
+    const unsubscribe = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.FILE_DROP, (event) => {
       if (!event) {
         return;
       }
 
-      const data = event.data as DropZoneFileDropData;
+      const data = event.payload as DropZoneFileDropData;
 
       if (!data) {
-        console.error('[useDropZone] Event data is undefined:', event);
+        console.error('[useDropZone] Event payload is undefined:', event);
         return;
       }
 
       if (!data.zoneId) {
-        console.error('[useDropZone] Event data missing zoneId:', data);
+        console.error('[useDropZone] Event payload missing zoneId:', data);
         return;
       }
 

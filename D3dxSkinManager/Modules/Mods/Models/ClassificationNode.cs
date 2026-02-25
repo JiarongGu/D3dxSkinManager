@@ -59,6 +59,16 @@ public class ClassificationNode
     /// Calculated recursively when tree is built
     /// </summary>
     public int ModCount { get; set; } = 0;
+
+    /// <summary>
+    /// When this classification was created
+    /// </summary>
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// When this classification was last updated
+    /// </summary>
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 /// <summary>

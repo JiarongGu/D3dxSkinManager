@@ -12,7 +12,8 @@ import * as classificationOps from '../operations/classificationOperations';
 import * as importOps from '../operations/importOperations';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { ClassificationNode } from '../../../shared/types/classification.types';
-import { ImportTask } from '../components/AddModWindow';
+import { ImportTask } from '../types/importTask.types';
+import { ModManagementMode } from '../components/ModManagementScreen';
 
 /**
  * Main mods hook - provides state and operations
@@ -88,25 +89,18 @@ export function useMods() {
     // UI operations (direct store access)
     openEditDialog: state.openEditDialog,
     closeEditDialog: state.closeEditDialog,
-    openTagDialog: state.openTagDialog,
-    closeTagDialog: state.closeTagDialog,
-    saveTagsForImport: state.saveTagsForImport,
-    openBatchEditDialog: state.openBatchEditDialog,
-    closeBatchEditDialog: state.closeBatchEditDialog,
-    openAddModWindow: state.openAddModWindow,
-    closeAddModWindow: state.closeAddModWindow,
-    openAddModUnit: state.openAddModUnit,
-    closeAddModUnit: state.closeAddModUnit,
-    saveAddModUnit: state.saveAddModUnit,
-    openBatchEditUnit: state.openBatchEditUnit,
-    closeBatchEditUnit: state.closeBatchEditUnit,
-    saveBatchEditUnit: state.saveBatchEditUnit,
-    addImportTasks: state.addImportTasks,
     setSearchQuery: state.setSearchQuery,
     setClassificationSearch: state.setClassificationSearch,
     setExpandedKeys: state.setExpandedKeys,
     setSelectedClassification: state.setSelectedClassification,
     setAvailableTags: state.setAvailableTags,
+
+    // ModManagementScreen operations
+    openModManagementScreen: state.openModManagementScreen,
+    closeModManagementScreen: state.closeModManagementScreen,
+    batchUpdateImportTasks: importOps.updateMultipleTasks,
+    addImportTasks: state.addImportTasks,
+    setImportProcessing: state.setImportProcessing,
 
     // Global
     reset: state.reset,

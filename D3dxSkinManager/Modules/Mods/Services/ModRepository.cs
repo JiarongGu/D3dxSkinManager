@@ -47,30 +47,7 @@ public class ModRepository : IModRepository
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
-        // Enable foreign keys
-        var pragmaCmd = connection.CreateCommand();
-        pragmaCmd.CommandText = "PRAGMA foreign_keys = ON;";
-        await pragmaCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-        // Create Classifications table first (referenced by Mods)
-        var createClassificationsCmd = connection.CreateCommand();
-        createClassificationsCmd.CommandText = @"
-            CREATE TABLE IF NOT EXISTS Classifications (
-                Id TEXT PRIMARY KEY,
-                Name TEXT NOT NULL UNIQUE COLLATE NOCASE,
-                ParentId TEXT NULL,
-                ThumbnailPath TEXT NULL,
-                Priority INTEGER DEFAULT 0,
-                Description TEXT NULL,
-                Metadata TEXT NULL,
-                FOREIGN KEY (ParentId) REFERENCES Classifications(Id) ON DELETE CASCADE
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_classifications_parent ON Classifications(ParentId);
-        ";
-        await createClassificationsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-        // Create Mods table with foreign key to Classifications
+        // Create Mods table
         var createModsCmd = connection.CreateCommand();
         createModsCmd.CommandText = @"
             CREATE TABLE IF NOT EXISTS Mods (
@@ -83,8 +60,7 @@ public class ModRepository : IModRepository
                 Grading TEXT DEFAULT 'G',
                 Tags TEXT,
                 CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-                UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (Category) REFERENCES Classifications(Id) ON DELETE RESTRICT
+                UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE INDEX IF NOT EXISTS idx_mods_category ON Mods(Category);
@@ -370,7 +346,9 @@ public class ModRepository : IModRepository
             Description = reader.GetString(reader.GetOrdinal("Description")),
             Type = reader.GetString(reader.GetOrdinal("Type")),
             Grading = reader.GetString(reader.GetOrdinal("Grading")),
-            Tags = tags
+            Tags = tags,
+            CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
+            UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt")))
             // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system
         };
     }

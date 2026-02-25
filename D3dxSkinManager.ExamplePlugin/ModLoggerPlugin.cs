@@ -4,6 +4,7 @@ using D3dxSkinManager.Modules.Mods.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Plugins.Interfaces;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Mods;
 
 namespace D3dxSkinManager.ExamplePlugin;
 
@@ -39,11 +40,11 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         _context.Log(LogLevel.Info, $"[{Name}] Log file: {_logFilePath}");
 
         // Register event handlers
-        _context.RegisterEventHandler(CoreEvents.APPLICATION_STARTED, OnApplicationStarted);
-        _context.RegisterEventHandler(CoreEvents.MOD_LOADED, OnModLoaded);
-        _context.RegisterEventHandler(CoreEvents.MOD_UNLOADED, OnModUnloaded);
-        _context.RegisterEventHandler(CoreEvents.MOD_IMPORTED, OnModImported);
-        _context.RegisterEventHandler(CoreEvents.MOD_DELETED, OnModDeleted);
+        _context.RegisterEventHandler(ModuleNames.CORE, CoreEvents.APPLICATION_STARTED, OnApplicationStarted);
+        _context.RegisterEventHandler(ModuleNames.MOD, ModEvents.LOADED, OnModLoaded);
+        _context.RegisterEventHandler(ModuleNames.MOD, ModEvents.UNLOADED, OnModUnloaded);
+        _context.RegisterEventHandler(ModuleNames.MOD, ModEvents.IMPORTED, OnModImported);
+        _context.RegisterEventHandler(ModuleNames.MOD, ModEvents.DELETED, OnModDeleted);
 
         // Write startup message to log file
         await WriteLogAsync("=== Mod Logger Plugin Started ===");
@@ -64,7 +65,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
 
     private async Task OnModLoaded(EventMessage args)
     {
-        var data = args.Data as dynamic;
+        var data = args.Payload as dynamic;
         var sha = data?.Sha?.ToString() ?? "unknown";
 
         var message = $"[MOD_LOADED] SHA: {sha}";
@@ -74,7 +75,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
 
     private async Task OnModUnloaded(EventMessage args)
     {
-        var data = args.Data as dynamic;
+        var data = args.Payload as dynamic;
         var sha = data?.Sha?.ToString() ?? "unknown";
 
         var message = $"[MOD_UNLOADED] SHA: {sha}";
@@ -84,7 +85,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
 
     private async Task OnModImported(EventMessage args)
     {
-        var mod = args.Data as ModInfo;
+        var mod = args.Payload as ModInfo;
         if (mod != null)
         {
             var message = $"[MOD_IMPORTED] Name: {mod.Name}, Object: {mod.Category}, SHA: {mod.SHA}";
@@ -95,7 +96,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
 
     private async Task OnModDeleted(EventMessage args)
     {
-        var data = args.Data as dynamic;
+        var data = args.Payload as dynamic;
         var sha = data?.Sha?.ToString() ?? "unknown";
 
         var message = $"[MOD_DELETED] SHA: {sha}";

@@ -79,16 +79,18 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
             _logger.Info("Classification tree refreshed successfully", "MigrationFacade");
 
             // Emit event so frontend knows to reload classification tree
-            await _eventEmitter.EmitAsync(MigrationEvents.CLASSIFICATION_TREE_CHANGED, null, null).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.CLASSIFICATION_TREE_CHANGED).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger.Error($"Failed to refresh classification tree: {ex.Message}", "MigrationFacade", ex);
         }
 
+        // Emit migration completed event
+        await _eventEmitter.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, result).ConfigureAwait(false);
+
         // Also emit ModsRefreshed to trigger mod list reload
-        await _eventEmitter.EmitAsync(MigrationEvents.MODS_REFRESHED, null, null).ConfigureAwait(false);
-        await _eventEmitter.EmitAsync(MigrationEvents.CUSTOM_EVENT, "migration.completed", result).ConfigureAwait(false);
+        await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.REFRESHED).ConfigureAwait(false);
 
         return result;
     }

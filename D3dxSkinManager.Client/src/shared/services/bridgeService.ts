@@ -10,7 +10,7 @@ import {
   BridgeMessage,
   BridgeResponse,
 } from "../types/message.types";
-import { eventBus, EventType } from "./eventBus";
+import { eventBus } from "./eventBus";
 
 // WebView2 bridge interface
 declare global {
@@ -72,11 +72,12 @@ class BridgeService {
           }
         } else if (parsed.category === "notification") {
           // Push notification/event - emit to eventBus
-          // Frontend subscribers use the 'type' to identify which event they want
+          // Backend sends: { category, id, module, type, payload, timestamp }
+          const { module, type, payload } = parsed;
           eventBus.emit({
-            type: parsed.type as EventType,
-            eventName: parsed.eventName,
-            data: parsed.data,
+            module,
+            type,
+            payload,
           });
         }
       } catch (error) {

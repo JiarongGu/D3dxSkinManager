@@ -1,0 +1,44 @@
+/* Task Status Bar */
+.task-status-bar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  background: var(--card-background);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 4px 4px;
+  z-index: 10;
+}
+
+.task-status-bar-progress {
+  margin-bottom: 8px;
+}
+
+.task-status-bar-stats {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.task-status-bar-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-status-bar-tag {
+  margin: 0;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* Theme adjustments */
+[data-theme="dark"] .task-status-bar {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .task-status-bar {
+  border-top-color: rgba(0, 0, 0, 0.1);
+}

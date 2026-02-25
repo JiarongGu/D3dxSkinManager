@@ -11,7 +11,8 @@ export type ModuleName =
   | 'SYSTEM'
   | 'MIGRATION'
   | 'PROFILE'
-  | 'DROP_ZONE'; // WinForms drop zone overlay management
+  | 'DROP_ZONE' // WinForms drop zone overlay management
+  | 'TASKQUEUE'; // Task queue management
 
 /**
  * Message types for module-based routing

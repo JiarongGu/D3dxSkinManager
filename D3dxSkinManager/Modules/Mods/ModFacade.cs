@@ -226,7 +226,7 @@ public class ModFacade : BaseFacade, IModFacade
                         {
                             // Track successfully unloaded mods for efficient frontend update
                             unloadedModShas.Add(modToUnload.SHA);
-                            await _eventEmitter.EmitAsync(ModEvents.MOD_UNLOADED, data: new { Sha = modToUnload.SHA }).ConfigureAwait(false);
+                            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Sha = modToUnload.SHA }).ConfigureAwait(false);
                         }
                         else
                         {
@@ -254,7 +254,7 @@ public class ModFacade : BaseFacade, IModFacade
 
             // Note: IsLoaded is determined dynamically from file system, not stored in database
             // No need to call SetLoadedStateAsync (it's a no-op)
-            await _eventEmitter.EmitAsync(ModEvents.MOD_LOADED, data: new { Sha = sha }).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha }).ConfigureAwait(false);
 
             return new ModLoadResult
             {
@@ -282,7 +282,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         // Note: IsLoaded is determined dynamically from file system, not stored in database
         // No need to call SetLoadedStateAsync (it's a no-op)
-        await _eventEmitter.EmitAsync(ModEvents.MOD_UNLOADED, data: new { Sha = sha }).ConfigureAwait(false);
+        await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Sha = sha }).ConfigureAwait(false);
 
         return true;
     }
@@ -298,7 +298,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (mod != null)
         {
-            await _eventEmitter.EmitAsync(ModEvents.MOD_IMPORTED, data: mod).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.IMPORTED, mod).ConfigureAwait(false);
         }
 
         return mod;
@@ -315,7 +315,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(ModEvents.MOD_DELETED, data: new { Sha = sha, Mod = mod }).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Sha = sha, Mod = mod }).ConfigureAwait(false);
         }
 
         return success;
@@ -361,7 +361,7 @@ public class ModFacade : BaseFacade, IModFacade
         if (success)
         {
             var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-            await _eventEmitter.EmitAsync(ModEvents.METADATA_UPDATED, "mod.metadata.updated", new { sha, mod }).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.METADATA_UPDATED, new { sha, mod }).ConfigureAwait(false);
         }
 
         return success;
@@ -376,7 +376,7 @@ public class ModFacade : BaseFacade, IModFacade
             // Re-fetch the mod to get the updated IsLoaded state from file system
             var updatedMod = await GetModByIdAsync(sha).ConfigureAwait(false);
 
-            await _eventEmitter.EmitAsync(ModEvents.CATEGORY_UPDATED, "mod.category.updated", new { sha, category, mod = updatedMod }).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, new { sha, category, mod = updatedMod }).ConfigureAwait(false);
 
             // Refresh the classification tree cache to update counts
             await _classificationService.RefreshTreeAsync().ConfigureAwait(false);
@@ -395,7 +395,7 @@ public class ModFacade : BaseFacade, IModFacade
             var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
             if (mod != null)
             {
-                await _eventEmitter.EmitAsync(ModEvents.METADATA_UPDATED, "mod.metadata.updated", new { sha, mod }).ConfigureAwait(false);
+                await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.METADATA_UPDATED, new { sha, mod }).ConfigureAwait(false);
             }
         }
 
@@ -415,7 +415,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(ModEvents.PREVIEW_IMPORTED, "mod.preview.imported",
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED,
                 new { sha, imagePath }).ConfigureAwait(false);
         }
 
@@ -444,7 +444,7 @@ public class ModFacade : BaseFacade, IModFacade
             var previews = await _imageService.GetPreviewPathsAsync(sha).ConfigureAwait(false);
             var latestPreview = previews.LastOrDefault();
 
-            await _eventEmitter.EmitAsync(ModEvents.PREVIEW_IMPORTED, "mod.preview.imported",
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED,
                 new { sha, imagePath = latestPreview }).ConfigureAwait(false);
         }
 
@@ -471,7 +471,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(ModEvents.THUMBNAIL_UPDATED, "mod.thumbnail.updated",
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.THUMBNAIL_UPDATED,
                 new { sha, previewPath }).ConfigureAwait(false);
         }
 
@@ -491,7 +491,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(ModEvents.PREVIEW_DELETED, "mod.preview.deleted",
+            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_DELETED,
                 new { sha, previewPath }).ConfigureAwait(false);
         }
 
@@ -686,8 +686,8 @@ public class ModFacade : BaseFacade, IModFacade
         if (success)
         {
             await _eventEmitter.EmitAsync(
-                ModEvents.CLASSIFICATION_TREE_CHANGED,
-                data: new { nodeId, newParentId, dropPosition }).ConfigureAwait(false);
+                ModuleNames.MOD, ModEvents.CLASSIFICATION_TREE_CHANGED,
+                new { nodeId, newParentId, dropPosition }).ConfigureAwait(false);
         }
 
         return success;
@@ -718,8 +718,8 @@ public class ModFacade : BaseFacade, IModFacade
         if (node != null)
         {
             await _eventEmitter.EmitAsync(
-                ModEvents.CLASSIFICATION_TREE_CHANGED,
-                data: new { nodeId = node.Id, name, parentId, created = true }).ConfigureAwait(false);
+                ModuleNames.MOD, ModEvents.CLASSIFICATION_TREE_CHANGED,
+                new { nodeId = node.Id, name, parentId, created = true }).ConfigureAwait(false);
         }
 
         return node;
@@ -740,8 +740,8 @@ public class ModFacade : BaseFacade, IModFacade
         if (success)
         {
             await _eventEmitter.EmitAsync(
-                ModEvents.CLASSIFICATION_TREE_CHANGED,
-                data: new { nodeId, name, description, icon }).ConfigureAwait(false);
+                ModuleNames.MOD, ModEvents.CLASSIFICATION_TREE_CHANGED,
+                new { nodeId, name, description, icon }).ConfigureAwait(false);
         }
 
         return success;
@@ -759,8 +759,8 @@ public class ModFacade : BaseFacade, IModFacade
         if (success)
         {
             await _eventEmitter.EmitAsync(
-                ModEvents.CLASSIFICATION_TREE_CHANGED,
-                data: new { nodeId, deleted = true }).ConfigureAwait(false);
+                ModuleNames.MOD, ModEvents.CLASSIFICATION_TREE_CHANGED,
+                new { nodeId, deleted = true }).ConfigureAwait(false);
         }
 
         return success;

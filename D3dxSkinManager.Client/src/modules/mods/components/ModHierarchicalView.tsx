@@ -6,10 +6,7 @@ import { ModPreviewPanel } from "./ModPreviewPanel";
 import { ClassificationPanel } from "./ClassificationPanel";
 import { ModListPanel } from "./ModListPanel";
 import { ModEditScreen } from "./ModEditScreen/ModEditScreen";
-import { BatchEditDialog } from "./BatchEditDialog";
-import { AddModWindow } from "./AddModWindow";
-import { AddModUnit } from "./AddModUnit";
-import { BatchEditUnit } from "./BatchEditUnit";
+import { ModManagementScreen } from "./ModManagementScreen";
 import { useModsStore } from "../store/modsStore";
 import { useMods } from "../hooks/useMods";
 import { useProfile } from "../../../shared/context/ProfileContext";
@@ -154,9 +151,7 @@ export const ModHierarchicalView: React.FC = () => {
 
       {/* All dialogs/screens now subscribe to their own state - no props needed! */}
       <ModEditScreen />
-      <BatchEditDialog />
-      <AddModWindow />
-      <BatchEditUnit />
+      <ModManagementScreen />
     </>
   );
 };

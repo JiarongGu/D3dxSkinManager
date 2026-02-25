@@ -20,6 +20,10 @@ public class ModInfo
     public bool IsLoaded { get; set; }      // True if work directory exists without DISABLED- prefix
     public bool IsAvailable { get; set; }   // True if original archive file exists in mods folder
 
+    // Timestamps
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
     // Note: Preview paths and thumbnails are scanned dynamically from previews/{SHA}/ folder
     // Allows users to add preview images directly to folder
     // Use GET_PREVIEW_PATHS IPC call to retrieve them

@@ -2,24 +2,31 @@
 {
 
     /// <summary>
-    /// Event arguments passed to plugin event handlers.
+    /// Event message structure for event bus communication.
+    /// Follows the same pattern as IpcRequest for consistency.
     /// </summary>
     public class EventMessage
     {
         /// <summary>
-        /// Event type constant (SCREAMING_SNAKE_CASE string)
+        /// Unique identifier for the event
         /// </summary>
-        public string EventType { get; set; } = string.Empty;
+        public string Id { get; set; } = Guid.NewGuid().ToString();
 
         /// <summary>
-        /// Optional event name for CUSTOM_EVENT types
+        /// Module name that emitted the event (e.g., "CORE", "MOD", "TASK_QUEUE", "DROP_ZONE")
         /// </summary>
-        public string? EventName { get; set; }
+        public string Module { get; set; } = string.Empty;
 
         /// <summary>
-        /// Event data payload
+        /// Event type/name (SCREAMING_SNAKE_CASE string)
+        /// Examples: "APPLICATION_STARTED", "MOD_LOADED", "TASK_ADDED", "CLICK"
         /// </summary>
-        public object? Data { get; set; }
+        public string Type { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Event payload data
+        /// </summary>
+        public object? Payload { get; set; }
 
         /// <summary>
         /// Event timestamp

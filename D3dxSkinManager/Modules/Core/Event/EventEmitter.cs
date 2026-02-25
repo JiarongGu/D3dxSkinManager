@@ -1,3 +1,5 @@
+using D3dxSkinManager.Modules.Core.Helpers;
+
 namespace D3dxSkinManager.Modules.Core.Event;
 
 /// <summary>
@@ -10,10 +12,10 @@ public interface IEventEmitter
     /// Emits an event to the plugin event bus if available.
     /// Silently returns if event bus is not available.
     /// </summary>
-    /// <param name="eventType">Event type constant (SCREAMING_SNAKE_CASE)</param>
-    /// <param name="eventName">Optional event name for CUSTOM_EVENT types</param>
-    /// <param name="data">Event data payload</param>
-    Task EmitAsync(string eventType, string? eventName = null, object? data = null);
+    /// <param name="module">Module name (e.g., "CORE", "MOD", "TASK_QUEUE")</param>
+    /// <param name="type">Event type (SCREAMING_SNAKE_CASE)</param>
+    /// <param name="payload">Event payload data</param>
+    Task EmitAsync(string module, string type, object? payload = null);
 }
 
 /// <summary>
@@ -22,25 +24,25 @@ public interface IEventEmitter
 public class EventEmitter : IEventEmitter
 {
     private readonly IEventBus? _eventBus;
+    private readonly ILogHelper? _logger;
 
-    public EventEmitter(IEventBus? eventBus = null)
+    public EventEmitter(IEventBus? eventBus = null, ILogHelper? logger = null)
     {
         _eventBus = eventBus;
+        _logger = logger;
     }
 
     /// <inheritdoc />
-    public async Task EmitAsync(string eventType, string? eventName = null, object? data = null)
+    public async Task EmitAsync(string module, string type, object? payload = null)
     {
         if (_eventBus == null)
         {
+            _logger?.Warn($"[EventEmitter] Cannot emit {module}.{type} - EventBus is null", "EventEmitter");
             return;
         }
 
-        await _eventBus.EmitAsync(new EventMessage
-        {
-            EventType = eventType,
-            EventName = eventName,
-            Data = data
-        }).ConfigureAwait(false);
+        _logger?.Verbose($"[EventEmitter] Emitting event: {module}.{type}, HasPayload: {payload != null}", "EventEmitter");
+
+        await _eventBus.EmitAsync(module, type, payload).ConfigureAwait(false);
     }
 }

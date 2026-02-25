@@ -473,6 +473,58 @@ Located in `Plugins/` directory (external to backend):
 
 ---
 
+### TaskQueue Module
+
+**📖 Detailed Documentation:** [features/TASK_QUEUE_SYSTEM.md](../features/TASK_QUEUE_SYSTEM.md)
+
+#### Facade
+
+- **TaskQueueFacade** → `Modules/TaskQueue/TaskQueueFacade.cs`
+  - IPC routing for task operations
+  - Handles ADD_TASK, PROCESS_NEXT, CANCEL_TASK, etc.
+
+#### Services
+
+- **ITaskQueueService** → `Modules/TaskQueue/Services/ITaskQueueService.cs`
+- **TaskQueueService** → `Modules/TaskQueue/Services/TaskQueueService.cs`
+  - Task queue orchestration, sequential processing, chain management
+
+- **ITaskProcessor<TInput, TOutput>** → `Modules/TaskQueue/Services/ITaskProcessor.cs`
+  - Interface for task processor implementations
+
+- **EventProgressReporter** → `Modules/TaskQueue/Services/EventProgressReporter.cs`
+  - Progress event emission to frontend
+
+#### Task Processors
+
+- **CompressFolderTaskProcessor** → `Modules/TaskQueue/Services/CompressFolderTaskProcessor.cs`
+  - Phase 1 of folder import: compress to temp directory
+
+- **ImportFromTempTaskProcessor** → `Modules/TaskQueue/Services/ImportFromTempTaskProcessor.cs`
+  - Phase 2 of folder import: import with metadata
+
+- **ModImportTaskProcessor** → `Modules/TaskQueue/Services/ModImportTaskProcessor.cs`
+  - Direct archive import (single-phase)
+
+#### Models
+
+- **TaskInfo** → `Modules/TaskQueue/Models/TaskInfo.cs`
+  - Task metadata, status, progress, chain context
+
+- **TaskChainContext** → `Modules/TaskQueue/Models/TaskChainContext.cs`
+  - Chain workflow configuration (correlation, phase tracking, user action)
+
+- **TaskStatus** → `Modules/TaskQueue/Models/TaskStatus.cs`
+  - Enum: Pending, Processing, Completed, Failed, Cancelled, AwaitingConfirmation
+
+#### Events
+
+- **TaskQueueEvents** → `Modules/TaskQueue/TaskQueueEvents.cs`
+  - TASK_ADDED, TASK_STARTED, TASK_PROGRESS, TASK_COMPLETED, TASK_FAILED, TASK_CANCELLED, TASK_REMOVED, TASK_AWAITING_CONFIRMATION
+  - ⚠️ Must be registered in `CoreEvents.All` for IPC forwarding!
+
+---
+
 ## Shared Models
 
 - **MessageRequest** → `Models/MessageRequest.cs:3`

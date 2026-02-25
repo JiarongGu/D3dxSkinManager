@@ -12,6 +12,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-25 - Strong Typing: Module-Matched Event Types & Removed Legacy Operation System ⭐⭐⭐⭐
+Enhanced event subscription with module-to-event-type matching, preventing mismatched module/event combinations at compile-time. Removed obsolete operation notification system (replaced by TaskQueue).
+**Impact**: ✅ Impossible to use wrong event types with modules, removed ~400 lines of unused code, cleaner architecture
+**TypeScript Type Safety**:
+- **ModuleEventTypeMap**: Maps each module to its valid event type enum
+- **useEventSubscription**: Now enforces `T extends ModuleEventTypeMap[M]` - event type MUST match the module
+- **Compile-time errors**: Prevents `Module.MOD` with `TaskQueueEventType`, prevents string literals
+- **IntelliSense support**: IDE autocomplete shows only valid event types for each module
+**Removed Legacy System**:
+- Deleted `OperationContext.tsx` - replaced by TaskQueue system
+- Deleted `operation.types.ts` - no longer needed
+- Deleted `OperationMonitorScreen.tsx` - functionality in TaskQueue
+- Deleted `OPERATION_NOTIFICATION_SYSTEM.md` - obsolete documentation
+- Removed `OperationProvider` from App.tsx
+- Removed operation-based status bar props (operationName, activeOperationCount, onProgressClick)
+- Removed operation monitor keyboard shortcut (Ctrl+Shift+O)
+**Type Safety Examples**:
+```typescript
+// ✅ CORRECT: Module.MOD requires ModEventType
+useEventSubscription(Module.MOD, ModEventType.REFRESHED, () => { ... });
+
+// ❌ WRONG: String literal - TypeScript error
+useEventSubscription(Module.MOD, 'REFRESHED', () => { ... });
+
+// ❌ WRONG: Mismatched module/type - TypeScript error
+useEventSubscription(Module.MOD, TaskQueueEventType.PROGRESS, () => { ... });
+```
+**Files**: eventBus.ts (+ModuleEventTypeMap), useEventSubscription.ts, App.tsx, OPERATION_NOTIFICATION_SYSTEM.md (deleted), OperationContext.tsx (deleted), operation.types.ts (deleted), OperationMonitorScreen.tsx (deleted)
+**Pattern**: Compile-time type safety over runtime checks, TaskQueue system for progress tracking
+**Documentation**: Updated AI_GUIDE.md with ModuleEventTypeMap examples
+
+### Refactored - 2026-02-25 - Event System: Module + Type Pattern & Handler-Centric Performance Cache ⭐⭐⭐⭐⭐
+Completely refactored event system to use Module + Type pattern (matching IpcRequest structure), implemented handler-centric lazy caching for optimal performance, and removed all CUSTOM_EVENT usage for explicit type safety.
+**Impact**: ✅ Consistent architecture across IPC/Events, O(1) cached lookups, thread-safe with ConcurrentDictionary, full TypeScript type safety
+**Architecture Changes**:
+- **Module + Type Pattern**: Events now have separate `Module` and `Type` fields (e.g., `MOD` + `LOADED` instead of `"MOD_LOADED"`)
+- **No Module Prefixes**: Event type constants have NO module prefix (`LOADED` not `MOD_LOADED`, `PROGRESS` not `TASK_PROGRESS`)
+- **Handler-Centric Cache**: `ConcurrentDictionary<HandlerId, ConcurrentDictionary<EventId, bool>>` for lazy evaluation
+- **CUSTOM_EVENT Removed**: Every event now has explicit module and type
+**Backend Changes**:
+- EventMessage: Refactored from `{EventType, EventName, Data}` to `{Id, Module, Type, Payload, Timestamp}`
+- EventBus: Changed from 1-parameter to 2-parameter registration `RegisterHandler(modulePattern, typePattern, handler)`
+- EventBus: Handler-centric cache with no invalidation on registration, single TryRemove on unregistration
+- ModuleNames.cs: Created centralized module name constants (CORE, MOD, TASK_QUEUE, DROP_ZONE, etc.)
+- Event constants: Removed module prefixes from all event types (ModEvents.LOADED, TaskQueueEvents.PROGRESS, DropZoneEvents.CLICK)
+- IpcCommunicationHandler.SendNotification: Changed signature to `(module, type, payload)` from `(type, data)`
+- EventBusIpcBridge: Updated to call SendNotification with module and type at top level
+- DropZoneOverlay: Updated all 6 event emissions to use Module + Type pattern
+- ProfileEvents, MigrationEvents, ToolsEvents: Replaced CUSTOM_EVENT with explicit event types
+- Removed: ContextEvents.cs (duplicate), PluginEvents.cs (plugins use dynamic names)
+**Frontend Changes**:
+- Event interface: Changed from `{type, data}` to `{module, type, payload}`
+- Module enum: Added separate Module enum with all module names
+- Event type enums: Separate enums per module (CoreEventType, ModEventType, TaskQueueEventType, etc.)
+- EventPayloadMap: Type-safe payload mapping for compile-time checking
+- eventBus.subscribe: Changed to 2-parameter `(module, type, handler)` from `(type, handler)`
+- bridgeService: Updated to extract `{module, type, payload}` from top level (not nested in data)
+- All components: Updated to use Module + specific event type enums
+**Performance Optimization**:
+- Cache Structure: Handler → (Event → matches: bool) enables lazy evaluation
+- First emit: Pattern matching + cache store per handler
+- Subsequent emits: O(1) cache lookup per handler
+- Registration: Create empty cache (no iteration/invalidation)
+- Unregistration: Single TryRemove operation
+- Thread-safe: All operations use ConcurrentDictionary
+**Files**: EventBus.cs, EventMessage.cs, EventEmitter.cs, ModuleNames.cs, EventBusIpcBridge.cs, IpcCommunicationHandler.cs, DropZoneOverlay.cs, ModEvents.cs, TaskQueueEvents.cs, ProfileEvents.cs, MigrationEvents.cs, ToolsEvents.cs, SettingsEvents.cs, ModFacade.cs, TaskQueueService.cs, ProfileFacade.cs, MigrationFacade.cs, ToolsFacade.cs, eventBus.ts, bridgeService.ts, useEventSubscription.ts
+**Pattern**: Module + Type consistency across IPC/Events, lazy handler-centric caching, explicit types over CUSTOM_EVENT
+**Documentation**: Updated AI_GUIDE.md with complete event system patterns, EventBus performance details, Module + Type examples
+
 ### Refactored - 2026-02-25 - ModFacade Cleanup: Remove Obsolete Message Types and Add Clipboard Check ⭐⭐⭐
 Removed legacy pre-classification and unused message types, migrated to modern classification tree system, and added clipboard image validation to prevent errors.
 **Impact**: ✅ 25.3% ModFacade size reduction (1,208→902 lines), cleaner architecture, better UX for paste operations

@@ -24,6 +24,8 @@
 }
 
 .mod-list-panel-search-bar {
+  display: flex;
+  gap: 8px;
   padding: 8px;
   border-bottom: 1px solid var(--color-border-secondary);
   flex-shrink: 0;

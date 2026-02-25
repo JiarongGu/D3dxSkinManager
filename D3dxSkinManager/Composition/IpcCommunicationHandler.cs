@@ -46,7 +46,8 @@ public class IpcCommunicationHandler
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             PropertyNameCaseInsensitive = true,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
         };
     }
 
@@ -223,7 +224,7 @@ public class IpcCommunicationHandler
     /// <summary>
     /// Send a push notification to React (not in response to a request)
     /// </summary>
-    public void SendNotification(string type, object? data = null)
+    public void SendNotification(string module, string type, object? payload = null)
     {
         try
         {
@@ -232,8 +233,9 @@ public class IpcCommunicationHandler
             {
                 category = "notification",
                 id = notificationId,
+                module = module,
                 type = type,
-                data = data,
+                payload = payload,
                 timestamp = DateTime.UtcNow
             };
 
@@ -252,7 +254,7 @@ public class IpcCommunicationHandler
                 _webView.CoreWebView2.PostWebMessageAsString(json);
             }
 
-            _logger.Verbose($"Sent notification [{notificationId}]: {type}", "IPC");
+            _logger.Verbose($"Sent notification [{notificationId}]: {module}.{type}", "IPC");
         }
         catch (Exception ex)
         {

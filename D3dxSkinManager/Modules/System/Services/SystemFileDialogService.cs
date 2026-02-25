@@ -51,36 +51,8 @@ public class SystemFileDialogService : ISystemFileDialogService
         // Load initial path BEFORE showing dialog
         var initialPath = await GetInitialPathAsync(options).ConfigureAwait(false);
 
-        // Try to use the main form's UI thread if available
-        if (Application.OpenForms.Count > 0)
-        {
-            var mainForm = Application.OpenForms[0]!; // OpenForms[0] is guaranteed non-null when Count > 0
-            if (mainForm.InvokeRequired)
-            {
-                // Use TaskCompletionSource to properly bridge synchronous Invoke with async
-                var tcs = new TaskCompletionSource<FileDialogResult>();
-                mainForm.BeginInvoke(new Action(() =>
-                {
-                    try
-                    {
-                        var result = ShowOpenFileDialog(options, initialPath);
-                        tcs.SetResult(result);
-                    }
-                    catch (Exception ex)
-                    {
-                        tcs.SetException(ex);
-                    }
-                }));
-                return await tcs.Task.ConfigureAwait(false);
-            }
-            else
-            {
-                // We're already on the UI thread
-                return ShowOpenFileDialog(options, initialPath);
-            }
-        }
-
-        // Fallback: create new STA thread if no forms available
+        // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
+        // This ensures the dialog runs on a dedicated STA thread separate from WebView2
         return await RunInStaThread(() => ShowOpenFileDialog(options, initialPath));
     }
 
@@ -148,36 +120,8 @@ public class SystemFileDialogService : ISystemFileDialogService
         // Load initial path BEFORE showing dialog
         var initialPath = await GetInitialPathAsync(options).ConfigureAwait(false);
 
-        // Try to use the main form's UI thread if available
-        if (Application.OpenForms.Count > 0)
-        {
-            var mainForm = Application.OpenForms[0]!; // OpenForms[0] is guaranteed non-null when Count > 0
-            if (mainForm.InvokeRequired)
-            {
-                // Use TaskCompletionSource to properly bridge synchronous Invoke with async
-                var tcs = new TaskCompletionSource<FileDialogResult>();
-                mainForm.BeginInvoke(new Action(() =>
-                {
-                    try
-                    {
-                        var result = ShowFolderDialog(options, initialPath);
-                        tcs.SetResult(result);
-                    }
-                    catch (Exception ex)
-                    {
-                        tcs.SetException(ex);
-                    }
-                }));
-                return await tcs.Task.ConfigureAwait(false);
-            }
-            else
-            {
-                // We're already on the UI thread
-                return ShowFolderDialog(options, initialPath);
-            }
-        }
-
-        // Fallback: create new STA thread if no forms available
+        // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
+        // This ensures the dialog runs on a dedicated STA thread separate from WebView2
         return await RunInStaThread(() => ShowFolderDialog(options, initialPath));
     }
 
@@ -231,36 +175,8 @@ public class SystemFileDialogService : ISystemFileDialogService
         // Load initial path BEFORE showing dialog
         var initialPath = await GetInitialPathAsync(options).ConfigureAwait(false);
 
-        // Try to use the main form's UI thread if available
-        if (Application.OpenForms.Count > 0)
-        {
-            var mainForm = Application.OpenForms[0]!; // OpenForms[0] is guaranteed non-null when Count > 0
-            if (mainForm.InvokeRequired)
-            {
-                // Use TaskCompletionSource to properly bridge synchronous Invoke with async
-                var tcs = new TaskCompletionSource<FileDialogResult>();
-                mainForm.BeginInvoke(new Action(() =>
-                {
-                    try
-                    {
-                        var result = ShowSaveFileDialog(options, initialPath);
-                        tcs.SetResult(result);
-                    }
-                    catch (Exception ex)
-                    {
-                        tcs.SetException(ex);
-                    }
-                }));
-                return await tcs.Task.ConfigureAwait(false);
-            }
-            else
-            {
-                // We're already on the UI thread
-                return ShowSaveFileDialog(options, initialPath);
-            }
-        }
-
-        // Fallback: create new STA thread if no forms available
+        // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
+        // This ensures the dialog runs on a dedicated STA thread separate from WebView2
         return await RunInStaThread(() => ShowSaveFileDialog(options, initialPath));
     }
 

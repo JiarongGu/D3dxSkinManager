@@ -13,7 +13,8 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { ClassificationNode } from '../../../shared/types/classification.types';
-import { ImportTask } from '../components/AddModWindow';
+import { ImportTask } from '../types/importTask.types';
+import { ModManagementMode } from '../components/ModManagementScreen';
 
 // ============================================================================
 // State Interface
@@ -48,17 +49,12 @@ export interface ModsState {
   expandedKeys: React.Key[];
   searchQuery: string;
   editDialogVisible: boolean;
-  tagDialogVisible: boolean;
-  batchEditDialogVisible: boolean;
-  importWindowVisible: boolean;
-  addModUnitVisible: boolean;
-  batchEditUnitVisible: boolean;
-  addModWindowVisible: boolean;
   modToEdit: ModInfo | undefined;
-  currentTags: string[];
-  currentEditTask: ImportTask | undefined;
-  tagDialogContext: 'mod' | 'import';
   availableTags: string[];
+
+  // ModManagementScreen - Import queue state
+  modManagementScreenVisible: boolean;
+  modManagementMode: ModManagementMode; // Currently only 'import' mode
 }
 
 // ============================================================================
@@ -111,19 +107,10 @@ export interface ModsActions {
   setAvailableTags: (tags: string[]) => void;
   openEditDialog: (mod: ModInfo) => void;
   closeEditDialog: () => void;
-  openTagDialog: (context: 'mod' | 'import', initialTags: string[], task?: ImportTask) => void;
-  closeTagDialog: () => void;
-  saveTagsForImport: (tags: string[]) => void;
-  openBatchEditDialog: (mods: ModInfo[]) => void;
-  closeBatchEditDialog: () => void;
-  openAddModWindow: () => void;
-  closeAddModWindow: () => void;
-  openAddModUnit: (task: ImportTask) => void;
-  closeAddModUnit: () => void;
-  saveAddModUnit: (task: ImportTask) => void;
-  openBatchEditUnit: (taskIds: string[]) => void;
-  closeBatchEditUnit: () => void;
-  saveBatchEditUnit: (data: Partial<ModInfo>) => void;
+
+  // ModManagementScreen Actions
+  openModManagementScreen: () => void;
+  closeModManagementScreen: () => void;
 
   // Global Actions
   reset: () => void;
@@ -164,17 +151,12 @@ const initialState: ModsState = {
   expandedKeys: [],
   searchQuery: '',
   editDialogVisible: false,
-  tagDialogVisible: false,
-  batchEditDialogVisible: false,
-  importWindowVisible: false,
-  addModUnitVisible: false,
-  batchEditUnitVisible: false,
-  addModWindowVisible: false,
   modToEdit: undefined,
-  currentTags: [],
-  currentEditTask: undefined,
-  tagDialogContext: 'mod',
   availableTags: [],
+
+  // ModManagementScreen
+  modManagementScreenVisible: false,
+  modManagementMode: 'import',
 };
 
 // ============================================================================
@@ -481,90 +463,21 @@ export const useModsStore = create<ModsStore>()(
           state.modToEdit = undefined;
         }),
 
-      openTagDialog: (context, initialTags, task) =>
+      // ============================================================
+      // ModManagementScreen Actions
+      // ============================================================
+
+      openModManagementScreen: () =>
         set((state) => {
-          state.tagDialogVisible = true;
-          state.tagDialogContext = context;
-          state.currentTags = initialTags;
-          state.currentEditTask = task;
+          state.modManagementScreenVisible = true;
+          state.modManagementMode = 'import';
         }),
 
-      closeTagDialog: () =>
+      closeModManagementScreen: () =>
         set((state) => {
-          state.tagDialogVisible = false;
-          state.currentTags = [];
-          state.currentEditTask = undefined;
-        }),
-
-      saveTagsForImport: (tags) =>
-        set((state) => {
-          state.currentTags = tags;
-          state.tagDialogVisible = false;
-        }),
-
-      openBatchEditDialog: (mods) =>
-        set((state) => {
-          state.batchEditDialogVisible = true;
-        }),
-
-      closeBatchEditDialog: () =>
-        set((state) => {
-          state.batchEditDialogVisible = false;
-        }),
-
-      openAddModWindow: () =>
-        set((state) => {
-          state.addModWindowVisible = true;
-        }),
-
-      closeAddModWindow: () =>
-        set((state) => {
-          state.addModWindowVisible = false;
-        }),
-
-      openAddModUnit: (task) =>
-        set((state) => {
-          state.addModUnitVisible = true;
-          state.currentEditTask = task;
-        }),
-
-      closeAddModUnit: () =>
-        set((state) => {
-          state.addModUnitVisible = false;
-          state.currentEditTask = undefined;
-        }),
-
-      saveAddModUnit: (task) =>
-        set((state) => {
-          state.importTasks = state.importTasks.map((t: ImportTask) =>
-            t.id === task.id ? task : t
-          );
-          state.addModUnitVisible = false;
-          state.currentEditTask = undefined;
-        }),
-
-      openBatchEditUnit: (taskIds) =>
-        set((state) => {
-          state.batchEditUnitVisible = true;
-          state.selectedTaskIds = taskIds;
-        }),
-
-      closeBatchEditUnit: () =>
-        set((state) => {
-          state.batchEditUnitVisible = false;
-        }),
-
-      saveBatchEditUnit: (data) =>
-        set((state) => {
-          state.selectedTaskIds.forEach((taskId: string) => {
-            const task = state.importTasks.find((t: ImportTask) => t.id === taskId);
-            if (task) {
-              Object.keys(data).forEach((key) => {
-                (task.modData as any)[key] = (data as any)[key];
-              });
-            }
-          });
-          state.batchEditUnitVisible = false;
+          state.modManagementScreenVisible = false;
+          // Reset selection when closing
+          state.selectedTaskIds = [];
         }),
 
       // ============================================================

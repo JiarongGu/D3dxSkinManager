@@ -1,6 +1,6 @@
 # AI Assistant Guide
 
-**Version:** 2.2
+**Version:** 2.3
 **Last Updated:** 2026-02-25
 **Critical:** NEVER commit without explicit user approval!
 
@@ -199,132 +199,289 @@ public class ModFacade : IModFacade {
 
 ### IPC Event Notifications
 
-**CRITICAL: Event Naming Convention**
+**CRITICAL: Module + Type Pattern (Mirrors IpcRequest)**
 
-All IPC notifications use **SCREAMING_SNAKE_CASE constants** defined at **module level**:
+All events use **Module + Type pattern** matching IpcRequest structure. Events have NO module prefixes in type names.
+
+#### Backend Event System
 
 ```csharp
-// Backend: Define event constants at module level
-// Example: Composition/DropZoneEvents.cs
-namespace D3dxSkinManager.Composition;
-
-public static class DropZoneEvents
+// Event Structure (Modules/Core/Event/EventMessage.cs)
+public class EventMessage
 {
-    public const string CLICK = "DROP_ZONE_CLICK";
-    public const string DRAG_ENTER = "DROP_ZONE_DRAG_ENTER";
-    public const string DRAG_LEAVE = "DROP_ZONE_DRAG_LEAVE";
-    public const string FILE_DROP = "DROP_ZONE_FILE_DROP";
-    public const string MOUSE_ENTER = "DROP_ZONE_MOUSE_ENTER";
-    public const string MOUSE_LEAVE = "DROP_ZONE_MOUSE_LEAVE";
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Module { get; set; } = string.Empty;  // e.g., "MOD", "TASK_QUEUE"
+    public string Type { get; set; } = string.Empty;    // e.g., "LOADED", "PROGRESS"
+    public object? Payload { get; set; }
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }
 
-// Example: Modules/Mods/ModEvents.cs
-namespace D3dxSkinManager.Modules.Mods;
+// Module Names (Modules/Core/Event/ModuleNames.cs)
+public static class ModuleNames
+{
+    public const string CORE = "CORE";
+    public const string DROP_ZONE = "DROP_ZONE";
+    public const string MOD = "MOD";
+    public const string PROFILE = "PROFILE";
+    public const string TASK_QUEUE = "TASK_QUEUE";
+    public const string SETTINGS = "SETTINGS";
+    public const string MIGRATION = "MIGRATION";
+    public const string TOOLS = "TOOLS";
+    public const string PLUGINS = "PLUGINS";
+}
 
+// Event Type Constants - NO module prefix!
+// Example: Modules/Mods/ModEvents.cs
 public static class ModEvents
 {
-    public const string MOD_LOADED = "MOD_LOADED";
-    public const string MOD_UNLOADED = "MOD_UNLOADED";
-    public const string MOD_DELETED = "MOD_DELETED";
+    public const string LOADED = "LOADED";                  // NOT "MOD_LOADED"
+    public const string UNLOADED = "UNLOADED";
+    public const string DELETED = "DELETED";
+    public const string IMPORTED = "IMPORTED";
     public const string CLASSIFICATION_TREE_CHANGED = "CLASSIFICATION_TREE_CHANGED";
-    public const string CUSTOM_EVENT = "CUSTOM_EVENT";
 }
 
-// Core events (Modules/Core/Event/CoreEvents.cs)
+// Example: Modules/TaskQueue/TaskQueueEvents.cs
+public static class TaskQueueEvents
+{
+    public const string ADDED = "ADDED";                    // NOT "TASK_ADDED"
+    public const string STARTED = "STARTED";
+    public const string PROGRESS = "PROGRESS";
+    public const string COMPLETED = "COMPLETED";
+}
+
+// Example: Composition/DropZoneEvents.cs
+public static class DropZoneEvents
+{
+    public const string CLICK = "CLICK";                    // NOT "DROP_ZONE_CLICK"
+    public const string DRAG_ENTER = "DRAG_ENTER";
+    public const string FILE_DROP = "FILE_DROP";
+}
+
+// Core Events (Modules/Core/Event/CoreEvents.cs)
+// ⚠️ CRITICAL: Only application lifecycle events
 public static class CoreEvents
 {
     public const string APPLICATION_STARTED = "APPLICATION_STARTED";
     public const string APPLICATION_SHUTDOWN = "APPLICATION_SHUTDOWN";
-    public const string MOD_LOADED = "MOD_LOADED";
-    // ... etc
-
-    public static readonly string[] All = new[] { APPLICATION_STARTED, APPLICATION_SHUTDOWN, ... };
+    public const string LOG_LEVEL_CHANGED = "LOG_LEVEL_CHANGED";
 }
 
-// ✅ CORRECT: Use module-level constants
-_ipcHandler.SendNotification(DropZoneEvents.CLICK, new { zoneId, position });
-_eventEmitter.EmitAsync(ModEvents.MOD_LOADED, data: new { Sha = sha });
+// ✅ CORRECT: Emit with Module + Type
+await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha });
+await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.PROGRESS, progressData);
+_ipcHandler.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.CLICK, new { zoneId, position });
 
-// ❌ WRONG: Don't use string literals
+// ❌ WRONG: Don't use string literals or old pattern
+await _eventEmitter.EmitAsync("MOD_LOADED", data: new { Sha = sha });
 _ipcHandler.SendNotification("DROP_ZONE_CLICK", new { zoneId, position });
-_eventEmitter.EmitAsync("MOD_LOADED", data: new { Sha = sha });
 ```
 
-```typescript
-// Frontend: EventType enum maps notification names (all SCREAMING_SNAKE_CASE)
-export enum EventType {
-  // Standard events: PascalCase = SCREAMING_SNAKE_CASE
-  ApplicationStarted = 'APPLICATION_STARTED',
-  ModLoaded = 'MOD_LOADED',
-  ClassificationTreeChanged = 'CLASSIFICATION_TREE_CHANGED',
+#### Frontend Event System
 
-  // Custom notifications: PascalCase = SCREAMING_SNAKE_CASE
-  DropZoneClick = 'DROP_ZONE_CLICK',
-  DropZoneDragEnter = 'DROP_ZONE_DRAG_ENTER',
-  DropZoneDragLeave = 'DROP_ZONE_DRAG_LEAVE',
-  DropZoneFileDrop = 'DROP_ZONE_FILE_DROP',
-  DropZoneMouseEnter = 'DROP_ZONE_MOUSE_ENTER',
-  DropZoneMouseLeave = 'DROP_ZONE_MOUSE_LEAVE',
+```typescript
+// Event Structure (src/shared/services/eventBus.ts)
+export enum Module {
+  CORE = 'CORE',
+  MOD = 'MOD',
+  TASK_QUEUE = 'TASK_QUEUE',
+  DROP_ZONE = 'DROP_ZONE',
+  SETTINGS = 'SETTINGS',
+  PROFILE = 'PROFILE',
+  MIGRATION = 'MIGRATION',
+  TOOLS = 'TOOLS',
+  PLUGINS = 'PLUGINS',
 }
 
-// ✅ CORRECT: Subscribe using the EventType enum
-import { eventBus, EventType } from '../services/eventBus';
+// Separate enums per module - NO module prefix!
+export enum CoreEventType {
+  APPLICATION_STARTED = 'APPLICATION_STARTED',
+  APPLICATION_SHUTDOWN = 'APPLICATION_SHUTDOWN',
+  LOG_LEVEL_CHANGED = 'LOG_LEVEL_CHANGED',
+}
 
-eventBus.on(EventType.DropZoneClick, (event) => {
-  console.log(event.data);  // { zoneId, position }
+export enum ModEventType {
+  LOADED = 'LOADED',                          // NOT 'MOD_LOADED'
+  UNLOADED = 'UNLOADED',
+  DELETED = 'DELETED',
+  IMPORTED = 'IMPORTED',
+  CLASSIFICATION_TREE_CHANGED = 'CLASSIFICATION_TREE_CHANGED',
+}
+
+export enum TaskQueueEventType {
+  ADDED = 'ADDED',                            // NOT 'TASK_ADDED'
+  STARTED = 'STARTED',
+  PROGRESS = 'PROGRESS',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum DropZoneEventType {
+  CLICK = 'CLICK',                            // NOT 'DROP_ZONE_CLICK'
+  DRAG_ENTER = 'DRAG_ENTER',
+  FILE_DROP = 'FILE_DROP',
+}
+
+// Type-safe payload mapping
+export interface EventPayloadMap {
+  [Module.MOD]: {
+    [ModEventType.LOADED]: { sha: string };
+    [ModEventType.IMPORTED]: ModInfo;
+    [ModEventType.DELETED]: { sha: string; mod: ModInfo };
+  };
+  [Module.TASK_QUEUE]: {
+    [TaskQueueEventType.PROGRESS]: { taskId: string; progress: number; message?: string };
+    [TaskQueueEventType.COMPLETED]: TaskInfo;
+  };
+  // ... etc
+}
+
+// Event interface with typed payload
+export interface Event<M extends Module = Module, T extends string = string> {
+  module: M;
+  type: T;
+  payload?: M extends keyof EventPayloadMap
+    ? T extends keyof EventPayloadMap[M]
+      ? EventPayloadMap[M][T]
+      : unknown
+    : unknown;
+}
+
+// ✅ CORRECT: Subscribe with Module + Type
+import { eventBus, Module, ModEventType } from '../services/eventBus';
+
+eventBus.subscribe(Module.MOD, ModEventType.LOADED, (event) => {
+  console.log(event.payload.sha);  // Type-safe!
 });
 
-// ❌ WRONG: Don't use string literals
-eventBus.on('DROP_ZONE_CLICK', (event) => {  // Type-unsafe, avoid!
+eventBus.subscribe(Module.TASK_QUEUE, TaskQueueEventType.PROGRESS, (event) => {
+  const { taskId, progress } = event.payload;  // Type-safe!
+});
+
+// ❌ WRONG: Don't use old pattern
+eventBus.on(EventType.ModLoaded, (event) => {  // Old pattern, deprecated
   console.log(event.data);
 });
 ```
 
-**When to Add New Event Types:**
+#### Event Flow Architecture
 
-1. **Create/Update module event constants file** → e.g., `Modules/YourModule/YourModuleEvents.cs`
+```
+Backend Emit:
+  EventEmitter.EmitAsync(module, type, payload)
+    ↓
+  EventBus.EmitAsync(EventMessage { Module, Type, Payload })
+    ├─→ Handler-Centric Cache (ConcurrentDictionary<HandlerId, Dict<EventId, bool>>)
+    ├─→ Lazy evaluation per handler per event
+    └─→ All matching handlers invoked
+    ↓
+  EventBusIpcBridge (subscribes to "*", "*" wildcard)
+    ↓
+  IpcHandler.SendNotification(module, type, payload)
+    ↓
+  WebView2 IPC: { category: "notification", module, type, payload }
+
+Frontend Receive:
+  bridgeService receives IPC message
+    ↓
+  Extracts { module, type, payload } from parsed
+    ↓
+  eventBus.emit({ module, type, payload })
+    ↓
+  Type-safe subscribers receive event
+```
+
+#### EventBus Performance Optimization
+
+The EventBus uses a **handler-centric cache** for optimal performance:
+
+```csharp
+// Cache Structure: HandlerId → (EventId → matches: bool)
+private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, bool>> _handlerEventCache;
+
+// Benefits:
+// 1. No cache invalidation on handler registration
+// 2. Lazy evaluation - each handler evaluates each event only once
+// 3. O(1) lookups for cached handler+event combinations
+// 4. Single TryRemove operation for handler unregistration
+// 5. Thread-safe with ConcurrentDictionary
+```
+
+**Performance Characteristics:**
+- **First emit of event**: Pattern matching + cache store per handler
+- **Subsequent emits**: O(1) cache lookup per handler
+- **Register handler**: Create empty cache (no iteration)
+- **Unregister handler**: Single `TryRemove` operation
+
+#### Adding New Event Types
+
+1. **Define event constants** (NO module prefix in type names):
    ```csharp
+   // Modules/YourModule/YourModuleEvents.cs
    public static class YourModuleEvents
    {
-       public const string NEW_EVENT = "NEW_EVENT";
+       public const string NEW_EVENT = "NEW_EVENT";  // NOT "YOUR_MODULE_NEW_EVENT"
    }
    ```
 
-2. **Frontend EventType enum** → Add matching entry in `eventBus.ts`
+2. **Emit events using Module + Type**:
+   ```csharp
+   await _eventEmitter.EmitAsync(
+       ModuleNames.YOUR_MODULE,
+       YourModuleEvents.NEW_EVENT,
+       new { /* payload */ }
+   );
+   ```
+
+3. **Add to ModuleNames if new module**:
+   ```csharp
+   public static class ModuleNames
+   {
+       public const string YOUR_MODULE = "YOUR_MODULE";
+   }
+   ```
+
+4. **Frontend: Add module enum** (if new module):
    ```typescript
-   export enum EventType {
-       NewEvent = 'NEW_EVENT',  // PascalCase = SCREAMING_SNAKE_CASE
+   export enum Module {
+       YOUR_MODULE = 'YOUR_MODULE',
    }
    ```
 
-3. **If core system event** → Add to `CoreEvents.All` array for automatic EventBusIpcBridge subscription
+5. **Frontend: Add event type enum**:
+   ```typescript
+   export enum YourModuleEventType {
+       NEW_EVENT = 'NEW_EVENT',
+   }
+   ```
 
-4. **Document in this guide** to maintain consistency
+6. **Frontend: Add to EventPayloadMap** (for type safety):
+   ```typescript
+   export interface EventPayloadMap {
+       [Module.YOUR_MODULE]: {
+           [YourModuleEventType.NEW_EVENT]: { /* payload type */ };
+       };
+   }
+   ```
 
-**Module Event Constants Files:**
-- `Composition/DropZoneEvents.cs` - Drop zone events
+#### Module Event Constants Files
+
+- `Modules/Core/Event/CoreEvents.cs` - Core lifecycle events
 - `Modules/Mods/ModEvents.cs` - Mod operation events
+- `Modules/TaskQueue/TaskQueueEvents.cs` - Task queue events
 - `Modules/Profiles/ProfileEvents.cs` - Profile events
-- `Modules/Tools/ToolsEvents.cs` - Tools events
+- `Modules/Settings/SettingsEvents.cs` - Settings events
 - `Modules/Migration/MigrationEvents.cs` - Migration events
-- `Modules/Context/ContextEvents.cs` - Context lifecycle events
-- `Modules/Plugins/PluginEvents.cs` - Plugin events
-- `Modules/Core/Event/CoreEvents.cs` - Core system events
+- `Modules/Tools/ToolsEvents.cs` - Tools events
+- `Composition/DropZoneEvents.cs` - Drop zone events
 
-**Naming Pattern:**
-- Backend constant: `DROP_ZONE_CLICK` → Frontend enum: `DropZoneClick = 'DROP_ZONE_CLICK'`
-- Both use SCREAMING_SNAKE_CASE strings for the actual event name
-- Frontend enum keys use PascalCase for TypeScript convention
-- Module event class naming: `{ModuleName}Events` (e.g., `ModEvents`, `DropZoneEvents`)
-
-**Event Structure:**
-```typescript
-interface Event<T = unknown> {
-  type: EventType;      // Matches EventType enum value
-  eventName?: string;   // For CustomEvent only
-  data?: T;            // Event payload
-}
-```
+**Key Principles:**
+- ✅ Module names are uppercase with underscores (TASK_QUEUE, DROP_ZONE)
+- ✅ Event type names have NO module prefix (LOADED, not MOD_LOADED)
+- ✅ Events are emitted as (Module, Type, Payload)
+- ✅ Frontend subscribes with (module, type, handler)
+- ✅ Full type safety with EventPayloadMap
+- ❌ NEVER use CUSTOM_EVENT - every event has explicit module and type
+- ❌ NEVER use string literals - always use constants/enums
 
 ### State Management Pattern (Zustand)
 

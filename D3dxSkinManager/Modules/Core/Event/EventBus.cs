@@ -1,15 +1,18 @@
 using D3dxSkinManager.Modules.Core.Helpers;
+using System.Collections.Concurrent;
 
 namespace D3dxSkinManager.Modules.Core.Event;
 
 
 public interface IEventBus
 {
-    string RegisterHandler(string eventType, Func<EventMessage, Task> handler);
+    string RegisterHandler(string modulePattern, string typePattern, Func<EventMessage, Task> handler);
 
     void UnregisterHandler(string registrationId);
 
     Task EmitAsync(EventMessage message);
+
+    Task EmitAsync(string module, string type, object? payload = null);
 }
 
 /// <summary>
@@ -19,8 +22,12 @@ public interface IEventBus
 public class EventBus : IEventBus
 {
     private readonly ILogHelper _logger;
-    private readonly Dictionary<string, Func<EventMessage, Task>> _handlers = new();
-    private readonly object _lock = new();
+    private readonly ConcurrentDictionary<string, Func<EventMessage, Task>> _handlers = new();
+    private readonly ConcurrentDictionary<string, (string modulePattern, string typePattern)> _handlerPatterns = new();
+
+    // Cache: HandlerId -> Dictionary of EventIds this handler has been evaluated for
+    // The inner dictionary maps: EventId -> bool (true if handler matches this event, false if not)
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, bool>> _handlerEventCache = new();
 
     public EventBus(ILogHelper logger)
     {
@@ -30,17 +37,25 @@ public class EventBus : IEventBus
     /// <summary>
     /// Register an event handler.
     /// </summary>
-    /// <param name="eventType">Event type constant to listen for (SCREAMING_SNAKE_CASE)</param>
+    /// <param name="modulePattern">Module pattern to listen for.
+    /// Use "*" for all modules or specific module name (e.g., "MOD", "TASK_QUEUE")
+    /// </param>
+    /// <param name="typePattern">Type pattern to listen for.
+    /// Use "*" for all types or specific event type (e.g., "LOADED", "ADDED")
+    /// </param>
     /// <param name="handler">Event handler callback</param>
     /// <returns>Registration ID for unregistering later</returns>
-    public string RegisterHandler(string eventType, Func<EventMessage, Task> handler)
+    public string RegisterHandler(string modulePattern, string typePattern, Func<EventMessage, Task> handler)
     {
-        lock (_lock)
-        {
-            var registrationId = $"{eventType}_{Guid.NewGuid()}";
-            _handlers[registrationId] = handler;
-            return registrationId;
-        }
+        var registrationId = $"{modulePattern}.{typePattern}_{Guid.NewGuid()}";
+
+        _handlers[registrationId] = handler;
+        _handlerPatterns[registrationId] = (modulePattern, typePattern);
+
+        // Create cache entry for this handler (initially empty)
+        _handlerEventCache[registrationId] = new ConcurrentDictionary<string, bool>();
+
+        return registrationId;
     }
 
     /// <summary>
@@ -49,32 +64,79 @@ public class EventBus : IEventBus
     /// <param name="registrationId">Registration ID from RegisterHandler</param>
     public void UnregisterHandler(string registrationId)
     {
-        lock (_lock)
-        {
-            _handlers.Remove(registrationId);
-        }
+        _handlers.TryRemove(registrationId, out _);
+        _handlerPatterns.TryRemove(registrationId, out _);
+
+        // Remove the entire cache for this handler - single operation!
+        _handlerEventCache.TryRemove(registrationId, out _);
     }
 
     /// <summary>
     /// Emit an event to all registered handlers.
     /// </summary>
-    /// <param name="message">Event arguments</param>
+    /// <param name="message">Event message</param>
     public virtual async Task EmitAsync(EventMessage message)
     {
-        List<Func<EventMessage, Task>> handlersToInvoke;
+        // Build the event identifier: MODULE.TYPE
+        var eventId = $"{message.Module}.{message.Type}";
 
-        lock (_lock)
+        var handlersToInvoke = new List<Func<EventMessage, Task>>();
+
+        // Iterate through all handlers and check their individual caches
+        foreach (var kvp in _handlerPatterns)
         {
-            // Get handlers that match this event type
-            handlersToInvoke = _handlers
-                .Where(kvp => kvp.Key.StartsWith($"{message.EventType}_"))
-                .Select(kvp => kvp.Value)
-                .ToList();
+            var handlerId = kvp.Key;
+            var (modulePattern, typePattern) = kvp.Value;
+
+            // Get this handler's event cache
+            if (!_handlerEventCache.TryGetValue(handlerId, out var eventCache))
+            {
+                // Handler was unregistered, skip
+                continue;
+            }
+
+            // Check if we've already evaluated this event for this handler
+            if (!eventCache.TryGetValue(eventId, out var matches))
+            {
+                // Not in cache - evaluate if this handler matches this event
+                var moduleMatch = modulePattern == "*" || modulePattern == message.Module;
+                var typeMatch = typePattern == "*" || typePattern == message.Type;
+                matches = moduleMatch && typeMatch;
+
+                // Cache the result in this handler's cache
+                eventCache[eventId] = matches;
+            }
+
+            // If handler matches and still exists, add it to invoke list
+            if (matches && _handlers.TryGetValue(handlerId, out var handler))
+            {
+                handlersToInvoke.Add(handler);
+            }
         }
 
-        // Invoke handlers outside the lock to prevent deadlocks
+        _logger.Verbose($"[EventBus] Emitting {eventId} to {handlersToInvoke.Count} handler(s)", "EventBus");
+
+        // Invoke handlers
         var tasks = handlersToInvoke.Select(handler => SafeInvokeHandler(handler, message));
         await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Emit an event to all registered handlers (convenience overload).
+    /// </summary>
+    /// <param name="module">Module name (e.g., "CORE", "MOD", "TASK_QUEUE")</param>
+    /// <param name="type">Event type (e.g., "APPLICATION_STARTED", "MOD_LOADED")</param>
+    /// <param name="payload">Optional event payload</param>
+    public async Task EmitAsync(string module, string type, object? payload = null)
+    {
+        var message = new EventMessage
+        {
+            Module = module,
+            Type = type,
+            Payload = payload
+        };
+
+        await EmitAsync(message);
     }
 
     /// <summary>
@@ -97,9 +159,6 @@ public class EventBus : IEventBus
     /// </summary>
     public int GetHandlerCount()
     {
-        lock (_lock)
-        {
-            return _handlers.Count;
-        }
+        return _handlers.Count;
     }
 }

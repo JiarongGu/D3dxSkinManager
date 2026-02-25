@@ -79,6 +79,12 @@ public interface IProfilePathService
     string TdMigotoDirectory { get; }
 
     /// <summary>
+    /// Temporary files directory (data/profiles/{profileId}/temp/)
+    /// Used for temporary file operations like folder compression before import
+    /// </summary>
+    string TempDirectory { get; }
+
+    /// <summary>
     /// Profile database path (data/profiles/{profileId}/profile.db)
     /// Contains mods, classifications, and all profile-related data
     /// </summary>
@@ -154,6 +160,8 @@ public class ProfilePathService : IProfilePathService
 
     public string TdMigotoDirectory => Path.Combine(ProfilePath, "3dmigoto");
 
+    public string TempDirectory => Path.Combine(ProfilePath, "temp");
+
     // File paths using constants
     public string ProfileDatabasePath => Path.Combine(ProfilePath, ProfileDatabaseFileName);
 
@@ -176,6 +184,7 @@ public class ProfilePathService : IProfilePathService
         Directory.CreateDirectory(PreviewsDirectory);
         Directory.CreateDirectory(LogsDirectory);
         Directory.CreateDirectory(PluginsDirectory);
+        Directory.CreateDirectory(TempDirectory);
     }
 
     // Helper method implementations

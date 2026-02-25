@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Layout, Empty, Input } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { Layout, Empty, Input, Button, Tooltip } from 'antd';
+import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { ModList } from './ModList';
 import { ModListStatusBar } from './ModListStatusBar';
@@ -38,6 +38,7 @@ export const ModListPanel: React.FC = () => {
     deleteMod,
     openEditDialog,
     selectMod,
+    openModManagementScreen,
   } = useMods();
   const { t } = useTranslation();
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -121,7 +122,7 @@ export const ModListPanel: React.FC = () => {
 
   return (
     <Sider width={450} className="mod-list-panel-flex">
-      {/* Search Bar */}
+      {/* Search Bar with Add Button */}
       <div className="mod-list-panel-search-bar">
         <Search
           placeholder={t('mods.list.searchPlaceholder')}
@@ -130,6 +131,13 @@ export const ModListPanel: React.FC = () => {
           allowClear
           prefix={<SearchOutlined />}
         />
+        <Tooltip title={t('mods.panel.openImportQueue')} placement="top">
+          <Button
+            type="default"
+            icon={<PlusOutlined />}
+            onClick={() => openModManagementScreen()}
+          />
+        </Tooltip>
       </div>
 
       {/* Mod List or Empty State */}

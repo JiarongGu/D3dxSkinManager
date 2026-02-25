@@ -1,7 +1,46 @@
 using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Event;
 
 namespace D3dxSkinManager.Composition;
+
+/// <summary>
+/// Drop zone event type constants.
+/// Used with ModuleNames.DROP_ZONE as the module identifier.
+/// Example: EmitAsync(ModuleNames.DROP_ZONE, DropZoneEvents.CLICK, payload)
+/// </summary>
+public static class DropZoneEvents
+{
+    /// <summary>
+    /// Fired when drop zone is clicked.
+    /// </summary>
+    public const string CLICK = "CLICK";
+
+    /// <summary>
+    /// Fired when drag enters a drop zone.
+    /// </summary>
+    public const string DRAG_ENTER = "DRAG_ENTER";
+
+    /// <summary>
+    /// Fired when drag leaves a drop zone.
+    /// </summary>
+    public const string DRAG_LEAVE = "DRAG_LEAVE";
+
+    /// <summary>
+    /// Fired when files are dropped on a drop zone.
+    /// </summary>
+    public const string FILE_DROP = "FILE_DROP";
+
+    /// <summary>
+    /// Fired when mouse enters a drop zone (non-dragging hover).
+    /// </summary>
+    public const string MOUSE_ENTER = "MOUSE_ENTER";
+
+    /// <summary>
+    /// Fired when mouse leaves a drop zone (non-dragging hover).
+    /// </summary>
+    public const string MOUSE_LEAVE = "MOUSE_LEAVE";
+}
 
 /// <summary>
 /// Overlay panel that captures drag-drop and forwards mouse events via IPC
@@ -278,13 +317,13 @@ public class DropZoneManager
     private void OnDragEnter(string zoneId)
     {
         _logger.Debug($"Drag enter zone {zoneId}", "DropZoneManager");
-        _ipcHandler?.SendNotification(DropZoneEvents.DRAG_ENTER, new { zoneId });
+        _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.DRAG_ENTER, new { zoneId });
     }
 
     private void OnDragLeave(string zoneId)
     {
         _logger.Debug($"Drag leave zone {zoneId}", "DropZoneManager");
-        _ipcHandler?.SendNotification(DropZoneEvents.DRAG_LEAVE, new { zoneId });
+        _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.DRAG_LEAVE, new { zoneId });
     }
 
     private void OnClick(string zoneId, Point position)
@@ -292,7 +331,7 @@ public class DropZoneManager
         _logger.Debug($"Click on zone {zoneId} at {position}", "DropZoneManager");
 
         // Send click event to frontend via IPC
-        _ipcHandler?.SendNotification(DropZoneEvents.CLICK, new
+        _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.CLICK, new
         {
             zoneId,
             position = new { x = position.X, y = position.Y }
@@ -302,13 +341,13 @@ public class DropZoneManager
     private void OnMouseEnter(string zoneId)
     {
         _logger.Verbose($"Mouse enter zone {zoneId}", "DropZoneManager");
-        _ipcHandler?.SendNotification(DropZoneEvents.MOUSE_ENTER, new { zoneId });
+        _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.MOUSE_ENTER, new { zoneId });
     }
 
     private void OnMouseLeave(string zoneId)
     {
         _logger.Verbose($"Mouse leave zone {zoneId}", "DropZoneManager");
-        _ipcHandler?.SendNotification(DropZoneEvents.MOUSE_LEAVE, new { zoneId });
+        _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.MOUSE_LEAVE, new { zoneId });
     }
 
     private void OnFilesDropped(string zoneId, string[] files, Point position)
@@ -316,7 +355,7 @@ public class DropZoneManager
         _logger.Info($"Files dropped on zone {zoneId}: {string.Join(", ", files)}", "DropZoneManager");
 
         // Send notification to frontend with zone ID
-        _ipcHandler?.SendNotification(DropZoneEvents.FILE_DROP, new
+        _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.FILE_DROP, new
         {
             zoneId,
             files,

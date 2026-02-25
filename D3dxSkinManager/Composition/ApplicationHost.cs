@@ -9,6 +9,7 @@ using D3dxSkinManager.Modules.Tools;
 using D3dxSkinManager.Modules.Launch;
 using D3dxSkinManager.Modules.Migration;
 using D3dxSkinManager.Modules.Plugins;
+using D3dxSkinManager.Modules.TaskQueue;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -183,7 +184,7 @@ public class ApplicationHost
             _eventBridge.Initialize();
 
             // Subscribe to window state reset events
-            eventBus.RegisterHandler(SettingsEvents.WINDOW_STATE_RESET, async (eventMessage) =>
+            eventBus.RegisterHandler(ModuleNames.SETTING, SettingsEvents.WINDOW_STATE_RESET, async (eventMessage) =>
             {
                 _logger.Info("Received window state reset event", "Host");
                 await HandleWindowStateResetAsync(eventMessage);
@@ -240,7 +241,7 @@ public class ApplicationHost
     {
         try
         {
-            var data = eventMessage.Data as dynamic;
+            var data = eventMessage.Payload as dynamic;
             if (data == null)
             {
                 _logger.Warn("Window state reset event received with no data", "Host");
@@ -367,7 +368,8 @@ public class ApplicationHost
             .MapFacade<IToolsFacade>("TOOLS", services => services.AddToolsServices())
             .MapFacade<ILaunchFacade>("LAUNCH", services => services.AddLaunchServices())
             .MapFacade<IMigrationFacade>("MIGRATION", services => services.AddMigrationServices())
-            .MapFacade<IPluginsFacade>("PLUGINS", services => services.AddPluginsServices());
+            .MapFacade<IPluginsFacade>("PLUGINS", services => services.AddPluginsServices())
+            .MapFacade<ITaskQueueFacade>("TASKQUEUE", services => services.AddTaskQueueServices());
 
         _logger.Info("Profile router configured", "Host");
     }

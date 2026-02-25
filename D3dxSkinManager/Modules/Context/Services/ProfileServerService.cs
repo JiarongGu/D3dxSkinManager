@@ -44,10 +44,7 @@ namespace D3dxSkinManager.Modules.Context.Services
 
             //await _imageServerService.StartAsync().ConfigureAwait(false);
 
-            await _pluginEventBus.EmitAsync(new EventMessage
-            {
-                EventType = ContextEvents.APPLICATION_STARTED
-            }).ConfigureAwait(false);
+            await _pluginEventBus.EmitAsync(ModuleNames.CORE, CoreEvents.APPLICATION_STARTED).ConfigureAwait(false);
         }
 
 
@@ -57,10 +54,7 @@ namespace D3dxSkinManager.Modules.Context.Services
         public async Task StopAsync()
         {
             //await _imageServerService.StopAsync().ConfigureAwait(false);
-            await _pluginEventBus.EmitAsync(new EventMessage
-            {
-                EventType = ContextEvents.APPLICATION_SHUTDOWN
-            }).ConfigureAwait(false);
+            await _pluginEventBus.EmitAsync(ModuleNames.CORE, CoreEvents.APPLICATION_SHUTDOWN).ConfigureAwait(false);
 
             var plugins = _pluginRegistry.GetAllPlugins().ToList();
             foreach (var plugin in plugins)

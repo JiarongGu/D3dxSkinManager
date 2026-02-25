@@ -16,8 +16,6 @@ import { SlideInScreenProvider, useSlideInScreenContext } from './shared/context
 import { I18nInitializer } from './i18n/I18nInitializer';
 import { SlideInScreenManager } from './shared/components/common/SlideInScreen';
 import { AppInitializer } from './shared/components/AppInitializer';
-import { OperationProvider, useOperation } from './shared/context/OperationContext';
-import OperationMonitorScreen from './shared/components/operation/OperationMonitorScreen';
 import { keyboardManager, SHORTCUTS } from './modules/core/utils/KeyboardShortcutManager';
 import { KeyboardShortcutsDialog } from './modules/core/components/dialogs/KeyboardShortcutsDialog';
 import { AboutDialog } from './modules/core/components/dialogs/AboutDialog';
@@ -45,10 +43,6 @@ const AppContent: React.FC = () => {
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [progressVisible, setProgressVisible] = useState<boolean>(false);
 
-  // Get operation data from OperationContext
-  const { state: operationState } = useOperation();
-  const { currentOperation, activeOperations } = operationState;
-
   // Get slide-in screen controls
   const { openScreen, closeScreen, closeAllScreens } = useSlideInScreenContext();
 
@@ -58,22 +52,10 @@ const AppContent: React.FC = () => {
     setSelectedTab(tab);
   }, [closeAllScreens]);
 
-  // Derive progress from current operation
-  const operationProgress = currentOperation?.percentComplete || 0;
-  const operationName = currentOperation?.operationName;
-  const isOperationActive = activeOperations.length > 0;
-
   // Status bar handlers
   const handleHelpClick = () => {
     setHelpWindowVisible(true);
   };
-
-  const handleOperationMonitorClick = useCallback(() => {
-    const screenId = openScreen({
-      title: 'Operation Monitor',
-      content: <OperationMonitorScreen onClose={() => closeScreen(screenId)} />,
-    });
-  }, [openScreen, closeScreen]);
 
   // Initialize keyboard shortcuts
   useEffect(() => {
@@ -93,21 +75,13 @@ const AppContent: React.FC = () => {
       callback: () => setShortcutsDialogVisible(true),
     });
 
-    keyboardManager.register('operation-monitor', {
-      key: 'o',
-      ctrlKey: true,
-      shiftKey: true,
-      description: 'Open operation monitor',
-      callback: handleOperationMonitorClick,
-    });
-
     // Start listening
     keyboardManager.start();
 
     return () => {
       keyboardManager.stop();
     };
-  }, [handleOperationMonitorClick]);
+  }, []);
 
   return (
     <AnnotationProvider initialLevel="all">
@@ -141,12 +115,9 @@ const AppContent: React.FC = () => {
           serverStatus="connected"
           statusMessage={statusMessage}
           statusType={statusType}
-          progressPercent={isOperationActive ? operationProgress : progressPercent}
-          progressVisible={isOperationActive || progressVisible}
-          operationName={operationName}
-          activeOperationCount={activeOperations.length}
+          progressPercent={progressPercent}
+          progressVisible={progressVisible}
           onHelpClick={handleHelpClick}
-          onProgressClick={handleOperationMonitorClick}
         />
       </Layout>
 
@@ -206,13 +177,11 @@ const App: React.FC = () => {
       <AntdApp notification={{ maxCount: 1, stack: false }}>
         <NotificationInitializer>
           <ProfileProvider>
-            <OperationProvider>
-              <AppInitializer>
-                <ModsProvider>
-                  <AppContent />
-                </ModsProvider>
-              </AppInitializer>
-            </OperationProvider>
+            <AppInitializer>
+              <ModsProvider>
+                <AppContent />
+              </ModsProvider>
+            </AppInitializer>
           </ProfileProvider>
         </NotificationInitializer>
       </AntdApp>
