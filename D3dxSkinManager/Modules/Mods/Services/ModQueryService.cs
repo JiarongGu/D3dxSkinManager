@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mods.Models;
 
 namespace D3dxSkinManager.Modules.Mods.Services;
@@ -19,6 +16,13 @@ public interface IModQueryService
     Task<List<ModInfo>> GetModsByClassificationAsync(string classificationNodeId);
     Task<List<ModInfo>> GetUnclassifiedModsAsync();
     Task<int> GetUnclassifiedCountAsync();
+    Task<List<string>> GetDistinctCategoriesAsync();
+    Task<List<string>> GetDistinctAuthorsAsync();
+
+    // Enrichment operations
+    void PopulateStatusFlagsBulk(List<ModInfo> mods);
+    Task PopulateCategoryNamesBulkAsync(List<ModInfo> mods);
+    Task PopulateTagMetadataBulkAsync(List<ModInfo> mods);
 }
 
 /// <summary>
@@ -29,11 +33,22 @@ public class ModQueryService : IModQueryService
 {
     private readonly IModRepository _repository;
     private readonly IClassificationRepository _classificationRepository;
+    private readonly IProfilePathService _profilePaths;
+    private readonly IClassificationService _classificationService;
+    private readonly ITagRepository _tagRepository;
 
-    public ModQueryService(IModRepository repository, IClassificationRepository classificationRepository)
+    public ModQueryService(
+        IModRepository repository,
+        IClassificationRepository classificationRepository,
+        IProfilePathService profilePaths,
+        IClassificationService classificationService,
+        ITagRepository tagRepository)
     {
         _repository = repository;
         _classificationRepository = classificationRepository;
+        _profilePaths = profilePaths;
+        _classificationService = classificationService;
+        _tagRepository = tagRepository;
     }
 
     /// <summary>
@@ -237,5 +252,114 @@ public class ModQueryService : IModQueryService
                (mod.Author?.ToLowerInvariant().Contains(lowerSearch) == true) ||
                (mod.Description?.ToLowerInvariant().Contains(lowerSearch) == true) ||
                mod.Tags.Any(t => t.ToLowerInvariant().Contains(lowerSearch));
+    }
+
+    /// <summary>
+    /// Get distinct categories (object names) used by mods
+    /// </summary>
+    public async Task<List<string>> GetDistinctCategoriesAsync()
+    {
+        return await _repository.GetDistinctCategoriesAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Get distinct authors from all mods
+    /// </summary>
+    public async Task<List<string>> GetDistinctAuthorsAsync()
+    {
+        return await _repository.GetDistinctAuthorsAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Populates status flags (IsLoaded, IsAvailable) for all mods in bulk by scanning directories once
+    /// </summary>
+    public void PopulateStatusFlagsBulk(List<ModInfo> mods)
+    {
+        var availableFiles = Directory.Exists(_profilePaths.ModsDirectory)
+            ? Directory.GetFiles(_profilePaths.ModsDirectory)
+                .Select(Path.GetFileName)
+                .Where(f => !string.IsNullOrEmpty(f))
+                .Select(f => f!)
+                .ToHashSet()
+            : new HashSet<string>();
+
+        var loadedDirectories = Directory.Exists(_profilePaths.CacheModsDirectory)
+            ? Directory.GetDirectories(_profilePaths.CacheModsDirectory)
+                .Select(Path.GetFileName)
+                .Where(d => !string.IsNullOrEmpty(d) && !d.StartsWith("DISABLED-"))
+                .Select(d => d!)
+                .ToHashSet()
+            : new HashSet<string>();
+
+        foreach (var mod in mods)
+        {
+            mod.IsAvailable = availableFiles.Contains(mod.SHA);
+            mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
+        }
+    }
+
+    /// <summary>
+    /// Populates CategoryName field for all mods based on their Category (classification ID)
+    /// </summary>
+    public async Task PopulateCategoryNamesBulkAsync(List<ModInfo> mods)
+    {
+        var categoryIds = mods
+            .Where(m => !string.IsNullOrEmpty(m.Category))
+            .Select(m => m.Category)
+            .Distinct()
+            .ToList();
+
+        if (!categoryIds.Any())
+            return;
+
+        var classificationTree = await _classificationService.GetClassificationTreeAsync().ConfigureAwait(false);
+        var categoryMap = new Dictionary<string, string>();
+
+        void BuildCategoryMap(ClassificationNode node)
+        {
+            if (!string.IsNullOrEmpty(node.Id))
+                categoryMap[node.Id] = node.Name;
+
+            foreach (var child in node.Children)
+                BuildCategoryMap(child);
+        }
+
+        foreach (var root in classificationTree)
+            BuildCategoryMap(root);
+
+        foreach (var mod in mods)
+        {
+            if (!string.IsNullOrEmpty(mod.Category) && categoryMap.TryGetValue(mod.Category, out var categoryName))
+                mod.CategoryName = categoryName;
+        }
+    }
+
+    /// <summary>
+    /// Populates tag metadata (colors) for all mods
+    /// </summary>
+    public async Task PopulateTagMetadataBulkAsync(List<ModInfo> mods)
+    {
+        var allTagNames = mods
+            .Where(m => m.Tags != null && m.Tags.Count > 0)
+            .SelectMany(m => m.Tags!)
+            .Distinct()
+            .ToList();
+
+        if (!allTagNames.Any())
+            return;
+
+        var allTags = await _tagRepository.GetAllAsync().ConfigureAwait(false);
+        var tagMap = allTags.ToDictionary(t => t.Name, t => t);
+
+        foreach (var mod in mods)
+        {
+            if (mod.Tags == null || mod.Tags.Count == 0)
+                continue;
+
+            mod.TagsWithMetadata = mod.Tags
+                .Where(tagName => tagMap.ContainsKey(tagName))
+                .Select(tagName => tagMap[tagName])
+                .ToList();
+        }
     }
 }

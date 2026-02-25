@@ -1,11 +1,5 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
-using Xunit;
-using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
@@ -21,8 +15,8 @@ public class ImageServiceTests : IDisposable
     private readonly Mock<IGlobalPathService> _mockGlobalPathService;
     private readonly PathHelper _pathHelper;
     private readonly Mock<IProfilePathService> _mockProfilePaths;
-    private readonly Mock<IPathValidator> _mockPathValidator = new();
     private readonly Mock<ILogHelper> _mockLogger = new();
+    private readonly Mock<IHashHelper> _mockHashHelper = new();
     private readonly ImageService _service;
     private readonly string _testSha = "abc123def456";
 
@@ -47,12 +41,12 @@ public class ImageServiceTests : IDisposable
         Directory.CreateDirectory(Path.Combine(_testDataPath, "previews"));
 
         // Mock helper methods
-        _mockProfilePaths.Setup(x => x.GetThumbnailPath(It.IsAny<string>(), It.IsAny<string>()))
-            .Returns<string, string>((sha, ext) => Path.Combine(_testDataPath, "thumbnails", $"{sha}{ext}"));
+        // _mockProfilePaths.Setup(x => x.GetThumbnailPath(It.IsAny<string>(), It.IsAny<string>()))
+        //     .Returns<string, string>((sha, ext) => Path.Combine(_testDataPath, "thumbnails", $"{sha}{ext}"));
         _mockProfilePaths.Setup(x => x.GetPreviewDirectoryPath(It.IsAny<string>()))
             .Returns<string>(sha => Path.Combine(_testDataPath, "previews", sha));
 
-        _service = new ImageService(_mockProfilePaths.Object, _pathHelper, _mockPathValidator.Object, _mockLogger.Object);
+        _service = new ImageService(_mockProfilePaths.Object, _pathHelper, _mockLogger.Object, _mockHashHelper.Object);
     }
 
     public void Dispose()
@@ -301,36 +295,6 @@ public class ImageServiceTests : IDisposable
 
         // Assert
         extensions.Should().OnlyContain(ext => ext == ext.ToLowerInvariant());
-    }
-
-    #endregion
-
-    #region GetThumbnailPathAsync Tests
-
-    [Fact]
-    public async Task GetThumbnailPathAsync_WhenThumbnailDoesNotExist_ShouldReturnNull()
-    {
-        // Act
-        var result = await _service.GetThumbnailPathAsync(_testSha);
-
-        // Assert
-        result.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task GetThumbnailPathAsync_WhenThumbnailExists_ShouldReturnPath()
-    {
-        // Arrange
-        var thumbnailPath = Path.Combine(_testDataPath, "thumbnails", $"{_testSha}.png");
-        Directory.CreateDirectory(Path.GetDirectoryName(thumbnailPath)!);
-        File.WriteAllText(thumbnailPath, "thumbnail data");
-
-        // Act
-        var result = await _service.GetThumbnailPathAsync(_testSha);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Should().Be(thumbnailPath);
     }
 
     #endregion

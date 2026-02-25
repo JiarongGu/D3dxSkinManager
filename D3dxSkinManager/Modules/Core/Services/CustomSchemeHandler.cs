@@ -1,5 +1,6 @@
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
+using D3dxSkinManager.Modules.Core.Constants;
 using System.Collections.Concurrent;
 using System.Net;
 using Encoding = System.Text.Encoding;
@@ -56,7 +57,6 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     // Constants
     private const string SchemePrefix = "app://";
     private const int SchemePrefixLength = 6; // Length of "app://"
-    private const int FileStreamBufferSize = 4096; // Optimal buffer size for file streaming
     private const int MaxPathCacheSize = 500; // Maximum number of cached paths
 
     public CustomSchemeHandler(IGlobalPathService globalPathService, ILogHelper logger)
@@ -118,14 +118,10 @@ public class CustomSchemeHandler : ICustomSchemeHandler
 
             _logger.Verbose($"Serving: {absolutePath} ({contentType})", "CustomScheme");
 
-            // Return optimized file stream with buffer
-            return new FileStream(
-                absolutePath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                bufferSize: FileStreamBufferSize,
-                useAsync: false); // Sync is faster for local files
+            // For non-images, read into memory to avoid file handle leaks
+            // This is safe for a desktop app with local files
+            var fileData = File.ReadAllBytes(absolutePath);
+            return new MemoryStream(fileData, writable: false);
         }
         catch (Exception ex)
         {
@@ -142,20 +138,7 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     private string GetCachedContentType(string filePath)
     {
         var extension = Path.GetExtension(filePath)?.ToLowerInvariant() ?? string.Empty;
-
-        return _contentTypeCache.GetOrAdd(extension, ext => ext switch
-        {
-            ".png" => "image/png",
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".gif" => "image/gif",
-            ".bmp" => "image/bmp",
-            ".webp" => "image/webp",
-            ".svg" => "image/svg+xml",
-            ".ico" => "image/x-icon",
-            ".avif" => "image/avif",
-            ".tif" or ".tiff" => "image/tiff",
-            _ => "application/octet-stream"
-        });
+        return _contentTypeCache.GetOrAdd(extension, ImageConstants.GetMimeType);
     }
 
     /// <summary>

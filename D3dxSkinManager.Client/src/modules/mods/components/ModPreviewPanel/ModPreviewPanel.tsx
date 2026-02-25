@@ -2,7 +2,6 @@ import { notification } from "../../../../shared/utils/notification";
 import React, { useState } from "react";
 import { Typography, Button, Empty, Space, Tag, Spin } from "antd";
 import { useTranslation } from "react-i18next";
-import { v4 as uuidv4 } from "uuid";
 import {
   CopyOutlined,
   LeftOutlined,
@@ -40,7 +39,8 @@ const { Text, Paragraph, Title } = Typography;
 export const ModPreviewPanelContent: React.FC = () => {
   const { t } = useTranslation();
   const { state, actions } = useModView();
-  const { selectedProfileId } = useProfile();
+  const { state: profileState } = useProfile();
+  const selectedProfileId = profileState.selectedProfile?.id;
 
   // Subscribe to preview loading state
   const previewLoading = useModsStore((s) => s.previewLoading);
@@ -56,6 +56,7 @@ export const ModPreviewPanelContent: React.FC = () => {
     y: 0,
   });
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [clipboardHasImage, setClipboardHasImage] = useState(false);
 
   const mod = state.currentMod;
   const cacheTimestamp = state.cacheTimestamp;
@@ -124,9 +125,22 @@ export const ModPreviewPanelContent: React.FC = () => {
   };
 
   // Context menu handlers
-  const handleImageContextMenu = (e: React.MouseEvent) => {
+  const handleImageContextMenu = async (e: React.MouseEvent) => {
     e.preventDefault();
     setContextMenuPosition({ x: e.clientX, y: e.clientY });
+
+    // Check if clipboard has an image before showing menu
+    if (selectedProfileId) {
+      try {
+        const hasImage =
+          await modService.checkClipboardHasImage(selectedProfileId);
+        setClipboardHasImage(hasImage);
+      } catch (error) {
+        console.error("Error checking clipboard:", error);
+        setClipboardHasImage(false);
+      }
+    }
+
     setContextMenuVisible(true);
   };
 
@@ -141,8 +155,9 @@ export const ModPreviewPanelContent: React.FC = () => {
         currentImagePath,
       );
       notification.success(t("mods.preview.thumbnailUpdated"));
-      // Refresh preview to update UI
+      // Refresh preview to update UI and navigate to first image (newly set thumbnail)
       await actions.loadPreviewPaths(mod.sha);
+      setCurrentImageIndex(0);
     } catch (error) {
       console.error("Error setting thumbnail:", error);
       notification.error(t("mods.preview.thumbnailUpdateFailed"));
@@ -150,14 +165,33 @@ export const ModPreviewPanelContent: React.FC = () => {
     setContextMenuVisible(false);
   };
 
-  const handleOpenInExplorer = async () => {
-    if (!mod) return;
-    const currentImagePath = allImagePaths[currentImageIndex];
-
+  const handleOpenCacheFolder = async () => {
+    if (!mod || !selectedProfileId) return;
     try {
-      await fileDialogService.openFileInExplorer(currentImagePath);
+      const paths = await modService.checkFilePaths(selectedProfileId, mod.sha);
+      if (paths.cachePath) {
+        await fileDialogService.openDirectory(paths.cachePath);
+      } else {
+        notification.warning(t("mods.preview.cacheFolderNotFound"));
+      }
     } catch (error) {
-      console.error("Error opening in explorer:", error);
+      console.error("Error opening cache folder:", error);
+      notification.error(t("mods.preview.openExplorerFailed"));
+    }
+    setContextMenuVisible(false);
+  };
+
+  const handleOpenPreviewFolder = async () => {
+    if (!mod || !selectedProfileId) return;
+    try {
+      const paths = await modService.checkFilePaths(selectedProfileId, mod.sha);
+      if (paths.thumbnailPath) {
+        await fileDialogService.openDirectory(paths.thumbnailPath);
+      } else {
+        notification.warning(t("mods.preview.previewFolderNotFound"));
+      }
+    } catch (error) {
+      console.error("Error opening preview folder:", error);
       notification.error(t("mods.preview.openExplorerFailed"));
     }
     setContextMenuVisible(false);
@@ -254,39 +288,11 @@ export const ModPreviewPanelContent: React.FC = () => {
     if (!mod || !selectedProfileId) return;
 
     try {
-      // Check if clipboard API is available
-      if (!navigator.clipboard || !navigator.clipboard.read) {
-        notification.warning(t("mods.preview.clipboardNotSupported"));
-        setContextMenuVisible(false);
-        return;
-      }
-
-      const clipboardItems = await navigator.clipboard.read();
-      let imageFound = false;
-
-      for (const item of clipboardItems) {
-        // Look for image types
-        const imageType = item.types.find((type) => type.startsWith("image/"));
-
-        if (imageType) {
-          const blob = await item.getType(imageType);
-
-          // Convert blob to file-like object
-          const extension = imageType.split("/")[1] || "png";
-          const fileName = `clipboard_${uuidv4()}.${extension}`;
-          const file = new File([blob], fileName, { type: imageType });
-
-          // Create a temporary path (backend will handle the actual file creation)
-          // For now, we'll need to upload the blob - this requires a backend endpoint
-          notification.info(t("mods.preview.clipboardRequiresBackend"));
-          imageFound = true;
-          break;
-        }
-      }
-
-      if (!imageFound) {
-        notification.warning(t("mods.preview.noImageInClipboard"));
-      }
+      // Let backend handle clipboard access (no browser permission issues)
+      await modService.importPreviewFromClipboard(selectedProfileId, mod.sha);
+      notification.success(t("mods.preview.imageAdded"));
+      // Refresh preview to update UI
+      await actions.loadPreviewPaths(mod.sha);
     } catch (error) {
       console.error("Error pasting from clipboard:", error);
       notification.error(t("mods.preview.clipboardPasteFailed"));
@@ -313,6 +319,7 @@ export const ModPreviewPanelContent: React.FC = () => {
           label: t("mods.preview.pasteFromClipboard"),
           icon: <SnippetsOutlined />,
           onClick: handlePasteFromClipboard,
+          disabled: !clipboardHasImage,
         },
         {
           type: "divider",
@@ -328,10 +335,16 @@ export const ModPreviewPanelContent: React.FC = () => {
           type: "divider",
         },
         {
-          key: "open-explorer",
-          label: t("mods.preview.openInExplorer"),
+          key: "open-cache-folder",
+          label: t("mods.preview.openCacheFolder"),
           icon: <FolderOpenOutlined />,
-          onClick: handleOpenInExplorer,
+          onClick: handleOpenCacheFolder,
+        },
+        {
+          key: "open-preview-folder",
+          label: t("mods.preview.openPreviewFolder"),
+          icon: <FolderOpenOutlined />,
+          onClick: handleOpenPreviewFolder,
         },
         {
           key: "copy-path",
@@ -362,6 +375,7 @@ export const ModPreviewPanelContent: React.FC = () => {
           label: t("mods.preview.pasteFromClipboard"),
           icon: <SnippetsOutlined />,
           onClick: handlePasteFromClipboard,
+          disabled: !clipboardHasImage,
         },
         {
           type: "divider",
@@ -408,6 +422,9 @@ export const ModPreviewPanelContent: React.FC = () => {
     );
   }
 
+  const showAuthor = mod.author && mod.author.trim() !== "";
+  const showTags = mod.tags && mod.tags.length > 0;
+
   return (
     <div className="mod-preview-panel">
       {/* Header Section */}
@@ -420,7 +437,7 @@ export const ModPreviewPanelContent: React.FC = () => {
             {mod.category && (
               <Text type="secondary" className="mod-preview-category">
                 <FileTextOutlined className="mod-preview-category-icon" />
-                {mod.category}
+                {mod.categoryName || mod.category}
               </Text>
             )}
           </div>
@@ -535,44 +552,41 @@ export const ModPreviewPanelContent: React.FC = () => {
 
       {/* Info Section */}
       <div className="mod-preview-info">
-        {/* Author */}
-        {mod.author && (
+        {(showAuthor || showTags) && (
           <div className="mod-preview-info-item">
-            <Text type="secondary" className="mod-preview-info-label">
-              <UserOutlined className="mod-preview-info-icon" />
-              {t("mods.details.author")}
-            </Text>
-            <Text className="mod-preview-info-value">{mod.author}</Text>
-          </div>
-        )}
-
-        {/* Tags */}
-        {mod.tags && mod.tags.length > 0 && (
-          <div className="mod-preview-info-item">
-            <Text
-              type="secondary"
-              className="mod-preview-info-label"
-            >
-              <TagsOutlined className="mod-preview-info-icon" />
-              {t("mods.details.tags")}
-            </Text>
-            <Space size={[4, 4]} wrap>
-              {mod.tags.map((tag, index) => (
-                <Tag key={index} className="mod-preview-mod-tag">
-                  {tag}
-                </Tag>
-              ))}
-            </Space>
+            {/* Author */}
+            {showAuthor && (
+              <>
+                <Text type="secondary" className="mod-preview-info-label">
+                  <UserOutlined className="mod-preview-info-icon" />
+                  {t("mods.details.author")}
+                </Text>
+                <Text className="mod-preview-info-value">{mod.author}</Text>
+              </>
+            )}
+            {/* Tags */}
+            {showTags && (
+              <>
+                <Text type="secondary" className="mod-preview-info-label">
+                  <TagsOutlined className="mod-preview-info-icon" />
+                  {t("mods.details.tags")}
+                </Text>
+                <Space size={[4, 4]} wrap>
+                  {mod.tags.map((tag) => (
+                    <Tag key={tag} className="mod-preview-tag">
+                      {tag}
+                    </Tag>
+                  ))}
+                </Space>
+              </>
+            )}
           </div>
         )}
 
         {/* Description */}
         {mod.description && (
           <div className="mod-preview-info-item">
-            <Text
-              type="secondary"
-              className="mod-preview-info-label"
-            >
+            <Text type="secondary" className="mod-preview-info-label">
               {t("mods.details.description")}
             </Text>
             <Paragraph

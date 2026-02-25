@@ -24,7 +24,6 @@ public class DropfilesMultiplePlugin : IMessageHandlerPlugin
 {
     private IPluginContext? _context;
     private static readonly string[] ModSuffixes = { ".7z", ".zip", ".rar" };
-    private static readonly string[] PreviewSuffixes = { ".png", ".jpg" };
 
     public string Id => "com.d3dxskinmanager.dropfilesmultiple";
     public string Name => "Dropfiles Multiple";
@@ -86,7 +85,7 @@ public class DropfilesMultiplePlugin : IMessageHandlerPlugin
 
             // TODO: Categorize files
             // - Check if path is file or directory
-            // - For files, check extension against ModSuffixes and PreviewSuffixes
+            // - For files, check extension against ModSuffixes and ImageConstants.SupportedExtensions
             // - Collect paths into appropriate lists
 
             // TODO: Process mod files

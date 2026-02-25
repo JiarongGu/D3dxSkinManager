@@ -4,6 +4,7 @@ import { Modal, Form, Input, Select, Space, Divider, Alert,  AutoComplete } from
 import { TagsOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { modService } from '../../services/modService';
+import { classificationService } from '../../../../shared/services/classificationService';
 import { MultiTagInput } from '../MultiTagInput';
 import { TagManagementDialog } from '../TagManagementDialog';
 import { CompactButton } from '../../../../shared/components/compact/CompactButton';
@@ -69,14 +70,18 @@ export const BatchEditDialog: React.FC = () => {
       }
       const profileId = profileState.selectedProfile.id;
       try {
-        const [tagsFromTable, authorsData, categoriesData] = await Promise.all([
+        const [tagsFromTable, authorsData, classificationTree] = await Promise.all([
           modService.getAllTags(profileId), // Get tags from Tags table only
           modService.getAuthors(profileId),
-          modService.getObjectNames(profileId),
+          classificationService.getClassificationTree(profileId),
         ]);
         setAvailableTags(tagsFromTable.map(t => t.name));
         setAuthors(authorsData);
-        setCategories(categoriesData);
+
+        // Get all leaf node names (characters) from classification tree for category autocomplete
+        const leafNodes = classificationService.getAllLeafNodes(classificationTree);
+        const categoryNames = leafNodes.map(node => node.name);
+        setCategories(categoryNames);
 
         // Initialize tag colors map with existing tags from database
         const colorsMap = new Map(tagsFromTable.map(t => [t.name, t.color]));

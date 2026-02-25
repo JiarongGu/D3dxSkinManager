@@ -26,8 +26,6 @@ public interface IModFacade : IModuleFacade
     Task<bool> DeleteModAsync(string sha);
 
     // Query Operations
-    Task<List<ModInfo>> GetModsByObjectAsync(string category);
-    Task<List<string>> GetObjectNamesAsync();
     Task<List<string>> GetAuthorsAsync();
     Task<List<string>> GetTagsAsync();
     Task<List<ModInfo>> SearchModsAsync(string searchTerm);
@@ -38,13 +36,14 @@ public interface IModFacade : IModuleFacade
     Task<bool> UpdateCategoryAsync(string sha, string category);
     Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask);
     Task<bool> ImportPreviewImageAsync(string sha, string imagePath);
+    Task<bool> CheckClipboardHasImageAsync();
+    Task<bool> ImportPreviewFromClipboardAsync(string sha);
     Task<List<string>> GetPreviewPathsAsync(string sha);
     Task<bool> SetThumbnailAsync(string sha, string previewPath);
     Task<bool> DeletePreviewAsync(string sha, string previewPath);
 
     // Classification Operations
     Task<List<ClassificationNode>> GetClassificationTreeAsync();
-    Task<bool> RefreshClassificationTreeAsync();
 
     // Tag Management Operations (Tags table - master tag definitions)
     Task<List<Tag>> GetAllTagsAsync();
@@ -69,39 +68,36 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModFileService _fileService;
     private readonly IModImportService _importService;
     private readonly IModQueryService _queryService;
+    private readonly IModMetadataService _metadataService;
+    private readonly ITagService _tagService;
     private readonly IClassificationService _classificationService;
-    private readonly ITagRepository _tagRepository;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitter _eventEmitter;
     private readonly IImageService _imageService;
-    private readonly IProfilePathService _profilePaths;
-    private readonly IPathHelper _pathHelper;
 
     public ModFacade(
         IModRepository repository,
         IModFileService fileService,
         IModImportService importService,
         IModQueryService queryService,
+        IModMetadataService metadataService,
+        ITagService tagService,
         IClassificationService classificationService,
-        ITagRepository tagRepository,
         IPayloadHelper payloadHelper,
         IEventEmitter eventEmitter,
         IImageService imageService,
-        IProfilePathService profilePaths,
-        IPathHelper pathHelper,
         ILogHelper logger) : base(logger)
     {
         _repository = repository;
         _fileService = fileService;
         _importService = importService;
         _queryService = queryService;
+        _metadataService = metadataService;
+        _tagService = tagService;
         _classificationService = classificationService;
-        _tagRepository = tagRepository;
         _payloadHelper = payloadHelper;
         _eventEmitter = eventEmitter;
         _imageService = imageService;
-        _profilePaths = profilePaths;
-        _pathHelper = pathHelper;
     }
 
     /// <summary>
@@ -118,8 +114,6 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_LOADED" => await GetLoadedModIdsAsync(),
             "IMPORT" => await ImportModAsync(request),
             "DELETE" => await DeleteModAsync(request),
-            "GET_BY_OBJECT" => await GetModsByObjectAsync(request),
-            "GET_OBJECT_NAMES" => await GetObjectNamesAsync(),
             "GET_AUTHORS" => await GetAuthorsAsync(),
             "GET_TAGS" => await GetTagsAsync(),
             "SEARCH" => await SearchModsAsync(request),
@@ -127,16 +121,16 @@ public class ModFacade : BaseFacade, IModFacade
             "UPDATE_CATEGORY" => await UpdateCategoryAsync(request),
             "BATCH_UPDATE_METADATA" => await BatchUpdateMetadataAsync(request),
             "IMPORT_PREVIEW_IMAGE" => await ImportPreviewImageAsync(request),
+            "CHECK_CLIPBOARD_HAS_IMAGE" => await CheckClipboardHasImageAsync(),
+            "IMPORT_PREVIEW_FROM_CLIPBOARD" => await ImportPreviewFromClipboardAsync(request),
             "GET_PREVIEW_PATHS" => await GetPreviewPathsAsync(request),
             "SET_THUMBNAIL" => await SetThumbnailAsync(request),
             "DELETE_PREVIEW" => await DeletePreviewAsync(request),
             "GET_CLASSIFICATION_TREE" => await GetClassificationTreeAsync(),
-            "REFRESH_CLASSIFICATION_TREE" => await RefreshClassificationTreeAsync(),
             "GET_MODS_BY_CLASSIFICATION" => await GetModsByClassificationAsync(request),
             "GET_UNCLASSIFIED_MODS" => await GetUnclassifiedModsAsync(),
             "GET_UNCLASSIFIED_COUNT" => await GetUnclassifiedCountAsync(),
             "MOVE_CLASSIFICATION_NODE" => await MoveClassificationNodeAsync(request),
-            "REORDER_CLASSIFICATION_NODE" => await ReorderClassificationNodeAsync(request),
             "CREATE_CLASSIFICATION_NODE" => await CreateClassificationNodeAsync(request),
             "UPDATE_CLASSIFICATION_NODE" => await UpdateClassificationNodeAsync(request),
             "DELETE_CLASSIFICATION_NODE" => await DeleteClassificationNodeAsync(request),
@@ -161,13 +155,13 @@ public class ModFacade : BaseFacade, IModFacade
         var mods = await _repository.GetAllAsync().ConfigureAwait(false);
 
         // Populate status flags from file system (bulk operation for better performance)
-        PopulateStatusFlagsBulk(mods);
+        _queryService.PopulateStatusFlagsBulk(mods);
 
         // Populate human-readable category names from classification service
-        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+        await _queryService.PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
 
         // Populate tag metadata with colors (bulk operation to avoid N+1 queries)
-        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
+        await _queryService.PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
 
         return mods;
     }
@@ -180,19 +174,19 @@ public class ModFacade : BaseFacade, IModFacade
         if (mod != null)
         {
             var modList = new List<ModInfo> { mod };
-            PopulateStatusFlagsBulk(modList);
+            _queryService.PopulateStatusFlagsBulk(modList);
 
             // Populate human-readable category name from classification service
-            await PopulateCategoryNamesBulkAsync(modList).ConfigureAwait(false);
+            await _queryService.PopulateCategoryNamesBulkAsync(modList).ConfigureAwait(false);
 
             // Populate tag metadata with colors
-            await PopulateTagMetadataBulkAsync(modList).ConfigureAwait(false);
+            await _queryService.PopulateTagMetadataBulkAsync(modList).ConfigureAwait(false);
         }
 
         return mod;
     }
 
-    public async Task<Models.ModLoadResult> LoadModAsync(string sha)
+    public async Task<ModLoadResult> LoadModAsync(string sha)
     {
         // Track unloaded mods for efficient frontend updates (avoids full mod list refresh)
         var unloadedModShas = new List<string>();
@@ -216,7 +210,7 @@ public class ModFacade : BaseFacade, IModFacade
                 var loadedSameCategoryMods = sameCategoryMods.Where(m => m.SHA != sha).ToList();
 
                 // Populate IsLoaded flags to check which mods need to be unloaded
-                PopulateStatusFlagsBulk(loadedSameCategoryMods);
+                _queryService.PopulateStatusFlagsBulk(loadedSameCategoryMods);
 
                 var modsToUnload = loadedSameCategoryMods.Where(m => m.IsLoaded).ToList();
 
@@ -254,6 +248,9 @@ public class ModFacade : BaseFacade, IModFacade
                     Success = false
                 };
             }
+
+            // Try to auto-import preview images from cache folder after loading
+            await _imageService.TryAutoImportPreviewsFromCacheAsync(sha).ConfigureAwait(false);
 
             // Note: IsLoaded is determined dynamically from file system, not stored in database
             // No need to call SetLoadedStateAsync (it's a no-op)
@@ -324,37 +321,16 @@ public class ModFacade : BaseFacade, IModFacade
         return success;
     }
 
-    public async Task<List<ModInfo>> GetModsByObjectAsync(string category)
-    {
-        var mods = await _repository.GetByCategoryAsync(category).ConfigureAwait(false);
-
-        // Populate status flags from file system
-        PopulateStatusFlagsBulk(mods);
-
-        // Populate human-readable category names from classification service
-        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
-
-        // Populate tag metadata with colors
-        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
-
-        return mods;
-    }
-
-    public async Task<List<string>> GetObjectNamesAsync()
-    {
-        return await _repository.GetDistinctCategoriesAsync().ConfigureAwait(false);
-    }
-
     public async Task<List<string>> GetAuthorsAsync()
     {
-        return await _repository.GetDistinctAuthorsAsync().ConfigureAwait(false);
+        return await _queryService.GetDistinctAuthorsAsync().ConfigureAwait(false);
     }
 
     public async Task<List<string>> GetTagsAsync()
     {
         // This method returns tag names used in mods (for backward compatibility)
         // Use GetAllTagsAsync() for full Tag objects with colors
-        return await _tagRepository.GetUsedTagNamesAsync().ConfigureAwait(false);
+        return await _tagService.GetUsedTagNamesAsync().ConfigureAwait(false);
     }
 
     public async Task<List<ModInfo>> SearchModsAsync(string searchTerm)
@@ -362,13 +338,13 @@ public class ModFacade : BaseFacade, IModFacade
         var mods = await _queryService.SearchAsync(searchTerm).ConfigureAwait(false);
 
         // Populate status flags from file system
-        PopulateStatusFlagsBulk(mods);
+        _queryService.PopulateStatusFlagsBulk(mods);
 
         // Populate human-readable category names from classification service
-        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+        await _queryService.PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
 
         // Populate tag metadata with colors
-        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
+        await _queryService.PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
 
         return mods;
     }
@@ -380,86 +356,46 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> UpdateMetadataAsync(string sha, string? name, string? author, List<string>? tags, string? grading, string? description)
     {
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var success = await _metadataService.UpdateMetadataAsync(sha, name, author, tags, grading, description).ConfigureAwait(false);
+
+        if (success)
         {
-            throw new InvalidOperationException($"Mod not found: {sha}");
+            var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ModEvents.METADATA_UPDATED, "mod.metadata.updated", new { sha, mod }).ConfigureAwait(false);
         }
 
-        if (name != null) mod.Name = name;
-        if (author != null) mod.Author = author;
-        if (tags != null) mod.Tags = tags;
-        if (grading != null) mod.Grading = grading;
-        if (description != null) mod.Description = description;
-
-        await _repository.UpdateAsync(mod).ConfigureAwait(false);
-        await _eventEmitter.EmitAsync(ModEvents.METADATA_UPDATED, "mod.metadata.updated", new { sha, mod }).ConfigureAwait(false);
-
-        return true;
+        return success;
     }
 
     public async Task<bool> UpdateCategoryAsync(string sha, string category)
     {
-        var mod = await GetModByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var success = await _metadataService.UpdateCategoryAsync(sha, category, UnloadModAsync, GetModByIdAsync).ConfigureAwait(false);
+
+        if (success)
         {
-            throw new InvalidOperationException($"Mod not found: {sha}");
+            // Re-fetch the mod to get the updated IsLoaded state from file system
+            var updatedMod = await GetModByIdAsync(sha).ConfigureAwait(false);
+
+            await _eventEmitter.EmitAsync(ModEvents.CATEGORY_UPDATED, "mod.category.updated", new { sha, category, mod = updatedMod }).ConfigureAwait(false);
+
+            // Refresh the classification tree cache to update counts
+            await _classificationService.RefreshTreeAsync().ConfigureAwait(false);
         }
 
-        _logger.Info($"Mod {sha} current state: IsLoaded={mod.IsLoaded}", "ModFacade");
-
-        // If the mod is currently loaded, unload it since category determines which object it applies to
-        if (mod.IsLoaded)
-        {
-            _logger.Info($"Mod {sha} is loaded, unloading before category change", "ModFacade");
-            await UnloadModAsync(sha).ConfigureAwait(false);
-            _logger.Info($"Mod {sha} unloaded", "ModFacade");
-        }
-        else
-        {
-            _logger.Info($"Mod {sha} is not loaded, skipping unload", "ModFacade");
-        }
-
-        mod.Category = category;
-
-        await _repository.UpdateAsync(mod).ConfigureAwait(false);
-
-        // Re-fetch the mod to get the updated IsLoaded state from file system
-        var updatedMod = await GetModByIdAsync(sha).ConfigureAwait(false);
-
-        await _eventEmitter.EmitAsync(ModEvents.CATEGORY_UPDATED, "mod.category.updated", new { sha, category, mod = updatedMod ?? mod }).ConfigureAwait(false);
-
-        // Refresh the classification tree cache to update counts
-        await _classificationService.RefreshTreeAsync().ConfigureAwait(false);
-
-        return true;
+        return success;
     }
 
     public async Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask)
     {
-        int updatedCount = 0;
+        var updatedCount = await _metadataService.BatchUpdateMetadataAsync(shas, name, author, tags, grading, description, fieldMask).ConfigureAwait(false);
 
-        foreach (var sha in shas)
+        // Emit events for each successfully updated mod
+        foreach (var sha in shas.Take(updatedCount))
         {
-            try
+            var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+            if (mod != null)
             {
-                var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-                if (mod == null) continue;
-
-                if (fieldMask.Contains("name") && name != null) mod.Name = name;
-                if (fieldMask.Contains("author") && author != null) mod.Author = author;
-                if (fieldMask.Contains("tags") && tags != null) mod.Tags = tags;
-                if (fieldMask.Contains("grading") && grading != null) mod.Grading = grading;
-                if (fieldMask.Contains("description") && description != null) mod.Description = description;
-
-                await _repository.UpdateAsync(mod).ConfigureAwait(false);
-                updatedCount++;
-
                 await _eventEmitter.EmitAsync(ModEvents.METADATA_UPDATED, "mod.metadata.updated", new { sha, mod }).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Error updating mod {sha}: {ex.Message}", "ModFacade", ex);
             }
         }
 
@@ -468,89 +404,78 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> ImportPreviewImageAsync(string sha, string imagePath)
     {
-        if (!File.Exists(imagePath))
-        {
-            throw new FileNotFoundException($"Image file not found: {imagePath}");
-        }
-
         var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
         if (mod == null)
         {
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
 
-        var validExtensions = new[] { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp" };
-        var extension = Path.GetExtension(imagePath).ToLowerInvariant();
-        if (!validExtensions.Contains(extension))
+        // Delegate to ImageService for preview import
+        var success = await _imageService.ImportPreviewImageAsync(sha, imagePath).ConfigureAwait(false);
+
+        if (success)
         {
-            throw new InvalidOperationException($"Invalid image format: {extension}. Supported: {string.Join(", ", validExtensions)}");
+            await _eventEmitter.EmitAsync(ModEvents.PREVIEW_IMPORTED, "mod.preview.imported",
+                new { sha, imagePath }).ConfigureAwait(false);
         }
 
-        // Use ImageService to get the preview paths and determine the next filename
-        var existingPreviews = await _imageService.GetPreviewPathsAsync(sha).ConfigureAwait(false);
-
-        // Generate next preview filename (preview1.png, preview2.png, etc.)
-        int nextIndex = existingPreviews.Count + 1;
-        var targetFileName = $"preview{nextIndex}{extension}";
-
-        // Use ImageService's path resolution (previews/{SHA}/ folder)
-        var targetPath = await CopyToPreviewDirectoryAsync(sha, imagePath, targetFileName).ConfigureAwait(false);
-
-        // Convert to relative path if under data folder for portability
-        var relativeTargetPath = _pathHelper.ToRelativePath(targetPath) ?? targetPath;
-
-        await _eventEmitter.EmitAsync(ModEvents.PREVIEW_IMPORTED, "mod.preview.imported", new { sha, imagePath = targetPath }).ConfigureAwait(false);
-
-        return true;
+        return success;
     }
 
-    /// <summary>
-    /// Copy an image to the mod's preview directory
-    /// Helper method to centralize preview directory logic
-    /// </summary>
-    private Task<string> CopyToPreviewDirectoryAsync(string sha, string sourcePath, string targetFileName)
+    public async Task<bool> CheckClipboardHasImageAsync()
     {
-        // Use ProfilePathService to get the correct preview directory (previews/{SHA}/)
-        var targetDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
+        return await _imageService.CheckClipboardHasImageAsync().ConfigureAwait(false);
+    }
 
-        if (!Directory.Exists(targetDirectory))
+    public async Task<bool> ImportPreviewFromClipboardAsync(string sha)
+    {
+        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        if (mod == null)
         {
-            Directory.CreateDirectory(targetDirectory);
+            throw new InvalidOperationException($"Mod not found: {sha}");
         }
 
-        var targetPath = Path.Combine(targetDirectory, targetFileName);
-        File.Copy(sourcePath, targetPath, overwrite: true);
+        // Delegate to ImageService for clipboard handling
+        var success = await _imageService.ImportPreviewFromClipboardAsync(sha).ConfigureAwait(false);
 
-        return Task.FromResult(targetPath);
+        if (success)
+        {
+            // Get the newly imported preview path for the event
+            var previews = await _imageService.GetPreviewPathsAsync(sha).ConfigureAwait(false);
+            var latestPreview = previews.LastOrDefault();
+
+            await _eventEmitter.EmitAsync(ModEvents.PREVIEW_IMPORTED, "mod.preview.imported",
+                new { sha, imagePath = latestPreview }).ConfigureAwait(false);
+        }
+
+        return success;
     }
 
     public async Task<List<string>> GetPreviewPathsAsync(string sha)
     {
+        // Delegate auto-import to ImageService
+        await _imageService.TryAutoImportPreviewsFromCacheAsync(sha).ConfigureAwait(false);
         return await _imageService.GetPreviewPathsAsync(sha).ConfigureAwait(false);
     }
 
     public async Task<bool> SetThumbnailAsync(string sha, string previewPath)
     {
-        // This method is kept for backward compatibility but no longer stores thumbnail selection
-        // The first preview image (sorted alphabetically) is automatically used as thumbnail
         var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
         if (mod == null)
         {
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
 
-        // Convert to absolute path if needed for file existence check
-        var absolutePreviewPath = _pathHelper.ToAbsolutePath(previewPath) ?? previewPath;
+        // Delegate to ImageService for thumbnail reordering
+        var success = await _imageService.SetThumbnailAsync(sha, previewPath).ConfigureAwait(false);
 
-        if (!File.Exists(absolutePreviewPath))
+        if (success)
         {
-            throw new FileNotFoundException($"Preview image not found: {previewPath}");
+            await _eventEmitter.EmitAsync(ModEvents.THUMBNAIL_UPDATED, "mod.thumbnail.updated",
+                new { sha, previewPath }).ConfigureAwait(false);
         }
 
-        // Emit event for UI update (thumbnail selection is now automatic based on file order)
-        await _eventEmitter.EmitAsync(ModEvents.THUMBNAIL_UPDATED, "mod.thumbnail.updated", new { sha, previewPath }).ConfigureAwait(false);
-
-        return true;
+        return success;
     }
 
     public async Task<bool> DeletePreviewAsync(string sha, string previewPath)
@@ -561,19 +486,16 @@ public class ModFacade : BaseFacade, IModFacade
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
 
-        // Convert to absolute path for file operations
-        var absolutePreviewPath = _pathHelper.ToAbsolutePath(previewPath) ?? previewPath;
+        // Delegate to ImageService for preview deletion
+        var success = await _imageService.DeletePreviewAsync(sha, previewPath).ConfigureAwait(false);
 
-        if (!File.Exists(absolutePreviewPath))
+        if (success)
         {
-            throw new FileNotFoundException($"Preview image not found: {previewPath}");
+            await _eventEmitter.EmitAsync(ModEvents.PREVIEW_DELETED, "mod.preview.deleted",
+                new { sha, previewPath }).ConfigureAwait(false);
         }
 
-        // Delete the file using absolute path
-        File.Delete(absolutePreviewPath);
-        await _eventEmitter.EmitAsync(ModEvents.PREVIEW_DELETED, "mod.preview.deleted", new { sha, previewPath }).ConfigureAwait(false);
-
-        return true;
+        return success;
     }
 
     // ============= Message Handler Methods =============
@@ -606,12 +528,6 @@ public class ModFacade : BaseFacade, IModFacade
     {
         var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await DeleteModAsync(sha).ConfigureAwait(false);
-    }
-
-    private async Task<List<ModInfo>> GetModsByObjectAsync(IpcRequest request)
-    {
-        var category = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
-        return await GetModsByObjectAsync(category).ConfigureAwait(false);
     }
 
     private async Task<List<ModInfo>> SearchModsAsync(IpcRequest request)
@@ -665,6 +581,15 @@ public class ModFacade : BaseFacade, IModFacade
         return new { success, message = $"Preview image imported for mod: {sha}" };
     }
 
+    private async Task<object> ImportPreviewFromClipboardAsync(IpcRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+
+        var success = await ImportPreviewFromClipboardAsync(sha).ConfigureAwait(false);
+
+        return new { success, message = $"Preview image imported from clipboard for mod: {sha}" };
+    }
+
     private async Task<List<string>> GetPreviewPathsAsync(IpcRequest request)
     {
         var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
@@ -701,15 +626,6 @@ public class ModFacade : BaseFacade, IModFacade
     }
 
     /// <summary>
-    /// Refresh the classification tree cache
-    /// Forces a reload of the classification tree from the database
-    /// </summary>
-    public async Task<bool> RefreshClassificationTreeAsync()
-    {
-        return await _classificationService.RefreshTreeAsync().ConfigureAwait(false);
-    }
-
-    /// <summary>
     /// Get all mods that belong to a specific classification node
     /// </summary>
     private async Task<List<ModInfo>> GetModsByClassificationAsync(IpcRequest request)
@@ -718,13 +634,13 @@ public class ModFacade : BaseFacade, IModFacade
         var mods = await _queryService.GetModsByClassificationAsync(classificationNodeId).ConfigureAwait(false);
 
         // Populate status flags from file system
-        PopulateStatusFlagsBulk(mods);
+        _queryService.PopulateStatusFlagsBulk(mods);
 
         // Populate human-readable category names from classification service
-        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+        await _queryService.PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
 
         // Populate tag metadata with colors
-        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
+        await _queryService.PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
 
         return mods;
     }
@@ -737,13 +653,13 @@ public class ModFacade : BaseFacade, IModFacade
         var mods = await _queryService.GetUnclassifiedModsAsync().ConfigureAwait(false);
 
         // Populate status flags from file system
-        PopulateStatusFlagsBulk(mods);
+        _queryService.PopulateStatusFlagsBulk(mods);
 
         // Populate human-readable category names from classification service
-        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+        await _queryService.PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
 
         // Populate tag metadata with colors
-        await PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
+        await _queryService.PopulateTagMetadataBulkAsync(mods).ConfigureAwait(false);
 
         return mods;
     }
@@ -772,26 +688,6 @@ public class ModFacade : BaseFacade, IModFacade
             await _eventEmitter.EmitAsync(
                 ModEvents.CLASSIFICATION_TREE_CHANGED,
                 data: new { nodeId, newParentId, dropPosition }).ConfigureAwait(false);
-        }
-
-        return success;
-    }
-
-    /// <summary>
-    /// Reorder a classification node within its siblings
-    /// </summary>
-    private async Task<bool> ReorderClassificationNodeAsync(IpcRequest request)
-    {
-        var nodeId = _payloadHelper.GetRequiredValue<string>(request.Payload, "nodeId");
-        var newPosition = _payloadHelper.GetRequiredValue<int>(request.Payload, "newPosition");
-
-        var success = await _classificationService.ReorderNodeAsync(nodeId, newPosition).ConfigureAwait(false);
-
-        if (success)
-        {
-            await _eventEmitter.EmitAsync(
-                ModEvents.CLASSIFICATION_TREE_CHANGED,
-                data: new { nodeId, newPosition }).ConfigureAwait(false);
         }
 
         return success;
@@ -916,220 +812,27 @@ public class ModFacade : BaseFacade, IModFacade
             throw new InvalidOperationException($"Mod with SHA {sha} not found");
         }
 
-        var result = new
+        var result = await _fileService.CheckFilePathsAsync(sha).ConfigureAwait(false);
+
+        return new
         {
-            originalPath = CheckOriginalPath(mod.SHA),
-            cachePath = CheckCachePath(mod.SHA),
-            thumbnailPath = CheckPreviewFolderPath(mod.SHA)
+            originalPath = result.OriginalPath,
+            cachePath = result.CachePath,
+            thumbnailPath = result.ThumbnailPath
         };
-
-        return result;
     }
 
-    /// <summary>
-    /// Checks if original archive file exists (file without extension)
-    /// </summary>
-    private string? CheckOriginalPath(string sha)
-    {
-        var originalArchivePath = Path.Combine(_profilePaths.ModsDirectory, sha);
-        if (File.Exists(originalArchivePath))
-        {
-            return _pathHelper.ToRelativePath(originalArchivePath) ?? originalArchivePath;
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Checks if cache directory exists (extracted files in active/loaded or disabled/unloaded state)
-    /// Cache folder can be in either loaded ({SHA}) or unloaded/disabled (DISABLED-{SHA}) mode
-    /// Returns the path to whichever exists
-    /// </summary>
-    private string? CheckCachePath(string sha)
-    {
-        // Check for active/loaded cache first
-        var activeCachePath = Path.Combine(_profilePaths.CacheModsDirectory, sha);
-        if (Directory.Exists(activeCachePath))
-        {
-            return _pathHelper.ToRelativePath(activeCachePath) ?? activeCachePath;
-        }
-
-        // Check for disabled/unloaded cache
-        var disabledCachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"DISABLED-{sha}");
-        if (Directory.Exists(disabledCachePath))
-        {
-            return _pathHelper.ToRelativePath(disabledCachePath) ?? disabledCachePath;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Checks if preview folder exists and contains preview images
-    /// Returns the preview directory path if it exists, regardless of thumbnailPath
-    /// </summary>
-    private string? CheckPreviewFolderPath(string sha)
-    {
-        // Check for the preview directory (previews/{SHA}/)
-        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
-
-        if (Directory.Exists(previewDirectory))
-        {
-            // Check if there are any preview images in the directory
-            var hasPreviewImages = Directory.GetFiles(previewDirectory, "*.*")
-                .Any(f => _imageService.GetSupportedImageExtensions()
-                    .Contains(Path.GetExtension(f).ToLowerInvariant()));
-
-            if (hasPreviewImages)
-            {
-                return _pathHelper.ToRelativePath(previewDirectory) ?? previewDirectory;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Populates status flags (IsLoaded, IsAvailable) for all mods in bulk by scanning directories once
-    /// IsLoaded: True if work directory exists without DISABLED- prefix
-    /// IsAvailable: True if original archive file exists
-    /// This is much faster than checking each mod individually
-    /// </summary>
-    private void PopulateStatusFlagsBulk(List<ModInfo> mods)
-    {
-        // Get all files in mods directory (for IsAvailable check)
-        var availableFiles = Directory.Exists(_profilePaths.ModsDirectory)
-            ? Directory.GetFiles(_profilePaths.ModsDirectory)
-                .Select(Path.GetFileName)
-                .Where(f => !string.IsNullOrEmpty(f))
-                .Select(f => f!)
-                .ToHashSet()
-            : new HashSet<string>();
-
-        // Get all directories in cache mods directory (for IsLoaded check)
-        var loadedDirectories = Directory.Exists(_profilePaths.CacheModsDirectory)
-            ? Directory.GetDirectories(_profilePaths.CacheModsDirectory)
-                .Select(Path.GetFileName)
-                .Where(d => !string.IsNullOrEmpty(d) && !d.StartsWith("DISABLED-"))
-                .Select(d => d!)
-                .ToHashSet()
-            : new HashSet<string>();
-
-        // Populate flags for each mod using the cached directory listings
-        foreach (var mod in mods)
-        {
-            mod.IsAvailable = availableFiles.Contains(mod.SHA);
-            mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
-        }
-
-        // Note: Disabled mods have their cache directory renamed to DISABLED-{SHA}
-        // So they're automatically excluded from the loadedDirectories set
-    }
-
-    /// <summary>
-    /// Populates CategoryName field for all mods based on their Category (classification ID)
-    /// Maps classification IDs (which may be GUIDs) to human-readable names
-    /// </summary>
-    private async Task PopulateCategoryNamesBulkAsync(List<ModInfo> mods)
-    {
-        // Get unique category IDs from all mods
-        var categoryIds = mods
-            .Where(m => !string.IsNullOrEmpty(m.Category))
-            .Select(m => m.Category)
-            .Distinct()
-            .ToList();
-
-        if (!categoryIds.Any())
-        {
-            // No categories to look up
-            return;
-        }
-
-        // Get the classification tree once
-        var classificationTree = await _classificationService.GetClassificationTreeAsync().ConfigureAwait(false);
-
-        // Build a flat dictionary for quick lookups
-        var nodeMap = new Dictionary<string, string>();
-        BuildNodeMap(classificationTree, nodeMap);
-
-        // Populate CategoryName for each mod
-        foreach (var mod in mods)
-        {
-            if (string.IsNullOrEmpty(mod.Category))
-            {
-                mod.CategoryName = string.Empty;
-            }
-            else if (nodeMap.TryGetValue(mod.Category, out var categoryName))
-            {
-                mod.CategoryName = categoryName;
-            }
-            else
-            {
-                // If we can't find the category in the tree, use the ID as fallback
-                // This handles legacy paths or deleted categories
-                mod.CategoryName = mod.Category;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Recursively builds a flat dictionary of node ID to node name
-    /// </summary>
-    private void BuildNodeMap(List<ClassificationNode> nodes, Dictionary<string, string> nodeMap)
-    {
-        foreach (var node in nodes)
-        {
-            nodeMap[node.Id] = node.Name;
-            if (node.Children != null && node.Children.Any())
-            {
-                BuildNodeMap(node.Children, nodeMap);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Populates TagsWithMetadata field for all mods with Tag objects containing colors
-    /// Performs a single database query to load all unique tags, avoiding N+1 query problem
-    /// </summary>
-    private async Task PopulateTagMetadataBulkAsync(List<ModInfo> mods)
-    {
-        // Collect all unique tag names used across all mods
-        var allTagNames = mods
-            .SelectMany(m => m.Tags)
-            .Distinct()
-            .ToList();
-
-        if (!allTagNames.Any())
-        {
-            // No tags to look up
-            return;
-        }
-
-        // Load all tags from database in a single query
-        var allTags = await _tagRepository.GetAllAsync().ConfigureAwait(false);
-
-        // Build a dictionary for quick lookups
-        var tagMap = allTags.ToDictionary(t => t.Name, t => t);
-
-        // Populate TagsWithMetadata for each mod
-        foreach (var mod in mods)
-        {
-            mod.TagsWithMetadata = mod.Tags
-                .Where(tagName => tagMap.ContainsKey(tagName))
-                .Select(tagName => tagMap[tagName])
-                .ToList();
-        }
-    }
 
     // ============= Tag Management Methods =============
 
     public async Task<List<Tag>> GetAllTagsAsync()
     {
-        return await _tagRepository.GetAllAsync();
+        return await _tagService.GetAllTagsAsync();
     }
 
     public async Task<Tag?> GetTagByNameAsync(string name)
     {
-        return await _tagRepository.GetByNameAsync(name);
+        return await _tagService.GetTagByNameAsync(name);
     }
 
     private async Task<Tag?> GetTagByNameAsync(IpcRequest request)
@@ -1144,14 +847,7 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> UpsertTagAsync(string name, string color)
     {
-        var tag = new Tag
-        {
-            Name = name,
-            Color = color,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        return await _tagRepository.UpsertAsync(tag);
+        return await _tagService.UpsertTagAsync(name, color);
     }
 
     private async Task<bool> UpsertTagAsync(IpcRequest request)
@@ -1167,7 +863,7 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> DeleteTagAsync(string name)
     {
-        return await _tagRepository.DeleteAsync(name);
+        return await _tagService.DeleteTagAsync(name);
     }
 
     private async Task<bool> DeleteTagAsync(IpcRequest request)
@@ -1182,12 +878,12 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<List<string>> GetUsedTagNamesAsync()
     {
-        return await _tagRepository.GetUsedTagNamesAsync();
+        return await _tagService.GetUsedTagNamesAsync();
     }
 
     public async Task<int> GetTagUsageCountAsync(string tag)
     {
-        return await _tagRepository.GetUsageCountAsync(tag);
+        return await _tagService.GetTagUsageCountAsync(tag);
     }
 
     private async Task<int> GetTagUsageCountAsync(IpcRequest request)
@@ -1202,7 +898,7 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<List<Tag>> SearchTagsAsync(string searchTerm)
     {
-        return await _tagRepository.SearchAsync(searchTerm);
+        return await _tagService.SearchTagsAsync(searchTerm);
     }
 
     private async Task<List<Tag>> SearchTagsAsync(IpcRequest request)

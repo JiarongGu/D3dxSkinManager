@@ -2,6 +2,7 @@ using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Services;
 using D3dxSkinManager.Modules.Mods;
+using D3dxSkinManager.Modules.Mods.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
@@ -31,18 +32,21 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
 
     private readonly IMigrationService _migrationService;
     private readonly IModFacade _modFacade;
+    private readonly IClassificationService _classificationService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitter _eventEmitter;
 
     public MigrationFacade(
         IMigrationService migrationService,
         IModFacade modFacade,
+        IClassificationService classificationService,
         IPayloadHelper payloadHelper,
         IEventEmitter eventEmitter,
         ILogHelper logger) : base(logger)
     {
         _migrationService = migrationService ?? throw new ArgumentNullException(nameof(migrationService));
         _modFacade = modFacade ?? throw new ArgumentNullException(nameof(modFacade));
+        _classificationService = classificationService ?? throw new ArgumentNullException(nameof(classificationService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
     }
@@ -71,7 +75,7 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
         try
         {
             _logger.Info("Refreshing classification tree after migration", "MigrationFacade");
-            await _modFacade.RefreshClassificationTreeAsync().ConfigureAwait(false);
+            await _classificationService.RefreshTreeAsync().ConfigureAwait(false);
             _logger.Info("Classification tree refreshed successfully", "MigrationFacade");
 
             // Emit event so frontend knows to reload classification tree

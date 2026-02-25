@@ -106,26 +106,11 @@ public interface IProfilePathService
     string GetModArchivePath(string sha, string extension = ".7z");
 
     /// <summary>
-    /// Get path for a specific mod thumbnail by SHA
-    /// </summary>
-    /// <param name="sha">Mod SHA hash</param>
-    /// <param name="extension">Image extension (e.g., ".png", ".jpg")</param>
-    /// <returns>Full path to thumbnail</returns>
-    string GetThumbnailPath(string sha, string extension = ".png");
-
-    /// <summary>
     /// Get directory path for a specific mod's previews by SHA
     /// </summary>
     /// <param name="sha">Mod SHA hash</param>
     /// <returns>Full path to preview directory</returns>
     string GetPreviewDirectoryPath(string sha);
-
-    /// <summary>
-    /// Get path for a specific log file by name
-    /// </summary>
-    /// <param name="logFileName">Log file name</param>
-    /// <returns>Full path to log file</returns>
-    string GetLogFilePath(string logFileName);
 }
 
 /// <summary>
@@ -204,26 +189,10 @@ public class ProfilePathService : IProfilePathService
     }
 
     /// <summary>
-    /// Get path for a specific mod thumbnail by SHA
-    /// </summary>
-    public string GetThumbnailPath(string sha, string extension = ".png")
-    {
-        return Path.Combine(ThumbnailsDirectory, $"{sha}{extension}");
-    }
-
-    /// <summary>
     /// Get directory path for a specific mod's previews by SHA
     /// </summary>
     public string GetPreviewDirectoryPath(string sha)
     {
         return Path.Combine(PreviewsDirectory, sha);
-    }
-
-    /// <summary>
-    /// Get path for a specific log file by name
-    /// </summary>
-    public string GetLogFilePath(string logFileName)
-    {
-        return Path.Combine(LogsDirectory, logFileName);
     }
 }

@@ -27,6 +27,8 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<IModManagementService, ModManagementService>();
         services.TryAddSingleton<IModImportService, ModImportService>();
         services.TryAddSingleton<IModQueryService, ModQueryService>();
+        services.TryAddSingleton<IModMetadataService, ModMetadataService>();
+        services.TryAddSingleton<ITagService, TagService>();
 
         //// Register classification service
         services.TryAddSingleton<IClassificationService, ClassificationService>();

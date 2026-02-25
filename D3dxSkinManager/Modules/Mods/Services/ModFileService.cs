@@ -34,11 +34,24 @@ public interface IModFileService
     bool HasCache(string sha);
     string? GetCachePath(string sha);
 
+    // File path operations
+    Task<ModFilePathsResult> CheckFilePathsAsync(string sha);
+
     // Future: Batch operations
     // Task<BatchResult> LoadBatchAsync(IEnumerable<string> shas);
     // Task<BatchResult> UnloadBatchAsync(IEnumerable<string> shas);
     // Task<string> ExportModAsync(string sha, string targetPath);
     // Task<BatchResult> ExportBatchAsync(IEnumerable<string> shas, string targetDirectory);
+}
+
+/// <summary>
+/// Result object for file path checking
+/// </summary>
+public class ModFilePathsResult
+{
+    public string? OriginalPath { get; set; }
+    public string? CachePath { get; set; }
+    public string? ThumbnailPath { get; set; }
 }
 
 /// <summary>
@@ -58,6 +71,8 @@ public class ModFileService : IModFileService
     private readonly IArchiveHelper _archiveService;
     private readonly IModRepository _repository;
     private readonly ILogHelper _logger;
+    private readonly IPathHelper _pathHelper;
+    private readonly IImageService _imageService;
     private const string DISABLED_PREFIX = "DISABLED-";
 
     public ModFileService(
@@ -65,13 +80,17 @@ public class ModFileService : IModFileService
         IFileHelper fileService,
         IArchiveHelper archiveService,
         IModRepository repository,
-        ILogHelper logger)
+        ILogHelper logger,
+        IPathHelper pathHelper,
+        IImageService imageService)
     {
         _profilePaths = profilePaths;
         _fileService = fileService;
         _archiveService = archiveService;
         _repository = repository;
         _logger = logger;
+        _pathHelper = pathHelper;
+        _imageService = imageService;
     }
 
     #region Load/Unload Operations
@@ -584,6 +603,61 @@ public class ModFileService : IModFileService
 
         // Rarely used: SHA exists in database but not loaded
         return CacheCategory.RarelyUsed;
+    }
+
+    #endregion
+
+    #region File Path Operations
+
+    /// <summary>
+    /// Checks file paths for a mod (original archive, cache, preview folder)
+    /// </summary>
+    public async Task<ModFilePathsResult> CheckFilePathsAsync(string sha)
+    {
+        return await Task.FromResult(new ModFilePathsResult
+        {
+            OriginalPath = CheckOriginalPath(sha),
+            CachePath = CheckCachePathInternal(sha),
+            ThumbnailPath = CheckPreviewFolderPath(sha)
+        }).ConfigureAwait(false);
+    }
+
+    private string? CheckOriginalPath(string sha)
+    {
+        var originalArchivePath = Path.Combine(_profilePaths.ModsDirectory, sha);
+        if (File.Exists(originalArchivePath))
+            return _pathHelper.ToRelativePath(originalArchivePath) ?? originalArchivePath;
+        return null;
+    }
+
+    private string? CheckCachePathInternal(string sha)
+    {
+        var activeCachePath = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+        if (Directory.Exists(activeCachePath))
+            return _pathHelper.ToRelativePath(activeCachePath) ?? activeCachePath;
+
+        var disabledCachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"DISABLED-{sha}");
+        if (Directory.Exists(disabledCachePath))
+            return _pathHelper.ToRelativePath(disabledCachePath) ?? disabledCachePath;
+
+        return null;
+    }
+
+    private string? CheckPreviewFolderPath(string sha)
+    {
+        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
+
+        if (Directory.Exists(previewDirectory))
+        {
+            var hasPreviewImages = Directory.GetFiles(previewDirectory, "*.*")
+                .Any(f => _imageService.GetSupportedImageExtensions()
+                    .Contains(Path.GetExtension(f).ToLowerInvariant()));
+
+            if (hasPreviewImages)
+                return _pathHelper.ToRelativePath(previewDirectory) ?? previewDirectory;
+        }
+
+        return null;
     }
 
     #endregion

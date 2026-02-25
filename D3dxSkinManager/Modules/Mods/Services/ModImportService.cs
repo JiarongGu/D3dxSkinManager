@@ -110,19 +110,7 @@ public class ModImportService : IModImportService
                 _logger.Info($"Auto-detected as: {category ?? "Unknown"}", "ModImportService");
             }
 
-            // Step 6: Generate thumbnail and previews
-            string? thumbnailPath = null;
-
-            try
-            {
-                thumbnailPath = await _imageService.GenerateThumbnailAsync(tempExtractPath, sha).ConfigureAwait(false);
-                _logger.Info($"Generated thumbnail: {thumbnailPath}", "ModImportService");
-            }
-            catch (Exception ex)
-            {
-                _logger.Info($"Failed to generate thumbnail: {ex.Message}", "ModImportService");
-            }
-
+            // Step 6: Generate previews
             try
             {
                 var previewCount = await _imageService.GeneratePreviewsAsync(tempExtractPath, sha).ConfigureAwait(false);

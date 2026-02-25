@@ -50,6 +50,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
       try {
         await executeWithDelayedLoading(
           async () => {
+            // Backend automatically imports from cache if no previews exist
             const paths = await modService.getPreviewPaths(profileId, sha);
             setState((prev) => ({
               ...prev,
@@ -74,7 +75,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
     [profileState.selectedProfile?.id, setPreviewLoading]
   );
 
-  // Load preview paths when mod changes
+  // Load preview paths when mod changes or when isLoaded status changes
   useEffect(() => {
     if (state.currentMod?.sha && profileState.selectedProfile?.id) {
       loadPreviewPaths(state.currentMod.sha);
@@ -86,7 +87,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
         currentPreviewIndex: 0,
       }));
     }
-  }, [state.currentMod?.sha, profileState.selectedProfile?.id, loadPreviewPaths]);
+  }, [state.currentMod?.sha, state.currentMod?.isLoaded, profileState.selectedProfile?.id, loadPreviewPaths]);
 
   const setCurrentMod = useCallback((mod: ModInfo | undefined) => {
     setState((prev) => ({

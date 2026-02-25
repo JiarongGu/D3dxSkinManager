@@ -33,8 +33,8 @@ public class ModFacadeTests
     private readonly Mock<IEventEmitter> _mockEventEmitter = new();
     private readonly Mock<ILogHelper> _mockLogger = new();
     private readonly Mock<IImageService> _mockImageService = new();
-    private readonly Mock<IProfilePathService> _mockProfilePathService = new();
-    private readonly Mock<IPathHelper> _mockPathHelper = new();
+    private readonly Mock<IModMetadataService> _mockMetadataService = new();
+    private readonly Mock<ITagService> _mockTagService = new();
     private readonly ModFacade _facade;
 
     public ModFacadeTests()
@@ -54,13 +54,12 @@ public class ModFacadeTests
             _mockFileService.Object,
             _mockImportService.Object,
             _mockQueryService.Object,
+            _mockMetadataService.Object,
+            _mockTagService.Object,
             _mockClassificationService.Object,
-            _mockTagRepository.Object,
             _mockPayloadHelper.Object,
             _mockEventEmitter.Object,
             _mockImageService.Object,
-            _mockProfilePathService.Object,
-            _mockPathHelper.Object,
             _mockLogger.Object
         );
     }
@@ -419,58 +418,6 @@ public class ModFacadeTests
 
         // Assert
         _mockEventEmitter.Verify(e => e.EmitAsync(ModEvents.MOD_DELETED, It.IsAny<string?>(), It.IsAny<object?>()), Times.Once);
-    }
-
-    #endregion
-
-    #region GetModsByObjectAsync Tests
-
-    [Fact]
-    public async Task GetModsByObjectAsync_WithExistingObject_ShouldReturnMods()
-    {
-        // Arrange
-        var mods = CreateSampleMods().Take(2).ToList();
-        _mockRepository.Setup(r => r.GetByCategoryAsync("Character1")).ReturnsAsync(mods);
-
-        // Act
-        var result = await _facade.GetModsByObjectAsync("Character1");
-
-        // Assert
-        result.Should().HaveCount(2);
-    }
-
-    [Fact]
-    public async Task GetModsByObjectAsync_WithNonExistentObject_ShouldReturnEmptyList()
-    {
-        // Arrange
-        _mockRepository.Setup(r => r.GetByCategoryAsync("NonExistent")).ReturnsAsync(new List<ModInfo>());
-
-        // Act
-        var result = await _facade.GetModsByObjectAsync("NonExistent");
-
-        // Assert
-        result.Should().BeEmpty();
-    }
-
-    #endregion
-
-    #region GetObjectNamesAsync Tests
-
-    [Fact]
-    public async Task GetObjectNamesAsync_ShouldReturnDistinctCategories()
-    {
-        // Arrange
-        var categories = new List<string> { "Character1", "Character2", "Weapon1" };
-        _mockRepository.Setup(r => r.GetDistinctCategoriesAsync()).ReturnsAsync(categories);
-
-        // Act
-        var result = await _facade.GetObjectNamesAsync();
-
-        // Assert
-        result.Should().HaveCount(3);
-        result.Should().Contain("Character1");
-        result.Should().Contain("Character2");
-        result.Should().Contain("Weapon1");
     }
 
     #endregion

@@ -64,13 +64,6 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Get mods by category
-   */
-  async getModsByObject(profileId: string, category: string): Promise<ModInfo[]> {
-    return this.sendArrayMessage<ModInfo>('GET_BY_OBJECT', profileId, { category });
-  }
-
-  /**
    * Get mods by classification node ID
    */
   async getModsByClassification(profileId: string, classificationNodeId: string): Promise<ModInfo[]> {
@@ -89,13 +82,6 @@ export class ModService extends BaseModuleService {
    */
   async getUnclassifiedCount(profileId: string): Promise<number> {
     return this.sendMessage<number>('GET_UNCLASSIFIED_COUNT', profileId);
-  }
-
-  /**
-   * Get unique object names
-   */
-  async getObjectNames(profileId: string): Promise<string[]> {
-    return this.sendArrayMessage<string>('GET_OBJECT_NAMES', profileId);
   }
 
   /**
@@ -256,6 +242,27 @@ export class ModService extends BaseModuleService {
       {
         sha,
         imagePath
+      }
+    );
+    return result.success;
+  }
+
+  /**
+   * Check if clipboard contains an image
+   */
+  async checkClipboardHasImage(profileId: string): Promise<boolean> {
+    return this.sendBooleanMessage('CHECK_CLIPBOARD_HAS_IMAGE', profileId);
+  }
+
+  /**
+   * Import a preview image from clipboard for a mod
+   */
+  async importPreviewFromClipboard(profileId: string, sha: string): Promise<boolean> {
+    const result = await this.sendMessage<{ success: boolean; message: string }>(
+      'IMPORT_PREVIEW_FROM_CLIPBOARD',
+      profileId,
+      {
+        sha
       }
     );
     return result.success;

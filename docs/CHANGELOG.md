@@ -12,6 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Refactored - 2026-02-25 - ModFacade Cleanup: Remove Obsolete Message Types and Add Clipboard Check ⭐⭐⭐
+Removed legacy pre-classification and unused message types, migrated to modern classification tree system, and added clipboard image validation to prevent errors.
+**Impact**: ✅ 25.3% ModFacade size reduction (1,208→902 lines), cleaner architecture, better UX for paste operations
+**Removed Message Types**:
+- `GET_BY_OBJECT`, `GET_OBJECT_NAMES` - Legacy pre-classification methods (replaced by hierarchical classification tree)
+- `REFRESH_CLASSIFICATION_TREE` - Moved to direct service dependency in MigrationFacade (eliminates facade-to-facade coupling)
+- `REORDER_CLASSIFICATION_NODE` - Unused message handler
+**Added Features**:
+- `CHECK_CLIPBOARD_HAS_IMAGE` - Backend clipboard validation using STA threading
+- Disabled "Paste from Clipboard" menu item when no image present (prevents error logs)
+**Backend Changes**:
+- ImageService: Added `CheckClipboardHasImageAsync()` method
+- MigrationFacade: Injected `IClassificationService` directly instead of calling `ModFacade.RefreshClassificationTreeAsync()`
+- Removed obsolete methods from `IModFacade` interface
+- Removed 3 obsolete unit tests (~52 lines)
+**Frontend Changes**:
+- BatchEditDialog: Migrated from `modService.getObjectNames()` to `classificationService.getClassificationTree()` with `getAllLeafNodes()`
+- ModPreviewPanel: Added async clipboard check on context menu open, disable paste when clipboard empty
+- modService: Removed `getModsByObject()` and `getObjectNames()`, added `checkClipboardHasImage()`
+**Architecture Improvement**: Direct service dependencies where appropriate (MigrationFacade → ClassificationService) instead of facade-to-facade calls
+**Files**: ModFacade.cs, ImageService.cs, MigrationFacade.cs, ModFacadeTests.cs, modService.ts, BatchEditDialog/index.tsx, ModPreviewPanel.tsx
+**Pattern**: Thin facade for IPC routing, rich service layer for business logic, STA threading for Windows clipboard access
+
 ### Added - 2026-02-25 - Comprehensive Tag Management System with Color Customization ⭐⭐⭐⭐
 Implemented a complete tag management system with master Tags table, color customization, real-time synchronization, and intelligent color pre-generation.
 **Impact**: ✅ Professional tag organization, theme-aware styling, optimized performance (eliminated N+1 queries), consistent UX
