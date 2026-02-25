@@ -1,6 +1,6 @@
 ﻿using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
-using D3dxSkinManager.Modules.Settings.Services;
+using D3dxSkinManager.Modules.Setting.Services;
 
 namespace D3dxSkinManager.Modules.Core.Models
 {
@@ -71,7 +71,7 @@ namespace D3dxSkinManager.Modules.Core.Models
         private static LogLevel ReadLogLevel(IAppEnvironment environment) 
         { 
             var globalPathService = new GlobalPathService(environment);
-            var globalSettingService = new GlobalSettingsService(globalPathService, environment);
+            var globalSettingService = new GlobalSettingService(globalPathService, environment);
             return globalSettingService.GetLogLevelAsync().GetAwaiter().GetResult();
         }
 

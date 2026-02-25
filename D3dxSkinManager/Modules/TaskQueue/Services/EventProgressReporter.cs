@@ -1,6 +1,5 @@
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.TaskQueue.Models;
 
 namespace D3dxSkinManager.Modules.TaskQueue.Services;

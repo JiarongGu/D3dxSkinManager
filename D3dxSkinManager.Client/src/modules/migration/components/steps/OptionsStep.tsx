@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { Form, Input, Checkbox, Radio } from 'antd';
 import { CompactSpace, CompactAlert, CompactDivider } from '../../../../shared/components/compact';
 import { useMigrationWizard } from '../../context/MigrationWizardContext';
@@ -38,7 +38,7 @@ export const OptionsStep: React.FC = () => {
           migrateMetadata: true,
           migratePreviews: true,
           migrateConfiguration: true,
-          migrateClassifications: true,
+          migrateCategories: true,
           archiveMode: ArchiveHandling.Copy,
           environmentName: analysis?.activeEnvironment,
         }}
@@ -66,8 +66,8 @@ export const OptionsStep: React.FC = () => {
             <Form.Item name="migrateConfiguration" valuePropName="checked" noStyle>
               <Checkbox>{t('migration.options.configSettings')}</Checkbox>
             </Form.Item>
-            <Form.Item name="migrateClassifications" valuePropName="checked" noStyle>
-              <Checkbox>{t('migration.options.classificationRules')}</Checkbox>
+            <Form.Item name="migrateCategories" valuePropName="checked" noStyle>
+              <Checkbox>{t('migration.options.CategoryRules')}</Checkbox>
             </Form.Item>
           </div>
         </Form.Item>

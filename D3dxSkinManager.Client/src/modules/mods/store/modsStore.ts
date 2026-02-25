@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Centralized Mods Store using Zustand
  * Single source of truth for all mods module state
  *
@@ -12,7 +12,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { ModInfo } from '../../../shared/types/mod.types';
-import { ClassificationNode } from '../../../shared/types/classification.types';
+import { CategoryInfo } from '../../../shared/types/category.types';
 import { ImportTask } from '../types/importTask.types';
 import { ModManagementMode } from '../components/ModManagementScreen';
 
@@ -28,12 +28,12 @@ export interface ModsState {
   selectedMod: ModInfo | undefined;
   selectedMods: ModInfo[];
 
-  // Classification Panel
-  classificationTree: ClassificationNode[];
-  classificationLoading: boolean; // Loading state for classification tree panel
-  selectedClassification: ClassificationNode | undefined;
-  classificationFilteredMods: ModInfo[] | undefined;
-  classificationSearch: string;
+  // Category Panel
+  CategoryTree: CategoryInfo[];
+  CategoryLoading: boolean; // Loading state for Category tree panel
+  selectedCategory: CategoryInfo | undefined;
+  CategoryFilteredMods: ModInfo[] | undefined;
+  categorySearch: string;
 
   // Preview Panel
   previewLoading: boolean; // Loading state for preview panel (images, metadata, etc.)
@@ -76,17 +76,17 @@ export interface ModsActions {
   optimisticUnloadUpdate: (sha: string) => void;
   optimisticCategoryUpdate: (sha: string, categoryId: string) => void;
 
-  // Classification Panel Actions
-  setClassificationTree: (tree: ClassificationNode[]) => void;
-  setClassificationLoading: (loading: boolean) => void;
-  setSelectedClassification: (node: ClassificationNode | undefined) => void;
-  setClassificationFilteredMods: (mods: ModInfo[] | undefined) => void;
+  // Category Panel Actions
+  setCategoryTree: (tree: CategoryInfo[]) => void;
+  setCategoryLoading: (loading: boolean) => void;
+  setSelectedCategory: (node: CategoryInfo | undefined) => void;
+  setCategoryFilteredMods: (mods: ModInfo[] | undefined) => void;
 
   // Preview Panel Actions
   setPreviewLoading: (loading: boolean) => void;
-  setClassificationSearch: (search: string) => void;
-  updateTreeNodeLocal: (nodeId: string, updates: Partial<ClassificationNode>) => void;
-  clearClassificationFilter: () => void;
+  setcategorySearch: (search: string) => void;
+  updateTreeNodeLocal: (nodeId: string, updates: Partial<CategoryInfo>) => void;
+  clearCategoryFilter: () => void;
 
   // Import Actions
   setImportTasks: (tasks: ImportTask[]) => void;
@@ -130,12 +130,12 @@ const initialState: ModsState = {
   selectedMod: undefined,
   selectedMods: [],
 
-  // Classification Panel
-  classificationTree: [],
-  classificationLoading: false,
-  selectedClassification: undefined,
-  classificationFilteredMods: undefined,
-  classificationSearch: '',
+  // Category Panel
+  CategoryTree: [],
+  CategoryLoading: false,
+  selectedCategory: undefined,
+  CategoryFilteredMods: undefined,
+  categorySearch: '',
 
   // Preview Panel
   previewLoading: false,
@@ -204,9 +204,9 @@ export const useModsStore = create<ModsStore>()(
           if (state.selectedMod?.sha === sha) {
             state.selectedMod = { ...state.selectedMod, ...data };
           }
-          // Also update classification filtered mods if present
-          if (state.classificationFilteredMods) {
-            state.classificationFilteredMods = state.classificationFilteredMods.map((mod: ModInfo) =>
+          // Also update Category filtered mods if present
+          if (state.CategoryFilteredMods) {
+            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) =>
               mod.sha === sha ? { ...mod, ...data } : mod
             );
           }
@@ -220,9 +220,9 @@ export const useModsStore = create<ModsStore>()(
           if (state.selectedMod && shas.includes(state.selectedMod.sha)) {
             state.selectedMod = { ...state.selectedMod, ...data };
           }
-          // Also update classification filtered mods if present
-          if (state.classificationFilteredMods) {
-            state.classificationFilteredMods = state.classificationFilteredMods.map((mod: ModInfo) =>
+          // Also update Category filtered mods if present
+          if (state.CategoryFilteredMods) {
+            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) =>
               shas.includes(mod.sha) ? { ...mod, ...data } : mod
             );
           }
@@ -240,9 +240,9 @@ export const useModsStore = create<ModsStore>()(
             state.selectedMod = undefined;
           }
           state.selectedMods = state.selectedMods.filter((mod: ModInfo) => mod.sha !== sha);
-          // Also update classification filtered mods if present
-          if (state.classificationFilteredMods) {
-            state.classificationFilteredMods = state.classificationFilteredMods.filter(
+          // Also update Category filtered mods if present
+          if (state.CategoryFilteredMods) {
+            state.CategoryFilteredMods = state.CategoryFilteredMods.filter(
               (mod: ModInfo) => mod.sha !== sha
             );
           }
@@ -259,9 +259,9 @@ export const useModsStore = create<ModsStore>()(
             }
             return mod;
           });
-          // Also update classification filtered mods if present
-          if (state.classificationFilteredMods) {
-            state.classificationFilteredMods = state.classificationFilteredMods.map((mod: ModInfo) => {
+          // Also update Category filtered mods if present
+          if (state.CategoryFilteredMods) {
+            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) => {
               if (mod.sha === sha) {
                 return { ...mod, isLoaded: true };
               }
@@ -278,9 +278,9 @@ export const useModsStore = create<ModsStore>()(
           state.mods = state.mods.map((mod: ModInfo) =>
             mod.sha === sha ? { ...mod, isLoaded: false } : mod
           );
-          // Also update classification filtered mods if present
-          if (state.classificationFilteredMods) {
-            state.classificationFilteredMods = state.classificationFilteredMods.map((mod: ModInfo) =>
+          // Also update Category filtered mods if present
+          if (state.CategoryFilteredMods) {
+            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) =>
               mod.sha === sha ? { ...mod, isLoaded: false } : mod
             );
           }
@@ -291,26 +291,26 @@ export const useModsStore = create<ModsStore>()(
           state.mods = state.mods.map((mod: ModInfo) =>
             mod.sha === sha ? { ...mod, category: categoryId } : mod
           );
-          // Also update classification filtered mods if present
-          if (state.classificationFilteredMods) {
-            state.classificationFilteredMods = state.classificationFilteredMods.map((mod: ModInfo) =>
+          // Also update Category filtered mods if present
+          if (state.CategoryFilteredMods) {
+            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) =>
               mod.sha === sha ? { ...mod, category: categoryId } : mod
             );
           }
         }),
 
       // ============================================================
-      // Classification Actions
+      // Category Actions
       // ============================================================
 
-      setClassificationTree: (tree) =>
+      setCategoryTree: (tree) =>
         set((state) => {
-          state.classificationTree = tree;
+          state.CategoryTree = tree;
         }),
 
-      setClassificationLoading: (loading) =>
+      setCategoryLoading: (loading) =>
         set((state) => {
-          state.classificationLoading = loading;
+          state.CategoryLoading = loading;
         }),
 
       setPreviewLoading: (loading) =>
@@ -318,24 +318,24 @@ export const useModsStore = create<ModsStore>()(
           state.previewLoading = loading;
         }),
 
-      setSelectedClassification: (node) =>
+      setSelectedCategory: (node) =>
         set((state) => {
-          state.selectedClassification = node;
+          state.selectedCategory = node;
         }),
 
-      setClassificationFilteredMods: (mods) =>
+      setCategoryFilteredMods: (mods) =>
         set((state) => {
-          state.classificationFilteredMods = mods;
+          state.CategoryFilteredMods = mods;
         }),
 
-      setClassificationSearch: (search) =>
+      setcategorySearch: (search) =>
         set((state) => {
-          state.classificationSearch = search;
+          state.categorySearch = search;
         }),
 
       updateTreeNodeLocal: (nodeId, updates) =>
         set((state) => {
-          const updateNode = (nodes: ClassificationNode[]): ClassificationNode[] => {
+          const updateNode = (nodes: CategoryInfo[]): CategoryInfo[] => {
             return nodes.map((node) => {
               if (node.id === nodeId) {
                 return { ...node, ...updates };
@@ -347,13 +347,13 @@ export const useModsStore = create<ModsStore>()(
             });
           };
 
-          state.classificationTree = updateNode(state.classificationTree);
+          state.CategoryTree = updateNode(state.CategoryTree);
         }),
 
-      clearClassificationFilter: () =>
+      clearCategoryFilter: () =>
         set((state) => {
-          state.selectedClassification = undefined;
-          state.classificationFilteredMods = undefined;
+          state.selectedCategory = undefined;
+          state.CategoryFilteredMods = undefined;
         }),
 
       // ============================================================

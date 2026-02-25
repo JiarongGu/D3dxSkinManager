@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Tools module service
- * Handles cache management, classification, and validation operations
+ * Handles cache management, Category, and validation operations
  */
 
 import { BaseModuleService } from '../../../shared/services/baseModuleService';

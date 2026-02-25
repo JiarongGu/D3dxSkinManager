@@ -1,0 +1,20 @@
+﻿.category-panel-sider {
+  border-right: 1px solid var(--color-border-secondary);
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.category-panel-tree-container {
+  flex: 1;
+  min-height: 0;
+  height: calc(100% - 40px);
+  display: flex;
+  flex-direction: column;
+}
+
+.category-panel-unclassified-container {
+  border-top: 1px solid var(--color-border-secondary);
+  height: 40px;
+}

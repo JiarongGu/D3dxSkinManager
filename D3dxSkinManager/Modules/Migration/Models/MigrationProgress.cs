@@ -1,4 +1,4 @@
-namespace D3dxSkinManager.Modules.Migration.Models;
+﻿namespace D3dxSkinManager.Modules.Migration.Models;
 
 /// <summary>
 /// Migration progress update
@@ -23,7 +23,7 @@ public enum MigrationStage
     CopyingArchives,
     CopyingPreviews,
     ConvertingConfiguration,
-    ConvertingClassifications,
+    ConvertingCategories,
     Verifying,
     Finalizing,
     Complete,

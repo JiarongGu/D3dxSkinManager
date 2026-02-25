@@ -1,4 +1,4 @@
-import { BaseModuleService } from '../../../shared/services/baseModuleService';
+﻿import { BaseModuleService } from '../../../shared/services/baseModuleService';
 
 // Migration Models (matching C# backend)
 
@@ -9,7 +9,7 @@ export enum MigrationStage {
   CopyingArchives = 'CopyingArchives',
   CopyingPreviews = 'CopyingPreviews',
   ConvertingConfiguration = 'ConvertingConfiguration',
-  ConvertingClassifications = 'ConvertingClassifications',
+  ConvertingCategories = 'ConvertingCategories',
   Verifying = 'Verifying',
   Finalizing = 'Finalizing',
   Complete = 'Complete',
@@ -56,7 +56,7 @@ export interface MigrationOptions {
   migrateMetadata: boolean;
   migratePreviews: boolean;
   migrateConfiguration: boolean;
-  migrateClassifications: boolean;
+  migrateCategories: boolean;
   archiveMode: ArchiveHandling;
   postAction?: PostMigrationAction; // Optional - defaults to Keep on backend
 }
@@ -79,7 +79,7 @@ export interface MigrationResult {
   archivesCopied: number;
   previewsCopied: number;
   configurationMigrated: boolean;
-  classificationsMigrated: boolean;
+  CategoriesMigrated: boolean;
   errors: string[];
   warnings: string[];
   logFilePath: string;
@@ -125,7 +125,7 @@ class MigrationService extends BaseModuleService {
       migrateMetadata: options.migrateMetadata,
       migratePreviews: options.migratePreviews,
       migrateConfiguration: options.migrateConfiguration,
-      migrateClassifications: options.migrateClassifications,
+      migrateCategories: options.migrateCategories,
       archiveMode: options.archiveMode,
       postAction: options.postAction
     });

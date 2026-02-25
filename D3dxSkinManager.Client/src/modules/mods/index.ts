@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Mods Module - Centralized exports
  */
 
@@ -14,13 +14,12 @@ export type { ModsStore, ModsState, ModsActions } from './store/modsStore';
 
 // Selectors (for performance-optimized subscriptions)
 export * from './store/selectors/modSelectors';
-export * from './store/selectors/classificationSelectors';
+export * from './store/selectors/categorySelectors';
 
 // Operations (for direct use without hook)
 export * as modOperations from './operations/modOperations';
 export * as loadOperations from './operations/loadOperations';
 export * as categoryOperations from './operations/categoryOperations';
-export * as classificationOperations from './operations/classificationOperations';
 export * as importOperations from './operations/importOperations';
 
 // Components

@@ -12,6 +12,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Refactored - 2026-02-26 - Classification → Category: Major Module Refactoring ⭐⭐⭐⭐⭐
+Complete refactoring from "Classification" to "Category" terminology across the entire codebase, separating Category module from Mods module, implementing IMemoryCache for performance, and fixing migration system.
+**Impact**: ✅ Clearer terminology, better module separation, improved performance with caching, all tests passing (24/24)
+**Module Changes**:
+- **Separated Category Module**: Extracted from `Modules/Mods` to `Modules/Category`
+  - New namespace: `D3dxSkinManager.Modules.Category`
+  - Services: `CategoryService`, `CategoryRepository`, `CategoryFacade`
+  - Models: `CategoryInfo`
+  - Tests: `CategoryServiceTests` (11 unit tests), `CategoryRepositoryTests` (14 integration tests)
+- **Renamed Mods → Mod**: Singular naming convention across all modules
+  - `D3dxSkinManager.Modules.Mod` (was `Modules.Mods`)
+  - All modules now use singular names: Mod, Category, Plugin, Tool, Setting
+**Performance Improvements**:
+- **IMemoryCache Integration**: Replaced manual cache with Microsoft.Extensions.Caching.Memory
+  - Profile-specific cache keys: `CategoryTree_{profileId}`
+  - Automatic cache invalidation on updates (no more manual `RefreshTreeAsync`)
+  - 5-minute sliding expiration
+  - Singleton cache shared across profile-scoped services
+- **Removed RefreshTreeAsync**: Cache invalidation handles tree updates automatically
+**Frontend Changes**:
+- Translation keys: `t('Category.xxx')` → `t('category.xxx')`
+- CSS classes: `.Category-*` → `.category-*`
+- Service methods: `createNode` → `createCategory`, `updateNode` → `updateCategory`
+- Variable names: All "node" references changed to "category"
+**Backend Changes**:
+- Method renames: `MapToNode` → `MapToCategory`, `MoveNodeAsync` → `MoveCategoryAsync`
+- Comments updated: "node" → "category" throughout
+- CreateAsync pattern: Now accepts pre-generated GUIDs for better transaction control
+**Migration Fixes**:
+- Fixed directory path: `"Category"` → `"classification"` (matches Python source)
+- Fixed variable naming: `categoryNames` properly used as `List<string>`
+- Fixed parent ID assignment when category already exists
+- Parser: `IPythonCategoryFileParser` reads `classification/` directory
+**Test Coverage**:
+- CategoryServiceTests: 11 unit tests (GUID generation, name uniqueness, CRUD operations, cache invalidation)
+- CategoryRepositoryTests: 14 integration tests (SQLite operations, hierarchical queries, batch operations)
+- All 24 tests passing with proper async/await, FluentAssertions, and mocking
+**Files Changed**: 100+ files across backend (C#), frontend (TypeScript), tests, and documentation
+**Pattern**: Singular module naming, IMemoryCache for caching, pre-generated GUIDs, comprehensive test coverage
+**Documentation**: Updated CATEGORY_SYSTEM.md, MIGRATION_PARSER_ARCHITECTURE.md, architecture docs
+
 ### Added - 2026-02-25 - Strong Typing: Module-Matched Event Types & Removed Legacy Operation System ⭐⭐⭐⭐
 Enhanced event subscription with module-to-event-type matching, preventing mismatched module/event combinations at compile-time. Removed obsolete operation notification system (replaced by TaskQueue).
 **Impact**: ✅ Impossible to use wrong event types with modules, removed ~400 lines of unused code, cleaner architecture

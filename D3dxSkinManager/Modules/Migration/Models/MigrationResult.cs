@@ -1,4 +1,4 @@
-namespace D3dxSkinManager.Modules.Migration.Models;
+﻿namespace D3dxSkinManager.Modules.Migration.Models;
 
 /// <summary>
 /// Migration result
@@ -9,7 +9,7 @@ public class MigrationResult
     public int ModsMigrated { get; set; }
     public int ArchivesCopied { get; set; }
     public int PreviewsCopied { get; set; }
-    public int ClassificationRulesCreated { get; set; }
+    public int CategoryRulesCreated { get; set; }
     public long TotalBytesProcessed { get; set; }
     public TimeSpan Duration { get; set; }
     public List<string> Errors { get; set; } = new();

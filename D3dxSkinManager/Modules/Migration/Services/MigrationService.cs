@@ -1,4 +1,4 @@
-using D3dxSkinManager.Modules.Context.Services;
+﻿using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Steps;
@@ -46,8 +46,8 @@ public class MigrationService : IMigrationService
         // Inject all migration steps
         MigrationStep1AnalyzeSource step1,
         MigrationStep2MigrateConfiguration step2,
-        MigrationStep3MigrateClassifications step3,
-        MigrationStep4MigrateClassificationThumbnails step4,
+        MigrationStep3MigrateCategories step3,
+        MigrationStep4MigrateCategoryThumbnails step4,
         MigrationStep5MigrateModArchives step5,
         MigrationStep6MigrateModPreviews step6)
     {
@@ -146,7 +146,7 @@ public class MigrationService : IMigrationService
             _logger.Info($"Mods Migrated: {context.Result.ModsMigrated}", "Migration");
             _logger.Info($"Archives Copied: {context.Result.ArchivesCopied}", "Migration");
             _logger.Info($"Previews Copied: {context.Result.PreviewsCopied}", "Migration");
-            _logger.Info($"Classification Rules: {context.Result.ClassificationRulesCreated}", "Migration");
+            _logger.Info($"Category Rules: {context.Result.CategoryRulesCreated}", "Migration");
 
             progress?.Report(new MigrationProgress
             {

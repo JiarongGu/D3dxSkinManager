@@ -1,4 +1,4 @@
-using D3dxSkinManager.Modules.Core.Services;
+﻿using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Profiles.Models;
 using D3dxSkinManager.Modules.Profiles;
@@ -18,7 +18,7 @@ public interface IProfilePathService
     // Standard file name constants
 
     /// <summary>
-    /// Standard name for profile database file (consolidated mods + classifications)
+    /// Standard name for profile database file (consolidated mods + Categories)
     /// </summary>
     string ProfileDatabaseFileName { get; }
 
@@ -84,7 +84,7 @@ public interface IProfilePathService
 
     /// <summary>
     /// Profile database path (data/profiles/{profileId}/profile.db)
-    /// Contains mods, classifications, and all profile-related data
+    /// Contains mods, Categories, and all profile-related data
     /// </summary>
     string ProfileDatabasePath { get; }
 

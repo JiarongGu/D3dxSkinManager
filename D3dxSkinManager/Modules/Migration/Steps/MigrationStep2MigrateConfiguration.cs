@@ -1,6 +1,6 @@
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
-using D3dxSkinManager.Modules.Tools.Services;
+using D3dxSkinManager.Modules.Tool.Services;
 
 namespace D3dxSkinManager.Modules.Migration.Steps;
 

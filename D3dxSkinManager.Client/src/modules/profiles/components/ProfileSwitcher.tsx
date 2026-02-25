@@ -1,4 +1,4 @@
-import { notification } from '../../../shared/utils/notification';
+﻿import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
 import { Button, Space, Badge } from 'antd';
 import {
@@ -47,7 +47,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
       }
 
       // NOTE: No manual refresh needed - ModsProvider reactively listens to profile changes
-      // and will automatically refresh mods and classification tree
+      // and will automatically refresh mods and Category tree
     } catch (error) {
       console.error('Failed to switch profile:', error);
       notification.error(t('profiles.notifications.switchFailed'));

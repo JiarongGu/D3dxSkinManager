@@ -1,7 +1,7 @@
-import { BaseModuleService } from '../../../shared/services/baseModuleService';
+﻿import { BaseModuleService } from '../../../shared/services/baseModuleService';
 
 /**
- * Cache category classification
+ * Cache category Category
  */
 export enum CacheCategory {
   Invalid = 'Invalid',

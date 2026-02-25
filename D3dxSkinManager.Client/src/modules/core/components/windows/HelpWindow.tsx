@@ -80,7 +80,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
           Mods are organized into a three-level hierarchy:
         </Paragraph>
         <ul className="help-window-list">
-          <li><strong>Classification:</strong> Top-level category (Character, Weapon, etc.)</li>
+          <li><strong>Category:</strong> Top-level category (Character, Weapon, etc.)</li>
           <li><strong>Object:</strong> Specific object or character name</li>
           <li><strong>Mod:</strong> Individual mod file</li>
         </ul>
@@ -236,7 +236,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         <Title level={5}>Workflow Tips</Title>
         <ul className="help-window-list">
           <li>Use import queue for bulk imports</li>
-          <li>Create classification hierarchies that match your game structure</li>
+          <li>Create category hierarchies that match your game structure</li>
           <li>Use context menus (right-click) for quick actions</li>
           <li>Learn keyboard shortcuts for faster workflow</li>
           <li>Export mods before deleting (for backup)</li>

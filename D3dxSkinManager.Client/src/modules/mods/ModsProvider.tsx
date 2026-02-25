@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Thin ModsProvider - handles initialization and profile changes
  * No longer manages state (moved to Zustand store)
  */
@@ -6,9 +6,9 @@
 import React, { useEffect } from 'react';
 import { useProfile } from '../../shared/context/ProfileContext';
 import { useModsStore } from './store/modsStore';
-import { eventBus, ModEventType, Module } from '../../shared/services/eventBus';
+import { eventBus, ModEventType, CategoryEventType, Module } from '../../shared/services/eventBus';
 import * as modOps from './operations/modOperations';
-import * as classificationOps from './operations/classificationOperations';
+import * as categoryOps from './operations/categoryOperations';
 
 interface ModsProviderProps {
   children: React.ReactNode;
@@ -39,18 +39,18 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       modOps.refreshMods(selectedProfileId);
     });
 
-    const unsubscribeClassificationTreeChanged = eventBus.subscribe(
-      Module.MOD,
-      ModEventType.CLASSIFICATION_TREE_CHANGED,
+    const unsubscribeCategoriesUpdated = eventBus.subscribe(
+      Module.CATEGORY,
+      CategoryEventType.CATEGORIES_UPDATED,
       () => {
-        classificationOps.refreshClassificationTree(selectedProfileId);
+        categoryOps.refreshCategoryTree(selectedProfileId);
       }
     );
 
     // Cleanup subscriptions on unmount or profile change
     return () => {
       unsubscribeModsRefreshed();
-      unsubscribeClassificationTreeChanged();
+      unsubscribeCategoriesUpdated();
     };
   }, [selectedProfileId]);
 
@@ -60,7 +60,7 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       // Load/refresh data for the new profile
       void Promise.all([
         modOps.loadMods(selectedProfileId),
-        classificationOps.loadClassificationTree(selectedProfileId),
+        categoryOps.loadCategoryTree(selectedProfileId),
       ]);
     } else {
       // Reset state when no profile is selected

@@ -1,4 +1,4 @@
-using D3dxSkinManager.Modules.Plugins.Services;
+﻿using D3dxSkinManager.Modules.Plugins.Services;
 using D3dxSkinManager.Modules.Core.Models;
 
 
@@ -9,7 +9,7 @@ namespace D3dxSkinManager.Plugins.ModifyListOrder;
 /// Port of modify_list_order Python plugin.
 ///
 /// Features:
-/// - Customizes display order for classification list
+/// - Customizes display order for Category list
 /// - Customizes display order for object list
 /// - Customizes display order for mod/choice list
 /// - Drag-and-drop list reordering UI
@@ -121,7 +121,7 @@ public class ModifyListOrderPlugin : IMessageHandlerPlugin
             // - Save to order.json for user
             // - Update display order in UI
             // - Support different list types:
-            //   - class: classification list order
+            //   - class: Category list order
             //   - object: object list order (with class reference support)
             //   - choice: mod/choice list order (with multiple sort rules)
 

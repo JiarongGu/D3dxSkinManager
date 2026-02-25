@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { Layout, Empty, Input, Button, Tooltip } from 'antd';
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
@@ -26,9 +26,9 @@ export const ModListPanel: React.FC = () => {
   const loading = useModsStore(s => s.modsLoading); // Mod list panel loading state
   const selectedMod = useModsStore(s => s.selectedMod);
   const searchQuery = useModsStore(s => s.searchQuery);
-  const selectedClassification = useModsStore(s => s.selectedClassification);
+  const selectedCategory = useModsStore(s => s.selectedCategory);
   const selectedObject = useModsStore(s => s.selectedObject);
-  const classificationFilteredMods = useModsStore(s => s.classificationFilteredMods);
+  const CategoryFilteredMods = useModsStore(s => s.CategoryFilteredMods);
 
   // Get operations
   const {
@@ -43,18 +43,18 @@ export const ModListPanel: React.FC = () => {
   const { t } = useTranslation();
   const contentRef = React.useRef<HTMLDivElement>(null);
 
-  // Compute filtered mods based on search and classification
+  // Compute filtered mods based on search and Category
   const filteredMods = useMemo(() => {
-    // If a classification is selected, use classification-filtered mods
+    // If a Category is selected, use Category-filtered mods
     let result: ModInfo[];
-    if (selectedClassification) {
-      result = classificationFilteredMods || [];
+    if (selectedCategory) {
+      result = CategoryFilteredMods || [];
     } else {
       result = mods;
     }
 
-    // Filter by selected object (only if no classification is selected)
-    if (!selectedClassification && selectedObject && selectedObject !== "all") {
+    // Filter by selected object (only if no Category is selected)
+    if (!selectedCategory && selectedObject && selectedObject !== "all") {
       result = result.filter((mod: ModInfo) => mod.category === selectedObject);
     }
 
@@ -90,7 +90,7 @@ export const ModListPanel: React.FC = () => {
     }
 
     return result;
-  }, [mods, classificationFilteredMods, selectedObject, selectedClassification, searchQuery]);
+  }, [mods, CategoryFilteredMods, selectedObject, selectedCategory, searchQuery]);
 
   const handleLoadedModClick = (mod: ModInfo) => {
     // Scroll to the loaded mod and select it
@@ -106,12 +106,12 @@ export const ModListPanel: React.FC = () => {
     }
   };
 
-  if (!selectedClassification && !selectedObject) {
+  if (!selectedCategory && !selectedObject) {
     return (
       <Sider width={450} className="mod-list-panel">
         <div className="mod-list-panel-empty-container">
           <Empty
-            description={t('mods.panel.selectClassification')}
+            description={t('mods.panel.selectCategory')}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             className="mod-list-panel-empty"
           />
@@ -159,8 +159,8 @@ export const ModListPanel: React.FC = () => {
               description={
                 searchQuery
                   ? t('mods.panel.noModsMatchingSearch', { query: searchQuery })
-                  : selectedClassification
-                    ? t('mods.panel.noModsForClassification', { name: selectedClassification.name })
+                  : selectedCategory
+                    ? t('mods.panel.noModsForCategory', { name: selectedCategory.name })
                     : selectedObject
                       ? t('mods.panel.noModsForObject', { object: selectedObject })
                       : t('mods.panel.noModsAvailable')
@@ -175,7 +175,7 @@ export const ModListPanel: React.FC = () => {
       <div className="mod-list-panel-status-bar-container">
         <ModListStatusBar
           mods={filteredMods}
-          selectedClassification={selectedClassification}
+          selectedCategory={selectedCategory}
           selectedObject={selectedObject}
           onLoadedModClick={handleLoadedModClick}
         />

@@ -1,4 +1,5 @@
 using D3dxSkinManager.Composition;
+using D3dxSkinManager.Modules.TaskQueue.Processors;
 using D3dxSkinManager.Modules.TaskQueue.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

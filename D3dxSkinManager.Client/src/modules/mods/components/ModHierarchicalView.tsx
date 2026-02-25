@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+﻿import React, { useState, useEffect, useCallback } from "react";
 import { Layout } from "antd";
-import { ClassificationNode } from "../../../shared/types/classification.types";
+import { CategoryInfo } from "../../../shared/types/category.types";
 
 import { ModPreviewPanel } from "./ModPreviewPanel";
-import { ClassificationPanel } from "./ClassificationPanel";
+import { CategoryPanel } from "./CategoryPanel";
 import { ModListPanel } from "./ModListPanel";
 import { ModEditScreen } from "./ModEditScreen/ModEditScreen";
 import { ModManagementScreen } from "./ModManagementScreen";
@@ -24,16 +24,16 @@ import './ModHierarchicalView.css';
 export const ModHierarchicalView: React.FC = () => {
   // Only subscribe to what THIS component uses for its coordination logic
   const mods = useModsStore(s => s.mods);
-  const selectedClassification = useModsStore(s => s.selectedClassification);
+  const selectedCategory = useModsStore(s => s.selectedCategory);
 
   // Operations for coordination
   const {
     refreshMods,
-    loadModsByClassification,
+    loadModsByCategory,
     loadUnclassifiedMods,
-    setSelectedClassification,
-    clearClassificationFilter,
-    refreshClassificationTree,
+    setSelectedCategory,
+    clearCategoryFilter,
+    refreshCategoryTree,
     setAvailableTags,
   } = useMods();
 
@@ -87,36 +87,36 @@ export const ModHierarchicalView: React.FC = () => {
       }
     }
 
-    // Reload classification filtered mods if needed
-    if (selectedClassification?.id && selectedClassification.id !== "__unclassified__") {
-      const p2 = loadModsByClassification(selectedClassification.id);
+    // Reload Category filtered mods if needed
+    if (selectedCategory?.id && selectedCategory.id !== "__unclassified__") {
+      const p2 = loadModsByCategory(selectedCategory.id);
       if (p2) await p2;
-    } else if (selectedClassification?.id === "__unclassified__") {
+    } else if (selectedCategory?.id === "__unclassified__") {
       const p3 = loadUnclassifiedMods();
       if (p3) await p3;
     }
-  }, [refreshMods, selectedClassification, profileState.selectedProfile?.id, loadModsByClassification, loadUnclassifiedMods]);
+  }, [refreshMods, selectedCategory, profileState.selectedProfile?.id, loadModsByCategory, loadUnclassifiedMods]);
 
-  // Classification selection handler
-  const handleClassificationSelect = useCallback(
-    (node: ClassificationNode | undefined) => {
-      setSelectedClassification(node);
+  // Category selection handler
+  const handleCategorieselect = useCallback(
+    (node: CategoryInfo | undefined) => {
+      setSelectedCategory(node);
 
       if (node) {
         if (node.id === "__unclassified__") {
           void loadUnclassifiedMods();
         } else {
-          void loadModsByClassification(node.id);
+          void loadModsByCategory(node.id);
         }
       } else {
-        clearClassificationFilter();
+        clearCategoryFilter();
       }
     },
-    [setSelectedClassification, loadUnclassifiedMods, loadModsByClassification, clearClassificationFilter],
+    [setSelectedCategory, loadUnclassifiedMods, loadModsByCategory, clearCategoryFilter],
   );
 
   const handleUnclassifiedClick = useCallback(() => {
-    const unclassifiedNode: ClassificationNode = {
+    const unclassifiedNode: CategoryInfo = {
       id: "__unclassified__",
       name: "Unclassified",
       parentId: undefined,
@@ -125,16 +125,16 @@ export const ModHierarchicalView: React.FC = () => {
       thumbnail: undefined,
       description: undefined,
     };
-    handleClassificationSelect(unclassifiedNode);
-  }, [handleClassificationSelect]);
+    handleCategorieselect(unclassifiedNode);
+  }, [handleCategorieselect]);
 
   return (
     <>
       <Layout className="mod-hierarchical-view-layout">
-        {/* Classification Tree - subscribes to its own state inside */}
-        <ClassificationPanel
-          onSelect={handleClassificationSelect}
-          onRefreshTree={async () => { const p = refreshClassificationTree(); if (p) await p; }}
+        {/* Category Tree - subscribes to its own state inside */}
+        <CategoryPanel
+          onSelect={handleCategorieselect}
+          onRefreshTree={async () => { const p = refreshCategoryTree(); if (p) await p; }}
           onModsRefresh={handleModsRefreshAfterCategoryChange}
           unclassifiedCount={unclassifiedCount}
           onUnclassifiedClick={handleUnclassifiedClick}

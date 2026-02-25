@@ -1,15 +1,17 @@
-/**
+﻿/**
  * Category operations - SINGLE SOURCE OF TRUTH for category update logic
  * Handles complex tree count updates with optimistic UI
  */
 
 import { useModsStore } from '../store/modsStore';
 import { modService } from '../services/modService';
-import { ClassificationNode } from '../../../shared/types/classification.types';
+import { CategoryInfo } from '../../../shared/types/category.types';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { notification } from '../../../shared/utils/notification';
 import { refreshMods } from './modOperations';
-import { refreshClassificationTree } from './classificationOperations';
+import { categoryService } from '../../../shared/services/categoryService';
+import { handleError } from '../../../shared/utils/errorHandler';
+import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
 
 /**
  * Update mod category with optimistic updates and tree count recalculation
@@ -33,7 +35,7 @@ export async function updateModCategory(
 
   // Capture current state for rollback
   const currentMods = state.mods;
-  const currentTree = state.classificationTree;
+  const currentTree = state.CategoryTree;
 
   // Calculate optimistic tree with updated counts
   const optimisticTree = updateTreeCounts(
@@ -45,7 +47,7 @@ export async function updateModCategory(
 
   // 1. Apply optimistic updates to mod and tree (Zustand automatically updates all slices)
   state.optimisticCategoryUpdate(sha, categoryId);
-  state.setClassificationTree(optimisticTree);
+  state.setCategoryTree(optimisticTree);
 
   try {
     // 2. Perform backend operation
@@ -53,7 +55,7 @@ export async function updateModCategory(
     notification.success('Category updated');
 
     // 3. Refresh both mods and tree from backend (with delayed loading to prevent flicker)
-    await Promise.all([refreshMods(profileId), refreshClassificationTree(profileId)]);
+    await Promise.all([refreshMods(profileId), refreshCategoryTree(profileId)]);
 
     return true;
   } catch (error) {
@@ -61,7 +63,7 @@ export async function updateModCategory(
     if (modBeingUpdated) {
       state.optimisticCategoryUpdate(sha, modBeingUpdated.category);
     }
-    state.setClassificationTree(currentTree);
+    state.setCategoryTree(currentTree);
 
     notification.error('Failed to update category');
 
@@ -80,21 +82,21 @@ export async function updateModCategory(
  * This is the SINGLE SOURCE OF TRUTH for tree count calculation
  */
 function updateTreeCounts(
-  tree: ClassificationNode[],
+  tree: CategoryInfo[],
   mods: ModInfo[],
   oldCategory: string | undefined,
   newCategory: string
-): ClassificationNode[] {
+): CategoryInfo[] {
   // Check if newCategory is an ancestor of oldCategory
   const isAncestor = (
-    tree: ClassificationNode[],
+    tree: CategoryInfo[],
     ancestorId: string,
     childId: string
   ): boolean => {
     for (const node of tree) {
       if (node.id === ancestorId) {
         // Found the potential ancestor, check if childId exists in its subtree
-        const hasChild = (n: ClassificationNode): boolean => {
+        const hasChild = (n: CategoryInfo): boolean => {
           if (n.id === childId) return true;
           if (n.children) {
             return n.children.some(hasChild);
@@ -112,7 +114,7 @@ function updateTreeCounts(
 
   const movingToAncestor = oldCategory ? isAncestor(tree, newCategory, oldCategory) : false;
 
-  const updateNode = (node: ClassificationNode): ClassificationNode => {
+  const updateNode = (node: CategoryInfo): CategoryInfo => {
     let updatedNode = { ...node };
 
     // Decrement old category
@@ -155,9 +157,121 @@ export async function batchUpdateCategories(
     notification.success(`Updated ${shas.length} mod(s) category`);
 
     // Refresh both mods and tree
-    await Promise.all([refreshMods(profileId), refreshClassificationTree(profileId)]);
+    await Promise.all([refreshMods(profileId), refreshCategoryTree(profileId)]);
   } catch (error) {
     notification.error('Failed to batch update categories');
     throw error;
+  }
+}
+
+/**
+ * Load Category tree
+ * Uses delayed loading (100ms) to avoid flicker for fast loads
+ */
+export async function loadCategoryTree(profileId: string): Promise<void> {
+  const { setCategoryLoading, setCategoryTree } = useModsStore.getState();
+
+  try {
+    await executeWithDelayedLoading(
+      async () => {
+        const tree = await categoryService.getCategoryTree(profileId);
+        setCategoryTree(tree);
+      },
+      setCategoryLoading,
+      100
+    );
+  } catch (error) {
+    handleError(error);
+  }
+}
+
+/**
+ * Refresh Category tree
+ */
+export async function refreshCategoryTree(profileId: string): Promise<void> {
+  await loadCategoryTree(profileId);
+}
+
+/**
+ * Load mods filtered by Category node
+ * Uses delayed loading (100ms) to avoid flicker for fast queries
+ */
+export async function loadModsByCategory(
+  profileId: string,
+  nodeId: string
+): Promise<void> {
+  const { setCategoryLoading, setCategoryFilteredMods } = useModsStore.getState();
+
+  try {
+    await executeWithDelayedLoading(
+      async () => {
+        const mods = await modService.getModsByCategory(profileId, nodeId);
+        setCategoryFilteredMods(mods);
+      },
+      setCategoryLoading,
+      100
+    );
+  } catch (error) {
+    handleError(error);
+  }
+}
+
+/**
+ * Load uncategorized mods (no category assigned)
+ * Uses delayed loading (100ms) to avoid flicker for fast queries
+ */
+export async function loadUncategorizedMods(profileId: string): Promise<void> {
+  const { setCategoryLoading, setCategoryFilteredMods } = useModsStore.getState();
+
+  try {
+    await executeWithDelayedLoading(
+      async () => {
+        const mods = await modService.getUnclassifiedMods(profileId);
+        setCategoryFilteredMods(mods);
+      },
+      setCategoryLoading,
+      100
+    );
+  } catch (error) {
+    handleError(error);
+  }
+}
+
+/**
+ * Clear Category filter
+ */
+export function clearCategoryFilter(): void {
+  useModsStore.getState().clearCategoryFilter();
+}
+
+/**
+ * Select Category node and load its mods
+ */
+export async function selectCategory(
+  profileId: string,
+  nodeId: string
+): Promise<void> {
+  const state = useModsStore.getState();
+
+  // Find the node in the tree
+  const findNode = (nodes: typeof state.CategoryTree): typeof state.selectedCategory => {
+    for (const node of nodes) {
+      if (node.id === nodeId) return node;
+      if (node.children) {
+        const found = findNode(node.children);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+
+  const node = findNode(state.CategoryTree);
+  state.setSelectedCategory(node);
+
+  // Load mods for this Category
+  if (nodeId === '__uncategorized__') {
+    await loadUncategorizedMods(profileId);
+  } else {
+    await loadModsByCategory(profileId, nodeId);
   }
 }

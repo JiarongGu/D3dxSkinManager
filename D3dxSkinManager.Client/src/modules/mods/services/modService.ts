@@ -1,4 +1,4 @@
-import { BaseModuleService } from '../../../shared/services/baseModuleService';
+﻿import { BaseModuleService } from '../../../shared/services/baseModuleService';
 import { ModInfo, ModLoadResult, Tag } from '../../../shared/types/mod.types';
 
 // Re-export types for backwards compatibility
@@ -64,21 +64,21 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Get mods by classification node ID
+   * Get mods by Category node ID
    */
-  async getModsByClassification(profileId: string, classificationNodeId: string): Promise<ModInfo[]> {
-    return this.sendArrayMessage<ModInfo>('GET_MODS_BY_CLASSIFICATION', profileId, { classificationNodeId });
+  async getModsByCategory(profileId: string, categoryId: string): Promise<ModInfo[]> {
+    return this.sendArrayMessage<ModInfo>('GET_MODS_BY_CATEGORY', profileId, { categoryId });
   }
 
   /**
-   * Get all mods that don't have any classification tags
+   * Get all mods that don't have any Category tags
    */
   async getUnclassifiedMods(profileId: string): Promise<ModInfo[]> {
     return this.sendArrayMessage<ModInfo>('GET_UNCLASSIFIED_MODS', profileId);
   }
 
   /**
-   * Get count of mods that don't have any classification tags
+   * Get count of mods that don't have any Category tags
    */
   async getUnclassifiedCount(profileId: string): Promise<number> {
     return this.sendMessage<number>('GET_UNCLASSIFIED_COUNT', profileId);
@@ -186,7 +186,7 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Update mod category (classification)
+   * Update mod category (Category)
    */
   async updateCategory(
     profileId: string,

@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using D3dxSkinManager.Modules.Migration.Services;
 using D3dxSkinManager.Modules.Migration.Steps;
@@ -22,14 +22,14 @@ public static class MigrationServiceExtensions
         // Register parsers (parse Python files → return data structures)
         services.TryAddSingleton<IPythonConfigurationParser, PythonConfigurationParser>();
         services.TryAddSingleton<IPythonRedirectionFileParser, PythonRedirectionFileParser>();
-        services.TryAddSingleton<IPythonClassificationFileParser, PythonClassificationFileParser>();
+        services.TryAddSingleton<IPythonCategoryFileParser, PythonCategoryFileParser>();
         services.TryAddSingleton<IPythonModIndexParser, PythonModIndexParser>();
 
         // Register migration steps (each step is a separate service)
         services.TryAddSingleton<MigrationStep1AnalyzeSource>();
         services.TryAddSingleton<MigrationStep2MigrateConfiguration>();
-        services.TryAddSingleton<MigrationStep3MigrateClassifications>();
-        services.TryAddSingleton<MigrationStep4MigrateClassificationThumbnails>();
+        services.TryAddSingleton<MigrationStep3MigrateCategories>();
+        services.TryAddSingleton<MigrationStep4MigrateCategoryThumbnails>();
         services.TryAddSingleton<MigrationStep5MigrateModArchives>();
         services.TryAddSingleton<MigrationStep6MigrateModPreviews>();
 

@@ -8,7 +8,7 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Launch.Models;
 using D3dxSkinManager.Modules.System.Services;
-using D3dxSkinManager.Modules.Tools.Services;
+using D3dxSkinManager.Modules.Tool.Services;
 
 namespace D3dxSkinManager.Modules.Launch.Services;
 

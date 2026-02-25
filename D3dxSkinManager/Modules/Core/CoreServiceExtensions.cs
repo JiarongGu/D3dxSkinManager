@@ -1,10 +1,8 @@
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
-using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Context.Services;
-using D3dxSkinManager.Composition;
 
 namespace D3dxSkinManager.Modules.Core;
 
@@ -21,6 +19,10 @@ public static class CoreServiceExtensions
     /// </summary>
     public static IServiceCollection AddCoreServices(this IServiceCollection services)
     {
+        // Memory cache for application-wide caching
+        // Note: AddMemoryCache() registers IMemoryCache as a singleton automatically
+        services.AddMemoryCache();
+
         // Low-level services (no dependencies)
         AddSingleton<IFileHelper, FileHelper>(services);
         AddSingleton<IHashHelper, HashHelper>(services);
@@ -62,6 +64,8 @@ public static class CoreServiceExtensions
 
     public static IServiceCollection AddCoreServices(this IServiceCollection services, IServiceProvider serviceProvider)
     {
+        services.AddSingleton(serviceProvider.GetRequiredService<IMemoryCache>());
+
         foreach (var serviceType in _registerdServices)
         {
             var service = serviceProvider.GetService(serviceType);

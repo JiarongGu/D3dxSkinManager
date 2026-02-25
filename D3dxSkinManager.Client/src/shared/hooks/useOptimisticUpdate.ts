@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+﻿import { useCallback, useRef } from 'react';
 
 /**
  * Hook for optimistic UI updates with automatic verification
@@ -19,7 +19,7 @@ import { useCallback, useRef } from 'react';
  * 3. Remove automatic `loading: false` from your reducer actions
  * 4. Call simple refresh instead of verification
  *
- * See `useClassificationData.ts` or `useModData.ts` for examples of `useDelayedLoading`.
+ * See `useCategoryData.ts` or `useModData.ts` for examples of `useDelayedLoading`.
  */
 
 /**

@@ -44,13 +44,13 @@ Write-Host ""
 Write-Host "[3/4] Publishing .NET application..." -ForegroundColor Yellow
 Set-Location D3dxSkinManager
 
-$publishPath = "bin\Release\net8.0\win-x64\publish"
+$publishPath = "bin\Release\net10.0-windows\publish"
 
 if (Test-Path $publishPath) {
     Remove-Item -Recurse -Force $publishPath
 }
 
-dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=false
+dotnet publish -c Release --self-contained
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ .NET publish failed!" -ForegroundColor Red

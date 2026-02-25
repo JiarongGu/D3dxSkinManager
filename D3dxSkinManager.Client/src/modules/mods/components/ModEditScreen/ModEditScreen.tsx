@@ -1,4 +1,4 @@
-import { notification } from '../../../../shared/utils/notification';
+﻿import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Space } from 'antd';
 import { ModInfo } from '../../../../shared/types/mod.types';
@@ -19,7 +19,7 @@ import './ModEditScreen.css';
 const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   // Subscribe to state from store
   const visible = useModsStore(s => s.editDialogVisible);
-  const classificationTree = useModsStore(s => s.classificationTree);
+  const CategoryTree = useModsStore(s => s.CategoryTree);
   const { state: profileState } = useProfile();
   const { updateMod, updateModLocal, closeEditDialog } = useMods();
 
@@ -50,9 +50,9 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
     }
   };
 
-  // Build category options from classification tree
+  // Build category options from Category tree
   useEffect(() => {
-    const flattenTree = (nodes: typeof classificationTree): Array<{ id: string; name: string }> => {
+    const flattenTree = (nodes: typeof CategoryTree): Array<{ id: string; name: string }> => {
       const result: Array<{ id: string; name: string }> = [];
       for (const node of nodes) {
         result.push({ id: node.id, name: node.name });
@@ -63,8 +63,8 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       return result;
     };
 
-    setCategoryOptions(flattenTree(classificationTree));
-  }, [classificationTree]);
+    setCategoryOptions(flattenTree(CategoryTree));
+  }, [CategoryTree]);
 
   // Load authors and tags for autocomplete
   useEffect(() => {

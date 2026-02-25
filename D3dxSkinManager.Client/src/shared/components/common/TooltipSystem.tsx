@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+﻿import React, { createContext, useContext, useState, useEffect } from "react";
 import { Tooltip } from "antd";
 import type { TooltipPlacement } from "antd/es/tooltip";
 import { settingsService } from "../../../modules/settings/services/settingsService";
@@ -221,9 +221,9 @@ export const annotations = {
       title:
         'Search mods by name, author, or tags. Use "!" prefix to exclude terms (e.g., "!NSFW")',
     },
-    classificationSearch: {
+    categorySearch: {
       level: 1 as TooltipLevel,
-      title: "Filter classifications by name",
+      title: "Filter Categories by name",
     },
   },
 

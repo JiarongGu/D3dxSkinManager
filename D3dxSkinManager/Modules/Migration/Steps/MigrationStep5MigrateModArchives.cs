@@ -2,7 +2,8 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Parsers;
-using D3dxSkinManager.Modules.Mods.Services;
+using D3dxSkinManager.Modules.Mod.Services;
+using D3dxSkinManager.Modules.Category.Services;
 
 namespace D3dxSkinManager.Modules.Migration.Steps;
 
@@ -20,7 +21,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
     private readonly IArchiveHelper _archiveService;
     private readonly IPythonModIndexParser _modIndexParser;
     private readonly IModManagementService _modManagementService;
-    private readonly IClassificationService _classificationService;
+    private readonly ICategoryService _categoryService;
     private readonly IModRepository _modRepository;
     private readonly ILogHelper _logger;
 
@@ -33,7 +34,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         IArchiveHelper archiveService,
         IPythonModIndexParser modIndexParser,
         IModManagementService modManagementService,
-        IClassificationService classificationService,
+        ICategoryService categoryService,
         IModRepository modRepository,
         ILogHelper logger)
     {
@@ -42,7 +43,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         _archiveService = archiveService;
         _modIndexParser = modIndexParser;
         _modManagementService = modManagementService;
-        _classificationService = classificationService;
+        _categoryService = categoryService;
         _modRepository = modRepository;
         _logger = logger;
     }
@@ -132,19 +133,19 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 }
                 copied++;
 
-                // Query database for classification ID by object name
-                string? classificationId = null;
+                // Query database for Category ID by object name
+                string? categoryId = null;
                 if (!string.IsNullOrEmpty(modEntry.Object))
                 {
-                    var classificationNode = await _classificationService.GetNodeByNameAsync(modEntry.Object).ConfigureAwait(false);
-                    if (classificationNode != null)
+                    var categoryInfo = await _categoryService.GetByNameAsync(modEntry.Object).ConfigureAwait(false);
+                    if (categoryInfo != null)
                     {
-                        classificationId = classificationNode.Id;
-                        _logger.Info($"Mapped '{modEntry.Object}' → ID: {classificationId}", "Migration");
+                        categoryId = categoryInfo.Id;
+                        _logger.Info($"Mapped '{modEntry.Object}' �� ID: {categoryId}", "Migration");
                     }
                     else
                     {
-                        _logger.Warn($"No classification found for object '{modEntry.Object}', mod will be unclassified", "Migration");
+                        _logger.Warn($"No Category found for object '{modEntry.Object}', mod will be unclassified", "Migration");
                     }
                 }
 
@@ -154,7 +155,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                     new CreateModRequest
                     {
                         SHA = modEntry.Sha,
-                        Category = classificationId, // Uses classification ID from database lookup
+                        Category = categoryId, // Uses Category ID from database lookup
                         Name = modEntry.Name,
                         Author = modEntry.Author,
                         Description = modEntry.Explain,

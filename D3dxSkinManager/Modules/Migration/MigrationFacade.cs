@@ -1,11 +1,11 @@
-using D3dxSkinManager.Modules.Core.Models;
+﻿using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Services;
-using D3dxSkinManager.Modules.Mods;
-using D3dxSkinManager.Modules.Mods.Services;
+using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Mod;
 
 namespace D3dxSkinManager.Modules.Migration;
 
@@ -32,21 +32,21 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
 
     private readonly IMigrationService _migrationService;
     private readonly IModFacade _modFacade;
-    private readonly IClassificationService _classificationService;
+    private readonly ICategoryService _categoryService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitter _eventEmitter;
 
     public MigrationFacade(
         IMigrationService migrationService,
         IModFacade modFacade,
-        IClassificationService classificationService,
+        ICategoryService categoryService,
         IPayloadHelper payloadHelper,
         IEventEmitter eventEmitter,
         ILogHelper logger) : base(logger)
     {
         _migrationService = migrationService ?? throw new ArgumentNullException(nameof(migrationService));
         _modFacade = modFacade ?? throw new ArgumentNullException(nameof(modFacade));
-        _classificationService = classificationService ?? throw new ArgumentNullException(nameof(classificationService));
+        _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
     }
@@ -71,20 +71,9 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
     {
         var result = await _migrationService.MigrateAsync(options, progress, CancellationToken.None).ConfigureAwait(false);
 
-        // Refresh classification tree cache after migration
-        try
-        {
-            _logger.Info("Refreshing classification tree after migration", "MigrationFacade");
-            await _classificationService.RefreshTreeAsync().ConfigureAwait(false);
-            _logger.Info("Classification tree refreshed successfully", "MigrationFacade");
-
-            // Emit event so frontend knows to reload classification tree
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.CLASSIFICATION_TREE_CHANGED).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Failed to refresh classification tree: {ex.Message}", "MigrationFacade", ex);
-        }
+        // Emit event so frontend knows to reload Category tree
+        // Note: Cache will automatically invalidate and rebuild on next request
+        await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORIES_UPDATED).ConfigureAwait(false);
 
         // Emit migration completed event
         await _eventEmitter.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, result).ConfigureAwait(false);
@@ -114,7 +103,7 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
         var migrateMetadata = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateMetadata") ?? true;
         var migratePreviews = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migratePreviews") ?? true;
         var migrateConfiguration = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateConfiguration") ?? true;
-        var migrateClassifications = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateClassifications") ?? true;
+        var migrateCategories = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "migrateCategories") ?? true;
         var archiveModeString = _payloadHelper.GetOptionalValue<string>(request.Payload, "archiveMode") ?? "Copy";
         var postActionString = _payloadHelper.GetOptionalValue<string>(request.Payload, "postAction") ?? "Keep";
 
@@ -136,7 +125,7 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
             MigrateMetadata = migrateMetadata,
             MigratePreviews = migratePreviews,
             MigrateConfiguration = migrateConfiguration,
-            MigrateClassifications = migrateClassifications,
+            MigrateCategories = migrateCategories,
             ArchiveMode = archiveMode,
             PostAction = postAction
         };

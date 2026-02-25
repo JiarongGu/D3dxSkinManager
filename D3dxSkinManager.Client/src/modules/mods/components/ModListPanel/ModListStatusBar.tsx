@@ -1,19 +1,19 @@
-import React from 'react';
+﻿import React from 'react';
 import { CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
-import { ClassificationNode } from '../../../../shared/types/classification.types';
+import { CategoryInfo } from '../../../../shared/types/category.types';
 import './ModListStatusBar.css';
 
 export interface ModListStatusBarProps {
   mods: ModInfo[];
-  selectedClassification: ClassificationNode | undefined;
+  selectedCategory: CategoryInfo | undefined;
   selectedObject: string;
   onLoadedModClick?: (mod: ModInfo) => void;
 }
 
 export const ModListStatusBar: React.FC<ModListStatusBarProps> = ({
   mods,
-  selectedClassification,
+  selectedCategory,
   selectedObject,
   onLoadedModClick,
 }) => {

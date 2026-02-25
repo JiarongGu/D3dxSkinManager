@@ -1,193 +1,254 @@
 # D3dxSkinManager
 
-Modern rewrite of d3dxSkinManage using **.NET 10 + WebView2** (C# backend) + **React + TypeScript** (frontend).
+A modern desktop application for managing 3DMigoto game mods. Built with **.NET 10 + WebView2** backend and **React 19 + TypeScript** frontend.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue) ![.NET](https://img.shields.io/badge/.NET-8.0-purple) ![React](https://img.shields.io/badge/React-19.2-61DAFB)
+![Version](https://img.shields.io/badge/version-2.0.0-blue) ![.NET](https://img.shields.io/badge/.NET-10.0-purple) ![React](https://img.shields.io/badge/React-19-61DAFB)
+
+---
+
+## What is D3dxSkinManager?
+
+D3dxSkinManager is a desktop application for organizing and managing game mods that use the **3DMigoto** framework. It provides a modern interface for:
+
+- 📦 **Import & Extract** - Automatic mod archive extraction (7z, zip, rar)
+- 🗂️ **Organize** - Hierarchical category system with drag & drop
+- ⚡ **Load/Unload** - Quick mod activation/deactivation
+- 🔍 **Search & Filter** - Find mods by name, tags, category
+- 🖼️ **Preview** - Mod screenshots and thumbnails
+- 📋 **Batch Operations** - Multi-select for bulk actions
+- 🔄 **Migration** - Import from legacy Python d3dxSkinManage
+
+---
 
 ## Quick Links
 
-- **📚 Full Documentation**: [docs/](docs/)
-- **🚀 Quick Start Guide**: [docs/QUICKSTART.md](docs/QUICKSTART.md)
-- **🏛️ Current Architecture**: [docs/architecture/CURRENT_ARCHITECTURE.md](docs/architecture/CURRENT_ARCHITECTURE.md) ⭐
-- **🔍 Keywords Index** (for AI): [docs/KEYWORDS_INDEX.md](docs/KEYWORDS_INDEX.md)
-- **📊 Feature Gap Analysis**: [docs/features/FEATURE_GAP_ANALYSIS_V3.md](docs/features/FEATURE_GAP_ANALYSIS_V3.md)
-- **📝 Changelog**: [docs/CHANGELOG.md](docs/CHANGELOG.md)
+- **📚 Documentation**: [docs/](docs/) - Complete documentation
+- **🚀 Quick Start**: [docs/QUICKSTART.md](docs/QUICKSTART.md) - Get started in 5 minutes
+- **🤖 AI Guide**: [docs/AI_GUIDE.md](docs/AI_GUIDE.md) - For AI assistants
+- **📝 Changelog**: [docs/CHANGELOG.md](docs/CHANGELOG.md) - What's new
+
+---
+
+## Why This Project?
+
+This is a complete rewrite of [d3dxSkinManage (Python)](https://github.com/numlinka/d3dxSkinManage) with modern technology:
+
+| Python Version | .NET Version |
+|----------------|--------------|
+| Tkinter UI (outdated) | React 19 (modern) |
+| ~150MB bundle | ~15MB bundle |
+| Slow with 1000+ mods | Fast with any number |
+| Hard to maintain | Clean architecture |
+| No type safety | Full type safety |
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────┐
+│         Desktop Application             │
+│  (Windows 10+ with WebView2)            │
+└─────────────────────────────────────────┘
+              │
+    ┌─────────┴──────────┐
+    │                    │
+┌───▼────────┐    ┌──────▼──────┐
+│  Frontend  │    │   Backend   │
+│            │    │             │
+│ React 19   │◄──►│  .NET 10    │
+│ TypeScript │    │  C#         │
+│ Ant Design │    │  SQLite     │
+└────────────┘    └─────────────┘
+                       │
+              ┌────────┴────────┐
+              │                 │
+         ┌────▼─────┐    ┌─────▼────┐
+         │ Database │    │ File I/O │
+         │ (SQLite) │    │ (Mods)   │
+         └──────────┘    └──────────┘
+```
+
+### Design Principles
+
+- **Module-Based Architecture** - Each feature is a self-contained module
+- **Repository Pattern** - Clean separation of data access
+- **Dependency Injection** - Testable, maintainable code
+- **Type Safety** - C# backend + TypeScript frontend
+- **Profile System** - Multi-profile support with isolated data
+- **Event-Driven** - Reactive UI updates via event bus
+- **Performance** - Memory caching, optimized queries
+
+---
 
 ## Technology Stack
 
-### Backend
-- **.NET 10** - Modern, cross-platform framework
-- **WebView2** - Chromium-based desktop UI framework
-- **SQLite** - Embedded database
-- **C#** with **Dependency Injection**
+### Backend (.NET 10)
+- **WebView2** - Chromium-based UI host
+- **SQLite** - Embedded database for metadata
+- **Dependency Injection** - Microsoft.Extensions.DependencyInjection
+- **Memory Caching** - IMemoryCache for performance
 
-### Frontend
-- **React 19** - Component-based UI
+### Frontend (React 19)
+- **Zustand** - Global state management
+- **Ant Design 5** - Professional UI components
 - **TypeScript 4.9** - Type safety
-- **Ant Design 6.3** - Professional UI components
-- **Custom Hooks** - Reusable logic
+- **Vite** - Fast development & build
 
-## Architecture (v2.0)
-
-```
-┌─────────────────────────────────────┐
-│   React Frontend (Component-Based)  │
-│   ├─ Custom Hooks                   │
-│   ├─ Focused Components             │
-│   └─ Type-Safe Services             │
-└──────────────┬──────────────────────┘
-               │ IPC (JSON)
-┌──────────────┴──────────────────────┐
-│   .NET Backend (DI Container)       │
-│   ├─ Facade Layer                   │
-│   ├─ Domain Services                │
-│   ├─ Repository Pattern              │
-│   └─ Low-Level Services             │
-└─────────────────────────────────────┘
-```
+---
 
 ## Getting Started
 
 ### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js 18+](https://nodejs.org/) with npm
-- Windows 10+ (Linux/macOS experimental)
+- Windows 10 or later (WebView2 required)
 
 ### Quick Start
 
 ```bash
 # 1. Clone the repository
 git clone <your-repo-url>
-cd d3dxSkinManage-Rewrite
+cd D3dxSkinManager
 
 # 2. Install frontend dependencies
 cd D3dxSkinManager.Client
 npm install
 
-# 3. Start development server
+# 3. Start frontend dev server
 npm start
 
-# 4. In a new terminal, run backend
+# 4. Run backend (new terminal)
 cd ../D3dxSkinManager
 dotnet run
 ```
 
-**For detailed instructions**, see [docs/QUICKSTART.md](docs/QUICKSTART.md)
+The application will open automatically. See [docs/QUICKSTART.md](docs/QUICKSTART.md) for detailed setup instructions.
+
+### Building for Production
+
+```bash
+# Run the production build script
+powershell .\build-production.ps1
+
+# Output: D3dxSkinManager/bin/Release/net10.0-windows/publish/
+```
+
+---
+
+## Key Features
+
+### 🗂️ Category System
+Organize mods in a hierarchical tree structure with drag & drop support.
+
+- Tree-based organization (characters, outfits, etc.)
+- Drag & drop mods to categories
+- Automatic cache invalidation for performance
+- Global name uniqueness enforcement
+
+### 👤 Profile System
+Manage multiple game configurations independently.
+
+- Isolated mod collections per profile
+- Switch profiles instantly
+- Profile-specific settings and paths
+- Export/import profiles
+
+### ⚙️ Task Queue
+Background operations with progress tracking.
+
+- Visual progress bars for long operations
+- Pause/resume/cancel support
+- Concurrent task execution
+- History and logging
+
+### 🔄 Migration
+Import your existing Python d3dxSkinManage data.
+
+- Auto-detect Python installation
+- Import configuration, categories, and mods
+- Preserve mod metadata and previews
+- Copy or move archives (your choice)
+
+### 🔌 Plugin System
+Extend functionality with custom plugins.
+
+- C# plugin interface
+- Hot-reload support
+- Access to core services
+- Event subscription
+
+---
 
 ## Project Structure
 
 ```
-d3dxSkinManage-Rewrite/
-├── D3dxSkinManager/              # Backend (.NET 10)
-│   ├── Configuration/            # DI setup ⭐
-│   ├── Facades/                  # Service coordination ⭐
-│   ├── Models/                   # Data models ⭐
-│   ├── Services/                 # Business logic
+D3dxSkinManager/
+├── D3dxSkinManager/              # Backend (.NET)
+│   ├── Modules/                  # Feature modules
+│   │   ├── Category/             # Category system
+│   │   ├── Mod/                  # Mod management
+│   │   ├── Profile/              # Profile system
+│   │   ├── Migration/            # Data migration
+│   │   └── ...                   # Other modules
+│   ├── Configuration/            # DI & startup
 │   └── Program.cs                # Entry point
 │
 ├── D3dxSkinManager.Client/       # Frontend (React)
 │   └── src/
-│       ├── components/           # UI components ⭐
-│       ├── hooks/                # Custom hooks ⭐
-│       ├── types/                # TypeScript types ⭐
-│       ├── utils/                # Utilities ⭐
-│       ├── services/             # API wrappers
-│       └── App.tsx               # Main app (81 lines)
+│       ├── modules/              # Feature modules
+│       ├── shared/               # Shared utilities
+│       │   ├── components/       # Reusable components
+│       │   ├── hooks/            # Custom hooks
+│       │   ├── services/         # API services
+│       │   └── store/            # Zustand stores
+│       └── App.tsx               # Main application
 │
 └── docs/                         # Documentation
-    ├── core/                     # Core documentation
-    ├── ai-assistant/             # AI assistant guides
-    └── README.md                 # Documentation hub
+    ├── architecture/             # Architecture docs
+    ├── features/                 # Feature guides
+    └── AI_GUIDE.md               # AI assistant guide
 ```
 
-⭐ = New in v2.0 (Major Refactoring)
-
-## Key Features
-
-### Backend (v2.0)
-- ✅ **Dependency Injection** - Microsoft.Extensions.DependencyInjection
-- ✅ **Facade Pattern** - Clean service coordination
-- ✅ **Repository Pattern** - Data access abstraction
-- ✅ **Focused Services** - Single Responsibility Principle
-- ✅ **7-Zip Integration** - Archive extraction
-- ✅ **Classification System** - Pattern-based mod categorization
-- ✅ **Image Processing** - Thumbnail generation
-- ✅ **Advanced Search** - Negation and AND logic
-
-### Frontend (v2.0)
-- ✅ **Component Architecture** - 40+ focused components
-- ✅ **Custom Hooks** - Reusable state logic
-- ✅ **Type System** - Centralized TypeScript types
-- ✅ **Mod Management** - Load, unload, delete, search, batch edit
-- ✅ **Advanced Filtering** - Object, grading, tags, search
-- ✅ **Professional UI** - Ant Design v5 components
-- ✅ **Keyboard Shortcuts** - Power user features
-- ✅ **Help System** - Built-in documentation
-- ✅ **Mod Warehouse** - Browse and download mods
-
-### Implementation Status
-- 📊 **Feature Parity**: ~60% complete vs Python version
-- ✅ **Core Features**: Fully implemented
-- ⚠️ **Missing Features**: 15 identified (see [Feature Gap Analysis](docs/features/FEATURE_GAP_ANALYSIS.md))
-  - 5 Mod Management features
-  - 7 Context Menu actions
-  - 3 Settings options
-  - 5 Additional features
-
-## Building for Production
-
-```bash
-# Run the build script
-powershell .\build-production.ps1
-
-# Output will be in D3dxSkinManager/bin/Release/net10.0/publish/
-```
+---
 
 ## Documentation
 
-All documentation is in the [docs/](docs/) folder:
+### For Users
+- **[Quick Start Guide](docs/QUICKSTART.md)** - Get started in 5 minutes
+- **[Feature Guides](docs/features/)** - How to use each feature
 
 ### For Developers
-- **[Developer Hub](docs/README.md)** - Main documentation index
-- **[Current Architecture](docs/architecture/CURRENT_ARCHITECTURE.md)** - Complete architecture guide ⭐
-- **[Project Structure](docs/core/PROJECT_STRUCTURE.md)** - File organization
-- **[Development Guide](docs/core/DEVELOPMENT.md)** - Development workflows
-- **[Quick Start](docs/QUICKSTART.md)** - 5-minute setup guide
+- **[AI Guide](docs/AI_GUIDE.md)** - Start here for AI assistants ⭐
+- **[Design Decisions](docs/core/DESIGN_DECISIONS.md)** - Architectural choices
+- **[Module Architecture](docs/architecture/MODULE_ARCHITECTURE.md)** - How modules work
+- **[Development Guide](docs/core/DEVELOPMENT.md)** - Contributing guidelines
 
-### For AI Assistants
-- **[AI Guide](docs/AI_GUIDE.md)** - Navigation hub for AI
-- **[Keywords Index](docs/KEYWORDS_INDEX.md)** - Fast file lookup
-- **[Guidelines](docs/ai-assistant/GUIDELINES.md)** - Coding patterns
-- **[Workflows](docs/ai-assistant/WORKFLOWS.md)** - Step-by-step procedures
+### Key Features Documentation
+- **[Category System](docs/features/CATEGORY_SYSTEM.md)** - Hierarchical organization
+- **[Profile System](docs/features/PROFILE_SYSTEM.md)** - Multi-profile support
+- **[Task Queue](docs/features/TASK_QUEUE_SYSTEM.md)** - Background operations
+- **[Migration](docs/architecture/MIGRATION_ARCHITECTURE.md)** - Python import guide
 
-## Version History
+---
 
-- **v2.0.0** (2026-02-17) - Major refactoring with DI, Facade pattern, component architecture
-- **v1.0.0** (2026-02-17) - Initial rewrite from Python
+## Contributing
 
-See [docs/CHANGELOG.md](docs/CHANGELOG.md) for detailed changes.
+Contributions are welcome! Please see [docs/core/DEVELOPMENT.md](docs/core/DEVELOPMENT.md) for:
 
-## Original Project
+- Development setup
+- Code style guidelines
+- Testing requirements
+- Pull request process
 
-This is a complete rewrite of [d3dxSkinManage (Python)](https://github.com/numlinka/d3dxSkinManage) v1.6.3.
-
-**Why Rewrite?**
-- Better performance (compiled C# vs interpreted Python)
-- Modern UI (React vs tkinter)
-- Better architecture (SOLID principles, DI)
-- Smaller bundle (~15MB vs ~150MB with Electron)
-- Easier to maintain and extend
+---
 
 ## License
 
 [Your License Here]
 
-## Contributing
-
-Contributions welcome! Please see [docs/core/DEVELOPMENT.md](docs/core/DEVELOPMENT.md) for guidelines.
-
 ---
 
-**📚 For complete documentation, visit [docs/](docs/)**
+**📚 Full documentation available in [docs/](docs/)**
 
-*Last updated: 2026-02-17 (v2.0)*
+*Last updated: 2026-02-26*

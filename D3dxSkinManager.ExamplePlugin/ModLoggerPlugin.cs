@@ -1,10 +1,10 @@
-using D3dxSkinManager.Modules.Plugins.Services;
+using D3dxSkinManager.Modules.Plugin.Services;
 using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Mods.Models;
+using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Plugins.Interfaces;
+using D3dxSkinManager.Modules.Plugin.Interfaces;
 using D3dxSkinManager.Modules.Core.Event;
-using D3dxSkinManager.Modules.Mods;
+using D3dxSkinManager.Modules.Mod;
 
 namespace D3dxSkinManager.ExamplePlugin;
 

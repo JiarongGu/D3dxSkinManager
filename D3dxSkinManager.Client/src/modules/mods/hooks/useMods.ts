@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Main hook for accessing mods store
  * Provides access to all state and exposes operation functions
  */
@@ -8,10 +8,9 @@ import { useProfile } from '../../../shared/context/ProfileContext';
 import * as modOps from '../operations/modOperations';
 import * as loadOps from '../operations/loadOperations';
 import * as categoryOps from '../operations/categoryOperations';
-import * as classificationOps from '../operations/classificationOperations';
 import * as importOps from '../operations/importOperations';
 import { ModInfo } from '../../../shared/types/mod.types';
-import { ClassificationNode } from '../../../shared/types/classification.types';
+import { CategoryInfo } from '../../../shared/types/category.types';
 import { ImportTask } from '../types/importTask.types';
 import { ModManagementMode } from '../components/ModManagementScreen';
 
@@ -57,18 +56,18 @@ export function useMods() {
     batchUpdateCategories: (shas: string[], categoryId: string) =>
       selectedProfileId && categoryOps.batchUpdateCategories(selectedProfileId, shas, categoryId),
 
-    // Classification operations
-    loadClassificationTree: () =>
-      selectedProfileId && classificationOps.loadClassificationTree(selectedProfileId),
-    refreshClassificationTree: () =>
-      selectedProfileId && classificationOps.refreshClassificationTree(selectedProfileId),
-    loadModsByClassification: (nodeId: string) =>
-      selectedProfileId && classificationOps.loadModsByClassification(selectedProfileId, nodeId),
+    // Category operations
+    loadCategoryTree: () =>
+      selectedProfileId && categoryOps.loadCategoryTree(selectedProfileId),
+    refreshCategoryTree: () =>
+      selectedProfileId && categoryOps.refreshCategoryTree(selectedProfileId),
+    loadModsByCategory: (nodeId: string) =>
+      selectedProfileId && categoryOps.loadModsByCategory(selectedProfileId, nodeId),
     loadUnclassifiedMods: () =>
-      selectedProfileId && classificationOps.loadUnclassifiedMods(selectedProfileId),
-    clearClassificationFilter: classificationOps.clearClassificationFilter,
-    selectClassification: (nodeId: string) =>
-      selectedProfileId && classificationOps.selectClassification(selectedProfileId, nodeId),
+      selectedProfileId && categoryOps.loadUncategorizedMods(selectedProfileId),
+    clearCategoryFilter: categoryOps.clearCategoryFilter,
+    selectCategory: (nodeId: string) =>
+      selectedProfileId && categoryOps.selectCategory(selectedProfileId, nodeId),
 
     // Import operations
     addImportTask: importOps.addImportTask,
@@ -90,9 +89,9 @@ export function useMods() {
     openEditDialog: state.openEditDialog,
     closeEditDialog: state.closeEditDialog,
     setSearchQuery: state.setSearchQuery,
-    setClassificationSearch: state.setClassificationSearch,
+    setcategorySearch: state.setcategorySearch,
     setExpandedKeys: state.setExpandedKeys,
-    setSelectedClassification: state.setSelectedClassification,
+    setSelectedCategory: state.setSelectedCategory,
     setAvailableTags: state.setAvailableTags,
 
     // ModManagementScreen operations

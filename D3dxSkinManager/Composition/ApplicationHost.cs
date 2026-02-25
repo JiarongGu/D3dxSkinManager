@@ -1,21 +1,22 @@
 using Microsoft.Web.WebView2.WinForms;
 using Microsoft.Extensions.DependencyInjection;
-using D3dxSkinManager.Modules.Settings;
-using D3dxSkinManager.Modules.Mods;
+using D3dxSkinManager.Modules.Category;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.System;
 using D3dxSkinManager.Modules.System.Services;
-using D3dxSkinManager.Modules.Tools;
+using D3dxSkinManager.Modules.Tool;
 using D3dxSkinManager.Modules.Launch;
 using D3dxSkinManager.Modules.Migration;
-using D3dxSkinManager.Modules.Plugins;
 using D3dxSkinManager.Modules.TaskQueue;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Event;
-using D3dxSkinManager.Modules.Settings.Services;
+using D3dxSkinManager.Modules.Mod;
+using D3dxSkinManager.Modules.Plugin;
+using D3dxSkinManager.Modules.Setting;
+using D3dxSkinManager.Modules.Setting.Services;
 
 namespace D3dxSkinManager.Composition;
 
@@ -188,7 +189,7 @@ public class ApplicationHost
             _eventBridge.Initialize();
 
             // Subscribe to window state reset events
-            eventBus.RegisterHandler(ModuleNames.SETTING, SettingsEvents.WINDOW_STATE_RESET, async (eventMessage) =>
+            eventBus.RegisterHandler(ModuleNames.SETTING, SettingEvents.WINDOW_STATE_RESET, async (eventMessage) =>
             {
                 _logger.Info("Received window state reset event", "Host");
                 await HandleWindowStateResetAsync(eventMessage);
@@ -369,10 +370,11 @@ public class ApplicationHost
         // Register profile-scoped facades
         _profileRouter
             .MapFacade<IModFacade>("MOD", services => services.AddModsServices())
-            .MapFacade<IToolsFacade>(ModuleNames.TOOL, services => services.AddToolsServices())
+            .MapFacade<ICategoryFacade>(ModuleNames.CATEGORY, services => services.AddCategoryServices())
+            .MapFacade<IToolFacade>(ModuleNames.TOOL, services => services.AddToolsServices())
             .MapFacade<ILaunchFacade>("LAUNCH", services => services.AddLaunchServices())
             .MapFacade<IMigrationFacade>("MIGRATION", services => services.AddMigrationServices())
-            .MapFacade<IPluginsFacade>(ModuleNames.PLUGIN, services => services.AddPluginsServices())
+            .MapFacade<IPluginFacade>(ModuleNames.PLUGIN, services => services.AddPluginsServices())
             .MapFacade<ITaskQueueFacade>("TASK_QUEUE", services => services.AddTaskQueueServices());
 
         _logger.Info("Profile router configured", "Host");

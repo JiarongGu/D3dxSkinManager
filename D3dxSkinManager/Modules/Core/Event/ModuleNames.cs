@@ -13,6 +13,7 @@ public static class ModuleNames
 
     // Feature modules
     public const string MOD = "MOD";
+    public const string CATEGORY = "CATEGORY";
     public const string PROFILE = "PROFILE";
     public const string TASK_QUEUE = "TASK_QUEUE";
     public const string SETTING = "SETTING";

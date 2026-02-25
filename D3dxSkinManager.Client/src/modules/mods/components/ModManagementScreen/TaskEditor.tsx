@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, AutoComplete, Select, Space } from 'antd';
 import { TagsOutlined } from '@ant-design/icons';
 import { ImportTask } from '../../types/importTask.types';
@@ -33,8 +33,8 @@ export const TaskEditor: React.FC<TaskEditorProps> = ({ task, onSave, onCancel }
   const { state: profileState } = useProfile();
   const [form] = Form.useForm();
 
-  // Subscribe to classification tree for category options
-  const classificationTree = useModsStore(s => s.classificationTree);
+  // Subscribe to Category tree for category options
+  const CategoryTree = useModsStore(s => s.CategoryTree);
 
   // Local state
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -52,9 +52,9 @@ export const TaskEditor: React.FC<TaskEditorProps> = ({ task, onSave, onCancel }
     { value: 'X', label: t('ageRating.adultsOnly') },
   ];
 
-  // Build category options from classification tree
+  // Build category options from Category tree
   useEffect(() => {
-    const flattenTree = (nodes: typeof classificationTree): Array<{ id: string; name: string }> => {
+    const flattenTree = (nodes: typeof CategoryTree): Array<{ id: string; name: string }> => {
       const result: Array<{ id: string; name: string }> = [];
       for (const node of nodes) {
         result.push({ id: node.id, name: node.name });
@@ -65,8 +65,8 @@ export const TaskEditor: React.FC<TaskEditorProps> = ({ task, onSave, onCancel }
       return result;
     };
 
-    setCategoryOptions(flattenTree(classificationTree));
-  }, [classificationTree]);
+    setCategoryOptions(flattenTree(CategoryTree));
+  }, [CategoryTree]);
 
   // Load authors and tags for autocomplete
   useEffect(() => {

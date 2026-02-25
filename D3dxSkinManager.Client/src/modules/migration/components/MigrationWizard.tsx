@@ -1,4 +1,4 @@
-import { notification } from '../../../shared/utils/notification';
+﻿import { notification } from '../../../shared/utils/notification';
 import React from 'react';
 import { Steps } from 'antd';
 import {
@@ -88,7 +88,7 @@ const MigrationWizardInner: React.FC<{
         migrateMetadata: values.migrateMetadata !== false,
         migratePreviews: values.migratePreviews !== false,
         migrateConfiguration: values.migrateConfiguration !== false,
-        migrateClassifications: values.migrateClassifications !== false,
+        migrateCategories: values.migrateCategories !== false,
         archiveMode: values.archiveMode || ArchiveHandling.Copy,
       };
 

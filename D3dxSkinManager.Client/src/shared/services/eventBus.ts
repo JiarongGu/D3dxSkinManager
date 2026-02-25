@@ -10,6 +10,7 @@ import type { ModInfo } from '../types/mod.types';
 export enum Module {
   CORE = 'CORE',
   MOD = 'MOD',
+  CATEGORY = 'CATEGORY',
   TASK_QUEUE = 'TASK_QUEUE',
   DROP_ZONE = 'DROP_ZONE',
   SETTING = 'SETTING',
@@ -33,12 +34,16 @@ export enum ModEventType {
   DELETED = 'DELETED',
   IMPORTED = 'IMPORTED',
   REFRESHED = 'REFRESHED',
-  CLASSIFICATION_TREE_CHANGED = 'CLASSIFICATION_TREE_CHANGED',
   METADATA_UPDATED = 'METADATA_UPDATED',
   CATEGORY_UPDATED = 'CATEGORY_UPDATED',
   PREVIEW_IMPORTED = 'PREVIEW_IMPORTED',
   THUMBNAIL_UPDATED = 'THUMBNAIL_UPDATED',
   PREVIEW_DELETED = 'PREVIEW_DELETED',
+}
+
+// Category event types
+export enum CategoryEventType {
+  CATEGORIES_UPDATED = 'CATEGORIES_UPDATED',
 }
 
 // Drop zone event types
@@ -82,7 +87,7 @@ export enum ProfileEventType {
 
 // Migration event types
 export enum MigrationEventType {
-  CLASSIFICATION_TREE_CHANGED = 'CLASSIFICATION_TREE_CHANGED',
+  CATEGORIES_UPDATED = 'CATEGORIES_UPDATED',
   MODS_REFRESHED = 'MODS_REFRESHED',
   CUSTOM_EVENT = 'CUSTOM_EVENT',
 }
@@ -101,6 +106,7 @@ export enum PluginEventType {
 export interface ModuleEventTypeMap {
   [Module.CORE]: CoreEventType;
   [Module.MOD]: ModEventType;
+  [Module.CATEGORY]: CategoryEventType;
   [Module.DROP_ZONE]: DropZoneEventType;
   [Module.TASK_QUEUE]: TaskQueueEventType;
   [Module.SETTING]: SettingsEventType;
@@ -126,12 +132,16 @@ export interface EventPayloadMap {
     [ModEventType.DELETED]: { sha: string; mod?: ModInfo };
     [ModEventType.IMPORTED]: ModInfo;
     [ModEventType.REFRESHED]: void;
-    [ModEventType.CLASSIFICATION_TREE_CHANGED]: unknown;
     [ModEventType.METADATA_UPDATED]: { sha: string; mod?: ModInfo };
     [ModEventType.CATEGORY_UPDATED]: { sha: string; category: string; mod?: ModInfo };
     [ModEventType.PREVIEW_IMPORTED]: { sha: string; imagePath?: string };
     [ModEventType.THUMBNAIL_UPDATED]: { sha: string; previewPath: string };
     [ModEventType.PREVIEW_DELETED]: { sha: string; previewPath: string };
+  };
+
+  // Category events
+  [Module.CATEGORY]: {
+    [CategoryEventType.CATEGORIES_UPDATED]: unknown;
   };
 
   // Drop zone events
@@ -169,7 +179,7 @@ export interface EventPayloadMap {
 
   // Migration events
   [Module.MIGRATION]: {
-    [MigrationEventType.CLASSIFICATION_TREE_CHANGED]: unknown;
+    [MigrationEventType.CATEGORIES_UPDATED]: unknown;
     [MigrationEventType.MODS_REFRESHED]: unknown;
     [MigrationEventType.CUSTOM_EVENT]: unknown;
   };

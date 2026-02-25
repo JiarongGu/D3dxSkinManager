@@ -3,6 +3,7 @@
  */
 export type ModuleName =
   | 'MOD'
+  | 'CATEGORY'
   | 'LAUNCH'
   | 'WAREHOUSE'
   | 'TOOL'

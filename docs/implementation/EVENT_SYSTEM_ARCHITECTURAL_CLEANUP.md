@@ -261,7 +261,7 @@ _context.RegisterEventHandler(CoreEvents.MOD_DELETED, OnModDeleted);
 **New code:**
 ```csharp
 using D3dxSkinManager.Modules.Core.Event;
-using D3dxSkinManager.Modules.Mods;  // Added
+using D3dxSkinManager.Modules.Mod;  // Added
 
 // ...
 
@@ -315,7 +315,7 @@ _context.RegisterEventHandler(ModEvents.MOD_DELETED, OnModDeleted);
 
 **Plugins using old CoreEvents:**
 - Change `CoreEvents.MOD_*` → `ModEvents.MOD_*`
-- Add `using D3dxSkinManager.Modules.Mods;`
+- Add `using D3dxSkinManager.Modules.Mod;`
 
 **Frontend code:**
 - No changes needed (data structure is simpler now)

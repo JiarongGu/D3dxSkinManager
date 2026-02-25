@@ -1,6 +1,6 @@
 # Migration Parser Architecture - Complete Design
 
-**Date**: 2026-02-19
+**Date**: 2026-02-19 (Updated: 2026-02-26)
 **User Insight**: *"we probably need parser for each step and the step itself mostly just data update and file copy"*
 
 ---
@@ -30,17 +30,17 @@
 **Step does**: Apply parsed configuration to current profile
 **Services used**: IConfigurationService
 
-### Step 3: Migrate Classifications
-**Parser**: `IClassificationFileParser` 🆕 NEED TO CREATE
-**What it parses**: `home/{env}/classification/*` text files (one object per line)
-**Step does**: Create classification nodes and auto-detection rules
-**Services used**: IClassificationService, IModAutoDetectionService
+### Step 3: Migrate Categories
+**Parser**: `IPythonCategoryFileParser` ✅ EXISTS
+**What it parses**: `home/{env}/classification/*` text files (one category per line)
+**Step does**: Create category nodes with auto-detection wildcard patterns
+**Services used**: ICategoryService
 
-### Step 4: Migrate Classification Thumbnails
+### Step 4: Migrate Category Thumbnails
 **Parser**: `IRedirectionFileParser` ✅ EXISTS
 **What it parses**: `_redirection.ini` (character→thumbnail mappings)
-**Step does**: Copy thumbnails, associate with classification nodes
-**Services used**: IFileService (copy), IClassificationService (associate)
+**Step does**: Copy thumbnails, associate with category nodes
+**Services used**: IFileService (copy), ICategoryService (associate)
 
 ### Step 5: Migrate Mod Archives + Metadata
 **Parser**: `IPythonModIndexParser` 🆕 NEED TO CREATE
@@ -58,21 +58,21 @@
 
 ## Parsers to Create
 
-### 1. IClassificationFileParser 🆕
+### 1. IPythonCategoryFileParser ✅ DONE
 
 ```csharp
 namespace D3dxSkinManager.Modules.Migration.Parsers;
 
 /// <summary>
-/// Parser for Python classification files
-/// Each file represents a category, each line is an object name
+/// Parser for Python category files (from classification directory)
+/// Each file represents a parent category, each line is a child category name
 /// </summary>
-public interface IClassificationFileParser
+public interface IPythonCategoryFileParser
 {
     /// <summary>
     /// Parse classification directory
     /// </summary>
-    /// <returns>Dictionary of categoryName → List of objectNames</returns>
+    /// <returns>Dictionary of parentCategoryName → List of childCategoryNames</returns>
     Task<Dictionary<string, List<string>>> ParseAsync(string classificationDirectory);
 }
 ```
@@ -86,6 +86,7 @@ public interface IClassificationFileParser
   Charlie
   ```
 - Returns: `{ "Characters": ["Alice", "Bob", "Charlie"] }`
+- Creates: Parent category "Characters" with children "Alice", "Bob", "Charlie"
 
 ### 2. IPythonModIndexParser 🆕
 
@@ -131,43 +132,43 @@ Currently Step1 has analysis logic embedded. Could extract to parser for consist
 
 ## Step Implementations (After Parsers)
 
-### Step 3: Migrate Classifications (With Parser)
+### Step 3: Migrate Categories (With Parser)
 
 ```csharp
-public class MigrationStep3MigrateClassifications : IMigrationStep
+public class MigrationStep3MigrateCategories : IMigrationStep
 {
-    private readonly IClassificationFileParser _classificationParser;  // ✅ Parser
-    private readonly IClassificationService _classificationService;  // ✅ Service
-    private readonly IModAutoDetectionService _autoDetectionService;  // ✅ Service
+    private readonly IPythonCategoryFileParser _categoryParser;  // ✅ Parser
+    private readonly ICategoryService _categoryService;  // ✅ Service
 
     public async Task ExecuteAsync(MigrationContext context, ...)
     {
-        // 1. PARSE: Read Python classification files
-        var classifications = await _classificationParser.ParseAsync(envPath);
+        // 1. PARSE: Read Python category files from classification directory
+        var categories = await _categoryParser.ParseAsync(classificationPath);
 
-        // 2. CREATE: Create classification nodes using service
-        foreach (var (categoryName, objects) in classifications)
+        // 2. CREATE: Create category nodes using service
+        foreach (var (parentCategoryName, childCategoryNames) in categories)
         {
-            // Create parent node (category)
-            await _classificationService.CreateNodeAsync(categoryName, ...);
+            // Generate GUID for parent category
+            var parentId = Guid.NewGuid().ToString();
 
-            // Create child nodes (objects)
-            foreach (var objectName in objects)
+            // Create parent category (root level)
+            await _categoryService.CreateAsync(parentId, parentCategoryName, null, ...);
+
+            // Create child categories with wildcard patterns
+            foreach (var childCategoryName in childCategoryNames)
             {
-                await _classificationService.CreateNodeAsync(objectName, parentId: categoryName, ...);
+                var childId = Guid.NewGuid().ToString();
+                await _categoryService.CreateAsync(childId, childCategoryName, parentId, ...);
 
-                // Add auto-detection rule
-                _autoDetectionService.AddRule(new ModAutoDetectionRule { ... });
+                // Set wildcard pattern for auto-detection
+                await _categoryService.UpdateCategoryAsync(childId, ..., "Wildcard", $"*{childCategoryName}*");
             }
         }
-
-        // 3. SAVE: Persist auto-detection rules
-        await _autoDetectionService.SaveRulesAsync(rulesPath);
     }
 }
 ```
 
-**No parsing logic in step** - all parsing in `IClassificationFileParser`!
+**No parsing logic in step** - all parsing in `IPythonCategoryFileParser`!
 
 ### Step 5: Migrate Mod Archives + Metadata (With Parser)
 
@@ -245,12 +246,12 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
 |-----------|--------|-------|
 | IPythonConfigurationParser | ✅ EXISTS | Parses configuration files |
 | IRedirectionFileParser | ✅ EXISTS | Parses _redirection.ini |
-| IClassificationFileParser | 🆕 NEED TO CREATE | Parse classification text files |
+| IPythonCategoryFileParser | ✅ DONE | Parses classification directory text files |
 | IPythonModIndexParser | 🆕 NEED TO CREATE | Parse mod index JSON files |
 | Step1 (Analyze) | ✅ EXISTS | Could extract analyzer |
-| Step2 (Configuration) | ✅ RENAMED | Uses IPythonConfigurationParser |
-| Step3 (Classifications) | ✅ RENAMED | Needs IClassificationFileParser |
-| Step4 (Class Thumbnails) | 🆕 NEED TO CREATE | Uses IRedirectionFileParser |
+| Step2 (Configuration) | ✅ DONE | Uses IPythonConfigurationParser |
+| Step3 (Categories) | ✅ DONE | Uses IPythonCategoryFileParser |
+| Step4 (Category Thumbnails) | 🆕 NEED TO CREATE | Uses IRedirectionFileParser |
 | Step5 (Mod Archives) | 🆕 NEED TO CREATE | Needs IPythonModIndexParser |
 | Step6 (Mod Previews) | 🆕 NEED TO CREATE | No parser needed |
 
@@ -267,8 +268,8 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
 ### Phase 2: Create/Update Steps
 1. ✅ Step1: AnalyzeSource (no changes needed)
 2. ✅ Step2: MigrateConfiguration (renamed, uses parser)
-3. ✅ Step3: MigrateClassifications (renamed, update to use parser)
-4. 🆕 Step4: MigrateClassificationThumbnails (create, uses parser)
+3. ✅ Step3: MigrateCategories (done, uses IPythonCategoryFileParser)
+4. 🆕 Step4: MigrateCategoryThumbnails (create, uses parser)
 5. 🆕 Step5: MigrateModArchives (create, uses parser)
 6. 🆕 Step6: MigrateModPreviews (create, no parser)
 
@@ -285,8 +286,8 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
 
 **Implementation**:
 - Step 2: Parser (config) → Update (ConfigurationService)
-- Step 3: Parser (classifications) → Create (ClassificationService)
-- Step 4: Parser (redirection) → Copy (FileService) → Update (ClassificationService)
+- Step 3: Parser (categories from classification dir) → Create (CategoryService) with wildcard patterns
+- Step 4: Parser (redirection) → Copy (FileService) → Update (CategoryService)
 - Step 5: Parser (mod index) → Copy (FileService) → Create (ModManagementService)
 - Step 6: No parser → Copy (FileService) only
 
@@ -304,4 +305,8 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
 
 ---
 
-**Next Action**: Create IClassificationFileParser and IPythonModIndexParser, then reorganize steps to use them
+**Status Update (2026-02-26)**:
+- ✅ IPythonCategoryFileParser created and integrated
+- ✅ Step3 refactored to use Category terminology (Classification → Category)
+- ✅ Migration now reads from `classification/` directory and creates Category hierarchy
+- 🆕 Next: Create IPythonModIndexParser and remaining migration steps

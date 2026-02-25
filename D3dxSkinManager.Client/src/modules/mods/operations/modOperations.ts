@@ -64,7 +64,7 @@ export async function updateMod(
           description: data.description,
         });
 
-        // Update local state (Zustand automatically updates classification filtered mods)
+        // Update local state (Zustand automatically updates category filtered mods)
         updateModLocal(sha, data);
 
         notification.success('Mod updated successfully');

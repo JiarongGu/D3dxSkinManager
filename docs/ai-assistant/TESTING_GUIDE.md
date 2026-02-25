@@ -138,10 +138,10 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
-using D3dxSkinManager.Modules.Settings.Services;
-using D3dxSkinManager.Modules.Settings.Models;
+using D3dxSkinManager.Modules.Setting.Services;
+using D3dxSkinManager.Modules.Setting.Models;
 
-namespace D3dxSkinManager.Tests.Modules.Settings;
+namespace D3dxSkinManager.Tests.Modules.Setting;
 
 /// <summary>
 /// Unit tests for GlobalSettingsService

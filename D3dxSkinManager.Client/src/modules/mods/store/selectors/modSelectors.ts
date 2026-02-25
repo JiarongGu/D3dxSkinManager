@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Selectors for derived/computed mod state
  * Keeps components clean and enables memoization
  */
@@ -12,14 +12,14 @@ import { ModInfo, ModStatistics } from '../../../../shared/types/mod.types';
 export const selectMods = (state: ModsState): ModInfo[] => state.mods;
 
 /**
- * Get filtered mods based on search, object filter, and classification
+ * Get filtered mods based on search, object filter, and Category
  */
 export const selectFilteredMods = (state: ModsState): ModInfo[] => {
   let filtered = state.mods;
 
-  // Apply classification filter first (if active)
-  if (state.classificationFilteredMods !== undefined) {
-    filtered = state.classificationFilteredMods;
+  // Apply Category filter first (if active)
+  if (state.CategoryFilteredMods !== undefined) {
+    filtered = state.CategoryFilteredMods;
   }
 
   // Apply object filter

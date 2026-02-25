@@ -1,4 +1,4 @@
-namespace D3dxSkinManager.Modules.Migration.Models;
+﻿namespace D3dxSkinManager.Modules.Migration.Models;
 
 /// <summary>
 /// Migration options
@@ -11,7 +11,7 @@ public class MigrationOptions
     public bool MigrateMetadata { get; set; } = true;
     public bool MigratePreviews { get; set; } = true;
     public bool MigrateConfiguration { get; set; } = true;
-    public bool MigrateClassifications { get; set; } = true;
+    public bool MigrateCategories { get; set; } = true;
     public bool MigrateCache { get; set; } = false;
     public ArchiveHandling ArchiveMode { get; set; } = ArchiveHandling.Copy;
     public PostMigrationAction PostAction { get; set; } = PostMigrationAction.Keep;
