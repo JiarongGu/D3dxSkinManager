@@ -35,12 +35,18 @@ public class SystemFileDialogService : ISystemFileDialogService
     private readonly ISystemSettingsService _systemSettings;
     private readonly IPathHelper _pathHelper;
     private readonly ILogHelper _logger;
+    private readonly IFormInteractionService _formInteractionService;
 
-    public SystemFileDialogService(ISystemSettingsService systemSettings, IPathHelper pathHelper, ILogHelper logger)
+    public SystemFileDialogService(
+        ISystemSettingsService systemSettings,
+        IPathHelper pathHelper,
+        ILogHelper logger,
+        IFormInteractionService formInteractionService)
     {
         _systemSettings = systemSettings ?? throw new ArgumentNullException(nameof(systemSettings));
         _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _formInteractionService = formInteractionService ?? throw new ArgumentNullException(nameof(formInteractionService));
     }
 
     /// <summary>
@@ -51,12 +57,26 @@ public class SystemFileDialogService : ISystemFileDialogService
         // Load initial path BEFORE showing dialog
         var initialPath = await GetInitialPathAsync(options).ConfigureAwait(false);
 
-        // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
-        // This ensures the dialog runs on a dedicated STA thread separate from WebView2
-        return await RunInStaThread(() => ShowOpenFileDialog(options, initialPath));
+        // Get main form window handle for dialog ownership (thread-safe)
+        var ownerHandle = _formInteractionService.GetMainFormHandle();
+
+        // Block form interaction before showing dialog
+        _formInteractionService.BlockInteraction();
+
+        try
+        {
+            // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
+            // This ensures the dialog runs on a dedicated STA thread separate from WebView2
+            return await RunInStaThread(() => ShowOpenFileDialog(options, initialPath, ownerHandle));
+        }
+        finally
+        {
+            // Unblock form interaction after dialog closes
+            _formInteractionService.UnblockInteraction();
+        }
     }
 
-    private FileDialogResult ShowOpenFileDialog(FileDialogOptions? options, string initialPath)
+    private FileDialogResult ShowOpenFileDialog(FileDialogOptions? options, string initialPath, IntPtr ownerHandle)
     {
         try
         {
@@ -82,7 +102,10 @@ public class SystemFileDialogService : ISystemFileDialogService
                 dialog.Filter = "All Files (*.*)|*.*";
             }
 
-            var result = dialog.ShowDialog();
+            // Show dialog with owner window handle to maintain proper z-order
+            var result = ownerHandle != IntPtr.Zero
+                ? dialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
+                : dialog.ShowDialog();
 
             if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.FileName))
             {
@@ -120,12 +143,26 @@ public class SystemFileDialogService : ISystemFileDialogService
         // Load initial path BEFORE showing dialog
         var initialPath = await GetInitialPathAsync(options).ConfigureAwait(false);
 
-        // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
-        // This ensures the dialog runs on a dedicated STA thread separate from WebView2
-        return await RunInStaThread(() => ShowFolderDialog(options, initialPath));
+        // Get main form window handle for dialog ownership (thread-safe)
+        var ownerHandle = _formInteractionService.GetMainFormHandle();
+
+        // Block form interaction before showing dialog
+        _formInteractionService.BlockInteraction();
+
+        try
+        {
+            // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
+            // This ensures the dialog runs on a dedicated STA thread separate from WebView2
+            return await RunInStaThread(() => ShowFolderDialog(options, initialPath, ownerHandle));
+        }
+        finally
+        {
+            // Unblock form interaction after dialog closes
+            _formInteractionService.UnblockInteraction();
+        }
     }
 
-    private FileDialogResult ShowFolderDialog(FileDialogOptions? options, string initialPath)
+    private FileDialogResult ShowFolderDialog(FileDialogOptions? options, string initialPath, IntPtr ownerHandle)
     {
         try
         {
@@ -137,7 +174,10 @@ public class SystemFileDialogService : ISystemFileDialogService
                 UseDescriptionForTitle = true // Better title display on modern Windows
             };
 
-            var result = dialog.ShowDialog();
+            // Show dialog with owner window handle to maintain proper z-order
+            var result = ownerHandle != IntPtr.Zero
+                ? dialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
+                : dialog.ShowDialog();
 
             if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
             {
@@ -175,12 +215,26 @@ public class SystemFileDialogService : ISystemFileDialogService
         // Load initial path BEFORE showing dialog
         var initialPath = await GetInitialPathAsync(options).ConfigureAwait(false);
 
-        // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
-        // This ensures the dialog runs on a dedicated STA thread separate from WebView2
-        return await RunInStaThread(() => ShowSaveFileDialog(options, initialPath));
+        // Get main form window handle for dialog ownership (thread-safe)
+        var ownerHandle = _formInteractionService.GetMainFormHandle();
+
+        // Block form interaction before showing dialog
+        _formInteractionService.BlockInteraction();
+
+        try
+        {
+            // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
+            // This ensures the dialog runs on a dedicated STA thread separate from WebView2
+            return await RunInStaThread(() => ShowSaveFileDialog(options, initialPath, ownerHandle));
+        }
+        finally
+        {
+            // Unblock form interaction after dialog closes
+            _formInteractionService.UnblockInteraction();
+        }
     }
 
-    private FileDialogResult ShowSaveFileDialog(FileDialogOptions? options, string initialPath)
+    private FileDialogResult ShowSaveFileDialog(FileDialogOptions? options, string initialPath, IntPtr ownerHandle)
     {
         try
         {
@@ -206,7 +260,10 @@ public class SystemFileDialogService : ISystemFileDialogService
                 dialog.Filter = "All Files (*.*)|*.*";
             }
 
-            var result = dialog.ShowDialog();
+            // Show dialog with owner window handle to maintain proper z-order
+            var result = ownerHandle != IntPtr.Zero
+                ? dialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
+                : dialog.ShowDialog();
 
             if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.FileName))
             {
@@ -347,4 +404,19 @@ public class SystemFileDialogService : ISystemFileDialogService
 
         return tcs.Task;
     }
+}
+
+/// <summary>
+/// Wrapper class to use window handle as IWin32Window for cross-thread dialog ownership
+/// </summary>
+internal class WindowHandleWrapper : IWin32Window
+{
+    private readonly IntPtr _handle;
+
+    public WindowHandleWrapper(IntPtr handle)
+    {
+        _handle = handle;
+    }
+
+    public IntPtr Handle => _handle;
 }

@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Mods;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.System;
+using D3dxSkinManager.Modules.System.Services;
 using D3dxSkinManager.Modules.Tools;
 using D3dxSkinManager.Modules.Launch;
 using D3dxSkinManager.Modules.Migration;
@@ -136,6 +137,10 @@ public class ApplicationHost
         // Resume layout after all controls are added
         _mainForm.ResumeLayout(false);
         _mainForm.PerformLayout();
+
+        // Set the main form reference in FormInteractionService for dialog blocking
+        var formInteractionService = _serviceProvider.GetRequiredService<IFormInteractionService>();
+        formInteractionService.SetMainForm(_mainForm);
 
         _logger.Info("Main form created with double buffering enabled", "Host");
     }

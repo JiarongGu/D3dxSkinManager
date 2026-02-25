@@ -18,6 +18,7 @@ public static class SystemServiceExtensions
     {
         Console.WriteLine("[SystemFacade] Registering System services...");
         // Register the underlying services (using TryAdd to avoid duplicates)
+        services.TryAddSingleton<IFormInteractionService, FormInteractionService>();
         services.TryAddSingleton<ISystemFileDialogService, SystemFileDialogService>();
         services.TryAddSingleton<ISystemProcessService, SystemProcessService>();
         services.TryAddSingleton<ISystemSettingsService, SystemSettingsService>();
