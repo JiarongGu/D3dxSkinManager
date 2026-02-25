@@ -88,6 +88,9 @@ export const ModPreviewPanelContent: React.FC = () => {
 
   const hasMultipleImages = allImagePaths.length > 1;
 
+  // Convert all image paths to URLs for fullscreen preview
+  const allImageUrls = allImagePaths.map((path) => toAppUrl(path) || "");
+
   // Navigation handlers
   const handlePreviousImage = () => {
     setCurrentImageIndex((prev) =>
@@ -633,6 +636,8 @@ export const ModPreviewPanelContent: React.FC = () => {
         imageSrc={fullScreenImageSrc}
         imageAlt={mod.name}
         onClose={() => setFullScreenVisible(false)}
+        allImages={allImageUrls}
+        initialIndex={currentImageIndex}
       />
 
       {/* Image Context Menu */}

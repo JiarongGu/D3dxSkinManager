@@ -112,3 +112,121 @@
   font-size: 16px;
   text-align: center;
 }
+
+/* Fullscreen preview content container */
+.fullscreen-preview-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Navigation Buttons - Windows Gallery Style */
+.fullscreen-nav-button {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 90px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  z-index: 3;
+}
+
+.fullscreen-nav-button-left {
+  left: 0;
+  justify-content: flex-start;
+  padding-left: 8px;
+}
+
+.fullscreen-nav-button-right {
+  right: 0;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+/* Dark theme navigation icon */
+[data-theme="dark"] .fullscreen-nav-icon {
+  width: 24px;
+  height: 48px;
+  background: rgba(60, 60, 70, 0.75);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+/* Light theme navigation icon - lighter background, dark icon */
+[data-theme="light"] .fullscreen-nav-icon {
+  width: 24px;
+  height: 48px;
+  background: rgba(240, 240, 245, 0.95);
+  backdrop-filter: blur(10px);
+  color: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+.fullscreen-nav-icon-arrow {
+  font-size: 12px;
+}
+
+/* Image Counter - Positioned at bottom center */
+.fullscreen-image-counter {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  backdrop-filter: blur(10px);
+  border-radius: 4px;
+  z-index: 4;
+  opacity: 1;
+  transition: none;
+  pointer-events: none;
+}
+
+/* Dark theme counter */
+[data-theme="dark"] .fullscreen-image-counter {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .fullscreen-counter-text {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Light theme counter */
+[data-theme="light"] .fullscreen-image-counter {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .fullscreen-counter-text {
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.fullscreen-image-counter.visible {
+  opacity: 1;
+  transition: none;
+}
+
+.fullscreen-image-counter.hidden {
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+
+.fullscreen-counter-text {
+  font-size: 14px;
+}
