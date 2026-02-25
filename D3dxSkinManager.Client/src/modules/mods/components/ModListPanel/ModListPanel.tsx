@@ -108,7 +108,7 @@ export const ModListPanel: React.FC = () => {
 
   if (!selectedCategory && !selectedObject) {
     return (
-      <Sider width={450} className="mod-list-panel">
+      <Sider width="100%" className="mod-list-panel">
         <div className="mod-list-panel-empty-container">
           <Empty
             description={t('mods.panel.selectCategory')}
@@ -121,7 +121,7 @@ export const ModListPanel: React.FC = () => {
   }
 
   return (
-    <Sider width={450} className="mod-list-panel-flex">
+    <Sider width="100%" className="mod-list-panel-flex">
       {/* Search Bar with Add Button */}
       <div className="mod-list-panel-search-bar">
         <Search

@@ -1,4 +1,4 @@
-namespace D3dxSkinManager.Modules.Core.Event;
+namespace D3dxSkinManager.Modules.Core;
 
 /// <summary>
 /// Core system event type constants.

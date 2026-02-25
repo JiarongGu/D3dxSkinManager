@@ -114,7 +114,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
 
   return (
     <Sider
-      width={250}
+      width="100%"
       className="category-panel-sider"
     >
       {/* Tree container with flex constraint to allow scrolling */}

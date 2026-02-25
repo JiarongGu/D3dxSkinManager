@@ -1,5 +1,4 @@
 ﻿import React, { useState, useEffect, useCallback } from "react";
-import { Layout } from "antd";
 import { CategoryInfo } from "../../../shared/types/category.types";
 
 import { ModPreviewPanel } from "./ModPreviewPanel";
@@ -7,9 +6,11 @@ import { CategoryPanel } from "./CategoryPanel";
 import { ModListPanel } from "./ModListPanel";
 import { ModEditScreen } from "./ModEditScreen/ModEditScreen";
 import { ModManagementScreen } from "./ModManagementScreen";
+import { ResizeHandle } from "./ResizeHandle";
 import { useModsStore } from "../store/modsStore";
 import { useMods } from "../hooks/useMods";
 import { useProfile } from "../../../shared/context/ProfileContext";
+import { useResizablePanels } from "../hooks/useResizablePanels";
 import './ModHierarchicalView.css';
 
 /**
@@ -37,9 +38,22 @@ export const ModHierarchicalView: React.FC = () => {
     setAvailableTags,
   } = useMods();
 
+  // Resizable panels
+  const { sizes, isResizing, startResize, containerRef } = useResizablePanels();
+
   // Local state (not in global store)
   const [unclassifiedCount, setUnclassifiedCount] = useState<number>(0);
   const { state: profileState } = useProfile();
+
+  // Add/remove body class during resize for global cursor
+  useEffect(() => {
+    if (isResizing) {
+      document.body.classList.add('resizing');
+    } else {
+      document.body.classList.remove('resizing');
+    }
+    return () => document.body.classList.remove('resizing');
+  }, [isResizing]);
 
   // Load unclassified count
   useEffect(() => {
@@ -130,24 +144,40 @@ export const ModHierarchicalView: React.FC = () => {
 
   return (
     <>
-      <Layout className="mod-hierarchical-view-layout">
+      <div ref={containerRef} className="mod-hierarchical-view-container">
         {/* Category Tree - subscribes to its own state inside */}
-        <CategoryPanel
-          onSelect={handleCategorieselect}
-          onRefreshTree={async () => { const p = refreshCategoryTree(); if (p) await p; }}
-          onModsRefresh={handleModsRefreshAfterCategoryChange}
-          unclassifiedCount={unclassifiedCount}
-          onUnclassifiedClick={handleUnclassifiedClick}
+        <div style={{ width: `${sizes.categoryWidth}%` }}>
+          <CategoryPanel
+            onSelect={handleCategorieselect}
+            onRefreshTree={async () => { const p = refreshCategoryTree(); if (p) await p; }}
+            onModsRefresh={handleModsRefreshAfterCategoryChange}
+            unclassifiedCount={unclassifiedCount}
+            onUnclassifiedClick={handleUnclassifiedClick}
+          />
+        </div>
+
+        {/* Resize handle between category and mod list */}
+        <ResizeHandle
+          onMouseDown={(e) => startResize('category', e)}
+          isResizing={isResizing === 'category'}
         />
 
         {/* Mods List - subscribes to its own state inside */}
-        <ModListPanel />
+        <div style={{ width: `${sizes.modListWidth}%` }}>
+          <ModListPanel />
+        </div>
+
+        {/* Resize handle between mod list and preview */}
+        <ResizeHandle
+          onMouseDown={(e) => startResize('modList', e)}
+          isResizing={isResizing === 'modList'}
+        />
 
         {/* Preview - subscribes to selectedMod inside */}
-        <Layout.Content className="mod-hierarchical-view-preview">
+        <div style={{ width: `${sizes.previewWidth}%` }} className="mod-hierarchical-view-preview">
           <ModPreviewPanel />
-        </Layout.Content>
-      </Layout>
+        </div>
+      </div>
 
       {/* All dialogs/screens now subscribe to their own state - no props needed! */}
       <ModEditScreen />

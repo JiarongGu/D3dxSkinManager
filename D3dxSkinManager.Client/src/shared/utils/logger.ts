@@ -215,13 +215,13 @@ export class Logger {
    */
   static getLevelOptions(): Array<{ value: string; label: string; description: string }> {
     return [
-      { value: 'ALL', label: 'All', description: 'Show all log messages' },
-      { value: 'VERBOSE', label: 'Verbose', description: 'Extremely detailed (high-frequency events)' },
-      { value: 'DEBUG', label: 'Debug', description: 'Debug information and above' },
-      { value: 'INFO', label: 'Info', description: 'Information, warnings and errors' },
-      { value: 'WARN', label: 'Warn', description: 'Warnings and errors' },
-      { value: 'ERROR', label: 'Error', description: 'Errors only' },
-      { value: 'OFF', label: 'Off', description: 'Disable all logging' },
+      { value: 'all', label: 'All', description: 'Show all log messages' },
+      { value: 'verbose', label: 'Verbose', description: 'Extremely detailed (high-frequency events)' },
+      { value: 'debug', label: 'Debug', description: 'Debug information and above' },
+      { value: 'info', label: 'Info', description: 'Information, warnings and errors' },
+      { value: 'warn', label: 'Warn', description: 'Warnings and errors' },
+      { value: 'error', label: 'Error', description: 'Errors only' },
+      { value: 'off', label: 'Off', description: 'Disable all logging' },
     ];
   }
 }

@@ -1,4 +1,5 @@
-﻿using D3dxSkinManager.Modules.Core.Helpers;
+﻿using Microsoft.Extensions.Caching.Memory;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Setting.Services;
 
@@ -68,10 +69,14 @@ namespace D3dxSkinManager.Modules.Core.Models
         public LogLevel MinimumLogLevel { get; set; }
 
 
-        private static LogLevel ReadLogLevel(IAppEnvironment environment) 
-        { 
+        private static LogLevel ReadLogLevel(IAppEnvironment environment)
+        {
             var globalPathService = new GlobalPathService(environment);
-            var globalSettingService = new GlobalSettingService(globalPathService, environment);
+
+            // Create a temporary IMemoryCache for initialization
+            var memoryCache = new MemoryCache(new MemoryCacheOptions());
+
+            var globalSettingService = new GlobalSettingService(globalPathService, environment, memoryCache);
             return globalSettingService.GetLogLevelAsync().GetAwaiter().GetResult();
         }
 

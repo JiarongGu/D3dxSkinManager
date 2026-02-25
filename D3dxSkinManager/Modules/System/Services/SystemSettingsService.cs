@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
@@ -45,9 +46,10 @@ public interface ISystemSettingsService
 public class SystemSettingsService : ISystemSettingsService
 {
     private readonly string _settingsFilePath;
-    private SystemSettings? _cachedSettings;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly IMemoryCache _cache;
     private readonly ILogHelper _logger;
+    private const string CacheKey = "SystemSettings";
+    private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(30);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -55,9 +57,10 @@ public class SystemSettingsService : ISystemSettingsService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public SystemSettingsService(IGlobalPathService globalPaths, ILogHelper logger)
+    public SystemSettingsService(IGlobalPathService globalPaths, ILogHelper logger, IMemoryCache cache)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         var globalPathsService = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));
 
         // Use GetGlobalSettingsFilePath for system settings file
@@ -69,100 +72,77 @@ public class SystemSettingsService : ISystemSettingsService
 
     /// <summary>
     /// Get current system settings
+    /// Uses IMemoryCache with automatic expiration
     /// </summary>
     public async Task<SystemSettings> GetSettingsAsync()
     {
         _logger.Debug($"GetSettingsAsync called", "SystemSettingsService");
         _logger.Debug($"Settings file path: {_settingsFilePath}", "SystemSettingsService");
 
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
+        // Try to get from cache, or create if not exists
+        return await _cache.GetOrCreateAsync(CacheKey, async entry =>
         {
-            // Return cached if available
-            if (_cachedSettings != null)
-            {
-                _logger.Debug($"Returning cached settings", "SystemSettingsService");
-                return _cachedSettings;
-            }
+            entry.SlidingExpiration = CacheExpiry;
 
             _logger.Debug($"No cached settings, loading from file...", "SystemSettingsService");
 
             // Load from file or create default
+            SystemSettings settings;
             if (File.Exists(_settingsFilePath))
             {
                 _logger.Debug($"Settings file exists, reading...", "SystemSettingsService");
-                _cachedSettings = await JsonHelper.DeserializeFromFileAsync<SystemSettings>(_settingsFilePath)
-                                  ?? new SystemSettings();
+                settings = await JsonHelper.DeserializeFromFileAsync<SystemSettings>(_settingsFilePath).ConfigureAwait(false)
+                          ?? new SystemSettings();
                 _logger.Info($"Settings loaded from file", "SystemSettingsService");
             }
             else
             {
                 _logger.Info($"Settings file not found, creating default...", "SystemSettingsService");
-                _cachedSettings = new SystemSettings();
-                await SaveSettingsAsync(_cachedSettings).ConfigureAwait(false);
+                settings = new SystemSettings();
+                await SaveSettingsAsync(settings).ConfigureAwait(false);
                 _logger.Info($"Default settings created and saved", "SystemSettingsService");
             }
 
-            return _cachedSettings;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+            return settings;
+        }).ConfigureAwait(false) ?? new SystemSettings();
     }
 
     /// <summary>
-    /// Update system settings
+    /// Update system settings and invalidate cache
     /// </summary>
     public async Task UpdateSettingsAsync(SystemSettings settings)
     {
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            settings.LastUpdated = DateTime.UtcNow;
-            await SaveSettingsAsync(settings).ConfigureAwait(false);
-            _cachedSettings = settings;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        settings.LastUpdated = DateTime.UtcNow;
+        await SaveSettingsAsync(settings).ConfigureAwait(false);
+
+        // Invalidate cache so next read gets fresh data
+        InvalidateCache();
     }
 
     /// <summary>
-    /// Remember a file dialog path by key
+    /// Invalidate the cache - next GetSettingsAsync call will reload from file
+    /// </summary>
+    private void InvalidateCache()
+    {
+        _cache.Remove(CacheKey);
+    }
+
+    /// <summary>
+    /// Remember a file dialog path by key and invalidate cache
     /// </summary>
     public async Task RememberFileDialogPathAsync(string key, string path)
     {
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            // Load settings from cache or file (without calling GetSettingsAsync to avoid deadlock)
-            SystemSettings settings;
-            if (_cachedSettings != null)
-            {
-                settings = _cachedSettings;
-            }
-            else if (File.Exists(_settingsFilePath))
-            {
-                settings = await JsonHelper.DeserializeFromFileAsync<SystemSettings>(_settingsFilePath) ?? new SystemSettings();
-            }
-            else
-            {
-                settings = new SystemSettings();
-            }
+        // Load current settings
+        var settings = await GetSettingsAsync().ConfigureAwait(false);
 
-            // Update the path
-            settings.FileDialogPaths[key] = path;
-            settings.LastUpdated = DateTime.UtcNow;
+        // Update the path
+        settings.FileDialogPaths[key] = path;
+        settings.LastUpdated = DateTime.UtcNow;
 
-            await SaveSettingsAsync(settings).ConfigureAwait(false);
-            _cachedSettings = settings;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        await SaveSettingsAsync(settings).ConfigureAwait(false);
+
+        // Invalidate cache so next read gets fresh data
+        InvalidateCache();
     }
 
     /// <summary>
@@ -184,21 +164,15 @@ public class SystemSettingsService : ISystemSettingsService
     }
 
     /// <summary>
-    /// Reset settings to default values
+    /// Reset settings to default values and invalidate cache
     /// </summary>
     public async Task ResetSettingsAsync()
     {
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            var defaultSettings = new SystemSettings();
-            await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
-            _cachedSettings = defaultSettings;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        var defaultSettings = new SystemSettings();
+        await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
+
+        // Invalidate cache so next read gets fresh data
+        InvalidateCache();
     }
 
     /// <summary>

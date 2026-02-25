@@ -1,0 +1,48 @@
+.resize-handle {
+  width: 2px;
+  cursor: col-resize;
+  position: relative;
+  background: transparent;
+  flex-shrink: 0;
+  z-index: 1000;
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover {
+  background-color: var(--color-primary);
+}
+
+.resize-handle-active {
+  background-color: var(--color-primary);
+}
+
+.resize-handle-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 40px;
+  background-color: var(--color-border-secondary);
+  border-radius: 1px;
+  pointer-events: none;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.resize-handle:hover .resize-handle-indicator,
+.resize-handle-active .resize-handle-indicator {
+  opacity: 1;
+}
+
+/* Prevent text selection during resize */
+.resize-handle-active,
+.resize-handle:active {
+  user-select: none;
+}
+
+/* Global cursor override during resize */
+body.resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}

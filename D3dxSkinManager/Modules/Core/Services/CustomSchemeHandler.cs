@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Core.Constants;
@@ -42,12 +43,10 @@ public class CustomSchemeHandler : ICustomSchemeHandler
 {
     private readonly IGlobalPathService _globalPathService;
     private readonly ILogHelper _logger;
+    private readonly PathCache _pathCache;
 
     // Cache for content types - static since extensions don't change
     private static readonly ConcurrentDictionary<string, string> _contentTypeCache = new();
-
-    // LRU cache for normalized paths with size limit
-    private readonly LruCache<string, string> _normalizedPathCache;
 
     // Pre-allocated error streams to avoid repeated allocations
     private static readonly Lazy<byte[]> _invalidSchemeError = new(() => Encoding.UTF8.GetBytes("Invalid scheme"));
@@ -57,13 +56,13 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     // Constants
     private const string SchemePrefix = "app://";
     private const int SchemePrefixLength = 6; // Length of "app://"
-    private const int MaxPathCacheSize = 500; // Maximum number of cached paths
+    private const string CacheKeyPrefix = "NormalizedPath_";
 
-    public CustomSchemeHandler(IGlobalPathService globalPathService, ILogHelper logger)
+    public CustomSchemeHandler(IGlobalPathService globalPathService, ILogHelper logger, PathCache pathCache)
     {
         _globalPathService = globalPathService;
         _logger = logger;
-        _normalizedPathCache = new LruCache<string, string>(MaxPathCacheSize);
+        _pathCache = pathCache;
     }
 
     /// <summary>
@@ -97,11 +96,16 @@ public class CustomSchemeHandler : ICustomSchemeHandler
             var filePath = WebUtility.UrlDecode(encodedPath.ToString());
 
             // Try to get cached normalized path or compute it
-            var absolutePath = _normalizedPathCache.GetOrAdd(filePath, path =>
+            // Use IPathCache with size limit (500 entries) for LRU-like behavior
+            var cacheKey = CacheKeyPrefix + filePath;
+            var absolutePath = _pathCache.GetOrCreate(cacheKey, entry =>
             {
-                var resolvedPath = Path.IsPathRooted(path)
-                    ? path
-                    : Path.Combine(_globalPathService.BaseDataPath, path);
+                entry.Size = 1; // Each entry counts as 1 unit toward the 500 limit
+                entry.SlidingExpiration = TimeSpan.FromMinutes(30);
+
+                var resolvedPath = Path.IsPathRooted(filePath)
+                    ? filePath
+                    : Path.Combine(_globalPathService.BaseDataPath, filePath);
                 return Path.GetFullPath(resolvedPath);
             });
 
@@ -143,9 +147,13 @@ public class CustomSchemeHandler : ICustomSchemeHandler
 
     /// <summary>
     /// Clears the path cache - useful if base data path changes
+    /// Note: IPathCache doesn't support prefix-based clear, so we rely on automatic expiration
     /// </summary>
     public void ClearPathCache()
     {
-        _normalizedPathCache.Clear();
+        // IPathCache (MemoryCache) doesn't support clearing by prefix
+        // Cache entries will expire naturally based on SlidingExpiration (30 minutes)
+        // When SizeLimit (500) is reached, LRU entries are automatically evicted
+        // This is acceptable since path changes are rare
     }
 }

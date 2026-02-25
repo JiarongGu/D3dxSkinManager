@@ -2,6 +2,7 @@ using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Plugin.Services;
+using D3dxSkinManager.Modules.Core;
 
 namespace D3dxSkinManager.Modules.Context.Services
 {

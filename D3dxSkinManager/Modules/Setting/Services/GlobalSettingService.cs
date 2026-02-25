@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
@@ -41,9 +42,10 @@ public interface IGlobalSettingService
 public class GlobalSettingService : IGlobalSettingService
 {
     private readonly string _settingsFilePath;
-    private GlobalSettings? _cachedSettings;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly IMemoryCache _cache;
     private readonly IAppEnvironment _appEnvironment;
+    private const string CacheKey = "GlobalSettings";
+    private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(30);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -51,9 +53,10 @@ public class GlobalSettingService : IGlobalSettingService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public GlobalSettingService(IGlobalPathService globalPaths, IAppEnvironment appEnvironment)
+    public GlobalSettingService(IGlobalPathService globalPaths, IAppEnvironment appEnvironment, IMemoryCache cache)
     {
         _appEnvironment = appEnvironment ?? throw new ArgumentNullException(nameof(appEnvironment));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         var globalPathsService = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));
 
         // Use GlobalPathService direct property for global settings file
@@ -65,43 +68,37 @@ public class GlobalSettingService : IGlobalSettingService
 
     /// <summary>
     /// Get current global settings
+    /// Uses IMemoryCache with automatic expiration
     /// </summary>
     public async Task<GlobalSettings> GetSettingsAsync()
     {
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
+        // Try to get from cache, or create if not exists
+        return await _cache.GetOrCreateAsync(CacheKey, async entry =>
         {
-            // Return cached if available
-            if (_cachedSettings != null)
-            {
-                return _cachedSettings;
-            }
+            entry.SlidingExpiration = CacheExpiry;
 
             // Load from file or create default
+            GlobalSettings settings;
             if (File.Exists(_settingsFilePath))
             {
-                _cachedSettings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath).ConfigureAwait(false)
-                                  ?? new GlobalSettings();
+                settings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath).ConfigureAwait(false)
+                          ?? new GlobalSettings();
 
                 // Apply log level to AppEnvironment
-                _appEnvironment.MinimumLogLevel = ParseLogLevel(_cachedSettings.LogLevel);
+                _appEnvironment.MinimumLogLevel = ParseLogLevel(settings.LogLevel);
             }
             else
             {
-                _cachedSettings = new GlobalSettings();
+                settings = new GlobalSettings();
 
                 // Apply default log level to AppEnvironment
-                _appEnvironment.MinimumLogLevel = ParseLogLevel(_cachedSettings.LogLevel);
+                _appEnvironment.MinimumLogLevel = ParseLogLevel(settings.LogLevel);
 
-                await SaveSettingsAsync(_cachedSettings).ConfigureAwait(false);
+                await SaveSettingsAsync(settings).ConfigureAwait(false);
             }
 
-            return _cachedSettings;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+            return settings;
+        }).ConfigureAwait(false) ?? new GlobalSettings();
     }
 
     public async Task<LogLevel> GetLogLevelAsync()
@@ -111,93 +108,71 @@ public class GlobalSettingService : IGlobalSettingService
     }
 
     /// <summary>
-    /// Update global settings
+    /// Update global settings and invalidate cache
     /// </summary>
     public async Task UpdateSettingsAsync(GlobalSettings settings)
     {
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            settings.LastUpdated = DateTime.UtcNow;
-            await SaveSettingsAsync(settings).ConfigureAwait(false);
-            _cachedSettings = settings;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        settings.LastUpdated = DateTime.UtcNow;
+        await SaveSettingsAsync(settings).ConfigureAwait(false);
+
+        // Invalidate cache so next read gets fresh data
+        InvalidateCache();
     }
 
     /// <summary>
-    /// Update a single setting field
+    /// Invalidate the cache - next GetSettingsAsync call will reload from file
+    /// </summary>
+    private void InvalidateCache()
+    {
+        _cache.Remove(CacheKey);
+    }
+
+    /// <summary>
+    /// Update a single setting field and invalidate cache
     /// </summary>
     public async Task UpdateSettingAsync(string key, string value)
     {
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            // Load settings from cache or file (without calling GetSettingsAsync to avoid deadlock)
-            GlobalSettings settings;
-            if (_cachedSettings != null)
-            {
-                settings = _cachedSettings;
-            }
-            else if (File.Exists(_settingsFilePath))
-            {
-                settings = await JsonHelper.DeserializeFromFileAsync<GlobalSettings>(_settingsFilePath).ConfigureAwait(false) ?? new GlobalSettings();
-            }
-            else
-            {
-                settings = new GlobalSettings();
-            }
+        // Load current settings
+        var settings = await GetSettingsAsync().ConfigureAwait(false);
 
-            // Update the specific field - store values in lowercase for consistency
-            switch (key.ToLowerInvariant())
-            {
-                case "theme":
-                    settings.Theme = value.ToLowerInvariant();
-                    break;
-                case "annotationlevel":
-                    settings.AnnotationLevel = value.ToLowerInvariant();
-                    break;
-                case "loglevel":
-                    settings.LogLevel = value.ToLowerInvariant();
-                    // Update AppEnvironment immediately so LogHelper uses the new level (case-insensitive parse)
-                    _appEnvironment.MinimumLogLevel = ParseLogLevel(value);
-                    break;
-                case "language":
-                    settings.Language = value.ToLowerInvariant();
-                    break;
-                default:
-                    throw new ArgumentException($"Unknown setting key: {key}");
-            }
-
-            settings.LastUpdated = DateTime.UtcNow;
-            await SaveSettingsAsync(settings).ConfigureAwait(false);
-            _cachedSettings = settings;
-        }
-        finally
+        // Update the specific field - store values in lowercase for consistency
+        switch (key.ToLowerInvariant())
         {
-            _lock.Release();
+            case "theme":
+                settings.Theme = value.ToLowerInvariant();
+                break;
+            case "annotationlevel":
+                settings.AnnotationLevel = value.ToLowerInvariant();
+                break;
+            case "loglevel":
+                settings.LogLevel = value.ToLowerInvariant();
+                // Update AppEnvironment immediately so LogHelper uses the new level (case-insensitive parse)
+                _appEnvironment.MinimumLogLevel = ParseLogLevel(value);
+                break;
+            case "language":
+                settings.Language = value.ToLowerInvariant();
+                break;
+            default:
+                throw new ArgumentException($"Unknown setting key: {key}");
         }
+
+        settings.LastUpdated = DateTime.UtcNow;
+        await SaveSettingsAsync(settings).ConfigureAwait(false);
+
+        // Invalidate cache so next read gets fresh data
+        InvalidateCache();
     }
 
     /// <summary>
-    /// Reset settings to default values
+    /// Reset settings to default values and invalidate cache
     /// </summary>
     public async Task ResetSettingsAsync()
     {
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            var defaultSettings = new GlobalSettings();
-            await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
-            _cachedSettings = defaultSettings;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        var defaultSettings = new GlobalSettings();
+        await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
+
+        // Invalidate cache so next read gets fresh data
+        InvalidateCache();
     }
 
     /// <summary>

@@ -19,9 +19,14 @@ public static class CoreServiceExtensions
     /// </summary>
     public static IServiceCollection AddCoreServices(this IServiceCollection services)
     {
-        // Memory cache for application-wide caching
+        // Memory cache for application-wide caching (settings, category tree, etc.)
+        // No size limit for general application cache
         // Note: AddMemoryCache() registers IMemoryCache as a singleton automatically
         services.AddMemoryCache();
+
+        // Dedicated path cache for CustomSchemeHandler with LRU eviction
+        // Size-limited to 500 entries to prevent unbounded memory growth from file path caching
+        AddSingleton<PathCache, PathCache>(services);
 
         // Low-level services (no dependencies)
         AddSingleton<IFileHelper, FileHelper>(services);
@@ -50,6 +55,7 @@ public static class CoreServiceExtensions
         AddSingleton<IEventEmitter, EventEmitter>(services);
 
         // Custom scheme handler for app:// URLs (image serving)
+        // Uses dedicated path cache configured above
         AddSingleton<ICustomSchemeHandler, CustomSchemeHandler>(services);
 
         // Event bus for event messaging between services

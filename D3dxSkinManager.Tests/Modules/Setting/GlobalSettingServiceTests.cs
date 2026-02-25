@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Xunit;
 using Moq;
+using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -22,6 +23,7 @@ public class GlobalSettingServiceTests : IDisposable
     private readonly GlobalSettingService _service;
     private readonly Mock<IGlobalPathService> _mockGlobalPaths;
     private readonly Mock<IAppEnvironment> _mockAppEnvironment;
+    private readonly IMemoryCache _cache;
 
     public GlobalSettingServiceTests()
     {
@@ -47,7 +49,10 @@ public class GlobalSettingServiceTests : IDisposable
         _mockAppEnvironment.Setup(x => x.IsDevelopment).Returns(false);
         _mockAppEnvironment.Setup(x => x.MinimumLogLevel).Returns(LogLevel.Off);
 
-        _service = new GlobalSettingService(_mockGlobalPaths.Object, _mockAppEnvironment.Object);
+        // Create IMemoryCache for tests
+        _cache = new MemoryCache(new MemoryCacheOptions());
+
+        _service = new GlobalSettingService(_mockGlobalPaths.Object, _mockAppEnvironment.Object, _cache);
     }
 
     public void Dispose()
@@ -103,8 +108,9 @@ public class GlobalSettingServiceTests : IDisposable
         // Act
         await _service.UpdateSettingsAsync(newSettings);
 
-        // Create new service instance to ensure reading from file
-        var newService = new GlobalSettingService(_mockGlobalPaths.Object, _mockAppEnvironment.Object);
+        // Create new service instance with new cache to ensure reading from file
+        var newCache = new MemoryCache(new MemoryCacheOptions());
+        var newService = new GlobalSettingService(_mockGlobalPaths.Object, _mockAppEnvironment.Object, newCache);
         var retrieved = await newService.GetSettingsAsync();
 
         // Assert
@@ -145,7 +151,8 @@ public class GlobalSettingServiceTests : IDisposable
         var first = await _service.GetSettingsAsync();
         var second = await _service.GetSettingsAsync();
 
-        // Assert - Same object reference = cached
+        // Assert - IMemoryCache returns same cached instance
+        // Note: With IMemoryCache, both calls should return the same cached instance
         first.Should().BeSameAs(second);
     }
 
@@ -212,8 +219,9 @@ public class GlobalSettingServiceTests : IDisposable
         // Act
         await _service.UpdateSettingAsync("theme", "dark");
 
-        // Create new service instance to ensure reading from file
-        var newService = new GlobalSettingService(_mockGlobalPaths.Object, _mockAppEnvironment.Object);
+        // Create new service instance with new cache to ensure reading from file
+        var newCache = new MemoryCache(new MemoryCacheOptions());
+        var newService = new GlobalSettingService(_mockGlobalPaths.Object, _mockAppEnvironment.Object, newCache);
         var settings = await newService.GetSettingsAsync();
 
         // Assert
@@ -247,8 +255,9 @@ public class GlobalSettingServiceTests : IDisposable
         // Act
         await _service.ResetSettingsAsync();
 
-        // Create new service instance
-        var newService = new GlobalSettingService(_mockGlobalPaths.Object, _mockAppEnvironment.Object);
+        // Create new service instance with new cache
+        var newCache = new MemoryCache(new MemoryCacheOptions());
+        var newService = new GlobalSettingService(_mockGlobalPaths.Object, _mockAppEnvironment.Object, newCache);
         var settings = await newService.GetSettingsAsync();
 
         // Assert

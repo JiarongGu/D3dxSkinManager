@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Plugin.Interfaces;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Mod;
+using D3dxSkinManager.Modules.Core;
 
 namespace D3dxSkinManager.ExamplePlugin;
 

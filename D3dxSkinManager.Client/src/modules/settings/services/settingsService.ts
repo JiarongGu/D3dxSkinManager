@@ -4,12 +4,21 @@
 
 import { bridgeService } from '../../../shared/services/bridgeService';
 
+export interface ModTabSettings {
+  panelSize: string; // Format: "categoryWidth modListWidth" (e.g., "25 40")
+}
+
+export interface TabSettings {
+  mod: ModTabSettings;
+}
+
 export interface GlobalSettings {
   theme: 'light' | 'dark' | 'auto';
   annotationLevel: string;
   logLevel: string;
   language: string;
   lastUpdated: string;
+  tabs: TabSettings;
 }
 
 export interface SettingsUpdateResult {
@@ -72,6 +81,18 @@ class SettingsService {
       module: 'SETTING',
       type: 'RESET_WINDOW_STATE',
       payload: {}
+    });
+  }
+
+  /**
+   * Update mod tab panel sizes
+   * @param panelSize - Format: "categoryWidth modListWidth" (e.g., "25 40")
+   */
+  async updateModPanelSize(panelSize: string): Promise<SettingsUpdateResult> {
+    return await bridgeService.sendMessage<SettingsUpdateResult>({
+      module: 'SETTING',
+      type: 'UPDATE_MOD_PANEL_SIZE',
+      payload: { panelSize }
     });
   }
 }

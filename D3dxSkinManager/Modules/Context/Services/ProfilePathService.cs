@@ -1,4 +1,5 @@
-﻿using D3dxSkinManager.Modules.Core.Services;
+﻿using Microsoft.Extensions.Caching.Memory;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Profiles.Models;
 using D3dxSkinManager.Modules.Profiles;
@@ -134,14 +135,21 @@ public class ProfilePathService : IProfilePathService
     private readonly IProfileContext _profileContext;
     private readonly IProfileRepository _profileRepository;
     private readonly IEventBus _eventBus;
-    private string? _cachedCacheDirectory;
+    private readonly IMemoryCache _cache;
+    private readonly string _cacheKey;
+    private static readonly TimeSpan CacheExpiry = TimeSpan.FromHours(1);
 
-    public ProfilePathService(IProfileContext profileContext, IGlobalPathService globalPathService, IProfileRepository profileRepository, IEventBus eventBus)
+    public ProfilePathService(IProfileContext profileContext, IGlobalPathService globalPathService, IProfileRepository profileRepository, IEventBus eventBus, IMemoryCache cache)
     {
         _globalPathService = globalPathService;
         _profileContext = profileContext;
         _profileRepository = profileRepository;
         _eventBus = eventBus;
+        _cache = cache;
+
+        // Use profile-specific cache key since IMemoryCache is shared across all profiles
+        _cacheKey = $"CacheDirectory_{profileContext.ProfileId}";
+
         EnsureDirectoriesExist();
         SubscribeToConfigChanges();
     }
@@ -168,7 +176,7 @@ public class ProfilePathService : IProfilePathService
     /// </summary>
     public void InvalidateCacheDirectory()
     {
-        _cachedCacheDirectory = null;
+        _cache.Remove(_cacheKey);
     }
 
     // Standard file name constants
@@ -186,10 +194,10 @@ public class ProfilePathService : IProfilePathService
     {
         get
         {
-            // Return cached value if already loaded
-            if (_cachedCacheDirectory != null)
+            // Try to get from cache
+            if (_cache.TryGetValue(_cacheKey, out string? cachedPath) && cachedPath != null)
             {
-                return _cachedCacheDirectory;
+                return cachedPath;
             }
 
             // Default to internal path initially
@@ -201,34 +209,44 @@ public class ProfilePathService : IProfilePathService
     /// <summary>
     /// Load the cache directory path from configuration asynchronously
     /// This should be called during initialization
+    /// Uses IMemoryCache with automatic expiration
     /// </summary>
     public async Task LoadCacheDirectoryAsync()
     {
-        try
+        // Load and cache the directory path
+        var cacheDirectory = await _cache.GetOrCreateAsync(_cacheKey, async entry =>
         {
-            // Load configuration to determine cache directory
-            var config = await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
+            entry.SlidingExpiration = CacheExpiry;
 
-            // Determine cache directory based on mode
-            if (config?.ModCache?.Mode == "External" && !string.IsNullOrEmpty(config.ModCache.Directory))
+            try
             {
-                _cachedCacheDirectory = config.ModCache.Directory;
-            }
-            else
-            {
-                // Default internal path
-                _cachedCacheDirectory = Path.Combine(ProfilePath, "work", "Mods");
-            }
+                // Load configuration to determine cache directory
+                var config = await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
 
-            // Ensure the directory exists
-            Directory.CreateDirectory(_cachedCacheDirectory);
-        }
-        catch
-        {
-            // Fallback to default if config loading fails
-            _cachedCacheDirectory = Path.Combine(ProfilePath, "work", "Mods");
-            Directory.CreateDirectory(_cachedCacheDirectory);
-        }
+                // Determine cache directory based on mode
+                string directory;
+                if (config?.ModCache?.Mode == "External" && !string.IsNullOrEmpty(config.ModCache.Directory))
+                {
+                    directory = config.ModCache.Directory;
+                }
+                else
+                {
+                    // Default internal path
+                    directory = Path.Combine(ProfilePath, "work", "Mods");
+                }
+
+                // Ensure the directory exists
+                Directory.CreateDirectory(directory);
+                return directory;
+            }
+            catch
+            {
+                // Fallback to default if config loading fails
+                var defaultDirectory = Path.Combine(ProfilePath, "work", "Mods");
+                Directory.CreateDirectory(defaultDirectory);
+                return defaultDirectory;
+            }
+        }).ConfigureAwait(false);
     }
 
     public string ThumbnailsDirectory => Path.Combine(ProfilePath, "thumbnails");
