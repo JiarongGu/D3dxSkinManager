@@ -174,7 +174,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   };
 
   return (
-    <div>
+    <>
       <Form
         form={form}
         layout="vertical"
@@ -218,7 +218,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
           </CompactButton>
         </Space>
       </div>
-    </div>
+    </>
   );
 };
 

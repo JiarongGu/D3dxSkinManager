@@ -6,7 +6,14 @@ import {
   ReloadOutlined,
   FolderOpenOutlined,
 } from "@ant-design/icons";
-import { CompactCard, CompactWarningButton, CompactButton, CompactInput, CompactSelect } from "../../../shared/components/compact";
+import {
+  CompactCard,
+  CompactWarningButton,
+  CompactButton,
+  CompactInput,
+  CompactSelect,
+  CompactDangerButton,
+} from "../../../shared/components/compact";
 import { useTheme, ThemeMode } from "../../../shared/context/ThemeContext";
 import { useTranslation } from "react-i18next";
 import { changeLanguage } from "../../../i18n/i18n";
@@ -14,7 +21,7 @@ import { AVAILABLE_LANGUAGES } from "../../../shared/types/language.types";
 import { logger, Logger } from "../../../shared/utils/logger";
 import { settingsService } from "../services/settingsService";
 import { useProfile } from "../../../shared/context/ProfileContext";
-import  "./SettingsView.css";
+import "./SettingsView.css";
 import { fileDialogService } from "../../../shared/services/systemService";
 
 const { Option } = Select;
@@ -28,8 +35,12 @@ export const SettingsView: React.FC = () => {
   const [modCacheMode, setModCacheMode] = useState<string>("internal");
   const [modCacheDirectory, setModCacheDirectory] = useState<string>("");
   const [internalModCachePath, setInternalModCachePath] = useState<string>("");
-  const [profileConfigChanged, setProfileConfigChanged] = useState<boolean>(false);
-  const [initialProfileConfig, setInitialProfileConfig] = useState<{mode: string, directory: string}>({mode: "internal", directory: ""});
+  const [profileConfigChanged, setProfileConfigChanged] =
+    useState<boolean>(false);
+  const [initialProfileConfig, setInitialProfileConfig] = useState<{
+    mode: string;
+    directory: string;
+  }>({ mode: "internal", directory: "" });
 
   // Load log level from backend on mount
   useEffect(() => {
@@ -163,7 +174,9 @@ export const SettingsView: React.FC = () => {
     setModCacheMode(value);
 
     // Check if config changed
-    const hasChanged = value !== initialProfileConfig.mode || modCacheDirectory !== initialProfileConfig.directory;
+    const hasChanged =
+      value !== initialProfileConfig.mode ||
+      modCacheDirectory !== initialProfileConfig.directory;
     setProfileConfigChanged(hasChanged);
   };
 
@@ -183,7 +196,9 @@ export const SettingsView: React.FC = () => {
         form.setFieldValue("modCacheDirectory", result.filePath);
 
         // Check if config changed
-        const hasChanged = modCacheMode !== initialProfileConfig.mode || result.filePath !== initialProfileConfig.directory;
+        const hasChanged =
+          modCacheMode !== initialProfileConfig.mode ||
+          result.filePath !== initialProfileConfig.directory;
         setProfileConfigChanged(hasChanged);
       }
     } catch (error) {
@@ -192,12 +207,16 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleModCacheDirectoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleModCacheDirectoryChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const newPath = e.target.value;
     setModCacheDirectory(newPath);
 
     // Check if config changed
-    const hasChanged = modCacheMode !== initialProfileConfig.mode || newPath !== initialProfileConfig.directory;
+    const hasChanged =
+      modCacheMode !== initialProfileConfig.mode ||
+      newPath !== initialProfileConfig.directory;
     setProfileConfigChanged(hasChanged);
   };
 
@@ -223,23 +242,30 @@ export const SettingsView: React.FC = () => {
     if (modCacheMode === "external") {
       const isValid = await validateDirectoryExists(modCacheDirectory);
       if (!isValid) {
-        notification.error(t("settings.notifications.modCacheDirectoryInvalid"));
+        notification.error(
+          t("settings.notifications.modCacheDirectoryInvalid"),
+        );
         return;
       }
     }
 
     try {
-      const { profileService } = await import("../../profiles/services/profileService");
+      const { profileService } =
+        await import("../../profiles/services/profileService");
       await profileService.updateProfileConfig({
         profileId: selectedProfileId,
         modCache: {
           mode: modCacheMode, // Already lowercase
-          directory: modCacheMode === "external" ? modCacheDirectory : undefined
-        }
+          directory:
+            modCacheMode === "external" ? modCacheDirectory : undefined,
+        },
       });
 
       // Update initial config
-      setInitialProfileConfig({ mode: modCacheMode, directory: modCacheDirectory });
+      setInitialProfileConfig({
+        mode: modCacheMode,
+        directory: modCacheDirectory,
+      });
       setProfileConfigChanged(false);
 
       notification.success(t("settings.notifications.profileConfigSaved"));
@@ -296,7 +322,10 @@ export const SettingsView: React.FC = () => {
                 name="language"
                 tooltip={t("settings.global.language.tooltip")}
               >
-                <CompactSelect value={i18n.language} onChange={handleLanguageChange}>
+                <CompactSelect
+                  value={i18n.language}
+                  onChange={handleLanguageChange}
+                >
                   {AVAILABLE_LANGUAGES.map((lang) => (
                     <Option key={lang.code} value={lang.code}>
                       {lang.name}
@@ -346,11 +375,11 @@ export const SettingsView: React.FC = () => {
               label={t("settings.profile.modCache.directory.label")}
               tooltip={t("settings.profile.modCache.directory.tooltip")}
             >
-              <Space.Compact style={{ width: '100%' }}>
+              <Space.Compact style={{ width: "100%" }}>
                 <CompactSelect
                   value={modCacheMode}
                   onChange={handleModCacheModeChange}
-                  style={{ width: '140px' }}
+                  style={{ width: "140px" }}
                 >
                   <Option value="internal">
                     {t("settings.profile.modCache.mode.internal")}
@@ -360,10 +389,22 @@ export const SettingsView: React.FC = () => {
                   </Option>
                 </CompactSelect>
                 <CompactInput
-                  value={modCacheMode === "internal" ? internalModCachePath : modCacheDirectory}
+                  value={
+                    modCacheMode === "internal"
+                      ? internalModCachePath
+                      : modCacheDirectory
+                  }
                   disabled={modCacheMode === "internal"}
-                  onChange={modCacheMode === "external" ? handleModCacheDirectoryChange : undefined}
-                  placeholder={modCacheMode === "external" ? t("settings.profile.modCache.directory.placeholder") : ""}
+                  onChange={
+                    modCacheMode === "external"
+                      ? handleModCacheDirectoryChange
+                      : undefined
+                  }
+                  placeholder={
+                    modCacheMode === "external"
+                      ? t("settings.profile.modCache.directory.placeholder")
+                      : ""
+                  }
                 />
                 {modCacheMode === "external" && (
                   <CompactButton
@@ -377,13 +418,13 @@ export const SettingsView: React.FC = () => {
             </Form.Item>
 
             <Form.Item>
-              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <CompactWarningButton
+              <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+                <CompactDangerButton
                   onClick={handleResetProfileConfig}
                   disabled={!profileConfigChanged}
                 >
-                  {t("settings.profile.resetChanges")}
-                </CompactWarningButton>
+                  {t("settings.profile.discard")}
+                </CompactDangerButton>
                 <CompactButton
                   type="primary"
                   onClick={handleSaveProfileConfig}

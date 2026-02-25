@@ -6,6 +6,8 @@ import {
   GlobalSettings,
 } from "../../modules/settings/services/settingsService";
 import { useProfile } from "../context/ProfileContext";
+import { useModsStore } from "../../modules/mods/store/modsStore";
+import { bridgeService } from "../services/bridgeService";
 import { useTranslation } from 'react-i18next';
 import './AppInitializer.css';
 
@@ -40,6 +42,7 @@ interface AppInitializerProps {
 export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
   const { t } = useTranslation();
   const { selectedProfile, profiles, actions } = useProfile();
+  const setPanelSizes = useModsStore(s => s.setPanelSizes);
   const [state, setState] = useState<InitState>({
     stage: "loading-global",
     globalSettings: undefined,
@@ -49,6 +52,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
   // Step 1: Load global settings
   useEffect(() => {
     loadGlobalSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Step 2: After global settings loaded, load profiles from ProfileContext
@@ -77,10 +81,31 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
     }
   }, [selectedProfile, state.stage]);
 
+  // Step 5: Notify backend when app is fully initialized
+  useEffect(() => {
+    if (state.stage === "ready") {
+      // Notify backend that WebView is ready
+      // This clears any stale drop zones from previous sessions (e.g., after hot-reload)
+      bridgeService.notifyWebViewReady();
+    }
+  }, [state.stage]);
+
   const loadGlobalSettings = async () => {
     try {
       // Load global settings - no profileId needed
       const settings = await settingsService.getGlobalSettings();
+
+      // Initialize panel sizes from settings
+      if (settings.tabs?.mod?.panelSize) {
+        const [category, modList] = settings.tabs.mod.panelSize.split(' ').map(Number);
+        if (!isNaN(category) && !isNaN(modList)) {
+          setPanelSizes({
+            categoryWidth: category,
+            modListWidth: modList,
+            previewWidth: 100 - category - modList
+          });
+        }
+      }
 
       setState((prev) => ({
         ...prev,

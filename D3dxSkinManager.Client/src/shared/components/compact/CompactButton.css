@@ -15,6 +15,30 @@
   box-sizing: border-box !important;
 }
 
+/* Disabled state - consistent across all themes and button types */
+.compact-button.ant-btn:disabled,
+.compact-button.ant-btn.ant-btn-disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Ensure disabled styling overrides theme-specific styles and prevents hover effects */
+[data-theme="dark"] .compact-button.ant-btn:disabled,
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-disabled,
+[data-theme="dark"] .compact-button.ant-btn:disabled:hover,
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-disabled:hover,
+[data-theme="light"] .compact-button.ant-btn:disabled,
+[data-theme="light"] .compact-button.ant-btn.ant-btn-disabled,
+[data-theme="light"] .compact-button.ant-btn:disabled:hover,
+[data-theme="light"] .compact-button.ant-btn.ant-btn-disabled:hover {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 /* Theme-aware button shadows - very subtle for flat design */
 [data-theme="light"] .compact-button.ant-btn {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.01);

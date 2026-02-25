@@ -1,7 +1,7 @@
-import React from 'react';
-import classNames from 'classnames';
-import { Button, ButtonProps } from 'antd';
-import './CompactButton.css';
+import React from "react";
+import classNames from "classnames";
+import { Button, ButtonProps } from "antd";
+import "./CompactButton.css";
 
 /**
  * CompactButton - A button component with consistent sizing and styling
@@ -22,9 +22,9 @@ import './CompactButton.css';
  * - large: 40px height - Prominent primary actions, CTAs
  */
 
-export type CompactButtonSize = 'small' | 'medium' | 'large';
+export type CompactButtonSize = "small" | "medium" | "large";
 
-export interface CompactButtonProps extends Omit<ButtonProps, 'size'> {
+export interface CompactButtonProps extends Omit<ButtonProps, "size"> {
   /** Button size - defaults to 'medium' (32px) for consistency */
   size?: CompactButtonSize;
   /** Additional CSS class names */
@@ -32,16 +32,24 @@ export interface CompactButtonProps extends Omit<ButtonProps, 'size'> {
 }
 
 export const CompactButton: React.FC<CompactButtonProps> = ({
-  size = 'medium',
-  className = '',
+  size = "medium",
+  className = "",
   children,
   ...rest
 }) => {
   // Map our size to Ant Design size
-  const antdSize = size === 'medium' ? 'middle' : size;
+  const antdSize = size === "medium" ? "middle" : size;
 
   return (
-    <Button size={antdSize} className={classNames('compact-button', `compact-button-${size}`, className)} {...rest}>
+    <Button
+      size={antdSize}
+      className={classNames(
+        "compact-button",
+        `compact-button-${size}`,
+        className,
+      )}
+      {...rest}
+    >
       {children}
     </Button>
   );
@@ -84,7 +92,7 @@ export const CompactWarningButton: React.FC<CompactButtonProps> = ({
 }) => (
   <CompactButton
     type="primary"
-    className={classNames('compact-button-warning', className)}
+    className={classNames("compact-button-warning", className)}
     {...props}
   />
 );
@@ -98,7 +106,7 @@ export const CompactSuccessButton: React.FC<CompactButtonProps> = ({
 }) => (
   <CompactButton
     type="primary"
-    className={classNames('compact-button-success', className)}
+    className={classNames("compact-button-success", className)}
     {...props}
   />
 );

@@ -648,7 +648,7 @@
     "settings.profile.modCache.directory.tooltip": "Choose where to store extracted mod files. Internal uses the profile folder, External allows a custom location",
     "settings.profile.modCache.directory.placeholder": "Click Browse to select a folder",
     "settings.profile.modCache.directory.dialogTitle": "Select Mod Cache Folder",
-    "settings.profile.resetChanges": "Reset Changes",
+    "settings.profile.discard": "Discard",
     "settings.profile.saveChanges": "Save Changes",
     "settings.profile.title": "Profile-Specific Settings",
     "settings.theme.auto": "Auto (System)",

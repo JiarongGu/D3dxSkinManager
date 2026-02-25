@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { settingsService } from '../../settings/services/settingsService';
+import { useModsStore } from '../store/modsStore';
 
 interface PanelSizes {
   categoryWidth: number; // percentage
@@ -7,46 +8,19 @@ interface PanelSizes {
   previewWidth: number; // calculated (remaining)
 }
 
-const DEFAULT_SIZES: PanelSizes = {
-  categoryWidth: 20,
-  modListWidth: 35,
-  previewWidth: 45
-};
-
 /**
  * Custom hook for managing resizable panel sizes
- * - Loads panel sizes from global settings
+ * - Reads panel sizes from Zustand store (no loading delay)
  * - Provides drag-to-resize functionality
  * - Persists panel sizes to settings
  */
 export function useResizablePanels() {
-  const [sizes, setSizes] = useState<PanelSizes>(DEFAULT_SIZES);
+  const sizes = useModsStore(s => s.panelSizes);
+  const setPanelSizes = useModsStore(s => s.setPanelSizes);
   const [isResizing, setIsResizing] = useState<'category' | 'modList' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef<number>(0);
-  const startSizesRef = useRef<PanelSizes>(DEFAULT_SIZES);
-
-  // Load panel sizes from settings on mount
-  useEffect(() => {
-    const loadSizes = async () => {
-      try {
-        const settings = await settingsService.getGlobalSettings();
-        if (settings.tabs?.mod?.panelSize) {
-          const [category, modList] = settings.tabs.mod.panelSize.split(' ').map(Number);
-          if (!isNaN(category) && !isNaN(modList)) {
-            setSizes({
-              categoryWidth: category,
-              modListWidth: modList,
-              previewWidth: 100 - category - modList
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load panel sizes:', error);
-      }
-    };
-    void loadSizes();
-  }, []);
+  const startSizesRef = useRef<PanelSizes>({ categoryWidth: 20, modListWidth: 35, previewWidth: 45 });
 
   // Save panel sizes to settings
   const saveSizes = useCallback(async (newSizes: PanelSizes) => {
@@ -99,12 +73,12 @@ export function useResizablePanels() {
         newSizes.previewWidth = 20;
       }
 
-      setSizes(newSizes);
+      setPanelSizes(newSizes);
     };
 
     const handleMouseUp = () => {
       setIsResizing(null);
-      // Save sizes when resize ends
+      // Save sizes to backend when resize ends
       void saveSizes(sizes);
     };
 
@@ -115,7 +89,7 @@ export function useResizablePanels() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, sizes, saveSizes]);
+  }, [isResizing, sizes, saveSizes, setPanelSizes]);
 
   return {
     sizes,

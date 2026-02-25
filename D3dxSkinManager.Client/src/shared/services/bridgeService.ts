@@ -32,11 +32,17 @@ function isWebViewAvailable(): boolean {
   return !!window.chrome?.webview?.postMessage;
 }
 
+// Generate unique ID for this WebView instance (for multi-window support in future)
+// Created at module level so it persists across hot-reloads during development
+const webViewId = uuidv4();
+
 class BridgeService {
   private messageHandlers: Map<string, (response: BridgeResponse) => void> =
     new Map();
   // Global modules that don't require profileId
-  private readonly globalModules = ["SETTINGS", "PROFILE", "SYSTEM"];
+  private readonly globalModules = ["APP", "SETTINGS", "PROFILE", "SYSTEM"];
+  // Expose webViewId as readonly property
+  public readonly webViewId = webViewId;
 
   constructor() {
     this.initializeMessageReceiver();
@@ -84,6 +90,23 @@ class BridgeService {
         console.error("[BridgeService] Failed to parse message:", error);
       }
     });
+  }
+
+  /**
+   * Notify backend that WebView is ready
+   * This should be called once during app initialization to clear any stale drop zones
+   */
+  async notifyWebViewReady(): Promise<void> {
+    try {
+      await this.sendMessage({
+        module: 'APP',
+        type: 'WEBVIEW_READY',
+        payload: { webViewId: this.webViewId }
+      });
+      console.info(`[BridgeService] WebView ready notification sent with ID: ${this.webViewId}`);
+    } catch (error) {
+      console.error('[BridgeService] Failed to notify WebView ready:', error);
+    }
   }
 
   /**

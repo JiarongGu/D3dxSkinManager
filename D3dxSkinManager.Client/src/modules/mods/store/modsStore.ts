@@ -52,6 +52,13 @@ export interface ModsState {
   modToEdit: ModInfo | undefined;
   availableTags: string[];
 
+  // Panel Sizes (for resizable panels)
+  panelSizes: {
+    categoryWidth: number; // percentage
+    modListWidth: number; // percentage
+    previewWidth: number; // percentage (calculated)
+  };
+
   // ModManagementScreen - Import queue state
   modManagementScreenVisible: boolean;
   modManagementMode: ModManagementMode; // Currently only 'import' mode
@@ -108,6 +115,9 @@ export interface ModsActions {
   openEditDialog: (mod: ModInfo) => void;
   closeEditDialog: () => void;
 
+  // Panel Size Actions
+  setPanelSizes: (sizes: { categoryWidth: number; modListWidth: number; previewWidth: number }) => void;
+
   // ModManagementScreen Actions
   openModManagementScreen: () => void;
   closeModManagementScreen: () => void;
@@ -153,6 +163,13 @@ const initialState: ModsState = {
   editDialogVisible: false,
   modToEdit: undefined,
   availableTags: [],
+
+  // Panel Sizes
+  panelSizes: {
+    categoryWidth: 20,
+    modListWidth: 35,
+    previewWidth: 45,
+  },
 
   // ModManagementScreen
   modManagementScreenVisible: false,
@@ -468,6 +485,15 @@ export const useModsStore = create<ModsStore>()(
         set((state) => {
           state.editDialogVisible = false;
           state.modToEdit = undefined;
+        }),
+
+      // ============================================================
+      // Panel Size Actions
+      // ============================================================
+
+      setPanelSizes: (sizes) =>
+        set((state) => {
+          state.panelSizes = sizes;
         }),
 
       // ============================================================

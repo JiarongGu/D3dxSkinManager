@@ -418,6 +418,18 @@ public class ApplicationHost
                 status = "ready",
                 uptime = DateTime.UtcNow.Subtract(System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds
             });
+
+            routes.Route("WEBVIEW_READY", message =>
+            {
+                var webViewId = message.Payload?.GetProperty("webViewId").GetString() ?? "unknown";
+                _logger.Info($"WebView ready notification received with ID: {webViewId}", "Host");
+
+                // Clear all drop zones on webview startup/hot-reload
+                _logger.Info("Clearing all drop zones due to webview startup", "Host");
+                _dropZoneManager?.ClearAll();
+
+                return new { success = true, webViewId };
+            });
         });
 
         // Register DROP_ZONE module for managing WinForms drop overlays

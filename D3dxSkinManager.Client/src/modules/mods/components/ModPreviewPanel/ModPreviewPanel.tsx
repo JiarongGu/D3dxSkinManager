@@ -10,8 +10,6 @@ import {
   UserOutlined,
   TagsOutlined,
   FileTextOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
   PictureOutlined,
   FolderOpenOutlined,
   DeleteOutlined,
@@ -26,12 +24,10 @@ import {
 } from "../../../../shared/components/menu/ContextMenu";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
 import { CompactTextButton } from "../../../../shared/components/compact";
-import { GradingTag } from "../GradingTag";
 import { FullScreenPreview } from "./FullScreenPreview";
 import { KeybindingPreview } from "./KeybindingPreview";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
 import { ModPreviewProvider, useModView } from "./ModPreviewContext";
-import { ModInfo } from "../../../../shared/types/mod.types";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useModsStore } from "../../store/modsStore";
 import { modService } from "../../services/modService";
@@ -83,7 +79,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       setTimeout(() => {
         setShowKeybindings(false);
         setIsKeybindingsClosing(false);
-      }, 150); // Match animation duration (0.15s)
+      }, 120); // Match animation duration (0.15s in CSS) minus a bit for smoother UX
     } else {
       setShowKeybindings(true);
     }

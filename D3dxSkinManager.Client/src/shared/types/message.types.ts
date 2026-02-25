@@ -2,6 +2,7 @@
  * Module names for routing IPC messages
  */
 export type ModuleName =
+  | 'APP' // Application-level messages (ping, version, webview lifecycle)
   | 'MOD'
   | 'CATEGORY'
   | 'LAUNCH'
