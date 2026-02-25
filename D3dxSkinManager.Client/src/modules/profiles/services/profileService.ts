@@ -8,22 +8,24 @@ import {
 } from '../../../shared/types/profile.types';
 
 /**
+ * Mod Cache Configuration Model
+ */
+export interface ModCacheConfiguration {
+  mode: string;
+  directory?: string;
+}
+
+/**
  * Profile Configuration Model
  */
 export interface ProfileConfiguration {
   profileId: string;
-  archiveHandlingMode: string;
-  defaultGrading: string;
-  autoGenerateThumbnails: boolean;
-  autoClassifyMods: boolean;
-  classificationPatterns?: string;
-  thumbnailAlgorithm: string;
   migotoVersion: string;
   gamePath?: string;
   gameLaunchArgs?: string;
   customProgramPath?: string;
   customProgramArgs?: string;
-  customSettings?: string;
+  modCache: ModCacheConfiguration;
 }
 
 /**
@@ -127,10 +129,13 @@ class ProfileService extends BaseModuleService {
   async updateProfileConfig(config: Partial<ProfileConfiguration> & { profileId: string }): Promise<boolean> {
     return this.sendBooleanMessage('UPDATE_CONFIG', undefined, {
       profileId: config.profileId,
-      archiveHandlingMode: config.archiveHandlingMode,
-      defaultGrading: config.defaultGrading,
-      autoGenerateThumbnails: config.autoGenerateThumbnails,
-      autoClassifyMods: config.autoClassifyMods
+      migotoVersion: config.migotoVersion,
+      gamePath: config.gamePath,
+      gameLaunchArgs: config.gameLaunchArgs,
+      customProgramPath: config.customProgramPath,
+      customProgramArgs: config.customProgramArgs,
+      modCacheMode: config.modCache?.mode,
+      modCacheDirectory: config.modCache?.directory
     });
   }
 

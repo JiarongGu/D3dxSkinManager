@@ -31,7 +31,7 @@ public interface IPluginContext
     IFileHelper FileService { get; }
 
     /// <summary>
-    /// Access to mod auto-detection service.
+    /// Access to mod auto-detection service (classification based on file patterns).
     /// </summary>
     IModAutoDetectionService ModAutoDetectionService { get; }
 

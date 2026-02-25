@@ -1,4 +1,5 @@
 using D3dxSkinManager.Modules.Context;
+using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -156,6 +157,14 @@ public class ProfileServiceRouter : IDisposable
         }
 
         var serviceProvider = services.BuildServiceProvider();
+
+        // Initialize ProfilePathService cache directory asynchronously
+        var profilePathService = serviceProvider.GetService<IProfilePathService>();
+        if (profilePathService != null)
+        {
+            // Load cache directory configuration asynchronously without blocking
+            _ = profilePathService.LoadCacheDirectoryAsync();
+        }
 
         _logger.Debug($"Created profile-scoped services for: {profile.Name} ({profile.Id})", "ProfileServiceRouter");
 

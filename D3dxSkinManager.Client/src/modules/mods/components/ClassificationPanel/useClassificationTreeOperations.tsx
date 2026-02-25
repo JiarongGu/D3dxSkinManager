@@ -166,7 +166,9 @@ export function useClassificationTreeOperations({
               nodeId,
               data.name,
               data.description,
-              thumbnailToUse
+              thumbnailToUse,
+              data.matchMode,
+              data.matchPattern
             );
 
             // If parent changed, also move the node

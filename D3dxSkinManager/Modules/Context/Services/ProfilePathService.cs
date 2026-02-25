@@ -1,5 +1,8 @@
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Profiles.Models;
+using D3dxSkinManager.Modules.Profiles;
+using D3dxSkinManager.Modules.Core.Event;
 using System;
 using System.IO;
 
@@ -23,11 +26,6 @@ public interface IProfilePathService
     /// Standard name for profile config file
     /// </summary>
     string ConfigFileName { get; }
-
-    /// <summary>
-    /// Standard name for auto-detection rules file
-    /// </summary>
-    string AutoDetectionRulesFileName { get; }
 
     // Directory paths
 
@@ -95,12 +93,6 @@ public interface IProfilePathService
     /// </summary>
     string ConfigPath { get; }
 
-    /// <summary>
-    /// Auto-detection rules file path (data/profiles/{profileId}/auto_detection_rules.json)
-    /// </summary>
-    string AutoDetectionRulesPath { get; }
-
-
     // Helper methods for parameterized paths
 
     /// <summary>
@@ -117,6 +109,18 @@ public interface IProfilePathService
     /// <param name="sha">Mod SHA hash</param>
     /// <returns>Full path to preview directory</returns>
     string GetPreviewDirectoryPath(string sha);
+
+    /// <summary>
+    /// Load the cache directory path from configuration asynchronously
+    /// Should be called during initialization
+    /// </summary>
+    Task LoadCacheDirectoryAsync();
+
+    /// <summary>
+    /// Invalidate the cached cache directory path
+    /// Call this when profile configuration changes (e.g., when ModCacheStorageMode or CustomModCachePath changes)
+    /// </summary>
+    void InvalidateCacheDirectory();
 }
 
 /// <summary>
@@ -128,18 +132,48 @@ public class ProfilePathService : IProfilePathService
 {
     private readonly IGlobalPathService _globalPathService;
     private readonly IProfileContext _profileContext;
+    private readonly IProfileRepository _profileRepository;
+    private readonly IEventBus _eventBus;
+    private string? _cachedCacheDirectory;
 
-    public ProfilePathService(IProfileContext profileContext, IGlobalPathService globalPathService)
+    public ProfilePathService(IProfileContext profileContext, IGlobalPathService globalPathService, IProfileRepository profileRepository, IEventBus eventBus)
     {
         _globalPathService = globalPathService;
         _profileContext = profileContext;
+        _profileRepository = profileRepository;
+        _eventBus = eventBus;
         EnsureDirectoriesExist();
+        SubscribeToConfigChanges();
+    }
+
+    /// <summary>
+    /// Subscribe to profile configuration change events
+    /// </summary>
+    private void SubscribeToConfigChanges()
+    {
+        _eventBus.RegisterHandler(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, async (EventMessage eventMessage) =>
+        {
+            if (eventMessage.Payload is ProfileConfiguration config && config.ProfileId == _profileContext.ProfileId)
+            {
+                // Reload cache directory when config changes
+                InvalidateCacheDirectory();
+                await LoadCacheDirectoryAsync().ConfigureAwait(false);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Invalidate the cached cache directory path
+    /// Call this when profile configuration changes
+    /// </summary>
+    public void InvalidateCacheDirectory()
+    {
+        _cachedCacheDirectory = null;
     }
 
     // Standard file name constants
     public string ProfileDatabaseFileName => "profile.db";
     public string ConfigFileName => "config.json";
-    public string AutoDetectionRulesFileName => "auto_detection_rules.json";
 
     // Directory paths
     public string ProfilePath => _globalPathService.GetProfileDirectoryPath(_profileContext.ProfileId);
@@ -148,7 +182,54 @@ public class ProfilePathService : IProfilePathService
 
     public string WorkDirectory => Path.Combine(ProfilePath, "work");
 
-    public string CacheModsDirectory => Path.Combine(ProfilePath, "work", "Mods");
+    public string CacheModsDirectory
+    {
+        get
+        {
+            // Return cached value if already loaded
+            if (_cachedCacheDirectory != null)
+            {
+                return _cachedCacheDirectory;
+            }
+
+            // Default to internal path initially
+            // This will be updated asynchronously by LoadCacheDirectoryAsync
+            return Path.Combine(ProfilePath, "work", "Mods");
+        }
+    }
+
+    /// <summary>
+    /// Load the cache directory path from configuration asynchronously
+    /// This should be called during initialization
+    /// </summary>
+    public async Task LoadCacheDirectoryAsync()
+    {
+        try
+        {
+            // Load configuration to determine cache directory
+            var config = await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
+
+            // Determine cache directory based on mode
+            if (config?.ModCache?.Mode == "External" && !string.IsNullOrEmpty(config.ModCache.Directory))
+            {
+                _cachedCacheDirectory = config.ModCache.Directory;
+            }
+            else
+            {
+                // Default internal path
+                _cachedCacheDirectory = Path.Combine(ProfilePath, "work", "Mods");
+            }
+
+            // Ensure the directory exists
+            Directory.CreateDirectory(_cachedCacheDirectory);
+        }
+        catch
+        {
+            // Fallback to default if config loading fails
+            _cachedCacheDirectory = Path.Combine(ProfilePath, "work", "Mods");
+            Directory.CreateDirectory(_cachedCacheDirectory);
+        }
+    }
 
     public string ThumbnailsDirectory => Path.Combine(ProfilePath, "thumbnails");
 
@@ -167,19 +248,19 @@ public class ProfilePathService : IProfilePathService
 
     public string ConfigPath => Path.Combine(ProfilePath, ConfigFileName);
 
-    public string AutoDetectionRulesPath => Path.Combine(ProfilePath, AutoDetectionRulesFileName);
 
     /// <summary>
     /// Ensure all standard profile directories exist
     /// Creates directories if they don't exist
     /// Safe to call multiple times (idempotent)
+    /// Note: CacheModsDirectory is created on-demand in its getter based on configuration
     /// </summary>
     private void EnsureDirectoriesExist()
     {
         // Create all standard directories
         Directory.CreateDirectory(ModsDirectory);
         Directory.CreateDirectory(WorkDirectory);
-        Directory.CreateDirectory(CacheModsDirectory);
+        // CacheModsDirectory is created on-demand in the property getter
         Directory.CreateDirectory(ThumbnailsDirectory);
         Directory.CreateDirectory(PreviewsDirectory);
         Directory.CreateDirectory(LogsDirectory);

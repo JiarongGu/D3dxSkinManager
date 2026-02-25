@@ -56,6 +56,8 @@ public class ClassificationRepository : IClassificationRepository
                 ParentId TEXT NULL,
                 ThumbnailPath TEXT NULL,
                 Priority INTEGER DEFAULT 0,
+                MatchMode TEXT NULL,
+                MatchPattern TEXT NULL,
                 Description TEXT NULL,
                 Metadata TEXT NULL,
                 CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -63,8 +65,40 @@ public class ClassificationRepository : IClassificationRepository
             );
 
             CREATE INDEX IF NOT EXISTS idx_classifications_parent ON Classifications(ParentId);
+            CREATE INDEX IF NOT EXISTS idx_classifications_priority ON Classifications(Priority DESC);
         ";
         await createClassificationsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+        // Migration: Add MatchMode and MatchPattern columns if they don't exist
+        var alterCmd = connection.CreateCommand();
+        alterCmd.CommandText = @"
+            PRAGMA table_info(Classifications);
+        ";
+        var columns = new HashSet<string>();
+        await using var reader = await alterCmd.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
+        {
+            columns.Add(reader["name"].ToString()!);
+        }
+
+        await using (reader)
+        {
+            await reader.CloseAsync().ConfigureAwait(false);
+        }
+
+        if (!columns.Contains("MatchMode"))
+        {
+            var addMatchModeCmd = connection.CreateCommand();
+            addMatchModeCmd.CommandText = "ALTER TABLE Classifications ADD COLUMN MatchMode TEXT NULL";
+            await addMatchModeCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+        }
+
+        if (!columns.Contains("MatchPattern"))
+        {
+            var addMatchPatternCmd = connection.CreateCommand();
+            addMatchPatternCmd.CommandText = "ALTER TABLE Classifications ADD COLUMN MatchPattern TEXT NULL";
+            await addMatchPatternCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task<List<ClassificationNode>> GetAllAsync()
@@ -204,8 +238,8 @@ public class ClassificationRepository : IClassificationRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO Classifications (Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata)
-            VALUES (@id, @name, @parentId, @thumbnailPath, @priority, @description, @metadata)
+            INSERT INTO Classifications (Id, Name, ParentId, ThumbnailPath, Priority, MatchMode, MatchPattern, Description, Metadata)
+            VALUES (@id, @name, @parentId, @thumbnailPath, @priority, @matchMode, @matchPattern, @description, @metadata)
         ";
 
         command.Parameters.AddWithValue("@id", node.Id);
@@ -213,6 +247,8 @@ public class ClassificationRepository : IClassificationRepository
         command.Parameters.AddWithValue("@parentId", node.ParentId ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@thumbnailPath", node.Thumbnail ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@priority", node.Priority);
+        command.Parameters.AddWithValue("@matchMode", node.MatchMode ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@matchPattern", node.MatchPattern ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@description", node.Description ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", node.Metadata != null ? JsonHelper.Serialize(node.Metadata) : (object)DBNull.Value);
 
@@ -232,6 +268,8 @@ public class ClassificationRepository : IClassificationRepository
                 ParentId = @parentId,
                 ThumbnailPath = @thumbnailPath,
                 Priority = @priority,
+                MatchMode = @matchMode,
+                MatchPattern = @matchPattern,
                 Description = @description,
                 Metadata = @metadata,
                 UpdatedAt = CURRENT_TIMESTAMP
@@ -243,6 +281,8 @@ public class ClassificationRepository : IClassificationRepository
         command.Parameters.AddWithValue("@parentId", node.ParentId ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@thumbnailPath", node.Thumbnail ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@priority", node.Priority);
+        command.Parameters.AddWithValue("@matchMode", node.MatchMode ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@matchPattern", node.MatchPattern ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@description", node.Description ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", node.Metadata != null ? JsonHelper.Serialize(node.Metadata) : (object)DBNull.Value);
 
@@ -374,6 +414,8 @@ public class ClassificationRepository : IClassificationRepository
             ParentId = reader["ParentId"] as string,
             Thumbnail = reader["ThumbnailPath"] as string,
             Priority = Convert.ToInt32(reader["Priority"]),
+            MatchMode = reader["MatchMode"] as string,
+            MatchPattern = reader["MatchPattern"] as string,
             Description = reader["Description"] as string,
             Metadata = metadata,
             Children = new List<ClassificationNode>(),

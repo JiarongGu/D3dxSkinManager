@@ -102,12 +102,12 @@ public class ModImportService : IModImportService
             var metadata = await ReadMetadataAsync(tempExtractPath).ConfigureAwait(false);
             _logger.Info($"Metadata: Name={metadata.Name}, Author={metadata.Author}", "ModImportService");
 
-            // Step 5: Auto-classify object name if not provided
+            // Step 5: Auto-detect classification if not provided in metadata
             var category = metadata.Category;
             if (string.IsNullOrEmpty(category))
             {
-                category = await _autoDetectionService.DetectObjectNameAsync(tempExtractPath).ConfigureAwait(false);
-                _logger.Info($"Auto-detected as: {category ?? "Unknown"}", "ModImportService");
+                category = await _autoDetectionService.DetectClassificationAsync(tempExtractPath).ConfigureAwait(false);
+                _logger.Info($"Auto-detected classification: {category ?? "None"}", "ModImportService");
             }
 
             // Step 6: Generate previews

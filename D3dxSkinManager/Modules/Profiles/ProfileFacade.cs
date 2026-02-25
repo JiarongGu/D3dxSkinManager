@@ -39,15 +39,18 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     private readonly IProfileService _profileService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitter _eventEmitter;
+    private readonly IPathHelper _pathHelper;
 
     public ProfileFacade(
         IProfileService profileService,
         IPayloadHelper payloadHelper,
         IEventEmitter eventEmitter,
+        IPathHelper pathHelper,
         ILogHelper logger) : base(logger)
     {
         _profileService = profileService ?? throw new ArgumentNullException(nameof(profileService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
+        _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
         _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
     }
 
@@ -78,21 +81,51 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         var profiles = await _profileService.GetAllProfilesAsync().ConfigureAwait(false);
         var activeProfile = await _profileService.GetActiveProfileAsync().ConfigureAwait(false);
 
+        // Convert data directories to absolute paths for frontend display
+        var profilesWithAbsolutePaths = profiles.Select(ConvertToAbsolutePaths).ToList();
+
         return new ProfileListResponse
         {
-            Profiles = profiles,
+            Profiles = profilesWithAbsolutePaths,
             ActiveProfileId = activeProfile?.Id ?? string.Empty
         };
     }
 
     public async Task<Profile?> GetActiveProfileAsync()
     {
-        return await _profileService.GetActiveProfileAsync().ConfigureAwait(false);
+        var profile = await _profileService.GetActiveProfileAsync().ConfigureAwait(false);
+        return profile != null ? ConvertToAbsolutePaths(profile) : null;
     }
 
     public async Task<Profile?> GetProfileByIdAsync(string profileId)
     {
-        return await _profileService.GetProfileByIdAsync(profileId).ConfigureAwait(false);
+        var profile = await _profileService.GetProfileByIdAsync(profileId).ConfigureAwait(false);
+        return profile != null ? ConvertToAbsolutePaths(profile) : null;
+    }
+
+    /// <summary>
+    /// Convert profile paths from relative to absolute for frontend display
+    /// </summary>
+    private Profile ConvertToAbsolutePaths(Profile profile)
+    {
+        return new Profile
+        {
+            Id = profile.Id,
+            Name = profile.Name,
+            Description = profile.Description,
+            GameDirectory = profile.GameDirectory,
+            WorkDirectory = profile.WorkDirectory,
+            DataDirectory = _pathHelper.ToAbsolutePath(profile.DataDirectory) ?? profile.DataDirectory,
+            IsActive = profile.IsActive,
+            CreatedAt = profile.CreatedAt,
+            LastUsedAt = profile.LastUsedAt,
+            ModCount = profile.ModCount,
+            TotalSizeBytes = profile.TotalSizeBytes,
+            ColorTag = profile.ColorTag,
+            IconName = profile.IconName,
+            GameName = profile.GameName,
+            Metadata = profile.Metadata
+        };
     }
 
     public async Task<Profile> CreateProfileAsync(CreateProfileRequest createRequest)
@@ -147,7 +180,15 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
     public async Task<bool> UpdateProfileConfigAsync(ProfileConfiguration config)
     {
-        return await _profileService.UpdateProfileConfigurationAsync(config).ConfigureAwait(false);
+        var result = await _profileService.UpdateProfileConfigurationAsync(config).ConfigureAwait(false);
+
+        if (result)
+        {
+            // Emit event so profile-scoped services can react to config changes
+            await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
+        }
+
+        return result;
     }
 
     // Message request handlers
@@ -233,32 +274,39 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     private async Task<bool> UpdateProfileConfigAsync(IpcRequest request)
     {
         var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
-        var archiveHandlingMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "archiveHandlingMode");
-        var defaultGrading = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultGrading");
-        var autoGenerateThumbnails = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "autoGenerateThumbnails");
-        var autoClassifyMods = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "autoClassifyMods");
-        var thumbnailAlgorithm = _payloadHelper.GetOptionalValue<string>(request.Payload, "thumbnailAlgorithm");
         var migotoVersion = _payloadHelper.GetOptionalValue<string>(request.Payload, "migotoVersion");
         var gamePath = _payloadHelper.GetOptionalValue<string>(request.Payload, "gamePath");
         var gameLaunchArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "gameLaunchArgs");
         var customProgramPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "customProgramPath");
         var customProgramArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "customProgramArgs");
 
+        // ModCache nested object
+        var modCacheMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "modCacheMode");
+        var modCacheDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "modCacheDirectory");
+
         var config = new ProfileConfiguration
         {
             ProfileId = profileId
         };
 
-        if (archiveHandlingMode != null) config.ArchiveHandlingMode = archiveHandlingMode;
-        if (defaultGrading != null) config.DefaultGrading = defaultGrading;
-        if (autoGenerateThumbnails.HasValue) config.AutoGenerateThumbnails = autoGenerateThumbnails.Value;
-        if (autoClassifyMods.HasValue) config.AutoClassifyMods = autoClassifyMods.Value;
-        if (thumbnailAlgorithm != null) config.ThumbnailAlgorithm = thumbnailAlgorithm;
         if (migotoVersion != null) config.MigotoVersion = migotoVersion;
         if (gamePath != null) config.GamePath = gamePath;
         if (gameLaunchArgs != null) config.GameLaunchArgs = gameLaunchArgs;
         if (customProgramPath != null) config.CustomProgramPath = customProgramPath;
         if (customProgramArgs != null) config.CustomProgramArgs = customProgramArgs;
+
+        // Handle ModCache nested object
+        if (modCacheMode != null || modCacheDirectory != null)
+        {
+            var normalizedMode = (modCacheMode ?? "internal").ToLowerInvariant();
+            config.ModCache = new ModCacheConfiguration
+            {
+                // Normalize mode to lowercase for storage
+                Mode = normalizedMode,
+                // Only store directory for external mode
+                Directory = normalizedMode == "external" ? modCacheDirectory : null
+            };
+        }
 
         return await UpdateProfileConfigAsync(config).ConfigureAwait(false);
     }

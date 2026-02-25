@@ -75,11 +75,12 @@ export const ClassificationPanel: React.FC<ClassificationPanelProps> = ({
             const createdNode = await classificationService.createNode(
               selectedProfileId,
               data.name,
-              data.name,
               data.parentId,
               100, // default priority
               data.description,
-              data.thumbnail
+              data.thumbnail,
+              data.matchMode,
+              data.matchPattern
             );
 
             if (createdNode) {

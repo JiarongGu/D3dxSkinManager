@@ -250,7 +250,14 @@ public class ModFacade : BaseFacade, IModFacade
             }
 
             // Try to auto-import preview images from cache folder after loading
-            await _imageService.TryAutoImportPreviewsFromCacheAsync(sha).ConfigureAwait(false);
+            var importedPreviews = await _imageService.TryAutoImportPreviewsFromCacheAsync(sha).ConfigureAwait(false);
+
+            if (importedPreviews > 0) 
+            {
+                await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { 
+                    Sha = sha
+                }).ConfigureAwait(false);
+            }
 
             // Note: IsLoaded is determined dynamically from file system, not stored in database
             // No need to call SetLoadedStateAsync (it's a no-op)
@@ -705,10 +712,18 @@ public class ModFacade : BaseFacade, IModFacade
         var priority = priorityValue ?? 100;
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
         var thumbnail = _payloadHelper.GetOptionalValue<string>(request.Payload, "thumbnail");
+        var matchMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "matchMode");
+        var matchPattern = _payloadHelper.GetOptionalValue<string>(request.Payload, "matchPattern");
+
+        // Normalize matchMode to lowercase if provided
+        if (!string.IsNullOrEmpty(matchMode))
+        {
+            matchMode = matchMode.ToLowerInvariant();
+        }
 
         // The service will check for name uniqueness at the same level and auto-generate a GUID
         // nodeId parameter is deprecated and will be ignored
-        var node = await _classificationService.CreateNodeAsync(string.Empty, name, parentId, priority, description, thumbnail).ConfigureAwait(false);
+        var node = await _classificationService.CreateNodeAsync(string.Empty, name, parentId, priority, description, thumbnail, matchMode, matchPattern).ConfigureAwait(false);
 
         if (node == null)
         {
@@ -726,7 +741,7 @@ public class ModFacade : BaseFacade, IModFacade
     }
 
     /// <summary>
-    /// Update a classification node's name, description, and thumbnail
+    /// Update a classification node's name, description, thumbnail, and auto-detection settings
     /// </summary>
     private async Task<bool> UpdateClassificationNodeAsync(IpcRequest request)
     {
@@ -734,14 +749,22 @@ public class ModFacade : BaseFacade, IModFacade
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
         var icon = _payloadHelper.GetOptionalValue<string>(request.Payload, "icon");
+        var matchMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "matchMode");
+        var matchPattern = _payloadHelper.GetOptionalValue<string>(request.Payload, "matchPattern");
 
-        var success = await _classificationService.UpdateNodeAsync(nodeId, name, description, icon).ConfigureAwait(false);
+        // Normalize matchMode to lowercase if provided
+        if (!string.IsNullOrEmpty(matchMode))
+        {
+            matchMode = matchMode.ToLowerInvariant();
+        }
+
+        var success = await _classificationService.UpdateNodeAsync(nodeId, name, description, icon, matchMode, matchPattern).ConfigureAwait(false);
 
         if (success)
         {
             await _eventEmitter.EmitAsync(
                 ModuleNames.MOD, ModEvents.CLASSIFICATION_TREE_CHANGED,
-                new { nodeId, name, description, icon }).ConfigureAwait(false);
+                new { nodeId, name, description, icon, matchMode, matchPattern }).ConfigureAwait(false);
         }
 
         return success;

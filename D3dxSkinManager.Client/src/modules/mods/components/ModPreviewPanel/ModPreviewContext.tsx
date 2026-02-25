@@ -4,6 +4,7 @@ import { modService } from '../../services/modService';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { useModsStore } from '../../store/modsStore';
 import { executeWithDelayedLoading } from '../../../../shared/utils/delayedLoading';
+import { eventBus, Module, ModEventType } from '../../../../shared/services/eventBus';
 
 interface ModViewState {
   currentMod: ModInfo | undefined;
@@ -88,6 +89,22 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
       }));
     }
   }, [state.currentMod?.sha, state.currentMod?.isLoaded, profileState.selectedProfile?.id, loadPreviewPaths]);
+
+  // Listen to PREVIEW_IMPORTED events to refresh when backend imports previews
+  useEffect(() => {
+    const unsubscribe = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.PREVIEW_IMPORTED,
+      (event) => {
+        // Only reload if the event is for the currently displayed mod
+        if (event.payload && state.currentMod?.sha === event.payload.sha) {
+          loadPreviewPaths(state.currentMod.sha);
+        }
+      }
+    );
+
+    return unsubscribe;
+  }, [state.currentMod?.sha, loadPreviewPaths]);
 
   const setCurrentMod = useCallback((mod: ModInfo | undefined) => {
     setState((prev) => ({

@@ -71,6 +71,12 @@ export enum SettingsEventType {
 
 // Profile event types
 export enum ProfileEventType {
+  CREATED = 'CREATED',
+  UPDATED = 'UPDATED',
+  DELETED = 'DELETED',
+  DUPLICATED = 'DUPLICATED',
+  SWITCHED = 'SWITCHED',
+  CONFIG_UPDATED = 'CONFIG_UPDATED',
   CUSTOM_EVENT = 'CUSTOM_EVENT',
 }
 

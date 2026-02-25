@@ -11,4 +11,5 @@ public static class ProfileEvents
     public const string DELETED = "DELETED";
     public const string DUPLICATED = "DUPLICATED";
     public const string SWITCHED = "SWITCHED";
+    public const string CONFIG_UPDATED = "CONFIG_UPDATED";
 }

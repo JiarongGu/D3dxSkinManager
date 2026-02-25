@@ -105,51 +105,30 @@ class ClassificationService extends BaseModuleService {
    * @param priority - Priority for sorting (default 100)
    * @param description - Optional description
    * @param thumbnail - Optional thumbnail path
-   * @deprecated nodeId parameter - no longer needed, GUIDs are auto-generated
+   * @param matchMode - Optional match mode for auto-detection ("wildcard" or "regex")
+   * @param matchPattern - Optional match pattern for auto-detection
    */
   async createNode(
     profileId: string,
-    nodeIdOrName: string, // For backward compatibility - if only 6 params, this is the name
-    nameOrParentId?: string, // This becomes parentId if nodeId is omitted
-    parentIdOrPriority?: string | number,
-    priorityOrDescription?: number | string,
-    descriptionOrThumbnail?: string,
-    thumbnail?: string
+    name: string,
+    parentId?: string,
+    priority?: number,
+    description?: string,
+    thumbnail?: string,
+    matchMode?: string,
+    matchPattern?: string
   ): Promise<ClassificationNode | undefined> {
-    // Handle both old signature (with nodeId) and new signature (without nodeId)
-    let actualName: string;
-    let actualParentId: string | undefined;
-    let actualPriority: number;
-    let actualDescription: string | undefined;
-    let actualThumbnail: string | undefined;
-
-    // Check if old signature is being used (7+ parameters)
-    if (typeof nameOrParentId === 'string' && arguments.length >= 7) {
-      // Old signature: createNode(profileId, nodeId, name, parentId, priority, description, thumbnail)
-      actualName = nameOrParentId;
-      actualParentId = parentIdOrPriority as string | undefined;
-      actualPriority = priorityOrDescription as number || 100;
-      actualDescription = descriptionOrThumbnail;
-      actualThumbnail = thumbnail;
-    } else {
-      // New signature: createNode(profileId, name, parentId, priority, description, thumbnail)
-      actualName = nodeIdOrName;
-      actualParentId = nameOrParentId || undefined;
-      actualPriority = typeof parentIdOrPriority === 'number' ? parentIdOrPriority : 100;
-      actualDescription = typeof priorityOrDescription === 'string' ? priorityOrDescription : undefined;
-      actualThumbnail = descriptionOrThumbnail;
-    }
-
     return this.sendMessage<ClassificationNode | undefined>(
       'CREATE_CLASSIFICATION_NODE',
       profileId,
       {
-        // nodeId is deprecated and will be ignored by backend
-        name: actualName,
-        parentId: actualParentId,
-        priority: actualPriority,
-        description: actualDescription,
-        thumbnail: actualThumbnail,
+        name,
+        parentId,
+        priority: priority || 100,
+        description,
+        thumbnail,
+        matchMode,
+        matchPattern,
       }
     );
   }
@@ -175,19 +154,21 @@ class ClassificationService extends BaseModuleService {
   }
 
   /**
-   * Update a classification node's name, description, and thumbnail
+   * Update a classification node's name, description, thumbnail, and auto-detection settings
    */
   async updateNode(
     profileId: string,
     nodeId: string,
     name: string,
     description?: string,
-    icon?: string
+    icon?: string,
+    matchMode?: string,
+    matchPattern?: string
   ): Promise<boolean> {
     return this.sendMessage<boolean>(
       'UPDATE_CLASSIFICATION_NODE',
       profileId,
-      { nodeId, name, description, icon }
+      { nodeId, name, description, icon, matchMode, matchPattern }
     );
   }
 

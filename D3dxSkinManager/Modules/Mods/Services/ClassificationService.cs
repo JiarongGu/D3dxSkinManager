@@ -15,11 +15,11 @@ public interface IClassificationService
     Task<bool> RefreshTreeAsync();
     Task<bool> MoveNodeAsync(string nodeId, string? newParentId, int? dropPosition = null);
     Task<bool> ReorderNodeAsync(string nodeId, int newPosition);
-    Task<bool> UpdateNodeAsync(string nodeId, string name, string? description = null, string? thumbnailPath = null);
+    Task<bool> UpdateNodeAsync(string nodeId, string name, string? description = null, string? thumbnailPath = null, string? matchMode = null, string? matchPattern = null);
     Task<bool> SetNodeThumbnailAsync(string nodeId, string thumbnailPath);
     Task<ClassificationNode?> GetNodeByNameAsync(string name);
     Task<bool> DeleteNodeAsync(string nodeId);
-    Task<ClassificationNode?> CreateNodeAsync(string nodeId, string name, string? parentId = null, int priority = 100, string? description = null, string? thumbnailPath = null);
+    Task<ClassificationNode?> CreateNodeAsync(string nodeId, string name, string? parentId = null, int priority = 100, string? description = null, string? thumbnailPath = null, string? matchMode = null, string? matchPattern = null);
     Task<bool> NodeExistsAsync(string nodeId);
 }
 
@@ -263,7 +263,7 @@ public class ClassificationService : IClassificationService
     /// Update a classification node's name
     /// Uses stable IDs - only the display name changes, ID remains the same
     /// </summary>
-    public async Task<bool> UpdateNodeAsync(string nodeId, string name, string? description = null, string? thumbnailPath = null)
+    public async Task<bool> UpdateNodeAsync(string nodeId, string name, string? description = null, string? thumbnailPath = null, string? matchMode = null, string? matchPattern = null)
     {
         try
         {
@@ -309,6 +309,8 @@ public class ClassificationService : IClassificationService
             // Update fields - ID remains stable
             node.Name = name;
             node.Description = description;
+            if (matchMode != null) node.MatchMode = matchMode;
+            if (matchPattern != null) node.MatchPattern = matchPattern;
 
             var updated = await _repository.UpdateAsync(node).ConfigureAwait(false);
             if (updated)
@@ -360,7 +362,9 @@ public class ClassificationService : IClassificationService
         string? parentId = null,
         int priority = 100,
         string? description = null,
-        string? thumbnailPath = null)
+        string? thumbnailPath = null,
+        string? matchMode = null,
+        string? matchPattern = null)
     {
         try
         {
@@ -410,6 +414,8 @@ public class ClassificationService : IClassificationService
                 Thumbnail = relativeThumbnailPath,
                 Priority = priority,
                 Description = description ?? $"Node: {name}",
+                MatchMode = matchMode,
+                MatchPattern = matchPattern,
                 Children = new List<ClassificationNode>()
             };
 

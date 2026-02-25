@@ -30,6 +30,19 @@ public class ClassificationNode
     public int Priority { get; set; } = 0;
 
     /// <summary>
+    /// Match mode for auto-detection: "Wildcard" or "Regex"
+    /// Wildcard uses simple pattern matching (e.g., "*Ayaka*")
+    /// Regex uses regular expression matching
+    /// </summary>
+    public string? MatchMode { get; set; }
+
+    /// <summary>
+    /// Match pattern for auto-detection
+    /// Used to automatically assign mods to this classification based on folder/file names
+    /// </summary>
+    public string? MatchPattern { get; set; }
+
+    /// <summary>
     /// Description of this classification
     /// </summary>
     public string? Description { get; set; }

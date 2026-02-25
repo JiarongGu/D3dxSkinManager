@@ -1,6 +1,6 @@
 import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useEffect, useRef } from "react";
-import { Form, Space, Row, Col } from "antd";
+import { Form, Space, Row, Col, Select } from "antd";
 import { FolderOpenOutlined } from "@ant-design/icons";
 import { ClassificationNode } from "../../../../shared/types/classification.types";
 import { useSlideInScreenContext } from "../../../../shared/context/SlideInScreenContext";
@@ -19,6 +19,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { useDropZone } from "../../../../shared/hooks/useDropZone";
 import "./ClassificationScreen.css";
+
+const { Option } = Select;
 
 interface ClassificationScreenProps {
   /**
@@ -44,6 +46,8 @@ interface ClassificationScreenProps {
     parentId?: string;
     thumbnail?: string;
     description?: string;
+    matchMode?: string;
+    matchPattern?: string;
   }) => Promise<void>;
 }
 
@@ -73,6 +77,7 @@ export const ClassificationScreenContent: React.FC<
   const [loading, setLoading] = useState(false);
   const [thumbnailPath, setThumbnailPath] = useState<string>();
   const [thumbnailFileName, setThumbnailFileName] = useState<string>();
+  const [matchMode, setMatchMode] = useState<string>("wildcard");
   const { closeScreen } = useSlideInScreenContext();
   const { selectedProfileId } = useProfile();
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -159,7 +164,9 @@ export const ClassificationScreenContent: React.FC<
         name: editNode.name,
         parentId: editNode.parentId || "",
         description: editNode.description,
+        matchPattern: editNode.matchPattern || "",
       });
+      setMatchMode(editNode.matchMode?.toLowerCase() || "wildcard");
       setThumbnailPath(editNode.thumbnail || undefined);
       if (editNode.thumbnail) {
         const fileName =
@@ -170,6 +177,7 @@ export const ClassificationScreenContent: React.FC<
       // Create mode - clear and set parent if provided
       setThumbnailPath(undefined);
       setThumbnailFileName(undefined);
+      setMatchMode("wildcard");
       if (parentId) {
         form.setFieldsValue({ parentId });
       }
@@ -186,6 +194,8 @@ export const ClassificationScreenContent: React.FC<
         parentId: values.parentId,
         thumbnail: thumbnailPath,
         description: values.description,
+        matchMode: matchMode,
+        matchPattern: values.matchPattern,
       });
 
       notification.success(t("classification.screen.saved"));
@@ -321,10 +331,39 @@ export const ClassificationScreenContent: React.FC<
         >
           <CompactTextArea
             placeholder={t("classification.screen.descriptionPlaceholder")}
-            rows={3}
+            rows={2}
             maxLength={500}
             showCount
           />
+        </Form.Item>
+
+        {/* Auto-detection pattern - single line with mode selector and pattern input */}
+        <Form.Item
+          label={t("classification.screen.autoDetection.label")}
+          tooltip={t("classification.screen.autoDetection.tooltip")}
+        >
+          <Space.Compact style={{ width: '100%' }}>
+            <CompactSelect
+              value={matchMode}
+              onChange={(value) => setMatchMode(value)}
+              style={{ width: '140px' }}
+            >
+              <Option value="wildcard">
+                {t("classification.screen.autoDetection.wildcard")}
+              </Option>
+              <Option value="regex">
+                {t("classification.screen.autoDetection.regex")}
+              </Option>
+            </CompactSelect>
+            <Form.Item
+              name="matchPattern"
+              noStyle
+            >
+              <CompactInput
+                placeholder={matchMode === "wildcard" ? t("classification.screen.autoDetection.wildcardPlaceholder") : t("classification.screen.autoDetection.regexPlaceholder")}
+              />
+            </Form.Item>
+          </Space.Compact>
         </Form.Item>
 
         {/* Thumbnail with drag-drop area or preview */}

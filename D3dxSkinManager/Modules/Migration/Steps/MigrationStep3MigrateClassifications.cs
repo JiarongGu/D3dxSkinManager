@@ -7,11 +7,10 @@ using D3dxSkinManager.Modules.Core.Helpers;
 namespace D3dxSkinManager.Modules.Migration.Steps;
 
 /// <summary>
-/// Step 3: Migrate classification hierarchy and rules
+/// Step 3: Migrate classification hierarchy
 /// Creates classification nodes that mods will be attached to
 /// Uses IPythonClassificationFileParser for parsing (not inline parsing!)
 /// Uses ClassificationService for node creation (not direct repository access!)
-/// Uses ModAutoDetectionService for rule management
 /// </summary>
 public class MigrationStep3MigrateClassifications : IMigrationStep
 {
@@ -19,7 +18,6 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
     private readonly IModRepository _modRepository;
     private readonly IPythonClassificationFileParser _classificationParser;  // Using parser!
     private readonly IClassificationService _classificationService;  // Using service, not repository!
-    private readonly IModAutoDetectionService _autoDetectionService;  // Using service!
     private readonly ILogHelper _logger;
 
     public int StepNumber => 3;
@@ -30,14 +28,12 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
         IModRepository modRepository,
         IPythonClassificationFileParser classificationParser,
         IClassificationService classificationService,
-        IModAutoDetectionService autoDetectionService,
         ILogHelper logger)
     {
         _profilePaths = profilePaths;
         _modRepository = modRepository;
         _classificationParser = classificationParser;
         _classificationService = classificationService;
-        _autoDetectionService = autoDetectionService;
         _logger = logger;
     }
 
@@ -151,24 +147,23 @@ public class MigrationStep3MigrateClassifications : IMigrationStep
                     await VerifyModsForCategoryAsync(category, logPath).ConfigureAwait(false);
                 }
 
-                // Use ModAutoDetectionService to add rules (now using classification ID!)
+                // Update classification node with wildcard pattern for auto-detection (legacy Python project uses wildcard)
                 if (childNode != null)
                 {
-                    await _autoDetectionService.AddRuleAsync(new ModAutoDetectionRule
-                    {
-                        Name = $"{category} ({categoryName})",
-                        Pattern = $"*{category}*",
-                        Category = childNode.Id, // Use classification ID
-                        Priority = 100
-                    });
+                    await _classificationService.UpdateNodeAsync(
+                        childNode.Id,
+                        childNode.Name,
+                        childNode.Description,
+                        childNode.Thumbnail,
+                        "Wildcard",
+                        $"*{category}*"
+                    ).ConfigureAwait(false);
+                    await LogAsync(logPath, $"Set auto-detection pattern for {categoryName}/{category}: *{category}*").ConfigureAwait(false);
                 }
             }
         }
 
-        // Use ModAutoDetectionService to save rules (not manual File.WriteAllText!)
-        await _autoDetectionService.SaveRulesAsync(_profilePaths.AutoDetectionRulesPath).ConfigureAwait(false);
-
-        await LogAsync(logPath, $"Created {totalNodesCreated} classification nodes total").ConfigureAwait(false);
+        await LogAsync(logPath, $"Created {totalNodesCreated} classification nodes total with auto-detection patterns").ConfigureAwait(false);
         return totalNodesCreated;
     }
 

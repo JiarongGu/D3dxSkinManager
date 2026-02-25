@@ -151,22 +151,22 @@ public class GlobalSettingsService : IGlobalSettingsService
                 settings = new GlobalSettings();
             }
 
-            // Update the specific field
+            // Update the specific field - store values in lowercase for consistency
             switch (key.ToLowerInvariant())
             {
                 case "theme":
-                    settings.Theme = value;
+                    settings.Theme = value.ToLowerInvariant();
                     break;
                 case "annotationlevel":
-                    settings.AnnotationLevel = value;
+                    settings.AnnotationLevel = value.ToLowerInvariant();
                     break;
                 case "loglevel":
-                    settings.LogLevel = value;
-                    // Update AppEnvironment immediately so LogHelper uses the new level
+                    settings.LogLevel = value.ToLowerInvariant();
+                    // Update AppEnvironment immediately so LogHelper uses the new level (case-insensitive parse)
                     _appEnvironment.MinimumLogLevel = ParseLogLevel(value);
                     break;
                 case "language":
-                    settings.Language = value;
+                    settings.Language = value.ToLowerInvariant();
                     break;
                 default:
                     throw new ArgumentException($"Unknown setting key: {key}");
