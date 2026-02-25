@@ -73,7 +73,7 @@
   - getLanguage(code) - Load language from backend
   - getAvailableLanguages() - List available languages
   - languageExists(code) - Check language file exists
-  - IPC integration with SETTINGS module
+  - IPC integration with SETTING module
   - Created: 2026-02-21
 
 - **Translation Files** → Backend: `D3dxSkinManager/Languages/`

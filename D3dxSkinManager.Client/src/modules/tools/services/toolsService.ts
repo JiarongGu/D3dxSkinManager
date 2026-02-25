@@ -15,7 +15,7 @@ export { validationService } from './validationService';
  */
 class ToolsService extends BaseModuleService {
   constructor() {
-    super('TOOLS');
+    super('TOOL');
   }
 
   // Cache operations are handled by cacheService

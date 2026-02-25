@@ -6,7 +6,7 @@ import type { TaskInfo, ModImportTaskInput } from '../types/task.types';
  */
 class TaskQueueService extends BaseModuleService {
   constructor() {
-    super('TASKQUEUE');
+    super('TASK_QUEUE');
   }
 
   /**

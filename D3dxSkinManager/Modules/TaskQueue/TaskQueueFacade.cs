@@ -23,7 +23,7 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
 {
     private readonly ITaskQueueService _taskQueueService;
     private readonly IPayloadHelper _payloadHelper;
-    protected override string ModuleName => "TASKQUEUE";
+    protected override string ModuleName => "TASK_QUEUE";
 
     public TaskQueueFacade(
         ITaskQueueService taskQueueService,

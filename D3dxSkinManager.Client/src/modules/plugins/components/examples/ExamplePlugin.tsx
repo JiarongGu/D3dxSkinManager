@@ -71,7 +71,7 @@ const ModLogViewerTab: React.FC = () => {
     try {
       // Send custom message to backend plugin
       const response = await bridgeService.sendMessage<{ log: string }>({
-        module: 'PLUGINS',
+        module: 'PLUGIN',
         type: 'GET_MOD_LOG',
         profileId: profileState.selectedProfile?.id
       });
@@ -87,7 +87,7 @@ const ModLogViewerTab: React.FC = () => {
   const clearLog = async () => {
     try {
       await bridgeService.sendMessage({
-        module: 'PLUGINS',
+        module: 'PLUGIN',
         type: 'CLEAR_MOD_LOG',
         profileId: profileState.selectedProfile?.id
       });

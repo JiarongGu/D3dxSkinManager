@@ -743,7 +743,7 @@ export interface TaskProgress {
 
 class TaskQueueService extends BaseModuleService {
   constructor() {
-    super('TASKQUEUE');
+    super('TASK_QUEUE');
   }
 
   async addTask<TInput>(taskType: string, input: TInput, profileId?: string): Promise<string> {

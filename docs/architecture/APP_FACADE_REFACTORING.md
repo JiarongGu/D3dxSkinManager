@@ -96,11 +96,11 @@ public class AppFacade : IAppFacade {
     moduleName.ToUpperInvariant() switch {
       "MOD" or "MODS" => _modFacade,
       "PROFILE" or "PROFILES" => _profileFacade,
-      "SETTINGS" => _settingsFacade,
+      "SETTING" => _settingsFacade,
       "SYSTEM" => _systemUtilsFacade,
-      "TOOLS" or "TOOL" => _toolsFacade,
+      "TOOL" or "TOOL" => _toolsFacade,
       "LAUNCH" => _launchFacade,
-      "PLUGINS" or "PLUGIN" => _pluginsFacade,
+      "PLUGIN" or "PLUGIN" => _pluginsFacade,
       "MIGRATION" => _migrationFacade,
       _ => null
     };
@@ -139,8 +139,8 @@ public class ModFacade : IModFacade {
 Supports flexible naming:
 - `MOD` / `MODS`
 - `PROFILE` / `PROFILES`
-- `TOOL` / `TOOLS`
-- `PLUGIN` / `PLUGINS`
+- `TOOL` / `TOOL`
+- `PLUGIN` / `PLUGIN`
 
 ## Legacy Handler Examples
 

@@ -224,10 +224,10 @@ public static class ModuleNames
     public const string MOD = "MOD";
     public const string PROFILE = "PROFILE";
     public const string TASK_QUEUE = "TASK_QUEUE";
-    public const string SETTINGS = "SETTINGS";
+    public const string SETTING = "SETTING";
     public const string MIGRATION = "MIGRATION";
-    public const string TOOLS = "TOOLS";
-    public const string PLUGINS = "PLUGINS";
+    public const string TOOL = "TOOL";
+    public const string PLUGIN = "PLUGIN";
 }
 
 // Event Type Constants - NO module prefix!
@@ -286,11 +286,11 @@ export enum Module {
   MOD = 'MOD',
   TASK_QUEUE = 'TASK_QUEUE',
   DROP_ZONE = 'DROP_ZONE',
-  SETTINGS = 'SETTINGS',
+  SETTING = 'SETTING',
   PROFILE = 'PROFILE',
   MIGRATION = 'MIGRATION',
-  TOOLS = 'TOOLS',
-  PLUGINS = 'PLUGINS',
+  TOOL = 'TOOL',
+  PLUGIN = 'PLUGIN',
 }
 
 // Separate enums per module - NO module prefix!
@@ -717,8 +717,8 @@ KEYWORDS_INDEX.md routes to:
 
 ### Module Names
 ```typescript
-type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'SYSTEM' |
-                  'TOOLS' | 'PLUGINS' | 'WAREHOUSE' | 'MIGRATION' | 'LAUNCH';
+type ModuleName = 'MOD' | 'PROFILE' | 'SETTING' | 'SYSTEM' |
+                  'TOOL' | 'PLUGIN' | 'WAREHOUSE' | 'MIGRATION' | 'LAUNCH';
 ```
 
 ### Key Services

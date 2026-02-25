@@ -40,7 +40,7 @@ export interface CacheStatistics {
  */
 export class CacheService extends BaseModuleService {
   constructor() {
-    super('TOOLS');
+    super('TOOL');
   }
 
   /**

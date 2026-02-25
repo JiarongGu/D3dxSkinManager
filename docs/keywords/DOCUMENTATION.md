@@ -126,7 +126,7 @@
   - Missing features
   - Priority recommendations
 
-- **Plugins** → `docs/features/PLUGINS.md`
+- **Plugins** → `docs/features/PLUGIN.md`
   - Plugin system architecture
   - Creating plugins
   - Plugin API

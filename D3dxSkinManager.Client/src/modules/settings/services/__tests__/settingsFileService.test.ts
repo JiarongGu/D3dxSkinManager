@@ -23,7 +23,7 @@ describe('settingsFileService', () => {
       // Assert
       expect(result).toEqual({ theme: 'dark', enabled: true });
       expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTINGS',
+        'SETTING',
         'GET_FILE',
         { filename: 'myconfig' }
       );
@@ -161,7 +161,7 @@ describe('settingsFileService', () => {
       // Assert
       expect(result).toBe(true);
       expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTINGS',
+        'SETTING',
         'SAVE_FILE',
         {
           filename: 'myconfig',
@@ -184,7 +184,7 @@ describe('settingsFileService', () => {
       // Assert
       const expectedJson = JSON.stringify(data, null, 2);
       expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTINGS',
+        'SETTING',
         'SAVE_FILE',
         {
           filename: 'myconfig',
@@ -225,7 +225,7 @@ describe('settingsFileService', () => {
       // Assert
       expect(result).toBe(true);
       expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTINGS',
+        'SETTING',
         'SAVE_FILE',
         {
           filename: 'myconfig',
@@ -243,7 +243,7 @@ describe('settingsFileService', () => {
       // Act & Assert - String
       await settingsFileService.saveSettingsFile('myconfig', 'test');
       expect(bridgeService.sendMessage).toHaveBeenLastCalledWith(
-        'SETTINGS',
+        'SETTING',
         'SAVE_FILE',
         { filename: 'myconfig', content: '"test"' }
       );
@@ -251,7 +251,7 @@ describe('settingsFileService', () => {
       // Number
       await settingsFileService.saveSettingsFile('myconfig', 42);
       expect(bridgeService.sendMessage).toHaveBeenLastCalledWith(
-        'SETTINGS',
+        'SETTING',
         'SAVE_FILE',
         { filename: 'myconfig', content: '42' }
       );
@@ -259,7 +259,7 @@ describe('settingsFileService', () => {
       // Boolean
       await settingsFileService.saveSettingsFile('myconfig', true);
       expect(bridgeService.sendMessage).toHaveBeenLastCalledWith(
-        'SETTINGS',
+        'SETTING',
         'SAVE_FILE',
         { filename: 'myconfig', content: 'true' }
       );
@@ -280,7 +280,7 @@ describe('settingsFileService', () => {
       // Assert
       expect(result).toBe(true);
       expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTINGS',
+        'SETTING',
         'DELETE_FILE',
         { filename: 'myconfig' }
       );
@@ -318,7 +318,7 @@ describe('settingsFileService', () => {
       // Assert
       expect(result).toBe(true);
       expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTINGS',
+        'SETTING',
         'FILE_EXISTS',
         { filename: 'myconfig' }
       );
@@ -369,7 +369,7 @@ describe('settingsFileService', () => {
       // Assert
       expect(result).toEqual(['config1', 'config2', 'config3']);
       expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTINGS',
+        'SETTING',
         'LIST_FILES',
         {}
       );

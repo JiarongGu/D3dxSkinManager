@@ -14,7 +14,6 @@ using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Event;
-using D3dxSkinManager.Modules.Settings;
 using D3dxSkinManager.Modules.Settings.Services;
 
 namespace D3dxSkinManager.Composition;
@@ -365,11 +364,11 @@ public class ApplicationHost
         // Register profile-scoped facades
         _profileRouter
             .MapFacade<IModFacade>("MOD", services => services.AddModsServices())
-            .MapFacade<IToolsFacade>("TOOLS", services => services.AddToolsServices())
+            .MapFacade<IToolsFacade>(ModuleNames.TOOL, services => services.AddToolsServices())
             .MapFacade<ILaunchFacade>("LAUNCH", services => services.AddLaunchServices())
             .MapFacade<IMigrationFacade>("MIGRATION", services => services.AddMigrationServices())
-            .MapFacade<IPluginsFacade>("PLUGINS", services => services.AddPluginsServices())
-            .MapFacade<ITaskQueueFacade>("TASKQUEUE", services => services.AddTaskQueueServices());
+            .MapFacade<IPluginsFacade>(ModuleNames.PLUGIN, services => services.AddPluginsServices())
+            .MapFacade<ITaskQueueFacade>("TASK_QUEUE", services => services.AddTaskQueueServices());
 
         _logger.Info("Profile router configured", "Host");
     }

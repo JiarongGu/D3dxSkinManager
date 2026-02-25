@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -22,8 +18,8 @@ public interface IPluginsFacade : IModuleFacade
 
 /// <summary>
 /// Facade for plugin management operations
+/// Module: PLUGIN
 /// Responsibility: Plugin listing and management
-/// IPC Prefix: PLUGINS_*
 /// </summary>
 public class PluginsFacade : BaseFacade, IPluginsFacade
 {
@@ -48,9 +44,9 @@ public class PluginsFacade : BaseFacade, IPluginsFacade
     {
         return request.Type switch
         {
-            "PLUGINS_GET_ALL" => await GetAllPluginsAsync(),
-            "PLUGINS_ENABLE" => await EnablePluginAsync(request),
-            "PLUGINS_DISABLE" => await DisablePluginAsync(request),
+            "GET_ALL" => await GetAllPluginsAsync(),
+            "ENABLE" => await EnablePluginAsync(request),
+            "DISABLE" => await DisablePluginAsync(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }

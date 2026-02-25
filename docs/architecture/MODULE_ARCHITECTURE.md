@@ -129,8 +129,8 @@ Messages are routed based on module name in the message:
 
 ```typescript
 // Frontend
-type ModuleName = 'MOD' | 'LAUNCH' | 'WAREHOUSE' | 'TOOLS' |
-                  'PLUGINS' | 'SETTINGS' | 'SYSTEM' | 'MIGRATION' | 'PROFILE';
+type ModuleName = 'MOD' | 'LAUNCH' | 'WAREHOUSE' | 'TOOL' |
+                  'PLUGIN' | 'SETTING' | 'SYSTEM' | 'MIGRATION' | 'PROFILE';
 
 interface PhotinoMessage {
   module: ModuleName;

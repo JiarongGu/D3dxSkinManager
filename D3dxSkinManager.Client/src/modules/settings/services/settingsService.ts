@@ -24,7 +24,7 @@ class SettingsService {
    */
   async getGlobalSettings(): Promise<GlobalSettings> {
     return await bridgeService.sendMessage<GlobalSettings>({
-      module: 'SETTINGS',
+      module: 'SETTING',
       type: 'GET_GLOBAL',
       payload: {}
     });
@@ -35,7 +35,7 @@ class SettingsService {
    */
   async updateGlobalSettings(settings: Partial<GlobalSettings>): Promise<SettingsUpdateResult> {
     return await bridgeService.sendMessage<SettingsUpdateResult>({
-      module: 'SETTINGS',
+      module: 'SETTING',
       type: 'UPDATE_GLOBAL',
       payload: settings
     });
@@ -46,7 +46,7 @@ class SettingsService {
    */
   async updateGlobalSetting(key: string, value: string): Promise<SettingsUpdateResult> {
     return await bridgeService.sendMessage<SettingsUpdateResult>({
-      module: 'SETTINGS',
+      module: 'SETTING',
       type: 'UPDATE_FIELD',
       payload: { key, value }
     });
@@ -57,7 +57,7 @@ class SettingsService {
    */
   async resetGlobalSettings(): Promise<SettingsUpdateResult> {
     return await bridgeService.sendMessage<SettingsUpdateResult>({
-      module: 'SETTINGS',
+      module: 'SETTING',
       type: 'RESET_GLOBAL',
       payload: {}
     });
@@ -69,7 +69,7 @@ class SettingsService {
    */
   async resetWindowState(): Promise<SettingsUpdateResult> {
     return await bridgeService.sendMessage<SettingsUpdateResult>({
-      module: 'SETTINGS',
+      module: 'SETTING',
       type: 'RESET_WINDOW_STATE',
       payload: {}
     });

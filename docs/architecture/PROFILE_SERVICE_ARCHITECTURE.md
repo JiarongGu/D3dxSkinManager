@@ -78,8 +78,8 @@ RouteRequest(string module, string? profileId)
 graph TD
     A[Frontend Request] -->|Contains ProfileId| B[Program.cs]
     B --> C{Module Type?}
-    C -->|SETTINGS/PROFILE| D[ServiceRouter.GetGlobalServices]
-    C -->|MODS/TOOLS/etc| E[ServiceRouter.GetProfileScopedServices]
+    C -->|SETTING/PROFILE| D[ServiceRouter.GetGlobalServices]
+    C -->|MODS/TOOL/etc| E[ServiceRouter.GetProfileScopedServices]
     D --> F[Global ServiceProvider]
     E --> G[Profile-Specific ServiceProvider]
     F --> H[Handle Request]
@@ -96,7 +96,7 @@ var request = JsonSerializer.Deserialize<MessageRequest>(message);
 
 // Route to appropriate service provider
 var serviceProvider = _serviceRouter?.RouteRequest(
-    request.Module,     // e.g., "MOD", "SETTINGS", "PROFILE"
+    request.Module,     // e.g., "MOD", "SETTING", "PROFILE"
     request.ProfileId   // Profile ID from request (can be null)
 );
 
@@ -112,7 +112,7 @@ var response = await moduleRouter.HandleMessageAsync(request);
 public IServiceProvider RouteRequest(string module, string? profileId)
 {
     // Global modules don't need ProfileContext
-    var globalModules = new[] { "SETTINGS", "PROFILE", "SYSTEM" };
+    var globalModules = new[] { "SETTING", "PROFILE", "SYSTEM" };
 
     if (globalModules.Contains(module?.ToUpperInvariant()))
     {

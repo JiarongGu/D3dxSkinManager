@@ -23,7 +23,7 @@ export interface StartupValidationReport {
 
 class ValidationService extends BaseModuleService {
   constructor() {
-    super('TOOLS');
+    super('TOOL');
   }
 
   async validateStartup(): Promise<StartupValidationReport> {

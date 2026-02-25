@@ -10,8 +10,8 @@ namespace D3dxSkinManager.Modules.Settings;
 
 /// <summary>
 /// Interface for Settings facade
-/// Handles: SETTINGS_GET, SETTINGS_UPDATE, settings file operations
-/// Prefix: SETTINGS_*
+/// Module: SETTING
+/// Handles: GET_GLOBAL, UPDATE_GLOBAL, GET_FILE, SAVE_FILE, etc.
 /// </summary>
 public interface ISettingsFacade : IModuleFacade
 {
@@ -25,8 +25,8 @@ public interface ISettingsFacade : IModuleFacade
 
 /// <summary>
 /// Facade for settings operations
+/// Module: SETTING
 /// Responsibility: Global settings and settings file management
-/// IPC Prefix: SETTINGS_*
 /// </summary>
 public class SettingsFacade : BaseFacade, ISettingsFacade
 {

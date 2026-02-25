@@ -21,7 +21,7 @@ export interface SettingsFileListResponse {
 
 class SettingsFileService extends BaseModuleService {
   constructor() {
-    super('SETTINGS');
+    super('SETTING');
   }
 
   /**

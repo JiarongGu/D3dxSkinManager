@@ -56,7 +56,7 @@ docs/
 │   ├── INTERNATIONALIZATION.md    ⭐⭐ i18n system (EN/CN)
 │   ├── OPERATION_NOTIFICATION_SYSTEM.md ⭐⭐ Progress tracking
 │   ├── DELAYED_LOADING_UX_PATTERN.md Loading UX pattern
-│   ├── PLUGINS.md                 Plugin system
+│   ├── PLUGIN.md                 Plugin system
 │   ├── PROFILE_SYSTEM.md          Profile management
 │   └── THEME_SYSTEM.md            Theme system
 │

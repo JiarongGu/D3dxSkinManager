@@ -707,7 +707,7 @@ describe('settingsFileService', () => {
 
       expect(result).toEqual({ theme: 'dark' });
       expect(photinoService.sendMessage).toHaveBeenCalledWith(
-        'SETTINGS',
+        'SETTING',
         'GET_FILE',
         { filename: 'myconfig' }
       );
@@ -746,7 +746,7 @@ describe('settingsFileService', () => {
 
       expect(result).toBe(true);
       expect(photinoService.sendMessage).toHaveBeenCalledWith(
-        'SETTINGS',
+        'SETTING',
         'SAVE_FILE',
         {
           filename: 'myconfig',

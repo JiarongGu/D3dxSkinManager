@@ -416,7 +416,7 @@ docs/
 ├── features/
 │   └── TASK_QUEUE_SYSTEM.md (Comprehensive guide)
 ├── implementation/
-│   └── TASKQUEUE_IMPLEMENTATION.md (This file)
+│   └── TASK_QUEUE_IMPLEMENTATION.md (This file)
 ├── keywords/
 │   └── BACKEND.md (Added TaskQueue section)
 └── AI_GUIDE.md (Updated event patterns + warnings)

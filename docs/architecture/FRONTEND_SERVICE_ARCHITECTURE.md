@@ -63,11 +63,11 @@ export abstract class BaseModuleService {
 | Mods | `ModService` | `'MOD'` | Mod management |
 | Profiles | `ProfileService` | `'PROFILE'` | Profile operations |
 | Launch | `LaunchService` | `'LAUNCH'` | Game launching |
-| Tools | `ToolsService` | `'TOOLS'` | Cache, validation |
-| Settings | `SettingsService` | `'SETTINGS'` | App settings |
+| Tools | `ToolsService` | `'TOOL'` | Cache, validation |
+| Settings | `SettingsService` | `'SETTING'` | App settings |
 | System | `SystemService` | `'SYSTEM'` | System utilities |
 | Migration | `MigrationService` | `'MIGRATION'` | Python migration |
-| Plugins | `PluginsService` | `'PLUGINS'` | Plugin management |
+| Plugins | `PluginsService` | `'PLUGIN'` | Plugin management |
 
 ## Implementation Pattern
 

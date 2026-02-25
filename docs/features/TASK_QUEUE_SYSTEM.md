@@ -447,7 +447,7 @@ export interface YourTaskOutput {
 ```typescript
 async addYourTask(profileId: string, input: YourTaskInput): Promise<string> {
   return bridgeService.sendMessage<string>({
-    module: 'TASKQUEUE',
+    module: 'TASK_QUEUE',
     type: 'ADD_TASK',
     profileId,
     payload: {

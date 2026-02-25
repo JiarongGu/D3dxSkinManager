@@ -1,4 +1,5 @@
 using D3dxSkinManager.Composition;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Settings.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -43,10 +44,10 @@ public static class SettingsServiceExtensions
             return dispatcher;
         }
 
-        Console.WriteLine("[SettingsFacade] Registering SETTINGS module handlers");
+        Console.WriteLine($"[SettingsFacade] Registering {ModuleNames.SETTING} module handlers");
 
         // Register the module handler
-        dispatcher.UseModule("SETTINGS", facade.HandleMessageAsync);
+        dispatcher.UseModule(ModuleNames.SETTING, facade.HandleMessageAsync);
 
         return dispatcher;
     }

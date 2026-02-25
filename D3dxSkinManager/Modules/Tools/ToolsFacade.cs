@@ -10,8 +10,8 @@ namespace D3dxSkinManager.Modules.Tools;
 
 /// <summary>
 /// Interface for Tools facade
-/// Handles: TOOLS_SCAN_CACHE, TOOLS_CLEAN_CACHE, TOOLS_VALIDATE_STARTUP, etc.
-/// Prefix: TOOLS_*
+/// Module: TOOL
+/// Handles: SCAN_CACHE, CLEAN_CACHE, VALIDATE_STARTUP, etc.
 /// </summary>
 public interface IToolsFacade : IModuleFacade
 {
@@ -28,8 +28,8 @@ public interface IToolsFacade : IModuleFacade
 
 /// <summary>
 /// Facade for tools and utilities
+/// Module: TOOL
 /// Responsibility: Cache management, validation, diagnostics
-/// IPC Prefix: TOOLS_*
 /// </summary>
 public class ToolsFacade : BaseFacade, IToolsFacade
 {

@@ -6,7 +6,7 @@ import { LanguageSettings } from '../types/language.types';
  */
 class LanguageService extends BaseModuleService {
   constructor() {
-    super('SETTINGS');
+    super('SETTING');
   }
 
   /**

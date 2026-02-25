@@ -44,10 +44,10 @@ public static class TaskQueueServiceExtensions
             return dispatcher;
         }
 
-        Console.WriteLine("[TaskQueueFacade] Registering TASKQUEUE module handlers");
+        Console.WriteLine("[TaskQueueFacade] Registering TASK_QUEUE module handlers");
 
         // Register the module handler
-        dispatcher.UseModule("TASKQUEUE", facade.HandleMessageAsync);
+        dispatcher.UseModule("TASK_QUEUE", facade.HandleMessageAsync);
 
         return dispatcher;
     }

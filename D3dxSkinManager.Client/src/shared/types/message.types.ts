@@ -5,14 +5,14 @@ export type ModuleName =
   | 'MOD'
   | 'LAUNCH'
   | 'WAREHOUSE'
-  | 'TOOLS'
-  | 'PLUGINS'
-  | 'SETTINGS'
+  | 'TOOL'
+  | 'PLUGIN'
+  | 'SETTING'
   | 'SYSTEM'
   | 'MIGRATION'
   | 'PROFILE'
   | 'DROP_ZONE' // WinForms drop zone overlay management
-  | 'TASKQUEUE'; // Task queue management
+  | 'TASK_QUEUE'; // Task queue management
 
 /**
  * Message types for module-based routing

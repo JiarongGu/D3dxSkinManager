@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Mods.Models;
 
@@ -23,7 +20,7 @@ public interface IModManagementService
 public class CreateModRequest
 {
     public required string SHA { get; set; }
-    public required string Category { get; set; }
+    public required string? Category { get; set; }
     public required string Name { get; set; }
     public string? Author { get; set; }
     public string? Description { get; set; }

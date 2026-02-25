@@ -79,8 +79,8 @@ interface IpcResponse<TData = unknown> {
   error?: string;            // Error message if failed
 }
 
-type ModuleName = 'MOD' | 'PROFILE' | 'SETTINGS' | 'SYSTEM' |
-                  'TOOLS' | 'PLUGINS' | 'WAREHOUSE' | 'MIGRATION' | 'LAUNCH';
+type ModuleName = 'MOD' | 'PROFILE' | 'SETTING' | 'SYSTEM' |
+                  'TOOL' | 'PLUGIN' | 'WAREHOUSE' | 'MIGRATION' | 'LAUNCH';
 ```
 
 ## Frontend Patterns

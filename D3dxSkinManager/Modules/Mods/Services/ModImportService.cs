@@ -125,7 +125,7 @@ public class ModImportService : IModImportService
             var createRequest = new CreateModRequest
             {
                 SHA = sha,
-                Category = category ?? "Unknown",
+                Category = category,
                 Name = metadata.Name ?? Path.GetFileNameWithoutExtension(filePath),
                 Author = metadata.Author,
                 Description = metadata.Description,

@@ -182,7 +182,7 @@ public class DropZoneOverlay : Panel
         _onMouseLeave?.Invoke(ZoneId);
     }
 
-    public void UpdateBounds(int x, int y, int width, int height)
+    public new void UpdateBounds(int x, int y, int width, int height)
     {
         if (Left != x || Top != y || Width != width || Height != height)
         {

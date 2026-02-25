@@ -354,7 +354,7 @@ Updated the following documentation files:
 ## Related Documentation
 
 - [TASK_QUEUE_SYSTEM.md](../features/TASK_QUEUE_SYSTEM.md) - TaskQueue feature documentation
-- [TASKQUEUE_IMPLEMENTATION.md](./TASKQUEUE_IMPLEMENTATION.md) - TaskQueue implementation summary
+- [TASK_QUEUE_IMPLEMENTATION.md](./TASK_QUEUE_IMPLEMENTATION.md) - TaskQueue implementation summary
 - [AI_GUIDE.md](../AI_GUIDE.md) - AI assistant guide with event system patterns
 
 ## Summary
