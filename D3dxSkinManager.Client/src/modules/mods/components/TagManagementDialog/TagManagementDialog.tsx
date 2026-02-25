@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import classNames from 'classnames';
 import { Input, Tag as AntTag, Empty, Space, ColorPicker } from "antd";
 import {
   SearchOutlined,
@@ -247,7 +248,7 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
     return (
       <div
         key={tag.name}
-        className={`tag-management-item ${isSelected ? "selected" : ""}`}
+        className={classNames('tag-management-item', { selected: isSelected })}
       >
         <div
           className="tag-management-item-content"

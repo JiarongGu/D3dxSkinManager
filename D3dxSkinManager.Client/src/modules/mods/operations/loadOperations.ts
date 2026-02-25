@@ -29,8 +29,11 @@ export async function loadModInGame(profileId: string, sha: string): Promise<voi
         optimisticUnloadUpdate(unloadedSha);
       });
     }
+
+    // 4. Refresh mod info from backend to update hasCache and other properties
+    await refreshMods(profileId);
   } catch (error) {
-    // 4. Revert optimistic update on error
+    // 5. Revert optimistic update on error
     optimisticUnloadUpdate(sha);
 
     // Handle error with user-friendly messages

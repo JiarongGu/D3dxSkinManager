@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, createContext, useContext } from 'react';
+import classNames from 'classnames';
 import { CloseOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 import { useSlideInScreenContext } from '../../context/SlideInScreenContext';
@@ -54,7 +55,7 @@ export function SlideInScreen({
 
   return (
     <div
-      className={`slide-in-screen-container slide-in-screen-level-${level} ${isClosing ? 'closing' : ''}`}
+      className={classNames('slide-in-screen-container', `slide-in-screen-level-${level}`, { closing: isClosing })}
       ref={containerRef}
     >
       {/* Blur backdrop indicator */}

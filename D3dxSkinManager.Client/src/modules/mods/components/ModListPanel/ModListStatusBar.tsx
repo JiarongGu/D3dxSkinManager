@@ -1,4 +1,5 @@
 ﻿import React from 'react';
+import classNames from 'classnames';
 import { CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { CategoryInfo } from '../../../../shared/types/category.types';
@@ -28,7 +29,7 @@ export const ModListStatusBar: React.FC<ModListStatusBarProps> = ({
 
   return (
     <div
-      className={`mod-list-status-bar ${loadedMod ? 'mod-list-status-bar-clickable' : ''}`}
+      className={classNames('mod-list-status-bar', { 'mod-list-status-bar-clickable': loadedMod })}
       onClick={handleClick}
     >
       <div className="mod-list-status-bar-content">

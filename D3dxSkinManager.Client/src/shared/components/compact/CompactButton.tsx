@@ -1,4 +1,5 @@
 import React from 'react';
+import classNames from 'classnames';
 import { Button, ButtonProps } from 'antd';
 import './CompactButton.css';
 
@@ -39,11 +40,8 @@ export const CompactButton: React.FC<CompactButtonProps> = ({
   // Map our size to Ant Design size
   const antdSize = size === 'medium' ? 'middle' : size;
 
-  // Build className with size-specific class
-  const buttonClassName = `compact-button compact-button-${size} ${className}`.trim();
-
   return (
-    <Button size={antdSize} className={buttonClassName} {...rest}>
+    <Button size={antdSize} className={classNames('compact-button', `compact-button-${size}`, className)} {...rest}>
       {children}
     </Button>
   );
@@ -81,12 +79,12 @@ export const CompactDangerButton: React.FC<CompactButtonProps> = (props) => (
  * CompactButton.Warning - Warning button (convenience wrapper)
  */
 export const CompactWarningButton: React.FC<CompactButtonProps> = ({
-  className = '',
+  className,
   ...props
 }) => (
   <CompactButton
     type="primary"
-    className={`compact-button-warning ${className}`.trim()}
+    className={classNames('compact-button-warning', className)}
     {...props}
   />
 );
@@ -95,12 +93,12 @@ export const CompactWarningButton: React.FC<CompactButtonProps> = ({
  * CompactButton.Success - Success button (convenience wrapper)
  */
 export const CompactSuccessButton: React.FC<CompactButtonProps> = ({
-  className = '',
+  className,
   ...props
 }) => (
   <CompactButton
     type="primary"
-    className={`compact-button-success ${className}`.trim()}
+    className={classNames('compact-button-success', className)}
     {...props}
   />
 );

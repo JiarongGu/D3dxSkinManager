@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import classNames from 'classnames';
 import './ContextMenu.css';
 
 export interface ContextMenuItem {
@@ -165,7 +166,10 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   return (
     <div
       ref={menuRef}
-      className={`context-menu ${isReady && expandFromBottom ? 'expand-bottom-up' : ''} ${isReady && !expandFromBottom ? 'expand-top-down' : ''}`}
+      className={classNames('context-menu', {
+        'expand-bottom-up': isReady && expandFromBottom,
+        'expand-top-down': isReady && !expandFromBottom
+      })}
       style={{
         position: 'fixed',
         left: `${menuPosition.x}px`,
@@ -182,9 +186,10 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         return (
           <div
             key={item.key || `item-${index}`}
-            className={`context-menu-item ${item.disabled ? 'disabled' : ''} ${
-              item.danger ? 'danger' : ''
-            }`}
+            className={classNames('context-menu-item', {
+              disabled: item.disabled,
+              danger: item.danger
+            })}
             onClick={() => handleItemClick(item)}
           >
             {item.icon && <span className="context-menu-item-icon">{item.icon}</span>}

@@ -11,6 +11,7 @@ export interface ModInfo {
   tagsWithMetadata?: Tag[];  // Tag objects with colors (populated by backend)
   isLoaded: boolean;
   isAvailable: boolean;
+  hasCache: boolean;  // True if cache directory exists (either active or DISABLED-)
   // Note: Preview images and thumbnails are stored dynamically in previews/{SHA}/ folder
   // Use modService.getPreviewPaths(sha) to fetch them
   // The first preview image (sorted alphabetically) is used as the thumbnail
@@ -60,4 +61,24 @@ export interface Tag {
   createdAt: string;
   /** When this tag was last updated */
   updatedAt: string;
+}
+
+/**
+ * Mod keybinding information parsed from .ini files
+ */
+export interface ModKeybinding {
+  /** Section name from .ini file (e.g., "KeyBodyColor", "KeyHorn") */
+  sectionName: string;
+  /** The key assigned (e.g., "9", "i", "VK_UP", "[") */
+  key: string;
+  /** Display name for the key (converted from technical names like VK_UP to friendly names) */
+  keyDisplay: string;
+  /** Description/purpose extracted from section name (e.g., "Body Color", "Horn") */
+  description: string;
+  /** Keybinding type (e.g., "cycle", "toggle", "hold") */
+  type: string;
+  /** Associated variable name (e.g., "$color", "$horn") */
+  variable: string;
+  /** Values for cycle type (e.g., "0,1,2,3") */
+  cycleValues: string;
 }

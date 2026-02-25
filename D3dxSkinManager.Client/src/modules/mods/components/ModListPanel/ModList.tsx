@@ -1,5 +1,6 @@
 import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useRef, useCallback } from "react";
+import classNames from 'classnames';
 import { Tag, Button, Space, Spin } from "antd";
 import {
   PlayCircleOutlined,
@@ -27,6 +28,7 @@ import {
   ContextMenuItem,
   useContextMenu,
 } from "../../../../shared/components/menu";
+import { refreshMods } from "../../operations/modOperations";
 import { useTranslation } from "react-i18next";
 import "./ModList.css";
 
@@ -147,9 +149,8 @@ export const ModList: React.FC<ModListProps> = ({
         if (success) {
           notification.success(t('mods.notifications.cacheDeleted', { name: mod.name }));
 
-          // Update local mod state to set isLoaded=false (no backend fetch)
-          // This rebuilds the mods array locally
-          updateModLocal(mod.sha, { isLoaded: false });
+          // Refresh from backend to update hasCache and other properties
+          await refreshMods(profileId);
 
           // Refresh checked paths after deletion
           if (contextMenuMod?.sha === mod.sha) {
@@ -345,7 +346,7 @@ export const ModList: React.FC<ModListProps> = ({
                   e.dataTransfer.setData("application/mod-sha", mod.sha);
                   e.dataTransfer.effectAllowed = "move";
                 }}
-                className={`mod-list-item ${isSelected ? 'mod-list-item-selected' : ''}`}
+                className={classNames('mod-list-item', { 'mod-list-item-selected': isSelected })}
                 onClick={() => {
                   onRowClick?.(mod);
                 }}

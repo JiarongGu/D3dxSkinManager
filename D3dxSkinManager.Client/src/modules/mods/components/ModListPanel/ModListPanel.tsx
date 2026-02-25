@@ -84,6 +84,7 @@ export const ModListPanel: React.FC = () => {
           isLoaded: false,
           type: "special",
           isAvailable: true,
+          hasCache: false,
         };
         result = [unloadOption, ...result];
       }

@@ -1,4 +1,5 @@
 import React from 'react';
+import classNames from 'classnames';
 import { Badge } from 'antd';
 import { AppstoreOutlined } from '@ant-design/icons';
 import { useDragDrop } from '../../../../shared/hooks/useDragDrop';
@@ -35,7 +36,7 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
   return (
     <div
       ref={(el) => containerRef(el || undefined)}
-      className={`unclassified-item ${isSelected ? 'selected' : ''}`}
+      className={classNames('unclassified-item', { selected: isSelected })}
       onClick={onClick}
       role="button"
       tabIndex={0}

@@ -174,6 +174,13 @@ export const useModsStore = create<ModsStore>()(
       setMods: (mods) =>
         set((state) => {
           state.mods = mods;
+          // Update selectedMod if it exists in the new mods array to sync properties like hasCache
+          if (state.selectedMod) {
+            const updatedSelectedMod = mods.find((mod: ModInfo) => mod.sha === state.selectedMod?.sha);
+            if (updatedSelectedMod) {
+              state.selectedMod = updatedSelectedMod;
+            }
+          }
         }),
 
       setModsLoading: (loading) =>

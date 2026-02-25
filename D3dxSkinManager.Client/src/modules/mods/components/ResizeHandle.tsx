@@ -1,4 +1,5 @@
 import React from 'react';
+import classNames from 'classnames';
 import './ResizeHandle.css';
 
 interface ResizeHandleProps {
@@ -13,12 +14,11 @@ interface ResizeHandleProps {
 export const ResizeHandle: React.FC<ResizeHandleProps> = ({ onMouseDown, isResizing }) => {
   return (
     <div
-      className={`resize-handle ${isResizing ? 'resize-handle-active' : ''}`}
+      className={classNames('resize-handle', { 'resize-handle-active': isResizing })}
       onMouseDown={onMouseDown}
       role="separator"
       aria-orientation="vertical"
     >
-      <div className="resize-handle-indicator" />
     </div>
   );
 };

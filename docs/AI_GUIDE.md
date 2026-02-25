@@ -746,6 +746,39 @@ type ModuleName = 'MOD' | 'PROFILE' | 'SETTING' | 'SYSTEM' |
 - Custom CSS animation overrides all default transitions in `custom-notification.css`
 - Position: 24px from top, centered horizontally
 
+### CSS ClassName Pattern
+**ALWAYS** use `classnames` library for conditional/multiple classes:
+
+```typescript
+// ❌ DON'T: Template string concatenation
+className={`base-class ${isActive ? 'active' : ''}`}
+className={`card ${isPrimary ? 'primary' : ''} ${isDisabled ? 'disabled' : ''}`}
+
+// ✅ DO: Use classnames library
+import classNames from 'classnames';
+
+className={classNames('base-class', {
+  active: isActive,
+})}
+
+className={classNames('card', {
+  primary: isPrimary,
+  disabled: isDisabled,
+})}
+
+// ✅ DO: Mix static and conditional classes
+className={classNames('mod-preview-keybinding-toggle', 'compact', {
+  active: showKeybindings,
+  disabled: !mod.hasCache,
+})}
+```
+
+**Benefits:**
+- Cleaner, more readable code
+- No manual spacing or empty string handling
+- Type-safe with TypeScript
+- Handles edge cases automatically
+
 ---
 
 ## 🎯 Common Tasks

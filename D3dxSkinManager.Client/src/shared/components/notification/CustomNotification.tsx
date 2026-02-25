@@ -1,4 +1,5 @@
 import React from 'react';
+import classNames from 'classnames';
 import { CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined, ExclamationCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import './CustomNotification.css';
 
@@ -22,7 +23,7 @@ const CustomNotification: React.FC<CustomNotificationProps> = ({ type, message, 
   const Icon = iconMap[type];
 
   return (
-    <div className={`custom-notification custom-notification-${type}`}>
+    <div className={classNames('custom-notification', `custom-notification-${type}`)}>
       <div className="custom-notification-content">
         <Icon className="custom-notification-icon" />
         <span className="custom-notification-message">{message}</span>

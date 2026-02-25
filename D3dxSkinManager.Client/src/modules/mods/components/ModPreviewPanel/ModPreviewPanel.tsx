@@ -2,6 +2,7 @@ import { notification } from "../../../../shared/utils/notification";
 import React, { useState } from "react";
 import { Typography, Button, Empty, Space, Tag, Spin } from "antd";
 import { useTranslation } from "react-i18next";
+import classNames from "classnames";
 import {
   CopyOutlined,
   LeftOutlined,
@@ -17,14 +18,17 @@ import {
   ExclamationCircleOutlined,
   PlusOutlined,
   SnippetsOutlined,
+  KeyOutlined,
 } from "@ant-design/icons";
 import {
   ContextMenu,
   ContextMenuItem,
 } from "../../../../shared/components/menu/ContextMenu";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
+import { CompactTextButton } from "../../../../shared/components/compact";
 import { GradingTag } from "../GradingTag";
 import { FullScreenPreview } from "./FullScreenPreview";
+import { KeybindingPreview } from "./KeybindingPreview";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
 import { ModPreviewProvider, useModView } from "./ModPreviewContext";
 import { ModInfo } from "../../../../shared/types/mod.types";
@@ -57,14 +61,33 @@ export const ModPreviewPanelContent: React.FC = () => {
   });
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [clipboardHasImage, setClipboardHasImage] = useState(false);
+  const [showKeybindings, setShowKeybindings] = useState(false);
+  const [isKeybindingsClosing, setIsKeybindingsClosing] = useState(false);
 
   const mod = state.currentMod;
   const cacheTimestamp = state.cacheTimestamp;
 
-  // Reset image index when mod changes (must be before early return)
+  // Reset image index and keybinding visibility when mod changes (must be before early return)
   React.useEffect(() => {
     setCurrentImageIndex(0);
+    setShowKeybindings(false);
+    setIsKeybindingsClosing(false);
   }, [mod?.sha]);
+
+  // Handle keybinding toggle with animation
+  const handleKeybindingToggle = () => {
+    if (showKeybindings) {
+      // Start closing animation
+      setIsKeybindingsClosing(true);
+      // Wait for animation to complete before hiding
+      setTimeout(() => {
+        setShowKeybindings(false);
+        setIsKeybindingsClosing(false);
+      }, 150); // Match animation duration (0.15s)
+    } else {
+      setShowKeybindings(true);
+    }
+  };
 
   const handleCopySHA = () => {
     if (!mod) return;
@@ -337,12 +360,12 @@ export const ModPreviewPanelContent: React.FC = () => {
         {
           type: "divider",
         },
-        {
+        ...(mod?.hasCache ? [{
           key: "open-cache-folder",
           label: t("mods.preview.openCacheFolder"),
           icon: <FolderOpenOutlined />,
           onClick: handleOpenCacheFolder,
-        },
+        }] : []),
         {
           key: "open-preview-folder",
           label: t("mods.preview.openPreviewFolder"),
@@ -444,26 +467,19 @@ export const ModPreviewPanelContent: React.FC = () => {
               </Text>
             )}
           </div>
-          <Space size="small">
-            {mod.isLoaded ? (
-              <Tag
-                icon={<CheckCircleOutlined className="mod-preview-tag-icon" />}
-                color="success"
-                className="mod-preview-tag"
-              >
-                {t("mods.preview.loaded")}
-              </Tag>
-            ) : (
-              <Tag
-                icon={<CloseCircleOutlined className="mod-preview-tag-icon" />}
-                color="default"
-                className="mod-preview-tag-default"
-              >
-                {t("mods.preview.notLoaded")}
-              </Tag>
-            )}
-            <GradingTag grading={mod.grading} />
-          </Space>
+          {mod.hasCache && (
+            <CompactTextButton
+              size="medium"
+              icon={<KeyOutlined />}
+              onClick={handleKeybindingToggle}
+              className={classNames('mod-preview-keybinding-toggle', {
+                active: showKeybindings,
+              })}
+              title={t('mods.keybindings.toggleTooltip')}
+            >
+              {t('mods.keybindings.toggle')}
+            </CompactTextButton>
+          )}
         </div>
       </div>
 
@@ -550,6 +566,17 @@ export const ModPreviewPanelContent: React.FC = () => {
               />
             </div>
           )}
+
+          {/* Keybinding Preview Overlay */}
+          {showKeybindings && (
+            <div
+              className={classNames('mod-preview-keybinding-overlay', {
+                closing: isKeybindingsClosing,
+              })}
+            >
+              <KeybindingPreview modSha={mod.sha} />
+            </div>
+          )}
         </div>
       </Spin>
 
@@ -604,6 +631,7 @@ export const ModPreviewPanelContent: React.FC = () => {
             </Paragraph>
           </div>
         )}
+
       </div>
 
       {/* SHA Section - Fixed at Bottom */}

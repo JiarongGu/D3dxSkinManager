@@ -29,6 +29,7 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<IModMetadataService, ModMetadataService>();
         services.TryAddSingleton<IModAutoDetectionService, ModAutoDetectionService>();
         services.TryAddSingleton<ITagService, TagService>();
+        services.TryAddSingleton<IModKeybindingService, ModKeybindingService>();
 
         // Register facade
         services.TryAddSingleton<IModFacade, ModFacade>();

@@ -1,4 +1,5 @@
 import React from "react";
+import classNames from 'classnames';
 import { Layout, Button } from "antd";
 import {
   AppstoreOutlined,
@@ -66,7 +67,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 type="text"
                 icon={tab.icon}
                 onClick={() => onTabChange(tab.key)}
-                className={`app-header-tab ${isSelected ? "app-header-tab-selected" : ""}`}
+                className={classNames('app-header-tab', { 'app-header-tab-selected': isSelected })}
               >
                 {tab.label}
               </Button>

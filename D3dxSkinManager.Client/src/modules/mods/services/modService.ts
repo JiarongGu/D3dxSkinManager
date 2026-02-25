@@ -1,8 +1,8 @@
 ﻿import { BaseModuleService } from '../../../shared/services/baseModuleService';
-import { ModInfo, ModLoadResult, Tag } from '../../../shared/types/mod.types';
+import { ModInfo, ModLoadResult, Tag, ModKeybinding } from '../../../shared/types/mod.types';
 
 // Re-export types for backwards compatibility
-export type { ModInfo, ModLoadResult, Tag };
+export type { ModInfo, ModLoadResult, Tag, ModKeybinding };
 
 /**
  * Service for mod management operations
@@ -333,6 +333,13 @@ export class ModService extends BaseModuleService {
       originalFile: mod.originalPath,
       cacheDirectory: mod.cachePath,
     };
+  }
+
+  /**
+   * Get keybindings for a mod (parsed from .ini files in mod's work directory)
+   */
+  async getKeybindings(profileId: string, sha: string): Promise<ModKeybinding[]> {
+    return this.sendArrayMessage<ModKeybinding>('GET_KEYBINDINGS', profileId, { sha });
   }
 }
 

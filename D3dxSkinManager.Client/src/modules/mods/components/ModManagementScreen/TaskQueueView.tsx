@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import classNames from 'classnames';
 import { List, Button, Space, Progress, Tag, Empty, Checkbox, Divider, Modal } from 'antd';
 import {
   PlayCircleOutlined,
@@ -469,7 +470,7 @@ export const TaskQueueView: React.FC = () => {
           renderItem={(task) => (
             <List.Item
               key={task.id}
-              className={`task-item task-item-${task.status}`}
+              className={classNames('task-item', `task-item-${task.status}`)}
             >
               <div className="task-item-content">
                 <Checkbox

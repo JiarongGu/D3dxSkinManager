@@ -19,6 +19,7 @@ public class ModInfo
     // Status flags (populated on-demand from file system, not stored in DB)
     public bool IsLoaded { get; set; }      // True if work directory exists without DISABLED- prefix
     public bool IsAvailable { get; set; }   // True if original archive file exists in mods folder
+    public bool HasCache { get; set; }      // True if cache directory exists (either active or with DISABLED- prefix)
 
     // Timestamps
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

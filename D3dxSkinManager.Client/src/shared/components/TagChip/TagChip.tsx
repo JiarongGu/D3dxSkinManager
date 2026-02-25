@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import classNames from 'classnames';
 import { Tag as AntTag } from 'antd';
 import { modService } from '../../../modules/mods/services/modService';
 import { Tag } from '../../types/mod.types';
@@ -53,16 +54,16 @@ export const TagChip: React.FC<TagChipProps> = ({
     setLoading(false);
   }, [tagName, tag]);
 
-  const sizeClass = size !== 'default' ? `tag-chip-${size}` : '';
-  const clickableClass = onClick ? 'tag-chip-clickable' : '';
-
   return (
     <AntTag
       color={tagData?.color || 'default'}
       closable={closable}
       onClose={onClose}
       onClick={onClick}
-      className={`tag-chip ${sizeClass} ${clickableClass} ${className || ''}`.trim()}
+      className={classNames('tag-chip', {
+        [`tag-chip-${size}`]: size !== 'default',
+        'tag-chip-clickable': onClick
+      }, className)}
     >
       {loading ? '...' : tagName}
     </AntTag>

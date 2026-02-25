@@ -122,7 +122,7 @@ public class ImageService : IImageService
         // If no previews found, look for any image file as fallback
         if (previewCount == 0)
         {
-            var allImages = Directory.GetFiles(modDirectory, "*.*", SearchOption.AllDirectories)
+            var allImages = Directory.GetFiles(modDirectory, "*.*", SearchOption.TopDirectoryOnly)
                 .Where(f => ImageConstants.IsImageExtension(Path.GetExtension(f)))
                 .OrderBy(f => new FileInfo(f).Length) // Prefer smaller files first
                 .Take(3) // Take up to 3 images as previews

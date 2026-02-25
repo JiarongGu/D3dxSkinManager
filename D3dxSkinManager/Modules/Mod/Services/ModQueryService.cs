@@ -293,10 +293,19 @@ public class ModQueryService : IModQueryService
                 .ToHashSet()
             : new HashSet<string>();
 
+        var allCacheDirectories = Directory.Exists(_profilePaths.CacheModsDirectory)
+            ? Directory.GetDirectories(_profilePaths.CacheModsDirectory)
+                .Select(Path.GetFileName)
+                .Where(d => !string.IsNullOrEmpty(d))
+                .Select(d => d!.StartsWith("DISABLED-") ? d.Substring(9) : d)  // Remove DISABLED- prefix
+                .ToHashSet()
+            : new HashSet<string>();
+
         foreach (var mod in mods)
         {
             mod.IsAvailable = availableFiles.Contains(mod.SHA);
             mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
+            mod.HasCache = allCacheDirectories.Contains(mod.SHA);
         }
     }
 

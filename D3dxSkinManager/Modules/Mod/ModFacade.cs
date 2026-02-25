@@ -50,6 +50,9 @@ public interface IModFacade : IModuleFacade
     Task<List<string>> GetUsedTagNamesAsync();
     Task<int> GetTagUsageCountAsync(string tag);
     Task<List<Tag>> SearchTagsAsync(string searchTerm);
+
+    // Keybinding Operations
+    Task<List<ModKeybinding>> GetKeybindingsAsync(string sha);
 }
 
 /// <summary>
@@ -67,6 +70,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModQueryService _queryService;
     private readonly IModMetadataService _metadataService;
     private readonly ITagService _tagService;
+    private readonly IModKeybindingService _keybindingService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitter _eventEmitter;
     private readonly IImageService _imageService;
@@ -78,6 +82,7 @@ public class ModFacade : BaseFacade, IModFacade
         IModQueryService queryService,
         IModMetadataService metadataService,
         ITagService tagService,
+        IModKeybindingService keybindingService,
         IPayloadHelper payloadHelper,
         IEventEmitter eventEmitter,
         IImageService imageService,
@@ -89,6 +94,7 @@ public class ModFacade : BaseFacade, IModFacade
         _queryService = queryService;
         _metadataService = metadataService;
         _tagService = tagService;
+        _keybindingService = keybindingService;
         _payloadHelper = payloadHelper;
         _eventEmitter = eventEmitter;
         _imageService = imageService;
@@ -132,6 +138,7 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_USED_TAG_NAMES" => await GetUsedTagNamesAsync(),
             "GET_TAG_USAGE_COUNT" => await GetTagUsageCountAsync(request),
             "SEARCH_TAGS" => await SearchTagsAsync(request),
+            "GET_KEYBINDINGS" => await GetKeybindingsAsync(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -762,5 +769,22 @@ public class ModFacade : BaseFacade, IModFacade
     {
         var searchTerm = _payloadHelper.GetOptionalValue<string>(request.Payload, "searchTerm") ?? string.Empty;
         return await SearchTagsAsync(searchTerm);
+    }
+
+    // ============= Keybinding Methods =============
+
+    public async Task<List<ModKeybinding>> GetKeybindingsAsync(string sha)
+    {
+        return await _keybindingService.ParseKeybindingsAsync(sha);
+    }
+
+    private async Task<List<ModKeybinding>> GetKeybindingsAsync(IpcRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+
+        if (string.IsNullOrEmpty(sha))
+            throw new ArgumentException("Mod SHA is required");
+
+        return await GetKeybindingsAsync(sha);
     }
 }

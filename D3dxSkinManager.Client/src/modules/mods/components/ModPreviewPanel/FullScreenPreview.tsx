@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import classNames from 'classnames';
 import { Modal, Spin, Typography } from 'antd';
 import { CloseOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import './FullScreenPreview.css';
@@ -149,7 +150,7 @@ export const FullScreenPreview: React.FC<FullScreenPreviewProps> = ({
             alt={imageAlt}
             onLoad={handleImageLoad}
             onError={handleImageError}
-            className={imageLoaded ? 'fullscreen-preview-image loaded' : 'fullscreen-preview-image'}
+            className={classNames('fullscreen-preview-image', { loaded: imageLoaded })}
           />
         )}
 
@@ -179,7 +180,7 @@ export const FullScreenPreview: React.FC<FullScreenPreviewProps> = ({
 
         {/* Image Counter - Only show if multiple images */}
         {hasMultipleImages && (
-          <div className={`fullscreen-image-counter ${showCounter ? 'visible' : 'hidden'}`}>
+          <div className={classNames('fullscreen-image-counter', { visible: showCounter, hidden: !showCounter })}>
             <Text type="secondary" className="fullscreen-counter-text">
               {currentIndex + 1} / {allImages.length}
             </Text>
