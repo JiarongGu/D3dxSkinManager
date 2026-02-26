@@ -68,6 +68,17 @@ class TaskQueueService extends BaseModuleService {
   async clearCompleted(profileId?: string): Promise<void> {
     await this.sendMessage('CLEAR_COMPLETED', profileId);
   }
+
+  /**
+   * Continue a paused chain task with user input
+   */
+  async continueChain(correlationId: string, pausedTaskId: string, userInput?: Record<string, unknown>): Promise<string> {
+    return this.sendMessage<string>('CONTINUE_CHAIN', undefined, {
+      correlationId,
+      pausedTaskId,
+      userInput: userInput ? JSON.stringify(userInput) : undefined
+    });
+  }
 }
 
 export const taskQueueService = new TaskQueueService();

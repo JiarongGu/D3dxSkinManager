@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import classNames from 'classnames';
-import { List, Button, Space, Progress, Tag, Empty, Checkbox, Divider, Modal } from 'antd';
+import { List, Button, Space, Progress, Tag, Empty, Checkbox, Divider, Modal, Form, Input, Select } from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -35,6 +35,8 @@ export const TaskQueueView: React.FC = () => {
   const [tasks, setTasks] = useState<TaskInfo[]>([]);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [metadataModalVisible, setMetadataModalVisible] = useState(false);
+  const [awaitingTask, setAwaitingTask] = useState<TaskInfo | null>(null);
 
   /**
    * Load all tasks from backend
@@ -149,8 +151,9 @@ export const TaskQueueView: React.FC = () => {
             ? { ...event.payload! }
             : t
         ));
-        // TODO: Show metadata input modal for chain continuation
-        notification.info(`Task "${event.payload.id}" needs user input to continue`);
+        // Show metadata input modal
+        setAwaitingTask(event.payload);
+        setMetadataModalVisible(true);
       }
     });
 
@@ -354,6 +357,8 @@ export const TaskQueueView: React.FC = () => {
         return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
       case 'cancelled':
         return <CloseCircleOutlined style={{ color: '#8c8c8c' }} />;
+      case 'awaitingConfirmation':
+        return <EditOutlined style={{ color: '#fa8c16' }} />;
       default:
         return <ClockCircleOutlined />;
     }
@@ -369,6 +374,7 @@ export const TaskQueueView: React.FC = () => {
       completed: 'success',
       failed: 'error',
       cancelled: 'default',
+      awaitingConfirmation: 'warning',
     };
 
     return (
@@ -379,18 +385,63 @@ export const TaskQueueView: React.FC = () => {
   };
 
   /**
+   * Handle metadata submission for awaiting confirmation task
+   */
+  const handleMetadataSubmit = async (metadata: Record<string, unknown>) => {
+    if (!awaitingTask) return;
+
+    try {
+      console.log('[TaskQueueView] Submitting metadata for task:', awaitingTask.id, metadata);
+
+      // Continue the chain with user input
+      const nextTaskId = await taskQueueService.continueChain(
+        awaitingTask.correlationId!,
+        awaitingTask.id,
+        metadata
+      );
+
+      console.log('[TaskQueueView] Chain continued with new task:', nextTaskId);
+      notification.success(t('importQueue.metadataSubmitted'));
+
+      // Close modal
+      setMetadataModalVisible(false);
+      setAwaitingTask(null);
+
+      // Reload tasks
+      await loadTasks();
+
+      // Continue processing
+      setProcessing(true);
+      await taskQueueService.processNext(selectedProfileId);
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  /**
    * Parse task input to get file name
    */
   const getTaskFileName = (task: TaskInfo): string => {
     try {
-      console.log('[TaskQueueView] Parsing task input:', task.id, task.inputData);
-      const input = JSON.parse(task.inputData) as ModImportTaskInput;
+      console.log('[TaskQueueView] Parsing task input:', task.id, task.type, task.inputData);
+      const input = JSON.parse(task.inputData);
       console.log('[TaskQueueView] Parsed input:', input);
-      if (!input.filePath) {
-        console.warn('[TaskQueueView] Empty filePath in task input');
+
+      // Handle different task types
+      let filePath: string | undefined;
+
+      if (task.type === 'compress_folder') {
+        filePath = input.folderPath;
+      } else if (task.type === 'mod_import' || task.type === 'import_from_temp') {
+        filePath = input.filePath || input.tempArchivePath;
+      }
+
+      if (!filePath) {
+        console.warn('[TaskQueueView] No file path found in task input');
         return input.name || 'Unknown';
       }
-      const fileName = input.filePath.split(/[\\/]/).pop() || 'Unknown';
+
+      const fileName = filePath.split(/[\\/]/).pop() || 'Unknown';
       console.log('[TaskQueueView] Extracted filename:', fileName);
       return fileName;
     } catch (error) {
@@ -403,7 +454,7 @@ export const TaskQueueView: React.FC = () => {
     <div className="task-queue-view">
       {/* Status Bar */}
       <div className="task-queue-status-bar">
-        <Space split={<Divider type="vertical" />}>
+        <Space separator={<Divider orientation="vertical" />} size={"small"}>
           <span>{t('importQueue.stats.total')}: <strong>{stats.total}</strong></span>
           <span>{t('importQueue.stats.pending')}: <strong>{stats.pending}</strong></span>
           <span>{t('importQueue.stats.processing')}: <strong>{stats.processing}</strong></span>
@@ -514,6 +565,148 @@ export const TaskQueueView: React.FC = () => {
           )}
         />
       )}
+
+      {/* Metadata Input Modal for Awaiting Confirmation */}
+      {awaitingTask && (
+        <MetadataInputModal
+          visible={metadataModalVisible}
+          task={awaitingTask}
+          onSubmit={handleMetadataSubmit}
+          onCancel={() => {
+            setMetadataModalVisible(false);
+            setAwaitingTask(null);
+          }}
+        />
+      )}
     </div>
+  );
+};
+
+/**
+ * Metadata Input Modal Component
+ */
+interface MetadataInputModalProps {
+  visible: boolean;
+  task: TaskInfo;
+  onSubmit: (metadata: Record<string, unknown>) => void;
+  onCancel: () => void;
+}
+
+const MetadataInputModal: React.FC<MetadataInputModalProps> = ({ visible, task, onSubmit, onCancel }) => {
+  const { t } = useTranslation();
+  const [form] = Form.useForm();
+  const { TextArea } = Input;
+
+  // Parse chain context to get initial values
+  const getInitialValues = () => {
+    try {
+      // Parse the task's output or input data to get chain context
+      const taskData = task.outputData ? JSON.parse(task.outputData) : {};
+      return {
+        name: taskData.metadata_name || '',
+        author: taskData.metadata_author || '',
+        description: taskData.metadata_description || '',
+        grading: taskData.metadata_grading || 'G',
+        category: taskData.metadata_category || '',
+        tags: taskData.metadata_tags || [],
+      };
+    } catch (error) {
+      console.error('Failed to parse task data:', error);
+      return {
+        name: '',
+        author: '',
+        description: '',
+        grading: 'G',
+        category: '',
+        tags: [],
+      };
+    }
+  };
+
+  useEffect(() => {
+    if (visible) {
+      form.setFieldsValue(getInitialValues());
+    }
+  }, [visible, task]);
+
+  const handleSubmit = () => {
+    form.validateFields().then((values) => {
+      onSubmit(values);
+      form.resetFields();
+    });
+  };
+
+  const ageRatingOptions = [
+    { value: 'G', label: t('ageRating.general') },
+    { value: 'P', label: t('ageRating.parentalGuidance') },
+    { value: 'R', label: t('ageRating.restricted') },
+    { value: 'X', label: t('ageRating.adultsOnly') },
+  ];
+
+  return (
+    <Modal
+      title={t('importQueue.metadataInput.title')}
+      open={visible}
+      onOk={handleSubmit}
+      onCancel={onCancel}
+      width={600}
+      okText={t('common.continue')}
+      cancelText={t('common.cancel')}
+    >
+      <Form
+        form={form}
+        layout="vertical"
+      >
+        <Form.Item
+          name="name"
+          label={t('modEditor.name')}
+          rules={[{ required: true, message: t('modEditor.nameRequired') }]}
+        >
+          <Input placeholder={t('modEditor.namePlaceholder')} />
+        </Form.Item>
+
+        <Form.Item
+          name="author"
+          label={t('modEditor.author')}
+        >
+          <Input placeholder={t('modEditor.authorPlaceholder')} />
+        </Form.Item>
+
+        <Form.Item
+          name="description"
+          label={t('modEditor.description')}
+        >
+          <TextArea
+            rows={3}
+            placeholder={t('modEditor.descriptionPlaceholder')}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="grading"
+          label={t('modEditor.grading')}
+        >
+          <Select options={ageRatingOptions} />
+        </Form.Item>
+
+        <Form.Item
+          name="category"
+          label={t('modEditor.category')}
+          rules={[{ required: true, message: t('modEditor.categoryRequired') }]}
+        >
+          <Input placeholder={t('modEditor.categoryPlaceholder')} />
+        </Form.Item>
+
+        <Form.Item
+          name="tags"
+          label={t('modEditor.tags')}
+        >
+          <Select
+            mode="tags"
+            placeholder={t('modEditor.tagsPlaceholder')}
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };
