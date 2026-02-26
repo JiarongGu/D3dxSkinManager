@@ -28,7 +28,7 @@ import { profileService } from '../../profiles/services/profileService';
 import { Profile, CreateProfileRequest } from '../../../shared/types/profile.types';
 import { fileDialogService } from '../../../shared/services/systemService';
 import { useProfile } from '../../../shared/context/ProfileContext';
-import styles from './ProfileManager.module.css';
+import './ProfileManager.css';
 
 interface ProfileManagerProps {
   onProfileChanged?: () => void;
@@ -198,8 +198,8 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
 
   return (
     <>
-      <div className={styles.container}>
-        <Space orientation="vertical" className={styles.verticalSpace} size="large">
+      <div className="profile-manager-container">
+        <Space orientation="vertical" className="profile-manager-vertical-space" size="large">
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -215,21 +215,21 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                   key={profile.id}
                   justify="space-between"
                   align="center"
-                  className={classNames(styles.profileItem, {
-                    [styles.profileItemActive]: profile.id === activeProfileId,
-                    [styles.profileItemInactive]: profile.id !== activeProfileId,
+                  className={classNames('profile-manager-item', {
+                    'profile-manager-item--active': profile.id === activeProfileId,
+                    'profile-manager-item--inactive': profile.id !== activeProfileId,
                   })}
                 >
-                  <Flex align="flex-start" gap="middle" className={styles.profileContent}>
+                  <Flex align="flex-start" gap="middle" className="profile-manager-content">
                     <div
-                      className={styles.profileAvatar}
+                      className="profile-manager-avatar"
                       style={{ backgroundColor: profile.colorTag || '#1890ff' }}
                     >
                       {profile.name.charAt(0).toUpperCase()}
                     </div>
-                    <Flex vertical gap="small" className={styles.profileContent}>
+                    <Flex vertical gap="small" className="profile-manager-content">
                       <Space>
-                        <span className={styles.profileName}>{profile.name}</span>
+                        <span className="profile-manager-name">{profile.name}</span>
                         {profile.id === activeProfileId && (
                           <Tag color="success" icon={<CheckCircleOutlined />}>
                             {t('profiles.badge.active')}
@@ -240,16 +240,16 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                         )}
                       </Space>
                       {profile.description && (
-                        <span className={styles.profileDescription}>{profile.description}</span>
+                        <span className="profile-manager-description">{profile.description}</span>
                       )}
                       <Space size="large">
-                        <span className={styles.profileStats}>
+                        <span className="profile-manager-stats">
                           {t('profiles.label.mods')} {profile.modCount}
                         </span>
-                        <span className={styles.profileStats}>
+                        <span className="profile-manager-stats">
                           {t('profiles.label.size')} {profileService.formatBytes(profile.totalSize || 0)}
                         </span>
-                        <span className={styles.profileStats}>
+                        <span className="profile-manager-stats">
                           {t('profiles.label.created')} {new Date(profile.createdAt).toLocaleDateString()}
                         </span>
                       </Space>
@@ -347,10 +347,10 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
             name="workDirectory"
             rules={[{ required: true, message: t('profiles.form.workDirectory.required') }]}
           >
-            <Space.Compact className={styles.fullWidthInput}>
+            <Space.Compact className="profile-manager-full-width-input">
               <Input
                 placeholder={t('profiles.form.workDirectory.placeholder')}
-                className={styles.fullWidthInput}
+                className="profile-manager-full-width-input"
               />
               <Button
                 icon={<FolderOpenOutlined />}
@@ -404,8 +404,8 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
             name="workDirectory"
             rules={[{ required: true, message: t('profiles.form.workDirectory.required') }]}
           >
-            <Space.Compact className={styles.fullWidthInput}>
-              <Input className={styles.fullWidthInput} />
+            <Space.Compact className="profile-manager-full-width-input">
+              <Input className="profile-manager-full-width-input" />
               <Button
                 icon={<FolderOpenOutlined />}
                 onClick={() => handleBrowseWorkDirectory(editForm)}

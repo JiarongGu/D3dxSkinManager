@@ -26,12 +26,24 @@
 }
 
 /* === Card Hover Effects === */
-.ant-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+/* Light theme - More subtle shadows */
+[data-theme="light"] .ant-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 6px -2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.02);
   transition: box-shadow 0.3s ease;
 }
 
-.ant-card {
+[data-theme="light"] .ant-card:hover {
+  box-shadow: 0 2px 1px rgba(0, 0, 0, 0.04), 0 4px 8px -2px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Dark theme - Keep original subtle shadow */
+[data-theme="dark"] .ant-card {
+  transition: box-shadow 0.3s ease;
+}
+
+[data-theme="dark"] .ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: box-shadow 0.3s ease;
 }
 
@@ -353,4 +365,140 @@
     transform: none;
     box-shadow: none;
   }
+}
+
+/* ========== Animation Fixes ========== */
+
+/* Fix flashy/blinking animations - Fast but working dropdown animations */
+.ant-dropdown-slide-up-enter,
+.ant-dropdown-slide-up-appear {
+  animation-duration: 0.05s !important;
+  animation-timing-function: linear !important;
+}
+
+.ant-dropdown-slide-up-leave {
+  animation-duration: 0.05s !important;
+  animation-timing-function: linear !important;
+}
+
+/* Fix modal animations */
+.ant-modal-mask {
+  animation-duration: 0.15s !important;
+}
+
+.ant-modal-wrap {
+  animation-duration: 0.15s !important;
+}
+
+.ant-zoom-enter,
+.ant-zoom-appear {
+  animation-duration: 0.15s !important;
+}
+
+.ant-zoom-leave {
+  animation-duration: 0.1s !important;
+}
+
+/* Fix select dropdown animations */
+.ant-slide-up-enter,
+.ant-slide-up-appear {
+  animation-duration: 0.1s !important;
+}
+
+.ant-slide-up-leave {
+  animation-duration: 0.08s !important;
+}
+
+/* Fix tooltip animations */
+.ant-tooltip-zoom-enter,
+.ant-tooltip-zoom-appear {
+  animation-duration: 0.1s !important;
+}
+
+.ant-tooltip-zoom-leave {
+  animation-duration: 0.08s !important;
+}
+
+/* Fix popover animations */
+.ant-zoom-big-enter,
+.ant-zoom-big-appear {
+  animation-duration: 0.12s !important;
+}
+
+.ant-zoom-big-leave {
+  animation-duration: 0.1s !important;
+}
+
+/* Fix message/notification animations */
+.ant-move-up-enter,
+.ant-move-up-appear {
+  animation-duration: 0.15s !important;
+}
+
+.ant-move-up-leave {
+  animation-duration: 0.1s !important;
+}
+
+/* Smooth hover effects only */
+.ant-dropdown-menu-item,
+.ant-dropdown-menu-submenu-title,
+.ant-select-item {
+  transition: background-color 0.1s ease !important;
+}
+
+/* Fix drawer animations */
+.ant-drawer-mask {
+  animation: none !important;
+  transition: opacity 0.15s ease !important;
+}
+
+.ant-drawer-content-wrapper {
+  transition: transform 0.15s ease !important;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .ant-dropdown,
+  .ant-modal,
+  .ant-message,
+  .ant-notification,
+  .ant-tooltip,
+  .ant-popover,
+  .ant-select-dropdown,
+  .ant-drawer-mask,
+  .ant-drawer-content-wrapper {
+    animation-duration: 0.01s !important;
+    transition-duration: 0.01s !important;
+  }
+}
+
+/* ========== TagInput Dropdown Styling ========== */
+.tag-input-dropdown {
+  background-color: var(--color-bg-elevated) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 8px !important;
+  padding: 4px !important;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08),
+              0 3px 6px -4px rgba(0, 0, 0, 0.12),
+              0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+.tag-input-dropdown .ant-select-item {
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  margin: 2px 0 !important;
+}
+
+.tag-input-dropdown .ant-select-item-option-active {
+  background-color: var(--color-bg-text-hover) !important;
+}
+
+.tag-input-dropdown .ant-select-item-option-selected {
+  background-color: var(--color-primary-bg) !important;
+  font-weight: 500 !important;
+}
+
+.tag-input-dropdown .ant-select-item-empty {
+  padding: 16px !important;
+  text-align: center !important;
 }

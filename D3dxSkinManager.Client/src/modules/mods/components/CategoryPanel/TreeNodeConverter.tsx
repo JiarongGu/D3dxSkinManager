@@ -28,22 +28,22 @@ export function convertToDataNode(
     title: (
       <span
         data-node-id={node.id}
-        className="tree-node-title"
+        className="category-tree-node-title"
       >
         {hasThumbnail && node.thumbnail ? (
           <img
             src={toAppUrl(node.thumbnail) || undefined}
             alt={node.name}
-            className="tree-node-thumbnail"
+            className="category-tree-node-thumbnail"
           />
         ) : (
-          <span className="tree-node-icon-container">
+          <span className="category-tree-node-icon-container">
             {getFolderIcon()}
           </span>
         )}
-        <span className="tree-node-name">{node.name}</span>
+        <span className="category-tree-node-name">{node.name}</span>
         {node.modCount !== undefined && node.modCount > 0 && (
-          <span className="tree-node-mod-count">
+          <span className="category-tree-node-mod-count">
             ({node.modCount})
           </span>
         )}

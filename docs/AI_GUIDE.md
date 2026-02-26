@@ -746,6 +746,258 @@ type ModuleName = 'MOD' | 'PROFILE' | 'SETTING' | 'SYSTEM' |
 - Custom CSS animation overrides all default transitions in `custom-notification.css`
 - Position: 24px from top, centered horizontally
 
+### CSS BEM Naming Convention
+
+**CRITICAL:** This project uses **raw CSS** with **BEM (Block Element Modifier)** naming convention for ALL component styles.
+
+#### 🎯 Three Golden Rules
+
+1. **✅ USE BEM as the standard** - All component CSS files must use BEM naming convention
+2. **❌ DO NOT apply BEM in `src/styles/`** - Global overrides and utilities in `src/styles/` use generic names
+3. **⚠️ CONVERT all `.module.css` to regular `.css`** - No CSS Modules allowed, migrate to BEM naming
+
+#### BEM Structure
+
+```
+Block:    .component-name
+Element:  .component-name-element
+Modifier: .component-name--modifier
+          .component-name-element--modifier
+```
+
+**Important:** This project uses a **relaxed BEM variant**:
+- Single dash (`-`) for elements (instead of double underscore `__`)
+- Double dash (`--`) for modifiers (standard BEM)
+- All lowercase with kebab-case
+
+#### BEM Naming Rules
+
+1. **Block Name = Component/File Name**
+   ```css
+   /* File: ModListPanel.tsx → ModListPanel.css */
+   .mod-list-panel { }           /* ✅ Block */
+   .mod-list-panel-header { }    /* ✅ Element */
+   .mod-list-panel--compact { }  /* ✅ Modifier */
+   ```
+
+2. **Elements are children of blocks**
+   ```css
+   /* ✅ CORRECT */
+   .about-dialog { }
+   .about-dialog-header { }
+   .about-dialog-content { }
+   .about-dialog-footer { }
+
+   /* ❌ WRONG - Generic names without block prefix */
+   .header { }
+   .content { }
+   .footer { }
+   ```
+
+3. **Modifiers indicate state or variation**
+   ```css
+   /* ✅ CORRECT */
+   .mod-list-item { }
+   .mod-list-item--selected { }
+   .mod-list-item--disabled { }
+   .mod-list-item-tag--primary { }
+
+   /* ❌ WRONG - Modifier without base class */
+   .selected { }
+   .disabled { }
+   ```
+
+4. **No nested component names**
+   ```css
+   /* ✅ CORRECT - Flat hierarchy */
+   .mod-list-panel { }
+   .mod-list-panel-item { }
+   .mod-list-panel-item-name { }
+   .mod-list-panel-item-actions { }
+
+   /* ❌ WRONG - Too deeply nested */
+   .mod-list-panel-item-actions-button-icon { }
+   /* Better: split into separate block or use shorter name */
+   .mod-list-panel-action-icon { }
+   ```
+
+#### Component-Specific Naming
+
+```css
+/* ComponentName.tsx → ComponentName.css */
+
+/* Profile Selector Example */
+.profile-selector { }                    /* Block */
+.profile-selector-dropdown { }           /* Element */
+.profile-selector-item { }               /* Element */
+.profile-selector-item--active { }       /* Modifier */
+
+/* Compact Button Example */
+.compact-button { }                      /* Block */
+.compact-button--large { }               /* Modifier */
+.compact-button--small { }               /* Modifier */
+.compact-button--primary { }             /* Modifier */
+.compact-button--danger { }              /* Modifier */
+
+/* Context Menu Example */
+.context-menu { }                        /* Block */
+.context-menu-item { }                   /* Element */
+.context-menu-item-icon { }              /* Element (nested) */
+.context-menu-item-label { }             /* Element (nested) */
+.context-menu-item--disabled { }         /* Modifier */
+.context-menu-item--danger { }           /* Modifier */
+.context-menu-divider { }                /* Element */
+```
+
+#### Global/Utility Styles (Exceptions)
+
+**Files that should NOT use BEM naming** (global utilities and library overrides):
+
+1. **`src/index.css`** - Base element styles (body, code font definitions)
+2. **`src/styles/theme-colors.css`** - CSS variables and theme definitions
+3. **`src/styles/visual-enhancements.css`** - **PRIMARY FILE** for all Ant Design overrides, animations, and global utility classes
+4. **`src/styles/custom-notification.css`** - Ant Design notification-specific overrides
+
+**File Organization:**
+- **`src/index.css`**: Only base HTML element styles (body, code)
+- **`src/styles/visual-enhancements.css`**: ALL Ant Design component overrides, animation fixes, hover effects, and global utilities
+- **`src/App.css`**: App component-specific layout styles only (app-main-layout, app-content, etc.)
+
+```css
+/* ✅ ACCEPTABLE in index.css, theme-colors.css */
+:root {
+  --primary-color: #1890ff;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI';
+}
+
+/* ✅ ACCEPTABLE for Ant Design overrides in visual-enhancements.css */
+.ant-btn {
+  /* Override third-party library styles */
+}
+
+/* ✅ ACCEPTABLE utility classes in visual-enhancements.css */
+.status-success { color: #52c41a; }
+.status-error { color: #ff4d4f; }
+.count-indicator { /* utility styling */ }
+
+/* ❌ WRONG - Component-specific styles in component CSS files should use BEM */
+/* File: SettingsView.css */
+.container { }  /* ❌ Should be .settings-view-container */
+.header { }     /* ❌ Should be .settings-view-header */
+.content { }    /* ❌ Should be .settings-view-content */
+```
+
+**Rule of thumb:**
+- **Global files** in `src/styles/` (`index.css`, `theme-colors.css`, `visual-enhancements.css`) → Generic names OK
+- **Component files** (`ComponentName.css`) → Must use BEM with component prefix
+
+#### CRITICAL: CSS Modules Migration
+
+**⚠️ DO NOT USE CSS Modules (`.module.css`) in this project!**
+
+This project uses **raw CSS with BEM naming convention**. All `.module.css` files should be converted to regular `.css` files with BEM naming.
+
+**Migration Steps:**
+
+1. Rename `ComponentName.module.css` → `ComponentName.css`
+2. Convert camelCase class names to kebab-case BEM names
+3. Add component prefix to all class names
+4. Update TSX imports from `styles from './Component.module.css'` to `import './Component.css'`
+5. Update className usage from `className={styles.item}` to `className="component-name-item"`
+
+**Example Migration:**
+
+```css
+/* ❌ BEFORE: ProfileManager.module.css */
+.container { }
+.profileItem { }
+.profileItemActive { }
+.fullWidthInput { }
+
+/* ✅ AFTER: ProfileManager.css */
+.profile-manager-container { }
+.profile-manager-item { }
+.profile-manager-item--active { }
+.profile-manager-full-width-input { }
+```
+
+```typescript
+/* ❌ BEFORE: ProfileManager.tsx */
+import styles from './ProfileManager.module.css';
+<div className={styles.container}>
+  <div className={classNames(styles.profileItem, {
+    [styles.profileItemActive]: isActive
+  })}>
+
+/* ✅ AFTER: ProfileManager.tsx */
+import './ProfileManager.css';
+<div className="profile-manager-container">
+  <div className={classNames('profile-manager-item', {
+    'profile-manager-item--active': isActive
+  })}>
+```
+
+#### Common BEM Mistakes
+
+```css
+/* ❌ WRONG - CamelCase */
+.modListItem { }
+.profileSelector { }
+
+/* ✅ CORRECT - kebab-case */
+.mod-list-item { }
+.profile-selector { }
+
+/* ❌ WRONG - Generic without component prefix */
+.item { }
+.button { }
+.icon { }
+
+/* ✅ CORRECT - Component-prefixed */
+.mod-list-item { }
+.compact-button { }
+.context-menu-icon { }
+
+/* ❌ WRONG - Single dash for modifier */
+.mod-list-item-selected { }
+
+/* ✅ CORRECT - Double dash for modifier */
+.mod-list-item--selected { }
+
+/* Note: This project uses relaxed BEM where single dash is used for elements,
+   so .mod-list-item-selected could be interpreted as element "item-selected"
+   Use double dash for clarity when indicating state/variation */
+```
+
+#### BEM with TypeScript/TSX
+
+```typescript
+// ❌ WRONG - Inline styles or generic classes
+<div className="item">
+<div style={{ color: 'red' }}>
+
+// ✅ CORRECT - BEM classes from CSS file
+import './ModListItem.css';
+
+<div className="mod-list-item">
+  <div className="mod-list-item-header">
+    <span className="mod-list-item-name">{name}</span>
+  </div>
+</div>
+
+// ✅ CORRECT - BEM with conditional modifiers
+import classNames from 'classnames';
+
+<div className={classNames('mod-list-item', {
+  'mod-list-item--selected': isSelected,
+  'mod-list-item--disabled': isDisabled,
+})}>
+```
+
 ### CSS ClassName Pattern
 **ALWAYS** use `classnames` library for conditional/multiple classes:
 
@@ -766,10 +1018,10 @@ className={classNames('card', {
   disabled: isDisabled,
 })}
 
-// ✅ DO: Mix static and conditional classes
+// ✅ DO: Mix static and conditional classes with BEM
 className={classNames('mod-preview-keybinding-toggle', 'compact', {
-  active: showKeybindings,
-  disabled: !mod.hasCache,
+  'mod-preview-keybinding-toggle--active': showKeybindings,
+  'mod-preview-keybinding-toggle--disabled': !mod.hasCache,
 })}
 ```
 
@@ -807,6 +1059,11 @@ className={classNames('mod-preview-keybinding-toggle', 'compact', {
 9. **NEVER** access other module's repositories directly
 10. **NEVER** put business logic in facades (services only)
 11. **NEVER** use font sizes below 12px or between 12px and 14px (only use 12px or 14px)
+12. **NEVER** use generic CSS class names without BEM component prefix (`.item`, `.button`, `.header`)
+13. **NEVER** use camelCase or PascalCase in CSS class names (use kebab-case)
+14. **NEVER** create deep nested BEM names (max 3-4 segments)
+15. **NEVER** create new `.module.css` files - use regular `.css` with BEM naming instead
+16. **NEVER** apply BEM naming to global utility files in `src/styles/` directory
 
 ### ❌ Wrong Error Handling
 ```typescript

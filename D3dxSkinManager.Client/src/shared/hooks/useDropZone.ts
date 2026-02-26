@@ -24,7 +24,7 @@ export interface DropZoneFileDropData {
  * - Captures real OS file paths (not blob URLs)
  * - Click-through when not dragging (WM_NCHITTEST)
  * - Auto-tracks element position with ResizeObserver + IntersectionObserver
- * - Adds CSS classes for visual feedback: 'drop-zone-hover' and 'drop-zone-drop' (styles in useDropZone.css)
+ * - Adds CSS classes for visual feedback: 'use-drop-zone-hover' and 'use-drop-zone-drop' (styles in useDropZone.css)
  *
  * @param options Configuration options
  * @param options.targetRef Ref to the DOM element to track
@@ -32,8 +32,8 @@ export interface DropZoneFileDropData {
  * @param options.enabled Whether the drop zone is active (default: true)
  * @param options.zoneId Optional custom zone ID (auto-generated if not provided)
  * @param options.classes Optional CSS class names for different states
- * @param options.classes.hover CSS class for hover state (default: 'drop-zone-hover')
- * @param options.classes.drop CSS class for drag-over state (default: 'drop-zone-drop')
+ * @param options.classes.hover CSS class for hover state (default: 'use-drop-zone-hover')
+ * @param options.classes.drop CSS class for drag-over state (default: 'use-drop-zone-drop')
  *
  * @example
  * const uploadRef = useRef<HTMLDivElement>(null);
@@ -76,8 +76,8 @@ export function useDropZone(options: {
 
   // Store class names as stable references (they never change)
   const classesRef = useRef({
-    hover: classes?.hover ?? 'drop-zone-hover',
-    drop: classes?.drop ?? 'drop-zone-drop'
+    hover: classes?.hover ?? 'use-drop-zone-hover',
+    drop: classes?.drop ?? 'use-drop-zone-drop'
   });
 
   // Store latest callback to avoid re-subscribing

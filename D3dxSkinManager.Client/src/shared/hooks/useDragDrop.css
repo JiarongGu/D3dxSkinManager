@@ -1,4 +1,6 @@
-.drag-over-node {
+/* useDragDrop hook - Drag and drop visual feedback */
+
+.use-drag-drop-over-node {
   background-color: var(--color-primary-bg-hover) !important;
   opacity: 0.8;
   border: 2px solid var(--color-primary) !important;
@@ -6,7 +8,7 @@
 }
 
 /* Gap drop indicator - shows line in the middle of the gap between nodes */
-.drag-over-gap::before {
+.use-drag-drop-over-gap::before {
   content: '';
   position: absolute;
   left: 0;
@@ -19,7 +21,7 @@
   top: -5px; /* Center in 8px gap (4px up from bottom edge) */
 }
 
-.drag-over-gap[data-gap-position="bottom"]::before {
+.use-drag-drop-over-gap[data-gap-position="bottom"]::before {
   top: auto;
   bottom: -5px; /* Center in 8px gap (4px up from top edge of next node) */
 }

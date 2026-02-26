@@ -31,9 +31,9 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
   // Tooltip content for age rating
   const ageRatingTooltip = (
     <div>
-      <div className="metadata-age-rating-tooltip"><strong>{t('mods.edit.ageRating.guidelines')}</strong></div>
+      <div className="metadata-section-age-rating-tooltip"><strong>{t('mods.edit.ageRating.guidelines')}</strong></div>
       {ageRatingOptions.map(option => (
-        <div key={option.value} className="metadata-age-rating-option">
+        <div key={option.value} className="metadata-section-age-rating-option">
           <strong>{option.label}:</strong> {option.description}
         </div>
       ))}

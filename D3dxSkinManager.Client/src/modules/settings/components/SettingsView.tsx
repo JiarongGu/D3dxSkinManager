@@ -284,8 +284,8 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className={"container"}>
-      <div className={"content-wrapper"}>
+    <div className={"settings-view-container"}>
+      <div className={"settings-view-content-wrapper"}>
         <Form
           form={form}
           layout="vertical"
@@ -302,9 +302,9 @@ export const SettingsView: React.FC = () => {
                 <SettingOutlined /> {t("settings.global.title")}
               </>
             }
-            className={"card-margin"}
+            className={"settings-view-card-margin"}
           >
-            <div className={"form-grid"}>
+            <div className={"settings-view-form-grid"}>
               <Form.Item
                 label={t("settings.global.theme.label")}
                 name="theme"
@@ -369,7 +369,7 @@ export const SettingsView: React.FC = () => {
 
           <CompactCard
             title={t("settings.profile.title")}
-            className={"card-margin"}
+            className={"settings-view-card-margin"}
           >
             <Form.Item
               label={t("settings.profile.modCache.directory.label")}
@@ -417,7 +417,7 @@ export const SettingsView: React.FC = () => {
               </Space.Compact>
             </Form.Item>
 
-            <Form.Item>
+            <Form.Item style={{ marginTop: "16px" }}>
               <Space style={{ width: "100%", justifyContent: "flex-end" }}>
                 <CompactDangerButton
                   onClick={handleResetProfileConfig}

@@ -1,5 +1,5 @@
-/* TreeNode Title Container */
-.tree-node-title {
+/* Category Tree Node - Title Container */
+.category-tree-node-title {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -8,8 +8,8 @@
   width: 100%;
 }
 
-/* TreeNode Thumbnail */
-.tree-node-thumbnail {
+/* Category Tree Node - Thumbnail */
+.category-tree-node-thumbnail {
   width: 36px;
   height: 36px;
   object-fit: cover;
@@ -17,8 +17,8 @@
   flex-shrink: 0;
 }
 
-/* TreeNode Icon Container */
-.tree-node-icon-container {
+/* Category Tree Node - Icon Container */
+.category-tree-node-icon-container {
   font-size: 16px;
   width: 36px;
   height: 36px;
@@ -28,13 +28,13 @@
   flex-shrink: 0;
 }
 
-/* TreeNode Name */
-.tree-node-name {
+/* Category Tree Node - Name */
+.category-tree-node-name {
   flex: 1;
 }
 
-/* TreeNode Mod Count */
-.tree-node-mod-count {
+/* Category Tree Node - Mod Count */
+.category-tree-node-mod-count {
   font-size: 12px;
   color: #8c8c8c;
   margin-left: 8px;

@@ -21,6 +21,14 @@
   height: 100%;
 }
 
+[data-theme='dark'] .mod-preview-empty {
+  background: var(--color-bg-container);
+}
+
+[data-theme='light'] .mod-preview-empty {
+  background: #e6f4ff;
+}
+
 /* Header Section */
 .mod-preview-header {
   padding: 16px;

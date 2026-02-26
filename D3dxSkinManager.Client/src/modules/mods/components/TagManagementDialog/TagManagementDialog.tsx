@@ -256,7 +256,7 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
         >
           <AntTag color={tag.color} className="tag-chip">
             {tag.name}
-            {isNew && <span className="tag-new-badge"> (new)</span>}
+            {isNew && <span className="tag-management-new-badge"> (new)</span>}
           </AntTag>
         </div>
 
@@ -328,11 +328,11 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
         <div className="tag-management-list">
           {/* Newly created tags section */}
           {filteredNewTags.length > 0 && (
-            <div className="tag-section">
-              <div className="tag-section-header">
+            <div className="tag-management-section">
+              <div className="tag-management-section-header">
                 <PlusOutlined /> Newly Created Tags
               </div>
-              <div className="tag-section-content">
+              <div className="tag-management-section-content">
                 {filteredNewTags.map((tag) => renderTagItem(tag, true))}
               </div>
             </div>
@@ -340,11 +340,11 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
 
           {/* Existing tags section */}
           {filteredExistingTags.length > 0 && (
-            <div className="tag-section">
+            <div className="tag-management-section">
               {filteredNewTags.length > 0 && (
-                <div className="tag-section-header">Existing Tags</div>
+                <div className="tag-management-section-header">Existing Tags</div>
               )}
-              <div className="tag-section-content">
+              <div className="tag-management-section-content">
                 {filteredExistingTags.map((tag) => renderTagItem(tag))}
               </div>
             </div>

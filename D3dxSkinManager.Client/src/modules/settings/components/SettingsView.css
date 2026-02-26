@@ -1,25 +1,25 @@
 /* SettingsView Component Styles */
 
-.container {
+.settings-view-container {
   height: 100%;
   overflow: auto;
   padding: 24px;
 }
 
-.content-wrapper {
+.settings-view-content-wrapper {
   margin: 0 auto;
 }
 
-.content-wrapper .ant-form-item {
+.settings-view-content-wrapper .ant-form-item {
   margin-bottom: 8px !important;
 }
 
-.form-grid {
+.settings-view-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
-.card-margin {
+.settings-view-card-margin {
   margin-bottom: 24px;
 }

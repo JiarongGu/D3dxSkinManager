@@ -23,7 +23,7 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
     {
       eventType: 'application/mod-sha',
       allow: 'node', // Allow dropping into the unclassified area
-      nodeSelector: '.unclassified-item', // Target the entire item
+      nodeSelector: '.category-panel-unclassified-item', // Target the entire item
       onDrop: ({ data }) => {
         if (onModDrop) {
           onModDrop(data);
@@ -36,7 +36,7 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
   return (
     <div
       ref={(el) => containerRef(el || undefined)}
-      className={classNames('unclassified-item', { selected: isSelected })}
+      className={classNames('category-panel-unclassified-item', { 'category-panel-unclassified-item--selected': isSelected })}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -46,14 +46,14 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
         }
       }}
     >
-      <div className="unclassified-item-content">
-        <AppstoreOutlined className="unclassified-item-icon" />
-        <span className="unclassified-item-text">Unclassified</span>
+      <div className="category-panel-unclassified-item-content">
+        <AppstoreOutlined className="category-panel-unclassified-item-icon" />
+        <span className="category-panel-unclassified-item-text">Unclassified</span>
       </div>
       <Badge
         count={count}
         showZero
-        className="unclassified-item-badge"
+        className="category-panel-unclassified-item-badge"
       />
     </div>
   );

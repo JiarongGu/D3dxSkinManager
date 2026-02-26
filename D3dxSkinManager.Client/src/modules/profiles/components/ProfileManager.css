@@ -1,33 +1,33 @@
-/* ProfileManager Component Styles */
+/* ProfileManager Component Styles - BEM Naming Convention */
 
-.container {
+.profile-manager-container {
   padding: 0;
 }
 
-.verticalSpace {
+.profile-manager-vertical-space {
   width: 100%;
 }
 
-.profileListContainer {
+.profile-manager-list-container {
   /* Flex container managed by Ant Design Flex component */
 }
 
-.profileItem {
+.profile-manager-item {
   border-left-width: 4px;
   border-left-style: solid;
   border-bottom: 1px solid var(--color-border);
   padding: 12px 8px 12px 16px;
 }
 
-.profileItemActive {
+.profile-manager-item--active {
   border-left-color: #52c41a;
 }
 
-.profileItemInactive {
+.profile-manager-item--inactive {
   border-left-color: #d9d9d9;
 }
 
-.profileAvatar {
+.profile-manager-avatar {
   width: 40px;
   height: 40px;
   border-radius: 8px;
@@ -40,28 +40,28 @@
   flex-shrink: 0;
 }
 
-.profileContent {
+.profile-manager-content {
   flex: 1;
 }
 
-.profileName {
+.profile-manager-name {
   font-weight: 500;
   font-size: 16px;
 }
 
-.profileDescription {
+.profile-manager-description {
   color: #595959;
 }
 
-.profileStats {
+.profile-manager-stats {
   font-size: 12px;
   color: #8c8c8c;
 }
 
-.profileActions {
+.profile-manager-actions {
   /* Space component handles layout */
 }
 
-.fullWidthInput {
+.profile-manager-full-width-input {
   width: 100%;
 }

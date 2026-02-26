@@ -40,11 +40,11 @@ export interface DragDropHandler {
 
   /**
    * Custom CSS class names for drag states
-   * If not provided, defaults to 'drag-over-node' and 'drag-over-gap'
+   * If not provided, defaults to 'use-drag-drop-over-node' and 'use-drag-drop-over-gap'
    */
   classes?: {
-    node?: string;  // Class for "drop into" state (default: 'drag-over-node')
-    gap?: string;   // Class for "drop between" state (default: 'drag-over-gap')
+    node?: string;  // Class for "drop into" state (default: 'use-drag-drop-over-node')
+    gap?: string;   // Class for "drop between" state (default: 'use-drag-drop-over-gap')
   };
 
   /**
@@ -239,14 +239,14 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
             const allow = handler.allow ?? 'all';
 
             // Get custom or default class names
-            const nodeClass = handler.classes?.node ?? 'drag-over-node';
-            const gapClass = handler.classes?.gap ?? 'drag-over-gap';
+            const nodeClass = handler.classes?.node ?? 'use-drag-drop-over-node';
+            const gapClass = handler.classes?.gap ?? 'use-drag-drop-over-gap';
 
             // Clean up all previous drag styling from all nodes in container
             // This ensures only the current target has styling
             const allNodes = container?.querySelectorAll(handler.nodeSelector);
             allNodes?.forEach(node => {
-              node.classList.remove('drag-over-node', 'drag-over-gap', nodeClass, gapClass);
+              node.classList.remove('use-drag-drop-over-node', 'use-drag-drop-over-gap', nodeClass, gapClass);
               node.removeAttribute('data-gap-position');
             });
 
@@ -299,9 +299,9 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
             const relatedTarget = e.relatedTarget as HTMLElement;
             if (!relatedTarget || !target.contains(relatedTarget)) {
               // Remove both default and custom classes
-              const nodeClass = handler.classes?.node ?? 'drag-over-node';
-              const gapClass = handler.classes?.gap ?? 'drag-over-gap';
-              target.classList.remove('drag-over-node', 'drag-over-gap', nodeClass, gapClass);
+              const nodeClass = handler.classes?.node ?? 'use-drag-drop-over-node';
+              const gapClass = handler.classes?.gap ?? 'use-drag-drop-over-gap';
+              target.classList.remove('use-drag-drop-over-node', 'use-drag-drop-over-gap', nodeClass, gapClass);
               target.removeAttribute('data-gap-position');
             }
           }
@@ -418,9 +418,9 @@ export function useDragDrop<T extends HTMLElement = HTMLElement>(
               }
 
               // Clean up visual feedback (both default and custom classes)
-              const nodeClass = handler.classes?.node ?? 'drag-over-node';
-              const gapClass = handler.classes?.gap ?? 'drag-over-gap';
-              target.classList.remove('drag-over-node', 'drag-over-gap', nodeClass, gapClass);
+              const nodeClass = handler.classes?.node ?? 'use-drag-drop-over-node';
+              const gapClass = handler.classes?.gap ?? 'use-drag-drop-over-gap';
+              target.classList.remove('use-drag-drop-over-node', 'use-drag-drop-over-gap', nodeClass, gapClass);
               target.removeAttribute('data-gap-position');
             }
           }

@@ -32,13 +32,13 @@
 }
 
 /* Tag sections */
-.tag-section {
+.tag-management-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.tag-section-header {
+.tag-management-section-header {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -50,7 +50,7 @@
   gap: 6px;
 }
 
-.tag-section-content {
+.tag-management-section-content {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 6px;
@@ -125,7 +125,7 @@
   user-select: none;
 }
 
-.tag-new-badge {
+.tag-management-new-badge {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
