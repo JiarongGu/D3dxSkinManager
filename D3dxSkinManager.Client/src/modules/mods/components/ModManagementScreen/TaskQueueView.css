@@ -1,142 +1,195 @@
-/* Task Queue Container */
-.task-queue-container {
+/* ========== TaskQueueView - Import Queue (Compact Table/List Style) ========== */
+
+/* Main Container */
+.task-queue-view {
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: 16px;
+  gap: 12px;
   padding: 16px;
+  background: var(--color-bg-container);
 }
 
-.task-queue-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 48px;
+/* Stats Bar - Compact inline design */
+.task-queue-status-bar {
+  padding: 8px 16px;
+  background: var(--color-bg-elevated);
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
 }
 
-/* Toolbar */
+.task-queue-status-bar span {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.task-queue-status-bar strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-left: 4px;
+}
+
+/* Toolbar - Compact button layout */
 .task-queue-toolbar {
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  background: var(--color-bg-elevated);
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
 }
 
-/* Task List */
+/* Task List - Table style */
 .task-queue-list {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  background: var(--card-background);
+  padding-right: 4px;
 }
 
+/* Custom Scrollbar */
+.task-queue-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.task-queue-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.task-queue-list::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+.task-queue-list::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Task Item - Compact list row */
 .task-queue-list .ant-list-item {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background-color 0.2s;
+  padding: 0 !important;
+  border: none !important;
+  margin-bottom: 2px !important;
 }
 
-.task-queue-list .ant-list-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+.task-item {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: var(--color-bg-elevated);
+  transition: all 0.15s ease;
 }
 
-.task-queue-item-processing {
-  background: rgba(24, 144, 255, 0.05) !important;
-  border-left: 3px solid #1890ff !important;
+.task-item:hover {
+  border-color: var(--color-border);
+  background: var(--color-bg-container);
 }
 
-/* Task Item Content */
-.task-queue-item-content {
+/* Task Item States */
+.task-item-processing {
+  background: var(--color-primary-bg) !important;
+  border-left: 3px solid var(--color-primary) !important;
+  padding-left: 9px !important;
+}
+
+.task-item-completed {
+  opacity: 0.65;
+}
+
+.task-item-failed {
+  background: rgba(255, 77, 79, 0.05) !important;
+  border-left: 3px solid var(--color-error) !important;
+  padding-left: 9px !important;
+}
+
+/* Task Content Layout - Horizontal table row */
+.task-item-content {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   width: 100%;
 }
 
-.task-queue-item-icon {
-  font-size: 20px;
-  margin-top: 4px;
-}
-
-.task-queue-icon-pending {
-  color: #8c8c8c;
-}
-
-.task-queue-icon-processing {
-  color: #1890ff;
-}
-
-.task-queue-icon-success {
-  color: #52c41a;
-}
-
-.task-queue-icon-error {
-  color: #ff4d4f;
-}
-
-.task-queue-icon-cancelled {
-  color: #8c8c8c;
-}
-
-/* Task Info */
-.task-queue-item-info {
+.task-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.task-queue-item-title {
+.task-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
 }
 
-.task-queue-item-filename {
+.task-header .anticon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.task-name {
   font-weight: 500;
-  font-size: 14px;
-  color: var(--text-primary);
+  font-size: 13px;
+  color: var(--color-text);
+  line-height: 1.4;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.task-queue-item-metadata {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 4px;
+.task-message {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.task-queue-item-message {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  font-style: italic;
+.task-error {
+  font-size: 11px;
+  color: var(--color-error);
+  line-height: 1.4;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Progress bar - inline compact style */
+.task-info .ant-progress {
   margin-top: 4px;
 }
 
-.task-queue-item-progress {
-  margin-top: 8px;
-  max-width: 400px;
+.task-info .ant-progress-line {
+  font-size: 11px;
 }
 
-/* Dark theme adjustments */
-[data-theme="dark"] .task-queue-toolbar {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+/* Empty State */
+.task-queue-list .ant-empty {
+  margin: 40px 0;
 }
 
-[data-theme="dark"] .task-queue-list {
-  border-color: rgba(255, 255, 255, 0.1);
+/* Light Theme Adjustments */
+[data-theme="light"] .task-queue-view {
+  background: #f5f5f5;
 }
 
-/* Light theme adjustments */
-[data-theme="light"] .task-queue-toolbar {
-  border-bottom-color: rgba(0, 0, 0, 0.1);
+[data-theme="light"] .task-item {
+  background: #fafafa;
 }
 
-[data-theme="light"] .task-queue-list {
-  border-color: rgba(0, 0, 0, 0.1);
+[data-theme="light"] .task-item:hover {
+  background: #ffffff;
+  border-color: #d9d9d9;
 }
 
-[data-theme="light"] .task-queue-list .ant-list-item:hover {
-  background: rgba(0, 0, 0, 0.02);
+[data-theme="light"] .task-item-processing {
+  background: #e6f7ff !important;
 }
 
-[data-theme="light"] .task-queue-item-processing {
-  background: rgba(24, 144, 255, 0.08) !important;
+[data-theme="light"] .task-item-failed {
+  background: #fff1f0 !important;
 }
