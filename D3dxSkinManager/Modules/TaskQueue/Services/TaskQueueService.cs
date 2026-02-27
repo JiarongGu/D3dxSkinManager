@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.TaskQueue.Models;
@@ -79,7 +80,7 @@ public class TaskQueueService : ITaskQueueService
 {
     private readonly ConcurrentDictionary<string, TaskInfo> _tasks;
     private readonly SemaphoreSlim _processorLock;
-    private readonly IEventEmitter _eventEmitter;
+    private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly ITaskChainRepository _chainRepository;
@@ -95,7 +96,7 @@ public class TaskQueueService : ITaskQueueService
     };
 
     public TaskQueueService(
-        IEventEmitter eventEmitter,
+        IProfileEventBus eventBus,
         ILogHelper logger,
         IServiceProvider serviceProvider,
         ITaskChainRepository chainRepository,
@@ -104,7 +105,7 @@ public class TaskQueueService : ITaskQueueService
     {
         _tasks = new ConcurrentDictionary<string, TaskInfo>();
         _processorLock = new SemaphoreSlim(1, 1);
-        _eventEmitter = eventEmitter;
+        _eventBus = eventBus;
         _logger = logger;
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _chainRepository = chainRepository ?? throw new ArgumentNullException(nameof(chainRepository));
@@ -140,7 +141,7 @@ public class TaskQueueService : ITaskQueueService
         _logger.Info($"Task added: {taskId} (Type: {taskType}, Chain: {task.TaskChainId}, Node: {nodeId})", "TaskQueueService");
 
         // Emit TASK_ADDED event
-        await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.ADDED, task).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.ADDED, task).ConfigureAwait(false);
 
         return taskId;
     }
@@ -190,12 +191,12 @@ public class TaskQueueService : ITaskQueueService
             _logger.Info($"Processing task: {task.Id}", "TaskQueueService");
 
             // Emit TASK_STARTED event
-            await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.STARTED, task).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.STARTED, task).ConfigureAwait(false);
 
             // Create progress reporter that emits events
             var progressReporter = new EventProgressReporter(
                 task.Id,
-                _eventEmitter,
+                _eventBus,
                 _logger,
                 (progress, message) =>
                 {
@@ -233,13 +234,13 @@ public class TaskQueueService : ITaskQueueService
                     _logger.Info($"Chain paused - awaiting user action: {chainContext.UserActionDescription}", "TaskQueueService");
 
                     // Emit AWAITING_CONFIRMATION event for frontend to show modal
-                    await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.AWAITING_CONFIRMATION, task).ConfigureAwait(false);
+                    await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.AWAITING_CONFIRMATION, task).ConfigureAwait(false);
                 }
                 else if (!string.IsNullOrEmpty(chainContext.NextTaskType))
                 {
                     // Mark as completed and auto-continue to next phase
                     task.Status = Models.TaskStatus.Completed;
-                    await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, task).ConfigureAwait(false);
+                    await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, task).ConfigureAwait(false);
 
                     await CreateNextChainTaskAsync(task, chainContext, output).ConfigureAwait(false);
                 }
@@ -248,7 +249,7 @@ public class TaskQueueService : ITaskQueueService
                     // Final task in chain - mark completed
                     task.Status = Models.TaskStatus.Completed;
                     _logger.Info($"Chain completed: {task.CorrelationId}", "TaskQueueService");
-                    await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, task).ConfigureAwait(false);
+                    await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, task).ConfigureAwait(false);
                 }
             }
             else
@@ -256,7 +257,7 @@ public class TaskQueueService : ITaskQueueService
             {
                 // Standalone task (no chain) - mark completed
                 task.Status = Models.TaskStatus.Completed;
-                await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, task).ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, task).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -266,7 +267,7 @@ public class TaskQueueService : ITaskQueueService
 
             _logger.Warn($"Task cancelled: {task.Id}", "TaskQueueService");
 
-            await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.CANCELLED, task).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.CANCELLED, task).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -276,7 +277,7 @@ public class TaskQueueService : ITaskQueueService
 
             _logger.Error($"Task failed: {task.Id} - {ex.Message}", "TaskQueueService", ex);
 
-            await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.FAILED, task).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.FAILED, task).ConfigureAwait(false);
         }
         finally
         {
@@ -412,7 +413,7 @@ public class TaskQueueService : ITaskQueueService
             pausedTask.Status = TaskStatus.Completed;
             pausedTask.CompletedAt = DateTime.UtcNow;
             await _taskRepository.UpdateAsync(pausedTask).ConfigureAwait(false);
-            await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, pausedTask).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, pausedTask).ConfigureAwait(false);
 
             return pausedTask.Id; // Return the last task ID
         }
@@ -437,7 +438,7 @@ public class TaskQueueService : ITaskQueueService
         pausedTask.Status = TaskStatus.Completed;
         pausedTask.CompletedAt = DateTime.UtcNow;
         await _taskRepository.UpdateAsync(pausedTask).ConfigureAwait(false);
-        await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, pausedTask).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, pausedTask).ConfigureAwait(false);
 
         _logger.Info($"Creating next task in chain: {nextTaskType} (Node: {nextNode.NodeId})", "TaskQueueService");
 
@@ -564,7 +565,7 @@ public class TaskQueueService : ITaskQueueService
         if (_tasks.TryRemove(taskId, out var task))
         {
             _logger.Info($"Task removed: {taskId}", "TaskQueueService");
-            await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.REMOVED, task).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.REMOVED, task).ConfigureAwait(false);
         }
     }
 

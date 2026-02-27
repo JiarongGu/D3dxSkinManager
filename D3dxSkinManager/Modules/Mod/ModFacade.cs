@@ -1,4 +1,5 @@
-﻿using D3dxSkinManager.Modules.Context.Services;
+﻿using D3dxSkinManager.Modules.Context;
+using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -72,7 +73,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly ITagService _tagService;
     private readonly IModKeybindingService _keybindingService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly IEventEmitter _eventEmitter;
+    private readonly IProfileEventBus _eventBus;
     private readonly IImageService _imageService;
 
     public ModFacade(
@@ -84,7 +85,7 @@ public class ModFacade : BaseFacade, IModFacade
         ITagService tagService,
         IModKeybindingService keybindingService,
         IPayloadHelper payloadHelper,
-        IEventEmitter eventEmitter,
+        IProfileEventBus eventBus,
         IImageService imageService,
         ILogHelper logger) : base(logger)
     {
@@ -96,7 +97,7 @@ public class ModFacade : BaseFacade, IModFacade
         _tagService = tagService;
         _keybindingService = keybindingService;
         _payloadHelper = payloadHelper;
-        _eventEmitter = eventEmitter;
+        _eventBus = eventBus;
         _imageService = imageService;
     }
 
@@ -221,7 +222,7 @@ public class ModFacade : BaseFacade, IModFacade
                         {
                             // Track successfully unloaded mods for efficient frontend update
                             unloadedModShas.Add(modToUnload.SHA);
-                            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Sha = modToUnload.SHA }).ConfigureAwait(false);
+                            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Sha = modToUnload.SHA }).ConfigureAwait(false);
                         }
                         else
                         {
@@ -249,14 +250,14 @@ public class ModFacade : BaseFacade, IModFacade
 
             if (importedPreviews > 0) 
             {
-                await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { 
+                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { 
                     Sha = sha
                 }).ConfigureAwait(false);
             }
 
             // Note: IsLoaded is determined dynamically from file system, not stored in database
             // No need to call SetLoadedStateAsync (it's a no-op)
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha }).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha }).ConfigureAwait(false);
 
             return new ModLoadResult
             {
@@ -284,7 +285,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         // Note: IsLoaded is determined dynamically from file system, not stored in database
         // No need to call SetLoadedStateAsync (it's a no-op)
-        await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Sha = sha }).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Sha = sha }).ConfigureAwait(false);
 
         return true;
     }
@@ -300,7 +301,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (mod != null)
         {
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.IMPORTED, mod).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.IMPORTED, mod).ConfigureAwait(false);
         }
 
         return mod;
@@ -317,7 +318,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Sha = sha, Mod = mod }).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Sha = sha, Mod = mod }).ConfigureAwait(false);
         }
 
         return success;
@@ -363,7 +364,7 @@ public class ModFacade : BaseFacade, IModFacade
         if (success)
         {
             var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.METADATA_UPDATED, new { sha, mod }).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.METADATA_UPDATED, new { sha, mod }).ConfigureAwait(false);
         }
 
         return success;
@@ -378,7 +379,7 @@ public class ModFacade : BaseFacade, IModFacade
             // Re-fetch the mod to get the updated IsLoaded state from file system
             var updatedMod = await GetModByIdAsync(sha).ConfigureAwait(false);
 
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, new { sha, category, mod = updatedMod }).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, new { sha, category, mod = updatedMod }).ConfigureAwait(false);
         }
 
         return success;
@@ -394,7 +395,7 @@ public class ModFacade : BaseFacade, IModFacade
             var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
             if (mod != null)
             {
-                await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.METADATA_UPDATED, new { sha, mod }).ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.METADATA_UPDATED, new { sha, mod }).ConfigureAwait(false);
             }
         }
 
@@ -414,7 +415,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED,
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED,
                 new { sha, imagePath }).ConfigureAwait(false);
         }
 
@@ -443,7 +444,7 @@ public class ModFacade : BaseFacade, IModFacade
             var previews = await _imageService.GetPreviewPathsAsync(sha).ConfigureAwait(false);
             var latestPreview = previews.LastOrDefault();
 
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED,
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED,
                 new { sha, imagePath = latestPreview }).ConfigureAwait(false);
         }
 
@@ -470,7 +471,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.THUMBNAIL_UPDATED,
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.THUMBNAIL_UPDATED,
                 new { sha, previewPath }).ConfigureAwait(false);
         }
 
@@ -490,7 +491,7 @@ public class ModFacade : BaseFacade, IModFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_DELETED,
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_DELETED,
                 new { sha, previewPath }).ConfigureAwait(false);
         }
 

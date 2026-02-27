@@ -6,6 +6,7 @@ using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Mod;
+using D3dxSkinManager.Modules.Context;
 
 namespace D3dxSkinManager.Modules.Migration;
 
@@ -34,21 +35,21 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
     private readonly IModFacade _modFacade;
     private readonly ICategoryService _categoryService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly IEventEmitter _eventEmitter;
+    private readonly IProfileEventBus _eventBus;
 
     public MigrationFacade(
         IMigrationService migrationService,
         IModFacade modFacade,
         ICategoryService categoryService,
         IPayloadHelper payloadHelper,
-        IEventEmitter eventEmitter,
+        IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
     {
         _migrationService = migrationService ?? throw new ArgumentNullException(nameof(migrationService));
         _modFacade = modFacade ?? throw new ArgumentNullException(nameof(modFacade));
         _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
-        _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
+        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
 
     protected override async Task<object?> RouteMessageAsync(IpcRequest request)
@@ -73,13 +74,13 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
 
         // Emit event so frontend knows to reload Category tree
         // Note: Cache will automatically invalidate and rebuild on next request
-        await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORIES_UPDATED).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORIES_UPDATED).ConfigureAwait(false);
 
         // Emit migration completed event
-        await _eventEmitter.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, result).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, result).ConfigureAwait(false);
 
         // Also emit ModsRefreshed to trigger mod list reload
-        await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.REFRESHED).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.REFRESHED).ConfigureAwait(false);
 
         return result;
     }

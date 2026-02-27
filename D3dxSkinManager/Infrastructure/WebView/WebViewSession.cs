@@ -74,8 +74,16 @@ namespace D3dxSkinManager.Infrastructure.WebView
         {
             try
             {
-                // If these types have Dispose/Unsubscribe methods, call them here.
-                // e.g. EventBridge.Dispose(); DropZone.Dispose(); Dispatcher.Dispose(); Ipc.Dispose();
+                _logger.Info($"[{SessionId}] Disposing WebView session...", "Host");
+
+                // Dispose event bridge (unsubscribe from event bus)
+                EventBridge?.Dispose();
+
+                // Note: DropZone and Ipc don't implement IDisposable (lightweight wrappers)
+                // Note: WebView2 is owned by the form, so we don't dispose it here
+                // Note: Dispatcher doesn't have Dispose
+
+                _logger.Info($"[{SessionId}] WebView session disposed", "Host");
             }
             catch (Exception ex)
             {

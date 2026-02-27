@@ -4,6 +4,7 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Category.Models;
 using D3dxSkinManager.Modules.Category.Services;
+using D3dxSkinManager.Modules.Context;
 
 namespace D3dxSkinManager.Modules.Category;
 
@@ -28,17 +29,17 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
 
     private readonly ICategoryService _categoryService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly IEventEmitter _eventEmitter;
+    private readonly IProfileEventBus _eventBus;
 
     public CategoryFacade(
         ICategoryService categoryService,
         IPayloadHelper payloadHelper,
-        IEventEmitter eventEmitter,
+        IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
     {
         _categoryService = categoryService;
         _payloadHelper = payloadHelper;
-        _eventEmitter = eventEmitter;
+        _eventBus = eventBus;
     }
 
     protected override async Task<object?> RouteMessageAsync(IpcRequest request)
@@ -106,7 +107,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
 
         if (category != null)
         {
-            await _eventEmitter.EmitAsync(
+            await _eventBus.EmitAsync(
                 ModuleNames.CATEGORY,
                 "CATEGORIES_UPDATED",
                 new { categoryId = category.Id, name, parentId, created = true }
@@ -145,7 +146,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(
+            await _eventBus.EmitAsync(
                 ModuleNames.CATEGORY,
                 "CATEGORIES_UPDATED",
                 new { categoryId, name, description, thumbnail, matchMode, matchPattern }
@@ -166,7 +167,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(
+            await _eventBus.EmitAsync(
                 ModuleNames.CATEGORY,
                 "CATEGORIES_UPDATED",
                 new { categoryId, deleted = true }
@@ -193,7 +194,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(
+            await _eventBus.EmitAsync(
                 ModuleNames.CATEGORY,
                 "CATEGORIES_UPDATED",
                 new { categoryId, newParentId, dropPosition }

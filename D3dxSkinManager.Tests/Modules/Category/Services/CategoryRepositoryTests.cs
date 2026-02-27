@@ -1,63 +1,32 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
-using Xunit;
 using D3dxSkinManager.Modules.Category.Models;
 using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Context.Services;
 
-namespace D3dxSkinManager.Tests.Modules.Category;
+namespace D3dxSkinManager.Tests.Modules.Category.Services;
 
 /// <summary>
 /// Integration tests for CategoryRepository
-/// Tests SQLite database operations
+/// Tests SQLite database operations using in-memory database
+/// No file system dependencies - each test gets a fresh in-memory database
 /// </summary>
-public class CategoryRepositoryTests : IDisposable
+public class CategoryRepositoryTests
 {
-    private readonly string _testDbPath;
     private readonly CategoryRepository _repository;
     private readonly Mock<IProfilePathService> _mockProfilePathService;
 
     public CategoryRepositoryTests()
     {
-        // Create a unique test database for each test run
-        _testDbPath = Path.Combine(Path.GetTempPath(), $"test_categories_{Guid.NewGuid()}.db");
-
+        // Use shared in-memory SQLite database - no file system access!
+        // Using URI filename with cache=shared allows multiple connections to share the same in-memory database
+        // This is required because CategoryRepository opens/closes connections for each operation
+        var dbName = $"testdb_{Guid.NewGuid():N}";
         _mockProfilePathService = new Mock<IProfilePathService>();
-        _mockProfilePathService.Setup(p => p.ProfileDatabasePath).Returns(_testDbPath);
+        // CategoryRepository will create connection string as: Data Source=file:testdb_xxx?mode=memory&cache=shared
+        _mockProfilePathService.Setup(p => p.ProfileDatabasePath).Returns($"file:{dbName}?mode=memory&cache=shared");
 
         _repository = new CategoryRepository(_mockProfilePathService.Object);
-    }
-
-    public void Dispose()
-    {
-        // Clean up test database
-        // Use GC to force connection cleanup before deleting
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-
-        // Add retry logic for file deletion
-        int retries = 10;
-        while (retries > 0 && File.Exists(_testDbPath))
-        {
-            try
-            {
-                File.Delete(_testDbPath);
-                break;
-            }
-            catch (IOException)
-            {
-                retries--;
-                if (retries > 0)
-                {
-                    System.Threading.Thread.Sleep(100);
-                }
-            }
-        }
     }
 
     [Fact]

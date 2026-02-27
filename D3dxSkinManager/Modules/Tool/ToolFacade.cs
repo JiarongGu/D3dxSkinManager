@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mod.Services;
+using D3dxSkinManager.Modules.Context;
 
 namespace D3dxSkinManager.Modules.Tool;
 
@@ -38,19 +39,19 @@ public class ToolFacade : BaseFacade, IToolFacade
     private readonly IModFileService _modFileService;
     private readonly IStartupValidationService _validationService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly IEventEmitter _eventEmitter;
+    private readonly IProfileEventBus _eventBus;
 
     public ToolFacade(
         IModFileService modFileService,
         IStartupValidationService validationService,
         IPayloadHelper payloadHelper,
-        IEventEmitter eventEmitter,
+        IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
     {
         _modFileService = modFileService ?? throw new ArgumentNullException(nameof(modFileService));
         _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
-        _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
+        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
 
     protected override async Task<object?> RouteMessageAsync(IpcRequest request)
@@ -80,7 +81,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     {
         var deletedCount = await _modFileService.CleanCacheAsync(category).ConfigureAwait(false);
 
-        await _eventEmitter.EmitAsync(
+        await _eventBus.EmitAsync(
             ModuleNames.TOOL,
             ToolEvents.CACHE_CLEANED,
             new { category = category.ToString(), deletedCount });
@@ -94,7 +95,7 @@ public class ToolFacade : BaseFacade, IToolFacade
 
         if (success)
         {
-            await _eventEmitter.EmitAsync(
+            await _eventBus.EmitAsync(
                 ModuleNames.TOOL,
                 ToolEvents.CACHE_ITEM_DELETED,
                 new { sha }).ConfigureAwait(false);

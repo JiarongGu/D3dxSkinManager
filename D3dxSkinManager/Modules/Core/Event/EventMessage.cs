@@ -24,6 +24,13 @@
         public string Type { get; set; } = string.Empty;
 
         /// <summary>
+        /// Optional ProfileId for profile-scoped events
+        /// Null/empty for global events (e.g., APPLICATION_STARTED)
+        /// Set for profile-specific events (e.g., MOD_LOADED in specific profile)
+        /// </summary>
+        public string? ProfileId { get; set; }
+
+        /// <summary>
         /// Event payload data
         /// </summary>
         public object? Payload { get; set; }

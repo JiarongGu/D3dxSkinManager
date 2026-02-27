@@ -5,7 +5,6 @@ using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Profiles.Services;
-using D3dxSkinManager.Modules.TaskQueue;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 

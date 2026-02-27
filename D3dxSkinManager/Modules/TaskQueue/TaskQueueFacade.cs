@@ -367,7 +367,7 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
     {
         // For now, return empty list since chains are created dynamically
         // In the future, we might want to return predefined chain templates
-        var allChains = PredefinedChains.GetAllChains().Select(kvp => new
+        var allChains = PredefinedTaskChains.GetAllChains().Select(kvp => new
         {
             chainType = kvp.Key,
             displayName = GetChainDisplayName(kvp.Key),

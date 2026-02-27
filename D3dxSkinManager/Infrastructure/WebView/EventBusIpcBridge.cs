@@ -7,12 +7,13 @@ namespace D3dxSkinManager.Infrastructure.WebView;
 /// Bridge between backend EventBus and frontend via IPC
 /// Subscribes to backend events and forwards them to the frontend
 /// </summary>
-public class EventBusIpcBridge
+public class EventBusIpcBridge : IDisposable
 {
     private readonly IEventBus _eventBus;
     private readonly IpcCommunicationHandler _ipcHandler;
     private readonly ILogHelper _logger;
     private readonly List<string> _registrationIds = new();
+    private bool _disposed;
 
     public EventBusIpcBridge(
         IEventBus eventBus,
@@ -32,8 +33,8 @@ public class EventBusIpcBridge
     {
         _logger.Info("Initializing EventBus IPC Bridge - forwarding all events", "EventBridge");
 
-        // Subscribe to ALL events with wildcard pattern (all modules, all types)
-        var registrationId = _eventBus.RegisterHandler("*", "*", async (message) =>
+        // Subscribe to ALL events (all modules, all types, all profiles)
+        var registrationId = _eventBus.RegisterHandlerForAll(async (message) =>
         {
             await ForwardEventToFrontend(message);
         });
@@ -73,9 +74,11 @@ public class EventBusIpcBridge
     /// <summary>
     /// Clean up subscriptions
     /// </summary>
-    public void Shutdown()
+    public void Dispose()
     {
-        _logger.Info("Shutting down EventBus IPC Bridge", "EventBridge");
+        if (_disposed) return;
+
+        _logger.Info("Disposing EventBus IPC Bridge", "EventBridge");
 
         foreach (var registrationId in _registrationIds)
         {
@@ -83,5 +86,6 @@ public class EventBusIpcBridge
         }
 
         _registrationIds.Clear();
+        _disposed = true;
     }
 }

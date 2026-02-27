@@ -5,7 +5,7 @@ namespace D3dxSkinManager.Modules.TaskQueue.Configuration;
 /// <summary>
 /// Predefined chain configurations for common workflows
 /// </summary>
-public static class PredefinedChains
+public static class PredefinedTaskChains
 {
     /// <summary>
     /// Interactive folder import chain with user metadata input

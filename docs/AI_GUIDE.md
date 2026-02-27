@@ -277,6 +277,61 @@ await _eventEmitter.EmitAsync("MOD_LOADED", data: new { Sha = sha });
 _ipcHandler.SendNotification("DROP_ZONE_CLICK", new { zoneId, position });
 ```
 
+#### Profile-Aware Events
+
+**Global Services** (use `IEventBus`):
+```csharp
+public class SystemService
+{
+    private readonly IEventBus _eventBus;  // Global singleton
+
+    public async Task StartAsync()
+    {
+        // Emit global event (no profileId)
+        await _eventBus.EmitAsync(ModuleNames.CORE, CoreEvents.APPLICATION_STARTED);
+    }
+}
+```
+
+**Profile-Scoped Services** (use `IProfileEventBus`):
+```csharp
+public class ModService
+{
+    private readonly IProfileEventBus _eventBus;  // ✅ Profile-scoped
+
+    public async Task LoadModAsync(string sha)
+    {
+        // ✅ CORRECT: ProfileId auto-injected from ProfileContext
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { sha });
+    }
+}
+```
+
+**Event Filtering by ProfileId**:
+```csharp
+// Listen to events for specific profile
+_eventBus.RegisterHandler(ModuleNames.MOD, ModEvents.LOADED, "profile-123", async (msg) =>
+{
+    _logger.Info($"Mod loaded in profile {msg.ProfileId}");
+});
+
+// Listen to events from all profiles
+_eventBus.RegisterHandler(ModuleNames.MOD, ModEvents.LOADED, "*", async (msg) =>
+{
+    _logger.Info($"Mod loaded: {msg.Payload}");
+});
+```
+
+**Rules:**
+- Global services → use `IEventBus` (no profileId)
+- Profile-scoped services → use `IProfileEventBus` (auto profileId)
+- Global events (no profileId) → delivered to ALL handlers
+- Profile events → filtered by handler's profileId pattern
+
+See [docs/features/PROFILE_AWARE_EVENTS.md](features/PROFILE_AWARE_EVENTS.md) for complete guide.
+
+```
+
 #### Frontend Event System
 
 ```typescript

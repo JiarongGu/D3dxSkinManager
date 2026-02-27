@@ -1,3 +1,4 @@
+using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.TaskQueue.Models;
@@ -10,18 +11,18 @@ namespace D3dxSkinManager.Modules.TaskQueue.Services;
 public class EventProgressReporter : IProgressReporter
 {
     private readonly string _taskId;
-    private readonly IEventEmitter _eventEmitter;
+    private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
     private readonly Action<int, string?> _onProgress;
 
     public EventProgressReporter(
         string taskId,
-        IEventEmitter eventEmitter,
+        IProfileEventBus eventBus,
         ILogHelper logger,
         Action<int, string?> onProgress)
     {
         _taskId = taskId;
-        _eventEmitter = eventEmitter;
+        _eventBus = eventBus;
         _logger = logger;
         _onProgress = onProgress;
     }
@@ -43,7 +44,7 @@ public class EventProgressReporter : IProgressReporter
         };
 
         // Emit progress event
-        await _eventEmitter.EmitAsync(
+        await _eventBus.EmitAsync(
             ModuleNames.TASK_QUEUE,
             TaskQueueEvents.PROGRESS,
             progress

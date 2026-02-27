@@ -15,7 +15,7 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace D3dxSkinManager.Tests.Modules.Category;
+namespace D3dxSkinManager.Tests.Modules.Category.Services;
 
 /// <summary>
 /// Unit tests for CategoryService

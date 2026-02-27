@@ -26,16 +26,18 @@ namespace D3dxSkinManager.Infrastructure;
 /// </summary>
 public class ApplicationHost
 {
+    // Session management
+    private WebViewSessionManager _sessionManager = null!;
+    private const string MAIN_SESSION_ID = "main";
+
+    // Main window components
     private Form _mainForm = null!;
     private WebView2 _webView = null!;
-    private WebViewInitializer _webViewInitializer = null!;
-    private IpcCommunicationHandler _ipcHandler = null!;
-    private EventBusIpcBridge _eventBridge = null!;
-    private MessageDispatcher _messageDispatcher = null!;
+
+    // Shared services
     private ServiceProvider _serviceProvider = null!;
     private ProfileServiceRouter _profileRouter = null!;
     private IPerformanceMonitor _performanceMonitor = null!;
-    private DropZoneManager _dropZoneManager = null!;
     private IWindowStateService _windowStateService = null!;
     private ILogHelper _logger;
     private readonly IAppEnvironment _environment;
@@ -162,55 +164,27 @@ public class ApplicationHost
             // Track WebView2 initialization performance
             _performanceMonitor.StartOperation("WebView2.Initialize");
 
-            // Get custom scheme handler from DI
-            var schemeHandler = _serviceProvider.GetRequiredService<ICustomSchemeHandler>();
+            // Initialize Profile Service Router (shared across all sessions)
+            _logger.Info("Initializing profile service router...", "Host");
+            _profileRouter = new ProfileServiceRouter(_serviceProvider, _logger);
+            ConfigureProfileRouter();
 
-            // Initialize WebView2 with custom scheme handler
-            _webViewInitializer = new WebViewInitializer(_webView, schemeHandler);
-            await _webViewInitializer.InitializeAsync();
+            // Initialize Session Manager
+            _logger.Info("Initializing session manager...", "Host");
+            _sessionManager = new WebViewSessionManager(_logger);
+
+            // Create main WebView session
+            await CreateMainSessionAsync();
 
             _performanceMonitor.StopOperation("WebView2.Initialize");
 
-            // Navigate to app
-            _webViewInitializer.NavigateToApp();
-
-            // Initialize IPC communication
-            _logger.Info("Initializing IPC communication...", "Host");
-            _ipcHandler = new IpcCommunicationHandler(_webView, _logger);
-            _ipcHandler.Initialize();
-
-            // Initialize Drop Zone Manager
-            _logger.Info("Initializing drop zone manager...", "Host");
-            _dropZoneManager = new DropZoneManager(_webView, _mainForm, _logger, _ipcHandler);
-
-            // Initialize EventBus IPC Bridge (forwards backend events to frontend)
-            _logger.Info("Initializing EventBus IPC Bridge...", "Host");
-            var eventBus = _serviceProvider.GetRequiredService<IEventBus>();
-            _eventBridge = new EventBusIpcBridge(eventBus, _ipcHandler, _logger);
-            _eventBridge.Initialize();
-
             // Subscribe to window state reset events
+            var eventBus = _serviceProvider.GetRequiredService<IEventBus>();
             eventBus.RegisterHandler(ModuleNames.SETTING, SettingEvents.WINDOW_STATE_RESET, async (eventMessage) =>
             {
                 _logger.Info("Received window state reset event", "Host");
                 await HandleWindowStateResetAsync(eventMessage);
             });
-
-            // Initialize Profile Service Router
-            _logger.Info("Initializing profile service router...", "Host");
-            _profileRouter = new ProfileServiceRouter(_serviceProvider, _logger);
-            ConfigureProfileRouter();
-
-            // Initialize Message Dispatcher with middleware pipeline
-            _logger.Info("Initializing message dispatcher...", "Host");
-            _messageDispatcher = new MessageDispatcher(_ipcHandler, _logger);
-            ConfigureMessagePipeline();
-            _messageDispatcher.Initialize();
-
-            // TODO: Initialize other components here
-            // - Mod Service
-            // - Profile Service
-            // - etc.
 
             _logger.Info("All components initialized", "Host");
         }
@@ -224,6 +198,39 @@ public class ApplicationHost
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
+    }
+
+    /// <summary>
+    /// Create and start the main WebView session
+    /// </summary>
+    private async Task CreateMainSessionAsync()
+    {
+        _logger.Info("Creating main WebView session...", "Host");
+
+        var session = _sessionManager.Create(MAIN_SESSION_ID, () =>
+        {
+            var schemeHandler = _serviceProvider.GetRequiredService<ICustomSchemeHandler>();
+
+            // Create session without pipeline configuration first
+            var newSession = new WebViewSession(
+                MAIN_SESSION_ID,
+                _webView,
+                _logger,
+                _serviceProvider,
+                schemeHandler,
+                _mainForm,
+                _profileRouter,
+                dispatcher => { } // Empty initially, configured below
+            );
+            return newSession;
+        });
+
+        // Configure the message pipeline now that session is created
+        ConfigureMessagePipeline(session.Dispatcher, session);
+
+        await session.StartAsync();
+
+        _logger.Info("Main WebView session created and started", "Host");
     }
 
     /// <summary>
@@ -320,28 +327,42 @@ public class ApplicationHost
     {
         _logger.Info("Form closed, cleaning up...", "Host");
 
-        // Save window state
-        if (_windowStateService != null)
+        try
         {
-            try
+            // Save window state
+            if (_windowStateService != null)
             {
-                _windowStateService.SaveWindowStateAsync(_mainForm).Wait();
-                _logger.Info("Window state saved", "Host");
+                try
+                {
+                    _windowStateService.SaveWindowStateAsync(_mainForm).Wait();
+                    _logger.Info("Window state saved", "Host");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Failed to save window state: {ex.Message}", "Host", ex);
+                }
             }
-            catch (Exception ex)
+
+            // Dispose all WebView sessions
+            if (_sessionManager != null)
             {
-                _logger.Error($"Failed to save window state: {ex.Message}", "Host", ex);
+                _sessionManager.Remove(MAIN_SESSION_ID);
+                _logger.Info("All sessions disposed", "Host");
             }
+
+            // Dispose service provider
+            if (_serviceProvider != null)
+            {
+                _serviceProvider.Dispose();
+                _logger.Info("Service provider disposed", "Host");
+            }
+
+            _logger.Info("Cleanup completed", "Host");
         }
-
-        // Shutdown EventBus IPC Bridge
-        _eventBridge?.Shutdown();
-
-        // TODO: Clean up components
-        // - Close connections
-        // - Dispose resources
-
-        _logger.Info("Cleanup completed", "Host");
+        catch (Exception ex)
+        {
+            _logger?.Error($"Error during cleanup: {ex.Message}", "Host", ex);
+        }
     }
 
 
@@ -384,26 +405,26 @@ public class ApplicationHost
     /// <summary>
     /// Configure the message processing pipeline
     /// </summary>
-    private void ConfigureMessagePipeline()
+    private void ConfigureMessagePipeline(MessageDispatcher dispatcher, WebViewSession session)
     {
         _logger.Info("Configuring message pipeline...", "Host");
 
         // Add error handling middleware (first in pipeline)
-        _messageDispatcher.UseErrorHandler();
+        dispatcher.UseErrorHandler();
 
         // Add logging middleware
-        _messageDispatcher.UseLogging();
+        dispatcher.UseLogging();
 
         // Add profile routing middleware (before global facades)
-        _messageDispatcher.UseProfileRouter(_profileRouter);
+        dispatcher.UseProfileRouter(_profileRouter);
 
         // Register global facade handlers
-        _messageDispatcher.UseSettingsFacade(_serviceProvider);
-        _messageDispatcher.UseSystemFacade(_serviceProvider);
-        _messageDispatcher.UseProfileFacade(_serviceProvider);
+        dispatcher.UseSettingsFacade(_serviceProvider);
+        dispatcher.UseSystemFacade(_serviceProvider);
+        dispatcher.UseProfileFacade(_serviceProvider);
 
         // Register built-in module routes (APP, TEST, DROP_ZONE)
-        _messageDispatcher.MapModule("APP", routes =>
+        dispatcher.MapModule("APP", routes =>
         {
             routes.Route("PING", message => new { message = "pong", timestamp = DateTime.UtcNow });
 
@@ -427,10 +448,10 @@ public class ApplicationHost
 
                 // Clear all drop zones on webview startup/hot-reload
                 _logger.Info("Clearing all drop zones due to webview startup", "Host");
-                _dropZoneManager?.ClearAll();
+                session.DropZone?.ClearAll();
 
                 // Clear all subscriptions on webview startup/hot-reload
-                _ipcHandler.ClearSubscriptions();
+                session.Ipc.ClearSubscriptions();
 
                 return new { success = true, webViewId };
             });
@@ -439,7 +460,7 @@ public class ApplicationHost
             {
                 var module = message.Payload?.GetProperty("module").GetString() ?? "";
                 var type = message.Payload?.GetProperty("type").GetString() ?? "";
-                _ipcHandler.Subscribe(module, type);
+                session.Ipc.Subscribe(module, type);
                 return new { success = true, module, type };
             });
 
@@ -447,13 +468,13 @@ public class ApplicationHost
             {
                 var module = message.Payload?.GetProperty("module").GetString() ?? "";
                 var type = message.Payload?.GetProperty("type").GetString() ?? "";
-                _ipcHandler.Unsubscribe(module, type);
+                session.Ipc.Unsubscribe(module, type);
                 return new { success = true, module, type };
             });
         });
 
         // Register DROP_ZONE module for managing WinForms drop overlays
-        _messageDispatcher.MapModule("DROP_ZONE", routes =>
+        dispatcher.MapModule("DROP_ZONE", routes =>
         {
             routes.Route("REGISTER", message =>
             {
@@ -463,7 +484,7 @@ public class ApplicationHost
                 var width = message.Payload?.GetProperty("width").GetInt32() ?? 0;
                 var height = message.Payload?.GetProperty("height").GetInt32() ?? 0;
 
-                _dropZoneManager.RegisterZone(zoneId, x, y, width, height);
+                session.DropZone.RegisterZone(zoneId, x, y, width, height);
                 return new { success = true, zoneId };
             });
 
@@ -475,34 +496,34 @@ public class ApplicationHost
                 var width = message.Payload?.GetProperty("width").GetInt32() ?? 0;
                 var height = message.Payload?.GetProperty("height").GetInt32() ?? 0;
 
-                _dropZoneManager.UpdateZoneBounds(zoneId, x, y, width, height);
+                session.DropZone.UpdateZoneBounds(zoneId, x, y, width, height);
                 return new { success = true };
             });
 
             routes.Route("SHOW", message =>
             {
                 var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                _dropZoneManager.ShowZone(zoneId);
+                session.DropZone.ShowZone(zoneId);
                 return new { success = true };
             });
 
             routes.Route("HIDE", message =>
             {
                 var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                _dropZoneManager.HideZone(zoneId);
+                session.DropZone.HideZone(zoneId);
                 return new { success = true };
             });
 
             routes.Route("UNREGISTER", message =>
             {
                 var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                _dropZoneManager.UnregisterZone(zoneId);
+                session.DropZone.UnregisterZone(zoneId);
                 return new { success = true };
             });
         });
 
         // Register TEST module routes
-        _messageDispatcher.MapModule("TEST", routes =>
+        dispatcher.MapModule("TEST", routes =>
         {
             routes.Route("ECHO", message => message.Payload);
 
