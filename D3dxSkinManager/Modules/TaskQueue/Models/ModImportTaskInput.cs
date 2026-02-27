@@ -15,11 +15,6 @@ public class ModImportTaskInput
     /// </summary>
     public bool IsFolder { get; set; }
 
-    /// <summary>
-    /// Profile context for import
-    /// </summary>
-    public string? ProfileId { get; set; }
-
     // Optional metadata overrides
     public string? Name { get; set; }
     public string? Author { get; set; }

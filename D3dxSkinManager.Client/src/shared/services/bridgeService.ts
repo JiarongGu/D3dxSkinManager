@@ -51,8 +51,8 @@ class BridgeService {
   /**
    * Initialize message receiver
    * All messages have a category field that determines routing:
-   * - category: "ipc" -> IPC request/response
-   * - category: "notification" -> Push events/notifications -> emit to eventBus
+   * - category: "IPC" -> IPC request/response
+   * - category: "NOTIFICATION" -> Push events/notifications -> emit to eventBus
    */
   private initializeMessageReceiver() {
     if (!window.chrome?.webview?.addEventListener) {
@@ -67,7 +67,7 @@ class BridgeService {
         const parsed = JSON.parse(event.data);
 
         // Route based on category
-        if (parsed.category === "ipc") {
+        if (parsed.category === "IPC") {
           // IPC request/response
           const response: BridgeResponse = parsed;
           const handler = this.messageHandlers.get(response.id);
@@ -76,7 +76,7 @@ class BridgeService {
             handler(response);
             this.messageHandlers.delete(response.id);
           }
-        } else if (parsed.category === "notification") {
+        } else if (parsed.category === "NOTIFICATION") {
           // Push notification/event - emit to eventBus
           // Backend sends: { category, id, module, type, payload, timestamp }
           const { module, type, payload } = parsed;

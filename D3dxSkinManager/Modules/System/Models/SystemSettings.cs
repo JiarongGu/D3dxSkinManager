@@ -8,7 +8,7 @@ public class SystemSettings
 {
     /// <summary>
     /// File dialog path memory by key
-    /// Key: rememberPathKey (e.g., "mod-preview-import", "migration_python_install")
+    /// Key: rememberPathKey (e.g., "mod-preview-import", "migration-python-install")
     /// Value: Last used directory path (relative to data folder)
     /// </summary>
     public Dictionary<string, string> FileDialogPaths { get; set; } = new();

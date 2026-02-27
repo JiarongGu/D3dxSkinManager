@@ -374,7 +374,7 @@ CREATE INDEX idx_is_loaded ON Mods(IsLoaded);
 D3dxSkinManager/
 ├── D3dxSkinManager/              # Backend (.NET)
 │   ├── Program.cs                # Entry point
-│   ├── Composition/              # WebView2 architecture
+│   ├── Infrastructure/              # WebView2 architecture
 │   │   ├── ApplicationBootstrapper.cs
 │   │   ├── ApplicationHost.cs
 │   │   ├── WebViewInitializer.cs

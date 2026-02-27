@@ -581,7 +581,7 @@ gh pr create --title "PR Title" --body "Summary"
 |------|----------|
 | **Main entry point (backend)?** | `D3dxSkinManager/Program.cs:11` |
 | **Main UI (frontend)?** | `D3dxSkinManager.Client/src/App.tsx` |
-| **IPC handler?** | `Composition/IpcCommunicationHandler.cs` (backend), `bridgeService.ts` (frontend) |
+| **IPC handler?** | `Infrastructure/IpcCommunicationHandler.cs` (backend), `bridgeService.ts` (frontend) |
 | **Database schema?** | `Modules/Mods/Services/ModRepository.cs:49` |
 | **Data directory?** | `data/` (created at runtime) |
 | **Config files?** | `data/settings/`, `data/profiles/*/` |

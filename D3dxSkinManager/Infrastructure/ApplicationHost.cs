@@ -17,8 +17,9 @@ using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Plugin;
 using D3dxSkinManager.Modules.Setting;
 using D3dxSkinManager.Modules.Setting.Services;
+using D3dxSkinManager.Infrastructure.WebView;
 
-namespace D3dxSkinManager.Composition;
+namespace D3dxSkinManager.Infrastructure;
 
 /// <summary>
 /// Main application host that manages the form and WebView2
@@ -428,7 +429,26 @@ public class ApplicationHost
                 _logger.Info("Clearing all drop zones due to webview startup", "Host");
                 _dropZoneManager?.ClearAll();
 
+                // Clear all subscriptions on webview startup/hot-reload
+                _ipcHandler.ClearSubscriptions();
+
                 return new { success = true, webViewId };
+            });
+
+            routes.Route("SUBSCRIBE", message =>
+            {
+                var module = message.Payload?.GetProperty("module").GetString() ?? "";
+                var type = message.Payload?.GetProperty("type").GetString() ?? "";
+                _ipcHandler.Subscribe(module, type);
+                return new { success = true, module, type };
+            });
+
+            routes.Route("UNSUBSCRIBE", message =>
+            {
+                var module = message.Payload?.GetProperty("module").GetString() ?? "";
+                var type = message.Payload?.GetProperty("type").GetString() ?? "";
+                _ipcHandler.Unsubscribe(module, type);
+                return new { success = true, module, type };
             });
         });
 

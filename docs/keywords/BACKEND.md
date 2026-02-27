@@ -13,34 +13,34 @@
   - Main method → Entry point for application
   - Uses ApplicationBootstrapper for initialization
 
-## Composition Layer (WebView2 Architecture)
+## Infrastructure Layer (WebView2 Architecture)
 
-- **ApplicationBootstrapper** → `D3dxSkinManager/Composition/ApplicationBootstrapper.cs`
+- **ApplicationBootstrapper** → `D3dxSkinManager/Infrastructure/ApplicationBootstrapper.cs`
   - Application initialization and DI setup
   - Creates ApplicationHost with WebView2
 
-- **ApplicationHost** → `D3dxSkinManager/Composition/ApplicationHost.cs`
+- **ApplicationHost** → `D3dxSkinManager/Infrastructure/ApplicationHost.cs`
   - WinForms main form with WebView2 control
   - Manages window state and lifecycle
 
-- **WebViewInitializer** → `D3dxSkinManager/Composition/WebViewInitializer.cs`
+- **WebViewInitializer** → `D3dxSkinManager/Infrastructure/WebViewInitializer.cs`
   - WebView2 environment setup
   - Custom scheme handler registration
   - GPU acceleration settings
 
-- **IpcCommunicationHandler** → `D3dxSkinManager/Composition/IpcCommunicationHandler.cs`
+- **IpcCommunicationHandler** → `D3dxSkinManager/Infrastructure/IpcCommunicationHandler.cs`
   - Handles WebView2 ↔ C# IPC messages
   - PostWebMessageAsString / WebMessageReceived
 
-- **MessageDispatcher** → `D3dxSkinManager/Composition/MessageDispatcher.cs`
+- **MessageDispatcher** → `D3dxSkinManager/Infrastructure/MessageDispatcher.cs`
   - Middleware pipeline for message processing
   - Lazy<T> caching for performance
 
-- **ProfileServiceRouter** → `D3dxSkinManager/Composition/ProfileServiceRouter.cs`
+- **ProfileServiceRouter** → `D3dxSkinManager/Infrastructure/ProfileServiceRouter.cs`
   - Profile-scoped service providers
   - Routes messages to profile-specific services
 
-- **ServiceContainer** → `D3dxSkinManager/Composition/ServiceContainer.cs`
+- **ServiceContainer** → `D3dxSkinManager/Infrastructure/ServiceContainer.cs`
   - Global DI container setup
   - Service registration
 

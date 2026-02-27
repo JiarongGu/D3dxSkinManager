@@ -7,7 +7,6 @@ namespace D3dxSkinManager.Modules.TaskQueue.Models;
 public class ImportFromTempTaskInput
 {
     public string TempArchivePath { get; set; } = string.Empty;
-    public string? ProfileId { get; set; }
 
     // User-provided metadata
     public string? Name { get; set; }

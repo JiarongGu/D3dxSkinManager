@@ -1,12 +1,13 @@
-using System;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
+using System;
+using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
-namespace D3dxSkinManager.Composition;
+namespace D3dxSkinManager.Infrastructure.WebView;
 
 /// <summary>
 /// Event args for IPC message received events
@@ -14,6 +15,7 @@ namespace D3dxSkinManager.Composition;
 public class IpcMessageReceivedEventArgs : EventArgs
 {
     public IpcRequest Message { get; }
+
     public Action<IpcResponse> SendResponse { get; }
 
     public IpcMessageReceivedEventArgs(IpcRequest message, Action<IpcResponse> sendResponse)
@@ -31,6 +33,7 @@ public class IpcCommunicationHandler
     private readonly WebView2 _webView;
     private readonly ILogHelper _logger;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly ConcurrentDictionary<string, bool> _subscriptions = new();
 
     /// <summary>
     /// Event fired when a message is received from the frontend
@@ -85,11 +88,8 @@ public class IpcCommunicationHandler
             // Check if we have any handlers registered
             if (MessageReceived != null)
             {
-                // Create a response callback
-                Action<IpcResponse> sendResponse = (response) => SendResponse(response);
-
                 // Fire the event with the message and response callback
-                var args = new IpcMessageReceivedEventArgs(message, sendResponse);
+                var args = new IpcMessageReceivedEventArgs(message, SendResponse);
                 MessageReceived.Invoke(this, args);
             }
             else
@@ -116,11 +116,8 @@ public class IpcCommunicationHandler
         try
         {
             // Route message based on module
-            return message.Module.ToUpper() switch
+            return message.Module switch
             {
-                "SYSTEM" => await HandleSystemMessage(message),
-                "TEST" => await HandleTestMessage(message),
-                // TODO: Add more module handlers here
                 _ => IpcResponse.CreateError(message.Id, $"Unknown module: {message.Module}")
             };
         }
@@ -131,54 +128,19 @@ public class IpcCommunicationHandler
         }
     }
 
-    /// <summary>
-    /// Handle system-level messages
-    /// </summary>
-    private async Task<IpcResponse> HandleSystemMessage(IpcRequest message)
+    public void Subscribe(string module, string type)
     {
-        switch (message.Type.ToUpper())
-        {
-            case "PING":
-                _logger.Debug("Handling PING", "IPC");
-                return IpcResponse.CreateSuccess(message.Id, new { message = "pong", timestamp = DateTime.UtcNow });
-
-            case "GET_VERSION":
-                _logger.Debug("Handling GET_VERSION", "IPC");
-                return IpcResponse.CreateSuccess(message.Id, new
-                {
-                    version = "1.0.0",
-                    dotnet = Environment.Version.ToString(),
-                    os = Environment.OSVersion.ToString()
-                });
-
-            case "GET_STATUS":
-                _logger.Debug("Handling GET_STATUS", "IPC");
-                return IpcResponse.CreateSuccess(message.Id, new { status = "ready" });
-
-            default:
-                return IpcResponse.CreateError(message.Id, $"Unknown system message type: {message.Type}");
-        }
+        _subscriptions[GetSubscriptionKey(module, type)] = true;
     }
 
-    /// <summary>
-    /// Handle test messages
-    /// </summary>
-    private async Task<IpcResponse> HandleTestMessage(IpcRequest message)
+    public void Unsubscribe(string module, string type)
     {
-        switch (message.Type.ToUpper())
-        {
-            case "ECHO":
-                _logger.Debug("Handling ECHO", "IPC");
-                return IpcResponse.CreateSuccess(message.Id, message.Payload);
+        _subscriptions.TryRemove(GetSubscriptionKey(module, type), out _);
+    }
 
-            case "DELAY":
-                _logger.Debug("Handling DELAY", "IPC");
-                await Task.Delay(1000); // Simulate async operation
-                return IpcResponse.CreateSuccess(message.Id, new { delayed = true });
-
-            default:
-                return IpcResponse.CreateError(message.Id, $"Unknown test message type: {message.Type}");
-        }
+    public void ClearSubscriptions() 
+    {
+        _subscriptions.Clear();
     }
 
     /// <summary>
@@ -191,7 +153,7 @@ public class IpcCommunicationHandler
             // Wrap response with category for frontend routing
             var wrappedResponse = new
             {
-                category = "ipc",
+                category = "IPC",
                 id = response.Id,
                 success = response.Success,
                 data = response.Data,
@@ -228,10 +190,15 @@ public class IpcCommunicationHandler
     {
         try
         {
+            if (!_subscriptions.ContainsKey(GetSubscriptionKey(module, type)))
+            {
+                return; // No subscribers for this notification type
+            }
+
             var notificationId = Guid.NewGuid().ToString();
             var message = new
             {
-                category = "notification",
+                category = "NOTIFICATION",
                 id = notificationId,
                 module = module,
                 type = type,
@@ -262,4 +229,5 @@ public class IpcCommunicationHandler
         }
     }
 
+    private string GetSubscriptionKey(string module, string type) => $"{module}.{type}";
 }

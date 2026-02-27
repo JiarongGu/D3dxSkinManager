@@ -64,7 +64,7 @@ d3dxSkinManage-Rewrite/
 │   │   ├── IModService.cs              # Mod service interface
 │   │   └── ModService.cs               # Mod service implementation
 │   │
-│   ├── Composition/                    # WebView2 architecture
+│   ├── Infrastructure/                    # WebView2 architecture
 │   │   ├── ApplicationBootstrapper.cs
 │   │   ├── ApplicationHost.cs
 │   │   ├── WebViewInitializer.cs

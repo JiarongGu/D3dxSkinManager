@@ -1,4 +1,4 @@
-using D3dxSkinManager.Composition;
+using D3dxSkinManager.Infrastructure;
 
 namespace D3dxSkinManager;
 

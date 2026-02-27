@@ -103,7 +103,7 @@ public static class CoreEvents
 **Change:** Modified `EventBusIpcBridge.ForwardEventToFrontend()` to send data directly without wrapping.
 
 **Files Changed:**
-- [D3dxSkinManager\Composition\EventBusIpcBridge.cs](../../D3dxSkinManager/Composition/EventBusIpcBridge.cs:51-62)
+- [D3dxSkinManager\Infrastructure\EventBusIpcBridge.cs](../../D3dxSkinManager/Infrastructure/EventBusIpcBridge.cs:51-62)
 - [D3dxSkinManager.Client\src\shared\services\bridgeService.ts](../../D3dxSkinManager.Client/src/shared/services/bridgeService.ts:73-81)
 
 **New backend code:**
@@ -149,7 +149,7 @@ private async Task ForwardEventToFrontend(EventMessage message)
 **Change:** Modified `EventBusIpcBridge.Initialize()` to use wildcard "*" pattern to forward ALL events automatically.
 
 **File Changed:**
-- [D3dxSkinManager\Composition\EventBusIpcBridge.cs](../../D3dxSkinManager/Composition/EventBusIpcBridge.cs:31-45)
+- [D3dxSkinManager\Infrastructure\EventBusIpcBridge.cs](../../D3dxSkinManager/Infrastructure/EventBusIpcBridge.cs:31-45)
 - [D3dxSkinManager\Modules\Core\Event\EventBus.cs](../../D3dxSkinManager/Modules/Core/Event/EventBus.cs:62-81)
 
 **New EventBusIpcBridge code:**
@@ -231,7 +231,7 @@ public static class CoreEvents
 **Module events now live in their own files:**
 - `Modules/Mods/ModEvents.cs` - MOD_LOADED, MOD_UNLOADED, MOD_IMPORTED, MOD_DELETED, etc.
 - `Modules/TaskQueue/TaskQueueEvents.cs` - TASK_ADDED, TASK_STARTED, TASK_PROGRESS, etc.
-- `Composition/DropZoneEvents.cs` - DROP_ZONE_CLICK, DROP_ZONE_DRAG_ENTER, etc.
+- `Infrastructure/DropZoneEvents.cs` - DROP_ZONE_CLICK, DROP_ZONE_DRAG_ENTER, etc.
 
 **Result:**
 - Clear separation of concerns

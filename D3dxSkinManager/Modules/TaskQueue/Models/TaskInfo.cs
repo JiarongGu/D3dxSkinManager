@@ -1,22 +1,33 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
 
 namespace D3dxSkinManager.Modules.TaskQueue.Models;
 
 /// <summary>
-/// Represents a task in the queue
+/// Represents a single task within a task chain.
+/// Simplified model for SQLite storage without foreign key constraints.
 /// </summary>
 public class TaskInfo
 {
     /// <summary>
-    /// Unique task identifier (TASK-{Guid})
+    /// Unique task identifier
     /// </summary>
-    public string Id { get; set; } = string.Empty;
+    [Key]
+    public required string Id { get; init; }
 
     /// <summary>
-    /// Task type identifier (e.g., "mod_import", "mod_export")
+    /// Task type (from TaskNames constants)
     /// </summary>
-    public string Type { get; set; } = string.Empty;
+    public required string Type { get; init; }
+
+    /// <summary>
+    /// ID of the parent TaskChain (no FK constraint for SQLite)
+    /// </summary>
+    public required string TaskChainId { get; set; }
+
+    /// <summary>
+    /// Node ID within the chain configuration
+    /// </summary>
+    public string? NodeId { get; set; }
 
     /// <summary>
     /// Current task status
@@ -24,14 +35,19 @@ public class TaskInfo
     public TaskStatus Status { get; set; }
 
     /// <summary>
-    /// Progress percentage (0-100)
+    /// JSON serialized input data
     /// </summary>
-    public int Progress { get; set; }
+    public string Input { get; set; } = string.Empty;
 
     /// <summary>
-    /// Current status message
+    /// JSON serialized output data (if completed)
     /// </summary>
-    public string? Message { get; set; }
+    public string? Output { get; set; }
+
+    /// <summary>
+    /// Error message (if failed)
+    /// </summary>
+    public string? ErrorMessage { get; set; }
 
     /// <summary>
     /// When the task was created
@@ -44,62 +60,45 @@ public class TaskInfo
     public DateTime? StartedAt { get; set; }
 
     /// <summary>
-    /// When the task completed (success or failure)
+    /// When the task completed
     /// </summary>
     public DateTime? CompletedAt { get; set; }
+}
+
+
+/// <summary>
+/// Task execution status
+/// </summary>
+public enum TaskStatus
+{
+    /// <summary>
+    /// Task is queued and waiting to be processed
+    /// </summary>
+    Pending = 0,
 
     /// <summary>
-    /// JSON serialized input data
+    /// Task is currently being processed
     /// </summary>
-    public string InputData { get; set; } = string.Empty;
+    Processing = 1,
 
     /// <summary>
-    /// JSON serialized output data (if completed successfully)
+    /// Task completed successfully
     /// </summary>
-    public string? OutputData { get; set; }
+    Completed = 2,
 
     /// <summary>
-    /// Error message (if failed)
+    /// Task failed with an error
     /// </summary>
-    public string? ErrorMessage { get; set; }
+    Failed = 3,
 
     /// <summary>
-    /// Operation ID for progress tracking integration
+    /// Task was cancelled by user
     /// </summary>
-    public string? OperationId { get; set; }
+    Cancelled = 4,
 
     /// <summary>
-    /// Profile context for the task
+    /// Task completed preparation phase and is awaiting user confirmation
+    /// (e.g., folder compressed, awaiting import confirmation)
     /// </summary>
-    public string? ProfileId { get; set; }
-
-    /// <summary>
-    /// Correlation ID - groups related tasks in a chain together
-    /// All tasks in the same import workflow share the same correlation ID
-    /// </summary>
-    public string? CorrelationId { get; set; }
-
-    /// <summary>
-    /// Chain context - defines how this task fits in a multi-phase workflow
-    /// Contains information about next steps, user actions required, etc.
-    /// Serialized as JSON in the database
-    /// </summary>
-    public string? ChainContextJson { get; set; }
-
-    /// <summary>
-    /// Deserialized chain context (not stored, populated from ChainContextJson)
-    /// </summary>
-    [JsonIgnore]
-    public TaskChainContext? ChainContext
-    {
-        get
-        {
-            if (string.IsNullOrEmpty(ChainContextJson)) return null;
-            return JsonSerializer.Deserialize<TaskChainContext>(ChainContextJson);
-        }
-        set
-        {
-            ChainContextJson = value != null ? JsonSerializer.Serialize(value) : null;
-        }
-    }
+    AwaitingConfirmation = 5
 }

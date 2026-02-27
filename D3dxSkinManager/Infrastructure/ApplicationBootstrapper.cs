@@ -1,7 +1,7 @@
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 
-namespace D3dxSkinManager.Composition;
+namespace D3dxSkinManager.Infrastructure;
 
 /// <summary>
 /// Bootstraps the application with proper initialization order

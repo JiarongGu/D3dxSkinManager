@@ -1,5 +1,8 @@
-using D3dxSkinManager.Composition;
+using D3dxSkinManager.Infrastructure;
+using D3dxSkinManager.Infrastructure.WebView;
+using D3dxSkinManager.Modules.TaskQueue.Models;
 using D3dxSkinManager.Modules.TaskQueue.Processors;
+using D3dxSkinManager.Modules.TaskQueue.Repositories;
 using D3dxSkinManager.Modules.TaskQueue.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -7,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace D3dxSkinManager.Modules.TaskQueue;
 
 /// <summary>
-/// Service registration extensions for TaskQueue module
+/// Extension methods for configuring TaskQueue services
 /// </summary>
 public static class TaskQueueServiceExtensions
 {
@@ -16,10 +19,15 @@ public static class TaskQueueServiceExtensions
     /// </summary>
     public static IServiceCollection AddTaskQueueServices(this IServiceCollection services)
     {
-        Console.WriteLine("[TaskQueueFacade] Registering TaskQueue services (profile-scoped)...");
+        Console.WriteLine("[TaskQueue] Registering TaskQueue services (profile-scoped)...");
+
+        // Repositories
+        services.TryAddSingleton<ITaskChainRepository, TaskChainRepository>();
+        services.TryAddSingleton<ITaskInfoRepository, TaskInfoRepository>();
 
         // Core services
         services.TryAddSingleton<ITaskQueueService, TaskQueueService>();
+        services.TryAddSingleton<IRoutingConditionEvaluator, RoutingConditionEvaluator>();
 
         // Task processors
         services.TryAddSingleton<ModImportTaskProcessor>();
@@ -29,9 +37,10 @@ public static class TaskQueueServiceExtensions
         // Facade
         services.TryAddSingleton<ITaskQueueFacade, TaskQueueFacade>();
 
-        Console.WriteLine("[TaskQueueFacade] TaskQueue services registered");
+        Console.WriteLine("[TaskQueue] TaskQueue services registered");
         return services;
     }
+
 
     /// <summary>
     /// Register TaskQueueFacade message handlers with the MessageDispatcher

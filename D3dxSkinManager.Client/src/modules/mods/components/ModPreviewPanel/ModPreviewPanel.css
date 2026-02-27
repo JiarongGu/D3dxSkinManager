@@ -31,7 +31,7 @@
 
 /* Header Section */
 .mod-preview-header {
-  padding: 16px;
+  padding: 16px 16px 8px;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -389,11 +389,11 @@
 }
 
 [data-theme='dark'] .mod-preview-keybinding-overlay {
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
 }
 
 [data-theme='light'] .mod-preview-keybinding-overlay {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
 }

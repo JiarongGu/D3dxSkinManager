@@ -1,5 +1,10 @@
 import { BaseModuleService } from '../../../shared/services/baseModuleService';
-import type { TaskInfo, ModImportTaskInput } from '../types/task.types';
+import type {
+  TaskInfo,
+  ModImportTaskInput,
+  TaskProcessorMetadata,
+  ChainConfiguration
+} from '../types/task.types';
 
 /**
  * Service for TaskQueue module IPC communication
@@ -77,6 +82,57 @@ class TaskQueueService extends BaseModuleService {
       correlationId,
       pausedTaskId,
       userInput: userInput ? JSON.stringify(userInput) : undefined
+    });
+  }
+
+  /**
+   * Get metadata for a specific task type
+   */
+  async getTaskMetadata(taskType: string, profileId?: string): Promise<TaskProcessorMetadata | undefined> {
+    return this.sendOptionalMessage<TaskProcessorMetadata>('GET_TASK_METADATA', profileId, {
+      taskType
+    });
+  }
+
+  /**
+   * Get metadata for all registered task types
+   */
+  async getAllTaskMetadata(profileId?: string): Promise<TaskProcessorMetadata[]> {
+    return this.sendArrayMessage<TaskProcessorMetadata>('GET_ALL_TASK_METADATA', profileId);
+  }
+
+  /**
+   * Get configuration for a specific chain
+   */
+  async getChainConfig(chainId: string, profileId?: string): Promise<ChainConfiguration | undefined> {
+    return this.sendOptionalMessage<ChainConfiguration>('GET_CHAIN_CONFIG', profileId, {
+      chainId
+    });
+  }
+
+  /**
+   * Get all registered chain configurations
+   */
+  async getAllChains(profileId?: string): Promise<ChainConfiguration[]> {
+    return this.sendArrayMessage<ChainConfiguration>('GET_ALL_CHAINS', profileId);
+  }
+
+  /**
+   * Get chains filtered by tag
+   */
+  async getChainsByTag(tag: string, profileId?: string): Promise<ChainConfiguration[]> {
+    return this.sendArrayMessage<ChainConfiguration>('GET_CHAINS_BY_TAG', profileId, {
+      tag
+    });
+  }
+
+  /**
+   * Start a new chain workflow
+   */
+  async startChain(chainId: string, input: Record<string, unknown>, profileId?: string): Promise<string> {
+    return this.sendMessage<string>('START_CHAIN', profileId, {
+      chainId,
+      input
     });
   }
 }

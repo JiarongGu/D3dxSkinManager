@@ -1,7 +1,7 @@
 # AI Assistant Guide
 
-**Version:** 2.3
-**Last Updated:** 2026-02-25
+**Version:** 2.4
+**Last Updated:** 2026-02-26
 **Critical:** NEVER commit without explicit user approval!
 
 ---
@@ -250,7 +250,7 @@ public static class TaskQueueEvents
     public const string COMPLETED = "COMPLETED";
 }
 
-// Example: Composition/DropZoneEvents.cs
+// Example: Infrastructure/DropZoneEvents.cs
 public static class DropZoneEvents
 {
     public const string CLICK = "CLICK";                    // NOT "DROP_ZONE_CLICK"
@@ -294,7 +294,7 @@ export enum Module {
 }
 
 // Separate enums per module - NO module prefix!
-export enum CoreEventType {
+export enum SystemEventType {
   APPLICATION_STARTED = 'APPLICATION_STARTED',
   APPLICATION_SHUTDOWN = 'APPLICATION_SHUTDOWN',
   LOG_LEVEL_CHANGED = 'LOG_LEVEL_CHANGED',
@@ -472,7 +472,7 @@ private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, bool>
 - `Modules/Settings/SettingsEvents.cs` - Settings events
 - `Modules/Migration/MigrationEvents.cs` - Migration events
 - `Modules/Tools/ToolsEvents.cs` - Tools events
-- `Composition/DropZoneEvents.cs` - Drop zone events
+- `Infrastructure/DropZoneEvents.cs` - Drop zone events
 
 **Key Principles:**
 - ✅ Module names are uppercase with underscores (TASK_QUEUE, DROP_ZONE)
@@ -1043,6 +1043,240 @@ className={classNames('mod-preview-keybinding-toggle', 'compact', {
 | Add new module | Create facade, service, registration | MODULE_ARCHITECTURE.md |
 | Handle errors | Use `error: unknown` pattern | GUIDELINES.md |
 | Add progress | Use IProgressReporter for >1s ops | OPERATION_NOTIFICATION_SYSTEM.md |
+
+---
+
+## 📦 TaskQueue System (Registry Pattern)
+
+### Overview
+The TaskQueue system uses a **registry-based architecture** that eliminates hardcoded switches and enables dynamic task discovery. All task processors self-register with metadata, and chains define multi-phase workflows.
+
+### Architecture Components
+
+#### 1. Task Registry Pattern
+```csharp
+// Task processors register themselves with metadata
+public interface ITaskProcessor<TInput, TOutput>
+{
+    TaskProcessorMetadata Metadata { get; }  // Self-describing
+    Task<TOutput> ProcessAsync(TInput input, IProgressReporter progressReporter, CancellationToken cancellationToken);
+}
+
+// Registry provides dynamic discovery
+public interface ITaskRegistry
+{
+    void Register<TInput, TOutput>(ITaskProcessor<TInput, TOutput> processor);
+    TaskProcessorMetadata? GetMetadata(string taskType);
+}
+```
+
+#### 2. Chain Configuration
+```csharp
+// Chains define multi-phase workflows
+public class ChainConfiguration
+{
+    public string ChainId { get; init; }              // e.g., "folder_import_chain"
+    public List<ChainPhase> Phases { get; init; }     // Sequential tasks
+    public int MaxParallelChains { get; init; }       // Concurrency control
+}
+
+// Phases can pause for user interaction
+public class ChainPhase
+{
+    public string TaskType { get; init; }
+    public bool RequiresUserAction { get; init; }     // Pause for metadata input
+    public string? UserActionDescription { get; init; }
+}
+```
+
+### Creating a New Task Processor
+
+#### Step 1: Define Input/Output Models
+```csharp
+// Models/TaskInputs/MyTaskInput.cs
+public class MyTaskInput
+{
+    public required string FilePath { get; init; }
+    public string? Options { get; init; }
+}
+
+// Models/TaskOutputs/MyTaskOutput.cs
+public class MyTaskOutput
+{
+    public required string ResultId { get; init; }
+    public bool Success { get; init; }
+}
+```
+
+#### Step 2: Implement the Processor
+```csharp
+// Processors/MyTaskProcessor.cs
+public class MyTaskProcessor : ITaskProcessor<MyTaskInput, MyTaskOutput>
+{
+    private readonly IMyService _service;
+
+    // Metadata describes capabilities
+    public TaskProcessorMetadata Metadata { get; } = new()
+    {
+        TaskType = "my_task",
+        DisplayName = "My Task",
+        Description = "Processes custom tasks",
+        InputType = typeof(MyTaskInput),
+        OutputType = typeof(MyTaskOutput),
+        EstimatedDurationSeconds = 30,
+        SupportsCancellation = true,
+        SupportsProgress = true
+    };
+
+    public MyTaskProcessor(IMyService service)
+    {
+        _service = service;
+    }
+
+    public async Task<MyTaskOutput> ProcessAsync(
+        MyTaskInput input,
+        IProgressReporter progressReporter,
+        CancellationToken cancellationToken)
+    {
+        // Report progress
+        await progressReporter.ReportAsync(0.1f, "Starting process...");
+
+        // Check cancellation
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Do work
+        var result = await _service.ProcessFileAsync(input.FilePath);
+
+        await progressReporter.ReportAsync(1.0f, "Complete!");
+
+        return new MyTaskOutput
+        {
+            ResultId = result.Id,
+            Success = true
+        };
+    }
+}
+```
+
+#### Step 3: Register in DI
+```csharp
+// TaskQueueServiceExtensions.cs
+public static IServiceCollection AddTaskQueueServices(this IServiceCollection services)
+{
+    // ... existing registrations ...
+
+    // Register your processor
+    services.TryAddSingleton<MyTaskProcessor>();
+
+    return services;
+}
+
+// In InitializeTaskQueueRegistries method:
+RegisterTaskProcessor(serviceProvider, taskRegistry,
+    serviceProvider.GetRequiredService<MyTaskProcessor>());
+```
+
+### Creating a Chain Configuration
+
+```csharp
+// TaskQueueServiceExtensions.cs - RegisterStandardChains method
+var myChain = new ChainConfiguration
+{
+    ChainId = "my_workflow_chain",
+    DisplayName = "My Workflow",
+    Description = "Multi-step workflow with user interaction",
+    MaxParallelChains = 2,
+    Phases = new List<ChainPhase>
+    {
+        new()
+        {
+            PhaseNumber = 1,
+            TaskType = "compress_folder",
+            RequiresUserAction = false  // Auto-continue
+        },
+        new()
+        {
+            PhaseNumber = 2,
+            TaskType = "my_task",
+            RequiresUserAction = true,  // Pause for user input
+            UserActionDescription = "Please review and provide metadata"
+        },
+        new()
+        {
+            PhaseNumber = 3,
+            TaskType = "import_from_temp",
+            RequiresUserAction = false
+        }
+    },
+    Tags = new[] { "workflow", "import", "custom" }
+};
+
+chainRegistry.RegisterChain(myChain);
+```
+
+### Frontend Integration
+
+#### Query Available Tasks
+```typescript
+// Get all registered task types
+const tasks = await taskQueueService.getAllTaskMetadata(profileId);
+
+// Get specific task metadata
+const metadata = await taskQueueService.getTaskMetadata('my_task', profileId);
+```
+
+#### Query Available Chains
+```typescript
+// Get all chains
+const chains = await taskQueueService.getAllChains(profileId);
+
+// Get chains by tag
+const importChains = await taskQueueService.getChainsByTag('import', profileId);
+
+// Start a chain
+const taskId = await taskQueueService.startChain('my_workflow_chain', {
+    filePath: '/path/to/file'
+}, profileId);
+```
+
+#### Continue Chain After User Input
+```typescript
+// When chain pauses for user action
+const nextTaskId = await taskQueueService.continueChain(
+    correlationId,
+    pausedTaskId,
+    {
+        name: userInput.name,
+        description: userInput.description
+    }
+);
+```
+
+### Standard Chains Available
+
+1. **`folder_import_chain`** - Interactive folder import with metadata
+2. **`quick_folder_import_chain`** - Auto-import without interaction
+3. **`batch_archive_import_chain`** - Process multiple archives
+4. **`validated_import_chain`** - Import with validation step
+
+### Key Benefits
+
+- **No Hardcoded Switches**: Factory pattern handles all task types
+- **Self-Describing**: Processors include metadata
+- **Dynamic Discovery**: Frontend can query available tasks/chains
+- **Type Safety**: Generic processor with proper deserialization
+- **Extensible**: Add new processors without touching core code
+- **Chain Workflows**: Multi-phase tasks with user interaction
+- **Progress Tracking**: Built-in progress reporting
+- **Cancellation Support**: Graceful task cancellation
+
+### Files to Reference
+
+- `Modules/TaskQueue/Registry/ITaskRegistry.cs` - Registry interface
+- `Modules/TaskQueue/Factory/TaskProcessorFactory.cs` - Dynamic invocation
+- `Modules/TaskQueue/Models/ChainConfiguration.cs` - Chain definitions
+- `Modules/TaskQueue/Processors/*` - Example processors
+- `Modules/TaskQueue/TaskQueueServiceExtensions.cs` - DI registration
 
 ---
 

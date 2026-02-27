@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using D3dxSkinManager.Composition;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Infrastructure.WebView;
 
 namespace D3dxSkinManager.Modules.Profiles;
 

@@ -5,6 +5,8 @@ using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.TaskQueue.Models;
 using D3dxSkinManager.Modules.TaskQueue.Processors;
+using D3dxSkinManager.Modules.TaskQueue.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using TaskStatus = D3dxSkinManager.Modules.TaskQueue.Models.TaskStatus;
 
 namespace D3dxSkinManager.Modules.TaskQueue.Services;
@@ -21,9 +23,10 @@ public interface ITaskQueueService
     /// <param name="taskType">Task type identifier</param>
     /// <param name="input">Task input data</param>
     /// <param name="profileId">Profile context (optional)</param>
-    /// <param name="chainContext">Chain context for multi-phase tasks (optional)</param>
+    /// <param name="chainId">Chain ID if part of a chain (optional)</param>
+    /// <param name="nodeId">Node ID within the chain (optional)</param>
     /// <returns>Task ID</returns>
-    Task<string> AddTaskAsync<TInput>(string taskType, TInput input, string? profileId = null, TaskChainContext? chainContext = null);
+    Task<string> AddTaskAsync<TInput>(string taskType, TInput input, string? profileId = null, string? chainId = null, string? nodeId = null);
 
     /// <summary>
     /// Start processing the next pending task
@@ -79,6 +82,9 @@ public class TaskQueueService : ITaskQueueService
     private readonly IEventEmitter _eventEmitter;
     private readonly ILogHelper _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly ITaskChainRepository _chainRepository;
+    private readonly ITaskInfoRepository _taskRepository;
+    private readonly IRoutingConditionEvaluator _routingEvaluator;
     private CancellationTokenSource? _currentTaskCts;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -91,45 +97,39 @@ public class TaskQueueService : ITaskQueueService
     public TaskQueueService(
         IEventEmitter eventEmitter,
         ILogHelper logger,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        ITaskChainRepository chainRepository,
+        ITaskInfoRepository taskRepository,
+        IRoutingConditionEvaluator routingEvaluator)
     {
         _tasks = new ConcurrentDictionary<string, TaskInfo>();
         _processorLock = new SemaphoreSlim(1, 1);
         _eventEmitter = eventEmitter;
         _logger = logger;
-        _serviceProvider = serviceProvider;
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _chainRepository = chainRepository ?? throw new ArgumentNullException(nameof(chainRepository));
+        _taskRepository = taskRepository ?? throw new ArgumentNullException(nameof(taskRepository));
+        _routingEvaluator = routingEvaluator ?? throw new ArgumentNullException(nameof(routingEvaluator));
     }
 
-    public async Task<string> AddTaskAsync<TInput>(string taskType, TInput input, string? profileId = null, TaskChainContext? chainContext = null)
+    public async Task<string> AddTaskAsync<TInput>(string taskType, TInput input, string? profileId = null, string? chainId = null, string? nodeId = null)
     {
         var taskId = $"TASK-{Guid.NewGuid():N}";
 
-        // If no correlation ID provided, generate one
-        if (chainContext == null)
-        {
-            chainContext = new TaskChainContext
-            {
-                CorrelationId = $"CORR-{Guid.NewGuid():N}",
-                CurrentPhase = 1,
-                TotalPhases = 1
-            };
-        }
-
         var serializedInput = JsonSerializer.Serialize(input, JsonOptions);
         _logger.Debug($"[AddTask] Received input object: {JsonSerializer.Serialize(input, new JsonSerializerOptions { WriteIndented = true })}", "TaskQueueService");
-        _logger.Debug($"[AddTask] Serialized InputData: {serializedInput}", "TaskQueueService");
+        _logger.Debug($"[AddTask] Serialized Input: {serializedInput}", "TaskQueueService");
 
+        // Create task with or without chain association
         var task = new TaskInfo
         {
             Id = taskId,
             Type = taskType,
+            TaskChainId = chainId ?? $"CHAIN-{Guid.NewGuid():N}", // Create standalone chain if not provided
+            NodeId = nodeId,
             Status = Models.TaskStatus.Pending,
-            Progress = 0,
             CreatedAt = DateTime.UtcNow,
-            InputData = serializedInput,
-            ProfileId = profileId,
-            CorrelationId = chainContext.CorrelationId,
-            ChainContext = chainContext
+            Input = serializedInput
         };
 
         if (!_tasks.TryAdd(taskId, task))
@@ -137,7 +137,7 @@ public class TaskQueueService : ITaskQueueService
             throw new InvalidOperationException($"Failed to add task {taskId}");
         }
 
-        _logger.Info($"Task added: {taskId} (Type: {taskType}, Correlation: {chainContext.CorrelationId}, Phase: {chainContext.CurrentPhase}/{chainContext.TotalPhases})", "TaskQueueService");
+        _logger.Info($"Task added: {taskId} (Type: {taskType}, Chain: {task.TaskChainId}, Node: {nodeId})", "TaskQueueService");
 
         // Emit TASK_ADDED event
         await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.ADDED, task).ConfigureAwait(false);
@@ -185,7 +185,7 @@ public class TaskQueueService : ITaskQueueService
             // Update task status
             task.Status = Models.TaskStatus.Processing;
             task.StartedAt = DateTime.UtcNow;
-            task.OperationId = Guid.NewGuid().ToString();
+            // OperationId removed (duplicated with TaskChainId)
 
             _logger.Info($"Processing task: {task.Id}", "TaskQueueService");
 
@@ -199,29 +199,31 @@ public class TaskQueueService : ITaskQueueService
                 _logger,
                 (progress, message) =>
                 {
-                    task.Progress = progress;
-                    task.Message = message;
+                    // Progress and Message are runtime-only, not stored in DB
+                    // These would be emitted as events for real-time updates
                 }
             );
 
-            // Process task based on type
-            dynamic? output = task.Type switch
-            {
-                "mod_import" => await ProcessModImportTaskAsync(task, progressReporter, _currentTaskCts.Token).ConfigureAwait(false),
-                "compress_folder" => await ProcessCompressFolderTaskAsync(task, progressReporter, _currentTaskCts.Token).ConfigureAwait(false),
-                "import_from_temp" => await ProcessImportFromTempTaskAsync(task, progressReporter, _currentTaskCts.Token).ConfigureAwait(false),
-                _ => throw new NotSupportedException($"Task type not supported: {task.Type}")
-            };
+            // Process task using direct processor execution
+            _logger.Debug($"[ProcessNext] Processing task type '{task.Type}'", "TaskQueueService");
+            object? output = await ProcessTaskAsync(
+                task.Type,
+                task.Input,
+                progressReporter,
+                _currentTaskCts.Token
+            ).ConfigureAwait(false);
 
             // Store output data
             task.CompletedAt = DateTime.UtcNow;
-            task.Progress = 100;
-            task.OutputData = output != null ? JsonSerializer.Serialize(output, JsonOptions) : null;
+            // Progress is runtime-only, not stored
+            task.Output = output != null ? JsonSerializer.Serialize(output, JsonOptions) : null;
 
-            var chainContext = task.ChainContext;
-            _logger.Info($"Task completed: {task.Id} (Phase {chainContext?.CurrentPhase ?? 1}/{chainContext?.TotalPhases ?? 1})", "TaskQueueService");
+            // TODO: Get chain context from TaskChainInfo repository
+            _logger.Info($"Task completed: {task.Id}", "TaskQueueService");
 
-            // Handle chain continuation
+            // TODO: Handle chain continuation properly with TaskChainInfo
+            // This entire section needs to be refactored to work with TaskChainInfo/TaskInfo relationship
+            /*
             if (chainContext != null)
             {
                 if (chainContext.RequiresUserAction)
@@ -250,6 +252,7 @@ public class TaskQueueService : ITaskQueueService
                 }
             }
             else
+            */
             {
                 // Standalone task (no chain) - mark completed
                 task.Status = Models.TaskStatus.Completed;
@@ -282,87 +285,11 @@ public class TaskQueueService : ITaskQueueService
         }
     }
 
-    private async Task<ModImportTaskOutput> ProcessModImportTaskAsync(
-        TaskInfo task,
-        EventProgressReporter progressReporter,
-        CancellationToken ct)
-    {
-        // Get processor from DI container
-        var processor = _serviceProvider.GetService(typeof(ModImportTaskProcessor)) as ModImportTaskProcessor;
-
-        if (processor == null)
-        {
-            throw new InvalidOperationException("ModImportTaskProcessor not registered in DI container");
-        }
-
-        // Deserialize input
-        _logger.Debug($"[ProcessModImport] Raw InputData: {task.InputData}", "TaskQueueService");
-        var input = JsonSerializer.Deserialize<ModImportTaskInput>(task.InputData, JsonOptions);
-        if (input == null)
-        {
-            throw new InvalidOperationException("Failed to deserialize task input");
-        }
-        _logger.Debug($"[ProcessModImport] Deserialized - FilePath: '{input.FilePath}', IsFolder: {input.IsFolder}", "TaskQueueService");
-
-        // Process task
-        return await processor.ProcessAsync(input, progressReporter, ct).ConfigureAwait(false);
-    }
-
-    private async Task<CompressFolderTaskOutput> ProcessCompressFolderTaskAsync(
-        TaskInfo task,
-        EventProgressReporter progressReporter,
-        CancellationToken ct)
-    {
-        // Get processor from DI container
-        var processor = _serviceProvider.GetService(typeof(CompressFolderTaskProcessor)) as CompressFolderTaskProcessor;
-
-        if (processor == null)
-        {
-            throw new InvalidOperationException("CompressFolderTaskProcessor not registered in DI container");
-        }
-
-        // Deserialize input
-        _logger.Debug($"[ProcessCompressFolder] Raw InputData: {task.InputData}", "TaskQueueService");
-        var input = JsonSerializer.Deserialize<CompressFolderTaskInput>(task.InputData, JsonOptions);
-        if (input == null)
-        {
-            throw new InvalidOperationException("Failed to deserialize task input");
-        }
-        _logger.Debug($"[ProcessCompressFolder] Deserialized - FolderPath: '{input.FolderPath}'", "TaskQueueService");
-
-        // Process task
-        return await processor.ProcessAsync(input, progressReporter, ct).ConfigureAwait(false);
-    }
-
-    private async Task<ModImportTaskOutput> ProcessImportFromTempTaskAsync(
-        TaskInfo task,
-        EventProgressReporter progressReporter,
-        CancellationToken ct)
-    {
-        // Get processor from DI container
-        var processor = _serviceProvider.GetService(typeof(ImportFromTempTaskProcessor)) as ImportFromTempTaskProcessor;
-
-        if (processor == null)
-        {
-            throw new InvalidOperationException("ImportFromTempTaskProcessor not registered in DI container");
-        }
-
-        // Deserialize input
-        _logger.Debug($"[ProcessImportFromTemp] Raw InputData: {task.InputData}", "TaskQueueService");
-        var input = JsonSerializer.Deserialize<ImportFromTempTaskInput>(task.InputData, JsonOptions);
-        if (input == null)
-        {
-            throw new InvalidOperationException("Failed to deserialize task input");
-        }
-        _logger.Debug($"[ProcessImportFromTemp] Deserialized - TempArchivePath: '{input.TempArchivePath}'", "TaskQueueService");
-
-        // Process task
-        return await processor.ProcessAsync(input, progressReporter, ct).ConfigureAwait(false);
-    }
 
     /// <summary>
     /// Create the next task in a chain automatically
     /// </summary>
+    /* TODO: Refactor to work with TaskChainInfo
     private async Task CreateNextChainTaskAsync(TaskInfo completedTask, TaskChainContext chainContext, dynamic? output)
     {
         _logger.Info($"Auto-creating next chain task: {chainContext.NextTaskType} (Phase {chainContext.CurrentPhase + 1})", "TaskQueueService");
@@ -374,7 +301,7 @@ public class TaskQueueService : ITaskQueueService
         }
 
         // Store previous phase output
-        chainContext.SharedData[$"phase{chainContext.CurrentPhase}_output"] = completedTask.OutputData ?? string.Empty;
+        chainContext.SharedData[$"phase{chainContext.CurrentPhase}_output"] = completedTask.Output ?? string.Empty;
 
         // Create next task with updated chain context
         var nextChainContext = new TaskChainContext
@@ -393,6 +320,7 @@ public class TaskQueueService : ITaskQueueService
         // Note: Actual task creation will be handled by frontend/facade based on NextTaskType
         // This is just logging for now - full implementation needs task-specific logic
     }
+    */
 
     /// <summary>
     /// Continue a paused chain after user provides input
@@ -410,38 +338,209 @@ public class TaskQueueService : ITaskQueueService
             throw new InvalidOperationException($"Task {request.PausedTaskId} is not awaiting confirmation");
         }
 
-        var chainContext = pausedTask.ChainContext;
-        if (chainContext == null || string.IsNullOrEmpty(chainContext.NextTaskType))
+        // Get chain from repository
+        var chain = await _chainRepository.GetByIdAsync(pausedTask.TaskChainId).ConfigureAwait(false);
+        if (chain == null)
         {
-            throw new InvalidOperationException("Task does not have a next phase defined");
+            throw new InvalidOperationException($"Chain not found: {pausedTask.TaskChainId}");
         }
 
-        _logger.Info($"Continuing chain {request.CorrelationId} from paused task {request.PausedTaskId}", "TaskQueueService");
+        _logger.Info($"Continuing chain {chain.Id} from paused task {request.PausedTaskId}", "TaskQueueService");
+
+        // Parse chain configuration
+        TaskChainConfiguration? config = null;
+        if (!string.IsNullOrEmpty(chain.ChainConfiguration))
+        {
+            config = JsonSerializer.Deserialize<TaskChainConfiguration>(chain.ChainConfiguration, JsonOptions);
+        }
+
+        if (config == null)
+        {
+            throw new InvalidOperationException("No chain configuration found");
+        }
+
+        // Get the current node
+        TaskChainNode? currentNode = null;
+        if (!string.IsNullOrEmpty(pausedTask.NodeId) && config.Nodes.ContainsKey(pausedTask.NodeId))
+        {
+            currentNode = config.Nodes[pausedTask.NodeId];
+        }
+
+        if (currentNode == null)
+        {
+            throw new InvalidOperationException($"Current node not found: {pausedTask.NodeId}");
+        }
+
+        // Parse shared data first for routing evaluation
+        var sharedData = new Dictionary<string, object>();
+        if (!string.IsNullOrEmpty(chain.Context))
+        {
+            sharedData = JsonSerializer.Deserialize<Dictionary<string, object>>(chain.Context, JsonOptions) ?? new Dictionary<string, object>();
+        }
+
+        // Evaluate routing rules to determine next node
+        // For now, use simple logic - in production, inject IRoutingConditionEvaluator via DI
+        string? nextNodeId = null;
+
+        // If there are routing rules, we would evaluate them here
+        if (currentNode.RoutingRules?.Any() == true)
+        {
+            // TODO: Inject IRoutingConditionEvaluator and use it
+            // var evaluator = _routingEvaluator;
+            // nextNodeId = evaluator.EvaluateRoutingRules(currentNode, pausedTask, sharedData);
+
+            // For now, just use the default
+            nextNodeId = currentNode.DefaultNextNode;
+        }
+        else
+        {
+            // No routing rules, use default
+            nextNodeId = currentNode.DefaultNextNode;
+        }
+
+        if (string.IsNullOrEmpty(nextNodeId) || !config.Nodes.TryGetValue(nextNodeId, out var nextNode))
+        {
+            // Chain completed - no more nodes to execute
+            _logger.Info($"Chain {chain.Id} completed - no more nodes to execute", "TaskQueueService");
+
+            // Update chain status to completed
+            chain.Status = TaskChainStatus.Completed;
+            chain.CompletedAt = DateTime.UtcNow;
+            await _chainRepository.UpdateAsync(chain).ConfigureAwait(false);
+
+            // Update the paused task as the final task
+            pausedTask.Status = TaskStatus.Completed;
+            pausedTask.CompletedAt = DateTime.UtcNow;
+            await _taskRepository.UpdateAsync(pausedTask).ConfigureAwait(false);
+            await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, pausedTask).ConfigureAwait(false);
+
+            return pausedTask.Id; // Return the last task ID
+        }
+
+        var nextTaskType = nextNode.TaskType;
 
         // Merge user input into shared data
         if (request.UserInput != null)
         {
-            if (chainContext.SharedData == null)
-            {
-                chainContext.SharedData = new Dictionary<string, object>();
-            }
-
             foreach (var kvp in request.UserInput)
             {
-                chainContext.SharedData[kvp.Key] = kvp.Value;
+                // Store user input with "user_" prefix to distinguish from other data
+                sharedData[$"user_{kvp.Key}"] = kvp.Value;
             }
+
+            // Update chain context in repository
+            chain.Context = JsonSerializer.Serialize(sharedData, JsonOptions);
+            await _chainRepository.UpdateAsync(chain).ConfigureAwait(false);
         }
 
         // Update paused task to completed now that user has confirmed
         pausedTask.Status = TaskStatus.Completed;
+        pausedTask.CompletedAt = DateTime.UtcNow;
+        await _taskRepository.UpdateAsync(pausedTask).ConfigureAwait(false);
         await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.COMPLETED, pausedTask).ConfigureAwait(false);
 
-        // Create next task in chain
-        // This will be implemented based on the specific task type
-        _logger.Info($"Creating next task type: {chainContext.NextTaskType}", "TaskQueueService");
+        _logger.Info($"Creating next task in chain: {nextTaskType} (Node: {nextNode.NodeId})", "TaskQueueService");
 
-        // Return placeholder - actual implementation will create the task via facade
-        return "Chain continuation initiated";
+        // Build input for next task based on node's input mapping
+        object nextTaskInput = BuildNextTaskInput(nextTaskType, pausedTask, sharedData, request.UserInput);
+
+        // Create the next task
+        var nextTaskId = await AddTaskAsync(nextTaskType, nextTaskInput, null, chain.Id, nextNode.NodeId).ConfigureAwait(false);
+
+        _logger.Info($"Created next task in chain: {nextTaskId} (type: {nextTaskType})", "TaskQueueService");
+
+        // Automatically start processing if not already running
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await ProcessNextTaskAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to auto-start processing after chain continuation: {ex.Message}", "TaskQueueService");
+            }
+        });
+
+        return nextTaskId;
+    }
+
+    /// <summary>
+    /// Build input for the next task in a chain based on previous output and user input
+    /// </summary>
+    private object BuildNextTaskInput(string nextTaskType, TaskInfo previousTask, Dictionary<string, object> sharedData, Dictionary<string, object>? userInput)
+    {
+        _logger.Debug($"Building input for next task type: {nextTaskType}", "TaskQueueService");
+
+        // Parse previous task output if available
+        object? previousOutput = null;
+        if (!string.IsNullOrEmpty(previousTask.Output))
+        {
+            try
+            {
+                // Try to deserialize as generic object
+                previousOutput = JsonSerializer.Deserialize<Dictionary<string, object>>(previousTask.Output, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"Failed to deserialize previous output: {ex.Message}", "TaskQueueService");
+            }
+        }
+
+        // Map input based on specific task type transitions
+        // This is a simplified version - ideally would use TaskChainNode.InputMapping
+        return nextTaskType switch
+        {
+            "import_from_temp" => BuildImportFromTempInput(previousOutput, sharedData, userInput),
+            _ => throw new NotSupportedException($"No input mapping defined for task type: {nextTaskType}")
+        };
+    }
+
+    /// <summary>
+    /// Build input for import_from_temp task (Phase 2 of folder import)
+    /// </summary>
+    private ImportFromTempTaskInput BuildImportFromTempInput(object? previousOutput, Dictionary<string, object>? sharedData, Dictionary<string, object>? userInput)
+    {
+        // Previous output should be CompressFolderTaskOutput
+        var compressOutput = previousOutput as CompressFolderTaskOutput;
+        if (compressOutput == null)
+        {
+            throw new InvalidOperationException("Previous task output is not CompressFolderTaskOutput");
+        }
+
+        // Build input combining compress output and user metadata
+        return new ImportFromTempTaskInput
+        {
+            TempArchivePath = compressOutput.TempArchivePath,
+            Name = userInput?.GetValueOrDefault("name")?.ToString() ??
+                   sharedData?.GetValueOrDefault("metadata_name")?.ToString() ??
+                   compressOutput.FolderName,
+            Author = userInput?.GetValueOrDefault("author")?.ToString() ??
+                     sharedData?.GetValueOrDefault("metadata_author")?.ToString(),
+            Description = userInput?.GetValueOrDefault("description")?.ToString() ??
+                          sharedData?.GetValueOrDefault("metadata_description")?.ToString(),
+            Grading = userInput?.GetValueOrDefault("grading")?.ToString() ??
+                      sharedData?.GetValueOrDefault("metadata_grading")?.ToString() ?? "G",
+            Category = userInput?.GetValueOrDefault("category")?.ToString() ??
+                       sharedData?.GetValueOrDefault("metadata_category")?.ToString(),
+            Tags = ParseTags(userInput?.GetValueOrDefault("tags") ?? sharedData?.GetValueOrDefault("metadata_tags"))
+        };
+    }
+
+    /// <summary>
+    /// Parse tags from various input formats
+    /// </summary>
+    private List<string>? ParseTags(object? tagsInput)
+    {
+        if (tagsInput == null) return null;
+
+        return tagsInput switch
+        {
+            List<string> list => list,
+            string[] array => array.ToList(),
+            string str => str.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+            _ => null
+        };
     }
 
     public async Task CancelTaskAsync(string taskId)
@@ -493,5 +592,70 @@ public class TaskQueueService : ITaskQueueService
         }
 
         _logger.Info($"Cleared {completedTasks.Count} completed tasks", "TaskQueueService");
+    }
+
+    /// <summary>
+    /// Process a task based on its type
+    /// </summary>
+    private async Task<object?> ProcessTaskAsync(
+        string taskType,
+        string? inputJson,
+        IProgressReporter progressReporter,
+        CancellationToken cancellationToken)
+    {
+        // Get the appropriate processor based on task type
+        switch (taskType)
+        {
+            case TaskNames.MOD_IMPORT:
+                {
+                    var processor = _serviceProvider.GetService<ModImportTaskProcessor>();
+                    if (processor == null)
+                        throw new InvalidOperationException($"Processor not found for task type: {taskType}");
+
+                    var input = string.IsNullOrEmpty(inputJson)
+                        ? new ModImportTaskInput()
+                        : JsonSerializer.Deserialize<ModImportTaskInput>(inputJson, JsonOptions);
+
+                    if (input == null)
+                        throw new InvalidOperationException($"Failed to deserialize input for task type: {taskType}");
+
+                    return await processor.ProcessAsync(input, progressReporter, cancellationToken).ConfigureAwait(false);
+                }
+
+            case TaskNames.COMPRESS_FOLDER:
+                {
+                    var processor = _serviceProvider.GetService<CompressFolderTaskProcessor>();
+                    if (processor == null)
+                        throw new InvalidOperationException($"Processor not found for task type: {taskType}");
+
+                    var input = string.IsNullOrEmpty(inputJson)
+                        ? new CompressFolderTaskInput()
+                        : JsonSerializer.Deserialize<CompressFolderTaskInput>(inputJson, JsonOptions);
+
+                    if (input == null)
+                        throw new InvalidOperationException($"Failed to deserialize input for task type: {taskType}");
+
+                    return await processor.ProcessAsync(input, progressReporter, cancellationToken).ConfigureAwait(false);
+                }
+
+            case TaskNames.IMPORT_FROM_TEMP:
+                {
+                    var processor = _serviceProvider.GetService<ImportFromTempTaskProcessor>();
+                    if (processor == null)
+                        throw new InvalidOperationException($"Processor not found for task type: {taskType}");
+
+                    var input = string.IsNullOrEmpty(inputJson)
+                        ? new ImportFromTempTaskInput()
+                        : JsonSerializer.Deserialize<ImportFromTempTaskInput>(inputJson, JsonOptions);
+
+                    if (input == null)
+                        throw new InvalidOperationException($"Failed to deserialize input for task type: {taskType}");
+
+                    return await processor.ProcessAsync(input, progressReporter, cancellationToken).ConfigureAwait(false);
+                }
+
+            default:
+                throw new NotSupportedException($"Task type '{taskType}' is not supported");
+        }
     }
 }

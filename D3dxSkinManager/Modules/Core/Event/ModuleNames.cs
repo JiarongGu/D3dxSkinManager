@@ -8,7 +8,7 @@ namespace D3dxSkinManager.Modules.Core.Event;
 public static class ModuleNames
 {
     // Core system modules
-    public const string CORE = "CORE";
+    public const string SYSTEM = "SYSTEM";
     public const string DROP_ZONE = "DROP_ZONE";
 
     // Feature modules

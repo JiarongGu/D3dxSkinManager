@@ -1,7 +1,7 @@
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
 
-namespace D3dxSkinManager.Composition;
+namespace D3dxSkinManager.Infrastructure.WebView;
 
 /// <summary>
 /// Delegate for message processing middleware

@@ -1,13 +1,15 @@
+using D3dxSkinManager.Infrastructure.WebView;
 using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.TaskQueue;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 
-namespace D3dxSkinManager.Composition;
+namespace D3dxSkinManager.Infrastructure;
 
 
 /// <summary>
@@ -165,6 +167,7 @@ public class ProfileServiceRouter : IDisposable
             // Load cache directory configuration asynchronously without blocking
             _ = profilePathService.LoadCacheDirectoryAsync();
         }
+
 
         _logger.Debug($"Created profile-scoped services for: {profile.Name} ({profile.Id})", "ProfileServiceRouter");
 

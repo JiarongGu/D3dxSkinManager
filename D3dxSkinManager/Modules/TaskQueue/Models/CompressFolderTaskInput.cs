@@ -7,5 +7,4 @@ namespace D3dxSkinManager.Modules.TaskQueue.Models;
 public class CompressFolderTaskInput
 {
     public string FolderPath { get; set; } = string.Empty;
-    public string? ProfileId { get; set; }
 }

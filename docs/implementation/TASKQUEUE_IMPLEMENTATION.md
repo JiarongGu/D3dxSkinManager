@@ -384,7 +384,7 @@ Modules/TaskQueue/
 ├── TaskQueueFacade.cs (Chain handlers)
 └── TaskQueueServiceExtensions.cs (Registered new processors)
 
-Composition/
+Infrastructure/
 └── EventBusIpcBridge.cs (Changed to Verbose logging)
 
 Languages/

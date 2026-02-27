@@ -229,7 +229,7 @@ export const TaskQueueView: React.FC = () => {
           try {
             const result = await systemService.openFolderDialog({
               title: t('importQueue.selectModFolder'),
-              rememberPathKey: 'mod_import_folder'
+              rememberPathKey: 'mod-import-task'
             });
 
             console.log('[TaskQueueView] Folder dialog result:', result);
@@ -261,7 +261,6 @@ export const TaskQueueView: React.FC = () => {
         const input: ModImportTaskInput = {
           filePath,
           isFolder,
-          profileId: selectedProfileId,
           name: nameWithoutExt,
           grading: 'G',
           tags: [],
@@ -395,7 +394,7 @@ export const TaskQueueView: React.FC = () => {
 
       // Continue the chain with user input
       const nextTaskId = await taskQueueService.continueChain(
-        awaitingTask.correlationId!,
+        awaitingTask.taskChainId,
         awaitingTask.id,
         metadata
       );
@@ -423,8 +422,8 @@ export const TaskQueueView: React.FC = () => {
    */
   const getTaskFileName = (task: TaskInfo): string => {
     try {
-      console.log('[TaskQueueView] Parsing task input:', task.id, task.type, task.inputData);
-      const input = JSON.parse(task.inputData);
+      console.log('[TaskQueueView] Parsing task input:', task.id, task.type, task.input);
+      const input = JSON.parse(task.input);
       console.log('[TaskQueueView] Parsed input:', input);
 
       // Handle different task types
@@ -601,7 +600,7 @@ const MetadataInputModal: React.FC<MetadataInputModalProps> = ({ visible, task, 
   const getInitialValues = () => {
     try {
       // Parse the task's output or input data to get chain context
-      const taskData = task.outputData ? JSON.parse(task.outputData) : {};
+      const taskData = task.output ? JSON.parse(task.output) : {};
       return {
         name: taskData.metadata_name || '',
         author: taskData.metadata_author || '',

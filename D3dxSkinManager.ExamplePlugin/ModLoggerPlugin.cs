@@ -41,7 +41,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         _context.Log(LogLevel.Info, $"[{Name}] Log file: {_logFilePath}");
 
         // Register event handlers
-        _context.RegisterEventHandler(ModuleNames.CORE, CoreEvents.APPLICATION_STARTED, OnApplicationStarted);
+        _context.RegisterEventHandler(ModuleNames.SYSTEM, SystemEvents.APPLICATION_STARTED, OnApplicationStarted);
         _context.RegisterEventHandler(ModuleNames.MOD, ModEvents.LOADED, OnModLoaded);
         _context.RegisterEventHandler(ModuleNames.MOD, ModEvents.UNLOADED, OnModUnloaded);
         _context.RegisterEventHandler(ModuleNames.MOD, ModEvents.IMPORTED, OnModImported);

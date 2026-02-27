@@ -226,7 +226,7 @@ export const CategoryScreenContent: React.FC<
             extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
           },
         ],
-        rememberPathKey: "CategoryThumbnail",
+        rememberPathKey: "category-thumbnail", // Remember last path used for thumbnail selection
       });
 
       if (result.success && result.filePath) {

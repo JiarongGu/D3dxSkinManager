@@ -106,7 +106,7 @@ Completely refactored event system to use Module + Type pattern (matching IpcReq
 **Frontend Changes**:
 - Event interface: Changed from `{type, data}` to `{module, type, payload}`
 - Module enum: Added separate Module enum with all module names
-- Event type enums: Separate enums per module (CoreEventType, ModEventType, TaskQueueEventType, etc.)
+- Event type enums: Separate enums per module (SystemEventType, ModEventType, TaskQueueEventType, etc.)
 - EventPayloadMap: Type-safe payload mapping for compile-time checking
 - eventBus.subscribe: Changed to 2-parameter `(module, type, handler)` from `(type, handler)`
 - bridgeService: Updated to extract `{module, type, payload}` from top level (not nested in data)
@@ -298,7 +298,7 @@ Implemented double buffering, GPU acceleration enhancements, performance monitor
 **Components**: OptimizedForm.cs, ApplicationHost.cs, WebViewInitializer.cs, PerformanceMonitor.cs
 
 ### Fixed - 2026-02-22 - Comprehensive Code Quality Improvements ⭐⭐⭐⭐
-Fixed Console.WriteLine usage (5 Composition files → ILogger), NotImplementedException (2 files → graceful returns), frontend services (3 services → extend BaseModuleService).
+Fixed Console.WriteLine usage (5 Infrastructure files → ILogger), NotImplementedException (2 files → graceful returns), frontend services (3 services → extend BaseModuleService).
 **Impact**: ✅ Consistent logging, no runtime exceptions, uniform service architecture
 **Details**: [changelogs/2026-02/2026-02-22-comprehensive-code-review.md](changelogs/2026-02/2026-02-22-comprehensive-code-review.md)
 

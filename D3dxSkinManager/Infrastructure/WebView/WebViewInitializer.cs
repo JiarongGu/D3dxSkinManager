@@ -2,7 +2,7 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Services;
 
-namespace D3dxSkinManager.Composition;
+namespace D3dxSkinManager.Infrastructure.WebView;
 
 /// <summary>
 /// Handles WebView2 initialization and configuration

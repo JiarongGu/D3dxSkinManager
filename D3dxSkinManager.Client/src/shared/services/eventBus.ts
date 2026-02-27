@@ -3,108 +3,112 @@
  * Supports typed events with compile-time safety
  */
 
-import type { TaskInfo, TaskProgress } from '../../modules/taskQueue/types/task.types';
-import type { ModInfo } from '../types/mod.types';
+import type {
+  TaskInfo,
+  TaskProgress,
+} from "../../modules/taskQueue/types/task.types";
+import type { ModInfo } from "../types/mod.types";
+import { bridgeService } from "./bridgeService";
 
 // Module names matching backend ModuleNames
 export enum Module {
-  CORE = 'CORE',
-  MOD = 'MOD',
-  CATEGORY = 'CATEGORY',
-  TASK_QUEUE = 'TASK_QUEUE',
-  DROP_ZONE = 'DROP_ZONE',
-  SETTING = 'SETTING',
-  PROFILE = 'PROFILE',
-  MIGRATION = 'MIGRATION',
-  TOOL = 'TOOL',
-  PLUGIN = 'PLUGIN',
+  SYSTEM = "SYSTEM",
+  MOD = "MOD",
+  CATEGORY = "CATEGORY",
+  TASK_QUEUE = "TASK_QUEUE",
+  DROP_ZONE = "DROP_ZONE",
+  SETTING = "SETTING",
+  PROFILE = "PROFILE",
+  MIGRATION = "MIGRATION",
+  TOOL = "TOOL",
+  PLUGIN = "PLUGIN",
 }
 
 // Core event types
-export enum CoreEventType {
-  APPLICATION_STARTED = 'APPLICATION_STARTED',
-  APPLICATION_SHUTDOWN = 'APPLICATION_SHUTDOWN',
-  LOG_LEVEL_CHANGED = 'LOG_LEVEL_CHANGED',
+export enum SystemEventType {
+  APPLICATION_STARTED = "APPLICATION_STARTED",
+  APPLICATION_SHUTDOWN = "APPLICATION_SHUTDOWN",
+  LOG_LEVEL_CHANGED = "LOG_LEVEL_CHANGED",
 }
 
 // Mod event types
 export enum ModEventType {
-  LOADED = 'LOADED',
-  UNLOADED = 'UNLOADED',
-  DELETED = 'DELETED',
-  IMPORTED = 'IMPORTED',
-  REFRESHED = 'REFRESHED',
-  METADATA_UPDATED = 'METADATA_UPDATED',
-  CATEGORY_UPDATED = 'CATEGORY_UPDATED',
-  PREVIEW_IMPORTED = 'PREVIEW_IMPORTED',
-  THUMBNAIL_UPDATED = 'THUMBNAIL_UPDATED',
-  PREVIEW_DELETED = 'PREVIEW_DELETED',
+  LOADED = "LOADED",
+  UNLOADED = "UNLOADED",
+  DELETED = "DELETED",
+  IMPORTED = "IMPORTED",
+  REFRESHED = "REFRESHED",
+  METADATA_UPDATED = "METADATA_UPDATED",
+  CATEGORY_UPDATED = "CATEGORY_UPDATED",
+  PREVIEW_IMPORTED = "PREVIEW_IMPORTED",
+  THUMBNAIL_UPDATED = "THUMBNAIL_UPDATED",
+  PREVIEW_DELETED = "PREVIEW_DELETED",
 }
 
 // Category event types
 export enum CategoryEventType {
-  CATEGORIES_UPDATED = 'CATEGORIES_UPDATED',
+  CATEGORIES_UPDATED = "CATEGORIES_UPDATED",
 }
 
 // Drop zone event types
 export enum DropZoneEventType {
-  CLICK = 'CLICK',
-  DRAG_ENTER = 'DRAG_ENTER',
-  DRAG_LEAVE = 'DRAG_LEAVE',
-  FILE_DROP = 'FILE_DROP',
-  MOUSE_ENTER = 'MOUSE_ENTER',
-  MOUSE_LEAVE = 'MOUSE_LEAVE',
+  CLICK = "CLICK",
+  DRAG_ENTER = "DRAG_ENTER",
+  DRAG_LEAVE = "DRAG_LEAVE",
+  FILE_DROP = "FILE_DROP",
+  MOUSE_ENTER = "MOUSE_ENTER",
+  MOUSE_LEAVE = "MOUSE_LEAVE",
 }
 
 // TaskQueue event types
 export enum TaskQueueEventType {
-  ADDED = 'ADDED',
-  STARTED = 'STARTED',
-  PROGRESS = 'PROGRESS',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED',
-  CANCELLED = 'CANCELLED',
-  REMOVED = 'REMOVED',
-  AWAITING_CONFIRMATION = 'AWAITING_CONFIRMATION',
+  ADDED = "ADDED",
+  STARTED = "STARTED",
+  PROGRESS = "PROGRESS",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+  CANCELLED = "CANCELLED",
+  REMOVED = "REMOVED",
+  AWAITING_CONFIRMATION = "AWAITING_CONFIRMATION",
 }
 
 // Settings event types
 export enum SettingsEventType {
-  WINDOW_STATE_RESET = 'WINDOW_STATE_RESET',
-  GLOBAL_SETTINGS_CHANGED = 'GLOBAL_SETTINGS_CHANGED',
+  WINDOW_STATE_RESET = "WINDOW_STATE_RESET",
+  GLOBAL_SETTINGS_CHANGED = "GLOBAL_SETTINGS_CHANGED",
 }
 
 // Profile event types
 export enum ProfileEventType {
-  CREATED = 'CREATED',
-  UPDATED = 'UPDATED',
-  DELETED = 'DELETED',
-  DUPLICATED = 'DUPLICATED',
-  SWITCHED = 'SWITCHED',
-  CONFIG_UPDATED = 'CONFIG_UPDATED',
-  CUSTOM_EVENT = 'CUSTOM_EVENT',
+  CREATED = "CREATED",
+  UPDATED = "UPDATED",
+  DELETED = "DELETED",
+  DUPLICATED = "DUPLICATED",
+  SWITCHED = "SWITCHED",
+  CONFIG_UPDATED = "CONFIG_UPDATED",
+  CUSTOM_EVENT = "CUSTOM_EVENT",
 }
 
 // Migration event types
 export enum MigrationEventType {
-  CATEGORIES_UPDATED = 'CATEGORIES_UPDATED',
-  MODS_REFRESHED = 'MODS_REFRESHED',
-  CUSTOM_EVENT = 'CUSTOM_EVENT',
+  CATEGORIES_UPDATED = "CATEGORIES_UPDATED",
+  MODS_REFRESHED = "MODS_REFRESHED",
+  CUSTOM_EVENT = "CUSTOM_EVENT",
 }
 
 // Tools event types
 export enum ToolsEventType {
-  CUSTOM_EVENT = 'CUSTOM_EVENT',
+  CUSTOM_EVENT = "CUSTOM_EVENT",
 }
 
 // Plugin event types
 export enum PluginEventType {
-  CUSTOM_EVENT = 'CUSTOM_EVENT',
+  CUSTOM_EVENT = "CUSTOM_EVENT",
 }
 
 // Map each module to its valid event type enum
 export interface ModuleEventTypeMap {
-  [Module.CORE]: CoreEventType;
+  [Module.SYSTEM]: SystemEventType;
   [Module.MOD]: ModEventType;
   [Module.CATEGORY]: CategoryEventType;
   [Module.DROP_ZONE]: DropZoneEventType;
@@ -118,11 +122,11 @@ export interface ModuleEventTypeMap {
 
 // Event payload type mapping
 export interface EventPayloadMap {
-  // Core events
-  [Module.CORE]: {
-    [CoreEventType.APPLICATION_STARTED]: void;
-    [CoreEventType.APPLICATION_SHUTDOWN]: void;
-    [CoreEventType.LOG_LEVEL_CHANGED]: { level: string };
+  // System events
+  [Module.SYSTEM]: {
+    [SystemEventType.APPLICATION_STARTED]: void;
+    [SystemEventType.APPLICATION_SHUTDOWN]: void;
+    [SystemEventType.LOG_LEVEL_CHANGED]: { level: string };
   };
 
   // Mod events
@@ -133,7 +137,11 @@ export interface EventPayloadMap {
     [ModEventType.IMPORTED]: ModInfo;
     [ModEventType.REFRESHED]: void;
     [ModEventType.METADATA_UPDATED]: { sha: string; mod?: ModInfo };
-    [ModEventType.CATEGORY_UPDATED]: { sha: string; category: string; mod?: ModInfo };
+    [ModEventType.CATEGORY_UPDATED]: {
+      sha: string;
+      category: string;
+      mod?: ModInfo;
+    };
     [ModEventType.PREVIEW_IMPORTED]: { sha: string; imagePath?: string };
     [ModEventType.THUMBNAIL_UPDATED]: { sha: string; previewPath: string };
     [ModEventType.PREVIEW_DELETED]: { sha: string; previewPath: string };
@@ -146,7 +154,10 @@ export interface EventPayloadMap {
 
   // Drop zone events
   [Module.DROP_ZONE]: {
-    [DropZoneEventType.CLICK]: { zoneId: string; position: { x: number; y: number } };
+    [DropZoneEventType.CLICK]: {
+      zoneId: string;
+      position: { x: number; y: number };
+    };
     [DropZoneEventType.DRAG_ENTER]: { zoneId: string };
     [DropZoneEventType.DRAG_LEAVE]: { zoneId: string };
     [DropZoneEventType.FILE_DROP]: { zoneId: string; files: string[] };
@@ -208,7 +219,7 @@ export interface Event<M extends Module = Module, T extends string = string> {
 
 // Subscription handler - receives typed Event
 type EventHandler<M extends Module, T extends string> = (
-  event: Event<M, T>
+  event: Event<M, T>,
 ) => void;
 
 /**
@@ -225,15 +236,27 @@ class EventBus {
   subscribe<M extends Module, T extends string>(
     module: M,
     type: T,
-    handler: EventHandler<M, T>
+    handler: EventHandler<M, T>,
   ): () => void {
     const key = this.getEventKey(module, type);
 
-    if (!this.handlers.has(key)) {
-      this.handlers.set(key, new Set());
+    let handlers = this.handlers.get(key);
+    const isFirstSubscriber = !handlers || handlers.size === 0;
+
+    if (!handlers) {
+      handlers = new Set();
+      this.handlers.set(key, handlers);
     }
 
-    this.handlers.get(key)!.add(handler);
+    handlers.add(handler);
+
+    if (isFirstSubscriber) {
+      bridgeService.sendMessage({
+        module: "APP",
+        type: "SUBSCRIBE",
+        payload: { module, type },
+      });
+    }
 
     // Return cleanup function
     return () => {
@@ -242,6 +265,11 @@ class EventBus {
         handlers.delete(handler);
         if (handlers.size === 0) {
           this.handlers.delete(key);
+          bridgeService.sendMessage({
+            module: "APP",
+            type: "UNSUBSCRIBE",
+            payload: { module, type },
+          });
         }
       }
     };
@@ -303,7 +331,7 @@ export const eventBus = new EventBus();
 
 // Combined EventType for backward compatibility
 export const EventType = {
-  ...CoreEventType,
+  ...SystemEventType,
   ...ModEventType,
   ...DropZoneEventType,
   ...TaskQueueEventType,

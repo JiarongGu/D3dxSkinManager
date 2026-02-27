@@ -17,7 +17,7 @@ public class ImportFromTempTaskProcessor : ITaskProcessor<ImportFromTempTaskInpu
     private readonly IModManagementService _modManagementService;
     private readonly ILogHelper _logger;
 
-    public string TaskType => "import_from_temp";
+    public string TaskType => TaskNames.IMPORT_FROM_TEMP;
 
     public ImportFromTempTaskProcessor(
         IModImportService importService,

@@ -1,7 +1,6 @@
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.TaskQueue.Models;
-using D3dxSkinManager.Modules.TaskQueue.Services;
 
 namespace D3dxSkinManager.Modules.TaskQueue.Processors;
 
@@ -15,7 +14,7 @@ public class CompressFolderTaskProcessor : ITaskProcessor<CompressFolderTaskInpu
     private readonly IProfilePathService _profilePathService;
     private readonly ILogHelper _logger;
 
-    public string TaskType => "compress_folder";
+    public string TaskType => TaskNames.COMPRESS_FOLDER;
 
     public CompressFolderTaskProcessor(
         IArchiveHelper archiveHelper,

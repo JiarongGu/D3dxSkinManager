@@ -34,7 +34,7 @@ public class EventProgressReporter : IProgressReporter
         _onProgress(percentComplete, currentStep);
 
         // Create progress event
-        var progress = new TaskProgress
+        var progress = new
         {
             TaskId = _taskId,
             Progress = percentComplete,
