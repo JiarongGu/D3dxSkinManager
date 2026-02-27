@@ -3,7 +3,7 @@ using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.TaskQueue.Services;
-using D3dxSkinManager.Modules.TaskQueue;
+using D3dxSkinManager.Modules.TaskQueue.Repositories;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 

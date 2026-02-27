@@ -78,7 +78,7 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
         }
 
         // Special handling for mod_import with folder (convert to chain)
-        if (taskType == "mod_import")
+        if (taskType == TaskTypes.MOD_IMPORT)
         {
             var input = _payloadHelper.GetRequiredValue<ModImportTaskInput>(request.Payload, "input");
             if (input.IsFolder)
@@ -170,9 +170,9 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
 
         object? input = taskType switch
         {
-            TaskNames.MOD_IMPORT => JsonSerializer.Deserialize<ModImportTaskInput>(inputJsonString),
-            TaskNames.COMPRESS_FOLDER => JsonSerializer.Deserialize<CompressFolderTaskInput>(inputJsonString),
-            TaskNames.IMPORT_FROM_TEMP => JsonSerializer.Deserialize<ImportFromTempTaskInput>(inputJsonString),
+            TaskTypes.MOD_IMPORT => JsonSerializer.Deserialize<ModImportTaskInput>(inputJsonString),
+            TaskTypes.COMPRESS_FOLDER => JsonSerializer.Deserialize<CompressFolderTaskInput>(inputJsonString),
+            TaskTypes.IMPORT_FROM_TEMP => JsonSerializer.Deserialize<ImportFromTempTaskInput>(inputJsonString),
             _ => throw new NotSupportedException($"Task type not supported: {taskType}")
         };
 
@@ -197,7 +197,7 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
         var chain = new TaskChainInfo
         {
             Id = chainId,
-            ChainType = "folder_import",
+            ChainType = ChainTypes.FOLDER_IMPORT,
             Status = TaskChainStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             // Store initial metadata in context as shared data
@@ -225,7 +225,7 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
         // For now, use a simple node ID - in future this would come from chain configuration
         var nodeId = "compress_folder_node";
 
-        return await _taskQueueService.AddTaskAsync("compress_folder", compressInput, profileId, chainId, nodeId).ConfigureAwait(false);
+        return await _taskQueueService.AddTaskAsync(TaskTypes.COMPRESS_FOLDER, compressInput, profileId, chainId, nodeId).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -255,9 +255,9 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
     {
         var allMetadata = new[]
         {
-            GetTaskTypeMetadata(TaskNames.MOD_IMPORT),
-            GetTaskTypeMetadata(TaskNames.COMPRESS_FOLDER),
-            GetTaskTypeMetadata(TaskNames.IMPORT_FROM_TEMP)
+            GetTaskTypeMetadata(TaskTypes.MOD_IMPORT),
+            GetTaskTypeMetadata(TaskTypes.COMPRESS_FOLDER),
+            GetTaskTypeMetadata(TaskTypes.IMPORT_FROM_TEMP)
         }.Where(m => m != null);
 
         return new { success = true, metadata = allMetadata };
@@ -270,27 +270,27 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
     {
         return taskType switch
         {
-            TaskNames.MOD_IMPORT => new
+            TaskTypes.MOD_IMPORT => new
             {
-                taskType = TaskNames.MOD_IMPORT,
+                taskType = TaskTypes.MOD_IMPORT,
                 displayName = "Import Mod",
                 description = "Import a mod from file or folder",
                 estimatedDurationSeconds = 30,
                 supportsCancellation = true,
                 supportsChaining = true
             },
-            TaskNames.COMPRESS_FOLDER => new
+            TaskTypes.COMPRESS_FOLDER => new
             {
-                taskType = TaskNames.COMPRESS_FOLDER,
+                taskType = TaskTypes.COMPRESS_FOLDER,
                 displayName = "Compress Folder",
                 description = "Compress a folder to temporary archive",
                 estimatedDurationSeconds = 60,
                 supportsCancellation = true,
                 supportsChaining = true
             },
-            TaskNames.IMPORT_FROM_TEMP => new
+            TaskTypes.IMPORT_FROM_TEMP => new
             {
-                taskType = TaskNames.IMPORT_FROM_TEMP,
+                taskType = TaskTypes.IMPORT_FROM_TEMP,
                 displayName = "Import from Temp",
                 description = "Import mod from temporary archive with metadata",
                 estimatedDurationSeconds = 30,
@@ -385,9 +385,9 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
     {
         return taskType switch
         {
-            TaskNames.MOD_IMPORT => true,
-            TaskNames.COMPRESS_FOLDER => true,
-            TaskNames.IMPORT_FROM_TEMP => true,
+            TaskTypes.MOD_IMPORT => true,
+            TaskTypes.COMPRESS_FOLDER => true,
+            TaskTypes.IMPORT_FROM_TEMP => true,
             _ => false
         };
     }
@@ -396,10 +396,10 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
     {
         return chainType switch
         {
-            "folder_import" => "Folder Import",
-            "quick_folder_import" => "Quick Folder Import",
-            "validated_import" => "Validated Import",
-            "batch_processing" => "Batch Processing",
+            ChainTypes.FOLDER_IMPORT => "Folder Import",
+            ChainTypes.QUICK_FOLDER_IMPORT => "Quick Folder Import",
+            ChainTypes.VALIDATED_IMPORT => "Validated Import",
+            ChainTypes.BATCH_PROCESSING => "Batch Processing",
             _ => chainType
         };
     }
@@ -408,10 +408,10 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
     {
         return chainType switch
         {
-            "folder_import" => "Import a folder as a mod with user metadata input",
-            "quick_folder_import" => "Quick import with default metadata",
-            "validated_import" => "Import with validation step",
-            "batch_processing" => "Process multiple items in batch",
+            ChainTypes.FOLDER_IMPORT => "Import a folder as a mod with user metadata input",
+            ChainTypes.QUICK_FOLDER_IMPORT => "Quick import with default metadata",
+            ChainTypes.VALIDATED_IMPORT => "Import with validation step",
+            ChainTypes.BATCH_PROCESSING => "Process multiple items in batch",
             _ => ""
         };
     }
@@ -420,10 +420,10 @@ public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
     {
         return chainType switch
         {
-            "folder_import" => new List<string> { "import", "folder", "interactive" },
-            "quick_folder_import" => new List<string> { "import", "folder", "quick" },
-            "validated_import" => new List<string> { "import", "validation" },
-            "batch_processing" => new List<string> { "batch", "bulk" },
+            ChainTypes.FOLDER_IMPORT => new List<string> { "import", "folder", "interactive" },
+            ChainTypes.QUICK_FOLDER_IMPORT => new List<string> { "import", "folder", "quick" },
+            ChainTypes.VALIDATED_IMPORT => new List<string> { "import", "validation" },
+            ChainTypes.BATCH_PROCESSING => new List<string> { "batch", "bulk" },
             _ => new List<string>()
         };
     }

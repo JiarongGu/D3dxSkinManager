@@ -69,25 +69,40 @@ public class NodeRoutingRule
 - IsNull, IsNotNull
 - IsEmpty, IsNotEmpty
 
-### 3. Predefined Chain Configurations
+### 3. Standardized Constants
 
-**Folder Import Chain:**
-```csharp
-compress_folder → [AwaitingConfirmation] → import_from_temp
+All task and chain types now use UPPER_SNAKE_CASE constants:
+
+**Task Types (TaskTypes.cs):**
+- `MOD_IMPORT` - Import mod from file/folder
+- `COMPRESS_FOLDER` - Compress folder to temp archive
+- `IMPORT_FROM_TEMP` - Import from temp with metadata
+
+**Chain Types (ChainTypes.cs):**
+- `FOLDER_IMPORT` - Interactive folder import with metadata
+- `QUICK_FOLDER_IMPORT` - Auto folder import without interaction
+- `VALIDATED_IMPORT` - Import with validation step
+- `BATCH_PROCESSING` - Process multiple items
+
+### 4. Predefined Chain Configurations
+
+**Folder Import Chain (FOLDER_IMPORT):**
+```
+COMPRESS_FOLDER → [AwaitingConfirmation] → IMPORT_FROM_TEMP
 ```
 
-**Quick Folder Import Chain:**
-```csharp
-compress_folder → [Auto] → import_from_temp
+**Quick Folder Import Chain (QUICK_FOLDER_IMPORT):**
+```
+COMPRESS_FOLDER → [Auto] → IMPORT_FROM_TEMP
 ```
 
-**Validated Import Chain:**
-```csharp
-compress_folder → validate → [UserReview] → import_from_temp
+**Validated Import Chain (VALIDATED_IMPORT):**
+```
+COMPRESS_FOLDER → validate → [UserReview] → IMPORT_FROM_TEMP
 ```
 
-**Batch Processing Chain:**
-```csharp
+**Batch Processing Chain (BATCH_PROCESSING):**
+```
 configure → process_item_1 → process_item_2 → ... → complete
 ```
 
@@ -102,7 +117,9 @@ configure → process_item_1 → process_item_2 → ... → complete
 - `Repositories/ITaskInfoRepository.cs` - Task persistence interface
 - `Repositories/TaskInfoRepository.cs` - In-memory task storage
 - `Services/RoutingConditionEvaluator.cs` - Condition evaluation logic
-- `TaskNames.cs` - Task type constants
+- `TaskTypes.cs` - Task type constants (UPPER_SNAKE_CASE)
+- `ChainTypes.cs` - Chain type constants (UPPER_SNAKE_CASE)
+- Frontend: `taskTypes.ts`, `chainTypes.ts` - Matching TypeScript constants
 
 ### Files Removed
 - `Factory/ITaskProcessorFactory.cs` - No longer needed

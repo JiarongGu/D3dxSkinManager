@@ -1,3 +1,5 @@
+using D3dxSkinManager.Modules.TaskQueue.Repositories;
+
 namespace D3dxSkinManager.Modules.TaskQueue.Services;
 
 

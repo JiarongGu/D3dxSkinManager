@@ -606,7 +606,7 @@ public class TaskQueueService : ITaskQueueService
         // Get the appropriate processor based on task type
         switch (taskType)
         {
-            case TaskNames.MOD_IMPORT:
+            case TaskTypes.MOD_IMPORT:
                 {
                     var processor = _serviceProvider.GetService<ModImportTaskProcessor>();
                     if (processor == null)
@@ -622,7 +622,7 @@ public class TaskQueueService : ITaskQueueService
                     return await processor.ProcessAsync(input, progressReporter, cancellationToken).ConfigureAwait(false);
                 }
 
-            case TaskNames.COMPRESS_FOLDER:
+            case TaskTypes.COMPRESS_FOLDER:
                 {
                     var processor = _serviceProvider.GetService<CompressFolderTaskProcessor>();
                     if (processor == null)
@@ -638,7 +638,7 @@ public class TaskQueueService : ITaskQueueService
                     return await processor.ProcessAsync(input, progressReporter, cancellationToken).ConfigureAwait(false);
                 }
 
-            case TaskNames.IMPORT_FROM_TEMP:
+            case TaskTypes.IMPORT_FROM_TEMP:
                 {
                     var processor = _serviceProvider.GetService<ImportFromTempTaskProcessor>();
                     if (processor == null)

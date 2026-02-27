@@ -16,7 +16,7 @@ public class ModImportTaskProcessor : ITaskProcessor<ModImportTaskInput, ModImpo
     private readonly IModManagementService _modManagementService;
     private readonly ILogHelper _logger;
 
-    public string TaskType => TaskNames.MOD_IMPORT;
+    public string TaskType => TaskTypes.MOD_IMPORT;
 
     public ModImportTaskProcessor(
         IModImportService importService,

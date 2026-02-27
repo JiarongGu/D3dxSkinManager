@@ -1046,46 +1046,73 @@ className={classNames('mod-preview-keybinding-toggle', 'compact', {
 
 ---
 
-## 📦 TaskQueue System (Registry Pattern)
+## 📦 TaskQueue System (Node-Based Workflows)
 
 ### Overview
-The TaskQueue system uses a **registry-based architecture** that eliminates hardcoded switches and enables dynamic task discovery. All task processors self-register with metadata, and chains define multi-phase workflows.
+The TaskQueue system uses a **node-based workflow architecture** with declarative routing conditions. Tasks are organized as nodes in a directed graph, supporting complex workflows with branching, loops, and conditional paths.
 
 ### Architecture Components
 
-#### 1. Task Registry Pattern
+#### 1. Task Processor Pattern
 ```csharp
-// Task processors register themselves with metadata
+// Simple task processor interface - no metadata or registry
 public interface ITaskProcessor<TInput, TOutput>
 {
-    TaskProcessorMetadata Metadata { get; }  // Self-describing
+    string TaskType { get; }  // Uses constants from TaskTypes class
     Task<TOutput> ProcessAsync(TInput input, IProgressReporter progressReporter, CancellationToken cancellationToken);
 }
 
-// Registry provides dynamic discovery
-public interface ITaskRegistry
+// Task types use uppercase constants
+public static class TaskTypes
 {
-    void Register<TInput, TOutput>(ITaskProcessor<TInput, TOutput> processor);
-    TaskProcessorMetadata? GetMetadata(string taskType);
+    public const string MOD_IMPORT = "MOD_IMPORT";
+    public const string COMPRESS_FOLDER = "COMPRESS_FOLDER";
+    public const string IMPORT_FROM_TEMP = "IMPORT_FROM_TEMP";
+}
+
+// Chain types also use uppercase constants
+public static class ChainTypes
+{
+    public const string FOLDER_IMPORT = "FOLDER_IMPORT";
+    public const string QUICK_FOLDER_IMPORT = "QUICK_FOLDER_IMPORT";
+    public const string VALIDATED_IMPORT = "VALIDATED_IMPORT";
+    public const string BATCH_PROCESSING = "BATCH_PROCESSING";
 }
 ```
 
-#### 2. Chain Configuration
+#### 2. Node-Based Workflow Configuration
 ```csharp
-// Chains define multi-phase workflows
-public class ChainConfiguration
+// Workflows use nodes with routing rules
+public class TaskChainNode
 {
-    public string ChainId { get; init; }              // e.g., "folder_import_chain"
-    public List<ChainPhase> Phases { get; init; }     // Sequential tasks
-    public int MaxParallelChains { get; init; }       // Concurrency control
+    public required string NodeId { get; init; }         // Unique node identifier
+    public required string TaskType { get; init; }       // From TaskTypes constants
+    public Dictionary<string, string> InputMapping { get; init; }   // Map inputs
+    public Dictionary<string, string> OutputMapping { get; init; }  // Map outputs
+    public List<NodeRoutingRule> RoutingRules { get; init; }       // Conditional routing
+    public string? DefaultNextNode { get; init; }        // Fallback route
 }
 
-// Phases can pause for user interaction
-public class ChainPhase
+// Routing rules define conditional transitions
+public class NodeRoutingRule
 {
-    public string TaskType { get; init; }
-    public bool RequiresUserAction { get; init; }     // Pause for metadata input
-    public string? UserActionDescription { get; init; }
+    public required string Name { get; init; }           // Rule description
+    public required RoutingCondition Condition { get; init; }
+    public required string NextNodeId { get; init; }     // Target node
+    public int Priority { get; init; } = 0;              // Evaluation order
+}
+
+// Rich condition types for complex logic
+public enum ConditionType
+{
+    TaskStatus,        // Check task completion status
+    OutputField,       // Check task output values
+    SharedDataField,   // Check chain-level data
+    HasError,          // Route on error presence
+    UserInput,         // Check user-provided values
+    And, Or, Not,      // Logical operators
+    Always,            // Unconditional
+    Custom             // Business-specific logic
 }
 ```
 
@@ -1114,23 +1141,24 @@ public class MyTaskOutput
 public class MyTaskProcessor : ITaskProcessor<MyTaskInput, MyTaskOutput>
 {
     private readonly IMyService _service;
+    private readonly ILogHelper _logger;
 
-    // Metadata describes capabilities
-    public TaskProcessorMetadata Metadata { get; } = new()
-    {
-        TaskType = "my_task",
-        DisplayName = "My Task",
-        Description = "Processes custom tasks",
-        InputType = typeof(MyTaskInput),
-        OutputType = typeof(MyTaskOutput),
-        EstimatedDurationSeconds = 30,
-        SupportsCancellation = true,
-        SupportsProgress = true
-    };
+    // Use constant from TaskTypes class
+    public string TaskType => "MY_TASK";  // Add to TaskTypes.cs
 
-    public MyTaskProcessor(IMyService service)
+    public MyTaskProcessor(IMyService service, ILogHelper logger)
     {
         _service = service;
+        _logger = logger;
+    }
+
+    public async Task<bool> ValidateInputAsync(MyTaskInput input)
+    {
+        // Validate input before processing
+        if (string.IsNullOrEmpty(input.FilePath))
+            return false;
+
+        return File.Exists(input.FilePath);
     }
 
     public async Task<MyTaskOutput> ProcessAsync(
@@ -1158,7 +1186,7 @@ public class MyTaskProcessor : ITaskProcessor<MyTaskInput, MyTaskOutput>
 }
 ```
 
-#### Step 3: Register in DI
+#### Step 3: Register in DI and Add to Processing
 ```csharp
 // TaskQueueServiceExtensions.cs
 public static IServiceCollection AddTaskQueueServices(this IServiceCollection services)
@@ -1171,110 +1199,176 @@ public static IServiceCollection AddTaskQueueServices(this IServiceCollection se
     return services;
 }
 
-// In InitializeTaskQueueRegistries method:
-RegisterTaskProcessor(serviceProvider, taskRegistry,
-    serviceProvider.GetRequiredService<MyTaskProcessor>());
+// TaskQueueService.cs - Add to ProcessTaskAsync switch
+case "MY_TASK":
+{
+    var processor = _serviceProvider.GetService<MyTaskProcessor>();
+    if (processor == null)
+        throw new InvalidOperationException($"Processor not found for task type: {taskType}");
+
+    var input = JsonSerializer.Deserialize<MyTaskInput>(inputJson, JsonOptions);
+    return await processor.ProcessAsync(input, progressReporter, cancellationToken);
+}
 ```
 
-### Creating a Chain Configuration
+### Creating a Node-Based Workflow
 
 ```csharp
-// TaskQueueServiceExtensions.cs - RegisterStandardChains method
-var myChain = new ChainConfiguration
+// Configuration/PredefinedChains.cs
+public static TaskChainConfiguration MyWorkflowChain => new()
 {
-    ChainId = "my_workflow_chain",
-    DisplayName = "My Workflow",
-    Description = "Multi-step workflow with user interaction",
-    MaxParallelChains = 2,
-    Phases = new List<ChainPhase>
+    StartNodeId = "validation_node",
+    Nodes = new Dictionary<string, TaskChainNode>
     {
-        new()
+        ["validation_node"] = new TaskChainNode
         {
-            PhaseNumber = 1,
-            TaskType = "compress_folder",
-            RequiresUserAction = false  // Auto-continue
+            NodeId = "validation_node",
+            TaskType = TaskTypes.MY_TASK,
+            InputMapping = new Dictionary<string, string>
+            {
+                ["filePath"] = "input.filePath"
+            },
+            RoutingRules = new List<NodeRoutingRule>
+            {
+                new NodeRoutingRule
+                {
+                    Name = "Validation passed",
+                    Condition = new RoutingCondition
+                    {
+                        Type = ConditionType.OutputField,
+                        Field = "isValid",
+                        Operator = ComparisonOperator.Equals,
+                        Value = true
+                    },
+                    NextNodeId = "process_node",
+                    Priority = 1
+                },
+                new NodeRoutingRule
+                {
+                    Name = "Validation failed",
+                    Condition = new RoutingCondition
+                    {
+                        Type = ConditionType.OutputField,
+                        Field = "isValid",
+                        Operator = ComparisonOperator.Equals,
+                        Value = false
+                    },
+                    NextNodeId = "error_node",
+                    Priority = 2
+                }
+            }
         },
-        new()
+        ["process_node"] = new TaskChainNode
         {
-            PhaseNumber = 2,
-            TaskType = "my_task",
-            RequiresUserAction = true,  // Pause for user input
-            UserActionDescription = "Please review and provide metadata"
-        },
-        new()
-        {
-            PhaseNumber = 3,
-            TaskType = "import_from_temp",
-            RequiresUserAction = false
+            NodeId = "process_node",
+            TaskType = TaskTypes.IMPORT_FROM_TEMP,
+            // ... configuration
         }
-    },
-    Tags = new[] { "workflow", "import", "custom" }
+    }
 };
-
-chainRegistry.RegisterChain(myChain);
 ```
 
 ### Frontend Integration
 
-#### Query Available Tasks
+#### Use Task and Chain Type Constants
 ```typescript
-// Get all registered task types
-const tasks = await taskQueueService.getAllTaskMetadata(profileId);
+// Import constants matching backend
+import { TaskTypes } from '@/modules/taskQueue/constants/taskTypes';
+import { ChainTypes } from '@/modules/taskQueue/constants/chainTypes';
 
-// Get specific task metadata
-const metadata = await taskQueueService.getTaskMetadata('my_task', profileId);
+// Use constants instead of strings
+const taskId = await taskQueueService.addTask(
+    TaskTypes.MOD_IMPORT,  // "MOD_IMPORT"
+    { filePath: '/path/to/mod.zip' },
+    profileId
+);
 ```
 
-#### Query Available Chains
+#### Query Available Tasks (Hardcoded in Facade)
 ```typescript
-// Get all chains
-const chains = await taskQueueService.getAllChains(profileId);
+// Get all task metadata (from facade's hardcoded list)
+const response = await bridgeService.sendIpcRequest({
+    module: 'TASK_QUEUE',
+    type: 'GET_ALL_TASK_METADATA',
+    payload: { profileId }
+});
 
-// Get chains by tag
-const importChains = await taskQueueService.getChainsByTag('import', profileId);
-
-// Start a chain
-const taskId = await taskQueueService.startChain('my_workflow_chain', {
-    filePath: '/path/to/file'
-}, profileId);
+// Get specific task metadata
+const response = await bridgeService.sendIpcRequest({
+    module: 'TASK_QUEUE',
+    type: 'GET_TASK_METADATA',
+    payload: { profileId, taskType: TaskTypes.MY_TASK }
+});
 ```
 
 #### Continue Chain After User Input
 ```typescript
-// When chain pauses for user action
-const nextTaskId = await taskQueueService.continueChain(
-    correlationId,
-    pausedTaskId,
-    {
-        name: userInput.name,
-        description: userInput.description
+// When task status is AwaitingConfirmation
+const response = await bridgeService.sendIpcRequest({
+    module: 'TASK_QUEUE',
+    type: 'CONTINUE_CHAIN',
+    payload: {
+        profileId,
+        chainId: task.taskChainId,
+        taskId: task.id,
+        userInput: {
+            name: formData.name,
+            description: formData.description,
+            grading: formData.grading
+        }
     }
-);
+});
 ```
 
-### Standard Chains Available
+### Standard Chains Available (PredefinedChains.cs)
 
-1. **`folder_import_chain`** - Interactive folder import with metadata
-2. **`quick_folder_import_chain`** - Auto-import without interaction
-3. **`batch_archive_import_chain`** - Process multiple archives
-4. **`validated_import_chain`** - Import with validation step
+1. **`FOLDER_IMPORT`** - Interactive folder import with user metadata input
+   - Compress folder → Await user confirmation → Import with metadata
+2. **`QUICK_FOLDER_IMPORT`** - Automatic folder import with defaults
+   - Compress folder → Auto-import without user interaction
+3. **`VALIDATED_IMPORT`** - Import with validation step
+   - Compress → Validate → User review → Import
+4. **`BATCH_PROCESSING`** - Process multiple items in sequence
+   - Configure → Process items → Complete
 
 ### Key Benefits
 
-- **No Hardcoded Switches**: Factory pattern handles all task types
-- **Self-Describing**: Processors include metadata
-- **Dynamic Discovery**: Frontend can query available tasks/chains
-- **Type Safety**: Generic processor with proper deserialization
-- **Extensible**: Add new processors without touching core code
-- **Chain Workflows**: Multi-phase tasks with user interaction
+- **Node-Based Workflows**: Flexible graph structure instead of linear phases
+- **Declarative Routing**: Conditions defined in configuration, not code
+- **No Registry/Factory**: Simple direct processor execution
+- **Type-Safe Constants**: All types use UPPER_SNAKE_CASE constants
+- **Conditional Branching**: Support for complex business logic
+- **Input/Output Mapping**: Data flows between nodes automatically
 - **Progress Tracking**: Built-in progress reporting
 - **Cancellation Support**: Graceful task cancellation
 
+### Important Patterns
+
+```csharp
+// ✅ CORRECT: Use constants
+public string TaskType => TaskTypes.MOD_IMPORT;
+var chain = ChainTypes.FOLDER_IMPORT;
+
+// ❌ WRONG: Don't use magic strings
+public string TaskType => "mod_import";
+var chain = "folder_import_chain";
+
+// ✅ CORRECT: Simple property names
+task.Input = JsonSerializer.Serialize(input);
+task.Output = result;
+
+// ❌ WRONG: Don't use old names
+task.InputData = input;  // Old name
+task.OutputData = output; // Old name
+```
+
 ### Files to Reference
 
-- `Modules/TaskQueue/Registry/ITaskRegistry.cs` - Registry interface
-- `Modules/TaskQueue/Factory/TaskProcessorFactory.cs` - Dynamic invocation
-- `Modules/TaskQueue/Models/ChainConfiguration.cs` - Chain definitions
+- `Modules/TaskQueue/TaskTypes.cs` - Task type constants
+- `Modules/TaskQueue/ChainTypes.cs` - Chain type constants
+- `Modules/TaskQueue/Models/TaskChainInfo.cs` - Node-based models
+- `Modules/TaskQueue/Services/RoutingConditionEvaluator.cs` - Routing logic
+- `Modules/TaskQueue/Configuration/PredefinedChains.cs` - Chain definitions
 - `Modules/TaskQueue/Processors/*` - Example processors
 - `Modules/TaskQueue/TaskQueueServiceExtensions.cs` - DI registration
 

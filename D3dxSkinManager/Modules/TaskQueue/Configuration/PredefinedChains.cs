@@ -18,7 +18,7 @@ public static class PredefinedChains
             ["compress_folder"] = new TaskChainNode
             {
                 NodeId = "compress_folder",
-                TaskType = "compress_folder",
+                TaskType = TaskTypes.COMPRESS_FOLDER,
                 InputMapping = new Dictionary<string, string>
                 {
                     ["folderPath"] = "input.folderPath"
@@ -47,7 +47,7 @@ public static class PredefinedChains
             ["import_from_temp"] = new TaskChainNode
             {
                 NodeId = "import_from_temp",
-                TaskType = "import_from_temp",
+                TaskType = TaskTypes.IMPORT_FROM_TEMP,
                 InputMapping = new Dictionary<string, string>
                 {
                     ["tempArchivePath"] = "compress_folder.output.tempArchivePath",
@@ -79,7 +79,7 @@ public static class PredefinedChains
             ["compress_folder"] = new TaskChainNode
             {
                 NodeId = "compress_folder",
-                TaskType = "compress_folder",
+                TaskType = TaskTypes.COMPRESS_FOLDER,
                 InputMapping = new Dictionary<string, string>
                 {
                     ["folderPath"] = "input.folderPath"
@@ -110,7 +110,7 @@ public static class PredefinedChains
             ["auto_import"] = new TaskChainNode
             {
                 NodeId = "auto_import",
-                TaskType = "import_from_temp",
+                TaskType = TaskTypes.IMPORT_FROM_TEMP,
                 InputMapping = new Dictionary<string, string>
                 {
                     ["tempArchivePath"] = "compress_folder.output.tempArchivePath",
@@ -383,10 +383,10 @@ public static class PredefinedChains
     {
         return new Dictionary<string, TaskChainConfiguration>
         {
-            ["folder_import"] = FolderImportChain,
-            ["quick_folder_import"] = QuickFolderImportChain,
-            ["validated_import"] = ValidatedImportChain,
-            ["batch_processing"] = BatchProcessingChain
+            [ChainTypes.FOLDER_IMPORT] = FolderImportChain,
+            [ChainTypes.QUICK_FOLDER_IMPORT] = QuickFolderImportChain,
+            [ChainTypes.VALIDATED_IMPORT] = ValidatedImportChain,
+            [ChainTypes.BATCH_PROCESSING] = BatchProcessingChain
         };
     }
 }

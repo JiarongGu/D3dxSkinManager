@@ -14,7 +14,7 @@ public class CompressFolderTaskProcessor : ITaskProcessor<CompressFolderTaskInpu
     private readonly IProfilePathService _profilePathService;
     private readonly ILogHelper _logger;
 
-    public string TaskType => TaskNames.COMPRESS_FOLDER;
+    public string TaskType => TaskTypes.COMPRESS_FOLDER;
 
     public CompressFolderTaskProcessor(
         IArchiveHelper archiveHelper,
