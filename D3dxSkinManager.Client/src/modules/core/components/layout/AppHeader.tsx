@@ -8,8 +8,8 @@ import {
   SettingOutlined,
   RocketOutlined,
 } from "@ant-design/icons";
-import { ProfileSwitcher } from "../../../profiles/components/ProfileSwitcher";
-import { ProfileManager } from "../../../profiles/components/ProfileManager";
+import { ProfileSwitcher } from "../../../profile/components/ProfileSwitcher";
+import { ProfileManager } from "../../../profile/components/ProfileManager";
 import { useSlideInScreenContext } from "../../../../shared/context/SlideInScreenContext";
 import { useTranslation } from "react-i18next";
 import "./AppHeader.css";

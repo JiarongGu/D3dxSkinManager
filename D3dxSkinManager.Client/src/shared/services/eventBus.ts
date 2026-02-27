@@ -12,6 +12,7 @@ import { bridgeService } from "./bridgeService";
 
 // Module names matching backend ModuleNames
 export enum Module {
+  APP = "APP",
   SYSTEM = "SYSTEM",
   MOD = "MOD",
   CATEGORY = "CATEGORY",
@@ -104,6 +105,7 @@ export type PluginEventType = string;
 
 // Map each module to its valid event type enum
 export interface ModuleEventTypeMap {
+  [Module.APP]: never; // No events currently emitted from APP module
   [Module.SYSTEM]: SystemEventType;
   [Module.MOD]: ModEventType;
   [Module.CATEGORY]: CategoryEventType;

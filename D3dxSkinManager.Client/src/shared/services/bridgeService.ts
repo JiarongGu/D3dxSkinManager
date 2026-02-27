@@ -40,7 +40,7 @@ class BridgeService {
   private messageHandlers: Map<string, (response: BridgeResponse) => void> =
     new Map();
   // Global modules that don't require profileId
-  private readonly globalModules = ["APP", "SETTINGS", "PROFILE", "SYSTEM"];
+  private readonly globalModules = ["APP", "SETTING", "PROFILE", "SYSTEM"];
   // Expose webViewId as readonly property
   public readonly webViewId = webViewId;
 
@@ -131,7 +131,7 @@ class BridgeService {
       const id = uuidv4();
 
       // Determine if this module requires profileId
-      const needsProfileId = !this.globalModules.includes(module.toUpperCase());
+      const needsProfileId = !this.globalModules.includes(module);
 
       // Check if profileId is required but missing
       if (needsProfileId && !profileId) {

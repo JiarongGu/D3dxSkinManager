@@ -64,12 +64,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--color-bg-container)20;
   pointer-events: none;
-}
-
-[data-theme="dark"] .slide-in-screen-blur-backdrop::before {
-  background: rgba(0, 0, 0, 0.2);
 }
 
 /* Soft edge gradient - creates smooth transition from blur to panel */

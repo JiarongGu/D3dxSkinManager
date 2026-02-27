@@ -5,7 +5,7 @@ import { CacheManagementTool } from './CacheManagementTool';
 import { TagManagementTool } from './TagManagementTool';
 import { UtilitiesTool } from './UtilitiesTool';
 import { useProfile } from '../../../shared/context/ProfileContext';
-import { loadMods } from '../../mods/operations/modOperations';
+import { loadMods } from '../../mod/operations/modOperations';
 import './ToolsView.css';
 
 /**

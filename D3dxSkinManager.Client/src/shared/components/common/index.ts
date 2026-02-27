@@ -8,8 +8,8 @@
 export { ContextMenu } from '../menu/ContextMenu';
 export type { ContextMenuItem, ContextMenuProps } from '../menu/ContextMenu';
 
-export { GradingTag } from '../../../modules/mods/components/GradingTag';
-export type { GradingTagProps } from '../../../modules/mods/components/GradingTag';
+export { GradingTag } from '../../../modules/mod/components/GradingTag';
+export type { GradingTagProps } from '../../../modules/mod/components/GradingTag';
 
 export { StatusIcon } from './StatusIcon';
 export type { StatusIconProps } from './StatusIcon';

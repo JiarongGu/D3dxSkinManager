@@ -76,7 +76,7 @@ export const SettingsView: React.FC = () => {
 
       try {
         const { getActiveProfileConfig } =
-          await import("../../profiles/services/profileConfigService");
+          await import("../../profile/services/profileConfigService");
         const config = await getActiveProfileConfig(selectedProfileId);
 
         if (config) {
@@ -251,7 +251,7 @@ export const SettingsView: React.FC = () => {
 
     try {
       const { profileService } =
-        await import("../../profiles/services/profileService");
+        await import("../../profile/services/profileService");
       await profileService.updateProfileConfig({
         profileId: selectedProfileId,
         modCache: {

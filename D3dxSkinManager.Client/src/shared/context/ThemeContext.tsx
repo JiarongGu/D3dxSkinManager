@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { settingsService } from '../../modules/settings/services/settingsService';
+import { settingsService } from '../../modules/setting/services/settingsService';
 
 export type ThemeMode = 'light' | 'dark' | 'auto';
 

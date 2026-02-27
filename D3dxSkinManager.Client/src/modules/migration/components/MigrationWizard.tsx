@@ -16,7 +16,7 @@ import {
 } from '../context/MigrationWizardContext';
 import { DetectionStep, OptionsStep, ProgressStep, CompleteStep } from './steps';
 import { migrationService, MigrationOptions, ArchiveHandling } from '../services/migrationService';
-import { profileService } from '../../profiles/services/profileService';
+import { profileService } from '../../profile/services/profileService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import './MigrationWizard.css';
 

@@ -11,7 +11,7 @@ import {
 import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
 import { UnityArgsDialog } from '../../core/components/dialogs/UnityArgsDialog';
 import { fileDialogService } from '../../../shared/services/systemService';
-import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
+import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profile/services/profileConfigService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { PATH_PLACEHOLDERS, LAUNCH_ARG_EXAMPLES, MODULE_NAMES } from '../../../shared/constants/ui.constants';
 import './GameLaunchTab.css';

@@ -102,7 +102,7 @@
 }
 
 /* Fix dark theme hover color */
-[data-theme="dark"] .category-tree .ant-tree-node-content-wrapper:hover {
+.category-tree .ant-tree-node-content-wrapper:hover {
   background-color: var(--color-bg-spotlight) !important;
 }
 
@@ -112,15 +112,9 @@
   color: rgba(0, 0, 0, 0.88) !important;
   border-left: 3px solid #1890ff !important; /* Blue accent border */
 }
-
 [data-theme="light"] .category-tree .ant-tree-node-selected .ant-tree-title {
   color: rgba(0, 0, 0, 0.88) !important;
   font-weight: 500 !important; /* Slightly bold for emphasis */
-}
-
-/* Light theme hover - obvious gray background */
-[data-theme="light"] .category-tree .ant-tree-node-content-wrapper:hover {
-  background-color: #f5f5f5 !important; /* Light gray hover */
 }
 
 /* Ensure tree title text doesn't wrap */

@@ -10,7 +10,7 @@ import {
   PluginMetadata,
   UIPlugin,
   ActionPlugin
-} from './PluginTypes';
+} from './components/PluginTypes';
 
 class PluginRegistry {
   private plugins: Map<string, PluginMetadata> = new Map();

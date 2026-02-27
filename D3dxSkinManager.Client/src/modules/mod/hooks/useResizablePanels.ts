@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { settingsService } from '../../settings/services/settingsService';
+import { settingsService } from '../../setting/services/settingsService';
 import { useModsStore } from '../store/modsStore';
 
 interface PanelSizes {

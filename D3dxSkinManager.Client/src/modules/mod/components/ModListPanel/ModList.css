@@ -22,11 +22,7 @@
   align-items: flex-start;
 }
 
-[data-theme="light"] .mod-list-item:hover {
-  background: var(--color-primary-bg);
-}
-
-[data-theme="dark"] .mod-list-item:hover {
+.mod-list-item:hover {
   background: var(--color-bg-container);
 }
 

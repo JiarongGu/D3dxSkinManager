@@ -13,9 +13,9 @@
   /* Background Colors */
   --color-bg-base: #ffffff;
   --color-bg-container: #e6f4ff;
-  --color-bg-elevated: #ffffff;
+  --color-bg-elevated: #fafafa;
   --color-bg-layout: #f5f5f5;
-  --color-bg-spotlight: #fafafa;
+  --color-bg-spotlight: #f5f5f5;
   --color-bg-mask: rgba(0, 0, 0, 0.45);
 
   /* Border Colors */

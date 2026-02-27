@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons';
 import { AnnotatedTooltip, annotations } from '../../../../shared/components/common/TooltipSystem';
 import { useTranslation } from 'react-i18next';
-import { useMods } from '../../../mods';
+import { useMods } from '../../../mod';
 import './AppStatusBar.css';
 
 export type StatusType = 'normal' | 'warning' | 'error';

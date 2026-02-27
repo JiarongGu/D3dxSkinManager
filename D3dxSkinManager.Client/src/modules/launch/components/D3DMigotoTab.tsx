@@ -10,7 +10,7 @@ import {
 import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs';
 import { fileDialogService } from '../../../shared/services/systemService';
-import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profiles/services/profileConfigService';
+import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profile/services/profileConfigService';
 import { launchService, D3DMigotoVersion } from '../services/launchService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useTranslation } from 'react-i18next';

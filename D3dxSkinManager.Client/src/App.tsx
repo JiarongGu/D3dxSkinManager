@@ -3,12 +3,12 @@ import { Layout, ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd
 import { setNotificationApi } from './shared/utils/notification';
 import { AppHeader } from './modules/core/components/layout/AppHeader';
 import { AppStatusBar, StatusType } from './modules/core/components/layout/AppStatusBar';
-import { ModHierarchicalView } from './modules/mods/components/ModHierarchicalView';
-import { ModsProvider } from './modules/mods';
+import { ModHierarchicalView } from './modules/mod/components/ModHierarchicalView';
+import { ModsProvider } from './modules/mod';
 import { LaunchView } from './modules/launch/components/LaunchView';
-import { SettingsView } from './modules/settings/components/SettingsView';
-import { ToolsView } from './modules/tools/components/ToolsView';
-import { PluginsView } from './modules/plugins/components/PluginsView';
+import { SettingsView } from './modules/setting/components/SettingsView';
+import { ToolsView } from './modules/tool/components/ToolsView';
+import { PluginsView } from './modules/plugin/components/PluginsView';
 import { AnnotationProvider } from './shared/components/common/TooltipSystem';
 import { ProfileProvider } from './shared/context/ProfileContext';
 import { ThemeProvider, useTheme } from './shared/context/ThemeContext';

@@ -66,7 +66,7 @@ export default i18n;
  */
 export const loadLanguageFromSettings = async () => {
   try {
-    const { settingsService } = await import('../modules/settings/services/settingsService');
+    const { settingsService } = await import('../modules/setting/services/settingsService');
     const settings = await settingsService.getGlobalSettings();
     const savedLanguage = settings.language || DEFAULT_LANGUAGE;
 
@@ -91,7 +91,7 @@ export const changeLanguage = async (language: string) => {
     await i18n.changeLanguage(language);
 
     // Save to backend settings
-    const { settingsService } = await import('../modules/settings/services/settingsService');
+    const { settingsService } = await import('../modules/setting/services/settingsService');
     await settingsService.updateGlobalSetting('language', language);
 
     logger.info(`[i18n] Language changed successfully`);

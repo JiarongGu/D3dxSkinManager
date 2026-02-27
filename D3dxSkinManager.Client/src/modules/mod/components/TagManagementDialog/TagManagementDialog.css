@@ -79,12 +79,7 @@
 }
 
 /* Hover state - matches ModList item hover */
-[data-theme="light"] .tag-management-item:hover {
-  background: var(--color-primary-bg);
-  border-color: var(--color-primary);
-}
-
-[data-theme="dark"] .tag-management-item:hover {
+.tag-management-item:hover {
   background: var(--color-bg-container);
   border-color: var(--color-primary);
 }

@@ -7,7 +7,7 @@
 
 import { ReactNode } from 'react';
 import { ModInfo } from '../../../shared/types/mod.types';
-import type { ModService } from '../../mods/services/modService';
+import type { ModService } from '../../mod/services/modService';
 import type { Event, Module } from '../../../shared/services/eventBus';
 
 export interface Plugin {

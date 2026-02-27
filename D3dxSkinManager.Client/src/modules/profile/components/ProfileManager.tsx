@@ -24,7 +24,7 @@ import {
 } from '@ant-design/icons';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
-import { profileService } from '../../profiles/services/profileService';
+import { profileService } from '../../profile/services/profileService';
 import { Profile, CreateProfileRequest } from '../../../shared/types/profile.types';
 import { fileDialogService } from '../../../shared/services/systemService';
 import { useProfile } from '../../../shared/context/ProfileContext';

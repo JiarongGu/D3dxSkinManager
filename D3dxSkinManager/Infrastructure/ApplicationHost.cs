@@ -427,25 +427,6 @@ public class ApplicationHost
         dispatcher.UseProfileFacade(_serviceProvider);
         dispatcher.UsePluginFacade(_serviceProvider);
 
-        // Register built-in APP module routes (global, not session-specific)
-        dispatcher.MapModule("APP", routes =>
-        {
-            routes.Route("PING", message => new { message = "pong", timestamp = DateTime.UtcNow });
-
-            routes.Route("GET_VERSION", message => new
-            {
-                version = "1.0.0",
-                dotnet = Environment.Version.ToString(),
-                os = Environment.OSVersion.ToString()
-            });
-
-            routes.Route("GET_STATUS", message => new
-            {
-                status = "ready",
-                uptime = DateTime.UtcNow.Subtract(System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds
-            });
-        });
-
         // Session-specific routes (WEBVIEW_READY, SUBSCRIBE, UNSUBSCRIBE, DROP_ZONE)
         // will be registered by ApplicationHost.RegisterSessionRoutes() after session creation
         // This keeps the global dispatcher clean while allowing per-session operations

@@ -6,7 +6,7 @@
 import React, { useEffect } from 'react';
 import { useProfile } from '../../shared/context/ProfileContext';
 import { useModsStore } from './store/modsStore';
-import { eventBus, ModEventType, CategoryEventType, Module } from '../../shared/services/eventBus';
+import { eventBus, ModEventType, CategoryEventType, MigrationEventType, Module } from '../../shared/services/eventBus';
 import * as modOps from './operations/modOperations';
 import * as categoryOps from './operations/categoryOperations';
 
@@ -47,10 +47,24 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       }
     );
 
+    // Subscribe to migration completion events to reload profile data
+    const unsubscribeMigrationCompleted = eventBus.subscribe(
+      Module.MIGRATION,
+      MigrationEventType.COMPLETED,
+      () => {
+        // Reload entire profile data after migration completes
+        void Promise.all([
+          modOps.loadMods(selectedProfileId),
+          categoryOps.loadCategoryTree(selectedProfileId),
+        ]);
+      }
+    );
+
     // Cleanup subscriptions on unmount or profile change
     return () => {
       unsubscribeModsRefreshed();
       unsubscribeCategoriesUpdated();
+      unsubscribeMigrationCompleted();
     };
   }, [selectedProfileId]);
 

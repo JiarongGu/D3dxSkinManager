@@ -1,7 +1,7 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from "react";
 import { Tooltip } from "antd";
 import type { TooltipPlacement } from "antd/es/tooltip";
-import { settingsService } from "../../../modules/settings/services/settingsService";
+import { settingsService } from "../../../modules/setting/services/settingsService";
 
 /**
  * Annotation levels for tooltips

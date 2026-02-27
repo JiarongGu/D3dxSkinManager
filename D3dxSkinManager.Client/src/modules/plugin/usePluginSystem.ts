@@ -4,9 +4,9 @@
 
 import { useEffect, useState } from 'react';
 import { pluginRegistry } from './PluginRegistry';
-import { PluginContext } from './PluginTypes';
-import { modService } from '../../mods/services/modService';
-import { eventBus } from '../../../shared/services/eventBus';
+import { PluginContext } from './components/PluginTypes';
+import { modService } from '../mod/services/modService';
+import { eventBus } from '../../shared/services/eventBus';
 
 /**
  * Hook to initialize and access the plugin system
