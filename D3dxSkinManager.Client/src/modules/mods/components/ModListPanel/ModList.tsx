@@ -18,7 +18,7 @@ import { fileDialogService } from "../../../../shared/services/systemService";
 import { modService } from "../../services/modService";
 import { cacheService } from "../../../tools/services/cacheService";
 import { GradingTag } from "../GradingTag";
-import { TagChip } from "../../../../shared/components/TagChip";
+import { TagChip } from "../../../../shared/components/tag-chip";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useMods } from "../../hooks/useMods";
 import { useDelayedLoading } from "../../../../shared/hooks/useDelayedLoading";

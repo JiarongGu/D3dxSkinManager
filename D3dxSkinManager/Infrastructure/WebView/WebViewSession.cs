@@ -1,5 +1,6 @@
 ﻿using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.WinForms;
@@ -10,13 +11,13 @@ namespace D3dxSkinManager.Infrastructure.WebView
     {
         public string SessionId { get; }
         public WebView2 WebView { get; }
-        public IpcCommunicationHandler Ipc { get; }
+        public IpcHandler Ipc { get; }
         public DropZoneManager DropZone { get; }
         public EventBusIpcBridge EventBridge { get; }
-        public MessageDispatcher Dispatcher { get; }
         public WebViewInitializer Initializer { get; }
 
         private readonly ILogHelper _logger;
+        private readonly MessageDispatcher _dispatcher;
 
         public WebViewSession(
             string sessionId,
@@ -24,9 +25,7 @@ namespace D3dxSkinManager.Infrastructure.WebView
             ILogHelper logger,
             IServiceProvider serviceProvider,
             ICustomSchemeHandler schemeHandler,
-            Form mainForm,
-            ProfileServiceRouter profileRouter,
-            Action<MessageDispatcher> configurePipeline)
+            Form mainForm)
         {
             SessionId = sessionId;
             WebView = webView ?? throw new ArgumentNullException(nameof(webView));
@@ -36,7 +35,7 @@ namespace D3dxSkinManager.Infrastructure.WebView
             Initializer = new WebViewInitializer(WebView, schemeHandler);
 
             // Per-session IPC
-            Ipc = new IpcCommunicationHandler(WebView, _logger);
+            Ipc = new IpcHandler(WebView, _logger);
 
             // Per-session DropZone
             DropZone = new DropZoneManager(WebView, mainForm, _logger, Ipc);
@@ -45,25 +44,59 @@ namespace D3dxSkinManager.Infrastructure.WebView
             var eventBus = serviceProvider.GetRequiredService<IEventBus>();
             EventBridge = new EventBusIpcBridge(eventBus, Ipc, _logger);
 
-            // Per-session dispatcher (requests from this webview -> shared services)
-            Dispatcher = new MessageDispatcher(Ipc, _logger);
-            configurePipeline(Dispatcher); // <-- you reuse the same pipeline for all sessions
+            // Get global singleton dispatcher
+            _dispatcher = serviceProvider.GetRequiredService<MessageDispatcher>();
+
+            // Wire up IPC to global dispatcher
+            Ipc.MessageReceived += OnIpcMessageReceived;
+        }
+
+        /// <summary>
+        /// Handle IPC messages from this session's WebView and route to global dispatcher
+        /// </summary>
+        private async void OnIpcMessageReceived(object? sender, IpcMessageReceivedEventArgs e)
+        {
+            try
+            {
+                _logger.Verbose($"[{SessionId}] Received IPC message: {e.Message.Module}/{e.Message.Type}", "WebViewSession");
+
+                // Process through global dispatcher
+                var response = await _dispatcher.ProcessMessageAsync(e.Message);
+
+                // Send response back to this session's WebView
+                if (response != null)
+                {
+                    e.SendResponse(response);
+                }
+                else
+                {
+                    // No handler matched
+                    var errorResponse = IpcResponse.CreateError(e.Message.Id,
+                        $"No handler registered for {e.Message.Module}/{e.Message.Type}");
+                    e.SendResponse(errorResponse);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[{SessionId}] Error processing IPC message: {ex.Message}", "WebViewSession", ex);
+                var errorResponse = IpcResponse.CreateError(e.Message.Id, $"Session error: {ex.Message}");
+                e.SendResponse(errorResponse);
+            }
         }
 
         public async Task StartAsync()
         {
             _logger.Info($"[{SessionId}] Starting WebView session...", "Host");
 
-            await Initializer.InitializeAsync();
+            await Initializer.InitAsync();
 
             // Important ordering note:
             // - Hook IPC before navigation if you want early messages
             // - Or navigate first if your app only talks after ready
-            Ipc.Initialize();
+            Ipc.Init();
 
-            // Dispatcher + bridge can initialize before/after navigation; typically before is fine
-            Dispatcher.Initialize();
-            EventBridge.Initialize();
+            // Initialize event bridge
+            EventBridge.Init();
 
             Initializer.NavigateToApp();
 

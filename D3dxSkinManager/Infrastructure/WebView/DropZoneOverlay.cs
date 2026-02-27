@@ -227,10 +227,10 @@ public class DropZoneManager
     private readonly WebView2 _webView;
     private readonly Form _parentForm;
     private readonly ILogHelper _logger;
-    private readonly IpcCommunicationHandler _ipcHandler;
+    private readonly IpcHandler _ipcHandler;
     private readonly Dictionary<string, DropZoneOverlay> _zones = new();
 
-    public DropZoneManager(WebView2 webView, Form parentForm, ILogHelper logger, IpcCommunicationHandler ipcHandler)
+    public DropZoneManager(WebView2 webView, Form parentForm, ILogHelper logger, IpcHandler ipcHandler)
     {
         _webView = webView;
         _parentForm = parentForm;

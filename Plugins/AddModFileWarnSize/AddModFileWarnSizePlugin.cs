@@ -23,7 +23,7 @@ public class AddModFileWarnSizePlugin : IMessageHandlerPlugin
     public string Description => "File size warning threshold configuration";
     public string Author => "D3dxSkinManager Team";
 
-    public async Task InitializeAsync(IPluginContext context)
+    public async Task InitAsync(IPluginContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         // TODO: Load configuration from plugin data directory

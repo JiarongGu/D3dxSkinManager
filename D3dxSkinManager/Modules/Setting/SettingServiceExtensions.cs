@@ -1,3 +1,4 @@
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Infrastructure;
 using D3dxSkinManager.Infrastructure.WebView;
 using D3dxSkinManager.Modules.Core.Event;

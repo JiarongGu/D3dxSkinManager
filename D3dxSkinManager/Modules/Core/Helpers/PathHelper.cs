@@ -2,9 +2,6 @@ using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Modules.Core.Helpers;
 
-/// <summary>
-/// Interface for path conversion operations
-/// </summary>
 public interface IPathHelper
 {
     string? ToRelativePath(string? absolutePath);
@@ -15,9 +12,7 @@ public interface IPathHelper
 }
 
 /// <summary>
-/// Helper class for converting between absolute and relative paths
-/// All paths stored in database and configuration should be relative to the base data path
-/// This ensures portability when the application folder is moved or renamed
+/// Converts between absolute and relative paths (relative to base data folder).
 /// </summary>
 public class PathHelper : IPathHelper
 {
@@ -28,12 +23,6 @@ public class PathHelper : IPathHelper
         _globalPathService = globalPathService;
     }
 
-    /// <summary>
-    /// Convert an absolute path to a relative path (relative to data folder)
-    /// Returns null if the path is null, empty, or not under the data path
-    /// </summary>
-    /// <param name="absolutePath">Absolute file path</param>
-    /// <returns>Relative path from data folder, or null if not convertible</returns>
     public string? ToRelativePath(string? absolutePath)
     {
         if (string.IsNullOrWhiteSpace(absolutePath))
@@ -45,14 +34,11 @@ public class PathHelper : IPathHelper
             var basePathWithSeparator = _globalPathService.BaseDataPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                                         + Path.DirectorySeparatorChar;
 
-            // Check if the absolute path is under the base data path
             if (fullPath.StartsWith(basePathWithSeparator, StringComparison.OrdinalIgnoreCase))
             {
-                // Remove the base path prefix to get relative path
                 return fullPath.Substring(basePathWithSeparator.Length);
             }
 
-            // Path is outside data folder - keep as absolute for external paths (like WorkDirectory pointing to game folder)
             return absolutePath;
         }
         catch
@@ -61,11 +47,6 @@ public class PathHelper : IPathHelper
         }
     }
 
-    /// <summary>
-    /// Convert a relative path (relative to data folder) to an absolute path
-    /// </summary>
-    /// <param name="relativePath">Relative path from data folder</param>
-    /// <returns>Absolute file path, or null if input is null/empty</returns>
     public string? ToAbsolutePath(string? relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath))
@@ -73,11 +54,9 @@ public class PathHelper : IPathHelper
 
         try
         {
-            // If already absolute, return as-is
             if (Path.IsPathRooted(relativePath))
                 return relativePath;
 
-            // Combine with base data path
             return Path.GetFullPath(Path.Combine(_globalPathService.BaseDataPath, relativePath));
         }
         catch
@@ -86,9 +65,6 @@ public class PathHelper : IPathHelper
         }
     }
 
-    /// <summary>
-    /// Check if a path is relative (not rooted)
-    /// </summary>
     public bool IsRelativePath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -97,9 +73,6 @@ public class PathHelper : IPathHelper
         return !Path.IsPathRooted(path);
     }
 
-    /// <summary>
-    /// Check if an absolute path is under the base data path
-    /// </summary>
     public bool IsUnderDataPath(string? absolutePath)
     {
         if (string.IsNullOrWhiteSpace(absolutePath))
@@ -119,9 +92,6 @@ public class PathHelper : IPathHelper
         }
     }
 
-    /// <summary>
-    /// Normalize a path to use consistent separators and format
-    /// </summary>
     public string? NormalizePath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))

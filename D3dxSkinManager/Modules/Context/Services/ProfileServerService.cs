@@ -1,6 +1,8 @@
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Context;
+using D3dxSkinManager.Modules.Plugin;
 using D3dxSkinManager.Modules.Plugin.Services;
 using D3dxSkinManager.Modules.Core;
 
@@ -39,7 +41,7 @@ namespace D3dxSkinManager.Modules.Context.Services
             var loadedCount = await _pluginLoader.LoadPluginsAsync().ConfigureAwait(false);
 
             // Initialize plugins
-            await _pluginLoader.InitializePluginsAsync().ConfigureAwait(false);
+            await _pluginLoader.InitPluginsAsync().ConfigureAwait(false);
 
             _logger.Info($"Loaded and initialized {loadedCount} plugin(s)", "Init");
 
@@ -62,7 +64,7 @@ namespace D3dxSkinManager.Modules.Context.Services
             {
                 try
                 {
-                    await plugin.ShutdownAsync().ConfigureAwait(false);
+                    await plugin.DisposeAsync().ConfigureAwait(false);
                     _logger.Info($"Plugin shut down: {plugin.Name}", "Shutdown");
                 }
                 catch (Exception ex)

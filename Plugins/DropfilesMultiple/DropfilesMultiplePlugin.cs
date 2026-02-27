@@ -31,7 +31,7 @@ public class DropfilesMultiplePlugin : IMessageHandlerPlugin
     public string Description => "Handles drag-and-drop of multiple files (mods and previews)";
     public string Author => "D3dxSkinManager";
 
-    public Task InitializeAsync(IPluginContext context)
+    public Task InitAsync(IPluginContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _context.Log(LogLevel.Info, $"[{Name}] Initialized");

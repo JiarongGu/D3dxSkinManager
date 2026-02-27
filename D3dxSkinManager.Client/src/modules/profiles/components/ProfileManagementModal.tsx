@@ -1,9 +1,10 @@
 import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Modal, Table, Button, Input, Form, Space, Popconfirm } from 'antd';
+import { Modal, Button, Input, Form, Space, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { Profile } from '../../../shared/types/profile.types';
+import { DataTable, ColumnsType } from '../../../shared/components/common';
 import './ProfileManagementModal.css';
 
 interface ProfileManagementModalProps {
@@ -63,7 +64,7 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
     }
   };
 
-  const columns = [
+  const columns: ColumnsType<Profile> = [
     {
       title: 'Name',
       dataIndex: 'name',
@@ -157,13 +158,13 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
             Create New Profile
           </Button>
 
-          <Table
+          <DataTable
             dataSource={state.profiles}
             columns={columns}
             rowKey="id"
             loading={state.loading}
             pagination={false}
-            size="small"
+            compact
           />
         </Space>
       </Modal>

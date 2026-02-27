@@ -10,125 +10,33 @@ using System.IO;
 namespace D3dxSkinManager.Modules.Context.Services;
 
 /// <summary>
-/// Service for providing standardized profile directory paths
-/// Centralizes all path logic for profile subdirectories
-/// All paths are absolute and ready for file operations
+/// Provides absolute paths for profile-specific directories and files.
 /// </summary>
 public interface IProfilePathService
 {
-    // Standard file name constants
-
-    /// <summary>
-    /// Standard name for profile database file (consolidated mods + Categories)
-    /// </summary>
     string ProfileDatabaseFileName { get; }
-
-    /// <summary>
-    /// Standard name for profile config file
-    /// </summary>
     string ConfigFileName { get; }
-
-    // Directory paths
-
-    /// <summary>
-    /// Base profile directory (e.g., data/profiles/{profileId}/)
-    /// </summary>
     string ProfilePath { get; }
-
-    /// <summary>
-    /// Mod archives directory (data/profiles/{profileId}/mods/)
-    /// </summary>
     string ModsDirectory { get; }
-
-    /// <summary>
-    /// Work directory base (data/profiles/{profileId}/work/)
-    /// </summary>
     string WorkDirectory { get; }
 
-    /// <summary>
-    /// Cache mods directory (data/profiles/{profileId}/work/Mods/)
-    /// Contains extracted mod folders in either active ({SHA}) or disabled (DISABLED-{SHA}) state
-    /// This is a cache folder that can be in loaded or unloaded/disabled mode
-    /// </summary>
+    /// <summary>Extracted mod folders: active ({SHA}) or disabled (DISABLED-{SHA})</summary>
     string CacheModsDirectory { get; }
 
-    /// <summary>
-    /// Thumbnails directory (data/profiles/{profileId}/thumbnails/)
-    /// </summary>
     string ThumbnailsDirectory { get; }
-
-    /// <summary>
-    /// Previews directory (data/profiles/{profileId}/previews/)
-    /// </summary>
     string PreviewsDirectory { get; }
-
-    /// <summary>
-    /// Logs directory (data/profiles/{profileId}/logs/)
-    /// </summary>
     string LogsDirectory { get; }
-
-    /// <summary>
-    /// Plugins directory (data/profiles/{profileId}/plugins/)
-    /// </summary>
     string PluginsDirectory { get; }
-
-    /// <summary>
-    /// 3DMigoto directory (data/profiles/{profileId}/3dmigoto/)
-    /// </summary>
     string TdMigotoDirectory { get; }
-
-    /// <summary>
-    /// Temporary files directory (data/profiles/{profileId}/temp/)
-    /// Used for temporary file operations like folder compression before import
-    /// </summary>
     string TempDirectory { get; }
-
-    /// <summary>
-    /// Profile database path (data/profiles/{profileId}/profile.db)
-    /// Contains mods, Categories, and all profile-related data
-    /// </summary>
     string ProfileDatabasePath { get; }
-
-    /// <summary>
-    /// Profile configuration file path (data/profiles/{profileId}/config.json)
-    /// </summary>
     string ConfigPath { get; }
-
-    // Helper methods for parameterized paths
-
-    /// <summary>
-    /// Get path for a specific mod archive file by SHA
-    /// </summary>
-    /// <param name="sha">Mod SHA hash</param>
-    /// <param name="extension">Archive extension (e.g., ".7z", ".zip")</param>
-    /// <returns>Full path to mod archive</returns>
     string GetModArchivePath(string sha, string extension = ".7z");
-
-    /// <summary>
-    /// Get directory path for a specific mod's previews by SHA
-    /// </summary>
-    /// <param name="sha">Mod SHA hash</param>
-    /// <returns>Full path to preview directory</returns>
     string GetPreviewDirectoryPath(string sha);
-
-    /// <summary>
-    /// Load the cache directory path from configuration asynchronously
-    /// Should be called during initialization
-    /// </summary>
     Task LoadCacheDirectoryAsync();
-
-    /// <summary>
-    /// Invalidate the cached cache directory path
-    /// Call this when profile configuration changes (e.g., when ModCacheStorageMode or CustomModCachePath changes)
-    /// </summary>
     void InvalidateCacheDirectory();
 }
 
-/// <summary>
-/// Implementation of ProfilePathService
-/// Provides centralized access to all profile-related directory paths
-/// All paths are absolute and constructed relative to the base profile path
-/// </summary>
 public class ProfilePathService : IProfilePathService
 {
     private readonly IGlobalPathService _globalPathService;

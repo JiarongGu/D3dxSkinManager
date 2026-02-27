@@ -1,42 +1,125 @@
+using D3dxSkinManager.Infrastructure.WebView;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
+using System.Text.Json;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Modules.Core.Services;
 
 /// <summary>
-/// Delegate for message processing middleware
+/// Routes IPC messages to module facades via middleware pipeline.
+/// Singleton shared across all WebView sessions.
 /// </summary>
+public interface IMessageDispatcher
+{
+    Task<IpcResponse> SendAsync(string module, string type, string? profileId = null, object? payload = null);
+    Task<T?> SendAsync<T>(string module, string type, string? profileId = null, object? payload = null);
+}
+
 public delegate Task<IpcResponse?> MessageMiddleware(IpcRequest message, Func<Task<IpcResponse?>> next);
 
 /// <summary>
-/// Dispatcher that manages a middleware pipeline for processing IPC messages
+/// Singleton dispatcher with middleware pipeline for routing IPC messages to module facades.
 /// </summary>
-public class MessageDispatcher
+public class MessageDispatcher : IMessageDispatcher
 {
-    private readonly IpcCommunicationHandler _ipcHandler;
     private readonly ILogHelper _logger;
     private readonly List<MessageMiddleware> _middlewares;
     private Lazy<Func<IpcRequest, Task<IpcResponse?>>> _pipeline;
 
-    public MessageDispatcher(IpcCommunicationHandler ipcHandler, ILogHelper logger)
+    public MessageDispatcher(ILogHelper logger)
     {
-        _ipcHandler = ipcHandler ?? throw new ArgumentNullException(nameof(ipcHandler));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _middlewares = new List<MessageMiddleware>();
         _pipeline = new Lazy<Func<IpcRequest, Task<IpcResponse?>>>(BuildPipeline);
     }
 
     /// <summary>
-    /// Initialize the dispatcher and subscribe to IPC messages
+    /// Process a message through the middleware pipeline programmatically.
+    /// Used by plugins and services to send messages to modules.
     /// </summary>
-    public void Initialize()
+    public async Task<IpcResponse?> ProcessMessageAsync(IpcRequest message)
     {
-        _logger.Info("Initializing message dispatcher...", "MessageDispatcher");
+        try
+        {
+            // Execute the pipeline (Lazy<T> ensures it's built only once and is thread-safe)
+            return await _pipeline.Value(message);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error processing message: {ex.Message}", "MessageDispatcher", ex);
+            return IpcResponse.CreateError(message.Id, $"Dispatcher error: {ex.Message}");
+        }
+    }
 
-        // Subscribe to IPC messages
-        _ipcHandler.MessageReceived += OnMessageReceived;
+    /// <summary>
+    /// Send a message to a module facade and get the response.
+    /// Used by plugins and services to communicate with modules programmatically.
+    /// </summary>
+    public async Task<IpcResponse> SendAsync(string module, string type, string? profileId = null, object? payload = null)
+    {
+        var request = new IpcRequest
+        {
+            Id = Guid.NewGuid().ToString(),
+            Module = module,
+            Type = type,
+            ProfileId = profileId,
+            Payload = payload != null ? JsonSerializer.SerializeToElement(payload) : null,
+            Timestamp = DateTime.UtcNow
+        };
 
-        _logger.Info($"Message dispatcher initialized with {_middlewares.Count} middleware(s)", "MessageDispatcher");
+        _logger.Verbose($"Sending programmatic message: {module}.{type} (ProfileId: {profileId ?? "none"})", "MessageDispatcher");
+
+        var response = await ProcessMessageAsync(request);
+
+        // ProcessMessageAsync returns null if no handler matched
+        if (response == null)
+        {
+            return IpcResponse.CreateError(request.Id, $"No handler registered for {module}/{type}");
+        }
+
+        return response;
+    }
+
+    /// <summary>
+    /// Send a message to a module facade and get the typed response data.
+    /// Throws if the response indicates an error.
+    /// </summary>
+    public async Task<T?> SendAsync<T>(string module, string type, string? profileId = null, object? payload = null)
+    {
+        var response = await SendAsync(module, type, profileId, payload);
+
+        if (!response.Success)
+        {
+            throw new InvalidOperationException($"Message dispatch failed: {response.Error}");
+        }
+
+        if (response.Data == null)
+        {
+            return default;
+        }
+
+        // Deserialize the response data
+        try
+        {
+            if (response.Data is JsonElement jsonElement)
+            {
+                return JsonSerializer.Deserialize<T>(jsonElement.GetRawText());
+            }
+
+            // Try direct conversion if it's already the right type
+            if (response.Data is T typedData)
+            {
+                return typedData;
+            }
+
+            // Serialize then deserialize for type conversion
+            var json = JsonSerializer.Serialize(response.Data);
+            return JsonSerializer.Deserialize<T>(json);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to deserialize response data to type {typeof(T).Name}: {ex.Message}", ex);
+        }
     }
 
     /// <summary>
@@ -124,40 +207,6 @@ public class MessageDispatcher
                 return IpcResponse.CreateError(message.Id, $"Internal error: {ex.Message}");
             }
         });
-    }
-
-    /// <summary>
-    /// Handle incoming IPC messages through the middleware pipeline
-    /// </summary>
-    private async void OnMessageReceived(object? sender, IpcMessageReceivedEventArgs e)
-    {
-        var message = e.Message;
-        var sendResponse = e.SendResponse;
-
-        try
-        {
-            // Execute the pipeline (Lazy<T> ensures it's built only once and is thread-safe)
-            var response = await _pipeline.Value(message);
-
-            // Send response
-            if (response != null)
-            {
-                sendResponse(response);
-            }
-            else
-            {
-                // No middleware handled the message
-                var errorResponse = IpcResponse.CreateError(message.Id,
-                    $"No handler registered for {message.Module}/{message.Type}");
-                sendResponse(errorResponse);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Unhandled error: {ex.Message}", "MessageDispatcher", ex);
-            var errorResponse = IpcResponse.CreateError(message.Id, $"Dispatcher error: {ex.Message}");
-            sendResponse(errorResponse);
-        }
     }
 
     /// <summary>

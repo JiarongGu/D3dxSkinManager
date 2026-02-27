@@ -32,7 +32,7 @@ public class HandleUserEnvPlugin : IMessageHandlerPlugin
     public string Description => "User environment management (create/edit/delete users)";
     public string Author => "D3dxSkinManager";
 
-    public Task InitializeAsync(IPluginContext context)
+    public Task InitAsync(IPluginContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _context.Log(LogLevel.Info, $"[{Name}] Initialized");

@@ -1,82 +1,39 @@
 /**
  * Frontend plugin system types
  *
- * Plugins can extend the UI with custom components, hooks, and functionality.
+ * NOTE: Frontend plugins are UI-only extensions. Backend plugins (C# .dll) are separate
+ * and communicate via IPC messages. Frontend plugins subscribe to EventBus events.
  */
 
 import { ReactNode } from 'react';
 import { ModInfo } from '../../../shared/types/mod.types';
 import type { ModService } from '../../mods/services/modService';
+import type { Event, Module } from '../../../shared/services/eventBus';
 
-/**
- * Base plugin interface
- */
 export interface Plugin {
-  /** Unique plugin identifier (e.g., "com.example.myplugin") */
   id: string;
-
-  /** Human-readable name */
   name: string;
-
-  /** Plugin version */
   version: string;
-
-  /** Plugin description */
   description: string;
-
-  /** Plugin author */
   author: string;
 
-  /** Initialize the plugin */
-  initialize(context: PluginContext): void | Promise<void>;
-
-  /** Cleanup when plugin is unloaded */
+  Init(context: PluginContext): void | Promise<void>;
   cleanup(): void | Promise<void>;
 }
 
 /**
- * Plugin context providing access to app services
+ * Plugin context providing access to services and EventBus
  */
 export interface PluginContext {
-  /** Access to mod service for backend communication */
   modService: ModService;
 
-  /** Register a custom event handler */
-  registerEventHandler(eventType: PluginEventType, handler: PluginEventHandler): string;
-
-  /** Unregister an event handler */
-  unregisterEventHandler(registrationId: string): void;
-
-  /** Emit a custom event */
-  emitEvent(eventName: string, data?: unknown): void;
+  /** Subscribe to EventBus events using module + type pattern */
+  subscribeEvent<M extends Module, T extends string>(
+    module: M,
+    type: T,
+    handler: (event: Event<M, T>) => void
+  ): () => void;
 }
-
-/**
- * Plugin event types
- */
-export enum PluginEventType {
-  ModLoaded = 'MOD_LOADED',
-  ModUnloaded = 'MOD_UNLOADED',
-  ModImported = 'MOD_IMPORTED',
-  ModDeleted = 'MOD_DELETED',
-  ModsRefreshed = 'MODS_REFRESHED',
-  CustomEvent = 'CUSTOM_EVENT'
-}
-
-/**
- * Plugin event arguments
- */
-export interface PluginEventArgs {
-  eventType: PluginEventType;
-  eventName?: string;  // For CustomEvent type
-  data?: unknown;
-  timestamp: Date;
-}
-
-/**
- * Plugin event handler function type
- */
-export type PluginEventHandler = (args: PluginEventArgs) => void | Promise<void>;
 
 /**
  * UI plugin interface - extends base plugin with UI components

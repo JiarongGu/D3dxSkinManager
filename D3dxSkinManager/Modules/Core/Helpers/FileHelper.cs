@@ -2,28 +2,18 @@ using System.Security.Cryptography;
 
 namespace D3dxSkinManager.Modules.Core.Helpers;
 
-/// <summary>
-/// Interface for file operations
-/// </summary>
 public interface IFileHelper
 {
     Task<string> CalculateSha256Async(string filePath);
-
     Task<bool> CopyFileAsync(string sourceFile, string destinationFile, bool overwrite = false);
-
     Task<bool> MoveFileAsync(string sourceFile, string destinationFile);
-
     Task<bool> CopyDirectoryAsync(string sourceDir, string targetDir, bool overwrite = true);
-
     Task<bool> DeleteDirectoryAsync(string directory);
-
     Task<bool> CreateDirectoryAsync(string directory);
 }
 
 /// <summary>
-/// Service for file operations: hashing, archive extraction, file copying
-/// Uses SevenZipSharp for archive extraction (supports ZIP, RAR, 7Z, TAR, GZIP, etc.)
-/// Responsibility: Low-level file system and archive operations
+/// File system operations: hashing, copying, moving, directory management.
 /// </summary>
 public class FileHelper : IFileHelper
 {
@@ -34,9 +24,6 @@ public class FileHelper : IFileHelper
         _logger = logger;
     }
 
-    /// <summary>
-    /// Calculate SHA256 hash of a file
-    /// </summary>
     public async Task<string> CalculateSha256Async(string filePath)
     {
         if (!File.Exists(filePath))

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -45,10 +46,52 @@ public class PluginFacade : BaseFacade, IPluginFacade
         return request.Type switch
         {
             "GET_ALL" => await GetAllPluginsAsync(),
+            "INVOKE" => await InvokePluginHandlerAsync(request),
             "ENABLE" => await EnablePluginAsync(request),
             "DISABLE" => await DisablePluginAsync(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
+    }
+
+    /// <summary>
+    /// Invoke a specific plugin's message handler.
+    /// Payload format: { pluginId: "com.example.plugin", messageType: "OPEN_UI", payload: {...} }
+    /// </summary>
+    private async Task<object?> InvokePluginHandlerAsync(IpcRequest request)
+    {
+        var pluginId = _payloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
+        var messageType = _payloadHelper.GetRequiredValue<string>(request.Payload, "messageType");
+        var pluginPayload = _payloadHelper.GetOptionalValue<object>(request.Payload, "payload");
+
+        // Get the plugin
+        var plugin = _pluginRegistry.GetPlugin(pluginId);
+        if (plugin == null)
+        {
+            throw new InvalidOperationException($"Plugin not found: {pluginId}");
+        }
+
+        // Check if plugin can handle this message type
+        if (!plugin.GetHandledMessageTypes().Contains(messageType))
+        {
+            throw new InvalidOperationException($"Plugin '{pluginId}' does not handle message type: {messageType}");
+        }
+
+        // Create a sub-request for the plugin
+        var pluginRequest = new IpcRequest
+        {
+            Id = request.Id,
+            Type = messageType,
+            Module = "PLUGIN",
+            ProfileId = request.ProfileId,
+            Payload = pluginPayload != null ? JsonSerializer.SerializeToElement(pluginPayload) : null,
+            Timestamp = request.Timestamp
+        };
+
+        // Invoke the plugin handler
+        var response = await plugin.HandleMessageAsync(pluginRequest);
+
+        // Return the plugin's response data
+        return response.Success ? response.Data : throw new InvalidOperationException(response.Error ?? "Plugin returned error");
     }
 
     public async Task<List<PluginInfo>> GetAllPluginsAsync()
@@ -91,14 +134,10 @@ public class PluginFacade : BaseFacade, IPluginFacade
     {
         var capabilities = new List<string>();
 
-        if (plugin is IMessageHandlerPlugin)
+        // Check if plugin handles messages
+        if (plugin.GetHandledMessageTypes().Any())
         {
             capabilities.Add("MessageHandler");
-        }
-
-        if (plugin is IServicePlugin)
-        {
-            capabilities.Add("ServiceProvider");
         }
 
         return capabilities;

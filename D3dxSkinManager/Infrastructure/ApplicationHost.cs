@@ -169,6 +169,10 @@ public class ApplicationHost
             _profileRouter = new ProfileServiceRouter(_serviceProvider, _logger);
             ConfigureProfileRouter();
 
+            // Configure global MessageDispatcher pipeline (singleton, shared across all sessions)
+            _logger.Info("Configuring global message dispatcher...", "Host");
+            ConfigureMessagePipeline();
+
             // Initialize Session Manager
             _logger.Info("Initializing session manager...", "Host");
             _sessionManager = new WebViewSessionManager(_logger);
@@ -211,22 +215,20 @@ public class ApplicationHost
         {
             var schemeHandler = _serviceProvider.GetRequiredService<ICustomSchemeHandler>();
 
-            // Create session without pipeline configuration first
+            // Create session - it will automatically wire up to the global singleton MessageDispatcher
             var newSession = new WebViewSession(
                 MAIN_SESSION_ID,
                 _webView,
                 _logger,
                 _serviceProvider,
                 schemeHandler,
-                _mainForm,
-                _profileRouter,
-                dispatcher => { } // Empty initially, configured below
+                _mainForm
             );
             return newSession;
         });
 
-        // Configure the message pipeline now that session is created
-        ConfigureMessagePipeline(session.Dispatcher, session);
+        // Register session-specific routes (WEBVIEW_READY, SUBSCRIBE, DROP_ZONE, etc.)
+        RegisterSessionRoutes(session);
 
         await session.StartAsync();
 
@@ -403,11 +405,12 @@ public class ApplicationHost
     }
 
     /// <summary>
-    /// Configure the message processing pipeline
+    /// Configure the global singleton message dispatcher pipeline
     /// </summary>
-    private void ConfigureMessagePipeline(MessageDispatcher dispatcher, WebViewSession session)
+    private void ConfigureMessagePipeline()
     {
-        _logger.Info("Configuring message pipeline...", "Host");
+        var dispatcher = _serviceProvider.GetRequiredService<MessageDispatcher>();
+        _logger.Info("Configuring global message dispatcher pipeline...", "Host");
 
         // Add error handling middleware (first in pipeline)
         dispatcher.UseErrorHandler();
@@ -422,8 +425,9 @@ public class ApplicationHost
         dispatcher.UseSettingsFacade(_serviceProvider);
         dispatcher.UseSystemFacade(_serviceProvider);
         dispatcher.UseProfileFacade(_serviceProvider);
+        dispatcher.UsePluginFacade(_serviceProvider);
 
-        // Register built-in module routes (APP, TEST, DROP_ZONE)
+        // Register built-in APP module routes (global, not session-specific)
         dispatcher.MapModule("APP", routes =>
         {
             routes.Route("PING", message => new { message = "pong", timestamp = DateTime.UtcNow });
@@ -440,7 +444,27 @@ public class ApplicationHost
                 status = "ready",
                 uptime = DateTime.UtcNow.Subtract(System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds
             });
+        });
 
+        // Session-specific routes (WEBVIEW_READY, SUBSCRIBE, UNSUBSCRIBE, DROP_ZONE)
+        // will be registered by ApplicationHost.RegisterSessionRoutes() after session creation
+        // This keeps the global dispatcher clean while allowing per-session operations
+
+        _logger.Info("Global message dispatcher configured", "Host");
+    }
+
+    /// <summary>
+    /// Register session-specific routes for the main session
+    /// These routes need access to the specific WebViewSession's IPC and DropZone
+    /// </summary>
+    private void RegisterSessionRoutes(WebViewSession session)
+    {
+        var dispatcher = _serviceProvider.GetRequiredService<MessageDispatcher>();
+        _logger.Info($"[{session.SessionId}] Registering session-specific routes...", "Host");
+
+        // Register session-specific APP routes
+        dispatcher.MapModule("APP", routes =>
+        {
             routes.Route("WEBVIEW_READY", message =>
             {
                 var webViewId = message.Payload?.GetProperty("webViewId").GetString() ?? "unknown";

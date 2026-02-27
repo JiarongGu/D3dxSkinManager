@@ -62,6 +62,12 @@ public static class CoreServiceExtensions
         AddSingleton<IEventBus, EventBus>(services);
         AddSingleton<IEventEmitter, EventEmitter>(services);
 
+        // Message dispatcher (singleton shared across all sessions)
+        // - Routes IPC messages from WebView to module facades via middleware pipeline
+        // - Allows plugins/services to send messages programmatically via IMessageDispatcher
+        AddSingleton<MessageDispatcher, MessageDispatcher>(services);
+        services.AddSingleton<IMessageDispatcher>(sp => sp.GetRequiredService<MessageDispatcher>());
+
         // Performance monitor for tracking application performance
         AddSingleton<IPerformanceMonitor, PerformanceMonitor>(services);
 
@@ -71,6 +77,7 @@ public static class CoreServiceExtensions
     public static IServiceCollection AddCoreServices(this IServiceCollection services, IServiceProvider serviceProvider)
     {
         services.AddSingleton(serviceProvider.GetRequiredService<IMemoryCache>());
+        services.AddSingleton(serviceProvider.GetRequiredService<IMessageDispatcher>());
 
         foreach (var serviceType in _registerdServices)
         {

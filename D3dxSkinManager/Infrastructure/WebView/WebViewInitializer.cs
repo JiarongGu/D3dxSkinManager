@@ -23,7 +23,7 @@ public class WebViewInitializer
     /// <summary>
     /// Initialize WebView2 with proper environment settings
     /// </summary>
-    public async Task InitializeAsync()
+    public async Task InitAsync()
     {
         Console.WriteLine("[WebView2] Starting initialization...");
 

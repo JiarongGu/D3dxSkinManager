@@ -26,9 +26,9 @@ public class IpcMessageReceivedEventArgs : EventArgs
 }
 
 /// <summary>
-/// Handles IPC communication between React frontend and .NET backend
+/// Handles IPC (Inter-Process Communication) between React frontend and .NET backend via WebView2
 /// </summary>
-public class IpcCommunicationHandler
+public class IpcHandler : IIpcHandler
 {
     private readonly WebView2 _webView;
     private readonly ILogHelper _logger;
@@ -40,7 +40,7 @@ public class IpcCommunicationHandler
     /// </summary>
     public event EventHandler<IpcMessageReceivedEventArgs>? MessageReceived;
 
-    public IpcCommunicationHandler(WebView2 webView, ILogHelper logger)
+    public IpcHandler(WebView2 webView, ILogHelper logger)
     {
         _webView = webView ?? throw new ArgumentNullException(nameof(webView));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -57,7 +57,7 @@ public class IpcCommunicationHandler
     /// <summary>
     /// Initialize IPC message handlers
     /// </summary>
-    public void Initialize()
+    public void Init()
     {
         _logger.Info("Initializing communication handler...", "IPC");
 

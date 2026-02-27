@@ -51,7 +51,7 @@ public class MyPlugin : IPlugin
     public string Description => "Example plugin";
     public string Author => "Your Name";
 
-    public async Task InitializeAsync(IPluginContext context)
+    public async Task InitAsync(IPluginContext context)
     {
         // Access services
         var modFacade = context.ModFacade;
@@ -157,7 +157,7 @@ public class MyPlugin : IServicePlugin
         services.AddTransient<IMyHelper, MyHelper>();
     }
 
-    public async Task InitializeAsync(IPluginContext context)
+    public async Task InitAsync(IPluginContext context)
     {
         // Services are now available
         var myService = context.GetService<IMyCustomService>();
@@ -209,7 +209,7 @@ export class MyUIPlugin implements UIPlugin {
   tabLabel = 'My Tab';
   tabIcon = 'AppstoreOutlined';
 
-  async initialize(context: PluginContext): Promise<void> {
+  async Init(context: PluginContext): Promise<void> {
     // Register event handlers
     context.registerEventHandler('MOD_LOADED', this.onModLoaded);
   }
@@ -247,7 +247,7 @@ export class MyActionPlugin implements ActionPlugin {
   description = 'Adds custom mod actions';
   author = 'Your Name';
 
-  async initialize(context: PluginContext): Promise<void> {
+  async Init(context: PluginContext): Promise<void> {
     console.log('[MyActionPlugin] Initialized');
   }
 
@@ -304,20 +304,21 @@ function App() {
 
 ### Backend to Frontend
 
-Backend plugins can send events that frontend plugins receive:
+**NOTE:** Plugin events are NOT currently used. Backend plugins subscribe to system events but do not emit their own events. This section describes a reserved capability for future cross-plugin communication.
+
+If implemented in the future, backend plugins could send events:
 
 **Backend:**
 ```csharp
-// Emit custom event
-await context.EmitEventAsync("MY_CUSTOM_EVENT", new { data = "value" });
+// Reserved for future use - plugins don't currently emit events
+await context.EmitEventAsync("MY_EVENT_TYPE", new { data = "value" });
 ```
 
 **Frontend:**
 ```typescript
-context.registerEventHandler('CUSTOM_EVENT', (args) => {
-  if (args.eventName === 'MY_CUSTOM_EVENT') {
-    console.log('Received:', args.data);
-  }
+// Reserved for future use
+context.subscribeEvent("PLUGIN", "MY_EVENT_TYPE", (event) => {
+  console.log('Received:', event.payload);
 });
 ```
 
@@ -492,7 +493,7 @@ pluginRegistry.register(new MyPlugin(), context);
 
 ### Event Not Firing
 
-1. Verify event is registered in `InitializeAsync()`
+1. Verify event is registered in `InitAsync()`
 2. Check event type matches exactly
 3. Ensure event bus is initialized
 4. Add logging to confirm registration

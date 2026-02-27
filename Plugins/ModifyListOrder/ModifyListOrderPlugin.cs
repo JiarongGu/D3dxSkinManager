@@ -33,7 +33,7 @@ public class ModifyListOrderPlugin : IMessageHandlerPlugin
     public string Description => "Customizes display order for classes, objects, and mods";
     public string Author => "D3dxSkinManager";
 
-    public Task InitializeAsync(IPluginContext context)
+    public Task InitAsync(IPluginContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _context.Log(LogLevel.Info, $"[{Name}] Initialized");

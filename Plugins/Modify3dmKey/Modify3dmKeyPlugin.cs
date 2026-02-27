@@ -33,7 +33,7 @@ public class Modify3dmKeyPlugin : IMessageHandlerPlugin
     public string Description => "Edits 3DMigoto key bindings in d3dx.ini and help.ini";
     public string Author => "D3dxSkinManager";
 
-    public Task InitializeAsync(IPluginContext context)
+    public Task InitAsync(IPluginContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _context.Log(LogLevel.Info, $"[{Name}] Initialized (stub)");

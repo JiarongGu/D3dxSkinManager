@@ -1,0 +1,132 @@
+/**
+ * DataTable Component Styles
+ * Standardized styling for all tables in the application
+ */
+
+.data-table {
+  /* Base table styling */
+}
+
+.data-table .ant-table {
+  background: transparent;
+}
+
+.data-table .ant-table-thead > tr > th {
+  font-weight: 600;
+  background: var(--color-ng-container);
+  color: var(--color-text);
+  border-bottom: none;
+  padding: 12px 16px;
+}
+
+.data-table .ant-table-tbody > tr > td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.data-table .ant-table-tbody > tr:hover > td {
+  background: var(--color-table-row-hover) !important;
+}
+
+.data-table .ant-table-tbody > tr:last-child > td {
+  border-bottom: none;
+}
+
+/* Compact mode */
+.data-table-compact .ant-table-thead > tr > th {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.data-table-compact .ant-table-tbody > tr > td {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+/* No hover effect */
+.data-table-no-hover .ant-table-tbody > tr:hover > td {
+  background: transparent;
+}
+
+/* Pagination styling */
+.data-table .ant-pagination {
+  margin-top: 16px;
+}
+
+.data-table-compact .ant-pagination {
+  margin-top: 12px;
+}
+
+/* Empty state */
+.data-table .ant-empty {
+  padding: 32px 0;
+}
+
+.data-table-compact .ant-empty {
+  padding: 24px 0;
+}
+
+/* Selection column */
+.data-table .ant-table-selection-column {
+  width: 48px;
+  text-align: center;
+}
+
+/* Row selection highlight */
+.data-table .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: var(--color-primary-bg);
+}
+
+.data-table .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  background: var(--color-primary-bg-hover);
+}
+
+/* Loading overlay */
+.data-table .ant-spin-container {
+  min-height: 200px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .data-table .ant-table-thead > tr > th,
+  .data-table .ant-table-tbody > tr > td {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .data-table-compact .ant-table-thead > tr > th,
+  .data-table-compact .ant-table-tbody > tr > td {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+}
+
+/* Sortable column headers */
+.data-table .ant-table-column-sorters {
+  padding: 0;
+}
+
+.data-table .ant-table-column-sorter {
+  margin-left: 4px;
+  color: var(--color-text-secondary);
+}
+
+.data-table .ant-table-column-sorter-up.active,
+.data-table .ant-table-column-sorter-down.active {
+  color: var(--color-primary);
+}
+
+/* Filter dropdown */
+.data-table .ant-table-filter-trigger {
+  color: var(--color-text-secondary);
+  margin-left: 4px;
+}
+
+.data-table .ant-table-filter-trigger.active {
+  color: var(--color-primary);
+}
+
+/* Ellipsis columns */
+.data-table .ant-table-cell-ellipsis {
+  word-break: keep-all;
+}

@@ -4,25 +4,14 @@ using System.Text.Json;
 namespace D3dxSkinManager.Modules.Core.Helpers;
 
 /// <summary>
-/// Interface for extracting values from message payloads
-/// Testable alternative to static PayloadHelper methods
+/// Extracts typed values from IPC message payloads.
 /// </summary>
 public interface IPayloadHelper
 {
-    /// <summary>
-    /// Get required value from payload, throws if missing or invalid
-    /// </summary>
     T GetRequiredValue<T>(JsonElement? payload, string key);
-
-    /// <summary>
-    /// Get optional value from payload, returns default if missing
-    /// </summary>
     T? GetOptionalValue<T>(JsonElement? payload, string key);
 }
 
-/// <summary>
-/// Helper for extracting values from message payloads
-/// </summary>
 public class PayloadHelper : IPayloadHelper
 {
     private static readonly JsonSerializerOptions JsonOptions = new()

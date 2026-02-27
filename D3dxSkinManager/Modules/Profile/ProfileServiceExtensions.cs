@@ -1,3 +1,4 @@
+using D3dxSkinManager.Modules.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using D3dxSkinManager.Modules.Profiles.Services;

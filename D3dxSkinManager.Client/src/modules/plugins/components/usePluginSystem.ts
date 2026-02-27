@@ -4,8 +4,9 @@
 
 import { useEffect, useState } from 'react';
 import { pluginRegistry } from './PluginRegistry';
-import { PluginContext, PluginEventType, PluginEventArgs } from './PluginTypes';
+import { PluginContext } from './PluginTypes';
 import { modService } from '../../mods/services/modService';
+import { eventBus } from '../../../shared/services/eventBus';
 
 /**
  * Hook to initialize and access the plugin system
@@ -18,17 +19,9 @@ export const usePluginSystem = () => {
     // Create plugin context
     const context: PluginContext = {
       modService: modService,
-      registerEventHandler: (eventType, handler) =>
-        pluginRegistry.registerEventHandler(eventType, handler),
-      unregisterEventHandler: (registrationId) =>
-        pluginRegistry.unregisterEventHandler(registrationId),
-      emitEvent: (eventName, data) =>
-        pluginRegistry.emitEvent({
-          eventType: PluginEventType.CustomEvent,
-          eventName,
-          data,
-          timestamp: new Date()
-        })
+      subscribeEvent: (module, type, handler) => {
+        return eventBus.subscribe(module, type, handler);
+      }
     };
 
     // Load plugins (in a real implementation, this would load from a plugins directory)
@@ -54,40 +47,6 @@ export const usePluginSystem = () => {
   return {
     registry: pluginRegistry,
     pluginCount,
-    initialized,
-    emitModLoadedEvent: (sha: string) => {
-      pluginRegistry.emitEvent({
-        eventType: PluginEventType.ModLoaded,
-        data: { sha },
-        timestamp: new Date()
-      });
-    },
-    emitModUnloadedEvent: (sha: string) => {
-      pluginRegistry.emitEvent({
-        eventType: PluginEventType.ModUnloaded,
-        data: { sha },
-        timestamp: new Date()
-      });
-    },
-    emitModImportedEvent: (mod: any) => {
-      pluginRegistry.emitEvent({
-        eventType: PluginEventType.ModImported,
-        data: mod,
-        timestamp: new Date()
-      });
-    },
-    emitModDeletedEvent: (sha: string) => {
-      pluginRegistry.emitEvent({
-        eventType: PluginEventType.ModDeleted,
-        data: { sha },
-        timestamp: new Date()
-      });
-    },
-    emitModsRefreshedEvent: () => {
-      pluginRegistry.emitEvent({
-        eventType: PluginEventType.ModsRefreshed,
-        timestamp: new Date()
-      });
-    }
+    initialized
   };
 };

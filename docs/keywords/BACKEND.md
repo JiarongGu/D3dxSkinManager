@@ -521,7 +521,7 @@ Located in `Plugins/` directory (external to backend):
 
 - **TaskQueueEvents** → `Modules/TaskQueue/TaskQueueEvents.cs`
   - TASK_ADDED, TASK_STARTED, TASK_PROGRESS, TASK_COMPLETED, TASK_FAILED, TASK_CANCELLED, TASK_REMOVED, TASK_AWAITING_CONFIRMATION
-  - ⚠️ Must be registered in `CoreEvents.All` for IPC forwarding!
+  - EventBusIpcBridge automatically forwards all events via wildcard subscription
 
 ---
 

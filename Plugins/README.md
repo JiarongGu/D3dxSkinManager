@@ -225,7 +225,7 @@ copy Plugins\AddModFileWarnSize\bin\Debug\net10.0\AddModFileWarnSize.dll "{AppDa
        public string Description => "Plugin description";
        public string Author => "Your Name";
 
-       public async Task InitializeAsync(IPluginContext context)
+       public async Task InitAsync(IPluginContext context)
        {
            _context = context ?? throw new ArgumentNullException(nameof(context));
            _context.Log(LogLevel.Info, $"[{Name}] Initialized");

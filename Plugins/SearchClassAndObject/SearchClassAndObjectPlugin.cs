@@ -21,7 +21,7 @@ public class SearchClassAndObjectPlugin : IMessageHandlerPlugin
     public string Description => "Real-time search and filtering with negation support";
     public string Author => "D3dxSkinManager";
 
-    public async Task InitializeAsync(IPluginContext context)
+    public async Task InitAsync(IPluginContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _context.Log(LogLevel.Info, $"[{Name}] Initialized");

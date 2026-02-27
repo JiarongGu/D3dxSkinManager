@@ -17,7 +17,7 @@ namespace D3dxSkinManager.ExamplePlugin;
 /// - Plugin data directory usage
 /// - Custom message handling
 /// </summary>
-public class ModLoggerPlugin : IMessageHandlerPlugin
+public class ModLoggerPlugin : IPlugin
 {
     private IPluginContext? _context;
     private string? _logFilePath;
@@ -29,7 +29,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
     public string Description => "Logs all mod operations to console and file";
     public string Author => "D3dxSkinManager Team";
 
-    public async Task InitializeAsync(IPluginContext context)
+    public async Task InitAsync(IPluginContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
 
@@ -51,7 +51,7 @@ public class ModLoggerPlugin : IMessageHandlerPlugin
         await WriteLogAsync("=== Mod Logger Plugin Started ===");
     }
 
-    public async Task ShutdownAsync()
+    public async ValueTask DisposeAsync()
     {
         await WriteLogAsync("=== Mod Logger Plugin Shutdown ===");
         _context?.Log(LogLevel.Info, $"[{Name}] Shut down");

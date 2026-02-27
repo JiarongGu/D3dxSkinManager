@@ -86,25 +86,21 @@ export enum ProfileEventType {
   DUPLICATED = "DUPLICATED",
   SWITCHED = "SWITCHED",
   CONFIG_UPDATED = "CONFIG_UPDATED",
-  CUSTOM_EVENT = "CUSTOM_EVENT",
 }
 
 // Migration event types
 export enum MigrationEventType {
-  CATEGORIES_UPDATED = "CATEGORIES_UPDATED",
-  MODS_REFRESHED = "MODS_REFRESHED",
-  CUSTOM_EVENT = "CUSTOM_EVENT",
+  COMPLETED = "COMPLETED",
 }
 
 // Tools event types
 export enum ToolsEventType {
-  CUSTOM_EVENT = "CUSTOM_EVENT",
+  CACHE_CLEANED = "CACHE_CLEANED",
+  CACHE_ITEM_DELETED = "CACHE_ITEM_DELETED",
 }
 
-// Plugin event types
-export enum PluginEventType {
-  CUSTOM_EVENT = "CUSTOM_EVENT",
-}
+// NOTE: Plugin events are NOT currently used in backend - reserved for future cross-plugin communication
+export type PluginEventType = string;
 
 // Map each module to its valid event type enum
 export interface ModuleEventTypeMap {
@@ -185,25 +181,27 @@ export interface EventPayloadMap {
 
   // Profile events
   [Module.PROFILE]: {
-    [ProfileEventType.CUSTOM_EVENT]: unknown;
+    [ProfileEventType.CREATED]: unknown;
+    [ProfileEventType.UPDATED]: unknown;
+    [ProfileEventType.DELETED]: unknown;
+    [ProfileEventType.DUPLICATED]: unknown;
+    [ProfileEventType.SWITCHED]: { profileId: string };
+    [ProfileEventType.CONFIG_UPDATED]: unknown;
   };
 
   // Migration events
   [Module.MIGRATION]: {
-    [MigrationEventType.CATEGORIES_UPDATED]: unknown;
-    [MigrationEventType.MODS_REFRESHED]: unknown;
-    [MigrationEventType.CUSTOM_EVENT]: unknown;
+    [MigrationEventType.COMPLETED]: unknown;
   };
 
   // Tools events
   [Module.TOOL]: {
-    [ToolsEventType.CUSTOM_EVENT]: unknown;
+    [ToolsEventType.CACHE_CLEANED]: unknown;
+    [ToolsEventType.CACHE_ITEM_DELETED]: { key: string };
   };
 
-  // Plugins events
-  [Module.PLUGIN]: {
-    [PluginEventType.CUSTOM_EVENT]: unknown;
-  };
+  // Plugins events (not currently used)
+  [Module.PLUGIN]: Record<string, never>;
 }
 
 // Generic event structure
@@ -339,5 +337,5 @@ export const EventType = {
   ...ProfileEventType,
   ...MigrationEventType,
   ...ToolsEventType,
-  ...PluginEventType,
+  // PluginEventType is just 'string' now - no enum values to spread
 } as const;

@@ -21,7 +21,7 @@ public class ViewThumbnailPlugin : IMessageHandlerPlugin
     public string Description => "View thumbnail configuration files";
     public string Author => "D3dxSkinManager";
 
-    public async Task InitializeAsync(IPluginContext context)
+    public async Task InitAsync(IPluginContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _context.Log(LogLevel.Info, $"[{Name}] Initialized");

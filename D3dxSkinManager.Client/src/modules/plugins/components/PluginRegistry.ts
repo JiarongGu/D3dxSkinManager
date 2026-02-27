@@ -4,21 +4,16 @@
  * Manages plugin loading, registration, and lifecycle.
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import {
   Plugin,
   PluginContext,
   PluginMetadata,
   UIPlugin,
-  ActionPlugin,
-  PluginEventType,
-  PluginEventArgs,
-  PluginEventHandler
+  ActionPlugin
 } from './PluginTypes';
 
 class PluginRegistry {
   private plugins: Map<string, PluginMetadata> = new Map();
-  private eventHandlers: Map<string, PluginEventHandler> = new Map();
 
   /**
    * Register a plugin
@@ -43,7 +38,7 @@ class PluginRegistry {
 
     // Initialize plugin
     try {
-      const result = plugin.initialize(context);
+      const result = plugin.Init(context);
       if (result instanceof Promise) {
         result.catch(err => {
           console.error(`[PluginRegistry] Error initializing plugin ${plugin.name}:`, err);
@@ -107,41 +102,6 @@ class PluginRegistry {
     return Array.from(this.plugins.values())
       .filter(m => m.instance && 'getModActions' in m.instance)
       .map(m => m.instance as ActionPlugin);
-  }
-
-  /**
-   * Register an event handler
-   */
-  registerEventHandler(eventType: PluginEventType, handler: PluginEventHandler): string {
-    const registrationId = uuidv4();
-    this.eventHandlers.set(registrationId, handler);
-    return registrationId;
-  }
-
-  /**
-   * Unregister an event handler
-   */
-  unregisterEventHandler(registrationId: string): void {
-    this.eventHandlers.delete(registrationId);
-  }
-
-  /**
-   * Emit an event to all registered handlers
-   */
-  async emitEvent(args: PluginEventArgs): Promise<void> {
-    const handlersToInvoke = Array.from(this.eventHandlers.entries())
-      .filter(([id]) => id.startsWith(`${args.eventType}_`))
-      .map(([_, handler]) => handler);
-
-    const promises = handlersToInvoke.map(async handler => {
-      try {
-        await handler(args);
-      } catch (err) {
-        console.error('[PluginRegistry] Error in event handler:', err);
-      }
-    });
-
-    await Promise.all(promises);
   }
 
   /**

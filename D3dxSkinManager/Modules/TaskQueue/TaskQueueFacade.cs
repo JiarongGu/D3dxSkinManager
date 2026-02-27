@@ -9,16 +9,12 @@ using D3dxSkinManager.Modules.TaskQueue.Services;
 
 namespace D3dxSkinManager.Modules.TaskQueue;
 
-/// <summary>
-/// Interface for TaskQueue facade
-/// </summary>
 public interface ITaskQueueFacade : IModuleFacade
 {
 }
 
 /// <summary>
-/// IPC message facade for TaskQueue module
-/// Handles communication between frontend and TaskQueue service
+/// IPC facade for TaskQueue module. Routes frontend messages to TaskQueueService.
 /// </summary>
 public class TaskQueueFacade : BaseFacade, ITaskQueueFacade
 {

@@ -219,9 +219,10 @@ public class EventMessage
 // Module Names (Modules/Core/Event/ModuleNames.cs)
 public static class ModuleNames
 {
-    public const string CORE = "CORE";
+    public const string SYSTEM = "SYSTEM";
     public const string DROP_ZONE = "DROP_ZONE";
     public const string MOD = "MOD";
+    public const string CATEGORY = "CATEGORY";
     public const string PROFILE = "PROFILE";
     public const string TASK_QUEUE = "TASK_QUEUE";
     public const string SETTING = "SETTING";
@@ -258,9 +259,9 @@ public static class DropZoneEvents
     public const string FILE_DROP = "FILE_DROP";
 }
 
-// Core Events (Modules/Core/Event/CoreEvents.cs)
+// System Events (Modules/System/SystemEvents.cs)
 // ⚠️ CRITICAL: Only application lifecycle events
-public static class CoreEvents
+public static class SystemEvents
 {
     public const string APPLICATION_STARTED = "APPLICATION_STARTED";
     public const string APPLICATION_SHUTDOWN = "APPLICATION_SHUTDOWN";
@@ -268,68 +269,46 @@ public static class CoreEvents
 }
 
 // ✅ CORRECT: Emit with Module + Type
-await _eventEmitter.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha });
-await _eventEmitter.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.PROGRESS, progressData);
-_ipcHandler.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.CLICK, new { zoneId, position });
+await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha });
+await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.PROGRESS, progressData);
 
-// ❌ WRONG: Don't use string literals or old pattern
-await _eventEmitter.EmitAsync("MOD_LOADED", data: new { Sha = sha });
-_ipcHandler.SendNotification("DROP_ZONE_CLICK", new { zoneId, position });
+// ❌ WRONG: Don't use string literals
+await _eventBus.EmitAsync("MOD", "MOD_LOADED", new { Sha = sha });
 ```
 
-#### Profile-Aware Events
+#### Profile-Scoped Events
 
-**Global Services** (use `IEventBus`):
+Events can be global or profile-scoped via the `profileId` parameter:
+
 ```csharp
-public class SystemService
-{
-    private readonly IEventBus _eventBus;  // Global singleton
+// Global event (no profileId)
+await _eventBus.EmitAsync(
+    ModuleNames.SYSTEM,
+    SystemEvents.APPLICATION_STARTED
+);
 
-    public async Task StartAsync()
-    {
-        // Emit global event (no profileId)
-        await _eventBus.EmitAsync(ModuleNames.CORE, CoreEvents.APPLICATION_STARTED);
-    }
-}
-```
-
-**Profile-Scoped Services** (use `IProfileEventBus`):
-```csharp
-public class ModService
-{
-    private readonly IProfileEventBus _eventBus;  // ✅ Profile-scoped
-
-    public async Task LoadModAsync(string sha)
-    {
-        // ✅ CORRECT: ProfileId auto-injected from ProfileContext
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { sha });
-    }
-}
+// Profile-scoped event (with profileId)
+await _eventBus.EmitAsync(
+    ModuleNames.MOD,
+    ModEvents.LOADED,
+    new { sha },
+    profileId: "profile-123"
+);
 ```
 
 **Event Filtering by ProfileId**:
 ```csharp
-// Listen to events for specific profile
+// Listen to specific profile
 _eventBus.RegisterHandler(ModuleNames.MOD, ModEvents.LOADED, "profile-123", async (msg) =>
 {
     _logger.Info($"Mod loaded in profile {msg.ProfileId}");
 });
 
-// Listen to events from all profiles
-_eventBus.RegisterHandler(ModuleNames.MOD, ModEvents.LOADED, "*", async (msg) =>
+// Listen to all profiles
+_eventBus.RegisterHandler(ModuleNames.MOD, ModEvents.LOADED, async (msg) =>
 {
     _logger.Info($"Mod loaded: {msg.Payload}");
 });
-```
-
-**Rules:**
-- Global services → use `IEventBus` (no profileId)
-- Profile-scoped services → use `IProfileEventBus` (auto profileId)
-- Global events (no profileId) → delivered to ALL handlers
-- Profile events → filtered by handler's profileId pattern
-
-See [docs/features/PROFILE_AWARE_EVENTS.md](features/PROFILE_AWARE_EVENTS.md) for complete guide.
-
 ```
 
 #### Frontend Event System
@@ -337,8 +316,9 @@ See [docs/features/PROFILE_AWARE_EVENTS.md](features/PROFILE_AWARE_EVENTS.md) fo
 ```typescript
 // Event Structure (src/shared/services/eventBus.ts)
 export enum Module {
-  CORE = 'CORE',
+  SYSTEM = 'SYSTEM',
   MOD = 'MOD',
+  CATEGORY = 'CATEGORY',
   TASK_QUEUE = 'TASK_QUEUE',
   DROP_ZONE = 'DROP_ZONE',
   SETTING = 'SETTING',
@@ -520,22 +500,22 @@ private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, bool>
 
 #### Module Event Constants Files
 
-- `Modules/Core/Event/CoreEvents.cs` - Core lifecycle events
-- `Modules/Mods/ModEvents.cs` - Mod operation events
+- `Modules/System/SystemEvents.cs` - Application lifecycle events
+- `Modules/Mod/ModEvents.cs` - Mod operation events
 - `Modules/TaskQueue/TaskQueueEvents.cs` - Task queue events
-- `Modules/Profiles/ProfileEvents.cs` - Profile events
-- `Modules/Settings/SettingsEvents.cs` - Settings events
+- `Modules/Profile/ProfileEvents.cs` - Profile events
+- `Modules/Setting/SettingEvents.cs` - Settings events
 - `Modules/Migration/MigrationEvents.cs` - Migration events
-- `Modules/Tools/ToolsEvents.cs` - Tools events
-- `Infrastructure/DropZoneEvents.cs` - Drop zone events
+- `Modules/Tool/ToolEvents.cs` - Tools events
 
 **Key Principles:**
-- ✅ Module names are uppercase with underscores (TASK_QUEUE, DROP_ZONE)
+- ✅ Module names are UPPERCASE (SYSTEM, MOD, TASK_QUEUE)
 - ✅ Event type names have NO module prefix (LOADED, not MOD_LOADED)
-- ✅ Events are emitted as (Module, Type, Payload)
+- ✅ Events are emitted as (Module, Type, Payload, ProfileId?)
 - ✅ Frontend subscribes with (module, type, handler)
 - ✅ Full type safety with EventPayloadMap
-- ❌ NEVER use CUSTOM_EVENT - every event has explicit module and type
+- ✅ ProfileId for profile-scoped events, null for global
+- ❌ NEVER use CUSTOM_EVENT - plugins don't emit events currently
 - ❌ NEVER use string literals - always use constants/enums
 
 ### State Management Pattern (Zustand)

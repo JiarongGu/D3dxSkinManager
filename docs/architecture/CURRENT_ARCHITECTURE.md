@@ -182,7 +182,7 @@ services.AddSingleton<IAppFacade, AppFacade>();
 ```csharp
 public interface IPlugin {
   string Name { get; }
-  Task InitializeAsync(IPluginContext context);
+  Task InitAsync(IPluginContext context);
 }
 
 public interface IMessageHandlerPlugin : IPlugin {

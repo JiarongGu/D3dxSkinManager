@@ -21,12 +21,19 @@ public class EventMessage
 
 **2. Global EventBus (IEventBus)**
 - Singleton service shared across all profiles
-- Supports profileId pattern matching in `RegisterHandler()`
+- Supports profileId filtering through multiple registration overloads:
+  - `RegisterHandler(module, type, handler)` - all profiles
+  - `RegisterHandler(module, type, profileId, handler)` - specific profile
+  - `RegisterHandlerForModule(module, handler)` - all events from module, all profiles
+  - `RegisterHandlerForModule(module, profileId, handler)` - all events from module, specific profile
+  - `RegisterHandlerForAll(handler)` - all events, all profiles
 - Automatically filters events by profileId
 
 **3. ProfileEventBus (IProfileEventBus)**
 - Profile-scoped service injected into profile contexts
-- Automatically adds ProfileId from IProfileContext to all emitted events
+- Wrapper around global IEventBus that auto-injects ProfileId from IProfileContext
+- Automatically adds ProfileId to all emitted events
+- Automatically filters subscriptions to only receive events for this profile
 - Profile-scoped services use this instead of global IEventBus
 
 ## Usage Patterns
@@ -43,13 +50,13 @@ public class ApplicationService
     // Emit global event (no profileId)
     public async Task StartAsync()
     {
-        await _eventBus.EmitAsync(ModuleNames.CORE, CoreEvents.APPLICATION_STARTED);
+        await _eventBus.EmitAsync(ModuleNames.SYSTEM, SystemEvents.APPLICATION_STARTED);
     }
 
     // Listen to all events regardless of profile
-    public void Initialize()
+    public void Init()
     {
-        _eventBus.RegisterHandler("*", "*", async (message) =>
+        _eventBus.RegisterHandlerForAll(async (message) =>
         {
             _logger.Info($"Event: {message.Module}.{message.Type}");
         });
@@ -82,53 +89,71 @@ public class ModService
 
 ### Listening to Profile-Specific Events
 
-Handlers can filter by profileId pattern:
+Use different registration overloads for different filtering needs:
 
 ```csharp
-// Listen to events for a specific profile
+// Listen to events for a specific profile (3-parameter overload)
 _eventBus.RegisterHandler(
     ModuleNames.MOD,
     ModEvents.MOD_LOADED,
-    profileId: "profile-abc-123",  // ✨ Only events from this profile
+    "profile-abc-123",  // ✨ Only events from this profile
     async (message) =>
     {
         _logger.Info($"Mod loaded in profile {message.ProfileId}");
     });
 
-// Listen to events from all profiles
+// Listen to events from all profiles (2-parameter overload)
 _eventBus.RegisterHandler(
     ModuleNames.MOD,
     ModEvents.MOD_LOADED,
-    profileId: "*",  // ✨ Events from any profile
     async (message) =>
     {
         _logger.Info($"Mod loaded: {message.Payload}");
     });
 
-// Listen to global events only (no profileId)
-_eventBus.RegisterHandler(
-    ModuleNames.CORE,
-    CoreEvents.APPLICATION_STARTED,
-    profileId: null,  // ✨ Global events only
+// Listen to all MOD events across all profiles
+_eventBus.RegisterHandlerForModule(
+    ModuleNames.MOD,
     async (message) =>
     {
-        _logger.Info("App started");
+        _logger.Info($"MOD event: {message.Type}");
+    });
+
+// Listen to all MOD events in specific profile only
+_eventBus.RegisterHandlerForModule(
+    ModuleNames.MOD,
+    "profile-abc-123",
+    async (message) =>
+    {
+        _logger.Info($"MOD event in profile: {message.Type}");
     });
 ```
 
 ## Event Matching Rules
 
-The EventBus uses the following matching logic:
+The EventBus uses the following matching logic based on the registration method used:
 
-| Handler Pattern | Event ProfileId | Matches? |
-|----------------|-----------------|----------|
-| `null` or `"*"` | Any | ✅ Yes (global handler) |
-| `"profile-123"` | `"profile-123"` | ✅ Yes (exact match) |
-| `"profile-123"` | `"profile-456"` | ❌ No (different profile) |
-| `"profile-123"` | `null` | ❌ No (global event) |
-| `null` or `"*"` | `null` | ✅ Yes (global event to global handler) |
+| Registration Method | Handler ProfileId Pattern | Event ProfileId | Matches? |
+|-------------------|---------------------------|-----------------|----------|
+| `RegisterHandler(m, t, handler)` | `null` (all profiles) | Any | ✅ Yes |
+| `RegisterHandler(m, t, profileId, h)` | `"profile-123"` | `"profile-123"` | ✅ Yes (exact) |
+| `RegisterHandler(m, t, profileId, h)` | `"profile-123"` | `"profile-456"` | ❌ No |
+| `RegisterHandler(m, t, profileId, h)` | `"profile-123"` | `null` (global) | ❌ No |
+| `RegisterHandlerForModule(m, h)` | `null` (all profiles) | Any | ✅ Yes |
+| `RegisterHandlerForModule(m, profileId, h)` | `"profile-123"` | `"profile-123"` | ✅ Yes |
+| `RegisterHandlerForAll(handler)` | `null` (all profiles) | Any | ✅ Yes |
 
-**Special Case:** Global events (`ProfileId = null`) match ALL handlers, regardless of their profileId pattern. This ensures application-level events like `APPLICATION_STARTED` reach everyone.
+**Implementation Note:** The matching logic in EventBus.cs lines 110-114:
+```csharp
+var profileMatch = string.IsNullOrEmpty(profileIdPattern) || profileIdPattern == "*" ||
+                   string.IsNullOrEmpty(message.ProfileId) ||
+                   profileIdPattern == message.ProfileId;
+```
+
+This means:
+- Handlers registered without a profileId parameter receive ALL events (profile-scoped and global)
+- Handlers registered with a specific profileId only receive events for that profile
+- Global events (`ProfileId = null`) are matched by handlers that don't specify a profile filter
 
 ## Service Registration
 
@@ -193,16 +218,16 @@ public class SystemService
     public async Task StartAsync()
     {
         // No ProfileId
-        await _eventBus.EmitAsync(ModuleNames.CORE, CoreEvents.APPLICATION_STARTED);
+        await _eventBus.EmitAsync(ModuleNames.SYSTEM, SystemEvents.APPLICATION_STARTED);
     }
 }
 
-// 2. EventBus receives: { Module: "CORE", Type: "APPLICATION_STARTED", ProfileId: null }
+// 2. EventBus receives: { Module: "SYSTEM", Type: "APPLICATION_STARTED", ProfileId: null }
 
 // 3. Handlers are evaluated:
-// ✅ Handler A: ("CORE", "APPLICATION_STARTED", "*") → MATCHES (global event matches all)
-// ✅ Handler B: ("CORE", "APPLICATION_STARTED", "abc-123") → MATCHES (global event matches all)
-// ✅ Handler C: ("CORE", "APPLICATION_STARTED", null) → MATCHES (global event matches all)
+// ✅ Handler A: ("SYSTEM", "APPLICATION_STARTED") → MATCHES (global handler, no profile filter)
+// ✅ Handler B: ("SYSTEM", "APPLICATION_STARTED", "abc-123") → NO MATCH (profile-filtered handler, event is global)
+// ✅ Handler C: RegisterHandlerForAll() → MATCHES (wildcard handler)
 ```
 
 ## Migration Guide
@@ -256,7 +281,7 @@ public class SystemService
 
     public async Task StartAsync()
     {
-        await _eventBus.EmitAsync(ModuleNames.CORE, CoreEvents.APPLICATION_STARTED);
+        await _eventBus.EmitAsync(ModuleNames.SYSTEM, SystemEvents.APPLICATION_STARTED);
     }
 }
 ```
@@ -278,7 +303,7 @@ The EventBus caches event matching results using a cache key that includes profi
 
 ```csharp
 // Global event cache key
-var eventId = $"{message.Module}.{message.Type}";  // e.g., "CORE.APPLICATION_STARTED"
+var eventId = $"{message.Module}.{message.Type}";  // e.g., "SYSTEM.APPLICATION_STARTED"
 
 // Profile-scoped event cache key
 var eventId = $"{message.Module}.{message.Type}.{message.ProfileId}";  // e.g., "MOD.MOD_LOADED.abc-123"
@@ -323,12 +348,16 @@ public class ProfileEventBusIpcBridge : IDisposable
     private readonly IpcCommunicationHandler _ipc;
     private readonly string _profileId;
 
-    public void Initialize()
+    public void Init()
     {
         // Only forward events for this profile
-        _eventBus.RegisterHandler("*", "*", _profileId, async (message) =>
+        _eventBus.RegisterHandlerForAll(async (message) =>
         {
-            await ForwardEventToFrontend(message);
+            // Filter to only forward events for this profile
+            if (message.ProfileId == _profileId)
+            {
+                await ForwardEventToFrontend(message);
+            }
         });
     }
 }

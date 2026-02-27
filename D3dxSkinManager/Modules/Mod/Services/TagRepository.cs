@@ -66,10 +66,10 @@ public class TagRepository : ITagRepository
     public TagRepository(IProfilePathService profilePaths)
     {
         _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
-        _init = new Lazy<Task>(InitializeAsync, isThreadSafe: true);
+        _init = new Lazy<Task>(InitAsync, isThreadSafe: true);
     }
 
-    private async Task InitializeAsync()
+    private async Task InitAsync()
     {
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);

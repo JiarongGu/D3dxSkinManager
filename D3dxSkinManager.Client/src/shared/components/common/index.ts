@@ -22,3 +22,6 @@ export type { SlideInScreenProps } from './SlideInScreen';
 
 export { CloseButton } from './CloseButton';
 export type { CloseButtonProps } from './CloseButton';
+
+export { DataTable } from './DataTable';
+export type { DataTableProps, ColumnsType, ColumnType } from './DataTable';

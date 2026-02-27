@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using D3dxSkinManager.Modules.Plugin.Services;
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Modules.Plugin;
 
@@ -28,5 +30,26 @@ public static class PluginServiceExtensions
 
         Console.WriteLine("[PluginsFacade] Plugins services registered");
         return services;
+    }
+
+    /// <summary>
+    /// Register PLUGIN module facade with MessageDispatcher.
+    /// Routes all PLUGIN module messages to PluginFacade which then sub-routes to individual plugins.
+    /// </summary>
+    public static MessageDispatcher UsePluginFacade(this MessageDispatcher dispatcher, IServiceProvider serviceProvider)
+    {
+        var facade = serviceProvider.GetService<IPluginFacade>();
+        if (facade == null)
+        {
+            Console.WriteLine("[PluginsFacade] Warning: PluginFacade not registered in service container");
+            return dispatcher;
+        }
+
+        Console.WriteLine($"[PluginsFacade] Registering PLUGIN module handlers");
+
+        // Register the module handler
+        dispatcher.UseModule("PLUGIN", facade.HandleMessageAsync);
+
+        return dispatcher;
     }
 }

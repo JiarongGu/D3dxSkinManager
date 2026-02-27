@@ -1,6 +1,6 @@
 import { notification } from '../../../shared/utils/notification';
 import React, { useState, useMemo } from 'react';
-import { Card,  Table, Tag, Statistic, Row, Col } from 'antd';
+import { Card, Tag, Statistic, Row, Col } from 'antd';
 import {
   DeleteOutlined,
   ClearOutlined,
@@ -20,6 +20,7 @@ import {
   CompactButton,
 } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs';
+import { DataTable, ColumnsType } from '../../../shared/components/common';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useTranslation } from 'react-i18next';
 import './CacheManagementTool.css';
@@ -187,7 +188,7 @@ export const CacheManagementTool: React.FC = () => {
     }
   };
 
-  const cacheColumns = [
+  const cacheColumns: ColumnsType<CacheItem> = [
     {
       title: 'Category',
       key: 'category',
@@ -360,12 +361,11 @@ export const CacheManagementTool: React.FC = () => {
 
         {/* Cache Browser Table */}
         <CompactSection title="Cache Browser">
-          <Table
+          <DataTable
             columns={cacheColumns}
             dataSource={cacheItems}
             rowKey="sha"
-            size="small"
-            pagination={{ pageSize: 10 }}
+            compact
             loading={loading}
           />
         </CompactSection>

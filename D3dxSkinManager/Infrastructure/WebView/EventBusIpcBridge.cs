@@ -10,14 +10,14 @@ namespace D3dxSkinManager.Infrastructure.WebView;
 public class EventBusIpcBridge : IDisposable
 {
     private readonly IEventBus _eventBus;
-    private readonly IpcCommunicationHandler _ipcHandler;
+    private readonly IpcHandler _ipcHandler;
     private readonly ILogHelper _logger;
     private readonly List<string> _registrationIds = new();
     private bool _disposed;
 
     public EventBusIpcBridge(
         IEventBus eventBus,
-        IpcCommunicationHandler ipcHandler,
+        IpcHandler ipcHandler,
         ILogHelper logger)
     {
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
@@ -29,7 +29,7 @@ public class EventBusIpcBridge : IDisposable
     /// Initialize the bridge by subscribing to ALL event types using wildcard
     /// This ensures all events from any module are forwarded to frontend
     /// </summary>
-    public void Initialize()
+    public void Init()
     {
         _logger.Info("Initializing EventBus IPC Bridge - forwarding all events", "EventBridge");
 

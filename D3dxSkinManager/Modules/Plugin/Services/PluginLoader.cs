@@ -1,7 +1,4 @@
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
-
-using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Plugin.Interfaces;
@@ -13,12 +10,11 @@ public interface IPluginLoader
 {
     Task<int> LoadPluginsAsync();
 
-    Task InitializePluginsAsync();
+    Task InitPluginsAsync();
 }
 
 /// <summary>
-/// Loads plugins from the plugins directory.
-/// Supports both assembly-based (.dll) and directory-based plugins.
+/// Loads plugins from .dll assemblies in the plugins directory.
 /// </summary>
 public class PluginLoader : IPluginLoader
 {
@@ -35,24 +31,20 @@ public class PluginLoader : IPluginLoader
         _logger = logger;
     }
 
-    /// <summary>
-    /// Discover and load all plugins from the plugins directory.
-    /// </summary>
     public async Task<int> LoadPluginsAsync()
     {
-        _logger.Log(LogLevel.Info, $"[PluginLoader] Loading plugins from: {_profilePaths.PluginsDirectory}");
+        _logger.Log(LogLevel.Info, $"Loading plugins from: {_profilePaths.PluginsDirectory}", "PluginLoader");
 
         if (!Directory.Exists(_profilePaths.PluginsDirectory))
         {
-            _logger.Log(LogLevel.Info, "[PluginLoader] Plugins directory does not exist. Creating it.");
+            _logger.Log(LogLevel.Info, "Plugins directory does not exist. Creating it.", "PluginLoader");
             Directory.CreateDirectory(_profilePaths.PluginsDirectory);
             return 0;
         }
 
         var loadedCount = 0;
-
-        // Load assembly-based plugins (.dll files)
         var dllFiles = Directory.GetFiles(_profilePaths.PluginsDirectory, "*.dll", SearchOption.AllDirectories);
+
         foreach (var dllFile in dllFiles)
         {
             try
@@ -62,32 +54,26 @@ public class PluginLoader : IPluginLoader
             }
             catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to load plugin from {dllFile}: {ex.Message}", "PluginLoader", ex);
+                _logger.Log(LogLevel.Error, $"Failed to load plugin from {dllFile}: {ex.Message}", "PluginLoader", ex);
             }
         }
 
-        _logger.Log(LogLevel.Info, $"[PluginLoader] Loaded {loadedCount} plugin(s)");
+        _logger.Log(LogLevel.Info, $"Loaded {loadedCount} plugin(s)", "PluginLoader");
         return loadedCount;
     }
 
-    /// <summary>
-    /// Load a plugin from a .NET assembly (.dll file).
-    /// </summary>
     private Task<bool> LoadPluginFromAssemblyAsync(string assemblyPath)
     {
-        _logger.Log(LogLevel.Debug, $"[PluginLoader] Loading assembly: {assemblyPath}");
+        _logger.Log(LogLevel.Debug, $"Loading assembly: {assemblyPath}", "PluginLoader");
 
-        // Load assembly
         var assembly = Assembly.LoadFrom(assemblyPath);
-
-        // Find types that implement IPlugin
         var pluginTypes = assembly.GetTypes()
             .Where(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
             .ToList();
 
         if (pluginTypes.Count == 0)
         {
-            _logger.Log(LogLevel.Warn, $"[PluginLoader] No plugin types found in {Path.GetFileName(assemblyPath)}");
+            _logger.Log(LogLevel.Warn, $"No plugin types found in {Path.GetFileName(assemblyPath)}", "PluginLoader");
             return Task.FromResult(false);
         }
 
@@ -96,89 +82,68 @@ public class PluginLoader : IPluginLoader
         {
             try
             {
-                // Create plugin instance
                 var plugin = Activator.CreateInstance(pluginType) as IPlugin;
                 if (plugin == null)
                 {
-                    _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to create instance of {pluginType.Name}");
+                    _logger.Log(LogLevel.Error, $"Failed to create instance of {pluginType.Name}", "PluginLoader");
                     continue;
                 }
 
-                // Register services if plugin implements IServicePlugin
-                // NOTE: Service registration at runtime is not supported in this architecture
-                // Plugins that need services should be registered during application startup
-                if (plugin is IServicePlugin servicePlugin)
-                {
-                    _logger.Log(LogLevel.Debug, $"[PluginLoader] Plugin {plugin.Name} implements IServicePlugin but runtime service registration is not supported");
-                    // servicePlugin.ConfigureServices(_services); // Cannot inject services at runtime
-                }
-
-                // Register plugin
                 _registry.RegisterPlugin(plugin);
-
-                _logger.Log(LogLevel.Info, $"[PluginLoader] Successfully loaded plugin: {plugin.Name} v{plugin.Version}");
+                _logger.Log(LogLevel.Info, $"Loaded plugin: {plugin.Name} v{plugin.Version}", "PluginLoader");
                 loaded = true;
             }
             catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to load plugin {pluginType.Name}: {ex.Message}", "PluginLoader", ex);
+                _logger.Log(LogLevel.Error, $"Failed to load plugin {pluginType.Name}: {ex.Message}", "PluginLoader", ex);
             }
         }
 
         return Task.FromResult(loaded);
     }
 
-    /// <summary>
-    /// Initialize all loaded plugins.
-    /// Must be called after all services are built.
-    /// </summary>
-    public async Task InitializePluginsAsync()
+    public async Task InitPluginsAsync()
     {
-        _logger.Log(LogLevel.Info, "[PluginLoader] Initializing plugins...");
+        _logger.Log(LogLevel.Info, "Initializing plugins...", "PluginLoader");
 
         var plugins = _registry.GetAllPlugins().ToList();
         var initTasks = plugins.Select(async plugin =>
         {
             try
             {
-                _logger.Log(LogLevel.Debug, $"[PluginLoader] Initializing plugin: {plugin.Name}");
-                await plugin.InitializeAsync(_pluginContext).ConfigureAwait(false);
-                _logger.Log(LogLevel.Info, $"[PluginLoader] Initialized plugin: {plugin.Name}");
+                _logger.Log(LogLevel.Debug, $"Initializing plugin: {plugin.Name}", "PluginLoader");
+                await plugin.InitAsync(_pluginContext).ConfigureAwait(false);
+                _logger.Log(LogLevel.Info, $"Initialized plugin: {plugin.Name}", "PluginLoader");
             }
             catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, $"[PluginLoader] Failed to initialize plugin {plugin.Name}: {ex.Message}", "PluginLoader", ex);
+                _logger.Log(LogLevel.Error, $"Failed to initialize plugin {plugin.Name}: {ex.Message}", "PluginLoader", ex);
             }
         });
 
         await Task.WhenAll(initTasks).ConfigureAwait(false);
-
-        _logger.Log(LogLevel.Info, $"[PluginLoader] Initialized {plugins.Count} plugin(s)");
+        _logger.Log(LogLevel.Info, $"Initialized {plugins.Count} plugin(s)", "PluginLoader");
     }
 
-    /// <summary>
-    /// Shutdown all loaded plugins.
-    /// </summary>
-    public async Task ShutdownPluginsAsync()
+    public async Task DisposePluginsAsync()
     {
-        _logger.Log(LogLevel.Info, "[PluginLoader] Shutting down plugins...");
+        _logger.Log(LogLevel.Info, "Shutting down plugins...", "PluginLoader");
 
         var plugins = _registry.GetAllPlugins().ToList();
         var shutdownTasks = plugins.Select(async plugin =>
         {
             try
             {
-                _logger.Log(LogLevel.Debug, $"[PluginLoader] Shutting down plugin: {plugin.Name}");
-                await plugin.ShutdownAsync().ConfigureAwait(false);
+                _logger.Log(LogLevel.Debug, $"Shutting down plugin: {plugin.Name}", "PluginLoader");
+                await plugin.DisposeAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, $"[PluginLoader] Error shutting down plugin {plugin.Name}: {ex.Message}", "PluginLoader", ex);
+                _logger.Log(LogLevel.Error, $"Error shutting down plugin {plugin.Name}: {ex.Message}", "PluginLoader", ex);
             }
         });
 
         await Task.WhenAll(shutdownTasks).ConfigureAwait(false);
-
-        _logger.Log(LogLevel.Info, "[PluginLoader] All plugins shut down");
+        _logger.Log(LogLevel.Info, "All plugins shut down", "PluginLoader");
     }
 }

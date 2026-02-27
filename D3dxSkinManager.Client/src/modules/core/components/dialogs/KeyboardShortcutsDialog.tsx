@@ -4,9 +4,10 @@
  */
 
 import React from 'react';
-import { Table, Tag, Typography, Divider } from 'antd';
+import { Tag, Typography, Divider } from 'antd';
 import { CodeOutlined } from '@ant-design/icons';
 import { InfoDialog } from '../../../../shared/components/dialogs';
+import { DataTable, ColumnsType } from '../../../../shared/components/common';
 import { KeyboardShortcutManager, ShortcutConfig } from '../../utils/KeyboardShortcutManager';
 import { useTranslation } from 'react-i18next';
 import './KeyboardShortcutsDialog.css';
@@ -51,7 +52,7 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
     return Object.values(groups).filter((group) => group.shortcuts.length > 0);
   }, [shortcuts, t]);
 
-  const columns = [
+  const columns: ColumnsType<{ id: string; config: ShortcutConfig }> = [
     {
       title: t('shortcuts.table.shortcut'),
       dataIndex: 'config',
@@ -100,12 +101,12 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
             >
               {group.title}
             </Title>
-            <Table
+            <DataTable
               columns={columns}
               dataSource={group.shortcuts}
               pagination={false}
               rowKey="id"
-              size="small"
+              compact
               showHeader={false}
               className="keyboard-shortcuts-table"
             />

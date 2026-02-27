@@ -185,28 +185,7 @@ public static class TaskQueueEvents
 }
 ```
 
-**⚠️ CRITICAL:** All TaskQueue events MUST be registered in `CoreEvents.All` array for IPC bridge forwarding!
-
-**File:** `Modules/Core/Event/CoreEvents.cs`
-
-```csharp
-public static readonly string[] All = new[]
-{
-    APPLICATION_STARTED,
-    APPLICATION_SHUTDOWN,
-    // ... other events ...
-
-    // TaskQueue events - REQUIRED for IPC forwarding
-    TASK_ADDED,
-    TASK_STARTED,
-    TASK_PROGRESS,
-    TASK_COMPLETED,
-    TASK_FAILED,
-    TASK_CANCELLED,
-    TASK_REMOVED,
-    TASK_AWAITING_CONFIRMATION,
-};
-```
+**Note:** EventBusIpcBridge automatically forwards all TaskQueue events to the frontend using wildcard subscription. No manual registration required.
 
 ### Frontend Event Subscription
 
@@ -600,10 +579,10 @@ await _taskQueueService.AddTaskAsync("first_task", input, profileId, chainContex
 
 **Checklist:**
 
-1. ✅ **Verify event is in CoreEvents.All array**
+1. ✅ **Define event constant in TaskQueueEvents.cs**
    ```csharp
-   // File: Modules/Core/Event/CoreEvents.cs
-   public static readonly string[] All = new[]
+   // File: Modules/TaskQueue/TaskQueueEvents.cs
+   public static class TaskQueueEvents
    {
        // ... must include your event ...
        TASK_YOUR_EVENT,
