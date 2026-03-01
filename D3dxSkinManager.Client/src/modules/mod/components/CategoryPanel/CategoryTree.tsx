@@ -6,7 +6,10 @@ import {
   CategoryTreeProvider,
   useCategoryTreeContext,
 } from "./CategoryTreeContext";
-import { ContextMenu, ContextMenuItem } from "../../../../shared/components/menu/ContextMenu";
+import {
+  ContextMenu,
+  ContextMenuItem,
+} from "../../../../shared/components/menu/ContextMenu";
 import { useDragDrop } from "../../../../shared/hooks/useDragDrop";
 import { logger } from "../../../../shared/utils/logger";
 import { useTranslation } from "react-i18next";
@@ -23,45 +26,46 @@ const extractNodeId = (target: Element | null): string => {
   if (!target) return "";
 
   // First check if the target itself has the attribute
-  let nodeId = (target as HTMLElement).getAttribute('data-node-id');
+  let nodeId = (target as HTMLElement).getAttribute("data-node-id");
   if (nodeId) {
     return nodeId;
   }
 
   // Check if target has a child with the attribute (the title span is inside the wrapper)
-  const elementWithId = (target as HTMLElement).querySelector('[data-node-id]');
+  const elementWithId = (target as HTMLElement).querySelector("[data-node-id]");
   if (elementWithId) {
-    nodeId = elementWithId.getAttribute('data-node-id');
+    nodeId = elementWithId.getAttribute("data-node-id");
     if (nodeId) {
       return nodeId;
     }
   }
 
   // Also check parents in case target is inside the title span
-  const parentWithId = (target as HTMLElement).closest('[data-node-id]');
+  const parentWithId = (target as HTMLElement).closest("[data-node-id]");
   if (parentWithId) {
-    nodeId = parentWithId.getAttribute('data-node-id');
+    nodeId = parentWithId.getAttribute("data-node-id");
     if (nodeId) {
       return nodeId;
     }
   }
 
   // Fallback: extract from text content (should not happen anymore)
-  const textContent = target.textContent?.trim().replace(/\s*\(\d+\)$/, "") || "";
+  const textContent =
+    target.textContent?.trim().replace(/\s*\(\d+\)$/, "") || "";
   return textContent;
 };
 
 /**
  * Convert Ant Design MenuProps items to ContextMenuItem array
  */
-const convertMenuItems = (items: MenuProps['items']): ContextMenuItem[] => {
+const convertMenuItems = (items: MenuProps["items"]): ContextMenuItem[] => {
   if (!items) return [];
   return items
     .filter((item): item is NonNullable<typeof item> => item != null)
-    .map(item => {
+    .map((item) => {
       // Handle divider type
-      if ('type' in item && item.type === 'divider') {
-        return { type: 'divider' as const };
+      if ("type" in item && item.type === "divider") {
+        return { type: "divider" as const };
       }
       // Handle regular menu items - Ant Design's ItemType has these properties
       const menuItem = item as {
@@ -73,8 +77,8 @@ const convertMenuItems = (items: MenuProps['items']): ContextMenuItem[] => {
         onClick?: () => void;
       };
       return {
-        key: String(menuItem.key || ''),
-        label: String(menuItem.label || ''),
+        key: String(menuItem.key || ""),
+        label: String(menuItem.label || ""),
         icon: menuItem.icon,
         danger: menuItem.danger,
         disabled: menuItem.disabled,
@@ -147,13 +151,18 @@ export interface CategoryTreeProps {
  * Shared context menu component
  */
 interface TreeContextMenuProps {
-  items: MenuProps['items'];
+  items: MenuProps["items"];
   visible: boolean;
   position: { x: number; y: number };
   onClose: () => void;
 }
 
-const TreeContextMenu: React.FC<TreeContextMenuProps> = ({ items, visible, position, onClose }) => (
+const TreeContextMenu: React.FC<TreeContextMenuProps> = ({
+  items,
+  visible,
+  position,
+  onClose,
+}) => (
   <ContextMenu
     items={convertMenuItems(items)}
     visible={visible}
@@ -191,11 +200,14 @@ const CategoryTreeInner: React.FC = () => {
   const draggedNodeKeyRef = React.useRef<string>(undefined);
 
   // Shared context menu handler
-  const handleContextMenu = React.useCallback((e: React.MouseEvent, nodeId: string | undefined) => {
-    e.preventDefault();
-    setContextMenuPosition({ x: e.clientX, y: e.clientY });
-    setContextMenuNode(nodeId);
-  }, [setContextMenuPosition, setContextMenuNode]);
+  const handleContextMenu = React.useCallback(
+    (e: React.MouseEvent, nodeId: string | undefined) => {
+      e.preventDefault();
+      setContextMenuPosition({ x: e.clientX, y: e.clientY });
+      setContextMenuNode(nodeId);
+    },
+    [setContextMenuPosition, setContextMenuNode],
+  );
 
   // Shared context menu close handler
   const handleContextMenuClose = React.useCallback(() => {
@@ -212,17 +224,17 @@ const CategoryTreeInner: React.FC = () => {
       allow: "node", // Only allow dropping into categories, not between them
       onDrop: ({ data, target }) => {
         if (!data) {
-          logger.error('[ModDrop] No mod SHA provided');
+          logger.error("[ModDrop] No mod SHA provided");
           return false;
         }
 
         if (!target) {
-          logger.error('[ModDrop] No target element');
+          logger.error("[ModDrop] No target element");
           return false;
         }
 
         const nodeId = extractNodeId(target);
-        logger.debug('[ModDrop] Dropping mod:', data, 'onto node:', nodeId);
+        logger.debug("[ModDrop] Dropping mod:", data, "onto node:", nodeId);
 
         handleModClassify(data, nodeId);
         return true;
@@ -235,37 +247,46 @@ const CategoryTreeInner: React.FC = () => {
       allow: "all",
       gapThreshold: 0.15,
       onDrop: ({ data, type, gapPosition, target }) => {
-        logger.debug('[TreeDrop] onDrop called:', { data, type, gapPosition, target, draggedNode: draggedNodeKeyRef.current });
+        logger.debug("[TreeDrop] onDrop called:", {
+          data,
+          type,
+          gapPosition,
+          target,
+          draggedNode: draggedNodeKeyRef.current,
+        });
 
         if (!data || !draggedNodeKeyRef.current) {
-          logger.error('[TreeDrop] Missing data or draggedNodeKeyRef:', { data, draggedNode: draggedNodeKeyRef.current });
+          logger.error("[TreeDrop] Missing data or draggedNodeKeyRef:", {
+            data,
+            draggedNode: draggedNodeKeyRef.current,
+          });
           return false;
         }
 
         if (!target) {
-          logger.error('[TreeDrop] No target element');
+          logger.error("[TreeDrop] No target element");
           return false;
         }
 
         const dropNodeId = extractNodeId(target);
 
-        logger.debug('[TreeDrop] Calling handleNodeReorder with:', {
+        logger.debug("[TreeDrop] Calling handleNodeReorder with:", {
           dragNode: draggedNodeKeyRef.current,
           dropNode: dropNodeId,
           dropType: type,
           gapSide: gapPosition,
           targetElement: target,
-          targetText: target.textContent
+          targetText: target.textContent,
         });
 
         handleNodeReorder(
           draggedNodeKeyRef.current,
           dropNodeId,
           type,
-          gapPosition
+          gapPosition,
         );
 
-        logger.debug('[TreeDrop] handleNodeReorder called, returning true');
+        logger.debug("[TreeDrop] handleNodeReorder called, returning true");
         return true;
       },
     },
@@ -275,7 +296,9 @@ const CategoryTreeInner: React.FC = () => {
     return (
       <div className="category-tree-loading-container">
         <Spin>
-          <div className="category-tree-loading-text">{t('category.tree.loading')}</div>
+          <div className="category-tree-loading-text">
+            {t("category.tree.loading")}
+          </div>
         </Spin>
       </div>
     );
@@ -289,7 +312,7 @@ const CategoryTreeInner: React.FC = () => {
           onContextMenu={(e) => handleContextMenu(e, "")}
         >
           <Empty
-            description={t('category.tree.empty')}
+            description={t("category.tree.empty")}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </div>
@@ -307,19 +330,17 @@ const CategoryTreeInner: React.FC = () => {
     <div className="category-tree-container">
       <div className="category-tree-header">
         <Search
-          placeholder={t('category.tree.searchPlaceholder')}
+          placeholder={t("category.tree.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="category-tree-search"
           allowClear
         />
-        <Tooltip title={t('category.tree.addCategory')} placement="top">
-          <Button
-            type="default"
-            icon={<PlusOutlined />}
-            onClick={() => onAddCategory?.()}
-          />
-        </Tooltip>
+        <Button
+          type="default"
+          icon={<PlusOutlined />}
+          onClick={() => onAddCategory?.()}
+        />
       </div>
 
       <div
@@ -350,8 +371,11 @@ const CategoryTreeInner: React.FC = () => {
 
               // Set dataTransfer data for our custom drag/drop hook
               if (info.event.dataTransfer) {
-                info.event.dataTransfer.setData('application/tree-node-id', nodeKey);
-                info.event.dataTransfer.effectAllowed = 'move';
+                info.event.dataTransfer.setData(
+                  "application/tree-node-id",
+                  nodeKey,
+                );
+                info.event.dataTransfer.effectAllowed = "move";
               }
             }}
             onDragEnd={() => {
@@ -377,9 +401,7 @@ const CategoryTreeInner: React.FC = () => {
  * This component uses a context provider to manage all state and logic internally.
  * It provides a clean API for parent components while keeping internal complexity isolated.
  */
-export const CategoryTree: React.FC<CategoryTreeProps> = (
-  props,
-) => {
+export const CategoryTree: React.FC<CategoryTreeProps> = (props) => {
   return (
     <CategoryTreeProvider {...props}>
       <CategoryTreeInner />

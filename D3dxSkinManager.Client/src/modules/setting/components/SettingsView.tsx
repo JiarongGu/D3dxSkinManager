@@ -1,5 +1,4 @@
-import { notification } from "../../../shared/utils/notification";
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Form, Space, Select } from "antd";
 import {
   SettingOutlined,
@@ -19,8 +18,10 @@ import { useTranslation } from "react-i18next";
 import { changeLanguage } from "../../../i18n/i18n";
 import { AVAILABLE_LANGUAGES } from "../../../shared/types/language.types";
 import { logger, Logger } from "../../../shared/utils/logger";
-import { settingsService } from "../services/settingsService";
 import { useProfile } from "../../../shared/context/ProfileContext";
+import { useSettingsStore } from "../store/settingsStore";
+import * as settingsOps from "../operations/settingsOperations";
+import { notification } from "../../../shared/utils/notification";
 import "./SettingsView.css";
 import { fileDialogService } from "../../../shared/services/systemService";
 
@@ -31,83 +32,39 @@ export const SettingsView: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const { selectedProfile, selectedProfileId } = useProfile();
-  const [logLevel, setLogLevel] = useState<string>("info");
-  const [modCacheMode, setModCacheMode] = useState<string>("internal");
-  const [modCacheDirectory, setModCacheDirectory] = useState<string>("");
-  const [internalModCachePath, setInternalModCachePath] = useState<string>("");
-  const [profileConfigChanged, setProfileConfigChanged] =
-    useState<boolean>(false);
-  const [initialProfileConfig, setInitialProfileConfig] = useState<{
-    mode: string;
-    directory: string;
-  }>({ mode: "internal", directory: "" });
 
-  // Load log level from backend on mount
+  // Zustand store - following mod module pattern
+  const {
+    logLevel,
+    modCacheMode,
+    modCacheDirectory,
+    internalModCachePath,
+    profileConfigChanged,
+    setModCacheMode,
+    setModCacheDirectory,
+    resetProfileConfig,
+  } = useSettingsStore();
+
+  // Load global settings on mount
   useEffect(() => {
-    const loadLogLevel = async () => {
-      try {
-        const settings = await settingsService.getGlobalSettings();
-        if (settings?.logLevel) {
-          setLogLevel(settings.logLevel);
-          form.setFieldValue("logLevel", settings.logLevel);
-        } else {
-          // Fallback to current logger level
-          const currentLevel = logger.getCurrentLevelName();
-          setLogLevel(currentLevel);
-          form.setFieldValue("logLevel", currentLevel);
-        }
-      } catch (error) {
-        console.error("[SettingsView] Failed to load log level:", error);
-        // Fallback to current logger level
-        const currentLevel = logger.getCurrentLevelName();
-        setLogLevel(currentLevel);
-        form.setFieldValue("logLevel", currentLevel);
-      }
+    const loadSettings = async () => {
+      await settingsOps.loadGlobalSettings();
+      const currentLogLevel = useSettingsStore.getState().logLevel;
+      form.setFieldValue("logLevel", currentLogLevel);
     };
-    loadLogLevel();
+    void loadSettings();
   }, [form]);
 
-  // Load mod cache settings from profile config
+  // Load profile config when profile changes
   useEffect(() => {
-    const loadModCacheSettings = async () => {
-      if (!selectedProfileId) {
-        return;
-      }
-
-      try {
-        const { getActiveProfileConfig } =
-          await import("../../profile/services/profileConfigService");
-        const config = await getActiveProfileConfig(selectedProfileId);
-
-        if (config) {
-          // Use case-insensitive reading - normalize to lowercase
-          const mode = config.modCache?.mode?.toLowerCase() || "internal";
-          const directory = config.modCache?.directory || "";
-
-          setModCacheMode(mode);
-          setModCacheDirectory(directory);
-          form.setFieldValue("modCacheMode", mode);
-          form.setFieldValue("modCacheDirectory", directory);
-
-          // Store initial config for change detection
-          setInitialProfileConfig({ mode, directory });
-          setProfileConfigChanged(false);
-
-          // Calculate internal path for display (absolute path)
-          if (selectedProfile?.dataDirectory) {
-            const internalPath = `${selectedProfile.dataDirectory}\\work\\Mods`;
-            setInternalModCachePath(internalPath);
-          }
-        }
-      } catch (error) {
-        console.error(
-          "[SettingsView] Failed to load mod cache settings:",
-          error,
-        );
-      }
-    };
-    loadModCacheSettings();
-  }, [form, selectedProfileId, selectedProfile]);
+    if (selectedProfileId) {
+      void settingsOps.loadProfileConfig(selectedProfileId, selectedProfile?.dataDirectory);
+      // Update form fields after config loads
+      const { modCacheMode: mode, modCacheDirectory: dir } = useSettingsStore.getState();
+      form.setFieldValue("modCacheMode", mode);
+      form.setFieldValue("modCacheDirectory", dir);
+    }
+  }, [selectedProfileId, selectedProfile, form]);
 
   // Initialize form with theme and language
   useEffect(() => {
@@ -118,18 +75,7 @@ export const SettingsView: React.FC = () => {
   }, [theme, i18n.language, form]);
 
   const handleLogLevelChange = async (value: string) => {
-    setLogLevel(value);
-
-    // Save to backend
-    try {
-      await settingsService.updateGlobalSetting("logLevel", value);
-      notification.success(
-        t("settings.notifications.logLevelChanged", { level: value }),
-      );
-    } catch (error) {
-      notification.error(t("settings.notifications.logLevelFailed"));
-      console.error("[SettingsView] Failed to save log level:", error);
-    }
+    await settingsOps.updateLogLevel(value, t);
   };
 
   const handleThemeChange = (value: ThemeMode) => {
@@ -161,23 +107,11 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleResetWindowState = async () => {
-    try {
-      await settingsService.resetWindowState();
-      notification.success(t("settings.notifications.windowStateReset"));
-    } catch (error) {
-      notification.error(t("settings.notifications.windowStateResetFailed"));
-      logger.error("[SettingsView] Failed to reset window state:", error);
-    }
+    await settingsOps.resetWindowState(t);
   };
 
-  const handleModCacheModeChange = (value: string) => {
+  const handleModCacheModeChange = (value: 'internal' | 'external') => {
     setModCacheMode(value);
-
-    // Check if config changed
-    const hasChanged =
-      value !== initialProfileConfig.mode ||
-      modCacheDirectory !== initialProfileConfig.directory;
-    setProfileConfigChanged(hasChanged);
   };
 
   const handleBrowseModCacheDirectory = async () => {
@@ -194,16 +128,10 @@ export const SettingsView: React.FC = () => {
       if (result.success && result.filePath) {
         setModCacheDirectory(result.filePath);
         form.setFieldValue("modCacheDirectory", result.filePath);
-
-        // Check if config changed
-        const hasChanged =
-          modCacheMode !== initialProfileConfig.mode ||
-          result.filePath !== initialProfileConfig.directory;
-        setProfileConfigChanged(hasChanged);
       }
     } catch (error) {
       notification.error(t("settings.notifications.modCacheDirectoryFailed"));
-      console.error("Failed to browse mod cache directory:", error);
+      logger.error("[SettingsView] Failed to browse mod cache directory:", error);
     }
   };
 
@@ -212,24 +140,6 @@ export const SettingsView: React.FC = () => {
   ) => {
     const newPath = e.target.value;
     setModCacheDirectory(newPath);
-
-    // Check if config changed
-    const hasChanged =
-      modCacheMode !== initialProfileConfig.mode ||
-      newPath !== initialProfileConfig.directory;
-    setProfileConfigChanged(hasChanged);
-  };
-
-  const validateDirectoryExists = async (path: string): Promise<boolean> => {
-    if (!path) return false;
-
-    try {
-      // Use fileDialogService or create a validation service call
-      // For now, we'll just check if it's not empty
-      return path.trim().length > 0;
-    } catch (error) {
-      return false;
-    }
   };
 
   const handleSaveProfileConfig = async () => {
@@ -238,49 +148,19 @@ export const SettingsView: React.FC = () => {
       return;
     }
 
-    // Validate external directory if external mode
-    if (modCacheMode === "external") {
-      const isValid = await validateDirectoryExists(modCacheDirectory);
-      if (!isValid) {
-        notification.error(
-          t("settings.notifications.modCacheDirectoryInvalid"),
-        );
-        return;
-      }
-    }
-
-    try {
-      const { profileService } =
-        await import("../../profile/services/profileService");
-      await profileService.updateProfileConfig({
-        profileId: selectedProfileId,
-        modCache: {
-          mode: modCacheMode, // Already lowercase
-          directory:
-            modCacheMode === "external" ? modCacheDirectory : undefined,
-        },
-      });
-
-      // Update initial config
-      setInitialProfileConfig({
-        mode: modCacheMode,
-        directory: modCacheDirectory,
-      });
-      setProfileConfigChanged(false);
-
-      notification.success(t("settings.notifications.profileConfigSaved"));
-    } catch (error) {
-      notification.error(t("settings.notifications.profileConfigSaveFailed"));
-      console.error("Failed to save profile config:", error);
-    }
+    await settingsOps.saveProfileConfig(
+      selectedProfileId,
+      modCacheMode,
+      modCacheDirectory,
+      t
+    );
   };
 
   const handleResetProfileConfig = () => {
-    setModCacheMode(initialProfileConfig.mode);
-    setModCacheDirectory(initialProfileConfig.directory);
-    form.setFieldValue("modCacheMode", initialProfileConfig.mode);
-    form.setFieldValue("modCacheDirectory", initialProfileConfig.directory);
-    setProfileConfigChanged(false);
+    resetProfileConfig();
+    const { modCacheMode: mode, modCacheDirectory: dir } = useSettingsStore.getState();
+    form.setFieldValue("modCacheMode", mode);
+    form.setFieldValue("modCacheDirectory", dir);
   };
 
   return (
@@ -292,6 +172,7 @@ export const SettingsView: React.FC = () => {
           initialValues={{
             theme: theme,
             language: i18n.language,
+            logLevel: logLevel,
             modCacheMode: modCacheMode,
             modCacheDirectory: modCacheDirectory,
           }}
@@ -339,7 +220,7 @@ export const SettingsView: React.FC = () => {
                 name="logLevel"
                 tooltip={t("settings.global.logLevel.tooltip")}
               >
-                <CompactSelect onChange={handleLogLevelChange}>
+                <CompactSelect value={logLevel} onChange={handleLogLevelChange}>
                   {Logger.getLevelOptions().map((option) => (
                     <Option
                       key={option.value}

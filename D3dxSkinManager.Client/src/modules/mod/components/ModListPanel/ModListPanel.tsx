@@ -1,13 +1,13 @@
-﻿import React, { useMemo } from 'react';
-import { Layout, Empty, Input, Button, Tooltip } from 'antd';
-import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
-import { ModInfo } from '../../../../shared/types/mod.types';
-import { ModList } from './ModList';
-import { ModListStatusBar } from './ModListStatusBar';
-import { useModsStore } from '../../store/modsStore';
-import { useMods } from '../../hooks/useMods';
-import { useTranslation } from 'react-i18next';
-import './ModListPanel.css';
+﻿import React, { useMemo } from "react";
+import { Layout, Empty, Input, Button, Tooltip } from "antd";
+import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
+import { ModInfo } from "../../../../shared/types/mod.types";
+import { ModList } from "./ModList";
+import { ModListStatusBar } from "./ModListStatusBar";
+import { useModsStore } from "../../store/modsStore";
+import { useMods } from "../../hooks/useMods";
+import { useTranslation } from "react-i18next";
+import "./ModListPanel.css";
 
 const { Sider } = Layout;
 const { Search } = Input;
@@ -22,13 +22,13 @@ const { Search } = Input;
  */
 export const ModListPanel: React.FC = () => {
   // Subscribe to state this component needs
-  const mods = useModsStore(s => s.mods);
-  const loading = useModsStore(s => s.modsLoading); // Mod list panel loading state
-  const selectedMod = useModsStore(s => s.selectedMod);
-  const searchQuery = useModsStore(s => s.searchQuery);
-  const selectedCategory = useModsStore(s => s.selectedCategory);
-  const selectedObject = useModsStore(s => s.selectedObject);
-  const CategoryFilteredMods = useModsStore(s => s.CategoryFilteredMods);
+  const mods = useModsStore((s) => s.mods);
+  const loading = useModsStore((s) => s.modsLoading); // Mod list panel loading state
+  const selectedMod = useModsStore((s) => s.selectedMod);
+  const searchQuery = useModsStore((s) => s.searchQuery);
+  const selectedCategory = useModsStore((s) => s.selectedCategory);
+  const selectedObject = useModsStore((s) => s.selectedObject);
+  const CategoryFilteredMods = useModsStore((s) => s.CategoryFilteredMods);
 
   // Get operations
   const {
@@ -65,7 +65,10 @@ export const ModListPanel: React.FC = () => {
         (mod: ModInfo) =>
           mod.name.toLowerCase().includes(searchLower) ||
           (mod.author && mod.author.toLowerCase().includes(searchLower)) ||
-          (mod.tags && mod.tags.some((tag: string) => tag.toLowerCase().includes(searchLower)))
+          (mod.tags &&
+            mod.tags.some((tag: string) =>
+              tag.toLowerCase().includes(searchLower),
+            )),
       );
     }
 
@@ -91,7 +94,13 @@ export const ModListPanel: React.FC = () => {
     }
 
     return result;
-  }, [mods, CategoryFilteredMods, selectedObject, selectedCategory, searchQuery]);
+  }, [
+    mods,
+    CategoryFilteredMods,
+    selectedObject,
+    selectedCategory,
+    searchQuery,
+  ]);
 
   const handleLoadedModClick = (mod: ModInfo) => {
     // Scroll to the loaded mod and select it
@@ -100,9 +109,11 @@ export const ModListPanel: React.FC = () => {
     // Scroll the mod into view
     if (contentRef.current) {
       // Find the mod element by its SHA
-      const modElement = contentRef.current.querySelector(`[data-mod-sha="${mod.sha}"]`);
+      const modElement = contentRef.current.querySelector(
+        `[data-mod-sha="${mod.sha}"]`,
+      );
       if (modElement) {
-        modElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        modElement.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
   };
@@ -112,7 +123,7 @@ export const ModListPanel: React.FC = () => {
       <Sider width="100%" className="mod-list-panel">
         <div className="mod-list-panel-empty-container">
           <Empty
-            description={t('mods.panel.selectCategory')}
+            description={t("mods.panel.selectCategory")}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             className="mod-list-panel-empty"
           />
@@ -126,19 +137,17 @@ export const ModListPanel: React.FC = () => {
       {/* Search Bar with Add Button */}
       <div className="mod-list-panel-search-bar">
         <Search
-          placeholder={t('mods.list.searchPlaceholder')}
+          placeholder={t("mods.list.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           allowClear
           prefix={<SearchOutlined />}
         />
-        <Tooltip title={t('mods.panel.openImportQueue')} placement="top">
-          <Button
-            type="default"
-            icon={<PlusOutlined />}
-            onClick={() => openModManagementScreen()}
-          />
-        </Tooltip>
+        <Button
+          type="default"
+          icon={<PlusOutlined />}
+          onClick={() => openModManagementScreen()}
+        />
       </div>
 
       {/* Mod List or Empty State */}
@@ -159,12 +168,16 @@ export const ModListPanel: React.FC = () => {
             <Empty
               description={
                 searchQuery
-                  ? t('mods.panel.noModsMatchingSearch', { query: searchQuery })
+                  ? t("mods.panel.noModsMatchingSearch", { query: searchQuery })
                   : selectedCategory
-                    ? t('mods.panel.noModsForCategory', { name: selectedCategory.name })
+                    ? t("mods.panel.noModsForCategory", {
+                        name: selectedCategory.name,
+                      })
                     : selectedObject
-                      ? t('mods.panel.noModsForObject', { object: selectedObject })
-                      : t('mods.panel.noModsAvailable')
+                      ? t("mods.panel.noModsForObject", {
+                          object: selectedObject,
+                        })
+                      : t("mods.panel.noModsAvailable")
               }
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />

@@ -11,7 +11,7 @@ import {
 import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
 import { UnityArgsDialog } from '../../core/components/dialogs/UnityArgsDialog';
 import { fileDialogService } from '../../../shared/services/systemService';
-import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profile/services/profileConfigService';
+import { profileService } from '../../profile/services/profileService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { PATH_PLACEHOLDERS, LAUNCH_ARG_EXAMPLES, MODULE_NAMES } from '../../../shared/constants/ui.constants';
 import './GameLaunchTab.css';
@@ -34,7 +34,7 @@ export const GameLaunchTab: React.FC = () => {
 
       try {
         setLoading(true);
-        const config = await getActiveProfileConfig(profileState.selectedProfile.id);
+        const config = await profileService.getProfileConfig(profileState.selectedProfile.id);
         if (config) {
           form.setFieldsValue({
             gamePath: config.gamePath || '',
@@ -74,7 +74,10 @@ export const GameLaunchTab: React.FC = () => {
         return;
       }
       try {
-        await updateActiveProfileConfigField(profileState.selectedProfile.id, 'gamePath', result.filePath);
+        await profileService.updateProfileConfig({
+          profileId: profileState.selectedProfile.id,
+          gamePath: result.filePath
+        });
         notification.success(t('launch.game.gamePathUpdated'));
       } catch (error) {
         notification.error(t('launch.game.saveGamePathFailed'));
@@ -98,7 +101,10 @@ export const GameLaunchTab: React.FC = () => {
         return;
       }
       try {
-        await updateActiveProfileConfigField(profileState.selectedProfile.id, 'customProgramPath', result.filePath);
+        await profileService.updateProfileConfig({
+          profileId: profileState.selectedProfile.id,
+          customProgramPath: result.filePath
+        });
         notification.success(t('launch.game.customPathUpdated'));
       } catch (error) {
         notification.error(t('launch.game.saveCustomPathFailed'));
@@ -166,7 +172,10 @@ export const GameLaunchTab: React.FC = () => {
       return;
     }
     try {
-      await updateActiveProfileConfigField(profileState.selectedProfile.id, 'gameLaunchArgs', args);
+      await profileService.updateProfileConfig({
+        profileId: profileState.selectedProfile.id,
+        gameLaunchArgs: args
+      });
       notification.success(t('launch.game.launchArgsUpdated'));
     } catch (error) {
       notification.error(t('launch.game.saveLaunchArgsFailed'));
@@ -176,7 +185,10 @@ export const GameLaunchTab: React.FC = () => {
   const handleLaunchArgsChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!profileState.selectedProfile) return;
     try {
-      await updateActiveProfileConfigField(profileState.selectedProfile.id, 'gameLaunchArgs', e.target.value);
+      await profileService.updateProfileConfig({
+        profileId: profileState.selectedProfile.id,
+        gameLaunchArgs: e.target.value
+      });
     } catch (error) {
       console.error('Failed to auto-save launch args:', error);
     }
@@ -185,7 +197,10 @@ export const GameLaunchTab: React.FC = () => {
   const handleCustomLaunchArgsChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!profileState.selectedProfile) return;
     try {
-      await updateActiveProfileConfigField(profileState.selectedProfile.id, 'customProgramArgs', e.target.value);
+      await profileService.updateProfileConfig({
+        profileId: profileState.selectedProfile.id,
+        customProgramArgs: e.target.value
+      });
     } catch (error) {
       console.error('Failed to auto-save custom launch args:', error);
     }

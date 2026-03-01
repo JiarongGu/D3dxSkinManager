@@ -10,7 +10,7 @@ import {
 import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs';
 import { fileDialogService } from '../../../shared/services/systemService';
-import { getActiveProfileConfig, updateActiveProfileConfigField } from '../../profile/services/profileConfigService';
+import { profileService } from '../../profile/services/profileService';
 import { launchService, D3DMigotoVersion } from '../services/launchService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useTranslation } from 'react-i18next';
@@ -41,7 +41,7 @@ export const D3DMigotoTab: React.FC = () => {
       try {
         setLoading(true);
         logger.info(`[D3DMigotoTab] Loading config for profile: ${profileState.selectedProfile.name}`);
-        const config = await getActiveProfileConfig(profileState.selectedProfile.id);
+        const config = await profileService.getProfileConfig(profileState.selectedProfile.id);
         if (config) {
           form.setFieldsValue({
             migotoVersion: config.migotoVersion,
@@ -72,7 +72,10 @@ export const D3DMigotoTab: React.FC = () => {
     }
 
     try {
-      await updateActiveProfileConfigField(profileState.selectedProfile.id, 'migotoVersion', value);
+      await profileService.updateProfileConfig({
+        profileId: profileState.selectedProfile.id,
+        migotoVersion: value
+      });
       notification.success(t('launch.d3dmigoto.versionChangedTo', { version: value }));
     } catch (error) {
       notification.error(t('launch.d3dmigoto.updateVersionFailed'));
