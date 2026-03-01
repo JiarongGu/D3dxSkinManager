@@ -2,7 +2,7 @@
 import React, { useCallback } from 'react';
 import { Layout } from 'antd';
 import type { Key } from 'react';
-import { CategoryInfo } from '../../../../shared/types/category.types';
+import { CategoryInfo, CATEGORY_IDS } from '../../../../shared/types/category.types';
 import { CategoryTree } from './CategoryTree';
 import { UnclassifiedItem } from './UnclassifiedItem';
 import { useCategoryScreen } from './CategoryScreen';
@@ -51,7 +51,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
   const { setcategorySearch, setExpandedKeys } = useMods();
 
   // Is unclassified selected?
-  const isUnclassifiedSelected = selectedNode?.id === "__unclassified__";
+  const isUnclassifiedSelected = selectedNode?.id === CATEGORY_IDS.UNCLASSIFIED;
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
   const { openCategoryScreen } = useCategoryScreen();

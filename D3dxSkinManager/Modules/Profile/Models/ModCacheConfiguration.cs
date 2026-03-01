@@ -16,4 +16,13 @@ public class ModCacheConfiguration
     /// Custom directory path (only used when Mode is "external")
     /// </summary>
     public string? Directory { get; set; }
+
+    /// <summary>
+    /// Check if the cache mode is external (case-insensitive)
+    /// </summary>
+    /// <returns>True if external mode is enabled</returns>
+    public bool IsExternal()
+    {
+        return "external".Equals(Mode, StringComparison.OrdinalIgnoreCase);
+    }
 }

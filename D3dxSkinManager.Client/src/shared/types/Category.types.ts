@@ -1,4 +1,11 @@
 ﻿/**
+ * Special category ID constants
+ */
+export const CATEGORY_IDS = {
+  UNCLASSIFIED: '__unclassified__',
+} as const;
+
+/**
  * Category representing a hierarchical category or character
  * Stored in SQLite and returned from backend API
  */

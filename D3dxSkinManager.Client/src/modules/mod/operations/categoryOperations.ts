@@ -5,7 +5,7 @@
 
 import { useModsStore } from '../store/modsStore';
 import { modService } from '../services/modService';
-import { CategoryInfo } from '../../../shared/types/category.types';
+import { CategoryInfo, CATEGORY_IDS } from '../../../shared/types/category.types';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { notification } from '../../../shared/utils/notification';
 import { refreshMods } from './modOperations';
@@ -271,7 +271,7 @@ export async function selectCategory(
   state.setSelectedCategory(node);
 
   // Load mods for this Category
-  if (nodeId === '__uncategorized__') {
+  if (nodeId === CATEGORY_IDS.UNCLASSIFIED) {
     await loadUncategorizedMods(profileId);
   } else {
     await loadModsByCategory(profileId, nodeId);

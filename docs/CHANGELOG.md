@@ -12,6 +12,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-03-02 - External Cache & Category Refresh: Path Configuration & Event-Driven Updates ⭐⭐⭐
+Complete fix for external mod cache directory configuration and parent category mod list refresh after load/unload operations.
+**Impact**: ✅ External cache directory now works correctly, parent categories show all sub-category mods after load/unload, no duplicate code, type-safe constants
+**Problem 1 - External Cache Not Working**: Case-sensitive string comparison in ProfilePathService prevented external cache mode detection
+**Root Cause**: ProfilePathService.cs:136 checked for `"External"` (capital E) but backend saves as lowercase `"external"`
+**Problem 2 - Parent Category Shows No Mods**: After mod load/unload, parent category list showed nothing instead of all sub-category mods
+**Root Cause**: Frontend re-filtering logic only matched exact category IDs, didn't include descendant categories like backend does
+**Problem 3 - Unclassified Category Not Refreshing**: Event handler used wrong ID constant `'__uncategorized__'` instead of `'__unclassified__'`
+**Backend Changes**:
+- ModCacheConfiguration.cs: Added IsExternal() method with case-insensitive comparison (StringComparison.OrdinalIgnoreCase)
+- ProfilePathService.cs:136: Replaced string comparison with config?.ModCache?.IsExternal() call
+**Frontend Changes**:
+- category.types.ts: Added CATEGORY_IDS constant object with UNCLASSIFIED: '__unclassified__'
+- modsStore.ts: Removed incorrect frontend re-filtering logic (lines 200-232), now relies on backend for filtering
+- ModsProvider.tsx: Added event subscriptions for MOD.LOADED and MOD.UNLOADED to refresh category-filtered mods
+- ModsProvider.tsx: Consolidated duplicate event handlers into single handleModStateChange() function
+- categoryOperations.ts: Fixed typo '__uncategorized__' → CATEGORY_IDS.UNCLASSIFIED
+- Replaced 8+ hardcoded string literals across 6 files with CATEGORY_IDS.UNCLASSIFIED constant:
+  - ModsProvider.tsx, categoryOperations.ts, ModHierarchicalView.tsx (4 instances)
+  - CategoryPanel.tsx, useCategoryTreeOperations.tsx
+**Architecture Improvements**:
+- Backend-centric: Frontend no longer processes data, only displays what backend provides
+- Event-driven: MOD.LOADED/UNLOADED → refresh category-filtered mods from backend
+- Backend's GetModsByCategoryAsync already includes all descendant categories via GetAllDescendantIdsAsync
+- Type-safe constants prevent future typos and inconsistencies
+**Files Changed**: 9 files (2 backend C#, 7 frontend TypeScript)
+**Pattern**: Encapsulation in model classes, event-driven cache refresh, DRY principle, type-safe constants
+
 ### Fixed - 2026-03-01 - External Cache & Production Security: Path Fixes, Component Renaming & Browser Feature Blocking ⭐⭐⭐
 Complete fix for external cache folder path not being respected, consistent component naming, and production security enhancements.
 **Impact**: ✅ External cache folder now works correctly, cleaner component naming, disabled browser features in production

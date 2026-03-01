@@ -1,6 +1,6 @@
 ﻿import { useCallback, useState } from "react";
 import { App } from "antd";
-import { CategoryInfo } from "../../../../shared/types/category.types";
+import { CategoryInfo, CATEGORY_IDS } from "../../../../shared/types/category.types";
 import { categoryService } from "../../../../shared/services/categoryService";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useModCategoryUpdate } from "./useModCategoryUpdate";
@@ -399,7 +399,7 @@ export function useCategoryTreeOperations({
         const nodeName = findNodeName(treeRef.current, nodeId) || nodeId;
 
         // If moving to "Unclassified", clear the category by passing empty string
-        const categoryValue = nodeId === '__unclassified__' ? '' : nodeId;
+        const categoryValue = nodeId === CATEGORY_IDS.UNCLASSIFIED ? '' : nodeId;
 
         // Update the mod's category using the shared hook
         // Note: modName is optional, pass empty string if not available

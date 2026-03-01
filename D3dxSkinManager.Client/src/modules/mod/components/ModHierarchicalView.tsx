@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from "react";
-import { CategoryInfo } from "../../../shared/types/category.types";
+import { CategoryInfo, CATEGORY_IDS } from "../../../shared/types/category.types";
 
 import { ModPreviewPanel } from "./ModPreviewPanel";
 import { CategoryPanel } from "./CategoryPanel";
@@ -117,10 +117,10 @@ export const ModHierarchicalView: React.FC = () => {
     }
 
     // Reload Category filtered mods if needed
-    if (selectedCategory?.id && selectedCategory.id !== "__unclassified__") {
+    if (selectedCategory?.id && selectedCategory.id !== CATEGORY_IDS.UNCLASSIFIED) {
       const p2 = loadModsByCategory(selectedCategory.id);
       if (p2) await p2;
-    } else if (selectedCategory?.id === "__unclassified__") {
+    } else if (selectedCategory?.id === CATEGORY_IDS.UNCLASSIFIED) {
       const p3 = loadUnclassifiedMods();
       if (p3) await p3;
     }
@@ -132,7 +132,7 @@ export const ModHierarchicalView: React.FC = () => {
       setSelectedCategory(node);
 
       if (node) {
-        if (node.id === "__unclassified__") {
+        if (node.id === CATEGORY_IDS.UNCLASSIFIED) {
           void loadUnclassifiedMods();
         } else {
           void loadModsByCategory(node.id);
@@ -146,7 +146,7 @@ export const ModHierarchicalView: React.FC = () => {
 
   const handleUnclassifiedClick = useCallback(() => {
     const unclassifiedNode: CategoryInfo = {
-      id: "__unclassified__",
+      id: CATEGORY_IDS.UNCLASSIFIED,
       name: "Unclassified",
       parentId: undefined,
       priority: 0,

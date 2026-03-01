@@ -133,7 +133,7 @@ public class ProfilePathService : IProfilePathService
 
                 // Determine cache directory based on mode
                 string directory;
-                if (config?.ModCache?.Mode == "External" && !string.IsNullOrEmpty(config.ModCache.Directory))
+                if (config?.ModCache?.IsExternal() == true && !string.IsNullOrEmpty(config.ModCache.Directory))
                 {
                     directory = config.ModCache.Directory;
                 }
