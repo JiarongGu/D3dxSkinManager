@@ -51,10 +51,10 @@ export const ModHierarchicalView: React.FC = () => {
   const [unclassifiedCount, setUnclassifiedCount] = useState<number>(0);
   const { state: profileState } = useProfile();
 
-  // Import Queue Slide-in Screen
+  // Mod Imports Slide-in Screen
   useSlideInScreen({
     visible: modManagementScreenVisible,
-    title: t('modManagement.title.importQueue'),
+    title: t('modManagement.title.modImports'),
     content: <ModImportQueueScreen />,
     width: '85%',
     onClose: closeModManagementScreen,

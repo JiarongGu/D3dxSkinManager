@@ -6,7 +6,7 @@
 
 import React, { useState } from 'react';
 import { Progress, Tag, Button, Space, Tooltip, Modal, Form, Input, Select, Descriptions } from 'antd';
-import { DataTable, ColumnsType } from '../../../shared/components/common/DataTable';
+import { DataTable, ColumnsType } from '../../../../shared/components/common/DataTable';
 import {
   FolderOutlined,
   ClockCircleOutlined,
@@ -15,18 +15,18 @@ import {
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   DeleteOutlined,
-  EditOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useProfile } from '../../../shared/context/ProfileContext';
+import { useProfile } from '../../../../shared/context/ProfileContext';
 import {
   WorkflowInfo,
   WorkflowStatus,
   ModImportWorkflowContext,
   ModImportWorkflowSteps,
-} from '../types/workflow.types';
-import { workflowService } from '../services/workflowService';
-import { handleError } from '../../../shared/utils/errorHandler';
+} from '../../types/workflow.types';
+import { workflowService } from '../../services/workflowService';
+import { handleError } from '../../../../shared/utils/errorHandler';
 import './WorkflowQueueTable.css';
 
 const { TextArea } = Input;
@@ -34,6 +34,8 @@ const { TextArea } = Input;
 interface WorkflowQueueTableProps {
   workflows: WorkflowInfo[];
   onRefresh?: () => void;
+  selectedRowKeys?: string[];
+  onSelectionChange?: (keys: string[]) => void;
 }
 
 /**
@@ -50,6 +52,8 @@ interface WorkflowTableRow {
 export const WorkflowQueueTable: React.FC<WorkflowQueueTableProps> = ({
   workflows,
   onRefresh,
+  selectedRowKeys: externalSelectedRowKeys,
+  onSelectionChange,
 }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
@@ -57,7 +61,11 @@ export const WorkflowQueueTable: React.FC<WorkflowQueueTableProps> = ({
   const [metadataModalVisible, setMetadataModalVisible] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowInfo | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+
+  // Use external selection state if provided, otherwise use internal state
+  const [internalSelectedRowKeys, setInternalSelectedRowKeys] = useState<string[]>([]);
+  const selectedRowKeys = externalSelectedRowKeys ?? internalSelectedRowKeys;
+  const setSelectedRowKeys = onSelectionChange ?? setInternalSelectedRowKeys;
 
   /**
    * Parse workflow context and prepare table data
@@ -390,13 +398,13 @@ export const WorkflowQueueTable: React.FC<WorkflowQueueTableProps> = ({
       width: '30%',
       ellipsis: true,
       render: (name: string, row: WorkflowTableRow) => (
-        <div className="workflow-name-cell">
+        <div className="workflow-queue-table-name-cell">
           <FolderOutlined style={{ marginRight: 8, color: '#1890ff' }} />
           <Tooltip title={row.context?.folderPath}>
-            <span className="workflow-name">{name}</span>
+            <span className="workflow-queue-table-name">{name}</span>
           </Tooltip>
           {row.context?.fileCount && (
-            <span className="workflow-file-count">
+            <span className="workflow-queue-table-file-count">
               ({row.context.fileCount} {t('common.files')})
             </span>
           )}
@@ -453,28 +461,28 @@ export const WorkflowQueueTable: React.FC<WorkflowQueueTableProps> = ({
 
         return (
           <Space size="small">
-            {/* Confirm/Edit button - always show for active workflows */}
-            {isActive && (
-              <Tooltip
-                title={
-                  workflow.status === WorkflowStatus.WaitingForInput
-                    ? t('workflow.queue.confirm')
-                    : t('workflow.queue.edit') || 'Edit Metadata'
-                }
-              >
+            {/* Confirm button - show for WaitingForInput status */}
+            {workflow.status === WorkflowStatus.WaitingForInput && (
+              <Tooltip title={t('workflow.queue.confirm')}>
                 <Button
-                  type={workflow.status === WorkflowStatus.WaitingForInput ? 'primary' : 'default'}
+                  type="primary"
+                  size="small"
+                  onClick={() => handleConfirm(workflow.id)}
+                >
+                  {t('workflow.queue.confirm')}
+                </Button>
+              </Tooltip>
+            )}
+
+            {/* Edit button - always show for active workflows */}
+            {isActive && (
+              <Tooltip title={t('workflow.queue.edit') || 'Edit Metadata'}>
+                <Button
                   size="small"
                   icon={<EditOutlined />}
-                  onClick={() =>
-                    workflow.status === WorkflowStatus.WaitingForInput
-                      ? handleConfirm(workflow.id)
-                      : handleEditMetadata(row)
-                  }
+                  onClick={() => handleEditMetadata(row)}
                 >
-                  {workflow.status === WorkflowStatus.WaitingForInput
-                    ? t('workflow.queue.confirm')
-                    : t('workflow.queue.edit') || 'Edit'}
+                  {t('workflow.queue.edit') || 'Edit'}
                 </Button>
               </Tooltip>
             )}
@@ -528,43 +536,13 @@ export const WorkflowQueueTable: React.FC<WorkflowQueueTableProps> = ({
   const rowSelection = {
     selectedRowKeys,
     onChange: (keys: React.Key[]) => setSelectedRowKeys(keys as string[]),
-    getCheckboxProps: (record: WorkflowTableRow) => ({
-      disabled: record.workflow.status === WorkflowStatus.Completed ||
-                record.workflow.status === WorkflowStatus.Failed ||
-                record.workflow.status === WorkflowStatus.Cancelled,
+    getCheckboxProps: () => ({
+      disabled: false, // Allow selection of all workflows for batch operations
     }),
   };
 
   return (
     <>
-      {/* Batch Action Toolbar */}
-      {selectedRowKeys.length > 0 && (
-        <div style={{ marginBottom: 16, padding: '8px 12px', background: '#f0f2f5', borderRadius: 4 }}>
-          <Space>
-            <span>
-              {t('common.selected')}: <strong>{selectedRowKeys.length}</strong>
-            </span>
-            {selectedWaitingCount > 0 && (
-              <Button
-                type="primary"
-                size="small"
-                onClick={handleBatchConfirm}
-              >
-                {t('workflow.queue.batchConfirm') || `Confirm ${selectedWaitingCount} Waiting`}
-              </Button>
-            )}
-            <Button size="small" onClick={handleSelectAll}>
-              {selectedRowKeys.length === tableData.length
-                ? t('common.deselectAll')
-                : t('common.selectAll')}
-            </Button>
-            <Button size="small" onClick={() => setSelectedRowKeys([])}>
-              {t('common.clear') || 'Clear'}
-            </Button>
-          </Space>
-        </div>
-      )}
-
       <DataTable<WorkflowTableRow>
         className="workflow-queue-table"
         columns={columns}

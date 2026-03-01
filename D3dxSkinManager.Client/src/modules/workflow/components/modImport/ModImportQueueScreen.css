@@ -1,0 +1,167 @@
+/* ModImportQueueScreen Container */
+.mod-import-queue-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--background-color);
+}
+
+/* Status Bar - Top */
+.mod-import-queue-screen-status-bar {
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 4px;
+}
+
+/* Action Bar - Bottom */
+.mod-import-queue-screen-action-bar {
+  margin-bottom: 16px;
+  background: var(--color-card-bg);
+  border-radius: 4px;
+}
+
+.mod-import-queue-screen-action-bar-stats {
+  display: flex;
+  align-items: center;
+}
+
+.mod-import-queue-screen-action-bar-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border-base);
+  margin: 0 8px;
+}
+
+/* Stat Item */
+.mod-import-queue-screen-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mod-import-queue-screen-stat-icon {
+  font-size: 16px;
+  color: var(--color-warning);
+}
+
+.mod-import-queue-screen-stat-icon--success {
+  color: var(--color-success);
+}
+
+.mod-import-queue-screen-stat-icon--error {
+  color: var(--color-error);
+}
+
+.mod-import-queue-screen-stat-icon--warning {
+  color: var(--color-warning);
+}
+
+.mod-import-queue-screen-stat-label {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.mod-import-queue-screen-stat-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-base);
+}
+
+.mod-import-queue-screen-stat-value--success {
+  color: var(--color-success);
+}
+
+/* Selected text */
+.mod-import-queue-screen-action-bar-selected {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.mod-import-queue-screen-action-bar-selected strong {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Queue Content */
+.mod-import-queue-screen-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Empty State */
+.mod-import-queue-screen-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  background: var(--color-card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-secondary);
+  padding: 48px 24px;
+}
+
+.mod-import-queue-screen-empty-hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-top: 8px;
+}
+
+.mod-management-screen-tabs {
+  height: 100%;
+}
+
+.mod-management-screen-tabs .ant-tabs-content {
+  height: calc(100% - 46px);
+}
+
+.mod-management-screen-tabs .ant-tabs-tabpane {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* SingleModView */
+.single-mod-view-container {
+  padding: 16px;
+}
+
+.single-mod-view-sha-input {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+/* ImportTasksView */
+.import-tasks-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.import-tasks-view-toolbar {
+  padding-bottom: 8px;
+}
+
+.import-tasks-view-table {
+  flex: 1;
+}
+
+.import-tasks-view-processing {
+  margin-top: 12px;
+}
+
+.import-tasks-view-stats {
+  padding: 12px;
+  background: var(--card-background);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* BatchEditView */
+.batch-edit-view-container {
+  padding: 16px;
+}

@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Button } from 'antd';
 import { FolderOpenOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useProfile } from '../../../shared/context/ProfileContext';
-import { systemService } from '../../../shared/services/systemService';
-import { workflowService } from '../services/workflowService';
-import { handleError } from '../../../shared/utils/errorHandler';
+import { useProfile } from '../../../../shared/context/ProfileContext';
+import { systemService } from '../../../../shared/services/systemService';
+import { workflowService } from '../../services/workflowService';
+import { handleError } from '../../../../shared/utils/errorHandler';
 
 /**
  * Button that triggers the folder import workflow

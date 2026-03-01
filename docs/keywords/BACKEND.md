@@ -482,12 +482,14 @@ Located in `Plugins/` directory (external to backend):
 - **WorkflowFacade** → `Modules/Workflow/WorkflowFacade.cs`
   - IPC routing for workflow operations
   - Handles GET_WORKFLOW, START_MOD_IMPORT, PROVIDE_METADATA, CANCEL_MOD_IMPORT
+  - Batch operations: BATCH_DELETE_WORKFLOWS, BATCH_RESUME_WORKFLOWS
 
 #### Repositories
 
 - **IWorkflowRepository** → `Modules/Workflow/Repositories/IWorkflowRepository.cs`
 - **WorkflowRepository** → `Modules/Workflow/Repositories/WorkflowRepository.cs`
-  - In-memory workflow CRUD operations (will migrate to EF Core)
+  - SQLite-based workflow CRUD operations with EF Core
+  - Batch operations: DeleteBatchAsync, GetByIdsAsync (parameterized SQL IN clauses)
 
 #### Handlers
 

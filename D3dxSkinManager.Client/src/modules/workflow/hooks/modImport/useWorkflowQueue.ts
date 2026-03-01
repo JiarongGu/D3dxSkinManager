@@ -4,11 +4,11 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { eventBus, Module, WorkflowEventType } from '../../../shared/services/eventBus';
-import { workflowService } from '../services/workflowService';
-import { useProfile } from '../../../shared/context/ProfileContext';
-import type { WorkflowInfo } from '../types/workflow.types';
-import { WorkflowStatus } from '../types/workflow.types';
+import { eventBus, Module, WorkflowEventType } from '../../../../shared/services/eventBus';
+import { workflowService } from '../../services/workflowService';
+import { useProfile } from '../../../../shared/context/ProfileContext';
+import type { WorkflowInfo } from '../../types/workflow.types';
+import { WorkflowStatus } from '../../types/workflow.types';
 
 interface UseWorkflowQueueReturn {
   workflows: WorkflowInfo[];

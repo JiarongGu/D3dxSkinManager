@@ -12,6 +12,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Enhanced - 2026-03-01 - Workflow System: Batch Operations, Selection Improvements & UX Polish ⭐⭐⭐
+Enhanced workflow queue with batch operations for bulk actions, improved selection behavior, and user-friendly terminology updates.
+**Impact**: ✅ Users can batch delete/resume workflows, select all workflow states, clearer UI terminology
+**Backend Changes**:
+- WorkflowRepository: Added DeleteBatchAsync, GetByIdsAsync with parameterized SQL IN clauses
+- WorkflowFacade: Added BATCH_DELETE_WORKFLOWS, BATCH_RESUME_WORKFLOWS endpoints with partial failure handling
+- BatchOperationResult: Returns detailed results with successful/failed items for user feedback
+- Cleanup Integration: Batch delete calls handler.CancelAsync() for proper temp file cleanup
+**Frontend Changes**:
+- workflowService: Added batchDeleteWorkflows, batchResumeWorkflows methods with BatchOperationResult interface
+- ModImportQueueScreen: Implemented batch confirm and batch delete handlers with proper error handling
+- WorkflowQueueTable: Fixed selection to allow all workflow states (removed Completed/Failed/Cancelled restrictions)
+- WorkflowQueueTable: Fixed WaitingForInput state - separated Confirm and Edit buttons for simultaneous access
+- CompactButton: Unified disabled styles across all variants with consistent gray appearance
+**UX Improvements**:
+- Terminology: "Import Queue" → "Mod Imports" for more user-friendly language
+- Empty state: "No imports in progress" → "No mods being imported"
+- Button text: "Open Import Queue" → "Mod Imports"
+- Empty table: Enhanced placeholder styling with transparent background and softer text colors
+- Conditional spinner: Only animates when tasks are actively processing (not when idle or all waiting)
+- Border polish: Removed action bar border, reduced border-radius for consistent visual style
+**I18n Updates**:
+- en.json: Updated modManagement.title.importQueue → modManagement.title.modImports
+- en.json: Updated button, empty state, and hint text for friendlier tone
+- cn.json: Updated Chinese translations to match new terminology
+- HelpWindow.tsx: Updated "Import Queue" → "Mod Imports" in documentation
+**Theme Support**:
+- All hardcoded colors converted to CSS variables (--color-bg-elevated, --color-border-secondary, etc.)
+- Full light/dark theme compatibility for workflow screens
+**Files Changed**: 15 files across backend (C#), frontend (TypeScript), i18n, documentation
+**Pattern**: Batch operations with parameterized SQL, partial failure handling, user-friendly terminology
+**Documentation**: Updated WORKFLOWS.md with batch operations pattern, updated BACKEND.md with new endpoints
+
 ### Fixed - 2026-03-01 - Category System: Event-Driven Cache Invalidation & UI Polish ⭐⭐⭐⭐
 Complete fix for category tree count display issues, event-driven architecture improvements, and category UI enhancements.
 **Impact**: ✅ Category counts now update correctly after operations, no duplicate events, better UX with proper icons and "Unclassified" labels

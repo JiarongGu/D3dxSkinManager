@@ -15,15 +15,74 @@
   box-sizing: border-box !important;
 }
 
-/* Disabled state - Dark theme uses opacity, Light theme uses visible gray */
+/* Disabled state - Dark theme uses consistent gray appearance for all button variants */
 [data-theme="dark"] .compact-button.ant-btn:disabled,
 [data-theme="dark"] .compact-button.ant-btn.ant-btn-disabled,
 [data-theme="dark"] .compact-button.ant-btn:disabled:hover,
 [data-theme="dark"] .compact-button.ant-btn.ant-btn-disabled:hover {
-  opacity: 0.4 !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
   cursor: not-allowed !important;
   box-shadow: none !important;
   transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Ensure primary button disabled state uses same gray appearance */
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-primary:disabled,
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-primary.ant-btn-disabled,
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-primary:disabled:hover,
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-primary.ant-btn-disabled:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Ensure danger button disabled state uses same gray appearance */
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:disabled,
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous.ant-btn-disabled,
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:disabled:hover,
+[data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous.ant-btn-disabled:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Ensure warning button disabled state uses same gray appearance */
+[data-theme="dark"] .compact-button.ant-btn.compact-button-warning:disabled,
+[data-theme="dark"] .compact-button.ant-btn.compact-button-warning.ant-btn-disabled,
+[data-theme="dark"] .compact-button.ant-btn.compact-button-warning:disabled:hover,
+[data-theme="dark"] .compact-button.ant-btn.compact-button-warning.ant-btn-disabled:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Ensure success button disabled state uses same gray appearance */
+[data-theme="dark"] .compact-button.ant-btn.compact-button-success:disabled,
+[data-theme="dark"] .compact-button.ant-btn.compact-button-success.ant-btn-disabled,
+[data-theme="dark"] .compact-button.ant-btn.compact-button-success:disabled:hover,
+[data-theme="dark"] .compact-button.ant-btn.compact-button-success.ant-btn-disabled:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 1 !important;
 }
 
 /* Light theme - Better visibility with gray colors instead of opacity */
@@ -120,8 +179,11 @@
   background: rgba(23, 125, 220, 0.08);
 }
 
-/* Danger button - deeper/darker on hover with subtle background tint */
+/* Danger button - subtle border and background tint (consistent with primary button) */
 [data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous {
+  background: rgba(207, 19, 34, 0.02);
+  border-color: var(--color-error);
+  color: var(--color-error);
   box-shadow: none;
 }
 

@@ -178,6 +178,154 @@ async newMessage(param: string) {
 
 ---
 
+## Batch Operations Pattern
+
+### When to Use
+Use batch operations when users need to perform the same action on multiple items (delete, update, resume, etc.)
+
+### 1. Backend: Repository Methods
+
+```csharp
+// In I{Entity}Repository.cs
+Task<int> DeleteBatchAsync(IEnumerable<string> ids);
+Task<List<TEntity>> GetByIdsAsync(IEnumerable<string> ids);
+
+// In {Entity}Repository.cs
+public async Task<int> DeleteBatchAsync(IEnumerable<string> ids)
+{
+    var idList = ids.ToList();
+    if (idList.Count == 0) return 0;
+
+    // Build parameterized SQL with IN clause
+    var parameters = idList.Select((id, index) => $"@id{index}").ToList();
+    var inClause = string.Join(",", parameters);
+
+    var cmd = connection.CreateCommand();
+    cmd.CommandText = $"DELETE FROM TableName WHERE Id IN ({inClause})";
+
+    for (int i = 0; i < idList.Count; i++)
+    {
+        cmd.Parameters.AddWithValue($"@id{i}", idList[i]);
+    }
+
+    return await cmd.ExecuteNonQueryAsync();
+}
+```
+
+### 2. Backend: Facade Handler with Cleanup
+
+```csharp
+// In {Module}Facade.cs
+case "BATCH_DELETE_ITEMS":
+    return await BatchDeleteItemsAsync(request);
+
+private async Task<BatchOperationResult> BatchDeleteItemsAsync(IpcRequest request)
+{
+    var data = JsonHelper.Deserialize<BatchDeleteRequest>(request.Data);
+    var result = new BatchOperationResult
+    {
+        TotalRequested = data.ItemIds.Count
+    };
+
+    foreach (var itemId in data.ItemIds)
+    {
+        try
+        {
+            // Optional: Call cleanup handlers before deletion
+            await _handler.CleanupAsync(itemId);
+            await _repository.DeleteAsync(itemId);
+            result.Successful.Add(itemId);
+        }
+        catch (Exception ex)
+        {
+            result.Failed.Add(new FailedItem
+            {
+                ItemId = itemId,
+                Error = ex.Message
+            });
+        }
+    }
+
+    return result;
+}
+
+// BatchOperationResult model
+public class BatchOperationResult
+{
+    public int TotalRequested { get; set; }
+    public List<string> Successful { get; set; } = new();
+    public List<FailedItem> Failed { get; set; } = new();
+}
+
+public class FailedItem
+{
+    public string ItemId { get; set; }
+    public string Error { get; set; }
+}
+```
+
+### 3. Frontend: Service Methods
+
+```typescript
+// In service class (extends BaseModuleService)
+export interface BatchOperationResult {
+  totalRequested: number;
+  successful: string[];
+  failed: Array<{
+    itemId: string;
+    error: string;
+  }>;
+}
+
+async batchDeleteItems(profileId: string, itemIds: string[]): Promise<BatchOperationResult> {
+  return this.sendMessage<BatchOperationResult>('BATCH_DELETE_ITEMS', profileId, {
+    itemIds,
+  });
+}
+
+async batchResumeItems(profileId: string, itemIds: string[]): Promise<BatchOperationResult> {
+  return this.sendMessage<BatchOperationResult>('BATCH_RESUME_ITEMS', profileId, {
+    itemIds,
+  });
+}
+```
+
+### 4. Frontend: Component Usage
+
+```typescript
+const handleBatchDelete = async () => {
+  if (!profileId || selectedIds.length === 0) return;
+
+  try {
+    const result = await service.batchDeleteItems(profileId, selectedIds);
+
+    // Clear selection and refresh
+    setSelectedIds([]);
+    refresh();
+
+    // Handle partial failures
+    if (result.failed.length > 0) {
+      console.warn(
+        `Batch delete: ${result.successful.length} successful, ${result.failed.length} failed`,
+        result.failed
+      );
+    }
+  } catch (error) {
+    handleError(error);
+  }
+};
+```
+
+### Key Principles
+- ✅ Use parameterized SQL IN clauses (prevents SQL injection)
+- ✅ Return detailed results (successful + failed items)
+- ✅ Handle partial failures gracefully
+- ✅ Call cleanup handlers before deletion
+- ✅ Clear selection after successful operation
+- ✅ Log partial failures for debugging
+
+---
+
 ## Database Schema Changes
 
 ### 1. Modify Entity

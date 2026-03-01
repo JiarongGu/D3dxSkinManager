@@ -1,6 +1,15 @@
 import { BaseModuleService } from '../../../shared/services/baseModuleService';
 import type { WorkflowInfo } from '../types/workflow.types';
 
+export interface BatchOperationResult {
+  totalRequested: number;
+  successful: string[];
+  failed: Array<{
+    workflowId: string;
+    error: string;
+  }>;
+}
+
 /**
  * Workflow service for IPC communication with backend
  * Profile-scoped service for workflow operations
@@ -88,6 +97,24 @@ class WorkflowService extends BaseModuleService {
    */
   async deleteWorkflow(profileId: string, workflowId: string): Promise<boolean> {
     return this.sendMessage<boolean>('DELETE_WORKFLOW', profileId, workflowId);
+  }
+
+  /**
+   * Batch delete workflows (with temp file cleanup)
+   */
+  async batchDeleteWorkflows(profileId: string, workflowIds: string[]): Promise<BatchOperationResult> {
+    return this.sendMessage<BatchOperationResult>('BATCH_DELETE_WORKFLOWS', profileId, {
+      workflowIds,
+    });
+  }
+
+  /**
+   * Batch resume workflows (only workflows in WaitingForInput status)
+   */
+  async batchResumeWorkflows(profileId: string, workflowIds: string[]): Promise<BatchOperationResult> {
+    return this.sendMessage<BatchOperationResult>('BATCH_RESUME_WORKFLOWS', profileId, {
+      workflowIds,
+    });
   }
 }
 

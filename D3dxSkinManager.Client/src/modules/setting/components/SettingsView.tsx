@@ -156,7 +156,7 @@ export const SettingsView: React.FC = () => {
       );
     } catch (error) {
       notification.error(t("settings.notifications.languageFailed"));
-      console.error("[SettingsView] Failed to change language:", error);
+      logger.error("[SettingsView] Failed to change language:", error);
     }
   };
 
@@ -166,7 +166,7 @@ export const SettingsView: React.FC = () => {
       notification.success(t("settings.notifications.windowStateReset"));
     } catch (error) {
       notification.error(t("settings.notifications.windowStateResetFailed"));
-      console.error("[SettingsView] Failed to reset window state:", error);
+      logger.error("[SettingsView] Failed to reset window state:", error);
     }
   };
 

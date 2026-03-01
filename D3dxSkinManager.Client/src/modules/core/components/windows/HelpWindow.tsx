@@ -107,7 +107,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
         </Paragraph>
         <ul className="help-window-list">
           <li><strong>Batch Edit:</strong> Select multiple mods and edit properties together</li>
-          <li><strong>Import Queue:</strong> Add multiple files and configure before importing</li>
+          <li><strong>Mod Imports:</strong> Add multiple files and configure before importing</li>
           <li><strong>Tag Management:</strong> Apply tags to multiple mods at once</li>
         </ul>
       </Panel>
@@ -235,7 +235,7 @@ export const HelpWindow: React.FC<HelpWindowProps> = ({ visible, onClose }) => {
       <div>
         <Title level={5}>Workflow Tips</Title>
         <ul className="help-window-list">
-          <li>Use import queue for bulk imports</li>
+          <li>Use mod imports for bulk imports</li>
           <li>Create category hierarchies that match your game structure</li>
           <li>Use context menus (right-click) for quick actions</li>
           <li>Learn keyboard shortcuts for faster workflow</li>

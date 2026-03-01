@@ -1,0 +1,201 @@
+/**
+ * Workflow Queue Table Styles
+ * Download manager style table with enhanced visual design
+ */
+
+.workflow-queue-table {
+  background: var(--color-card-bg);
+  border-radius: 4px;
+  border: 1px solid var(--color-border-secondary);
+  overflow: hidden;
+}
+
+.workflow-queue-table .ant-table {
+  background: transparent;
+}
+
+.workflow-queue-table .ant-table-thead > tr > th {
+  background: var(--color-table-header-bg);
+  border-bottom: 2px solid var(--color-primary);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-base);
+  padding: 16px;
+}
+
+.workflow-queue-table .ant-table-tbody > tr {
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.workflow-queue-table .ant-table-tbody > tr:hover > td {
+  background: var(--color-table-row-hover);
+}
+
+.workflow-queue-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--color-border-secondary);
+  padding: 16px;
+}
+
+/* Selected row highlight */
+.workflow-queue-table .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: var(--color-primary-bg-hover);
+}
+
+/* Name cell */
+.workflow-queue-table-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflow-queue-table-name {
+  font-weight: 500;
+  font-size: 14px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-base);
+}
+
+.workflow-queue-table-file-count {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+/* Progress bar customization */
+.workflow-queue-table .ant-progress {
+  margin-bottom: 0;
+}
+
+.workflow-queue-table .ant-progress-line {
+  font-size: 12px;
+}
+
+.workflow-queue-table .ant-progress-bg {
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.workflow-queue-table .ant-progress-inner {
+  background-color: var(--color-bg-elevated);
+  border-radius: 4px;
+}
+
+/* Status icons */
+.workflow-queue-table .anticon {
+  font-size: 16px;
+}
+
+/* Action buttons */
+.workflow-queue-table .ant-btn-sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.workflow-queue-table .ant-btn-sm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.workflow-queue-table .ant-btn-icon-only {
+  width: 32px;
+  padding: 0;
+}
+
+/* Batch Action Toolbar */
+.workflow-queue-table-batch-toolbar {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--color-primary-bg);
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+}
+
+.workflow-queue-table-batch-toolbar-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-base);
+}
+
+.workflow-queue-table-batch-toolbar-count {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Empty state - Enhanced placeholder styling */
+.workflow-queue-table .ant-table-placeholder {
+  background: transparent !important;
+  border-bottom: none !important;
+}
+
+.workflow-queue-table .ant-table-placeholder .ant-table-cell {
+  background: transparent !important;
+  border-bottom: none !important;
+  height: 140px !important;
+  vertical-align: middle;
+}
+
+/* Remove hover effect on empty state */
+.workflow-queue-table .ant-table-tbody > tr.ant-table-placeholder:hover > td {
+  background: transparent !important;
+}
+
+.workflow-queue-table .ant-table-placeholder .ant-empty {
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.workflow-queue-table .ant-table-placeholder .ant-empty-image {
+  height: 80px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.workflow-queue-table .ant-empty-description {
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* Expandable row */
+.workflow-queue-table .ant-table-expanded-row > td {
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.workflow-queue-table .ant-descriptions-bordered .ant-descriptions-item-label {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 500;
+}
+
+.workflow-queue-table .ant-descriptions-bordered .ant-descriptions-item-content {
+  background: transparent;
+}
+
+/* Animation for status changes */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.workflow-queue-table .ant-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}

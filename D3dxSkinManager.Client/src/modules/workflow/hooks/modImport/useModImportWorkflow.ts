@@ -4,11 +4,11 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useProfile } from '../../../shared/context/ProfileContext';
-import { workflowService } from '../services/workflowService';
-import { eventBus, Module, WorkflowEventType } from '../../../shared/services/eventBus';
-import type { WorkflowInfo } from '../types/workflow.types';
-import { handleError } from '../../../shared/utils/errorHandler';
+import { useProfile } from '../../../../shared/context/ProfileContext';
+import { workflowService } from '../../services/workflowService';
+import { eventBus, Module, WorkflowEventType } from '../../../../shared/services/eventBus';
+import type { WorkflowInfo } from '../../types/workflow.types';
+import { handleError } from '../../../../shared/utils/errorHandler';
 
 // Legacy metadata type (kept for backward compatibility)
 interface ModImportMetadata {

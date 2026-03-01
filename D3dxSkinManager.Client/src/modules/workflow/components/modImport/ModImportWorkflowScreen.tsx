@@ -13,13 +13,13 @@ import {
   CloseCircleOutlined,
   LoadingOutlined,
 } from '@ant-design/icons';
-import { useModImportWorkflow } from '../hooks/useModImportWorkflow';
+import { useModImportWorkflow } from '../../hooks/modImport/useModImportWorkflow';
 import { useTranslation } from 'react-i18next';
 import type {
   ModImportWorkflowContext,
   WorkflowInfo,
-} from '../types/workflow.types';
-import { WorkflowStatus, ModImportWorkflowSteps } from '../types/workflow.types';
+} from '../../types/workflow.types';
+import { WorkflowStatus, ModImportWorkflowSteps } from '../../types/workflow.types';
 
 // Legacy metadata type (kept for backward compatibility)
 interface ModImportMetadata {

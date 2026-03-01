@@ -61,6 +61,10 @@ public class WorkflowFacade : IWorkflowFacade
                 "PAUSE_WORKFLOW" => await PauseWorkflowAsync(request),
                 "RESUME_WORKFLOW" => await ResumeWorkflowAsync(request),
 
+                // Batch operations
+                "BATCH_DELETE_WORKFLOWS" => await BatchDeleteWorkflowsAsync(request),
+                "BATCH_RESUME_WORKFLOWS" => await BatchResumeWorkflowsAsync(request),
+
                 _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
             };
 
@@ -168,6 +172,140 @@ public class WorkflowFacade : IWorkflowFacade
         return await handler.PauseAsync(workflowId);
     }
 
+    private async Task<BatchOperationResult> BatchDeleteWorkflowsAsync(IpcRequest request)
+    {
+        var json = request.Payload?.ToString();
+        if (string.IsNullOrEmpty(json))
+            throw new ArgumentException("Workflow IDs are required");
+
+        var data = JsonHelper.Deserialize<BatchWorkflowRequest>(json);
+        if (data == null || data.WorkflowIds == null || data.WorkflowIds.Count == 0)
+            throw new ArgumentException("Invalid or empty workflow IDs");
+
+        _logger.Info($"Batch deleting {data.WorkflowIds.Count} workflows");
+
+        var result = new BatchOperationResult
+        {
+            TotalRequested = data.WorkflowIds.Count,
+            Successful = new List<string>(),
+            Failed = new List<FailedWorkflow>()
+        };
+
+        // Fetch all workflows first
+        var workflows = await _workflowRepository.GetByIdsAsync(data.WorkflowIds);
+        var workflowDict = workflows.ToDictionary(w => w.Id, w => w);
+
+        // Process each workflow deletion - cleanup temp files via handler
+        foreach (var workflowId in data.WorkflowIds)
+        {
+            try
+            {
+                if (!workflowDict.TryGetValue(workflowId, out var workflow))
+                {
+                    result.Failed.Add(new FailedWorkflow
+                    {
+                        WorkflowId = workflowId,
+                        Error = "Workflow not found"
+                    });
+                    continue;
+                }
+
+                // Get handler for cleanup (this will clean temp files)
+                var handler = GetHandler(workflow.Type);
+                await handler.CancelAsync(workflowId);
+
+                // Delete from database
+                await _workflowRepository.DeleteAsync(workflowId);
+
+                result.Successful.Add(workflowId);
+                _logger.Info($"Successfully deleted workflow: {workflowId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to delete workflow {workflowId}: {ex.Message}", "WorkflowFacade", ex);
+                result.Failed.Add(new FailedWorkflow
+                {
+                    WorkflowId = workflowId,
+                    Error = ex.Message
+                });
+            }
+        }
+
+        _logger.Info($"Batch delete completed: {result.Successful.Count} successful, {result.Failed.Count} failed");
+        return result;
+    }
+
+    private async Task<BatchOperationResult> BatchResumeWorkflowsAsync(IpcRequest request)
+    {
+        var json = request.Payload?.ToString();
+        if (string.IsNullOrEmpty(json))
+            throw new ArgumentException("Workflow IDs are required");
+
+        var data = JsonHelper.Deserialize<BatchWorkflowRequest>(json);
+        if (data == null || data.WorkflowIds == null || data.WorkflowIds.Count == 0)
+            throw new ArgumentException("Invalid or empty workflow IDs");
+
+        _logger.Info($"Batch resuming {data.WorkflowIds.Count} workflows");
+
+        var result = new BatchOperationResult
+        {
+            TotalRequested = data.WorkflowIds.Count,
+            Successful = new List<string>(),
+            Failed = new List<FailedWorkflow>()
+        };
+
+        // Fetch all workflows first
+        var workflows = await _workflowRepository.GetByIdsAsync(data.WorkflowIds);
+        var workflowDict = workflows.ToDictionary(w => w.Id, w => w);
+
+        // Process each workflow resume
+        foreach (var workflowId in data.WorkflowIds)
+        {
+            try
+            {
+                if (!workflowDict.TryGetValue(workflowId, out var workflow))
+                {
+                    result.Failed.Add(new FailedWorkflow
+                    {
+                        WorkflowId = workflowId,
+                        Error = "Workflow not found"
+                    });
+                    continue;
+                }
+
+                // Only resume workflows in WaitingForInput status
+                if (workflow.Status != Entities.WorkflowStatus.WaitingForInput)
+                {
+                    result.Failed.Add(new FailedWorkflow
+                    {
+                        WorkflowId = workflowId,
+                        Error = $"Workflow is not waiting for input (status: {workflow.Status})"
+                    });
+                    continue;
+                }
+
+                // Get handler and resume
+                var handler = GetHandler(workflow.Type);
+                await handler.ContinueAsync(workflowId);
+
+                result.Successful.Add(workflowId);
+                _logger.Info($"Successfully resumed workflow: {workflowId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to resume workflow {workflowId}: {ex.Message}", "WorkflowFacade", ex);
+                result.Failed.Add(new FailedWorkflow
+                {
+                    WorkflowId = workflowId,
+                    Error = ex.Message
+                });
+            }
+        }
+
+        _logger.Info($"Batch resume completed: {result.Successful.Count} successful, {result.Failed.Count} failed");
+        return result;
+    }
+
     private class CreateWorkflowRequest
     {
         public required string Type { get; set; }
@@ -178,5 +316,23 @@ public class WorkflowFacade : IWorkflowFacade
     {
         public required string WorkflowId { get; set; }
         public required Dictionary<string, object?> Context { get; set; }
+    }
+
+    private class BatchWorkflowRequest
+    {
+        public required List<string> WorkflowIds { get; set; }
+    }
+
+    private class BatchOperationResult
+    {
+        public int TotalRequested { get; set; }
+        public required List<string> Successful { get; set; }
+        public required List<FailedWorkflow> Failed { get; set; }
+    }
+
+    private class FailedWorkflow
+    {
+        public required string WorkflowId { get; set; }
+        public required string Error { get; set; }
     }
 }

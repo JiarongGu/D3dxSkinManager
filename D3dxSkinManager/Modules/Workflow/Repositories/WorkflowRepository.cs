@@ -190,6 +190,69 @@ public class WorkflowRepository : IWorkflowRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task<int> DeleteBatchAsync(IEnumerable<string> ids)
+    {
+        var idList = ids.ToList();
+        if (idList.Count == 0)
+            return 0;
+
+        await EnsureInitializedAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        // Build parameterized query with IN clause
+        var parameters = idList.Select((id, index) => $"@id{index}").ToList();
+        var inClause = string.Join(",", parameters);
+
+        var cmd = connection.CreateCommand();
+        cmd.CommandText = $"DELETE FROM Workflows WHERE Id IN ({inClause})";
+
+        for (int i = 0; i < idList.Count; i++)
+        {
+            cmd.Parameters.AddWithValue($"@id{i}", idList[i]);
+        }
+
+        var rowsAffected = await cmd.ExecuteNonQueryAsync();
+        return rowsAffected;
+    }
+
+    public async Task<List<WorkflowInfo>> GetByIdsAsync(IEnumerable<string> ids)
+    {
+        var idList = ids.ToList();
+        if (idList.Count == 0)
+            return new List<WorkflowInfo>();
+
+        await EnsureInitializedAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        // Build parameterized query with IN clause
+        var parameters = idList.Select((id, index) => $"@id{index}").ToList();
+        var inClause = string.Join(",", parameters);
+
+        var cmd = connection.CreateCommand();
+        cmd.CommandText = $@"
+            SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
+            FROM Workflows
+            WHERE Id IN ({inClause})
+            ORDER BY CreatedAt DESC
+        ";
+
+        for (int i = 0; i < idList.Count; i++)
+        {
+            cmd.Parameters.AddWithValue($"@id{i}", idList[i]);
+        }
+
+        var workflows = new List<WorkflowInfo>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            workflows.Add(MapToWorkflowInfo(reader));
+        }
+
+        return workflows;
+    }
+
     private static WorkflowInfo MapToWorkflowInfo(SqliteDataReader reader)
     {
         return new WorkflowInfo
