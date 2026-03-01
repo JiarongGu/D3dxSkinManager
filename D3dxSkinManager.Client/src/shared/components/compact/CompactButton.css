@@ -190,14 +190,14 @@
 [data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):hover {
   border-color: #d9363e !important;
   color: #d9363e !important;
-  background: rgba(217, 54, 62, 0.02) !important;
+  background: rgba(217, 54, 62, 0.05) !important;
   box-shadow: none;
 }
 
 [data-theme="dark"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):active {
   border-color: #cf1322 !important;
   color: #cf1322 !important;
-  background: rgba(207, 19, 34, 0.05) !important;
+  background: rgba(207, 19, 34, 0.08) !important;
 }
 
 [data-theme="light"] .compact-button.ant-btn.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):hover {

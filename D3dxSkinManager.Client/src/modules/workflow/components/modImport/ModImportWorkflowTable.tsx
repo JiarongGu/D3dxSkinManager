@@ -4,32 +4,36 @@
  * Now uses the shared DataTable component with expandable detail rows
  */
 
-import React, { useState } from 'react';
-import { Progress, Tag, Button, Space, Tooltip, Modal, Form, Input, Select, Descriptions } from 'antd';
-import { DataTable, ColumnsType } from '../../../../shared/components/common/DataTable';
+import React, { useState } from "react";
+import { Progress, Tag, Button, Space, Tooltip, Descriptions } from "antd";
+import {
+  DataTable,
+  ColumnsType,
+} from "../../../../shared/components/common/DataTable";
 import {
   FolderOutlined,
-  ClockCircleOutlined,
-  LoadingOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
   ExclamationCircleOutlined,
   DeleteOutlined,
-  EditOutlined
-} from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
-import { useProfile } from '../../../../shared/context/ProfileContext';
+  EditOutlined,
+  PauseCircleOutlined,
+} from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
+import { useProfile } from "../../../../shared/context/ProfileContext";
 import {
   WorkflowInfo,
   WorkflowStatus,
   ModImportWorkflowContext,
   ModImportWorkflowSteps,
-} from '../../types/workflow.types';
-import { workflowService } from '../../services/workflowService';
-import { handleError } from '../../../../shared/utils/errorHandler';
-import './ModImportWorkflowTable.css';
-
-const { TextArea } = Input;
+} from "../../types/workflow.types";
+import { workflowService } from "../../services/workflowService";
+import { handleError } from "../../../../shared/utils/errorHandler";
+import {
+  ModImportMetadataDialog,
+  ModImportMetadataFormValues,
+} from "./ModImportMetadataDialog";
+import "./ModImportWorkflowTable.css";
+import { CompactButton } from "../../../../shared/components/compact";
 
 interface ModImportWorkflowTableProps {
   workflows: WorkflowInfo[];
@@ -57,13 +61,20 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
-  const [form] = Form.useForm();
   const [metadataModalVisible, setMetadataModalVisible] = useState(false);
-  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowInfo | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowInfo | null>(
+    null,
+  );
+  const [selectedContext, setSelectedContext] =
+    useState<ModImportWorkflowContext | null>(null);
+
+  // Track expanded rows
+  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
 
   // Use external selection state if provided, otherwise use internal state
-  const [internalSelectedRowKeys, setInternalSelectedRowKeys] = useState<string[]>([]);
+  const [internalSelectedRowKeys, setInternalSelectedRowKeys] = useState<
+    string[]
+  >([]);
   const selectedRowKeys = externalSelectedRowKeys ?? internalSelectedRowKeys;
   const setSelectedRowKeys = onSelectionChange ?? setInternalSelectedRowKeys;
 
@@ -74,57 +85,64 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     let context: ModImportWorkflowContext | null = null;
     try {
       context = JSON.parse(workflow.context) as ModImportWorkflowContext;
-      console.log('[WorkflowQueueTable] Workflow parsed:', {
+      console.log("[WorkflowQueueTable] Workflow parsed:", {
         id: workflow.id,
         status: workflow.status,
         step: context?.step,
         progress: context?.progress,
       });
     } catch (error) {
-      console.error('[WorkflowQueueTable] Failed to parse context:', error);
+      console.error("[WorkflowQueueTable] Failed to parse context:", error);
     }
 
     // Use progress from context (driven by backend)
     let progress = 0;
     if (workflow.status === WorkflowStatus.Completed) {
       progress = 100;
-    } else if (workflow.status === WorkflowStatus.Failed || workflow.status === WorkflowStatus.Cancelled) {
+    } else if (
+      workflow.status === WorkflowStatus.Failed ||
+      workflow.status === WorkflowStatus.Cancelled
+    ) {
       progress = 0;
     } else if (context && context.progress !== undefined) {
       progress = context.progress;
     }
 
     // Get display name
-    const name = context?.name || context?.folderName || context?.folderPath?.split('\\').pop() || 'Unknown';
+    const name =
+      context?.name ||
+      context?.folderName ||
+      context?.folderPath?.split("\\").pop() ||
+      "Unknown";
 
     // Get status text
-    let statusText = '';
+    let statusText = "";
     switch (workflow.status) {
       case WorkflowStatus.Pending:
-        statusText = t('workflow.status.pending');
+        statusText = t("workflow.status.pending");
         break;
       case WorkflowStatus.Processing:
         if (context?.step === ModImportWorkflowSteps.CompressFolder) {
-          statusText = t('workflow.modImport.compressing');
+          statusText = t("workflow.modImport.compressing");
         } else if (context?.step === ModImportWorkflowSteps.ImportMod) {
-          statusText = t('workflow.modImport.importing');
+          statusText = t("workflow.modImport.importing");
         } else if (context?.step === ModImportWorkflowSteps.ExtractMetadata) {
-          statusText = t('workflow.modImport.extracting');
+          statusText = t("workflow.modImport.extracting");
         } else {
-          statusText = t('workflow.status.processing');
+          statusText = t("workflow.status.processing");
         }
         break;
       case WorkflowStatus.WaitingForInput:
-        statusText = t('workflow.status.waitingForInput');
+        statusText = t("workflow.status.awaitingConfirmation");
         break;
       case WorkflowStatus.Completed:
-        statusText = t('workflow.status.completed');
+        statusText = t("workflow.status.completed");
         break;
       case WorkflowStatus.Failed:
-        statusText = t('workflow.status.failed');
+        statusText = t("workflow.status.failed");
         break;
       case WorkflowStatus.Cancelled:
-        statusText = t('workflow.status.cancelled');
+        statusText = t("workflow.status.cancelled");
         break;
       default:
         statusText = `Unknown (${workflow.status})`; // Debug fallback
@@ -141,15 +159,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
    */
   const handleEditMetadata = (row: WorkflowTableRow) => {
     setSelectedWorkflow(row.workflow);
-    // Pre-fill with existing context values
-    form.setFieldsValue({
-      name: row.context?.name || row.context?.folderName || '',
-      author: row.context?.author || '',
-      description: row.context?.description || '',
-      category: row.context?.category || '',
-      tags: row.context?.tags || [],
-      grading: row.context?.grading || 'G',
-    });
+    setSelectedContext(row.context);
     setMetadataModalVisible(true);
   };
 
@@ -177,14 +187,14 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       const waitingWorkflows = tableData.filter(
         (row) =>
           selectedRowKeys.includes(row.workflow.id) &&
-          row.workflow.status === WorkflowStatus.WaitingForInput
+          row.workflow.status === WorkflowStatus.WaitingForInput,
       );
 
       // Continue all selected workflows that are waiting for input
       await Promise.all(
         waitingWorkflows.map((row) =>
-          workflowService.continueWorkflow(selectedProfileId, row.workflow.id)
-        )
+          workflowService.continueWorkflow(selectedProfileId, row.workflow.id),
+        ),
       );
 
       setSelectedRowKeys([]);
@@ -207,43 +217,45 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 
   /**
    * Handle metadata update
-   * If workflow is waiting for input, also continue to next step
-   * If workflow is processing, just update the context (edit during compression)
+   * Only updates the context, does NOT automatically continue the workflow
+   * User must click the separate "Confirm" button to actually import the mod
    */
-  const handleMetadataSubmit = async () => {
+  const handleMetadataSubmit = async (values: ModImportMetadataFormValues) => {
     if (!selectedWorkflow || !selectedProfileId) return;
 
     try {
-      setSubmitting(true);
-      const values = await form.validateFields();
-
       // Update context with metadata
       // JsonHelper on backend will handle camelCase (JS) to PascalCase (C#) conversion
-      await workflowService.updateWorkflowContext(selectedProfileId, selectedWorkflow.id, {
-        name: values.name,
-        author: values.author || null,
-        description: values.description || null,
-        category: values.category || null,
-        tags: values.tags || [],
-        grading: values.grading || 'G',
-      });
+      await workflowService.updateWorkflowContext(
+        selectedProfileId,
+        selectedWorkflow.id,
+        {
+          name: values.name,
+          author: values.author || null,
+          description: values.description || null,
+          category: values.category || null,
+          grading: values.grading || "G",
+        },
+      );
 
-      // Only continue workflow if it's waiting for input (confirmation step)
-      // If it's still processing (compression), just update context
-      if (selectedWorkflow.status === WorkflowStatus.WaitingForInput) {
-        await workflowService.continueWorkflow(selectedProfileId, selectedWorkflow.id);
-      }
+      // Just update metadata - don't continue workflow
+      // User must click "Confirm" button separately to import
 
       setMetadataModalVisible(false);
       setSelectedWorkflow(null);
-      form.resetFields();
+      setSelectedContext(null);
       onRefresh?.();
     } catch (error) {
-      console.error('[WorkflowQueueTable] Failed to submit metadata:', error);
+      console.error("[WorkflowQueueTable] Failed to submit metadata:", error);
       handleError(error);
-    } finally {
-      setSubmitting(false);
+      throw error; // Re-throw to prevent modal from closing
     }
+  };
+
+  const handleMetadataCancel = () => {
+    setMetadataModalVisible(false);
+    setSelectedWorkflow(null);
+    setSelectedContext(null);
   };
 
   /**
@@ -275,53 +287,26 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
   };
 
   /**
-   * Get status icon
-   */
-  const getStatusIcon = (status: WorkflowStatus) => {
-    switch (status) {
-      case WorkflowStatus.Pending:
-        return <ClockCircleOutlined style={{ color: '#1890ff' }} />;
-      case WorkflowStatus.Processing:
-        return <LoadingOutlined style={{ color: '#1890ff' }} />;
-      case WorkflowStatus.WaitingForInput:
-        return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
-      case WorkflowStatus.Completed:
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-      case WorkflowStatus.Failed:
-        return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
-      case WorkflowStatus.Cancelled:
-        return <CloseCircleOutlined style={{ color: '#8c8c8c' }} />;
-    }
-  };
-
-  /**
    * Get status tag color
    */
   const getStatusColor = (status: WorkflowStatus): string => {
     switch (status) {
       case WorkflowStatus.Pending:
-        return 'blue';
+        return "blue";
       case WorkflowStatus.Processing:
-        return 'processing';
+        return "processing";
       case WorkflowStatus.WaitingForInput:
-        return 'warning';
+        return "warning";
       case WorkflowStatus.Completed:
-        return 'success';
+        return "success";
       case WorkflowStatus.Failed:
-        return 'error';
+        return "error";
       case WorkflowStatus.Cancelled:
-        return 'default';
+        return "default";
       default:
-        return 'default';
+        return "default";
     }
   };
-
-  const ageRatingOptions = [
-    { value: 'G', label: t('mods.edit.ageRating.general') },
-    { value: 'P', label: t('mods.edit.ageRating.parentalGuidance') },
-    { value: 'R', label: t('mods.edit.ageRating.restricted') },
-    { value: 'X', label: t('mods.edit.ageRating.adultsOnly') },
-  ];
 
   /**
    * Render expandable row content showing detailed workflow context
@@ -331,58 +316,66 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 
     return (
       <Descriptions bordered size="small" column={2} style={{ marginLeft: 48 }}>
-        <Descriptions.Item label={t('workflow.queue.workflowId')} span={2}>
+        <Descriptions.Item label={t("workflow.queue.workflowId")} span={2}>
           {workflow.id}
         </Descriptions.Item>
-        <Descriptions.Item label={t('workflow.queue.step')}>
-          {context?.step || 'N/A'}
+        <Descriptions.Item label={t("workflow.queue.step")}>
+          {context?.step || "N/A"}
         </Descriptions.Item>
-        <Descriptions.Item label={t('workflow.queue.progress')}>
+        <Descriptions.Item label={t("workflow.queue.progress")}>
           {context?.progress || 0}%
         </Descriptions.Item>
-        <Descriptions.Item label={t('workflow.queue.folderPath')} span={2}>
-          {context?.folderPath || 'N/A'}
+        <Descriptions.Item label={t("workflow.queue.folderPath")} span={2}>
+          {context?.folderPath || "N/A"}
         </Descriptions.Item>
         {context?.tempArchivePath && (
-          <Descriptions.Item label={t('workflow.queue.tempArchivePath')} span={2}>
+          <Descriptions.Item
+            label={t("workflow.queue.tempArchivePath")}
+            span={2}
+          >
             {context.tempArchivePath}
           </Descriptions.Item>
         )}
-        <Descriptions.Item label={t('workflow.queue.fileCount')}>
+        <Descriptions.Item label={t("workflow.queue.fileCount")}>
           {context?.fileCount || 0}
         </Descriptions.Item>
-        <Descriptions.Item label={t('workflow.queue.author')}>
-          {context?.author || t('common.notSet')}
+        <Descriptions.Item label={t("workflow.queue.author")}>
+          {context?.author || t("common.notSet")}
         </Descriptions.Item>
-        <Descriptions.Item label={t('workflow.queue.category')}>
-          {context?.category || t('common.notSet')}
+        <Descriptions.Item label={t("workflow.queue.category")}>
+          {context?.category || t("common.notSet")}
         </Descriptions.Item>
-        <Descriptions.Item label={t('workflow.queue.grading')}>
-          {context?.grading || 'G'}
+        <Descriptions.Item label={t("workflow.queue.grading")}>
+          {context?.grading || "G"}
         </Descriptions.Item>
-        <Descriptions.Item label={t('workflow.queue.tags')} span={2}>
-          {context?.tags && context.tags.length > 0 ? context.tags.join(', ') : t('common.none')}
+        <Descriptions.Item label={t("workflow.queue.tags")} span={2}>
+          {context?.tags && context.tags.length > 0
+            ? context.tags.join(", ")
+            : t("common.none")}
         </Descriptions.Item>
         {context?.description && (
-          <Descriptions.Item label={t('workflow.queue.description')} span={2}>
+          <Descriptions.Item label={t("workflow.queue.description")} span={2}>
             {context.description}
           </Descriptions.Item>
         )}
-        <Descriptions.Item label={t('workflow.queue.createdAt')}>
+        <Descriptions.Item label={t("workflow.queue.createdAt")}>
           {new Date(workflow.createdAt).toLocaleString()}
         </Descriptions.Item>
         {workflow.completedAt && (
-          <Descriptions.Item label={t('workflow.queue.completedAt')}>
+          <Descriptions.Item label={t("workflow.queue.completedAt")}>
             {new Date(workflow.completedAt).toLocaleString()}
           </Descriptions.Item>
         )}
         {workflow.errorMessage && (
-          <Descriptions.Item label={t('workflow.queue.error')} span={2}>
-            <span style={{ color: '#ff4d4f' }}>{workflow.errorMessage}</span>
+          <Descriptions.Item label={t("workflow.queue.error")} span={2}>
+            <span style={{ color: "#ff4d4f" }}>{workflow.errorMessage}</span>
           </Descriptions.Item>
         )}
         {context?.importedModSha && (
-          <Descriptions.Item label={t('workflow.queue.importedModSha')} span={2}>
+          <Descriptions.Item
+            label={t("workflow.queue.importedModSha")}
+            span={2}
+          >
             {context.importedModSha}
           </Descriptions.Item>
         )}
@@ -392,49 +385,83 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 
   const columns: ColumnsType<WorkflowTableRow> = [
     {
-      title: t('workflow.queue.name'),
-      dataIndex: 'name',
-      key: 'name',
-      width: '30%',
+      title: t("workflow.queue.name"),
+      dataIndex: "name",
+      key: "name",
+      width: "25%",
       ellipsis: true,
+      sorter: (a, b) => a.name.localeCompare(b.name),
+      showSorterTooltip: false,
       render: (name: string, row: WorkflowTableRow) => (
         <div className="mod-import-workflow-table-name-cell">
-          <FolderOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+          <FolderOutlined style={{ marginRight: 8, color: "#1890ff" }} />
           <Tooltip title={row.context?.folderPath}>
             <span className="mod-import-workflow-table-name">{name}</span>
           </Tooltip>
           {row.context?.fileCount && (
             <span className="mod-import-workflow-table-file-count">
-              ({row.context.fileCount} {t('common.files')})
+              ({row.context.fileCount} {t("common.files")})
             </span>
           )}
         </div>
       ),
     },
     {
-      title: t('workflow.queue.status'),
-      dataIndex: 'statusText',
-      key: 'status',
-      width: '20%',
+      title: t("workflow.queue.category"),
+      dataIndex: "category",
+      key: "category",
+      width: "15%",
+      ellipsis: true,
+      sorter: (a, b) => {
+        const catA = a.context?.category || "";
+        const catB = b.context?.category || "";
+        return catA.localeCompare(catB);
+      },
+      showSorterTooltip: false,
+      render: (_: unknown, row: WorkflowTableRow) => {
+        const category = row.context?.category;
+        if (!category) {
+          return <span style={{ color: "#8c8c8c" }}>{t("common.notSet")}</span>;
+        }
+        return <span>{category}</span>;
+      },
+    },
+    {
+      title: t("workflow.queue.status"),
+      dataIndex: "statusText",
+      key: "status",
+      width: "15%",
+      sorter: (a, b) => {
+        // Define status priority for sorting
+        const statusPriority: Record<WorkflowStatus, number> = {
+          [WorkflowStatus.Processing]: 1,
+          [WorkflowStatus.WaitingForInput]: 2,
+          [WorkflowStatus.Pending]: 3,
+          [WorkflowStatus.Completed]: 4,
+          [WorkflowStatus.Failed]: 5,
+          [WorkflowStatus.Cancelled]: 6,
+        };
+        return statusPriority[a.workflow.status] - statusPriority[b.workflow.status];
+      },
+      showSorterTooltip: false,
       render: (statusText: string, row: WorkflowTableRow) => (
-        <Space>
-          {getStatusIcon(row.workflow.status)}
-          <Tag color={getStatusColor(row.workflow.status)}>{statusText}</Tag>
-        </Space>
+        <Tag color={getStatusColor(row.workflow.status)}>{statusText}</Tag>
       ),
     },
     {
-      title: t('workflow.queue.progress'),
-      dataIndex: 'progress',
-      key: 'progress',
-      width: '25%',
+      title: t("workflow.queue.progress"),
+      dataIndex: "progress",
+      key: "progress",
+      width: "25%",
+      sorter: (a, b) => a.progress - b.progress,
+      showSorterTooltip: false,
       render: (progress: number, row: WorkflowTableRow) => {
         const status =
           row.workflow.status === WorkflowStatus.Failed
-            ? 'exception'
+            ? "exception"
             : row.workflow.status === WorkflowStatus.Completed
-            ? 'success'
-            : 'active';
+              ? "success"
+              : "active";
 
         return (
           <Progress
@@ -442,85 +469,87 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
             status={status}
             size="small"
             strokeColor={
-              row.workflow.status === WorkflowStatus.WaitingForInput ? '#faad14' : undefined
+              row.workflow.status === WorkflowStatus.WaitingForInput
+                ? "#faad14"
+                : undefined
             }
           />
         );
       },
     },
     {
-      title: t('workflow.queue.actions'),
-      key: 'actions',
-      width: '25%',
+      title: t("workflow.queue.actions"),
+      key: "actions",
+      width: "15%",
       render: (_: unknown, row: WorkflowTableRow) => {
         const { workflow } = row;
-        const isActive = workflow.status !== WorkflowStatus.Completed &&
-                         workflow.status !== WorkflowStatus.Failed &&
-                         workflow.status !== WorkflowStatus.Cancelled;
-        const isFinished = !isActive;
+        const isActive =
+          workflow.status !== WorkflowStatus.Completed &&
+          workflow.status !== WorkflowStatus.Failed &&
+          workflow.status !== WorkflowStatus.Cancelled;
 
         return (
           <Space size="small">
             {/* Confirm button - show for WaitingForInput status */}
             {workflow.status === WorkflowStatus.WaitingForInput && (
-              <Tooltip title={t('workflow.queue.confirm')}>
-                <Button
+              <Tooltip title={t("workflow.queue.confirm")}>
+                <CompactButton.Success
                   type="primary"
                   size="small"
+                  shape="default"
+                  icon={<CheckCircleOutlined />}
                   onClick={() => handleConfirm(workflow.id)}
-                >
-                  {t('workflow.queue.confirm')}
-                </Button>
+                />
               </Tooltip>
             )}
 
             {/* Edit button - always show for active workflows */}
             {isActive && (
-              <Tooltip title={t('workflow.queue.edit') || 'Edit Metadata'}>
-                <Button
+              <Tooltip title={t("workflow.queue.edit")}>
+                <CompactButton.Primary
                   size="small"
+                  shape="default"
                   icon={<EditOutlined />}
                   onClick={() => handleEditMetadata(row)}
-                >
-                  {t('workflow.queue.edit') || 'Edit'}
-                </Button>
+                />
               </Tooltip>
             )}
 
             {/* Pause button - show when processing (not waiting) */}
             {isActive && workflow.status !== WorkflowStatus.WaitingForInput && (
-              <Tooltip title={t('workflow.queue.pause')}>
-                <Button
+              <Tooltip title={t("workflow.queue.pause")}>
+                <CompactButton.Warning
                   size="small"
+                  shape="default"
+                  icon={<PauseCircleOutlined />}
                   onClick={() => handlePauseWorkflow(workflow.id)}
-                >
-                  {t('workflow.queue.pause')}
-                </Button>
+                />
               </Tooltip>
             )}
 
-            {/* Delete button - show when completed/failed/cancelled */}
-            {isFinished && (
-              <Tooltip title={t('workflow.queue.delete')}>
-                <Button
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  onClick={() => handleDeleteWorkflow(workflow.id)}
-                  danger
-                >
-                  {t('workflow.queue.delete')}
-                </Button>
-              </Tooltip>
-            )}
+            {/* Delete button - always show */}
+            <Tooltip title={t("workflow.queue.delete")}>
+              <CompactButton.Danger
+                size="small"
+                shape="default"
+                icon={<DeleteOutlined />}
+                onClick={() => handleDeleteWorkflow(workflow.id)}
+                danger
+              />
+            </Tooltip>
 
             {/* Error message - show when failed */}
-            {workflow.status === WorkflowStatus.Failed && workflow.errorMessage && (
-              <Tooltip title={workflow.errorMessage}>
-                <Button size="small" icon={<ExclamationCircleOutlined />} danger>
-                  {t('workflow.queue.viewError')}
-                </Button>
-              </Tooltip>
-            )}
+            {workflow.status === WorkflowStatus.Failed &&
+              workflow.errorMessage && (
+                <Tooltip title={t("workflow.queue.viewError")}>
+                  <Button
+                    size="small"
+                    shape="default"
+                    icon={<ExclamationCircleOutlined />}
+                    danger
+                  />
+                </Tooltip>
+              )}
           </Space>
         );
       },
@@ -530,7 +559,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
   const selectedWaitingCount = tableData.filter(
     (row) =>
       selectedRowKeys.includes(row.workflow.id) &&
-      row.workflow.status === WorkflowStatus.WaitingForInput
+      row.workflow.status === WorkflowStatus.WaitingForInput,
   ).length;
 
   const rowSelection = {
@@ -539,6 +568,16 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     getCheckboxProps: () => ({
       disabled: false, // Allow selection of all workflows for batch operations
     }),
+  };
+
+  /**
+   * Handle row click to toggle expansion
+   */
+  const handleRowClick = (record: WorkflowTableRow) => {
+    const key = record.workflow.id;
+    setExpandedRowKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
   };
 
   return (
@@ -554,62 +593,36 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         expandable={{
           expandedRowRender: renderExpandedRow,
           rowExpandable: () => true,
+          expandedRowKeys: expandedRowKeys,
+          onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
+          showExpandColumn: false, // Hide the expand (+) button column
         }}
-        emptyText={t('workflow.queue.empty')}
+        onRow={(record) => ({
+          onClick: (e) => {
+            // Don't toggle if clicking on buttons, checkboxes, or interactive elements
+            const target = e.target as HTMLElement;
+            if (
+              target.closest('button') ||
+              target.closest('.ant-checkbox-wrapper') ||
+              target.closest('a')
+            ) {
+              return;
+            }
+            handleRowClick(record);
+          },
+          style: { cursor: 'pointer' },
+        })}
+        emptyText={t("workflow.queue.empty")}
       />
 
-      {/* Metadata Input Modal */}
-      <Modal
-        title={t('workflow.modImport.provideMetadata')}
-        open={metadataModalVisible}
-        onCancel={() => {
-          setMetadataModalVisible(false);
-          setSelectedWorkflow(null);
-          form.resetFields();
-        }}
-        onOk={handleMetadataSubmit}
-        confirmLoading={submitting}
-        width={600}
-        transitionName=""
-        maskTransitionName=""
-      >
-        <p style={{ marginBottom: 16, color: '#888' }}>
-          {t('workflow.modImport.metadataDescription')}
-        </p>
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="name"
-            label={t('mods.edit.name')}
-            rules={[{ required: true, message: t('mods.edit.nameRequired') }]}
-          >
-            <Input placeholder={t('mods.edit.namePlaceholder')} />
-          </Form.Item>
-
-          <Form.Item name="author" label={t('mods.edit.author')}>
-            <Input placeholder={t('mods.edit.authorPlaceholder')} />
-          </Form.Item>
-
-          <Form.Item name="description" label={t('mods.edit.description')}>
-            <TextArea rows={3} placeholder={t('mods.edit.descriptionPlaceholder')} />
-          </Form.Item>
-
-          <Form.Item
-            name="category"
-            label={t('mods.edit.category')}
-            tooltip={t('mods.edit.categoryTooltip') || 'Leave empty for Unclassified'}
-          >
-            <Input placeholder={t('mods.edit.categoryPlaceholder') || 'Leave empty for Unclassified'} />
-          </Form.Item>
-
-          <Form.Item name="grading" label={t('mods.edit.ageRating.label')}>
-            <Select options={ageRatingOptions} />
-          </Form.Item>
-
-          <Form.Item name="tags" label={t('mods.edit.tags')}>
-            <Select mode="tags" placeholder={t('mods.edit.tagsPlaceholder')} />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* Metadata Edit Dialog */}
+      <ModImportMetadataDialog
+        visible={metadataModalVisible}
+        workflow={selectedWorkflow}
+        context={selectedContext}
+        onCancel={handleMetadataCancel}
+        onSubmit={handleMetadataSubmit}
+      />
     </>
   );
 };

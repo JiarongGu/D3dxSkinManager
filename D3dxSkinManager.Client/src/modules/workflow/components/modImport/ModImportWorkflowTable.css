@@ -100,13 +100,19 @@
 }
 
 .mod-import-workflow-table .ant-btn-sm:hover {
-  transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .mod-import-workflow-table .ant-btn-icon-only {
   width: 32px;
+  height: 32px;
   padding: 0;
+}
+
+.mod-import-workflow-table .ant-btn-icon-only.ant-btn-sm {
+  height: 32px;
+  width: 32px;
+  min-width: 32px;
 }
 
 /* Batch Action Toolbar */

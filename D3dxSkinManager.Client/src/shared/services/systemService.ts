@@ -6,6 +6,7 @@ export interface FileDialogOptions {
   filters?: { name: string; extensions: string[] }[];
   multiSelect?: boolean;
   rememberPathKey?: string;
+  allowFileSelection?: boolean; // For folder dialogs: allow both files and folders
 }
 
 export interface FileDialogResult {
@@ -40,11 +41,13 @@ class SystemService extends BaseModuleService {
     });
   }
 
-  async openFolderDialog(options: Omit<FileDialogOptions, 'filters' | 'multiSelect'> = {}): Promise<FileDialogResult> {
+  async openFolderDialog(options: Omit<FileDialogOptions, 'multiSelect'> = {}): Promise<FileDialogResult> {
     return this.sendMessage<FileDialogResult>('OPEN_FOLDER_DIALOG', undefined, {
       title: options.title || 'Select Folder',
       defaultPath: options.defaultPath,
-      rememberPathKey: options.rememberPathKey
+      rememberPathKey: options.rememberPathKey,
+      allowFileSelection: options.allowFileSelection,
+      filters: options.filters
     });
   }
 

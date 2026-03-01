@@ -1,0 +1,43 @@
+/**
+ * ModImport Metadata Dialog Styles
+ */
+
+/* Compact form spacing */
+.mod-import-metadata-dialog-form .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.mod-import-metadata-dialog-form .ant-form-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Compact label */
+.mod-import-metadata-dialog-form .ant-form-item-label > label {
+  font-size: 13px;
+  height: 24px;
+}
+
+/* Three-column row layout */
+.mod-import-metadata-dialog-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mod-import-metadata-dialog-col {
+  flex: 1;
+  margin-bottom: 0 !important;
+}
+
+/* Ensure columns have equal width */
+.mod-import-metadata-dialog-row .mod-import-metadata-dialog-col:nth-child(1) {
+  flex: 1.2; /* Category slightly wider for autocomplete */
+}
+
+.mod-import-metadata-dialog-row .mod-import-metadata-dialog-col:nth-child(2) {
+  flex: 1; /* Author */
+}
+
+.mod-import-metadata-dialog-row .mod-import-metadata-dialog-col:nth-child(3) {
+  flex: 0.8; /* Age Rating narrower */
+}

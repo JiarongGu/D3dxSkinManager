@@ -25,6 +25,17 @@ public enum ArchiveFormat
 }
 
 /// <summary>
+/// Result of archive validation operation
+/// </summary>
+public class ArchiveValidationResult
+{
+    public bool IsValid { get; set; }
+    public string? DetectedType { get; set; }
+    public bool IsPasswordProtected { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+/// <summary>
 /// Interface for archive operations
 /// </summary>
 public interface IArchiveHelper
@@ -32,6 +43,7 @@ public interface IArchiveHelper
     Task<string?> DetectArchiveTypeAsync(string archivePath);
     Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory);
     Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.Zip);
+    Task<ArchiveValidationResult> ValidateArchiveAsync(string archivePath);
 }
 
 /// <summary>
@@ -190,6 +202,113 @@ public class ArchiveHelper : IArchiveHelper
                 result.ErrorMessage = ex.Message;
                 _logger.Error($"Extraction failed: {ex.Message}", "ArchiveService", ex);
                 throw new InvalidOperationException($"Archive extraction failed: {ex.Message}", ex);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Validate an archive file to check if it's a valid compressed file and detect password protection
+    /// Returns validation result with detected type and password protection status
+    /// </summary>
+    public async Task<ArchiveValidationResult> ValidateArchiveAsync(string archivePath)
+    {
+        if (!File.Exists(archivePath))
+        {
+            return new ArchiveValidationResult
+            {
+                IsValid = false,
+                ErrorMessage = "Archive file not found"
+            };
+        }
+
+        return await Task.Run(() =>
+        {
+            var result = new ArchiveValidationResult { IsValid = true };
+
+            try
+            {
+                // Detect archive type from magic bytes
+                result.DetectedType = DetectArchiveTypeAsync(archivePath).GetAwaiter().GetResult();
+
+                if (result.DetectedType == null)
+                {
+                    result.IsValid = false;
+                    result.ErrorMessage = "Not a recognized archive format (supported: ZIP, 7Z, RAR, TAR, GZIP, BZIP2)";
+                    return result;
+                }
+
+                _logger.Info($"Validating archive type: {result.DetectedType}", "ArchiveService");
+
+                // Set library path for 7z.dll
+                var platformFolder = Environment.Is64BitProcess ? "x64" : "x86";
+                var libraryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, platformFolder, "7z.dll");
+
+                if (File.Exists(libraryPath))
+                {
+                    SharpSevenZipBase.SetLibraryPath(libraryPath);
+                }
+
+                // Try to open the archive to check password protection
+                try
+                {
+                    using var extractor = new SharpSevenZipExtractor(archivePath);
+
+                    // Check if archive is encrypted (password protected)
+                    // Note: Some archives encrypt headers, others only encrypt file data
+                    // We check if we can read the file list - if it throws, it's likely password protected
+                    var fileCount = extractor.FilesCount;
+
+                    // For some formats, we need to check individual entries
+                    // SevenZipSharp doesn't provide direct password protection detection,
+                    // so we check if any file in the archive is encrypted
+                    result.IsPasswordProtected = false;
+
+                    // Try to get archive information - this will fail if password is required
+                    try
+                    {
+                        var archiveFileNames = extractor.ArchiveFileNames;
+                        // If we can read file names, check for encryption in archive properties
+                        // Note: This is a best-effort check as SevenZipSharp has limited encryption detection
+                        result.IsPasswordProtected = false;
+                    }
+                    catch
+                    {
+                        // If we can't read file names, it might be password protected
+                        result.IsPasswordProtected = true;
+                    }
+
+                    result.IsValid = true;
+                    _logger.Info($"Archive validation successful. Type: {result.DetectedType}, Password protected: {result.IsPasswordProtected}", "ArchiveService");
+                }
+                catch (Exception ex)
+                {
+                    // Check if the error is related to password protection
+                    if (ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+                        ex.Message.Contains("encrypted", StringComparison.OrdinalIgnoreCase) ||
+                        ex.Message.Contains("Wrong password", StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.IsValid = false;
+                        result.IsPasswordProtected = true;
+                        result.ErrorMessage = "Archive is password protected. Password-protected archives are not supported.";
+                        _logger.Warn($"Archive is password protected: {archivePath}", "ArchiveService");
+                    }
+                    else
+                    {
+                        result.IsValid = false;
+                        result.ErrorMessage = $"Archive validation failed: {ex.Message}";
+                        _logger.Error($"Archive validation error: {ex.Message}", "ArchiveService", ex);
+                    }
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new ArchiveValidationResult
+                {
+                    IsValid = false,
+                    ErrorMessage = $"Validation error: {ex.Message}"
+                };
             }
         });
     }

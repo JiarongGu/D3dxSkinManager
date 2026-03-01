@@ -24,6 +24,11 @@ public class FileDialogOptions
     /// If provided, the dialog will remember and restore the last location
     /// </summary>
     public string? RememberPathKey { get; set; }
+    /// <summary>
+    /// Allow both files and folders to be selected (for folder dialog)
+    /// When true, folder dialog will accept both folder and file selections
+    /// </summary>
+    public bool AllowFileSelection { get; set; }
 }
 
 /// <summary>

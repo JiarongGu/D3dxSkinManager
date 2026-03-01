@@ -31,9 +31,17 @@ class WorkflowService extends BaseModuleService {
 
   /**
    * Start a new mod import workflow (convenience method)
+   * @param profileId - The profile ID
+   * @param folderPath - Path to folder or archive file to import
+   * @param defaultCategory - Optional category name to pre-fill (from selected category in UI)
    */
-  async startModImport(profileId: string, folderPath: string): Promise<WorkflowInfo> {
-    return this.createWorkflow(profileId, 'MOD_IMPORT', folderPath);
+  async startModImport(profileId: string, folderPath: string, defaultCategory?: string): Promise<WorkflowInfo> {
+    // If defaultCategory is provided, encode it in the initialData as JSON
+    const initialData = defaultCategory
+      ? JSON.stringify({ folderPath, defaultCategory })
+      : folderPath;
+
+    return this.createWorkflow(profileId, 'MOD_IMPORT', initialData);
   }
 
   /**

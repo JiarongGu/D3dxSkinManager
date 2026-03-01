@@ -12,11 +12,22 @@ namespace D3dxSkinManager.Modules.Workflow.Handlers;
 
 /// <summary>
 /// Handler for MOD_IMPORT workflow type
-/// Manages the import of mods from folders through a simple 4-step process:
-/// 1. ExtractMetadata (1% progress)
-/// 2. CompressFolder (1-100% progress, driven by compression progress)
-/// 3. Wait for user to update context with metadata (paused)
-/// 4. ImportMod (100% progress + completed)
+/// Manages the import of mods from folders or archive files:
+///
+/// For FOLDER imports (4 steps):
+/// 1. ExtractMetadata (1% progress) - Validate and extract basic info
+/// 2. CompressFolder (1-100% progress) - Compress folder to archive
+/// 3. Wait for user to update context with metadata (paused at 100%)
+/// 4. ImportMod (100% progress + completed) - Import with user metadata
+///
+/// For FILE imports (3 steps - compression skipped):
+/// 1. ExtractMetadata (100% progress) - Validate archive, check password, extract basic info
+/// 2. Wait for user to update context with metadata (paused at 100%)
+/// 3. ImportMod (100% progress + completed) - Import with user metadata
+///
+/// Archive validation includes:
+/// - Format detection (ZIP, 7Z, RAR, TAR, GZIP, BZIP2)
+/// - Password protection check (rejects password-protected archives)
 /// </summary>
 public class ModImportWorkflowHandler : IWorkflowHandler
 {
@@ -61,20 +72,24 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// Start a new mod import workflow
     /// Step 1: Extract metadata from folder/file
     /// </summary>
-    public async Task<WorkflowInfo> StartImportAsync(string folderPath)
+    /// <param name="folderPath">Path to folder or archive file</param>
+    /// <param name="defaultCategory">Optional default category name to pre-fill</param>
+    public async Task<WorkflowInfo> StartImportAsync(string folderPath, string? defaultCategory = null)
     {
-        _logger.Info($"Starting mod import workflow for folder: {folderPath}");
+        _logger.Info($"Starting mod import workflow for folder: {folderPath}" +
+            (defaultCategory != null ? $" with default category: {defaultCategory}" : ""));
 
         // Create workflow
         var workflow = new WorkflowInfo
         {
-            Id = $"WF-{Guid.NewGuid()}",
+            Id = Guid.NewGuid().ToString(),
             Type = WorkflowType,
             Status = WorkflowStatus.Processing,
             Context = JsonHelper.Serialize(new ModImportWorkflowContext
             {
                 Step = ModImportWorkflowSteps.ExtractMetadata,
-                FolderPath = folderPath
+                FolderPath = folderPath,
+                Category = defaultCategory  // Pre-fill category from selected category in UI
             }),
             CreatedAt = DateTime.UtcNow
         };
@@ -179,8 +194,43 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// </summary>
     public async Task<WorkflowInfo> StartAsync(string initialData)
     {
-        // initialData should be the folder path for ModImport workflow
-        return await StartImportAsync(initialData);
+        // initialData can be either:
+        // 1. Simple string: folder path only (backward compatible)
+        // 2. JSON object: { folderPath, defaultCategory }
+
+        string folderPath;
+        string? defaultCategory = null;
+
+        // Try to parse as JSON first
+        if (initialData.TrimStart().StartsWith("{"))
+        {
+            try
+            {
+                var data = JsonHelper.Deserialize<Dictionary<string, string>>(initialData);
+                if (data != null && data.TryGetValue("folderPath", out var path))
+                {
+                    folderPath = path;
+                    data.TryGetValue("defaultCategory", out defaultCategory);
+                }
+                else
+                {
+                    // Fallback to treating as simple path
+                    folderPath = initialData;
+                }
+            }
+            catch
+            {
+                // If JSON parsing fails, treat as simple path
+                folderPath = initialData;
+            }
+        }
+        else
+        {
+            // Simple string path (backward compatible)
+            folderPath = initialData;
+        }
+
+        return await StartImportAsync(folderPath, defaultCategory);
     }
 
     /// <summary>
@@ -290,6 +340,24 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         if (isArchive)
         {
+            // Validate the archive file
+            _logger.Info("Validating archive file...");
+            var validation = await _archiveHelper.ValidateArchiveAsync(context.FolderPath);
+
+            if (!validation.IsValid)
+            {
+                _logger.Error($"Archive validation failed: {validation.ErrorMessage}");
+                throw new InvalidOperationException($"Archive validation failed: {validation.ErrorMessage}");
+            }
+
+            if (validation.IsPasswordProtected)
+            {
+                _logger.Error("Archive is password protected");
+                throw new InvalidOperationException("Password-protected archives are not supported. Please extract the archive manually and import the folder instead.");
+            }
+
+            _logger.Info($"Archive validation successful. Type: {validation.DetectedType}");
+
             // For archives, use filename without extension
             folderName = Path.GetFileNameWithoutExtension(context.FolderPath);
             // TODO: Could extract archive to temp and count files, but for now just set 0
@@ -307,15 +375,18 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         _logger.Info($"Detected: {folderName} ({fileCount} files)");
 
         // Pre-fill metadata with detected values
+        // Preserve existing category if it was pre-filled from UI (don't overwrite with null)
+        var existingCategory = context.Category;
+
         context.FolderName = folderName;
         context.FileCount = fileCount;
         context.Name = folderName;  // User can edit this
         context.Author = null;      // User should fill this
         context.Description = null; // User should fill this
-        context.Category = null;    // User must select
+        context.Category = existingCategory;  // Preserve pre-filled category from selected category in UI
         context.Tags = new List<string>();
         context.Grading = "G";
-        context.Progress = 1;       // ExtractMetadata => 1% progress
+        context.Progress = isArchive ? 100 : 1;  // File imports: 100% after metadata, Folder imports: 1%
 
         workflow.Context = JsonHelper.Serialize(context);
         workflow.Status = WorkflowStatus.Processing;
@@ -342,8 +413,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         }
         else
         {
-            // Archive file - skip compression, pause for user input
-            _logger.Info("Archive file detected, pausing for user metadata confirmation");
+            // Archive file - skip compression, go directly to waiting for user confirmation
+            // Progress is already set to 100% for file imports
+            _logger.Info("Archive file detected, skipping compression and pausing for user metadata confirmation");
             workflow.Status = WorkflowStatus.WaitingForInput;
             await _workflowRepository.UpdateAsync(workflow);
             await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);

@@ -166,36 +166,107 @@ public class SystemFileDialogService : ISystemFileDialogService
     {
         try
         {
-            using var dialog = new FolderBrowserDialog
+            // If AllowFileSelection is true, use OpenFileDialog with folder selection enabled
+            if (options?.AllowFileSelection == true)
             {
-                Description = options?.Title ?? "Select Folder",
-                SelectedPath = initialPath,
-                ShowNewFolderButton = true,
-                UseDescriptionForTitle = true // Better title display on modern Windows
-            };
+                using var dialog = new OpenFileDialog
+                {
+                    Title = options.Title ?? "Select Folder or File",
+                    InitialDirectory = initialPath,
+                    RestoreDirectory = false,
+                    CheckFileExists = false, // Allow folder selection
+                    CheckPathExists = true,
+                    ValidateNames = false,   // Allow folder paths
+                    FileName = "Folder Selection" // Placeholder text
+                };
 
-            // Show dialog with owner window handle to maintain proper z-order
-            var result = ownerHandle != IntPtr.Zero
-                ? dialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
-                : dialog.ShowDialog();
+                // Set filters for archive files if specified
+                if (options.Filters != null && options.Filters.Count > 0)
+                {
+                    var filterStrings = options.Filters
+                        .Select(f => $"{f.Name}|{string.Join(";", f.Extensions.Select(ext => $"*.{ext}"))}")
+                        .ToList();
+                    dialog.Filter = string.Join("|", filterStrings);
+                }
+                else
+                {
+                    // Default to common archive formats for mod imports
+                    dialog.Filter = "Archive Files (*.zip;*.7z;*.rar)|*.zip;*.7z;*.rar|All Files (*.*)|*.*";
+                }
 
-            if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
-            {
-                // Remember the selected folder for next time
-                SaveLastUsedPath(options, dialog.SelectedPath);
+                // Show dialog with owner window handle to maintain proper z-order
+                var result = ownerHandle != IntPtr.Zero
+                    ? dialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
+                    : dialog.ShowDialog();
+
+                if (result == DialogResult.OK)
+                {
+                    var selectedPath = dialog.FileName;
+
+                    // If user typed just a folder path in the filename box, use that
+                    if (string.IsNullOrWhiteSpace(Path.GetFileName(selectedPath)) ||
+                        selectedPath.EndsWith("Folder Selection"))
+                    {
+                        selectedPath = Path.GetDirectoryName(selectedPath) ?? selectedPath;
+                    }
+
+                    // Check if it's a file or folder
+                    if (File.Exists(selectedPath) || Directory.Exists(selectedPath))
+                    {
+                        // Remember the directory (or parent of file) for next time
+                        var pathToRemember = File.Exists(selectedPath)
+                            ? Path.GetDirectoryName(selectedPath)
+                            : selectedPath;
+                        SaveLastUsedPath(options, pathToRemember);
+
+                        return new FileDialogResult
+                        {
+                            Success = true,
+                            FilePath = selectedPath
+                        };
+                    }
+                }
 
                 return new FileDialogResult
                 {
-                    Success = true,
-                    FilePath = dialog.SelectedPath
+                    Success = false,
+                    Error = "User cancelled selection"
                 };
             }
-
-            return new FileDialogResult
+            else
             {
-                Success = false,
-                Error = "User cancelled folder selection"
-            };
+                // Use traditional FolderBrowserDialog for folder-only selection
+                using var dialog = new FolderBrowserDialog
+                {
+                    Description = options?.Title ?? "Select Folder",
+                    SelectedPath = initialPath,
+                    ShowNewFolderButton = true,
+                    UseDescriptionForTitle = true // Better title display on modern Windows
+                };
+
+                // Show dialog with owner window handle to maintain proper z-order
+                var result = ownerHandle != IntPtr.Zero
+                    ? dialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
+                    : dialog.ShowDialog();
+
+                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
+                {
+                    // Remember the selected folder for next time
+                    SaveLastUsedPath(options, dialog.SelectedPath);
+
+                    return new FileDialogResult
+                    {
+                        Success = true,
+                        FilePath = dialog.SelectedPath
+                    };
+                }
+
+                return new FileDialogResult
+                {
+                    Success = false,
+                    Error = "User cancelled folder selection"
+                };
+            }
         }
         catch (Exception ex)
         {

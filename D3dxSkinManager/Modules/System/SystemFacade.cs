@@ -241,12 +241,16 @@ public class SystemFacade : BaseFacade, ISystemFacade
         var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
         var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
         var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
+        var allowFileSelection = _payloadHelper.GetOptionalValue<bool>(request.Payload, "allowFileSelection");
+        var filters = _payloadHelper.GetOptionalValue<List<FileDialogFilter>>(request.Payload, "filters");
 
         var options = new FileDialogOptions
         {
             Title = title,
             DefaultPath = defaultPath,
-            RememberPathKey = rememberPathKey
+            RememberPathKey = rememberPathKey,
+            AllowFileSelection = allowFileSelection,
+            Filters = filters
         };
 
         return await OpenFolderDialogAsync(options).ConfigureAwait(false);

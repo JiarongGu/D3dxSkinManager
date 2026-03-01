@@ -30,6 +30,17 @@ export const ModImportWorkflowScreen: React.FC = () => {
   const { selectedProfileId } = useProfile();
   const { workflows, clearCompleted, refresh } = useWorkflowQueue();
   const [selectedWorkflowIds, setSelectedWorkflowIds] = React.useState<string[]>([]);
+  const [defaultCategory, setDefaultCategory] = React.useState<string | undefined>();
+
+  // Get default category from store on mount
+  useEffect(() => {
+    const loadDefaultCategory = async () => {
+      const { useModsStore } = await import('../../../mod/store/modsStore');
+      const selectedCategory = useModsStore.getState().selectedCategory;
+      setDefaultCategory(selectedCategory?.name);
+    };
+    loadDefaultCategory();
+  }, []);
 
   // Listen for workflow completion and refresh mod list
   useEffect(() => {
@@ -88,12 +99,22 @@ export const ModImportWorkflowScreen: React.FC = () => {
     try {
       setImporting(true);
       const result = await systemService.openFolderDialog({
-        title: t('mods.import.selectFolder'),
+        title: t('mods.import.selectFolderOrFile'),
         rememberPathKey: 'mod-import-folder',
+        allowFileSelection: true,
+        filters: [
+          { name: 'Archive Files', extensions: ['zip', '7z', 'rar', 'tar', 'gz', 'bz2'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
       });
 
       if (result.success && result.filePath) {
-        await workflowService.startModImport(selectedProfileId, result.filePath);
+        // Get selected category from store to pre-fill in workflow
+        const { useModsStore } = await import('../../../mod/store/modsStore');
+        const selectedCategory = useModsStore.getState().selectedCategory;
+        const categoryName = selectedCategory?.name;
+
+        await workflowService.startModImport(selectedProfileId, result.filePath, categoryName);
       }
     } catch (error) {
       handleError(error);
@@ -146,37 +167,51 @@ export const ModImportWorkflowScreen: React.FC = () => {
     <div className="mod-import-workflow-screen">
       {/* Status Bar - Top */}
       <div className="mod-import-workflow-screen-status-bar">
-        <Space size="middle">
-          {/* Total */}
-          <div className="mod-import-workflow-screen-stat">
-            <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.total')}</span>
-            <span className="mod-import-workflow-screen-stat-value">{stats.total}</span>
-          </div>
+        <Space size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space size="middle">
+            {/* Total */}
+            <div className="mod-import-workflow-screen-stat">
+              <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.total')}</span>
+              <span className="mod-import-workflow-screen-stat-value">{stats.total}</span>
+            </div>
 
-          {/* Active (waiting for action / in progress) */}
-          <div className="mod-import-workflow-screen-stat">
-            {stats.active > 0 && stats.waiting < stats.active ? (
-              <LoadingOutlined className="mod-import-workflow-screen-stat-icon" spin />
-            ) : (
-              <ClockCircleOutlined className="mod-import-workflow-screen-stat-icon" />
-            )}
-            <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.active')}</span>
-            <span className="mod-import-workflow-screen-stat-value">{stats.waiting}/{stats.active}</span>
-          </div>
+            {/* Active (waiting for action / in progress) */}
+            <div className="mod-import-workflow-screen-stat">
+              {stats.active > 0 && stats.waiting < stats.active ? (
+                <LoadingOutlined className="mod-import-workflow-screen-stat-icon" spin />
+              ) : (
+                <ClockCircleOutlined className="mod-import-workflow-screen-stat-icon" />
+              )}
+              <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.active')}</span>
+              <span className="mod-import-workflow-screen-stat-value">{stats.waiting}/{stats.active}</span>
+            </div>
 
-          {/* Completed */}
-          <div className="mod-import-workflow-screen-stat">
-            <CheckCircleOutlined className="mod-import-workflow-screen-stat-icon mod-import-workflow-screen-stat-icon--success" />
-            <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.completed')}</span>
-            <span className="mod-import-workflow-screen-stat-value">{stats.completed}</span>
-          </div>
+            {/* Completed */}
+            <div className="mod-import-workflow-screen-stat">
+              <CheckCircleOutlined className="mod-import-workflow-screen-stat-icon mod-import-workflow-screen-stat-icon--success" />
+              <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.completed')}</span>
+              <span className="mod-import-workflow-screen-stat-value">{stats.completed}</span>
+            </div>
 
-          {/* Failed */}
-          <div className="mod-import-workflow-screen-stat">
-            <CloseCircleOutlined className="mod-import-workflow-screen-stat-icon mod-import-workflow-screen-stat-icon--error" />
-            <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.failed')}</span>
-            <span className="mod-import-workflow-screen-stat-value">{stats.failed}</span>
-          </div>
+            {/* Failed */}
+            <div className="mod-import-workflow-screen-stat">
+              <CloseCircleOutlined className="mod-import-workflow-screen-stat-icon mod-import-workflow-screen-stat-icon--error" />
+              <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.failed')}</span>
+              <span className="mod-import-workflow-screen-stat-value">{stats.failed}</span>
+            </div>
+          </Space>
+
+          {/* Default Category Indicator */}
+          {defaultCategory && (
+            <div className="mod-import-workflow-screen-default-category">
+              <span className="mod-import-workflow-screen-default-category-label">
+                {t('mods.import.defaultCategory')}:
+              </span>
+              <span className="mod-import-workflow-screen-default-category-value">
+                {defaultCategory}
+              </span>
+            </div>
+          )}
         </Space>
       </div>
 
