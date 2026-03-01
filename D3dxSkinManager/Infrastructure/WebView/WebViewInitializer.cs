@@ -84,12 +84,13 @@ public class WebViewInitializer
     private void ConfigureWebViewSettings()
     {
         var settings = _webView.CoreWebView2.Settings;
+        var isDevelopment = IsDevelopmentMode();
 
-        // Enable dev tools in development
-        settings.AreDevToolsEnabled = IsDevelopmentMode();
+        // Enable dev tools in development only
+        settings.AreDevToolsEnabled = isDevelopment;
 
-        // Enable default context menus
-        settings.AreDefaultContextMenusEnabled = true;
+        // Enable default context menus in development only
+        settings.AreDefaultContextMenusEnabled = isDevelopment;
 
         // Disable password autosave
         settings.IsPasswordAutosaveEnabled = false;
@@ -105,9 +106,79 @@ public class WebViewInitializer
         _webView.AllowExternalDrop = true;
 
         // Set default background color to prevent white flash
-        _webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(26, 26, 26); // #1a1a1a
+        _webView.DefaultBackgroundColor = Color.FromArgb(26, 26, 26); // #1a1a1a
 
-        Console.WriteLine("[WebView2] Settings configured");
+        // Block browser keyboard shortcuts in production
+        if (!isDevelopment)
+        {
+            ConfigureKeyboardShortcutBlocking();
+        }
+
+        Console.WriteLine($"[WebView2] Settings configured (Mode: {(isDevelopment ? "Development" : "Production")})");
+    }
+
+    /// <summary>
+    /// Configure keyboard shortcut blocking for production mode
+    /// Blocks common browser shortcuts that should not be available in the app
+    /// Uses JavaScript injection since WinForms WebView2 doesn't expose AcceleratorKeyPressed
+    /// </summary>
+    private void ConfigureKeyboardShortcutBlocking()
+    {
+        // Inject JavaScript to block keyboard shortcuts at the document level
+        var blockingScript = @"
+(function() {
+    // Block browser shortcuts in production
+    document.addEventListener('keydown', function(e) {
+        const ctrl = e.ctrlKey || e.metaKey;
+        const shift = e.shiftKey;
+        const key = e.key;
+
+        // Block common browser shortcuts
+        if (ctrl) {
+            switch(key.toLowerCase()) {
+                case 'f': // Find
+                case 'g': // Find next
+                case 'h': // History
+                case 'j': // Downloads
+                case 'p': // Print
+                case 's': // Save page
+                case 'u': // View source
+                case '0': // Reset zoom
+                case '+': // Zoom in
+                case '=': // Zoom in
+                case '-': // Zoom out
+                case '_': // Zoom out
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+            }
+
+            // Block Ctrl+Shift+I (DevTools)
+            if (shift && key.toLowerCase() === 'i') {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }
+
+        // Block F12 (DevTools)
+        if (key === 'F12') {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+
+        // Allow: Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A, Ctrl+Z, Ctrl+Y (editing shortcuts)
+        // Allow: Ctrl+R (Refresh)
+        // Allow: Ctrl+W (Close)
+    }, true); // Use capture phase to intercept before React
+})();
+";
+
+        // Add script to execute on every page navigation
+        _webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(blockingScript);
+
+        Console.WriteLine("[WebView2] Keyboard shortcut blocking enabled for production (JavaScript injection)");
     }
 
     private void RegisterCustomSchemeHandler()

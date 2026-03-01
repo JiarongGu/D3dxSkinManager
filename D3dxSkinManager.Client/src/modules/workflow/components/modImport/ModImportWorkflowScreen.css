@@ -1,98 +1,167 @@
-/**
- * Mod Import Workflow Screen Styles
- */
-
-.mod-import-workflow-screen .workflow-content {
-  padding: 20px 0;
+/* ModImportWorkflowScreen Container */
+.mod-import-workflow-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--background-color);
 }
 
-.mod-import-workflow-screen .workflow-steps {
-  margin-bottom: 40px;
+/* Status Bar - Top */
+.mod-import-workflow-screen-status-bar {
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 4px;
 }
 
-.mod-import-workflow-screen .workflow-step-content {
-  min-height: 300px;
+/* Action Bar - Bottom */
+.mod-import-workflow-screen-action-bar {
+  margin-bottom: 16px;
+  background: var(--color-card-bg);
+  border-radius: 4px;
+}
+
+.mod-import-workflow-screen-action-bar-stats {
   display: flex;
   align-items: center;
+}
+
+.mod-import-workflow-screen-action-bar-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border-base);
+  margin: 0 8px;
+}
+
+/* Stat Item */
+.mod-import-workflow-screen-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mod-import-workflow-screen-stat-icon {
+  font-size: 16px;
+  color: var(--color-warning);
+}
+
+.mod-import-workflow-screen-stat-icon--success {
+  color: var(--color-success);
+}
+
+.mod-import-workflow-screen-stat-icon--error {
+  color: var(--color-error);
+}
+
+.mod-import-workflow-screen-stat-icon--warning {
+  color: var(--color-warning);
+}
+
+.mod-import-workflow-screen-stat-label {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.mod-import-workflow-screen-stat-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-base);
+}
+
+.mod-import-workflow-screen-stat-value--success {
+  color: var(--color-success);
+}
+
+/* Selected text */
+.mod-import-workflow-screen-action-bar-selected {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.mod-import-workflow-screen-action-bar-selected strong {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Queue Content */
+.mod-import-workflow-screen-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Empty State */
+.mod-import-workflow-screen-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  background: var(--color-card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-secondary);
+  padding: 48px 24px;
 }
 
-/* Processing steps */
-.workflow-step-processing {
-  text-align: center;
-  width: 100%;
+.mod-import-workflow-screen-empty-hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-top: 8px;
 }
 
-.workflow-step-processing h3 {
-  margin-top: 20px;
-  margin-bottom: 10px;
-  font-size: 18px;
-  font-weight: 500;
+.mod-management-screen-tabs {
+  height: 100%;
 }
 
-.workflow-step-processing .step-description {
-  color: var(--ant-color-text-secondary);
-  margin-bottom: 0;
+.mod-management-screen-tabs .ant-tabs-content {
+  height: calc(100% - 46px);
 }
 
-/* Metadata form step */
-.workflow-step-metadata {
-  width: 100%;
+.mod-management-screen-tabs .ant-tabs-tabpane {
+  height: 100%;
+  overflow-y: auto;
 }
 
-.workflow-step-metadata h3 {
-  margin-bottom: 8px;
-  font-size: 18px;
-  font-weight: 500;
+/* SingleModView */
+.single-mod-view-container {
+  padding: 16px;
 }
 
-.workflow-step-metadata .step-description {
-  color: var(--ant-color-text-secondary);
-  margin-bottom: 24px;
+.single-mod-view-sha-input {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
 }
 
-.workflow-step-metadata .metadata-form {
-  max-width: 500px;
-  margin: 0 auto;
+/* ImportTasksView */
+.import-tasks-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
 }
 
-/* Completed step */
-.workflow-step-completed,
-.workflow-step-failed,
-.workflow-step-cancelled {
-  width: 100%;
+.import-tasks-view-toolbar {
+  padding-bottom: 8px;
 }
 
-/* Loading spinner */
-.workflow-step-processing .ant-spin {
-  display: block;
-  margin: 0 auto;
+.import-tasks-view-table {
+  flex: 1;
 }
 
-/* Steps component customization */
-.mod-import-workflow-screen .ant-steps-item-process .ant-steps-item-icon {
-  background-color: var(--ant-primary-color);
-  border-color: var(--ant-primary-color);
+.import-tasks-view-processing {
+  margin-top: 12px;
 }
 
-.mod-import-workflow-screen .ant-steps-item-finish .ant-steps-item-icon {
-  border-color: var(--ant-success-color);
+.import-tasks-view-stats {
+  padding: 12px;
+  background: var(--card-background);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.mod-import-workflow-screen .ant-steps-item-finish .ant-steps-item-icon > .ant-steps-icon {
-  color: var(--ant-success-color);
-}
-
-.mod-import-workflow-screen .ant-steps-item-error .ant-steps-item-icon {
-  border-color: var(--ant-error-color);
-}
-
-.mod-import-workflow-screen .ant-steps-item-error .ant-steps-item-icon > .ant-steps-icon {
-  color: var(--ant-error-color);
-}
-
-/* Form styling */
-.metadata-form .ant-form-item:last-child {
-  margin-bottom: 0;
-  margin-top: 24px;
+/* BatchEditView */
+.batch-edit-view-container {
+  padding: 16px;
 }

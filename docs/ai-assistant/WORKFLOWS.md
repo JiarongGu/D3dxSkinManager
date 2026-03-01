@@ -517,11 +517,11 @@ try {
   if (result.success) {
     // Handle success
   } else {
-    message.error(result.error || 'Unknown error');
+    notification.error(result.error || 'Unknown error');
   }
 } catch (error) {
   console.error('Failed:', error);
-  message.error('Operation failed');
+  notification.error('Operation failed');
 }
 ```
 

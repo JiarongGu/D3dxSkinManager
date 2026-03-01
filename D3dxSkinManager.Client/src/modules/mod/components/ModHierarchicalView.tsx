@@ -11,7 +11,7 @@ import { useMods } from "../hooks/useMods";
 import { useProfile } from "../../../shared/context/ProfileContext";
 import { useResizablePanels } from "../hooks/useResizablePanels";
 import { useSlideInScreen } from "../../../shared/hooks/useSlideInScreen";
-import { ModImportQueueScreen } from "../../workflow/components";
+import { ModImportWorkflowScreen } from "../../workflow/components";
 import { useTranslation } from 'react-i18next';
 import './ModHierarchicalView.css';
 
@@ -55,7 +55,7 @@ export const ModHierarchicalView: React.FC = () => {
   useSlideInScreen({
     visible: modManagementScreenVisible,
     title: t('modManagement.title.modImports'),
-    content: <ModImportQueueScreen />,
+    content: <ModImportWorkflowScreen />,
     width: '85%',
     onClose: closeModManagementScreen,
   });

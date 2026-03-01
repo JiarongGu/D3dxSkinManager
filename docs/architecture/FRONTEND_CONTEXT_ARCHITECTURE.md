@@ -174,7 +174,7 @@ return <Content />;
 ```typescript
 catch (error: unknown) {
   const msg = error instanceof Error ? error.message : 'Unknown error';
-  message.error(msg);
+  notification.error(msg);
 }
 ```
 

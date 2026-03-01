@@ -27,6 +27,7 @@ public class ModImportService : IModImportService
     private readonly IModManagementService _modManagementService;
     private readonly IPathValidator _pathValidator;
     private readonly IArchiveHelper _archiveService;
+    private readonly IProfilePathService _profilePathService;
     private readonly ILogHelper _logger;
 
     public ModImportService(
@@ -38,6 +39,7 @@ public class ModImportService : IModImportService
         IModManagementService modManagementService,
         IPathValidator pathValidator,
         IArchiveHelper archiveService,
+        IProfilePathService profilePathService,
         ILogHelper logger)
     {
         _fileService = fileService;
@@ -48,6 +50,7 @@ public class ModImportService : IModImportService
         _modManagementService = modManagementService;
         _pathValidator = pathValidator;
         _archiveService = archiveService;
+        _profilePathService = profilePathService;
         _logger = logger;
     }
 
@@ -77,7 +80,8 @@ public class ModImportService : IModImportService
             await _modFileService.CopyArchiveAsync(filePath, sha).ConfigureAwait(false);
 
             // Step 3: Extract to temporary directory for metadata reading
-            var tempExtractPath = Path.Combine(Path.GetTempPath(), $"mod_import_{sha}");
+            // Use profile temp directory to respect external cache configuration
+            var tempExtractPath = Path.Combine(_profilePathService.TempDirectory, $"mod_import_{sha}");
             if (Directory.Exists(tempExtractPath))
             {
                 Directory.Delete(tempExtractPath, true);

@@ -31,11 +31,11 @@ const [modCount, setModCount] = useState(0);  // Duplicates mods.length
 ```typescript
 try {
   await modService.loadMod(sha);
-  message.success('Mod loaded');
+  notification.success('Mod loaded');
 } catch (error: unknown) {
   // Type guard for safety
   const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-  message.error(`Failed: ${errorMessage}`);
+  notification.error(`Failed: ${errorMessage}`);
   console.error('Load mod error:', error);
 }
 ```
@@ -62,7 +62,7 @@ const loadMods = async () => {
     const data = await modService.getAllMods();
     setMods(data || []);  // Handle undefined
   } catch (error: unknown) {
-    message.error('Failed to load mods');
+    notification.error('Failed to load mods');
   } finally {
     setLoading(false);
   }

@@ -1,20 +1,20 @@
 /**
- * Workflow Queue Table Styles
+ * ModImport Workflow Table Styles
  * Download manager style table with enhanced visual design
  */
 
-.workflow-queue-table {
+.mod-import-workflow-table {
   background: var(--color-card-bg);
   border-radius: 4px;
   border: 1px solid var(--color-border-secondary);
   overflow: hidden;
 }
 
-.workflow-queue-table .ant-table {
+.mod-import-workflow-table .ant-table {
   background: transparent;
 }
 
-.workflow-queue-table .ant-table-thead > tr > th {
+.mod-import-workflow-table .ant-table-thead > tr > th {
   background: var(--color-table-header-bg);
   border-bottom: 2px solid var(--color-primary);
   font-weight: 600;
@@ -23,33 +23,33 @@
   padding: 16px;
 }
 
-.workflow-queue-table .ant-table-tbody > tr {
+.mod-import-workflow-table .ant-table-tbody > tr {
   background: transparent;
   transition: all 0.2s ease;
 }
 
-.workflow-queue-table .ant-table-tbody > tr:hover > td {
+.mod-import-workflow-table .ant-table-tbody > tr:hover > td {
   background: var(--color-table-row-hover);
 }
 
-.workflow-queue-table .ant-table-tbody > tr > td {
+.mod-import-workflow-table .ant-table-tbody > tr > td {
   border-bottom: 1px solid var(--color-border-secondary);
   padding: 16px;
 }
 
 /* Selected row highlight */
-.workflow-queue-table .ant-table-tbody > tr.ant-table-row-selected > td {
+.mod-import-workflow-table .ant-table-tbody > tr.ant-table-row-selected > td {
   background: var(--color-primary-bg-hover);
 }
 
 /* Name cell */
-.workflow-queue-table-name-cell {
+.mod-import-workflow-table-name-cell {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.workflow-queue-table-name {
+.mod-import-workflow-table-name {
   font-weight: 500;
   font-size: 14px;
   flex: 1;
@@ -59,7 +59,7 @@
   color: var(--color-text-base);
 }
 
-.workflow-queue-table-file-count {
+.mod-import-workflow-table-file-count {
   color: var(--color-text-tertiary);
   font-size: 12px;
   margin-left: 8px;
@@ -67,31 +67,31 @@
 }
 
 /* Progress bar customization */
-.workflow-queue-table .ant-progress {
+.mod-import-workflow-table .ant-progress {
   margin-bottom: 0;
 }
 
-.workflow-queue-table .ant-progress-line {
+.mod-import-workflow-table .ant-progress-line {
   font-size: 12px;
 }
 
-.workflow-queue-table .ant-progress-bg {
+.mod-import-workflow-table .ant-progress-bg {
   border-radius: 4px;
   transition: all 0.3s ease;
 }
 
-.workflow-queue-table .ant-progress-inner {
+.mod-import-workflow-table .ant-progress-inner {
   background-color: var(--color-bg-elevated);
   border-radius: 4px;
 }
 
 /* Status icons */
-.workflow-queue-table .anticon {
+.mod-import-workflow-table .anticon {
   font-size: 16px;
 }
 
 /* Action buttons */
-.workflow-queue-table .ant-btn-sm {
+.mod-import-workflow-table .ant-btn-sm {
   height: 32px;
   padding: 0 12px;
   font-size: 14px;
@@ -99,18 +99,18 @@
   transition: all 0.2s ease;
 }
 
-.workflow-queue-table .ant-btn-sm:hover {
+.mod-import-workflow-table .ant-btn-sm:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-.workflow-queue-table .ant-btn-icon-only {
+.mod-import-workflow-table .ant-btn-icon-only {
   width: 32px;
   padding: 0;
 }
 
 /* Batch Action Toolbar */
-.workflow-queue-table-batch-toolbar {
+.mod-import-workflow-table-batch-toolbar {
   margin-bottom: 16px;
   padding: 12px 16px;
   background: var(--color-primary-bg);
@@ -118,24 +118,24 @@
   border: 1px solid var(--color-primary);
 }
 
-.workflow-queue-table-batch-toolbar-label {
+.mod-import-workflow-table-batch-toolbar-label {
   font-size: 14px;
   font-weight: 500;
   color: var(--color-text-base);
 }
 
-.workflow-queue-table-batch-toolbar-count {
+.mod-import-workflow-table-batch-toolbar-count {
   color: var(--color-primary);
   font-weight: 600;
 }
 
 /* Empty state - Enhanced placeholder styling */
-.workflow-queue-table .ant-table-placeholder {
+.mod-import-workflow-table .ant-table-placeholder {
   background: transparent !important;
   border-bottom: none !important;
 }
 
-.workflow-queue-table .ant-table-placeholder .ant-table-cell {
+.mod-import-workflow-table .ant-table-placeholder .ant-table-cell {
   background: transparent !important;
   border-bottom: none !important;
   height: 140px !important;
@@ -143,11 +143,11 @@
 }
 
 /* Remove hover effect on empty state */
-.workflow-queue-table .ant-table-tbody > tr.ant-table-placeholder:hover > td {
+.mod-import-workflow-table .ant-table-tbody > tr.ant-table-placeholder:hover > td {
   background: transparent !important;
 }
 
-.workflow-queue-table .ant-table-placeholder .ant-empty {
+.mod-import-workflow-table .ant-table-placeholder .ant-empty {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -155,13 +155,13 @@
   justify-content: center;
 }
 
-.workflow-queue-table .ant-table-placeholder .ant-empty-image {
+.mod-import-workflow-table .ant-table-placeholder .ant-empty-image {
   height: 80px;
   margin-bottom: 16px;
   opacity: 0.4;
 }
 
-.workflow-queue-table .ant-empty-description {
+.mod-import-workflow-table .ant-empty-description {
   color: var(--color-text-tertiary);
   font-size: 14px;
   margin-top: 8px;
@@ -169,17 +169,17 @@
 }
 
 /* Expandable row */
-.workflow-queue-table .ant-table-expanded-row > td {
+.mod-import-workflow-table .ant-table-expanded-row > td {
   padding: 24px;
   background: rgba(255, 255, 255, 0.02);
 }
 
-.workflow-queue-table .ant-descriptions-bordered .ant-descriptions-item-label {
+.mod-import-workflow-table .ant-descriptions-bordered .ant-descriptions-item-label {
   background: rgba(255, 255, 255, 0.04);
   font-weight: 500;
 }
 
-.workflow-queue-table .ant-descriptions-bordered .ant-descriptions-item-content {
+.mod-import-workflow-table .ant-descriptions-bordered .ant-descriptions-item-content {
   background: transparent;
 }
 
@@ -193,7 +193,7 @@
   }
 }
 
-.workflow-queue-table .ant-tag {
+.mod-import-workflow-table .ant-tag {
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 4px;

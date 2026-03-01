@@ -1,377 +1,223 @@
-/**
- * Mod Import Workflow Screen
- * Displays a step-by-step workflow for importing mods from folders
- */
-
-import React, { useState, useEffect } from 'react';
-import { Modal, Steps, Form, Input, Select, Button, Spin, Result } from 'antd';
-import {
-  FolderOutlined,
-  EditOutlined,
-  ImportOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  LoadingOutlined,
-} from '@ant-design/icons';
-import { useModImportWorkflow } from '../../hooks/modImport/useModImportWorkflow';
+import React, { useEffect, useMemo } from 'react';
+import { Space } from 'antd';
+import { FolderOpenOutlined, CheckOutlined, DeleteOutlined, LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { CompactButton } from '../../../../shared/components/compact';
+import { ModImportWorkflowTable } from './ModImportWorkflowTable';
+import { useWorkflowQueue } from '../../hooks/modImport/useWorkflowQueue';
+import { WorkflowStatus } from '../../types/workflow.types';
 import { useTranslation } from 'react-i18next';
-import type {
-  ModImportWorkflowContext,
-  WorkflowInfo,
-} from '../../types/workflow.types';
-import { WorkflowStatus, ModImportWorkflowSteps } from '../../types/workflow.types';
-
-// Legacy metadata type (kept for backward compatibility)
-interface ModImportMetadata {
-  name: string;
-  author?: string;
-  description?: string;
-  category: string;
-  tags: string[];
-  grading: string;
-}
+import { useProfile } from '../../../../shared/context/ProfileContext';
+import { eventBus, Module, WorkflowEventType } from '../../../../shared/services/eventBus';
+import { refreshMods } from '../../../mod/operations/modOperations';
+import { systemService } from '../../../../shared/services/systemService';
+import { workflowService } from '../../services/workflowService';
+import { handleError } from '../../../../shared/utils/errorHandler';
 import './ModImportWorkflowScreen.css';
 
-const { TextArea } = Input;
-
-interface ModImportWorkflowScreenProps {
-  visible: boolean;
-  folderPath?: string;
-  onClose: () => void;
-  onSuccess?: (modSha: string) => void;
-}
-
 /**
- * Main workflow screen component
+ * Mod Import Workflow Screen
+ *
+ * Download manager style dashboard for importing mods:
+ * - Status dashboard with overall statistics
+ * - Table view of all active imports with real-time progress
+ * - Batch action support (pause/resume/delete)
+ * - Auto-imports after compression (no confirmation needed)
+ * - Support for multiple concurrent imports
+ * - Automatically refreshes mod list when imports complete
  */
-export const ModImportWorkflowScreen: React.FC<ModImportWorkflowScreenProps> = ({
-  visible,
-  folderPath,
-  onClose,
-  onSuccess,
-}) => {
+export const ModImportWorkflowScreen: React.FC = () => {
   const { t } = useTranslation();
-  const [form] = Form.useForm();
-  const { workflow, loading, startImport, updateContext, continueWorkflow, cancelImport, clearWorkflow } =
-    useModImportWorkflow();
+  const { selectedProfileId } = useProfile();
+  const { workflows, clearCompleted, refresh } = useWorkflowQueue();
+  const [selectedWorkflowIds, setSelectedWorkflowIds] = React.useState<string[]>([]);
 
-  /**
-   * Parse workflow context
-   */
-  const getContext = (): ModImportWorkflowContext | null => {
-    if (!workflow || !workflow.context) return null;
-    try {
-      return JSON.parse(workflow.context) as ModImportWorkflowContext;
-    } catch (error) {
-      console.error('[ModImportWorkflowScreen] Failed to parse workflow context:', error);
-      return null;
-    }
-  };
-
-  const context = getContext();
-
-  /**
-   * Start the workflow when modal opens with a folder path
-   */
+  // Listen for workflow completion and refresh mod list
   useEffect(() => {
-    if (visible && folderPath && !workflow) {
-      void startImport(folderPath);
-    }
-  }, [visible, folderPath]);
+    if (!selectedProfileId) return;
 
-  /**
-   * Determine current step based on workflow status and context
-   */
-  const getCurrentStep = (): number => {
-    if (!workflow || !context) return 0;
-
-    // If waiting for user input, show metadata step
-    if (workflow.status === WorkflowStatus.WaitingForInput) return 1;
-
-    switch (context.step) {
-      case ModImportWorkflowSteps.ExtractMetadata:
-      case ModImportWorkflowSteps.CompressFolder:
-        return 0;
-      case ModImportWorkflowSteps.ImportMod:
-        return 2;
-      default:
-        return 0;
-    }
-  };
-
-  /**
-   * Get step status based on workflow state
-   */
-  const getStepStatus = (stepIndex: number): 'wait' | 'process' | 'finish' | 'error' => {
-    if (!workflow) return 'wait';
-
-    const currentStep = getCurrentStep();
-
-    if (workflow.status === WorkflowStatus.Failed) {
-      if (stepIndex === currentStep) return 'error';
-      if (stepIndex < currentStep) return 'finish';
-      return 'wait';
-    }
-
-    if (stepIndex < currentStep) return 'finish';
-    if (stepIndex === currentStep) return 'process';
-    return 'wait';
-  };
-
-  /**
-   * Handle metadata form submission
-   */
-  const handleMetadataSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-
-      // Update context with metadata
-      await updateContext({
-        name: values.name,
-        author: values.author || null,
-        description: values.description || null,
-        category: values.category,
-        tags: values.tags || [],
-        grading: values.grading || 'G',
-      });
-
-      // Continue workflow to next step
-      await continueWorkflow();
-    } catch (error) {
-      console.error('[ModImportWorkflowScreen] Failed to submit metadata:', error);
-    }
-  };
-
-  /**
-   * Handle close/cancel
-   */
-  const handleClose = async () => {
-    if (workflow && workflow.status === WorkflowStatus.Processing) {
-      // Cancel the workflow if it's still running
-      await cancelImport();
-    }
-    clearWorkflow();
-    form.resetFields();
-    onClose();
-  };
-
-  /**
-   * Handle completion
-   */
-  useEffect(() => {
-    if (workflow && workflow.status === WorkflowStatus.Completed && context?.importedModSha) {
-      // Notify parent of success
-      if (onSuccess) {
-        onSuccess(context.importedModSha);
+    const unsubCompleted = eventBus.subscribe(
+      Module.WORKFLOW,
+      WorkflowEventType.COMPLETED,
+      async (event) => {
+        if (event?.payload) {
+          console.log('[ModImportWorkflowScreen] Workflow completed, refreshing mod list');
+          // Refresh the mod list when a workflow completes
+          await refreshMods(selectedProfileId);
+        }
       }
-    }
-  }, [workflow?.status, context?.importedModSha]);
+    );
 
-  /**
-   * Set initial form values when waiting for metadata
-   */
-  useEffect(() => {
-    if (workflow?.status === WorkflowStatus.WaitingForInput && context) {
-      form.setFieldsValue({
-        name: context.name || context.folderName || '',
-        author: context.author || '',
-        description: context.description || '',
-        category: context.category || '',
-        tags: context.tags || [],
-        grading: context.grading || 'G',
+    return () => {
+      unsubCompleted();
+    };
+  }, [selectedProfileId]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const waiting = workflows.filter((w) => w.status === WorkflowStatus.WaitingForInput).length;
+    const active = workflows.filter(
+      (w) =>
+        w.status === WorkflowStatus.Pending ||
+        w.status === WorkflowStatus.Processing ||
+        w.status === WorkflowStatus.WaitingForInput
+    ).length;
+    const completed = workflows.filter((w) => w.status === WorkflowStatus.Completed).length;
+    const failed = workflows.filter((w) => w.status === WorkflowStatus.Failed).length;
+
+    return { active, waiting, completed, failed, total: workflows.length };
+  }, [workflows]);
+
+  const hasCompleted = workflows.some((w) =>
+    w.status === WorkflowStatus.Completed ||
+    w.status === WorkflowStatus.Failed ||
+    w.status === WorkflowStatus.Cancelled
+  );
+
+  const selectedWaitingCount = useMemo(() => {
+    return selectedWorkflowIds.filter((id) => {
+      const workflow = workflows.find((w) => w.id === id);
+      return workflow?.status === WorkflowStatus.WaitingForInput;
+    }).length;
+  }, [selectedWorkflowIds, workflows]);
+
+  const [importing, setImporting] = React.useState(false);
+
+  const handleImportFolder = async () => {
+    if (!selectedProfileId) return;
+
+    try {
+      setImporting(true);
+      const result = await systemService.openFolderDialog({
+        title: t('mods.import.selectFolder'),
+        rememberPathKey: 'mod-import-folder',
       });
-    }
-  }, [workflow?.status, context?.name, context?.folderName, context?.author, context?.description, context?.category, context?.tags, context?.grading, form]);
 
-  const ageRatingOptions = [
-    { value: 'G', label: t('mods.edit.ageRating.general') },
-    { value: 'P', label: t('mods.edit.ageRating.parentalGuidance') },
-    { value: 'R', label: t('mods.edit.ageRating.restricted') },
-    { value: 'X', label: t('mods.edit.ageRating.adultsOnly') },
-  ];
+      if (result.success && result.filePath) {
+        await workflowService.startModImport(selectedProfileId, result.filePath);
+      }
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleConfirmSelected = async () => {
+    if (!selectedProfileId || selectedWorkflowIds.length === 0) return;
+
+    try {
+      // Batch resume selected workflows (confirm action = continue workflow)
+      const result = await workflowService.batchResumeWorkflows(selectedProfileId, selectedWorkflowIds);
+
+      // Clear selection and refresh
+      setSelectedWorkflowIds([]);
+      refresh();
+
+      // Show result notification
+      if (result.failed.length > 0) {
+        console.warn(`Batch confirm: ${result.successful.length} successful, ${result.failed.length} failed`, result.failed);
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  const handleClearSelected = async () => {
+    if (!selectedProfileId || selectedWorkflowIds.length === 0) return;
+
+    try {
+      // Batch delete selected workflows (with temp file cleanup)
+      const result = await workflowService.batchDeleteWorkflows(selectedProfileId, selectedWorkflowIds);
+
+      // Clear selection and refresh
+      setSelectedWorkflowIds([]);
+      refresh();
+
+      // Show result notification
+      if (result.failed.length > 0) {
+        console.warn(`Batch delete: ${result.successful.length} successful, ${result.failed.length} failed`, result.failed);
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  };
 
   return (
-    <Modal
-      title={t('workflow.modImport.title')}
-      open={visible}
-      onCancel={handleClose}
-      width={700}
-      footer={null}
-      className="mod-import-workflow-screen"
-    >
-      <div className="workflow-content">
-        {/* Steps indicator */}
-        <Steps
-          current={getCurrentStep()}
-          className="workflow-steps"
-          items={[
-            {
-              title: t('workflow.modImport.steps.compress'),
-              icon:
-                getStepStatus(0) === 'process' ? (
-                  <LoadingOutlined />
-                ) : getStepStatus(0) === 'error' ? (
-                  <CloseCircleOutlined />
-                ) : (
-                  <FolderOutlined />
-                ),
-              status: getStepStatus(0),
-            },
-            {
-              title: t('workflow.modImport.steps.metadata'),
-              icon: <EditOutlined />,
-              status: getStepStatus(1),
-            },
-            {
-              title: t('workflow.modImport.steps.import'),
-              icon:
-                getStepStatus(2) === 'process' ? (
-                  <LoadingOutlined />
-                ) : getStepStatus(2) === 'error' ? (
-                  <CloseCircleOutlined />
-                ) : (
-                  <ImportOutlined />
-                ),
-              status: getStepStatus(2),
-            },
-          ]}
-        />
+    <div className="mod-import-workflow-screen">
+      {/* Status Bar - Top */}
+      <div className="mod-import-workflow-screen-status-bar">
+        <Space size="middle">
+          {/* Total */}
+          <div className="mod-import-workflow-screen-stat">
+            <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.total')}</span>
+            <span className="mod-import-workflow-screen-stat-value">{stats.total}</span>
+          </div>
 
-        {/* Step content */}
-        <div className="workflow-step-content">
-          {/* Step 1: Extracting metadata / Compressing folder */}
-          {workflow?.status === WorkflowStatus.Processing &&
-           (context?.step === ModImportWorkflowSteps.ExtractMetadata ||
-            context?.step === ModImportWorkflowSteps.CompressFolder) && (
-            <div className="workflow-step workflow-step-processing">
-              <Spin size="large" />
-              <h3>
-                {context?.step === ModImportWorkflowSteps.ExtractMetadata
-                  ? t('workflow.modImport.extracting')
-                  : t('workflow.modImport.compressing')}
-              </h3>
-              <p className="step-description">
-                {context?.step === ModImportWorkflowSteps.ExtractMetadata
-                  ? t('workflow.modImport.extractingDescription')
-                  : t('workflow.modImport.compressingDescription', {
-                      folder: context.folderName || folderPath,
-                      count: context.fileCount || 0,
-                    })}
-              </p>
-            </div>
-          )}
-
-          {/* Step 2: Metadata input (waiting for user) */}
-          {workflow?.status === WorkflowStatus.WaitingForInput && (
-            <div className="workflow-step workflow-step-metadata">
-              <h3>{t('workflow.modImport.provideMetadata')}</h3>
-              <p className="step-description">
-                {t('workflow.modImport.metadataDescription')}
-              </p>
-
-              <Form form={form} layout="vertical" className="metadata-form">
-                <Form.Item
-                  name="name"
-                  label={t('mods.edit.name')}
-                  rules={[{ required: true, message: t('mods.edit.nameRequired') }]}
-                >
-                  <Input placeholder={t('mods.edit.namePlaceholder')} />
-                </Form.Item>
-
-                <Form.Item name="author" label={t('mods.edit.author')}>
-                  <Input placeholder={t('mods.edit.authorPlaceholder')} />
-                </Form.Item>
-
-                <Form.Item name="description" label={t('mods.edit.description')}>
-                  <TextArea rows={3} placeholder={t('mods.edit.descriptionPlaceholder')} />
-                </Form.Item>
-
-                <Form.Item
-                  name="category"
-                  label={t('mods.edit.category')}
-                  rules={[{ required: true, message: 'Please select a category' }]}
-                >
-                  <Input placeholder={t('mods.edit.categoryPlaceholder')} />
-                </Form.Item>
-
-                <Form.Item name="grading" label={t('mods.edit.ageRating.label')}>
-                  <Select options={ageRatingOptions} />
-                </Form.Item>
-
-                <Form.Item name="tags" label={t('mods.edit.tags')}>
-                  <Select mode="tags" placeholder={t('mods.edit.tagsPlaceholder')} />
-                </Form.Item>
-
-                <Form.Item>
-                  <Button
-                    type="primary"
-                    onClick={handleMetadataSubmit}
-                    loading={loading}
-                    block
-                    size="large"
-                  >
-                    {t('common.continue')}
-                  </Button>
-                </Form.Item>
-              </Form>
-            </div>
-          )}
-
-          {/* Step 3: Importing mod */}
-          {workflow?.status === WorkflowStatus.Processing &&
-           context?.step === ModImportWorkflowSteps.ImportMod && (
-            <div className="workflow-step workflow-step-processing">
-              <Spin size="large" />
-              <h3>{t('workflow.modImport.importing')}</h3>
-              <p className="step-description">{t('workflow.modImport.importingDescription')}</p>
-            </div>
-          )}
+          {/* Active (waiting for action / in progress) */}
+          <div className="mod-import-workflow-screen-stat">
+            {stats.active > 0 && stats.waiting < stats.active ? (
+              <LoadingOutlined className="mod-import-workflow-screen-stat-icon" spin />
+            ) : (
+              <ClockCircleOutlined className="mod-import-workflow-screen-stat-icon" />
+            )}
+            <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.active')}</span>
+            <span className="mod-import-workflow-screen-stat-value">{stats.waiting}/{stats.active}</span>
+          </div>
 
           {/* Completed */}
-          {workflow?.status === WorkflowStatus.Completed && (
-            <div className="workflow-step workflow-step-completed">
-              <Result
-                status="success"
-                title={t('workflow.modImport.completed')}
-                subTitle={t('workflow.modImport.completedDescription')}
-                extra={
-                  <Button type="primary" onClick={handleClose}>
-                    {t('common.close')}
-                  </Button>
-                }
-              />
-            </div>
-          )}
+          <div className="mod-import-workflow-screen-stat">
+            <CheckCircleOutlined className="mod-import-workflow-screen-stat-icon mod-import-workflow-screen-stat-icon--success" />
+            <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.completed')}</span>
+            <span className="mod-import-workflow-screen-stat-value">{stats.completed}</span>
+          </div>
 
           {/* Failed */}
-          {workflow?.status === WorkflowStatus.Failed && (
-            <div className="workflow-step workflow-step-failed">
-              <Result
-                status="error"
-                title={t('workflow.modImport.failed')}
-                subTitle={workflow.errorMessage || t('workflow.modImport.failedDescription')}
-                extra={
-                  <Button onClick={handleClose}>{t('common.close')}</Button>
-                }
-              />
-            </div>
-          )}
-
-          {/* Cancelled */}
-          {workflow?.status === WorkflowStatus.Cancelled && (
-            <div className="workflow-step workflow-step-cancelled">
-              <Result
-                status="warning"
-                title={t('workflow.modImport.cancelled')}
-                subTitle={t('workflow.modImport.cancelledDescription')}
-                extra={
-                  <Button onClick={handleClose}>{t('common.close')}</Button>
-                }
-              />
-            </div>
-          )}
-        </div>
+          <div className="mod-import-workflow-screen-stat">
+            <CloseCircleOutlined className="mod-import-workflow-screen-stat-icon mod-import-workflow-screen-stat-icon--error" />
+            <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.failed')}</span>
+            <span className="mod-import-workflow-screen-stat-value">{stats.failed}</span>
+          </div>
+        </Space>
       </div>
-    </Modal>
+
+      {/* Action Bar - Bottom */}
+      <div className="mod-import-workflow-screen-action-bar">
+        <Space size="small">
+          <CompactButton.Primary
+            icon={<FolderOpenOutlined />}
+            loading={importing}
+            onClick={handleImportFolder}
+          >
+            {t('mods.import.import')}
+          </CompactButton.Primary>
+
+          <CompactButton.Success
+            icon={<CheckOutlined />}
+            disabled={selectedWaitingCount === 0}
+            onClick={handleConfirmSelected}
+          >
+            {t('workflow.queue.confirm')}
+          </CompactButton.Success>
+
+          <CompactButton.Danger
+            icon={<DeleteOutlined />}
+            disabled={selectedWorkflowIds.length === 0}
+            onClick={handleClearSelected}
+          >
+            {t('workflow.queue.delete')}
+          </CompactButton.Danger>
+        </Space>
+      </div>
+
+      {/* Workflow Queue Table */}
+      <div className="mod-import-workflow-screen-content">
+        <ModImportWorkflowTable
+          workflows={workflows}
+          onRefresh={refresh}
+          selectedRowKeys={selectedWorkflowIds}
+          onSelectionChange={setSelectedWorkflowIds}
+        />
+      </div>
+    </div>
   );
 };

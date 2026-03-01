@@ -1,6 +1,6 @@
 /**
- * Workflow Queue Table
- * Download manager style table showing all active workflows
+ * ModImport Workflow Table
+ * Download manager style table showing all active mod import workflows
  * Now uses the shared DataTable component with expandable detail rows
  */
 
@@ -27,11 +27,11 @@ import {
 } from '../../types/workflow.types';
 import { workflowService } from '../../services/workflowService';
 import { handleError } from '../../../../shared/utils/errorHandler';
-import './WorkflowQueueTable.css';
+import './ModImportWorkflowTable.css';
 
 const { TextArea } = Input;
 
-interface WorkflowQueueTableProps {
+interface ModImportWorkflowTableProps {
   workflows: WorkflowInfo[];
   onRefresh?: () => void;
   selectedRowKeys?: string[];
@@ -49,7 +49,7 @@ interface WorkflowTableRow {
   statusText: string;
 }
 
-export const WorkflowQueueTable: React.FC<WorkflowQueueTableProps> = ({
+export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
   workflows,
   onRefresh,
   selectedRowKeys: externalSelectedRowKeys,
@@ -398,13 +398,13 @@ export const WorkflowQueueTable: React.FC<WorkflowQueueTableProps> = ({
       width: '30%',
       ellipsis: true,
       render: (name: string, row: WorkflowTableRow) => (
-        <div className="workflow-queue-table-name-cell">
+        <div className="mod-import-workflow-table-name-cell">
           <FolderOutlined style={{ marginRight: 8, color: '#1890ff' }} />
           <Tooltip title={row.context?.folderPath}>
-            <span className="workflow-queue-table-name">{name}</span>
+            <span className="mod-import-workflow-table-name">{name}</span>
           </Tooltip>
           {row.context?.fileCount && (
-            <span className="workflow-queue-table-file-count">
+            <span className="mod-import-workflow-table-file-count">
               ({row.context.fileCount} {t('common.files')})
             </span>
           )}
@@ -544,7 +544,7 @@ export const WorkflowQueueTable: React.FC<WorkflowQueueTableProps> = ({
   return (
     <>
       <DataTable<WorkflowTableRow>
-        className="workflow-queue-table"
+        className="mod-import-workflow-table"
         columns={columns}
         dataSource={tableData}
         rowKey={(row) => row.workflow.id}

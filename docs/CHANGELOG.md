@@ -12,6 +12,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-03-01 - External Cache & Production Security: Path Fixes, Component Renaming & Browser Feature Blocking ⭐⭐⭐
+Complete fix for external cache folder path not being respected, consistent component naming, and production security enhancements.
+**Impact**: ✅ External cache folder now works correctly, cleaner component naming, disabled browser features in production
+**Problem 1 - External Cache Not Working**: ModImportService used system temp folder instead of profile temp directory
+**Root Cause**: ModImportService.ImportAsync() called `Path.GetTempPath()` directly, bypassing ProfilePathService configuration
+**Backend Changes**:
+- ModImportService: Injected IProfilePathService, replaced `Path.GetTempPath()` with `_profilePathService.TempDirectory` (line 84)
+- ModImportService: Added explanatory comment about respecting external cache configuration
+- WebViewInitializer: Disabled context menus in production (`AreDefaultContextMenusEnabled = isDevelopment`)
+- WebViewInitializer: Added ConfigureKeyboardShortcutBlocking() using JavaScript injection
+- Blocked shortcuts: Ctrl+F/G/H/J/P/S/U/0/+/-, F12, Ctrl+Shift+I (preserves editing shortcuts)
+- JavaScript injection uses AddScriptToExecuteOnDocumentCreatedAsync for automatic execution on page load
+**Frontend Changes - Component Renaming**:
+- WorkflowQueueTable → ModImportWorkflowTable (file, component, props, CSS classes)
+- ModImportQueueScreen → ModImportWorkflowScreen (file, component, CSS classes)
+- Updated index.ts exports, ModHierarchicalView.tsx imports
+- All CSS class names updated: `workflow-queue-table` → `mod-import-workflow-table`, `mod-import-queue-screen` → `mod-import-workflow-screen`
+**Documentation Updates**:
+- TESTING_GUIDE.md: Replaced `Path.GetTempPath()` examples with test project directory approach
+- TESTING_GUIDE.md: Added using System.Reflection; import for Assembly.GetExecutingAssembly()
+- TESTING_GUIDE.md: Added explanatory comments about avoiding system temp in tests
+**Consistency Improvements**:
+- Component names now follow `ModImportWorkflow` prefix pattern
+- CSS class names follow BEM convention with proper component prefixes
+- Testing examples demonstrate correct temporary file handling patterns
+**Security Enhancements**:
+- Production mode: Context menus disabled, DevTools inaccessible, browser shortcuts blocked
+- Development mode: All features enabled for debugging
+- Detection: `.dev` file presence or `ASPNETCORE_ENVIRONMENT=Development`
+**Files Changed**: 8 files (4 backend C#, 3 frontend TypeScript, 1 documentation)
+**Pattern**: Service injection for path management, JavaScript injection for browser feature blocking, consistent naming conventions
+
 ### Enhanced - 2026-03-01 - Workflow System: Batch Operations, Selection Improvements & UX Polish ⭐⭐⭐
 Enhanced workflow queue with batch operations for bulk actions, improved selection behavior, and user-friendly terminology updates.
 **Impact**: ✅ Users can batch delete/resume workflows, select all workflow states, clearer UI terminology

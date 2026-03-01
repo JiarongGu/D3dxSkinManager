@@ -1,6 +1,6 @@
-import { message } from 'antd';
 import { ErrorCodes } from '../constants/errorCodes';
 import { ErrorDetails } from '../types/message.types';
+import { notification } from './notification';
 
 /**
  * User-friendly error messages for error codes
@@ -65,7 +65,7 @@ export function handleError(error: unknown): ModOperationError {
       const userMessage = ERROR_MESSAGES[errorCode] || errorWithDetails.message || 'An error occurred';
 
       // Show user-friendly message
-      message.error(userMessage, 5); // Show for 5 seconds
+      notification.error(userMessage, 5); // Show for 5 seconds
 
       return new ModOperationError(errorCode, userMessage, data);
     }
@@ -73,7 +73,7 @@ export function handleError(error: unknown): ModOperationError {
 
   // Fallback for unknown errors
   const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-  message.error(errorMessage, 3);
+  notification.error(errorMessage, 3);
 
   return new ModOperationError(ErrorCodes.UNKNOWN_ERROR, errorMessage);
 }

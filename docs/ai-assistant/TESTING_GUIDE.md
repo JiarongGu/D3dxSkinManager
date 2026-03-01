@@ -134,6 +134,7 @@ D3dxSkinManager.Tests/
 ```csharp
 using System;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
@@ -153,8 +154,9 @@ public class GlobalSettingsServiceTests : IDisposable
 
     public GlobalSettingsServiceTests()
     {
-        // Arrange - Create temp directory for each test
-        _testDataPath = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid()}");
+        // Arrange - Create temp directory for each test in the test project directory
+        var projectDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        _testDataPath = Path.Combine(projectDir, "TestData", $"test_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDataPath);
         _service = new GlobalSettingsService(_testDataPath);
     }
@@ -253,7 +255,10 @@ public class MyTests : IDisposable
 
     public MyTests()
     {
-        _tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        // Use test project directory instead of system temp
+        // This avoids Path.GetTempPath() which may not respect profile/cache configurations
+        var projectDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        _tempPath = Path.Combine(projectDir, "TestData", Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempPath);
     }
 

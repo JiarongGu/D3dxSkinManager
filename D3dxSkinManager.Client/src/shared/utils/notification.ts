@@ -40,7 +40,7 @@ export const notification = {
     });
   },
 
-  error: (content: string) => {
+  error: (content: string, duration: number = 3) => {
     if (!notificationApi) {
       logger.error('[notification] API not initialized. Wrap your app with <App> component.');
       return;
@@ -51,7 +51,7 @@ export const notification = {
         message: content,
       }),
       placement: 'top',
-      duration: 3,
+      duration,
       className: 'custom-notification-wrapper',
       closeIcon: null,
     });
