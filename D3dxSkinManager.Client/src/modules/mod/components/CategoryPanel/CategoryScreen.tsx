@@ -1,5 +1,5 @@
 ﻿import { notification } from "../../../../shared/utils/notification";
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Form, Space, Row, Col, Select } from "antd";
 import { FolderOpenOutlined } from "@ant-design/icons";
 import { CategoryInfo } from "../../../../shared/types/category.types";
@@ -17,7 +17,6 @@ import {
   CompactUpload,
 } from "../../../../shared/components/compact";
 import { useTranslation } from "react-i18next";
-import { useDropZone } from "../../../../shared/hooks/useDropZone";
 import { debounce } from "lodash-es";
 import "./CategoryScreen.css";
 
@@ -81,7 +80,6 @@ export const CategoryScreenContent: React.FC<
   const [matchMode, setMatchMode] = useState<string>("wildcard");
   const { closeScreen } = useSlideInScreenContext();
   const { selectedProfileId } = useProfile();
-  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   // Debounced name existence check - only call backend after user stops typing for 500ms
   const checkNameExistsDebounced = useCallback(
@@ -98,76 +96,32 @@ export const CategoryScreenContent: React.FC<
     [],
   );
 
-  // Create WinForms drop zone overlay that syncs with the upload area
-  useDropZone({
-    targetRef: dropZoneRef,
-    enabled: !thumbnailPath, // Only enable when no thumbnail is set
-    onDrop: (files) => {
-      if (files.length === 0) return;
+  // Handle thumbnail drop from CompactUpload's OS-level drop zone
+  const handleThumbnailDrop = (files: string[]) => {
+    if (files.length === 0) return;
 
-      const filePath = files[0]; // Take first file
+    const filePath = files[0]; // Take first file
 
-      // Check if it's an image file
-      const imageExtensions = [
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".gif",
-        ".bmp",
-        ".webp",
-      ];
-      const ext = filePath.toLowerCase().match(/\.[^.]+$/)?.[0];
+    // Check if it's an image file
+    const imageExtensions = [
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".gif",
+      ".bmp",
+      ".webp",
+    ];
+    const ext = filePath.toLowerCase().match(/\.[^.]+$/)?.[0];
 
-      if (!ext || !imageExtensions.includes(ext)) {
-        notification.warning(t("category.screen.dropImageOnly"));
-        return;
-      }
-
-      // Use the real file path directly
-      setThumbnailPath(filePath);
-      const fileName = filePath.split(/[\\/]/).pop() || filePath;
-      setThumbnailFileName(fileName);
-    },
-  });
-
-  // Handle file drops from CompactUpload component (browser-level drops)
-  const handleDropThumbnail = async (file: File, filePath?: string) => {
-    try {
-      // Check if it's an image file
-      const imageExtensions = [
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".gif",
-        ".bmp",
-        ".webp",
-      ];
-      const ext = file.name.toLowerCase().match(/\.[^.]+$/)?.[0];
-
-      if (!ext || !imageExtensions.includes(ext)) {
-        notification.warning(t("category.screen.dropImageOnly"));
-        return;
-      }
-
-      // If we received a real file path from electron/webkitGetAsEntry, use it
-      if (filePath && filePath.length > 1) {
-        setThumbnailPath(filePath);
-        setThumbnailFileName(file.name);
-        return;
-      }
-
-      // Fallback: Create object URL for preview
-      const objectUrl = URL.createObjectURL(file);
-      setThumbnailPath(objectUrl);
-      setThumbnailFileName(file.name);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      notification.error(
-        `${t("category.screen.selectThumbnailFailed")}: ${errorMessage}`,
-      );
-      console.error("[CategoryScreen] Failed to set thumbnail:", error);
+    if (!ext || !imageExtensions.includes(ext)) {
+      notification.warning(t("category.screen.dropImageOnly"));
+      return;
     }
+
+    // Use the real file path directly
+    setThumbnailPath(filePath);
+    const fileName = filePath.split(/[\\/]/).pop() || filePath;
+    setThumbnailFileName(fileName);
   };
 
   // Initialize form
@@ -282,8 +236,6 @@ export const CategoryScreenContent: React.FC<
       );
     }
   };
-
-  // handleDropThumbnail removed - now using OS-level drop via useOSFileDrop hook
 
   const allNodes = flattenTree(tree);
 
@@ -405,14 +357,13 @@ export const CategoryScreenContent: React.FC<
         <Form.Item label={t("category.screen.thumbnailLabel")}>
           {!thumbnailPath ? (
             // Drag-drop area when no image selected - with OS-level drop zone
-            <div ref={dropZoneRef}>
-              <CompactUpload
-                onSelect={handleBrowseThumbnail}
-                onDrop={handleDropThumbnail}
-                title={t("category.screen.thumbnailUploadTitle")}
-                subtitle={t("category.screen.thumbnailUploadSubtitle")}
-              />
-            </div>
+            <CompactUpload
+              onSelect={handleBrowseThumbnail}
+              onDrop={handleThumbnailDrop}
+              enabled={!thumbnailPath}
+              title={t("category.screen.thumbnailUploadTitle")}
+              subtitle={t("category.screen.thumbnailUploadSubtitle")}
+            />
           ) : (
             // Image preview when selected
             <div className="category-screen-thumbnail-preview">

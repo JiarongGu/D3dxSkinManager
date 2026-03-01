@@ -23,6 +23,9 @@ public class DropZoneManager : IDisposable
     private readonly Dictionary<string, DropZoneOverlay> _activeOverlays = new();
     private readonly Dictionary<string, ZoneMetadata> _registeredZones = new();
 
+    // Cleanup synchronization
+    private TaskCompletionSource<bool>? _dropCompletionSource;
+
     private class ZoneMetadata
     {
         public required string ZoneId { get; init; }
@@ -78,6 +81,9 @@ public class DropZoneManager : IDisposable
     {
         _logger.Info($"Drag started at {e.ScreenPosition} ({e.DetectionMethod})", "DropZone");
 
+        // Create new TaskCompletionSource for this drag operation
+        _dropCompletionSource = new TaskCompletionSource<bool>();
+
         // Check if mouse is over any zones and create overlays
         CheckMouseOverZones(e.ScreenPosition);
     }
@@ -88,14 +94,26 @@ public class DropZoneManager : IDisposable
         CheckMouseOverZones(e.ScreenPosition);
     }
 
-    private void OnDragEnded(object? sender, EventArgs e)
+    private async void OnDragEnded(object? sender, EventArgs e)
     {
-        // Schedule cleanup - will be executed after any pending drop events
-        _parentForm.BeginInvoke(() =>
+        var tcs = _dropCompletionSource;
+        if (tcs == null)
+            return;
+
+        // Wait for drop event to complete
+        await tcs.Task;
+
+        // Always destroy overlays after drop completes
+        _logger.Info("Drag ended, cleaning up overlays", "DropZone");
+
+        if (_parentForm.InvokeRequired)
+        {
+            _parentForm.Invoke(() => DestroyAllOverlays());
+        }
+        else
         {
             DestroyAllOverlays();
-            _logger.Info("Drag ended, overlays destroyed", "DropZone");
-        });
+        }
     }
 
     private void CheckMouseOverZones(Point screenPosition)
@@ -324,6 +342,10 @@ public class DropZoneManager : IDisposable
             files,
             position = new { x = position.X, y = position.Y }
         });
+
+        // Signal that drop event has completed
+        // OnDragEnded will destroy overlays after this
+        _dropCompletionSource?.TrySetResult(true);
     }
 
     #endregion

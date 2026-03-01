@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 import { InboxOutlined } from '@ant-design/icons';
+import { useDropZone } from '../../hooks/useDropZone';
 import './CompactUpload.css';
 
 /**
- * CompactUpload - Compact upload area with click-to-select and drag-and-drop
+ * CompactUpload - Compact upload area with click-to-select and OS-level drag-and-drop
  *
  * Features:
  * - Click to trigger file selection dialog
- * - Drag and drop files from file system
+ * - OS-level drag and drop (gets real file paths, not blob URLs)
  * - Theme-aware hover colors
- * - Visual feedback during drag operations
+ * - Visual feedback during drag operations via useDropZone CSS classes
  * - Dashed border design
  * - Icon + text layout
  *
@@ -17,7 +18,6 @@ import './CompactUpload.css';
  * <CompactUpload
  *   onSelect={handleFileSelect}
  *   onDrop={handleFileDrop}
- *   accept="image/*"
  *   title="Click or drag to select image file"
  *   subtitle="PNG, JPG, JPEG, GIF, BMP, WEBP"
  * />
@@ -26,10 +26,8 @@ import './CompactUpload.css';
 export interface CompactUploadProps {
   /** Callback when file is selected via click (opens file dialog) */
   onSelect: () => void;
-  /** Callback when file is dropped - receives the File object and optional path */
-  onDrop?: (file: File, filePath?: string) => void;
-  /** Accept attribute for file input (e.g., "image/*") */
-  accept?: string;
+  /** Callback when files are dropped - receives real OS file paths */
+  onDrop?: (files: string[]) => void;
   /** Main title text */
   title?: string;
   /** Subtitle/hint text */
@@ -40,84 +38,40 @@ export interface CompactUploadProps {
   size?: 'small' | 'medium' | 'large';
   /** Additional CSS class names */
   className?: string;
+  /** Enable/disable drop zone (default: true when onDrop is provided) */
+  enabled?: boolean;
 }
 
 export const CompactUpload: React.FC<CompactUploadProps> = ({
   onSelect,
   onDrop,
-  accept,
   title = 'Click or drag to select file',
   subtitle,
   icon,
   size = 'medium',
-  className = ''
+  className = '',
+  enabled = true
 }) => {
-  const [isDragging, setIsDragging] = useState(false);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    if (onDrop && e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      const item = e.dataTransfer.items[0];
-
-      // Try to get file path using webkitGetAsEntry (Chromium API)
-      let filePath: string | undefined;
-
-      if ((item as any).webkitGetAsEntry) {
-        const entry = (item as any).webkitGetAsEntry();
-        if (entry) {
-          filePath = entry.fullPath;
-        }
+  // Use OS-level drop zone when onDrop is provided
+  useDropZone({
+    targetRef: dropZoneRef,
+    enabled: enabled && !!onDrop,
+    onDrop: (files) => {
+      if (onDrop && files.length > 0) {
+        onDrop(files);
       }
+    },
+  });
 
-      // Get the File object
-      const file = item.getAsFile();
-
-      if (file) {
-        // Also check for electron-style file.path
-        const electronPath = (file as any).path;
-
-        // Pass both file and path (if available)
-        onDrop(file, filePath || electronPath);
-      }
-    } else if (onDrop && e.dataTransfer.files.length > 0) {
-      // Fallback to files array
-      const file = e.dataTransfer.files[0];
-      const electronPath = (file as any).path;
-
-      onDrop(file, electronPath);
-    }
-  };
-
-  const uploadClassName = `compact-upload compact-upload-${size} ${isDragging ? 'compact-upload-dragging' : ''} ${className}`.trim();
+  const uploadClassName = `compact-upload compact-upload-${size} ${className}`.trim();
 
   return (
     <div
+      ref={dropZoneRef}
       className={uploadClassName}
       onClick={onSelect}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {

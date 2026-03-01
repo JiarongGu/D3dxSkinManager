@@ -1,55 +1,67 @@
 /* useDropZone hook - OS-level drag and drop styles */
 
 /* Hover state - matches CompactUpload:hover when mouse is over overlay (non-dragging) */
-[data-theme="dark"] .use-drop-zone-hover .compact-upload {
+[data-theme="dark"] .use-drop-zone-hover .compact-upload,
+[data-theme="dark"] .compact-upload.use-drop-zone-hover {
   border-color: var(--color-primary);
   background: var(--color-input-bg); /* Match dark theme hover */
 }
 
-[data-theme="dark"] .use-drop-zone-hover .compact-upload .compact-upload-icon {
+[data-theme="dark"] .use-drop-zone-hover .compact-upload .compact-upload-icon,
+[data-theme="dark"] .compact-upload.use-drop-zone-hover .compact-upload-icon {
   color: var(--color-primary);
 }
 
-[data-theme="dark"] .use-drop-zone-hover .compact-upload .compact-upload-title {
+[data-theme="dark"] .use-drop-zone-hover .compact-upload .compact-upload-title,
+[data-theme="dark"] .compact-upload.use-drop-zone-hover .compact-upload-title {
   color: var(--color-text-base); /* Match dark theme hover */
 }
 
-[data-theme="light"] .use-drop-zone-hover .compact-upload {
+[data-theme="light"] .use-drop-zone-hover .compact-upload,
+[data-theme="light"] .compact-upload.use-drop-zone-hover {
   border-color: var(--color-primary);
   background: var(--color-primary-bg-hover); /* Match light theme hover */
 }
 
-[data-theme="light"] .use-drop-zone-hover .compact-upload .compact-upload-icon {
+[data-theme="light"] .use-drop-zone-hover .compact-upload .compact-upload-icon,
+[data-theme="light"] .compact-upload.use-drop-zone-hover .compact-upload-icon {
   color: var(--color-primary);
 }
 
-[data-theme="light"] .use-drop-zone-hover .compact-upload .compact-upload-title {
+[data-theme="light"] .use-drop-zone-hover .compact-upload .compact-upload-title,
+[data-theme="light"] .compact-upload.use-drop-zone-hover .compact-upload-title {
   color: var(--color-primary); /* Match light theme hover */
 }
 
 /* Drop zone drag-over state - when dragging files over via WinForms overlay */
-[data-theme="dark"] .use-drop-zone-drop .compact-upload {
+[data-theme="dark"] .use-drop-zone-drop .compact-upload,
+[data-theme="dark"] .compact-upload.use-drop-zone-drop {
   border-color: var(--color-primary) !important;
   background: var(--color-input-bg) !important;
 }
 
-[data-theme="dark"] .use-drop-zone-drop .compact-upload .compact-upload-icon {
+[data-theme="dark"] .use-drop-zone-drop .compact-upload .compact-upload-icon,
+[data-theme="dark"] .compact-upload.use-drop-zone-drop .compact-upload-icon {
   color: var(--color-primary) !important;
 }
 
-[data-theme="dark"] .use-drop-zone-drop .compact-upload .compact-upload-title {
+[data-theme="dark"] .use-drop-zone-drop .compact-upload .compact-upload-title,
+[data-theme="dark"] .compact-upload.use-drop-zone-drop .compact-upload-title {
   color: var(--color-text-base) !important;
 }
 
-[data-theme="light"] .use-drop-zone-drop .compact-upload {
+[data-theme="light"] .use-drop-zone-drop .compact-upload,
+[data-theme="light"] .compact-upload.use-drop-zone-drop {
   border-color: var(--color-primary) !important;
   background: var(--color-primary-bg-hover) !important;
 }
 
-[data-theme="light"] .use-drop-zone-drop .compact-upload .compact-upload-icon {
+[data-theme="light"] .use-drop-zone-drop .compact-upload .compact-upload-icon,
+[data-theme="light"] .compact-upload.use-drop-zone-drop .compact-upload-icon {
   color: var(--color-primary) !important;
 }
 
-[data-theme="light"] .use-drop-zone-drop .compact-upload .compact-upload-title {
+[data-theme="light"] .use-drop-zone-drop .compact-upload .compact-upload-title,
+[data-theme="light"] .compact-upload.use-drop-zone-drop .compact-upload-title {
   color: var(--color-primary) !important;
 }
