@@ -22,9 +22,9 @@ D3dxSkinManager is a desktop application for organizing and managing game mods t
 
 ## Quick Links
 
+- **🤖 AI Guide**: [docs/AI_GUIDE.md](docs/AI_GUIDE.md) - Primary reference for AI assistants ⭐
+- **🔍 Keywords Index**: [docs/KEYWORDS_INDEX.md](docs/KEYWORDS_INDEX.md) - Fast file lookup
 - **📚 Documentation**: [docs/](docs/) - Complete documentation
-- **🚀 Quick Start**: [docs/QUICKSTART.md](docs/QUICKSTART.md) - Get started in 5 minutes
-- **🤖 AI Guide**: [docs/AI_GUIDE.md](docs/AI_GUIDE.md) - For AI assistants
 - **📝 Changelog**: [docs/CHANGELOG.md](docs/CHANGELOG.md) - What's new
 
 ---
@@ -91,9 +91,9 @@ This is a complete rewrite of [d3dxSkinManage (Python)](https://github.com/numli
 
 ### Frontend (React 19)
 - **Zustand** - Global state management
-- **Ant Design 5** - Professional UI components
-- **TypeScript 4.9** - Type safety
-- **Vite** - Fast development & build
+- **Ant Design 6** - Professional UI components
+- **TypeScript 5.9** - Type safety
+- **Vite 7** - Fast development & build
 
 ---
 
@@ -154,13 +154,14 @@ Manage multiple game configurations independently.
 - Profile-specific settings and paths
 - Export/import profiles
 
-### ⚙️ Task Queue
-Background operations with progress tracking.
+### ⚙️ Workflow System
+Background operations with progress tracking and batch processing.
 
+- Download manager-style UI for mod imports
 - Visual progress bars for long operations
-- Pause/resume/cancel support
-- Concurrent task execution
-- History and logging
+- Batch operations (delete, resume multiple workflows)
+- SQLite persistence across app restarts
+- Metadata pre-filling from folder/archive detection
 
 ### 🔄 Migration
 Import your existing Python d3dxSkinManage data.
@@ -184,30 +185,62 @@ Extend functionality with custom plugins.
 
 ```
 D3dxSkinManager/
-├── D3dxSkinManager/              # Backend (.NET)
-│   ├── Modules/                  # Feature modules
-│   │   ├── Category/             # Category system
+├── D3dxSkinManager/              # Backend (.NET 10)
+│   ├── Infrastructure/           # WebView2 + WinForms host
+│   │   ├── ApplicationBootstrapper.cs
+│   │   ├── ApplicationHost.cs
+│   │   ├── ProfileServiceRouter.cs
+│   │   └── WebView/              # WebView2 subsystem
+│   │
+│   ├── Modules/                  # Business logic modules (12 total)
+│   │   ├── Category/             # Category management
+│   │   ├── Context/              # DI context
+│   │   ├── Core/                 # Base classes, event bus, logging
+│   │   ├── Launch/               # Game launch
+│   │   ├── Migration/            # Python import (legacy)
 │   │   ├── Mod/                  # Mod management
-│   │   ├── Profile/              # Profile system
-│   │   ├── Migration/            # Data migration
-│   │   └── ...                   # Other modules
-│   ├── Configuration/            # DI & startup
+│   │   ├── Plugin/               # Plugin system
+│   │   ├── Profile/              # Profile management
+│   │   ├── Setting/              # Settings
+│   │   ├── System/               # System operations
+│   │   ├── Tool/                 # Tool utilities
+│   │   └── Workflow/             # Batch workflows
+│   │
 │   └── Program.cs                # Entry point
 │
-├── D3dxSkinManager.Client/       # Frontend (React)
+├── D3dxSkinManager.Client/       # Frontend (React 19)
 │   └── src/
-│       ├── modules/              # Feature modules
+│       ├── modules/              # Feature modules (9 total)
+│       │   ├── core/             # Core UI components
+│       │   ├── launch/           # Game launch UI
+│       │   ├── migration/        # Migration wizard
+│       │   ├── mod/              # Mod management
+│       │   ├── plugin/           # Plugin UI
+│       │   ├── profile/          # Profile management
+│       │   ├── setting/          # Settings UI
+│       │   ├── tool/             # Tools UI
+│       │   └── workflow/         # Workflow UI
+│       │
 │       ├── shared/               # Shared utilities
-│       │   ├── components/       # Reusable components
-│       │   ├── hooks/            # Custom hooks
-│       │   ├── services/         # API services
+│       │   ├── components/       # Reusable UI components
+│       │   ├── hooks/            # Custom React hooks
+│       │   ├── services/         # IPC services (bridgeService, etc.)
 │       │   └── store/            # Zustand stores
 │       └── App.tsx               # Main application
 │
-└── docs/                         # Documentation
-    ├── architecture/             # Architecture docs
-    ├── features/                 # Feature guides
-    └── AI_GUIDE.md               # AI assistant guide
+├── D3dxSkinManager.Tests/        # Backend unit tests
+├── D3dxSkinManager.ExamplePlugin/# Example plugin project
+├── Plugins/                      # External plugin projects
+│
+└── docs/                         # Documentation (optimized for AI)
+    ├── AI_GUIDE.md               # ⭐ Primary AI reference (1470 lines)
+    ├── KEYWORDS_INDEX.md         # Fast file routing
+    ├── core/                     # Core project docs
+    ├── ai-assistant/             # AI code generation guides
+    ├── architecture/             # Architecture details
+    ├── features/                 # Feature-specific docs
+    ├── keywords/                 # Component indexes
+    └── archive/                  # Archived historical docs
 ```
 
 ---
@@ -219,16 +252,19 @@ D3dxSkinManager/
 - **[Feature Guides](docs/features/)** - How to use each feature
 
 ### For Developers
-- **[AI Guide](docs/AI_GUIDE.md)** - Start here for AI assistants ⭐
-- **[Design Decisions](docs/core/DESIGN_DECISIONS.md)** - Architectural choices
-- **[Module Architecture](docs/architecture/MODULE_ARCHITECTURE.md)** - How modules work
-- **[Development Guide](docs/core/DEVELOPMENT.md)** - Contributing guidelines
+- **[AI Guide](docs/AI_GUIDE.md)** - ⭐ Primary reference for AI assistants (read this first!)
+- **[Keywords Index](docs/KEYWORDS_INDEX.md)** - Fast file lookup and routing
+- **[Design Decisions](docs/core/DESIGN_DECISIONS.md)** - Architectural constraints
+- **[Current Architecture](docs/architecture/CURRENT_ARCHITECTURE.md)** - System overview
+- **[Development Guide](docs/core/DEVELOPMENT.md)** - Setup and contributing
+- **[Workflows Guide](docs/ai-assistant/WORKFLOWS.md)** - Step-by-step code patterns
 
 ### Key Features Documentation
 - **[Category System](docs/features/CATEGORY_SYSTEM.md)** - Hierarchical organization
 - **[Profile System](docs/features/PROFILE_SYSTEM.md)** - Multi-profile support
-- **[Task Queue](docs/features/TASK_QUEUE_SYSTEM.md)** - Background operations
-- **[Migration](docs/architecture/MIGRATION_ARCHITECTURE.md)** - Python import guide
+- **[Workflow System](docs/architecture/WORKFLOW_ARCHITECTURE.md)** - Batch operations
+- **[Internationalization](docs/features/INTERNATIONALIZATION.md)** - i18n support
+- **[Plugins](docs/features/PLUGINS.md)** - Plugin architecture
 
 ---
 
@@ -251,4 +287,6 @@ Contributions are welcome! Please see [docs/core/DEVELOPMENT.md](docs/core/DEVEL
 
 **📚 Full documentation available in [docs/](docs/)**
 
-*Last updated: 2026-02-26*
+**For AI Code Generation**: Start with [AI_GUIDE.md](docs/AI_GUIDE.md) → [KEYWORDS_INDEX.md](docs/KEYWORDS_INDEX.md)
+
+*Last updated: 2026-03-02*

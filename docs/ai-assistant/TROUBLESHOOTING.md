@@ -23,53 +23,6 @@
 
 ## Build Errors
 
-### Error: `CS0246: The type or namespace name 'PhotinoNET' could not be found`
-
-**Symptom:**
-```
-error CS0246: The type or namespace name 'PhotinoNET' could not be found
-```
-
-**Root Cause:** Incorrect namespace for Photino.NET package
-
-**Solution:**
-```csharp
-// ❌ Wrong
-using PhotinoNET;
-
-// ✅ Correct
-using Photino.NET;
-```
-
-**File:** `D3dxSkinManager/Program.cs:4`
-
-**History:** Fixed on 2026-02-17 during initial build
-
----
-
-### Error: `System.ArgumentException: Icon file: icon.ico does not exist`
-
-**Symptom:**
-Application crashes on startup with icon file error
-
-**Root Cause:** Called `.SetIconFile("icon.ico")` but file doesn't exist
-
-**Solution:**
-```csharp
-// Temporary fix - comment out the line
-var window = new PhotinoWindow()
-    .SetTitle("D3dxSkinManager")
-    .SetSize(new Size(1280, 800))
-    // .SetIconFile("icon.ico")  // TODO: Add icon file later
-    .Center()
-```
-
-**Long-term Solution:** Add icon.ico file to project root and ensure it's copied to output
-
-**File:** `D3dxSkinManager/Program.cs:29`
-
----
-
 ### Error: `NU1900: Package vulnerability warning`
 
 **Symptom:**
@@ -97,7 +50,7 @@ Remove private NuGet source from NuGet.config or add source filter to project
 
 **Symptom:**
 ```
-error MSB3644: The reference assemblies for .NETFramework,Version=v8.0 were not found
+error MSB3644: The reference assemblies for .NETFramework,Version=v10.0 were not found
 ```
 
 **Root Cause:** .NET 10 SDK not installed or wrong version
@@ -107,33 +60,13 @@ error MSB3644: The reference assemblies for .NETFramework,Version=v8.0 were not 
 # Check installed versions
 dotnet --version
 
-# Should show 8.0.x
-# If not, download from https://dotnet.microsoft.com/download/dotnet/8.0
+# Should show 10.0.x
+# If not, download from https://dotnet.microsoft.com/download/dotnet/10.0
 ```
 
 **Required:** .NET 10.0 SDK or later
 
----
-
-### Error: `CS1061: Method does not contain a definition`
-
-**Symptom:**
-```
-error CS1061: 'PhotinoWindow' does not contain a definition for 'SetIconFile'
-```
-
-**Root Cause:** Using outdated Photino.NET API or wrong version
-
-**Solution:**
-```bash
-# Check package version
-dotnet list package
-
-# Update to latest
-dotnet add package Photino.NET --version 4.0.16
-```
-
-**Current Version:** Photino.NET 4.0.16
+**File:** `D3dxSkinManager/D3dxSkinManager.csproj`
 
 ---
 

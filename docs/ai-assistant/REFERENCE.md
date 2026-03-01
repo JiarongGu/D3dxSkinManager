@@ -149,15 +149,16 @@ d3dxSkinManage-Rewrite/
 ### C# (Backend)
 
 ```csharp
-using Photino.NET;                      // Photino window
 using System;                           // System utilities
-using System.Drawing;                   // Graphics (Size, etc.)
+using System.Windows.Forms;             // WinForms
+using Microsoft.Web.WebView2.WinForms;  // WebView2 control
 using System.IO;                        // File I/O
 using Microsoft.Data.Sqlite;            // SQLite
-using Newtonsoft.Json;                  // JSON serialization
+using System.Text.Json;                 // JSON serialization
 
 namespace D3dxSkinManager { }           // Root namespace
-namespace D3dxSkinManager.Services { }  // Services namespace
+namespace D3dxSkinManager.Modules { }   // Modules namespace
+namespace D3dxSkinManager.Infrastructure { }  // Infrastructure namespace
 ```
 
 ### TypeScript (Frontend)
@@ -178,13 +179,13 @@ import type { ColumnsType } from 'antd/es/table';  // Types
 | Service | URL | Port |
 |---------|-----|------|
 | React Dev Server | http://localhost:3000 | 3000 |
-| Photino Window | Points to React or file:/// | N/A |
+| WebView2 Control | Points to React or file:/// | N/A |
 
 ### Production
 
 | Service | URL |
 |---------|-----|
-| Photino Window | file:///path/to/wwwroot/index.html |
+| WebView2 Control | file:///path/to/wwwroot/index.html |
 
 ---
 
@@ -194,7 +195,7 @@ import type { ColumnsType } from 'antd/es/table';  // Types
 
 ```bash
 # Open database
-sqlite3 D3dxSkinManager/bin/Debug/net8.0/mods.db
+sqlite3 D3dxSkinManager/bin/Debug/net10.0-windows/mods.db
 
 # List tables
 .tables

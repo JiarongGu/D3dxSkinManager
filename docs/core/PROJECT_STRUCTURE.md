@@ -1,8 +1,8 @@
 # Project Structure
 
 **Project:** D3dxSkinManager
-**Version:** 1.0.0
-**Last Updated:** 2026-02-19
+**Version:** 2.0.0
+**Last Updated:** 2026-03-02
 
 ---
 
@@ -29,10 +29,11 @@ The project follows a **monorepo structure** with clear separation between backe
 
 ```
 D3dxSkinManager/                 # Repository root (single .git)
-├── D3dxSkinManager/             # Backend (.NET 10 project)
+├── D3dxSkinManager/             # Backend (.NET 10 WinForms + WebView2 project)
 ├── D3dxSkinManager.Client/      # Frontend (React + TypeScript)
-├── Plugins/                     # External plugin projects (27 plugins)
+├── Plugins/                     # External plugin projects (9 plugins)
 ├── D3dxSkinManager.Tests/       # Backend unit tests
+├── D3dxSkinManager.ExamplePlugin/ # Example plugin project
 ├── docs/                        # Documentation system
 ├── D3dxSkinManager.sln          # Visual Studio solution
 ├── build-production.ps1         # Production build script
@@ -52,30 +53,39 @@ d3dxSkinManage-Rewrite/
 ├── D3dxSkinManager/                    # Backend C# Project
 │   ├── bin/                            # Build output (ignored by git)
 │   │   └── Debug/
-│   │       └── net8.0/
+│   │       └── net10.0-windows/
 │   │           ├── D3dxSkinManager.exe
-│   │           ├── mods.db             # SQLite database
-│   │           ├── *.dll               # Dependencies
-│   │           └── wwwroot/            # Frontend (production only)
+│   │           ├── *.dll               # Dependencies (WebView2, SQLite, etc.)
+│   │           └── wwwroot/            # Frontend build (production only)
 │   │
 │   ├── obj/                            # Build intermediates (ignored)
 │   │
-│   ├── Services/                       # Business logic layer
-│   │   ├── IModService.cs              # Mod service interface
-│   │   └── ModService.cs               # Mod service implementation
-│   │
-│   ├── Infrastructure/                    # WebView2 architecture
+│   ├── Infrastructure/                    # WebView2 + WinForms architecture
 │   │   ├── ApplicationBootstrapper.cs
 │   │   ├── ApplicationHost.cs
-│   │   ├── WebViewInitializer.cs
-│   │   ├── IpcCommunicationHandler.cs
-│   │   └── MessageDispatcher.cs
+│   │   ├── ProfileServiceRouter.cs
+│   │   └── WebView/
+│   │       ├── WebViewInitializer.cs
+│   │       ├── IpcHandler.cs
+│   │       ├── EventBusIpcBridge.cs
+│   │       ├── OptimizedForm.cs
+│   │       ├── DropZoneOverlay.cs
+│   │       ├── WebViewSession.cs
+│   │       └── WebViewSessionManager.cs
 │   │
-│   ├── Modules/                        # Business logic modules
-│   │   ├── Core/                       # Core services
-│   │   ├── Mods/                       # Mod management
-│   │   ├── Profiles/                   # Profile management
-│   │   └── ...                         # Other modules
+│   ├── Modules/                        # Business logic modules (12 total)
+│   │   ├── Category/                   # Category management
+│   │   ├── Context/                    # DI context and configuration
+│   │   ├── Core/                       # Base classes, event bus, logging
+│   │   ├── Launch/                     # Game launch
+│   │   ├── Migration/                  # Python config parser (legacy import)
+│   │   ├── Mod/                        # Mod management
+│   │   ├── Plugin/                     # Plugin system
+│   │   ├── Profile/                    # Profile management
+│   │   ├── Setting/                    # Settings
+│   │   ├── System/                     # System operations (file dialogs, etc.)
+│   │   ├── Tool/                       # Tool utilities
+│   │   └── Workflow/                   # Batch operation workflows
 │   │
 │   ├── Program.cs                      # Entry point
 │   └── D3dxSkinManager.csproj          # Project file
@@ -156,40 +166,34 @@ d3dxSkinManage-Rewrite/
 
 ```
 D3dxSkinManager/
-├── Services/                    # Service layer (business logic)
-│   ├── IModService.cs           # Interface: Mod operations contract
-│   │   └─ Methods:
-│   │       ├─ GetAllModsAsync()      → Line 15
-│   │       ├─ LoadModAsync()         → Line 20
-│   │       ├─ UnloadModAsync()       → Line 25
-│   │       ├─ GetLoadedModsAsync()   → Line 30
-│   │       └─ ImportModAsync()       → Line 35
+├── Infrastructure/              # Application infrastructure
+│   ├── ApplicationBootstrapper.cs
+│   ├── ApplicationHost.cs
+│   ├── ProfileServiceRouter.cs
+│   └── WebView/                # WebView2 subsystem
+│
+├── Modules/                    # Domain modules (12 total - services per-module)
+│   ├── Category/
+│   │   ├── Services/ICategoryService.cs, CategoryService.cs
+│   │   ├── Repositories/
+│   │   ├── Models/CategoryInfo.cs
+│   │   ├── CategoryFacade.cs   # IPC interface
+│   │   └── CategoryServiceExtensions.cs  # DI registration
 │   │
-│   └── ModService.cs            # Implementation: Mod operations
-│       └─ Methods:
-│           ├─ Constructor                → Line 18
-│           ├─ InitializeDatabaseAsync()  → Line 24
-│           ├─ GetAllModsAsync()          → Line 47
-│           ├─ LoadModAsync()             → Line 66
-│           ├─ UnloadModAsync()           → Line 111
-│           ├─ GetLoadedModsAsync()       → Line 130
-│           ├─ ImportModAsync()           → Line 148
-│           └─ MapToModInfo()             → Line 158
+│   ├── Mod/
+│   │   ├── Services/IModService.cs, ModService.cs, ModQueryService.cs
+│   │   ├── Repositories/IModRepository.cs, ModRepository.cs
+│   │   ├── Models/ModInfo.cs
+│   │   ├── ModFacade.cs        # IPC interface
+│   │   └── ModServiceExtensions.cs
+│   │
+│   └── ...                     # 10 other modules (Context, Core, Launch, etc.)
 │
 ├── Program.cs                   # Application entry point
-│   └─ Sections:
-│       ├─ Main()                     → Bootstraps application
-│       ├─ ApplicationBootstrapper    → Initializes services
-│       └─ ApplicationHost            → Creates WinForms + WebView2 window
 │
 └── D3dxSkinManager.csproj      # Project configuration
-    └─ Contains:
-        ├─ TargetFramework: net10.0
-        ├─ PackageReferences:
-        │   ├─ Microsoft.Web.WebView2.WinForms
-        │   ├─ Microsoft.Data.Sqlite 10.0.3
-        │   └─ Newtonsoft.Json 13.0.4
-        └─ Build settings
+    ├─ TargetFramework: net10.0-windows
+    └─ Packages: WebView2, SQLite, System.Text.Json, 7z.Libs
 ```
 
 ### Namespace Organization
@@ -200,11 +204,16 @@ namespace D3dxSkinManager              // Root namespace
     class Program { }                  // Entry point
 }
 
-namespace D3dxSkinManager.Services     // Service layer
+namespace D3dxSkinManager.Modules.Mod  // Module namespaces
 {
     public interface IModService { }   // Service contracts
     public class ModService { }        // Service implementations
     public class ModInfo { }           // Data models
+}
+
+namespace D3dxSkinManager.Infrastructure  // Infrastructure
+{
+    public class ApplicationHost { }   // Application host
 }
 ```
 
@@ -212,9 +221,10 @@ namespace D3dxSkinManager.Services     // Service layer
 
 | File | Purpose | Lines | Complexity |
 |------|---------|-------|------------|
-| **Program.cs** | Photino host, IPC handler | ~100 | Medium |
-| **Services/IModService.cs** | Service interface, ModInfo | ~60 | Low |
-| **Services/ModService.cs** | Business logic, DB access | ~200 | High |
+| **Program.cs** | Application entry point | ~50 | Low |
+| **Infrastructure/ApplicationBootstrapper.cs** | DI setup, initialization | ~150 | Medium |
+| **Infrastructure/WebView/IpcHandler.cs** | WebView2 IPC communication | ~200 | High |
+| **Modules/*/Services/*.cs** | Module business logic | ~200-500 | Medium-High |
 
 ---
 
@@ -478,7 +488,7 @@ Routes to folder:
 D3dxSkinManager.Core/          # Shared models, interfaces
 D3dxSkinManager.Services/      # Business logic
 D3dxSkinManager.Data/          # Data access
-D3dxSkinManager.Desktop/       # Photino host (references others)
+D3dxSkinManager.Desktop/       # WinForms + WebView2 host (references others)
 ```
 
 **When to split:**
@@ -520,14 +530,13 @@ src/
 ### Development Build (Debug)
 
 ```
-D3dxSkinManager/bin/Debug/net8.0/
+D3dxSkinManager/bin/Debug/net10.0-windows/
 ├── D3dxSkinManager.exe         # Application executable
 ├── D3dxSkinManager.dll         # Application library
 ├── D3dxSkinManager.pdb         # Debug symbols
-├── mods.db                     # SQLite database (created at runtime)
-├── Photino.NET.dll             # Dependencies
+├── Microsoft.Web.WebView2.*.dll # WebView2 runtime
 ├── Microsoft.Data.Sqlite.dll
-├── Newtonsoft.Json.dll
+├── System.Text.Json.dll
 └── (other dependencies)
 ```
 
@@ -536,19 +545,18 @@ D3dxSkinManager/bin/Debug/net8.0/
 ### Production Build (Release)
 
 ```
-D3dxSkinManager/bin/Release/net8.0/win-x64/publish/
+D3dxSkinManager/bin/Release/net10.0-windows/win-x64/publish/
 ├── D3dxSkinManager.exe         # Self-contained executable
 ├── wwwroot/                    # Bundled frontend
 │   ├── index.html
-│   ├── static/
-│   │   ├── css/
-│   │   └── js/
-│   └── asset-manifest.json
-├── mods.db                     # Database (if included)
-└── (all dependencies bundled)
+│   ├── assets/
+│   │   ├── *.css
+│   │   └── *.js
+│   └── manifest.json
+└── (all dependencies bundled - WebView2, SQLite, etc.)
 ```
 
-**Size:** ~10-15 MB (self-contained .NET + frontend bundle)
+**Size:** ~15-20 MB (self-contained .NET 10 + WebView2 + frontend bundle)
 
 ---
 
@@ -627,4 +635,4 @@ Query: "Where is ModService?"
 
 *This structure document is maintained as the project evolves.*
 
-*Last updated: 2026-02-17*
+*Last updated: 2026-03-02*

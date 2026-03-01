@@ -39,13 +39,10 @@
   - Profile state management and IPC integration
   - Created: 2026-02-18
 
-- **OperationContext** → `src/shared/context/OperationContext.tsx`
-  - OperationProvider (context provider)
-  - useOperation (hook) - access operation state and actions
-  - Global state for active/completed/failed operations
-  - Subscribes to backend push notifications via bridgeService
-  - Maintains last 50 completed/failed operations
-  - Created: 2026-02-21
+- **OperationContext** → **REMOVED** (Replaced by Workflow/EventBus system)
+  - Removed: 2026-02-25
+  - Replacement: Use Workflow system for progress tracking
+  - See: [WORKFLOW_ARCHITECTURE.md](../architecture/WORKFLOW_ARCHITECTURE.md)
 
 ---
 
@@ -168,13 +165,10 @@
   - Responsive tag display with maxTagCount
   - Created: 2026-02-18
 
-- **OperationMonitorScreen** → `src/shared/components/operation/OperationMonitorScreen.tsx`
-  - Full-screen operation monitor with tabs (Active/Completed/Failed)
-  - Real-time progress bars for active operations
-  - Duration display, error messages, metadata support
-  - Clear All buttons for completed/failed operations
-  - Opens via Ctrl+Shift+O or clicking status bar progress
-  - Created: 2026-02-21
+- **OperationMonitorScreen** → **REMOVED** (Replaced by Workflow system)
+  - Removed: 2026-02-25
+  - Replacement: Use WorkflowQueueTable/ModImportWorkflowScreen
+  - See: [WORKFLOW_ARCHITECTURE.md](../architecture/WORKFLOW_ARCHITECTURE.md)
 
 ### Compact Component Library
 
@@ -584,7 +578,7 @@
 ### IPC Communication
 
 - **bridgeService** → `src/shared/services/bridgeService.ts`
-  - Renamed from photinoService (WebView2 migration - 2026-02-22)
+  - WebView2 IPC bridge service (Photino.NET was completely replaced in 2026-02-22 migration)
   - Uses chrome.webview.postMessage for IPC
   - sendMessage → Sends messages to backend
   - initializeMessageReceiver → Sets up message listener

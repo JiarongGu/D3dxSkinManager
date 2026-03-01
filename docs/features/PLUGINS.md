@@ -172,7 +172,7 @@ public class MyPlugin : IServicePlugin
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -415,7 +415,7 @@ Located at: `D3dxSkinManager.Client/src/plugins/examples/ExamplePlugin.tsx`
 dotnet build MyPlugin.csproj
 
 # Copy to plugins directory
-copy bin\Debug\net8.0\MyPlugin.dll "{AppData}\plugins\"
+copy bin\Debug\net10.0\MyPlugin.dll "{AppData}\plugins\"
 ```
 
 **Frontend:**

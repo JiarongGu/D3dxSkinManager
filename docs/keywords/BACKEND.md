@@ -1,9 +1,10 @@
 # Backend Keywords Index
 
-> **Purpose:** Backend C# classes, services, and architecture
+> **Purpose:** Backend C# classes, services, and architecture (.NET 10)
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-02-22
+**Framework:** net10.0-windows
+**Last Updated:** 2026-03-02
 
 ---
 

@@ -496,9 +496,9 @@ describe('ThemeContext', () => {
 
 **1. Mock External Dependencies**
 ```typescript
-// Mock Photino service
-jest.mock('../../shared/services/photinoService', () => ({
-  photinoService: {
+// Mock WebView2 bridge service
+jest.mock('../../shared/services/bridgeService', () => ({
+  bridgeService: {
     sendMessage: jest.fn(),
   },
 }));
@@ -692,9 +692,9 @@ Here's a complete example for the recently added settings file service:
 
 ```typescript
 import { settingsFileService } from '../settingsFileService';
-import { photinoService } from '../../../../shared/services/photinoService';
+import { bridgeService } from '../../../../shared/services/bridgeService';
 
-jest.mock('../../../../shared/services/photinoService');
+jest.mock('../../../../shared/services/bridgeService');
 
 describe('settingsFileService', () => {
   beforeEach(() => {
@@ -703,7 +703,7 @@ describe('settingsFileService', () => {
 
   describe('getSettingsFile', () => {
     it('should parse and return JSON data', async () => {
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true,
         content: '{"theme":"dark"}'
       });
@@ -711,7 +711,7 @@ describe('settingsFileService', () => {
       const result = await settingsFileService.getSettingsFile('myconfig');
 
       expect(result).toEqual({ theme: 'dark' });
-      expect(photinoService.sendMessage).toHaveBeenCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
         'SETTING',
         'GET_FILE',
         { filename: 'myconfig' }
@@ -719,7 +719,7 @@ describe('settingsFileService', () => {
     });
 
     it('should return null if file does not exist', async () => {
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: false
       });
 
@@ -729,7 +729,7 @@ describe('settingsFileService', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      (photinoService.sendMessage as jest.Mock).mockRejectedValue(
+      (bridgeService.sendMessage as jest.Mock).mockRejectedValue(
         new Error('Network error')
       );
 
@@ -741,7 +741,7 @@ describe('settingsFileService', () => {
 
   describe('saveSettingsFile', () => {
     it('should serialize and save JSON data', async () => {
-      (photinoService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
         success: true
       });
 
@@ -750,7 +750,7 @@ describe('settingsFileService', () => {
       });
 
       expect(result).toBe(true);
-      expect(photinoService.sendMessage).toHaveBeenCalledWith(
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
         'SETTING',
         'SAVE_FILE',
         {

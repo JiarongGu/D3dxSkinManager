@@ -108,7 +108,7 @@ public ModService(IProfileRepository profileRepo) { } // NEVER!
 
 **Message Format:**
 ```typescript
-interface PhotinoMessage {
+interface BridgeMessage {
   module: ModuleName;     // 'MOD' | 'PROFILE' | 'SETTING' etc
   type: string;          // 'LOAD' | 'SAVE' | 'DELETE' etc
   profileId?: string;    // Profile context if needed

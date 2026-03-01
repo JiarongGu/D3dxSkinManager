@@ -493,9 +493,9 @@ Communication between C# backend and React frontend:
 - [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md) - Quick file lookup
 
 ### External Resources
-- [Photino.NET Docs](https://www.tryphotino.io/)
+- [WebView2 Docs](https://learn.microsoft.com/en-us/microsoft-edge/webview2/)
 - [3DMigoto Wiki](https://github.com/bo3b/3Dmigoto/wiki)
-- [Original Python Project](https://github.com/numlinka/d3dxSkinManage)
+- [Original Python Project](https://github.com/numlinka/d3dxSkinManage) (legacy)
 - [.NET Documentation](https://docs.microsoft.com/dotnet/)
 - [React Documentation](https://react.dev/)
 
