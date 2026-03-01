@@ -121,7 +121,14 @@ public class DropZoneManager : IDisposable
         var visibleZones = _registeredZones.Values.Where(z => z.IsVisible).ToList();
 
         if (visibleZones.Count == 0)
+        {
+            // No zones - destroy any active overlays
+            DestroyAllOverlays();
             return;
+        }
+
+        // Track which zones the mouse is currently over
+        var zonesUnderMouse = new HashSet<string>();
 
         foreach (var metadata in visibleZones)
         {
@@ -131,6 +138,8 @@ public class DropZoneManager : IDisposable
 
             if (zoneBounds.Contains(screenPosition))
             {
+                zonesUnderMouse.Add(metadata.ZoneId);
+
                 // Mouse is over this zone - create overlay if not exists
                 if (!_activeOverlays.ContainsKey(metadata.ZoneId))
                 {
@@ -138,6 +147,18 @@ public class DropZoneManager : IDisposable
                     CreateOverlay(metadata);
                 }
             }
+        }
+
+        // Destroy overlays for zones the mouse has left
+        var zonesToRemove = _activeOverlays.Keys.Where(id => !zonesUnderMouse.Contains(id)).ToList();
+        foreach (var zoneId in zonesToRemove)
+        {
+            _logger.Info($"Mouse left zone {zoneId}, destroying overlay", "DropZone");
+
+            // Notify frontend that drag left the zone
+            NotifyDragLeave(zoneId);
+
+            DestroyOverlay(zoneId);
         }
     }
 
