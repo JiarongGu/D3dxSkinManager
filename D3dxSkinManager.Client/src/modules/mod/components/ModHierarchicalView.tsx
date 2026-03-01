@@ -5,12 +5,14 @@ import { ModPreviewPanel } from "./ModPreviewPanel";
 import { CategoryPanel } from "./CategoryPanel";
 import { ModListPanel } from "./ModListPanel";
 import { ModEditScreen } from "./ModEditScreen/ModEditScreen";
-import { ModManagementScreen } from "./ModManagementScreen";
 import { ResizeHandle } from "./ResizeHandle";
 import { useModsStore } from "../store/modsStore";
 import { useMods } from "../hooks/useMods";
 import { useProfile } from "../../../shared/context/ProfileContext";
 import { useResizablePanels } from "../hooks/useResizablePanels";
+import { useSlideInScreen } from "../../../shared/hooks/useSlideInScreen";
+import { ModImportQueueScreen } from "../../workflow/components";
+import { useTranslation } from 'react-i18next';
 import './ModHierarchicalView.css';
 
 /**
@@ -23,9 +25,12 @@ import './ModHierarchicalView.css';
  * - Much cleaner, better performance, easier to maintain!
  */
 export const ModHierarchicalView: React.FC = () => {
+  const { t } = useTranslation();
+
   // Only subscribe to what THIS component uses for its coordination logic
   const mods = useModsStore(s => s.mods);
   const selectedCategory = useModsStore(s => s.selectedCategory);
+  const modManagementScreenVisible = useModsStore(s => s.modManagementScreenVisible);
 
   // Operations for coordination
   const {
@@ -36,6 +41,7 @@ export const ModHierarchicalView: React.FC = () => {
     clearCategoryFilter,
     refreshCategoryTree,
     setAvailableTags,
+    closeModManagementScreen,
   } = useMods();
 
   // Resizable panels
@@ -44,6 +50,15 @@ export const ModHierarchicalView: React.FC = () => {
   // Local state (not in global store)
   const [unclassifiedCount, setUnclassifiedCount] = useState<number>(0);
   const { state: profileState } = useProfile();
+
+  // Import Queue Slide-in Screen
+  useSlideInScreen({
+    visible: modManagementScreenVisible,
+    title: t('modManagement.title.importQueue'),
+    content: <ModImportQueueScreen />,
+    width: '85%',
+    onClose: closeModManagementScreen,
+  });
 
   // Add/remove body class during resize for global cursor
   useEffect(() => {
@@ -181,7 +196,6 @@ export const ModHierarchicalView: React.FC = () => {
 
       {/* All dialogs/screens now subscribe to their own state - no props needed! */}
       <ModEditScreen />
-      <ModManagementScreen />
     </>
   );
 };

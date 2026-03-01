@@ -1,0 +1,98 @@
+/**
+ * Mod Import Workflow Screen Styles
+ */
+
+.mod-import-workflow-screen .workflow-content {
+  padding: 20px 0;
+}
+
+.mod-import-workflow-screen .workflow-steps {
+  margin-bottom: 40px;
+}
+
+.mod-import-workflow-screen .workflow-step-content {
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Processing steps */
+.workflow-step-processing {
+  text-align: center;
+  width: 100%;
+}
+
+.workflow-step-processing h3 {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.workflow-step-processing .step-description {
+  color: var(--ant-color-text-secondary);
+  margin-bottom: 0;
+}
+
+/* Metadata form step */
+.workflow-step-metadata {
+  width: 100%;
+}
+
+.workflow-step-metadata h3 {
+  margin-bottom: 8px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.workflow-step-metadata .step-description {
+  color: var(--ant-color-text-secondary);
+  margin-bottom: 24px;
+}
+
+.workflow-step-metadata .metadata-form {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* Completed step */
+.workflow-step-completed,
+.workflow-step-failed,
+.workflow-step-cancelled {
+  width: 100%;
+}
+
+/* Loading spinner */
+.workflow-step-processing .ant-spin {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Steps component customization */
+.mod-import-workflow-screen .ant-steps-item-process .ant-steps-item-icon {
+  background-color: var(--ant-primary-color);
+  border-color: var(--ant-primary-color);
+}
+
+.mod-import-workflow-screen .ant-steps-item-finish .ant-steps-item-icon {
+  border-color: var(--ant-success-color);
+}
+
+.mod-import-workflow-screen .ant-steps-item-finish .ant-steps-item-icon > .ant-steps-icon {
+  color: var(--ant-success-color);
+}
+
+.mod-import-workflow-screen .ant-steps-item-error .ant-steps-item-icon {
+  border-color: var(--ant-error-color);
+}
+
+.mod-import-workflow-screen .ant-steps-item-error .ant-steps-item-icon > .ant-steps-icon {
+  color: var(--ant-error-color);
+}
+
+/* Form styling */
+.metadata-form .ant-form-item:last-child {
+  margin-bottom: 0;
+  margin-top: 24px;
+}

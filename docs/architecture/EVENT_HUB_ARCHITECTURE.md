@@ -10,9 +10,9 @@ The Event Hub (EventBus) provides a decoupled, pub/sub messaging system for comm
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Event Publishers                            │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │ ModFacade    │  │ProfileService│  │ TaskQueue    │         │
+│  │ ModFacade    │  │ProfileService│  │ Workflow     │         │
 │  │ Emits:       │  │ Emits:       │  │ Emits:       │         │
-│  │ MOD:LOADED   │  │PROFILE:CREATED│  │TASK_QUEUE:   │         │
+│  │ MOD:LOADED   │  │PROFILE:CREATED│  │WORKFLOW:     │         │
 │  │ MOD:IMPORTED │  │PROFILE:SWITCHED│ │COMPLETED     │         │
 │  └──────┬───────┘  └──────┬────────┘  └──────┬───────┘         │
 └─────────┼──────────────────┼────────────────────┼────────────────┘
@@ -187,17 +187,14 @@ PROFILE:SWITCHED         // Active profile changed
 PROFILE:CONFIG_UPDATED   // Profile config updated
 ```
 
-### TaskQueue Events (TASK_QUEUE)
+### Workflow Events (WORKFLOW)
 
 ```csharp
-TASK_QUEUE:ADDED                 // Task added to queue
-TASK_QUEUE:STARTED               // Task processing started
-TASK_QUEUE:PROGRESS              // Task progress updated
-TASK_QUEUE:COMPLETED             // Task completed successfully
-TASK_QUEUE:FAILED                // Task failed
-TASK_QUEUE:CANCELLED             // Task cancelled
-TASK_QUEUE:REMOVED               // Task removed from queue
-TASK_QUEUE:AWAITING_CONFIRMATION // Task awaiting user input
+WORKFLOW:CREATED                 // Workflow created
+WORKFLOW:STATUS_CHANGED          // Workflow status changed
+WORKFLOW:COMPLETED               // Workflow completed successfully
+WORKFLOW:FAILED                  // Workflow failed
+WORKFLOW:CANCELLED               // Workflow cancelled
 ```
 
 ### Setting Events (SETTING)

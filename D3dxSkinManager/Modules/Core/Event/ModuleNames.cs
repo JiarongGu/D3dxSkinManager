@@ -10,7 +10,7 @@ public static class ModuleNames
     public const string MOD = "MOD";
     public const string CATEGORY = "CATEGORY";
     public const string PROFILE = "PROFILE";
-    public const string TASK_QUEUE = "TASK_QUEUE";
+    public const string WORKFLOW = "WORKFLOW";
     public const string SETTING = "SETTING";
     public const string MIGRATION = "MIGRATION";
     public const string TOOL = "TOOL";

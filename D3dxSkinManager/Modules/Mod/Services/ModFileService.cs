@@ -2,9 +2,6 @@ using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.TaskQueue;
-using D3dxSkinManager.Modules.TaskQueue.Services;
-using D3dxSkinManager.Modules.TaskQueue.Repositories;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -19,7 +16,7 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 public interface IModFileService
 {
     // Load/Unload operations
-    Task<bool> LoadAsync(string sha, IProgressReporter? progressReporter = null);
+    Task<bool> LoadAsync(string sha);
     Task<bool> UnloadAsync(string sha);
     Task<bool> DeleteAsync(string sha, string? previewPath);
 
@@ -103,19 +100,14 @@ public class ModFileService : IModFileService
     /// Cache can be in loaded (active) or unloaded/disabled mode
     /// Detects and updates archive type if needed
     /// </summary>
-    public async Task<bool> LoadAsync(string sha, IProgressReporter? progressReporter = null)
+    public async Task<bool> LoadAsync(string sha)
     {
         try
         {
-            progressReporter ??= NullProgressReporter.Instance;
-
-            await progressReporter.ReportProgressAsync(0, "Checking archive...").ConfigureAwait(false);
-
             var archivePath = GetArchivePath(sha);
             if (!File.Exists(archivePath))
             {
                 _logger.Warn($"Archive not found: {archivePath}", "ModFileService");
-                await progressReporter.ReportFailureAsync("Archive not found").ConfigureAwait(false);
                 throw new Core.Models.ModException(
                     Core.Models.ErrorCodes.MOD_ARCHIVE_NOT_FOUND,
                     $"Mod archive file not found: {archivePath}",
@@ -128,21 +120,16 @@ public class ModFileService : IModFileService
             // If already extracted as disabled cache, just rename it (remove DISABLED- prefix)
             if (Directory.Exists(disabledDirectory))
             {
-                await progressReporter.ReportProgressAsync(50, "Enabling from cache...").ConfigureAwait(false);
-
                 try
                 {
                     Directory.Move(disabledDirectory, targetDirectory);
                     _logger.Info($"Enabled mod from cache: {sha}", "ModFileService");
-                    await progressReporter.ReportProgressAsync(100, "Enabled from cache").ConfigureAwait(false);
-                    await progressReporter.ReportCompletionAsync().ConfigureAwait(false);
                     return true;
                 }
                 catch (IOException ioEx)
                 {
                     // Folder is in use by another process
                     _logger.Error($"Cannot enable mod {sha} - folder is in use: {ioEx.Message}", "ModFileService", ioEx);
-                    await progressReporter.ReportFailureAsync("Folder is in use by another process").ConfigureAwait(false);
                     throw new Core.Models.ModException(
                         Core.Models.ErrorCodes.MOD_FOLDER_IN_USE,
                         $"Cannot enable mod - the folder is currently in use by another process. Please close any programs accessing: {disabledDirectory}",
@@ -153,7 +140,6 @@ public class ModFileService : IModFileService
                 {
                     // Access denied
                     _logger.Error($"Access denied when enabling mod {sha}: {authEx.Message}", "ModFileService", authEx);
-                    await progressReporter.ReportFailureAsync("Access denied").ConfigureAwait(false);
                     throw new Core.Models.ModException(
                         Core.Models.ErrorCodes.FILE_ACCESS_DENIED,
                         $"Access denied when enabling mod. Please run with appropriate permissions.",
@@ -162,37 +148,28 @@ public class ModFileService : IModFileService
                 }
             }
 
-            await progressReporter.ReportProgressAsync(10, "Detecting archive type...").ConfigureAwait(false);
-
             // Extract archive using ArchiveService (with type detection)
             if (Directory.Exists(targetDirectory))
             {
                 Directory.Delete(targetDirectory, true);
             }
 
-            await progressReporter.ReportProgressAsync(20, "Extracting archive...").ConfigureAwait(false);
-
             var extractionResult = await _archiveService.ExtractArchiveAsync(archivePath, targetDirectory).ConfigureAwait(false);
 
             if (extractionResult.Success)
             {
-                await progressReporter.ReportProgressAsync(80, $"Extracted {extractionResult.FileCount} files").ConfigureAwait(false);
                 _logger.Info($"Loaded mod: {sha} ({extractionResult.FileCount} files)", "ModFileService");
 
                 // Update mod Type in database if detected and different from stored
                 if (!string.IsNullOrEmpty(extractionResult.DetectedType))
                 {
-                    await progressReporter.ReportProgressAsync(90, "Updating metadata...").ConfigureAwait(false);
                     await UpdateModTypeIfNeededAsync(sha, extractionResult.DetectedType).ConfigureAwait(false);
                 }
 
-                await progressReporter.ReportProgressAsync(100, "Load complete").ConfigureAwait(false);
-                await progressReporter.ReportCompletionAsync().ConfigureAwait(false);
                 return true;
             }
             else
             {
-                await progressReporter.ReportFailureAsync("Archive extraction failed").ConfigureAwait(false);
                 throw new Core.Models.ModException(
                     Core.Models.ErrorCodes.MOD_EXTRACTION_FAILED,
                     "Failed to extract mod archive. The file may be corrupted or in an unsupported format.",
@@ -208,7 +185,6 @@ public class ModFileService : IModFileService
         {
             // Wrap unknown exceptions in ModException
             _logger.Error($"Unexpected error loading mod {sha}: {ex.Message}", "ModFileService", ex);
-            await (progressReporter?.ReportFailureAsync(ex.Message) ?? Task.CompletedTask);
             throw new Core.Models.ModException(
                 Core.Models.ErrorCodes.UNKNOWN_ERROR,
                 $"An unexpected error occurred while loading the mod: {ex.Message}",

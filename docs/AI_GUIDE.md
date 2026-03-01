@@ -1,7 +1,7 @@
 # AI Assistant Guide
 
-**Version:** 2.4
-**Last Updated:** 2026-02-26
+**Version:** 2.5
+**Last Updated:** 2026-03-01
 **Critical:** NEVER commit without explicit user approval!
 
 ---
@@ -210,7 +210,7 @@ All events use **Module + Type pattern** matching IpcRequest structure. Events h
 public class EventMessage
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
-    public string Module { get; set; } = string.Empty;  // e.g., "MOD", "TASK_QUEUE"
+    public string Module { get; set; } = string.Empty;  // e.g., "MOD", "WORKFLOW"
     public string Type { get; set; } = string.Empty;    // e.g., "LOADED", "PROGRESS"
     public object? Payload { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
@@ -224,7 +224,7 @@ public static class ModuleNames
     public const string MOD = "MOD";
     public const string CATEGORY = "CATEGORY";
     public const string PROFILE = "PROFILE";
-    public const string TASK_QUEUE = "TASK_QUEUE";
+    public const string WORKFLOW = "WORKFLOW";
     public const string SETTING = "SETTING";
     public const string MIGRATION = "MIGRATION";
     public const string TOOL = "TOOL";
@@ -242,13 +242,13 @@ public static class ModEvents
     public const string CLASSIFICATION_TREE_CHANGED = "CLASSIFICATION_TREE_CHANGED";
 }
 
-// Example: Modules/TaskQueue/TaskQueueEvents.cs
-public static class TaskQueueEvents
+// Example: Modules/Workflow/WorkflowEvents.cs
+public static class WorkflowEvents
 {
-    public const string ADDED = "ADDED";                    // NOT "TASK_ADDED"
-    public const string STARTED = "STARTED";
-    public const string PROGRESS = "PROGRESS";
+    public const string CREATED = "CREATED";                // NOT "WORKFLOW_CREATED"
+    public const string STATUS_CHANGED = "STATUS_CHANGED";
     public const string COMPLETED = "COMPLETED";
+    public const string FAILED = "FAILED";
 }
 
 // Example: Infrastructure/DropZoneEvents.cs
@@ -270,7 +270,7 @@ public static class SystemEvents
 
 // ✅ CORRECT: Emit with Module + Type
 await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha });
-await _eventBus.EmitAsync(ModuleNames.TASK_QUEUE, TaskQueueEvents.PROGRESS, progressData);
+await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, progressData);
 
 // ❌ WRONG: Don't use string literals
 await _eventBus.EmitAsync("MOD", "MOD_LOADED", new { Sha = sha });
@@ -319,7 +319,7 @@ export enum Module {
   SYSTEM = 'SYSTEM',
   MOD = 'MOD',
   CATEGORY = 'CATEGORY',
-  TASK_QUEUE = 'TASK_QUEUE',
+  WORKFLOW = 'WORKFLOW',
   DROP_ZONE = 'DROP_ZONE',
   SETTING = 'SETTING',
   PROFILE = 'PROFILE',
@@ -343,11 +343,12 @@ export enum ModEventType {
   CLASSIFICATION_TREE_CHANGED = 'CLASSIFICATION_TREE_CHANGED',
 }
 
-export enum TaskQueueEventType {
-  ADDED = 'ADDED',                            // NOT 'TASK_ADDED'
-  STARTED = 'STARTED',
-  PROGRESS = 'PROGRESS',
+export enum WorkflowEventType {
+  CREATED = 'CREATED',                        // NOT 'WORKFLOW_CREATED'
+  STATUS_CHANGED = 'STATUS_CHANGED',
   COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED',
 }
 
 export enum DropZoneEventType {
@@ -363,9 +364,9 @@ export interface EventPayloadMap {
     [ModEventType.IMPORTED]: ModInfo;
     [ModEventType.DELETED]: { sha: string; mod: ModInfo };
   };
-  [Module.TASK_QUEUE]: {
-    [TaskQueueEventType.PROGRESS]: { taskId: string; progress: number; message?: string };
-    [TaskQueueEventType.COMPLETED]: TaskInfo;
+  [Module.WORKFLOW]: {
+    [WorkflowEventType.STATUS_CHANGED]: { workflowId: string; status: WorkflowStatus };
+    [WorkflowEventType.COMPLETED]: WorkflowInfo;
   };
   // ... etc
 }
@@ -388,8 +389,8 @@ eventBus.subscribe(Module.MOD, ModEventType.LOADED, (event) => {
   console.log(event.payload.sha);  // Type-safe!
 });
 
-eventBus.subscribe(Module.TASK_QUEUE, TaskQueueEventType.PROGRESS, (event) => {
-  const { taskId, progress } = event.payload;  // Type-safe!
+eventBus.subscribe(Module.WORKFLOW, WorkflowEventType.STATUS_CHANGED, (event) => {
+  const { workflowId, status } = event.payload;  // Type-safe!
 });
 
 // ❌ WRONG: Don't use old pattern
@@ -502,14 +503,14 @@ private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, bool>
 
 - `Modules/System/SystemEvents.cs` - Application lifecycle events
 - `Modules/Mod/ModEvents.cs` - Mod operation events
-- `Modules/TaskQueue/TaskQueueEvents.cs` - Task queue events
+- `Modules/Workflow/WorkflowEvents.cs` - Workflow events
 - `Modules/Profile/ProfileEvents.cs` - Profile events
 - `Modules/Setting/SettingEvents.cs` - Settings events
 - `Modules/Migration/MigrationEvents.cs` - Migration events
 - `Modules/Tool/ToolEvents.cs` - Tools events
 
 **Key Principles:**
-- ✅ Module names are UPPERCASE (SYSTEM, MOD, TASK_QUEUE)
+- ✅ Module names are UPPERCASE (SYSTEM, MOD, WORKFLOW)
 - ✅ Event type names have NO module prefix (LOADED, not MOD_LOADED)
 - ✅ Events are emitted as (Module, Type, Payload, ProfileId?)
 - ✅ Frontend subscribes with (module, type, handler)
@@ -1081,331 +1082,320 @@ className={classNames('mod-preview-keybinding-toggle', 'compact', {
 
 ---
 
-## 📦 TaskQueue System (Node-Based Workflows)
+## 📦 Workflow System (Simple, Stateless Workflows)
 
 ### Overview
-The TaskQueue system uses a **node-based workflow architecture** with declarative routing conditions. Tasks are organized as nodes in a directed graph, supporting complex workflows with branching, loops, and conditional paths.
+The Workflow system uses a **simple, stateless architecture** where each workflow type manages its own logic. No complex routing, nodes, or conditions - just clean, type-specific handlers.
 
-### Architecture Components
+### Architecture
 
-#### 1. Task Processor Pattern
+**Backend Components:**
+- **WorkflowEntity**: Simple database entity (Id, Type, Status, Context JSON, timestamps)
+- **WorkflowInfo**: Model (same as entity, no runtime fields)
+- **WorkflowRepository**: Basic in-memory CRUD operations
+- **Workflow Handlers**: Type-specific handlers (e.g., `ModImportWorkflowHandler`)
+- **WorkflowFacade**: IPC interface
+
+**Frontend Components:**
+- **Types**: `WorkflowInfo`, `WorkflowStatus`, context types
+- **Service**: `workflowService` for IPC calls
+- **Hooks**: Business logic (e.g., `useModImportWorkflow`)
+- **Components**: UI screens (e.g., `ModImportWorkflowScreen`)
+
+### Creating a New Workflow Type
+
+#### Step 1: Define Context Model
+
 ```csharp
-// Simple task processor interface - no metadata or registry
-public interface ITaskProcessor<TInput, TOutput>
+// Modules/Workflow/Models/MyWorkflowContext.cs
+public class MyWorkflowContext
 {
-    string TaskType { get; }  // Uses constants from TaskTypes class
-    Task<TOutput> ProcessAsync(TInput input, IProgressReporter progressReporter, CancellationToken cancellationToken);
+    public required string Step { get; set; }
+    public string? InputData { get; set; }
+    public MyWorkflowResult? Result { get; set; }
 }
 
-// Task types use uppercase constants
-public static class TaskTypes
+public static class MyWorkflowSteps
 {
-    public const string MOD_IMPORT = "MOD_IMPORT";
-    public const string COMPRESS_FOLDER = "COMPRESS_FOLDER";
-    public const string IMPORT_FROM_TEMP = "IMPORT_FROM_TEMP";
-}
-
-// Chain types also use uppercase constants
-public static class ChainTypes
-{
-    public const string FOLDER_IMPORT = "FOLDER_IMPORT";
-    public const string QUICK_FOLDER_IMPORT = "QUICK_FOLDER_IMPORT";
-    public const string VALIDATED_IMPORT = "VALIDATED_IMPORT";
-    public const string BATCH_PROCESSING = "BATCH_PROCESSING";
+    public const string Initialize = "initialize";
+    public const string Process = "process";
+    public const string Complete = "complete";
 }
 ```
 
-#### 2. Node-Based Workflow Configuration
+#### Step 2: Create Handler
+
 ```csharp
-// Workflows use nodes with routing rules
-public class TaskChainNode
+// Modules/Workflow/Handlers/MyWorkflowHandler.cs
+public class MyWorkflowHandler
 {
-    public required string NodeId { get; init; }         // Unique node identifier
-    public required string TaskType { get; init; }       // From TaskTypes constants
-    public Dictionary<string, string> InputMapping { get; init; }   // Map inputs
-    public Dictionary<string, string> OutputMapping { get; init; }  // Map outputs
-    public List<NodeRoutingRule> RoutingRules { get; init; }       // Conditional routing
-    public string? DefaultNextNode { get; init; }        // Fallback route
-}
-
-// Routing rules define conditional transitions
-public class NodeRoutingRule
-{
-    public required string Name { get; init; }           // Rule description
-    public required RoutingCondition Condition { get; init; }
-    public required string NextNodeId { get; init; }     // Target node
-    public int Priority { get; init; } = 0;              // Evaluation order
-}
-
-// Rich condition types for complex logic
-public enum ConditionType
-{
-    TaskStatus,        // Check task completion status
-    OutputField,       // Check task output values
-    SharedDataField,   // Check chain-level data
-    HasError,          // Route on error presence
-    UserInput,         // Check user-provided values
-    And, Or, Not,      // Logical operators
-    Always,            // Unconditional
-    Custom             // Business-specific logic
-}
-```
-
-### Creating a New Task Processor
-
-#### Step 1: Define Input/Output Models
-```csharp
-// Models/TaskInputs/MyTaskInput.cs
-public class MyTaskInput
-{
-    public required string FilePath { get; init; }
-    public string? Options { get; init; }
-}
-
-// Models/TaskOutputs/MyTaskOutput.cs
-public class MyTaskOutput
-{
-    public required string ResultId { get; init; }
-    public bool Success { get; init; }
-}
-```
-
-#### Step 2: Implement the Processor
-```csharp
-// Processors/MyTaskProcessor.cs
-public class MyTaskProcessor : ITaskProcessor<MyTaskInput, MyTaskOutput>
-{
-    private readonly IMyService _service;
+    private readonly IWorkflowRepository _workflowRepository;
+    private readonly IMyService _myService;
     private readonly ILogHelper _logger;
 
-    // Use constant from TaskTypes class
-    public string TaskType => "MY_TASK";  // Add to TaskTypes.cs
+    public const string WorkflowType = "MY_WORKFLOW";
 
-    public MyTaskProcessor(IMyService service, ILogHelper logger)
+    public MyWorkflowHandler(
+        IWorkflowRepository workflowRepository,
+        IMyService myService,
+        ILogHelper logger)
     {
-        _service = service;
+        _workflowRepository = workflowRepository;
+        _myService = myService;
         _logger = logger;
     }
 
-    public async Task<bool> ValidateInputAsync(MyTaskInput input)
+    // Public method to start workflow
+    public async Task<WorkflowInfo> StartAsync(string inputData)
     {
-        // Validate input before processing
-        if (string.IsNullOrEmpty(input.FilePath))
-            return false;
-
-        return File.Exists(input.FilePath);
-    }
-
-    public async Task<MyTaskOutput> ProcessAsync(
-        MyTaskInput input,
-        IProgressReporter progressReporter,
-        CancellationToken cancellationToken)
-    {
-        // Report progress
-        await progressReporter.ReportAsync(0.1f, "Starting process...");
-
-        // Check cancellation
-        cancellationToken.ThrowIfCancellationRequested();
-
-        // Do work
-        var result = await _service.ProcessFileAsync(input.FilePath);
-
-        await progressReporter.ReportAsync(1.0f, "Complete!");
-
-        return new MyTaskOutput
+        var workflow = new WorkflowInfo
         {
-            ResultId = result.Id,
-            Success = true
+            Id = $"WF-{Guid.NewGuid()}",
+            Type = WorkflowType,
+            Status = WorkflowStatus.Processing,
+            Context = JsonHelper.Serialize(new MyWorkflowContext
+            {
+                Step = MyWorkflowSteps.Initialize,
+                InputData = inputData
+            }),
+            CreatedAt = DateTime.UtcNow
         };
+
+        await _workflowRepository.AddAsync(workflow);
+        await ProcessStepAsync(workflow);
+        return workflow;
     }
-}
-```
 
-#### Step 3: Register in DI and Add to Processing
-```csharp
-// TaskQueueServiceExtensions.cs
-public static IServiceCollection AddTaskQueueServices(this IServiceCollection services)
-{
-    // ... existing registrations ...
-
-    // Register your processor
-    services.TryAddSingleton<MyTaskProcessor>();
-
-    return services;
-}
-
-// TaskQueueService.cs - Add to ProcessTaskAsync switch
-case "MY_TASK":
-{
-    var processor = _serviceProvider.GetService<MyTaskProcessor>();
-    if (processor == null)
-        throw new InvalidOperationException($"Processor not found for task type: {taskType}");
-
-    var input = JsonSerializer.Deserialize<MyTaskInput>(inputJson, JsonOptions);
-    return await processor.ProcessAsync(input, progressReporter, cancellationToken);
-}
-```
-
-### Creating a Node-Based Workflow
-
-```csharp
-// Configuration/PredefinedChains.cs
-public static TaskChainConfiguration MyWorkflowChain => new()
-{
-    StartNodeId = "validation_node",
-    Nodes = new Dictionary<string, TaskChainNode>
+    // Internal state machine
+    private async Task ProcessStepAsync(WorkflowInfo workflow)
     {
-        ["validation_node"] = new TaskChainNode
+        var context = JsonHelper.Deserialize<MyWorkflowContext>(workflow.Context);
+
+        try
         {
-            NodeId = "validation_node",
-            TaskType = TaskTypes.MY_TASK,
-            InputMapping = new Dictionary<string, string>
+            switch (context.Step)
             {
-                ["filePath"] = "input.filePath"
-            },
-            RoutingRules = new List<NodeRoutingRule>
-            {
-                new NodeRoutingRule
-                {
-                    Name = "Validation passed",
-                    Condition = new RoutingCondition
-                    {
-                        Type = ConditionType.OutputField,
-                        Field = "isValid",
-                        Operator = ComparisonOperator.Equals,
-                        Value = true
-                    },
-                    NextNodeId = "process_node",
-                    Priority = 1
-                },
-                new NodeRoutingRule
-                {
-                    Name = "Validation failed",
-                    Condition = new RoutingCondition
-                    {
-                        Type = ConditionType.OutputField,
-                        Field = "isValid",
-                        Operator = ComparisonOperator.Equals,
-                        Value = false
-                    },
-                    NextNodeId = "error_node",
-                    Priority = 2
-                }
+                case MyWorkflowSteps.Initialize:
+                    // Auto-process initialization
+                    await InitializeAsync(workflow, context);
+                    break;
+
+                case MyWorkflowSteps.Process:
+                    // Could wait for user input here
+                    workflow.Status = WorkflowStatus.WaitingForInput;
+                    break;
+
+                case MyWorkflowSteps.Complete:
+                    // Finish workflow
+                    workflow.Status = WorkflowStatus.Completed;
+                    workflow.CompletedAt = DateTime.UtcNow;
+                    break;
             }
-        },
-        ["process_node"] = new TaskChainNode
+
+            workflow.Context = JsonHelper.Serialize(context);
+            await _workflowRepository.UpdateAsync(workflow);
+        }
+        catch (Exception ex)
         {
-            NodeId = "process_node",
-            TaskType = TaskTypes.IMPORT_FROM_TEMP,
-            // ... configuration
+            _logger.Error($"Workflow step failed: {ex.Message}", ex);
+            workflow.Status = WorkflowStatus.Failed;
+            workflow.ErrorMessage = ex.Message;
+            workflow.CompletedAt = DateTime.UtcNow;
+            await _workflowRepository.UpdateAsync(workflow);
         }
     }
-};
+}
+```
+
+#### Step 3: Register in DI
+
+```csharp
+// Modules/Workflow/WorkflowServiceExtensions.cs
+public static IServiceCollection AddWorkflowServices(this IServiceCollection services)
+{
+    services.AddSingleton<IWorkflowRepository, WorkflowRepository>();
+    services.AddSingleton<ModImportWorkflowHandler>();
+    services.AddSingleton<MyWorkflowHandler>();  // Add new handler
+    services.AddSingleton<WorkflowFacade>();
+    return services;
+}
+```
+
+#### Step 4: Add IPC Handlers
+
+```csharp
+// Modules/Workflow/WorkflowFacade.cs
+public async Task<IpcResponse> HandleMessageAsync(IpcRequest request)
+{
+    try
+    {
+        object? responseData = request.Type switch
+        {
+            // ... existing handlers ...
+            "START_MY_WORKFLOW" => await StartMyWorkflowAsync(request),
+            "CONTINUE_MY_WORKFLOW" => await ContinueMyWorkflowAsync(request),
+            _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
+        };
+
+        return IpcResponse.CreateSuccess(request.Id, responseData);
+    }
+    catch (Exception ex)
+    {
+        _logger.Error($"Workflow message handling failed: {ex.Message}", ex, "WORKFLOW");
+        return IpcResponse.CreateError(request.Id, ex.Message);
+    }
+}
 ```
 
 ### Frontend Integration
 
-#### Use Task and Chain Type Constants
-```typescript
-// Import constants matching backend
-import { TaskTypes } from '@/modules/taskQueue/constants/taskTypes';
-import { ChainTypes } from '@/modules/taskQueue/constants/chainTypes';
+#### Step 1: Define Types
 
-// Use constants instead of strings
-const taskId = await taskQueueService.addTask(
-    TaskTypes.MOD_IMPORT,  // "MOD_IMPORT"
-    { filePath: '/path/to/mod.zip' },
-    profileId
-);
+```typescript
+// modules/workflow/types/myWorkflow.types.ts
+export interface MyWorkflowContext {
+  step: string;
+  inputData?: string;
+  result?: MyWorkflowResult;
+}
+
+export const MyWorkflowSteps = {
+  Initialize: 'initialize',
+  Process: 'process',
+  Complete: 'complete',
+} as const;
 ```
 
-#### Query Available Tasks (Hardcoded in Facade)
-```typescript
-// Get all task metadata (from facade's hardcoded list)
-const response = await bridgeService.sendIpcRequest({
-    module: 'TASK_QUEUE',
-    type: 'GET_ALL_TASK_METADATA',
-    payload: { profileId }
-});
+#### Step 2: Create Hook
 
-// Get specific task metadata
-const response = await bridgeService.sendIpcRequest({
-    module: 'TASK_QUEUE',
-    type: 'GET_TASK_METADATA',
-    payload: { profileId, taskType: TaskTypes.MY_TASK }
-});
-```
-
-#### Continue Chain After User Input
 ```typescript
-// When task status is AwaitingConfirmation
-const response = await bridgeService.sendIpcRequest({
-    module: 'TASK_QUEUE',
-    type: 'CONTINUE_CHAIN',
-    payload: {
-        profileId,
-        chainId: task.taskChainId,
-        taskId: task.id,
-        userInput: {
-            name: formData.name,
-            description: formData.description,
-            grading: formData.grading
+// modules/workflow/hooks/useMyWorkflow.ts
+export const useMyWorkflow = () => {
+  const [workflow, setWorkflow] = useState<WorkflowInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Subscribe to workflow events
+  useEffect(() => {
+    const unsubStatusChanged = eventBus.subscribe(
+      Module.WORKFLOW,
+      WorkflowEventType.STATUS_CHANGED,
+      (event) => {
+        if (event?.payload && workflow && event.payload.id === workflow.id) {
+          setWorkflow(event.payload);
         }
+      }
+    );
+
+    return () => unsubStatusChanged();
+  }, [workflow?.id]);
+
+  const startWorkflow = async (inputData: string) => {
+    setLoading(true);
+    try {
+      const wf = await workflowService.sendMessage<WorkflowInfo, string>({
+        module: 'WORKFLOW',
+        type: 'START_MY_WORKFLOW',
+        payload: inputData,
+      });
+      setWorkflow(wf);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  return { workflow, loading, startWorkflow };
+};
+```
+
+#### Step 3: Create UI Component
+
+```tsx
+// modules/workflow/components/MyWorkflowScreen.tsx
+export const MyWorkflowScreen: React.FC<Props> = ({ visible, onClose }) => {
+  const { workflow, startWorkflow } = useMyWorkflow();
+  const context = workflow ? JSON.parse(workflow.context) as MyWorkflowContext : null;
+
+  return (
+    <Modal visible={visible} onCancel={onClose}>
+      {workflow?.status === WorkflowStatus.Processing && (
+        <Spin tip="Processing..." />
+      )}
+
+      {workflow?.status === WorkflowStatus.WaitingForInput && (
+        <Form onSubmit={handleSubmit}>
+          {/* User input form */}
+        </Form>
+      )}
+
+      {workflow?.status === WorkflowStatus.Completed && (
+        <Result status="success" title="Workflow completed!" />
+      )}
+    </Modal>
+  );
+};
+```
+
+### Example: ModImportWorkflow
+
+The mod import workflow is a simple 4-step process:
+
+1. **extract_metadata** (Auto) - Extract metadata from folder/archive, pre-fill form
+2. **compress_folder** (Background) - Compress folder while user reviews (if folder, not archive)
+3. **waiting_for_user_confirmation** (User Input) - User reviews/edits metadata and confirms
+4. **import_mod** (Auto) - Import mod with user-edited metadata
+
+```typescript
+// Usage - Download Manager Style Queue
+const { workflows, clearCompleted } = useWorkflowQueue();
+
+// Workflows are shown in a table with progress bars
+<WorkflowQueueTable workflows={workflows} onRefresh={refresh} />
+
+// User clicks "Import from Folder" button
+<FolderImportButton /> // Triggers START_MOD_IMPORT
+
+// User edits metadata and clicks confirm
+await workflowService.updateWorkflowContext(profileId, workflowId, {
+  name: 'My Mod',
+  author: 'Me',
+  category: 'cat-123',
+  tags: ['sword'],
+  grading: 'G',
 });
+await workflowService.continueWorkflow(profileId, workflowId);
+
+// Workflow completes automatically and persists in SQLite
 ```
 
-### Standard Chains Available (PredefinedChains.cs)
+### Key Principles
 
-1. **`FOLDER_IMPORT`** - Interactive folder import with user metadata input
-   - Compress folder → Await user confirmation → Import with metadata
-2. **`QUICK_FOLDER_IMPORT`** - Automatic folder import with defaults
-   - Compress folder → Auto-import without user interaction
-3. **`VALIDATED_IMPORT`** - Import with validation step
-   - Compress → Validate → User review → Import
-4. **`BATCH_PROCESSING`** - Process multiple items in sequence
-   - Configure → Process items → Complete
+✅ **Simple**: No complex routing or node configurations
+✅ **Stateless**: UI just reads workflow state via IPC
+✅ **Type-specific**: Each workflow type has its own handler
+✅ **Event-driven**: Real-time updates via event bus
+✅ **Clean separation**: Backend handles logic, frontend handles UI
 
-### Key Benefits
+### Migration from TaskQueue
 
-- **Node-Based Workflows**: Flexible graph structure instead of linear phases
-- **Declarative Routing**: Conditions defined in configuration, not code
-- **No Registry/Factory**: Simple direct processor execution
-- **Type-Safe Constants**: All types use UPPER_SNAKE_CASE constants
-- **Conditional Branching**: Support for complex business logic
-- **Input/Output Mapping**: Data flows between nodes automatically
-- **Progress Tracking**: Built-in progress reporting
-- **Cancellation Support**: Graceful task cancellation
+**Old (TaskQueue):**
+- Complex node-based workflows with routing conditions
+- Separate TaskInfo entities for each step
+- PredefinedTaskChains configuration
+- RoutingConditionEvaluator
+- Multiple repositories
 
-### Important Patterns
+**New (Workflow):**
+- Simple, type-specific handlers
+- Single WorkflowInfo entity
+- Context JSON for workflow state
+- No routing configuration needed
+- One repository for all workflows
 
-```csharp
-// ✅ CORRECT: Use constants
-public string TaskType => TaskTypes.MOD_IMPORT;
-var chain = ChainTypes.FOLDER_IMPORT;
-
-// ❌ WRONG: Don't use magic strings
-public string TaskType => "mod_import";
-var chain = "folder_import_chain";
-
-// ✅ CORRECT: Simple property names
-task.Input = JsonSerializer.Serialize(input);
-task.Output = result;
-
-// ❌ WRONG: Don't use old names
-task.InputData = input;  // Old name
-task.OutputData = output; // Old name
-```
-
-### Files to Reference
-
-- `Modules/TaskQueue/TaskTypes.cs` - Task type constants
-- `Modules/TaskQueue/ChainTypes.cs` - Chain type constants
-- `Modules/TaskQueue/Models/TaskChainInfo.cs` - Node-based models
-- `Modules/TaskQueue/Services/RoutingConditionEvaluator.cs` - Routing logic
-- `Modules/TaskQueue/Configuration/PredefinedChains.cs` - Chain definitions
-- `Modules/TaskQueue/Processors/*` - Example processors
-- `Modules/TaskQueue/TaskQueueServiceExtensions.cs` - DI registration
+**Benefits:**
+- ~70% less code
+- Easier to understand and maintain
+- Faster to add new workflow types
+- No over-engineering
 
 ---
 

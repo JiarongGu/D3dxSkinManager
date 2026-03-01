@@ -12,6 +12,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Refactored - 2026-03-01 - Workflow System: Download Manager UI & SQLite Persistence ⭐⭐⭐⭐
+Complete workflow system refactoring with download manager style UI, SQLite persistence, and improved user experience with background processing.
+**Impact**: ✅ Workflows persist across restarts, better UX with instant feedback, metadata pre-filling, background compression
+**Architecture Changes**:
+- **SQLite Persistence**: Workflows now persist in profile-scoped SQLite database (following ModRepository pattern)
+- **Download Manager UI**: Replaced modal wizard with table-based queue interface showing all active imports
+- **Background Processing**: Compression happens in background while user edits metadata
+- **Metadata First**: Extract metadata immediately, pre-fill form with detected values
+- **Context-Based Metadata**: Metadata fields moved into WorkflowContext (no separate ModImportMetadata type)
+**Backend Changes**:
+- WorkflowRepository: Converted from in-memory Dictionary to SQLite with raw ADO.NET
+- ModImportWorkflowHandler: Refactored to use IFileHelper for testability
+- New Flow: ExtractMetadata → CompressFolder (background) → WaitingForUserConfirmation → ImportMod
+- IPC Handlers: Added UPDATE_WORKFLOW_CONTEXT, replaced PROVIDE_METADATA with CONTINUE_WORKFLOW
+- Profile-scoped storage: Each profile has isolated workflow database
+**Frontend Changes**:
+- ModImportQueueScreen: Download manager style with WorkflowQueueTable
+- WorkflowQueueTable: Table view with progress bars, inline metadata editing, status indicators
+- useWorkflowQueue: Loads workflows from database on mount, real-time event subscriptions
+- Removed ModManagementScreen: Legacy wrapper removed, functionality moved to ModHierarchicalView
+- FolderImportButton: Triggers workflow creation
+**User Experience**:
+- Metadata form shows immediately with pre-filled values (folder name, file count)
+- User can edit metadata while compression happens in background
+- Workflows persist across application restarts
+- Clear completed button to remove finished workflows
+- Progress bars show workflow step progress
+**IFileHelper Integration**:
+- Added methods: FileExists(), DirectoryExists(), DeleteFileAsync(), GetFiles()
+- All File/Directory access in ModImportWorkflowHandler now uses IFileHelper for unit testing
+**Files Changed**: 20+ files across backend (C#), frontend (TypeScript), and documentation
+**Pattern**: SQLite persistence, download manager UI, background processing, testable services with IFileHelper
+**Documentation**: Updated WORKFLOW_ARCHITECTURE.md, AI_GUIDE.md with new flow and examples
+
 ### Refactored - 2026-02-26 - Classification → Category: Major Module Refactoring ⭐⭐⭐⭐⭐
 Complete refactoring from "Classification" to "Category" terminology across the entire codebase, separating Category module from Mods module, implementing IMemoryCache for performance, and fixing migration system.
 **Impact**: ✅ Clearer terminology, better module separation, improved performance with caching, all tests passing (24/24)

@@ -473,54 +473,43 @@ Located in `Plugins/` directory (external to backend):
 
 ---
 
-### TaskQueue Module
+### Workflow Module
 
-**📖 Detailed Documentation:** [features/TASK_QUEUE_SYSTEM.md](../features/TASK_QUEUE_SYSTEM.md)
+**📖 Detailed Documentation:** [architecture/WORKFLOW_ARCHITECTURE.md](../architecture/WORKFLOW_ARCHITECTURE.md)
 
 #### Facade
 
-- **TaskQueueFacade** → `Modules/TaskQueue/TaskQueueFacade.cs`
-  - IPC routing for task operations
-  - Handles ADD_TASK, PROCESS_NEXT, CANCEL_TASK, etc.
+- **WorkflowFacade** → `Modules/Workflow/WorkflowFacade.cs`
+  - IPC routing for workflow operations
+  - Handles GET_WORKFLOW, START_MOD_IMPORT, PROVIDE_METADATA, CANCEL_MOD_IMPORT
 
-#### Services
+#### Repositories
 
-- **ITaskQueueService** → `Modules/TaskQueue/Services/ITaskQueueService.cs`
-- **TaskQueueService** → `Modules/TaskQueue/Services/TaskQueueService.cs`
-  - Task queue orchestration, sequential processing, chain management
+- **IWorkflowRepository** → `Modules/Workflow/Repositories/IWorkflowRepository.cs`
+- **WorkflowRepository** → `Modules/Workflow/Repositories/WorkflowRepository.cs`
+  - In-memory workflow CRUD operations (will migrate to EF Core)
 
-- **ITaskProcessor<TInput, TOutput>** → `Modules/TaskQueue/Services/ITaskProcessor.cs`
-  - Interface for task processor implementations
+#### Handlers
 
-- **EventProgressReporter** → `Modules/TaskQueue/Services/EventProgressReporter.cs`
-  - Progress event emission to frontend
-
-#### Task Processors
-
-- **CompressFolderTaskProcessor** → `Modules/TaskQueue/Services/CompressFolderTaskProcessor.cs`
-  - Phase 1 of folder import: compress to temp directory
-
-- **ImportFromTempTaskProcessor** → `Modules/TaskQueue/Services/ImportFromTempTaskProcessor.cs`
-  - Phase 2 of folder import: import with metadata
-
-- **ModImportTaskProcessor** → `Modules/TaskQueue/Services/ModImportTaskProcessor.cs`
-  - Direct archive import (single-phase)
+- **ModImportWorkflowHandler** → `Modules/Workflow/Handlers/ModImportWorkflowHandler.cs`
+  - Handles MOD_IMPORT workflow type
+  - 3-step state machine: compress → wait for metadata → import
 
 #### Models
 
-- **TaskInfo** → `Modules/TaskQueue/Models/TaskInfo.cs`
-  - Task metadata, status, progress, chain context
+- **WorkflowInfo** → `Modules/Workflow/Models/WorkflowInfo.cs`
+  - Workflow metadata, status, context JSON, timestamps
 
-- **TaskChainContext** → `Modules/TaskQueue/Models/TaskChainContext.cs`
-  - Chain workflow configuration (correlation, phase tracking, user action)
+- **WorkflowStatus** → `Modules/Workflow/Entities/WorkflowEntity.cs`
+  - Enum: Pending, Processing, WaitingForInput, Completed, Failed, Cancelled
 
-- **TaskStatus** → `Modules/TaskQueue/Models/TaskStatus.cs`
-  - Enum: Pending, Processing, Completed, Failed, Cancelled, AwaitingConfirmation
+- **ModImportWorkflowContext** → `Modules/Workflow/Models/ModImportWorkflowContext.cs`
+  - Context type for MOD_IMPORT workflow with step-based progression
 
 #### Events
 
-- **TaskQueueEvents** → `Modules/TaskQueue/TaskQueueEvents.cs`
-  - TASK_ADDED, TASK_STARTED, TASK_PROGRESS, TASK_COMPLETED, TASK_FAILED, TASK_CANCELLED, TASK_REMOVED, TASK_AWAITING_CONFIRMATION
+- **WorkflowEvents** → `Modules/Workflow/WorkflowEvents.cs`
+  - CREATED, STATUS_CHANGED, COMPLETED, FAILED, CANCELLED
   - EventBusIpcBridge automatically forwards all events via wildcard subscription
 
 ---

@@ -8,7 +8,7 @@ using D3dxSkinManager.Modules.System.Services;
 using D3dxSkinManager.Modules.Tool;
 using D3dxSkinManager.Modules.Launch;
 using D3dxSkinManager.Modules.Migration;
-using D3dxSkinManager.Modules.TaskQueue;
+using D3dxSkinManager.Modules.Workflow;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -399,7 +399,7 @@ public class ApplicationHost
             .MapFacade<ILaunchFacade>("LAUNCH", services => services.AddLaunchServices())
             .MapFacade<IMigrationFacade>("MIGRATION", services => services.AddMigrationServices())
             .MapFacade<IPluginFacade>(ModuleNames.PLUGIN, services => services.AddPluginsServices())
-            .MapFacade<ITaskQueueFacade>("TASK_QUEUE", services => services.AddTaskQueueServices());
+            .MapFacade<IWorkflowFacade>(ModuleNames.WORKFLOW, services => services.AddWorkflowServices());
 
         _logger.Info("Profile router configured", "Host");
     }

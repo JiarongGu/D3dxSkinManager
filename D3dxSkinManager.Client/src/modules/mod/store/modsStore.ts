@@ -14,7 +14,6 @@ import { immer } from 'zustand/middleware/immer';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { CategoryInfo } from '../../../shared/types/category.types';
 import { ImportTask } from '../types/importTask.types';
-import { ModManagementMode } from '../components/ModManagementScreen';
 
 // ============================================================================
 // State Interface
@@ -61,7 +60,7 @@ export interface ModsState {
 
   // ModManagementScreen - Import queue state
   modManagementScreenVisible: boolean;
-  modManagementMode: ModManagementMode; // Currently only 'import' mode
+  modManagementMode: 'import'; // Currently only 'import' mode
 }
 
 // ============================================================================

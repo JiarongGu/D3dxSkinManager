@@ -12,7 +12,6 @@ import * as importOps from '../operations/importOperations';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { CategoryInfo } from '../../../shared/types/category.types';
 import { ImportTask } from '../types/importTask.types';
-import { ModManagementMode } from '../components/ModManagementScreen';
 
 /**
  * Main mods hook - provides state and operations

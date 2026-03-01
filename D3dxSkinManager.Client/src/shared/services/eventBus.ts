@@ -3,10 +3,7 @@
  * Supports typed events with compile-time safety
  */
 
-import type {
-  TaskInfo,
-  TaskProgress,
-} from "../../modules/taskQueue/types/task.types";
+import type { WorkflowInfo } from "../../modules/workflow/types/workflow.types";
 import type { ModInfo } from "../types/mod.types";
 import { bridgeService } from "./bridgeService";
 
@@ -16,7 +13,7 @@ export enum Module {
   SYSTEM = "SYSTEM",
   MOD = "MOD",
   CATEGORY = "CATEGORY",
-  TASK_QUEUE = "TASK_QUEUE",
+  WORKFLOW = "WORKFLOW",
   DROP_ZONE = "DROP_ZONE",
   SETTING = "SETTING",
   PROFILE = "PROFILE",
@@ -61,16 +58,13 @@ export enum DropZoneEventType {
   MOUSE_LEAVE = "MOUSE_LEAVE",
 }
 
-// TaskQueue event types
-export enum TaskQueueEventType {
-  ADDED = "ADDED",
-  STARTED = "STARTED",
-  PROGRESS = "PROGRESS",
+// Workflow event types
+export enum WorkflowEventType {
+  CREATED = "CREATED",
+  STATUS_CHANGED = "STATUS_CHANGED",
   COMPLETED = "COMPLETED",
   FAILED = "FAILED",
   CANCELLED = "CANCELLED",
-  REMOVED = "REMOVED",
-  AWAITING_CONFIRMATION = "AWAITING_CONFIRMATION",
 }
 
 // Settings event types
@@ -110,7 +104,7 @@ export interface ModuleEventTypeMap {
   [Module.MOD]: ModEventType;
   [Module.CATEGORY]: CategoryEventType;
   [Module.DROP_ZONE]: DropZoneEventType;
-  [Module.TASK_QUEUE]: TaskQueueEventType;
+  [Module.WORKFLOW]: WorkflowEventType;
   [Module.SETTING]: SettingsEventType;
   [Module.PROFILE]: ProfileEventType;
   [Module.MIGRATION]: MigrationEventType;
@@ -163,16 +157,13 @@ export interface EventPayloadMap {
     [DropZoneEventType.MOUSE_LEAVE]: { zoneId: string };
   };
 
-  // TaskQueue events
-  [Module.TASK_QUEUE]: {
-    [TaskQueueEventType.ADDED]: TaskInfo;
-    [TaskQueueEventType.STARTED]: TaskInfo;
-    [TaskQueueEventType.PROGRESS]: TaskProgress;
-    [TaskQueueEventType.COMPLETED]: TaskInfo;
-    [TaskQueueEventType.FAILED]: TaskInfo;
-    [TaskQueueEventType.CANCELLED]: TaskInfo;
-    [TaskQueueEventType.REMOVED]: TaskInfo;
-    [TaskQueueEventType.AWAITING_CONFIRMATION]: TaskInfo;
+  // Workflow events
+  [Module.WORKFLOW]: {
+    [WorkflowEventType.CREATED]: WorkflowInfo;
+    [WorkflowEventType.STATUS_CHANGED]: WorkflowInfo;
+    [WorkflowEventType.COMPLETED]: WorkflowInfo;
+    [WorkflowEventType.FAILED]: WorkflowInfo;
+    [WorkflowEventType.CANCELLED]: WorkflowInfo;
   };
 
   // Settings events
@@ -334,7 +325,7 @@ export const EventType = {
   ...SystemEventType,
   ...ModEventType,
   ...DropZoneEventType,
-  ...TaskQueueEventType,
+  ...WorkflowEventType,
   ...SettingsEventType,
   ...ProfileEventType,
   ...MigrationEventType,

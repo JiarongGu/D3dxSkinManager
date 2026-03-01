@@ -1,0 +1,79 @@
+import { bridgeService } from '../../../shared/services/bridgeService';
+import type { WorkflowInfo, ModImportMetadata } from '../types/workflow.types';
+
+/**
+ * Workflow service for IPC communication with backend
+ * Simple, stateless service for workflow operations
+ */
+class WorkflowService {
+  /**
+   * Start a new mod import workflow
+   */
+  async startModImport(folderPath: string): Promise<WorkflowInfo> {
+    return bridgeService.sendMessage<WorkflowInfo, string>({
+      module: 'WORKFLOW',
+      type: 'START_MOD_IMPORT',
+      payload: folderPath,
+    });
+  }
+
+  /**
+   * Provide metadata for mod import workflow
+   */
+  async provideMetadata(workflowId: string, metadata: ModImportMetadata): Promise<WorkflowInfo> {
+    return bridgeService.sendMessage<WorkflowInfo, { workflowId: string; metadata: ModImportMetadata }>({
+      module: 'WORKFLOW',
+      type: 'PROVIDE_METADATA',
+      payload: {
+        workflowId,
+        metadata,
+      },
+    });
+  }
+
+  /**
+   * Cancel a mod import workflow
+   */
+  async cancelModImport(workflowId: string): Promise<WorkflowInfo> {
+    return bridgeService.sendMessage<WorkflowInfo, string>({
+      module: 'WORKFLOW',
+      type: 'CANCEL_MOD_IMPORT',
+      payload: workflowId,
+    });
+  }
+
+  /**
+   * Get a workflow by ID
+   */
+  async getWorkflow(workflowId: string): Promise<WorkflowInfo | null> {
+    return bridgeService.sendMessage<WorkflowInfo | null, string>({
+      module: 'WORKFLOW',
+      type: 'GET_WORKFLOW',
+      payload: workflowId,
+    });
+  }
+
+  /**
+   * Get all workflows of a specific type
+   */
+  async getWorkflowsByType(type: string): Promise<WorkflowInfo[]> {
+    return bridgeService.sendMessage<WorkflowInfo[], string>({
+      module: 'WORKFLOW',
+      type: 'GET_WORKFLOWS_BY_TYPE',
+      payload: type,
+    });
+  }
+
+  /**
+   * Delete a workflow
+   */
+  async deleteWorkflow(workflowId: string): Promise<boolean> {
+    return bridgeService.sendMessage<boolean, string>({
+      module: 'WORKFLOW',
+      type: 'DELETE_WORKFLOW',
+      payload: workflowId,
+    });
+  }
+}
+
+export const workflowService = new WorkflowService();

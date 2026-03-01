@@ -10,6 +10,10 @@ public interface IFileHelper
     Task<bool> CopyDirectoryAsync(string sourceDir, string targetDir, bool overwrite = true);
     Task<bool> DeleteDirectoryAsync(string directory);
     Task<bool> CreateDirectoryAsync(string directory);
+    bool FileExists(string filePath);
+    bool DirectoryExists(string directoryPath);
+    Task<bool> DeleteFileAsync(string filePath);
+    string[] GetFiles(string path, string searchPattern = "*", SearchOption searchOption = SearchOption.TopDirectoryOnly);
 }
 
 /// <summary>
@@ -140,5 +144,52 @@ public class FileHelper : IFileHelper
             _logger.Error($"Failed to create directory {directory}: {ex.Message}", "FileService", ex);
             return Task.FromResult(false);
         }
+    }
+
+    /// <summary>
+    /// Check if a file exists
+    /// </summary>
+    public bool FileExists(string filePath)
+    {
+        return File.Exists(filePath);
+    }
+
+    /// <summary>
+    /// Check if a directory exists
+    /// </summary>
+    public bool DirectoryExists(string directoryPath)
+    {
+        return Directory.Exists(directoryPath);
+    }
+
+    /// <summary>
+    /// Delete a file
+    /// </summary>
+    public async Task<bool> DeleteFileAsync(string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+            return await Task.FromResult(true).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to delete file {filePath}: {ex.Message}", "FileHelper", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Get files in a directory
+    /// </summary>
+    public string[] GetFiles(string path, string searchPattern = "*", SearchOption searchOption = SearchOption.TopDirectoryOnly)
+    {
+        if (!Directory.Exists(path))
+            return Array.Empty<string>();
+
+        return Directory.GetFiles(path, searchPattern, searchOption);
     }
 }
