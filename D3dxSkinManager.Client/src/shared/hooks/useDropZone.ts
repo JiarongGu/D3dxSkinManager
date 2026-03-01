@@ -4,6 +4,7 @@ import { eventBus, DropZoneEventType, Module } from '../services/eventBus';
 import { v4 as uuidv4 } from 'uuid';
 import { debounce } from 'lodash-es';
 import './useDropZone.css';
+import logger from '../utils/logger';
 
 /**
  * Drop zone file drop data from backend
@@ -77,7 +78,7 @@ const isElementOccluded = (elem: HTMLElement): boolean => {
  * useDropZone({
  *   targetRef: uploadRef,
  *   onDrop: (files) => {
- *     console.log('Real paths:', files);
+ *     logger.log('Real paths:', files);
  *     // files[0] = "C:\\Users\\...\\image.jpg"
  *   }
  * });
@@ -142,7 +143,7 @@ export function useDropZone(options: {
           type: 'HIDE',
           payload: { zoneId: zoneIdRef.current }
         }).catch(err => {
-          console.error('[useDropZone] Failed to hide zone:', err);
+          logger.error('[useDropZone] Failed to hide zone:', err);
         });
       }
       return;
@@ -150,6 +151,7 @@ export function useDropZone(options: {
 
     // Check if element is occluded by another element
     if (isElementOccluded(element)) {
+      logger.verbose("[useDropZone] occluded to hide zone")
       // Element is covered, hide zone
       if (isRegisteredRef.current) {
         bridgeService.sendMessage({
@@ -157,7 +159,7 @@ export function useDropZone(options: {
           type: 'HIDE',
           payload: { zoneId: zoneIdRef.current }
         }).catch(err => {
-          console.error('[useDropZone] Failed to hide zone (occluded):', err);
+          logger.error('[useDropZone] Failed to hide zone (occluded):', err);
         });
       }
       // Reset lastBounds so we'll update when occlusion is removed
@@ -196,7 +198,7 @@ export function useDropZone(options: {
       }).then(() => {
         isRegisteredRef.current = true;
       }).catch(err => {
-        console.error('[useDropZone] Failed to register zone:', err);
+        logger.error('[useDropZone] Failed to register zone:', err);
       });
     } else {
       // Update existing zone (and show it if it was hidden)
@@ -211,10 +213,10 @@ export function useDropZone(options: {
           type: 'SHOW',
           payload: { zoneId: zoneIdRef.current }
         }).catch(err => {
-          console.error('[useDropZone] Failed to show zone:', err);
+          logger.error('[useDropZone] Failed to show zone:', err);
         });
       }).catch(err => {
-        console.error('[useDropZone] Failed to update zone:', err);
+        logger.error('[useDropZone] Failed to update zone:', err);
       });
     }
   }, []);
@@ -232,7 +234,7 @@ export function useDropZone(options: {
           type: 'HIDE',
           payload: { zoneId: zoneIdRef.current }
         }).catch(err => {
-          console.error('[useDropZone] Failed to hide zone:', err);
+          logger.error('[useDropZone] Failed to hide zone:', err);
         });
       }
       return;
@@ -383,12 +385,12 @@ export function useDropZone(options: {
       const data = event.payload as DropZoneFileDropData;
 
       if (!data) {
-        console.error('[useDropZone] Event payload is undefined:', event);
+        logger.error('[useDropZone] Event payload is undefined:', event);
         return;
       }
 
       if (!data.zoneId) {
-        console.error('[useDropZone] Event payload missing zoneId:', data);
+        logger.error('[useDropZone] Event payload missing zoneId:', data);
         return;
       }
 
@@ -418,7 +420,7 @@ export function useDropZone(options: {
           type: 'UNREGISTER',
           payload: { zoneId: zoneIdRef.current }
         }).catch(err => {
-          console.error('[useDropZone] Failed to unregister zone:', err);
+          logger.error('[useDropZone] Failed to unregister zone:', err);
         });
       }
     };
