@@ -327,7 +327,7 @@ export const ModList: React.FC<ModListProps> = ({
   ];
 
   return (
-    <div className="mod-list-container">
+    <>
       {loading || deletingCache ? (
         <div className="mod-list-loading-container">
           <Spin size="large" />
@@ -502,6 +502,6 @@ export const ModList: React.FC<ModListProps> = ({
         onOk={handleConfirmDelete}
         onCancel={() => setDeleteConfirm({ visible: false })}
       />
-    </div>
+    </>
   );
 };

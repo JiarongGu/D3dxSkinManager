@@ -20,6 +20,7 @@ public interface IModImportService
 public class ModImportService : IModImportService
 {
     private readonly IFileHelper _fileService;
+    private readonly IHashHelper _hashHelper;
     private readonly IModAutoDetectionService _autoDetectionService;
     private readonly IImageService _imageService;
     private readonly IModRepository _repository;
@@ -32,6 +33,7 @@ public class ModImportService : IModImportService
 
     public ModImportService(
         IFileHelper fileService,
+        IHashHelper hashHelper,
         IModAutoDetectionService autoDetectionService,
         IImageService imageService,
         IModRepository repository,
@@ -43,6 +45,7 @@ public class ModImportService : IModImportService
         ILogHelper logger)
     {
         _fileService = fileService;
+        _hashHelper = hashHelper;
         _autoDetectionService = autoDetectionService;
         _imageService = imageService;
         _repository = repository;
@@ -66,7 +69,7 @@ public class ModImportService : IModImportService
             _logger.Info($"Starting import: {filePath}", "ModImportService");
 
             // Step 1: Calculate SHA256
-            var sha = await _fileService.CalculateSha256Async(filePath).ConfigureAwait(false);
+            var sha = await _hashHelper.CalculateFileSHA256Async(filePath).ConfigureAwait(false);
             _logger.Info($"SHA256: {sha}", "ModImportService");
 
             // Check if already exists

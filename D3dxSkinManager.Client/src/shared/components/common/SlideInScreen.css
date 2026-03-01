@@ -34,6 +34,7 @@
 .slide-in-screen-blur-backdrop {
   position: relative;
   cursor: pointer;
+  pointer-events: auto; /* Capture clicks to close screen */
 }
 
 /* Level 1: Light blur */
@@ -85,12 +86,13 @@
   background: linear-gradient(to right, transparent, var(--color-bg-container));
 }
 
-/* Main panel */
+/* Main panel - blocks all clicks to content underneath */
 .slide-in-screen-panel {
   flex: 1;
   background: var(--color-bg-container);
   display: flex;
   flex-direction: column;
+  pointer-events: auto; /* Ensure panel captures all pointer events */
 }
 
 /* Header */

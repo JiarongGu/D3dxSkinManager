@@ -22,6 +22,12 @@ public class ModImportWorkflowContext
     public string? TempArchivePath { get; set; }
 
     /// <summary>
+    /// Whether the import source is an archive file (true) or folder (false)
+    /// Used to determine if temp files should be deleted
+    /// </summary>
+    public bool IsArchiveFile { get; set; }
+
+    /// <summary>
     /// Detected folder name
     /// </summary>
     public string? FolderName { get; set; }

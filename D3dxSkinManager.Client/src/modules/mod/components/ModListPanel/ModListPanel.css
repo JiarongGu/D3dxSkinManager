@@ -60,3 +60,50 @@
   justify-content: center;
   height: 100%;
 }
+
+/* Drop zone visual feedback - consistent with other drop zones in the project */
+/* Matches CompactUpload hover style when mouse is over overlay (non-dragging) */
+.mod-list-panel-content.mod-list-panel-drop-hover {
+  cursor: pointer;
+}
+
+/* Drag-over state - matches useDragDrop and CompactUpload patterns */
+.mod-list-panel-content.mod-list-panel-drop-active {
+  position: relative;
+  background: var(--color-primary-bg-hover) !important;
+  opacity: 0.8;
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
+  border-radius: 4px;
+}
+
+/* Dark theme - match CompactUpload dark background */
+[data-theme="dark"] .mod-list-panel-content.mod-list-panel-drop-active {
+  background: var(--color-primary-bg-hover) !important;
+}
+
+/* Light theme - match CompactUpload light background */
+[data-theme="light"] .mod-list-panel-content.mod-list-panel-drop-active {
+  background: var(--color-primary-bg) !important;
+}
+
+/* Drop message overlay - small text box with border */
+.mod-list-panel-content.mod-list-panel-drop-active::before {
+  content: attr(data-drop-message);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-primary);
+  text-align: center;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  padding: 12px 24px;
+  background: var(--color-bg-elevated);
+  border: 2px dashed var(--color-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}

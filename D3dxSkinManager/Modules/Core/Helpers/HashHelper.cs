@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using System.Security.Cryptography;
 using Encoding = System.Text.Encoding;
 
@@ -26,14 +24,14 @@ public class HashHelper : IHashHelper
         using var fileStream = File.OpenRead(filePath);
 
         var hashBytes = await sha256.ComputeHashAsync(fileStream).ConfigureAwait(false);
-        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+        return BitConverter.ToString(hashBytes).Replace("-", "").ToUpperInvariant();
     }
 
     public string CalculateSHA256(byte[] data)
     {
         using var sha256 = SHA256.Create();
         var hashBytes = sha256.ComputeHash(data);
-        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+        return BitConverter.ToString(hashBytes).Replace("-", "").ToUpperInvariant();
     }
 
     public string CalculateSHA256(string text)
@@ -41,6 +39,6 @@ public class HashHelper : IHashHelper
         using var sha256 = SHA256.Create();
         var bytes = Encoding.UTF8.GetBytes(text);
         var hashBytes = sha256.ComputeHash(bytes);
-        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+        return BitConverter.ToString(hashBytes).Replace("-", "").ToUpperInvariant();
     }
 }

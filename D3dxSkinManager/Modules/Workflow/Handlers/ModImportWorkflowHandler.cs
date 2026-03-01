@@ -150,8 +150,12 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context);
 
-        // Clean up temp file if exists
-        if (context?.TempArchivePath != null && _fileHelper.FileExists(context.TempArchivePath))
+        // Clean up temp file if exists (only if we created it, not the user's original file)
+        // For folders: IsArchiveFile=false, we created temp .7z -> delete
+        // For archives: IsArchiveFile=true, TempArchivePath = user's original -> don't delete
+        if (context?.TempArchivePath != null &&
+            !context.IsArchiveFile &&
+            _fileHelper.FileExists(context.TempArchivePath))
         {
             var deleted = await _fileHelper.DeleteFileAsync(context.TempArchivePath);
             if (deleted)
@@ -330,24 +334,18 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         var isDirectory = _fileHelper.DirectoryExists(context.FolderPath);
 
         if (!isArchive && !isDirectory)
-            throw new InvalidOperationException($"Path not found or not supported: {context.FolderPath}");
+            throw new InvalidOperationException($"Path not found: {context.FolderPath}");
 
-        _logger.Info($"Extracting metadata from: {context.FolderPath}");
-
-        // Get basic info
-        string folderName;
-        int fileCount;
-
+        // If it's a file, validate it's a supported archive format
         if (isArchive)
         {
-            // Validate the archive file
             _logger.Info("Validating archive file...");
             var validation = await _archiveHelper.ValidateArchiveAsync(context.FolderPath);
 
             if (!validation.IsValid)
             {
-                _logger.Error($"Archive validation failed: {validation.ErrorMessage}");
-                throw new InvalidOperationException($"Archive validation failed: {validation.ErrorMessage}");
+                _logger.Error($"Invalid or unsupported file type: {validation.ErrorMessage}");
+                throw new InvalidOperationException($"Unsupported file type. Only archive files (ZIP, 7Z, RAR, TAR, GZIP, BZIP2) and folders are supported.");
             }
 
             if (validation.IsPasswordProtected)
@@ -357,12 +355,22 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             }
 
             _logger.Info($"Archive validation successful. Type: {validation.DetectedType}");
+        }
 
+        _logger.Info($"Extracting metadata from: {context.FolderPath}");
+
+        // Get basic info
+        string folderName;
+        int fileCount;
+
+        if (isArchive)
+        {
             // For archives, use filename without extension
             folderName = Path.GetFileNameWithoutExtension(context.FolderPath);
             // TODO: Could extract archive to temp and count files, but for now just set 0
             fileCount = 0;
             context.TempArchivePath = context.FolderPath;  // Use the archive directly
+            context.IsArchiveFile = true;  // Mark as archive for cleanup logic
         }
         else
         {
@@ -370,6 +378,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             folderName = Path.GetFileName(context.FolderPath.TrimEnd(Path.DirectorySeparatorChar));
             var files = _fileHelper.GetFiles(context.FolderPath, "*", SearchOption.AllDirectories);
             fileCount = files.Length;
+            context.IsArchiveFile = false;  // Mark as folder for cleanup logic
         }
 
         _logger.Info($"Detected: {folderName} ({fileCount} files)");
@@ -544,8 +553,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         _logger.Info($"Mod imported successfully: {modInfo.SHA}");
 
         // Clean up temp file (only if we created it during compression)
-        var shouldDeleteTemp = context.TempArchivePath != context.FolderPath;
-        if (shouldDeleteTemp)
+        // For folders: IsArchiveFile=false, we created temp .7z -> delete
+        // For archives: IsArchiveFile=true, TempArchivePath = user's original -> don't delete
+        if (!context.IsArchiveFile && !string.IsNullOrEmpty(context.TempArchivePath) && _fileHelper.FileExists(context.TempArchivePath))
         {
             var deleted = await _fileHelper.DeleteFileAsync(context.TempArchivePath);
             if (deleted)

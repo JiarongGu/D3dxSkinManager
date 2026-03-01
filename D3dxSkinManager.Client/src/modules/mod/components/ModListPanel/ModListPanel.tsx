@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from "react";
+﻿import React, { useMemo, useRef } from "react";
 import { Layout, Empty, Input, Button, Tooltip } from "antd";
 import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
@@ -7,6 +7,10 @@ import { ModListStatusBar } from "./ModListStatusBar";
 import { useModsStore } from "../../store/modsStore";
 import { useMods } from "../../hooks/useMods";
 import { useTranslation } from "react-i18next";
+import { useDropZone } from "../../../../shared/hooks/useDropZone";
+import { useProfile } from "../../../../shared/context/ProfileContext";
+import { workflowService } from "../../../workflow/services/workflowService";
+import { handleError } from "../../../../shared/utils/errorHandler";
 import "./ModListPanel.css";
 
 const { Sider } = Layout;
@@ -41,7 +45,45 @@ export const ModListPanel: React.FC = () => {
     openModManagementScreen,
   } = useMods();
   const { t } = useTranslation();
+  const { selectedProfileId } = useProfile();
   const contentRef = React.useRef<HTMLDivElement>(null);
+
+  // Enable drop zone for batch mod import
+  useDropZone({
+    targetRef: contentRef,
+    enabled: !!selectedProfileId && (!!selectedCategory || !!selectedObject),
+    onDrop: async (files: string[]) => {
+      if (!selectedProfileId || files.length === 0) return;
+
+      try {
+        // Get selected category from store to pre-fill in workflow
+        const categoryName = selectedCategory?.name;
+
+        // Start batch mod import workflows
+        // Backend will validate each file/folder and reject invalid ones
+        console.log(`[ModListPanel] Starting batch import for ${files.length} file(s)/folder(s)`);
+        const workflows = await workflowService.batchStartModImport(
+          selectedProfileId,
+          files,
+          categoryName
+        );
+
+        console.log(`[ModListPanel] Created ${workflows.length} workflow(s)`);
+
+        // Open the mod import workflow screen to show progress
+        if (workflows.length > 0) {
+          openModManagementScreen();
+        }
+      } catch (error) {
+        console.error('[ModListPanel] Batch import failed:', error);
+        handleError(error);
+      }
+    },
+    classes: {
+      hover: 'mod-list-panel-drop-hover',
+      drop: 'mod-list-panel-drop-active'
+    }
+  });
 
   // Compute filtered mods based on search and Category
   const filteredMods = useMemo(() => {
@@ -151,7 +193,11 @@ export const ModListPanel: React.FC = () => {
       </div>
 
       {/* Mod List or Empty State */}
-      <div className="mod-list-panel-content" ref={contentRef}>
+      <div
+        className="mod-list-panel-content"
+        ref={contentRef}
+        data-drop-message={t("mods.panel.dropToImport")}
+      >
         {filteredMods.length > 0 ? (
           <ModList
             mods={filteredMods}

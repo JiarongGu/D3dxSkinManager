@@ -4,7 +4,6 @@ namespace D3dxSkinManager.Modules.Core.Helpers;
 
 public interface IFileHelper
 {
-    Task<string> CalculateSha256Async(string filePath);
     Task<bool> CopyFileAsync(string sourceFile, string destinationFile, bool overwrite = false);
     Task<bool> MoveFileAsync(string sourceFile, string destinationFile);
     Task<bool> CopyDirectoryAsync(string sourceDir, string targetDir, bool overwrite = true);
@@ -26,18 +25,6 @@ public class FileHelper : IFileHelper
     public FileHelper(ILogHelper logger)
     {
         _logger = logger;
-    }
-
-    public async Task<string> CalculateSha256Async(string filePath)
-    {
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException("File not found for hash calculation", filePath);
-
-        using var sha256 = SHA256.Create();
-        await using var stream = File.OpenRead(filePath);
-
-        var hashBytes = await sha256.ComputeHashAsync(stream).ConfigureAwait(false);
-        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
     }
 
     /// <summary>

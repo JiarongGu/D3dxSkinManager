@@ -124,6 +124,33 @@ class WorkflowService extends BaseModuleService {
       workflowIds,
     });
   }
+
+  /**
+   * Start multiple mod import workflows from a batch of files/folders
+   * @param profileId - The profile ID
+   * @param paths - Array of file/folder paths to import
+   * @param defaultCategory - Optional category name to pre-fill (from selected category in UI)
+   * @returns Array of created workflows
+   */
+  async batchStartModImport(
+    profileId: string,
+    paths: string[],
+    defaultCategory?: string
+  ): Promise<WorkflowInfo[]> {
+    const workflows: WorkflowInfo[] = [];
+
+    for (const path of paths) {
+      try {
+        const workflow = await this.startModImport(profileId, path, defaultCategory);
+        workflows.push(workflow);
+      } catch (error) {
+        console.error(`[workflowService] Failed to start import for ${path}:`, error);
+        // Continue with other imports even if one fails
+      }
+    }
+
+    return workflows;
+  }
 }
 
 export const workflowService = new WorkflowService();

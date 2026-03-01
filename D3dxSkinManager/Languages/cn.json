@@ -317,6 +317,7 @@
     "mods.panel.noModsForObject": "未找到 {{object}} 的模组",
     "mods.panel.noModsMatchingSearch": "未找到匹配 \"{{query}}\" 的模组",
     "mods.panel.selectCategory": "选择一个分类以查看模组",
+    "mods.panel.dropToImport": "拖放文件或文件夹到此处以导入模组",
     "mods.preview.addFromFile": "从文件添加...",
     "mods.preview.clickCopySHA": "点击复制完整 SHA",
     "mods.preview.clickFullScreen": "点击查看全屏",

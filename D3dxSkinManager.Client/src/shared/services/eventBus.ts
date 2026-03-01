@@ -220,6 +220,8 @@ type EventHandler<M extends Module, T extends string> = (
  */
 class EventBus {
   private handlers: Map<string, Set<EventHandler<any, any>>> = new Map();
+  private pendingUnsubscribes: Map<string, NodeJS.Timeout> = new Map();
+  private readonly UNSUBSCRIBE_DEBOUNCE_MS = 50;
 
   /**
    * Subscribe to specific module and event type
@@ -233,6 +235,13 @@ class EventBus {
   ): () => void {
     const key = this.getEventKey(module, type);
 
+    // Cancel any pending unsubscribe for this event
+    const pendingUnsubscribe = this.pendingUnsubscribes.get(key);
+    if (pendingUnsubscribe) {
+      clearTimeout(pendingUnsubscribe);
+      this.pendingUnsubscribes.delete(key);
+    }
+
     let handlers = this.handlers.get(key);
     const isFirstSubscriber = !handlers || handlers.size === 0;
 
@@ -243,6 +252,7 @@ class EventBus {
 
     handlers.add(handler);
 
+    // Only send SUBSCRIBE to backend if this is the first subscriber
     if (isFirstSubscriber) {
       bridgeService.sendMessage({
         module: "APP",
@@ -256,13 +266,29 @@ class EventBus {
       const handlers = this.handlers.get(key);
       if (handlers) {
         handlers.delete(handler);
+
+        // If no more handlers, schedule unsubscribe with debounce
         if (handlers.size === 0) {
           this.handlers.delete(key);
-          bridgeService.sendMessage({
-            module: "APP",
-            type: "UNSUBSCRIBE",
-            payload: { module, type },
-          });
+
+          // Cancel any existing pending unsubscribe
+          const existing = this.pendingUnsubscribes.get(key);
+          if (existing) {
+            clearTimeout(existing);
+          }
+
+          // Schedule unsubscribe with 50ms debounce
+          // If someone resubscribes within 50ms, this will be cancelled
+          const timeoutId = setTimeout(() => {
+            this.pendingUnsubscribes.delete(key);
+            bridgeService.sendMessage({
+              module: "APP",
+              type: "UNSUBSCRIBE",
+              payload: { module, type },
+            });
+          }, this.UNSUBSCRIBE_DEBOUNCE_MS);
+
+          this.pendingUnsubscribes.set(key, timeoutId);
         }
       }
     };
@@ -299,6 +325,9 @@ class EventBus {
    * Clear all subscriptions (useful for testing)
    */
   clear(): void {
+    // Clear all pending unsubscribe timeouts
+    this.pendingUnsubscribes.forEach((timeoutId) => clearTimeout(timeoutId));
+    this.pendingUnsubscribes.clear();
     this.handlers.clear();
   }
 

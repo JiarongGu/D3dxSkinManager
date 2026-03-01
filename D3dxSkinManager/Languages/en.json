@@ -330,6 +330,7 @@
     "mods.panel.noModsForObject": "No mods found for {{object}}",
     "mods.panel.noModsMatchingSearch": "No mods found matching \"{{query}}\"",
     "mods.panel.selectCategory": "Select a Category to view mods",
+    "mods.panel.dropToImport": "Drop files or folders here to import mods",
     "mods.preview.addFromFile": "Add from File...",
     "mods.preview.clickCopySHA": "Click to copy full SHA",
     "mods.preview.clickFullScreen": "Click to view full screen",
