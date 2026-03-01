@@ -34,4 +34,10 @@ public static class WorkflowEvents
     /// Payload: Workflow
     /// </summary>
     public const string CANCELLED = "CANCELLED";
+
+    /// <summary>
+    /// Workflow progress updated
+    /// Payload: { workflowId: string, progress: int, step: string }
+    /// </summary>
+    public const string PROGRESS = "PROGRESS";
 }

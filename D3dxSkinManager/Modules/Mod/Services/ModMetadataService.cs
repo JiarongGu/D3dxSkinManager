@@ -70,6 +70,9 @@ public class ModMetadataService : IModMetadataService
 
         await _repository.UpdateAsync(mod).ConfigureAwait(false);
 
+        // Note: CategoryEventHandler subscribes to MOD_CATEGORY_UPDATED event
+        // and will invalidate the category tree cache automatically
+
         return true;
     }
 

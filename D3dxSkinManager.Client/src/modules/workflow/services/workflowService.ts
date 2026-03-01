@@ -11,10 +11,20 @@ class WorkflowService extends BaseModuleService {
   }
 
   /**
-   * Start a new mod import workflow
+   * Create a new workflow (generic)
+   */
+  async createWorkflow(profileId: string, type: string, initialData: string): Promise<WorkflowInfo> {
+    return this.sendMessage<WorkflowInfo>('CREATE_WORKFLOW', profileId, {
+      type,
+      initialData,
+    });
+  }
+
+  /**
+   * Start a new mod import workflow (convenience method)
    */
   async startModImport(profileId: string, folderPath: string): Promise<WorkflowInfo> {
-    return this.sendMessage<WorkflowInfo>('START_MOD_IMPORT', profileId, folderPath);
+    return this.createWorkflow(profileId, 'MOD_IMPORT', folderPath);
   }
 
   /**
@@ -32,17 +42,31 @@ class WorkflowService extends BaseModuleService {
   }
 
   /**
-   * Continue workflow to next step
+   * Resume workflow (generic)
    */
-  async continueWorkflow(profileId: string, workflowId: string): Promise<WorkflowInfo> {
-    return this.sendMessage<WorkflowInfo>('CONTINUE_WORKFLOW', profileId, workflowId);
+  async resumeWorkflow(profileId: string, workflowId: string): Promise<WorkflowInfo> {
+    return this.sendMessage<WorkflowInfo>('RESUME_WORKFLOW', profileId, workflowId);
   }
 
   /**
-   * Cancel a mod import workflow
+   * Continue workflow to next step (alias for resumeWorkflow)
+   */
+  async continueWorkflow(profileId: string, workflowId: string): Promise<WorkflowInfo> {
+    return this.resumeWorkflow(profileId, workflowId);
+  }
+
+  /**
+   * Pause workflow (generic)
+   */
+  async pauseWorkflow(profileId: string, workflowId: string): Promise<WorkflowInfo> {
+    return this.sendMessage<WorkflowInfo>('PAUSE_WORKFLOW', profileId, workflowId);
+  }
+
+  /**
+   * Cancel a mod import workflow (alias for pauseWorkflow)
    */
   async cancelModImport(profileId: string, workflowId: string): Promise<WorkflowInfo> {
-    return this.sendMessage<WorkflowInfo>('CANCEL_MOD_IMPORT', profileId, workflowId);
+    return this.pauseWorkflow(profileId, workflowId);
   }
 
   /**

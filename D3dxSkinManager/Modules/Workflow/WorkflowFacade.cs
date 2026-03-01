@@ -2,8 +2,6 @@ using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Workflow.Handlers;
-using D3dxSkinManager.Modules.Workflow.Models;
 using D3dxSkinManager.Modules.Workflow.Repositories;
 
 namespace D3dxSkinManager.Modules.Workflow;
@@ -15,21 +13,37 @@ public interface IWorkflowFacade : IModuleFacade { }
 
 /// <summary>
 /// Facade for Workflow module IPC operations
+/// Uses a handler registry to route workflow operations to the appropriate handler
 /// </summary>
 public class WorkflowFacade : IWorkflowFacade
 {
     private readonly IWorkflowRepository _workflowRepository;
-    private readonly ModImportWorkflowHandler _modImportHandler;
+    private readonly Dictionary<string, IWorkflowHandler> _handlers;
     private readonly ILogHelper _logger;
 
     public WorkflowFacade(
         IWorkflowRepository workflowRepository,
-        ModImportWorkflowHandler modImportHandler,
+        IEnumerable<IWorkflowHandler> handlers,
         ILogHelper logger)
     {
         _workflowRepository = workflowRepository;
-        _modImportHandler = modImportHandler;
         _logger = logger;
+
+        // Build handler registry indexed by workflow type
+        _handlers = handlers.ToDictionary(h => h.WorkflowType, h => h);
+
+        _logger.Info($"Workflow facade initialized with {_handlers.Count} handler(s): {string.Join(", ", _handlers.Keys)}");
+    }
+
+    /// <summary>
+    /// Get handler for a specific workflow type
+    /// </summary>
+    private IWorkflowHandler GetHandler(string workflowType)
+    {
+        if (!_handlers.TryGetValue(workflowType, out var handler))
+            throw new InvalidOperationException($"No handler registered for workflow type: {workflowType}");
+
+        return handler;
     }
 
     public async Task<IpcResponse> HandleMessageAsync(IpcRequest request)
@@ -39,15 +53,13 @@ public class WorkflowFacade : IWorkflowFacade
             object? responseData = request.Type switch
             {
                 // Generic workflow operations
+                "CREATE_WORKFLOW" => await CreateWorkflowAsync(request),
                 "GET_WORKFLOW" => await GetWorkflowAsync(request),
                 "GET_WORKFLOWS_BY_TYPE" => await GetWorkflowsByTypeAsync(request),
                 "DELETE_WORKFLOW" => await DeleteWorkflowAsync(request),
                 "UPDATE_WORKFLOW_CONTEXT" => await UpdateWorkflowContextAsync(request),
-
-                // MOD_IMPORT specific operations
-                "START_MOD_IMPORT" => await StartModImportAsync(request),
-                "CONTINUE_WORKFLOW" => await ContinueWorkflowAsync(request),
-                "CANCEL_MOD_IMPORT" => await CancelModImportAsync(request),
+                "PAUSE_WORKFLOW" => await PauseWorkflowAsync(request),
+                "RESUME_WORKFLOW" => await ResumeWorkflowAsync(request),
 
                 _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
             };
@@ -89,13 +101,19 @@ public class WorkflowFacade : IWorkflowFacade
         return true;
     }
 
-    private async Task<Models.WorkflowInfo> StartModImportAsync(IpcRequest request)
+    private async Task<Models.WorkflowInfo> CreateWorkflowAsync(IpcRequest request)
     {
-        var folderPath = request.Payload?.ToString();
-        if (string.IsNullOrEmpty(folderPath))
-            throw new ArgumentException("Folder path is required");
+        var json = request.Payload?.ToString();
+        if (string.IsNullOrEmpty(json))
+            throw new ArgumentException("Workflow creation data is required");
 
-        return await _modImportHandler.StartImportAsync(folderPath);
+        var data = JsonHelper.Deserialize<CreateWorkflowRequest>(json);
+        if (data == null)
+            throw new ArgumentException("Invalid workflow creation format");
+
+        // Route to appropriate handler based on workflow type
+        var handler = GetHandler(data.Type);
+        return await handler.StartAsync(data.InitialData);
     }
 
     private async Task<Models.WorkflowInfo> UpdateWorkflowContextAsync(IpcRequest request)
@@ -112,48 +130,48 @@ public class WorkflowFacade : IWorkflowFacade
         if (workflow == null)
             throw new InvalidOperationException($"Workflow {data.WorkflowId} not found");
 
-        // Deserialize current context
-        var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context);
-        if (context == null)
-            throw new InvalidOperationException("Invalid workflow context");
+        // Convert the update dictionary to JSON for the handler
+        var updateJson = JsonHelper.Serialize(data.Context);
 
-        // Update context fields from partial update
-        if (data.Context.TryGetValue("Name", out var name))
-            context.Name = name?.ToString();
-        if (data.Context.TryGetValue("Author", out var author))
-            context.Author = author?.ToString();
-        if (data.Context.TryGetValue("Description", out var description))
-            context.Description = description?.ToString();
-        if (data.Context.TryGetValue("Category", out var category))
-            context.Category = category?.ToString();
-        if (data.Context.TryGetValue("Tags", out var tags))
-            context.Tags = JsonHelper.Deserialize<List<string>>(tags?.ToString() ?? "[]") ?? new();
-        if (data.Context.TryGetValue("Grading", out var grading))
-            context.Grading = grading?.ToString() ?? "G";
-
-        // Serialize and save
-        workflow.Context = JsonHelper.Serialize(context);
-        await _workflowRepository.UpdateAsync(workflow);
-
-        return workflow;
+        // Route to appropriate handler based on workflow type
+        var handler = GetHandler(workflow.Type);
+        return await handler.UpdateContextAsync(data.WorkflowId, updateJson);
     }
 
-    private async Task<Models.WorkflowInfo> ContinueWorkflowAsync(IpcRequest request)
+    private async Task<Models.WorkflowInfo> ResumeWorkflowAsync(IpcRequest request)
     {
         var workflowId = request.Payload?.ToString();
         if (string.IsNullOrEmpty(workflowId))
             throw new ArgumentException("Workflow ID is required");
 
-        return await _modImportHandler.ContinueAsync(workflowId);
+        var workflow = await _workflowRepository.GetByIdAsync(workflowId);
+        if (workflow == null)
+            throw new InvalidOperationException($"Workflow not found: {workflowId}");
+
+        // Route to appropriate handler based on workflow type
+        var handler = GetHandler(workflow.Type);
+        return await handler.ContinueAsync(workflowId);
     }
 
-    private async Task<Models.WorkflowInfo> CancelModImportAsync(IpcRequest request)
+    private async Task<Models.WorkflowInfo> PauseWorkflowAsync(IpcRequest request)
     {
         var workflowId = request.Payload?.ToString();
         if (string.IsNullOrEmpty(workflowId))
             throw new ArgumentException("Workflow ID is required");
 
-        return await _modImportHandler.CancelAsync(workflowId);
+        var workflow = await _workflowRepository.GetByIdAsync(workflowId);
+        if (workflow == null)
+            throw new InvalidOperationException($"Workflow not found: {workflowId}");
+
+        // Route to appropriate handler based on workflow type
+        var handler = GetHandler(workflow.Type);
+        return await handler.PauseAsync(workflowId);
+    }
+
+    private class CreateWorkflowRequest
+    {
+        public required string Type { get; set; }
+        public required string InitialData { get; set; }
     }
 
     private class UpdateContextRequest

@@ -1,5 +1,4 @@
-﻿using D3dxSkinManager.Modules.Context;
-using D3dxSkinManager.Modules.Context.Services;
+﻿using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;

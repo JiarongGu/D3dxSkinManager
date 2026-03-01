@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Category.Models;
@@ -28,6 +29,8 @@ public interface ICategoryService
     Task<bool> ExistsAsync(string categoryId);
 
     Task<CategoryInfo?> CreateAsync(string categoryId, string name, string? parentId = null, int priority = 100, string? description = null, string? thumbnailPath = null, string? matchMode = null, string? matchPattern = null);
+
+    void InvalidateTreeCache();
 }
 
 /// <summary>
@@ -42,6 +45,7 @@ public class CategoryService : ICategoryService
     private readonly IFileTransferService _fileTransferService;
     private readonly IProfilePathService _profilePaths;
     private readonly IMemoryCache _cache;
+    private readonly IProfileEventBus _eventBus;
     private readonly string _cacheKey;
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(5);
 
@@ -52,6 +56,7 @@ public class CategoryService : ICategoryService
         IFileTransferService fileTransferService,
         IProfilePathService profilePaths,
         IMemoryCache cache,
+        IProfileEventBus eventBus,
         IProfileContext profileContext)
     {
         _repository = repository;
@@ -60,6 +65,7 @@ public class CategoryService : ICategoryService
         _modRepository = modRepository;
         _pathHelper = pathHelper;
         _cache = cache;
+        _eventBus = eventBus;
 
         // Use profile-specific cache key since IMemoryCache is shared across all profiles
         _cacheKey = $"CategoryTree_{profileContext.ProfileId}";
@@ -80,11 +86,20 @@ public class CategoryService : ICategoryService
     }
 
     /// <summary>
-    /// Invalidate the cache - next GetCategoryTreeAsync call will rebuild from database
+    /// Invalidate the cache and emit CATEGORY_TREE_UPDATED event
+    /// Called when mod categories change or category structure changes to recalculate counts
+    /// Next GetCategoryTreeAsync call will rebuild from database
     /// </summary>
-    private void InvalidateCache()
+    public void InvalidateTreeCache()
     {
         _cache.Remove(_cacheKey);
+
+        // Emit event to notify frontend that tree needs refresh
+        // Use fire-and-forget since this is a synchronous method and we don't want to block
+        _ = Task.Run(async () =>
+        {
+            await _eventBus.EmitAsync(ModuleNames.CATEGORY, CategoryEvents.CATEGORY_TREE_UPDATED).ConfigureAwait(false);
+        });
     }
 
     /// <summary>
@@ -171,7 +186,7 @@ public class CategoryService : ICategoryService
             }
 
             // Invalidate cache
-            InvalidateCache();
+            InvalidateTreeCache();
             return true;
         }
         catch
@@ -236,7 +251,7 @@ public class CategoryService : ICategoryService
             var updated = await _repository.UpdateAsync(category).ConfigureAwait(false);
             if (updated)
             {
-                InvalidateCache();
+                InvalidateTreeCache();
             }
 
             return updated;
@@ -264,7 +279,7 @@ public class CategoryService : ICategoryService
             await DeleteCategoryAndChildrenRecursiveAsync(categoryId).ConfigureAwait(false);
 
             // Invalidate cache
-            InvalidateCache();
+            InvalidateTreeCache();
             return true;
         }
         catch
@@ -350,7 +365,7 @@ public class CategoryService : ICategoryService
             };
 
             await _repository.InsertAsync(category).ConfigureAwait(false);
-            InvalidateCache();
+            InvalidateTreeCache();
             return category;
         }
         catch
@@ -378,7 +393,7 @@ public class CategoryService : ICategoryService
 
             if (updated)
             {
-                InvalidateCache();
+                InvalidateTreeCache();
             }
 
             return updated;
@@ -425,62 +440,6 @@ public class CategoryService : ICategoryService
         // Note: Thumbnails are not deleted here to avoid file lock issues
         // A separate cleanup tool can be used to remove orphaned thumbnails later
     }
-
-    // NOTE: Thumbnail cleanup has been temporarily disabled to avoid file lock issues
-    // A comprehensive cleanup tool should be created later for orphaned thumbnails
-
-    /* Commented out for now - will be replaced with a dedicated cleanup tool
-    /// <summary>
-    /// Delete thumbnail file if no other Category nodes are using it
-    /// and it's in our data folder
-    /// Throws exception if file is locked or inaccessible
-    /// </summary>
-    private async Task CleanupThumbnailIfUnusedAsync(string thumbnailPath)
-    {
-        // Convert to absolute path
-        var absolutePath = _pathHelper.ToAbsolutePath(thumbnailPath);
-        if (absolutePath == null || !File.Exists(absolutePath))
-            return;
-
-        // Only delete if it's in our thumbnails folder (use FileTransferService to check)
-        if (_fileTransferService.IsExternalToDirectory(absolutePath, _profilePaths.ThumbnailsDirectory))
-            return; // External file, don't delete
-
-        // Check if any other Category nodes are using this thumbnail
-        var allNodes = await _repository.GetAllAsync().ConfigureAwait(false);
-        var isUsedByOthers = allNodes.Any(n =>
-            n.Thumbnail != null &&
-            _pathHelper.ToAbsolutePath(n.Thumbnail)?.Equals(absolutePath, StringComparison.OrdinalIgnoreCase) == true
-        );
-
-        if (!isUsedByOthers)
-        {
-            try
-            {
-                // Attempt to delete - will throw if file is locked
-                File.Delete(absolutePath);
-                Console.WriteLine($"[CategoryService] Deleted thumbnail: {absolutePath}");
-            }
-            catch (IOException ex)
-            {
-                // File is locked or inaccessible - throw error to stop deletion
-                throw new InvalidOperationException(
-                    $"Cannot delete Category: thumbnail file is currently in use or locked. " +
-                    $"Please close any applications using this file and try again. File: {Path.GetFileName(absolutePath)}",
-                    ex
-                );
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                // No permission to delete file
-                throw new InvalidOperationException(
-                    $"Cannot delete Category: no permission to delete thumbnail file. File: {Path.GetFileName(absolutePath)}",
-                    ex
-                );
-            }
-        }
-    }
-    */
 
     /// <summary>
     /// Calculate mod counts for all categories recursively

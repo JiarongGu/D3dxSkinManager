@@ -27,7 +27,21 @@ public static class CategoryServiceExtensions
         // Register facade
         services.TryAddSingleton<ICategoryFacade, CategoryFacade>();
 
+        // Register event handler (subscribes to mod category changes)
+        services.TryAddSingleton<ICategoryEventHandler, CategoryEventHandler>();
+
         Console.WriteLine("[CategoryFacade] Category services registered");
         return services;
+    }
+
+    /// <summary>
+    /// Ensures CategoryEventHandler is eagerly instantiated when profile scope is created
+    /// Call this after the service provider is built for the profile
+    /// </summary>
+    public static void InitializeCategoryEventHandler(IServiceProvider serviceProvider)
+    {
+        // Eagerly resolve the event handler to ensure it subscribes to events
+        var handler = serviceProvider.GetRequiredService<ICategoryEventHandler>();
+        Console.WriteLine("[CategoryFacade] CategoryEventHandler initialized and listening for events");
     }
 }

@@ -165,8 +165,9 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
         onAddCategory,
         onEditNode: handleEditNode,
         onDeleteNode: handleDeleteNode,
+        t,
       }),
-    [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode]
+    [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode, t]
   );
 
   // Toggle expansion for a folder node - optimized for performance

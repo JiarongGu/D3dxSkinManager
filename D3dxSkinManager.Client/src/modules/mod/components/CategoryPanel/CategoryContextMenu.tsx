@@ -1,43 +1,34 @@
 ﻿import React from 'react';
 import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
+import type { TFunction } from 'i18next';
 
 interface CategoryContextMenuProps {
   nodeId: string | undefined;
   onAddCategory?: (parentId?: string) => void;
   onEditNode: (nodeId: string) => void;
   onDeleteNode: (nodeId: string) => void;
+  t: TFunction;
 }
 
 /**
  * Generates context menu items for Category tree nodes
+ * Order: Add Sub-Category, Add Root-Category, divider, Edit, Delete
  */
 export function getCategoryContextMenu({
   nodeId,
   onAddCategory,
   onEditNode,
   onDeleteNode,
+  t,
 }: CategoryContextMenuProps): MenuProps['items'] {
-  // If nodeId is empty string or undefined, show "Add Category" for root
-  // If nodeId has a value, show both "Add Category" (root) and "Add Sub-Category" (child)
-  const items: MenuProps['items'] = [
-    {
-      key: 'add-root',
-      label: 'Add Category',
-      icon: <FolderAddOutlined />,
-      onClick: () => {
-        if (onAddCategory) {
-          onAddCategory(); // No parent = root Category
-        }
-      },
-    },
-  ];
+  const items: MenuProps['items'] = [];
 
-  // Add "Add Sub-Category", "Edit", and "Delete" options only when right-clicking on a node
+  // Add "Add Sub-Category" option only when right-clicking on a node
   if (nodeId && nodeId !== '') {
     items.push({
       key: 'add-child',
-      label: 'Add Sub-Category',
+      label: t('category.tree.addSubCategory'),
       icon: <PlusOutlined />,
       onClick: () => {
         if (onAddCategory) {
@@ -45,19 +36,34 @@ export function getCategoryContextMenu({
         }
       },
     });
+  }
 
+  // Add "Add Root-Category" option (always visible)
+  items.push({
+    key: 'add-root',
+    label: t('category.tree.addRootCategory'),
+    icon: <FolderAddOutlined />,
+    onClick: () => {
+      if (onAddCategory) {
+        onAddCategory(); // No parent = root Category
+      }
+    },
+  });
+
+  // Add divider, "Edit", and "Delete" options only when right-clicking on a node
+  if (nodeId && nodeId !== '') {
     items.push({ key: 'divider-1', type: 'divider' });
 
     items.push({
       key: 'edit',
-      label: 'Edit',
+      label: t('category.tree.edit'),
       icon: <EditOutlined />,
       onClick: () => onEditNode(nodeId),
     });
 
     items.push({
       key: 'delete',
-      label: 'Delete',
+      label: t('category.tree.delete'),
       icon: <DeleteOutlined />,
       danger: true,
       onClick: () => onDeleteNode(nodeId),

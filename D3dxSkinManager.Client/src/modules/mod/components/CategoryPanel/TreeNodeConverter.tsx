@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { FolderOutlined, FolderOpenOutlined, UserOutlined } from '@ant-design/icons';
+import { FolderOutlined, FolderOpenOutlined, FileOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import { CategoryInfo } from '../../../../shared/types/category.types';
 import { toAppUrl } from '../../../../shared/utils/imageUrlHelper';
@@ -19,7 +19,8 @@ export function convertToDataNode(
 
   // Determine which icon to show for folders
   const getFolderIcon = () => {
-    if (isLeaf) return <UserOutlined />;
+    // Leaf nodes (no children) show a file icon to differentiate from parent categories
+    if (isLeaf) return <FileOutlined />;
     return isExpanded ? <FolderOpenOutlined /> : <FolderOutlined />;
   };
 

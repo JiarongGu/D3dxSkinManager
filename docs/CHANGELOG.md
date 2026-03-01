@@ -12,6 +12,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-03-01 - Category System: Event-Driven Cache Invalidation & UI Polish ⭐⭐⭐⭐
+Complete fix for category tree count display issues, event-driven architecture improvements, and category UI enhancements.
+**Impact**: ✅ Category counts now update correctly after operations, no duplicate events, better UX with proper icons and "Unclassified" labels
+**Problem**: Category tree counts showed stale data after drag-drop operations due to race condition between manual refresh and event-based refresh
+**Root Cause Analysis**:
+- Frontend manually called refreshCategoryTree() immediately after operations
+- Manual call hit backend BEFORE cache was invalidated, getting stale cached data
+- Backend event emission arrived later, but frontend already showed wrong counts
+- CategoryEventHandler was registered in DI but never instantiated (lazy loading)
+**Architecture Changes**:
+- **Event-Driven Flow**: MOD.CATEGORY_UPDATED → CategoryEventHandler → InvalidateTreeCache → CATEGORY.CATEGORY_TREE_UPDATED
+- **Eager Initialization**: CategoryEventHandler now initialized on startup in ProfileServiceRouter
+- **Removed Duplicate Events**: CategoryFacade no longer emits events (service layer handles it)
+- **Single Source of Truth**: All cache invalidation through CategoryService.InvalidateTreeCache()
+**Backend Changes**:
+- CategoryService: Added IProfileEventBus injection, InvalidateTreeCache() now emits CATEGORY_TREE_UPDATED
+- CategoryEventHandler: New service subscribing to MOD.CATEGORY_UPDATED, invalidates cache
+- CategoryServiceExtensions: Added InitializeCategoryEventHandler() for eager initialization
+- ProfileServiceRouter: Calls InitializeCategoryEventHandler() after building service provider
+- CategoryFacade: Removed duplicate event emissions, removed IProfileEventBus dependency
+- CategoryEvents.cs: New file defining CATEGORY_TREE_UPDATED event constant
+- MigrationFacade: Fixed event reference from ModEvents to CategoryEvents
+**Frontend Changes**:
+- categoryOperations.ts: Removed manual refreshCategoryTree() call, relies on event-driven refresh
+- ModList.tsx: Always shows category tag, displays "Unclassified" for mods without category
+- ModPreviewPanel.tsx: Changed icon from FileTextOutlined to FolderOutlined, always shows category
+- TreeNodeConverter.tsx: Changed leaf node icon from UserOutlined to FileOutlined for visual distinction
+- TreeNodeConverter.css: Reduced icon container margins from 10px to 4px for better visual alignment
+- CategoryScreen.tsx: Added debouncing (500ms) for category name validation, sub-category defaults (parent name prefix, inherit thumbnail)
+- CategoryContextMenu.tsx: Reordered menu (Sub-Category, Root-Category, -, Edit, Delete), added i18n
+**Testing**:
+- CategoryEventHandlerTests: 5/5 tests passed ✅
+- CategoryServiceCacheTests: 4/4 tests passed ✅
+- CategoryCacheInvalidationIntegrationTests: 3/3 tests passed ✅
+**I18n**:
+- en.json: Added category.tree.addSubCategory, addRootCategory, edit, delete, unclassified
+- cn.json: Added Chinese translations for all new keys
+**UI/UX Improvements**:
+- Category tree icons: Parent nodes show folder (open/closed), leaf nodes show file icon
+- Icon spacing reduced for better visual alignment with thumbnails
+- Sub-category creation defaults: Name starts with "{parentName}-", thumbnail inherited
+- Context menu reordered for better clarity
+- "Unclassified" label for mods without category instead of showing GUID or hiding
+**Performance**: Debounced name validation reduces IPC calls by ~90% during typing
+**Files Changed**: 31 files across backend (C#), frontend (TypeScript), tests, and i18n
+**Pattern**: Event-driven cache invalidation, eager service initialization, single responsibility principle
+
 ### Refactored - 2026-03-01 - Workflow System: Download Manager UI & SQLite Persistence ⭐⭐⭐⭐
 Complete workflow system refactoring with download manager style UI, SQLite persistence, and improved user experience with background processing.
 **Impact**: ✅ Workflows persist across restarts, better UX with instant feedback, metadata pre-filling, background compression

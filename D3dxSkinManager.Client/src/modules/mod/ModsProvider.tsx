@@ -39,9 +39,9 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       modOps.refreshMods(selectedProfileId);
     });
 
-    const unsubscribeCategoriesUpdated = eventBus.subscribe(
+    const unsubscribeCategoryTreeUpdated = eventBus.subscribe(
       Module.CATEGORY,
-      CategoryEventType.CATEGORIES_UPDATED,
+      CategoryEventType.CATEGORY_TREE_UPDATED,
       () => {
         categoryOps.refreshCategoryTree(selectedProfileId);
       }
@@ -63,7 +63,7 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
     // Cleanup subscriptions on unmount or profile change
     return () => {
       unsubscribeModsRefreshed();
-      unsubscribeCategoriesUpdated();
+      unsubscribeCategoryTreeUpdated();
       unsubscribeMigrationCompleted();
     };
   }, [selectedProfileId]);

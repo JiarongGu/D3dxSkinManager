@@ -45,6 +45,7 @@ export async function refreshMods(profileId: string): Promise<void> {
 /**
  * Update mod metadata
  * Uses delayed loading (100ms) to avoid flicker for fast updates
+ * If category is updated, refreshes the category tree
  */
 export async function updateMod(
   profileId: string,
@@ -52,10 +53,12 @@ export async function updateMod(
   data: Partial<ModInfo>
 ): Promise<void> {
   const { setModsLoading, updateModLocal } = useModsStore.getState();
+  const categoryChanged = data.category !== undefined;
 
   try {
     await executeWithDelayedLoading(
       async () => {
+        // Update metadata (name, author, tags, grading, description)
         await modService.updateMetadata(profileId, sha, {
           name: data.name,
           author: data.author,
@@ -64,10 +67,21 @@ export async function updateMod(
           description: data.description,
         });
 
+        // Update category separately if it changed
+        if (categoryChanged && data.category) {
+          await modService.updateCategory(profileId, sha, data.category);
+        }
+
         // Update local state (Zustand automatically updates category filtered mods)
         updateModLocal(sha, data);
 
         notification.success('Mod updated successfully');
+
+        // If category changed, refresh category tree to update counts
+        if (categoryChanged) {
+          const { refreshCategoryTree } = await import('./categoryOperations');
+          await refreshCategoryTree(profileId);
+        }
       },
       setModsLoading,
       100

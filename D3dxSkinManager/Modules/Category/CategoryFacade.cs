@@ -1,10 +1,8 @@
 using D3dxSkinManager.Modules.Core;
-using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Category.Models;
 using D3dxSkinManager.Modules.Category.Services;
-using D3dxSkinManager.Modules.Context;
 
 namespace D3dxSkinManager.Modules.Category;
 
@@ -29,17 +27,14 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
 
     private readonly ICategoryService _categoryService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly IProfileEventBus _eventBus;
 
     public CategoryFacade(
         ICategoryService categoryService,
         IPayloadHelper payloadHelper,
-        IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
     {
         _categoryService = categoryService;
         _payloadHelper = payloadHelper;
-        _eventBus = eventBus;
     }
 
     protected override async Task<object?> RouteMessageAsync(IpcRequest request)
@@ -105,14 +100,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
             throw new InvalidOperationException($"Category with name '{name}' already exists at this level. Please use a different name.");
         }
 
-        if (category != null)
-        {
-            await _eventBus.EmitAsync(
-                ModuleNames.CATEGORY,
-                "CATEGORIES_UPDATED",
-                new { categoryId = category.Id, name, parentId, created = true }
-            ).ConfigureAwait(false);
-        }
+        // Note: CategoryService.CreateAsync already calls InvalidateTreeCache() which emits CATEGORY_TREE_UPDATED
 
         return category;
     }
@@ -144,14 +132,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
             matchPattern
         ).ConfigureAwait(false);
 
-        if (success)
-        {
-            await _eventBus.EmitAsync(
-                ModuleNames.CATEGORY,
-                "CATEGORIES_UPDATED",
-                new { categoryId, name, description, thumbnail, matchMode, matchPattern }
-            ).ConfigureAwait(false);
-        }
+        // Note: CategoryService.UpdateCategoryAsync already calls InvalidateTreeCache() which emits CATEGORY_TREE_UPDATED
 
         return success;
     }
@@ -165,14 +146,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
 
         var success = await _categoryService.DeleteAsync(categoryId).ConfigureAwait(false);
 
-        if (success)
-        {
-            await _eventBus.EmitAsync(
-                ModuleNames.CATEGORY,
-                "CATEGORIES_UPDATED",
-                new { categoryId, deleted = true }
-            ).ConfigureAwait(false);
-        }
+        // Note: CategoryService.DeleteAsync already calls InvalidateTreeCache() which emits CATEGORY_TREE_UPDATED
 
         return success;
     }
@@ -192,14 +166,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
             dropPosition
         ).ConfigureAwait(false);
 
-        if (success)
-        {
-            await _eventBus.EmitAsync(
-                ModuleNames.CATEGORY,
-                "CATEGORIES_UPDATED",
-                new { categoryId, newParentId, dropPosition }
-            ).ConfigureAwait(false);
-        }
+        // Note: CategoryService.UpdateParentAsync already calls InvalidateTreeCache() which emits CATEGORY_TREE_UPDATED
 
         return success;
     }

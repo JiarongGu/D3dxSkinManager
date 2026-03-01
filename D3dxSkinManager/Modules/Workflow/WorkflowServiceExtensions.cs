@@ -14,10 +14,11 @@ public static class WorkflowServiceExtensions
         // Repository
         services.AddSingleton<IWorkflowRepository, WorkflowRepository>();
 
-        // Workflow handlers
+        // Workflow handlers - register as both concrete type and interface
         services.AddSingleton<ModImportWorkflowHandler>();
+        services.AddSingleton<IWorkflowHandler>(sp => sp.GetRequiredService<ModImportWorkflowHandler>());
 
-        // Facade
+        // Facade - will receive all registered IWorkflowHandler instances
         services.AddSingleton<IWorkflowFacade, WorkflowFacade>();
 
         return services;

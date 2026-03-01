@@ -85,15 +85,15 @@ export const ModImportWorkflowScreen: React.FC<ModImportWorkflowScreenProps> = (
   const getCurrentStep = (): number => {
     if (!workflow || !context) return 0;
 
+    // If waiting for user input, show metadata step
+    if (workflow.status === WorkflowStatus.WaitingForInput) return 1;
+
     switch (context.step) {
+      case ModImportWorkflowSteps.ExtractMetadata:
       case ModImportWorkflowSteps.CompressFolder:
         return 0;
-      case ModImportWorkflowSteps.WaitingForUserConfirmation:
-        return 1;
       case ModImportWorkflowSteps.ImportMod:
         return 2;
-      case ModImportWorkflowSteps.Completed:
-        return 3;
       default:
         return 0;
     }
@@ -171,17 +171,17 @@ export const ModImportWorkflowScreen: React.FC<ModImportWorkflowScreenProps> = (
    * Set initial form values when waiting for metadata
    */
   useEffect(() => {
-    if (context?.step === ModImportWorkflowSteps.WaitingForUserConfirmation) {
+    if (workflow?.status === WorkflowStatus.WaitingForInput && context) {
       form.setFieldsValue({
-        name: context.folderName || '',
-        author: '',
-        description: '',
-        category: '',
-        tags: [],
-        grading: 'G',
+        name: context.name || context.folderName || '',
+        author: context.author || '',
+        description: context.description || '',
+        category: context.category || '',
+        tags: context.tags || [],
+        grading: context.grading || 'G',
       });
     }
-  }, [context?.step, context?.folderName]);
+  }, [workflow?.status, context?.name, context?.folderName, context?.author, context?.description, context?.category, context?.tags, context?.grading, form]);
 
   const ageRatingOptions = [
     { value: 'G', label: t('mods.edit.ageRating.general') },
@@ -239,22 +239,30 @@ export const ModImportWorkflowScreen: React.FC<ModImportWorkflowScreenProps> = (
 
         {/* Step content */}
         <div className="workflow-step-content">
-          {/* Step 1: Compressing folder */}
-          {context?.step === ModImportWorkflowSteps.CompressFolder && (
+          {/* Step 1: Extracting metadata / Compressing folder */}
+          {workflow?.status === WorkflowStatus.Processing &&
+           (context?.step === ModImportWorkflowSteps.ExtractMetadata ||
+            context?.step === ModImportWorkflowSteps.CompressFolder) && (
             <div className="workflow-step workflow-step-processing">
               <Spin size="large" />
-              <h3>{t('workflow.modImport.compressing')}</h3>
+              <h3>
+                {context?.step === ModImportWorkflowSteps.ExtractMetadata
+                  ? t('workflow.modImport.extracting')
+                  : t('workflow.modImport.compressing')}
+              </h3>
               <p className="step-description">
-                {t('workflow.modImport.compressingDescription', {
-                  folder: context.folderName || folderPath,
-                  count: context.fileCount || 0,
-                })}
+                {context?.step === ModImportWorkflowSteps.ExtractMetadata
+                  ? t('workflow.modImport.extractingDescription')
+                  : t('workflow.modImport.compressingDescription', {
+                      folder: context.folderName || folderPath,
+                      count: context.fileCount || 0,
+                    })}
               </p>
             </div>
           )}
 
-          {/* Step 2: Metadata input */}
-          {context?.step === ModImportWorkflowSteps.WaitingForUserConfirmation && (
+          {/* Step 2: Metadata input (waiting for user) */}
+          {workflow?.status === WorkflowStatus.WaitingForInput && (
             <div className="workflow-step workflow-step-metadata">
               <h3>{t('workflow.modImport.provideMetadata')}</h3>
               <p className="step-description">
@@ -310,7 +318,8 @@ export const ModImportWorkflowScreen: React.FC<ModImportWorkflowScreenProps> = (
           )}
 
           {/* Step 3: Importing mod */}
-          {context?.step === ModImportWorkflowSteps.ImportMod && (
+          {workflow?.status === WorkflowStatus.Processing &&
+           context?.step === ModImportWorkflowSteps.ImportMod && (
             <div className="workflow-step workflow-step-processing">
               <Spin size="large" />
               <h3>{t('workflow.modImport.importing')}</h3>

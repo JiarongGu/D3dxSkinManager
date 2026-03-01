@@ -12,7 +12,6 @@ public static class ModEvents
     public const string DELETED = "DELETED";
     public const string IMPORTED = "IMPORTED";
     public const string REFRESHED = "REFRESHED";
-    public const string CATEGORIES_UPDATED = "CATEGORIES_UPDATED";
     public const string METADATA_UPDATED = "METADATA_UPDATED";
     public const string CATEGORY_UPDATED = "CATEGORY_UPDATED";
     public const string PREVIEW_IMPORTED = "PREVIEW_IMPORTED";

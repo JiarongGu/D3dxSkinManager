@@ -1,5 +1,5 @@
 ﻿import { notification } from "../../../../shared/utils/notification";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Form, Space, Row, Col, Select } from "antd";
 import { FolderOpenOutlined } from "@ant-design/icons";
 import { CategoryInfo } from "../../../../shared/types/category.types";
@@ -18,6 +18,7 @@ import {
 } from "../../../../shared/components/compact";
 import { useTranslation } from "react-i18next";
 import { useDropZone } from "../../../../shared/hooks/useDropZone";
+import { debounce } from "lodash-es";
 import "./CategoryScreen.css";
 
 const { Option } = Select;
@@ -81,6 +82,21 @@ export const CategoryScreenContent: React.FC<
   const { closeScreen } = useSlideInScreenContext();
   const { selectedProfileId } = useProfile();
   const dropZoneRef = useRef<HTMLDivElement>(null);
+
+  // Debounced name existence check - only call backend after user stops typing for 500ms
+  const checkNameExistsDebounced = useCallback(
+    debounce(
+      async (
+        profileId: string,
+        name: string,
+        excludeId?: string,
+      ): Promise<boolean> => {
+        return await categoryService.nameExists(profileId, name, excludeId);
+      },
+      500, // Wait 500ms after user stops typing
+    ),
+    [],
+  );
 
   // Create WinForms drop zone overlay that syncs with the upload area
   useDropZone({
@@ -174,15 +190,38 @@ export const CategoryScreenContent: React.FC<
         setThumbnailFileName(fileName);
       }
     } else {
-      // Create mode - clear and set parent if provided
-      setThumbnailPath(undefined);
-      setThumbnailFileName(undefined);
+      // Create mode - set defaults based on parent
       setMatchMode("wildcard");
+
       if (parentId) {
-        form.setFieldsValue({ parentId });
+        // Find parent node to get its details
+        const allNodes = flattenTree(tree);
+        const parentNode = allNodes.find((node) => node.id === parentId);
+
+        if (parentNode) {
+          // Default name to "{parentName}-"
+          form.setFieldsValue({
+            parentId,
+            name: `${parentNode.name}-`
+          });
+
+          // Default thumbnail to parent's thumbnail
+          if (parentNode.thumbnail) {
+            setThumbnailPath(parentNode.thumbnail);
+            const fileName =
+              parentNode.thumbnail.split(/[\\/]/).pop() || parentNode.thumbnail;
+            setThumbnailFileName(fileName);
+          }
+        } else {
+          form.setFieldsValue({ parentId });
+        }
+      } else {
+        // Root category - clear everything
+        setThumbnailPath(undefined);
+        setThumbnailFileName(undefined);
       }
     }
-  }, [parentId, editNode, form]);
+  }, [parentId, editNode, form, tree]);
 
   const handleSubmit = async () => {
     try {
@@ -276,8 +315,8 @@ export const CategoryScreenContent: React.FC<
                 {
                   validator: async (_: any, value: string) => {
                     if (!value || !selectedProfileId) return Promise.resolve();
-                    // Check if Category name already exists in database (case-insensitive)
-                    const exists = await categoryService.nameExists(
+                    // Debounced check - only calls backend after user stops typing for 500ms
+                    const exists = await checkNameExistsDebounced(
                       selectedProfileId,
                       value,
                       editNode?.id, // Exclude current node when editing

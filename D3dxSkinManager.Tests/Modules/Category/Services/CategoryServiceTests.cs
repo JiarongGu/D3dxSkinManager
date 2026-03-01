@@ -10,6 +10,7 @@ using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -45,6 +46,8 @@ public class CategoryServiceTests
         // Setup profile context
         _mockProfileContext.Setup(x => x.ProfileId).Returns("test-profile-id");
 
+        var mockEventBus = new Mock<IProfileEventBus>();
+
         _service = new CategoryService(
             _mockRepository.Object,
             _mockModRepository.Object,
@@ -52,6 +55,7 @@ public class CategoryServiceTests
             _mockFileTransferService.Object,
             _mockProfilePathService.Object,
             _mockCache.Object,
+            mockEventBus.Object,
             _mockProfileContext.Object
         );
 

@@ -1,6 +1,7 @@
 ﻿using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Services;
+using D3dxSkinManager.Modules.Category;
 using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -74,7 +75,7 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
 
         // Emit event so frontend knows to reload Category tree
         // Note: Cache will automatically invalidate and rebuild on next request
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORIES_UPDATED).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.CATEGORY, CategoryEvents.CATEGORY_TREE_UPDATED).ConfigureAwait(false);
 
         // Emit migration completed event
         await _eventBus.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, result).ConfigureAwait(false);

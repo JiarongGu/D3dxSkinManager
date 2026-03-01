@@ -20,12 +20,14 @@
 /* Category Tree Node - Icon Container */
 .category-tree-node-icon-container {
   font-size: 16px;
-  width: 36px;
+  width: 16px;
   height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-left: 4px;
+  margin-right: 4px;
 }
 
 /* Category Tree Node - Name */

@@ -45,7 +45,7 @@ export enum ModEventType {
 
 // Category event types
 export enum CategoryEventType {
-  CATEGORIES_UPDATED = "CATEGORIES_UPDATED",
+  CATEGORY_TREE_UPDATED = "CATEGORY_TREE_UPDATED",
 }
 
 // Drop zone event types
@@ -65,6 +65,7 @@ export enum WorkflowEventType {
   COMPLETED = "COMPLETED",
   FAILED = "FAILED",
   CANCELLED = "CANCELLED",
+  PROGRESS = "PROGRESS",
 }
 
 // Settings event types
@@ -141,7 +142,7 @@ export interface EventPayloadMap {
 
   // Category events
   [Module.CATEGORY]: {
-    [CategoryEventType.CATEGORIES_UPDATED]: unknown;
+    [CategoryEventType.CATEGORY_TREE_UPDATED]: unknown;
   };
 
   // Drop zone events
@@ -164,6 +165,7 @@ export interface EventPayloadMap {
     [WorkflowEventType.COMPLETED]: WorkflowInfo;
     [WorkflowEventType.FAILED]: WorkflowInfo;
     [WorkflowEventType.CANCELLED]: WorkflowInfo;
+    [WorkflowEventType.PROGRESS]: { workflowId: string; progress: number; step: string };
   };
 
   // Settings events

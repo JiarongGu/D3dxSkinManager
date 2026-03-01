@@ -168,6 +168,9 @@ public class ProfileServiceRouter : IDisposable
             _ = profilePathService.LoadCacheDirectoryAsync();
         }
 
+        // Initialize CategoryEventHandler to ensure it subscribes to events
+        // Must be called after ServiceProvider is built
+        D3dxSkinManager.Modules.Category.CategoryServiceExtensions.InitializeCategoryEventHandler(serviceProvider);
 
         _logger.Debug($"Created profile-scoped services for: {profile.Name} ({profile.Id})", "ProfileServiceRouter");
 

@@ -54,8 +54,10 @@ export async function updateModCategory(
     await modService.updateCategory(profileId, sha, categoryId);
     notification.success('Category updated');
 
-    // 3. Refresh both mods and tree from backend (with delayed loading to prevent flicker)
-    await Promise.all([refreshMods(profileId), refreshCategoryTree(profileId)]);
+    // 3. Refresh mods list (category tree will be refreshed by CATEGORY_TREE_UPDATED event)
+    // The backend emits MOD.CATEGORY_UPDATED → CategoryEventHandler invalidates cache → emits CATEGORY_TREE_UPDATED
+    // ModsProvider listens to CATEGORY_TREE_UPDATED and calls refreshCategoryTree automatically
+    await refreshMods(profileId);
 
     return true;
   } catch (error) {

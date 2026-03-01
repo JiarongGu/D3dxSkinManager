@@ -4,12 +4,12 @@
  */
 
 export enum WorkflowStatus {
-  Pending = 0,
-  Processing = 1,
-  WaitingForInput = 2,
-  Completed = 3,
-  Failed = 4,
-  Cancelled = 5,
+  Pending = "pending",
+  Processing = "processing",
+  WaitingForInput = "waitingForInput",
+  Completed = "completed",
+  Failed = "failed",
+  Cancelled = "cancelled",
 }
 
 export interface WorkflowInfo {
@@ -31,6 +31,7 @@ export interface ModImportWorkflowContext {
   tempArchivePath?: string;
   folderName?: string;
   fileCount?: number;
+  progress: number; // 0-100
   // Metadata fields (user can edit these)
   name?: string;
   author?: string;
@@ -43,10 +44,8 @@ export interface ModImportWorkflowContext {
 
 export const ModImportWorkflowSteps = {
   ExtractMetadata: 'extract_metadata',
-  WaitingForUserConfirmation: 'waiting_for_user_confirmation',
   CompressFolder: 'compress_folder',
   ImportMod: 'import_mod',
-  Completed: 'completed',
 } as const;
 
 export const WorkflowTypes = {

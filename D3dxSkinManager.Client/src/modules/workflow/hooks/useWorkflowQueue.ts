@@ -8,6 +8,7 @@ import { eventBus, Module, WorkflowEventType } from '../../../shared/services/ev
 import { workflowService } from '../services/workflowService';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import type { WorkflowInfo } from '../types/workflow.types';
+import { WorkflowStatus } from '../types/workflow.types';
 
 interface UseWorkflowQueueReturn {
   workflows: WorkflowInfo[];
@@ -65,7 +66,9 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
     console.log('[useWorkflowQueue] Clearing completed workflows');
     setWorkflows((prev) =>
       prev.filter(
-        (w) => w.status !== 3 && w.status !== 4 && w.status !== 5 // Not Completed, Failed, or Cancelled
+        (w) => w.status !== WorkflowStatus.Completed &&
+               w.status !== WorkflowStatus.Failed &&
+               w.status !== WorkflowStatus.Cancelled
       )
     );
   }, []);
@@ -160,6 +163,39 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       }
     );
 
+    const unsubProgress = eventBus.subscribe(
+      Module.WORKFLOW,
+      WorkflowEventType.PROGRESS,
+      (event) => {
+        if (event?.payload && event.payload.workflowId) {
+          console.log('[useWorkflowQueue] Workflow progress event:', event.payload);
+          // Update the workflow in the queue by fetching latest state
+          // Progress events contain { workflowId, progress, step }
+          // We need to update the context in the workflow
+          const { workflowId, progress, step } = event.payload;
+          setWorkflows((prev) =>
+            prev.map((w) => {
+              if (w.id === workflowId) {
+                try {
+                  const context = JSON.parse(w.context);
+                  context.progress = progress;
+                  context.step = step;
+                  return {
+                    ...w,
+                    context: JSON.stringify(context),
+                  };
+                } catch (error) {
+                  console.error('[useWorkflowQueue] Failed to update progress:', error);
+                  return w;
+                }
+              }
+              return w;
+            })
+          );
+        }
+      }
+    );
+
     // Cleanup subscriptions
     return () => {
       console.log('[useWorkflowQueue] Cleaning up workflow event subscriptions');
@@ -168,6 +204,7 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       unsubCompleted();
       unsubFailed();
       unsubCancelled();
+      unsubProgress();
     };
   }, [addWorkflow, updateWorkflow]);
 

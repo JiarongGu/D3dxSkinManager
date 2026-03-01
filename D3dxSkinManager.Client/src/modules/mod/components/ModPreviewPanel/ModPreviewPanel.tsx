@@ -9,7 +9,7 @@ import {
   RightOutlined,
   UserOutlined,
   TagsOutlined,
-  FileTextOutlined,
+  FolderOutlined,
   PictureOutlined,
   FolderOpenOutlined,
   DeleteOutlined,
@@ -456,12 +456,10 @@ export const ModPreviewPanelContent: React.FC = () => {
             <Title level={4} className="mod-preview-title">
               {mod.name}
             </Title>
-            {mod.category && (
-              <Text type="secondary" className="mod-preview-category">
-                <FileTextOutlined className="mod-preview-category-icon" />
-                {mod.categoryName || mod.category}
-              </Text>
-            )}
+            <Text type="secondary" className="mod-preview-category">
+              <FolderOutlined className="mod-preview-category-icon" />
+              {mod.categoryName || t('category.unclassified')}
+            </Text>
           </div>
           {mod.hasCache && (
             <CompactTextButton

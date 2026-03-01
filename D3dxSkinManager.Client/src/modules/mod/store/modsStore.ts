@@ -197,6 +197,39 @@ export const useModsStore = create<ModsStore>()(
               state.selectedMod = updatedSelectedMod;
             }
           }
+          // Re-filter the mods if a category is selected
+          // This ensures CategoryFilteredMods stays in sync with the main mods list
+          if (state.selectedCategory && state.CategoryFilteredMods) {
+            const categoryId = state.selectedCategory.id;
+            // Filter mods by matching category
+            // Note: Unclassified category has special handling
+            if (categoryId === '__unclassified__') {
+              // Get all valid category IDs from the tree (recursive)
+              const getAllCategoryIds = (nodes: CategoryInfo[]): Set<string> => {
+                const ids = new Set<string>();
+                for (const node of nodes) {
+                  ids.add(node.id.toLowerCase());
+                  if (node.children && node.children.length > 0) {
+                    getAllCategoryIds(node.children).forEach(id => ids.add(id));
+                  }
+                }
+                return ids;
+              };
+              const validCategoryIds = getAllCategoryIds(state.CategoryTree);
+
+              // A mod is unclassified if:
+              // 1. Category is empty/null/whitespace
+              // 2. Category equals "Unknown" (case-insensitive)
+              // 3. Category doesn't exist in the category tree
+              state.CategoryFilteredMods = mods.filter((mod: ModInfo) => {
+                if (!mod.category || mod.category === '') return true;
+                if (mod.category.toLowerCase() === 'unknown') return true;
+                return !validCategoryIds.has(mod.category.toLowerCase());
+              });
+            } else {
+              state.CategoryFilteredMods = mods.filter((mod: ModInfo) => mod.category === categoryId);
+            }
+          }
         }),
 
       setModsLoading: (loading) =>

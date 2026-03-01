@@ -398,11 +398,9 @@ export const ModList: React.FC<ModListProps> = ({
                         {mod.author}
                       </Tag>
                     )}
-                    {mod.category && mod.category.trim() !== "" && (
-                      <Tag color="geekblue" className="mod-list-item-tag">
-                        {mod.categoryName || mod.category}
-                      </Tag>
-                    )}
+                    <Tag color="geekblue" className="mod-list-item-tag">
+                      {mod.categoryName || t('category.unclassified')}
+                    </Tag>
                     {mod.tags &&
                       mod.tags.slice(0, 3).map((tagName) => {
                         // Use pre-loaded tag data if available
