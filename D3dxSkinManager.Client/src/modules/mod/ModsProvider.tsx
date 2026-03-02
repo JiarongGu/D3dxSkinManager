@@ -55,9 +55,39 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       modOps.refreshMods(selectedProfileId);
     });
 
-    // Subscribe to mod loaded/unloaded events to refresh category-filtered mods
-    const unsubscribeModLoaded = eventBus.subscribe(Module.MOD, ModEventType.LOADED, handleModStateChange);
-    const unsubscribeModUnloaded = eventBus.subscribe(Module.MOD, ModEventType.UNLOADED, handleModStateChange);
+    // Subscribe to mod loaded/unloaded events to refresh both category-filtered mods AND category tree counts
+    const unsubscribeModLoaded = eventBus.subscribe(Module.MOD, ModEventType.LOADED, () => {
+      handleModStateChange();
+      // Refresh category tree to update mod counts
+      void categoryOps.refreshCategoryTree(selectedProfileId);
+    });
+    const unsubscribeModUnloaded = eventBus.subscribe(Module.MOD, ModEventType.UNLOADED, () => {
+      handleModStateChange();
+      // Refresh category tree to update mod counts
+      void categoryOps.refreshCategoryTree(selectedProfileId);
+    });
+
+    // Subscribe to mod imported/deleted events to refresh category tree counts
+    const unsubscribeModImported = eventBus.subscribe(Module.MOD, ModEventType.IMPORTED, () => {
+      // Refresh category tree to update mod counts (new mod added)
+      void categoryOps.refreshCategoryTree(selectedProfileId);
+    });
+    const unsubscribeModDeleted = eventBus.subscribe(Module.MOD, ModEventType.DELETED, () => {
+      // Refresh category tree to update mod counts (mod removed)
+      void categoryOps.refreshCategoryTree(selectedProfileId);
+    });
+
+    // Subscribe to mod metadata updated event to refresh mod list
+    const unsubscribeModMetadataUpdated = eventBus.subscribe(Module.MOD, ModEventType.METADATA_UPDATED, () => {
+      handleModStateChange();
+    });
+
+    // Subscribe to mod category updated event to refresh both mod list and category tree
+    const unsubscribeModCategoryUpdated = eventBus.subscribe(Module.MOD, ModEventType.CATEGORY_UPDATED, () => {
+      handleModStateChange();
+      // Refresh category tree to update mod counts (mod moved to different category)
+      void categoryOps.refreshCategoryTree(selectedProfileId);
+    });
 
     const unsubscribeCategoryTreeUpdated = eventBus.subscribe(
       Module.CATEGORY,
@@ -85,6 +115,10 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       unsubscribeModsRefreshed();
       unsubscribeModLoaded();
       unsubscribeModUnloaded();
+      unsubscribeModImported();
+      unsubscribeModDeleted();
+      unsubscribeModMetadataUpdated();
+      unsubscribeModCategoryUpdated();
       unsubscribeCategoryTreeUpdated();
       unsubscribeMigrationCompleted();
     };

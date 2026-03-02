@@ -33,9 +33,15 @@
 }
 
 .mod-list-panel-content {
+  position: relative; /* For positioning drop message */
   height: calc(100% - 48px - 40px); /* Total height - search bar - status bar */
-  overflow: auto;
   flex-shrink: 0;
+  overflow: hidden; /* Don't scroll the parent, only the child */
+}
+
+.mod-list-panel-content-scrollable {
+  height: 100%;
+  overflow: auto; /* Scrollable child */
 }
 
 .mod-list-panel-status-bar-container {
@@ -69,7 +75,6 @@
 
 /* Drag-over state - matches useDragDrop and CompactUpload patterns */
 .mod-list-panel-content.mod-list-panel-drop-active {
-  position: relative;
   background: var(--color-primary-bg-hover) !important;
   opacity: 0.8;
   border: 2px solid var(--color-primary) !important;
@@ -87,19 +92,32 @@
   background: var(--color-primary-bg) !important;
 }
 
-/* Drop message overlay - small text box with border */
-.mod-list-panel-content.mod-list-panel-drop-active::before {
-  content: attr(data-drop-message);
+/* Drop message element - hidden by default */
+.mod-list-panel-drop-message {
+  display: none;
+}
+
+/* Show and style drop message when drop is active */
+.mod-list-panel-content.mod-list-panel-drop-active .mod-list-panel-drop-message {
+  display: block;
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1000;
+  /* Center content using flexbox */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mod-list-panel-content.mod-list-panel-drop-active .mod-list-panel-drop-message::after {
+  content: attr(data-drop-message);
   font-size: 14px;
   font-weight: 500;
   color: var(--color-primary);
-  text-align: center;
-  pointer-events: none;
-  z-index: 10;
   white-space: nowrap;
   padding: 12px 24px;
   background: var(--color-bg-elevated);

@@ -216,7 +216,7 @@ type EventHandler<M extends Module, T extends string> = (
 class EventBus {
   private handlers: Map<string, Set<EventHandler<any, any>>> = new Map();
   private pendingUnsubscribes: Map<string, NodeJS.Timeout> = new Map();
-  private readonly UNSUBSCRIBE_DEBOUNCE_MS = 50;
+  private readonly UNSUBSCRIBE_DEBOUNCE_MS = 10;
 
   /**
    * Subscribe to specific module and event type

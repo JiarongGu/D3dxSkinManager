@@ -196,39 +196,41 @@ export const ModListPanel: React.FC = () => {
       <div
         className="mod-list-panel-content"
         ref={contentRef}
-        data-drop-message={t("mods.panel.dropToImport")}
       >
-        {filteredMods.length > 0 ? (
-          <ModList
-            mods={filteredMods}
-            loading={loading}
-            onLoad={loadModInGame}
-            onUnload={unloadModFromGame}
-            onDelete={deleteMod}
-            onEdit={openEditDialog}
-            onRowClick={selectMod}
-            selectedMod={selectedMod}
-          />
-        ) : (
-          <div className="mod-list-panel-content-empty-container">
-            <Empty
-              description={
-                searchQuery
-                  ? t("mods.panel.noModsMatchingSearch", { query: searchQuery })
-                  : selectedCategory
-                    ? t("mods.panel.noModsForCategory", {
-                        name: selectedCategory.name,
-                      })
-                    : selectedObject
-                      ? t("mods.panel.noModsForObject", {
-                          object: selectedObject,
-                        })
-                      : t("mods.panel.noModsAvailable")
-              }
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
+        <div className="mod-list-panel-drop-message" data-drop-message={t("mods.panel.dropToImport")} />
+        <div className="mod-list-panel-content-scrollable">
+          {filteredMods.length > 0 ? (
+            <ModList
+              mods={filteredMods}
+              loading={loading}
+              onLoad={loadModInGame}
+              onUnload={unloadModFromGame}
+              onDelete={deleteMod}
+              onEdit={openEditDialog}
+              onRowClick={selectMod}
+              selectedMod={selectedMod}
             />
-          </div>
-        )}
+          ) : (
+            <div className="mod-list-panel-content-empty-container">
+              <Empty
+                description={
+                  searchQuery
+                    ? t("mods.panel.noModsMatchingSearch", { query: searchQuery })
+                    : selectedCategory
+                      ? t("mods.panel.noModsForCategory", {
+                          name: selectedCategory.name,
+                        })
+                      : selectedObject
+                        ? t("mods.panel.noModsForObject", {
+                            object: selectedObject,
+                          })
+                        : t("mods.panel.noModsAvailable")
+                }
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Status Bar at Bottom - fixed container like UnclassifiedItem */}

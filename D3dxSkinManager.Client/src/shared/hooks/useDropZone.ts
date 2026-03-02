@@ -221,8 +221,9 @@ export function useDropZone(options: {
     }
   }, []);
 
-  // Debounce updateZone to prevent chain actions (10ms)
-  const updateZone = useRef(debounce(updateZoneImmediate, 10)).current;
+  // Debounce updateZone to prevent excessive calls during resize/scroll (100ms)
+  // useRef ensures the debounced function persists across renders and is only created once
+  const updateZone = useRef(debounce(updateZoneImmediate, 100)).current;
 
   // Register/update drop zone when element bounds change
   useEffect(() => {

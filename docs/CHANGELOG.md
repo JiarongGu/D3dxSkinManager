@@ -12,7 +12,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Enhanced - 2026-03-02 - DropZone Overlay: Complete Mouse Event Forwarding & JavaScript Organization ⭐⭐⭐
+### Enhanced - 2026-03-02 - DropZone Overlay: Simplified Auto-Hide Architecture ⭐⭐⭐
+Simplified DropZone overlay to auto-hide on mouse enter, eliminating 70% of complex event forwarding code while maintaining full functionality.
+**Impact**: ✅ Cleaner codebase, better UX (no wasted clicks), simplified maintenance, improved performance
+**Problem**: Complex mouse event forwarding (JavaScript injection, hover effects, scrollbar detection) added ~500 lines of code and complexity
+**Root Cause**: Trying to make overlay transparent to mouse events while staying visible required forwarding all events and mimicking browser behavior
+**New Approach**: Hide overlay immediately when mouse enters (not during file drag) → WebView handles everything naturally
+**Backend Changes - DropZoneOverlay.cs**:
+- Removed all JavaScript injection code (~240 lines): JS_HANDLE_HOVER_AND_CURSOR, JS_CLEANUP_HOVER, JS_FIND_SCROLLABLE_ELEMENTS, JS_INJECT_HOVER_STYLES, JS_DISPATCH_MOUSE_EVENT_TEMPLATE
+- Removed P/Invoke for SendMessage
+- Removed Windows message constants (WM_MOUSEMOVE, WM_LBUTTONDOWN, etc.)
+- Removed ForwardMouseMessageToWebView, HandleMouseMove, DispatchMouseEvent methods
+- Removed InjectHoverStyles, CleanupHoverStyles, UpdateCursorFromStyle methods
+- Removed UpdateScrollableRects, IsOverScrollbar methods
+- Removed IsDraggingFiles method
+- Simplified WndProc to just call base.WndProc (no event handling)
+- Added auto-hide on OnMouseEnter: Sets Visible=false immediately when mouse enters overlay
+- Simplified CheckOverlayVisibility: Only restores when cursor leaves overlay area
+- File reduced from ~787 lines to ~233 lines (70% reduction)
+**Backend Changes - DropZoneManager.cs**:
+- Removed auto-disposal callback (no longer needed with simplified overlay)
+**Frontend Changes - ModsProvider.tsx**:
+- Added METADATA_UPDATED event subscription to refresh mod list when metadata changes
+- Added CATEGORY_UPDATED event subscription to refresh both mod list and category tree when mod category changes
+**Frontend Changes - ModListPanel.css**:
+- Refactored drop zone structure: Fixed-height parent with scrollable child
+- Drop message now uses position:absolute overlay covering fixed parent
+- Drop message stays centered in visible area regardless of scroll position
+**How It Works Now**:
+1. Overlay visible by default (ready for file drags from File Explorer)
+2. Mouse enters → OnMouseEnter fires → Overlay hides immediately (Visible=false)
+3. User interacts with WebView underneath (clicks, drags HTML elements, scrolls) - NO wasted clicks!
+4. Mouse leaves → Timer detects cursor left area → Overlay restores (Visible=true)
+5. File drag from Explorer → Overlay captures drag events normally (AllowDrop=true)
+**Architecture Improvements**:
+- Simpler: No complex event forwarding, JavaScript injection, or hover mimicry
+- Better UX: No wasted clicks - first interaction always works
+- Consistent: Same pattern used for scrollbar hiding
+- Maintainable: Less code, fewer edge cases, clearer logic
+- Performant: No JavaScript execution, no async deadlock risks
+**Files Changed**: 4 files (2 backend C#, 2 frontend TypeScript/CSS)
+**Code Reduction**: ~550 lines removed (JavaScript injection, event forwarding, hover effects, scrollbar detection)
+
+### Enhanced - 2026-03-01 - DropZone Overlay: Complete Mouse Event Forwarding & JavaScript Organization ⭐⭐⭐
 Complete implementation of transparent overlay that forwards all mouse events to WebView2 with full hover effects, dynamic cursor changes, and scrollbar interaction support.
 **Impact**: ✅ Drag-drop works without topmost window requirement, all mouse events forwarded correctly, hover effects fully functional, scrollbar interaction working, clean JavaScript organization
 **Problem**: DropZone overlay blocked mouse interactions with WebView2 content (clicks, hovers, scrolling)
