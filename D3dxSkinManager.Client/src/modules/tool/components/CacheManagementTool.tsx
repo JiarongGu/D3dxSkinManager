@@ -67,8 +67,7 @@ export const CacheManagementTool: React.FC = () => {
       notification.success(`Cache scan complete: ${items.length} items found`);
     } catch (error) {
       notification.error('Failed to scan cache');
-      console.error(error);
-    } finally {
+          } finally {
       setLoading(false);
     }
   };
@@ -112,8 +111,7 @@ export const CacheManagementTool: React.FC = () => {
       await handleScanCache();
     } catch (error) {
       notification.error(`Failed to clean ${categoryName} cache`);
-      console.error(error);
-    } finally {
+          } finally {
       setLoading(false);
       setCleanConfirm({ visible: false });
     }
@@ -150,8 +148,7 @@ export const CacheManagementTool: React.FC = () => {
       }
     } catch (error) {
       notification.error('Failed to delete cache item');
-      console.error(error);
-    } finally {
+          } finally {
       setLoading(false);
       setDeleteItemConfirm({ visible: false });
     }
@@ -168,8 +165,7 @@ export const CacheManagementTool: React.FC = () => {
       // await fileSystemService.openDirectory(cachePath);
     } catch (error) {
       notification.error('Failed to open cache directory');
-      console.error(error);
-    }
+          }
   };
 
   /**

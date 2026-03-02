@@ -303,8 +303,7 @@ class EventBus {
         try {
           handler(event);
         } catch (error) {
-          console.error(`Error in event handler for ${key}:`, error);
-        }
+                  }
       });
     }
   }

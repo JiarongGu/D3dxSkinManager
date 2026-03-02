@@ -56,10 +56,7 @@ class BridgeService {
    */
   private initializeMessageReceiver() {
     if (!window.chrome?.webview?.addEventListener) {
-      console.warn(
-        "[BridgeService] WebView2 not available - running in development mode",
-      );
-      return;
+            return;
     }
 
     window.chrome.webview.addEventListener("message", (event: any) => {
@@ -87,8 +84,7 @@ class BridgeService {
           });
         }
       } catch (error) {
-        console.error("[BridgeService] Failed to parse message:", error);
-      }
+              }
     });
   }
 
@@ -103,10 +99,8 @@ class BridgeService {
         type: 'WEBVIEW_READY',
         payload: { webViewId: this.webViewId }
       });
-      console.info(`[BridgeService] WebView ready notification sent with ID: ${this.webViewId}`);
-    } catch (error) {
-      console.error('[BridgeService] Failed to notify WebView ready:', error);
-    }
+          } catch (error) {
+          }
   }
 
   /**
@@ -135,10 +129,7 @@ class BridgeService {
 
       // Check if profileId is required but missing
       if (needsProfileId && !profileId) {
-        console.warn(
-          `No profile selected for module ${module}, request may fail`,
-        );
-      }
+              }
 
       const message: BridgeMessage = {
         id,

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  Modal,
   Flex,
   Button,
   Space,
@@ -11,15 +10,15 @@ import {
   Input,
   ColorPicker,
   Spin,
+  Row,
+  Col,
 } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  CopyOutlined,
-  FolderOpenOutlined,
   CheckCircleOutlined,
-  DownloadOutlined,
+  SwapOutlined,
 } from "@ant-design/icons";
 import classNames from "classnames";
 import { useTranslation } from "react-i18next";
@@ -27,11 +26,16 @@ import { profileService } from "../../profile/services/profileService";
 import {
   Profile,
   CreateProfileRequest,
+  UpdateProfileRequest,
 } from "../../../shared/types/profile.types";
-import { fileDialogService } from "../../../shared/services/systemService";
 import { useProfile } from "../../../shared/context/ProfileContext";
+import { handleError } from "../../../shared/utils/errorHandler";
+import { FormDialog } from "../../../shared/components/dialogs";
+import { toAppUrl } from "../../../shared/utils/imageUrlHelper";
 import "./ProfileManager.css";
 import { notification } from "../../../shared/utils/notification";
+import { systemService } from "../../../shared/services/systemService";
+import { CompactThumbnailUpload, CompactPrimaryButton } from "../../../shared/components/compact";
 
 interface ProfileManagerProps {
   onProfileChanged?: () => void;
@@ -49,6 +53,10 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
+  const [createThumbnailPath, setCreateThumbnailPath] = useState<string>();
+  const [editThumbnailPath, setEditThumbnailPath] = useState<string>();
+  const [editNewThumbnailPath, setEditNewThumbnailPath] = useState<string>(); // Separate state for new uploads
+  const [editThumbnailRemoved, setEditThumbnailRemoved] = useState(false); // Track if user explicitly removed thumbnail
 
   useEffect(() => {
     loadProfiles();
@@ -60,9 +68,8 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       const result = await profileService.getAllProfiles();
       setProfiles(result.profiles);
       setActiveProfileId(result.activeProfileId);
-    } catch (error) {
-      console.error("Failed to load profiles:", error);
-      notification.error(t("profiles.notifications.loadFailed"));
+    } catch (error: unknown) {
+      handleError(error);
     } finally {
       setLoading(false);
     }
@@ -75,10 +82,9 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       const request: CreateProfileRequest = {
         name: values.name,
         description: values.description,
-        workDirectory: values.workDirectory,
-        colorTag: values.colorTag?.toHexString?.() || values.colorTag,
+        color: values.color?.toHexString?.() || values.color,
         gameName: values.gameName,
-        copyFromCurrent: values.copyFromCurrent || false,
+        thumbnailPath: createThumbnailPath,
       };
 
       await profileService.createProfile(request);
@@ -86,14 +92,17 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
 
       setShowCreateDialog(false);
       createForm.resetFields();
+      setCreateThumbnailPath(undefined);
+
+      // Reload both local and global profile lists
       await loadProfiles();
+      await actions.loadProfiles();
 
       if (onProfileChanged) {
         onProfileChanged();
       }
-    } catch (error) {
-      console.error("Failed to create profile:", error);
-      notification.error(t("profiles.notifications.createFailed"));
+    } catch (error: unknown) {
+      handleError(error);
     }
   };
 
@@ -103,17 +112,26 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
     try {
       const values = await editForm.validateFields();
 
-      await profileService.updateProfile({
+      const request: UpdateProfileRequest = {
         profileId: editingProfile.id,
         name: values.name,
         description: values.description,
-        workDirectory: values.workDirectory,
-        colorTag: values.colorTag?.toHexString?.() || values.colorTag,
+        color: values.color?.toHexString?.() || values.color,
         gameName: values.gameName,
-      });
+        // Send thumbnailPath based on user action:
+        // - If user uploaded new thumbnail: send the new path
+        // - If user explicitly removed thumbnail: send empty string to clear it
+        // - Otherwise: send undefined to keep existing thumbnail
+        thumbnailPath: editThumbnailRemoved ? "" : editNewThumbnailPath,
+      };
+
+      await profileService.updateProfile(request);
 
       notification.success(t("profiles.notifications.updateSuccess"));
       setEditingProfile(undefined);
+      setEditThumbnailPath(undefined);
+      setEditNewThumbnailPath(undefined);
+      setEditThumbnailRemoved(false);
       await loadProfiles();
 
       // Reload profiles in the context to update ProfileSwitcher
@@ -132,9 +150,8 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       if (onProfileChanged) {
         onProfileChanged();
       }
-    } catch (error) {
-      console.error("Failed to update profile:", error);
-      notification.error(t("profiles.notifications.updateFailed"));
+    } catch (error: unknown) {
+      handleError(error);
     }
   };
 
@@ -148,78 +165,78 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
         onProfileChanged();
       }
     } catch (error: unknown) {
-      console.error("Failed to delete profile:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : t("profiles.notifications.deleteFailed");
-      notification.error(errorMessage);
+      handleError(error);
     }
   };
 
-  const handleDuplicate = async (profile: Profile) => {
+  const handleSwitch = async (profileId: string) => {
     try {
-      const newName = `${profile.name}${t("profiles.duplicate.suffix")}`;
-      await profileService.duplicateProfile(profile.id, newName);
-      notification.success(t("profiles.notifications.duplicateSuccess"));
+      // Use the context action to properly update global profile state
+      await actions.selectProfile(profileId);
+      notification.success(t("profiles.notifications.switchSuccess"));
       await loadProfiles();
 
       if (onProfileChanged) {
         onProfileChanged();
       }
-    } catch (error) {
-      console.error("Failed to duplicate profile:", error);
-      notification.error(t("profiles.notifications.duplicateFailed"));
+    } catch (error: unknown) {
+      handleError(error);
     }
   };
 
-  const handleBrowseWorkDirectory = async (formInstance: any) => {
+  const handleBrowseCreateThumbnail = async () => {
     try {
-      const result = await fileDialogService.openFolderDialog({
-        title: t("profiles.dialog.selectWorkDirectory"),
+      const result = await systemService.openFileDialog({
+        title: t("profiles.form.thumbnail.selectTitle"),
+        filters: [
+          {
+            name: t("profiles.form.thumbnail.imageFiles"),
+            extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
+          },
+        ],
+        rememberPathKey: "profile-thumbnail",
       });
 
       if (result.success && result.filePath) {
-        formInstance.setFieldsValue({ workDirectory: result.filePath });
+        setCreateThumbnailPath(result.filePath);
       }
     } catch (error) {
-      notification.error(t("profiles.notifications.folderDialogFailed"));
+      handleError(error);
     }
   };
 
-  const handleExport = async (profileId: string) => {
+  const handleBrowseEditThumbnail = async () => {
     try {
-      const configJson = await profileService.exportProfileConfig(profileId);
-      const blob = new Blob([configJson], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `profile-${profileId}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      notification.success(t("profiles.notifications.exportSuccess"));
+      const result = await systemService.openFileDialog({
+        title: t("profiles.form.thumbnail.selectTitle"),
+        filters: [
+          {
+            name: t("profiles.form.thumbnail.imageFiles"),
+            extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
+          },
+        ],
+        rememberPathKey: "profile-thumbnail",
+      });
+
+      if (result.success && result.filePath) {
+        // For edit mode, update both display path and new upload path
+        setEditThumbnailPath(result.filePath);
+        setEditNewThumbnailPath(result.filePath);
+        setEditThumbnailRemoved(false); // Clear removal flag when new thumbnail selected
+      }
     } catch (error) {
-      console.error("Failed to export profile:", error);
-      notification.error(t("profiles.notifications.exportFailed"));
+      handleError(error);
     }
   };
 
   return (
     <>
       <div className="profile-manager-container">
-        <Space
-          orientation="vertical"
+        <Flex
+          vertical
           className="profile-manager-vertical-space"
-          size="large"
+          gap="large"
         >
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setShowCreateDialog(true)}
-          >
-            {t("profiles.button.createNew")}
-          </Button>
-
           <Spin spinning={loading}>
             <Flex vertical gap="middle">
               {profiles.map((profile) => (
@@ -233,15 +250,36 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                     "profile-manager-item--inactive":
                       profile.id !== activeProfileId,
                   })}
+                  style={{
+                    borderLeft: `4px solid ${profile.color || "#1890ff"}`,
+                  }}
                 >
                   <Flex
                     align="flex-start"
                     gap="middle"
                     className="profile-manager-content"
                   >
+                    {/* Thumbnail or Avatar - Show thumbnail if available */}
+                    {profile.thumbnail ? (
+                      <img
+                        src={toAppUrl(profile.thumbnail) || undefined}
+                        alt={profile.name}
+                        className="profile-manager-thumbnail"
+                        onError={(e) => {
+                          // If thumbnail fails to load, hide it and show avatar instead
+                          e.currentTarget.style.display = 'none';
+                          const avatar = e.currentTarget.nextElementSibling as HTMLElement;
+                          if (avatar) avatar.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    {/* Avatar fallback - shown if no thumbnail or if thumbnail fails to load */}
                     <div
                       className="profile-manager-avatar"
-                      style={{ backgroundColor: profile.colorTag || "#1890ff" }}
+                      style={{
+                        backgroundColor: profile.color || "#1890ff",
+                        display: profile.thumbnail ? 'none' : 'flex'
+                      }}
                     >
                       {profile.name.charAt(0).toUpperCase()}
                     </div>
@@ -268,50 +306,34 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                           {profile.description}
                         </span>
                       )}
-                      <Space size="large">
-                        <span className="profile-manager-stats">
-                          {t("profiles.label.mods")} {profile.modCount}
-                        </span>
-                        <span className="profile-manager-stats">
-                          {t("profiles.label.size")}{" "}
-                          {profileService.formatBytes(profile.totalSize || 0)}
-                        </span>
-                        <span className="profile-manager-stats">
-                          {t("profiles.label.created")}{" "}
-                          {new Date(profile.createdAt).toLocaleDateString()}
-                        </span>
-                      </Space>
                     </Flex>
                   </Flex>
                   <Space>
+                    {profile.id !== activeProfileId && (
+                      <Tooltip title={t("profiles.tooltip.switch")}>
+                        <Button
+                          icon={<SwapOutlined />}
+                          size="small"
+                          onClick={() => handleSwitch(profile.id)}
+                        />
+                      </Tooltip>
+                    )}
                     <Tooltip title={t("profiles.tooltip.edit")}>
                       <Button
                         icon={<EditOutlined />}
                         size="small"
                         onClick={() => {
                           setEditingProfile(profile);
+                          setEditThumbnailPath(profile.thumbnail);
+                          setEditNewThumbnailPath(undefined); // Reset new upload
+                          setEditThumbnailRemoved(false); // Reset removal flag
                           editForm.setFieldsValue({
                             name: profile.name,
                             description: profile.description,
-                            workDirectory: profile.workDirectory,
-                            colorTag: profile.colorTag,
+                            color: profile.color,
                             gameName: profile.gameName,
                           });
                         }}
-                      />
-                    </Tooltip>
-                    <Tooltip title={t("profiles.tooltip.duplicate")}>
-                      <Button
-                        icon={<CopyOutlined />}
-                        size="small"
-                        onClick={() => handleDuplicate(profile)}
-                      />
-                    </Tooltip>
-                    <Tooltip title={t("profiles.tooltip.exportConfig")}>
-                      <Button
-                        icon={<DownloadOutlined />}
-                        size="small"
-                        onClick={() => handleExport(profile.id)}
                       />
                     </Tooltip>
                     {profile.id !== activeProfileId && (
@@ -337,34 +359,68 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
               ))}
             </Flex>
           </Spin>
-        </Space>
+
+          <CompactPrimaryButton
+            icon={<PlusOutlined />}
+            onClick={() => setShowCreateDialog(true)}
+            block
+          >
+            {t("profiles.button.createNew")}
+          </CompactPrimaryButton>
+        </Flex>
       </div>
 
       {/* Create Profile Dialog */}
-      <Modal
+      <FormDialog
+        visible={showCreateDialog}
         title={t("profiles.dialog.createTitle")}
-        open={showCreateDialog}
         onCancel={() => {
           setShowCreateDialog(false);
           createForm.resetFields();
+          setCreateThumbnailPath(undefined);
         }}
         onOk={handleCreate}
-        width={600}
+        okText={t("common.save")}
+        cancelText={t("common.cancel")}
+        width={560}
       >
         <Form form={createForm} layout="vertical">
+          <Row gutter={12}>
+            <Col span={16}>
+              <Form.Item
+                label={t("profiles.form.name.label")}
+                name="name"
+                rules={[
+                  { required: true, message: t("profiles.form.name.required") },
+                ]}
+                style={{ marginBottom: 12 }}
+              >
+                <Input placeholder={t("profiles.form.name.placeholder")} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                label={t("profiles.form.color.label")}
+                name="color"
+                style={{ marginBottom: 12 }}
+              >
+                <ColorPicker showText style={{ width: "100%" }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
           <Form.Item
-            label={t("profiles.form.name.label")}
-            name="name"
-            rules={[
-              { required: true, message: t("profiles.form.name.required") },
-            ]}
+            label={t("profiles.form.gameName.label")}
+            name="gameName"
+            style={{ marginBottom: 12 }}
           >
-            <Input placeholder={t("profiles.form.name.placeholder")} />
+            <Input placeholder={t("profiles.form.gameName.placeholder")} />
           </Form.Item>
 
           <Form.Item
             label={t("profiles.form.description.label")}
             name="description"
+            style={{ marginBottom: 12 }}
           >
             <Input.TextArea
               rows={2}
@@ -373,52 +429,62 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
           </Form.Item>
 
           <Form.Item
-            label={t("profiles.form.workDirectory.label")}
-            name="workDirectory"
-            rules={[
-              {
-                required: true,
-                message: t("profiles.form.workDirectory.required"),
-              },
-            ]}
+            label={t("profiles.form.thumbnail.label")}
+            style={{ marginBottom: 0 }}
           >
-            <Space.Compact className="profile-manager-full-width-input">
-              <Input
-                placeholder={t("profiles.form.workDirectory.placeholder")}
-                className="profile-manager-full-width-input"
-              />
-              <Button
-                icon={<FolderOpenOutlined />}
-                onClick={() => handleBrowseWorkDirectory(createForm)}
-              />
-            </Space.Compact>
-          </Form.Item>
-
-          <Form.Item label={t("profiles.form.gameName.label")} name="gameName">
-            <Input placeholder={t("profiles.form.gameName.placeholder")} />
-          </Form.Item>
-
-          <Form.Item label={t("profiles.form.colorTag.label")} name="colorTag">
-            <ColorPicker showText />
+            <CompactThumbnailUpload
+              thumbnailUrl={createThumbnailPath ? toAppUrl(createThumbnailPath) || undefined : undefined}
+              onSelect={handleBrowseCreateThumbnail}
+              onRemove={() => setCreateThumbnailPath(undefined)}
+              buttonText={t("profiles.form.thumbnail.upload")}
+              alt="Profile thumbnail"
+            />
           </Form.Item>
         </Form>
-      </Modal>
+      </FormDialog>
 
       {/* Edit Profile Dialog */}
-      <Modal
+      <FormDialog
+        visible={editingProfile !== undefined}
         title={t("profiles.dialog.editTitle")}
-        open={editingProfile !== undefined}
-        onCancel={() => setEditingProfile(undefined)}
+        onCancel={() => {
+          setEditingProfile(undefined);
+          setEditThumbnailPath(undefined);
+        }}
         onOk={handleEdit}
-        width={600}
+        okText={t("common.save")}
+        cancelText={t("common.cancel")}
+        width={560}
       >
         <Form form={editForm} layout="vertical">
+          <Row gutter={12}>
+            <Col span={16}>
+              <Form.Item
+                label={t("profiles.form.name.label")}
+                name="name"
+                rules={[
+                  { required: true, message: t("profiles.form.name.required") },
+                ]}
+                style={{ marginBottom: 12 }}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                label={t("profiles.form.color.label")}
+                name="color"
+                style={{ marginBottom: 12 }}
+              >
+                <ColorPicker showText style={{ width: "100%" }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
           <Form.Item
-            label={t("profiles.form.name.label")}
-            name="name"
-            rules={[
-              { required: true, message: t("profiles.form.name.required") },
-            ]}
+            label={t("profiles.form.gameName.label")}
+            name="gameName"
+            style={{ marginBottom: 12 }}
           >
             <Input />
           </Form.Item>
@@ -426,38 +492,29 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
           <Form.Item
             label={t("profiles.form.description.label")}
             name="description"
+            style={{ marginBottom: 12 }}
           >
             <Input.TextArea rows={2} />
           </Form.Item>
 
           <Form.Item
-            label={t("profiles.form.workDirectory.label")}
-            name="workDirectory"
-            rules={[
-              {
-                required: true,
-                message: t("profiles.form.workDirectory.required"),
-              },
-            ]}
+            label={t("profiles.form.thumbnail.label")}
+            style={{ marginBottom: 0 }}
           >
-            <Space.Compact className="profile-manager-full-width-input">
-              <Input className="profile-manager-full-width-input" />
-              <Button
-                icon={<FolderOpenOutlined />}
-                onClick={() => handleBrowseWorkDirectory(editForm)}
-              />
-            </Space.Compact>
-          </Form.Item>
-
-          <Form.Item label={t("profiles.form.gameName.label")} name="gameName">
-            <Input />
-          </Form.Item>
-
-          <Form.Item label={t("profiles.form.colorTag.label")} name="colorTag">
-            <ColorPicker showText />
+            <CompactThumbnailUpload
+              thumbnailUrl={editThumbnailPath ? toAppUrl(editThumbnailPath) || undefined : undefined}
+              onSelect={handleBrowseEditThumbnail}
+              onRemove={() => {
+                setEditThumbnailPath(undefined);
+                setEditNewThumbnailPath(undefined);
+                setEditThumbnailRemoved(true); // Mark that user wants to remove thumbnail
+              }}
+              buttonText={t("profiles.form.thumbnail.change")}
+              alt="Profile thumbnail"
+            />
           </Form.Item>
         </Form>
-      </Modal>
+      </FormDialog>
     </>
   );
 };

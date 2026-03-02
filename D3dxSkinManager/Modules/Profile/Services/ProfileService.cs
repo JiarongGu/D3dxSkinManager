@@ -28,7 +28,10 @@ public class ProfileService : IProfileService
 {
     private readonly IGlobalPathService _globalPaths;
     private readonly IPathHelper _pathHelper;
+    private readonly IHashHelper _hashHelper;
+    private readonly IImageHelper _imageHelper;
     private readonly IFileHelper _fileService;
+    private readonly IFileTransferService _fileTransferService;
     private readonly IProfileRepository _repository;
     private readonly ILogHelper _logger;
     private readonly Lazy<Task> _init;
@@ -36,47 +39,50 @@ public class ProfileService : IProfileService
     public ProfileService(
         IGlobalPathService globalPaths,
         IFileHelper fileService,
+        IFileTransferService fileTransferService,
         IPathHelper pathHelper,
+        IHashHelper hashHelper,
+        IImageHelper imageHelper,
         IProfileRepository repository,
         ILogHelper logger)
     {
         _globalPaths = globalPaths;
         _pathHelper = pathHelper;
+        _hashHelper = hashHelper;
+        _imageHelper = imageHelper;
         _fileService = fileService;
+        _fileTransferService = fileTransferService;
         _repository = repository;
         _logger = logger;
 
         // Lazy initialization to avoid blocking constructor
-        _init = new Lazy<Task>(EnsureDefaultProfileExistsAsync, isThreadSafe: true);
+        _init = new Lazy<Task>(EnsureInitialProfileExistsAsync, isThreadSafe: true);
     }
 
     private Task EnsureInitializedAsync() => _init.Value;
 
-    private async Task EnsureDefaultProfileExistsAsync()
+    private async Task EnsureInitialProfileExistsAsync()
     {
         try
         {
             var profiles = await _repository.GetAllProfilesAsync().ConfigureAwait(false);
             if (profiles.Count == 0)
             {
-                // No profiles found - create default profile
-                _logger.Info("No profiles found. Creating default profile.", "ProfileService");
+                // No profiles found - create initial profile
+                _logger.Info("No profiles found. Creating initial profile.", "ProfileService");
                 // Use internal method to avoid circular Lazy<T> initialization
                 await CreateProfileInternalAsync(new CreateProfileRequest
                 {
-                    Name = "Default",
-                    Description = "Default profile",
-                    GameDirectory = string.Empty,
-                    WorkDirectory = string.Empty,
-                    ColorTag = "#1890ff",
-                    IconName = "home",
-                    GameName = "Default"
+                    Name = "My Profile",
+                    Description = "My first profile",
+                    Color = "#1890ff",
+                    GameName = null // No game name for initial profile
                 }).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
-            _logger.Error($"Failed to ensure default profile exists: {ex.Message}", "ProfileService", ex);
+            _logger.Error($"Failed to ensure initial profile exists: {ex.Message}", "ProfileService", ex);
         }
     }
 
@@ -112,27 +118,55 @@ public class ProfileService : IProfileService
     private async Task<Profile> CreateProfileInternalAsync(CreateProfileRequest request)
     {
         var profileId = Guid.NewGuid().ToString();
-        var dataDir = _globalPaths.GetProfileDirectoryPath(profileId);
-        var workDir = string.IsNullOrEmpty(request.WorkDirectory) ? Path.Combine(dataDir, "work") : request.WorkDirectory;
+        var profileDataDir = _globalPaths.GetProfileDirectoryPath(profileId);
+        var thumbnailsDir = _globalPaths.GetProfileThumbnailsDirectory(profileId);
+
+        _logger.Info($"Creating profile: {request.Name}, ProfileId: {profileId}, ThumbnailPath: {request.ThumbnailPath}", "ProfileService");
+
+        // Create profile directory first (needed for thumbnail copy)
+        await _fileService.CreateDirectoryAsync(profileDataDir).ConfigureAwait(false);
+        _logger.Info($"Created profile directory: {profileDataDir}", "ProfileService");
+
+        // Handle thumbnail if provided - store in profile thumbnails folder
+        string? relativeThumbnailPath = null;
+        if (!string.IsNullOrEmpty(request.ThumbnailPath))
+        {
+            _logger.Info($"Processing thumbnail: {request.ThumbnailPath}", "ProfileService");
+
+            // Create thumbnails subdirectory
+            await _fileService.CreateDirectoryAsync(thumbnailsDir).ConfigureAwait(false);
+
+            // Convert and save thumbnail as PNG for compatibility with Windows icons
+            relativeThumbnailPath = await ConvertAndSaveThumbnailAsync(
+                request.ThumbnailPath,
+                thumbnailsDir
+            ).ConfigureAwait(false);
+
+            if (relativeThumbnailPath == null)
+            {
+                _logger.Warn($"Failed to process thumbnail", "ProfileService");
+            }
+            else
+            {
+                _logger.Info($"Thumbnail processed successfully: {relativeThumbnailPath}", "ProfileService");
+            }
+        }
+        else
+        {
+            _logger.Info("No thumbnail provided for profile", "ProfileService");
+        }
 
         var profile = new Profile
         {
             Id = profileId,
             Name = request.Name,
             Description = request.Description,
-            GameDirectory = request.GameDirectory,
-            // WorkDirectory might be external (game folder) - use PathHelper to store as relative if under data path
-            WorkDirectory = _pathHelper.ToRelativePath(workDir) ?? workDir,
-            // DataDirectory is always under data path - store as relative
-            DataDirectory = _pathHelper.ToRelativePath(dataDir) ?? dataDir,
-            IsActive = false,
-            CreatedAt = DateTime.UtcNow,
-            ColorTag = request.ColorTag ?? GenerateRandomColor(),
-            IconName = request.IconName ?? "folder",
-            GameName = request.GameName
+            Color = request.Color ?? GenerateRandomColor(),
+            GameName = request.GameName,
+            Thumbnail = relativeThumbnailPath
         };
 
-        // Create profile in repository (this will create directory and save to disk)
+        // Create profile in repository (this will save profile metadata to disk)
         await _repository.CreateProfileAsync(profile).ConfigureAwait(false);
 
         // Create default profile configuration
@@ -149,20 +183,66 @@ public class ProfileService : IProfileService
     public async Task<bool> UpdateProfileAsync(UpdateProfileRequest request)
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
+
+        _logger.Info($"Updating profile: {request.ProfileId}, Name: {request.Name}, ThumbnailPath: {request.ThumbnailPath}", "ProfileService");
+
         var profile = await _repository.GetProfileAsync(request.ProfileId).ConfigureAwait(false);
         if (profile == null)
         {
+            _logger.Warn($"Profile not found: {request.ProfileId}", "ProfileService");
             return false;
         }
 
         // Update profile properties
         if (!string.IsNullOrEmpty(request.Name)) profile.Name = request.Name;
         if (request.Description != null) profile.Description = request.Description;
-        if (request.GameDirectory != null) profile.GameDirectory = request.GameDirectory;
-        if (!string.IsNullOrEmpty(request.WorkDirectory)) profile.WorkDirectory = request.WorkDirectory;
-        if (request.ColorTag != null) profile.ColorTag = request.ColorTag;
-        if (request.IconName != null) profile.IconName = request.IconName;
+        if (request.Color != null) profile.Color = request.Color;
         if (request.GameName != null) profile.GameName = request.GameName;
+
+        // Handle thumbnail update if provided
+        if (request.ThumbnailPath != null)
+        {
+            // Empty string means remove thumbnail
+            if (string.IsNullOrEmpty(request.ThumbnailPath))
+            {
+                _logger.Info($"Thumbnail removal requested", "ProfileService");
+                profile.Thumbnail = null;
+            }
+            else
+            {
+                // Non-empty string means update thumbnail - store in profile thumbnails folder
+                _logger.Info($"Thumbnail update requested: {request.ThumbnailPath}", "ProfileService");
+                var profileDataDir = _globalPaths.GetProfileDirectoryPath(request.ProfileId);
+                var thumbnailsDir = _globalPaths.GetProfileThumbnailsDirectory(request.ProfileId);
+
+                // Ensure profile directory exists (should already exist, but be safe)
+                await _fileService.CreateDirectoryAsync(profileDataDir).ConfigureAwait(false);
+                _logger.Info($"Profile directory ensured: {profileDataDir}", "ProfileService");
+
+                // Create thumbnails subdirectory
+                await _fileService.CreateDirectoryAsync(thumbnailsDir).ConfigureAwait(false);
+
+                // Convert and save thumbnail as PNG for compatibility with Windows icons
+                var relativeThumbnailPath = await ConvertAndSaveThumbnailAsync(
+                    request.ThumbnailPath,
+                    thumbnailsDir
+                ).ConfigureAwait(false);
+
+                if (relativeThumbnailPath == null)
+                {
+                    _logger.Warn($"Failed to process thumbnail", "ProfileService");
+                }
+                else
+                {
+                    _logger.Info($"Thumbnail processed successfully: {relativeThumbnailPath}", "ProfileService");
+                    profile.Thumbnail = relativeThumbnailPath;
+                }
+            }
+        }
+        else
+        {
+            _logger.Info("No thumbnail update requested (ThumbnailPath is null)", "ProfileService");
+        }
 
         await _repository.UpdateProfileAsync(profile).ConfigureAwait(false);
         _logger.Info($"Updated profile: {profile.Name} ({profile.Id})", "ProfileService");
@@ -222,20 +302,16 @@ public class ProfileService : IProfileService
             Id = newProfileId,
             Name = newName,
             Description = $"Copy of {sourceProfile.Name}",
-            WorkDirectory = sourceProfile.WorkDirectory,
-            DataDirectory = _pathHelper.ToRelativePath(newDataDir) ?? newDataDir,
-            IsActive = false,
-            CreatedAt = DateTime.UtcNow,
-            ColorTag = GenerateRandomColor(),
-            IconName = sourceProfile.IconName,
-            GameName = sourceProfile.GameName
+            Color = GenerateRandomColor(),
+            GameName = sourceProfile.GameName,
+            Thumbnail = sourceProfile.Thumbnail  // Copy thumbnail reference
         };
 
         // Create profile in repository
         await _repository.CreateProfileAsync(newProfile).ConfigureAwait(false);
 
         // Copy all data from source profile
-        var sourceDataDir = _pathHelper.ToAbsolutePath(sourceProfile.DataDirectory) ?? sourceProfile.DataDirectory;
+        var sourceDataDir = _globalPaths.GetProfileDirectoryPath(sourceProfileId);
         await CopyDirectoryAsync(sourceDataDir, newDataDir).ConfigureAwait(false);
 
         _logger.Info($"Duplicated profile: {sourceProfile.Name} -> {newProfile.Name}", "ProfileService");
@@ -307,6 +383,37 @@ public class ProfileService : IProfileService
             var dirName = Path.GetFileName(dir);
             var targetSubDir = Path.Combine(targetDir, dirName);
             await CopyDirectoryAsync(dir, targetSubDir).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Convert thumbnail image to PNG format and save it to the thumbnails directory.
+    /// This ensures compatibility with Windows icon conversion.
+    /// </summary>
+    private async Task<string?> ConvertAndSaveThumbnailAsync(string sourcePath, string thumbnailsDir)
+    {
+        try
+        {
+            // Generate hash-based filename
+            var hash = await _hashHelper.CalculateFileSHA256Async(sourcePath);
+
+            // Use ImageHelper to convert to PNG
+            var targetPath = await _imageHelper.ConvertToPngAsync(sourcePath, thumbnailsDir, hash);
+
+            if (targetPath == null)
+            {
+                _logger.Error($"Failed to convert thumbnail using ImageHelper", "ProfileService");
+                return null;
+            }
+
+            // Return relative path
+            var relativePath = _pathHelper.ToRelativePath(targetPath);
+            return relativePath;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to convert thumbnail: {ex.Message}", "ProfileService", ex);
+            return null;
         }
     }
 

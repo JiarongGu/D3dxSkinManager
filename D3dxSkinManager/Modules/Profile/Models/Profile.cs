@@ -24,49 +24,9 @@ public class Profile
     public string? Description { get; set; }
 
     /// <summary>
-    /// Game directory path (where the game executable is located)
-    /// Used for 3DMigoto deployment
-    /// </summary>
-    public string? GameDirectory { get; set; }
-
-    /// <summary>
-    /// Work directory path (base directory for mod deployment)
-    /// Mods are extracted to: {WorkDirectory}/Mods/{SHA}/
-    /// Can be external or internal. Typically set to game directory for direct deployment.
-    /// Defaults to: {DataDirectory}/work/
-    /// </summary>
-    public string WorkDirectory { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Data directory path (where mod archives, thumbnails, previews, and config are stored)
-    /// Defaults to: {AppDataPath}/profiles/{ProfileId}/
-    /// </summary>
-    public string DataDirectory { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Whether this profile is currently active
-    /// </summary>
-    public bool IsActive { get; set; }
-
-    /// <summary>
-    /// When this profile was created
-    /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    /// <summary>
-    /// When this profile was last used
-    /// </summary>
-    public DateTime? LastUsedAt { get; set; }
-
-    /// <summary>
     /// Color tag for UI differentiation (hex color code)
     /// </summary>
-    public string? ColorTag { get; set; }
-
-    /// <summary>
-    /// Icon name for UI display
-    /// </summary>
-    public string? IconName { get; set; }
+    public string? Color { get; set; }
 
     /// <summary>
     /// Game name this profile is associated with
@@ -74,17 +34,7 @@ public class Profile
     public string? GameName { get; set; }
 
     /// <summary>
-    /// Custom metadata (JSON string for extensibility)
+    /// Path to thumbnail image (relative path, stored in profile data directory)
     /// </summary>
-    public string? Metadata { get; set; }
-
-    /// <summary>
-    /// Number of mods in this profile
-    /// </summary>
-    public int ModCount { get; set; }
-
-    /// <summary>
-    /// Total size of mods in bytes
-    /// </summary>
-    public long TotalSizeBytes { get; set; }
+    public string? Thumbnail { get; set; }
 }

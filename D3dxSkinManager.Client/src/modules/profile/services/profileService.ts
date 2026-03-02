@@ -16,15 +16,12 @@ export interface ModCacheConfiguration {
 }
 
 /**
- * Profile Configuration Model
+ * Profile Configuration Model (stored in {profileId}/config.json)
+ * Simplified: only contains profileId, migotoVersion, and modCache
  */
 export interface ProfileConfiguration {
   profileId: string;
   migotoVersion: string;
-  gamePath?: string;
-  gameLaunchArgs?: string;
-  customProgramPath?: string;
-  customProgramArgs?: string;
   modCache: ModCacheConfiguration;
 }
 
@@ -65,11 +62,9 @@ class ProfileService extends BaseModuleService {
     return this.sendMessage<Profile>('CREATE', undefined, {
       name: request.name,
       description: request.description,
-      workDirectory: request.workDirectory,
-      colorTag: request.colorTag,
-      iconName: request.iconName,
+      color: request.color,
       gameName: request.gameName,
-      copyFromCurrent: request.copyFromCurrent
+      thumbnailPath: request.thumbnailPath
     });
   }
 
@@ -81,10 +76,9 @@ class ProfileService extends BaseModuleService {
       profileId: request.profileId,
       name: request.name,
       description: request.description,
-      workDirectory: request.workDirectory,
-      colorTag: request.colorTag,
-      iconName: request.iconName,
-      gameName: request.gameName
+      color: request.color,
+      gameName: request.gameName,
+      thumbnailPath: request.thumbnailPath
     });
   }
 
@@ -130,10 +124,6 @@ class ProfileService extends BaseModuleService {
     return this.sendBooleanMessage('UPDATE_CONFIG', undefined, {
       profileId: config.profileId,
       migotoVersion: config.migotoVersion,
-      gamePath: config.gamePath,
-      gameLaunchArgs: config.gameLaunchArgs,
-      customProgramPath: config.customProgramPath,
-      customProgramArgs: config.customProgramArgs,
       modCacheMode: config.modCache?.mode,
       modCacheDirectory: config.modCache?.directory
     });

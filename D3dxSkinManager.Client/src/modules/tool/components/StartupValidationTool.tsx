@@ -48,8 +48,7 @@ export const StartupValidationTool: React.FC = () => {
       }
     } catch (error) {
       notification.error(t('validation.runFailed'));
-      console.error(error);
-    } finally {
+          } finally {
       setValidationLoading(false);
     }
   };

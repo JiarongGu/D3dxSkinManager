@@ -1,29 +1,67 @@
-/* ProfileSwitcher Button */
+/* ProfileSwitcher Button - Match header tab style */
 .profile-switcher-button {
-  background: rgba(24, 144, 255, 0.1);
-  border: 1px solid rgba(24, 144, 255, 0.3);
-  color: white;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
   display: flex;
   align-items: center;
-  height: 100%;
-  padding: 4px 12px;
-  border-radius: 4px;
-  transition: all 0.3s;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 0 !important;
+  transition: color 0.2s ease, background 0.2s ease;
+  box-shadow: none !important;
 }
 
 .profile-switcher-button:hover {
-  background: rgba(24, 144, 255, 0.2) !important;
-  border-color: rgba(24, 144, 255, 0.5) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 1) !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.profile-switcher-button:focus {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 1) !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Button Content Layout */
+.profile-switcher-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.profile-switcher-avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+}
+
+.profile-switcher-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
 }
 
 /* Profile Name */
 .profile-switcher-name {
   font-weight: 500;
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-switcher-placeholder {
   font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 /* Mod Count Badge */

@@ -182,8 +182,7 @@ export const D3DMigotoTab: React.FC = () => {
       }
     } catch (error) {
       notification.error(t('launch.d3dmigoto.launchFailed'));
-      console.error(error);
-    }
+          }
   };
 
   if (loading) {
@@ -280,7 +279,7 @@ export const D3DMigotoTab: React.FC = () => {
                           <strong>{version.name}</strong>
                           {version.isDeployed && (
                             <span className="d3dmigoto-tab-version-deployed">
-                              ‚óè {t('launch.d3dmigoto.deployed')}
+                              ‚ó?{t('launch.d3dmigoto.deployed')}
                             </span>
                           )}
                         </div>

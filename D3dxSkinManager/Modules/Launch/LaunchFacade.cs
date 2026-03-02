@@ -100,16 +100,9 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
             throw new InvalidOperationException("No active profile found");
         }
 
-        var config = await _profileService.GetProfileConfigurationAsync(profile.Id).ConfigureAwait(false);
-        if (config == null || string.IsNullOrEmpty(config.GamePath))
-        {
-            throw new InvalidOperationException("Game path not configured in active profile");
-        }
-
-        var args = customArgs ?? config.GameLaunchArgs;
-        await _processService.LaunchProcessAsync(config.GamePath, args, null).ConfigureAwait(false);
-
-        return true;
+        // TODO: Game launch configuration has been moved out of profile config
+        // Need to implement new game launch logic or store game path separately
+        throw new NotImplementedException("Game launch configuration is no longer stored in profile config. Feature needs to be reimplemented.");
     }
 
     public async Task<bool> LaunchCustomProgramAsync(string programPath, string? arguments = null)

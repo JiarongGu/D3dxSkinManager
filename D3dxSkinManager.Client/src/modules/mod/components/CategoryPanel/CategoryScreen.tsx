@@ -1,4 +1,4 @@
-﻿import { notification } from "../../../../shared/utils/notification";
+import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useEffect, useCallback } from "react";
 import { Form, Space, Row, Col, Select } from "antd";
 import { FolderOpenOutlined } from "@ant-design/icons";
@@ -198,8 +198,7 @@ export const CategoryScreenContent: React.FC<
         // Form validation error
         return;
       }
-      console.error("Failed to save Category:", error);
-      notification.error(t("category.screen.saveFailed"));
+            notification.error(t("category.screen.saveFailed"));
     } finally {
       setLoading(false);
     }

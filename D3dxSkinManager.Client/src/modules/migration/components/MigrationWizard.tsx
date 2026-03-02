@@ -110,13 +110,11 @@ const MigrationWizardInner: React.FC<{
           await profileService.createProfile({
             name: profileName,
             description: `Migrated from Python d3dxSkinManage on ${new Date().toLocaleDateString()}`,
-            workDirectory: values.workDirectory || pythonPath,
             gameName: analysis?.activeEnvironment,
-            copyFromCurrent: false,
           });
           notification.success(`Profile "${profileName}" created successfully!`);
         } catch (error) {
-          console.error('Failed to create profile:', error);
+          // Error handled by error handler
           notification.warning('Migration succeeded but profile creation failed');
         }
       }
@@ -133,7 +131,7 @@ const MigrationWizardInner: React.FC<{
       }
     } catch (error) {
       notification.error('Migration failed');
-      console.error(error);
+      // Error handled by error handler
     } finally {
       setMigrating(false);
     }

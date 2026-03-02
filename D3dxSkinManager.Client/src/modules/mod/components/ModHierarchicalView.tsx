@@ -79,7 +79,7 @@ export const ModHierarchicalView: React.FC = () => {
         const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
         setUnclassifiedCount(count);
       } catch (error) {
-        console.error("Failed to load unclassified count:", error);
+        // Silently fail - not critical
       }
     };
     load();
@@ -94,7 +94,7 @@ export const ModHierarchicalView: React.FC = () => {
         const tags = await modService.getTags(profileState.selectedProfile.id);
         setAvailableTags(tags);
       } catch (error) {
-        console.error("Failed to load tags:", error);
+        // Silently fail - not critical
       }
     };
     load();
@@ -112,7 +112,7 @@ export const ModHierarchicalView: React.FC = () => {
         const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
         setUnclassifiedCount(count);
       } catch (error) {
-        console.error("Failed to reload count:", error);
+        // Silently fail - not critical
       }
     }
 

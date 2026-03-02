@@ -158,18 +158,15 @@ export const ModList: React.FC<ModListProps> = ({
               const paths = await modService.checkFilePaths(profileId, mod.sha);
               setCheckedPaths(paths);
             } catch (error) {
-              console.error('Failed to refresh file paths:', error);
-            }
+                          }
           }
         } else {
           notification.error(t('mods.notifications.deleteCacheFailed'));
-          console.error('Delete cache returned false for SHA:', mod.sha);
-        }
+                  }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         notification.error(`${t('mods.notifications.deleteCacheFailed')}: ${errorMessage}`);
-        console.error('Failed to delete cached mod:', error);
-      }
+              }
     });
   };
 
@@ -363,8 +360,7 @@ export const ModList: React.FC<ModListProps> = ({
                       );
                       setCheckedPaths(paths);
                     } catch (error) {
-                      console.error("Failed to check file paths:", error);
-                      setCheckedPaths({
+                                            setCheckedPaths({
                         originalPath: undefined,
                         cachePath: undefined,
                         thumbnailPath: undefined,

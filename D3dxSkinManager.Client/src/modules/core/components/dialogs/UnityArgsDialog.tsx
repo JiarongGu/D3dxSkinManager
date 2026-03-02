@@ -119,8 +119,7 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
       notification.success(t('unityArgs.updated'));
       onCancel();
     } catch (error) {
-      console.error('Validation failed:', error);
-      notification.error(t('unityArgs.checkFields'));
+            notification.error(t('unityArgs.checkFields'));
     } finally {
       setSaving(false);
     }
@@ -265,10 +264,10 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
         <div className="unity-args-info-box">
           <strong>{t('unityArgs.commonResolutions')}</strong>
           <div className="unity-args-info-resolutions">
-            â€¢ {SCREEN_RESOLUTIONS.FULL_HD.label}<br />
-            â€¢ {SCREEN_RESOLUTIONS['2K'].label}<br />
-            â€¢ {SCREEN_RESOLUTIONS['4K'].label}<br />
-            â€¢ {SCREEN_RESOLUTIONS.HD.label}<br />
+            â€?{SCREEN_RESOLUTIONS.FULL_HD.label}<br />
+            â€?{SCREEN_RESOLUTIONS['2K'].label}<br />
+            â€?{SCREEN_RESOLUTIONS['4K'].label}<br />
+            â€?{SCREEN_RESOLUTIONS.HD.label}<br />
           </div>
         </div>
       </Form>

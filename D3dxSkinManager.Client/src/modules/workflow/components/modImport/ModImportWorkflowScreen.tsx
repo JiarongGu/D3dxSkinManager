@@ -51,8 +51,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
       WorkflowEventType.COMPLETED,
       async (event) => {
         if (event?.payload) {
-          console.log('[ModImportWorkflowScreen] Workflow completed, refreshing mod list');
-          // Refresh the mod list when a workflow completes
+                    // Refresh the mod list when a workflow completes
           await refreshMods(selectedProfileId);
         }
       }
@@ -136,8 +135,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
 
       // Show result notification
       if (result.failed.length > 0) {
-        console.warn(`Batch confirm: ${result.successful.length} successful, ${result.failed.length} failed`, result.failed);
-      }
+              }
     } catch (error) {
       handleError(error);
     }
@@ -156,8 +154,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
 
       // Show result notification
       if (result.failed.length > 0) {
-        console.warn(`Batch delete: ${result.successful.length} successful, ${result.failed.length} failed`, result.failed);
-      }
+              }
     } catch (error) {
       handleError(error);
     }

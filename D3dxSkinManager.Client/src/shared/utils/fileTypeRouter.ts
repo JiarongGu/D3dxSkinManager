@@ -115,8 +115,7 @@ export class FileTypeRouter {
     const handlerGroups = this.groupFilesByHandler(files);
 
     if (this.config.enableLogging) {
-      console.log(`[FileTypeRouter] Routing ${files.length} files to ${handlerGroups.size} handlers`);
-    }
+          }
 
     // Execute handlers
     const handlerPromises: Promise<void>[] = [];
@@ -144,8 +143,7 @@ export class FileTypeRouter {
     await Promise.all(handlerPromises);
 
     if (this.config.enableLogging) {
-      console.log('[FileTypeRouter] Routing complete:', summary);
-    }
+          }
 
     return summary;
   }

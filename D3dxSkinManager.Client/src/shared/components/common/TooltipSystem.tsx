@@ -1,4 +1,4 @@
-锘縤mport React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { Tooltip } from "antd";
 import type { TooltipPlacement } from "antd/es/tooltip";
 import { settingsService } from "../../../modules/setting/services/settingsService";
@@ -69,19 +69,12 @@ export const AnnotationProvider: React.FC<AnnotationProviderProps> = ({
           const isLastAttempt = attempt === maxRetries - 1;
 
           if (isLastAttempt) {
-            console.error(
-              "[AnnotationProvider] Failed to load annotation level from backend after retries:",
-              error,
-            );
-            // Default to 'all' on final failure
+                        // Default to 'all' on final failure
             setAnnotationLevel("all");
           } else {
             // Wait before retry with exponential backoff
             const delay = initialDelay * Math.pow(2, attempt);
-            console.log(
-              `[AnnotationProvider] Retry ${attempt + 1}/${maxRetries} in ${delay}ms...`,
-            );
-            await new Promise((resolve) => setTimeout(resolve, delay));
+                        await new Promise((resolve) => setTimeout(resolve, delay));
           }
         }
       }
@@ -99,11 +92,7 @@ export const AnnotationProvider: React.FC<AnnotationProviderProps> = ({
     try {
       await settingsService.updateGlobalSetting("annotationLevel", level);
     } catch (error) {
-      console.error(
-        "[AnnotationProvider] Failed to save annotation level to backend:",
-        error,
-      );
-      // On failure, reload from backend to stay in sync
+            // On failure, reload from backend to stay in sync
       try {
         const settings = await settingsService.getGlobalSettings();
         setAnnotationLevel(settings.annotationLevel as AnnotationLevel);
@@ -348,13 +337,13 @@ export const annotations = {
 export const getAnnotationLevelLabel = (level: AnnotationLevel): string => {
   switch (level) {
     case "all":
-      return "All (鍏ㄩ儴)";
+      return "All (全部)";
     case "more":
-      return "More (杈冨)";
+      return "More (较多)";
     case "less":
-      return "Less (杈冨皯)";
+      return "Less (较少)";
     case "off":
-      return "Off (鍏抽棴)";
+      return "Off (关闭)";
     default:
       return "All";
   }

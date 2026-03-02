@@ -129,6 +129,8 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
   // REACTIVE: Handle profile changes automatically
   useEffect(() => {
     if (selectedProfileId) {
+      // Reset state before loading new profile to clear old data
+      reset();
       // Load/refresh data for the new profile
       void Promise.all([
         modOps.loadMods(selectedProfileId),

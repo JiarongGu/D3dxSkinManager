@@ -51,8 +51,7 @@ export function useModCategoryUpdate({
           return false;
         }
       } catch (error) {
-        console.error("Error updating mod category:", error);
-        notification.error("Failed to update mod category");
+                notification.error("Failed to update mod category");
         return false;
       }
     },

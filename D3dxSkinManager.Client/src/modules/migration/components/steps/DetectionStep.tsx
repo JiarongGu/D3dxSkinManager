@@ -43,8 +43,7 @@ export const DetectionStep: React.FC = () => {
       }
     } catch (error) {
       notification.error(t('migration.detection.browseFailed'));
-      console.error(error);
-    }
+          }
   };
 
   /**
@@ -59,8 +58,7 @@ export const DetectionStep: React.FC = () => {
     try {
       setLoading(true);
       const analysisResult = await migrationService.analyzePythonInstallation(profileId, path);
-      console.log('Migration analysis result:', analysisResult);
-      setAnalysis(analysisResult);
+            setAnalysis(analysisResult);
 
       if (!analysisResult.isValid) {
         notification.error(t('migration.detection.invalidInstallation', { errors: analysisResult.errors.join(', ') }));
@@ -69,8 +67,7 @@ export const DetectionStep: React.FC = () => {
       }
     } catch (error) {
       notification.error(t('migration.detection.analyzeFailed'));
-      console.error('Analysis error:', error);
-      // Set a failed analysis state so user can see the error
+            // Set a failed analysis state so user can see the error
       setAnalysis({
         isValid: false,
         sourcePath: path,

@@ -26,8 +26,7 @@ class LanguageService extends BaseModuleService {
 
       return undefined;
     } catch (error) {
-      console.error('[languageService] Failed to get language:', error);
-      throw error;
+            throw error;
     }
   }
 
@@ -48,8 +47,7 @@ class LanguageService extends BaseModuleService {
 
       return [];
     } catch (error) {
-      console.error('[languageService] Failed to get available languages:', error);
-      return [];
+            return [];
     }
   }
 
@@ -66,8 +64,7 @@ class LanguageService extends BaseModuleService {
 
       return response.exists;
     } catch (error) {
-      console.error('[languageService] Failed to check language existence:', error);
-      return false;
+            return false;
     }
   }
 }

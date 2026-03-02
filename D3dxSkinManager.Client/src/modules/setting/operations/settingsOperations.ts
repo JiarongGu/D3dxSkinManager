@@ -82,8 +82,7 @@ export async function resetWindowState(t: (key: string) => string): Promise<void
  * Called when profile changes or settings view mounts
  */
 export async function loadProfileConfig(
-  profileId: string,
-  profileDataDirectory: string | undefined
+  profileId: string
 ): Promise<void> {
   const { setInitialProfileConfig, setInternalModCachePath, setError } = useSettingsStore.getState();
 
@@ -104,11 +103,8 @@ export async function loadProfileConfig(
       // Update store with initial config
       setInitialProfileConfig({ mode, directory });
 
-      // Calculate internal path for display (absolute path)
-      if (profileDataDirectory) {
-        const internalPath = `${profileDataDirectory}\\work\\Mods`;
-        setInternalModCachePath(internalPath);
-      }
+      // Internal path is now calculated by backend
+      // No need to compute it here since profiles don't store dataDirectory anymore
     }
   } catch (error) {
     logger.error('[settingsOperations] Failed to load profile config:', error);

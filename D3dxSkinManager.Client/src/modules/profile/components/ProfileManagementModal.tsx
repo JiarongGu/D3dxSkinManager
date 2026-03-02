@@ -64,6 +64,8 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
     }
   };
 
+  const isActiveProfile = (profileId: string) => state.selectedProfile?.id === profileId;
+
   const columns: ColumnsType<Profile> = [
     {
       title: 'Name',
@@ -72,7 +74,7 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
       render: (text: string, record: Profile) => (
         <Space>
           {text}
-          {record.isActive && <span className="profile-active-label">(Active)</span>}
+          {isActiveProfile(record.id) && <span className="profile-active-label">(Active)</span>}
         </Space>
       ),
     },
@@ -82,17 +84,10 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
       key: 'description',
     },
     {
-      title: 'Mods',
-      dataIndex: 'modCount',
-      key: 'modCount',
-      width: 80,
-    },
-    {
-      title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 180,
-      render: (date: string) => new Date(date).toLocaleDateString(),
+      title: 'Game',
+      dataIndex: 'gameName',
+      key: 'gameName',
+      width: 150,
     },
     {
       title: 'Actions',
@@ -100,7 +95,7 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
       width: 200,
       render: (_: any, record: Profile) => (
         <Space>
-          {!record.isActive && (
+          {!isActiveProfile(record.id) && (
             <Button
               size="small"
               type="primary"
@@ -120,7 +115,7 @@ export const ProfileManagementModal: React.FC<ProfileManagementModalProps> = ({ 
               });
             }}
           />
-          {!record.isActive && (
+          {!isActiveProfile(record.id) && (
             <Popconfirm
               title="Delete profile?"
               description="This will permanently delete all profile data."

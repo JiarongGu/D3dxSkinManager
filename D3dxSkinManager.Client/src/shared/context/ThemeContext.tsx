@@ -54,15 +54,13 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
           const isLastAttempt = attempt === maxRetries - 1;
 
           if (isLastAttempt) {
-            console.error('[ThemeContext] Failed to load theme from backend after retries:', error);
-            // Default to light theme on final failure
+                        // Default to light theme on final failure
             setThemeState('light');
             setIsLoading(false);
           } else {
             // Wait before retry with exponential backoff
             const delay = initialDelay * Math.pow(2, attempt);
-            console.log(`[ThemeContext] Retry ${attempt + 1}/${maxRetries} in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+                        await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
       }
@@ -92,8 +90,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     try {
       await settingsService.updateGlobalSetting('theme', newTheme);
     } catch (error) {
-      console.error('[ThemeContext] Failed to save theme to backend:', error);
-      // On failure, reload from backend to stay in sync
+            // On failure, reload from backend to stay in sync
       try {
         const settings = await settingsService.getGlobalSettings();
         setThemeState(settings.theme as ThemeMode);

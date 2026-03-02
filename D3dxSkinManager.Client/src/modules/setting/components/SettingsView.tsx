@@ -58,7 +58,7 @@ export const SettingsView: React.FC = () => {
   // Load profile config when profile changes
   useEffect(() => {
     if (selectedProfileId) {
-      void settingsOps.loadProfileConfig(selectedProfileId, selectedProfile?.dataDirectory);
+      void settingsOps.loadProfileConfig(selectedProfileId);
       // Update form fields after config loads
       const { modCacheMode: mode, modCacheDirectory: dir } = useSettingsStore.getState();
       form.setFieldValue("modCacheMode", mode);

@@ -64,8 +64,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
           100
         );
       } catch (error) {
-        console.error('Failed to load preview paths:', error);
-        setState((prev) => ({
+                setState((prev) => ({
           ...prev,
           previewPaths: [],
           currentPreviewIndex: 0,

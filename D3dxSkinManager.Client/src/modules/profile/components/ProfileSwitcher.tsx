@@ -1,15 +1,15 @@
 ﻿import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Button, Space, Badge } from 'antd';
+import { Button, Avatar } from 'antd';
 import {
-  FolderOpenOutlined,
-  SettingOutlined,
-  ThunderboltOutlined
+  UserOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { ContextMenu, ContextMenuItem } from '../../../shared/components/menu/ContextMenu';
 import { Profile } from '../../../shared/types/profile.types';
 import { useTranslation } from 'react-i18next';
+import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 import './ProfileSwitcher.css';
 
 interface ProfileSwitcherProps {
@@ -49,7 +49,6 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
       // NOTE: No manual refresh needed - ModsProvider reactively listens to profile changes
       // and will automatically refresh mods and Category tree
     } catch (error) {
-      console.error('Failed to switch profile:', error);
       notification.error(t('profiles.notifications.switchFailed'));
     }
   };
@@ -58,6 +57,39 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 
   // Ensure profiles is an array
   const profiles = Array.isArray(state.profiles) ? state.profiles : [];
+
+  const renderProfileAvatar = (profile: Profile) => {
+    if (profile.thumbnail) {
+      return (
+        <Avatar
+          size={24}
+          src={toAppUrl(profile.thumbnail) || undefined}
+          style={{ flexShrink: 0 }}
+        />
+      );
+    }
+    return (
+      <Avatar
+        size={24}
+        style={{
+          backgroundColor: profile.color || '#1890ff',
+          flexShrink: 0
+        }}
+      >
+        {profile.name.charAt(0).toUpperCase()}
+      </Avatar>
+    );
+  };
+
+  const renderProfileLabel = (profile: Profile) => {
+    const isActive = profile.id === state.selectedProfile?.id;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <span>{profile.name}</span>
+        {isActive && <span style={{ marginLeft: '12px', color: 'var(--color-success)' }}>✓</span>}
+      </div>
+    );
+  };
 
   const menuItems: ContextMenuItem[] = [
     {
@@ -68,8 +100,8 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
     { type: 'divider' },
     ...profiles.map(profile => ({
       key: profile.id,
-      label: `${profile.name}${profile.modCount !== undefined ? ` (${t('profiles.switcher.modCount', { count: profile.modCount })})` : ''}${profile.id === state.selectedProfile?.id ? ' ✓' : ''}`,
-      icon: <FolderOpenOutlined />,
+      label: renderProfileLabel(profile),
+      icon: renderProfileAvatar(profile),
       onClick: () => {
         setMenuVisible(false);
         handleProfileSwitch(profile.id);
@@ -93,7 +125,6 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
     <>
       <Button
         ref={buttonRef}
-        icon={<ThunderboltOutlined />}
         className="profile-switcher-button"
         loading={state.loading}
         disabled={state.loading}
@@ -110,20 +141,21 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
           setMenuVisible(true);
         }}
       >
-        <Space size={8}>
-          {activeProfile && (
-            <>
+        <div className="profile-switcher-content">
+          <div className="profile-switcher-avatar">
+            {activeProfile ? (
+              renderProfileAvatar(activeProfile)
+            ) : (
+              <Avatar size={24} icon={<UserOutlined />} />
+            )}
+          </div>
+          <div className="profile-switcher-text">
+            {activeProfile && (
               <span className="profile-switcher-name">{activeProfile.name}</span>
-              {activeProfile.modCount !== undefined && activeProfile.modCount > 0 && (
-                <Badge
-                  count={activeProfile.modCount}
-                  className="profile-switcher-badge"
-                />
-              )}
-            </>
-          )}
-          {!activeProfile && <span className="profile-switcher-placeholder">{t('profiles.switcher.selectProfile')}</span>}
-        </Space>
+            )}
+            {!activeProfile && <span className="profile-switcher-placeholder">{t('profiles.switcher.selectProfile')}</span>}
+          </div>
+        </div>
       </Button>
 
       <ContextMenu

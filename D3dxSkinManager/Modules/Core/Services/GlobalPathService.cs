@@ -19,6 +19,7 @@ public interface IGlobalPathService
     void EnsureDirectoriesExist();
     string GetProfileDirectoryPath(string profileId);
     string GetProfileConfigPath(string profileId);
+    string GetProfileThumbnailsDirectory(string profileId);
     string GetGlobalSettingsFilePath(string settingsFileName);
 }
 
@@ -79,6 +80,14 @@ public class GlobalPathService : IGlobalPathService
     public string GetProfileConfigPath(string profileId)
     {
         return Path.Combine(GetProfileDirectoryPath(profileId), "config.json");
+    }
+
+    /// <summary>
+    /// Get path for a specific profile's thumbnails directory
+    /// </summary>
+    public string GetProfileThumbnailsDirectory(string profileId)
+    {
+        return Path.Combine(GetProfileDirectoryPath(profileId), "thumbnails");
     }
 
     /// <summary>

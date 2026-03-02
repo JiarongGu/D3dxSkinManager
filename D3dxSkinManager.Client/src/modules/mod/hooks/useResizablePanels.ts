@@ -28,8 +28,7 @@ export function useResizablePanels() {
       const panelSize = `${newSizes.categoryWidth} ${newSizes.modListWidth}`;
       await settingsService.updateModPanelSize(panelSize);
     } catch (error) {
-      console.error('Failed to save panel sizes:', error);
-    }
+          }
   }, []);
 
   // Start resizing

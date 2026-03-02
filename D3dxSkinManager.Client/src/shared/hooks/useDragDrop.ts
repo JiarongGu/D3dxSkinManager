@@ -135,8 +135,7 @@ export interface DragDropHandler {
  *     gap: 'file-drop-gap'
  *   },
  *   onDrop: ({ data, type }) => {
- *     console.log('Dropped file:', data);
- *     return true;
+ *      *     return true;
  *   }
  * });
  * ```

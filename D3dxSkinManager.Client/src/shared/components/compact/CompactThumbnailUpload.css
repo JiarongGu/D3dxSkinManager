@@ -1,0 +1,133 @@
+/* Container - horizontal layout like Ant Design picture-card */
+.compact-thumbnail-upload {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+/* Thumbnail preview card (left side) - matches Ant Design upload card */
+.compact-thumbnail-card {
+  width: 104px;
+  height: 104px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  position: relative;
+  box-sizing: border-box;
+  transition: border-color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.compact-thumbnail-image {
+  width: 102px;
+  height: 102px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Remove overlay - appears on hover */
+.compact-thumbnail-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  cursor: pointer;
+  gap: 4px;
+}
+
+.compact-thumbnail-card:hover .compact-thumbnail-overlay {
+  opacity: 1;
+}
+
+.compact-thumbnail-overlay-icon {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.compact-thumbnail-overlay-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+}
+
+/* Upload button card (right side) - matches Ant Design upload card */
+.compact-thumbnail-upload-card {
+  width: 104px;
+  height: 104px;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  box-sizing: border-box;
+  padding: 8px;
+  text-align: center;
+  gap: 4px;
+}
+
+.compact-thumbnail-upload-card:hover {
+  border-color: #1890ff;
+  background: rgba(24, 144, 255, 0.08);
+}
+
+.compact-thumbnail-upload-icon {
+  font-size: 32px;
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  line-height: 1;
+}
+
+.compact-thumbnail-upload-card:hover .compact-thumbnail-upload-icon {
+  color: #1890ff;
+}
+
+.compact-thumbnail-upload-text {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.5;
+  word-break: break-word;
+  transition: color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+}
+
+.compact-thumbnail-upload-card:hover .compact-thumbnail-upload-text {
+  color: #1890ff;
+}
+
+/* Error state - shown when image fails to load */
+.compact-thumbnail-error {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 77, 79, 0.1);
+}
+
+.compact-thumbnail-error-icon {
+  font-size: 32px;
+  color: #ff4d4f;
+  line-height: 1;
+}
+
+.compact-thumbnail-error-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  text-align: center;
+}

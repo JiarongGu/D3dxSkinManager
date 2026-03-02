@@ -263,18 +263,7 @@
 }
 
 /* === Tooltip Enhancement === */
-.ant-tooltip {
-  animation: tooltipFadeIn 0.2s ease;
-}
-
-@keyframes tooltipFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+/* Tooltips have animations disabled below to prevent flash */
 
 /* === Empty State Styling === */
 .ant-empty-description {
@@ -409,14 +398,33 @@
   animation-duration: 0.08s !important;
 }
 
-/* Fix tooltip animations */
-.ant-tooltip-zoom-enter,
-.ant-tooltip-zoom-appear {
-  animation-duration: 0.1s !important;
+/* Disable tooltip animations completely to prevent flash */
+/* Remove all animation classes and let tooltips show/hide instantly */
+.ant-tooltip {
+  /* No custom animation */
 }
 
-.ant-tooltip-zoom-leave {
-  animation-duration: 0.08s !important;
+/* Override Ant Design's zoom animation classes */
+.ant-tooltip-placement-top,
+.ant-tooltip-placement-left,
+.ant-tooltip-placement-right,
+.ant-tooltip-placement-bottom,
+.ant-tooltip-placement-topLeft,
+.ant-tooltip-placement-topRight,
+.ant-tooltip-placement-bottomLeft,
+.ant-tooltip-placement-bottomRight,
+.ant-tooltip-placement-leftTop,
+.ant-tooltip-placement-leftBottom,
+.ant-tooltip-placement-rightTop,
+.ant-tooltip-placement-rightBottom {
+  animation-duration: 0s !important;
+}
+
+/* Force instant show/hide */
+.rc-tooltip-zoom-enter,
+.rc-tooltip-zoom-appear,
+.rc-tooltip-zoom-leave {
+  animation-duration: 0s !important;
 }
 
 /* Fix popover animations */

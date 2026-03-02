@@ -158,8 +158,7 @@ export const ModPreviewPanelContent: React.FC = () => {
           await modService.checkClipboardHasImage(selectedProfileId);
         setClipboardHasImage(hasImage);
       } catch (error) {
-        console.error("Error checking clipboard:", error);
-        setClipboardHasImage(false);
+                setClipboardHasImage(false);
       }
     }
 
@@ -181,8 +180,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       await actions.loadPreviewPaths(mod.sha);
       setCurrentImageIndex(0);
     } catch (error) {
-      console.error("Error setting thumbnail:", error);
-      notification.error(t("mods.preview.thumbnailUpdateFailed"));
+            notification.error(t("mods.preview.thumbnailUpdateFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -197,8 +195,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         notification.warning(t("mods.preview.cacheFolderNotFound"));
       }
     } catch (error) {
-      console.error("Error opening cache folder:", error);
-      notification.error(t("mods.preview.openExplorerFailed"));
+            notification.error(t("mods.preview.openExplorerFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -213,8 +210,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         notification.warning(t("mods.preview.previewFolderNotFound"));
       }
     } catch (error) {
-      console.error("Error opening preview folder:", error);
-      notification.error(t("mods.preview.openExplorerFailed"));
+            notification.error(t("mods.preview.openExplorerFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -230,8 +226,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       await navigator.clipboard.writeText(absolutePath);
       notification.success(t("mods.preview.pathCopied"));
     } catch (error) {
-      console.error("Error copying image path:", error);
-      notification.error(t("mods.preview.pathCopyFailed"));
+            notification.error(t("mods.preview.pathCopyFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -268,8 +263,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       // Set the new index after refresh
       setCurrentImageIndex(newIndex);
     } catch (error) {
-      console.error("Error deleting preview:", error);
-      notification.error(t("mods.preview.imageDeleteFailed"));
+            notification.error(t("mods.preview.imageDeleteFailed"));
     }
     setDeleteConfirmVisible(false);
   };
@@ -300,8 +294,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         await actions.loadPreviewPaths(mod.sha);
       }
     } catch (error) {
-      console.error("Error adding preview from file:", error);
-      notification.error(t("mods.preview.imageAddFailed"));
+            notification.error(t("mods.preview.imageAddFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -316,8 +309,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       // Refresh preview to update UI
       await actions.loadPreviewPaths(mod.sha);
     } catch (error) {
-      console.error("Error pasting from clipboard:", error);
-      notification.error(t("mods.preview.clipboardPasteFailed"));
+            notification.error(t("mods.preview.clipboardPasteFailed"));
     }
     setContextMenuVisible(false);
   };
@@ -425,8 +417,7 @@ export const ModPreviewPanelContent: React.FC = () => {
                 notification.info(t("mods.preview.noPreviewFolder"));
               }
             } catch (error) {
-              console.error("Error opening preview folder:", error);
-              notification.error(t("mods.preview.openFolderFailed"));
+                            notification.error(t("mods.preview.openFolderFailed"));
             }
             setContextMenuVisible(false);
           },

@@ -149,22 +149,10 @@ export function useOptimisticUpdate<TData = any, TFetchParams = void>(
           const isMatch = deepEqual(normalizedExpected, normalizedBackend);
 
           if (!isMatch) {
-            if (enableLogging) {
-              const differences = findDifferences(normalizedExpected, normalizedBackend);
-              console.warn('[OptimisticUpdate] ❌ Mismatch detected, calling onMismatch');
-              console.warn(`Found ${differences.length} difference(s):`);
-              differences.forEach(diff => console.warn(`  - ${diff}`));
-            }
             onMismatch();
-          } else {
-            if (enableLogging) {
-              console.log('[OptimisticUpdate] ✓ Verification passed - no refresh needed');
-            }
           }
         } catch (error) {
-          if (enableLogging) {
-            console.error('[OptimisticUpdate] Verification failed, calling onMismatch as fallback', error);
-          }
+          // Error handled by error handler
           onMismatch();
         }
       }, verificationDelay);

@@ -85,15 +85,8 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     let context: ModImportWorkflowContext | null = null;
     try {
       context = JSON.parse(workflow.context) as ModImportWorkflowContext;
-      console.log("[WorkflowQueueTable] Workflow parsed:", {
-        id: workflow.id,
-        status: workflow.status,
-        step: context?.step,
-        progress: context?.progress,
-      });
-    } catch (error) {
-      console.error("[WorkflowQueueTable] Failed to parse context:", error);
-    }
+          } catch (error) {
+          }
 
     // Use progress from context (driven by backend)
     let progress = 0;
@@ -246,8 +239,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       setSelectedContext(null);
       onRefresh?.();
     } catch (error) {
-      console.error("[WorkflowQueueTable] Failed to submit metadata:", error);
-      handleError(error);
+            handleError(error);
       throw error; // Re-throw to prevent modal from closing
     }
   };

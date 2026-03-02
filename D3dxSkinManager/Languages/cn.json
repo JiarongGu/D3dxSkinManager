@@ -503,7 +503,7 @@
     "app.init.errorTitle": "初始化错误",
     "app.init.noProfilesTitle": "未找到配置",
     "app.init.noProfilesDescription": "请创建您的第一个配置以开始使用。",
-    "app.init.createDefaultProfile": "创建默认配置",
+    "app.init.createDefaultProfile": "创建配置",
     "app.init.loadingSettings": "正在加载设置...",
     "app.init.loadingProfiles": "正在加载配置...",
     "app.init.initializing": "正在初始化...",

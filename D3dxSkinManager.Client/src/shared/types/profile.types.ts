@@ -1,21 +1,14 @@
 /**
  * Profile model - matches backend Profile.cs
+ * Simplified structure: profiles.json stores only id, name, description, color, gameName, thumbnail
  */
 export interface Profile {
   id: string;
   name: string;
   description?: string;
-  gameDirectory?: string;
-  workDirectory: string;
-  dataDirectory: string;
-  isActive: boolean;
-  createdAt: string;
-  lastUsedAt: string;
-  modCount?: number;
-  totalSize?: number;
-  colorTag?: string;
-  iconName?: string;
+  color?: string;
   gameName?: string;
+  thumbnail?: string;
 }
 
 /**
@@ -24,12 +17,9 @@ export interface Profile {
 export interface CreateProfileRequest {
   name: string;
   description?: string;
-  gameDirectory?: string;
-  workDirectory?: string;
-  colorTag?: string;
-  iconName?: string;
+  color?: string;
   gameName?: string;
-  copyFromCurrent?: boolean;
+  thumbnailPath?: string;
 }
 
 /**
@@ -39,11 +29,9 @@ export interface UpdateProfileRequest {
   profileId: string;
   name?: string;
   description?: string;
-  gameDirectory?: string;
-  workDirectory?: string;
-  colorTag?: string;
-  iconName?: string;
+  color?: string;
   gameName?: string;
+  thumbnailPath?: string;
 }
 
 /**

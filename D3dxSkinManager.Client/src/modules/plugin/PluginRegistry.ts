@@ -20,8 +20,7 @@ class PluginRegistry {
    */
   register(plugin: Plugin, context: PluginContext): void {
     if (this.plugins.has(plugin.id)) {
-      console.warn(`[PluginRegistry] Plugin ${plugin.id} is already registered`);
-      return;
+            return;
     }
 
     const metadata: PluginMetadata = {
@@ -41,13 +40,10 @@ class PluginRegistry {
       const result = plugin.Init(context);
       if (result instanceof Promise) {
         result.catch(err => {
-          console.error(`[PluginRegistry] Error initializing plugin ${plugin.name}:`, err);
-        });
+                  });
       }
-      console.log(`[PluginRegistry] Registered plugin: ${plugin.name} v${plugin.version}`);
-    } catch (err) {
-      console.error(`[PluginRegistry] Error initializing plugin ${plugin.name}:`, err);
-    }
+          } catch (err) {
+          }
   }
 
   /**
@@ -61,16 +57,13 @@ class PluginRegistry {
       const result = metadata.instance.cleanup();
       if (result instanceof Promise) {
         result.catch(err => {
-          console.error(`[PluginRegistry] Error cleaning up plugin ${metadata.name}:`, err);
-        });
+                  });
       }
     } catch (err) {
-      console.error(`[PluginRegistry] Error cleaning up plugin ${metadata.name}:`, err);
-    }
+          }
 
     this.plugins.delete(pluginId);
-    console.log(`[PluginRegistry] Unregistered plugin: ${metadata.name}`);
-  }
+      }
 
   /**
    * Get a plugin by ID

@@ -38,8 +38,7 @@ class SettingsFileService extends BaseModuleService {
 
       return JSON.parse(response.content) as T;
     } catch (error) {
-      console.error(`[SettingsFileService] Failed to get settings file '${filename}':`, error);
-      return undefined;
+            return undefined;
     }
   }
 
@@ -58,8 +57,7 @@ class SettingsFileService extends BaseModuleService {
 
       return true;
     } catch (error) {
-      console.error(`[SettingsFileService] Failed to save settings file '${filename}':`, error);
-      return false;
+            return false;
     }
   }
 
@@ -71,8 +69,7 @@ class SettingsFileService extends BaseModuleService {
       await this.sendMessage<SettingsFileResponse>('DELETE_FILE', undefined, { filename });
       return true;
     } catch (error) {
-      console.error(`[SettingsFileService] Failed to delete settings file '${filename}':`, error);
-      return false;
+            return false;
     }
   }
 
@@ -84,8 +81,7 @@ class SettingsFileService extends BaseModuleService {
       const response = await this.sendMessage<SettingsFileExistsResponse>('FILE_EXISTS', undefined, { filename });
       return response.exists;
     } catch (error) {
-      console.error(`[SettingsFileService] Failed to check if settings file '${filename}' exists:`, error);
-      return false;
+            return false;
     }
   }
 
@@ -97,8 +93,7 @@ class SettingsFileService extends BaseModuleService {
       const response = await this.sendMessage<SettingsFileListResponse>('LIST_FILES', undefined, {});
       return response.files || [];
     } catch (error) {
-      console.error('[SettingsFileService] Failed to list settings files:', error);
-      return [];
+            return [];
     }
   }
 }

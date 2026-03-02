@@ -20,7 +20,7 @@
 
   /* Border Colors */
   --color-border-base: #d9d9d9;
-  --color-border-secondary: #f0f0f0;
+  --color-border-secondary: #dfdfdf;
 
   /* Text Colors */
   --color-text-base: rgba(0, 0, 0, 0.88);
@@ -153,6 +153,7 @@
 body {
   background-color: var(--color-bg-layout);
   color: var(--color-text-base);
+  overflow: hidden;
 }
 
 /* Layout Components */

@@ -67,8 +67,7 @@ export const ModImportMetadataDialog: React.FC<ModImportMetadataDialogProps> = (
           setCategoryOptions(options);
         })
         .catch(error => {
-          console.error('[ModImportMetadataDialog] Failed to load categories:', error);
-        })
+                  })
         .finally(() => {
           setLoadingCategories(false);
         });
@@ -93,8 +92,7 @@ export const ModImportMetadataDialog: React.FC<ModImportMetadataDialogProps> = (
       const values = await form.validateFields();
       await onSubmit(values);
     } catch (error) {
-      console.error('[ModImportMetadataDialog] Form validation failed:', error);
-      // Don't close modal if validation fails
+            // Don't close modal if validation fails
       throw error;
     }
   };

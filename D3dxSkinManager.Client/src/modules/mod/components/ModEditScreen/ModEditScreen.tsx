@@ -1,4 +1,4 @@
-﻿import { notification } from '../../../../shared/utils/notification';
+import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Space } from 'antd';
 import { ModInfo } from '../../../../shared/types/mod.types';
@@ -46,8 +46,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       const tagsFromTable = await modService.getAllTags(profileState.selectedProfile.id);
       setAvailableTags(tagsFromTable.map(t => t.name));
     } catch (error) {
-      console.error('Failed to refresh tags:', error);
-    }
+          }
   };
 
   // Build category options from Category tree
@@ -84,8 +83,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
         const colorsMap = new Map(tagsFromTable.map(t => [t.name, t.color]));
         setTagColorsMap(colorsMap);
       } catch (error) {
-        console.error('Failed to load autocomplete data:', error);
-      }
+              }
     };
 
     if (visible) {
@@ -136,8 +134,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
             })
           );
         } catch (tagSaveError) {
-          console.error('Failed to save new tags:', tagSaveError);
-          // Continue with mod save even if tag save fails
+                    // Continue with mod save even if tag save fails
         }
       }
 
@@ -151,16 +148,14 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
           updateModLocal(mod.sha, updatedMod);
         }
       } catch (refreshError) {
-        console.error('Failed to refresh mod after save:', refreshError);
-      }
+              }
 
       form.resetFields();
       setSelectedTags([]);
       setTagColorsMap(new Map());
       closeEditDialog();
     } catch (error) {
-      console.error('Validation failed:', error);
-      notification.error('Please check all required fields');
+            notification.error('Please check all required fields');
     } finally {
       setSaving(false);
     }

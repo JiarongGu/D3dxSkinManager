@@ -32,7 +32,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
    * Add a workflow to the queue
    */
   const addWorkflow = useCallback((workflow: WorkflowInfo) => {
-    console.log('[useWorkflowQueue] Adding workflow to queue:', workflow.id);
     setWorkflows((prev) => {
       // Check if workflow already exists
       const exists = prev.some((w) => w.id === workflow.id);
@@ -47,7 +46,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
    * Remove a workflow from the queue
    */
   const removeWorkflow = useCallback((workflowId: string) => {
-    console.log('[useWorkflowQueue] Removing workflow from queue:', workflowId);
     setWorkflows((prev) => prev.filter((w) => w.id !== workflowId));
   }, []);
 
@@ -55,7 +53,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
    * Update a workflow in the queue
    */
   const updateWorkflow = useCallback((workflow: WorkflowInfo) => {
-    console.log('[useWorkflowQueue] Updating workflow in queue:', workflow.id);
     setWorkflows((prev) => prev.map((w) => (w.id === workflow.id ? workflow : w)));
   }, []);
 
@@ -63,7 +60,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
    * Clear all completed workflows
    */
   const clearCompleted = useCallback(() => {
-    console.log('[useWorkflowQueue] Clearing completed workflows');
     setWorkflows((prev) =>
       prev.filter(
         (w) => w.status !== WorkflowStatus.Completed &&
@@ -78,20 +74,17 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
    */
   const refresh = useCallback(async () => {
     if (!selectedProfileId) {
-      console.log('[useWorkflowQueue] No profile selected, skipping load');
       return;
     }
 
     try {
-      console.log('[useWorkflowQueue] Loading workflows from backend');
       const loadedWorkflows = await workflowService.getWorkflowsByType(
         selectedProfileId,
         'MOD_IMPORT'
       );
-      console.log('[useWorkflowQueue] Loaded workflows:', loadedWorkflows);
       setWorkflows(loadedWorkflows);
     } catch (error) {
-      console.error('[useWorkflowQueue] Failed to load workflows:', error);
+      // Error handled by error handler
     }
   }, [selectedProfileId]);
 
@@ -100,7 +93,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
    */
   useEffect(() => {
     if (selectedProfileId && !isInitialized) {
-      console.log('[useWorkflowQueue] Initial load of workflows');
       refresh();
       setIsInitialized(true);
     }
@@ -110,14 +102,11 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
    * Subscribe to workflow events for real-time updates
    */
   useEffect(() => {
-    console.log('[useWorkflowQueue] Setting up workflow event subscriptions');
-
     const unsubCreated = eventBus.subscribe(
       Module.WORKFLOW,
       WorkflowEventType.CREATED,
       (event) => {
         if (event?.payload) {
-          console.log('[useWorkflowQueue] Workflow created event:', event.payload);
           addWorkflow(event.payload);
         }
       }
@@ -128,7 +117,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       WorkflowEventType.STATUS_CHANGED,
       (event) => {
         if (event?.payload) {
-          console.log('[useWorkflowQueue] Workflow status changed event:', event.payload);
           updateWorkflow(event.payload);
         }
       }
@@ -139,7 +127,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       WorkflowEventType.COMPLETED,
       (event) => {
         if (event?.payload) {
-          console.log('[useWorkflowQueue] Workflow completed event:', event.payload);
           updateWorkflow(event.payload);
         }
       }
@@ -147,7 +134,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
 
     const unsubFailed = eventBus.subscribe(Module.WORKFLOW, WorkflowEventType.FAILED, (event) => {
       if (event?.payload) {
-        console.log('[useWorkflowQueue] Workflow failed event:', event.payload);
         updateWorkflow(event.payload);
       }
     });
@@ -157,7 +143,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       WorkflowEventType.CANCELLED,
       (event) => {
         if (event?.payload) {
-          console.log('[useWorkflowQueue] Workflow cancelled event:', event.payload);
           updateWorkflow(event.payload);
         }
       }
@@ -168,7 +153,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       WorkflowEventType.PROGRESS,
       (event) => {
         if (event?.payload && event.payload.workflowId) {
-          console.log('[useWorkflowQueue] Workflow progress event:', event.payload);
           // Update the workflow in the queue by fetching latest state
           // Progress events contain { workflowId, progress, step }
           // We need to update the context in the workflow
@@ -185,7 +169,7 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
                     context: JSON.stringify(context),
                   };
                 } catch (error) {
-                  console.error('[useWorkflowQueue] Failed to update progress:', error);
+                  // Error handled by error handler
                   return w;
                 }
               }
@@ -203,7 +187,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
         if (event?.payload) {
           // Payload is the workflow ID (string)
           const workflowId = event.payload as string;
-          console.log('[useWorkflowQueue] Workflow deleted event:', workflowId);
           removeWorkflow(workflowId);
         }
       }
@@ -211,7 +194,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
 
     // Cleanup subscriptions
     return () => {
-      console.log('[useWorkflowQueue] Cleaning up workflow event subscriptions');
       unsubCreated();
       unsubStatusChanged();
       unsubCompleted();

@@ -144,8 +144,7 @@ class WorkflowService extends BaseModuleService {
         const workflow = await this.startModImport(profileId, path, defaultCategory);
         workflows.push(workflow);
       } catch (error) {
-        console.error(`[workflowService] Failed to start import for ${path}:`, error);
-        // Continue with other imports even if one fails
+                // Continue with other imports even if one fails
       }
     }
 

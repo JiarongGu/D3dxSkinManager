@@ -8,6 +8,7 @@ import {
 import { useProfile } from "../context/ProfileContext";
 import { useModsStore } from "../../modules/mod/store/modsStore";
 import { bridgeService } from "../services/bridgeService";
+import { profileService } from "../../modules/profile/services/profileService";
 import { useTranslation } from 'react-i18next';
 import './AppInitializer.css';
 
@@ -112,7 +113,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
         globalSettings: settings,
       }));
     } catch (error) {
-      console.error("[AppInitializer] Failed to load global settings:", error);
+      // Error handled by error handler
       setState((prev) => ({
         ...prev,
         stage: "error",
@@ -123,8 +124,10 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
 
   const selectInitialProfile = async () => {
     try {
-      // Try to find the first profile or default profile
-      let profileToSelect = profiles.find((p) => p.isActive) || profiles[0];
+      // Get the active profile from the backend
+      const profileList = await profileService.getAllProfiles();
+      const activeProfileId = profileList.activeProfileId;
+      let profileToSelect = profiles.find((p) => p.id === activeProfileId) || profiles[0];
 
       if (profileToSelect) {
         await actions.selectProfile(profileToSelect.id);
@@ -136,10 +139,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
         }));
       }
     } catch (error) {
-      console.error(
-        "[AppInitializer] Failed to select initial profile:",
-        error,
-      );
+      // Error handled by error handler
       setState((prev) => ({
         ...prev,
         stage: "error",
@@ -154,7 +154,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       await actions.selectProfile(profile.id);
       setState((prev) => ({ ...prev, stage: "ready" }));
     } catch (error) {
-      console.error("[AppInitializer] Failed to create profile:", error);
+      // Error handled by error handler
       setState((prev) => ({
         ...prev,
         stage: "error",
@@ -189,7 +189,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
         />
         <CompactButton
           type="primary"
-          onClick={() => handleProfileCreate("Default", "Default profile")}
+          onClick={() => handleProfileCreate("Default", "My first profile")}
         >
           {t('app.init.createDefaultProfile')}
         </CompactButton>

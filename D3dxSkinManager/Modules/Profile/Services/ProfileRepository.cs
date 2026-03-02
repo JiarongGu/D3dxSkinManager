@@ -99,17 +99,12 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 if (string.IsNullOrEmpty(_activeProfileId))
                 {
                     _activeProfileId = profile.Id;
-                    profile.IsActive = true;
                     _logger.Info($"Set first profile as active: {profile.Id}", "ProfileRepository");
                 }
 
-                profile.DataDirectory = _pathHelper.ToRelativePath(profile.DataDirectory) ?? profile.DataDirectory;
-                var profileDir = _pathHelper.ToAbsolutePath(profile.DataDirectory);
-
-                if (profileDir != null)
-                {
-                    await _fileHelper.CreateDirectoryAsync(profileDir).ConfigureAwait(false);
-                }
+                // Create profile data directory
+                var profileDir = _globalPaths.GetProfileDirectoryPath(profile.Id);
+                await _fileHelper.CreateDirectoryAsync(profileDir).ConfigureAwait(false);
 
                 await SaveProfilesAsync().ConfigureAwait(false);
             }
@@ -130,7 +125,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                     _logger.Warn($"Profile with ID {profile.Id} not found. Cannot update.", "ProfileRepository");
                     return;
                 }
-                profile.DataDirectory = _pathHelper.ToRelativePath(profile.DataDirectory) ?? profile.DataDirectory;
+
                 _profiles[index] = profile;
 
                 await SaveProfilesAsync().ConfigureAwait(false);
@@ -159,17 +154,15 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 }
                 _profiles.Remove(profile);
 
-                var profileDir = _pathHelper.ToAbsolutePath(profile.DataDirectory);
-                if (profileDir != null)
+                // Delete profile directory
+                var profileDir = _globalPaths.GetProfileDirectoryPath(profileId);
+                try
                 {
-                    try
-                    {
-                        await _fileHelper.DeleteDirectoryAsync(profileDir).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error($"Failed to delete profile directory: {ex.Message}", "ProfileRepository");
-                    }
+                    await _fileHelper.DeleteDirectoryAsync(profileDir).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Failed to delete profile directory: {ex.Message}", "ProfileRepository");
                 }
 
                 // Remove cached configuration
@@ -293,7 +286,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                     return null;
                 }
 
-                var configPath = Path.Combine(_pathHelper.ToAbsolutePath(profile.DataDirectory) ?? profile.DataDirectory, "config.json");
+                var configPath = _globalPaths.GetProfileConfigPath(profileId);
 
                 ProfileConfiguration? config;
                 if (File.Exists(configPath))
@@ -339,7 +332,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                     throw new ArgumentException($"Profile with ID {profileId} not found.", nameof(profileId));
                 }
 
-                var configPath = Path.Combine(_pathHelper.ToAbsolutePath(profile.DataDirectory) ?? profile.DataDirectory, "config.json");
+                var configPath = _globalPaths.GetProfileConfigPath(profileId);
                 await JsonHelper.SerializeToFileAsync(configPath, config).ConfigureAwait(false);
 
                 // Update cache

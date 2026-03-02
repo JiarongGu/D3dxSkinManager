@@ -113,18 +113,9 @@ public class ProfileFacade : BaseFacade, IProfileFacade
             Id = profile.Id,
             Name = profile.Name,
             Description = profile.Description,
-            GameDirectory = profile.GameDirectory,
-            WorkDirectory = profile.WorkDirectory,
-            DataDirectory = _pathHelper.ToAbsolutePath(profile.DataDirectory) ?? profile.DataDirectory,
-            IsActive = profile.IsActive,
-            CreatedAt = profile.CreatedAt,
-            LastUsedAt = profile.LastUsedAt,
-            ModCount = profile.ModCount,
-            TotalSizeBytes = profile.TotalSizeBytes,
-            ColorTag = profile.ColorTag,
-            IconName = profile.IconName,
+            Color = profile.Color,
             GameName = profile.GameName,
-            Metadata = profile.Metadata
+            Thumbnail = profile.Thumbnail != null ? _pathHelper.ToAbsolutePath(profile.Thumbnail) ?? profile.Thumbnail : null
         };
     }
 
@@ -203,20 +194,17 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     {
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
-        var workDirectory = _payloadHelper.GetRequiredValue<string>(request.Payload, "workDirectory");
-        var colorTag = _payloadHelper.GetOptionalValue<string>(request.Payload, "colorTag");
-        var iconName = _payloadHelper.GetOptionalValue<string>(request.Payload, "iconName");
+        var color = _payloadHelper.GetOptionalValue<string>(request.Payload, "color");
         var gameName = _payloadHelper.GetOptionalValue<string>(request.Payload, "gameName");
-        var copyFromCurrent = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "copyFromCurrent") ?? false;
+        var thumbnailPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "thumbnailPath");
 
         var createRequest = new CreateProfileRequest
         {
             Name = name,
             Description = description,
-            WorkDirectory = workDirectory,
-            ColorTag = colorTag,
-            IconName = iconName,
-            GameName = gameName
+            Color = color,
+            GameName = gameName,
+            ThumbnailPath = thumbnailPath
         };
 
         return await CreateProfileAsync(createRequest).ConfigureAwait(false);
@@ -227,20 +215,18 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         var name = _payloadHelper.GetOptionalValue<string>(request.Payload, "name");
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
-        var workDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workDirectory");
-        var colorTag = _payloadHelper.GetOptionalValue<string>(request.Payload, "colorTag");
-        var iconName = _payloadHelper.GetOptionalValue<string>(request.Payload, "iconName");
+        var color = _payloadHelper.GetOptionalValue<string>(request.Payload, "color");
         var gameName = _payloadHelper.GetOptionalValue<string>(request.Payload, "gameName");
+        var thumbnailPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "thumbnailPath");
 
         var updateRequest = new UpdateProfileRequest
         {
             ProfileId = profileId,
             Name = name,
             Description = description,
-            WorkDirectory = workDirectory,
-            ColorTag = colorTag,
-            IconName = iconName,
-            GameName = gameName
+            Color = color,
+            GameName = gameName,
+            ThumbnailPath = thumbnailPath
         };
 
         return await UpdateProfileAsync(updateRequest).ConfigureAwait(false);
@@ -275,10 +261,6 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     {
         var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         var migotoVersion = _payloadHelper.GetOptionalValue<string>(request.Payload, "migotoVersion");
-        var gamePath = _payloadHelper.GetOptionalValue<string>(request.Payload, "gamePath");
-        var gameLaunchArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "gameLaunchArgs");
-        var customProgramPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "customProgramPath");
-        var customProgramArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "customProgramArgs");
 
         // ModCache nested object
         var modCacheMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "modCacheMode");
@@ -290,10 +272,6 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         };
 
         if (migotoVersion != null) config.MigotoVersion = migotoVersion;
-        if (gamePath != null) config.GamePath = gamePath;
-        if (gameLaunchArgs != null) config.GameLaunchArgs = gameLaunchArgs;
-        if (customProgramPath != null) config.CustomProgramPath = customProgramPath;
-        if (customProgramArgs != null) config.CustomProgramArgs = customProgramArgs;
 
         // Handle ModCache nested object
         if (modCacheMode != null || modCacheDirectory != null)

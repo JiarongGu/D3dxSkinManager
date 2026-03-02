@@ -1,4 +1,4 @@
-﻿import { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { App } from "antd";
 import { CategoryInfo, CATEGORY_IDS } from "../../../../shared/types/category.types";
 import { categoryService } from "../../../../shared/services/categoryService";
@@ -207,8 +207,7 @@ export function useCategoryTreeOperations({
               notification.error(t('category.updateFailed', { name: data.name }));
             }
           } catch (error) {
-            console.error("Error updating Category:", error);
-            if (error instanceof Error && error.message !== 'User cancelled') {
+                        if (error instanceof Error && error.message !== 'User cancelled') {
               notification.error(t('category.updateError', {
                 error: error.message || 'Unknown error'
               }));
@@ -260,8 +259,7 @@ export function useCategoryTreeOperations({
         notification.error(t('category.deleteFailed'));
       }
     } catch (error) {
-      console.error("Error deleting Category:", error);
-      notification.error(t('category.deleteError'));
+            notification.error(t('category.deleteError'));
     }
   }, [deleteConfirmation.nodeId, onRefreshTree, t]);
 
@@ -360,8 +358,7 @@ export function useCategoryTreeOperations({
           await onRefreshTree();
         }
       } catch (error) {
-        console.error("[handleNodeReorder] Error reordering Category node:", error);
-        notification.error("Failed to move Category node");
+                notification.error("Failed to move Category node");
       }
     },
     [expandedKeys, onExpandedKeysChange, onRefreshTree],
@@ -405,8 +402,7 @@ export function useCategoryTreeOperations({
         // Note: modName is optional, pass empty string if not available
         await updateModCategory(modSha, categoryValue, nodeName);
       } catch (error) {
-        console.error('[handleModClassify] Error:', error);
-        notification.error('Failed to update mod category');
+                notification.error('Failed to update mod category');
       }
     },
     [updateModCategory]

@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { Layout, Empty, Input, Button, Tooltip } from "antd";
 import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
@@ -61,22 +61,18 @@ export const ModListPanel: React.FC = () => {
 
         // Start batch mod import workflows
         // Backend will validate each file/folder and reject invalid ones
-        console.log(`[ModListPanel] Starting batch import for ${files.length} file(s)/folder(s)`);
         const workflows = await workflowService.batchStartModImport(
           selectedProfileId,
           files,
           categoryId
         );
 
-        console.log(`[ModListPanel] Created ${workflows.length} workflow(s)`);
-
         // Open the mod import workflow screen to show progress
         if (workflows.length > 0) {
           openModManagementScreen();
         }
       } catch (error) {
-        console.error('[ModListPanel] Batch import failed:', error);
-        handleError(error);
+                handleError(error);
       }
     },
     classes: {

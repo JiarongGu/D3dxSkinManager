@@ -90,8 +90,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
         loading: false
       }));
     } catch (error) {
-      console.error('Failed to load profiles:', error);
-      setState(prev => ({
+            setState(prev => ({
         ...prev,
         error: 'Failed to load profiles',
         loading: false
@@ -127,17 +126,14 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
       try {
         const result: ProfileSwitchResult = await profileService.switchProfile(profileId);
         if (!result.success) {
-          console.warn('Failed to update profile timestamp:', result.message);
-        }
+                  }
       } catch (error) {
         // Non-critical - just updating timestamp
-        console.warn('Failed to update profile timestamp:', error);
-      }
+              }
 
       setState(prev => ({ ...prev, loading: false }));
     } catch (error) {
-      console.error('Failed to select profile:', error);
-      setState(prev => ({
+            setState(prev => ({
         ...prev,
         error: 'Failed to select profile',
         loading: false
@@ -163,8 +159,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
 
       return profile;
     } catch (error) {
-      console.error('Failed to create profile:', error);
-      setState(prev => ({
+            setState(prev => ({
         ...prev,
         error: 'Failed to create profile',
         loading: false
@@ -192,8 +187,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
         }));
       }
     } catch (error) {
-      console.error('Failed to update profile:', error);
-      setState(prev => ({
+            setState(prev => ({
         ...prev,
         error: 'Failed to update profile',
         loading: false
@@ -221,8 +215,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
         loading: false
       }));
     } catch (error) {
-      console.error('Failed to delete profile:', error);
-      setState(prev => ({
+            setState(prev => ({
         ...prev,
         error: error instanceof Error ? error.message : 'Failed to delete profile',
         loading: false

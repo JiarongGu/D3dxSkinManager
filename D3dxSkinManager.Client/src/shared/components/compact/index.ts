@@ -47,3 +47,7 @@ export type { CompactSelectProps, CompactSelectSize } from './CompactSelect';
 // Upload component
 export { CompactUpload } from './CompactUpload';
 export type { CompactUploadProps } from './CompactUpload';
+
+// Thumbnail Upload component
+export { CompactThumbnailUpload } from './CompactThumbnailUpload';
+export type { CompactThumbnailUploadProps } from './CompactThumbnailUpload';

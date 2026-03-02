@@ -19,7 +19,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onManageProfil
     try {
       await actions.selectProfile(profileId);
     } catch (error) {
-      console.error('Failed to switch profile:', error);
+      // Error already handled by ProfileContext
     }
   };
 

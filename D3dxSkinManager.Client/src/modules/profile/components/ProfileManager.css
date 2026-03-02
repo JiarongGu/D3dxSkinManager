@@ -17,26 +17,36 @@
   border-left-style: solid;
   border-bottom: 1px solid var(--color-border);
   padding: 12px 8px 12px 16px;
+  background-color: var(--color-bg-elevated);
+  margin-bottom: 8px;
 }
 
 .profile-manager-item--active {
-  border-left-color: #52c41a;
+  border: 1px solid var(--color-border);
 }
 
 .profile-manager-item--inactive {
-  border-left-color: #d9d9d9;
+  /* No border for inactive items */
 }
 
 .profile-manager-avatar {
-  width: 40px;
-  height: 40px;
+  width: 64px;
+  height: 64px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: bold;
-  font-size: 18px;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.profile-manager-thumbnail {
+  width: 64px;
+  height: 64px;
+  border-radius: 4px;
+  object-fit: cover;
   flex-shrink: 0;
 }
 

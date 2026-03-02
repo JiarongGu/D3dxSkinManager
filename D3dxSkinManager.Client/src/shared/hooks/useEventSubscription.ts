@@ -18,21 +18,19 @@ import {
  *
  * @example
  * ```tsx
- * // âœ… CORRECT: Module.MOD requires ModEventType
+ * // âœ?CORRECT: Module.MOD requires ModEventType
  * useEventSubscription(Module.MOD, ModEventType.REFRESHED, () => {
- *   console.log('Mods were refreshed!');
- *   loadMods();
+ *    *   loadMods();
  * });
  *
- * // âœ… With payload - type-safe!
+ * // âœ?With payload - type-safe!
  * useEventSubscription(Module.TASK_QUEUE, TaskQueueEventType.PROGRESS, (progress) => {
- *   console.log('Task progress:', progress.progress);
- * });
+ *    * });
  *
- * // âŒ WRONG: String literals not allowed
+ * // â?WRONG: String literals not allowed
  * useEventSubscription(Module.MOD, 'REFRESHED', () => { ... }); // TS Error!
  *
- * // âŒ WRONG: Mismatched module and event type
+ * // â?WRONG: Mismatched module and event type
  * useEventSubscription(Module.MOD, TaskQueueEventType.PROGRESS, () => { ... }); // TS Error!
  * ```
  */

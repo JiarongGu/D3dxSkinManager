@@ -53,8 +53,7 @@ export const PluginsView: React.FC = () => {
       setPlugins(response);
     } catch (error) {
       notification.error(t('plugins.loadFailed'));
-      console.error('Failed to load plugins:', error);
-    } finally {
+          } finally {
       setLoading(false);
     }
   };

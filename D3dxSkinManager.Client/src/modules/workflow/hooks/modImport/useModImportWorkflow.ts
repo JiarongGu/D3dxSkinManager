@@ -53,8 +53,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
       WorkflowEventType.CREATED,
       (event) => {
         if (event?.payload && event.payload.id === workflowId) {
-          console.log('[useModImportWorkflow] Workflow created:', event.payload);
-          setWorkflow(event.payload);
+                    setWorkflow(event.payload);
         }
       }
     );
@@ -64,8 +63,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
       WorkflowEventType.STATUS_CHANGED,
       (event) => {
         if (event?.payload && event.payload.id === workflowId) {
-          console.log('[useModImportWorkflow] Workflow status changed:', event.payload);
-          setWorkflow(event.payload);
+                    setWorkflow(event.payload);
         }
       }
     );
@@ -75,8 +73,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
       WorkflowEventType.COMPLETED,
       (event) => {
         if (event?.payload && event.payload.id === workflowId) {
-          console.log('[useModImportWorkflow] Workflow completed:', event.payload);
-          setWorkflow(event.payload);
+                    setWorkflow(event.payload);
         }
       }
     );
@@ -86,8 +83,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
       WorkflowEventType.FAILED,
       (event) => {
         if (event?.payload && event.payload.id === workflowId) {
-          console.log('[useModImportWorkflow] Workflow failed:', event.payload);
-          setWorkflow(event.payload);
+                    setWorkflow(event.payload);
         }
       }
     );
@@ -97,8 +93,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
       WorkflowEventType.CANCELLED,
       (event) => {
         if (event?.payload && event.payload.id === workflowId) {
-          console.log('[useModImportWorkflow] Workflow cancelled:', event.payload);
-          setWorkflow(event.payload);
+                    setWorkflow(event.payload);
         }
       }
     );
@@ -123,13 +118,10 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
 
     setLoading(true);
     try {
-      console.log('[useModImportWorkflow] Starting mod import for:', folderPath);
-      const newWorkflow = await workflowService.startModImport(selectedProfileId, folderPath);
-      console.log('[useModImportWorkflow] Workflow started:', newWorkflow);
-      setWorkflow(newWorkflow);
+            const newWorkflow = await workflowService.startModImport(selectedProfileId, folderPath);
+            setWorkflow(newWorkflow);
     } catch (error) {
-      console.error('[useModImportWorkflow] Failed to start import:', error);
-      handleError(error);
+            handleError(error);
       throw error;
     } finally {
       setLoading(false);
@@ -141,8 +133,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
    */
   const updateContext = async (context: Record<string, unknown>): Promise<void> => {
     if (!workflow) {
-      console.error('[useModImportWorkflow] No active workflow');
-      throw new Error('No active workflow');
+            throw new Error('No active workflow');
     }
     if (!selectedProfileId) {
       throw new Error('No profile selected');
@@ -150,17 +141,14 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
 
     setLoading(true);
     try {
-      console.log('[useModImportWorkflow] Updating context:', context);
-      const updatedWorkflow = await workflowService.updateWorkflowContext(
+            const updatedWorkflow = await workflowService.updateWorkflowContext(
         selectedProfileId,
         workflow.id,
         context
       );
-      console.log('[useModImportWorkflow] Context updated:', updatedWorkflow);
-      setWorkflow(updatedWorkflow);
+            setWorkflow(updatedWorkflow);
     } catch (error) {
-      console.error('[useModImportWorkflow] Failed to update context:', error);
-      handleError(error);
+            handleError(error);
       throw error;
     } finally {
       setLoading(false);
@@ -172,8 +160,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
    */
   const continueWorkflow = async (): Promise<void> => {
     if (!workflow) {
-      console.error('[useModImportWorkflow] No active workflow');
-      throw new Error('No active workflow');
+            throw new Error('No active workflow');
     }
     if (!selectedProfileId) {
       throw new Error('No profile selected');
@@ -181,16 +168,13 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
 
     setLoading(true);
     try {
-      console.log('[useModImportWorkflow] Continuing workflow');
-      const updatedWorkflow = await workflowService.continueWorkflow(
+            const updatedWorkflow = await workflowService.continueWorkflow(
         selectedProfileId,
         workflow.id
       );
-      console.log('[useModImportWorkflow] Workflow continued:', updatedWorkflow);
-      setWorkflow(updatedWorkflow);
+            setWorkflow(updatedWorkflow);
     } catch (error) {
-      console.error('[useModImportWorkflow] Failed to provide metadata:', error);
-      handleError(error);
+            handleError(error);
       throw error;
     } finally {
       setLoading(false);
@@ -202,8 +186,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
    */
   const cancelImport = async (): Promise<void> => {
     if (!workflow) {
-      console.error('[useModImportWorkflow] No active workflow to cancel');
-      return;
+            return;
     }
     if (!selectedProfileId) {
       throw new Error('No profile selected');
@@ -211,16 +194,13 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
 
     setLoading(true);
     try {
-      console.log('[useModImportWorkflow] Cancelling workflow:', workflow.id);
-      const cancelledWorkflow = await workflowService.cancelModImport(
+            const cancelledWorkflow = await workflowService.cancelModImport(
         selectedProfileId,
         workflow.id
       );
-      console.log('[useModImportWorkflow] Workflow cancelled:', cancelledWorkflow);
-      setWorkflow(cancelledWorkflow);
+            setWorkflow(cancelledWorkflow);
     } catch (error) {
-      console.error('[useModImportWorkflow] Failed to cancel workflow:', error);
-      handleError(error);
+            handleError(error);
       throw error;
     } finally {
       setLoading(false);
@@ -231,8 +211,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
    * Clear the current workflow from state
    */
   const clearWorkflow = (): void => {
-    console.log('[useModImportWorkflow] Clearing workflow');
-    setWorkflow(null);
+        setWorkflow(null);
   };
 
   return {

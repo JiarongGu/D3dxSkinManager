@@ -1,7 +1,7 @@
 namespace D3dxSkinManager.Modules.Profiles.Models;
 
 /// <summary>
-/// Profile configuration settings
+/// Profile configuration settings stored in {profileId}/config.json
 /// </summary>
 public class ProfileConfiguration
 {
@@ -14,26 +14,6 @@ public class ProfileConfiguration
     /// 3DMigoto version to use (3dmigoto, 3dmigoto-dev, custom)
     /// </summary>
     public string MigotoVersion { get; set; } = "3dmigoto";
-
-    /// <summary>
-    /// Game executable path for this profile
-    /// </summary>
-    public string? GamePath { get; set; }
-
-    /// <summary>
-    /// Game launch arguments
-    /// </summary>
-    public string? GameLaunchArgs { get; set; }
-
-    /// <summary>
-    /// Custom program executable path
-    /// </summary>
-    public string? CustomProgramPath { get; set; }
-
-    /// <summary>
-    /// Custom program launch arguments
-    /// </summary>
-    public string? CustomProgramArgs { get; set; }
 
     /// <summary>
     /// Mod cache storage configuration
