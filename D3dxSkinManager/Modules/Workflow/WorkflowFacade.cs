@@ -92,7 +92,19 @@ public class WorkflowFacade : IWorkflowFacade
         if (string.IsNullOrEmpty(type))
             throw new ArgumentException("Workflow type is required");
 
-        return await _workflowRepository.GetByTypeAsync(type);
+        var workflows = await _workflowRepository.GetByTypeAsync(type);
+
+        // Populate category names for MOD_IMPORT workflows (batch operation to avoid N+1 queries)
+        if (type == "MOD_IMPORT" && workflows.Any())
+        {
+            var handler = GetHandler(type);
+            if (handler is Handlers.ModImportWorkflowHandler modImportHandler)
+            {
+                await modImportHandler.PopulateCategoryNamesInContextsBulkAsync(workflows);
+            }
+        }
+
+        return workflows;
     }
 
     private async Task<bool> DeleteWorkflowAsync(IpcRequest request)

@@ -196,6 +196,19 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       }
     );
 
+    const unsubDeleted = eventBus.subscribe(
+      Module.WORKFLOW,
+      WorkflowEventType.DELETED,
+      (event) => {
+        if (event?.payload) {
+          // Payload is the workflow ID (string)
+          const workflowId = event.payload as string;
+          console.log('[useWorkflowQueue] Workflow deleted event:', workflowId);
+          removeWorkflow(workflowId);
+        }
+      }
+    );
+
     // Cleanup subscriptions
     return () => {
       console.log('[useWorkflowQueue] Cleaning up workflow event subscriptions');
@@ -205,8 +218,9 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       unsubFailed();
       unsubCancelled();
       unsubProgress();
+      unsubDeleted();
     };
-  }, [addWorkflow, updateWorkflow]);
+  }, [addWorkflow, updateWorkflow, removeWorkflow]);
 
   return {
     workflows,

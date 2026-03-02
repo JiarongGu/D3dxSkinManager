@@ -6,6 +6,7 @@ using D3dxSkinManager.Modules.Workflow.Repositories;
 using D3dxSkinManager.Modules.Workflow.Entities;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Mod;
+using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Workflow.Handlers;
@@ -41,6 +42,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     private readonly IHashHelper _hashHelper;
     private readonly IEventBus _eventBus;
     private readonly ILogHelper _logger;
+    private readonly IModQueryService _modQueryService;
 
     public string WorkflowType => "MOD_IMPORT";
 
@@ -54,7 +56,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         IFileHelper fileHelper,
         IHashHelper hashHelper,
         IEventBus eventBus,
-        ILogHelper logger)
+        ILogHelper logger,
+        IModQueryService modQueryService)
     {
         _workflowRepository = workflowRepository;
         _modImportService = modImportService;
@@ -66,6 +69,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         _hashHelper = hashHelper;
         _eventBus = eventBus;
         _logger = logger;
+        _modQueryService = modQueryService;
     }
 
     /// <summary>
@@ -586,7 +590,75 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             Step = context.Step
         });
 
+        // Emit MOD.IMPORTED event to refresh frontend mod list and category tree
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.IMPORTED, modInfo);
+
         // Emit completed event
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.COMPLETED, workflow);
+
+        // Auto-delete workflow after successful completion
+        // MOD_IMPORT workflows are temporary and don't need to be kept in the queue
+        try
+        {
+            await _workflowRepository.DeleteAsync(workflow.Id);
+            _logger.Info($"Auto-deleted completed workflow: {workflow.Id}", "ModImportWorkflowHandler");
+
+            // Emit deleted event to update frontend
+            await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.DELETED, workflow.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Failed to auto-delete completed workflow {workflow.Id}: {ex.Message}", "ModImportWorkflowHandler");
+        }
+    }
+
+    /// <summary>
+    /// Batch populate CategoryName fields for multiple workflows
+    /// Uses ModQueryService.PopulateCategoryNamesBulkAsync for efficient single database query
+    /// This avoids N+1 query problem when displaying workflow lists
+    /// </summary>
+    public async Task PopulateCategoryNamesInContextsBulkAsync(List<WorkflowInfo> workflows)
+    {
+        try
+        {
+            // Extract all ModImportWorkflowContexts and their category IDs
+            var contextsWithCategory = new List<(WorkflowInfo workflow, ModImportWorkflowContext context, ModInfo tempMod)>();
+
+            foreach (var workflow in workflows)
+            {
+                try
+                {
+                    var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context);
+                    if (context != null && !string.IsNullOrEmpty(context.Category))
+                    {
+                        // Create temporary ModInfo to use batch populate function
+                        var tempMod = new ModInfo { Category = context.Category };
+                        contextsWithCategory.Add((workflow, context, tempMod));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"Failed to deserialize workflow context for {workflow.Id}: {ex.Message}", "ModImportWorkflowHandler");
+                }
+            }
+
+            if (!contextsWithCategory.Any())
+                return;
+
+            // Single batch query to populate all category names
+            var modList = contextsWithCategory.Select(x => x.tempMod).ToList();
+            await _modQueryService.PopulateCategoryNamesBulkAsync(modList).ConfigureAwait(false);
+
+            // Update contexts with populated category names
+            foreach (var (workflow, context, tempMod) in contextsWithCategory)
+            {
+                context.CategoryName = tempMod.CategoryName;
+                workflow.Context = JsonHelper.Serialize(context);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to batch populate category names in workflow contexts: {ex.Message}", "ModImportWorkflowHandler", ex);
+        }
     }
 }

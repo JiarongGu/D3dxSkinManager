@@ -61,7 +61,7 @@ export const ModImportMetadataDialog: React.FC<ModImportMetadataDialogProps> = (
           // Flatten the tree and create options
           const flatCategories = categoryService.flattenTree(tree);
           const options = flatCategories.map(cat => ({
-            value: cat.name,
+            value: cat.id,
             label: cat.name,
           }));
           setCategoryOptions(options);

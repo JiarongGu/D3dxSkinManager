@@ -40,4 +40,10 @@ public static class WorkflowEvents
     /// Payload: { workflowId: string, progress: int, step: string }
     /// </summary>
     public const string PROGRESS = "PROGRESS";
+
+    /// <summary>
+    /// Workflow was deleted
+    /// Payload: workflowId (string)
+    /// </summary>
+    public const string DELETED = "DELETED";
 }

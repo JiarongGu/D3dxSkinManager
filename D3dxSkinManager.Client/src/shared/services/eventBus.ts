@@ -65,6 +65,7 @@ export enum WorkflowEventType {
   FAILED = "FAILED",
   CANCELLED = "CANCELLED",
   PROGRESS = "PROGRESS",
+  DELETED = "DELETED",
 }
 
 // Settings event types

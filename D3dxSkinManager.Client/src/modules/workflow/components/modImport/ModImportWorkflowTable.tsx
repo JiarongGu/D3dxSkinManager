@@ -343,7 +343,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
           {context?.author || t("common.notSet")}
         </Descriptions.Item>
         <Descriptions.Item label={t("workflow.queue.category")}>
-          {context?.category || t("common.notSet")}
+          {context?.categoryName || t("common.notSet")}
         </Descriptions.Item>
         <Descriptions.Item label={t("workflow.queue.grading")}>
           {context?.grading || "G"}
@@ -413,17 +413,17 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       width: "15%",
       ellipsis: true,
       sorter: (a, b) => {
-        const catA = a.context?.category || "";
-        const catB = b.context?.category || "";
+        const catA = a.context?.categoryName || "";
+        const catB = b.context?.categoryName || "";
         return catA.localeCompare(catB);
       },
       showSorterTooltip: false,
       render: (_: unknown, row: WorkflowTableRow) => {
-        const category = row.context?.category;
-        if (!category) {
+        const categoryName = row.context?.categoryName;
+        if (!categoryName) {
           return <span style={{ color: "#8c8c8c" }}>{t("common.notSet")}</span>;
         }
-        return <span>{category}</span>;
+        return <span>{categoryName}</span>;
       },
     },
     {

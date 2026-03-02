@@ -67,8 +67,10 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       void categoryOps.refreshCategoryTree(selectedProfileId);
     });
 
-    // Subscribe to mod imported/deleted events to refresh category tree counts
+    // Subscribe to mod imported/deleted events to refresh category tree counts AND mod list
     const unsubscribeModImported = eventBus.subscribe(Module.MOD, ModEventType.IMPORTED, () => {
+      // Refresh mod list to show newly imported mod
+      handleModStateChange();
       // Refresh category tree to update mod counts (new mod added)
       void categoryOps.refreshCategoryTree(selectedProfileId);
     });

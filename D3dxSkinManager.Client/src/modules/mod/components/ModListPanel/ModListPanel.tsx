@@ -57,7 +57,7 @@ export const ModListPanel: React.FC = () => {
 
       try {
         // Get selected category from store to pre-fill in workflow
-        const categoryName = selectedCategory?.name;
+        const categoryId = selectedCategory?.id;
 
         // Start batch mod import workflows
         // Backend will validate each file/folder and reject invalid ones
@@ -65,7 +65,7 @@ export const ModListPanel: React.FC = () => {
         const workflows = await workflowService.batchStartModImport(
           selectedProfileId,
           files,
-          categoryName
+          categoryId
         );
 
         console.log(`[ModListPanel] Created ${workflows.length} workflow(s)`);

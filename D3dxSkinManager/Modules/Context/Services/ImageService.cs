@@ -12,7 +12,6 @@ public interface IImageService
 {
     Task<List<string>> GetPreviewPathsAsync(string sha);
     Task<int> GeneratePreviewsAsync(string modDirectory, string sha);
-    Task<bool> ResizeImageAsync(string sourcePath, string targetPath, int maxWidth, int maxHeight);
     Task<bool> ClearModCacheAsync(string sha);
     string[] GetSupportedImageExtensions();
     Task<int> ScanAndImportFromCacheAsync(string sha, string cacheDirectory);
@@ -25,7 +24,7 @@ public interface IImageService
 }
 
 /// <summary>
-/// Service for image operations: thumbnails, caching, resizing
+/// Service for image operations: preview management, caching, import
 /// Responsibility: Image processing and cache management
 /// </summary>
 public class ImageService : IImageService
@@ -34,10 +33,6 @@ public class ImageService : IImageService
     private readonly IPathHelper _pathHelper;
     private readonly ILogHelper _logger;
     private readonly IHashHelper _hashHelper;
-
-    // Preview size
-    private const int PreviewWidth = 450;
-    private const int PreviewHeight = 900;
 
     public ImageService(IProfilePathService profilePaths, IPathHelper pathHelper, ILogHelper logger, IHashHelper hashHelper)
     {
@@ -73,7 +68,8 @@ public class ImageService : IImageService
 
     /// <summary>
     /// Generate preview images from mod directory
-    /// Searches for multiple preview images and stores them in per-mod folders
+    /// Searches for multiple preview images and copies them to per-mod folders without resizing
+    /// Preserves original image quality and resolution
     /// Returns the count of previews generated
     /// </summary>
     public async Task<int> GeneratePreviewsAsync(string modDirectory, string sha)
@@ -103,12 +99,14 @@ public class ImageService : IImageService
         int previewIndex = 1;
         foreach (var sourcePath in foundPreviews.Distinct())
         {
-            var targetPath = Path.Combine(modPreviewFolder, $"preview{previewIndex}.png");
+            // Preserve original extension to maintain image quality
+            var sourceExtension = Path.GetExtension(sourcePath);
+            var targetPath = Path.Combine(modPreviewFolder, $"preview{previewIndex}{sourceExtension}");
 
             try
             {
-                // Resize to preview size
-                await ResizeImageAsync(sourcePath, targetPath, PreviewWidth, PreviewHeight).ConfigureAwait(false);
+                // Copy image directly without resizing to preserve original quality
+                File.Copy(sourcePath, targetPath, overwrite: true);
                 _logger.Info($"Generated preview {previewIndex} for {sha}", "ImageService");
                 previewCount++;
                 previewIndex++;
@@ -131,11 +129,14 @@ public class ImageService : IImageService
             previewIndex = 1;
             foreach (var sourcePath in allImages)
             {
-                var targetPath = Path.Combine(modPreviewFolder, $"preview{previewIndex}.png");
+                // Preserve original extension to maintain image quality
+                var sourceExtension = Path.GetExtension(sourcePath);
+                var targetPath = Path.Combine(modPreviewFolder, $"preview{previewIndex}{sourceExtension}");
 
                 try
                 {
-                    await ResizeImageAsync(sourcePath, targetPath, PreviewWidth, PreviewHeight).ConfigureAwait(false);
+                    // Copy image directly without resizing to preserve original quality
+                    File.Copy(sourcePath, targetPath, overwrite: true);
                     _logger.Info($"Generated preview {previewIndex} from {Path.GetFileName(sourcePath)}", "ImageService");
                     previewCount++;
                     previewIndex++;
@@ -148,75 +149,6 @@ public class ImageService : IImageService
         }
 
         return previewCount;
-    }
-
-    /// <summary>
-    /// Resize image maintaining aspect ratio
-    /// Creates a completely independent copy to avoid any file locking issues
-    /// </summary>
-    public async Task<bool> ResizeImageAsync(string sourcePath, string targetPath, int maxWidth, int maxHeight)
-    {
-        if (!File.Exists(sourcePath))
-            return false;
-
-        try
-        {
-            Bitmap? sourceImage = null;
-            Bitmap? independentCopy = null;
-
-            try
-            {
-                // Load image from file stream
-                using (var fileStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    using var tempImage = Image.FromStream(fileStream, false, false);
-                    // Create a completely independent bitmap copy to break any file references
-                    independentCopy = new Bitmap(tempImage.Width, tempImage.Height);
-                    using (var g = Graphics.FromImage(independentCopy))
-                    {
-                        g.DrawImage(tempImage, 0, 0);
-                    }
-                }
-                // File is now completely released
-
-                sourceImage = independentCopy;
-
-                // Calculate new dimensions maintaining aspect ratio
-                var ratioX = (double)maxWidth / sourceImage.Width;
-                var ratioY = (double)maxHeight / sourceImage.Height;
-                var ratio = Math.Min(ratioX, ratioY);
-
-                var newWidth = (int)(sourceImage.Width * ratio);
-                var newHeight = (int)(sourceImage.Height * ratio);
-
-                // Create resized image
-                using var resizedImage = new Bitmap(newWidth, newHeight);
-                using (var graphics = Graphics.FromImage(resizedImage))
-                {
-                    graphics.CompositingQuality = Drawing2D.CompositingQuality.HighQuality;
-                    graphics.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBicubic;
-                    graphics.SmoothingMode = Drawing2D.SmoothingMode.HighQuality;
-                    graphics.DrawImage(sourceImage, 0, 0, newWidth, newHeight);
-                }
-
-                // Save as PNG
-                var targetDir = Path.GetDirectoryName(targetPath);
-                if (targetDir != null && !Directory.Exists(targetDir))
-                    Directory.CreateDirectory(targetDir);
-
-                resizedImage.Save(targetPath, ImageFormat.Png);
-                return await Task.FromResult(true).ConfigureAwait(false);
-            }
-            finally
-            {
-                sourceImage?.Dispose();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Failed to resize image: {ex.Message}", "ImageService", ex);
-            return false;
-        }
     }
 
     /// <summary>
@@ -294,8 +226,8 @@ public class ImageService : IImageService
             Directory.CreateDirectory(modPreviewFolder);
         }
 
-        // Find all images in cache directory
-        var cacheImages = Directory.GetFiles(cacheDirectory, "*.*", SearchOption.AllDirectories)
+        // Find all images in cache directory (root folder only, not subdirectories)
+        var cacheImages = Directory.GetFiles(cacheDirectory, "*.*", SearchOption.TopDirectoryOnly)
             .Where(f => ImageConstants.IsImageExtension(Path.GetExtension(f)))
             .OrderBy(f => new FileInfo(f).Length) // Prefer smaller files first
             .ToList();

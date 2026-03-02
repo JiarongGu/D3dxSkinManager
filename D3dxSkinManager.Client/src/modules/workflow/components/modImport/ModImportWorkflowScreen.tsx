@@ -112,9 +112,9 @@ export const ModImportWorkflowScreen: React.FC = () => {
         // Get selected category from store to pre-fill in workflow
         const { useModsStore } = await import('../../../mod/store/modsStore');
         const selectedCategory = useModsStore.getState().selectedCategory;
-        const categoryName = selectedCategory?.name;
+        const categoryId = selectedCategory?.id;
 
-        await workflowService.startModImport(selectedProfileId, result.filePath, categoryName);
+        await workflowService.startModImport(selectedProfileId, result.filePath, categoryId);
       }
     } catch (error) {
       handleError(error);
