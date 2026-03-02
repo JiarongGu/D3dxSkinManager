@@ -5,7 +5,8 @@ using D3dxSkinManager.Modules.Core.Event;
 namespace D3dxSkinManager.Infrastructure.WebView;
 
 /// <summary>
-/// Manages drop zone overlays using event-driven drag detection from FileDragDetector.
+/// Manages drop zone overlays that capture all mouse events and forward them to frontend.
+/// Overlays are created immediately when zones are registered and act as transparent pass-through layers.
 /// </summary>
 public class DropZoneManager : IDisposable
 {
@@ -16,25 +17,8 @@ public class DropZoneManager : IDisposable
     private readonly ILogHelper _logger;
     private readonly IpcHandler _ipcHandler;
 
-    // Drag detection
-    private readonly FileDragDetector _dragDetector;
-
-    // Zone management
+    // Zone management - overlays created immediately on registration
     private readonly Dictionary<string, DropZoneOverlay> _activeOverlays = new();
-    private readonly Dictionary<string, ZoneMetadata> _registeredZones = new();
-
-    // Cleanup synchronization
-    private TaskCompletionSource<bool>? _dropCompletionSource;
-
-    private class ZoneMetadata
-    {
-        public required string ZoneId { get; init; }
-        public int X { get; set; }
-        public int Y { get; set; }
-        public int Width { get; set; }
-        public int Height { get; set; }
-        public bool IsVisible { get; set; } = true;
-    }
 
     #endregion
 
@@ -47,168 +31,63 @@ public class DropZoneManager : IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _ipcHandler = ipcHandler;
 
-        // Create drag detector and subscribe to events
-        _dragDetector = new FileDragDetector(parentForm, logger, bringToFrontOnDrag: false);
-        _dragDetector.DragStarted += OnDragStarted;
-        _dragDetector.DragMoved += OnDragMoved;
-        _dragDetector.DragEnded += OnDragEnded;
-
-        _logger.Info("DropZoneManager initialized with FileDragDetector", "DropZone");
+        _logger.Info("DropZoneManager initialized (overlays created on registration)", "DropZone");
     }
 
     public void Dispose()
     {
-        // Unsubscribe from events
-        if (_dragDetector != null)
-        {
-            _dragDetector.DragStarted -= OnDragStarted;
-            _dragDetector.DragMoved -= OnDragMoved;
-            _dragDetector.DragEnded -= OnDragEnded;
-            _dragDetector.Dispose();
-        }
-
         DestroyAllOverlays();
-        _registeredZones.Clear();
-
         _logger.Info("DropZoneManager disposed", "DropZone");
-    }
-
-    #endregion
-
-    #region Drag Event Handlers
-
-    private void OnDragStarted(object? sender, FileDragDetector.DragEventArgs e)
-    {
-        _logger.Info($"Drag started at {e.ScreenPosition} ({e.DetectionMethod})", "DropZone");
-
-        // Create new TaskCompletionSource for this drag operation
-        _dropCompletionSource = new TaskCompletionSource<bool>();
-
-        // Check if mouse is over any zones and create overlays
-        CheckMouseOverZones(e.ScreenPosition);
-    }
-
-    private void OnDragMoved(object? sender, FileDragDetector.DragEventArgs e)
-    {
-        // Check if mouse is over any zones and create overlays on-demand
-        CheckMouseOverZones(e.ScreenPosition);
-    }
-
-    private async void OnDragEnded(object? sender, EventArgs e)
-    {
-        var tcs = _dropCompletionSource;
-        if (tcs == null)
-            return;
-
-        // Wait for drop event to complete
-        await tcs.Task;
-
-        // Always destroy overlays after drop completes
-        _logger.Info("Drag ended, cleaning up overlays", "DropZone");
-
-        if (_parentForm.InvokeRequired)
-        {
-            _parentForm.Invoke(() => DestroyAllOverlays());
-        }
-        else
-        {
-            DestroyAllOverlays();
-        }
-    }
-
-    private void CheckMouseOverZones(Point screenPosition)
-    {
-        var visibleZones = _registeredZones.Values.Where(z => z.IsVisible).ToList();
-
-        if (visibleZones.Count == 0)
-        {
-            // No zones - destroy any active overlays
-            DestroyAllOverlays();
-            return;
-        }
-
-        // Track which zones the mouse is currently over
-        var zonesUnderMouse = new HashSet<string>();
-
-        foreach (var metadata in visibleZones)
-        {
-            // Convert zone bounds to screen coordinates
-            var zoneScreenPos = _webView.PointToScreen(new Point(metadata.X, metadata.Y));
-            var zoneBounds = new Rectangle(zoneScreenPos.X, zoneScreenPos.Y, metadata.Width, metadata.Height);
-
-            if (zoneBounds.Contains(screenPosition))
-            {
-                zonesUnderMouse.Add(metadata.ZoneId);
-
-                // Mouse is over this zone - create overlay if not exists
-                if (!_activeOverlays.ContainsKey(metadata.ZoneId))
-                {
-                    _logger.Info($"✓ Mouse entered zone {metadata.ZoneId}! Creating overlay...", "DropZone");
-                    CreateOverlay(metadata);
-                }
-            }
-        }
-
-        // Destroy overlays for zones the mouse has left
-        var zonesToRemove = _activeOverlays.Keys.Where(id => !zonesUnderMouse.Contains(id)).ToList();
-        foreach (var zoneId in zonesToRemove)
-        {
-            _logger.Info($"Mouse left zone {zoneId}, destroying overlay", "DropZone");
-
-            // Notify frontend that drag left the zone
-            NotifyDragLeave(zoneId);
-
-            DestroyOverlay(zoneId);
-        }
     }
 
     #endregion
 
     #region Overlay Management
 
-    private void CreateOverlay(ZoneMetadata metadata)
+    private void CreateOverlay(string zoneId, int x, int y, int width, int height)
     {
-        if (_activeOverlays.ContainsKey(metadata.ZoneId))
+        if (_activeOverlays.ContainsKey(zoneId))
             return;
 
         // Ensure we're on the UI thread
         if (_parentForm.InvokeRequired)
         {
-            _parentForm.Invoke(() => CreateOverlay(metadata));
+            _parentForm.Invoke(() => CreateOverlay(zoneId, x, y, width, height));
             return;
         }
 
         try
         {
             var overlay = new DropZoneOverlay(
-                metadata.ZoneId,
+                zoneId,
                 _logger,
-                (files, pos) => NotifyFileDrop(metadata.ZoneId, files, pos),
+                _webView,
+                (files, pos) => NotifyFileDrop(zoneId, files, pos),
                 (id) => NotifyDragEnter(id),
                 (id) => NotifyDragLeave(id),
-                (pos) => NotifyClick(metadata.ZoneId, pos),
                 (id) => NotifyMouseEnter(id),
-                (id) => NotifyMouseLeave(id)
+                (id) => NotifyMouseLeave(id),
+                (id) => UnregisterZone(id)
             );
 
             // Convert WebView coordinates to Form coordinates
-            var screenPos = _webView.PointToScreen(new Point(metadata.X, metadata.Y));
+            var screenPos = _webView.PointToScreen(new Point(x, y));
             var formPos = _parentForm.PointToClient(screenPos);
 
-            _logger.Info($"Creating overlay {metadata.ZoneId}: WebView({metadata.X},{metadata.Y}) -> Screen({screenPos.X},{screenPos.Y}) -> Form({formPos.X},{formPos.Y}) Size({metadata.Width}x{metadata.Height})", "DropZone");
+            _logger.Info($"Creating overlay {zoneId}: WebView({x},{y}) -> Screen({screenPos.X},{screenPos.Y}) -> Form({formPos.X},{formPos.Y}) Size({width}x{height})", "DropZone");
 
             // Set bounds and add to parent form
-            overlay.SetBounds(formPos.X, formPos.Y, metadata.Width, metadata.Height);
+            overlay.SetBounds(formPos.X, formPos.Y, width, height);
             _parentForm.Controls.Add(overlay);
             overlay.BringToFront();
             overlay.Visible = true;
 
-            _activeOverlays[metadata.ZoneId] = overlay;
-            _logger.Info($"✓ Overlay created successfully: {metadata.ZoneId}, Visible={overlay.Visible}, Bounds=({overlay.Left},{overlay.Top},{overlay.Width}x{overlay.Height})", "DropZone");
+            _activeOverlays[zoneId] = overlay;
+            _logger.Info($"✓ Overlay created successfully: {zoneId}, Visible={overlay.Visible}, Bounds=({overlay.Left},{overlay.Top},{overlay.Width}x{overlay.Height})", "DropZone");
         }
         catch (Exception ex)
         {
-            _logger.Error($"Failed to create overlay {metadata.ZoneId}: {ex.Message}", "DropZone", ex);
+            _logger.Error($"Failed to create overlay {zoneId}: {ex.Message}", "DropZone", ex);
         }
     }
 
@@ -238,47 +117,27 @@ public class DropZoneManager : IDisposable
 
     public void RegisterZone(string zoneId, int x, int y, int width, int height)
     {
-        if (_registeredZones.TryGetValue(zoneId, out var existing))
+        if (_activeOverlays.ContainsKey(zoneId))
         {
-            // Update existing zone bounds
-            existing.X = x;
-            existing.Y = y;
-            existing.Width = width;
-            existing.Height = height;
-
-            // Update active overlay if it exists (overlays use form coordinates)
-            if (_activeOverlays.TryGetValue(zoneId, out var overlay))
-            {
-                var screenPos = _webView.PointToScreen(new Point(x, y));
-                var formPos = _parentForm.PointToClient(screenPos);
-                overlay.UpdateBounds(formPos.X, formPos.Y, width, height);
-            }
-
+            // Update existing overlay bounds
+            var screenPos = _webView.PointToScreen(new Point(x, y));
+            var formPos = _parentForm.PointToClient(screenPos);
+            _activeOverlays[zoneId].UpdateBounds(formPos.X, formPos.Y, width, height);
             _logger.Debug($"Zone updated: {zoneId}", "DropZone");
             return;
         }
 
-        // Register new zone
-        var metadata = new ZoneMetadata
-        {
-            ZoneId = zoneId,
-            X = x,
-            Y = y,
-            Width = width,
-            Height = height,
-            IsVisible = true
-        };
-
-        _registeredZones[zoneId] = metadata;
-        _logger.Info($"Zone registered: {zoneId} ({_registeredZones.Count} total)", "DropZone");
+        // Create overlay immediately for new zone
+        CreateOverlay(zoneId, x, y, width, height);
+        _logger.Info($"Zone registered and overlay created: {zoneId} ({_activeOverlays.Count} total)", "DropZone");
     }
 
     public void UnregisterZone(string zoneId)
     {
-        if (_registeredZones.Remove(zoneId))
+        if (_activeOverlays.ContainsKey(zoneId))
         {
             DestroyOverlay(zoneId);
-            _logger.Info($"Zone unregistered: {zoneId}", "DropZone");
+            _logger.Info($"Zone unregistered and overlay destroyed: {zoneId}", "DropZone");
         }
     }
 
@@ -289,34 +148,25 @@ public class DropZoneManager : IDisposable
 
     public void ShowZone(string zoneId)
     {
-        if (_registeredZones.TryGetValue(zoneId, out var metadata))
+        if (_activeOverlays.TryGetValue(zoneId, out var overlay))
         {
-            metadata.IsVisible = true;
-
-            if (_activeOverlays.TryGetValue(zoneId, out var overlay))
-            {
-                overlay.Show();
-            }
+            overlay.Show();
+            _logger.Debug($"Zone shown: {zoneId}", "DropZone");
         }
     }
 
     public void HideZone(string zoneId)
     {
-        if (_registeredZones.TryGetValue(zoneId, out var metadata))
+        if (_activeOverlays.TryGetValue(zoneId, out var overlay))
         {
-            metadata.IsVisible = false;
-
-            if (_activeOverlays.TryGetValue(zoneId, out var overlay))
-            {
-                overlay.Hide();
-            }
+            overlay.Hide();
+            _logger.Debug($"Zone hidden: {zoneId}", "DropZone");
         }
     }
 
     public void ClearAll()
     {
         DestroyAllOverlays();
-        _registeredZones.Clear();
         _logger.Info("All zones cleared", "DropZone");
     }
 
@@ -332,15 +182,6 @@ public class DropZoneManager : IDisposable
     private void NotifyDragLeave(string zoneId)
     {
         _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.DRAG_LEAVE, new { zoneId });
-    }
-
-    private void NotifyClick(string zoneId, Point position)
-    {
-        _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.CLICK, new
-        {
-            zoneId,
-            position = new { x = position.X, y = position.Y }
-        });
     }
 
     private void NotifyMouseEnter(string zoneId)
@@ -363,10 +204,6 @@ public class DropZoneManager : IDisposable
             files,
             position = new { x = position.X, y = position.Y }
         });
-
-        // Signal that drop event has completed
-        // OnDragEnded will destroy overlays after this
-        _dropCompletionSource?.TrySetResult(true);
     }
 
     #endregion

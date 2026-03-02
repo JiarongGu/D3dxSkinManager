@@ -50,7 +50,6 @@ export enum CategoryEventType {
 
 // Drop zone event types
 export enum DropZoneEventType {
-  CLICK = "CLICK",
   DRAG_ENTER = "DRAG_ENTER",
   DRAG_LEAVE = "DRAG_LEAVE",
   FILE_DROP = "FILE_DROP",
@@ -147,10 +146,6 @@ export interface EventPayloadMap {
 
   // Drop zone events
   [Module.DROP_ZONE]: {
-    [DropZoneEventType.CLICK]: {
-      zoneId: string;
-      position: { x: number; y: number };
-    };
     [DropZoneEventType.DRAG_ENTER]: { zoneId: string };
     [DropZoneEventType.DRAG_LEAVE]: { zoneId: string };
     [DropZoneEventType.FILE_DROP]: { zoneId: string; files: string[] };

@@ -12,6 +12,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Enhanced - 2026-03-02 - DropZone Overlay: Complete Mouse Event Forwarding & JavaScript Organization ⭐⭐⭐
+Complete implementation of transparent overlay that forwards all mouse events to WebView2 with full hover effects, dynamic cursor changes, and scrollbar interaction support.
+**Impact**: ✅ Drag-drop works without topmost window requirement, all mouse events forwarded correctly, hover effects fully functional, scrollbar interaction working, clean JavaScript organization
+**Problem**: DropZone overlay blocked mouse interactions with WebView2 content (clicks, hovers, scrolling)
+**Root Cause**: WS_EX_TRANSPARENT makes overlay visually transparent but captures all mouse events, preventing WebView2 interaction
+**Backend Changes - DropZoneOverlay.cs**:
+- Mouse Event Forwarding: WndProc captures WM_MOUSEMOVE/LBUTTONDOWN/LBUTTONUP/MOUSEWHEEL and dispatches JavaScript events
+- Hover Effects: Implemented `__overlay_hover` CSS class system that copies all `:hover` rules from stylesheets
+- Dynamic Cursor: JavaScript queries `window.getComputedStyle(element).cursor` and updates overlay cursor to match underlying element
+- Wheel Scrolling: Fixed coordinate conversion (WM_MOUSEWHEEL uses screen coordinates), manually scrolls scrollable elements via `scrollTop`
+- Scrollbar Detection: JavaScript finds all scrollable elements, calculates scrollbar rectangles, temporarily hides overlay when over scrollbar
+- Visibility Timer: 100ms timer checks cursor position and restores overlay when mouse leaves scrollbar area
+- JavaScript Organization: All scripts moved to constants (JS_HANDLE_HOVER_AND_CURSOR, JS_CLEANUP_HOVER, JS_FIND_SCROLLABLE_ELEMENTS, JS_INJECT_HOVER_STYLES, JS_DISPATCH_MOUSE_EVENT_TEMPLATE)
+- Cleanup: Removed unused Win32 P/Invoke (SendMessage, WindowFromPoint, ScreenToClient, POINT), removed unused DropZoneEvents (CLICK, MOUSE_MOVE, MOUSE_DOWN, MOUSE_UP, DOUBLE_CLICK, MOUSE_WHEEL)
+**Backend Changes - DropZoneManager.cs**:
+- Auto-Disposal: Added onHide callback to DropZoneOverlay that calls UnregisterZone() when overlay is hidden
+- Lifecycle Management: When overlay.Hide() is called, zone is automatically unregistered and disposed to prevent memory leaks
+**Frontend Changes - eventBus.ts**:
+- Removed CLICK from DropZoneEventType enum (no longer emitted by backend)
+- Removed CLICK event payload type from EventPayloadMap
+- Final event types: DRAG_ENTER, DRAG_LEAVE, FILE_DROP, MOUSE_ENTER, MOUSE_LEAVE
+**Frontend Changes - useDropZone.ts**:
+- Removed click event subscription (clicks now handled directly via JavaScript event forwarding)
+- Simplified hook to only handle drag-drop and hover state CSS classes
+**Technical Solutions**:
+- Coordinate Conversion: WM_MOUSEWHEEL uses screen coords → convert via PointToClient before dispatching
+- CSS :hover Mimicry: Browser's :hover can't be triggered by JavaScript → inject CSS that copies `:hover` selectors to `.__overlay_hover`
+- Scrollbar Interaction: Overlay blocks native scrollbar → detect scrollbar areas and temporarily hide overlay
+- Event Bubbling: Dispatch MouseEvent/WheelEvent with bubbles:true to trigger React event handlers
+- Async Deadlock Prevention: Never use .GetAwaiter().GetResult() in WndProc → use pixel-based detection instead
+**Architecture Improvements**:
+- Backend-centric: All mouse event forwarding logic in C#, JavaScript only used for DOM queries and event dispatch
+- Clean Separation: DropZoneOverlay handles overlay lifecycle, DropZoneManager handles zone registration
+- Event-driven: Mouse events forwarded to WebView2, backend events notify frontend of drag state
+- Automatic Cleanup: Zones self-unregister when hidden, no manual cleanup needed
+**Files Changed**: 4 files (2 backend C#, 2 frontend TypeScript)
+**Pattern**: Low-level Windows message handling, JavaScript injection for DOM manipulation, CSS rule copying for hover effects, timer-based visibility management
+
 ### Fixed - 2026-03-02 - External Cache & Category Refresh: Path Configuration & Event-Driven Updates ⭐⭐⭐
 Complete fix for external mod cache directory configuration and parent category mod list refresh after load/unload operations.
 **Impact**: ✅ External cache directory now works correctly, parent categories show all sub-category mods after load/unload, no duplicate code, type-safe constants

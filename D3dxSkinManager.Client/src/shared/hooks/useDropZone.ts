@@ -322,31 +322,6 @@ export function useDropZone(options: {
     };
   }, [enabled, targetRef]);
 
-  // Subscribe to click events from overlay
-  useEffect(() => {
-    if (!enabled || !targetRef.current) {
-      return;
-    }
-
-    const element = targetRef.current;
-
-    const unsubscribeClick = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.CLICK, (event) => {
-      if (!event?.payload || (event.payload as any).zoneId !== zoneIdRef.current) return;
-
-      // Find the first clickable child element (role="button" or button/a tag)
-      const clickableChild = element.querySelector('[role="button"], button, a');
-
-      if (clickableChild instanceof HTMLElement) {
-        clickableChild.click();
-      } else {
-        // Fallback: click the element itself
-        element.click();
-      }
-    });
-
-    return () => unsubscribeClick();
-  }, [enabled, targetRef]);
-
   // Subscribe to mouse enter/leave events from overlay to trigger hover state
   useEffect(() => {
     if (!enabled || !targetRef.current) {
