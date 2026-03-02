@@ -93,7 +93,7 @@ public class ModManagementService : IModManagementService
         };
 
         await _repository.InsertAsync(mod).ConfigureAwait(false);
-        _logger.Info($"Created mod: {mod.Name} ({mod.SHA})", "ModManagementService");
+        _logger.Verbose($"Created mod: {mod.Name} ({mod.SHA})", "ModManagementService");
 
         return mod;
     }

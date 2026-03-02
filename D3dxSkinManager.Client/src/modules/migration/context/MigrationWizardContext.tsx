@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { FormInstance } from 'antd';
 import {
   MigrationAnalysis,
   MigrationResult,
   MigrationOptions,
+  MigrationProgress,
 } from '../services/migrationService';
+import { eventBus, Module, MigrationEventType } from '../../../shared/services/eventBus';
 
 /**
  * Migration wizard steps
@@ -41,6 +43,8 @@ interface MigrationWizardContextState {
   setMigrating: (migrating: boolean) => void;
   migrationProgress: number;
   setMigrationProgress: (progress: number | ((prev: number) => number)) => void;
+  currentMigrationProgress: MigrationProgress | undefined;
+  setCurrentMigrationProgress: (progress: MigrationProgress | undefined) => void;
 
   // Step 4: Complete
   result: MigrationResult | undefined;
@@ -94,9 +98,47 @@ export const MigrationWizardProvider: React.FC<MigrationWizardProviderProps> = (
   // Step 3: Progress
   const [migrating, setMigrating] = useState<boolean>(false);
   const [migrationProgress, setMigrationProgress] = useState<number>(0);
+  const [currentMigrationProgress, setCurrentMigrationProgress] = useState<MigrationProgress>();
 
   // Step 4: Complete
   const [result, setResult] = useState<MigrationResult>();
+
+  /**
+   * Subscribe to migration progress and completed events
+   */
+  useEffect(() => {
+    const unsubscribeProgress = eventBus.subscribe(
+      Module.MIGRATION,
+      MigrationEventType.PROGRESS,
+      (event) => {
+        if (event?.payload) {
+          setCurrentMigrationProgress(event.payload);
+          setMigrationProgress(event.payload.percentComplete);
+        }
+      }
+    );
+
+    const unsubscribeCompleted = eventBus.subscribe(
+      Module.MIGRATION,
+      MigrationEventType.COMPLETED,
+      (event) => {
+        // Migration completed - stop migrating state
+        setMigrating(false);
+        setMigrationProgress(100);
+
+        // Set result from event payload
+        if (event?.payload) {
+          setResult(event.payload);
+          setCurrentStep(MigrationStep.Complete);
+        }
+      }
+    );
+
+    return () => {
+      unsubscribeProgress();
+      unsubscribeCompleted();
+    };
+  }, []);
 
   /**
    * Navigate to next step
@@ -126,6 +168,7 @@ export const MigrationWizardProvider: React.FC<MigrationWizardProviderProps> = (
     setLoading(false);
     setMigrating(false);
     setMigrationProgress(0);
+    setCurrentMigrationProgress(undefined);
     setResult(undefined);
     form?.resetFields();
   };
@@ -152,6 +195,8 @@ export const MigrationWizardProvider: React.FC<MigrationWizardProviderProps> = (
     setMigrating,
     migrationProgress,
     setMigrationProgress,
+    currentMigrationProgress,
+    setCurrentMigrationProgress,
 
     // Complete
     result,

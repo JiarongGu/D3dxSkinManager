@@ -103,18 +103,45 @@ public class MigrationService : IMigrationService
             _logger.Info($"Source: {options.SourcePath}", "Migration");
             _logger.Info($"Time: {DateTime.Now}", "Migration");
 
+            var totalSteps = _steps.Count;
+
             // Execute each step in order
             foreach (var step in _steps)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                _logger.Info($"--- Executing: Step {step.StepNumber} - {step.StepName} ---", "Migration");
+                _logger.Info($"--- Executing: Step {step.StepNumber}/{totalSteps} - {step.StepName} ---", "Migration");
+
+                // Report step start
+                progress?.Report(new MigrationProgress
+                {
+                    CurrentStep = step.StepNumber,
+                    TotalSteps = totalSteps,
+                    StepName = step.StepName,
+                    StepProgress = 0,
+                    CurrentTask = $"Starting {step.StepName}...",
+                    PercentComplete = GetCumulativeProgressBefore(step.StepNumber)
+                });
 
                 try
                 {
-                    await step.ExecuteAsync(context, progress, cancellationToken).ConfigureAwait(false);
+                    // Create a progress wrapper that injects step information
+                    var stepProgress = CreateStepProgressReporter(progress, step.StepNumber, totalSteps, step.StepName);
 
-                    _logger.Info($"--- Step {step.StepNumber} Complete ---", "Migration");
+                    await step.ExecuteAsync(context, stepProgress, cancellationToken).ConfigureAwait(false);
+
+                    _logger.Info($"--- Step {step.StepNumber}/{totalSteps} Complete ---", "Migration");
+
+                    // Report step complete
+                    progress?.Report(new MigrationProgress
+                    {
+                        CurrentStep = step.StepNumber,
+                        TotalSteps = totalSteps,
+                        StepName = step.StepName,
+                        StepProgress = 100,
+                        CurrentTask = $"{step.StepName} complete",
+                        PercentComplete = GetCumulativeProgressBefore(step.StepNumber) + GetStepWeight(step.StepNumber)
+                    });
                 }
                 catch (Exception stepEx)
                 {
@@ -136,6 +163,10 @@ public class MigrationService : IMigrationService
             {
                 Stage = MigrationStage.Finalizing,
                 CurrentTask = "Finalizing migration...",
+                CurrentStep = totalSteps,
+                TotalSteps = totalSteps,
+                StepName = "Finalizing",
+                StepProgress = 50,
                 PercentComplete = 95
             });
 
@@ -152,6 +183,10 @@ public class MigrationService : IMigrationService
             {
                 Stage = MigrationStage.Complete,
                 CurrentTask = "Migration complete!",
+                CurrentStep = totalSteps,
+                TotalSteps = totalSteps,
+                StepName = "Complete",
+                StepProgress = 100,
                 PercentComplete = 100
             });
         }
@@ -182,5 +217,76 @@ public class MigrationService : IMigrationService
         // TODO: Implement validation logic
         await Task.CompletedTask;
         return true;
+    }
+
+    /// <summary>
+    /// Get the weight (percentage) for each step based on observed durations
+    /// Step 1: 0-1%    (Analyze)
+    /// Step 2: 1-2%    (Create Database)
+    /// Step 3: 2-15%   (Migrate Categories - 13%)
+    /// Step 4: 15-20%  (Migrate Configuration - 5%)
+    /// Step 5: 20-95%  (Migrate Mod Archives - 75%)
+    /// Step 6: 95-100% (Migrate Previews - 5%)
+    /// </summary>
+    private static int GetStepWeight(int stepNumber)
+    {
+        return stepNumber switch
+        {
+            1 => 1,  // Analyze Source - 0-1%
+            2 => 1,  // Create Database - 1-2%
+            3 => 13, // Migrate Categories - 2-15%
+            4 => 5,  // Migrate Configuration - 15-20%
+            5 => 75, // Migrate Mod Archives - 20-95%
+            6 => 5,  // Migrate Previews - 95-100%
+            _ => 1
+        };
+    }
+
+    /// <summary>
+    /// Get cumulative progress percentage up to (but not including) the given step
+    /// </summary>
+    private static int GetCumulativeProgressBefore(int stepNumber)
+    {
+        int cumulative = 0;
+        for (int i = 1; i < stepNumber; i++)
+        {
+            cumulative += GetStepWeight(i);
+        }
+        return cumulative;
+    }
+
+    /// <summary>
+    /// Creates a progress reporter that automatically injects step information
+    /// </summary>
+    private IProgress<MigrationProgress>? CreateStepProgressReporter(
+        IProgress<MigrationProgress>? originalProgress,
+        int currentStep,
+        int totalSteps,
+        string stepName)
+    {
+        if (originalProgress == null)
+            return null;
+
+        return new Progress<MigrationProgress>(stepProgress =>
+        {
+            // Inject step information into progress report
+            stepProgress.CurrentStep = currentStep;
+            stepProgress.TotalSteps = totalSteps;
+            stepProgress.StepName = stepName;
+
+            // Calculate step progress based on processed items
+            if (stepProgress.TotalItems > 0)
+            {
+                stepProgress.StepProgress = (stepProgress.ProcessedItems * 100) / stepProgress.TotalItems;
+            }
+
+            // Calculate overall progress using weighted distribution
+            var baseProgress = GetCumulativeProgressBefore(currentStep);
+            var stepWeight = GetStepWeight(currentStep);
+            var stepProgressContribution = (stepProgress.StepProgress * stepWeight) / 100;
+            stepProgress.PercentComplete = baseProgress + stepProgressContribution;
+
+            originalProgress.Report(stepProgress);
+        });
     }
 }

@@ -62,7 +62,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
     if (profile.thumbnail) {
       return (
         <Avatar
-          size={24}
+          size={28}
           src={toAppUrl(profile.thumbnail) || undefined}
           style={{ flexShrink: 0 }}
         />
@@ -70,7 +70,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
     }
     return (
       <Avatar
-        size={24}
+        size={28}
         style={{
           backgroundColor: profile.color || '#1890ff',
           flexShrink: 0
@@ -146,7 +146,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
             {activeProfile ? (
               renderProfileAvatar(activeProfile)
             ) : (
-              <Avatar size={24} icon={<UserOutlined />} />
+              <Avatar size={28} icon={<UserOutlined />} />
             )}
           </div>
           <div className="profile-switcher-text">

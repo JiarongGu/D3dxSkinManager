@@ -56,7 +56,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
   const { selectedProfileId } = useProfile();
   const { openCategoryScreen } = useCategoryScreen();
   const { updateModCategory } = useModCategoryUpdate({ onRefreshTree });
-  const { loading: delayedLoading, execute } = useDelayedLoading(100); // Show loading only if operation takes >100ms
+  const { loading: delayedLoading, execute } = useDelayedLoading(200); // Show loading only if operation takes >100ms
 
   const handleAddCategory = (parentId?: string) => {
     openCategoryScreen({

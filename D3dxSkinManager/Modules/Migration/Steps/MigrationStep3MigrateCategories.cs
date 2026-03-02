@@ -58,14 +58,14 @@ public class MigrationStep3MigrateCategories : IMigrationStep
 
         await LogAsync(context.LogPath, "Step 3: Migrating Category hierarchy").ConfigureAwait(false);
 
-        var rules = await MigrateCategoriesAsync(context, context.EnvironmentPath!, context.LogPath).ConfigureAwait(false);
+        var rules = await MigrateCategoriesAsync(context, context.EnvironmentPath!, context.LogPath, progress).ConfigureAwait(false);
         context.Result.CategoryRulesCreated = rules;
 
         await LogAsync(context.LogPath, $"Created {rules} Category rules").ConfigureAwait(false);
         _logger.Info($"Step 3 complete: {rules} Category rules created", "Migration");
     }
 
-    private async Task<int> MigrateCategoriesAsync(MigrationContext context, string envPath, string logPath)
+    private async Task<int> MigrateCategoriesAsync(MigrationContext context, string envPath, string logPath, IProgress<MigrationProgress>? progress = null)
     {
         var classDir = Path.Combine(envPath, "classification");
         if (!Directory.Exists(classDir))
@@ -80,9 +80,21 @@ public class MigrationStep3MigrateCategories : IMigrationStep
         var categories = await _categoryParser.ParseAsync(classDir).ConfigureAwait(false);
         await LogAsync(logPath, $"Found {categories.Count} Category files").ConfigureAwait(false);
 
+        // Calculate total items for progress (parent + all children)
+        int totalItems = categories.Count + categories.Sum(kvp => kvp.Value.Count);
+        int processedItems = 0;
+
         // Process each category
         foreach (var (categoryName, categoryNames) in categories)
         {
+            progress?.Report(new MigrationProgress
+            {
+                Stage = MigrationStage.ConvertingCategories,
+                CurrentTask = $"Processing category: {categoryName}...",
+                ProcessedItems = processedItems,
+                TotalItems = totalItems
+            });
+
             _logger.Info($"Processing '{categoryName}' with {categoryNames.Count} entries", "Migration");
 
             // Check if parent node already exists by name
@@ -92,7 +104,7 @@ public class MigrationStep3MigrateCategories : IMigrationStep
             if (parentNode != null)
             {
                 await LogAsync(logPath, $"Skipping existing parent node: {categoryName} (ID: {parentNode.Id})").ConfigureAwait(false);
-                _logger.Info($"Parent node already exists: {categoryName} (ID: {parentNode.Id})", "Migration");
+                _logger.Verbose($"Parent node already exists: {categoryName} (ID: {parentNode.Id})", "Migration");
                 parentCategoryId = parentNode.Id;
             }
             else
@@ -113,13 +125,25 @@ public class MigrationStep3MigrateCategories : IMigrationStep
                 if (parentNode != null)
                 {
                     totalNodesCreated++;
-                    _logger.Info($"Created parent node: {categoryName} (ID: {parentNode.Id})", "Migration");
+                    _logger.Verbose($"Created parent node: {categoryName} (ID: {parentNode.Id})", "Migration");
                 }
             }
+
+            processedItems++; // Count parent as processed
 
             // Process child nodes (categories within this category)
             foreach (var childCategoryName in categoryNames)
             {
+                processedItems++;
+
+                progress?.Report(new MigrationProgress
+                {
+                    Stage = MigrationStage.ConvertingCategories,
+                    CurrentTask = $"Creating category: {childCategoryName}...",
+                    ProcessedItems = processedItems,
+                    TotalItems = totalItems
+                });
+
                 // Check if child node already exists by name
                 var childNode = await _categoryService.GetByNameAsync(childCategoryName).ConfigureAwait(false);
                 string? childCategoryId = null;
@@ -127,7 +151,7 @@ public class MigrationStep3MigrateCategories : IMigrationStep
                 if (childNode != null)
                 {
                     await LogAsync(logPath, $"Skipping existing child node: {childCategoryName} (ID: {childNode.Id})").ConfigureAwait(false);
-                    _logger.Info($"Child node already exists: {childCategoryName} (ID: {childNode.Id})", "Migration");
+                    _logger.Verbose($"Child node already exists: {childCategoryName} (ID: {childNode.Id})", "Migration");
                 }
                 else
                 {
@@ -147,7 +171,7 @@ public class MigrationStep3MigrateCategories : IMigrationStep
                     if (childNode != null)
                     {
                         totalNodesCreated++;
-                        _logger.Info($"Created child node: {childCategoryName} (ID: {childNode.Id})", "Migration");
+                        _logger.Verbose($"Created child node: {childCategoryName} (ID: {childNode.Id})", "Migration");
                     }
                 }
 

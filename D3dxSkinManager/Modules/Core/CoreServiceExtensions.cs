@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
-using D3dxSkinManager.Infrastructure.Services;
 
 namespace D3dxSkinManager.Modules.Core;
 
@@ -72,9 +71,6 @@ public static class CoreServiceExtensions
 
         // Performance monitor for tracking application performance
         AddSingleton<IPerformanceMonitor, PerformanceMonitor>(services);
-
-        // Window title service for updating window title based on active profile
-        AddSingleton<IWindowTitleService, WindowTitleService>(services);
 
         return services;
     }

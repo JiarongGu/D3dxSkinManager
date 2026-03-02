@@ -14,6 +14,7 @@ public class MigrationResult
     public TimeSpan Duration { get; set; }
     public List<string> Errors { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
+    public List<MigrationError> DetailedErrors { get; set; } = new();
     public string? LogFilePath { get; set; }
     public int? FailedAtStep { get; set; }
     public string? FailedStepName { get; set; }

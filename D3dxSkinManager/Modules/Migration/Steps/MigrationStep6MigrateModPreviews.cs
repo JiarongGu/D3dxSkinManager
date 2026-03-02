@@ -52,14 +52,14 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
         await LogAsync(context.LogPath, "Step 6: Migrating mod preview images").ConfigureAwait(false);
 
         // Migrate preview images
-        var copied = await MigrateModPreviewsAsync(context.Options.SourcePath, context.LogPath, progress).ConfigureAwait(false);
+        var copied = await MigrateModPreviewsAsync(context.Options.SourcePath, context.LogPath, context, progress).ConfigureAwait(false);
         context.Result.PreviewsCopied = copied;
         await LogAsync(context.LogPath, $"Copied {copied} mod preview images").ConfigureAwait(false);
 
         _logger.Info($"Step 6 complete: {copied} previews", "Migration");
     }
 
-    private async Task<int> MigrateModPreviewsAsync(string sourcePath, string logPath, IProgress<MigrationProgress>? progress = null)
+    private async Task<int> MigrateModPreviewsAsync(string sourcePath, string logPath, MigrationContext context, IProgress<MigrationProgress>? progress = null)
     {
         var sourceDir = Path.Combine(sourcePath, "resources", "preview");
         var destDir = _profilePaths.PreviewsDirectory;
@@ -72,7 +72,7 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
 
         Directory.CreateDirectory(destDir);
 
-        // âœ?Use ImageService to get supported extensions
+        // Use ImageService to get supported extensions
         var imageExtensions = _imageService.GetSupportedImageExtensions();
         var allFiles = new List<string>();
         foreach (var ext in imageExtensions)
@@ -92,7 +92,7 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
             var ext = Path.GetExtension(sourceFile);
             var destFile = Path.Combine(destDir, sha, $"preview1{ext}");
 
-            if (await CopyPreviewFileAsync(sourceFile, destFile, sha, logPath))
+            if (await CopyPreviewFileAsync(sourceFile, destFile, sha, logPath, context))
             {
                 copied++;
                 ReportPreviewProgress(progress, sha, copied, totalFiles);
@@ -106,7 +106,7 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
             var fileName = Path.GetFileName(sourceFile);
             var destFile = Path.Combine(destDir, sha, fileName);
 
-            if (await CopyPreviewFileAsync(sourceFile, destFile, sha, logPath))
+            if (await CopyPreviewFileAsync(sourceFile, destFile, sha, logPath, context))
             {
                 copied++;
                 ReportPreviewProgress(progress, sha, copied, totalFiles);
@@ -116,14 +116,14 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
         return copied;
     }
 
-    private async Task<bool> CopyPreviewFileAsync(string sourceFile, string destFile, string sha, string logPath)
+    private async Task<bool> CopyPreviewFileAsync(string sourceFile, string destFile, string sha, string logPath, MigrationContext context)
     {
         try
         {
             if (!File.Exists(destFile))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destFile)!);
-                // âœ?Use FileService instead of File.Copy!
+                // ï¿½?Use FileService instead of File.Copy!
                 await _fileService.CopyFileAsync(sourceFile, destFile, overwrite: false).ConfigureAwait(false);
                 return true;
             }
@@ -131,6 +131,18 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
         catch (Exception ex)
         {
             await LogAsync(logPath, $"ERROR copying preview for {sha}: {ex.Message}").ConfigureAwait(false);
+
+            // Add detailed error information
+            context.Result.DetailedErrors.Add(new MigrationError
+            {
+                Message = ex.Message,
+                MessageCode = MigrationErrorCodes.Messages.PREVIEW_COPY_FAILED,
+                ModSha = sha,
+                StepCode = MigrationErrorCodes.Steps.MIGRATE_MOD_PREVIEWS,
+                CategoryCode = MigrationErrorCodes.Categories.PREVIEW_MIGRATION,
+                Timestamp = DateTime.UtcNow,
+                Parameters = new Dictionary<string, string> { { "sha", sha } }
+            });
         }
         return false;
     }

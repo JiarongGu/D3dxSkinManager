@@ -218,7 +218,7 @@ public class CategoryRepository : ICategoryRepository
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Categories WHERE Name = @name LIMIT 1";
+        command.CommandText = "SELECT * FROM Categories WHERE Name = @name COLLATE NOCASE LIMIT 1";
         command.Parameters.AddWithValue("@name", name);
 
         await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);

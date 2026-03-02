@@ -1,6 +1,7 @@
 using System.Drawing.Imaging;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
+using D3dxSkinManager.Modules.Core.Services;
 using Drawing2D = System.Drawing.Drawing2D;
 
 namespace D3dxSkinManager.Modules.Context.Services;
@@ -33,13 +34,15 @@ public class ImageService : IImageService
     private readonly IPathHelper _pathHelper;
     private readonly ILogHelper _logger;
     private readonly IHashHelper _hashHelper;
+    private readonly ICustomSchemeHandler _schemeHandler;
 
-    public ImageService(IProfilePathService profilePaths, IPathHelper pathHelper, ILogHelper logger, IHashHelper hashHelper)
+    public ImageService(IProfilePathService profilePaths, IPathHelper pathHelper, ILogHelper logger, IHashHelper hashHelper, ICustomSchemeHandler schemeHandler)
     {
         _profilePaths = profilePaths;
         _pathHelper = pathHelper;
         _logger = logger;
         _hashHelper = hashHelper;
+        _schemeHandler = schemeHandler;
     }
 
     /// <summary>
@@ -68,8 +71,8 @@ public class ImageService : IImageService
 
     /// <summary>
     /// Generate preview images from mod directory
-    /// Searches for multiple preview images and copies them to per-mod folders without resizing
-    /// Preserves original image quality and resolution
+    /// Searches for multiple preview images and copies them to per-mod folders
+    /// Preserves original image format and quality
     /// Returns the count of previews generated
     /// </summary>
     public async Task<int> GeneratePreviewsAsync(string modDirectory, string sha)
@@ -83,8 +86,8 @@ public class ImageService : IImageService
         var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
         Directory.CreateDirectory(modPreviewFolder);
 
-        // Look for preview images in mod directory (preview.png, preview1.png, preview2.png, etc.)
-        var previewPatterns = new[] { "preview*.png", "preview*.jpg", "preview*.jpeg" };
+        // Look for preview images in mod directory (all supported formats)
+        var previewPatterns = ImageConstants.SupportedExtensions.Select(ext => $"preview*{ext}").ToArray();
         var foundPreviews = new List<string>();
 
         foreach (var pattern in previewPatterns)
@@ -99,13 +102,13 @@ public class ImageService : IImageService
         int previewIndex = 1;
         foreach (var sourcePath in foundPreviews.Distinct())
         {
-            // Preserve original extension to maintain image quality
+            // Preserve original extension to maintain image format
             var sourceExtension = Path.GetExtension(sourcePath);
             var targetPath = Path.Combine(modPreviewFolder, $"preview{previewIndex}{sourceExtension}");
 
             try
             {
-                // Copy image directly without resizing to preserve original quality
+                // Copy image directly to preserve original format and quality
                 File.Copy(sourcePath, targetPath, overwrite: true);
                 _logger.Info($"Generated preview {previewIndex} for {sha}", "ImageService");
                 previewCount++;
@@ -129,13 +132,13 @@ public class ImageService : IImageService
             previewIndex = 1;
             foreach (var sourcePath in allImages)
             {
-                // Preserve original extension to maintain image quality
+                // Preserve original extension to maintain image format
                 var sourceExtension = Path.GetExtension(sourcePath);
                 var targetPath = Path.Combine(modPreviewFolder, $"preview{previewIndex}{sourceExtension}");
 
                 try
                 {
-                    // Copy image directly without resizing to preserve original quality
+                    // Copy image directly to preserve original format and quality
                     File.Copy(sourcePath, targetPath, overwrite: true);
                     _logger.Info($"Generated preview {previewIndex} from {Path.GetFileName(sourcePath)}", "ImageService");
                     previewCount++;
@@ -258,11 +261,11 @@ public class ImageService : IImageService
                     continue;
                 }
 
-                // Copy image directly without resizing to preserve original quality
+                // Copy image directly to preserve original format and quality
                 var sourceExtension = Path.GetExtension(sourcePath);
                 var targetPath = Path.Combine(modPreviewFolder, $"preview{nextIndex}{sourceExtension}");
 
-                // Simple file copy - no resizing
+                // Simple file copy
                 File.Copy(sourcePath, targetPath, overwrite: false);
                 _logger.Info($"Imported preview {nextIndex} from cache: {Path.GetFileName(sourcePath)}", "ImageService");
 
@@ -500,6 +503,29 @@ public class ImageService : IImageService
             _logger.Info($"Set preview as thumbnail: {Path.GetFileName(selectedFile)} -> preview1", "ImageService");
 
             _logger.Info($"Reordered {selectedIndex + 1} preview images for mod {sha}", "ImageService");
+
+            // Invalidate CustomSchemeHandler cache for all affected preview images
+            // Since we renamed multiple files, we need to invalidate all of them
+            var affectedPaths = new List<string>();
+            for (int i = 0; i <= selectedIndex; i++)
+            {
+                // Add both old paths (before rename) and new paths (after rename)
+                var oldPath = _pathHelper.ToRelativePath(allPreviews[i]);
+                if (oldPath != null)
+                {
+                    affectedPaths.Add(oldPath);
+                }
+
+                // The new paths after reordering
+                var extension = Path.GetExtension(allPreviews[i < selectedIndex ? i + 1 : 0]);
+                var newPreviewPath = Path.Combine(previewDirectory, $"preview{i + 1}{extension}");
+                var newRelativePath = _pathHelper.ToRelativePath(newPreviewPath);
+                if (newRelativePath != null)
+                {
+                    affectedPaths.Add(newRelativePath);
+                }
+            }
+            _schemeHandler.InvalidatePaths(affectedPaths.Distinct());
         }
         catch (Exception ex)
         {
@@ -540,6 +566,10 @@ public class ImageService : IImageService
 
         File.Delete(absolutePreviewPath);
         _logger.Info($"Deleted preview image: {absolutePreviewPath}", "ImageService");
+
+        // Invalidate CustomSchemeHandler cache for this image
+        // Use relative path since that's what the frontend uses in app:// URLs
+        _schemeHandler.InvalidatePath(previewPath);
 
         return await Task.FromResult(true).ConfigureAwait(false);
     }

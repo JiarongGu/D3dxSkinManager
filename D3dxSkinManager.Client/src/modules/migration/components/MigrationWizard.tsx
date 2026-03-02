@@ -43,6 +43,7 @@ const MigrationWizardInner: React.FC<{
     form,
     setMigrating,
     setMigrationProgress,
+    setCurrentMigrationProgress,
     setResult,
     setCurrentStep,
     goToPreviousStep,
@@ -92,48 +93,55 @@ const MigrationWizardInner: React.FC<{
         archiveMode: values.archiveMode || ArchiveHandling.Copy,
       };
 
-      const intervalId = setInterval(() => {
-        setMigrationProgress((prev: number) => Math.min(prev + 5, 95));
-      }, 1000);
+      // Reset progress before starting migration
+      setMigrationProgress(0);
+      setCurrentMigrationProgress(undefined);
 
       const profileId = profileState.selectedProfile?.id || '';
-      const migrationResult = await migrationService.startMigration(profileId, options);
 
-      clearInterval(intervalId);
-      setMigrationProgress(100);
-      setResult(migrationResult);
+      // Start migration - don't wait for response as it will timeout for long migrations
+      // Rely on PROGRESS and COMPLETED events instead
+      migrationService.startMigration(profileId, options)
+        .then(async (migrationResult) => {
+          // API response received successfully (migration was quick or didn't timeout)
+          setResult(migrationResult);
+          setCurrentStep(MigrationStep.Complete);
 
-      if (migrationResult.success && values.createProfile) {
-        try {
-          const profileName =
-            values.profileName || analysis?.activeEnvironment || 'Migrated Profile';
-          await profileService.createProfile({
-            name: profileName,
-            description: `Migrated from Python d3dxSkinManage on ${new Date().toLocaleDateString()}`,
-            gameName: analysis?.activeEnvironment,
-          });
-          notification.success(`Profile "${profileName}" created successfully!`);
-        } catch (error) {
-          // Error handled by error handler
-          notification.warning('Migration succeeded but profile creation failed');
-        }
-      }
+          // Handle profile creation if requested
+          if (migrationResult.success && values.createProfile) {
+            try {
+              const profileName =
+                values.profileName || analysis?.activeEnvironment || 'Migrated Profile';
+              await profileService.createProfile({
+                name: profileName,
+                description: `Migrated from Python d3dxSkinManage on ${new Date().toLocaleDateString()}`,
+                gameName: analysis?.activeEnvironment,
+              });
+              notification.success(`Profile "${profileName}" created successfully!`);
+            } catch (error) {
+              notification.warning('Migration succeeded but profile creation failed');
+            }
+          }
 
-      setCurrentStep(MigrationStep.Complete);
+          if (migrationResult.success) {
+            notification.success('Migration completed successfully!');
+            if (onMigrationComplete) {
+              onMigrationComplete();
+            }
+          } else {
+            notification.error('Migration completed with errors');
+          }
+        })
+        .catch((error) => {
+          // API timeout or error - this is expected for long migrations
+          // The COMPLETED event will handle setting migrating=false
+          console.log('Migration API call timed out or errored (this is normal for long migrations):', error);
+          // Don't show error notification - rely on events
+        });
 
-      if (migrationResult.success) {
-        notification.success('Migration completed successfully!');
-        if (onMigrationComplete) {
-          onMigrationComplete();
-        }
-      } else {
-        notification.error('Migration completed with errors');
-      }
+      // Don't wait for API response - continue and let events drive the UI
     } catch (error) {
-      notification.error('Migration failed');
-      // Error handled by error handler
-    } finally {
-      setMigrating(false);
+      notification.error('Migration failed to start');
     }
   };
 

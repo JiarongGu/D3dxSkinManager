@@ -5,6 +5,7 @@
 
 import type { WorkflowInfo } from "../../modules/workflow/types/workflow.types";
 import type { ModInfo } from "../types/mod.types";
+import type { MigrationProgress, MigrationResult } from "../../modules/migration/services/migrationService";
 import { bridgeService } from "./bridgeService";
 
 // Module names matching backend ModuleNames
@@ -86,6 +87,7 @@ export enum ProfileEventType {
 
 // Migration event types
 export enum MigrationEventType {
+  PROGRESS = "PROGRESS",
   COMPLETED = "COMPLETED",
 }
 
@@ -182,7 +184,8 @@ export interface EventPayloadMap {
 
   // Migration events
   [Module.MIGRATION]: {
-    [MigrationEventType.COMPLETED]: unknown;
+    [MigrationEventType.PROGRESS]: MigrationProgress;
+    [MigrationEventType.COMPLETED]: MigrationResult;
   };
 
   // Tools events

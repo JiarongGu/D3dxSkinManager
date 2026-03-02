@@ -82,16 +82,57 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         // Migrate mod archives and create mod entries
         int copied = 0;
         int created = 0;
+        int processed = 0;
 
         foreach (var modEntry in modEntries)
         {
             try
             {
-                // Check if mod already exists in database (skip if exists)
+                // Check if mod already exists in database
                 var existingMod = await _modRepository.GetByIdAsync(modEntry.Sha).ConfigureAwait(false);
+
+                // Query database for Category ID by object name
+                string? categoryId = null;
+                if (!string.IsNullOrEmpty(modEntry.Object))
+                {
+                    var categoryInfo = await _categoryService.GetByNameAsync(modEntry.Object).ConfigureAwait(false);
+                    if (categoryInfo != null)
+                    {
+                        categoryId = categoryInfo.Id;
+                        _logger.Verbose($"Mapped '{modEntry.Object}' → ID: {categoryId}", "Migration");
+                    }
+                    else
+                    {
+                        _logger.Warn($"No Category found for object '{modEntry.Object}', mod will be unclassified", "Migration");
+                    }
+                }
+
                 if (existingMod != null)
                 {
-                    _logger.Info($"Skipping existing mod: {modEntry.Name} ({modEntry.Sha})", "Migration");
+                    // Mod exists - update its category if it's different
+                    if (existingMod.Category != categoryId)
+                    {
+                        _logger.Verbose($"Updating category for existing mod: {modEntry.Name} ({modEntry.Sha}) from '{existingMod.Category}' to '{categoryId}'", "Migration");
+                        existingMod.Category = categoryId;
+                        await _modRepository.UpdateAsync(existingMod).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        _logger.Verbose($"Skipping existing mod (category unchanged): {modEntry.Name} ({modEntry.Sha})", "Migration");
+                    }
+
+                    processed++;
+
+                    // Report progress even for skipped mods
+                    progress?.Report(new MigrationProgress
+                    {
+                        Stage = MigrationStage.MigratingMetadata,
+                        CurrentTask = $"Checked: {modEntry.Name}",
+                        ProcessedItems = processed,
+                        TotalItems = modEntries.Count,
+                        PercentComplete = 40 + (20 * processed / Math.Max(1, modEntries.Count))
+                    });
+
                     continue;
                 }
 
@@ -133,23 +174,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 }
                 copied++;
 
-                // Query database for Category ID by object name
-                string? categoryId = null;
-                if (!string.IsNullOrEmpty(modEntry.Object))
-                {
-                    var categoryInfo = await _categoryService.GetByNameAsync(modEntry.Object).ConfigureAwait(false);
-                    if (categoryInfo != null)
-                    {
-                        categoryId = categoryInfo.Id;
-                        _logger.Info($"Mapped '{modEntry.Object}' �� ID: {categoryId}", "Migration");
-                    }
-                    else
-                    {
-                        _logger.Warn($"No Category found for object '{modEntry.Object}', mod will be unclassified", "Migration");
-                    }
-                }
-
-                // Create mod entry using service
+                // Create mod entry using service (categoryId was already looked up above)
                 var mod = await _modManagementService.GetOrCreateModAsync(
                     modEntry.Sha,
                     new CreateModRequest
@@ -168,21 +193,38 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 if (mod != null)
                 {
                     created++;
-                    _logger.Info($"Migrated mod: {modEntry.Name} ({modEntry.Sha})", "Migration");
+                    _logger.Verbose($"Migrated mod: {modEntry.Name} ({modEntry.Sha})", "Migration");
                 }
+
+                processed++;
 
                 progress?.Report(new MigrationProgress
                 {
                     Stage = MigrationStage.MigratingMetadata,
                     CurrentTask = $"Migrating {modEntry.Name}...",
-                    ProcessedItems = created,
+                    ProcessedItems = processed,
                     TotalItems = modEntries.Count,
-                    PercentComplete = 40 + (20 * created / Math.Max(1, modEntries.Count))
+                    PercentComplete = 40 + (20 * processed / Math.Max(1, modEntries.Count))
                 });
             }
             catch (Exception ex)
             {
                 _logger.Error($"ERROR migrating mod {modEntry.Name}: {ex.Message}", "Migration", ex);
+
+                // Add detailed error information
+                context.Result.DetailedErrors.Add(new MigrationError
+                {
+                    Message = ex.Message,
+                    MessageCode = "MOD_MIGRATION_FAILED",
+                    ModName = modEntry.Name,
+                    ModSha = modEntry.Sha,
+                    StepCode = "MIGRATE_MOD_ARCHIVES",
+                    CategoryCode = "MOD_MIGRATION",
+                    Timestamp = DateTime.UtcNow
+                });
+
+                // Also add to simple errors list for backward compatibility
+                context.Result.Errors.Add($"Mod '{modEntry.Name}': {ex.Message}");
             }
         }
 

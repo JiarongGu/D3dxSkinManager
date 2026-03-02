@@ -71,6 +71,23 @@ export interface MigrationProgress {
   totalBytes: number;
   speedBytesPerSecond: number;
   estimatedTimeRemainingSeconds: number;
+
+  // Step tracking
+  currentStep: number;
+  totalSteps: number;
+  stepName: string;
+  stepProgress: number;  // Progress within current step (0-100)
+}
+
+export interface MigrationError {
+  message: string;
+  messageCode?: string;
+  modName?: string;
+  modSha?: string;
+  stepCode?: string;
+  categoryCode?: string;
+  timestamp: string;
+  parameters?: Record<string, string>;
 }
 
 export interface MigrationResult {
@@ -82,6 +99,7 @@ export interface MigrationResult {
   CategoriesMigrated: boolean;
   errors: string[];
   warnings: string[];
+  detailedErrors: MigrationError[];
   logFilePath: string;
   duration: string;
   startTime: string;

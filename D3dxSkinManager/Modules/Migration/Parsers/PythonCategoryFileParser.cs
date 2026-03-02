@@ -57,7 +57,8 @@ public class PythonCategoryFileParser : IPythonCategoryFileParser
         {
             try
             {
-                var categoryName = Path.GetFileName(file);
+                // Get category name without file extension
+                var categoryName = Path.GetFileNameWithoutExtension(file);
                 var lines = await File.ReadAllLinesAsync(file).ConfigureAwait(false);
 
                 // Parse each line as an object name

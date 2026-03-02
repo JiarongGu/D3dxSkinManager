@@ -45,8 +45,8 @@ public class PythonModIndexParser : IPythonModIndexParser
             return allMods;
         }
 
-        // Find all index_*.json files
-        var indexFiles = Directory.GetFiles(modsIndexDirectory, "index_*.json");
+        // Find all JSON files in modsIndex directory
+        var indexFiles = Directory.GetFiles(modsIndexDirectory, "*.json");
         _logger.Info($"Found {indexFiles.Length} mod index files", "PythonModIndexParser");
 
         foreach (var indexFile in indexFiles)

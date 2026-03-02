@@ -13,6 +13,12 @@ public class MigrationProgress
     public long TotalBytes { get; set; }
     public int PercentComplete { get; set; }
     public string? ErrorMessage { get; set; }
+
+    // Step tracking
+    public int CurrentStep { get; set; }
+    public int TotalSteps { get; set; }
+    public string StepName { get; set; } = string.Empty;
+    public int StepProgress { get; set; }  // Progress within current step (0-100)
 }
 
 public enum MigrationStage

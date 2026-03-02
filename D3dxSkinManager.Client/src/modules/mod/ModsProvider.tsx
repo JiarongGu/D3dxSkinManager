@@ -105,6 +105,7 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       MigrationEventType.COMPLETED,
       () => {
         // Reload entire profile data after migration completes
+        // This ensures category counts are refreshed after migration
         void Promise.all([
           modOps.loadMods(selectedProfileId),
           categoryOps.loadCategoryTree(selectedProfileId),

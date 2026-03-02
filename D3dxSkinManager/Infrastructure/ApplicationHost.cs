@@ -18,7 +18,6 @@ using D3dxSkinManager.Modules.Plugin;
 using D3dxSkinManager.Modules.Setting;
 using D3dxSkinManager.Modules.Setting.Services;
 using D3dxSkinManager.Infrastructure.WebView;
-using D3dxSkinManager.Infrastructure.Services;
 
 namespace D3dxSkinManager.Infrastructure;
 
@@ -147,10 +146,6 @@ public class ApplicationHost
         var formInteractionService = _serviceProvider.GetRequiredService<IFormInteractionService>();
         formInteractionService.SetMainForm(_mainForm);
 
-        // Initialize WindowTitleService for dynamic profile-based title updates
-        var windowTitleService = _serviceProvider.GetRequiredService<IWindowTitleService>();
-        windowTitleService.Initialize(_mainForm);
-
         _logger.Info("Main form created with double buffering enabled", "Host");
     }
 
@@ -194,10 +189,6 @@ public class ApplicationHost
                 _logger.Info("Received window state reset event", "Host");
                 await HandleWindowStateResetAsync(eventMessage);
             });
-
-            // Update window title with active profile name
-            var windowTitleService = _serviceProvider.GetRequiredService<IWindowTitleService>();
-            await windowTitleService.UpdateTitleAsync();
 
             _logger.Info("All components initialized", "Host");
         }

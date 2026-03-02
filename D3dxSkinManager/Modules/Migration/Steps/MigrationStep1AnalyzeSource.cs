@@ -38,12 +38,14 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
         {
             Stage = MigrationStage.Analyzing,
             CurrentTask = "Analyzing source...",
+            ProcessedItems = 0,
+            TotalItems = 4,
             PercentComplete = 0
         });
 
         await LogAsync(context.LogPath, "Step 1: Analyzing Python installation source").ConfigureAwait(false);
 
-        var analysis = await AnalyzeSourceAsync(context.Options.SourcePath).ConfigureAwait(false);
+        var analysis = await AnalyzeSourceAsync(context.Options.SourcePath, progress).ConfigureAwait(false);
 
         if (!analysis.IsValid)
         {
@@ -75,7 +77,7 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
         _logger.Info($"Analysis complete: {analysis.TotalMods} mods", "Migration");
     }
 
-    private async Task<MigrationAnalysis> AnalyzeSourceAsync(string pythonPath)
+    private async Task<MigrationAnalysis> AnalyzeSourceAsync(string pythonPath, IProgress<MigrationProgress>? progress = null)
     {
         var analysis = new MigrationAnalysis
         {
@@ -85,7 +87,15 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
 
         try
         {
-            // Validate Python installation structure
+            // Step 1/4: Validate Python installation structure
+            progress?.Report(new MigrationProgress
+            {
+                Stage = MigrationStage.Analyzing,
+                CurrentTask = "Validating directory structure...",
+                ProcessedItems = 1,
+                TotalItems = 4
+            });
+
             if (!Directory.Exists(pythonPath))
             {
                 analysis.Errors.Add($"Directory not found: {pythonPath}");
@@ -102,7 +112,15 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
                 return analysis;
             }
 
-            // Detect environments
+            // Step 2/4: Detect environments
+            progress?.Report(new MigrationProgress
+            {
+                Stage = MigrationStage.Analyzing,
+                CurrentTask = "Detecting environments...",
+                ProcessedItems = 2,
+                TotalItems = 4
+            });
+
             List<string> environments = new List<string>();
 
             if (!Directory.Exists(homePath))
@@ -130,7 +148,15 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
 
             analysis.Environments = environments;
 
-            // Count mods from resources/mods directory
+            // Step 3/4: Count mods from resources/mods directory
+            progress?.Report(new MigrationProgress
+            {
+                Stage = MigrationStage.Analyzing,
+                CurrentTask = "Counting mod archives...",
+                ProcessedItems = 3,
+                TotalItems = 4
+            });
+
             var modsPath = Path.Combine(resourcesPath, "mods");
             if (Directory.Exists(modsPath))
             {
@@ -147,7 +173,15 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
                 }
             }
 
-            // Count preview images
+            // Step 4/4: Count preview images
+            progress?.Report(new MigrationProgress
+            {
+                Stage = MigrationStage.Analyzing,
+                CurrentTask = "Counting preview images...",
+                ProcessedItems = 4,
+                TotalItems = 4
+            });
+
             var previewPath = Path.Combine(resourcesPath, "preview");
             if (Directory.Exists(previewPath))
             {

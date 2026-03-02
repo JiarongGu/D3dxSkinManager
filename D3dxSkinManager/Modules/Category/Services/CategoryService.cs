@@ -42,6 +42,8 @@ public class CategoryService : ICategoryService
     private readonly ICategoryRepository _repository;
     private readonly IModRepository _modRepository;
     private readonly IPathHelper _pathHelper;
+    private readonly IHashHelper _hashHelper;
+    private readonly IImageHelper _imageHelper;
     private readonly IFileTransferService _fileTransferService;
     private readonly IProfilePathService _profilePaths;
     private readonly IMemoryCache _cache;
@@ -53,6 +55,8 @@ public class CategoryService : ICategoryService
         ICategoryRepository repository,
         IModRepository modRepository,
         IPathHelper pathHelper,
+        IHashHelper hashHelper,
+        IImageHelper imageHelper,
         IFileTransferService fileTransferService,
         IProfilePathService profilePaths,
         IMemoryCache cache,
@@ -64,6 +68,8 @@ public class CategoryService : ICategoryService
         _profilePaths = profilePaths;
         _modRepository = modRepository;
         _pathHelper = pathHelper;
+        _hashHelper = hashHelper;
+        _imageHelper = imageHelper;
         _cache = cache;
         _eventBus = eventBus;
 
@@ -224,15 +230,24 @@ public class CategoryService : ICategoryService
             // Handle thumbnail change if needed
             if (thumbnailPath != category.Thumbnail)
             {
-                // Copy new thumbnail to data folder if provided
+                // Convert and copy new thumbnail to data folder if provided
                 if (thumbnailPath != null)
                 {
-                    var copiedPath = await _fileTransferService.CopyToManagedDirectoryAsync(
-                        thumbnailPath,
-                        _profilePaths.ThumbnailsDirectory,
-                        true
-                    ).ConfigureAwait(false);
-                    category.Thumbnail = copiedPath;
+                    // Convert thumbnail to PNG format for compatibility
+                    var thumbnailsDir = _profilePaths.ThumbnailsDirectory;
+                    var hash = await _hashHelper.CalculateFileSHA256Async(thumbnailPath).ConfigureAwait(false);
+                    var convertedPath = await _imageHelper.ConvertToPngAsync(thumbnailPath, thumbnailsDir, hash).ConfigureAwait(false);
+
+                    if (convertedPath != null)
+                    {
+                        // Convert to relative path for portability
+                        var relativePath = _pathHelper.ToRelativePath(convertedPath) ?? convertedPath;
+                        category.Thumbnail = relativePath;
+                    }
+                    else
+                    {
+                        category.Thumbnail = null;
+                    }
                 }
                 else
                 {
@@ -332,21 +347,24 @@ public class CategoryService : ICategoryService
                 generatedId = Guid.NewGuid().ToString();
             }
 
-            // Copy thumbnail to data folder if provided
+            // Convert and copy thumbnail to data folder if provided
             string? relativeThumbnailPath = null;
             if (!string.IsNullOrEmpty(thumbnailPath))
             {
-                // Use FileTransferService to handle copy with SHA-256 naming and deduplication
-                relativeThumbnailPath = await _fileTransferService.CopyToManagedDirectoryAsync(
-                    thumbnailPath,
-                    _profilePaths.ThumbnailsDirectory,
-                    preserveExtension: true
-                ).ConfigureAwait(false);
+                // Convert thumbnail to PNG format for compatibility
+                var thumbnailsDir = _profilePaths.ThumbnailsDirectory;
+                var hash = await _hashHelper.CalculateFileSHA256Async(thumbnailPath).ConfigureAwait(false);
+                var convertedPath = await _imageHelper.ConvertToPngAsync(thumbnailPath, thumbnailsDir, hash).ConfigureAwait(false);
 
-                // If copy failed (file doesn't exist), store original path (will fail gracefully on display)
-                if (relativeThumbnailPath == null)
+                if (convertedPath != null)
                 {
-                    Console.WriteLine($"[CategoryService] Failed to copy thumbnail, storing original path");
+                    // Convert to relative path for portability
+                    relativeThumbnailPath = _pathHelper.ToRelativePath(convertedPath) ?? convertedPath;
+                }
+                else
+                {
+                    // If conversion failed, store original path (will fail gracefully on display)
+                    Console.WriteLine($"[CategoryService] Failed to convert thumbnail, storing original path");
                     relativeThumbnailPath = thumbnailPath;
                 }
             }
@@ -385,8 +403,18 @@ public class CategoryService : ICategoryService
             if (category == null)
                 return false;
 
+            // Convert thumbnail to PNG format for compatibility
+            var thumbnailsDir = _profilePaths.ThumbnailsDirectory;
+            var hash = await _hashHelper.CalculateFileSHA256Async(thumbnailPath).ConfigureAwait(false);
+            var convertedPath = await _imageHelper.ConvertToPngAsync(thumbnailPath, thumbnailsDir, hash).ConfigureAwait(false);
+
+            if (convertedPath == null)
+            {
+                return false;
+            }
+
             // Convert to relative path if under data folder for portability
-            var relativeThumbnailPath = _pathHelper.ToRelativePath(thumbnailPath) ?? thumbnailPath;
+            var relativeThumbnailPath = _pathHelper.ToRelativePath(convertedPath) ?? convertedPath;
 
             category.Thumbnail = relativeThumbnailPath;
             var updated = await _repository.UpdateAsync(category).ConfigureAwait(false);

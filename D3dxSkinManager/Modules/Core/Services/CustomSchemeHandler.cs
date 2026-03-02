@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Core.Constants;
 using System.Collections.Concurrent;
 using System.Net;
@@ -20,6 +19,18 @@ public interface ICustomSchemeHandler
     /// <param name="contentType">Output parameter for the content type</param>
     /// <returns>Stream containing the file data</returns>
     Stream HandleRequest(string url, out string contentType);
+
+    /// <summary>
+    /// Invalidate cache for a specific file path
+    /// </summary>
+    /// <param name="filePath">Absolute or relative file path to invalidate</param>
+    void InvalidatePath(string filePath);
+
+    /// <summary>
+    /// Invalidate cache for multiple file paths
+    /// </summary>
+    /// <param name="filePaths">Collection of file paths to invalidate</param>
+    void InvalidatePaths(IEnumerable<string> filePaths);
 }
 
 /// <summary>
@@ -146,14 +157,27 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     }
 
     /// <summary>
-    /// Clears the path cache - useful if base data path changes
-    /// Note: IPathCache doesn't support prefix-based clear, so we rely on automatic expiration
+    /// Invalidate cache for a specific file path
+    /// Used when files are modified, deleted, or renamed to ensure fresh content
     /// </summary>
-    public void ClearPathCache()
+    public void InvalidatePath(string filePath)
     {
-        // IPathCache (MemoryCache) doesn't support clearing by prefix
-        // Cache entries will expire naturally based on SlidingExpiration (30 minutes)
-        // When SizeLimit (500) is reached, LRU entries are automatically evicted
-        // This is acceptable since path changes are rare
+        var cacheKey = CacheKeyPrefix + filePath;
+        _pathCache.Remove(cacheKey);
+        _logger.Verbose($"Invalidated cache for: {filePath}", "CustomScheme");
+    }
+
+    /// <summary>
+    /// Invalidate cache for multiple file paths
+    /// More efficient than calling InvalidatePath multiple times
+    /// </summary>
+    public void InvalidatePaths(IEnumerable<string> filePaths)
+    {
+        foreach (var filePath in filePaths)
+        {
+            var cacheKey = CacheKeyPrefix + filePath;
+            _pathCache.Remove(cacheKey);
+        }
+        _logger.Verbose($"Invalidated cache for {filePaths.Count()} paths", "CustomScheme");
     }
 }

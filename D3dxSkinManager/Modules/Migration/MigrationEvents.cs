@@ -6,5 +6,6 @@ namespace D3dxSkinManager.Modules.Migration;
 /// </summary>
 public static class MigrationEvents
 {
+    public const string PROGRESS = "PROGRESS";
     public const string COMPLETED = "COMPLETED";
 }

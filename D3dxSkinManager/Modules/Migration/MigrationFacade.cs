@@ -71,11 +71,33 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
 
     public async Task<MigrationResult> StartMigrationAsync(MigrationOptions options, IProgress<MigrationProgress>? progress = null)
     {
-        var result = await _migrationService.MigrateAsync(options, progress, CancellationToken.None).ConfigureAwait(false);
+        DateTime lastProgressEmit = DateTime.MinValue;
+        const int progressThrottleMs = 200; // Emit at most once every 200ms
 
-        // Emit event so frontend knows to reload Category tree
-        // Note: Cache will automatically invalidate and rebuild on next request
-        await _eventBus.EmitAsync(ModuleNames.CATEGORY, CategoryEvents.CATEGORY_TREE_UPDATED).ConfigureAwait(false);
+        // Create a progress reporter that wraps the provided progress and emits events
+        var progressReporter = new Progress<MigrationProgress>(async (migrationProgress) =>
+        {
+            // Forward to original progress reporter if provided
+            progress?.Report(migrationProgress);
+
+            // Throttle event emissions - only emit if enough time has passed or it's final progress
+            var now = DateTime.UtcNow;
+            var isCompleteOrError = migrationProgress.Stage == MigrationStage.Complete ||
+                                    migrationProgress.Stage == MigrationStage.Error ||
+                                    migrationProgress.PercentComplete == 100;
+
+            if (isCompleteOrError || (now - lastProgressEmit).TotalMilliseconds >= progressThrottleMs)
+            {
+                lastProgressEmit = now;
+                // Emit progress event to frontend
+                await _eventBus.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.PROGRESS, migrationProgress).ConfigureAwait(false);
+            }
+        });
+
+        var result = await _migrationService.MigrateAsync(options, progressReporter, CancellationToken.None).ConfigureAwait(false);
+
+        // Invalidate category cache so next request gets fresh counts
+        _categoryService.InvalidateTreeCache();
 
         // Emit migration completed event
         await _eventBus.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, result).ConfigureAwait(false);

@@ -37,7 +37,7 @@ updateUI(data);
 Only show loading spinner if the operation takes longer than a threshold (default 100ms):
 
 ```typescript
-const { loading, execute } = useDelayedLoading(100);
+const { loading, execute } = useDelayedLoading(200);
 
 const loadData = async () => {
   await execute(async () => {
@@ -158,7 +158,7 @@ export function useMyData() {
   const [state, dispatch] = useReducer(myReducer, initialState);
 
   // 1. Create hook instance
-  const { loading, execute } = useDelayedLoading(100);
+  const { loading, execute } = useDelayedLoading(200);
 
   // 2. Sync with reducer
   useEffect(() => {
@@ -217,7 +217,7 @@ export function myReducer(state: MyState, action: MyAction): MyState {
 **File:** `modules/mods/context/hooks/useClassificationData.ts`
 
 ```typescript
-const { loading, execute } = useDelayedLoading(100);
+const { loading, execute } = useDelayedLoading(200);
 
 useEffect(() => {
   dispatch({ type: "SET_CLASSIFICATION_LOADING", payload: loading });
@@ -238,7 +238,7 @@ const loadClassificationTree = useCallback(async (profileId: string) => {
 **File:** `modules/mods/context/hooks/useModData.ts`
 
 ```typescript
-const { loading, execute } = useDelayedLoading(100);
+const { loading, execute } = useDelayedLoading(200);
 
 useEffect(() => {
   dispatch({ type: "SET_LOADING", payload: loading });
@@ -380,7 +380,7 @@ const updateData = async () => {
 ### After (Simple Delayed Loading)
 
 ```typescript
-const { loading, execute } = useDelayedLoading(100);
+const { loading, execute } = useDelayedLoading(200);
 
 const updateData = async () => {
   await execute(async () => {
@@ -438,7 +438,7 @@ const updateData = async () => {
 ```typescript
 describe('useDelayedLoading', () => {
   it('should not show loading for fast operations', async () => {
-    const { loading, execute } = useDelayedLoading(100);
+    const { loading, execute } = useDelayedLoading(200);
 
     const promise = execute(async () => {
       await sleep(50); // Fast operation
@@ -450,7 +450,7 @@ describe('useDelayedLoading', () => {
   });
 
   it('should show loading for slow operations', async () => {
-    const { loading, execute } = useDelayedLoading(100);
+    const { loading, execute } = useDelayedLoading(200);
 
     const promise = execute(async () => {
       await sleep(150); // Slow operation
