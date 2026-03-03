@@ -1,8 +1,8 @@
 ﻿import { BaseModuleService } from '../../../shared/services/baseModuleService';
-import { ModInfo, ModLoadResult, Tag, ModKeybinding } from '../../../shared/types/mod.types';
+import { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest } from '../../../shared/types/mod.types';
 
 // Re-export types for backwards compatibility
-export type { ModInfo, ModLoadResult, Tag, ModKeybinding };
+export type { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest };
 
 /**
  * Service for mod management operations
@@ -171,13 +171,7 @@ export class ModService extends BaseModuleService {
   async updateMetadata(
     profileId: string,
     sha: string,
-    metadata: {
-      name?: string;
-      author?: string;
-      tags?: string[];
-      grading?: string;
-      description?: string;
-    }
+    metadata: UpdateModMetadataRequest
   ): Promise<boolean> {
     return this.sendBooleanMessage('UPDATE_METADATA', profileId, {
       sha,
@@ -205,13 +199,7 @@ export class ModService extends BaseModuleService {
   async batchUpdateMetadata(
     profileId: string,
     shas: string[],
-    metadata: {
-      name?: string;
-      author?: string;
-      tags?: string[];
-      grading?: string;
-      description?: string;
-    },
+    metadata: UpdateModMetadataRequest,
     fieldMask: string[]
   ): Promise<{ updatedCount: number; totalRequested: number }> {
     return this.sendMessage<{ updatedCount: number; totalRequested: number }>(

@@ -41,16 +41,6 @@ export interface CategoryInfo {
   description?: string;
 
   /**
-   * Match mode for auto-detection ("wildcard" or "regex")
-   */
-  matchMode?: string;
-
-  /**
-   * Match pattern for auto-detection
-   */
-  matchPattern?: string;
-
-  /**
    * Additional metadata (JSON object)
    */
   metadata?: Record<string, string | number | boolean>;

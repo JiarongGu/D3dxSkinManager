@@ -78,9 +78,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
               data.parentId,
               100, // default priority
               data.description,
-              data.thumbnail,
-              data.matchMode,
-              data.matchPattern
+              data.thumbnail
             );
 
             if (createdNode) {

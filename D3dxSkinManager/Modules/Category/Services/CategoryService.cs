@@ -18,7 +18,7 @@ public interface ICategoryService
 
     Task<bool> UpdateParentAsync(string categoryId, string? newParentId, int? dropPosition = null);
 
-    Task<bool> UpdateCategoryAsync(string categoryId, string name, string? description = null, string? thumbnailPath = null, string? matchMode = null, string? matchPattern = null);
+    Task<bool> UpdateCategoryAsync(string categoryId, string name, string? description = null, string? thumbnailPath = null);
 
     Task<bool> UpdateThumbnailAsync(string categoryId, string thumbnailPath);
 
@@ -28,7 +28,7 @@ public interface ICategoryService
 
     Task<bool> ExistsAsync(string categoryId);
 
-    Task<CategoryInfo?> CreateAsync(string categoryId, string name, string? parentId = null, int priority = 100, string? description = null, string? thumbnailPath = null, string? matchMode = null, string? matchPattern = null);
+    Task<CategoryInfo?> CreateAsync(string categoryId, string name, string? parentId = null, int priority = 100, string? description = null, string? thumbnailPath = null);
 
     void InvalidateTreeCache();
 
@@ -210,7 +210,7 @@ public class CategoryService : ICategoryService
     /// Update a Category's name
     /// Uses stable IDs - only the display name changes, ID remains the same
     /// </summary>
-    public async Task<bool> UpdateCategoryAsync(string categoryId, string name, string? description = null, string? thumbnailPath = null, string? matchMode = null, string? matchPattern = null)
+    public async Task<bool> UpdateCategoryAsync(string categoryId, string name, string? description = null, string? thumbnailPath = null)
     {
         try
         {
@@ -265,8 +265,6 @@ public class CategoryService : ICategoryService
             // Update fields - ID remains stable
             category.Name = name;
             category.Description = description;
-            if (matchMode != null) category.MatchMode = matchMode;
-            if (matchPattern != null) category.MatchPattern = matchPattern;
 
             var updated = await _repository.UpdateAsync(category).ConfigureAwait(false);
             if (updated)
@@ -318,8 +316,6 @@ public class CategoryService : ICategoryService
     /// <param name="priority">Priority for sorting (default 100)</param>
     /// <param name="description">Optional description</param>
     /// <param name="thumbnailPath">Optional thumbnail path</param>
-    /// <param name="matchMode">Optional match mode for auto-detection</param>
-    /// <param name="matchPattern">Optional match pattern for auto-detection</param>
     /// <returns>The created CategoryInfo or null if name already exists</returns>
     public async Task<CategoryInfo?> CreateAsync(
         string categoryId,
@@ -327,9 +323,7 @@ public class CategoryService : ICategoryService
         string? parentId = null,
         int priority = 100,
         string? description = null,
-        string? thumbnailPath = null,
-        string? matchMode = null,
-        string? matchPattern = null)
+        string? thumbnailPath = null)
     {
         try
         {
@@ -382,8 +376,6 @@ public class CategoryService : ICategoryService
                 Thumbnail = relativeThumbnailPath,
                 Priority = priority,
                 Description = description ?? $"Category: {name}",
-                MatchMode = matchMode,
-                MatchPattern = matchPattern,
                 Children = new List<CategoryInfo>()
             };
 

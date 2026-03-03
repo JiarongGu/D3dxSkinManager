@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Profiles.Models;
 using D3dxSkinManager.Modules.Profiles;

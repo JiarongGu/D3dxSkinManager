@@ -477,7 +477,7 @@ public class ImageService : IImageService
         // Optimized reordering: rename selected to temp name first, then reorder others
         var selectedFile = allPreviews[selectedIndex];
         var selectedExtension = Path.GetExtension(selectedFile);
-        var tempName = Path.Combine(previewDirectory, $"_temp_reorder{selectedExtension}");
+        var tempName = Path.Combine(previewDirectory, TempFileConstants.GetPreviewReorderTempName(selectedExtension));
 
         try
         {

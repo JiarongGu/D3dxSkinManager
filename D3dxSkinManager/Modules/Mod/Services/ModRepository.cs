@@ -59,6 +59,7 @@ public class ModRepository : IModRepository
                 Type TEXT DEFAULT '7z',
                 Grading TEXT DEFAULT 'G',
                 Tags TEXT,
+                DisablePreview INTEGER DEFAULT 0,
                 CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
                 UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP
             );
@@ -134,8 +135,8 @@ public class ModRepository : IModRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO Mods (SHA, Category, Name, Author, Description, Type, Grading, Tags)
-            VALUES (@sha, @category, @name, @author, @description, @type, @grading, @tags)
+            INSERT INTO Mods (SHA, Category, Name, Author, Description, Type, Grading, Tags, DisablePreview)
+            VALUES (@sha, @category, @name, @author, @description, @type, @grading, @tags, @disablePreview)
         ";
 
         command.Parameters.AddWithValue("@sha", mod.SHA);
@@ -146,6 +147,7 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@type", mod.Type);
         command.Parameters.AddWithValue("@grading", mod.Grading);
         command.Parameters.AddWithValue("@tags", JsonHelper.Serialize(mod.Tags));
+        command.Parameters.AddWithValue("@disablePreview", mod.DisablePreview ? 1 : 0);
 
         await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return mod;
@@ -168,6 +170,7 @@ public class ModRepository : IModRepository
                 Type = @type,
                 Grading = @grading,
                 Tags = @tags,
+                DisablePreview = @disablePreview,
                 UpdatedAt = CURRENT_TIMESTAMP
             WHERE SHA = @sha
         ";
@@ -180,6 +183,7 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@type", mod.Type);
         command.Parameters.AddWithValue("@grading", mod.Grading);
         command.Parameters.AddWithValue("@tags", JsonHelper.Serialize(mod.Tags));
+        command.Parameters.AddWithValue("@disablePreview", mod.DisablePreview ? 1 : 0);
 
         var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
@@ -337,6 +341,9 @@ public class ModRepository : IModRepository
             ? new List<string>()
             : JsonHelper.Deserialize<List<string>>(tagsJson) ?? new List<string>();
 
+        var disablePreviewOrdinal = reader.GetOrdinal("DisablePreview");
+        var disablePreview = !reader.IsDBNull(disablePreviewOrdinal) && reader.GetInt32(disablePreviewOrdinal) == 1;
+
         return new ModInfo
         {
             SHA = reader.GetString(reader.GetOrdinal("SHA")),
@@ -347,6 +354,7 @@ public class ModRepository : IModRepository
             Type = reader.GetString(reader.GetOrdinal("Type")),
             Grading = reader.GetString(reader.GetOrdinal("Grading")),
             Tags = tags,
+            DisablePreview = disablePreview,
             CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
             UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt")))
             // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system

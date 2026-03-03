@@ -166,9 +166,7 @@ export function useCategoryTreeOperations({
               nodeId,
               data.name,
               data.description,
-              thumbnailToUse,
-              data.matchMode,
-              data.matchPattern
+              thumbnailToUse
             );
 
             // If parent changed, also move the node

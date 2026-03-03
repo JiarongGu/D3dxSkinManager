@@ -1,6 +1,7 @@
 import React from "react";
 import { Form, Space, Select, AutoComplete } from "antd";
 import { useTranslation } from "react-i18next";
+import { CompactSwitch } from "../../../../shared/components/compact";
 import "./MetadataSection.css";
 
 const { Option } = Select;
@@ -8,6 +9,7 @@ const { Option } = Select;
 export interface MetadataSectionProps {
   authors: string[];
   categoryOptions: Array<{ id: string; name: string }>;
+  hasPreviewFolder?: boolean;
 }
 
 /**
@@ -17,6 +19,7 @@ export interface MetadataSectionProps {
 export const MetadataSection: React.FC<MetadataSectionProps> = ({
   authors,
   categoryOptions,
+  hasPreviewFolder = false,
 }) => {
   const { t } = useTranslation();
 
@@ -107,6 +110,21 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
             </Option>
           ))}
         </Select>
+      </Form.Item>
+
+      <Form.Item
+        label={t("mods.edit.preview.label")}
+        name="disablePreview"
+        tooltip={t("mods.edit.preview.tooltip")}
+        className="metadata-section-preview"
+        valuePropName="checked"
+        getValueFromEvent={(checked) => !checked}
+        getValueProps={(value) => ({ checked: !value })}
+      >
+        <CompactSwitch
+          checkedChildren={t("mods.edit.preview.enable")}
+          unCheckedChildren={t("mods.edit.preview.disable")}
+        />
       </Form.Item>
     </Space>
   );

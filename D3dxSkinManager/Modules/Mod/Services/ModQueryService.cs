@@ -273,7 +273,7 @@ public class ModQueryService : IModQueryService
     }
 
     /// <summary>
-    /// Populates status flags (IsLoaded, IsAvailable) for all mods in bulk by scanning directories once
+    /// Populates status flags (IsLoaded, IsAvailable, HasPreviewFolder) for all mods in bulk by scanning directories once
     /// </summary>
     public void PopulateStatusFlagsBulk(List<ModInfo> mods)
     {
@@ -301,11 +301,33 @@ public class ModQueryService : IModQueryService
                 .ToHashSet()
             : new HashSet<string>();
 
+        // Build a HashSet of mods that have preview folders with actual preview images
+        var modsWithPreviews = new HashSet<string>();
+        if (Directory.Exists(_profilePaths.PreviewsDirectory))
+        {
+            foreach (var previewDir in Directory.GetDirectories(_profilePaths.PreviewsDirectory))
+            {
+                var sha = Path.GetFileName(previewDir);
+                if (string.IsNullOrEmpty(sha))
+                    continue;
+
+                // Check if directory contains any preview image files
+                var hasPreviewFiles = Directory.GetFiles(previewDir, "preview*.*")
+                    .Any(f => Core.Constants.ImageConstants.IsImageExtension(Path.GetExtension(f)));
+
+                if (hasPreviewFiles)
+                {
+                    modsWithPreviews.Add(sha);
+                }
+            }
+        }
+
         foreach (var mod in mods)
         {
             mod.IsAvailable = availableFiles.Contains(mod.SHA);
             mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
             mod.HasCache = allCacheDirectories.Contains(mod.SHA);
+            mod.HasPreviewFolder = modsWithPreviews.Contains(mod.SHA);
         }
     }
 

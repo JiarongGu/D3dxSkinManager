@@ -27,7 +27,6 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<IModImportService, ModImportService>();
         services.TryAddSingleton<IModQueryService, ModQueryService>();
         services.TryAddSingleton<IModMetadataService, ModMetadataService>();
-        services.TryAddSingleton<IModAutoDetectionService, ModAutoDetectionService>();
         services.TryAddSingleton<ITagService, TagService>();
         services.TryAddSingleton<IModKeybindingService, ModKeybindingService>();
 

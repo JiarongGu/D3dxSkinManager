@@ -1,4 +1,4 @@
-namespace D3dxSkinManager.Modules.Core.Models;
+namespace D3dxSkinManager.Modules.Core.Constants;
 
 /// <summary>
 /// Standard error codes for application-wide error handling

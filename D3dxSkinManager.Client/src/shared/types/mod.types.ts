@@ -9,9 +9,11 @@ export interface ModInfo {
   grading: string;
   tags: string[];
   tagsWithMetadata?: Tag[];  // Tag objects with colors (populated by backend)
+  disablePreview: boolean;  // If true, preview images won't be loaded/displayed for this mod
   isLoaded: boolean;
   isAvailable: boolean;
   hasCache: boolean;  // True if cache directory exists (either active or DISABLED-)
+  hasPreviewFolder: boolean;  // True if preview directory exists with preview images
   // Note: Preview images and thumbnails are stored dynamically in previews/{SHA}/ folder
   // Use modService.getPreviewPaths(sha) to fetch them
   // The first preview image (sorted alphabetically) is used as the thumbnail
@@ -22,6 +24,19 @@ export interface ModInfo {
 }
 
 export type GradingLevel = 'G' | 'P' | 'R' | 'X';
+
+/**
+ * Request model for updating mod metadata
+ * Optional fields allow partial updates - only provided values will be applied
+ */
+export interface UpdateModMetadataRequest {
+  name?: string;
+  author?: string;
+  tags?: string[];
+  grading?: string;
+  description?: string;
+  disablePreview?: boolean;
+}
 
 export interface ModFilters {
   searchTerm: string;

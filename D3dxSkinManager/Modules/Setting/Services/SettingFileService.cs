@@ -1,3 +1,4 @@
+using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using System.Text.Json;
@@ -120,7 +121,7 @@ public class SettingFileService : ISettingFileService
             _logger.Debug($"Saving settings file: {filename}", "SettingsFileService");
 
             // Write to temp file first, then move (atomic operation)
-            var tempPath = filePath + ".tmp";
+            var tempPath = TempFileConstants.GetAtomicWriteTempPath(filePath);
             await File.WriteAllTextAsync(tempPath, jsonContent).ConfigureAwait(false);
             File.Move(tempPath, filePath, overwrite: true);
 

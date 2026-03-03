@@ -48,6 +48,17 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
         return;
       }
 
+      // Check if preview is disabled for this mod (use the prop, not state)
+      if (mod?.disablePreview) {
+        // Clear previews when disabled
+        setState((prev) => ({
+          ...prev,
+          previewPaths: [],
+          currentPreviewIndex: 0,
+        }));
+        return;
+      }
+
       try {
         await executeWithDelayedLoading(
           async () => {
@@ -72,13 +83,13 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
         }));
       }
     },
-    [profileState.selectedProfile?.id, setPreviewLoading]
+    [profileState.selectedProfile?.id, setPreviewLoading, mod?.disablePreview]
   );
 
-  // Load preview paths when mod changes or when isLoaded status changes
+  // Load preview paths when mod changes, when isLoaded status changes, or when disablePreview changes
   useEffect(() => {
-    if (state.currentMod?.sha && profileState.selectedProfile?.id) {
-      loadPreviewPaths(state.currentMod.sha);
+    if (mod?.sha && profileState.selectedProfile?.id) {
+      loadPreviewPaths(mod.sha);
     } else {
       // Clear previews when no mod is selected
       setState((prev) => ({
@@ -87,7 +98,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
         currentPreviewIndex: 0,
       }));
     }
-  }, [state.currentMod?.sha, state.currentMod?.isLoaded, profileState.selectedProfile?.id, loadPreviewPaths]);
+  }, [mod?.sha, mod?.isLoaded, mod?.disablePreview, profileState.selectedProfile?.id, loadPreviewPaths]);
 
   // Listen to PREVIEW_IMPORTED events to refresh when backend imports previews
   useEffect(() => {

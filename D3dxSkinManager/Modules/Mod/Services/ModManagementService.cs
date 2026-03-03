@@ -43,6 +43,7 @@ public class UpdateModRequest
     public string? Type { get; set; }
     public string? Grading { get; set; }
     public List<string>? Tags { get; set; }
+    public bool? DisablePreview { get; set; }
     // Note: IsLoaded and IsAvailable are determined dynamically from file system
     // Note: Preview paths and thumbnails are dynamically scanned from previews/{SHA}/ folder
 }
@@ -120,6 +121,7 @@ public class ModManagementService : IModManagementService
         if (request.Type != null) mod.Type = request.Type;
         if (request.Grading != null) mod.Grading = request.Grading;
         if (request.Tags != null) mod.Tags = request.Tags;
+        if (request.DisablePreview != null) mod.DisablePreview = request.DisablePreview.Value;
         // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system
 
         await _repository.UpdateAsync(mod).ConfigureAwait(false);

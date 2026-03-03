@@ -9,7 +9,7 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 /// </summary>
 public interface IModMetadataService
 {
-    Task<bool> UpdateMetadataAsync(string sha, string? name, string? author, List<string>? tags, string? grading, string? description);
+    Task<bool> UpdateMetadataAsync(string sha, UpdateModMetadataRequest request);
     Task<bool> UpdateCategoryAsync(string sha, string category, Func<string, Task<bool>> unloadModFunc, Func<string, Task<ModInfo?>> getModFunc);
     Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask);
 }
@@ -25,7 +25,7 @@ public class ModMetadataService : IModMetadataService
         _logger = logger;
     }
 
-    public async Task<bool> UpdateMetadataAsync(string sha, string? name, string? author, List<string>? tags, string? grading, string? description)
+    public async Task<bool> UpdateMetadataAsync(string sha, UpdateModMetadataRequest request)
     {
         var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
         if (mod == null)
@@ -33,11 +33,12 @@ public class ModMetadataService : IModMetadataService
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
 
-        if (name != null) mod.Name = name;
-        if (author != null) mod.Author = author;
-        if (tags != null) mod.Tags = tags;
-        if (grading != null) mod.Grading = grading;
-        if (description != null) mod.Description = description;
+        if (request.Name != null) mod.Name = request.Name;
+        if (request.Author != null) mod.Author = request.Author;
+        if (request.Tags != null) mod.Tags = request.Tags;
+        if (request.Grading != null) mod.Grading = request.Grading;
+        if (request.Description != null) mod.Description = request.Description;
+        if (request.DisablePreview != null) mod.DisablePreview = request.DisablePreview.Value;
 
         await _repository.UpdateAsync(mod).ConfigureAwait(false);
 

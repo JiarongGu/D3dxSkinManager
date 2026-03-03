@@ -16,10 +16,14 @@ public class ModInfo
     public List<string> Tags { get; set; } = new();
     public List<Tag> TagsWithMetadata { get; set; } = new(); // Tag objects with color information (populated on-demand)
 
+    // Preview settings
+    public bool DisablePreview { get; set; } = false; // If true, preview images won't be loaded/displayed for this mod
+
     // Status flags (populated on-demand from file system, not stored in DB)
     public bool IsLoaded { get; set; }      // True if work directory exists without DISABLED- prefix
     public bool IsAvailable { get; set; }   // True if original archive file exists in mods folder
     public bool HasCache { get; set; }      // True if cache directory exists (either active or with DISABLED- prefix)
+    public bool HasPreviewFolder { get; set; } // True if preview directory exists with preview images
 
     // Timestamps
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

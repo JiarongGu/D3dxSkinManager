@@ -51,3 +51,7 @@ export type { CompactUploadProps } from './CompactUpload';
 // Thumbnail Upload component
 export { CompactThumbnailUpload } from './CompactThumbnailUpload';
 export type { CompactThumbnailUploadProps } from './CompactThumbnailUpload';
+
+// Switch component
+export { CompactSwitch } from './CompactSwitch';
+export type { CompactSwitchProps } from './CompactSwitch';

@@ -72,14 +72,6 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
         var priority = priorityValue ?? 100;
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
         var thumbnail = _payloadHelper.GetOptionalValue<string>(request.Payload, "thumbnail");
-        var matchMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "matchMode");
-        var matchPattern = _payloadHelper.GetOptionalValue<string>(request.Payload, "matchPattern");
-
-        // Normalize matchMode to lowercase if provided
-        if (!string.IsNullOrEmpty(matchMode))
-        {
-            matchMode = matchMode.ToLowerInvariant();
-        }
 
         // Generate GUID first - this allows other services to have the ID before DB creation
         var categoryId = Guid.NewGuid().ToString();
@@ -90,9 +82,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
             parentId,
             priority,
             description,
-            thumbnail,
-            matchMode,
-            matchPattern
+            thumbnail
         ).ConfigureAwait(false);
 
         if (category == null)
@@ -106,7 +96,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
     }
 
     /// <summary>
-    /// Update a Category category's name, description, thumbnail, and auto-detection settings
+    /// Update a Category category's name, description, and thumbnail
     /// </summary>
     private async Task<bool> UpdateCategoryAsync(IpcRequest request)
     {
@@ -114,22 +104,12 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
         var thumbnail = _payloadHelper.GetOptionalValue<string>(request.Payload, "thumbnail");
-        var matchMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "matchMode");
-        var matchPattern = _payloadHelper.GetOptionalValue<string>(request.Payload, "matchPattern");
-
-        // Normalize matchMode to lowercase if provided
-        if (!string.IsNullOrEmpty(matchMode))
-        {
-            matchMode = matchMode.ToLowerInvariant();
-        }
 
         var success = await _categoryService.UpdateCategoryAsync(
             categoryId,
             name,
             description,
-            thumbnail,
-            matchMode,
-            matchPattern
+            thumbnail
         ).ConfigureAwait(false);
 
         // Note: CategoryService.UpdateCategoryAsync already calls InvalidateTreeCache() which emits CATEGORY_TREE_UPDATED

@@ -100,6 +100,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
         grading: mod.grading || '',
         author: mod.author || '',
         category: mod.category || '',
+        disablePreview: mod.disablePreview ?? false,
       });
       setSelectedTags(mod.tags || []);
     }
@@ -182,6 +183,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
         <MetadataSection
           authors={authors}
           categoryOptions={categoryOptions}
+          hasPreviewFolder={mod?.hasPreviewFolder}
         />
 
         {/* Tags Section */}

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Workflow.Models;
 using D3dxSkinManager.Modules.Workflow.Repositories;
 using D3dxSkinManager.Modules.Workflow.Entities;
@@ -737,8 +738,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         _logger.Info($"Compressing folder: {context.FolderPath}");
 
-        // Create temp archive in profile's temp directory
-        var tempPath = Path.Combine(_profilePathService.TempDirectory, $"{Guid.NewGuid()}.7z");
+        // Create temp archive in profile's temp directory (no extension, single purpose - 7z file)
+        var tempPath = Path.Combine(_profilePathService.TempDirectory, TempFileConstants.GetModImportCompressTempName(Guid.NewGuid()));
 
         try
         {

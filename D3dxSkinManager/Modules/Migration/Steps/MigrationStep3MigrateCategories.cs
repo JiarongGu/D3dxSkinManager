@@ -181,23 +181,10 @@ public class MigrationStep3MigrateCategories : IMigrationStep
                     await VerifyModsForCategoryAsync(childCategoryName, logPath).ConfigureAwait(false);
                 }
 
-                // Update Category node with wildcard pattern for auto-detection (legacy Python project uses wildcard)
-                if (childNode != null)
-                {
-                    await _categoryService.UpdateCategoryAsync(
-                        childNode.Id,
-                        childNode.Name,
-                        childNode.Description,
-                        childNode.Thumbnail,
-                        "Wildcard",
-                        $"*{childCategoryName}*"
-                    ).ConfigureAwait(false);
-                    await LogAsync(logPath, $"Set auto-detection pattern for {categoryName}/{childCategoryName}: *{childCategoryName}*").ConfigureAwait(false);
-                }
             }
         }
 
-        await LogAsync(logPath, $"Created {totalNodesCreated} Category nodes total with auto-detection patterns").ConfigureAwait(false);
+        await LogAsync(logPath, $"Created {totalNodesCreated} Category nodes total").ConfigureAwait(false);
         return totalNodesCreated;
     }
 

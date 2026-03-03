@@ -125,10 +125,12 @@ export const ModListPanel: React.FC = () => {
           tags: [],
           grading: "",
           description: "",
+          disablePreview: false,
           isLoaded: false,
           type: "special",
           isAvailable: true,
           hasCache: false,
+          hasPreviewFolder: false,
         };
         result = [unloadOption, ...result];
       }

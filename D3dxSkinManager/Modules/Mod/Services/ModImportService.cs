@@ -2,6 +2,7 @@
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Constants;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -21,39 +22,30 @@ public class ModImportService : IModImportService
 {
     private readonly IFileHelper _fileService;
     private readonly IHashHelper _hashHelper;
-    private readonly IModAutoDetectionService _autoDetectionService;
     private readonly IImageService _imageService;
     private readonly IModRepository _repository;
     private readonly IModFileService _modFileService;
     private readonly IModManagementService _modManagementService;
     private readonly IPathValidator _pathValidator;
-    private readonly IArchiveHelper _archiveService;
-    private readonly IProfilePathService _profilePathService;
     private readonly ILogHelper _logger;
 
     public ModImportService(
         IFileHelper fileService,
         IHashHelper hashHelper,
-        IModAutoDetectionService autoDetectionService,
         IImageService imageService,
         IModRepository repository,
         IModFileService modFileService,
         IModManagementService modManagementService,
         IPathValidator pathValidator,
-        IArchiveHelper archiveService,
-        IProfilePathService profilePathService,
         ILogHelper logger)
     {
         _fileService = fileService;
         _hashHelper = hashHelper;
-        _autoDetectionService = autoDetectionService;
         _imageService = imageService;
         _repository = repository;
         _modFileService = modFileService;
         _modManagementService = modManagementService;
         _pathValidator = pathValidator;
-        _archiveService = archiveService;
-        _profilePathService = profilePathService;
         _logger = logger;
     }
 
@@ -82,75 +74,36 @@ public class ModImportService : IModImportService
             // Step 2: Copy archive to mods directory
             await _modFileService.CopyArchiveAsync(filePath, sha).ConfigureAwait(false);
 
-            // Step 3: Extract to temporary directory for metadata reading
-            // Use profile temp directory to respect external cache configuration
-            var tempExtractPath = Path.Combine(_profilePathService.TempDirectory, $"mod_import_{sha}");
-            if (Directory.Exists(tempExtractPath))
-            {
-                Directory.Delete(tempExtractPath, true);
-            }
-
-            var result = await _archiveService.ExtractArchiveAsync(
-                _modFileService.GetArchivePath(sha),
-                tempExtractPath
-            );
-
-            if (!result.Success)
-            {
-                throw new Exception("Failed to extract archive");
-            }
-
-            // Step 4: Read metadata
-            var metadata = await ReadMetadataAsync(tempExtractPath).ConfigureAwait(false);
-            _logger.Info($"Metadata: Name={metadata.Name}, Author={metadata.Author}", "ModImportService");
-
-            // Step 5: Auto-detect Category if not provided in metadata
-            var category = metadata.Category;
-            if (string.IsNullOrEmpty(category))
-            {
-                category = await _autoDetectionService.DetectCategoryAsync(tempExtractPath).ConfigureAwait(false);
-                _logger.Info($"Auto-detected Category: {category ?? "None"}", "ModImportService");
-            }
-
-            // Step 6: Generate previews
+            // Step 3: Try to scan for preview images from cache directory
+            // This will look in common cache locations for matching images
             try
             {
-                var previewCount = await _imageService.GeneratePreviewsAsync(tempExtractPath, sha).ConfigureAwait(false);
-                _logger.Info($"Generated {previewCount} preview(s)", "ModImportService");
-            }
-            catch (Exception ex)
-            {
-                _logger.Info($"Failed to generate previews: {ex.Message}", "ModImportService");
-            }
-
-            // Step 7 & 8: Create and save ModInfo using centralized service
-            var createRequest = new CreateModRequest
-            {
-                SHA = sha,
-                Category = category,
-                Name = metadata.Name ?? Path.GetFileNameWithoutExtension(filePath),
-                Author = metadata.Author,
-                Description = metadata.Description,
-                Type = Path.GetExtension(filePath).TrimStart('.'),
-                Grading = metadata.Grading ?? "G",
-                Tags = metadata.Tags ?? new List<string>()
-            };
-
-            var mod = await _modManagementService.CreateModAsync(createRequest).ConfigureAwait(false);
-            _logger.Info($"Import complete: {mod.Name} ({sha})", "ModImportService");
-
-            // Cleanup temp directory
-            try
-            {
-                if (Directory.Exists(tempExtractPath))
+                var previewCount = await _imageService.TryAutoImportPreviewsFromCacheAsync(sha).ConfigureAwait(false);
+                if (previewCount > 0)
                 {
-                    Directory.Delete(tempExtractPath, true);
+                    _logger.Info($"Auto-imported {previewCount} preview(s) from cache", "ModImportService");
                 }
             }
             catch (Exception ex)
             {
-                _logger.Info($"Failed to cleanup temp directory: {ex.Message}", "ModImportService");
+                _logger.Info($"Failed to auto-import previews from cache: {ex.Message}", "ModImportService");
             }
+
+            // Step 4: Create ModInfo with default values (user can edit later)
+            var createRequest = new CreateModRequest
+            {
+                SHA = sha,
+                Category = null, // User will categorize manually
+                Name = Path.GetFileNameWithoutExtension(filePath),
+                Author = null, // User can add later
+                Description = null, // User can add later
+                Type = Path.GetExtension(filePath).TrimStart('.'),
+                Grading = "G", // Default to General
+                Tags = new List<string>()
+            };
+
+            var mod = await _modManagementService.CreateModAsync(createRequest).ConfigureAwait(false);
+            _logger.Info($"Import complete: {mod.Name} ({sha})", "ModImportService");
 
             return mod;
         }
@@ -159,59 +112,5 @@ public class ModImportService : IModImportService
             _logger.Info($"Import failed: {ex.Message}", "ModImportService");
             throw;
         }
-    }
-
-    /// <summary>
-    /// Read metadata from extracted mod directory
-    /// </summary>
-    private async Task<ModMetadata> ReadMetadataAsync(string modDirectory)
-    {
-        var metadata = new ModMetadata();
-
-        // Look for metadata.json
-        var metadataPath = Path.Combine(modDirectory, "metadata.json");
-        if (File.Exists(metadataPath))
-        {
-            try
-            {
-                var json = await File.ReadAllTextAsync(metadataPath).ConfigureAwait(false);
-                var parsedMetadata = JsonHelper.Deserialize<ModMetadata>(json);
-                if (parsedMetadata != null)
-                {
-                    return parsedMetadata;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Info($"Failed to parse metadata.json: {ex.Message}", "ModImportService");
-            }
-        }
-
-        // Look for README or similar files to extract info
-        var readmeFiles = Directory.GetFiles(modDirectory, "readme*", SearchOption.TopDirectoryOnly);
-        if (readmeFiles.Length > 0)
-        {
-            try
-            {
-                var content = await File.ReadAllTextAsync(readmeFiles[0]).ConfigureAwait(false);
-                // Try to extract author from "Author:", "By:", etc.
-                var lines = content.Split('\n');
-                foreach (var line in lines)
-                {
-                    if (line.StartsWith("Author:", StringComparison.OrdinalIgnoreCase) ||
-                        line.StartsWith("By:", StringComparison.OrdinalIgnoreCase))
-                    {
-                        metadata.Author = line.Split(':', 2)[1].Trim();
-                        break;
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore errors reading README
-            }
-        }
-
-        return metadata;
     }
 }

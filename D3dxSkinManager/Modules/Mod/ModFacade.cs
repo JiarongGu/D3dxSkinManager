@@ -1,5 +1,6 @@
 ﻿using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -32,7 +33,7 @@ public interface IModFacade : IModuleFacade
     Task<ModStatistics> GetStatisticsAsync();
 
     // Metadata Operations
-    Task<bool> UpdateMetadataAsync(string sha, string? name, string? author, List<string>? tags, string? grading, string? description);
+    Task<bool> UpdateMetadataAsync(string sha, UpdateModMetadataRequest request);
     Task<bool> UpdateCategoryAsync(string sha, string category);
     Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask);
     Task<bool> ImportPreviewImageAsync(string sha, string imagePath);
@@ -356,9 +357,9 @@ public class ModFacade : BaseFacade, IModFacade
         return await _queryService.GetStatisticsAsync().ConfigureAwait(false);
     }
 
-    public async Task<bool> UpdateMetadataAsync(string sha, string? name, string? author, List<string>? tags, string? grading, string? description)
+    public async Task<bool> UpdateMetadataAsync(string sha, UpdateModMetadataRequest request)
     {
-        var success = await _metadataService.UpdateMetadataAsync(sha, name, author, tags, grading, description).ConfigureAwait(false);
+        var success = await _metadataService.UpdateMetadataAsync(sha, request).ConfigureAwait(false);
 
         if (success)
         {
@@ -538,13 +539,18 @@ public class ModFacade : BaseFacade, IModFacade
     private async Task<bool> UpdateMetadataAsync(IpcRequest request)
     {
         var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        var name = _payloadHelper.GetOptionalValue<string>(request.Payload, "name");
-        var author = _payloadHelper.GetOptionalValue<string>(request.Payload, "author");
-        var tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags");
-        var grading = _payloadHelper.GetOptionalValue<string>(request.Payload, "grading");
-        var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
 
-        return await UpdateMetadataAsync(sha, name, author, tags, grading, description).ConfigureAwait(false);
+        var metadataRequest = new UpdateModMetadataRequest
+        {
+            Name = _payloadHelper.GetOptionalValue<string>(request.Payload, "name"),
+            Author = _payloadHelper.GetOptionalValue<string>(request.Payload, "author"),
+            Tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags"),
+            Grading = _payloadHelper.GetOptionalValue<string>(request.Payload, "grading"),
+            Description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description"),
+            DisablePreview = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "disablePreview")
+        };
+
+        return await UpdateMetadataAsync(sha, metadataRequest).ConfigureAwait(false);
     }
 
     private async Task<bool> UpdateCategoryAsync(IpcRequest request)

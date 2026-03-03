@@ -56,8 +56,6 @@ public class CategoryRepository : ICategoryRepository
                 ParentId TEXT NULL,
                 ThumbnailPath TEXT NULL,
                 Priority INTEGER DEFAULT 0,
-                MatchMode TEXT NULL,
-                MatchPattern TEXT NULL,
                 Description TEXT NULL,
                 Metadata TEXT NULL,
                 CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -68,37 +66,6 @@ public class CategoryRepository : ICategoryRepository
             CREATE INDEX IF NOT EXISTS idx_Categories_priority ON Categories(Priority DESC);
         ";
         await createCategoriesCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-        // Migration: Add MatchMode and MatchPattern columns if they don't exist
-        var alterCmd = connection.CreateCommand();
-        alterCmd.CommandText = @"
-            PRAGMA table_info(Categories);
-        ";
-        var columns = new HashSet<string>();
-        await using var reader = await alterCmd.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            columns.Add(reader["name"].ToString()!);
-        }
-
-        await using (reader)
-        {
-            await reader.CloseAsync().ConfigureAwait(false);
-        }
-
-        if (!columns.Contains("MatchMode"))
-        {
-            var addMatchModeCmd = connection.CreateCommand();
-            addMatchModeCmd.CommandText = "ALTER TABLE Categories ADD COLUMN MatchMode TEXT NULL";
-            await addMatchModeCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-        }
-
-        if (!columns.Contains("MatchPattern"))
-        {
-            var addMatchPatternCmd = connection.CreateCommand();
-            addMatchPatternCmd.CommandText = "ALTER TABLE Categories ADD COLUMN MatchPattern TEXT NULL";
-            await addMatchPatternCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-        }
     }
 
     public async Task<List<CategoryInfo>> GetAllAsync()
@@ -238,8 +205,8 @@ public class CategoryRepository : ICategoryRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO Categories (Id, Name, ParentId, ThumbnailPath, Priority, MatchMode, MatchPattern, Description, Metadata)
-            VALUES (@id, @name, @parentId, @thumbnailPath, @priority, @matchMode, @matchPattern, @description, @metadata)
+            INSERT INTO Categories (Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata)
+            VALUES (@id, @name, @parentId, @thumbnailPath, @priority, @description, @metadata)
         ";
 
         command.Parameters.AddWithValue("@id", category.Id);
@@ -247,8 +214,6 @@ public class CategoryRepository : ICategoryRepository
         command.Parameters.AddWithValue("@parentId", category.ParentId ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@thumbnailPath", category.Thumbnail ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@priority", category.Priority);
-        command.Parameters.AddWithValue("@matchMode", category.MatchMode ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@matchPattern", category.MatchPattern ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@description", category.Description ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", category.Metadata != null ? JsonHelper.Serialize(category.Metadata) : (object)DBNull.Value);
 
@@ -268,8 +233,6 @@ public class CategoryRepository : ICategoryRepository
                 ParentId = @parentId,
                 ThumbnailPath = @thumbnailPath,
                 Priority = @priority,
-                MatchMode = @matchMode,
-                MatchPattern = @matchPattern,
                 Description = @description,
                 Metadata = @metadata,
                 UpdatedAt = CURRENT_TIMESTAMP
@@ -281,8 +244,6 @@ public class CategoryRepository : ICategoryRepository
         command.Parameters.AddWithValue("@parentId", category.ParentId ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@thumbnailPath", category.Thumbnail ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@priority", category.Priority);
-        command.Parameters.AddWithValue("@matchMode", category.MatchMode ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@matchPattern", category.MatchPattern ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@description", category.Description ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", category.Metadata != null ? JsonHelper.Serialize(category.Metadata) : (object)DBNull.Value);
 
@@ -414,8 +375,6 @@ public class CategoryRepository : ICategoryRepository
             ParentId = reader["ParentId"] as string,
             Thumbnail = reader["ThumbnailPath"] as string,
             Priority = Convert.ToInt32(reader["Priority"]),
-            MatchMode = reader["MatchMode"] as string,
-            MatchPattern = reader["MatchPattern"] as string,
             Description = reader["Description"] as string,
             Metadata = metadata,
             Children = new List<CategoryInfo>(),

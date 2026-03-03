@@ -46,8 +46,6 @@ interface CategoryScreenProps {
     parentId?: string;
     thumbnail?: string;
     description?: string;
-    matchMode?: string;
-    matchPattern?: string;
   }) => Promise<void>;
 }
 
@@ -77,9 +75,8 @@ export const CategoryScreenContent: React.FC<
   const [loading, setLoading] = useState(false);
   const [thumbnailPath, setThumbnailPath] = useState<string>();
   const [thumbnailFileName, setThumbnailFileName] = useState<string>();
-  const [matchMode, setMatchMode] = useState<string>("wildcard");
   const { closeScreen } = useSlideInScreenContext();
-  const { selectedProfileId } = useProfile();
+  const { selectedProfileId} = useProfile();
 
   // Debounced name existence check - only call backend after user stops typing for 500ms
   const checkNameExistsDebounced = useCallback(
@@ -134,9 +131,7 @@ export const CategoryScreenContent: React.FC<
         name: editNode.name,
         parentId: editNode.parentId || "",
         description: editNode.description,
-        matchPattern: editNode.matchPattern || "",
       });
-      setMatchMode(editNode.matchMode?.toLowerCase() || "wildcard");
       setThumbnailPath(editNode.thumbnail || undefined);
       if (editNode.thumbnail) {
         const fileName =
@@ -145,8 +140,6 @@ export const CategoryScreenContent: React.FC<
       }
     } else {
       // Create mode - set defaults based on parent
-      setMatchMode("wildcard");
-
       if (parentId) {
         // Find parent node to get its details
         const allNodes = flattenTree(tree);
@@ -187,8 +180,6 @@ export const CategoryScreenContent: React.FC<
         parentId: values.parentId,
         thumbnail: thumbnailPath,
         description: values.description,
-        matchMode: matchMode,
-        matchPattern: values.matchPattern,
       });
 
       notification.success(t("category.screen.saved"));
@@ -320,36 +311,6 @@ export const CategoryScreenContent: React.FC<
             maxLength={500}
             showCount
           />
-        </Form.Item>
-
-        {/* Auto-detection pattern - single line with mode selector and pattern input */}
-        <Form.Item
-          label={t("category.screen.autoDetection.label")}
-          tooltip={t("category.screen.autoDetection.tooltip")}
-        >
-          <Space.Compact style={{ width: "100%" }}>
-            <CompactSelect
-              value={matchMode}
-              onChange={(value) => setMatchMode(value)}
-              style={{ width: "140px" }}
-            >
-              <Option value="wildcard">
-                {t("category.screen.autoDetection.wildcard")}
-              </Option>
-              <Option value="regex">
-                {t("category.screen.autoDetection.regex")}
-              </Option>
-            </CompactSelect>
-            <Form.Item name="matchPattern" noStyle>
-              <CompactInput
-                placeholder={
-                  matchMode === "wildcard"
-                    ? t("category.screen.autoDetection.wildcardPlaceholder")
-                    : t("category.screen.autoDetection.regexPlaceholder")
-                }
-              />
-            </Form.Item>
-          </Space.Compact>
         </Form.Item>
 
         {/* Thumbnail with drag-drop area or preview */}

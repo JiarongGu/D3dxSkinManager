@@ -2,6 +2,8 @@ using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Constants;
+using D3dxSkinManager.Modules.Core.Models;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -109,7 +111,7 @@ public class ModFileService : IModFileService
             {
                 _logger.Warn($"Archive not found: {archivePath}", "ModFileService");
                 throw new Core.Models.ModException(
-                    Core.Models.ErrorCodes.MOD_ARCHIVE_NOT_FOUND,
+                    ErrorCodes.MOD_ARCHIVE_NOT_FOUND,
                     $"Mod archive file not found: {archivePath}",
                     new { sha, archivePath });
             }
@@ -131,7 +133,7 @@ public class ModFileService : IModFileService
                     // Folder is in use by another process
                     _logger.Error($"Cannot enable mod {sha} - folder is in use: {ioEx.Message}", "ModFileService", ioEx);
                     throw new Core.Models.ModException(
-                        Core.Models.ErrorCodes.MOD_FOLDER_IN_USE,
+                        ErrorCodes.MOD_FOLDER_IN_USE,
                         $"Cannot enable mod - the folder is currently in use by another process. Please close any programs accessing: {disabledDirectory}",
                         ioEx,
                         new { sha, path = disabledDirectory });
@@ -141,7 +143,7 @@ public class ModFileService : IModFileService
                     // Access denied
                     _logger.Error($"Access denied when enabling mod {sha}: {authEx.Message}", "ModFileService", authEx);
                     throw new Core.Models.ModException(
-                        Core.Models.ErrorCodes.FILE_ACCESS_DENIED,
+                        ErrorCodes.FILE_ACCESS_DENIED,
                         $"Access denied when enabling mod. Please run with appropriate permissions.",
                         authEx,
                         new { sha, path = disabledDirectory });
@@ -171,7 +173,7 @@ public class ModFileService : IModFileService
             else
             {
                 throw new Core.Models.ModException(
-                    Core.Models.ErrorCodes.MOD_EXTRACTION_FAILED,
+                    ErrorCodes.MOD_EXTRACTION_FAILED,
                     "Failed to extract mod archive. The file may be corrupted or in an unsupported format.",
                     new { sha, archivePath });
             }
@@ -186,7 +188,7 @@ public class ModFileService : IModFileService
             // Wrap unknown exceptions in ModException
             _logger.Error($"Unexpected error loading mod {sha}: {ex.Message}", "ModFileService", ex);
             throw new Core.Models.ModException(
-                Core.Models.ErrorCodes.UNKNOWN_ERROR,
+                ErrorCodes.UNKNOWN_ERROR,
                 $"An unexpected error occurred while loading the mod: {ex.Message}",
                 ex,
                 new { sha, exceptionType = ex.GetType().Name });
@@ -259,7 +261,7 @@ public class ModFileService : IModFileService
                 // Folder is in use by another process
                 _logger.Error($"Cannot unload mod {sha} - folder is in use: {ioEx.Message}", "ModFileService", ioEx);
                 throw new Core.Models.ModException(
-                    Core.Models.ErrorCodes.MOD_FOLDER_IN_USE,
+                    ErrorCodes.MOD_FOLDER_IN_USE,
                     $"Cannot unload mod - the folder is currently in use by another process. Please close any programs accessing: {cacheDirectory}",
                     ioEx,
                     new { sha, path = cacheDirectory });
@@ -269,7 +271,7 @@ public class ModFileService : IModFileService
                 // Access denied
                 _logger.Error($"Access denied when unloading mod {sha}: {authEx.Message}", "ModFileService", authEx);
                 throw new Core.Models.ModException(
-                    Core.Models.ErrorCodes.FILE_ACCESS_DENIED,
+                    ErrorCodes.FILE_ACCESS_DENIED,
                     $"Access denied when unloading mod. Please run with appropriate permissions.",
                     authEx,
                     new { sha, path = cacheDirectory });
@@ -285,7 +287,7 @@ public class ModFileService : IModFileService
             // Wrap unknown exceptions in ModException
             _logger.Error($"Unexpected error unloading mod {sha}: {ex.Message}", "ModFileService", ex);
             throw new Core.Models.ModException(
-                Core.Models.ErrorCodes.UNKNOWN_ERROR,
+                ErrorCodes.UNKNOWN_ERROR,
                 $"An unexpected error occurred while unloading the mod: {ex.Message}",
                 ex,
                 new { sha, exceptionType = ex.GetType().Name });

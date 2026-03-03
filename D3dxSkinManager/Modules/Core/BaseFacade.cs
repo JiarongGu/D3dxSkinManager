@@ -1,4 +1,5 @@
 using D3dxSkinManager.Infrastructure;
+using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 

@@ -17,6 +17,8 @@ import {
   PlusOutlined,
   SnippetsOutlined,
   KeyOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined,
 } from "@ant-design/icons";
 import {
   ContextMenu,
@@ -30,6 +32,7 @@ import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
 import { ModPreviewProvider, useModView } from "./ModPreviewContext";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useModsStore } from "../../store/modsStore";
+import { useMods } from "../../hooks/useMods";
 import { modService } from "../../services/modService";
 import { fileDialogService } from "../../../../shared/services/systemService";
 import "./ModPreviewPanel.css";
@@ -41,6 +44,7 @@ export const ModPreviewPanelContent: React.FC = () => {
   const { state, actions } = useModView();
   const { state: profileState } = useProfile();
   const selectedProfileId = profileState.selectedProfile?.id;
+  const { updateMod } = useMods();
 
   // Subscribe to preview loading state
   const previewLoading = useModsStore((s) => s.previewLoading);
@@ -314,6 +318,23 @@ export const ModPreviewPanelContent: React.FC = () => {
     setContextMenuVisible(false);
   };
 
+  const handleTogglePreview = async () => {
+    if (!mod) return;
+
+    try {
+      const newValue = !mod.disablePreview;
+      await updateMod(mod.sha, { disablePreview: newValue });
+      notification.success(
+        newValue
+          ? t("mods.preview.previewDisabled")
+          : t("mods.preview.previewEnabled")
+      );
+    } catch (error) {
+            notification.error(t("mods.preview.togglePreviewFailed"));
+    }
+    setContextMenuVisible(false);
+  };
+
   // Get current image info
   const currentImagePath = allImagePaths[currentImageIndex] || "";
   const isCurrentImageThumbnail = currentImageIndex === 0; // First image is always the thumbnail
@@ -348,17 +369,19 @@ export const ModPreviewPanelContent: React.FC = () => {
         {
           type: "divider",
         },
-        ...(mod?.hasCache ? [{
+        {
           key: "open-cache-folder",
           label: t("mods.preview.openCacheFolder"),
           icon: <FolderOpenOutlined />,
           onClick: handleOpenCacheFolder,
-        }] : []),
+          disabled: !mod?.hasCache,
+        },
         {
           key: "open-preview-folder",
           label: t("mods.preview.openPreviewFolder"),
           icon: <FolderOpenOutlined />,
           onClick: handleOpenPreviewFolder,
+          disabled: !mod?.hasPreviewFolder,
         },
         {
           key: "copy-path",
@@ -368,6 +391,14 @@ export const ModPreviewPanelContent: React.FC = () => {
         },
         {
           type: "divider",
+        },
+        {
+          key: "toggle-preview",
+          label: mod?.disablePreview
+            ? t("mods.preview.enablePreview")
+            : t("mods.preview.disablePreview"),
+          icon: mod?.disablePreview ? <EyeOutlined /> : <EyeInvisibleOutlined />,
+          onClick: handleTogglePreview,
         },
         {
           key: "delete",
@@ -393,11 +424,19 @@ export const ModPreviewPanelContent: React.FC = () => {
         },
         {
           type: "divider",
+        },    
+        {
+          key: "open-cache-folder",
+          label: t("mods.preview.openCacheFolder"),
+          icon: <FolderOpenOutlined />,
+          onClick: handleOpenCacheFolder,
+          disabled: !mod?.hasCache,
         },
         {
           key: "open-preview-folder",
           label: t("mods.preview.openPreviewsFolder"),
           icon: <FolderOpenOutlined />,
+          disabled: !mod?.hasPreviewFolder,
           onClick: async () => {
             if (!mod) return;
             try {
@@ -422,6 +461,17 @@ export const ModPreviewPanelContent: React.FC = () => {
             setContextMenuVisible(false);
           },
         },
+        {
+          type: "divider",
+        },
+        {
+          key: "toggle-preview",
+          label: mod?.disablePreview
+            ? t("mods.preview.enablePreview")
+            : t("mods.preview.disablePreview"),
+          icon: mod?.disablePreview ? <EyeOutlined /> : <EyeInvisibleOutlined />,
+          onClick: handleTogglePreview,
+        },    
       ];
 
   if (!mod) {
@@ -546,7 +596,11 @@ export const ModPreviewPanelContent: React.FC = () => {
               onContextMenu={handleImageContextMenu}
             >
               <Empty
-                description={t("mods.preview.noPreview")}
+                description={
+                  mod?.disablePreview
+                    ? t("mods.preview.previewDisabledMessage")
+                    : t("mods.preview.noPreview")
+                }
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             </div>

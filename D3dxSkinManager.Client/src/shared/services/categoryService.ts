@@ -111,8 +111,6 @@ class CategoryService extends BaseModuleService {
    * @param priority - Priority for sorting (default 100)
    * @param description - Optional description
    * @param thumbnail - Optional thumbnail path
-   * @param matchMode - Optional match mode for auto-detection ("wildcard" or "regex")
-   * @param matchPattern - Optional match pattern for auto-detection
    */
   async createCategory(
     profileId: string,
@@ -121,8 +119,6 @@ class CategoryService extends BaseModuleService {
     priority?: number,
     description?: string,
     thumbnail?: string,
-    matchMode?: string,
-    matchPattern?: string,
   ): Promise<CategoryInfo | undefined> {
     return this.sendMessage<CategoryInfo | undefined>(
       "CREATE_CATEGORY",
@@ -133,8 +129,6 @@ class CategoryService extends BaseModuleService {
         priority: priority || 100,
         description,
         thumbnail,
-        matchMode,
-        matchPattern,
       },
     );
   }
@@ -156,7 +150,7 @@ class CategoryService extends BaseModuleService {
   }
 
   /**
-   * Update a Category category's name, description, thumbnail, and auto-detection settings
+   * Update a Category category's name, description, and thumbnail
    */
   async updateCategory(
     profileId: string,
@@ -164,16 +158,12 @@ class CategoryService extends BaseModuleService {
     name: string,
     description?: string,
     thumbnail?: string,
-    matchMode?: string,
-    matchPattern?: string,
   ): Promise<boolean> {
     return this.sendMessage<boolean>("UPDATE_CATEGORY", profileId, {
       categoryId,
       name,
       description,
       thumbnail,
-      matchMode,
-      matchPattern,
     });
   }
 

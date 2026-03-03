@@ -3,6 +3,7 @@
  * Centralized business logic with consistent error handling and state updates
  */
 
+import { debounce } from 'lodash-es';
 import { useModsStore } from '../store/modsStore';
 import { modService } from '../services/modService';
 import { ModInfo } from '../../../shared/types/mod.types';
@@ -36,11 +37,16 @@ export async function loadMods(profileId: string): Promise<void> {
 }
 
 /**
- * Refresh mods from backend
+ * Internal refresh implementation
  */
-export async function refreshMods(profileId: string): Promise<void> {
+async function _refreshMods(profileId: string): Promise<void> {
   await loadMods(profileId);
 }
+
+/**
+ * Refresh mods from backend (debounced 10ms to prevent mass IPC hits)
+ */
+export const refreshMods = debounce(_refreshMods, 10);
 
 /**
  * Update mod metadata
@@ -58,13 +64,14 @@ export async function updateMod(
   try {
     await executeWithDelayedLoading(
       async () => {
-        // Update metadata (name, author, tags, grading, description)
+        // Update metadata (name, author, tags, grading, description, disablePreview)
         await modService.updateMetadata(profileId, sha, {
           name: data.name,
           author: data.author,
           tags: data.tags,
           grading: data.grading,
           description: data.description,
+          disablePreview: data.disablePreview,
         });
 
         // Update category separately if it changed

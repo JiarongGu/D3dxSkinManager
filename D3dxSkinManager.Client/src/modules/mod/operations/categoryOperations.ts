@@ -3,6 +3,7 @@
  * Handles complex tree count updates with optimistic UI
  */
 
+import { debounce } from 'lodash-es';
 import { useModsStore } from '../store/modsStore';
 import { modService } from '../services/modService';
 import { CategoryInfo, CATEGORY_IDS } from '../../../shared/types/category.types';
@@ -188,17 +189,21 @@ export async function loadCategoryTree(profileId: string): Promise<void> {
 }
 
 /**
- * Refresh Category tree
+ * Internal refresh implementation
  */
-export async function refreshCategoryTree(profileId: string): Promise<void> {
+async function _refreshCategoryTree(profileId: string): Promise<void> {
   await loadCategoryTree(profileId);
 }
 
 /**
- * Load mods filtered by Category node
- * Uses delayed loading (100ms) to avoid flicker for fast queries
+ * Refresh Category tree (debounced 10ms to prevent mass IPC hits)
  */
-export async function loadModsByCategory(
+export const refreshCategoryTree = debounce(_refreshCategoryTree, 10);
+
+/**
+ * Internal implementation for loading mods by category
+ */
+async function _loadModsByCategory(
   profileId: string,
   nodeId: string
 ): Promise<void> {
@@ -217,6 +222,12 @@ export async function loadModsByCategory(
     handleError(error);
   }
 }
+
+/**
+ * Load mods filtered by Category node (debounced 10ms to prevent mass IPC hits)
+ * Uses delayed loading (100ms) to avoid flicker for fast queries
+ */
+export const loadModsByCategory = debounce(_loadModsByCategory, 10);
 
 /**
  * Load uncategorized mods (no category assigned)
