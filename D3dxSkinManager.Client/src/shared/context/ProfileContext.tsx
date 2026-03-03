@@ -89,7 +89,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
         profiles: response.profiles,
         loading: false
       }));
-    } catch (error) {
+    } catch (error: unknown) {
             setState(prev => ({
         ...prev,
         error: 'Failed to load profiles',
@@ -127,12 +127,12 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
         const result: ProfileSwitchResult = await profileService.switchProfile(profileId);
         if (!result.success) {
                   }
-      } catch (error) {
+      } catch (error: unknown) {
         // Non-critical - just updating timestamp
               }
 
       setState(prev => ({ ...prev, loading: false }));
-    } catch (error) {
+    } catch (error: unknown) {
             setState(prev => ({
         ...prev,
         error: 'Failed to select profile',
@@ -158,7 +158,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
       }));
 
       return profile;
-    } catch (error) {
+    } catch (error: unknown) {
             setState(prev => ({
         ...prev,
         error: 'Failed to create profile',
@@ -186,7 +186,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
           loading: false
         }));
       }
-    } catch (error) {
+    } catch (error: unknown) {
             setState(prev => ({
         ...prev,
         error: 'Failed to update profile',
@@ -214,7 +214,7 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
         profiles: prev.profiles.filter(p => p.id !== profileId),
         loading: false
       }));
-    } catch (error) {
+    } catch (error: unknown) {
             setState(prev => ({
         ...prev,
         error: error instanceof Error ? error.message : 'Failed to delete profile',

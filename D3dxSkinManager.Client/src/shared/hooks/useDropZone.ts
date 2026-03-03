@@ -315,12 +315,12 @@ export function useDropZone(options: {
 
     // Subscribe to backend drag enter/leave/drop notifications
     const unsubscribeDragEnter = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.DRAG_ENTER, (event) => {
-      if (!event?.payload || (event.payload as any).zoneId !== zoneIdRef.current) return;
+      if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
       element.classList.add(classesRef.current.drop);
     });
 
     const unsubscribeDragLeave = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.DRAG_LEAVE, (event) => {
-      if (!event?.payload || (event.payload as any).zoneId !== zoneIdRef.current) return;
+      if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
       element.classList.remove(classesRef.current.drop);
     });
 
@@ -341,13 +341,13 @@ export function useDropZone(options: {
     const element = targetRef.current;
 
     const unsubscribeMouseEnter = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.MOUSE_ENTER, (event) => {
-      if (!event?.payload || (event.payload as any).zoneId !== zoneIdRef.current) return;
+      if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
 
       element.classList.add(classesRef.current.hover);
     });
 
     const unsubscribeMouseLeave = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.MOUSE_LEAVE, (event) => {
-      if (!event?.payload || (event.payload as any).zoneId !== zoneIdRef.current) return;
+      if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
 
       element.classList.remove(classesRef.current.hover);
     });

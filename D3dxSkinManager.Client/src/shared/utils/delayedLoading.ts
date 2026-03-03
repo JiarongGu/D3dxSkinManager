@@ -51,7 +51,7 @@ export async function executeWithDelayedLoading<T>(
     }
 
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     // Clear timeout and reset loading on error
     if (loadingTimeout !== undefined) {
       clearTimeout(loadingTimeout);

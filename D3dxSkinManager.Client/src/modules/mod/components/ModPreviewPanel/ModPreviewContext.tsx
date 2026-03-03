@@ -74,7 +74,7 @@ export const ModPreviewProvider: React.FC<{ children: React.ReactNode, mod: ModI
           setPreviewLoading,
           100
         );
-      } catch (error) {
+      } catch (error: unknown) {
                 setState((prev) => ({
           ...prev,
           previewPaths: [],

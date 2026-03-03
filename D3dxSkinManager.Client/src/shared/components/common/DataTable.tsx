@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { Table, TableProps } from 'antd';
+import { Table, TableProps, TablePaginationConfig } from 'antd';
 import { useTranslation } from 'react-i18next';
 import './DataTable.css';
 
@@ -20,13 +20,7 @@ export interface DataTableProps<T = any> extends Omit<TableProps<T>, 'pagination
    * Enable/disable pagination or provide custom pagination config
    * @default true
    */
-  pagination?: boolean | {
-    pageSize?: number;
-    showSizeChanger?: boolean;
-    showTotal?: boolean | ((total: number, range: [number, number]) => React.ReactNode);
-    pageSizeOptions?: string[];
-    position?: ('topLeft' | 'topCenter' | 'topRight' | 'bottomLeft' | 'bottomCenter' | 'bottomRight')[];
-  };
+  pagination?: boolean | TablePaginationConfig;
 
   /**
    * Compact mode for dense data display
@@ -83,14 +77,13 @@ export function DataTable<T extends object = any>({
     }
 
     // Merge custom config with defaults
+    const customShowTotal = typeof pagination === 'object' ? pagination.showTotal : undefined;
     return {
       ...defaultConfig,
       ...pagination,
-      showTotal: pagination.showTotal === false
-        ? undefined
-        : pagination.showTotal === true || pagination.showTotal === undefined
-          ? defaultConfig.showTotal
-          : pagination.showTotal,
+      showTotal: customShowTotal === undefined
+        ? defaultConfig.showTotal
+        : customShowTotal,
     };
   }, [pagination, t]);
 
@@ -115,7 +108,7 @@ export function DataTable<T extends object = any>({
       className={tableClassName}
       size={tableSize}
       bordered={bordered}
-      pagination={paginationConfig as any}
+      pagination={paginationConfig}
       locale={locale}
     />
   );

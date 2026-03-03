@@ -50,7 +50,7 @@ export function useModCategoryUpdate({
           notification.error("Failed to update mod category");
           return false;
         }
-      } catch (error) {
+      } catch (error: unknown) {
                 notification.error("Failed to update mod category");
         return false;
       }

@@ -1,19 +1,31 @@
 import React from 'react';
 import CustomNotification from '../components/notification/CustomNotification';
-import { title } from 'process';
 import logger from './logger';
+
+/**
+ * Type for Ant Design notification API (from App.useApp hook)
+ */
+interface NotificationAPI {
+  open: (config: {
+    title?: React.ReactElement;
+    placement?: 'top' | 'topLeft' | 'topRight' | 'bottom' | 'bottomLeft' | 'bottomRight';
+    duration?: number;
+    className?: string;
+    closeIcon?: React.ReactNode | null;
+  }) => void;
+}
 
 /**
  * Notification API instance - will be injected by NotificationProvider
  * This is set during app initialization to use the context-aware notification API
  */
-let notificationApi: any = undefined;
+let notificationApi: NotificationAPI | undefined = undefined;
 
 /**
  * Set the notification API instance (called during app initialization)
  * @internal
  */
-export const setNotificationApi = (api: any) => {
+export const setNotificationApi = (api: NotificationAPI) => {
   notificationApi = api;
 };
 

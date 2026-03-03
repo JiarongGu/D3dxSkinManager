@@ -20,9 +20,9 @@ const customBackend = {
       } else {
         callback(new Error(`Language ${language} not found`));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`[i18n] Failed to load language ${language}:`, error);
-      callback(error as Error);
+      callback(error instanceof Error ? error : new Error('Unknown error loading language'));
     }
   },
 };

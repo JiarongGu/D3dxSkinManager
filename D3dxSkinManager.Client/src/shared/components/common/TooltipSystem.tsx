@@ -65,7 +65,7 @@ export const AnnotationProvider: React.FC<AnnotationProviderProps> = ({
             setAnnotationLevel(level);
             return; // Success - exit retry loop
           }
-        } catch (error) {
+        } catch (error: unknown) {
           const isLastAttempt = attempt === maxRetries - 1;
 
           if (isLastAttempt) {
@@ -91,7 +91,7 @@ export const AnnotationProvider: React.FC<AnnotationProviderProps> = ({
     // Save to backend - this is the ONLY source of truth
     try {
       await settingsService.updateGlobalSetting("annotationLevel", level);
-    } catch (error) {
+    } catch (error: unknown) {
             // On failure, reload from backend to stay in sync
       try {
         const settings = await settingsService.getGlobalSettings();

@@ -120,7 +120,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
     try {
             const newWorkflow = await workflowService.startModImport(selectedProfileId, folderPath);
             setWorkflow(newWorkflow);
-    } catch (error) {
+    } catch (error: unknown) {
             handleError(error);
       throw error;
     } finally {
@@ -147,7 +147,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
         context
       );
             setWorkflow(updatedWorkflow);
-    } catch (error) {
+    } catch (error: unknown) {
             handleError(error);
       throw error;
     } finally {
@@ -173,7 +173,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
         workflow.id
       );
             setWorkflow(updatedWorkflow);
-    } catch (error) {
+    } catch (error: unknown) {
             handleError(error);
       throw error;
     } finally {
@@ -199,7 +199,7 @@ export const useModImportWorkflow = (): UseModImportWorkflowReturn => {
         workflow.id
       );
             setWorkflow(cancelledWorkflow);
-    } catch (error) {
+    } catch (error: unknown) {
             handleError(error);
       throw error;
     } finally {

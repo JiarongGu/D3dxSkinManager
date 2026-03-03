@@ -219,7 +219,7 @@ public class ModFileService : IModFileService
                 mod.Type = normalizedDetectedType;
                 await _repository.UpdateAsync(mod).ConfigureAwait(false);
 
-                _logger.Info($"Updated mod type: {sha} ({oldType ?? "empty"} �?{normalizedDetectedType})", "ModFileService");
+                _logger.Info($"Updated mod type: {sha} ({oldType ?? "empty"} {normalizedDetectedType})", "ModFileService");
             }
         }
         catch (Exception ex)

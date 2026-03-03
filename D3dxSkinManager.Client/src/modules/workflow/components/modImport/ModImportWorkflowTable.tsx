@@ -88,7 +88,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       let context: ModImportWorkflowContext | null = null;
       try {
         context = JSON.parse(workflow.context) as ModImportWorkflowContext;
-      } catch (error) {
+      } catch (error: unknown) {
         // Invalid JSON, context stays null
       }
 
@@ -175,7 +175,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     try {
       await workflowService.continueWorkflow(selectedProfileId, workflowId);
       onRefresh?.();
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     }
   }, [selectedProfileId, onRefresh]);
@@ -210,7 +210,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       setSelectedWorkflow(null);
       setSelectedContext(null);
       onRefresh?.();
-    } catch (error) {
+    } catch (error: unknown) {
             handleError(error);
       throw error; // Re-throw to prevent modal from closing
     }
@@ -231,7 +231,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     try {
       await workflowService.pauseWorkflow(selectedProfileId, workflowId);
       onRefresh?.();
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     }
   }, [selectedProfileId, onRefresh]);
@@ -245,7 +245,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     try {
       await workflowService.resumeWorkflow(selectedProfileId, workflowId);
       onRefresh?.();
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     }
   }, [selectedProfileId, onRefresh]);
@@ -259,7 +259,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     try {
       await workflowService.deleteWorkflow(selectedProfileId, workflowId);
       onRefresh?.();
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     }
   }, [selectedProfileId, onRefresh]);

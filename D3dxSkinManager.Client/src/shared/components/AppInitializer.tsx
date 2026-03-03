@@ -112,7 +112,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
         ...prev,
         globalSettings: settings,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       // Error handled by error handler
       setState((prev) => ({
         ...prev,
@@ -138,7 +138,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
           stage: "selecting-profile",
         }));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Error handled by error handler
       setState((prev) => ({
         ...prev,
@@ -153,7 +153,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       const profile = await actions.createProfile(name, description);
       await actions.selectProfile(profile.id);
       setState((prev) => ({ ...prev, stage: "ready" }));
-    } catch (error) {
+    } catch (error: unknown) {
       // Error handled by error handler
       setState((prev) => ({
         ...prev,

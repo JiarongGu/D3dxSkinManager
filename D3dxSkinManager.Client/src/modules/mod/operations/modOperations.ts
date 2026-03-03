@@ -29,7 +29,7 @@ export async function loadMods(profileId: string): Promise<void> {
       setModsLoading,
       100
     );
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to load mods';
     setError(errorMessage);
     handleError(error);
@@ -93,7 +93,7 @@ export async function updateMod(
       setModsLoading,
       100
     );
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
     throw error;
   }
@@ -129,7 +129,7 @@ export async function deleteMod(profileId: string, sha: string): Promise<void> {
       setModsLoading,
       100
     );
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
     throw error;
   }
@@ -154,7 +154,7 @@ export async function batchUpdateMetadata(
 
     // Refresh to sync with backend
     await refreshMods(profileId);
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
     throw error;
   }
@@ -174,7 +174,7 @@ export async function exportMods(
       await modService.exportMod(profileId, sha, exportPath);
     }
     notification.success(`Exported ${shas.length} mod(s) successfully`);
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
     throw error;
   }

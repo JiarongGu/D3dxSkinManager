@@ -51,7 +51,7 @@ export const PluginsView: React.FC = () => {
         profileId: selectedProfileId
       });
       setPlugins(response);
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error(t('plugins.loadFailed'));
           } finally {
       setLoading(false);

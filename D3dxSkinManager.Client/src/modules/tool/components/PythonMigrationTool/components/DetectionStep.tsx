@@ -42,7 +42,7 @@ export const DetectionStep: React.FC = () => {
         setPythonPath(result.filePath);
         await handleAnalyze(result.filePath);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error(t('migration.detection.browseFailed'));
           }
   };
@@ -66,7 +66,7 @@ export const DetectionStep: React.FC = () => {
       } else {
         notification.success(t('migration.detection.modsFound', { count: analysisResult.totalMods }));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error(t('migration.detection.analyzeFailed'));
             // Set a failed analysis state so user can see the error
       setAnalysis({

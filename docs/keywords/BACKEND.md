@@ -339,7 +339,7 @@
   - SaveWindowState(Form) → Saves current window state
   - IsPositionValid → Validates window is visible on at least one monitor
   - Handles screen resolution changes and multi-monitor setups
-  - Updated 2026-02-22: Works with WinForms instead of Photino
+  - Works with WinForms and WebView2 window management
 
 #### Models
 

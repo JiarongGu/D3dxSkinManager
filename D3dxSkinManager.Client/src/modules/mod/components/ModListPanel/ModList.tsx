@@ -157,13 +157,13 @@ export const ModList: React.FC<ModListProps> = ({
             try {
               const paths = await modService.checkFilePaths(profileId, mod.sha);
               setCheckedPaths(paths);
-            } catch (error) {
+            } catch (error: unknown) {
                           }
           }
         } else {
           notification.error(t('mods.notifications.deleteCacheFailed'));
                   }
-      } catch (error) {
+      } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         notification.error(`${t('mods.notifications.deleteCacheFailed')}: ${errorMessage}`);
               }
@@ -222,7 +222,7 @@ export const ModList: React.FC<ModListProps> = ({
               result.filePath,
             );
             notification.success(t('mods.notifications.exportSuccess', { name: mod.name }));
-          } catch (error) {
+          } catch (error: unknown) {
             notification.error(t('mods.notifications.exportFailed'));
           }
         } else if (result.error) {
@@ -266,7 +266,7 @@ export const ModList: React.FC<ModListProps> = ({
               checkedPaths.originalPath,
             );
             notification.success(t('mods.notifications.openedOriginal'));
-          } catch (error) {
+          } catch (error: unknown) {
             notification.error(t('mods.notifications.openOriginalFailed'));
           }
         }
@@ -282,7 +282,7 @@ export const ModList: React.FC<ModListProps> = ({
           try {
             await fileDialogService.openDirectory(checkedPaths.cachePath);
             notification.success(t('mods.notifications.openedCache'));
-          } catch (error) {
+          } catch (error: unknown) {
             notification.error(t('mods.notifications.openCacheFailed'));
           }
         }
@@ -298,7 +298,7 @@ export const ModList: React.FC<ModListProps> = ({
           try {
             await fileDialogService.openDirectory(checkedPaths.thumbnailPath);
             notification.success(t('mods.notifications.openedPreview'));
-          } catch (error) {
+          } catch (error: unknown) {
             notification.error(t('mods.notifications.openPreviewFailed'));
           }
         }
@@ -359,7 +359,7 @@ export const ModList: React.FC<ModListProps> = ({
                         mod.sha,
                       );
                       setCheckedPaths(paths);
-                    } catch (error) {
+                    } catch (error: unknown) {
                                             setCheckedPaths({
                         originalPath: undefined,
                         cachePath: undefined,

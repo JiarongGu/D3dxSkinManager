@@ -11,6 +11,7 @@ import { TagsSection } from './TagsSection';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { useModsStore } from '../../store/modsStore';
 import { useMods } from '../../hooks/useMods';
+import logger from '../../../../shared/utils/logger';
 import './ModEditScreen.css';
 
 /**
@@ -45,7 +46,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
     try {
       const tagsFromTable = await modService.getAllTags(profileState.selectedProfile.id);
       setAvailableTags(tagsFromTable.map(t => t.name));
-    } catch (error) {
+    } catch (error: unknown) {
           }
   };
 
@@ -82,7 +83,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
         // Initialize tag colors map with existing tags from database
         const colorsMap = new Map(tagsFromTable.map(t => [t.name, t.color]));
         setTagColorsMap(colorsMap);
-      } catch (error) {
+      } catch (error: unknown) {
               }
     };
 
@@ -144,8 +145,9 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
               return modService.upsertTag(profileState.selectedProfile!.id, tagName, color);
             })
           );
-        } catch (tagSaveError) {
-                    // Continue with mod save even if tag save fails
+        } catch (tagSaveError: unknown) {
+          // Continue with mod save even if tag save fails
+          logger.warn('Failed to save some tags:', tagSaveError);
         }
       }
 
@@ -158,14 +160,15 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
         if (updatedMod) {
           updateModLocal(mod.sha, updatedMod);
         }
-      } catch (refreshError) {
-              }
+      } catch (refreshError: unknown) {
+        logger.debug('Failed to refresh mod after save:', refreshError);
+      }
 
       form.resetFields();
       setSelectedTags([]);
       setTagColorsMap(new Map());
       closeEditDialog();
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error('Please check all required fields');
     } finally {
       setSaving(false);

@@ -132,7 +132,7 @@ Messages are routed based on module name in the message:
 type ModuleName = 'MOD' | 'LAUNCH' | 'WAREHOUSE' | 'TOOL' |
                   'PLUGIN' | 'SETTING' | 'SYSTEM' | 'MIGRATION' | 'PROFILE';
 
-interface PhotinoMessage {
+interface BridgeMessage {
   module: ModuleName;
   type: string;
   profileId?: string;

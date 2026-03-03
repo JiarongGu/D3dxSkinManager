@@ -31,7 +31,7 @@ export async function loadGlobalSettings(): Promise<void> {
       const currentLevel = logger.getCurrentLevelName();
       setLogLevel(currentLevel);
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[settingsOperations] Failed to load global settings:', error);
     setError(error instanceof Error ? error.message : 'Failed to load global settings');
     // Fallback to current logger level on error
@@ -55,7 +55,7 @@ export async function updateLogLevel(level: string, t: (key: string, params?: an
   try {
     await settingsService.updateGlobalSetting('logLevel', level);
     notification.success(t('settings.notifications.logLevelChanged', { level }));
-  } catch (error) {
+  } catch (error: unknown) {
     notification.error(t('settings.notifications.logLevelFailed'));
     logger.error('[settingsOperations] Failed to save log level:', error);
     handleError(error);
@@ -70,7 +70,7 @@ export async function resetWindowState(t: (key: string) => string): Promise<void
   try {
     await settingsService.resetWindowState();
     notification.success(t('settings.notifications.windowStateReset'));
-  } catch (error) {
+  } catch (error: unknown) {
     notification.error(t('settings.notifications.windowStateResetFailed'));
     logger.error('[settingsOperations] Failed to reset window state:', error);
     handleError(error);
@@ -106,7 +106,7 @@ export async function loadProfileConfig(
       // Internal path is now calculated by backend
       // No need to compute it here since profiles don't store dataDirectory anymore
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[settingsOperations] Failed to load profile config:', error);
     setError(error instanceof Error ? error.message : 'Failed to load profile config');
     handleError(error);
@@ -158,7 +158,7 @@ export async function saveProfileConfig(
 
     notification.success(t('settings.notifications.profileConfigSaved'));
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     notification.error(t('settings.notifications.profileConfigSaveFailed'));
     logger.error('[settingsOperations] Failed to save profile config:', error);
     setError(error instanceof Error ? error.message : 'Failed to save profile config');

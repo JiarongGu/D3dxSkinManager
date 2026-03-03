@@ -11,7 +11,6 @@
 | **AI Assistant Guide** | [AI_GUIDE.md](AI_GUIDE.md) ⭐⭐⭐ |
 | **Find Component/Service** | [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) ⭐⭐⭐ |
 | **Current Architecture** | [architecture/CURRENT_ARCHITECTURE.md](architecture/CURRENT_ARCHITECTURE.md) ⭐⭐⭐ |
-| **Feature Gap Analysis** | [features/FEATURE_GAP_ANALYSIS_V3.md](features/FEATURE_GAP_ANALYSIS_V3.md) ⭐ |
 | **See Changes** | [CHANGELOG.md](CHANGELOG.md) ⭐ |
 | **Project Setup** | [core/DEVELOPMENT.md](core/DEVELOPMENT.md) |
 
@@ -52,12 +51,12 @@ docs/
 │   └── MIGRATION_GUIDE.md         Migrating from Python
 │
 ├── features/                      ✨ Feature documentation
-│   ├── FEATURE_GAP_ANALYSIS_V3.md Feature parity analysis
 │   ├── INTERNATIONALIZATION.md    ⭐⭐ i18n system (EN/CN)
-│   ├── OPERATION_NOTIFICATION_SYSTEM.md ⭐⭐ Progress tracking
+│   ├── CATEGORY_SYSTEM.md         Category management
 │   ├── DELAYED_LOADING_UX_PATTERN.md Loading UX pattern
-│   ├── PLUGIN.md                 Plugin system
+│   ├── PLUGINS.md                 Plugin system
 │   ├── PROFILE_SYSTEM.md          Profile management
+│   ├── PROFILE_AWARE_EVENTS.md    Profile-scoped events
 │   └── THEME_SYSTEM.md            Theme system
 │
 ├── how-to/                        📖 Step-by-step guides

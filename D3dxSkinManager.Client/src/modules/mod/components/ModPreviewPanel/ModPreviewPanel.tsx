@@ -161,7 +161,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         const hasImage =
           await modService.checkClipboardHasImage(selectedProfileId);
         setClipboardHasImage(hasImage);
-      } catch (error) {
+      } catch (error: unknown) {
                 setClipboardHasImage(false);
       }
     }
@@ -183,7 +183,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       // Refresh preview to update UI and navigate to first image (newly set thumbnail)
       await actions.loadPreviewPaths(mod.sha);
       setCurrentImageIndex(0);
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t("mods.preview.thumbnailUpdateFailed"));
     }
     setContextMenuVisible(false);
@@ -198,7 +198,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       } else {
         notification.warning(t("mods.preview.cacheFolderNotFound"));
       }
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t("mods.preview.openExplorerFailed"));
     }
     setContextMenuVisible(false);
@@ -213,7 +213,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       } else {
         notification.warning(t("mods.preview.previewFolderNotFound"));
       }
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t("mods.preview.openExplorerFailed"));
     }
     setContextMenuVisible(false);
@@ -229,7 +229,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         await fileDialogService.getAbsolutePath(currentImagePath);
       await navigator.clipboard.writeText(absolutePath);
       notification.success(t("mods.preview.pathCopied"));
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t("mods.preview.pathCopyFailed"));
     }
     setContextMenuVisible(false);
@@ -266,7 +266,7 @@ export const ModPreviewPanelContent: React.FC = () => {
 
       // Set the new index after refresh
       setCurrentImageIndex(newIndex);
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t("mods.preview.imageDeleteFailed"));
     }
     setDeleteConfirmVisible(false);
@@ -297,7 +297,7 @@ export const ModPreviewPanelContent: React.FC = () => {
         // Refresh preview to update UI
         await actions.loadPreviewPaths(mod.sha);
       }
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t("mods.preview.imageAddFailed"));
     }
     setContextMenuVisible(false);
@@ -312,7 +312,7 @@ export const ModPreviewPanelContent: React.FC = () => {
       notification.success(t("mods.preview.imageAdded"));
       // Refresh preview to update UI
       await actions.loadPreviewPaths(mod.sha);
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t("mods.preview.clipboardPasteFailed"));
     }
     setContextMenuVisible(false);
@@ -329,7 +329,7 @@ export const ModPreviewPanelContent: React.FC = () => {
           ? t("mods.preview.previewDisabled")
           : t("mods.preview.previewEnabled")
       );
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t("mods.preview.togglePreviewFailed"));
     }
     setContextMenuVisible(false);
@@ -455,7 +455,7 @@ export const ModPreviewPanelContent: React.FC = () => {
               } else {
                 notification.info(t("mods.preview.noPreviewFolder"));
               }
-            } catch (error) {
+            } catch (error: unknown) {
                             notification.error(t("mods.preview.openFolderFailed"));
             }
             setContextMenuVisible(false);

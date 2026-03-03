@@ -71,32 +71,20 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       let x = position.x;
       let y = position.y;
       let shouldExpandFromBottom = false;
-      const offset = 4; // Offset in pixels from click point
+      const offset = 4;
 
-      // Vertical positioning: Check if menu would go off bottom edge
-      // If click is at y position, and menu height is menuRect.height
-      // Then bottom edge would be at: y + menuRect.height
+      // Position menu above click point if it would overflow bottom
       if (y + menuRect.height > viewportHeight - 10) {
-        // Menu would go off bottom, so position it with bottom-left at click point
-        // This means: bottom of menu = y, so top of menu = y - height
-        // Add offset upward (subtract from y)
         y = y - menuRect.height - offset;
         shouldExpandFromBottom = true;
       } else {
-        // Normal positioning: add offset downward
         y = y + offset;
       }
 
-      // Horizontal positioning: Check if menu would go off right edge
-      // If click is at x position, and menu width is menuRect.width
-      // Then right edge would be at: x + menuRect.width
+      // Position menu to the left if it would overflow right edge
       if (x + menuRect.width > viewportWidth - 10) {
-        // Menu would go off right, so position it with right edge at click point
-        // This means: right of menu = x, so left of menu = x - width
-        // Add offset to the left (subtract from x)
         x = x - menuRect.width - offset;
       } else {
-        // Normal positioning: add offset to the right
         x = x + offset;
       }
 

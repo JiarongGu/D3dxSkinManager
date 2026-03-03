@@ -78,7 +78,7 @@ export const ModHierarchicalView: React.FC = () => {
         const { modService } = await import("../services/modService");
         const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
         setUnclassifiedCount(count);
-      } catch (error) {
+      } catch (error: unknown) {
         // Silently fail - not critical
       }
     };
@@ -93,7 +93,7 @@ export const ModHierarchicalView: React.FC = () => {
         const { modService } = await import("../services/modService");
         const tags = await modService.getTags(profileState.selectedProfile.id);
         setAvailableTags(tags);
-      } catch (error) {
+      } catch (error: unknown) {
         // Silently fail - not critical
       }
     };
@@ -111,7 +111,7 @@ export const ModHierarchicalView: React.FC = () => {
         const { modService } = await import("../services/modService");
         const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
         setUnclassifiedCount(count);
-      } catch (error) {
+      } catch (error: unknown) {
         // Silently fail - not critical
       }
     }

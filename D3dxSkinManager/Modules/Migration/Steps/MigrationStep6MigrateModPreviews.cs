@@ -123,7 +123,7 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
             if (!File.Exists(destFile))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destFile)!);
-                // �?Use FileService instead of File.Copy!
+                // Use FileService instead of File.Copy!
                 await _fileService.CopyFileAsync(sourceFile, destFile, overwrite: false).ConfigureAwait(false);
                 return true;
             }

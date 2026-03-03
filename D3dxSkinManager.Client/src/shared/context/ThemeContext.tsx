@@ -50,7 +50,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
           setThemeState(themeValue);
           setIsLoading(false);
           return; // Success - exit retry loop
-        } catch (error) {
+        } catch (error: unknown) {
           const isLastAttempt = attempt === maxRetries - 1;
 
           if (isLastAttempt) {
@@ -89,7 +89,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     // Save to backend - this is the ONLY source of truth
     try {
       await settingsService.updateGlobalSetting('theme', newTheme);
-    } catch (error) {
+    } catch (error: unknown) {
             // On failure, reload from backend to stay in sync
       try {
         const settings = await settingsService.getGlobalSettings();

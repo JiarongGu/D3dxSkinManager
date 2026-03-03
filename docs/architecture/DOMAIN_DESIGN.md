@@ -411,10 +411,10 @@ public class ModFacade
 {
     private readonly IModRepository _repository;  // ❌ WRONG!
 
-    public async Task<PhotinoResponse> GetMods(PhotinoMessage message)
+    public async Task<MessageResponse> GetMods(IpcRequest request)
     {
         var mods = await _repository.GetAllAsync();  // ❌ BYPASSING SERVICE
-        return PhotinoResponse.Success(mods);
+        return MessageResponse.Success(mods);
     }
 }
 
@@ -423,10 +423,10 @@ public class ModFacade
 {
     private readonly IModManagementService _modService;  // ✅ CORRECT
 
-    public async Task<PhotinoResponse> GetMods(PhotinoMessage message)
+    public async Task<MessageResponse> GetMods(IpcRequest request)
     {
         var mods = await _modService.GetAllModsAsync();  // ✅ USING SERVICE
-        return PhotinoResponse.Success(mods);
+        return MessageResponse.Success(mods);
     }
 }
 ```

@@ -37,7 +37,7 @@ class SettingsFileService extends BaseModuleService {
       }
 
       return JSON.parse(response.content) as T;
-    } catch (error) {
+    } catch (error: unknown) {
             return undefined;
     }
   }
@@ -56,7 +56,7 @@ class SettingsFileService extends BaseModuleService {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
             return false;
     }
   }
@@ -68,7 +68,7 @@ class SettingsFileService extends BaseModuleService {
     try {
       await this.sendMessage<SettingsFileResponse>('DELETE_FILE', undefined, { filename });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
             return false;
     }
   }
@@ -80,7 +80,7 @@ class SettingsFileService extends BaseModuleService {
     try {
       const response = await this.sendMessage<SettingsFileExistsResponse>('FILE_EXISTS', undefined, { filename });
       return response.exists;
-    } catch (error) {
+    } catch (error: unknown) {
             return false;
     }
   }
@@ -92,7 +92,7 @@ class SettingsFileService extends BaseModuleService {
     try {
       const response = await this.sendMessage<SettingsFileListResponse>('LIST_FILES', undefined, {});
       return response.files || [];
-    } catch (error) {
+    } catch (error: unknown) {
             return [];
     }
   }

@@ -104,9 +104,10 @@ D3dxSkinManager/
 D3dxSkinManager.Client/
 ├── src/
 │   ├── App.tsx                         # Main component
-│   ├── services/
-│   │   ├── photino.ts                  # C# bridge
-│   │   └── modService.ts               # Mod API wrapper
+│   ├── shared/
+│   │   └── services/
+│   │       └── bridgeService.ts        # WebView2 IPC bridge
+│   ├── modules/                        # Feature modules
 │   └── index.tsx                       # Entry point
 ├── public/
 │   └── index.html                      # HTML template
@@ -130,16 +131,13 @@ docs/
 ### Root
 
 ```
-d3dxSkinManage-Rewrite/
+D3dxSkinManager/
 ├── D3dxSkinManager.sln                 # Solution file
-├── D3dxSkinManager/                    # Backend
-├── D3dxSkinManager.Client/             # Frontend
+├── D3dxSkinManager/                    # Backend (.NET)
+├── D3dxSkinManager.Client/             # Frontend (React)
 ├── docs/                               # Documentation
-├── build-production.ps1                # Build script
 ├── .gitignore                          # Git ignore
-├── README.md                           # Main README
-├── QUICKSTART.md                       # Quick start
-└── ARCHITECTURE.md                     # Architecture
+└── README.md                           # Main README
 ```
 
 ---
@@ -335,9 +333,13 @@ git show commit-hash
 ### Backend NuGet Packages
 
 ```xml
-<PackageReference Include="Photino.NET" Version="4.0.16" />
-<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.3" />
-<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3800.47" />
+<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+<PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+<PackageReference Include="7z.Libs" Version="25.1.0" />
+<PackageReference Include="SharpSevenZip" Version="2.0.36" />
 ```
 
 ### Frontend npm Packages
@@ -429,14 +431,14 @@ CONFIGURATION=Release
 
 ```powershell
 # Navigate to backend
-function cdb { cd D3dxSkinManager\D3dxSkinManager }
+function cdb { cd path\to\D3dxSkinManager\D3dxSkinManager }
 
 # Navigate to frontend
-function cdf { cd D3dxSkinManager\D3dxSkinManager.Client }
+function cdf { cd path\to\D3dxSkinManager\D3dxSkinManager.Client }
 
 # Build both
 function build-all {
-    cd D3dxSkinManager\D3dxSkinManager
+    cd D3dxSkinManager
     dotnet build
     cd ..\D3dxSkinManager.Client
     npm run build
@@ -566,7 +568,7 @@ grep -r "ModService" .
 grep -r "interface" --include="*.cs" .
 
 # Case-insensitive search
-grep -ri "photino" .
+grep -ri "webview" .
 ```
 
 ---

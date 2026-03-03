@@ -46,7 +46,7 @@ export const StartupValidationTool: React.FC = () => {
       } else {
         notification.warning(t('validation.passedWithWarnings', { warningCount: report.warningCount }));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error(t('validation.runFailed'));
           } finally {
       setValidationLoading(false);

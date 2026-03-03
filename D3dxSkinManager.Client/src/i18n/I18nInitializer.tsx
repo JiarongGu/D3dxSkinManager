@@ -22,7 +22,7 @@ export const I18nInitializer: React.FC<I18nInitializerProps> = ({ children }) =>
         await loadLanguageFromSettings();
         logger.info('[I18nInitializer] i18next initialized successfully');
         setIsInitialized(true);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('[I18nInitializer] Failed to initialize i18next:', error);
         // Still set initialized to true to prevent infinite loading
         setIsInitialized(true);

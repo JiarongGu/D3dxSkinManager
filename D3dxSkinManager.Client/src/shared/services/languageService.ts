@@ -25,7 +25,7 @@ class LanguageService extends BaseModuleService {
       }
 
       return undefined;
-    } catch (error) {
+    } catch (error: unknown) {
             throw error;
     }
   }
@@ -46,7 +46,7 @@ class LanguageService extends BaseModuleService {
       }
 
       return [];
-    } catch (error) {
+    } catch (error: unknown) {
             return [];
     }
   }
@@ -63,7 +63,7 @@ class LanguageService extends BaseModuleService {
       );
 
       return response.exists;
-    } catch (error) {
+    } catch (error: unknown) {
             return false;
     }
   }

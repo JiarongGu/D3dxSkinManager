@@ -28,7 +28,7 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modSha }) 
       try {
         const bindings = await modService.getKeybindings(selectedProfileId, modSha);
         setKeybindings(bindings);
-      } catch (error) {
+      } catch (error: unknown) {
         setKeybindings([]);
       } finally {
         setLoading(false);

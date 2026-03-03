@@ -83,17 +83,30 @@ export const D3DMigotoTab: React.FC = () => {
   };
 
   const handleLaunch3DMigoto = () => {
-    // TODO: Implement 3DMigoto launch
-    notification.info(t('launch.d3dmigoto.launching'));
+    // TODO: Implement one-key launch (launch game with 3DMigoto injected)
+    notification.warning(t('launch.d3dmigoto.notImplementedYet'));
   };
 
   const handleOpenWorkDirectory = async () => {
+    if (!profileState.selectedProfile) {
+      notification.error(t('launch.notifications.noProfileSelected'));
+      return;
+    }
+
     try {
-      // TODO: Get work directory from current profile
-      const workDir = 'C:\\Games\\YourGame'; // Placeholder
-      await fileDialogService.openDirectory(workDir);
-      notification.success(t('launch.d3dmigoto.openedWorkDir'));
-    } catch (error) {
+      // TODO: Get work directory path from profile configuration
+      // For now, let user browse for the directory
+      const result = await fileDialogService.openFolderDialog({
+        title: t('launch.d3dmigoto.selectWorkDir'),
+      });
+
+      if (result.success && result.filePath) {
+        await fileDialogService.openDirectory(result.filePath);
+        notification.success(t('launch.d3dmigoto.openedWorkDir'));
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to open work directory:', errorMessage);
       notification.error(t('launch.d3dmigoto.openWorkDirFailed'));
     }
   };
@@ -279,7 +292,7 @@ export const D3DMigotoTab: React.FC = () => {
                           <strong>{version.name}</strong>
                           {version.isDeployed && (
                             <span className="d3dmigoto-tab-version-deployed">
-                              â—?{t('launch.d3dmigoto.deployed')}
+                              {t('launch.d3dmigoto.deployed')}
                             </span>
                           )}
                         </div>

@@ -118,7 +118,7 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
 
       notification.success(t('unityArgs.updated'));
       onCancel();
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t('unityArgs.checkFields'));
     } finally {
       setSaving(false);

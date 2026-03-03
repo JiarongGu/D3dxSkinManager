@@ -42,7 +42,7 @@ class PluginRegistry {
         result.catch(err => {
                   });
       }
-          } catch (err) {
+          } catch (err: unknown) {
           }
   }
 
@@ -59,7 +59,7 @@ class PluginRegistry {
         result.catch(err => {
                   });
       }
-    } catch (err) {
+    } catch (err: unknown) {
           }
 
     this.plugins.delete(pluginId);

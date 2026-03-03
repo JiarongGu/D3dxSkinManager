@@ -65,7 +65,7 @@ export const CacheManagementTool: React.FC = () => {
       setCacheItems(items);
       setCacheStats(stats);
       notification.success(`Cache scan complete: ${items.length} items found`);
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error('Failed to scan cache');
           } finally {
       setLoading(false);
@@ -109,7 +109,7 @@ export const CacheManagementTool: React.FC = () => {
 
       // Refresh cache list
       await handleScanCache();
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error(`Failed to clean ${categoryName} cache`);
           } finally {
       setLoading(false);
@@ -146,7 +146,7 @@ export const CacheManagementTool: React.FC = () => {
       } else {
         notification.error('Failed to delete cache item');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error('Failed to delete cache item');
           } finally {
       setLoading(false);
@@ -163,7 +163,7 @@ export const CacheManagementTool: React.FC = () => {
       // This would need to be configured based on actual data path
       notification.info('Opening cache directory...');
       // await fileSystemService.openDirectory(cachePath);
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error('Failed to open cache directory');
           }
   };

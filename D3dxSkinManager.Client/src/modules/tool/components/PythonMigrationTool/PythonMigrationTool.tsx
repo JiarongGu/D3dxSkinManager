@@ -30,12 +30,28 @@ import {
 } from "./services/migrationService";
 import { profileService } from "../../../profile/services/profileService";
 import { useProfile } from "../../../../shared/context/ProfileContext";
+import logger from "../../../../shared/utils/logger";
 import "./PythonMigrationTool.css";
 
 interface PythonMigrationToolProps {
   visible: boolean;
   onClose: () => void;
   onMigrationComplete?: () => void;
+}
+
+/**
+ * Form values from migration options step
+ */
+interface MigrationFormValues {
+  environmentName?: string;
+  migrateArchives?: boolean;
+  migrateMetadata?: boolean;
+  migratePreviews?: boolean;
+  migrateConfiguration?: boolean;
+  migrateCategories?: boolean;
+  archiveMode?: ArchiveHandling;
+  createProfile?: boolean;
+  profileName?: string;
 }
 
 /**
@@ -93,7 +109,7 @@ export const PythonMigrationToolInner: React.FC<{
     }
 
     try {
-      const values = (await form.validateFields()) as any;
+      const values = await form.validateFields() as MigrationFormValues;
       setMigrating(true);
       setCurrentStep(MigrationStep.Progress);
 
@@ -154,10 +170,10 @@ export const PythonMigrationToolInner: React.FC<{
             notification.error("Migration completed with errors");
           }
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           // API timeout or error - this is expected for long migrations
           // The COMPLETED event will handle setting migrating=false
-          console.log(
+          logger.debug(
             "Migration API call timed out or errored (this is normal for long migrations):",
             error,
           );

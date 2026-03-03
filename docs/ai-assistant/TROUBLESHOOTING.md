@@ -213,12 +213,13 @@ System.NullReferenceException: Object reference not set to an instance of an obj
 
 **Solution:**
 ```csharp
-private static void OnWebMessageReceived(object? sender, string message)
+private void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
 {
-    var window = (PhotinoWindow?)sender;
-    if (window == null)
+    var message = e.TryGetWebMessageAsString();
+
+    if (string.IsNullOrEmpty(message))
     {
-        Console.WriteLine("Error: Window is null");
+        _logger.LogWarning("Received empty WebView2 message");
         return;
     }
 
@@ -295,45 +296,47 @@ npm list antd
 
 ---
 
-### Error: `TS2339: Property 'external' does not exist on type 'Window'`
+### Error: `TS2339: Property 'chrome' does not exist on type 'Window'`
 
 **Symptom:**
-TypeScript error when accessing `window.external.sendMessage`
+TypeScript error when accessing `window.chrome.webview`
 
-**Root Cause:** Missing type definition for Photino bridge
+**Root Cause:** Missing type definition for WebView2 bridge
 
 **Solution:**
-Add type declaration in `photino.ts`:
+Add type declaration in `bridgeService.ts`:
 
 ```typescript
 // Add at top of file
 declare global {
   interface Window {
-    external?: {
-      sendMessage: (message: string) => void;
-      receiveMessage: (callback: (message: string) => void) => void;
+    chrome?: {
+      webview?: {
+        postMessage: (message: string) => void;
+        addEventListener: (event: string, callback: (e: any) => void) => void;
+      };
     };
   }
 }
 ```
 
-**File:** `D3dxSkinManager.Client/src/services/photino.ts:1`
+**File:** `D3dxSkinManager.Client/src/shared/services/bridgeService.ts:1`
 
 ---
 
-### Error: `TypeError: Cannot read property 'sendMessage' of undefined`
+### Error: `TypeError: Cannot read property 'postMessage' of undefined`
 
 **Symptom:**
 Runtime error when trying to send IPC message
 
-**Root Cause:** Running in development mode without backend, or Photino bridge not initialized
+**Root Cause:** Running in development mode without backend, or WebView2 bridge not initialized
 
 **Solution:**
-The photino.ts service already has fallback for development:
+The bridgeService.ts already has fallback for development:
 
 ```typescript
-if (window.external?.sendMessage) {
-    window.external.sendMessage(JSON.stringify(message));
+if (window.chrome?.webview?.postMessage) {
+    window.chrome.webview.postMessage(JSON.stringify(message));
 } else {
     // Development fallback
     console.log('[Dev Mode] Simulating backend response');
@@ -629,11 +632,11 @@ photinoService.initializeMessageReceiver();
 
 **Solution:**
 ```csharp
-// Always send response in backend
-private static void OnWebMessageReceived(object? sender, string message)
+// Always send response in backend via WebView2
+private void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
 {
-    var window = (PhotinoWindow?)sender;
-    if (window == null) return;
+    var message = e.TryGetWebMessageAsString();
+    if (string.IsNullOrEmpty(message)) return;
 
     try
     {
@@ -641,8 +644,8 @@ private static void OnWebMessageReceived(object? sender, string message)
         var response = new { success = true, data = result };
         var json = JsonSerializer.Serialize(response);
 
-        // CRITICAL: Send response back
-        window.SendWebMessage(json);
+        // CRITICAL: Send response back via WebView2
+        _webView.CoreWebView2.PostWebMessageAsString(json);
     }
     catch (Exception ex)
     {

@@ -132,7 +132,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
 
         await workflowService.startModImport(selectedProfileId, result.filePath, categoryId);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     } finally {
       setImporting(false);
@@ -153,7 +153,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
       // Show result notification
       if (result.failed.length > 0) {
               }
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     }
   };
@@ -172,7 +172,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
       // Show result notification
       if (result.failed.length > 0) {
               }
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     }
   };
@@ -199,7 +199,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
 
       // Refresh to show updated status
       refresh();
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     }
   };

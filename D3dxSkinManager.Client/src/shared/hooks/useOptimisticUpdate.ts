@@ -1,40 +1,24 @@
 ﻿import { useCallback, useRef } from 'react';
 
 /**
- * Hook for optimistic UI updates with automatic verification
+ * Hook for optimistic UI updates with automatic verification.
+ * Use for operations with unpredictable delays requiring state verification.
+ * For simple loading operations, use `useDelayedLoading` instead.
  *
- * **When to use this hook:**
- * - Operations with unpredictable delays (slow backend, network issues)
- * - Need to verify complex state changes (multiple interdependent fields)
- * - Want to detect and handle mismatches automatically
- *
- * **When to use `useDelayedLoading` instead:**
- * - Simple loading operations that just need delayed spinner
- * - Single data source refresh (just show/hide loading state)
- * - Fast operations (<100ms typically) where flicker is the main concern
- *
- * **Migration to `useDelayedLoading`:**
- * 1. Wrap your loading operation with `execute()`
- * 2. Sync the hook's `loading` state with your reducer via `useEffect`
- * 3. Remove automatic `loading: false` from your reducer actions
- * 4. Call simple refresh instead of verification
- *
- * See `useCategoryData.ts` or `useModData.ts` for examples of `useDelayedLoading`.
+ * For migration guide and examples, see docs/ai-assistant/GUIDELINES.md
  */
 
 /**
  * Deep equality check using JSON.stringify
- * Simple but effective for most cases
  */
-function deepEqual(a: any, b: any): boolean {
+function deepEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
 /**
- * Find differences between two objects
- * Returns a summary of mismatched fields
+ * Find differences between two objects for debugging
  */
-function findDifferences(expected: any, actual: any, path: string = ''): string[] {
+function findDifferences(expected: unknown, actual: unknown, path: string = ''): string[] {
   const differences: string[] = [];
 
   // Handle arrays
@@ -51,19 +35,21 @@ function findDifferences(expected: any, actual: any, path: string = ''): string[
   }
   // Handle objects
   else if (expected !== null && actual !== null && typeof expected === 'object' && typeof actual === 'object') {
-    const allKeys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
+    const expectedObj = expected as Record<string, unknown>;
+    const actualObj = actual as Record<string, unknown>;
+    const allKeys = new Set([...Object.keys(expectedObj), ...Object.keys(actualObj)]);
 
     allKeys.forEach(key => {
       const newPath = path ? `${path}.${key}` : key;
 
-      if (!(key in expected)) {
-        differences.push(`${newPath}: unexpected field in actual (value: ${JSON.stringify(actual[key])})`);
-      } else if (!(key in actual)) {
-        differences.push(`${newPath}: missing in actual (expected: ${JSON.stringify(expected[key])})`);
-      } else if (typeof expected[key] === 'object' && typeof actual[key] === 'object') {
-        differences.push(...findDifferences(expected[key], actual[key], newPath));
-      } else if (expected[key] !== actual[key]) {
-        differences.push(`${newPath}: expected ${JSON.stringify(expected[key])}, got ${JSON.stringify(actual[key])}`);
+      if (!(key in expectedObj)) {
+        differences.push(`${newPath}: unexpected field in actual (value: ${JSON.stringify(actualObj[key])})`);
+      } else if (!(key in actualObj)) {
+        differences.push(`${newPath}: missing in actual (expected: ${JSON.stringify(expectedObj[key])})`);
+      } else if (typeof expectedObj[key] === 'object' && typeof actualObj[key] === 'object') {
+        differences.push(...findDifferences(expectedObj[key], actualObj[key], newPath));
+      } else if (expectedObj[key] !== actualObj[key]) {
+        differences.push(`${newPath}: expected ${JSON.stringify(expectedObj[key])}, got ${JSON.stringify(actualObj[key])}`);
       }
     });
   }

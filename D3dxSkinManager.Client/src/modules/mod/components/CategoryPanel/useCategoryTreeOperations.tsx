@@ -204,7 +204,7 @@ export function useCategoryTreeOperations({
             } else {
               notification.error(t('category.updateFailed', { name: data.name }));
             }
-          } catch (error) {
+          } catch (error: unknown) {
                         if (error instanceof Error && error.message !== 'User cancelled') {
               notification.error(t('category.updateError', {
                 error: error.message || 'Unknown error'
@@ -256,7 +256,7 @@ export function useCategoryTreeOperations({
       } else {
         notification.error(t('category.deleteFailed'));
       }
-    } catch (error) {
+    } catch (error: unknown) {
             notification.error(t('category.deleteError'));
     }
   }, [deleteConfirmation.nodeId, onRefreshTree, t]);
@@ -355,7 +355,7 @@ export function useCategoryTreeOperations({
         if (onRefreshTree) {
           await onRefreshTree();
         }
-      } catch (error) {
+      } catch (error: unknown) {
                 notification.error("Failed to move Category node");
       }
     },
@@ -399,7 +399,7 @@ export function useCategoryTreeOperations({
         // Update the mod's category using the shared hook
         // Note: modName is optional, pass empty string if not available
         await updateModCategory(modSha, categoryValue, nodeName);
-      } catch (error) {
+      } catch (error: unknown) {
                 notification.error('Failed to update mod category');
       }
     },

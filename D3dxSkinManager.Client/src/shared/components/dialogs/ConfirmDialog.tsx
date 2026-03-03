@@ -47,7 +47,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       await execute(async () => {
         await onOk();
       });
-    } catch (error) {
+    } catch (error: unknown) {
       // Silently ignore if operation already in progress
       if (error instanceof Error && error.message === 'Operation already in progress') {
         return;

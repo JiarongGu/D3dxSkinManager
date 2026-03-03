@@ -91,7 +91,7 @@ export const ModImportMetadataDialog: React.FC<ModImportMetadataDialogProps> = (
     try {
       const values = await form.validateFields();
       await onSubmit(values);
-    } catch (error) {
+    } catch (error: unknown) {
             // Don't close modal if validation fails
       throw error;
     }

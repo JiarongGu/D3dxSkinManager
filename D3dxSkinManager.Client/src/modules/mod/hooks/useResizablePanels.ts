@@ -27,7 +27,7 @@ export function useResizablePanels() {
     try {
       const panelSize = `${newSizes.categoryWidth} ${newSizes.modListWidth}`;
       await settingsService.updateModPanelSize(panelSize);
-    } catch (error) {
+    } catch (error: unknown) {
           }
   }, []);
 

@@ -54,7 +54,7 @@ export async function importMod(
 
     notification.success(`Imported ${task.fileName} successfully`);
     return mod;
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
     throw error;
   }
@@ -107,7 +107,7 @@ export async function importMods(
       });
 
       successCount++;
-    } catch (error) {
+    } catch (error: unknown) {
       // Update task status to error
       const errorMessage = error instanceof Error ? error.message : 'Import failed';
       updateImportTask(task.id, {

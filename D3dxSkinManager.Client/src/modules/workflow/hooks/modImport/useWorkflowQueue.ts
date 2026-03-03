@@ -107,7 +107,7 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
         newMap.set(workflow.id, workflow);
       });
       setWorkflowMap(newMap);
-    } catch (error) {
+    } catch (error: unknown) {
       // Error handled by error handler
     } finally {
       setIsLoading(false);
@@ -197,7 +197,7 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
                 context: JSON.stringify(context),
               });
               return newMap;
-            } catch (error) {
+            } catch (error: unknown) {
               return prev;
             }
           });

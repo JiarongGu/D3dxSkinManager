@@ -74,7 +74,7 @@ export const ModListPanel: React.FC = () => {
           files,
           categoryId
         );
-      } catch (error) {
+      } catch (error: unknown) {
                 handleError(error);
       }
     },

@@ -132,7 +132,7 @@ export class Logger {
   /**
    * Send log to backend for persistence
    */
-  private async sendToBackend(level: LogLevel, message: string, args: any[]): Promise<void> {
+  private async sendToBackend(level: LogLevel, message: string, args: unknown[]): Promise<void> {
     if (!this.persistToBackend) {
       return;
     }
@@ -163,7 +163,7 @@ export class Logger {
   /**
    * Log a verbose message (high-frequency events)
    */
-  verbose(message: string, ...args: any[]): void {
+  verbose(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.VERBOSE)) {
       console.log(`[VERBOSE] ${message}`, ...args);
       this.sendToBackend(LogLevel.VERBOSE, message, args); // Fire and forget
@@ -173,7 +173,7 @@ export class Logger {
   /**
    * Log a debug message
    */
-  debug(message: string, ...args: any[]): void {
+  debug(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.DEBUG)) {
       console.log(`[DEBUG] ${message}`, ...args);
       this.sendToBackend(LogLevel.DEBUG, message, args); // Fire and forget
@@ -183,7 +183,7 @@ export class Logger {
   /**
    * Log an info message
    */
-  info(message: string, ...args: any[]): void {
+  info(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.INFO)) {
       console.info(`[INFO] ${message}`, ...args);
       this.sendToBackend(LogLevel.INFO, message, args); // Fire and forget
@@ -193,7 +193,7 @@ export class Logger {
   /**
    * Log a warning message
    */
-  warn(message: string, ...args: any[]): void {
+  warn(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.WARN)) {
       console.warn(`[WARN] ${message}`, ...args);
       this.sendToBackend(LogLevel.WARN, message, args); // Fire and forget
@@ -203,7 +203,7 @@ export class Logger {
   /**
    * Log an error message
    */
-  error(message: string, ...args: any[]): void {
+  error(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.ERROR)) {
       console.error(`[ERROR] ${message}`, ...args);
       this.sendToBackend(LogLevel.ERROR, message, args); // Fire and forget

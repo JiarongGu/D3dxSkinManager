@@ -48,7 +48,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 
       // NOTE: No manual refresh needed - ModsProvider reactively listens to profile changes
       // and will automatically refresh mods and Category tree
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error(t('profiles.notifications.switchFailed'));
     }
   };

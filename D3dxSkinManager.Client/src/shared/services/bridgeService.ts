@@ -12,6 +12,13 @@ import {
 } from "../types/message.types";
 import { eventBus } from "./eventBus";
 
+/**
+ * WebView2 message event structure
+ */
+interface WebViewMessageEvent {
+  data: string;
+}
+
 // WebView2 bridge interface
 declare global {
   interface Window {
@@ -20,7 +27,7 @@ declare global {
         postMessage: (message: string) => void;
         addEventListener: (
           event: string,
-          handler: (event: any) => void,
+          handler: (event: WebViewMessageEvent) => void,
         ) => void;
       };
     };
@@ -59,42 +66,49 @@ class BridgeService {
             return;
     }
 
-    window.chrome.webview.addEventListener("message", (event: any) => {
+    window.chrome.webview.addEventListener("message", (event: WebViewMessageEvent) => {
       try {
-        const parsed = JSON.parse(event.data);
+        const parsed = JSON.parse(event.data) as { category?: string; [key: string]: unknown };
 
         // Route based on category
         if (parsed.category === "IPC") {
-          // IPC request/response
-          const response: BridgeResponse = parsed;
-          const handler = this.messageHandlers.get(response.id);
+          // IPC request/response - validate it has required fields
+          if ('id' in parsed && 'success' in parsed) {
+            const response = parsed as unknown as BridgeResponse;
+            const handler = this.messageHandlers.get(response.id);
 
-          if (handler) {
-            handler(response);
-            this.messageHandlers.delete(response.id);
+            if (handler) {
+              handler(response);
+              this.messageHandlers.delete(response.id);
+            }
           }
         } else if (parsed.category === "NOTIFICATION") {
           // Push notification/event - emit to eventBus
           // Backend sends: { category, id, module, type, payload, timestamp }
-          const { module, type, payload } = parsed;
+          if ('module' in parsed && 'type' in parsed && typeof parsed.module === 'string' && typeof parsed.type === 'string') {
+            const { module, type, payload } = parsed as { module: string; type: string; payload: unknown };
 
-          // Handle batched events (unbundle them)
-          if (module === "EVENT_BUS" && type === "BATCH" && Array.isArray(payload)) {
-            // Unbundle batch - emit each event individually
-            payload.forEach((event: any) => {
-              eventBus.emit({
-                module: event.module,
-                type: event.type,
-                payload: event.payload,
+            // Handle batched events (unbundle them)
+            if (module === "EVENT_BUS" && type === "BATCH" && Array.isArray(payload)) {
+              // Unbundle batch - emit each event individually
+              payload.forEach((event: unknown) => {
+                if (event && typeof event === 'object' && 'module' in event && 'type' in event) {
+                  // Cast module string to Module enum type (runtime values match)
+                  eventBus.emit({
+                    module: event.module as unknown as import('./eventBus').Module,
+                    type: event.type as string,
+                    payload: 'payload' in event ? event.payload : undefined,
+                  });
+                }
               });
-            });
-          } else {
-            // Single event - emit directly
-            eventBus.emit({
-              module,
-              type,
-              payload,
-            });
+            } else {
+              // Single event - emit directly. Cast module string to Module enum type
+              eventBus.emit({
+                module: module as unknown as import('./eventBus').Module,
+                type,
+                payload,
+              });
+            }
           }
         }
       } catch (error) {

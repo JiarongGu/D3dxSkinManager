@@ -184,12 +184,13 @@ export const CategoryScreenContent: React.FC<
 
       notification.success(t("category.screen.saved"));
       closeScreen(screenId);
-    } catch (error: any) {
-      if (error.errorFields) {
-        // Form validation error
+    } catch (error: unknown) {
+      // Check if this is a form validation error
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        // Form validation error - don't show notification
         return;
       }
-            notification.error(t("category.screen.saveFailed"));
+      notification.error(t("category.screen.saveFailed"));
     } finally {
       setLoading(false);
     }

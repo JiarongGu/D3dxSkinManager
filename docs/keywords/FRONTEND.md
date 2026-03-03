@@ -578,8 +578,8 @@
 ### IPC Communication
 
 - **bridgeService** → `src/shared/services/bridgeService.ts`
-  - WebView2 IPC bridge service (Photino.NET was completely replaced in 2026-02-22 migration)
-  - Uses chrome.webview.postMessage for IPC
+  - WebView2 IPC bridge service
+  - Uses chrome.webview.postMessage for IPC communication
   - sendMessage → Sends messages to backend
   - initializeMessageReceiver → Sets up message listener
   - simulateBackendResponse → Dev mode mock responses
@@ -631,8 +631,7 @@
   - exportMod: Export mod to destination path
   - FileDialogOptions interface: { title, defaultPath, filters }
   - FileDialogResult interface: { success, filePath, error }
-  - All functions ready for Photino.NET IPC integration
-  - Created: 2026-02-17 Phase 11
+  - WebView2 IPC integration for native file operations
 
 ---
 
@@ -696,9 +695,9 @@
 
 - **message.types.ts** → `src/types/message.types.ts`
   - MessageType union type → `:1-12`
-  - PhotinoMessage interface → `:14-18`
-  - PhotinoResponse interface → `:20-25`
-  - ErrorDetails interface → Error code and data from backend (added 2026-02-21)
+  - BridgeMessage interface → WebView2 IPC message structure
+  - BridgeResponse interface → WebView2 IPC response structure
+  - ErrorDetails interface → Error code and data from backend
 
 - **errorCodes.ts** → `src/shared/constants/errorCodes.ts`
   - ErrorCodes constants → MOD_FOLDER_IN_USE, MOD_ARCHIVE_NOT_FOUND, etc.

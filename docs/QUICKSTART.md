@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get the d3dxSkinManage rewrite up and running in 5 minutes!
+Get D3dxSkinManager up and running in 5 minutes!
 
 ## Prerequisites Check
 
@@ -30,14 +30,13 @@ If any are missing:
 
 ```bash
 # Navigate to project
-cd d3dxSkinManage-Rewrite
-
-# Install .NET packages
 cd D3dxSkinManager
+
+# Install .NET packages (backend)
 dotnet restore
 
-# Install React packages
-cd ../frontend
+# Install React packages (frontend)
+cd D3dxSkinManager.Client
 npm install
 ```
 
@@ -47,25 +46,25 @@ Open **TWO terminal windows**:
 
 **Terminal 1 - React Dev Server:**
 ```bash
-cd d3dxSkinManage-Rewrite/frontend
+cd D3dxSkinManager/D3dxSkinManager.Client
 npm start
 ```
 Wait for "Compiled successfully!" message and browser opens.
 
 **Terminal 2 - Backend:**
 ```bash
-cd d3dxSkinManage-Rewrite/D3dxSkinManager
+cd D3dxSkinManager/D3dxSkinManager
 dotnet run
 ```
 
-A WebView2 window should open showing the d3dxSkinManage UI!
+A WebView2 window should open showing the D3dxSkinManager UI!
 
 ## What You'll See
 
 The application opens with:
-- **Header**: "d3dxSkinManage" title
-- **Sidebar**: Three menu items (Mod Management, Mod Warehouse, Settings)
-- **Main Content**: A table showing mods (empty initially, or mock data in dev mode)
+- **Header**: "D3dxSkinManager" title with profile selector
+- **Sidebar**: Multiple menu items (Mods, Launch, Workflow, Tools, Plugins, Settings)
+- **Main Content**: Mod management interface with hierarchical view, list panel, and preview panel
 
 ## Development Mode Features
 
@@ -107,21 +106,28 @@ The WebView2 window uses Chromium, so you can:
 ## Project Structure at a Glance
 
 ```
-d3dxSkinManage-Rewrite/
+D3dxSkinManager/
 │
-├── D3dxSkinManager/         # .NET Backend
-│   ├── Program.cs              # 🔧 Entry point - Edit to add features
-│   ├── Services/               # 🔧 Add your services here
-│   │   ├── IModService.cs
-│   │   └── ModService.cs
+├── D3dxSkinManager/            # .NET Backend
+│   ├── Program.cs                 # Entry point
+│   ├── Modules/                   # Feature modules
+│   │   ├── Mod/                   # Mod management
+│   │   ├── Profile/               # Profile system
+│   │   ├── Launch/                # Game launching
+│   │   └── ...                    # Other modules
 │   └── D3dxSkinManager.csproj
 │
-└── D3dxSkinManager.Client/                   # React Frontend
+└── D3dxSkinManager.Client/     # React Frontend
     ├── src/
-    │   ├── App.tsx             # 🔧 Main UI - Edit to change layout
-    │   ├── services/
-    │   │   ├── bridgeService.ts # 🔧 C# ↔ React bridge
-    │   │   └── modService.ts   # 🔧 Mod operations
+    │   ├── App.tsx                # Main app layout
+    │   ├── modules/               # Feature modules
+    │   │   ├── mod/               # Mod UI components
+    │   │   ├── profile/           # Profile UI
+    │   │   └── ...                # Other modules
+    │   ├── shared/
+    │   │   ├── services/
+    │   │   │   └── bridgeService.ts  # WebView2 IPC bridge
+    │   │   └── ...
     │   └── ...
     └── package.json
 ```
@@ -136,12 +142,12 @@ Files marked with 🔧 are the ones you'll edit most often.
 
 ```tsx
 // Before
-<div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>
-  d3dxSkinManage
+<div className="app-header-title">
+  D3dxSkinManager
 </div>
 
 // After
-<div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>
+<div className="app-header-title">
   My Cool Mod Manager
 </div>
 ```
@@ -150,31 +156,25 @@ Files marked with 🔧 are the ones you'll edit most often.
 
 ### Add a Backend Method
 
-**File**: `D3dxSkinManager/Services/IModService.cs`
+**File**: `D3dxSkinManager/Modules/Mod/Services/IModService.cs`
 
 Add to interface:
 ```csharp
-Task<int> GetModCountAsync();
+Task<int> GetModCountAsync(string profileId);
 ```
 
-**File**: `D3dxSkinManager/Services/ModService.cs`
+**File**: `D3dxSkinManager/Modules/Mod/Services/ModService.cs`
 
 Add implementation:
 ```csharp
-public async Task<int> GetModCountAsync()
+public async Task<int> GetModCountAsync(string profileId)
 {
-    using var connection = new SqliteConnection(_connectionString);
-    await connection.OpenAsync();
-
-    var command = connection.CreateCommand();
-    command.CommandText = "SELECT COUNT(*) FROM Mods";
-
-    var count = (long)(await command.ExecuteScalarAsync() ?? 0);
-    return (int)count;
+    var mods = await _repository.GetAllAsync(profileId);
+    return mods.Count;
 }
 ```
 
-Now you have a method to count mods!
+Now you have a method to count mods for a profile!
 
 ## Common Issues & Fixes
 
@@ -215,22 +215,23 @@ Now that you're up and running:
 
 1. **Read**: [ARCHITECTURE.md](ARCHITECTURE.md) - Understand the system design
 2. **Read**: [README.md](README.md) - Full documentation
-3. **Explore**: Look at the original Python code in `../src/` folder
-4. **Build**: Start implementing features from the original app!
+3. **Explore**: Browse the codebase to understand the modular architecture
+4. **Build**: Start implementing new features or improving existing ones!
 
-### Suggested First Features to Implement
+### Understanding the Codebase
 
-1. **Import Mod** - Add ability to import a .7z file
-2. **Calculate SHA** - Hash imported mods
-3. **Real Database** - Connect to actual SQLite DB (not mock data)
-4. **File Operations** - Copy mods to work directory
-5. **Preview Images** - Display mod thumbnails
+Start exploring these key areas:
+1. **Backend Modules** - `D3dxSkinManager/Modules/` - Feature-based modules (Mod, Profile, Launch, etc.)
+2. **Frontend Modules** - `D3dxSkinManager.Client/src/modules/` - Corresponding UI components
+3. **IPC Bridge** - `D3dxSkinManager.Client/src/shared/services/bridgeService.ts` - WebView2 communication
+4. **Database** - `D3dxSkinManager/Data/` - SQLite with EF Core migrations
+5. **Documentation** - `docs/ai-assistant/` - AI-focused development guides
 
 ## Getting Help
 
 - Check the [README.md](README.md) for detailed docs
 - Review [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions
-- Look at the original Python code for reference
+- Read [docs/ai-assistant/](ai-assistant/) guides for development patterns
 - Create an issue if you find bugs
 
 ## Development Tips

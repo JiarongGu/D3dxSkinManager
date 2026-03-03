@@ -100,7 +100,7 @@ export const SettingsView: React.FC = () => {
           language: selectedLang?.name || value,
         }),
       );
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error(t("settings.notifications.languageFailed"));
       logger.error("[SettingsView] Failed to change language:", error);
     }
@@ -129,7 +129,7 @@ export const SettingsView: React.FC = () => {
         setModCacheDirectory(result.filePath);
         form.setFieldValue("modCacheDirectory", result.filePath);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       notification.error(t("settings.notifications.modCacheDirectoryFailed"));
       logger.error("[SettingsView] Failed to browse mod cache directory:", error);
     }

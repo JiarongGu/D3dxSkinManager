@@ -32,7 +32,7 @@ export async function loadModInGame(profileId: string, sha: string): Promise<voi
 
     // 4. Refresh mod info from backend to update hasCache and other properties
     await refreshMods(profileId);
-  } catch (error) {
+  } catch (error: unknown) {
     // 5. Revert optimistic update on error
     optimisticUnloadUpdate(sha);
 
@@ -58,7 +58,7 @@ export async function unloadModFromGame(profileId: string, sha: string): Promise
 
     // 3. Refresh from backend to sync state
     await refreshMods(profileId);
-  } catch (error) {
+  } catch (error: unknown) {
     // 4. Revert optimistic update on error
     optimisticLoadUpdate(sha, []);
 
@@ -83,7 +83,7 @@ export async function unloadAllMods(profileId: string): Promise<void> {
 
     // Refresh to sync with backend
     await refreshMods(profileId);
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
     throw error;
   }
@@ -102,7 +102,7 @@ export async function loadMultipleMods(profileId: string, shas: string[]): Promi
 
     // Refresh to sync with backend
     await refreshMods(profileId);
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
     throw error;
   }

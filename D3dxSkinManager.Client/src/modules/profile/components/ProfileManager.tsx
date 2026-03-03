@@ -200,7 +200,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       if (result.success && result.filePath) {
         setCreateThumbnailPath(result.filePath);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     }
   };
@@ -224,7 +224,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
         setEditNewThumbnailPath(result.filePath);
         setEditThumbnailRemoved(false); // Clear removal flag when new thumbnail selected
       }
-    } catch (error) {
+    } catch (error: unknown) {
       handleError(error);
     }
   };

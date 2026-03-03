@@ -18,7 +18,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onManageProfil
   const handleProfileChange = async (profileId: string) => {
     try {
       await actions.selectProfile(profileId);
-    } catch (error) {
+    } catch (error: unknown) {
       // Error already handled by ProfileContext
     }
   };

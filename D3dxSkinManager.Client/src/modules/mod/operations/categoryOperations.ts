@@ -61,7 +61,7 @@ export async function updateModCategory(
     await refreshMods(profileId);
 
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     // 4. Revert optimistic update on error
     if (modBeingUpdated) {
       state.optimisticCategoryUpdate(sha, modBeingUpdated.category);
@@ -161,7 +161,7 @@ export async function batchUpdateCategories(
 
     // Refresh both mods and tree
     await Promise.all([refreshMods(profileId), refreshCategoryTree(profileId)]);
-  } catch (error) {
+  } catch (error: unknown) {
     notification.error('Failed to batch update categories');
     throw error;
   }
@@ -183,7 +183,7 @@ export async function loadCategoryTree(profileId: string): Promise<void> {
       setCategoryLoading,
       100
     );
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
   }
 }
@@ -218,7 +218,7 @@ async function _loadModsByCategory(
       setCategoryLoading,
       100
     );
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
   }
 }
@@ -245,7 +245,7 @@ export async function loadUncategorizedMods(profileId: string): Promise<void> {
       setCategoryLoading,
       100
     );
-  } catch (error) {
+  } catch (error: unknown) {
     handleError(error);
   }
 }
