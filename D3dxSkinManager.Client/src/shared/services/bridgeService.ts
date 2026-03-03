@@ -77,11 +77,25 @@ class BridgeService {
           // Push notification/event - emit to eventBus
           // Backend sends: { category, id, module, type, payload, timestamp }
           const { module, type, payload } = parsed;
-          eventBus.emit({
-            module,
-            type,
-            payload,
-          });
+
+          // Handle batched events (unbundle them)
+          if (module === "EVENT_BUS" && type === "BATCH" && Array.isArray(payload)) {
+            // Unbundle batch - emit each event individually
+            payload.forEach((event: any) => {
+              eventBus.emit({
+                module: event.module,
+                type: event.type,
+                payload: event.payload,
+              });
+            });
+          } else {
+            // Single event - emit directly
+            eventBus.emit({
+              module,
+              type,
+              payload,
+            });
+          }
         }
       } catch (error) {
               }

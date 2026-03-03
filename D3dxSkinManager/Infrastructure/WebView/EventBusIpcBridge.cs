@@ -6,6 +6,7 @@ namespace D3dxSkinManager.Infrastructure.WebView;
 /// <summary>
 /// Bridge between backend EventBus and frontend via IPC
 /// Subscribes to backend events and forwards them to the frontend
+/// IpcHandler automatically batches events every 50ms to reduce IPC overhead
 /// </summary>
 public class EventBusIpcBridge : IDisposable
 {
@@ -31,7 +32,7 @@ public class EventBusIpcBridge : IDisposable
     /// </summary>
     public void Init()
     {
-        _logger.Info("Initializing EventBus IPC Bridge - forwarding all events", "EventBridge");
+        _logger.Info("Initializing EventBus IPC Bridge", "EventBridge");
 
         // Subscribe to ALL events (all modules, all types, all profiles)
         var registrationId = _eventBus.RegisterHandlerForAll(async (message) =>
@@ -41,33 +42,33 @@ public class EventBusIpcBridge : IDisposable
 
         _registrationIds.Add(registrationId);
 
-        _logger.Info("EventBus IPC Bridge initialized - forwarding all events to frontend", "EventBridge");
+        _logger.Info("EventBus IPC Bridge initialized - IpcHandler will batch events every 50ms", "EventBridge");
     }
 
     /// <summary>
     /// Forward a backend event to the frontend via IPC
-    /// Forwards Module and Type separately, following IpcRequest pattern
+    /// IpcHandler automatically queues and batches events
     /// </summary>
-    private async Task ForwardEventToFrontend(EventMessage message)
+    private Task ForwardEventToFrontend(EventMessage message)
     {
         try
         {
             var eventId = $"{message.Module}.{message.Type}";
             _logger.Verbose($"Forwarding event to frontend: {eventId}", "EventBridge");
 
-            // Send notification with Module, Type, and Payload at top level
-            // Frontend will receive: { category: "notification", module, type, payload }
+            // Send notification - IpcHandler will automatically queue and batch
             _ipcHandler.SendNotification(
                 module: message.Module,
                 type: message.Type,
                 payload: message.Payload
             );
 
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
         catch (Exception ex)
         {
             _logger.Error($"Error forwarding event to frontend: {ex.Message}", "EventBridge", ex);
+            return Task.CompletedTask;
         }
     }
 

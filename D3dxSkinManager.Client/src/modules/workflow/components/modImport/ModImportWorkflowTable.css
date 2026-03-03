@@ -144,7 +144,7 @@
 .mod-import-workflow-table .ant-table-placeholder .ant-table-cell {
   background: transparent !important;
   border-bottom: none !important;
-  height: 140px !important;
+  height: calc(100vh - 296px) !important;
   vertical-align: middle;
 }
 

@@ -34,7 +34,8 @@ public interface IIpcHandler
     void ClearSubscriptions();
 
     /// <summary>
-    /// Send a push notification to the frontend (not in response to a request)
+    /// Send a push notification to the frontend (queued for batching)
+    /// Events are automatically batched and sent every 50ms to reduce IPC overhead
     /// </summary>
     /// <param name="module">Module name (e.g., "MOD", "PROFILE")</param>
     /// <param name="type">Event type (e.g., "LOADED", "DELETED")</param>

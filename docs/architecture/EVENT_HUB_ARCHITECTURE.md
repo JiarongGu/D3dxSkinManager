@@ -400,7 +400,7 @@ public class MonitorPlugin : IPlugin
 
 ## EventBus + IpcBridge Integration
 
-The `EventBusIpcBridge` forwards backend events to the frontend WebView:
+The `EventBusIpcBridge` forwards backend events to the frontend WebView with automatic batching:
 
 ```
 Backend Event
@@ -409,10 +409,43 @@ EventBus.EmitAsync()
     ↓
 EventBusIpcBridge (subscriber)
     ↓
-IpcHandler.SendNotification()
+IpcHandler.SendNotification() [queued]
+    ↓
+[50ms batching timer]
+    ↓
+IpcHandler.FlushNotificationBatch()
+  - Filters subscribed events only
+  - Bundles into single IPC message
     ↓
 WebView (Frontend)
+    ↓
+BridgeService receives batch
+    ↓
+Unbundles and emits individual events
+    ↓
+Frontend EventBus subscribers
 ```
+
+### IPC Message Batching (Performance Optimization)
+
+To reduce IPC overhead, all notifications are automatically batched at the `IpcHandler` level:
+
+**How it works:**
+1. All `SendNotification()` calls queue events instead of sending immediately
+2. Every 50ms, a timer fires and flushes the queue
+3. Events are filtered to only include those with active frontend subscriptions
+4. Subscribed events are bundled into a single `EVENT_BUS.BATCH` IPC message
+5. Frontend unbundles and emits events individually to subscribers
+
+**Performance Impact:**
+- **Before**: 1 IPC message per event (100+ messages/sec possible)
+- **After**: 1 IPC message per 50ms batch (~20 messages/sec max)
+- **Reduction**: 80-95% fewer IPC messages
+
+**Code locations:**
+- Batching logic: `Infrastructure/WebView/IpcHandler.cs`
+- Unbundling logic: `D3dxSkinManager.Client/src/shared/services/bridgeService.ts`
+- Frontend EventBus: `D3dxSkinManager.Client/src/shared/services/eventBus.ts`
 
 ### Frontend Event Subscription
 

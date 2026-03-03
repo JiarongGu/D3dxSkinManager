@@ -6,6 +6,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Timers;
 
 namespace D3dxSkinManager.Infrastructure.WebView;
 
@@ -35,6 +36,12 @@ public class IpcHandler : IIpcHandler
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly ConcurrentDictionary<string, bool> _subscriptions = new();
 
+    // Notification batching
+    private readonly ConcurrentQueue<(string module, string type, object? payload)> _pendingNotifications = new();
+    private readonly System.Timers.Timer _batchTimer;
+    private readonly object _batchLock = new();
+    private const int BatchIntervalMs = 50;
+
     /// <summary>
     /// Event fired when a message is received from the frontend
     /// </summary>
@@ -44,6 +51,12 @@ public class IpcHandler : IIpcHandler
     {
         _webView = webView ?? throw new ArgumentNullException(nameof(webView));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Initialize batch timer
+        _batchTimer = new System.Timers.Timer(BatchIntervalMs);
+        _batchTimer.Elapsed += (sender, e) => FlushNotificationBatch();
+        _batchTimer.AutoReset = true;
+        _batchTimer.Start();
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -184,48 +197,87 @@ public class IpcHandler : IIpcHandler
     }
 
     /// <summary>
-    /// Send a push notification to React (not in response to a request)
+    /// Send a push notification to React (queued for batching)
+    /// Events are batched and sent every 50ms to reduce IPC overhead
     /// </summary>
     public void SendNotification(string module, string type, object? payload = null)
     {
-        try
+        // Queue notification for batching
+        _pendingNotifications.Enqueue((module, type, payload));
+    }
+
+    /// <summary>
+    /// Flush pending notifications as a single batched IPC message
+    /// Called every 50ms by the timer
+    /// Filters to only send events with active subscriptions
+    /// </summary>
+    private void FlushNotificationBatch()
+    {
+        lock (_batchLock)
         {
-            if (!_subscriptions.ContainsKey(GetSubscriptionKey(module, type)))
+            if (_pendingNotifications.IsEmpty)
+                return;
+
+            var batch = new List<(string module, string type, object? payload)>();
+            while (_pendingNotifications.TryDequeue(out var notification))
             {
-                return; // No subscribers for this notification type
+                batch.Add(notification);
             }
 
-            var notificationId = Guid.NewGuid().ToString();
-            var message = new
-            {
-                category = "NOTIFICATION",
-                id = notificationId,
-                module = module,
-                type = type,
-                payload = payload,
-                timestamp = DateTime.UtcNow
-            };
+            if (batch.Count == 0)
+                return;
 
-            var json = JsonSerializer.Serialize(message, _jsonOptions);
-
-            // Marshal to UI thread since WebView2 requires UI thread access (non-blocking)
-            if (_webView.InvokeRequired)
+            try
             {
-                _webView.BeginInvoke(() =>
+                // Filter to only include events that have subscriptions
+                var subscribedEvents = batch
+                    .Where(e => _subscriptions.ContainsKey(GetSubscriptionKey(e.module, e.type)))
+                    .Select(e => new
+                    {
+                        module = e.module,
+                        type = e.type,
+                        payload = e.payload
+                    })
+                    .ToList();
+
+                if (subscribedEvents.Count == 0)
+                {
+                    return; // No subscribed events to send
+                }
+
+                _logger.Verbose($"Flushing batch of {subscribedEvents.Count} events (filtered from {batch.Count} total)", "IPC");
+
+                // Send as batched notification
+                var batchId = Guid.NewGuid().ToString();
+                var message = new
+                {
+                    category = "NOTIFICATION",
+                    id = batchId,
+                    module = "EVENT_BUS",
+                    type = "BATCH",
+                    payload = subscribedEvents,
+                    timestamp = DateTime.UtcNow
+                };
+
+                var json = JsonSerializer.Serialize(message, _jsonOptions);
+
+                // Marshal to UI thread
+                if (_webView.InvokeRequired)
+                {
+                    _webView.BeginInvoke(() =>
+                    {
+                        _webView.CoreWebView2.PostWebMessageAsString(json);
+                    });
+                }
+                else
                 {
                     _webView.CoreWebView2.PostWebMessageAsString(json);
-                });
+                }
             }
-            else
+            catch (Exception ex)
             {
-                _webView.CoreWebView2.PostWebMessageAsString(json);
+                _logger.Error($"Error flushing notification batch: {ex.Message}", "IPC", ex);
             }
-
-            _logger.Verbose($"Sent notification [{notificationId}]: {module}.{type}", "IPC");
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Error sending notification: {ex.Message}", "IPC", ex);
         }
     }
 
