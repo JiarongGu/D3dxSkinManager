@@ -17,6 +17,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   PauseCircleOutlined,
+  PlayCircleOutlined,
 } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "../../../../shared/context/ProfileContext";
@@ -94,7 +95,8 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       progress = 100;
     } else if (
       workflow.status === WorkflowStatus.Failed ||
-      workflow.status === WorkflowStatus.Cancelled
+      workflow.status === WorkflowStatus.Cancelled ||
+      workflow.status === WorkflowStatus.Deleting
     ) {
       progress = 0;
     } else if (context && context.progress !== undefined) {
@@ -128,6 +130,9 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       case WorkflowStatus.WaitingForInput:
         statusText = t("workflow.status.awaitingConfirmation");
         break;
+      case WorkflowStatus.Paused:
+        statusText = t("workflow.status.paused");
+        break;
       case WorkflowStatus.Completed:
         statusText = t("workflow.status.completed");
         break;
@@ -136,6 +141,9 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         break;
       case WorkflowStatus.Cancelled:
         statusText = t("workflow.status.cancelled");
+        break;
+      case WorkflowStatus.Deleting:
+        statusText = "Deleting...";
         break;
       default:
         statusText = `Unknown (${workflow.status})`; // Debug fallback
@@ -265,6 +273,20 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
   };
 
   /**
+   * Handle resume workflow (for workflows that stopped after app reboot)
+   */
+  const handleResumeWorkflow = async (workflowId: string) => {
+    if (!selectedProfileId) return;
+
+    try {
+      await workflowService.resumeWorkflow(selectedProfileId, workflowId);
+      onRefresh?.();
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  /**
    * Handle delete workflow
    */
   const handleDeleteWorkflow = async (workflowId: string) => {
@@ -289,12 +311,16 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         return "processing";
       case WorkflowStatus.WaitingForInput:
         return "warning";
+      case WorkflowStatus.Paused:
+        return "default";
       case WorkflowStatus.Completed:
         return "success";
       case WorkflowStatus.Failed:
         return "error";
       case WorkflowStatus.Cancelled:
         return "default";
+      case WorkflowStatus.Deleting:
+        return "orange";
       default:
         return "default";
     }
@@ -429,9 +455,11 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
           [WorkflowStatus.Processing]: 1,
           [WorkflowStatus.WaitingForInput]: 2,
           [WorkflowStatus.Pending]: 3,
-          [WorkflowStatus.Completed]: 4,
-          [WorkflowStatus.Failed]: 5,
-          [WorkflowStatus.Cancelled]: 6,
+          [WorkflowStatus.Paused]: 4,
+          [WorkflowStatus.Deleting]: 5,
+          [WorkflowStatus.Completed]: 6,
+          [WorkflowStatus.Failed]: 7,
+          [WorkflowStatus.Cancelled]: 8,
         };
         return statusPriority[a.workflow.status] - statusPriority[b.workflow.status];
       },
@@ -478,7 +506,8 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         const isActive =
           workflow.status !== WorkflowStatus.Completed &&
           workflow.status !== WorkflowStatus.Failed &&
-          workflow.status !== WorkflowStatus.Cancelled;
+          workflow.status !== WorkflowStatus.Cancelled &&
+          workflow.status !== WorkflowStatus.Deleting;
 
         return (
           <Space size="small">
@@ -507,8 +536,8 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
               </Tooltip>
             )}
 
-            {/* Pause button - show when processing (not waiting) */}
-            {isActive && workflow.status !== WorkflowStatus.WaitingForInput && (
+            {/* Pause button - show when Pending or Processing */}
+            {(workflow.status === WorkflowStatus.Pending || workflow.status === WorkflowStatus.Processing) && (
               <Tooltip title={t("workflow.queue.pause")}>
                 <CompactButton.Warning
                   size="small"
@@ -519,16 +548,30 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
               </Tooltip>
             )}
 
-            {/* Delete button - always show */}
-            <Tooltip title={t("workflow.queue.delete")}>
-              <CompactButton.Danger
-                size="small"
-                shape="default"
-                icon={<DeleteOutlined />}
-                onClick={() => handleDeleteWorkflow(workflow.id)}
-                danger
-              />
-            </Tooltip>
+            {/* Resume button - show when Paused */}
+            {workflow.status === WorkflowStatus.Paused && (
+              <Tooltip title={t("workflow.queue.resume")}>
+                <CompactButton.Success
+                  size="small"
+                  shape="default"
+                  icon={<PlayCircleOutlined />}
+                  onClick={() => handleResumeWorkflow(workflow.id)}
+                />
+              </Tooltip>
+            )}
+
+            {/* Delete button - hide during final import step (after user confirmation) */}
+            {!(row.context?.step === ModImportWorkflowSteps.ImportMod && workflow.status === WorkflowStatus.Processing) && (
+              <Tooltip title={t("workflow.queue.delete")}>
+                <CompactButton.Danger
+                  size="small"
+                  shape="default"
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDeleteWorkflow(workflow.id)}
+                  danger
+                />
+              </Tooltip>
+            )}
 
             {/* Error message - show when failed */}
             {workflow.status === WorkflowStatus.Failed &&

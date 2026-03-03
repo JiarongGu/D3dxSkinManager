@@ -1,5 +1,6 @@
 using D3dxSkinManager.Modules.Workflow.Handlers;
 using D3dxSkinManager.Modules.Workflow.Repositories;
+using D3dxSkinManager.Modules.Workflow.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace D3dxSkinManager.Modules.Workflow;
@@ -13,6 +14,10 @@ public static class WorkflowServiceExtensions
     {
         // Repository
         services.AddSingleton<IWorkflowRepository, WorkflowRepository>();
+
+        // Services
+        services.AddSingleton<IWorkflowConcurrencyManager, WorkflowConcurrencyManager>();
+        services.AddSingleton<IWorkflowResumeService, WorkflowResumeService>();
 
         // Workflow handlers - register as both concrete type and interface
         services.AddSingleton<ModImportWorkflowHandler>();

@@ -57,20 +57,23 @@ export const ModListPanel: React.FC = () => {
 
       try {
         // Get selected category from store to pre-fill in workflow
-        const categoryId = selectedCategory?.id;
+        // Don't pass __unclassified__ placeholder - use undefined instead
+        const categoryId = selectedCategory?.id === '__unclassified__'
+          ? undefined
+          : selectedCategory?.id;
 
-        // Start batch mod import workflows
+        // Open the mod import workflow screen IMMEDIATELY with skeleton loading state
+        // This gives instant feedback to the user
+        openModManagementScreen();
+
+        // Start batch mod import workflows in background
         // Backend will validate each file/folder and reject invalid ones
-        const workflows = await workflowService.batchStartModImport(
+        // The workflows will appear in the screen as they are created
+        await workflowService.batchStartModImport(
           selectedProfileId,
           files,
           categoryId
         );
-
-        // Open the mod import workflow screen to show progress
-        if (workflows.length > 0) {
-          openModManagementScreen();
-        }
       } catch (error) {
                 handleError(error);
       }

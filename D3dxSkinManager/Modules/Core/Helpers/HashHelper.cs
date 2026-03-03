@@ -5,7 +5,7 @@ namespace D3dxSkinManager.Modules.Core.Helpers;
 
 public interface IHashHelper
 {
-    Task<string> CalculateFileSHA256Async(string filePath);
+    Task<string> CalculateFileSHA256Async(string filePath, CancellationToken cancellationToken = default);
     string CalculateSHA256(byte[] data);
     string CalculateSHA256(string text);
 }
@@ -15,7 +15,7 @@ public interface IHashHelper
 /// </summary>
 public class HashHelper : IHashHelper
 {
-    public async Task<string> CalculateFileSHA256Async(string filePath)
+    public async Task<string> CalculateFileSHA256Async(string filePath, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"File not found: {filePath}");
@@ -23,7 +23,7 @@ public class HashHelper : IHashHelper
         using var sha256 = SHA256.Create();
         using var fileStream = File.OpenRead(filePath);
 
-        var hashBytes = await sha256.ComputeHashAsync(fileStream).ConfigureAwait(false);
+        var hashBytes = await sha256.ComputeHashAsync(fileStream, cancellationToken).ConfigureAwait(false);
         return BitConverter.ToString(hashBytes).Replace("-", "").ToUpperInvariant();
     }
 

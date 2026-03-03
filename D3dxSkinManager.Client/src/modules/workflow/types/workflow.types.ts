@@ -7,9 +7,11 @@ export enum WorkflowStatus {
   Pending = "pending",
   Processing = "processing",
   WaitingForInput = "waitingForInput",
+  Paused = "paused",
   Completed = "completed",
   Failed = "failed",
   Cancelled = "cancelled",
+  Deleting = "deleting",
 }
 
 export interface WorkflowInfo {

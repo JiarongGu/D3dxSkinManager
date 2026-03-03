@@ -1,6 +1,6 @@
 # Workflow Architecture
 
-**Last Updated**: 2026-03-01
+**Last Updated**: 2026-03-03
 **Status**: Active
 
 ## Overview
@@ -14,9 +14,20 @@ The Workflow module provides a **simple, stateless workflow engine** for managin
 A workflow is a simple entity with:
 - **Id**: Unique identifier (e.g., `WF-{guid}`)
 - **Type**: Workflow type (e.g., `MOD_IMPORT`)
-- **Status**: Current status (Pending, Processing, WaitingForInput, Completed, Failed, Cancelled)
+- **Status**: Current status (Pending, Processing, WaitingForInput, Paused, Completed, Failed, Cancelled, Deleting)
 - **Context**: JSON string containing workflow-specific state
 - **Timestamps**: CreatedAt, CompletedAt
+
+#### Status Definitions
+
+- **Pending**: Waiting in queue to start
+- **Processing**: Currently executing
+- **WaitingForInput**: Paused for user metadata confirmation
+- **Paused**: Manually paused by user (won't auto-resume)
+- **Completed**: Successfully finished
+- **Failed**: Failed with error
+- **Cancelled**: Cancelled by user
+- **Deleting**: Being deleted (cleanup in progress)
 
 ### 2. Type-Specific Handlers
 
@@ -321,6 +332,118 @@ The new Workflow system simplifies to:
 - No routing configuration needed
 
 **Migration Path**: Create new workflow handlers for each use case, delete old TaskQueue code.
+
+## Pause/Resume System
+
+### User-Initiated Pause
+
+Workflows can be paused manually by the user:
+
+```csharp
+public async Task<WorkflowInfo> PauseAsync(string workflowId)
+{
+    // 1. Cancel running task (if exists)
+    if (_cancellationTokens.TryRemove(workflowId, out var cts))
+    {
+        cts.Cancel();
+        cts.Dispose();
+    }
+
+    // 2. Release concurrency slot
+    _concurrencyManager.ReleaseSlot(workflowId);
+
+    // 3. Update status to Paused
+    workflow.Status = WorkflowStatus.Paused;
+    await _workflowRepository.UpdateAsync(workflow);
+}
+```
+
+### Resume from Paused State
+
+Paused workflows can be resumed:
+
+```csharp
+public async Task<WorkflowInfo> ResumeFromCurrentStepAsync(string workflowId)
+{
+    // 1. Validate status (Pending, Processing, or Paused)
+    if (workflow.Status != WorkflowStatus.Paused) { /* validate */ }
+
+    // 2. Set to Pending
+    workflow.Status = WorkflowStatus.Pending;
+
+    // 3. Create new cancellation token
+    var cts = new CancellationTokenSource();
+    _cancellationTokens.TryAdd(workflow.Id, cts);
+
+    // 4. Resume from current step
+    await ProcessStepAsync(workflow, cts.Token);
+}
+```
+
+### Post-Reboot Behavior
+
+After application restart:
+- All in-memory state (CancellationTokenSource) is lost
+- Workflows with `Pending` or `Processing` status remain in database
+- **No auto-resume** - user must manually restart queue
+- "Start Queue" button appears to resume all stopped workflows
+
+## Performance Optimizations
+
+### 1. Compression Speed vs Size Trade-off
+
+```csharp
+// Use Fast compression instead of Normal
+CompressionLevel = CompressionLevel.Fast
+```
+
+**Impact**:
+- 2-3x faster compression
+- ~10-15% larger file size
+- Minimal impact on mod files (textures/models already compressed)
+
+### 2. Progress Event Throttling
+
+```csharp
+// Throttle to 2 events/sec (500ms) instead of 10 events/sec (100ms)
+var eventThrottle = TimeSpan.FromMilliseconds(500);
+
+// Report every 10% instead of 5%
+var shouldReport = scaledProgress >= lastReportedProgress + 10 ||
+                 scaledProgress >= 90 ||
+                 (now - lastEventTime) >= eventThrottle;
+```
+
+**Impact**:
+- 10 workflows × 2 events/sec = 20 IPC messages/sec (80% reduction from 100)
+- Reduces IPC channel saturation
+- Improves UI responsiveness
+
+### 3. Direct Event Emission
+
+```csharp
+// Direct emit (no Task.Run wrapper)
+_ = _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.PROGRESS, payload);
+```
+
+**Impact**:
+- Reduces thread pool allocation overhead
+- Lower GC pressure
+- Simpler code path
+
+### Performance Comparison
+
+**Before Optimization**:
+- 100 IPC events/sec (10 workflows × 10 events/sec)
+- Normal compression (high CPU)
+- Task.Run for each event
+
+**After Optimization**:
+- 20 IPC events/sec (10 workflows × 2 events/sec)
+- Fast compression (2-3x faster)
+- Direct event emission
+
+**Result**: Significantly improved UI responsiveness during heavy workflow processing.
 
 ## See Also
 

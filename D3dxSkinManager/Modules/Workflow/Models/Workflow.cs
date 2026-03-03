@@ -3,7 +3,7 @@ using D3dxSkinManager.Modules.Workflow.Entities;
 namespace D3dxSkinManager.Modules.Workflow.Models;
 
 /// <summary>
-/// Workflow model - same as entity (no runtime fields needed for simplicity)
+/// Workflow model - includes runtime state
 /// </summary>
 public class WorkflowInfo
 {

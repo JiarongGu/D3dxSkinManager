@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { Space } from 'antd';
-import { FolderOpenOutlined, CheckOutlined, DeleteOutlined, LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { FolderOpenOutlined, CheckOutlined, DeleteOutlined, LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { CompactButton } from '../../../../shared/components/compact';
 import { ModImportWorkflowTable } from './ModImportWorkflowTable';
 import { useWorkflowQueue } from '../../hooks/modImport/useWorkflowQueue';
@@ -28,7 +28,7 @@ import './ModImportWorkflowScreen.css';
 export const ModImportWorkflowScreen: React.FC = () => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
-  const { workflows, clearCompleted, refresh } = useWorkflowQueue();
+  const { workflows, clearCompleted, refresh, isLoading } = useWorkflowQueue();
   const [selectedWorkflowIds, setSelectedWorkflowIds] = React.useState<string[]>([]);
   const [defaultCategory, setDefaultCategory] = React.useState<string | undefined>();
 
@@ -90,6 +90,13 @@ export const ModImportWorkflowScreen: React.FC = () => {
     }).length;
   }, [selectedWorkflowIds, workflows]);
 
+  // Check if there are Pending/Processing workflows (for Start Queue button)
+  const hasPendingOrProcessing = useMemo(() => {
+    return workflows.some(
+      (w) => w.status === WorkflowStatus.Pending || w.status === WorkflowStatus.Processing
+    );
+  }, [workflows]);
+
   const [importing, setImporting] = React.useState(false);
 
   const handleImportFolder = async () => {
@@ -109,9 +116,12 @@ export const ModImportWorkflowScreen: React.FC = () => {
 
       if (result.success && result.filePath) {
         // Get selected category from store to pre-fill in workflow
+        // Don't pass __unclassified__ placeholder - use undefined instead
         const { useModsStore } = await import('../../../mod/store/modsStore');
         const selectedCategory = useModsStore.getState().selectedCategory;
-        const categoryId = selectedCategory?.id;
+        const categoryId = selectedCategory?.id === '__unclassified__'
+          ? undefined
+          : selectedCategory?.id;
 
         await workflowService.startModImport(selectedProfileId, result.filePath, categoryId);
       }
@@ -155,6 +165,32 @@ export const ModImportWorkflowScreen: React.FC = () => {
       // Show result notification
       if (result.failed.length > 0) {
               }
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  /**
+   * Start all Pending/Processing workflows (used after app reboot)
+   */
+  const handleStartQueue = async () => {
+    if (!selectedProfileId) return;
+
+    try {
+      // Find all Pending or Processing workflows
+      const workflowsToStart = workflows.filter(
+        (w) => w.status === WorkflowStatus.Pending || w.status === WorkflowStatus.Processing
+      );
+
+      if (workflowsToStart.length === 0) return;
+
+      // Resume each workflow
+      for (const workflow of workflowsToStart) {
+        await workflowService.resumeWorkflow(selectedProfileId, workflow.id);
+      }
+
+      // Refresh to show updated status
+      refresh();
     } catch (error) {
       handleError(error);
     }
@@ -223,6 +259,16 @@ export const ModImportWorkflowScreen: React.FC = () => {
             {t('mods.import.import')}
           </CompactButton.Primary>
 
+          {/* Start Queue button - show when there are Pending/Processing workflows (after reboot) */}
+          {hasPendingOrProcessing && (
+            <CompactButton.Success
+              icon={<PlayCircleOutlined />}
+              onClick={handleStartQueue}
+            >
+              {t('workflow.queue.startQueue')}
+            </CompactButton.Success>
+          )}
+
           <CompactButton.Success
             icon={<CheckOutlined />}
             disabled={selectedWaitingCount === 0}
@@ -243,12 +289,24 @@ export const ModImportWorkflowScreen: React.FC = () => {
 
       {/* Workflow Queue Table */}
       <div className="mod-import-workflow-screen-content">
-        <ModImportWorkflowTable
-          workflows={workflows}
-          onRefresh={refresh}
-          selectedRowKeys={selectedWorkflowIds}
-          onSelectionChange={setSelectedWorkflowIds}
-        />
+        {isLoading && workflows.length === 0 ? (
+          <div className="mod-import-workflow-screen-loading">
+            <LoadingOutlined spin style={{ fontSize: 32, color: '#1890ff' }} />
+            <div className="mod-import-workflow-screen-loading-text">
+              Preparing import workflows...
+            </div>
+            <div className="mod-import-workflow-screen-loading-hint">
+              Your files are being analyzed. Workflows will appear here as they are created.
+            </div>
+          </div>
+        ) : (
+          <ModImportWorkflowTable
+            workflows={workflows}
+            onRefresh={refresh}
+            selectedRowKeys={selectedWorkflowIds}
+            onSelectionChange={setSelectedWorkflowIds}
+          />
+        )}
       </div>
     </div>
   );

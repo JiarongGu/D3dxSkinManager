@@ -166,7 +166,7 @@ public class WorkflowFacade : IWorkflowFacade
 
         // Route to appropriate handler based on workflow type
         var handler = GetHandler(workflow.Type);
-        return await handler.ContinueAsync(workflowId);
+        return await handler.ResumeFromCurrentStepAsync(workflowId);
     }
 
     private async Task<Models.WorkflowInfo> PauseWorkflowAsync(IpcRequest request)

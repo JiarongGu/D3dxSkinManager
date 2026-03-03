@@ -1,9 +1,11 @@
+using System.Collections.Concurrent;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Workflow.Models;
 using D3dxSkinManager.Modules.Workflow.Repositories;
 using D3dxSkinManager.Modules.Workflow.Entities;
+using D3dxSkinManager.Modules.Workflow.Services;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Models;
@@ -43,6 +45,10 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     private readonly IEventBus _eventBus;
     private readonly ILogHelper _logger;
     private readonly IModQueryService _modQueryService;
+    private readonly IWorkflowConcurrencyManager _concurrencyManager;
+
+    // Track cancellation tokens for ongoing operations (compression, SHA calculation)
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancellationTokens = new();
 
     public string WorkflowType => "MOD_IMPORT";
 
@@ -57,7 +63,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         IHashHelper hashHelper,
         IEventBus eventBus,
         ILogHelper logger,
-        IModQueryService modQueryService)
+        IModQueryService modQueryService,
+        IWorkflowConcurrencyManager concurrencyManager)
     {
         _workflowRepository = workflowRepository;
         _modImportService = modImportService;
@@ -70,10 +77,12 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         _eventBus = eventBus;
         _logger = logger;
         _modQueryService = modQueryService;
+        _concurrencyManager = concurrencyManager;
     }
 
     /// <summary>
     /// Start a new mod import workflow
+    /// Returns immediately after creating workflow - processing happens asynchronously
     /// Step 1: Extract metadata from folder/file
     /// </summary>
     /// <param name="folderPath">Path to folder or archive file</param>
@@ -88,7 +97,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         {
             Id = Guid.NewGuid().ToString(),
             Type = WorkflowType,
-            Status = WorkflowStatus.Processing,
+            Status = WorkflowStatus.Pending,
             Context = JsonHelper.Serialize(new ModImportWorkflowContext
             {
                 Step = ModImportWorkflowSteps.ExtractMetadata,
@@ -103,8 +112,51 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         // Emit workflow created event
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.CREATED, workflow);
 
-        // Process step 1: extract metadata
-        await ProcessStepAsync(workflow);
+        // Create cancellation token BEFORE Task.Run so workflow is immediately tracked as "running"
+        var cts = new CancellationTokenSource();
+        _cancellationTokens.TryAdd(workflow.Id, cts);
+
+        // Process step 1 asynchronously - don't await
+        // Use concurrency manager to limit parallel executions
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Acquire slot for execution (will wait if at capacity)
+                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id);
+
+                // Update status to Processing
+                workflow.Status = WorkflowStatus.Processing;
+                await _workflowRepository.UpdateAsync(workflow);
+                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
+
+                await ProcessStepAsync(workflow, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Info($"Workflow {workflow.Id} was cancelled");
+                // Workflow already marked as Deleting by CancelAsync
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to process workflow {workflow.Id} asynchronously: {ex.Message}", "ModImportWorkflowHandler", ex);
+                // Mark workflow as failed
+                workflow.Status = WorkflowStatus.Failed;
+                workflow.ErrorMessage = ex.Message;
+                workflow.CompletedAt = DateTime.UtcNow;
+                await _workflowRepository.UpdateAsync(workflow);
+                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
+            }
+            finally
+            {
+                // Clean up cancellation token
+                _cancellationTokens.TryRemove(workflow.Id, out _);
+                cts.Dispose();
+
+                // Always release slot when done
+                _concurrencyManager.ReleaseSlot(workflow.Id);
+            }
+        });
 
         return workflow;
     }
@@ -130,21 +182,64 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         // Move to import step
         context.Step = ModImportWorkflowSteps.ImportMod;
         workflow.Context = JsonHelper.Serialize(context);
-        workflow.Status = WorkflowStatus.Processing;
+        workflow.Status = WorkflowStatus.Pending;  // Set to Pending first
 
         await _workflowRepository.UpdateAsync(workflow);
 
         // Emit status changed event
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
-        // Process import step
-        await ProcessStepAsync(workflow);
+        // Create cancellation token BEFORE Task.Run so workflow is immediately tracked as "running"
+        var cts = new CancellationTokenSource();
+        _cancellationTokens.TryAdd(workflow.Id, cts);
+
+        // Process import step asynchronously with concurrency control
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Acquire slot for execution (will wait if at capacity)
+                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id);
+
+                // Update status to Processing
+                workflow.Status = WorkflowStatus.Processing;
+                await _workflowRepository.UpdateAsync(workflow);
+                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
+
+                await ProcessStepAsync(workflow, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Info($"Workflow {workflow.Id} was cancelled during resume");
+                // Workflow already marked as Deleting by CancelAsync
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to resume workflow {workflow.Id}: {ex.Message}", "ModImportWorkflowHandler", ex);
+                workflow.Status = WorkflowStatus.Failed;
+                workflow.ErrorMessage = ex.Message;
+                workflow.CompletedAt = DateTime.UtcNow;
+                await _workflowRepository.UpdateAsync(workflow);
+                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
+            }
+            finally
+            {
+                // Clean up cancellation token
+                _cancellationTokens.TryRemove(workflow.Id, out _);
+                cts.Dispose();
+
+                // Always release slot when done
+                _concurrencyManager.ReleaseSlot(workflow.Id);
+            }
+        });
 
         return workflow;
     }
 
     /// <summary>
-    /// Cancel the workflow
+    /// Cancel/Delete the workflow
+    /// Returns immediately, cleanup happens asynchronously
+    /// Sets status to Deleting, then emits DELETED event when done
     /// </summary>
     public async Task<WorkflowInfo> CancelAsync(string workflowId)
     {
@@ -152,38 +247,86 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         if (workflow == null)
             throw new InvalidOperationException($"Workflow not found: {workflowId}");
 
+        // Don't allow deletion during final import step (after user confirmation)
+        // The workflow will delete itself automatically after completion
         var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context);
-
-        // Clean up temp file if exists (only if we created it, not the user's original file)
-        // For folders: IsArchiveFile=false, we created temp .7z -> delete
-        // For archives: IsArchiveFile=true, TempArchivePath = user's original -> don't delete
-        if (context?.TempArchivePath != null &&
-            !context.IsArchiveFile &&
-            _fileHelper.FileExists(context.TempArchivePath))
+        if (context?.Step == ModImportWorkflowSteps.ImportMod && workflow.Status == WorkflowStatus.Processing)
         {
-            var deleted = await _fileHelper.DeleteFileAsync(context.TempArchivePath);
-            if (deleted)
-            {
-                _logger.Info($"Deleted temp archive: {context.TempArchivePath}");
-            }
-            else
-            {
-                _logger.Error($"Failed to delete temp archive: {context.TempArchivePath}");
-            }
+            _logger.Info($"Cannot delete workflow {workflowId} during final import step - it will auto-delete after completion");
+            throw new InvalidOperationException("Cannot delete workflow during final import. Please wait for it to complete.");
         }
 
-        workflow.Status = WorkflowStatus.Cancelled;
-        workflow.CompletedAt = DateTime.UtcNow;
+        _logger.Info($"Deleting workflow {workflowId}...");
+
+        // Cancel any ongoing operations (compression, SHA calculation)
+        if (_cancellationTokens.TryGetValue(workflowId, out var cts))
+        {
+            _logger.Info($"Cancelling ongoing operations for workflow {workflowId}");
+            cts.Cancel();
+        }
+
+        // Set status to Deleting immediately
+        workflow.Status = WorkflowStatus.Deleting;
         await _workflowRepository.UpdateAsync(workflow);
 
-        // Emit cancelled event
-        await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.CANCELLED, workflow);
+        // Emit status changed event to show "Deleting..." in UI
+        await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
+
+        // Perform cleanup asynchronously
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Wait a bit for cancellation to complete
+                await Task.Delay(100);
+
+                var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context);
+
+                // Clean up temp file if exists (only if we created it, not the user's original file)
+                // For folders: IsArchiveFile=false, we created temp .7z -> delete
+                // For archives: IsArchiveFile=true, TempArchivePath = user's original -> don't delete
+                if (context?.TempArchivePath != null &&
+                    !context.IsArchiveFile &&
+                    _fileHelper.FileExists(context.TempArchivePath))
+                {
+                    var deleted = await _fileHelper.DeleteFileAsync(context.TempArchivePath);
+                    if (deleted)
+                    {
+                        _logger.Info($"Deleted temp archive: {context.TempArchivePath}");
+                    }
+                    else
+                    {
+                        _logger.Error($"Failed to delete temp archive: {context.TempArchivePath}");
+                    }
+                }
+
+                // Delete workflow from database
+                await _workflowRepository.DeleteAsync(workflowId);
+
+                // Emit DELETED event (UI will remove it from the list)
+                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.DELETED, workflowId);
+
+                _logger.Info($"Workflow {workflowId} deleted successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to delete workflow {workflowId}: {ex.Message}", "ModImportWorkflowHandler", ex);
+
+                // Mark as failed instead of deleting
+                workflow.Status = WorkflowStatus.Failed;
+                workflow.ErrorMessage = $"Failed to delete: {ex.Message}";
+                workflow.CompletedAt = DateTime.UtcNow;
+                await _workflowRepository.UpdateAsync(workflow);
+                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
+            }
+        });
 
         return workflow;
     }
 
     /// <summary>
-    /// Pause a workflow (not supported for ModImport - workflows auto-pause at confirmation step)
+    /// Pause a running workflow (user requested)
+    /// Changes status to Paused and cancels the running task
     /// </summary>
     public async Task<WorkflowInfo> PauseAsync(string workflowId)
     {
@@ -191,9 +334,30 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         if (workflow == null)
             throw new InvalidOperationException($"Workflow not found: {workflowId}");
 
-        // ModImport workflows automatically pause at CompressFolder step
-        // Manual pause is not supported
-        throw new NotSupportedException("MOD_IMPORT workflows pause automatically at compression step. Use CANCEL to stop the workflow.");
+        // Only Pending or Processing workflows can be paused
+        if (workflow.Status != WorkflowStatus.Pending && workflow.Status != WorkflowStatus.Processing)
+            throw new InvalidOperationException($"Cannot pause workflow in status: {workflow.Status}");
+
+        _logger.Info($"Pausing workflow {workflowId}...");
+
+        // Cancel the running task if it exists
+        if (_cancellationTokens.TryRemove(workflowId, out var cts))
+        {
+            cts.Cancel();
+            cts.Dispose();
+            _logger.Info($"Cancelled running task for workflow {workflowId}");
+        }
+
+        // Release concurrency slot if acquired
+        _concurrencyManager.ReleaseSlot(workflowId);
+
+        // Update status to Paused
+        workflow.Status = WorkflowStatus.Paused;
+        await _workflowRepository.UpdateAsync(workflow);
+        await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
+
+        _logger.Info($"Workflow {workflowId} paused successfully");
+        return workflow;
     }
 
     /// <summary>
@@ -286,9 +450,101 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     }
 
     /// <summary>
+    /// Resume workflow from current step (used for application restart)
+    /// Restarts processing from wherever the workflow left off
+    /// </summary>
+    public async Task<WorkflowInfo> ResumeFromCurrentStepAsync(string workflowId)
+    {
+        var workflow = await _workflowRepository.GetByIdAsync(workflowId);
+        if (workflow == null)
+            throw new InvalidOperationException($"Workflow not found: {workflowId}");
+
+        var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context)
+            ?? throw new InvalidOperationException("Invalid workflow context");
+
+        // Don't resume workflows that are waiting for user input
+        if (workflow.Status == WorkflowStatus.WaitingForInput)
+        {
+            _logger.Info($"Workflow {workflowId} is waiting for user input, cannot resume");
+            throw new InvalidOperationException("Cannot resume workflow waiting for user input");
+        }
+
+        // Don't resume already completed/failed/cancelled workflows
+        if (workflow.Status == WorkflowStatus.Completed ||
+            workflow.Status == WorkflowStatus.Failed ||
+            workflow.Status == WorkflowStatus.Cancelled)
+        {
+            _logger.Info($"Workflow {workflowId} is in terminal state ({workflow.Status}), cannot resume");
+            throw new InvalidOperationException($"Cannot resume workflow in terminal state: {workflow.Status}");
+        }
+
+        // Only resume Pending, Processing, or Paused workflows
+        if (workflow.Status != WorkflowStatus.Pending &&
+            workflow.Status != WorkflowStatus.Processing &&
+            workflow.Status != WorkflowStatus.Paused)
+        {
+            _logger.Info($"Workflow {workflowId} has invalid status for resume: {workflow.Status}");
+            throw new InvalidOperationException($"Cannot resume workflow with status: {workflow.Status}");
+        }
+
+        _logger.Info($"Resuming workflow {workflowId} from step: {context.Step}");
+
+        // Set to Pending first
+        workflow.Status = WorkflowStatus.Pending;
+        await _workflowRepository.UpdateAsync(workflow);
+        await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
+
+        // Create cancellation token BEFORE Task.Run so workflow is immediately tracked as "running"
+        var cts = new CancellationTokenSource();
+        _cancellationTokens.TryAdd(workflow.Id, cts);
+
+        // Process from current step asynchronously with concurrency control
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Acquire slot for execution (will wait if at capacity)
+                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id);
+
+                // Update status to Processing
+                workflow.Status = WorkflowStatus.Processing;
+                await _workflowRepository.UpdateAsync(workflow);
+                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
+
+                await ProcessStepAsync(workflow, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Info($"Workflow {workflow.Id} was cancelled during resume");
+                // Workflow already marked as Deleting by CancelAsync
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to resume workflow {workflow.Id} from step: {ex.Message}", "ModImportWorkflowHandler", ex);
+                workflow.Status = WorkflowStatus.Failed;
+                workflow.ErrorMessage = ex.Message;
+                workflow.CompletedAt = DateTime.UtcNow;
+                await _workflowRepository.UpdateAsync(workflow);
+                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
+            }
+            finally
+            {
+                // Clean up cancellation token
+                _cancellationTokens.TryRemove(workflow.Id, out _);
+                cts.Dispose();
+
+                // Always release slot when done
+                _concurrencyManager.ReleaseSlot(workflow.Id);
+            }
+        });
+
+        return workflow;
+    }
+
+    /// <summary>
     /// Internal state machine - processes the current step
     /// </summary>
-    private async Task ProcessStepAsync(WorkflowInfo workflow)
+    private async Task ProcessStepAsync(WorkflowInfo workflow, CancellationToken cancellationToken = default)
     {
         var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context)
             ?? throw new InvalidOperationException("Invalid workflow context");
@@ -298,20 +554,26 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             switch (context.Step)
             {
                 case ModImportWorkflowSteps.ExtractMetadata:
-                    await ExtractMetadataAsync(workflow, context);
+                    await ExtractMetadataAsync(workflow, context, cancellationToken);
                     break;
 
                 case ModImportWorkflowSteps.CompressFolder:
-                    await CompressFolderAsync(workflow, context);
+                    await CompressFolderAsync(workflow, context, cancellationToken);
                     break;
 
                 case ModImportWorkflowSteps.ImportMod:
-                    await ImportModAsync(workflow, context);
+                    await ImportModAsync(workflow, context, cancellationToken);
                     break;
 
                 default:
                     throw new InvalidOperationException($"Unknown step: {context.Step}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Workflow was cancelled - this is expected, don't mark as failed
+            // The CancelAsync method will handle cleanup and status updates
+            _logger.Info($"Workflow {workflow.Id} was cancelled");
         }
         catch (Exception ex)
         {
@@ -329,7 +591,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// <summary>
     /// Step 1: Extract metadata from folder/file
     /// </summary>
-    private async Task ExtractMetadataAsync(WorkflowInfo workflow, ModImportWorkflowContext context)
+    private async Task ExtractMetadataAsync(WorkflowInfo workflow, ModImportWorkflowContext context, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(context.FolderPath))
             throw new InvalidOperationException("Folder path is required");
@@ -422,7 +684,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             await _workflowRepository.UpdateAsync(workflow);
 
             // Continue to compression step
-            await ProcessStepAsync(workflow);
+            await ProcessStepAsync(workflow, cancellationToken);
         }
         else
         {
@@ -439,7 +701,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// Step 2: Compress folder into temporary archive (only if source is folder)
     /// Progress ranges from 1% to 100% during compression
     /// </summary>
-    private async Task CompressFolderAsync(WorkflowInfo workflow, ModImportWorkflowContext context)
+    private async Task CompressFolderAsync(WorkflowInfo workflow, ModImportWorkflowContext context, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(context.FolderPath))
             throw new InvalidOperationException("Folder path is required");
@@ -452,25 +714,72 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         // Create temp archive in profile's temp directory
         var tempPath = Path.Combine(_profilePathService.TempDirectory, $"{Guid.NewGuid()}.7z");
 
-        // TODO: Add progress callback to CompressFolderAsync to emit progress events
-        // For now, emit start of compression
-        context.Progress = 10;
-        workflow.Context = JsonHelper.Serialize(context);
-        await _workflowRepository.UpdateAsync(workflow);
-        await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.PROGRESS, new
+        try
         {
-            WorkflowId = workflow.Id,
-            Progress = context.Progress,
-            Step = context.Step
-        });
+            // Compress with real-time progress reporting
+            // Compression takes 0-90%, SHA calculation takes 90-100%
+            var lastReportedProgress = 0;
+            var lastEventTime = DateTime.MinValue;
+            var eventThrottle = TimeSpan.FromMilliseconds(500); // Throttle events to max 2/sec (reduced from 10/sec)
 
-        await _archiveHelper.CompressFolderAsync(context.FolderPath, tempPath, ArchiveFormat.SevenZip);
+            await _archiveHelper.CompressFolderAsync(
+                context.FolderPath,
+                tempPath,
+                ArchiveFormat.SevenZip,
+                progressPercent =>
+                {
+                    // Scale compression progress to 0-90% range
+                    var scaledProgress = (int)(progressPercent * 0.9);
+                    var now = DateTime.UtcNow;
 
-        _logger.Info($"Created temp archive: {tempPath}");
+                    // Report progress every 10% OR every 500ms (whichever comes first)
+                    // This prevents flooding the event bus during fast compression
+                    var shouldReport = scaledProgress >= lastReportedProgress + 10 ||
+                                     scaledProgress >= 90 ||
+                                     (now - lastEventTime) >= eventThrottle;
 
-        // Calculate SHA256 of the compressed file to detect duplicates
-        var archiveSha = await _hashHelper.CalculateFileSHA256Async(tempPath);
-        _logger.Info($"Archive SHA256: {archiveSha}");
+                    if (shouldReport)
+                    {
+                        lastReportedProgress = scaledProgress;
+                        lastEventTime = now;
+
+                        // Update context in memory
+                        context.Progress = scaledProgress;
+
+                        // Emit progress event - fire and forget (don't await)
+                        // Reduced frequency (2/sec instead of 10/sec) minimizes thread pool pressure
+                        _ = _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.PROGRESS, new
+                        {
+                            WorkflowId = workflow.Id,
+                            Progress = scaledProgress,
+                            Step = context.Step
+                        });
+
+                        _logger.Verbose($"Compression progress: {scaledProgress}% (raw: {progressPercent}%)");
+                    }
+                },
+                cancellationToken
+            );
+
+            _logger.Info($"Created temp archive: {tempPath}");
+
+            // Store temp path in context immediately after compression
+            // This ensures cleanup works even if we get cancelled during SHA calculation
+            context.TempArchivePath = tempPath;
+            context.Progress = 90;
+            workflow.Context = JsonHelper.Serialize(context);
+            await _workflowRepository.UpdateAsync(workflow);
+            await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.PROGRESS, new
+            {
+                WorkflowId = workflow.Id,
+                Progress = 90,
+                Step = context.Step
+            });
+
+            // Calculate SHA256 of the compressed file to detect duplicates (90-100%)
+            _logger.Info("Calculating archive SHA256...");
+            var archiveSha = await _hashHelper.CalculateFileSHA256Async(tempPath, cancellationToken);
+            _logger.Info($"Archive SHA256: {archiveSha}");
 
         // Check if a mod with this SHA already exists
         var existingMod = await _modFacade.GetModByIdAsync(archiveSha);
@@ -495,7 +804,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         }
 
         // Update context - compression done, SHA verified, wait for user confirmation
-        context.TempArchivePath = tempPath;
+        // Note: TempArchivePath already set at line 724 after compression
         context.Progress = 100; // Compression complete, only confirmation step left
 
         workflow.Context = JsonHelper.Serialize(context);
@@ -512,13 +821,32 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
         // Pause here - user needs to click Confirm button to continue
+        }
+        catch (OperationCanceledException)
+        {
+            // Operation was cancelled - clean up partial temp file
+            _logger.Info($"Compression cancelled for workflow {workflow.Id}, cleaning up temp file");
+            if (_fileHelper.FileExists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                    _logger.Info($"Deleted partial temp file: {tempPath}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"Failed to delete temp file {tempPath}: {ex.Message}");
+                }
+            }
+            throw; // Re-throw to propagate cancellation
+        }
     }
 
     /// <summary>
     /// Step 3: Import mod with user-edited metadata
     /// Sets progress to 100% and marks workflow as completed
     /// </summary>
-    private async Task ImportModAsync(WorkflowInfo workflow, ModImportWorkflowContext context)
+    private async Task ImportModAsync(WorkflowInfo workflow, ModImportWorkflowContext context, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(context.TempArchivePath))
             throw new InvalidOperationException("Temp archive path is required");

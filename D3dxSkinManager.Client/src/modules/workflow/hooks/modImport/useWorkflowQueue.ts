@@ -17,6 +17,7 @@ interface UseWorkflowQueueReturn {
   updateWorkflow: (workflow: WorkflowInfo) => void;
   clearCompleted: () => void;
   refresh: () => void;
+  isLoading: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
   const { selectedProfileId } = useProfile();
   const [workflows, setWorkflows] = useState<WorkflowInfo[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   /**
    * Add a workflow to the queue
@@ -78,6 +80,7 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
     }
 
     try {
+      setIsLoading(true);
       const loadedWorkflows = await workflowService.getWorkflowsByType(
         selectedProfileId,
         'MOD_IMPORT'
@@ -85,6 +88,8 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       setWorkflows(loadedWorkflows);
     } catch (error) {
       // Error handled by error handler
+    } finally {
+      setIsLoading(false);
     }
   }, [selectedProfileId]);
 
@@ -211,5 +216,6 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
     updateWorkflow,
     clearCompleted,
     refresh,
+    isLoading,
   };
 };

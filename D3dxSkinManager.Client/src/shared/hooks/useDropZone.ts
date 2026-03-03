@@ -128,6 +128,9 @@ export function useDropZone(options: {
   // Track last known bounds to avoid redundant updates
   const lastBoundsRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
+  // Track last known visibility state (true = visible, false = hidden)
+  const lastVisibleStateRef = useRef<boolean | null>(null);
+
   // Function to update zone position
   const updateZoneImmediate = useCallback(() => {
     if (!targetRef.current) return;
@@ -136,8 +139,9 @@ export function useDropZone(options: {
     const rect = element.getBoundingClientRect();
 
     if (rect.width === 0 || rect.height === 0) {
-      // Element not visible, hide zone
-      if (isRegisteredRef.current) {
+      // Element not visible, hide zone (only if not already hidden)
+      if (isRegisteredRef.current && lastVisibleStateRef.current !== false) {
+        lastVisibleStateRef.current = false;
         bridgeService.sendMessage({
           module: 'DROP_ZONE',
           type: 'HIDE',
@@ -152,8 +156,9 @@ export function useDropZone(options: {
     // Check if element is occluded by another element
     if (isElementOccluded(element)) {
       logger.verbose("[useDropZone] occluded to hide zone")
-      // Element is covered, hide zone
-      if (isRegisteredRef.current) {
+      // Element is covered, hide zone (only if not already hidden)
+      if (isRegisteredRef.current && lastVisibleStateRef.current !== false) {
+        lastVisibleStateRef.current = false;
         bridgeService.sendMessage({
           module: 'DROP_ZONE',
           type: 'HIDE',
@@ -191,6 +196,7 @@ export function useDropZone(options: {
 
     if (!isRegisteredRef.current) {
       // Register new zone
+      lastVisibleStateRef.current = true;
       bridgeService.sendMessage({
         module: 'DROP_ZONE',
         type: 'REGISTER',
@@ -201,20 +207,23 @@ export function useDropZone(options: {
         logger.error('[useDropZone] Failed to register zone:', err);
       });
     } else {
-      // Update existing zone (and show it if it was hidden)
+      // Update existing zone
       bridgeService.sendMessage({
         module: 'DROP_ZONE',
         type: 'UPDATE',
         payload: bounds
       }).then(() => {
-        // Ensure zone is visible after update
-        bridgeService.sendMessage({
-          module: 'DROP_ZONE',
-          type: 'SHOW',
-          payload: { zoneId: zoneIdRef.current }
-        }).catch(err => {
-          logger.error('[useDropZone] Failed to show zone:', err);
-        });
+        // Show zone only if it was previously hidden
+        if (lastVisibleStateRef.current === false) {
+          lastVisibleStateRef.current = true;
+          bridgeService.sendMessage({
+            module: 'DROP_ZONE',
+            type: 'SHOW',
+            payload: { zoneId: zoneIdRef.current }
+          }).catch(err => {
+            logger.error('[useDropZone] Failed to show zone:', err);
+          });
+        }
       }).catch(err => {
         logger.error('[useDropZone] Failed to update zone:', err);
       });

@@ -42,7 +42,7 @@ public interface IArchiveHelper
 {
     Task<string?> DetectArchiveTypeAsync(string archivePath);
     Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory);
-    Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.Zip);
+    Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.Zip, Action<int>? progressCallback = null, CancellationToken cancellationToken = default);
     Task<ArchiveValidationResult> ValidateArchiveAsync(string archivePath);
 }
 
@@ -320,53 +320,74 @@ public class ArchiveHelper : IArchiveHelper
     /// <param name="folderPath">Path to folder to compress</param>
     /// <param name="outputPath">Output archive file path</param>
     /// <param name="format">Archive format (default: ZIP)</param>
+    /// <param name="progressCallback">Optional callback for progress updates (0-100)</param>
     /// <returns>Path to created archive</returns>
-    public async Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.Zip)
+    public async Task<string> CompressFolderAsync(
+        string folderPath,
+        string outputPath,
+        ArchiveFormat format = ArchiveFormat.Zip,
+        Action<int>? progressCallback = null,
+        CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(folderPath))
             throw new DirectoryNotFoundException($"Folder not found: {folderPath}");
 
-        return await Task.Run(() =>
+        // Run compression synchronously (SharpSevenZip doesn't support async)
+        var result = await Task.Run(() =>
         {
+            _logger.Info($"Compressing folder: {Path.GetFileName(folderPath)} -> {Path.GetFileName(outputPath)}", "ArchiveService");
+
+            // Set library path for 7z.dll
+            var platformFolder = Environment.Is64BitProcess ? "x64" : "x86";
+            var libraryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, platformFolder, "7z.dll");
+
+            if (File.Exists(libraryPath))
+            {
+                SharpSevenZipBase.SetLibraryPath(libraryPath);
+            }
+            else
+            {
+                _logger.Warn($"7z.dll not found at: {libraryPath}", "ArchiveService");
+            }
+
+            // Create output directory if needed
+            var outputDir = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
+            {
+                Directory.CreateDirectory(outputDir);
+            }
+
+            // Create compressor with specified format
+            var compressor = new SharpSevenZipCompressor
+            {
+                ArchiveFormat = format switch
+                {
+                    ArchiveFormat.SevenZip => OutArchiveFormat.SevenZip,
+                    ArchiveFormat.Tar => OutArchiveFormat.Tar,
+                    ArchiveFormat.Zip => OutArchiveFormat.Zip,
+                    _ => OutArchiveFormat.Zip
+                },
+                // Use Fast compression to reduce CPU usage and improve responsiveness
+                // Fast is ~2-3x faster than Normal with only ~10-15% larger files
+                // For mod files (textures, models), compression ratio difference is minimal
+                CompressionLevel = CompressionLevel.Fast,
+                PreserveDirectoryRoot = false  // Don't include root folder name in archive
+            };
+
+            // Wire up progress reporting if callback provided
+            if (progressCallback != null)
+            {
+                compressor.Compressing += (sender, e) =>
+                {
+                    // Report progress as percentage (0-100)
+                    progressCallback((int)e.PercentDone);
+                };
+            }
+
             try
             {
-                _logger.Info($"Compressing folder: {Path.GetFileName(folderPath)} -> {Path.GetFileName(outputPath)}", "ArchiveService");
-
-                // Set library path for 7z.dll
-                var platformFolder = Environment.Is64BitProcess ? "x64" : "x86";
-                var libraryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, platformFolder, "7z.dll");
-
-                if (File.Exists(libraryPath))
-                {
-                    SharpSevenZipBase.SetLibraryPath(libraryPath);
-                }
-                else
-                {
-                    _logger.Warn($"7z.dll not found at: {libraryPath}", "ArchiveService");
-                }
-
-                // Create output directory if needed
-                var outputDir = Path.GetDirectoryName(outputPath);
-                if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
-                {
-                    Directory.CreateDirectory(outputDir);
-                }
-
-                // Create compressor with specified format
-                var compressor = new SharpSevenZipCompressor
-                {
-                    ArchiveFormat = format switch
-                    {
-                        ArchiveFormat.SevenZip => OutArchiveFormat.SevenZip,
-                        ArchiveFormat.Tar => OutArchiveFormat.Tar,
-                        ArchiveFormat.Zip => OutArchiveFormat.Zip,
-                        _ => OutArchiveFormat.Zip
-                    },
-                    CompressionLevel = CompressionLevel.Normal,
-                    PreserveDirectoryRoot = false  // Don't include root folder name in archive
-                };
-
                 // Compress the directory
+                // Note: SharpSevenZip does not support cancellation during compression
                 compressor.CompressDirectory(folderPath, outputPath);
 
                 var fileInfo = new FileInfo(outputPath);
@@ -380,6 +401,16 @@ public class ArchiveHelper : IArchiveHelper
                 throw new InvalidOperationException($"Failed to compress folder: {ex.Message}", ex);
             }
         });
+
+        // Check for cancellation AFTER compression completes
+        // This way we don't throw during Task.Run, which avoids debugger popups
+        if (cancellationToken.IsCancellationRequested)
+        {
+            _logger.Info("Compression was cancelled", "ArchiveService");
+            return await Task.FromCanceled<string>(cancellationToken);
+        }
+
+        return result;
     }
 
 }

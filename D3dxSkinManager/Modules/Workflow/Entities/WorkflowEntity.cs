@@ -68,17 +68,27 @@ public enum WorkflowStatus
     WaitingForInput = 2,
 
     /// <summary>
+    /// Workflow was paused by user (won't auto-resume)
+    /// </summary>
+    Paused = 3,
+
+    /// <summary>
     /// Workflow completed successfully
     /// </summary>
-    Completed = 3,
+    Completed = 4,
 
     /// <summary>
     /// Workflow failed with error
     /// </summary>
-    Failed = 4,
+    Failed = 5,
 
     /// <summary>
     /// Workflow was cancelled by user
     /// </summary>
-    Cancelled = 5
+    Cancelled = 6,
+
+    /// <summary>
+    /// Workflow is being deleted (cleanup in progress)
+    /// </summary>
+    Deleting = 7
 }

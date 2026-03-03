@@ -48,4 +48,12 @@ public interface IWorkflowHandler
     /// <param name="contextUpdate">JSON string containing context fields to update</param>
     /// <returns>The updated workflow info</returns>
     Task<WorkflowInfo> UpdateContextAsync(string workflowId, string contextUpdate);
+
+    /// <summary>
+    /// Resume workflow from current step (used for application restart)
+    /// Similar to ContinueAsync but doesn't require WaitingForInput status
+    /// </summary>
+    /// <param name="workflowId">The workflow ID to resume</param>
+    /// <returns>The updated workflow info</returns>
+    Task<WorkflowInfo> ResumeFromCurrentStepAsync(string workflowId);
 }
