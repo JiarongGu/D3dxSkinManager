@@ -113,10 +113,20 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       const values = await form.validateFields();
       setSaving(true);
 
+      // Build modData, only including category if it actually changed
       const modData: Partial<ModInfo> = {
-        ...values,
+        name: values.name,
+        description: values.description,
+        grading: values.grading,
+        author: values.author,
+        disablePreview: values.disablePreview,
         tags: selectedTags,
       };
+
+      // Only include category if it changed to avoid unloading the mod
+      if (values.category !== mod.category) {
+        modData.category = values.category;
+      }
 
       // Get all existing tags from database
       const existingTags = await modService.getAllTags(profileState.selectedProfile.id);
