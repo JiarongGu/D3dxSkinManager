@@ -200,7 +200,10 @@ public class ModFacade : BaseFacade, IModFacade
         {
             // CRITICAL: Unload all mods in the same category first to prevent conflicts
             // This ensures only one mod per category is loaded at a time
-            if (!string.IsNullOrEmpty(mod.Category))
+            // EXCEPTION: Unclassified mods (empty/null/whitespace category) can be co-loaded
+            var isUnclassified = string.IsNullOrWhiteSpace(mod.Category);
+
+            if (!isUnclassified)
             {
                 var sameCategoryMods = await _repository.GetByCategoryAsync(mod.Category).ConfigureAwait(false);
                 var loadedSameCategoryMods = sameCategoryMods.Where(m => m.SHA != sha).ToList();
@@ -230,6 +233,10 @@ public class ModFacade : BaseFacade, IModFacade
                         }
                     }
                 }
+            }
+            else
+            {
+                _logger.Info($"Loading unclassified mod '{modName}' - skipping category-based unloading (unclassified mods can be co-loaded)", "ModFacade");
             }
 
             // Load the requested mod
