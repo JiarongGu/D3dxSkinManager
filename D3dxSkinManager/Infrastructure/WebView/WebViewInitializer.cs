@@ -1,6 +1,7 @@
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Infrastructure.Resources;
 
 namespace D3dxSkinManager.Infrastructure.WebView;
 
@@ -12,11 +13,13 @@ public class WebViewInitializer
     private readonly WebView2 _webView;
     private readonly string _baseDirectory;
     private readonly ICustomSchemeHandler _schemeHandler;
+    private readonly IEmbeddedResourceProvider _resourceProvider;
 
-    public WebViewInitializer(WebView2 webView, ICustomSchemeHandler schemeHandler)
+    public WebViewInitializer(WebView2 webView, ICustomSchemeHandler schemeHandler, IEmbeddedResourceProvider resourceProvider)
     {
         _webView = webView ?? throw new ArgumentNullException(nameof(webView));
         _schemeHandler = schemeHandler ?? throw new ArgumentNullException(nameof(schemeHandler));
+        _resourceProvider = resourceProvider ?? throw new ArgumentNullException(nameof(resourceProvider));
         _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
     }
 
@@ -86,10 +89,10 @@ public class WebViewInitializer
         var settings = _webView.CoreWebView2.Settings;
         var isDevelopment = IsDevelopmentMode();
 
-        // Enable dev tools in development only
+        // Enable dev tools only in development mode
         settings.AreDevToolsEnabled = isDevelopment;
 
-        // Enable default context menus in development only
+        // Enable default context menus only in development mode
         settings.AreDefaultContextMenusEnabled = isDevelopment;
 
         // Disable password autosave
@@ -183,8 +186,11 @@ public class WebViewInitializer
 
     private void RegisterCustomSchemeHandler()
     {
-        // Register filter for app:// scheme
+        // Register filter for app:// scheme (dynamic file resources)
         _webView.CoreWebView2.AddWebResourceRequestedFilter("app://*", CoreWebView2WebResourceContext.All);
+
+        // Register filter for virtual host (embedded web resources)
+        _webView.CoreWebView2.AddWebResourceRequestedFilter("https://app.local/*", CoreWebView2WebResourceContext.All);
 
         // Handle web resource requests
         _webView.CoreWebView2.WebResourceRequested += (sender, args) =>
@@ -192,21 +198,61 @@ public class WebViewInitializer
             try
             {
                 var uri = args.Request.Uri;
+                Console.WriteLine($"[WebView2] 🔍 Resource requested: {uri}");
 
-                if (!uri.StartsWith("app://", StringComparison.OrdinalIgnoreCase))
-                    return;
+                // Handle app:// scheme (dynamic file resources like thumbnails)
+                if (uri.StartsWith("app://", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Get file stream from custom scheme handler
+                    var stream = _schemeHandler.HandleRequest(uri, out var contentType);
 
-                // Get file stream from custom scheme handler
-                var stream = _schemeHandler.HandleRequest(uri, out var contentType);
+                    // Create response
+                    var response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
+                        stream,
+                        200,
+                        "OK",
+                        $"Content-Type: {contentType}");
 
-                // Create response
-                var response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                    stream,
-                    200,
-                    "OK",
-                    $"Content-Type: {contentType}");
+                    args.Response = response;
+                }
+                // Handle virtual host (embedded web resources)
+                else if (uri.StartsWith("https://app.local/", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Extract virtual path from URI
+                    // https://app.local/index.html -> wwwroot/index.html
+                    // https://app.local/assets/index.js -> wwwroot/assets/index.js
+                    var path = uri.Substring("https://app.local/".Length);
+                    var virtualPath = "wwwroot/" + path;
 
-                args.Response = response;
+                    var stream = _resourceProvider.GetResourceStream(virtualPath);
+
+                    if (stream != null)
+                    {
+                        var contentType = GetContentType(virtualPath);
+
+                        var response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
+                            stream,
+                            200,
+                            "OK",
+                            $"Content-Type: {contentType}");
+
+                        args.Response = response;
+                        Console.WriteLine($"[WebView2] ✓ Served: {virtualPath} ({contentType})");
+                    }
+                    else
+                    {
+                        // Resource not found
+                        Console.WriteLine($"[WebView2] ✗ NOT FOUND: {virtualPath}");
+                        var errorStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes($"Embedded resource not found: {virtualPath}"));
+                        var errorResponse = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
+                            errorStream,
+                            404,
+                            "Not Found",
+                            "Content-Type: text/plain");
+
+                        args.Response = errorResponse;
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -224,7 +270,30 @@ public class WebViewInitializer
             }
         };
 
-        Console.WriteLine("[WebView2] Custom scheme handler registered for app://");
+        Console.WriteLine("[WebView2] Custom scheme handlers registered (app://, https://app.local/)");
+    }
+
+    private static string GetContentType(string path)
+    {
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        return extension switch
+        {
+            ".html" => "text/html",
+            ".css" => "text/css",
+            ".js" => "application/javascript",
+            ".json" => "application/json",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".svg" => "image/svg+xml",
+            ".ico" => "image/x-icon",
+            ".woff" => "font/woff",
+            ".woff2" => "font/woff2",
+            ".ttf" => "font/ttf",
+            ".eot" => "application/vnd.ms-fontobject",
+            ".map" => "application/json",
+            _ => "application/octet-stream"
+        };
     }
 
     private bool IsDevelopmentMode()
@@ -242,25 +311,65 @@ public class WebViewInitializer
 
     private void NavigateToProduction()
     {
-        var indexPath = Path.Combine(_baseDirectory, "wwwroot", "index.html");
-
-        if (File.Exists(indexPath))
+        // Check if we're in embedded mode or file-based mode
+        if (_resourceProvider.IsEmbeddedMode)
         {
-            var fileUrl = $"file:///{indexPath.Replace('\\', '/')}";
-            Console.WriteLine($"[WebView2] Production mode - loading {fileUrl}");
-            _webView.CoreWebView2.Navigate(fileUrl);
+            // Embedded mode: Load from embedded resources using virtual host
+            var virtualPath = "wwwroot/index.html";
+
+            if (_resourceProvider.ResourceExists(virtualPath))
+            {
+                // Use virtual host app.local - WebView2 will intercept and serve from embedded resources
+                var virtualUrl = "https://app.local/index.html";
+                Console.WriteLine($"[WebView2] Production mode (EMBEDDED) - loading {virtualUrl}");
+                _webView.CoreWebView2.Navigate(virtualUrl);
+            }
+            else
+            {
+                Console.WriteLine("[WebView2] Error: Embedded index.html not found");
+                ShowEmbeddedResourceError();
+            }
         }
         else
         {
-            Console.WriteLine("[WebView2] Warning: wwwroot/index.html not found");
-            _webView.CoreWebView2.NavigateToString(@"
-                <html>
-                <body style='font-family: Arial; text-align: center; padding: 50px;'>
-                    <h1>React Build Not Found</h1>
-                    <p>Please build the React application:</p>
-                    <pre>cd D3dxSkinManager.Client && npm run build</pre>
-                </body>
-                </html>");
+            // File-based mode: Load from filesystem (fallback for development)
+            var indexPath = Path.Combine(_baseDirectory, "wwwroot", "index.html");
+
+            if (File.Exists(indexPath))
+            {
+                var fileUrl = $"file:///{indexPath.Replace('\\', '/')}";
+                Console.WriteLine($"[WebView2] Production mode (FILE-BASED) - loading {fileUrl}");
+                _webView.CoreWebView2.Navigate(fileUrl);
+            }
+            else
+            {
+                Console.WriteLine("[WebView2] Warning: wwwroot/index.html not found");
+                _webView.CoreWebView2.NavigateToString(@"
+                    <html>
+                    <body style='font-family: Arial; text-align: center; padding: 50px;'>
+                        <h1>React Build Not Found</h1>
+                        <p>Please build the React application:</p>
+                        <pre>cd D3dxSkinManager.Client && npm run build</pre>
+                    </body>
+                    </html>");
+            }
         }
+    }
+
+    private void ShowEmbeddedResourceError()
+    {
+        var availableResources = string.Join("<br>", _resourceProvider.GetAllResourcePaths().Take(20));
+
+        _webView.CoreWebView2.NavigateToString($@"
+            <html>
+            <body style='font-family: Arial; text-align: center; padding: 50px;'>
+                <h1>Embedded Resources Error</h1>
+                <p>The embedded index.html resource was not found.</p>
+                <h2>Available Resources (first 20):</h2>
+                <div style='text-align: left; max-width: 800px; margin: 0 auto;'>
+                    {availableResources}
+                </div>
+            </body>
+            </html>");
     }
 }

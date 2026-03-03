@@ -8,8 +8,17 @@
 		<UseWPF>false</UseWPF>
 	</PropertyGroup>
 
+	<!-- Release configuration: Disable debug symbols and hide console window -->
+	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
+		<DebugType>none</DebugType>
+		<DebugSymbols>false</DebugSymbols>
+		<OutputType>WinExe</OutputType>
+	</PropertyGroup>
+
 	<ItemGroup>
-		<PackageReference Include="7z.Libs" Version="25.1.0" />
+		<PackageReference Include="Costura.Fody" Version="6.0.0">
+		  <PrivateAssets>all</PrivateAssets>
+		</PackageReference>
 		<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
@@ -17,19 +26,53 @@
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
 		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3800.47" />
-		<PackageReference Include="SharpSevenZip" Version="2.0.36" />
+		<PackageReference Include="SharpCompress" Version="0.46.4" />
 		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
 	</ItemGroup>
 
-	<!-- Copy language files to output directory -->
+	<!-- Embedded resources (inside DLL/EXE) -->
 	<ItemGroup>
-		<Folder Include="Languages\" />
+		<!-- Embed wwwroot files as embedded resources -->
+		<EmbeddedResource Include="wwwroot\**\*.*" Condition="Exists('wwwroot')">
+			<LogicalName>D3dxSkinManager.wwwroot.%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+		</EmbeddedResource>
 	</ItemGroup>
 
+	<!-- Language files (separate files next to exe) -->
 	<ItemGroup>
+		<Folder Include="Languages\" />
 		<Content Include="Languages\**\*.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
 			<TargetPath>data\languages\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
 		</Content>
 	</ItemGroup>
+
+	<!-- Single-file publish configuration -->
+	<PropertyGroup>
+		<!-- Enable single-file publish -->
+		<PublishSingleFile>true</PublishSingleFile>
+
+		<!-- Include native libraries for self-extract -->
+		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+		<!-- DO NOT extract content files - keep them separate -->
+		<IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+
+		<!-- Enable ReadyToRun for faster startup -->
+		<PublishReadyToRun>true</PublishReadyToRun>
+
+		<!-- Trim unused code (be careful with reflection-based code) -->
+		<PublishTrimmed>false</PublishTrimmed>
+
+		<!-- Disable XML documentation output -->
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+		<PublishDocumentationFile>false</PublishDocumentationFile>
+
+		<!-- Don't copy XML docs from dependencies -->
+		<AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+	</PropertyGroup>
+
+
 </Project>

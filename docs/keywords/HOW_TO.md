@@ -3,7 +3,66 @@
 > **Purpose:** Task-based quick reference for common operations
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-02-21
+**Last Updated:** 2026-03-04
+
+---
+
+## Build and Deployment
+
+### Building for Production
+
+**"How do I build a production release?"**
+- **Documentation:** `docs/how-to/BUILD_AND_DEPLOY.md` ⭐⭐⭐
+- **Build Script:** `build-production.ps1` (automated build)
+- **Output:** `dist/win-x64/D3dxSkinManager.exe` (single-file, ~14 MB)
+
+**Quick Command:**
+```powershell
+.\build-production.ps1
+```
+
+**Manual Build:**
+```bash
+# 1. Build frontend
+cd D3dxSkinManager.Client
+npm install && npm run build
+
+# 2. Build backend
+cd ../D3dxSkinManager
+dotnet publish -c Release -r win-x64 --no-self-contained
+```
+
+### Development Mode
+
+**"How do I enable development mode features (DevTools, hot reload)?"**
+- **DevTools/Context Menus:** Enabled only in development mode
+- **Frontend:** Loads from `http://localhost:3000` (React dev server)
+- **Detection:** `.dev` file or `ASPNETCORE_ENVIRONMENT=Development`
+
+**Enable Development Mode:**
+```bash
+# Option 1: Create .dev file
+touch .dev
+
+# Option 2: Set environment variable
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+```
+
+**Run Frontend Dev Server:**
+```bash
+cd D3dxSkinManager.Client
+npm run dev  # Starts on http://localhost:3000
+```
+
+### Production vs Development
+
+| Feature | Development | Production |
+|---------|-------------|------------|
+| **DevTools (F12)** | ✅ Enabled | ❌ Disabled |
+| **Context Menus** | ✅ Enabled | ❌ Disabled |
+| **Browser Shortcuts** | ✅ Enabled | ❌ Blocked |
+| **Frontend Source** | `localhost:3000` | Embedded resources |
+| **Console Window** | ✅ Visible (Exe) | ❌ Hidden (WinExe) |
 
 ---
 

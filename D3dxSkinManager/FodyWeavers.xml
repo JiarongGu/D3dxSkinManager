@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
+  <Costura>
+    <!-- Embed all managed dependencies automatically -->
+    <!-- No need to specify IncludeAssemblies - Costura will auto-detect -->
+
+    <!-- Exclude problematic assemblies -->
+    <ExcludeAssemblies>
+      7z.Libs
+    </ExcludeAssemblies>
+
+    <!-- Exclude native libraries that cannot be embedded -->
+    <Unmanaged32Assemblies>
+      WebView2Loader
+    </Unmanaged32Assemblies>
+    <Unmanaged64Assemblies>
+      WebView2Loader
+    </Unmanaged64Assemblies>
+
+    <!-- Don't create temp files, extract to memory -->
+    <CreateTemporaryAssemblies>false</CreateTemporaryAssemblies>
+
+    <!-- Don't include debug symbols in production -->
+    <IncludeDebugSymbols>false</IncludeDebugSymbols>
+
+    <!-- Disable compression to avoid double compression with single-file publish -->
+    <DisableCompression>true</DisableCompression>
+
+    <!-- Optimize for size -->
+    <DisableCleanup>false</DisableCleanup>
+  </Costura>
+</Weavers>

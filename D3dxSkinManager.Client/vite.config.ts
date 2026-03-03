@@ -6,6 +6,9 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Use virtual host for production builds (WebView2 SetVirtualHostNameToFolderMapping)
+  // This makes all asset paths resolve correctly when served from embedded resources
+  base: process.env.NODE_ENV === 'production' ? 'https://app.local/' : '/',
   plugins: [
     react(),
     viteTsconfigPaths(),

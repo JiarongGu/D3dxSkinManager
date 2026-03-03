@@ -333,6 +333,10 @@ git commit -m "message"      # Only after user approval
 
 ### Build
 ```bash
+# Production build (automated)
+.\build-production.ps1
+
+# Development build
 dotnet build <project>.csproj        # Backend
 cd <frontend> && npm run build       # Frontend
 ```
@@ -340,6 +344,7 @@ cd <frontend> && npm run build       # Frontend
 ### Common Tasks
 | Task | First Doc to Load |
 |------|------------------|
+| Build production release | `how-to/BUILD_AND_DEPLOY.md` |
 | Add new module | `MODULE_ARCHITECTURE.md` |
 | Add IPC handler | `WORKFLOWS.md` |
 | Fix IPC issue | `TROUBLESHOOTING.md` |

@@ -2,6 +2,7 @@
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Infrastructure.Resources;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -31,8 +32,11 @@ namespace D3dxSkinManager.Infrastructure.WebView
             WebView = webView ?? throw new ArgumentNullException(nameof(webView));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
+            // Get embedded resource provider from DI
+            var resourceProvider = serviceProvider.GetRequiredService<IEmbeddedResourceProvider>();
+
             // Per-session initializer
-            Initializer = new WebViewInitializer(WebView, schemeHandler);
+            Initializer = new WebViewInitializer(WebView, schemeHandler, resourceProvider);
 
             // Per-session IPC
             Ipc = new IpcHandler(WebView, _logger);

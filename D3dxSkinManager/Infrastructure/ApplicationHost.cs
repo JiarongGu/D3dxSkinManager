@@ -18,6 +18,7 @@ using D3dxSkinManager.Modules.Plugin;
 using D3dxSkinManager.Modules.Setting;
 using D3dxSkinManager.Modules.Setting.Services;
 using D3dxSkinManager.Infrastructure.WebView;
+using D3dxSkinManager.Infrastructure.Resources;
 
 namespace D3dxSkinManager.Infrastructure;
 
@@ -374,6 +375,9 @@ public class ApplicationHost
     private void ConfigureServices(IServiceCollection services)
     {
         _logger?.Info("Configuring services...", "Host");
+
+        // Register embedded resource provider (singleton - used for web assets and language files)
+        services.AddSingleton<IEmbeddedResourceProvider, EmbeddedResourceProvider>();
 
         // Register global facades (no profile dependency)
         services.AddCoreServices();
