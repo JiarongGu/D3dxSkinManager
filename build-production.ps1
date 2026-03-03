@@ -54,12 +54,12 @@ if (-not $SkipFrontend) {
     npm run build
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ Frontend build failed!" -ForegroundColor Red
+        Write-Host "X Frontend build failed!" -ForegroundColor Red
         Set-Location ..
         exit 1
     }
 
-    Write-Host "✅ Frontend built successfully" -ForegroundColor Green
+    Write-Host "- Frontend built successfully" -ForegroundColor Green
     Write-Host ""
 
     # Step 2: Copy build to backend wwwroot
@@ -75,7 +75,7 @@ if (-not $SkipFrontend) {
     New-Item -ItemType Directory -Path $wwwrootPath -Force | Out-Null
     Copy-Item -Path "D3dxSkinManager.Client\build\*" -Destination $wwwrootPath -Recurse -Force
 
-    Write-Host "✅ Frontend copied to wwwroot (will be embedded as resources)" -ForegroundColor Green
+    Write-Host "- Frontend copied to wwwroot (will be embedded as resources)" -ForegroundColor Green
     Write-Host ""
 } else {
     Write-Host "[1/4] Skipping frontend build (using existing wwwroot)" -ForegroundColor Yellow
@@ -128,7 +128,7 @@ foreach ($plat in $platforms) {
     & dotnet $publishArgs
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "    ❌ .NET publish failed for $plat!" -ForegroundColor Red
+        Write-Host "    X .NET publish failed for $plat!" -ForegroundColor Red
         Set-Location ..
         exit 1
     }
@@ -137,20 +137,20 @@ foreach ($plat in $platforms) {
     $exePath = Join-Path $outputPath "D3dxSkinManager.exe"
     if (Test-Path $exePath) {
         $exeSize = [math]::Round((Get-Item $exePath).Length / 1MB, 2)
-        Write-Host "    ✅ Published successfully ($exeSize MB)" -ForegroundColor Green
+        Write-Host "    - Published successfully ($exeSize MB)" -ForegroundColor Green
 
         # Count files in output
         $fileCount = (Get-ChildItem -Path $outputPath -File).Count
         Write-Host "    📦 Output contains $fileCount files" -ForegroundColor Gray
     } else {
-        Write-Host "    ❌ Executable not found!" -ForegroundColor Red
+        Write-Host "    X Executable not found!" -ForegroundColor Red
         Set-Location ..
         exit 1
     }
 }
 
 Write-Host ""
-Write-Host "✅ All platforms built successfully" -ForegroundColor Green
+Write-Host "- All platforms built successfully" -ForegroundColor Green
 Write-Host ""
 
 # Step 4: Create distribution folder
@@ -213,14 +213,14 @@ foreach ($plat in $platforms) {
 }
 
 Write-Host "Package Contents:" -ForegroundColor Cyan
-Write-Host "  • D3dxSkinManager.exe - Single executable with embedded resources" -ForegroundColor White
-Write-Host "  • data/languages/*.json - Language files (separate for easy editing)" -ForegroundColor White
+Write-Host "  D3dxSkinManager.exe - Single executable with embedded resources" -ForegroundColor White
+Write-Host "  data/languages/*.json - Language files (separate for easy editing)" -ForegroundColor White
 Write-Host "" -ForegroundColor White
 Write-Host "Embedded in exe:" -ForegroundColor Yellow
-Write-Host "  ✓ All managed DLLs (merged via Costura.Fody)" -ForegroundColor Green
-Write-Host "  ✓ All web resources (React app, HTML, JS, CSS, images)" -ForegroundColor Green
-Write-Host "  ✓ Archive library (SharpCompress - pure managed, no native DLL)" -ForegroundColor Green
-Write-Host "  ✓ SQLite native library (e_sqlite3.dll - extracted to temp at runtime)" -ForegroundColor Green
+Write-Host "  - All managed DLLs (merged via Costura.Fody)" -ForegroundColor Green
+Write-Host "  - All web resources (React app, HTML, JS, CSS, images)" -ForegroundColor Green
+Write-Host "  - Archive library (SharpCompress - pure managed, no native DLL)" -ForegroundColor Green
+Write-Host "  - SQLite native library (e_sqlite3.dll - extracted to temp at runtime)" -ForegroundColor Green
 Write-Host ""
 Write-Host "Separate files:" -ForegroundColor Yellow
 Write-Host "  • Language files (data/languages/*.json) - User can edit translations" -ForegroundColor White
@@ -238,7 +238,7 @@ if (-not $SelfContained) {
     Write-Host ""
 }
 
-Write-Host "✅ Build completed successfully!" -ForegroundColor Green
+Write-Host "- Build completed successfully!" -ForegroundColor Green
 Write-Host ""
 
 Set-Location ..

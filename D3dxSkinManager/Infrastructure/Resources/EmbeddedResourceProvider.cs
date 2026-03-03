@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text;
 
@@ -11,6 +12,7 @@ public class EmbeddedResourceProvider : IEmbeddedResourceProvider
     private readonly string _baseDirectory;
     private readonly Assembly _assembly;
     private readonly Dictionary<string, string> _resourceManifest;
+    private readonly ConcurrentDictionary<string, byte[]> _resourceCache;
     private readonly bool _isEmbeddedMode;
 
     public bool IsEmbeddedMode => _isEmbeddedMode;
@@ -20,6 +22,7 @@ public class EmbeddedResourceProvider : IEmbeddedResourceProvider
         _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
         _assembly = Assembly.GetExecutingAssembly();
         _resourceManifest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        _resourceCache = new ConcurrentDictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
 
         // Determine if we're in embedded mode (production) or file-based mode (development)
         _isEmbeddedMode = DetermineEmbeddedMode();
@@ -28,6 +31,10 @@ public class EmbeddedResourceProvider : IEmbeddedResourceProvider
         {
             BuildResourceManifest();
             Console.WriteLine($"[EmbeddedResourceProvider] Running in EMBEDDED mode ({_resourceManifest.Count} resources available)");
+
+            // Preload ALL resources synchronously to ensure instant serving
+            // This blocks initialization but guarantees zero delay when WebView2 requests resources
+            PreloadAllResources();
         }
         else
         {
@@ -162,9 +169,10 @@ public class EmbeddedResourceProvider : IEmbeddedResourceProvider
             if (!string.IsNullOrEmpty(virtualPath))
             {
                 _resourceManifest[virtualPath] = resourceName;
-                Console.WriteLine($"[EmbeddedResourceProvider]   Mapped: {virtualPath} <- {resourceName}");
             }
         }
+
+        Console.WriteLine($"[EmbeddedResourceProvider] Mapped {_resourceManifest.Count} web resources");
 
         if (_resourceManifest.Count == 0)
         {
@@ -206,34 +214,82 @@ public class EmbeddedResourceProvider : IEmbeddedResourceProvider
         return result.Replace('\\', '/'); // Ensure extension part is also normalized
     }
 
+    private void PreloadAllResources()
+    {
+        var startTime = DateTime.Now;
+        var allResources = _resourceManifest.ToList();
+
+        Console.WriteLine($"[EmbeddedResourceProvider] Preloading ALL {allResources.Count} resources using {Environment.ProcessorCount} threads...");
+
+        // Use Parallel.ForEach for concurrent loading with maximum parallelism
+        var successCount = 0;
+        var options = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Environment.ProcessorCount * 2 // Use hyperthreading
+        };
+
+        Parallel.ForEach(allResources, options, kvp =>
+        {
+            var virtualPath = kvp.Key;
+            var resourceName = kvp.Value;
+
+            try
+            {
+                using var stream = _assembly.GetManifestResourceStream(resourceName);
+                if (stream != null)
+                {
+                    using var memoryStream = new MemoryStream();
+                    stream.CopyTo(memoryStream);
+                    _resourceCache[virtualPath] = memoryStream.ToArray();
+                    Interlocked.Increment(ref successCount);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EmbeddedResourceProvider] Error preloading {virtualPath}: {ex.Message}");
+            }
+        });
+
+        var elapsed = (DateTime.Now - startTime).TotalMilliseconds;
+        Console.WriteLine($"[EmbeddedResourceProvider] ✓ Preloaded {successCount}/{allResources.Count} resources in {elapsed:F0}ms");
+        Console.WriteLine($"[EmbeddedResourceProvider] All resources cached in memory - WebView2 will load instantly");
+    }
+
     private Stream? GetEmbeddedStream(string virtualPath)
     {
         if (!_resourceManifest.TryGetValue(virtualPath, out var resourceName))
         {
-            Console.WriteLine($"[EmbeddedResourceProvider] Resource not found: {virtualPath}");
             return null;
         }
 
         try
         {
+            // Check cache first
+            if (_resourceCache.TryGetValue(virtualPath, out var cachedBytes))
+            {
+                return new MemoryStream(cachedBytes, writable: false);
+            }
+
+            // If not in cache, load from assembly and cache it
             var stream = _assembly.GetManifestResourceStream(resourceName);
             if (stream == null)
             {
-                Console.WriteLine($"[EmbeddedResourceProvider] Failed to load embedded resource: {resourceName}");
                 return null;
             }
 
-            // Copy to memory stream to allow seeking and multiple reads
-            var memoryStream = new MemoryStream();
+            // Copy to memory and cache for future requests
+            using var memoryStream = new MemoryStream();
             stream.CopyTo(memoryStream);
-            memoryStream.Position = 0;
             stream.Dispose();
 
-            return memoryStream;
+            var bytes = memoryStream.ToArray();
+            _resourceCache[virtualPath] = bytes; // Cache it for next time
+
+            return new MemoryStream(bytes, writable: false);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[EmbeddedResourceProvider] Error loading embedded resource {resourceName}: {ex.Message}");
+            Console.WriteLine($"[EmbeddedResourceProvider] Error loading {virtualPath}: {ex.Message}");
             return null;
         }
     }

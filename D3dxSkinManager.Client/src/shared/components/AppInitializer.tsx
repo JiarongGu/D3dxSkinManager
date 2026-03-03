@@ -88,6 +88,10 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       // Notify backend that WebView is ready
       // This clears any stale drop zones from previous sessions (e.g., after hot-reload)
       bridgeService.notifyWebViewReady();
+
+      // Notify backend that the app is fully initialized
+      // This will hide the splash screen
+      bridgeService.notifyAppInitialized();
     }
   }, [state.stage]);
 

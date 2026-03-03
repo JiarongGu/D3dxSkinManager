@@ -34,6 +34,7 @@ public class ApplicationHost
     // Main window components
     private Form _mainForm = null!;
     private WebView2 _webView = null!;
+    private SplashScreenPanel? _splashScreenPanel;
 
     // Shared services
     private ServiceProvider _serviceProvider = null!;
@@ -62,6 +63,11 @@ public class ApplicationHost
         // Register IAppEnvironment as interface for DI
         services.AddSingleton(_environment);
 
+        // Create EmbeddedResourceProvider immediately to start background preloading
+        // This happens BEFORE ConfigureServices, so preloading starts as early as possible
+        var embeddedResourceProvider = new Resources.EmbeddedResourceProvider();
+        services.AddSingleton<IEmbeddedResourceProvider>(embeddedResourceProvider);
+
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
 
@@ -73,11 +79,54 @@ public class ApplicationHost
     }
 
     /// <summary>
+    /// Show splash screen panel overlay
+    /// </summary>
+    private void ShowSplashScreen()
+    {
+        // Default to dark theme (most users prefer dark)
+        // Frontend will update theme once settings are loaded if needed
+        _splashScreenPanel = new SplashScreenPanel(true);
+        _splashScreenPanel.UpdateStatus("Initializing application...");
+
+        _logger.Info("Splash screen panel created (dark theme default)", "Host");
+    }
+
+    /// <summary>
+    /// Hide and dispose splash screen panel
+    /// </summary>
+    public void HideSplashScreen()
+    {
+        if (_splashScreenPanel != null && _mainForm != null)
+        {
+            _logger.Info("Hiding splash screen panel", "Host");
+
+            if (_mainForm.InvokeRequired)
+            {
+                _mainForm.Invoke(new Action(() =>
+                {
+                    _mainForm.Controls.Remove(_splashScreenPanel);
+                    _splashScreenPanel.Dispose();
+                    _splashScreenPanel = null;
+                }));
+            }
+            else
+            {
+                _mainForm.Controls.Remove(_splashScreenPanel);
+                _splashScreenPanel.Dispose();
+                _splashScreenPanel = null;
+            }
+        }
+    }
+
+    /// <summary>
     /// Create and configure the main application form
     /// </summary>
     public void CreateMainForm()
     {
         _logger.Info("Creating main form...", "Host");
+
+        // Create splash screen panel (will be added after form is ready)
+        ShowSplashScreen();
 
         // Load window state BEFORE creating the form to prevent visual jump
         var (width, height, x, y, maximized) = _windowStateService.LoadWindowStateAsync().GetAwaiter().GetResult();
@@ -130,6 +179,14 @@ public class ApplicationHost
         };
 
         _mainForm.Controls.Add(_webView);
+
+        // Add splash screen panel on top of WebView
+        if (_splashScreenPanel != null)
+        {
+            _mainForm.Controls.Add(_splashScreenPanel);
+            _splashScreenPanel.BringToFront();
+            _logger.Info("Splash screen panel added to form", "Host");
+        }
 
         // Wire up form events
         _mainForm.Load += OnFormLoad;
@@ -376,8 +433,8 @@ public class ApplicationHost
     {
         _logger?.Info("Configuring services...", "Host");
 
-        // Register embedded resource provider (singleton - used for web assets and language files)
-        services.AddSingleton<IEmbeddedResourceProvider, EmbeddedResourceProvider>();
+        // Note: EmbeddedResourceProvider is registered in InitializeServices() before ConfigureServices
+        // to enable early background preloading of embedded resources
 
         // Register global facades (no profile dependency)
         services.AddCoreServices();
@@ -431,7 +488,7 @@ public class ApplicationHost
         dispatcher.UseProfileFacade(_serviceProvider);
         dispatcher.UsePluginFacade(_serviceProvider);
 
-        // Session-specific routes (WEBVIEW_READY, SUBSCRIBE, UNSUBSCRIBE, DROP_ZONE)
+        // Session-specific routes (WEBVIEW_READY, DROP_ZONE)
         // will be registered by ApplicationHost.RegisterSessionRoutes() after session creation
         // This keeps the global dispatcher clean while allowing per-session operations
 
@@ -459,26 +516,17 @@ public class ApplicationHost
                 _logger.Info("Clearing all drop zones due to webview startup", "Host");
                 session.DropZone?.ClearAll();
 
-                // Clear all subscriptions on webview startup/hot-reload
-                session.Ipc.ClearSubscriptions();
-
                 return new { success = true, webViewId };
             });
 
-            routes.Route("SUBSCRIBE", message =>
+            routes.Route("INITIALIZED", message =>
             {
-                var module = message.Payload?.GetProperty("module").GetString() ?? "";
-                var type = message.Payload?.GetProperty("type").GetString() ?? "";
-                session.Ipc.Subscribe(module, type);
-                return new { success = true, module, type };
-            });
+                _logger.Info("Frontend application initialized - hiding splash screen", "Host");
 
-            routes.Route("UNSUBSCRIBE", message =>
-            {
-                var module = message.Payload?.GetProperty("module").GetString() ?? "";
-                var type = message.Payload?.GetProperty("type").GetString() ?? "";
-                session.Ipc.Unsubscribe(module, type);
-                return new { success = true, module, type };
+                // Hide the splash screen now that the app is ready
+                HideSplashScreen();
+
+                return new { success = true };
             });
         });
 

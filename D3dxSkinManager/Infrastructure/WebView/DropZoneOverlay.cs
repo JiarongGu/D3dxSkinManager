@@ -4,19 +4,6 @@ using D3dxSkinManager.Modules.Core.Helpers;
 namespace D3dxSkinManager.Infrastructure.WebView;
 
 /// <summary>
-/// Drop zone event type constants.
-/// Used with ModuleNames.DROP_ZONE as the module identifier.
-/// </summary>
-public static class DropZoneEvents
-{
-    public const string DRAG_ENTER = "DRAG_ENTER";
-    public const string DRAG_LEAVE = "DRAG_LEAVE";
-    public const string FILE_DROP = "FILE_DROP";
-    public const string MOUSE_ENTER = "MOUSE_ENTER";
-    public const string MOUSE_LEAVE = "MOUSE_LEAVE";
-}
-
-/// <summary>
 /// Overlay panel that captures file drag-drop events and hides itself on mouse enter
 /// </summary>
 public class DropZoneOverlay : Panel
@@ -230,4 +217,17 @@ public class DropZoneOverlay : Panel
         }
         base.Dispose(disposing);
     }
+}
+
+/// <summary>
+/// Drop zone event type constants.
+/// Used with ModuleNames.DROP_ZONE as the module identifier.
+/// </summary>
+public static class DropZoneEvents
+{
+    public const string DRAG_ENTER = "DRAG_ENTER";
+    public const string DRAG_LEAVE = "DRAG_LEAVE";
+    public const string FILE_DROP = "FILE_DROP";
+    public const string MOUSE_ENTER = "MOUSE_ENTER";
+    public const string MOUSE_LEAVE = "MOUSE_LEAVE";
 }

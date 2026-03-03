@@ -1,11 +1,39 @@
 # D3dxSkinManager - Current Architecture
 
-**Last Updated:** 2026-02-23
+**Last Updated:** 2026-03-04
 **Status:** Current Implementation
 
 ## Overview
 
 .NET 10 + WinForms + WebView2 + React application with module-based architecture aligned across frontend and backend.
+
+## Application Startup Flow
+
+### Splash Screen
+The application shows a minimal splash screen overlay while WebView2 compiles JavaScript (~2 seconds).
+
+**Implementation:**
+- **Panel-based overlay** - `SplashScreenPanel` overlays the WebView2 control
+- **Theme-aware** - Defaults to dark theme, matches app container colors
+- **Minimal design** - 400x4px progress bar, no text
+- **Automatic removal** - Frontend sends `APP.INITIALIZED` IPC message when React app is ready
+
+**Colors (from theme-colors.css):**
+- Dark theme: Background `#1f1f1f`, Progress bar `#177ddc`
+- Light theme: Background `#e6f4ff`, Progress bar `#1890ff`
+
+**Lifecycle:**
+1. ApplicationHost creates `SplashScreenPanel` before showing main form
+2. Panel added on top of WebView2 control (DockStyle.Fill)
+3. WebView2 initializes and loads React app
+4. React's `AppInitializer` component sends `APP.INITIALIZED` message
+5. ApplicationHost removes splash screen panel
+
+**Files:**
+- Backend: `Infrastructure/WebView/SplashScreen.cs`
+- Backend: `Infrastructure/ApplicationHost.cs` (ShowSplashScreen/HideSplashScreen)
+- Frontend: `shared/services/bridgeService.ts` (notifyAppInitialized)
+- Frontend: `shared/components/AppInitializer.tsx` (sends message)
 
 ## System Architecture
 

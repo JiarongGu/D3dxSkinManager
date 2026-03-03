@@ -34,7 +34,6 @@ public class IpcHandler : IIpcHandler
     private readonly WebView2 _webView;
     private readonly ILogHelper _logger;
     private readonly JsonSerializerOptions _jsonOptions;
-    private readonly ConcurrentDictionary<string, bool> _subscriptions = new();
 
     // Notification batching
     private readonly ConcurrentQueue<(string module, string type, object? payload)> _pendingNotifications = new();
@@ -141,20 +140,6 @@ public class IpcHandler : IIpcHandler
         }
     }
 
-    public void Subscribe(string module, string type)
-    {
-        _subscriptions[GetSubscriptionKey(module, type)] = true;
-    }
-
-    public void Unsubscribe(string module, string type)
-    {
-        _subscriptions.TryRemove(GetSubscriptionKey(module, type), out _);
-    }
-
-    public void ClearSubscriptions() 
-    {
-        _subscriptions.Clear();
-    }
 
     /// <summary>
     /// Send response back to React
@@ -209,7 +194,6 @@ public class IpcHandler : IIpcHandler
     /// <summary>
     /// Flush pending notifications as a single batched IPC message
     /// Called every 50ms by the timer
-    /// Filters to only send events with active subscriptions
     /// </summary>
     private void FlushNotificationBatch()
     {
@@ -229,9 +213,8 @@ public class IpcHandler : IIpcHandler
 
             try
             {
-                // Filter to only include events that have subscriptions
-                var subscribedEvents = batch
-                    .Where(e => _subscriptions.ContainsKey(GetSubscriptionKey(e.module, e.type)))
+                // Send all events (no filtering)
+                var events = batch
                     .Select(e => new
                     {
                         module = e.module,
@@ -240,12 +223,7 @@ public class IpcHandler : IIpcHandler
                     })
                     .ToList();
 
-                if (subscribedEvents.Count == 0)
-                {
-                    return; // No subscribed events to send
-                }
-
-                _logger.Verbose($"Flushing batch of {subscribedEvents.Count} events (filtered from {batch.Count} total)", "IPC");
+                _logger.Verbose($"Flushing batch of {events.Count} events", "IPC");
 
                 // Send as batched notification
                 var batchId = Guid.NewGuid().ToString();
@@ -255,7 +233,7 @@ public class IpcHandler : IIpcHandler
                     id = batchId,
                     module = "EVENT_BUS",
                     type = "BATCH",
-                    payload = subscribedEvents,
+                    payload = events,
                     timestamp = DateTime.UtcNow
                 };
 
@@ -280,6 +258,4 @@ public class IpcHandler : IIpcHandler
             }
         }
     }
-
-    private string GetSubscriptionKey(string module, string type) => $"{module}.{type}";
 }

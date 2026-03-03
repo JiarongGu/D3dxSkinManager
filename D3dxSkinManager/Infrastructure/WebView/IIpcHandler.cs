@@ -19,21 +19,6 @@ public interface IIpcHandler
     void Init();
 
     /// <summary>
-    /// Subscribe to notifications of a specific module and type
-    /// </summary>
-    void Subscribe(string module, string type);
-
-    /// <summary>
-    /// Unsubscribe from notifications of a specific module and type
-    /// </summary>
-    void Unsubscribe(string module, string type);
-
-    /// <summary>
-    /// Clear all subscriptions
-    /// </summary>
-    void ClearSubscriptions();
-
-    /// <summary>
     /// Send a push notification to the frontend (queued for batching)
     /// Events are automatically batched and sent every 50ms to reduce IPC overhead
     /// </summary>

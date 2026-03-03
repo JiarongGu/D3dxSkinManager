@@ -12,6 +12,7 @@
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
 		<DebugType>none</DebugType>
 		<DebugSymbols>false</DebugSymbols>
+		<!-- WinExe hides the console window in production -->
 		<OutputType>WinExe</OutputType>
 	</PropertyGroup>
 

@@ -47,7 +47,26 @@ public class WebViewInitializer
                                              "--disable-renderer-backgrounding " +
                                              "--disable-features=TranslateUI " +
                                              "--disable-ipc-flooding-protection " +
-                                             "--disable-gpu-driver-bug-workarounds";
+                                             "--disable-gpu-driver-bug-workarounds " +
+                                             "--disable-component-update " +
+                                             "--disable-default-apps " +
+                                             "--disable-domain-reliability " +
+                                             "--disable-sync " +
+                                             "--no-first-run " +
+                                             "--no-default-browser-check " +
+                                             "--disable-background-networking " +
+                                             "--disable-breakpad " +
+                                             // ENABLE V8 CODE CACHING - this is critical for fast subsequent loads!
+                                             // Code cache is stored in user data folder and persists between runs
+                                             "--enable-features=IsolatedCodeCache " +
+                                             // V8 JavaScript optimization flags:
+                                             // --no-lazy: Compile all functions immediately (not lazy)
+                                             // --always-opt: Always optimize (don't wait for hot code)
+                                             // --serialize-eager: Eagerly serialize code cache
+                                             // --max-old-space-size: Limit V8 memory
+                                             "--js-flags=--no-lazy --always-opt --serialize-eager --max-old-space-size=512 " +
+                                             "--enable-lazy-image-loading " +
+                                             "--enable-features=ScriptStreaming";
 
         // Create WebView2 environment with performance options
         var environment = await CoreWebView2Environment.CreateAsync(
@@ -57,6 +76,27 @@ public class WebViewInitializer
 
         // Initialize WebView2
         await _webView.EnsureCoreWebView2Async(environment);
+
+        // Add navigation event handlers for debugging with precise timing
+        var navigationStartTime = DateTime.MinValue;
+
+        _webView.CoreWebView2.NavigationStarting += (s, e) =>
+        {
+            navigationStartTime = DateTime.Now;
+            Console.WriteLine($"[WebView2] ⏱️  [{navigationStartTime:HH:mm:ss.fff}] Navigation starting: {e.Uri}");
+        };
+
+        _webView.CoreWebView2.NavigationCompleted += (s, e) =>
+        {
+            var elapsed = navigationStartTime != DateTime.MinValue ? (DateTime.Now - navigationStartTime).TotalMilliseconds : 0;
+            Console.WriteLine($"[WebView2] ⏱️  [{DateTime.Now:HH:mm:ss.fff}] {(e.IsSuccess ? "✅" : "❌")} Navigation completed in {elapsed:F0}ms: Success={e.IsSuccess}, Status={e.WebErrorStatus}");
+        };
+
+        _webView.CoreWebView2.DOMContentLoaded += (s, e) =>
+        {
+            var elapsed = navigationStartTime != DateTime.MinValue ? (DateTime.Now - navigationStartTime).TotalMilliseconds : 0;
+            Console.WriteLine($"[WebView2] ⏱️  [{DateTime.Now:HH:mm:ss.fff}] 📄 DOM Content Loaded in {elapsed:F0}ms from navigation start");
+        };
 
         // Configure settings
         ConfigureWebViewSettings();
@@ -98,11 +138,14 @@ public class WebViewInitializer
         // Disable password autosave
         settings.IsPasswordAutosaveEnabled = false;
 
-        // Performance settings
+        // Performance settings - disable everything unnecessary for faster startup
         settings.IsWebMessageEnabled = true;
         settings.IsStatusBarEnabled = false;
         settings.IsZoomControlEnabled = false;
         settings.IsBuiltInErrorPageEnabled = false;
+        settings.IsGeneralAutofillEnabled = false;
+        settings.IsPinchZoomEnabled = false;
+        settings.IsSwipeNavigationEnabled = false;
 
         // Allow external drop to enable internal drag-drop between React components
         // External file drops are still captured by DropZoneOverlay at Form level
@@ -230,14 +273,18 @@ public class WebViewInitializer
                     {
                         var contentType = GetContentType(virtualPath);
 
+                        // Add aggressive caching headers to speed up resource loading
+                        var headers = $"Content-Type: {contentType}\n" +
+                                     "Cache-Control: public, max-age=31536000, immutable\n" +
+                                     "Access-Control-Allow-Origin: *";
+
                         var response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
                             stream,
                             200,
                             "OK",
-                            $"Content-Type: {contentType}");
+                            headers);
 
                         args.Response = response;
-                        Console.WriteLine($"[WebView2] ✓ Served: {virtualPath} ({contentType})");
                     }
                     else
                     {
@@ -314,21 +361,12 @@ public class WebViewInitializer
         // Check if we're in embedded mode or file-based mode
         if (_resourceProvider.IsEmbeddedMode)
         {
-            // Embedded mode: Load from embedded resources using virtual host
-            var virtualPath = "wwwroot/index.html";
+            // Embedded mode: Navigate to custom scheme (single-file HTML with all JS/CSS inlined by vite-plugin-singlefile)
+            // This will be served by the custom scheme handler from embedded resources
+            const string productionUrl = "https://app.local/index.html";
 
-            if (_resourceProvider.ResourceExists(virtualPath))
-            {
-                // Use virtual host app.local - WebView2 will intercept and serve from embedded resources
-                var virtualUrl = "https://app.local/index.html";
-                Console.WriteLine($"[WebView2] Production mode (EMBEDDED) - loading {virtualUrl}");
-                _webView.CoreWebView2.Navigate(virtualUrl);
-            }
-            else
-            {
-                Console.WriteLine("[WebView2] Error: Embedded index.html not found");
-                ShowEmbeddedResourceError();
-            }
+            Console.WriteLine($"[WebView2] Production mode (EMBEDDED) - navigating to {productionUrl} (single-file build)");
+            _webView.CoreWebView2.Navigate(productionUrl);
         }
         else
         {
@@ -354,6 +392,27 @@ public class WebViewInitializer
                     </html>");
             }
         }
+    }
+
+    private string GetJsPath(string html, string prefix)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(html, $@"<script[^>]*src=""[^""]*/{prefix}([^""]+)""[^>]*>");
+        if (match.Success)
+        {
+            var filename = $"{prefix}{match.Groups[1].Value}";
+            return $"wwwroot/assets/{filename}";
+        }
+        return "";
+    }
+
+    private string GetCssPath(string html)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(html, @"<link[^>]*href=""[^""]*/([^""]+\.css)""[^>]*>");
+        if (match.Success)
+        {
+            return $"wwwroot/assets/{match.Groups[1].Value}";
+        }
+        return "";
     }
 
     private void ShowEmbeddedResourceError()

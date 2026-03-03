@@ -132,6 +132,22 @@ class BridgeService {
   }
 
   /**
+   * Notify backend that the React app is fully initialized and ready
+   * This will hide the splash screen
+   */
+  async notifyAppInitialized(): Promise<void> {
+    try {
+      await this.sendMessage({
+        module: 'APP',
+        type: 'INITIALIZED',
+        payload: {}
+      });
+    } catch (error) {
+      console.error('Failed to notify app initialized:', error);
+    }
+  }
+
+  /**
    * Send a message to the .NET backend and wait for response
    * @param module - The module to route the message to (e.g., 'MOD', 'PROFILE')
    * @param type - The action type within the module (e.g., 'GET_ALL', 'LOAD')
