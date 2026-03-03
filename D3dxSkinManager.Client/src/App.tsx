@@ -19,7 +19,7 @@ import { AppInitializer } from './shared/components/AppInitializer';
 import { keyboardManager, SHORTCUTS } from './modules/core/utils/KeyboardShortcutManager';
 import { KeyboardShortcutsDialog } from './modules/core/components/dialogs/KeyboardShortcutsDialog';
 import { AboutDialog } from './modules/core/components/dialogs/AboutDialog';
-import { HelpWindow } from './modules/core/components/windows/HelpWindow';
+import { HelpWindow } from './modules/help';
 import './App.css';
 import './styles/visual-enhancements.css';
 import './styles/theme-colors.css';
@@ -34,7 +34,6 @@ const { Content } = Layout;
 const AppContent: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState('mods');
   const [shortcutsDialogVisible, setShortcutsDialogVisible] = useState(false);
-  const [helpWindowVisible, setHelpWindowVisible] = useState(false);
   const [aboutDialogVisible, setAboutDialogVisible] = useState(false);
 
   // Status bar state
@@ -54,7 +53,11 @@ const AppContent: React.FC = () => {
 
   // Status bar handlers
   const handleHelpClick = () => {
-    setHelpWindowVisible(true);
+    openScreen({
+      title: 'Help & Documentation',
+      content: <HelpWindow />,
+      width: '900px',
+    });
   };
 
   // Initialize keyboard shortcuts
@@ -126,12 +129,6 @@ const AppContent: React.FC = () => {
         visible={shortcutsDialogVisible}
         onClose={() => setShortcutsDialogVisible(false)}
         shortcuts={keyboardManager.getShortcuts()}
-      />
-
-      {/* Help Window */}
-      <HelpWindow
-        visible={helpWindowVisible}
-        onClose={() => setHelpWindowVisible(false)}
       />
 
       {/* About Dialog */}

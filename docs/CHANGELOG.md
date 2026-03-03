@@ -12,6 +12,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Enhanced - 2026-03-04 - Help System: Redesigned with SlideInScreen & Updated Content ⭐⭐
+Complete redesign of help window with modern sliding screen interface and comprehensive content updates reflecting current architecture.
+**Impact**: ✅ Users get accurate, well-organized help documentation in a modern UI that matches the app's design system
+**Problem**: Help window used outdated modal design and contained stale information about removed/renamed features
+**Solution**: Migrated to SlideInScreen with vertical tabs, rewrote all content based on current architecture documentation
+**Frontend Changes - Help Module (NEW)**:
+- Created dedicated `modules/help/` module (moved from core/components/windows)
+- Module structure: `components/HelpWindow.tsx`, `HelpWindow.css`, `index.ts`
+**Frontend Changes - HelpWindow.tsx**:
+- Redesigned with vertical sidebar navigation (9 sections) instead of horizontal tabs
+- Sections: Quick Start, Profiles, Mod Management, Category System, Import Queue, Tag Management, Game Launch, Tools & Utilities, Tips & Best Practices
+- Removed outdated content: "Launch Setup", incorrect navigation paths, old hierarchical organization references
+- Added new content: Profile management, GUID-based category system, workflow-based import queue, tag management tool
+- Updated all descriptions to match current features: debounced preview panel, external cache support, tree-based categories
+- Removed deprecated Alert props (message/description → inline JSX)
+**Frontend Changes - HelpWindow.css**:
+- Vertical nav sidebar (200px width) with active state highlighting
+- BEM naming: `.help-window-layout`, `.help-window-nav`, `.help-window-nav-item`, `.help-window-content-area`
+- Theme support with CSS variables for colors
+- Custom scrollbar styling for both nav and content areas
+- Responsive design with media queries for smaller screens
+**Frontend Changes - App.tsx**:
+- Changed from modal-based (`visible` state) to SlideInScreen (`openScreen()`)
+- Removed `helpWindowVisible` state variable
+- Updated `handleHelpClick` to use `openScreen({ title, content, width })`
+**Key Design Decisions**:
+- SlideInScreen for consistency with other tools (Profile Manager, Tag Management)
+- Vertical tabs for better space utilization and clearer section organization
+- Content verified against `docs/AI_GUIDE.md` and architecture documentation
+- No emoji usage (following project style)
+**Files Changed**: 4 files (1 new module, 3 updated)
+**Code Changes**: +709 lines (new help content), -132 lines (old modal code)
+
+### Improved - 2026-03-04 - i18n: Cleaned Up 147 Unused Translation Keys (22% reduction) ⭐
+Removed 147 unused translation keys from both English and Chinese language files using comprehensive codebase analysis.
+**Impact**: ✅ Smaller translation files, easier maintenance, faster translation loading
+**Problem**: 665 translation keys but only 518 were actually used in the codebase (22% waste)
+**Root Cause**: Features were removed/renamed but translation keys remained (addMod dialog, unused launch.game options, old category UI)
+**Solution**: Created memory-based search script to find all key usage in source code, removed confirmed unused keys
+**Cleanup Process**:
+1. Loaded all 175 TypeScript/JavaScript source files into memory (~0.77 MB)
+2. Checked each translation key for presence anywhere in source code (not just t() calls)
+3. Identified 147 keys with zero references in codebase
+4. Removed keys from both en.json and cn.json
+**Keys Removed (Examples)**:
+- `addMod.*` - Old add mod dialog (replaced by workflow system)
+- `launch.game.*` - Unused game launch configuration options
+- `category.screen.*` - Some old category management UI keys
+- Migration error mapping keys - Unused granular error messages
+**Backend Changes - Languages/en.json**:
+- Reduced from 665 to 518 keys (147 removed)
+**Backend Changes - Languages/cn.json**:
+- Reduced from 664 to 518 keys (146 removed)
+- Fixed BOM (Byte Order Mark) handling in cleanup script
+**Verification**:
+- Build succeeded with no errors
+- All remaining 518 keys are confirmed used in source code
+**Files Changed**: 2 files (both language JSONs)
+**Reduction**: 22.1% smaller translation files
+
 ### Added - 2026-03-03 - TagManagementTool: Full CRUD Tag Management UI ⭐⭐
 Complete redesign of tag management tool with proper CRUD operations, compact design, and external pagination.
 **Impact**: ✅ Users can now create, edit (name + color), and delete tags in a dedicated tool interface

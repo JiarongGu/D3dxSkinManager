@@ -1,0 +1,200 @@
+/* Help Window - Vertical Tab Layout within SlideInScreen */
+
+/* Main layout container */
+.help-window-layout {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Vertical navigation sidebar */
+.help-window-nav {
+  width: 200px;
+  background-color: var(--color-bg-container);
+  border-right: 1px solid var(--color-border-secondary);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+/* Navigation items */
+.help-window-nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  color: var(--color-text-base);
+  font-size: 14px;
+}
+
+.help-window-nav-item:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.help-window-nav-item--active {
+  background-color: var(--color-primary-bg);
+  border-left-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.help-window-nav-item-icon {
+  font-size: 16px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.help-window-nav-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Content area */
+.help-window-content-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  background-color: var(--color-bg-base);
+}
+
+/* Content container */
+.help-window-content {
+  width: 100%;
+  max-width: 800px;
+}
+
+/* List styling */
+.help-window-list {
+  line-height: 1.8;
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.help-window-list li {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--color-text-base);
+}
+
+.help-window-list strong {
+  color: var(--color-text-base);
+  font-weight: 600;
+}
+
+/* Typography overrides for better readability */
+.help-window-content-area .ant-typography {
+  color: var(--color-text-base);
+}
+
+.help-window-content-area h4.ant-typography {
+  margin-top: 16px;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-heading);
+}
+
+.help-window-content-area .ant-typography-paragraph {
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-base);
+}
+
+/* Alert styling within help content */
+.help-window-content .ant-alert {
+  margin-bottom: 16px;
+}
+
+.help-window-content .ant-alert-description {
+  font-size: 14px;
+}
+
+/* Tag styling */
+.help-window-content .ant-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+}
+
+/* Space component overrides */
+.help-window-content.ant-space {
+  width: 100%;
+}
+
+.help-window-content > .ant-space-item {
+  width: 100%;
+}
+
+/* Scrollbar styling for navigation */
+.help-window-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.help-window-nav::-webkit-scrollbar-track {
+  background: var(--color-bg-container);
+}
+
+.help-window-nav::-webkit-scrollbar-thumb {
+  background: var(--color-border-secondary);
+  border-radius: 3px;
+}
+
+.help-window-nav::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Scrollbar styling for content area */
+.help-window-content-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.help-window-content-area::-webkit-scrollbar-track {
+  background: var(--color-bg-base);
+}
+
+.help-window-content-area::-webkit-scrollbar-thumb {
+  background: var(--color-border-secondary);
+  border-radius: 4px;
+}
+
+.help-window-content-area::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .help-window-nav {
+    width: 160px;
+  }
+
+  .help-window-nav-item {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .help-window-nav-item-icon {
+    font-size: 14px;
+    margin-right: 8px;
+  }
+
+  .help-window-content-area {
+    padding: 16px;
+  }
+}
+
+/* Dark theme specific adjustments */
+.dark .help-window-nav-item--active {
+  background-color: rgba(24, 144, 255, 0.15);
+}
+
+.dark .help-window-nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
