@@ -3,7 +3,7 @@
  * Tracks multiple workflows and subscribes to their events
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { eventBus, Module, WorkflowEventType } from '../../../../shared/services/eventBus';
 import { workflowService } from '../../services/workflowService';
 import { useProfile } from '../../../../shared/context/ProfileContext';
@@ -26,21 +26,23 @@ interface UseWorkflowQueueReturn {
  */
 export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
   const { selectedProfileId } = useProfile();
-  const [workflows, setWorkflows] = useState<WorkflowInfo[]>([]);
+  // Use Map for O(1) individual workflow updates instead of O(n) array operations
+  const [workflowMap, setWorkflowMap] = useState<Map<string, WorkflowInfo>>(new Map());
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Convert map to array for consumers (memoized to only change when Map changes)
+  // This prevents table from re-parsing ALL workflows when only one workflow updates
+  const workflows = useMemo(() => Array.from(workflowMap.values()), [workflowMap]);
+
   /**
-   * Add a workflow to the queue
+   * Add a workflow to the queue (or update if exists)
    */
   const addWorkflow = useCallback((workflow: WorkflowInfo) => {
-    setWorkflows((prev) => {
-      // Check if workflow already exists
-      const exists = prev.some((w) => w.id === workflow.id);
-      if (exists) {
-        return prev.map((w) => (w.id === workflow.id ? workflow : w));
-      }
-      return [...prev, workflow];
+    setWorkflowMap((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(workflow.id, workflow);
+      return newMap;
     });
   }, []);
 
@@ -48,27 +50,41 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
    * Remove a workflow from the queue
    */
   const removeWorkflow = useCallback((workflowId: string) => {
-    setWorkflows((prev) => prev.filter((w) => w.id !== workflowId));
+    setWorkflowMap((prev) => {
+      const newMap = new Map(prev);
+      newMap.delete(workflowId);
+      return newMap;
+    });
   }, []);
 
   /**
    * Update a workflow in the queue
    */
   const updateWorkflow = useCallback((workflow: WorkflowInfo) => {
-    setWorkflows((prev) => prev.map((w) => (w.id === workflow.id ? workflow : w)));
+    setWorkflowMap((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(workflow.id, workflow);
+      return newMap;
+    });
   }, []);
 
   /**
    * Clear all completed workflows
    */
   const clearCompleted = useCallback(() => {
-    setWorkflows((prev) =>
-      prev.filter(
-        (w) => w.status !== WorkflowStatus.Completed &&
-               w.status !== WorkflowStatus.Failed &&
-               w.status !== WorkflowStatus.Cancelled
-      )
-    );
+    setWorkflowMap((prev) => {
+      const newMap = new Map<string, WorkflowInfo>();
+      prev.forEach((workflow, id) => {
+        if (
+          workflow.status !== WorkflowStatus.Completed &&
+          workflow.status !== WorkflowStatus.Failed &&
+          workflow.status !== WorkflowStatus.Cancelled
+        ) {
+          newMap.set(id, workflow);
+        }
+      });
+      return newMap;
+    });
   }, []);
 
   /**
@@ -85,7 +101,12 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
         selectedProfileId,
         'MOD_IMPORT'
       );
-      setWorkflows(loadedWorkflows);
+      // Convert array to Map
+      const newMap = new Map<string, WorkflowInfo>();
+      loadedWorkflows.forEach((workflow) => {
+        newMap.set(workflow.id, workflow);
+      });
+      setWorkflowMap(newMap);
     } catch (error) {
       // Error handled by error handler
     } finally {
@@ -158,29 +179,28 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
       WorkflowEventType.PROGRESS,
       (event) => {
         if (event?.payload && event.payload.workflowId) {
-          // Update the workflow in the queue by fetching latest state
-          // Progress events contain { workflowId, progress, step }
-          // We need to update the context in the workflow
           const { workflowId, progress, step } = event.payload;
-          setWorkflows((prev) =>
-            prev.map((w) => {
-              if (w.id === workflowId) {
-                try {
-                  const context = JSON.parse(w.context);
-                  context.progress = progress;
-                  context.step = step;
-                  return {
-                    ...w,
-                    context: JSON.stringify(context),
-                  };
-                } catch (error) {
-                  // Error handled by error handler
-                  return w;
-                }
-              }
-              return w;
-            })
-          );
+
+          // Update only the specific workflow - no array iteration!
+          setWorkflowMap((prev) => {
+            const workflow = prev.get(workflowId);
+            if (!workflow) return prev;
+
+            try {
+              const context = JSON.parse(workflow.context);
+              context.progress = progress;
+              context.step = step;
+
+              const newMap = new Map(prev);
+              newMap.set(workflowId, {
+                ...workflow,
+                context: JSON.stringify(context),
+              });
+              return newMap;
+            } catch (error) {
+              return prev;
+            }
+          });
         }
       }
     );

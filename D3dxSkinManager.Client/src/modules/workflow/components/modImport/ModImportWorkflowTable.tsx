@@ -4,7 +4,7 @@
  * Now uses the shared DataTable component with expandable detail rows
  */
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Progress, Tag, Button, Space, Tooltip, Descriptions } from "antd";
 import {
   DataTable,
@@ -80,94 +80,96 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
   const setSelectedRowKeys = onSelectionChange ?? setInternalSelectedRowKeys;
 
   /**
-   * Parse workflow context and prepare table data
+   * Parse workflows and cache results - only re-parse when workflow.context changes
+   * This is the performance bottleneck - JSON.parse is expensive
    */
-  const parseWorkflow = (workflow: WorkflowInfo): WorkflowTableRow => {
-    let context: ModImportWorkflowContext | null = null;
-    try {
-      context = JSON.parse(workflow.context) as ModImportWorkflowContext;
-          } catch (error) {
+  const tableData = useMemo(() => {
+    return workflows.map((workflow): WorkflowTableRow => {
+      let context: ModImportWorkflowContext | null = null;
+      try {
+        context = JSON.parse(workflow.context) as ModImportWorkflowContext;
+      } catch (error) {
+        // Invalid JSON, context stays null
+      }
+
+      // Calculate progress from context
+      let progress = 0;
+      if (workflow.status === WorkflowStatus.Completed) {
+        progress = 100;
+      } else if (
+        workflow.status === WorkflowStatus.Failed ||
+        workflow.status === WorkflowStatus.Cancelled ||
+        workflow.status === WorkflowStatus.Deleting
+      ) {
+        progress = 0;
+      } else if (context && context.progress !== undefined) {
+        progress = context.progress;
+      }
+
+      // Get display name
+      const name =
+        context?.name ||
+        context?.folderName ||
+        context?.folderPath?.split("\\").pop() ||
+        "Unknown";
+
+      // Get status text based on current status and step
+      let statusText = "";
+      switch (workflow.status) {
+        case WorkflowStatus.Pending:
+          statusText = t("workflow.status.pending");
+          break;
+        case WorkflowStatus.Processing:
+          if (context?.step === ModImportWorkflowSteps.CompressFolder) {
+            statusText = t("workflow.modImport.compressing");
+          } else if (context?.step === ModImportWorkflowSteps.ImportMod) {
+            statusText = t("workflow.modImport.importing");
+          } else if (context?.step === ModImportWorkflowSteps.ExtractMetadata) {
+            statusText = t("workflow.modImport.extracting");
+          } else {
+            statusText = t("workflow.status.processing");
           }
+          break;
+        case WorkflowStatus.WaitingForInput:
+          statusText = t("workflow.status.awaitingConfirmation");
+          break;
+        case WorkflowStatus.Paused:
+          statusText = t("workflow.status.paused");
+          break;
+        case WorkflowStatus.Completed:
+          statusText = t("workflow.status.completed");
+          break;
+        case WorkflowStatus.Failed:
+          statusText = t("workflow.status.failed");
+          break;
+        case WorkflowStatus.Cancelled:
+          statusText = t("workflow.status.cancelled");
+          break;
+        case WorkflowStatus.Deleting:
+          statusText = "Deleting...";
+          break;
+        default:
+          statusText = `Unknown (${workflow.status})`;
+          break;
+      }
 
-    // Use progress from context (driven by backend)
-    let progress = 0;
-    if (workflow.status === WorkflowStatus.Completed) {
-      progress = 100;
-    } else if (
-      workflow.status === WorkflowStatus.Failed ||
-      workflow.status === WorkflowStatus.Cancelled ||
-      workflow.status === WorkflowStatus.Deleting
-    ) {
-      progress = 0;
-    } else if (context && context.progress !== undefined) {
-      progress = context.progress;
-    }
-
-    // Get display name
-    const name =
-      context?.name ||
-      context?.folderName ||
-      context?.folderPath?.split("\\").pop() ||
-      "Unknown";
-
-    // Get status text
-    let statusText = "";
-    switch (workflow.status) {
-      case WorkflowStatus.Pending:
-        statusText = t("workflow.status.pending");
-        break;
-      case WorkflowStatus.Processing:
-        if (context?.step === ModImportWorkflowSteps.CompressFolder) {
-          statusText = t("workflow.modImport.compressing");
-        } else if (context?.step === ModImportWorkflowSteps.ImportMod) {
-          statusText = t("workflow.modImport.importing");
-        } else if (context?.step === ModImportWorkflowSteps.ExtractMetadata) {
-          statusText = t("workflow.modImport.extracting");
-        } else {
-          statusText = t("workflow.status.processing");
-        }
-        break;
-      case WorkflowStatus.WaitingForInput:
-        statusText = t("workflow.status.awaitingConfirmation");
-        break;
-      case WorkflowStatus.Paused:
-        statusText = t("workflow.status.paused");
-        break;
-      case WorkflowStatus.Completed:
-        statusText = t("workflow.status.completed");
-        break;
-      case WorkflowStatus.Failed:
-        statusText = t("workflow.status.failed");
-        break;
-      case WorkflowStatus.Cancelled:
-        statusText = t("workflow.status.cancelled");
-        break;
-      case WorkflowStatus.Deleting:
-        statusText = "Deleting...";
-        break;
-      default:
-        statusText = `Unknown (${workflow.status})`; // Debug fallback
-        break;
-    }
-
-    return { workflow, context, name, progress, statusText };
-  };
-
-  const tableData = workflows.map(parseWorkflow);
+      return { workflow, context, name, progress, statusText };
+    });
+  }, [workflows, t]);
 
   /**
    * Handle metadata edit button click (works for any status, not just WaitingForInput)
    */
-  const handleEditMetadata = (row: WorkflowTableRow) => {
+  const handleEditMetadata = useCallback((row: WorkflowTableRow) => {
     setSelectedWorkflow(row.workflow);
     setSelectedContext(row.context);
     setMetadataModalVisible(true);
-  };
+  }, []);
 
   /**
    * Handle confirm button click - directly continue workflow without opening modal
    */
-  const handleConfirm = async (workflowId: string) => {
+  const handleConfirm = useCallback(async (workflowId: string) => {
     if (!selectedProfileId) return;
 
     try {
@@ -176,52 +178,14 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     } catch (error) {
       handleError(error);
     }
-  };
-
-  /**
-   * Handle batch confirm for all selected rows waiting for input
-   */
-  const handleBatchConfirm = async () => {
-    if (!selectedProfileId || selectedRowKeys.length === 0) return;
-
-    try {
-      const waitingWorkflows = tableData.filter(
-        (row) =>
-          selectedRowKeys.includes(row.workflow.id) &&
-          row.workflow.status === WorkflowStatus.WaitingForInput,
-      );
-
-      // Continue all selected workflows that are waiting for input
-      await Promise.all(
-        waitingWorkflows.map((row) =>
-          workflowService.continueWorkflow(selectedProfileId, row.workflow.id),
-        ),
-      );
-
-      setSelectedRowKeys([]);
-      onRefresh?.();
-    } catch (error) {
-      handleError(error);
-    }
-  };
-
-  /**
-   * Handle select all / deselect all
-   */
-  const handleSelectAll = () => {
-    if (selectedRowKeys.length === tableData.length) {
-      setSelectedRowKeys([]);
-    } else {
-      setSelectedRowKeys(tableData.map((row) => row.workflow.id));
-    }
-  };
+  }, [selectedProfileId, onRefresh]);
 
   /**
    * Handle metadata update
    * Only updates the context, does NOT automatically continue the workflow
    * User must click the separate "Confirm" button to actually import the mod
    */
-  const handleMetadataSubmit = async (values: ModImportMetadataFormValues) => {
+  const handleMetadataSubmit = useCallback(async (values: ModImportMetadataFormValues) => {
     if (!selectedWorkflow || !selectedProfileId) return;
 
     try {
@@ -250,18 +214,18 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
             handleError(error);
       throw error; // Re-throw to prevent modal from closing
     }
-  };
+  }, [selectedWorkflow, selectedProfileId, onRefresh]);
 
-  const handleMetadataCancel = () => {
+  const handleMetadataCancel = useCallback(() => {
     setMetadataModalVisible(false);
     setSelectedWorkflow(null);
     setSelectedContext(null);
-  };
+  }, []);
 
   /**
    * Handle pause workflow
    */
-  const handlePauseWorkflow = async (workflowId: string) => {
+  const handlePauseWorkflow = useCallback(async (workflowId: string) => {
     if (!selectedProfileId) return;
 
     try {
@@ -270,12 +234,12 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     } catch (error) {
       handleError(error);
     }
-  };
+  }, [selectedProfileId, onRefresh]);
 
   /**
    * Handle resume workflow (for workflows that stopped after app reboot)
    */
-  const handleResumeWorkflow = async (workflowId: string) => {
+  const handleResumeWorkflow = useCallback(async (workflowId: string) => {
     if (!selectedProfileId) return;
 
     try {
@@ -284,12 +248,12 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     } catch (error) {
       handleError(error);
     }
-  };
+  }, [selectedProfileId, onRefresh]);
 
   /**
    * Handle delete workflow
    */
-  const handleDeleteWorkflow = async (workflowId: string) => {
+  const handleDeleteWorkflow = useCallback(async (workflowId: string) => {
     if (!selectedProfileId) return;
 
     try {
@@ -298,7 +262,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
     } catch (error) {
       handleError(error);
     }
-  };
+  }, [selectedProfileId, onRefresh]);
 
   /**
    * Get status tag color
@@ -329,7 +293,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
   /**
    * Render expandable row content showing detailed workflow context
    */
-  const renderExpandedRow = (row: WorkflowTableRow) => {
+  const renderExpandedRow = useCallback((row: WorkflowTableRow) => {
     const { workflow, context } = row;
 
     return (
@@ -399,9 +363,9 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         )}
       </Descriptions>
     );
-  };
+  }, [t]);
 
-  const columns: ColumnsType<WorkflowTableRow> = [
+  const columns: ColumnsType<WorkflowTableRow> = useMemo(() => [
     {
       title: t("workflow.queue.name"),
       dataIndex: "name",
@@ -589,31 +553,25 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         );
       },
     },
-  ];
+  ], [t, handleEditMetadata, handleConfirm, handlePauseWorkflow, handleResumeWorkflow, handleDeleteWorkflow, getStatusColor]);
 
-  const selectedWaitingCount = tableData.filter(
-    (row) =>
-      selectedRowKeys.includes(row.workflow.id) &&
-      row.workflow.status === WorkflowStatus.WaitingForInput,
-  ).length;
-
-  const rowSelection = {
+  const rowSelection = useMemo(() => ({
     selectedRowKeys,
     onChange: (keys: React.Key[]) => setSelectedRowKeys(keys as string[]),
     getCheckboxProps: () => ({
       disabled: false, // Allow selection of all workflows for batch operations
     }),
-  };
+  }), [selectedRowKeys, setSelectedRowKeys]);
 
   /**
    * Handle row click to toggle expansion
    */
-  const handleRowClick = (record: WorkflowTableRow) => {
+  const handleRowClick = useCallback((record: WorkflowTableRow) => {
     const key = record.workflow.id;
     setExpandedRowKeys((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
-  };
+  }, []);
 
   return (
     <>

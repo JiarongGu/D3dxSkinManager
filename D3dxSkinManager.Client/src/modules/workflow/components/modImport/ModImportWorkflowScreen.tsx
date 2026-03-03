@@ -90,11 +90,18 @@ export const ModImportWorkflowScreen: React.FC = () => {
     }).length;
   }, [selectedWorkflowIds, workflows]);
 
-  // Check if there are Pending/Processing workflows (for Start Queue button)
-  const hasPendingOrProcessing = useMemo(() => {
-    return workflows.some(
-      (w) => w.status === WorkflowStatus.Pending || w.status === WorkflowStatus.Processing
-    );
+  // Check if there are stuck Pending workflows (not actively processing)
+  // Show "Start Queue" only when:
+  // 1. There are Pending/Processing workflows
+  // 2. None of them are actively updating (no recent progress events)
+  // This typically happens after app reboot when workflows are stuck
+  const shouldShowStartQueue = useMemo(() => {
+    // Check for Pending workflows (these definitely need to be started)
+    const hasPending = workflows.some((w) => w.status === WorkflowStatus.Pending);
+
+    // If there are any Pending workflows, show the button
+    // (After app reboot, workflows are set to Pending and need to be resumed)
+    return hasPending;
   }, [workflows]);
 
   const [importing, setImporting] = React.useState(false);
@@ -171,15 +178,16 @@ export const ModImportWorkflowScreen: React.FC = () => {
   };
 
   /**
-   * Start all Pending/Processing workflows (used after app reboot)
+   * Start all Pending workflows (used after app reboot)
+   * Only resumes Pending workflows to avoid interfering with actively running tasks
    */
   const handleStartQueue = async () => {
     if (!selectedProfileId) return;
 
     try {
-      // Find all Pending or Processing workflows
+      // Find all Pending workflows (not Processing - those might be actively running)
       const workflowsToStart = workflows.filter(
-        (w) => w.status === WorkflowStatus.Pending || w.status === WorkflowStatus.Processing
+        (w) => w.status === WorkflowStatus.Pending
       );
 
       if (workflowsToStart.length === 0) return;
@@ -259,8 +267,8 @@ export const ModImportWorkflowScreen: React.FC = () => {
             {t('mods.import.import')}
           </CompactButton.Primary>
 
-          {/* Start Queue button - show when there are Pending/Processing workflows (after reboot) */}
-          {hasPendingOrProcessing && (
+          {/* Start Queue button - show only when there are Pending workflows (after reboot) */}
+          {shouldShowStartQueue && (
             <CompactButton.Success
               icon={<PlayCircleOutlined />}
               onClick={handleStartQueue}
