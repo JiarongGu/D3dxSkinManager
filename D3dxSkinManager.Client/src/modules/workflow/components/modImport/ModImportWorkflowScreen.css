@@ -5,15 +5,16 @@
   height: calc(100% + 40px);
   background: var(--background-color);
   margin: -20px -24px;
+  overflow: hidden;
 }
 
 /* Status Bar - Top */
 .mod-import-workflow-screen-status-bar {
+  margin-top: -1px;
   margin-bottom: 12px;
-  padding: 10px 16px;
+  padding: 4px 16px;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border-secondary);
-  border-radius: 4px;
 }
 
 /* Action Bar - Bottom */
@@ -111,7 +112,6 @@
 /* Queue Content */
 .mod-import-workflow-screen-content {
   flex: 1;
-  overflow-y: auto;
   min-height: 0;
 }
 

@@ -625,6 +625,8 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         pagination={false}
         size="middle"
         rowSelection={rowSelection}
+        sticky={{ offsetHeader: 0 }}
+        scroll={{ y: 'calc(100vh - 282px)' }}
         expandable={{
           expandedRowRender: renderExpandedRow,
           rowExpandable: () => true,

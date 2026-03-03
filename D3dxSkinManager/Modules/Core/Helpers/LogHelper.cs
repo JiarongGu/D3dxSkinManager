@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 
@@ -91,6 +92,12 @@ public class LogHelper : ILogHelper, IDisposable
     private readonly string _logsBaseDirectory;
     private bool _disposed;
 
+    // Batching infrastructure
+    private readonly ConcurrentQueue<(string logFile, string logEntry)> _logQueue = new();
+    private readonly global::System.Timers.Timer _batchTimer;
+    private readonly object _batchLock = new();
+    private const int BatchIntervalMs = 100; // Flush logs every 100ms
+
     public LogLevel MinimumLevel
     {
         // Always use AppEnvironment's MinimumLogLevel as the single source of truth
@@ -108,6 +115,12 @@ public class LogHelper : ILogHelper, IDisposable
 
         // AppEnvironment already has the log level configured (OFF by default or from env var)
         // No need to set it here - just use AppEnvironment.MinimumLogLevel directly
+
+        // Initialize batching timer
+        _batchTimer = new global::System.Timers.Timer(BatchIntervalMs);
+        _batchTimer.Elapsed += (sender, e) => FlushLogBatch();
+        _batchTimer.AutoReset = true;
+        _batchTimer.Start();
     }
 
     public static LogHelper Create(AppEnvironment environment) 
@@ -175,7 +188,7 @@ public class LogHelper : ILogHelper, IDisposable
         // File: Respects log level settings (OFF, VERBOSE, DEBUG, INFO, WARNING, ERROR, ALL)
         if (ShouldLog(level))
         {
-            _ = WriteToFileAsync(level, logEntry, source);
+            QueueLogEntry(level, logEntry);
         }
     }
 
@@ -199,11 +212,14 @@ public class LogHelper : ILogHelper, IDisposable
 
     public async Task FlushAsync()
     {
+        // Flush any queued logs immediately
+        FlushLogBatch();
+
         // Wait for any pending writes to complete
         await _writeLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            // Just release - actual flushing happens in WriteToFileAsync
+            // Just release - actual flushing happens in FlushLogBatch
         }
         finally
         {
@@ -235,28 +251,68 @@ public class LogHelper : ILogHelper, IDisposable
         }
     }
 
-    private async Task WriteToFileAsync(LogLevel level, string logEntry, string? source)
+    /// <summary>
+    /// Queue a log entry for batched writing (fire-and-forget)
+    /// </summary>
+    private void QueueLogEntry(LogLevel level, string logEntry)
     {
         if (_disposed) return;
 
-        await _writeLock.WaitAsync().ConfigureAwait(false);
-        try
+        if (level >= LogLevel.Info)
         {
-            if (level >= LogLevel.Info)
+            var logFile = Path.Combine(_logsBaseDirectory, $"{DateTime.UtcNow:yyyy-MM-dd}.log");
+            _logQueue.Enqueue((logFile, logEntry));
+        }
+    }
+
+    /// <summary>
+    /// Flush queued log entries to disk (called every 100ms by timer)
+    /// Groups entries by log file and writes in batches
+    /// </summary>
+    private void FlushLogBatch()
+    {
+        if (_disposed || _logQueue.IsEmpty) return;
+
+        lock (_batchLock)
+        {
+            if (_logQueue.IsEmpty) return;
+
+            try
             {
-                // Append to log file
-                var logFile = Path.Combine(_logsBaseDirectory, $"{DateTime.UtcNow:yyyy-MM-dd}.log");
-                await File.AppendAllTextAsync(logFile, logEntry + Environment.NewLine).ConfigureAwait(false);
+                // Dequeue all pending logs
+                var batch = new List<(string logFile, string logEntry)>();
+                while (_logQueue.TryDequeue(out var entry))
+                {
+                    batch.Add(entry);
+                }
+
+                if (batch.Count == 0) return;
+
+                // Group by log file for efficient batch writing
+                var groupedLogs = batch
+                    .GroupBy(x => x.logFile)
+                    .ToDictionary(g => g.Key, g => g.Select(x => x.logEntry).ToList());
+
+                // Write each file's batch in one operation
+                foreach (var (logFile, entries) in groupedLogs)
+                {
+                    try
+                    {
+                        // Combine all entries with newlines
+                        var combinedContent = string.Join(Environment.NewLine, entries) + Environment.NewLine;
+                        File.AppendAllText(logFile, combinedContent);
+                    }
+                    catch (Exception ex)
+                    {
+                        // If logging fails, write to console as fallback
+                        Console.WriteLine($"[LogHelper] Failed to write {entries.Count} log entries to {logFile}: {ex.Message}");
+                    }
+                }
             }
-        }
-        catch (Exception ex)
-        {
-            // If logging fails, write to console as fallback
-            Console.WriteLine($"[LogHelper] Failed to write to log file: {ex.Message}");
-        }
-        finally
-        {
-            _writeLock.Release();
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LogHelper] Error in FlushLogBatch: {ex.Message}");
+            }
         }
     }
 
@@ -265,6 +321,12 @@ public class LogHelper : ILogHelper, IDisposable
         if (_disposed) return;
 
         _disposed = true;
+
+        // Stop the timer and flush any remaining logs
+        _batchTimer?.Stop();
+        FlushLogBatch();
+        _batchTimer?.Dispose();
+
         _writeLock.Dispose();
     }
 }

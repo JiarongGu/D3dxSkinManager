@@ -10,6 +10,7 @@ using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Category.Services;
 
 namespace D3dxSkinManager.Modules.Workflow.Handlers;
 
@@ -46,6 +47,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     private readonly ILogHelper _logger;
     private readonly IModQueryService _modQueryService;
     private readonly IWorkflowConcurrencyManager _concurrencyManager;
+    private readonly ICategoryService _categoryService;
 
     // Track cancellation tokens for ongoing operations (compression, SHA calculation)
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancellationTokens = new();
@@ -64,7 +66,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         IEventBus eventBus,
         ILogHelper logger,
         IModQueryService modQueryService,
-        IWorkflowConcurrencyManager concurrencyManager)
+        IWorkflowConcurrencyManager concurrencyManager,
+        ICategoryService categoryService)
     {
         _workflowRepository = workflowRepository;
         _modImportService = modImportService;
@@ -78,6 +81,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         _logger = logger;
         _modQueryService = modQueryService;
         _concurrencyManager = concurrencyManager;
+        _categoryService = categoryService;
     }
 
     /// <summary>
@@ -109,6 +113,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         await _workflowRepository.AddAsync(workflow);
 
+        // Populate category name before emitting event
+        await PopulateCategoryNameInContextAsync(workflow);
+
         // Emit workflow created event
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.CREATED, workflow);
 
@@ -128,6 +135,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 // Update status to Processing
                 workflow.Status = WorkflowStatus.Processing;
                 await _workflowRepository.UpdateAsync(workflow);
+                await PopulateCategoryNameInContextAsync(workflow);
                 await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
                 await ProcessStepAsync(workflow, cts.Token);
@@ -145,6 +153,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 workflow.ErrorMessage = ex.Message;
                 workflow.CompletedAt = DateTime.UtcNow;
                 await _workflowRepository.UpdateAsync(workflow);
+                await PopulateCategoryNameInContextAsync(workflow);
                 await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
             }
             finally
@@ -186,6 +195,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         await _workflowRepository.UpdateAsync(workflow);
 
+        // Populate category name before emitting event
+        await PopulateCategoryNameInContextAsync(workflow);
+
         // Emit status changed event
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
@@ -204,6 +216,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 // Update status to Processing
                 workflow.Status = WorkflowStatus.Processing;
                 await _workflowRepository.UpdateAsync(workflow);
+                await PopulateCategoryNameInContextAsync(workflow);
                 await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
                 await ProcessStepAsync(workflow, cts.Token);
@@ -220,6 +233,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 workflow.ErrorMessage = ex.Message;
                 workflow.CompletedAt = DateTime.UtcNow;
                 await _workflowRepository.UpdateAsync(workflow);
+                await PopulateCategoryNameInContextAsync(workflow);
                 await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
             }
             finally
@@ -269,6 +283,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         workflow.Status = WorkflowStatus.Deleting;
         await _workflowRepository.UpdateAsync(workflow);
 
+        // Populate category name before emitting event
+        await PopulateCategoryNameInContextAsync(workflow);
+
         // Emit status changed event to show "Deleting..." in UI
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
@@ -317,6 +334,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 workflow.ErrorMessage = $"Failed to delete: {ex.Message}";
                 workflow.CompletedAt = DateTime.UtcNow;
                 await _workflowRepository.UpdateAsync(workflow);
+                await PopulateCategoryNameInContextAsync(workflow);
                 await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
             }
         });
@@ -354,6 +372,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         // Update status to Paused
         workflow.Status = WorkflowStatus.Paused;
         await _workflowRepository.UpdateAsync(workflow);
+        await PopulateCategoryNameInContextAsync(workflow);
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
         _logger.Info($"Workflow {workflowId} paused successfully");
@@ -492,6 +511,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         // Set to Pending first
         workflow.Status = WorkflowStatus.Pending;
         await _workflowRepository.UpdateAsync(workflow);
+        await PopulateCategoryNameInContextAsync(workflow);
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
         // Create cancellation token BEFORE Task.Run so workflow is immediately tracked as "running"
@@ -509,6 +529,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 // Update status to Processing
                 workflow.Status = WorkflowStatus.Processing;
                 await _workflowRepository.UpdateAsync(workflow);
+                await PopulateCategoryNameInContextAsync(workflow);
                 await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
                 await ProcessStepAsync(workflow, cts.Token);
@@ -525,6 +546,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 workflow.ErrorMessage = ex.Message;
                 workflow.CompletedAt = DateTime.UtcNow;
                 await _workflowRepository.UpdateAsync(workflow);
+                await PopulateCategoryNameInContextAsync(workflow);
                 await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
             }
             finally
@@ -582,6 +604,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             workflow.ErrorMessage = ex.Message;
             workflow.CompletedAt = DateTime.UtcNow;
             await _workflowRepository.UpdateAsync(workflow);
+
+            // Populate category name before emitting event
+            await PopulateCategoryNameInContextAsync(workflow);
 
             // Emit failed event
             await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
@@ -693,6 +718,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             _logger.Info("Archive file detected, skipping compression and pausing for user metadata confirmation");
             workflow.Status = WorkflowStatus.WaitingForInput;
             await _workflowRepository.UpdateAsync(workflow);
+            await PopulateCategoryNameInContextAsync(workflow);
             await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
         }
     }
@@ -798,6 +824,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             workflow.ErrorMessage = $"This mod already exists in your library: \"{existingMod.Name}\"";
             await _workflowRepository.UpdateAsync(workflow);
 
+            await PopulateCategoryNameInContextAsync(workflow);
             await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
 
             throw new InvalidOperationException($"Duplicate mod: {existingMod.Name} (SHA: {archiveSha})");
@@ -810,6 +837,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         workflow.Context = JsonHelper.Serialize(context);
         workflow.Status = WorkflowStatus.WaitingForInput;
         await _workflowRepository.UpdateAsync(workflow);
+
+        // Populate category name before emitting event
+        await PopulateCategoryNameInContextAsync(workflow);
 
         // Emit progress and status changed event
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.PROGRESS, new
@@ -910,6 +940,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         workflow.CompletedAt = DateTime.UtcNow;
         await _workflowRepository.UpdateAsync(workflow);
 
+        // Populate category name before emitting event
+        await PopulateCategoryNameInContextAsync(workflow);
+
         // Emit progress event (100%)
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.PROGRESS, new
         {
@@ -987,6 +1020,32 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         catch (Exception ex)
         {
             _logger.Error($"Failed to batch populate category names in workflow contexts: {ex.Message}", "ModImportWorkflowHandler", ex);
+        }
+    }
+
+    /// <summary>
+    /// Populate CategoryName in workflow context before sending to frontend
+    /// Uses CategoryService.GetCategoryNameAsync which utilizes cached category map
+    /// </summary>
+    private async Task PopulateCategoryNameInContextAsync(WorkflowInfo workflow)
+    {
+        try
+        {
+            var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context);
+            if (context != null && !string.IsNullOrEmpty(context.Category))
+            {
+                // Get category name from service (uses cache)
+                var categoryName = await _categoryService.GetCategoryNameAsync(context.Category).ConfigureAwait(false);
+                if (categoryName != null)
+                {
+                    context.CategoryName = categoryName;
+                    workflow.Context = JsonHelper.Serialize(context);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Failed to populate category name for workflow {workflow.Id}: {ex.Message}", "ModImportWorkflowHandler");
         }
     }
 }

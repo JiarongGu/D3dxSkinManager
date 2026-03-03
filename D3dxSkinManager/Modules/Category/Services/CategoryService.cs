@@ -31,6 +31,8 @@ public interface ICategoryService
     Task<CategoryInfo?> CreateAsync(string categoryId, string name, string? parentId = null, int priority = 100, string? description = null, string? thumbnailPath = null, string? matchMode = null, string? matchPattern = null);
 
     void InvalidateTreeCache();
+
+    Task<string?> GetCategoryNameAsync(string categoryId);
 }
 
 /// <summary>
@@ -49,6 +51,7 @@ public class CategoryService : ICategoryService
     private readonly IMemoryCache _cache;
     private readonly IProfileEventBus _eventBus;
     private readonly string _cacheKey;
+    private readonly string _categoryMapCacheKey;
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(5);
 
     public CategoryService(
@@ -73,8 +76,9 @@ public class CategoryService : ICategoryService
         _cache = cache;
         _eventBus = eventBus;
 
-        // Use profile-specific cache key since IMemoryCache is shared across all profiles
+        // Use profile-specific cache keys since IMemoryCache is shared across all profiles
         _cacheKey = $"CategoryTree_{profileContext.ProfileId}";
+        _categoryMapCacheKey = $"CategoryMap_{profileContext.ProfileId}";
     }
 
     /// <summary>
@@ -99,6 +103,7 @@ public class CategoryService : ICategoryService
     public void InvalidateTreeCache()
     {
         _cache.Remove(_cacheKey);
+        _cache.Remove(_categoryMapCacheKey);  // Also invalidate the category map cache
 
         // Emit event to notify frontend that tree needs refresh
         // Use fire-and-forget since this is a synchronous method and we don't want to block
@@ -509,5 +514,43 @@ public class CategoryService : ICategoryService
         // Total count is direct + children
         category.ModCount = directCount + childrenCount;
         return category.ModCount;
+    }
+
+    /// <summary>
+    /// Get category name by ID (uses cached map for efficiency)
+    /// Returns null if category doesn't exist
+    /// Cache is automatically invalidated when categories change
+    /// </summary>
+    public async Task<string?> GetCategoryNameAsync(string categoryId)
+    {
+        if (string.IsNullOrEmpty(categoryId))
+            return null;
+
+        // Get or build cached category map (ID -> Name)
+        var categoryMap = await _cache.GetOrCreateAsync(_categoryMapCacheKey, async entry =>
+        {
+            entry.SlidingExpiration = CacheExpiry;
+
+            // Get cached tree
+            var tree = await GetCategoryTreeAsync().ConfigureAwait(false);
+
+            // Build flat lookup map from tree
+            var map = new Dictionary<string, string>();
+
+            void BuildMap(CategoryInfo node)
+            {
+                map[node.Id] = node.Name;
+                foreach (var child in node.Children)
+                    BuildMap(child);
+            }
+
+            foreach (var root in tree)
+                BuildMap(root);
+
+            return map;
+        }).ConfigureAwait(false);
+
+        // Return name if found
+        return categoryMap?.TryGetValue(categoryId, out var name) == true ? name : null;
     }
 }
