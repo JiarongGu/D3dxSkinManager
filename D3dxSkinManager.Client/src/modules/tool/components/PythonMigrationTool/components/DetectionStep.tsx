@@ -1,13 +1,14 @@
-import { notification } from '../../../../shared/utils/notification';
 import React from 'react';
 import { Row, Col, List } from 'antd';
 import { FolderOpenOutlined } from '@ant-design/icons';
-import { CompactButton, CompactAlert, CompactCard, CompactSpace, CompactDivider } from '../../../../shared/components/compact';
-import { useMigrationWizard } from '../../context/MigrationWizardContext';
-import { migrationService } from '../../services/migrationService';
-import { fileDialogService } from '../../../../shared/services/systemService';
-import { useProfile } from '../../../../shared/context/ProfileContext';
 import { useTranslation } from 'react-i18next';
+
+import { CompactButton, CompactAlert, CompactCard, CompactSpace, CompactDivider } from '../../../../../shared/components/compact';
+import { usePythonMigrationTool } from '../context/PythonMigrationToolContext';
+import { migrationService } from '../services/migrationService';
+import { fileDialogService } from '../../../../../shared/services/systemService';
+import { useProfile } from '../../../../../shared/context/ProfileContext';
+import { notification } from '../../../../../shared/utils/notification';
 import './DetectionStep.css';
 
 /**
@@ -23,7 +24,7 @@ export const DetectionStep: React.FC = () => {
     setAnalysis,
     loading,
     setLoading,
-  } = useMigrationWizard();
+  } = usePythonMigrationTool();
   const { state: profileState } = useProfile();
 
   /**

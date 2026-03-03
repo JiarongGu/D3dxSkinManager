@@ -1,0 +1,104 @@
+/* Tag Management Tool Container - BEM Convention */
+.tag-management-tool-container {
+  height: calc(100% - 24px);
+  margin-right: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Section */
+.tag-management-tool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.tag-management-tool-search {
+  max-width: 400px;
+}
+
+/* Table Container */
+.tag-management-tool-table-container {
+  flex: 1;
+  min-height: 0;
+  background: var(--color-bg-elevated);
+  border-radius: 4px;
+  border: 1px solid var(--color-border-secondary);
+}
+
+/* Table Header */
+.tag-management-tool-table-container .ant-table-thead > tr > th {
+  background: var(--color-card-bg) !important;
+  font-weight: 600;
+  padding: 8px 16px !important;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+/* Table Body */
+.tag-management-tool-table-container .ant-table-tbody > tr:hover > td {
+  background: var(--color-bg-spotlight) !important;
+}
+
+/* Pagination */
+.tag-management-tool-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+.tag-management-tool-pagination .ant-pagination {
+  font-size: 12px;
+}
+
+.tag-management-tool-pagination .ant-pagination-item {
+  min-width: 24px;
+  height: 24px;
+  line-height: 22px;
+  margin: 0 2px;
+}
+
+.tag-management-tool-pagination .ant-pagination-prev,
+.tag-management-tool-pagination .ant-pagination-next,
+.tag-management-tool-pagination .ant-pagination-jump-prev,
+.tag-management-tool-pagination .ant-pagination-jump-next {
+  min-width: 24px;
+  height: 24px;
+  line-height: 22px;
+  margin: 0 2px;
+}
+
+.tag-management-tool-pagination .ant-pagination-options {
+  height: 24px;
+}
+
+.tag-management-tool-pagination .ant-select-selector {
+  height: 24px !important;
+  font-size: 12px;
+  padding: 0 8px !important;
+}
+
+.tag-management-tool-pagination .ant-select-selection-item {
+  line-height: 22px !important;
+}
+
+.tag-management-tool-pagination .ant-pagination-total-text {
+  height: 24px;
+  line-height: 24px;
+  font-size: 12px;
+}
+
+/* Tag Chip */
+.tag-management-tool-chip {
+  font-size: 14px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+
+.tag-management-tool-reload-button {
+  min-width: 32px !important;
+}

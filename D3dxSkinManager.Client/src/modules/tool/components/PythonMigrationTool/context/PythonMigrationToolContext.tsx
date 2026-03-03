@@ -6,7 +6,7 @@ import {
   MigrationOptions,
   MigrationProgress,
 } from '../services/migrationService';
-import { eventBus, Module, MigrationEventType } from '../../../shared/services/eventBus';
+import { eventBus, Module, MigrationEventType } from '../../../../../shared/services/eventBus';
 
 /**
  * Migration wizard steps
@@ -21,7 +21,7 @@ export enum MigrationStep {
 /**
  * Migration wizard context state
  */
-interface MigrationWizardContextState {
+interface PythonMigrationToolContextState {
   // Current step
   currentStep: MigrationStep;
   setCurrentStep: (step: MigrationStep) => void;
@@ -56,23 +56,23 @@ interface MigrationWizardContextState {
   resetWizard: () => void;
 }
 
-const MigrationWizardContext = createContext<MigrationWizardContextState | undefined>(
+const PythonMigrationToolContext = createContext<PythonMigrationToolContextState | undefined>(
   undefined
 );
 
 /**
  * Hook to use migration wizard context
- * Must be used within MigrationWizardProvider
+ * Must be used within PythonMigrationToolProvider
  */
-export const useMigrationWizard = (): MigrationWizardContextState => {
-  const context = useContext(MigrationWizardContext);
+export const usePythonMigrationTool = (): PythonMigrationToolContextState => {
+  const context = useContext(PythonMigrationToolContext);
   if (!context) {
-    throw new Error('useMigrationWizard must be used within MigrationWizardProvider');
+    throw new Error('usePythonMigrationTool must be used within PythonMigrationToolProvider');
   }
   return context;
 };
 
-interface MigrationWizardProviderProps {
+interface PythonMigrationToolProviderProps {
   children: ReactNode;
 }
 
@@ -80,7 +80,7 @@ interface MigrationWizardProviderProps {
  * Migration wizard context provider
  * Manages state for the entire migration wizard flow
  */
-export const MigrationWizardProvider: React.FC<MigrationWizardProviderProps> = ({
+export const PythonMigrationToolProvider: React.FC<PythonMigrationToolProviderProps> = ({
   children,
 }) => {
   // Step management
@@ -173,7 +173,7 @@ export const MigrationWizardProvider: React.FC<MigrationWizardProviderProps> = (
     form?.resetFields();
   };
 
-  const value: MigrationWizardContextState = {
+  const value: PythonMigrationToolContextState = {
     // Step management
     currentStep,
     setCurrentStep,
@@ -209,8 +209,8 @@ export const MigrationWizardProvider: React.FC<MigrationWizardProviderProps> = (
   };
 
   return (
-    <MigrationWizardContext.Provider value={value}>
+    <PythonMigrationToolContext.Provider value={value}>
       {children}
-    </MigrationWizardContext.Provider>
+    </PythonMigrationToolContext.Provider>
   );
 };

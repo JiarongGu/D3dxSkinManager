@@ -1,36 +1,48 @@
-﻿import { notification } from '../../../shared/utils/notification';
-import React from 'react';
-import { Steps } from 'antd';
+﻿import { notification } from "../../../../shared/utils/notification";
+import React from "react";
+import { Steps } from "antd";
 import {
   FolderOpenOutlined,
   CheckCircleOutlined,
   SyncOutlined,
   InfoCircleOutlined,
-} from '@ant-design/icons';
-import { CompactButton, CompactSpace } from '../../../shared/components/compact';
-import { useSlideInScreen } from '../../../shared/hooks/useSlideInScreen';
+} from "@ant-design/icons";
 import {
-  MigrationWizardProvider,
-  useMigrationWizard,
+  CompactButton,
+  CompactSpace,
+} from "../../../../shared/components/compact";
+import { useSlideInScreen } from "../../../../shared/hooks/useSlideInScreen";
+import {
+  PythonMigrationToolProvider,
+  usePythonMigrationTool,
   MigrationStep,
-} from '../context/MigrationWizardContext';
-import { DetectionStep, OptionsStep, ProgressStep, CompleteStep } from './steps';
-import { migrationService, MigrationOptions, ArchiveHandling } from '../services/migrationService';
-import { profileService } from '../../profile/services/profileService';
-import { useProfile } from '../../../shared/context/ProfileContext';
-import './MigrationWizard.css';
+} from "./context/PythonMigrationToolContext";
+import {
+  DetectionStep,
+  OptionsStep,
+  ProgressStep,
+  CompleteStep,
+} from "./components";
+import {
+  migrationService,
+  MigrationOptions,
+  ArchiveHandling,
+} from "./services/migrationService";
+import { profileService } from "../../../profile/services/profileService";
+import { useProfile } from "../../../../shared/context/ProfileContext";
+import "./PythonMigrationTool.css";
 
-interface MigrationWizardProps {
+interface PythonMigrationToolProps {
   visible: boolean;
   onClose: () => void;
   onMigrationComplete?: () => void;
 }
 
-
 /**
  * Inner content component with access to context
+ * Exported for direct use in SlideInScreens
  */
-const MigrationWizardInner: React.FC<{
+export const PythonMigrationToolInner: React.FC<{
   visible: boolean;
   onClose: () => void;
   onMigrationComplete?: () => void;
@@ -49,7 +61,7 @@ const MigrationWizardInner: React.FC<{
     goToPreviousStep,
     goToNextStep,
     resetWizard,
-  } = useMigrationWizard();
+  } = usePythonMigrationTool();
 
   const handleClose = () => {
     setTimeout(() => {
@@ -59,8 +71,11 @@ const MigrationWizardInner: React.FC<{
   };
 
   const handleNext = () => {
-    if (currentStep === MigrationStep.Detection && (!analysis || !analysis.isValid)) {
-      notification.error('Please select a valid Python installation first');
+    if (
+      currentStep === MigrationStep.Detection &&
+      (!analysis || !analysis.isValid)
+    ) {
+      notification.error("Please select a valid Python installation first");
       return;
     }
     goToNextStep();
@@ -68,17 +83,17 @@ const MigrationWizardInner: React.FC<{
 
   const handleStartMigration = async () => {
     if (!form) {
-      notification.error('Form not initialized');
+      notification.error("Form not initialized");
       return;
     }
 
     if (!profileState.selectedProfile?.id) {
-      notification.error('No profile selected');
+      notification.error("No profile selected");
       return;
     }
 
     try {
-      const values = await form.validateFields() as any;
+      const values = (await form.validateFields()) as any;
       setMigrating(true);
       setCurrentStep(MigrationStep.Progress);
 
@@ -97,11 +112,12 @@ const MigrationWizardInner: React.FC<{
       setMigrationProgress(0);
       setCurrentMigrationProgress(undefined);
 
-      const profileId = profileState.selectedProfile?.id || '';
+      const profileId = profileState.selectedProfile?.id || "";
 
       // Start migration - don't wait for response as it will timeout for long migrations
       // Rely on PROGRESS and COMPLETED events instead
-      migrationService.startMigration(profileId, options)
+      migrationService
+        .startMigration(profileId, options)
         .then(async (migrationResult) => {
           // API response received successfully (migration was quick or didn't timeout)
           setResult(migrationResult);
@@ -111,37 +127,46 @@ const MigrationWizardInner: React.FC<{
           if (migrationResult.success && values.createProfile) {
             try {
               const profileName =
-                values.profileName || analysis?.activeEnvironment || 'Migrated Profile';
+                values.profileName ||
+                analysis?.activeEnvironment ||
+                "Migrated Profile";
               await profileService.createProfile({
                 name: profileName,
                 description: `Migrated from Python d3dxSkinManage on ${new Date().toLocaleDateString()}`,
                 gameName: analysis?.activeEnvironment,
               });
-              notification.success(`Profile "${profileName}" created successfully!`);
+              notification.success(
+                `Profile "${profileName}" created successfully!`,
+              );
             } catch (error) {
-              notification.warning('Migration succeeded but profile creation failed');
+              notification.warning(
+                "Migration succeeded but profile creation failed",
+              );
             }
           }
 
           if (migrationResult.success) {
-            notification.success('Migration completed successfully!');
+            notification.success("Migration completed successfully!");
             if (onMigrationComplete) {
               onMigrationComplete();
             }
           } else {
-            notification.error('Migration completed with errors');
+            notification.error("Migration completed with errors");
           }
         })
         .catch((error) => {
           // API timeout or error - this is expected for long migrations
           // The COMPLETED event will handle setting migrating=false
-          console.log('Migration API call timed out or errored (this is normal for long migrations):', error);
+          console.log(
+            "Migration API call timed out or errored (this is normal for long migrations):",
+            error,
+          );
           // Don't show error notification - rely on events
         });
 
       // Don't wait for API response - continue and let events drive the UI
     } catch (error) {
-      notification.error('Migration failed to start');
+      notification.error("Migration failed to start");
     }
   };
 
@@ -200,10 +225,10 @@ const MigrationWizardInner: React.FC<{
         current={currentStep}
         className="migration-wizard-steps"
         items={[
-          { title: 'Detection', icon: <FolderOpenOutlined /> },
-          { title: 'Options', icon: <InfoCircleOutlined /> },
-          { title: 'Migration', icon: <SyncOutlined /> },
-          { title: 'Complete', icon: <CheckCircleOutlined /> },
+          { title: "Detection", icon: <FolderOpenOutlined /> },
+          { title: "Options", icon: <InfoCircleOutlined /> },
+          { title: "Migration", icon: <SyncOutlined /> },
+          { title: "Complete", icon: <CheckCircleOutlined /> },
         ]}
       />
       {renderStepContent()}
@@ -216,27 +241,27 @@ const MigrationWizardInner: React.FC<{
  * Migration Wizard Component
  * Guides user through migrating from Python version to React version
  */
-export const MigrationWizard: React.FC<MigrationWizardProps> = ({
+export const PythonMigrationTool: React.FC<PythonMigrationToolProps> = ({
   visible,
   onClose,
   onMigrationComplete,
 }) => {
   // Wrap content in provider so it's available in slide-in context
   const content = (
-    <MigrationWizardProvider>
-      <MigrationWizardInner
+    <PythonMigrationToolProvider>
+      <PythonMigrationToolInner
         visible={visible}
         onClose={onClose}
         onMigrationComplete={onMigrationComplete}
       />
-    </MigrationWizardProvider>
+    </PythonMigrationToolProvider>
   );
 
   useSlideInScreen({
     visible,
-    title: 'Python to React Migration Wizard',
+    title: "Python D3dxSkinManage Migration",
     content,
-    width: '70%',
+    width: "85%",
     onClose,
   });
 

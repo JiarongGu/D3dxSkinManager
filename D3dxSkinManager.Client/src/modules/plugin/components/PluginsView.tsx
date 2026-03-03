@@ -136,7 +136,7 @@ export const PluginsView: React.FC = () => {
   ];
 
   return (
-    <div className="plugins-view">
+    <div className="plugins-view-container">
       <Card
         title={
           <Space>

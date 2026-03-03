@@ -3,9 +3,9 @@
  * Supports typed events with compile-time safety
  */
 
+import type { MigrationProgress, MigrationResult } from "../types/migration.types";
 import type { WorkflowInfo } from "../../modules/workflow/types/workflow.types";
 import type { ModInfo } from "../types/mod.types";
-import type { MigrationProgress, MigrationResult } from "../../modules/migration/services/migrationService";
 import { bridgeService } from "./bridgeService";
 
 // Module names matching backend ModuleNames

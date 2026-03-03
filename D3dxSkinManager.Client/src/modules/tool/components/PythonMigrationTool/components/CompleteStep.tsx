@@ -1,8 +1,9 @@
 import React from 'react';
 import { Row, Col, List, Typography } from 'antd';
-import { CompactSpace, CompactAlert, CompactCard, CompactDivider } from '../../../../shared/components/compact';
-import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { useTranslation } from 'react-i18next';
+
+import { CompactSpace, CompactAlert, CompactCard, CompactDivider } from '../../../../../shared/components/compact';
+import { usePythonMigrationTool } from '../context/PythonMigrationToolContext';
 import './MigrationSteps.css';
 import './CompleteStep.css';
 
@@ -14,7 +15,7 @@ const { Text } = Typography;
  */
 export const CompleteStep: React.FC = () => {
   const { t } = useTranslation();
-  const { result } = useMigrationWizard();
+  const { result } = usePythonMigrationTool();
 
   if (!result) {
     return (

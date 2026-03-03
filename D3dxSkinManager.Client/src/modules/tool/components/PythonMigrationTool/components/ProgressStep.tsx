@@ -1,16 +1,17 @@
 import React from 'react';
 import { Progress, Typography, Collapse, Space } from 'antd';
 import { LoadingOutlined, CheckCircleOutlined, ExclamationCircleOutlined, DownOutlined } from '@ant-design/icons';
-import { CompactSpace, CompactAlert, CompactCard } from '../../../../shared/components/compact';
-import { useMigrationWizard } from '../../context/MigrationWizardContext';
 import { useTranslation } from 'react-i18next';
-import type { MigrationError } from '../../services/migrationService';
+
+import { CompactSpace, CompactAlert, CompactCard } from '../../../../../shared/components/compact';
+import { usePythonMigrationTool } from '../context/PythonMigrationToolContext';
+import type { MigrationError } from '../services/migrationService';
 import {
   getTranslatedModName,
   getTranslatedCategory,
   getTranslatedStep,
   getTranslatedMessage
-} from '../../utils/migrationErrorMapper';
+} from '../utils/migrationErrorMapper';
 import './MigrationSteps.css';
 
 const { Paragraph, Text } = Typography;
@@ -72,7 +73,7 @@ const groupErrorsByMod = (errors: MigrationError[], t: any) => {
  */
 export const ProgressStep: React.FC = () => {
   const { t } = useTranslation();
-  const { migrating, migrationProgress, currentMigrationProgress, result } = useMigrationWizard();
+  const { migrating, migrationProgress, currentMigrationProgress, result } = usePythonMigrationTool();
 
   // Check if there are errors in the result
   const hasErrors = result && result.detailedErrors && result.detailedErrors.length > 0;

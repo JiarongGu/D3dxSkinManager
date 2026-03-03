@@ -92,7 +92,7 @@ public class CustomSchemeHandler : ICustomSchemeHandler
             {
                 _logger.Warn($"Invalid scheme: {url}", "CustomScheme");
                 contentType = "text/plain";
-                return new MemoryStream(_invalidSchemeError.Value);
+                return new MemoryStream(_invalidSchemeError.Value); 
             }
 
             // Extract and decode path efficiently

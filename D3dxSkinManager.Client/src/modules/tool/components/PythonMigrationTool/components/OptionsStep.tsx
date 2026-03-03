@@ -1,9 +1,10 @@
 ﻿import React, { useEffect } from 'react';
 import { Form, Input, Checkbox, Radio } from 'antd';
-import { CompactSpace, CompactAlert, CompactDivider } from '../../../../shared/components/compact';
-import { useMigrationWizard } from '../../context/MigrationWizardContext';
-import { ArchiveHandling } from '../../services/migrationService';
 import { useTranslation } from 'react-i18next';
+
+import { CompactSpace, CompactAlert, CompactDivider } from '../../../../../shared/components/compact';
+import { usePythonMigrationTool } from '../context/PythonMigrationToolContext';
+import { ArchiveHandling } from '../services/migrationService';
 import './MigrationSteps.css';
 
 /**
@@ -12,7 +13,7 @@ import './MigrationSteps.css';
  */
 export const OptionsStep: React.FC = () => {
   const { t } = useTranslation();
-  const { setForm, analysis } = useMigrationWizard();
+  const { setForm, analysis } = usePythonMigrationTool();
   const [localForm] = Form.useForm();
 
   // Register form instance with context

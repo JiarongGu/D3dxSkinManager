@@ -12,6 +12,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-03-03 - TagManagementTool: Full CRUD Tag Management UI ⭐⭐
+Complete redesign of tag management tool with proper CRUD operations, compact design, and external pagination.
+**Impact**: ✅ Users can now create, edit (name + color), and delete tags in a dedicated tool interface
+**Problem**: Tags could only be managed in the small TagManagementDialog, no dedicated tool for bulk tag operations
+**Solution**: Built TagManagementTool component with proper UI/UX following design system patterns
+**Frontend Changes - TagManagementTool.tsx**:
+- Implemented full CRUD: Create (with FormDialog), Edit (with FormDialog), Delete (with ConfirmDialog)
+- Search functionality with real-time filtering
+- External pagination (20 items/page, customizable: 10/20/50/100)
+- Removed inline color editing (colors now edited in proper Edit dialog)
+- Compact table design with proper background colors
+- BEM naming convention for CSS classes
+**Frontend Changes - TagManagementTool.css**:
+- Clean layout: header with search + actions, alert, table with distinct background, external pagination
+- Table styling: distinct header/body backgrounds using theme variables
+- Compact pagination styling (24px height, 12px font)
+- BEM class structure: `.tag-management-tool-container`, `.tag-management-tool-header`, etc.
+**Frontend Changes - useTagManagement.ts** (NEW):
+- Created shared hook for tag CRUD operations
+- Handles tag creation, update, deletion with proper error handling
+- Debounced color updates (500ms)
+**Frontend Changes - migration.types.ts** (NEW):
+- Moved migration types from migrationService to shared/types
+- Includes: MigrationStage, MigrationProgress, MigrationResult, MigrationError, etc.
+- Fixed eventBus import to use shared types
+**Frontend Changes - ToolsView.css**:
+- Updated tool cards to use `var(--color-bg-elevated)` for better visual distinction
+**Key Features**:
+- Create: FormDialog with name + color picker, duplicate validation
+- Edit: FormDialog to modify name and/or color, supports renaming (deletes old, creates new)
+- Delete: ConfirmDialog with warning about mod associations
+- Search: Filter tags by name in real-time
+- Pagination: External compact pagination below table
+- Responsive: Proper space usage with distinct backgrounds
+
 ### Enhanced - 2026-03-02 - DropZone Overlay: Simplified Auto-Hide Architecture ⭐⭐⭐
 Simplified DropZone overlay to auto-hide on mouse enter, eliminating 70% of complex event forwarding code while maintaining full functionality.
 **Impact**: ✅ Cleaner codebase, better UX (no wasted clicks), simplified maintenance, improved performance
