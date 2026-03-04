@@ -72,6 +72,9 @@ public static class CoreServiceExtensions
         // Performance monitor for tracking application performance
         AddSingleton<IPerformanceMonitor, PerformanceMonitor>(services);
 
+        // Eager loading service for startup optimizations
+        AddSingleton<IEagerLoadingService, EagerLoadingService>(services);
+
         return services;
     }
 

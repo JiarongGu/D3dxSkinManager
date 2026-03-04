@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
@@ -46,12 +45,6 @@ public class GlobalSettingService : IGlobalSettingService
     private readonly IAppEnvironment _appEnvironment;
     private const string CacheKey = "GlobalSettings";
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(30);
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
 
     public GlobalSettingService(IGlobalPathService globalPaths, IAppEnvironment appEnvironment, IMemoryCache cache)
     {

@@ -292,6 +292,37 @@
   - Props: mod, onLoad, onUnload, onDelete
   - Used by ModList component
 
+### Workflow Module
+
+> **Architecture:** See [WORKFLOW_ARCHITECTURE.md](../architecture/WORKFLOW_ARCHITECTURE.md)
+
+- **ModImportWorkflowScreen** → `src/modules/workflow/components/modImport/ModImportWorkflowScreen.tsx`
+  - Download manager style dashboard for importing mods
+  - Features:
+    - Status dashboard with overall statistics (Active, Completed, Failed)
+    - Table view of all active imports with real-time progress
+    - Batch action support (Confirm, Delete, Pause/Resume)
+    - Auto-imports after compression (no confirmation needed)
+    - Support for multiple concurrent imports
+    - **Drop zone on tbody area** for continuous file imports while processing
+  - Drop Zone Integration (Added: 2026-03-04):
+    - Uses `useDropZone` hook targeting `.ant-table-tbody` element
+    - Enabled when profile is selected
+    - Visual feedback: Dashed border message box with "Drop to import" text
+    - Styling matches ModListPanel drop zone pattern
+    - Automatically uses selected category from mod store
+    - MutationObserver to detect and attach to tbody after table renders
+  - Empty State: Uses Ant Design `Empty` component with `PRESENTED_IMAGE_SIMPLE`
+  - Automatically refreshes mod list when imports complete
+  - Created: 2026-02-25
+  - Updated: 2026-03-04 - Added drop zone for continuous imports
+
+- **ModImportWorkflowTable** → `src/modules/workflow/components/modImport/ModImportWorkflowTable.tsx`
+  - Table component displaying workflow queue items
+  - Features: Expandable rows, progress bars, status tags, action buttons
+  - Empty state: "No mods being imported" with simple icon (matching ModListPanel)
+  - Updated: 2026-03-04 - Empty state now uses Ant Design Empty component
+
 ### Settings Module
 
 - **SettingsView** → `src/modules/settings/components/SettingsView.tsx`

@@ -113,6 +113,67 @@
 .mod-import-workflow-screen-content {
   flex: 1;
   min-height: 0;
+  position: relative; /* For positioning drop message */
+}
+
+/* Drop zone visual feedback on tbody - consistent with ModListPanel drop zone */
+/* Matches CompactUpload hover style when mouse is over overlay (non-dragging) */
+.mod-import-workflow-screen-content .ant-table-tbody.mod-import-workflow-screen-drop-hover {
+  cursor: pointer;
+}
+
+/* Drag-over state on tbody - matches ModListPanel pattern */
+.mod-import-workflow-screen-content .ant-table-tbody.mod-import-workflow-screen-drop-active {
+  background: var(--color-primary-bg-hover) !important;
+  opacity: 0.8;
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
+  border-radius: 4px;
+}
+
+/* Dark theme - match CompactUpload dark background */
+[data-theme="dark"] .mod-import-workflow-screen-content .ant-table-tbody.mod-import-workflow-screen-drop-active {
+  background: var(--color-primary-bg-hover) !important;
+}
+
+/* Light theme - match CompactUpload light background */
+[data-theme="light"] .mod-import-workflow-screen-content .ant-table-tbody.mod-import-workflow-screen-drop-active {
+  background: var(--color-primary-bg) !important;
+}
+
+/* Drop message element - hidden by default */
+.mod-import-workflow-screen-drop-message {
+  display: none;
+}
+
+/* Show and style drop message when drop is active on tbody */
+.mod-import-workflow-screen-content:has(.ant-table-tbody.mod-import-workflow-screen-drop-active) .mod-import-workflow-screen-drop-message {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1000;
+  /* Center content using flexbox */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mod-import-workflow-screen-content:has(.ant-table-tbody.mod-import-workflow-screen-drop-active) .mod-import-workflow-screen-drop-message::after {
+  content: attr(data-drop-message);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-primary);
+  white-space: nowrap;
+  padding: 12px 24px;
+  background: var(--color-bg-elevated);
+  border: 2px dashed var(--color-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 40px;
 }
 
 /* Loading State - Awaiting Workflows */

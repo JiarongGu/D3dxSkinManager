@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { settingsService } from '../services/ipc';
+import { useSettingsStore } from '../../modules/setting/store/settingsStore';
 
 export type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -28,46 +29,28 @@ function getSystemTheme(): 'light' | 'dark' {
 
 /**
  * Provider for theme management
+ *
+ * OPTIMIZATION: Reads theme from settingsStore instead of calling backend directly.
+ * SettingsProvider is responsible for loading settings into the store on mount.
+ * This prevents duplicate GET_GLOBAL calls on startup (was causing 8+ simultaneous calls).
  */
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>('light');
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme());
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Read from settingsStore instead of calling backend
+  const globalSettings = useSettingsStore((state) => state.globalSettings);
+  const isLoading = useSettingsStore((state) => state.globalSettingsLoading);
 
   // Calculate effective theme (resolve 'auto' to actual theme)
   const effectiveTheme: 'light' | 'dark' = theme === 'auto' ? systemTheme : theme;
 
-  // Load theme from backend on mount with retry logic
+  // Subscribe to settings store and update theme when settings are loaded
   useEffect(() => {
-    const loadTheme = async () => {
-      const maxRetries = 3;
-      const initialDelay = 500; // Start with 500ms
-
-      for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-          const settings = await settingsService.getGlobalSettings();
-          const themeValue = settings.theme as ThemeMode;
-          setThemeState(themeValue);
-          setIsLoading(false);
-          return; // Success - exit retry loop
-        } catch (error: unknown) {
-          const isLastAttempt = attempt === maxRetries - 1;
-
-          if (isLastAttempt) {
-                        // Default to light theme on final failure
-            setThemeState('light');
-            setIsLoading(false);
-          } else {
-            // Wait before retry with exponential backoff
-            const delay = initialDelay * Math.pow(2, attempt);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-      }
-    };
-
-    loadTheme();
-  }, []);
+    if (globalSettings?.theme) {
+      setThemeState(globalSettings.theme as ThemeMode);
+    }
+  }, [globalSettings]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -89,14 +72,15 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     // Save to backend - this is the ONLY source of truth
     try {
       await settingsService.updateGlobalSetting('theme', newTheme);
+      // Update the store to keep it in sync
+      const { setGlobalSettings } = useSettingsStore.getState();
+      if (globalSettings) {
+        setGlobalSettings({ ...globalSettings, theme: newTheme });
+      }
     } catch (error: unknown) {
-            // On failure, reload from backend to stay in sync
-      try {
-        const settings = await settingsService.getGlobalSettings();
-        setThemeState(settings.theme as ThemeMode);
-      } catch {
-        // If we can't reload, keep the optimistic update
-        // User will see the change but it won't persist on reload
+      // On failure, revert to store value to stay in sync
+      if (globalSettings?.theme) {
+        setThemeState(globalSettings.theme as ThemeMode);
       }
     }
   };

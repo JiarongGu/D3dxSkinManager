@@ -20,6 +20,8 @@ public class CategoryServiceCacheTests
     private readonly Mock<ICategoryRepository> _mockRepository;
     private readonly Mock<IModRepository> _mockModRepository;
     private readonly Mock<IPathHelper> _mockPathHelper;
+    private readonly Mock<IHashHelper> _mockHashHelper;
+    private readonly Mock<IImageHelper> _mockImageHelper;
     private readonly Mock<IFileTransferService> _mockFileTransferService;
     private readonly Mock<IProfilePathService> _mockProfilePathService;
     private readonly Mock<IMemoryCache> _mockCache;
@@ -32,6 +34,8 @@ public class CategoryServiceCacheTests
         _mockRepository = new Mock<ICategoryRepository>();
         _mockModRepository = new Mock<IModRepository>();
         _mockPathHelper = new Mock<IPathHelper>();
+        _mockHashHelper = new Mock<IHashHelper>();
+        _mockImageHelper = new Mock<IImageHelper>();
         _mockFileTransferService = new Mock<IFileTransferService>();
         _mockProfilePathService = new Mock<IProfilePathService>();
         _mockCache = new Mock<IMemoryCache>();
@@ -45,6 +49,8 @@ public class CategoryServiceCacheTests
             _mockRepository.Object,
             _mockModRepository.Object,
             _mockPathHelper.Object,
+            _mockHashHelper.Object,
+            _mockImageHelper.Object,
             _mockFileTransferService.Object,
             _mockProfilePathService.Object,
             _mockCache.Object,

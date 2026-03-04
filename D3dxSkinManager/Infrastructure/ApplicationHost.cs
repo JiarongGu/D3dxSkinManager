@@ -231,6 +231,10 @@ public class ApplicationHost
             _logger.Info("Configuring global message dispatcher...", "Host");
             ConfigureMessagePipeline();
 
+            // Perform eager loading AFTER ProfileServiceRouter and MessageDispatcher are configured
+            // This allows profile-scoped cache warming (category tree, mods) via MessageDispatcher
+            await PerformEagerLoadingAsync();
+
             // Initialize Session Manager
             _logger.Info("Initializing session manager...", "Host");
             _sessionManager = new WebViewSessionManager(_logger);
@@ -594,6 +598,39 @@ public class ApplicationHost
         });
 
         _logger.Info("Message pipeline configured", "Host");
+    }
+
+    /// <summary>
+    /// Perform eager loading operations during startup
+    /// </summary>
+    private async Task PerformEagerLoadingAsync()
+    {
+        _logger.Info("Starting eager loading...", "Host");
+
+        try
+        {
+            var eagerLoadingService = _serviceProvider.GetRequiredService<IEagerLoadingService>();
+
+            // Create progress handler for splash screen updates
+            var progress = new Progress<EagerLoadingProgress>(p =>
+            {
+                if (_splashScreenPanel != null)
+                {
+                    _splashScreenPanel.UpdateStatus(p.Operation);
+                }
+                _logger.Verbose($"Eager loading: {p.Operation} ({p.Percent}%)", "Host");
+            });
+
+            // Perform eager loading
+            await eagerLoadingService.EagerLoadAsync(progress);
+
+            _logger.Info("Eager loading completed", "Host");
+        }
+        catch (Exception ex)
+        {
+            // Non-critical - log and continue
+            _logger.Warn($"Eager loading failed (non-critical): {ex.Message}", "Host");
+        }
     }
 
     /// <summary>

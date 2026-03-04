@@ -156,6 +156,26 @@
   - NullProgressReporter for operations that don't need tracking
   - Created: 2026-02-21
 
+- **IEagerLoadingService** → `Modules/Core/Services/IEagerLoadingService.cs`
+  - Service for eager loading operations during application startup
+  - EagerLoadAsync() - performs database initialization and profile loading
+  - Updates splash screen with progress status
+  - Non-critical - failures are logged but don't crash the app
+  - Created: 2026-03-04
+
+- **EagerLoadingService** → `Modules/Core/Services/EagerLoadingService.cs`
+  - Implementation of eager loading service
+  - Initializes database connections early
+  - Loads active profile information
+  - Pre-warms profile-scoped caches via MessageDispatcher
+  - Category tree generation (60%) - sends CATEGORY.GET_TREE message
+  - Mod statistics loading (80%) - sends MOD.GET_ALL message
+  - Reports progress to splash screen via IProgress
+  - Operations: Database init (10%), Active profile load (30%), Category tree (60%), Mod stats (80%), Complete (100%)
+  - Uses MessageDispatcher to route through ProfileServiceRouter for profile-scoped operations
+  - Created: 2026-03-04
+  - Updated: 2026-03-04 - Added profile-scoped cache warming via MessageDispatcher
+
 #### Utilities
 
 - **FileUtilities** → `Modules/Core/Utilities/FileUtilities.cs`

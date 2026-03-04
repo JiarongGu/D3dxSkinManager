@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Space } from 'antd';
 import { FolderOpenOutlined, CheckOutlined, DeleteOutlined, LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { CompactButton } from '../../../../shared/components/compact';
@@ -12,6 +12,7 @@ import { refreshMods } from '../../../mod/operations/modOperations';
 import { systemService } from '../../../../shared/services/ipc';
 import { workflowService } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
+import { useDropZone } from '../../../../shared/hooks/useDropZone';
 import './ModImportWorkflowScreen.css';
 
 /**
@@ -31,6 +32,38 @@ export const ModImportWorkflowScreen: React.FC = () => {
   const { workflows, clearCompleted, refresh, isLoading } = useWorkflowQueue();
   const [selectedWorkflowIds, setSelectedWorkflowIds] = React.useState<string[]>([]);
   const [defaultCategory, setDefaultCategory] = React.useState<string | undefined>();
+
+  // Ref for the table tbody to attach drop zone
+  const tbodyRef = useRef<HTMLElement | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  // Find and store reference to the ant-table-tbody element
+  useEffect(() => {
+    if (!tableContainerRef.current) return;
+
+    // Use MutationObserver to wait for the table to render
+    const observer = new MutationObserver(() => {
+      const tbody = tableContainerRef.current?.querySelector('.ant-table-tbody');
+      if (tbody) {
+        tbodyRef.current = tbody as HTMLElement;
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(tableContainerRef.current, {
+      childList: true,
+      subtree: true
+    });
+
+    // Also try immediately in case table is already rendered
+    const tbody = tableContainerRef.current.querySelector('.ant-table-tbody');
+    if (tbody) {
+      tbodyRef.current = tbody as HTMLElement;
+      observer.disconnect();
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   // Get default category from store on mount
   useEffect(() => {
@@ -105,6 +138,39 @@ export const ModImportWorkflowScreen: React.FC = () => {
   }, [workflows]);
 
   const [importing, setImporting] = React.useState(false);
+
+  // Drop zone for continuous file imports on the table tbody
+  useDropZone({
+    targetRef: tbodyRef,
+    enabled: !!selectedProfileId && !!tbodyRef.current,
+    onDrop: async (files: string[]) => {
+      if (!selectedProfileId || files.length === 0) return;
+
+      try {
+        // Get selected category from store to pre-fill in workflow
+        // Don't pass __unclassified__ placeholder - use undefined instead
+        const { useModsStore } = await import('../../../mod/store/modsStore');
+        const selectedCategory = useModsStore.getState().selectedCategory;
+        const categoryId = selectedCategory?.id === '__unclassified__'
+          ? undefined
+          : selectedCategory?.id;
+
+        // Start batch mod import workflows
+        // The workflows will appear in the table as they are created
+        await workflowService.batchStartModImport(
+          selectedProfileId,
+          files,
+          categoryId
+        );
+      } catch (error: unknown) {
+        handleError(error);
+      }
+    },
+    classes: {
+      hover: 'mod-import-workflow-screen-drop-hover',
+      drop: 'mod-import-workflow-screen-drop-active'
+    }
+  });
 
   const handleImportFolder = async () => {
     if (!selectedProfileId) return;
@@ -296,7 +362,8 @@ export const ModImportWorkflowScreen: React.FC = () => {
       </div>
 
       {/* Workflow Queue Table */}
-      <div className="mod-import-workflow-screen-content">
+      <div className="mod-import-workflow-screen-content" ref={tableContainerRef}>
+        <div className="mod-import-workflow-screen-drop-message" data-drop-message={t('mods.panel.dropToImport')} />
         {isLoading && workflows.length === 0 ? (
           <div className="mod-import-workflow-screen-loading">
             <LoadingOutlined spin style={{ fontSize: 32, color: '#1890ff' }} />

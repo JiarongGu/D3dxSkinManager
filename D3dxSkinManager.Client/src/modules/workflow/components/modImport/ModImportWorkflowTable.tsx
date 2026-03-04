@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from "react";
-import { Progress, Tag, Space, Tooltip, Descriptions } from "antd";
+import { Progress, Tag, Space, Tooltip, Descriptions, Empty } from "antd";
 import {
   DataTable,
   ColumnsType,
@@ -620,7 +620,12 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
           },
           style: { cursor: 'pointer' },
         })}
-        emptyText={t("workflow.queue.empty")}
+        emptyText={
+          <Empty
+            description={t("workflow.queue.empty")}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        }
       />
 
       {/* Metadata Edit Dialog */}

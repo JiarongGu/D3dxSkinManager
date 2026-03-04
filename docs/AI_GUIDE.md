@@ -173,6 +173,44 @@ export const useModsStore = create<ModsState>((set) => ({
 const mods = useModsStore((state) => state.mods);
 ```
 
+### Provider Initialization Order
+**Location:** `App.tsx` - `AppWithProviders` component
+
+All providers are initialized at the top level in a specific order to ensure stores are loaded before any components try to read from them. This prevents duplicate API calls and race conditions during app startup.
+
+```typescript
+// App.tsx provider hierarchy (ORDER MATTERS!)
+const AppWithProviders: React.FC = () => {
+  return (
+    <ProfileProvider>   {/* 1. Profile context management (highest level) */}
+      <SettingsProvider>    {/* 2. Loads global settings into settingsStore */}
+        <ModProvider>     {/* 3. Profile-scoped side effects (depends on ProfileProvider) */}
+          <ThemeProvider>         {/* 4. Reads from settingsStore */}
+            <I18nInitializer>     {/* 5. Reads from settingsStore */}
+              <SlideInScreenProvider>
+                <App />
+              </SlideInScreenProvider>
+            </I18nInitializer>
+          </ThemeProvider>
+        </ModProvider>
+      </SettingsProvider>
+    </ProfileProvider>
+  );
+};
+```
+
+**Why this order:**
+1. **ProfileProvider first** - Highest level provider that manages profile context (many features depend on this)
+2. **SettingsProvider second** - Loads settings into store before ThemeProvider/i18n try to read them
+3. **ModProvider third** - Sets up event subscriptions that depend on ProfileProvider context
+4. **ThemeProvider/i18n after** - Read from settingsStore (no duplicate API calls)
+
+**Benefits:**
+- Prevents 8+ simultaneous GET_GLOBAL calls during startup
+- Ensures settings are loaded before theme/i18n initialize
+- Clear provider hierarchy in one location
+- Easy to maintain and understand initialization flow
+
 ### Logging Levels
 ```csharp
 // Use correct log level based on frequency

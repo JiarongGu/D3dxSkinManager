@@ -41,9 +41,9 @@ export interface DataTableProps<T = any> extends Omit<TableProps<T>, 'pagination
   hoverable?: boolean;
 
   /**
-   * Custom empty text
+   * Custom empty text or React node
    */
-  emptyText?: string;
+  emptyText?: string | React.ReactNode;
 }
 
 export function DataTable<T extends object = any>({
