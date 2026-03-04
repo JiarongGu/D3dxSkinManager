@@ -123,19 +123,34 @@ export const ModImportWorkflowScreen: React.FC = () => {
     }).length;
   }, [selectedWorkflowIds, workflows]);
 
-  // Check if there are stuck Pending workflows (not actively processing)
-  // Show "Start Queue" only when:
-  // 1. There are Pending/Processing workflows
-  // 2. None of them are actively updating (no recent progress events)
+  // Track active workflow count from backend (checked once on mount)
+  const [activeWorkflowCount, setActiveWorkflowCount] = React.useState<number>(0);
+
+  // Check active workflow count once when screen opens
+  useEffect(() => {
+    if (!selectedProfileId) return;
+
+    const checkActiveCount = async () => {
+      try {
+        const count = await workflowService.getActiveWorkflowCount(selectedProfileId);
+        setActiveWorkflowCount(count);
+      } catch (error: unknown) {
+        // Silently fail - not critical
+        setActiveWorkflowCount(0);
+      }
+    };
+
+    checkActiveCount();
+  }, [selectedProfileId]);
+
+  // Show "Start Queue" button only when:
+  // 1. There are Pending/Processing workflows in the database
+  // 2. No workflows are actively running in the backend (activeWorkflowCount === 0)
   // This typically happens after app reboot when workflows are stuck
   const shouldShowStartQueue = useMemo(() => {
-    // Check for Pending workflows (these definitely need to be started)
-    const hasPending = workflows.some((w) => w.status === WorkflowStatus.Pending);
-
-    // If there are any Pending workflows, show the button
-    // (After app reboot, workflows are set to Pending and need to be resumed)
-    return hasPending;
-  }, [workflows]);
+    const hasPending = workflows.some((w) => w.status === WorkflowStatus.Pending || w.status === WorkflowStatus.Processing);
+    return hasPending && activeWorkflowCount === 0;
+  }, [workflows, activeWorkflowCount]);
 
   const [importing, setImporting] = React.useState(false);
 
@@ -244,27 +259,28 @@ export const ModImportWorkflowScreen: React.FC = () => {
   };
 
   /**
-   * Start all Pending workflows (used after app reboot)
-   * Only resumes Pending workflows to avoid interfering with actively running tasks
+   * Start the workflow queue (used after app reboot)
+   * Backend will identify and resume ALL stuck MOD_IMPORT workflows
+   * The concurrency manager will queue them and process up to N in parallel
    */
   const handleStartQueue = async () => {
     if (!selectedProfileId) return;
 
     try {
-      // Find all Pending workflows (not Processing - those might be actively running)
-      const workflowsToStart = workflows.filter(
-        (w) => w.status === WorkflowStatus.Pending
-      );
+      // Backend will find and resume all stuck MOD_IMPORT workflows
+      // This is more reliable than frontend identifying them
+      await workflowService.resumeAllStuckWorkflowsByType(selectedProfileId, 'MOD_IMPORT');
 
-      if (workflowsToStart.length === 0) return;
-
-      // Resume each workflow
-      for (const workflow of workflowsToStart) {
-        await workflowService.resumeWorkflow(selectedProfileId, workflow.id);
-      }
-
-      // Refresh to show updated status
+      // Refresh to show updated status and re-check active count
       refresh();
+
+      // Re-check active workflow count after starting queue
+      try {
+        const count = await workflowService.getActiveWorkflowCount(selectedProfileId);
+        setActiveWorkflowCount(count);
+      } catch (error: unknown) {
+        // Silently fail - not critical
+      }
     } catch (error: unknown) {
       handleError(error);
     }
@@ -333,7 +349,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
             {t('mods.import.import')}
           </CompactButton.Primary>
 
-          {/* Start Queue button - show only when there are Pending workflows (after reboot) */}
+          {/* Start Queue button - show only when workflows are stuck (Pending/Processing but not actively running in backend) */}
           {shouldShowStartQueue && (
             <CompactButton.Success
               icon={<PlayCircleOutlined />}

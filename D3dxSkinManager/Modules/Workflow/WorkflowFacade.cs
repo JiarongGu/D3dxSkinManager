@@ -3,6 +3,7 @@ using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Workflow.Repositories;
+using D3dxSkinManager.Modules.Workflow.Services;
 
 namespace D3dxSkinManager.Modules.Workflow;
 
@@ -19,14 +20,17 @@ public class WorkflowFacade : IWorkflowFacade
 {
     private readonly IWorkflowRepository _workflowRepository;
     private readonly Dictionary<string, IWorkflowHandler> _handlers;
+    private readonly IWorkflowConcurrencyManager _concurrencyManager;
     private readonly ILogHelper _logger;
 
     public WorkflowFacade(
         IWorkflowRepository workflowRepository,
         IEnumerable<IWorkflowHandler> handlers,
+        IWorkflowConcurrencyManager concurrencyManager,
         ILogHelper logger)
     {
         _workflowRepository = workflowRepository;
+        _concurrencyManager = concurrencyManager;
         _logger = logger;
 
         // Build handler registry indexed by workflow type
@@ -65,6 +69,10 @@ public class WorkflowFacade : IWorkflowFacade
                 // Batch operations
                 "BATCH_DELETE_WORKFLOWS" => await BatchDeleteWorkflowsAsync(request),
                 "BATCH_RESUME_WORKFLOWS" => await BatchResumeWorkflowsAsync(request),
+                "RESUME_ALL_STUCK_WORKFLOWS_BY_TYPE" => await ResumeAllStuckWorkflowsByTypeAsync(request),
+
+                // Concurrency info
+                "GET_ACTIVE_WORKFLOW_COUNT" => GetActiveWorkflowCount(),
 
                 _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
             };
@@ -328,6 +336,70 @@ public class WorkflowFacade : IWorkflowFacade
                     WorkflowId = workflowId,
                     Error = ex.Message
                 });
+            }
+        }
+
+        _logger.Info($"Batch resume completed: {result.Successful.Count} successful, {result.Failed.Count} failed");
+        return result;
+    }
+
+    /// <summary>
+    /// Get the current number of actively processing workflows
+    /// Returns 0 if no workflows are actively running in the backend
+    /// Used by frontend to determine if "Start Queue" button should be shown
+    /// </summary>
+    private int GetActiveWorkflowCount()
+    {
+        return _concurrencyManager.CurrentRunningCount;
+    }
+
+    /// <summary>
+    /// Resume all stuck workflows of a specific type (Pending/Processing status)
+    /// Used after app reboot to restart all workflows that were interrupted
+    /// </summary>
+    private async Task<BatchOperationResult> ResumeAllStuckWorkflowsByTypeAsync(IpcRequest request)
+    {
+        var type = request.Payload?.ToString();
+        if (string.IsNullOrEmpty(type))
+            throw new ArgumentException("Workflow type is required");
+
+        var handler = GetHandler(type);
+
+        // Get all workflows by type
+        var workflows = await _workflowRepository.GetByTypeAsync(type);
+
+        // Find stuck workflows: Pending or Processing status
+        var stuckWorkflows = workflows
+            .Where(w => w.Status == Entities.WorkflowStatus.Pending || w.Status == Entities.WorkflowStatus.Processing)
+            .OrderBy(w => w.CreatedAt) // Process oldest first
+            .ToList();
+
+        _logger.Info($"Found {stuckWorkflows.Count} stuck {type} workflow(s) to resume");
+
+        var result = new BatchOperationResult
+        {
+            TotalRequested = stuckWorkflows.Count,
+            Successful = new List<string>(),
+            Failed = new List<FailedWorkflow>()
+        };
+
+        // Resume each stuck workflow
+        foreach (var workflow in stuckWorkflows)
+        {
+            try
+            {
+                await handler.ResumeFromCurrentStepAsync(workflow.Id);
+                result.Successful.Add(workflow.Id);
+                _logger.Info($"Successfully resumed stuck workflow: {workflow.Id}");
+            }
+            catch (Exception ex)
+            {
+                result.Failed.Add(new FailedWorkflow
+                {
+                    WorkflowId = workflow.Id,
+                    Error = ex.Message
+                });
+                _logger.Error($"Failed to resume stuck workflow {workflow.Id}: {ex.Message}", "WorkflowFacade", ex);
             }
         }
 

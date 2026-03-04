@@ -511,7 +511,18 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         _logger.Info($"Resuming workflow {workflowId} from step: {context.Step}");
 
-        // Set to Pending first
+        // Reset progress to the beginning of the current step
+        // This ensures UI shows correct progress when restarting after app reboot
+        context.Progress = context.Step switch
+        {
+            ModImportWorkflowSteps.ExtractMetadata => 0,
+            ModImportWorkflowSteps.CompressFolder => 1,  // After metadata extraction
+            ModImportWorkflowSteps.ImportMod => 90,      // After compression (or 100 for file imports)
+            _ => context.Progress  // Keep existing progress if unknown step
+        };
+
+        // Update workflow context with reset progress
+        workflow.Context = JsonHelper.Serialize(context);
         workflow.Status = WorkflowStatus.Pending;
         await _workflowRepository.UpdateAsync(workflow);
         await PopulateCategoryNameInContextAsync(workflow);

@@ -74,3 +74,4 @@ public class WorkflowConcurrencyManager : IWorkflowConcurrencyManager
         return Math.Max(0, _runningWorkflows.Count - availableSlots);
     }
 }
+

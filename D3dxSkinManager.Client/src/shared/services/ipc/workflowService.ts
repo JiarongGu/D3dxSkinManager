@@ -151,4 +151,22 @@ export class WorkflowService extends BaseModuleService {
 
     return workflows;
   }
+
+  /**
+   * Get the count of actively processing workflows in the backend
+   * Returns 0 if no workflows are actively running (e.g., after app reboot)
+   * Used to determine if "Start Queue" button should be shown
+   */
+  async getActiveWorkflowCount(profileId: string): Promise<number> {
+    return this.sendMessage<number>('GET_ACTIVE_WORKFLOW_COUNT', profileId);
+  }
+
+  /**
+   * Resume all stuck workflows of a specific type (Pending/Processing)
+   * Backend will identify all stuck workflows and resume them
+   * Used after app reboot to restart the entire workflow queue
+   */
+  async resumeAllStuckWorkflowsByType(profileId: string, workflowType: string): Promise<BatchOperationResult> {
+    return this.sendMessage<BatchOperationResult>('RESUME_ALL_STUCK_WORKFLOWS_BY_TYPE', profileId, workflowType);
+  }
 }

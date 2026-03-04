@@ -266,7 +266,7 @@ public class ApplicationHost
 
             // Subscribe to window state reset events
             var eventBus = _serviceProvider.GetRequiredService<IEventBus>();
-            eventBus.RegisterHandler(ModuleNames.SETTING, SettingEvents.WINDOW_STATE_RESET, async (eventMessage) =>
+            eventBus.Subscribe(ModuleNames.SETTING, SettingEvents.WINDOW_STATE_RESET, async (eventMessage) =>
             {
                 _logger.Info("Received window state reset event", "Host");
                 await HandleWindowStateResetAsync(eventMessage);

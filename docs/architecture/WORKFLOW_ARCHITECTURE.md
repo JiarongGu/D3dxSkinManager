@@ -1,6 +1,6 @@
 # Workflow Architecture
 
-**Last Updated**: 2026-03-03
+**Last Updated**: 2026-03-05
 **Status**: Active
 
 ## Overview
@@ -387,6 +387,39 @@ After application restart:
 - Workflows with `Pending` or `Processing` status remain in database
 - **No auto-resume** - user must manually restart queue
 - "Start Queue" button appears to resume all stopped workflows
+
+#### Start Queue Feature
+
+The "Start Queue" button only appears when workflows are stuck after reboot:
+
+**Detection Logic:**
+1. Frontend checks `GET_ACTIVE_WORKFLOW_COUNT` on mount
+2. Checks if any workflows have `Pending/Processing` status
+3. Shows button ONLY when: `hasPendingWorkflows && activeWorkflowCount === 0`
+
+**Resume All Stuck Workflows:**
+```csharp
+// Backend identifies and resumes ALL stuck workflows at once
+public async Task<BatchOperationResult> ResumeAllStuckWorkflowsByTypeAsync(string type)
+{
+    // 1. Find all stuck workflows (Pending or Processing status)
+    var stuckWorkflows = await _workflowRepository.GetByTypeAsync(type)
+        .Where(w => w.Status == Pending || w.Status == Processing)
+        .OrderBy(w => w.CreatedAt);
+
+    // 2. Reset progress to beginning of current step for each
+    // 3. Resume all workflows
+    // 4. Concurrency manager queues them and processes N in parallel
+}
+```
+
+**Progress Reset on Resume:**
+When resuming a stuck workflow, progress is reset to the beginning of its current step:
+- `ExtractMetadata` → 0%
+- `CompressFolder` → 1% (after metadata extraction)
+- `ImportMod` → 90% (after compression)
+
+This ensures the UI shows accurate progress when restarting interrupted workflows.
 
 ## Performance Optimizations
 

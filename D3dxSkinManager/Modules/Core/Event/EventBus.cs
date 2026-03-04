@@ -9,21 +9,21 @@ public interface IEventBus
     // All possible combinations of Module + Type + ProfileId filters
 
     // Module + Type + ProfileId - Specific event in specific profile
-    string RegisterHandler(string module, string type, string profileId, Func<EventMessage, Task> handler);
+    string Subscribe(string module, string type, string profileId, Func<EventMessage, Task> handler);
 
     // Module + Type - Specific event in all profiles
-    string RegisterHandler(string module, string type, Func<EventMessage, Task> handler);
+    string Subscribe(string module, string type, Func<EventMessage, Task> handler);
 
     // Module + ProfileId - All events from module in specific profile
-    string RegisterHandlerForModule(string module, string profileId, Func<EventMessage, Task> handler);
+    string SubscribeToModule(string module, string profileId, Func<EventMessage, Task> handler);
 
     // Module only - All events from module (all types, all profiles)
-    string RegisterHandlerForModule(string module, Func<EventMessage, Task> handler);
+    string SubscribeToModule(string module, Func<EventMessage, Task> handler);
 
     // All - Everything (wildcard)
-    string RegisterHandlerForAll(Func<EventMessage, Task> handler);
+    string SubscribeToAll(Func<EventMessage, Task> handler);
 
-    void UnregisterHandler(string registrationId);
+    void Unsubscribe(string subscriptionId);
 
     Task EmitAsync(EventMessage message);
     Task EmitAsync(string module, string type, object? payload = null, string? profileId = null);
@@ -46,47 +46,47 @@ public class EventBus : IEventBus
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public string RegisterHandler(string module, string type, string profileId, Func<EventMessage, Task> handler)
+    public string Subscribe(string module, string type, string profileId, Func<EventMessage, Task> handler)
     {
-        return RegisterHandlerInternal(module, type, profileId, handler);
+        return SubscribeInternal(module, type, profileId, handler);
     }
 
-    public string RegisterHandler(string module, string type, Func<EventMessage, Task> handler)
+    public string Subscribe(string module, string type, Func<EventMessage, Task> handler)
     {
-        return RegisterHandlerInternal(module, type, null, handler);
+        return SubscribeInternal(module, type, null, handler);
     }
 
-    public string RegisterHandlerForModule(string module, string profileId, Func<EventMessage, Task> handler)
+    public string SubscribeToModule(string module, string profileId, Func<EventMessage, Task> handler)
     {
-        return RegisterHandlerInternal(module, "*", profileId, handler);
+        return SubscribeInternal(module, "*", profileId, handler);
     }
 
-    public string RegisterHandlerForModule(string module, Func<EventMessage, Task> handler)
+    public string SubscribeToModule(string module, Func<EventMessage, Task> handler)
     {
-        return RegisterHandlerInternal(module, "*", null, handler);
+        return SubscribeInternal(module, "*", null, handler);
     }
 
-    public string RegisterHandlerForAll(Func<EventMessage, Task> handler)
+    public string SubscribeToAll(Func<EventMessage, Task> handler)
     {
-        return RegisterHandlerInternal("*", "*", null, handler);
+        return SubscribeInternal("*", "*", null, handler);
     }
 
-    private string RegisterHandlerInternal(string modulePattern, string typePattern, string? profileIdPattern, Func<EventMessage, Task> handler)
+    private string SubscribeInternal(string modulePattern, string typePattern, string? profileIdPattern, Func<EventMessage, Task> handler)
     {
-        var registrationId = $"{modulePattern}.{typePattern}.{profileIdPattern ?? "*"}_{Guid.NewGuid()}";
+        var subscriptionId = $"{modulePattern}.{typePattern}.{profileIdPattern ?? "*"}_{Guid.NewGuid()}";
 
-        _handlers[registrationId] = handler;
-        _handlerPatterns[registrationId] = (modulePattern, typePattern, profileIdPattern);
-        _handlerEventCache[registrationId] = new ConcurrentDictionary<string, bool>();
+        _handlers[subscriptionId] = handler;
+        _handlerPatterns[subscriptionId] = (modulePattern, typePattern, profileIdPattern);
+        _handlerEventCache[subscriptionId] = new ConcurrentDictionary<string, bool>();
 
-        return registrationId;
+        return subscriptionId;
     }
 
-    public void UnregisterHandler(string registrationId)
+    public void Unsubscribe(string subscriptionId)
     {
-        _handlers.TryRemove(registrationId, out _);
-        _handlerPatterns.TryRemove(registrationId, out _);
-        _handlerEventCache.TryRemove(registrationId, out _);
+        _handlers.TryRemove(subscriptionId, out _);
+        _handlerPatterns.TryRemove(subscriptionId, out _);
+        _handlerEventCache.TryRemove(subscriptionId, out _);
     }
 
     public virtual async Task EmitAsync(EventMessage message)

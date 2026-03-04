@@ -1,4 +1,4 @@
-﻿using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Context.Services;
@@ -60,12 +60,12 @@ public class PluginContext : IPluginContext
 
     public string RegisterEventHandler(string modulePattern, string typePattern, Func<EventMessage, Task> handler)
     {
-        return EventBus.RegisterHandler(modulePattern, typePattern, handler);
+        return EventBus.Subscribe(modulePattern, typePattern, handler);
     }
 
     public void UnregisterEventHandler(string registrationId)
     {
-        EventBus.UnregisterHandler(registrationId);
+        EventBus.Unsubscribe(registrationId);
     }
 
     public Task EmitEventAsync(string eventType, object? payload = null)
@@ -78,3 +78,4 @@ public class PluginContext : IPluginContext
         _logger.Log(level, message, "Plugin", exception);
     }
 }
+

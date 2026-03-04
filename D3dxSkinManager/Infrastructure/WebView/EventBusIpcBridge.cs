@@ -35,7 +35,7 @@ public class EventBusIpcBridge : IDisposable
         _logger.Info("Initializing EventBus IPC Bridge", "EventBridge");
 
         // Subscribe to ALL events (all modules, all types, all profiles)
-        var registrationId = _eventBus.RegisterHandlerForAll(async (message) =>
+        var registrationId = _eventBus.SubscribeToAll(async (message) =>
         {
             await ForwardEventToFrontend(message);
         });
@@ -83,10 +83,12 @@ public class EventBusIpcBridge : IDisposable
 
         foreach (var registrationId in _registrationIds)
         {
-            _eventBus.UnregisterHandler(registrationId);
+            _eventBus.Unsubscribe(registrationId);
         }
 
         _registrationIds.Clear();
         _disposed = true;
     }
 }
+
+

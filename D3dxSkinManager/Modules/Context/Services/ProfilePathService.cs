@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Profiles.Services;
@@ -70,7 +70,7 @@ public class ProfilePathService : IProfilePathService
     /// </summary>
     private void SubscribeToConfigChanges()
     {
-        _eventBus.RegisterHandler(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, async (EventMessage eventMessage) =>
+        _eventBus.Subscribe(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, async (EventMessage eventMessage) =>
         {
             if (eventMessage.Payload is ProfileConfiguration config && config.ProfileId == _profileContext.ProfileId)
             {
@@ -254,3 +254,4 @@ public class ProfilePathService : IProfilePathService
         return Path.Combine(PreviewsDirectory, sha);
     }
 }
+

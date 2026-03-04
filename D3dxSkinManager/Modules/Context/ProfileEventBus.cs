@@ -27,12 +27,12 @@ public interface IProfileEventBus
     /// <param name="type">Event type (e.g., "LOADED")</param>
     /// <param name="handler">Event handler</param>
     /// <returns>Registration ID for unregistering</returns>
-    string RegisterHandler(string module, string type, Func<EventMessage, Task> handler);
+    string Subscribe(string module, string type, Func<EventMessage, Task> handler);
 
     /// <summary>
     /// Unregister a handler
     /// </summary>
-    void UnregisterHandler(string registrationId);
+    void Unsubscribe(string registrationId);
 }
 
 /// <summary>
@@ -79,18 +79,20 @@ public class ProfileEventBus : IProfileEventBus
     /// <summary>
     /// Register a handler that only receives events for this profile
     /// </summary>
-    public string RegisterHandler(string module, string type, Func<EventMessage, Task> handler)
+    public string Subscribe(string module, string type, Func<EventMessage, Task> handler)
     {
         // Register with global bus but filter by this profile's ID
         _logger?.Debug($"[ProfileEventBus] Registering handler for {module}.{type} in profile {_profileContext.ProfileId}", "ProfileEventBus");
-        return _globalEventBus.RegisterHandler(module, type, _profileContext.ProfileId, handler);
+        return _globalEventBus.Subscribe(module, type, _profileContext.ProfileId, handler);
     }
 
     /// <summary>
     /// Unregister a handler
     /// </summary>
-    public void UnregisterHandler(string registrationId)
+    public void Unsubscribe(string registrationId)
     {
-        _globalEventBus.UnregisterHandler(registrationId);
+        _globalEventBus.Unsubscribe(registrationId);
     }
 }
+
+

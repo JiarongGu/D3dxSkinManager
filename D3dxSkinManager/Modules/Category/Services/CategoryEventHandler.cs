@@ -30,7 +30,7 @@ public class CategoryEventHandler : ICategoryEventHandler
 
         // Subscribe to CATEGORY_UPDATED from Mod module
         // When a mod's category changes, invalidate the tree cache and emit CATEGORY_TREE_UPDATED
-        _categoryUpdatedHandlerId = _eventBus.RegisterHandler(
+        _categoryUpdatedHandlerId = _eventBus.Subscribe(
             ModuleNames.MOD,
             ModEvents.CATEGORY_UPDATED,
             async (_) => await HandleCategoryUpdatedAsync().ConfigureAwait(false)
@@ -55,7 +55,9 @@ public class CategoryEventHandler : ICategoryEventHandler
     {
         if (_categoryUpdatedHandlerId != null)
         {
-            _eventBus.UnregisterHandler(_categoryUpdatedHandlerId);
+            _eventBus.Unsubscribe(_categoryUpdatedHandlerId);
         }
     }
 }
+
+
