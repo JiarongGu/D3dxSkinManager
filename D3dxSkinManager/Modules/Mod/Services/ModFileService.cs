@@ -4,6 +4,7 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Mod.Models;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -70,34 +71,29 @@ public class ModFileService : IModFileService
 {
     private readonly IProfilePathService _profilePaths;
     private readonly IFileHelper _fileService;
-    private readonly IArchiveHelper _archiveService;
     private readonly IModRepository _repository;
     private readonly ILogHelper _logger;
     private readonly IPathHelper _pathHelper;
     private readonly IImageService _imageService;
-    private readonly IModOperationQueue _operationQueue;
+    private readonly IFileOperationPlanner _operationPlanner;
     private const string DISABLED_PREFIX = "DISABLED-";
-    private const int MAX_RETRY_ATTEMPTS = 3;
-    private const int RETRY_DELAY_MS = 500;
 
     public ModFileService(
         IProfilePathService profilePaths,
         IFileHelper fileService,
-        IArchiveHelper archiveService,
         IModRepository repository,
         ILogHelper logger,
         IPathHelper pathHelper,
         IImageService imageService,
-        IModOperationQueue operationQueue)
+        IFileOperationPlanner operationPlanner)
     {
         _profilePaths = profilePaths;
         _fileService = fileService;
-        _archiveService = archiveService;
         _repository = repository;
         _logger = logger;
         _pathHelper = pathHelper;
         _imageService = imageService;
-        _operationQueue = operationQueue;
+        _operationPlanner = operationPlanner;
     }
 
     #region Load/Unload Operations
@@ -108,22 +104,11 @@ public class ModFileService : IModFileService
     /// Cache can be in loaded (active) or unloaded/disabled mode
     /// Detects and updates archive type if needed
     ///
-    /// CONCURRENCY: Uses operation queue to prevent concurrent operations on same mod
-    /// RETRY: Automatically retries on transient IOException (file/folder locks)
+    /// CONCURRENCY: Uses atomic file operation planner - no locks needed
+    /// RETRY: Planner handles automatic retries for transient IOException
     /// </summary>
+    /// <param name="sha">SHA hash of the mod</param>
     public async Task<bool> LoadAsync(string sha)
-    {
-        // Queue operation to prevent concurrent load/unload on same mod
-        return await _operationQueue.EnqueueAsync(sha, async () =>
-        {
-            return await LoadInternalAsync(sha).ConfigureAwait(false);
-        }).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Internal load implementation with retry logic for transient errors
-    /// </summary>
-    private async Task<bool> LoadInternalAsync(string sha)
     {
         var archivePath = GetArchivePath(sha);
         if (!File.Exists(archivePath))
@@ -138,85 +123,70 @@ public class ModFileService : IModFileService
         var targetDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
         var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
 
-        // If already extracted as disabled cache, try to rename it with retry
+        // If already extracted as disabled cache, rename it to enable
         if (Directory.Exists(disabledDirectory))
         {
-            return await RetryOperationAsync(async () =>
+            var moveOp = new FileSystemOperation
             {
-                try
-                {
-                    // Ensure target doesn't exist before move
-                    if (Directory.Exists(targetDirectory))
-                    {
-                        Directory.Delete(targetDirectory, true);
-                        await Task.Delay(100).ConfigureAwait(false); // Brief delay after delete
-                    }
+                OperationType = FileSystemOperationType.MoveDirectory,
+                SourcePath = disabledDirectory,
+                TargetPath = targetDirectory,
+                Overwrite = true
+            };
 
-                    Directory.Move(disabledDirectory, targetDirectory);
-                    _logger.Info($"Enabled mod from cache: {sha}", "ModFileService");
-                    return true;
-                }
-                catch (UnauthorizedAccessException authEx)
-                {
-                    // Don't retry permission errors
-                    _logger.Error($"Access denied when enabling mod {sha}: {authEx.Message}", "ModFileService", authEx);
-                    throw new Core.Models.ModException(
-                        ErrorCodes.FILE_ACCESS_DENIED,
-                        $"Access denied when enabling mod. Please run with appropriate permissions.",
-                        authEx,
-                        new { sha, path = disabledDirectory });
-                }
-            }, sha, "enable from cache").ConfigureAwait(false);
-        }
+            var result = await _operationPlanner.SubmitOperationAsync(moveOp).ConfigureAwait(false);
 
-        // Extract archive - also with retry for transient locks
-        return await RetryOperationAsync(async () =>
-        {
-            try
+            if (!result.Success)
             {
-                // Clear target directory if it exists
-                if (Directory.Exists(targetDirectory))
-                {
-                    Directory.Delete(targetDirectory, true);
-                    await Task.Delay(100).ConfigureAwait(false); // Brief delay after delete
-                }
-
-                var extractionResult = await _archiveService.ExtractArchiveAsync(archivePath, targetDirectory).ConfigureAwait(false);
-
-                if (extractionResult.Success)
-                {
-                    _logger.Info($"Loaded mod: {sha} ({extractionResult.FileCount} files)", "ModFileService");
-
-                    // Update mod Type in database if detected and different from stored
-                    if (!string.IsNullOrEmpty(extractionResult.DetectedType))
-                    {
-                        await UpdateModTypeIfNeededAsync(sha, extractionResult.DetectedType).ConfigureAwait(false);
-                    }
-
-                    return true;
-                }
-                else
-                {
-                    throw new Core.Models.ModException(
-                        ErrorCodes.MOD_EXTRACTION_FAILED,
-                        "Failed to extract mod archive. The file may be corrupted or in an unsupported format.",
-                        new { sha, archivePath });
-                }
-            }
-            catch (Core.Models.ModException)
-            {
-                throw; // Don't wrap ModExceptions
-            }
-            catch (UnauthorizedAccessException authEx)
-            {
-                // Don't retry permission errors
                 throw new Core.Models.ModException(
                     ErrorCodes.FILE_ACCESS_DENIED,
-                    $"Access denied when extracting mod. Please run with appropriate permissions.",
-                    authEx,
-                    new { sha, path = targetDirectory });
+                    result.ErrorMessage ?? "Failed to enable mod from cache",
+                    result.Exception,
+                    new { sha, disabledDirectory, targetDirectory });
             }
-        }, sha, "extract").ConfigureAwait(false);
+
+            _logger.Info($"Enabled mod from cache: {sha}", "ModFileService");
+            return true;
+        }
+
+        // Extract archive
+        var extractOp = new FileSystemOperation
+        {
+            OperationType = FileSystemOperationType.ExtractArchive,
+            SourcePath = archivePath,
+            TargetPath = targetDirectory,
+            Overwrite = true
+        };
+
+        var extractResult = await _operationPlanner.SubmitOperationAsync(extractOp).ConfigureAwait(false);
+
+        if (!extractResult.Success)
+        {
+            throw new Core.Models.ModException(
+                ErrorCodes.MOD_EXTRACTION_FAILED,
+                extractResult.ErrorMessage ?? "Failed to extract mod archive",
+                extractResult.Exception,
+                new { sha, archivePath, targetDirectory });
+        }
+
+        // Update mod Type in database if detected
+        if (extractResult.Data.TryGetValue("detectedType", out var detectedTypeObj))
+        {
+            if (detectedTypeObj is string detectedType && !string.IsNullOrEmpty(detectedType))
+            {
+                await UpdateModTypeIfNeededAsync(sha, detectedType).ConfigureAwait(false);
+            }
+        }
+
+        // Get file count from result data
+        int fileCount = 0;
+        if (extractResult.Data.TryGetValue("fileCount", out var fileCountObj) && fileCountObj is int fc)
+        {
+            fileCount = fc;
+        }
+
+        _logger.Info($"Loaded mod: {sha} ({fileCount} files)", "ModFileService");
+        return true;
     }
 
     /// <summary>
@@ -256,22 +226,17 @@ public class ModFileService : IModFileService
     /// <summary>
     /// Unload a mod by renaming its cache directory to DISABLED-{SHA} (disables cache)
     ///
-    /// CONCURRENCY: Uses operation queue to prevent concurrent operations on same mod
-    /// RETRY: Automatically retries on transient IOException (file/folder locks)
+    /// CONCURRENCY: Uses atomic file operation planner - no locks needed
+    /// RETRY: Planner handles automatic retries for transient IOException
     /// </summary>
     public async Task<bool> UnloadAsync(string sha)
     {
-        // Queue operation to prevent concurrent load/unload on same mod
-        return await _operationQueue.EnqueueAsync(sha, async () =>
-        {
-            return await UnloadInternalAsync(sha).ConfigureAwait(false);
-        }).ConfigureAwait(false);
+        return await UnloadInternalAsync(sha).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Internal unload without operation queue (used when already holding category lock)
-    /// CRITICAL: Only call this when you already hold the category lock to prevent deadlock
-    /// Use case: LoadInternalAsync needs to unload other mods while holding category lock
+    /// Internal unload without lock (kept for compatibility with ModFacade)
+    /// Now both methods do the same thing since we use the atomic planner
     /// </summary>
     public async Task<bool> UnloadWithoutLockAsync(string sha)
     {
@@ -279,7 +244,7 @@ public class ModFileService : IModFileService
     }
 
     /// <summary>
-    /// Internal unload implementation with retry logic for transient errors
+    /// Internal unload implementation using atomic file operation planner
     /// </summary>
     private async Task<bool> UnloadInternalAsync(string sha)
     {
@@ -292,86 +257,32 @@ public class ModFileService : IModFileService
 
         var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
 
-        return await RetryOperationAsync(async () =>
+        var moveOp = new FileSystemOperation
         {
-            try
-            {
-                // Clear disabled directory if it exists
-                if (Directory.Exists(disabledDirectory))
-                {
-                    Directory.Delete(disabledDirectory, true);
-                    await Task.Delay(100).ConfigureAwait(false); // Brief delay after delete
-                }
+            OperationType = FileSystemOperationType.MoveDirectory,
+            SourcePath = cacheDirectory,
+            TargetPath = disabledDirectory,
+            Overwrite = true
+        };
 
-                Directory.Move(cacheDirectory, disabledDirectory);
-                _logger.Info($"Unloaded mod (disabled cache): {sha}", "ModFileService");
-                return true;
-            }
-            catch (UnauthorizedAccessException authEx)
-            {
-                // Don't retry permission errors
-                _logger.Error($"Access denied when unloading mod {sha}: {authEx.Message}", "ModFileService", authEx);
-                throw new Core.Models.ModException(
-                    ErrorCodes.FILE_ACCESS_DENIED,
-                    $"Access denied when unloading mod. Please run with appropriate permissions.",
-                    authEx,
-                    new { sha, path = cacheDirectory });
-            }
-        }, sha, "disable to cache").ConfigureAwait(false);
-    }
+        var result = await _operationPlanner.SubmitOperationAsync(moveOp).ConfigureAwait(false);
 
-    /// <summary>
-    /// Retry an operation with exponential backoff for transient IOException
-    /// Retries on IOException (file/folder locks), but not on ModException or UnauthorizedAccessException
-    /// </summary>
-    private async Task<T> RetryOperationAsync<T>(Func<Task<T>> operation, string sha, string operationName)
-    {
-        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++)
+        if (!result.Success)
         {
-            try
-            {
-                return await operation().ConfigureAwait(false);
-            }
-            catch (Core.Models.ModException)
-            {
-                // Don't retry known mod exceptions (they're handled by caller)
-                throw;
-            }
-            catch (IOException ioEx) when (attempt < MAX_RETRY_ATTEMPTS)
-            {
-                // Retry on IOException (file/folder lock) with exponential backoff
-                var delayMs = RETRY_DELAY_MS * attempt;
-                _logger.Warn($"Retry {attempt}/{MAX_RETRY_ATTEMPTS} for {operationName} on mod {sha} after {delayMs}ms (error: {ioEx.Message})", "ModFileService");
-                await Task.Delay(delayMs).ConfigureAwait(false);
-            }
-            catch (IOException ioEx) when (attempt == MAX_RETRY_ATTEMPTS)
-            {
-                // Final attempt failed - throw ModException
-                _logger.Error($"Failed {operationName} on mod {sha} after {MAX_RETRY_ATTEMPTS} attempts: {ioEx.Message}", "ModFileService", ioEx);
-                throw new Core.Models.ModException(
-                    ErrorCodes.MOD_FOLDER_IN_USE,
-                    $"Cannot {operationName} - the folder is in use by another process after {MAX_RETRY_ATTEMPTS} retry attempts. Please close any programs accessing the mod folder.",
-                    ioEx,
-                    new { sha, operation = operationName, attempts = MAX_RETRY_ATTEMPTS });
-            }
-            catch (Exception ex)
-            {
-                // Unexpected error - wrap and throw immediately
-                _logger.Error($"Unexpected error during {operationName} on mod {sha}: {ex.Message}", "ModFileService", ex);
-                throw new Core.Models.ModException(
-                    ErrorCodes.UNKNOWN_ERROR,
-                    $"An unexpected error occurred during {operationName}: {ex.Message}",
-                    ex,
-                    new { sha, operation = operationName, exceptionType = ex.GetType().Name });
-            }
+            throw new Core.Models.ModException(
+                ErrorCodes.MOD_FOLDER_IN_USE,
+                result.ErrorMessage ?? "Failed to unload mod",
+                result.Exception,
+                new { sha, cacheDirectory, disabledDirectory });
         }
 
-        // Should never reach here
-        throw new InvalidOperationException($"Retry loop completed without returning for {operationName} on {sha}");
+        _logger.Info($"Unloaded mod (disabled cache): {sha}", "ModFileService");
+        return true;
     }
 
     /// <summary>
     /// Delete a mod permanently (archive + cache directory + disabled cache + images)
+    /// Uses atomic file operation planner for all deletions
     /// </summary>
     public async Task<bool> DeleteAsync(string sha, string? previewPath)
     {
@@ -383,37 +294,69 @@ public class ModFileService : IModFileService
             var archivePath = GetArchivePath(sha);
             if (File.Exists(archivePath))
             {
-                File.Delete(archivePath);
-                _logger.Info($"Deleted archive: {archivePath}", "ModFileService");
-                deleted = true;
+                var deleteFileOp = new FileSystemOperation
+                {
+                    OperationType = FileSystemOperationType.DeleteFile,
+                    SourcePath = archivePath
+                };
+                var result = await _operationPlanner.SubmitOperationAsync(deleteFileOp).ConfigureAwait(false);
+                if (result.Success)
+                {
+                    _logger.Info($"Deleted archive: {archivePath}", "ModFileService");
+                    deleted = true;
+                }
             }
 
             // Delete active cache directory
             var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
             if (Directory.Exists(cacheDirectory))
             {
-                Directory.Delete(cacheDirectory, true);
-                _logger.Info($"Deleted cache directory: {cacheDirectory}", "ModFileService");
-                deleted = true;
+                var deleteDirOp = new FileSystemOperation
+                {
+                    OperationType = FileSystemOperationType.DeleteDirectory,
+                    SourcePath = cacheDirectory
+                };
+                var result = await _operationPlanner.SubmitOperationAsync(deleteDirOp).ConfigureAwait(false);
+                if (result.Success)
+                {
+                    _logger.Info($"Deleted cache directory: {cacheDirectory}", "ModFileService");
+                    deleted = true;
+                }
             }
 
             // Delete disabled cache directory
             var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
             if (Directory.Exists(disabledDirectory))
             {
-                Directory.Delete(disabledDirectory, true);
-                _logger.Info($"Deleted cache directory: {disabledDirectory}", "ModFileService");
-                deleted = true;
+                var deleteDirOp = new FileSystemOperation
+                {
+                    OperationType = FileSystemOperationType.DeleteDirectory,
+                    SourcePath = disabledDirectory
+                };
+                var result = await _operationPlanner.SubmitOperationAsync(deleteDirOp).ConfigureAwait(false);
+                if (result.Success)
+                {
+                    _logger.Info($"Deleted disabled cache directory: {disabledDirectory}", "ModFileService");
+                    deleted = true;
+                }
             }
 
             // Delete preview folder
             if (!string.IsNullOrEmpty(previewPath) && Directory.Exists(previewPath))
             {
-                Directory.Delete(previewPath, true);
-                _logger.Info($"Deleted preview folder: {previewPath}", "ModFileService");
+                var deleteDirOp = new FileSystemOperation
+                {
+                    OperationType = FileSystemOperationType.DeleteDirectory,
+                    SourcePath = previewPath
+                };
+                var result = await _operationPlanner.SubmitOperationAsync(deleteDirOp).ConfigureAwait(false);
+                if (result.Success)
+                {
+                    _logger.Info($"Deleted preview folder: {previewPath}", "ModFileService");
+                }
             }
 
-            return await Task.FromResult(deleted).ConfigureAwait(false);
+            return deleted;
         }
         catch (Exception ex)
         {
@@ -446,14 +389,28 @@ public class ModFileService : IModFileService
     /// <summary>
     /// Copy archive file to mods directory
     /// Stores without extension (like Python version) - SharpCompress auto-detects format
+    /// Uses atomic file operation planner
     /// </summary>
     public async Task<string> CopyArchiveAsync(string sourcePath, string sha)
     {
         var targetPath = _profilePaths.GetModArchivePath(sha, "");
 
-        await Task.Run(() => File.Copy(sourcePath, targetPath, overwrite: true));
-        _logger.Info($"Copied archive to: {targetPath}", "ModFileService");
+        var copyOp = new FileSystemOperation
+        {
+            OperationType = FileSystemOperationType.CopyFile,
+            SourcePath = sourcePath,
+            TargetPath = targetPath,
+            Overwrite = true
+        };
 
+        var result = await _operationPlanner.SubmitOperationAsync(copyOp).ConfigureAwait(false);
+
+        if (!result.Success)
+        {
+            throw new InvalidOperationException($"Failed to copy archive: {result.ErrorMessage}", result.Exception);
+        }
+
+        _logger.Info($"Copied archive to: {targetPath}", "ModFileService");
         return targetPath;
     }
 
@@ -582,8 +539,9 @@ public class ModFileService : IModFileService
 
     /// <summary>
     /// Delete specific cache by SHA (both active and disabled cache)
+    /// Uses atomic file operation planner
     /// </summary>
-    public Task<bool> DeleteCacheAsync(string sha)
+    public async Task<bool> DeleteCacheAsync(string sha)
     {
         bool anyDeleted = false;
 
@@ -593,18 +551,34 @@ public class ModFileService : IModFileService
             var activeCachePath = Path.Combine(_profilePaths.CacheModsDirectory, sha);
             if (Directory.Exists(activeCachePath))
             {
-                Directory.Delete(activeCachePath, recursive: true);
-                _logger.Info($"Deleted active cache for SHA: {sha}", "ModFileService");
-                anyDeleted = true;
+                var deleteOp = new FileSystemOperation
+                {
+                    OperationType = FileSystemOperationType.DeleteDirectory,
+                    SourcePath = activeCachePath
+                };
+                var result = await _operationPlanner.SubmitOperationAsync(deleteOp).ConfigureAwait(false);
+                if (result.Success)
+                {
+                    _logger.Info($"Deleted active cache for SHA: {sha}", "ModFileService");
+                    anyDeleted = true;
+                }
             }
 
             // Delete disabled/unloaded cache: DISABLED-{SHA}
             var disabledCachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
             if (Directory.Exists(disabledCachePath))
             {
-                Directory.Delete(disabledCachePath, recursive: true);
-                _logger.Info($"Deleted disabled cache for SHA: {sha}", "ModFileService");
-                anyDeleted = true;
+                var deleteOp = new FileSystemOperation
+                {
+                    OperationType = FileSystemOperationType.DeleteDirectory,
+                    SourcePath = disabledCachePath
+                };
+                var result = await _operationPlanner.SubmitOperationAsync(deleteOp).ConfigureAwait(false);
+                if (result.Success)
+                {
+                    _logger.Info($"Deleted disabled cache for SHA: {sha}", "ModFileService");
+                    anyDeleted = true;
+                }
             }
 
             if (!anyDeleted)
@@ -612,12 +586,12 @@ public class ModFileService : IModFileService
                 _logger.Warn($"No cache found to delete for SHA: {sha}", "ModFileService");
             }
 
-            return Task.FromResult(anyDeleted);
+            return anyDeleted;
         }
         catch (Exception ex)
         {
             _logger.Error($"Error deleting cache for {sha}: {ex.Message}", "ModFileService", ex);
-            return Task.FromResult(false);
+            return false;
         }
     }
 

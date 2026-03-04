@@ -176,6 +176,19 @@
   - Created: 2026-03-04
   - Updated: 2026-03-04 - Added profile-scoped cache warming via MessageDispatcher
 
+#### Helpers
+
+- **ArchiveHelper** → `Modules/Core/Helpers/ArchiveHelper.cs`
+  - Archive extraction and compression using SharpCompress
+  - **DetectArchiveTypeAsync** → Async wrapper for archive type detection
+  - **DetectArchiveType** → Synchronous archive type detection (7z, zip, rar, tar, etc.)
+  - **ExtractArchiveAsync** → Async wrapper for archive extraction
+  - **ExtractArchive** → Synchronous archive extraction with manual file writing (performance optimized)
+  - **CompressFolderAsync** → Create archives (Zip, Tar formats supported)
+  - **ValidateArchiveAsync** → Check if archive is valid and detect password protection
+  - **Performance**: Manual file extraction with cached directory creation (avoids SharpCompress WriteToDirectory bug)
+  - Created: 2024 | Updated: 2026-03-05 (renamed sync methods, removed 'Sync' suffix per C# conventions)
+
 #### Utilities
 
 - **FileUtilities** → `Modules/Core/Utilities/FileUtilities.cs`
@@ -222,9 +235,20 @@
 - **ModFileService** → `Modules/Mods/Services/ModFileService.cs`
   - GetArchivePath → Returns path WITHOUT extension (matches Python format)
   - CopyArchiveAsync → Stores archives without extensions
-  - LoadModAsync → Extract and load mod
-  - UnloadModAsync → Remove extracted mod
+  - LoadModAsync → Extract and load mod (via FileOperationPlanner)
+  - UnloadModAsync → Remove extracted mod (via FileOperationPlanner)
   - ClearCacheAsync → Clear mod cache
+
+- **FileOperationPlanner** → `Modules/Mod/Services/FileOperationPlanner.cs`
+  - Atomic file system operation planner with two-plan batch processing
+  - **Two-Plan Model**: Processing Plan (currently executing) + Queued Plan (accumulating operations)
+  - **Operations**: ExtractArchive, MoveDirectory, CopyFile, DeleteDirectory, DeleteFile
+  - **Deduplication**: Identical operations are automatically merged in the Queued Plan
+  - **No Cancellation**: All operations execute sequentially, no cancellation logic
+  - **Background Worker**: Processes plans atomically in a dedicated thread
+  - **Usage**: SubmitOperationAsync() → returns Task that completes when operation finishes
+  - **Benefits**: No deadlocks, batches operations during slow extractions, prevents file conflicts
+  - Created: 2026-03-05
 
 - **ModImportService** → `Modules/Mods/Services/ModImportService.cs:14`
   - Constructor → `:26-40`

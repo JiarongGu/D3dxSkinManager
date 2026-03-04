@@ -77,7 +77,6 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IPayloadHelper _payloadHelper;
     private readonly IProfileEventBus _eventBus;
     private readonly IImageService _imageService;
-    private readonly IModOperationQueue _operationQueue;
     private readonly IModCacheWatcher _cacheWatcher;
 
     public ModFacade(
@@ -91,7 +90,6 @@ public class ModFacade : BaseFacade, IModFacade
         IPayloadHelper payloadHelper,
         IProfileEventBus eventBus,
         IImageService imageService,
-        IModOperationQueue operationQueue,
         IModCacheWatcher cacheWatcher,
         ILogHelper logger) : base(logger)
     {
@@ -105,7 +103,6 @@ public class ModFacade : BaseFacade, IModFacade
         _payloadHelper = payloadHelper;
         _eventBus = eventBus;
         _imageService = imageService;
-        _operationQueue = operationQueue;
         _cacheWatcher = cacheWatcher;
 
         // Start watching cache directory for external changes
@@ -205,29 +202,13 @@ public class ModFacade : BaseFacade, IModFacade
             throw new ModException(ErrorCodes.MOD_NOT_FOUND, $"Mod not found: {sha}", new { sha });
         }
 
-        // CRITICAL: Use category-wide lock for categorized mods
-        // - Prevents race: Load Mod B trying to unload Mod A (same category) while A is still loading
-        // - Unclassified mods (null/empty category): Category lock is BYPASSED, they only use per-mod lock
-        //   This allows multiple unclassified mods to load in parallel (they can coexist)
-        return await _operationQueue.EnqueueCategoryOperationAsync(mod.Category, async () =>
-        {
-            return await LoadModInternalAsync(sha, mod).ConfigureAwait(false);
-        }).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Internal load implementation with category-based unloading
-    /// Runs within category lock to prevent concurrent load operations in same category
-    /// </summary>
-    private async Task<ModLoadResult> LoadModInternalAsync(string sha, ModInfo mod)
-    {
         // Track unloaded mods for efficient frontend updates (avoids full mod list refresh)
         var unloadedModShas = new List<string>();
         var modName = mod.Name ?? $"Mod {sha.Substring(0, 8)}";
 
         try
         {
-            // CRITICAL: Unload all mods in the same category first to prevent conflicts
+            // BUSINESS LOGIC: Unload all mods in the same category first to prevent conflicts
             // This ensures only one mod per category is loaded at a time
             // EXCEPTION: Unclassified mods (empty/null/whitespace category) can be co-loaded
             var isUnclassified = string.IsNullOrWhiteSpace(mod.Category);
@@ -248,10 +229,8 @@ public class ModFacade : BaseFacade, IModFacade
 
                     foreach (var modToUnload in modsToUnload)
                     {
-                        // CRITICAL: Use UnloadWithoutLockAsync to prevent deadlock
-                        // We already hold the category lock, so don't try to acquire per-mod lock
-                        // This prevents: Load B (holds category lock) → Unload A (tries per-mod lock A) → deadlock if A is loading
-                        var unloadSuccess = await _fileService.UnloadWithoutLockAsync(modToUnload.SHA).ConfigureAwait(false);
+                        // Unload the mod - planner will handle the file operations sequentially
+                        var unloadSuccess = await _fileService.UnloadAsync(modToUnload.SHA).ConfigureAwait(false);
 
                         if (unloadSuccess)
                         {
@@ -271,7 +250,7 @@ public class ModFacade : BaseFacade, IModFacade
                 _logger.Info($"Loading unclassified mod '{modName}' - skipping category-based unloading (unclassified mods can be co-loaded)", "ModFacade");
             }
 
-            // Load the requested mod
+            // Load the requested mod - planner will handle the file operations
             var success = await _fileService.LoadAsync(sha).ConfigureAwait(false);
 
             if (!success)
@@ -287,9 +266,9 @@ public class ModFacade : BaseFacade, IModFacade
             // Try to auto-import preview images from cache folder after loading
             var importedPreviews = await _imageService.TryAutoImportPreviewsFromCacheAsync(sha).ConfigureAwait(false);
 
-            if (importedPreviews > 0) 
+            if (importedPreviews > 0)
             {
-                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { 
+                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new {
                     Sha = sha
                 }).ConfigureAwait(false);
             }
