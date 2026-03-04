@@ -83,7 +83,7 @@ export class Logger {
    */
   private async loadLevel(): Promise<void> {
     try {
-      const { settingsService } = await import('../../modules/setting/services/settingsService');
+      const { settingsService } = await import('../services/ipc');
       const settings = await settingsService.getGlobalSettings();
       const level = settings.logLevel as LogLevelName;
       if (level && level in LogLevel) {
@@ -103,7 +103,7 @@ export class Logger {
    */
   private async saveLevel(): Promise<void> {
     try {
-      const { settingsService } = await import('../../modules/setting/services/settingsService');
+      const { settingsService } = await import('../services/ipc');
       await settingsService.updateGlobalSetting('logLevel', this.getLevelName(this.currentLevel));
     } catch (error) {
       // Silently fail - this is a dev/debug setting

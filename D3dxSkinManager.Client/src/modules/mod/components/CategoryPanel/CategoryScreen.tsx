@@ -4,9 +4,9 @@ import { Form, Space, Row, Col, Select } from "antd";
 import { FolderOpenOutlined } from "@ant-design/icons";
 import { CategoryInfo } from "../../../../shared/types/category.types";
 import { useSlideInScreenContext } from "../../../../shared/context/SlideInScreenContext";
-import { systemService } from "../../../../shared/services/systemService";
+import { systemService } from "../../../../shared/services/ipc";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
-import { categoryService } from "../../../../shared/services/categoryService";
+import { categoryService } from "../../../../shared/services/ipc";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import {
   CompactInput,

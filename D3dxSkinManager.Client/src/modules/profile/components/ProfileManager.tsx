@@ -22,7 +22,6 @@ import {
 } from "@ant-design/icons";
 import classNames from "classnames";
 import { useTranslation } from "react-i18next";
-import { profileService } from "../../profile/services/profileService";
 import {
   Profile,
   CreateProfileRequest,
@@ -34,7 +33,7 @@ import { FormDialog } from "../../../shared/components/dialogs";
 import { toAppUrl } from "../../../shared/utils/imageUrlHelper";
 import "./ProfileManager.css";
 import { notification } from "../../../shared/utils/notification";
-import { systemService } from "../../../shared/services/systemService";
+import { profileService, systemService } from "../../../shared/services/ipc";
 import { CompactThumbnailUpload, CompactPrimaryButton } from "../../../shared/components/compact";
 
 interface ProfileManagerProps {

@@ -1,4 +1,3 @@
-import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
 import { Card } from 'antd';
 import {
@@ -7,7 +6,9 @@ import {
   WarningOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { validationService, StartupValidationReport, ValidationSeverity } from '../services/validationService';
+
+import { notification } from '../../../shared/utils/notification';
+import { validationService, StartupValidationReport, ValidationSeverity } from '../../../shared/services/ipc';
 import {
   CompactCard,
   CompactSpace,

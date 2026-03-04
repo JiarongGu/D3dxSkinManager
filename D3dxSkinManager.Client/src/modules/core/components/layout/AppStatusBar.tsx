@@ -1,13 +1,11 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Space, Tag, Progress, Button } from 'antd';
 import {
-  CheckCircleOutlined,
   LoadingOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
-import { AnnotatedTooltip, annotations } from '../../../../shared/components/common/TooltipSystem';
 import { useTranslation } from 'react-i18next';
-import { useMods } from '../../../mod';
+import { useModsStore } from '../../../mod/store/modsStore';
 import './AppStatusBar.css';
 
 export type StatusType = 'normal' | 'warning' | 'error';
@@ -37,39 +35,11 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  // Get mod data from store
-  const { state } = useMods();
-  const { mods } = state;
+  // Get mod statistics from store (global counts, not affected by category selection)
+  const statistics = useModsStore((state) => state.statistics);
 
-  // Calculate loaded mods count
-  const modsLoaded = useMemo(() => {
-    return mods.filter((mod) => mod.isLoaded).length;
-  }, [mods]);
-
-  const modsTotal = mods.length;
-
-  const getServerStatusIcon = () => {
-    const iconClass = `app-status-bar-status-icon-${serverStatus}`;
-    switch (serverStatus) {
-      case 'connected':
-        return <CheckCircleOutlined className={iconClass} />;
-      case 'connecting':
-        return <LoadingOutlined className={iconClass} />;
-      case 'disconnected':
-        return <CheckCircleOutlined className={iconClass} />;
-    }
-  };
-
-  const getServerStatusText = () => {
-    switch (serverStatus) {
-      case 'connected':
-        return t('statusBar.connected');
-      case 'connecting':
-        return t('common.loading');
-      case 'disconnected':
-        return t('statusBar.disconnected');
-    }
-  };
+  const modsLoaded = statistics?.loadedMods ?? 0;
+  const modsTotal = statistics?.totalMods ?? 0;
 
   // Get CSS class for status message based on type
   const getStatusClass = (): string => {
@@ -97,15 +67,8 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
 
       {/* Main status bar */}
       <div className="app-status-bar-main">
-        {/* Left side - Status, Message */}
+        {/* Left side - Status Message */}
         <Space size="large">
-          <AnnotatedTooltip title="Backend connection status" level={2}>
-            <Space size="small">
-              {getServerStatusIcon()}
-              <span>{getServerStatusText()}</span>
-            </Space>
-          </AnnotatedTooltip>
-
           {/* Operation name or status message */}
           {operationName && activeOperationCount > 0 ? (
             <Space size="small">
@@ -126,36 +89,24 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
           ) : null}
         </Space>
 
-        {/* Right side - Help, Mods, Version */}
-        <Space size="large">
+        {/* Right side - Help, Mods, Version (all aligned to right) */}
+        <Space size="large" style={{ marginLeft: 'auto' }}>
           {/* Help link */}
           {onHelpClick && (
-            <AnnotatedTooltip
-              title={annotations.statusBar.helpButton.title}
-              level={annotations.statusBar.helpButton.level}
+            <Button
+              type="link"
+              size="small"
+              icon={<QuestionCircleOutlined />}
+              onClick={onHelpClick}
+              className="app-status-bar-help-button"
             >
-              <Button
-                type="link"
-                size="small"
-                icon={<QuestionCircleOutlined />}
-                onClick={onHelpClick}
-                className="app-status-bar-help-button"
-              >
-                {t('statusBar.help')}
-              </Button>
-            </AnnotatedTooltip>
+              {t('statusBar.help')}
+            </Button>
           )}
 
-          <AnnotatedTooltip
-            title={annotations.statusBar.modsCount.title}
-            level={annotations.statusBar.modsCount.level}
-          >
-            <Space size="small">
-              <Tag color={modsLoaded > 0 ? 'green' : 'default'}>
-                {t('statusBar.modsLoaded', { count: modsLoaded, total: modsTotal })}
-              </Tag>
-            </Space>
-          </AnnotatedTooltip>
+          <Tag color={modsLoaded > 0 ? 'green' : 'default'}>
+            {t('statusBar.modsLoaded', { count: modsLoaded, total: modsTotal })}
+          </Tag>
 
           <span className="app-status-bar-version">
             D3dxSkinManager v1.0.0

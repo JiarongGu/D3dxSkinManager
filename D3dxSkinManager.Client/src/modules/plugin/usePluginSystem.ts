@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { pluginRegistry } from './PluginRegistry';
 import { PluginContext } from './components/PluginTypes';
-import { modService } from '../mod/services/modService';
+import { modService } from '../../shared/services/ipc';
 import { eventBus } from '../../shared/services/eventBus';
 
 /**

@@ -4,11 +4,11 @@ import { CompactButton } from "./compact";
 import {
   settingsService,
   GlobalSettings,
-} from "../../modules/setting/services/settingsService";
+} from "../services/ipc";
 import { useProfile } from "../context/ProfileContext";
 import { useModsStore } from "../../modules/mod/store/modsStore";
 import { bridgeService } from "../services/bridgeService";
-import { profileService } from "../../modules/profile/services/profileService";
+import { profileService } from "../services/ipc";
 import { useTranslation } from 'react-i18next';
 import './AppInitializer.css';
 

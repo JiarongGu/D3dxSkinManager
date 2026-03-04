@@ -70,10 +70,12 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
     }
     return (
       <Avatar
-        size={28}
+        size={26}
         style={{
           backgroundColor: profile.color || '#1890ff',
-          flexShrink: 0
+          flexShrink: 0,
+          fontSize: 14,
+          fontWeight: 500
         }}
       >
         {profile.name.charAt(0).toUpperCase()}

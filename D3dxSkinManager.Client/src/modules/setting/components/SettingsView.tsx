@@ -23,7 +23,7 @@ import { useSettingsStore } from "../store/settingsStore";
 import * as settingsOps from "../operations/settingsOperations";
 import { notification } from "../../../shared/utils/notification";
 import "./SettingsView.css";
-import { fileDialogService } from "../../../shared/services/systemService";
+import { systemService } from "../../../shared/services/ipc";
 
 const { Option } = Select;
 
@@ -121,7 +121,7 @@ export const SettingsView: React.FC = () => {
     }
 
     try {
-      const result = await fileDialogService.openFolderDialog({
+      const result = await systemService.openFolderDialog({
         title: t("settings.profile.modCache.directory.dialogTitle"),
       });
 

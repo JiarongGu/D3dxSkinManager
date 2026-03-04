@@ -4,7 +4,7 @@ import { setNotificationApi } from './shared/utils/notification';
 import { AppHeader } from './modules/core/components/layout/AppHeader';
 import { AppStatusBar, StatusType } from './modules/core/components/layout/AppStatusBar';
 import { ModHierarchicalView } from './modules/mod/components/ModHierarchicalView';
-import { ModsProvider } from './modules/mod';
+import { ModProvider } from './modules/mod';
 import { LaunchView } from './modules/launch/components/LaunchView';
 import { SettingsView } from './modules/setting/components/SettingsView';
 import { ToolsView } from './modules/tool/components/ToolsView';
@@ -18,7 +18,6 @@ import { SlideInScreenManager } from './shared/components/common/SlideInScreen';
 import { AppInitializer } from './shared/components/AppInitializer';
 import { keyboardManager, SHORTCUTS } from './modules/core/utils/KeyboardShortcutManager';
 import { KeyboardShortcutsDialog } from './modules/core/components/dialogs/KeyboardShortcutsDialog';
-import { AboutDialog } from './modules/core/components/dialogs/AboutDialog';
 import { HelpWindow } from './modules/help';
 import './App.css';
 import './styles/visual-enhancements.css';
@@ -34,7 +33,6 @@ const { Content } = Layout;
 const AppContent: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState('mods');
   const [shortcutsDialogVisible, setShortcutsDialogVisible] = useState(false);
-  const [aboutDialogVisible, setAboutDialogVisible] = useState(false);
 
   // Status bar state
   const [statusMessage, setStatusMessage] = useState<string>('');
@@ -43,7 +41,7 @@ const AppContent: React.FC = () => {
   const [progressVisible, setProgressVisible] = useState<boolean>(false);
 
   // Get slide-in screen controls
-  const { openScreen, closeScreen, closeAllScreens } = useSlideInScreenContext();
+  const { openScreen, closeScreen, closeAllScreens, screens } = useSlideInScreenContext();
 
   // Handle tab change - close all slide-in screens
   const handleTabChange = useCallback((tab: string) => {
@@ -51,13 +49,22 @@ const AppContent: React.FC = () => {
     setSelectedTab(tab);
   }, [closeAllScreens]);
 
-  // Status bar handlers
+  // Status bar handlers - toggle help window
   const handleHelpClick = () => {
-    openScreen({
-      title: 'Help & Documentation',
-      content: <HelpWindow />,
-      width: '900px',
-    });
+    // Check if help screen is already open
+    const helpScreen = screens.find(s => s.title === 'Help & Documentation');
+
+    if (helpScreen) {
+      // Help is open, close it
+      closeScreen(helpScreen.id);
+    } else {
+      // Help is closed, open it
+      openScreen({
+        title: 'Help & Documentation',
+        content: <HelpWindow />,
+        width: '900px',
+      });
+    }
   };
 
   // Initialize keyboard shortcuts
@@ -131,12 +138,6 @@ const AppContent: React.FC = () => {
         shortcuts={keyboardManager.getShortcuts()}
       />
 
-      {/* About Dialog */}
-      <AboutDialog
-        visible={aboutDialogVisible}
-        onClose={() => setAboutDialogVisible(false)}
-      />
-
       {/* Slide-in Screen Manager */}
       <SlideInScreenManager />
     </AnnotationProvider>
@@ -175,9 +176,9 @@ const App: React.FC = () => {
         <NotificationInitializer>
           <ProfileProvider>
             <AppInitializer>
-              <ModsProvider>
+              <ModProvider>
                 <AppContent />
-              </ModsProvider>
+              </ModProvider>
             </AppInitializer>
           </ProfileProvider>
         </NotificationInitializer>

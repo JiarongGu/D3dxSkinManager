@@ -41,6 +41,7 @@ export enum ModEventType {
   PREVIEW_IMPORTED = "PREVIEW_IMPORTED",
   THUMBNAIL_UPDATED = "THUMBNAIL_UPDATED",
   PREVIEW_DELETED = "PREVIEW_DELETED",
+  CACHE_CHANGED = "CACHE_CHANGED", // Emitted when cache folder is externally deleted/modified
 }
 
 // Category event types
@@ -139,6 +140,12 @@ export interface EventPayloadMap {
     [ModEventType.PREVIEW_IMPORTED]: { sha: string; imagePath?: string };
     [ModEventType.THUMBNAIL_UPDATED]: { sha: string; previewPath: string };
     [ModEventType.PREVIEW_DELETED]: { sha: string; previewPath: string };
+    [ModEventType.CACHE_CHANGED]: {
+      sha: string;
+      wasLoaded?: boolean;
+      nowLoaded?: boolean;
+      changeType: 'deleted' | 'renamed';
+    };
   };
 
   // Category events

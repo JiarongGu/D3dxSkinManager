@@ -28,7 +28,7 @@ import {
   MigrationOptions,
   ArchiveHandling,
 } from "./services/migrationService";
-import { profileService } from "../../../profile/services/profileService";
+import { profileService } from "../../../../shared/services/ipc";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import logger from "../../../../shared/utils/logger";
 import "./PythonMigrationTool.css";

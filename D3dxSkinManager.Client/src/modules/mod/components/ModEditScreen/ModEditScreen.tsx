@@ -2,7 +2,7 @@ import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Space } from 'antd';
 import { ModInfo } from '../../../../shared/types/mod.types';
-import { modService } from '../../services/modService';
+import { modService } from '../../../../shared/services/ipc';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
 import { CompactButton } from '../../../../shared/components/compact/CompactButton';
 import { BasicInfoSection } from './BasicInfoSection';

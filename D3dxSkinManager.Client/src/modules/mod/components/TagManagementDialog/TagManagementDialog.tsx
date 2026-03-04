@@ -13,7 +13,7 @@ import { FormDialog } from "../../../../shared/components/dialogs/FormDialog";
 import { ConfirmDialog } from "../../../../shared/components/dialogs/ConfirmDialog";
 import { CompactButton } from "../../../../shared/components/compact/CompactButton";
 import { Tag } from "../../../../shared/types/mod.types";
-import { modService } from "../../services/modService";
+import { modService } from "../../../../shared/services/ipc";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { handleError } from "../../../../shared/utils/errorHandler";
 import "./TagManagementDialog.css";

@@ -20,6 +20,7 @@ public interface IModFileService
     // Load/Unload operations
     Task<bool> LoadAsync(string sha);
     Task<bool> UnloadAsync(string sha);
+    Task<bool> UnloadWithoutLockAsync(string sha);
     Task<bool> DeleteAsync(string sha, string? previewPath);
 
     // Archive operations
@@ -74,7 +75,10 @@ public class ModFileService : IModFileService
     private readonly ILogHelper _logger;
     private readonly IPathHelper _pathHelper;
     private readonly IImageService _imageService;
+    private readonly IModOperationQueue _operationQueue;
     private const string DISABLED_PREFIX = "DISABLED-";
+    private const int MAX_RETRY_ATTEMPTS = 3;
+    private const int RETRY_DELAY_MS = 500;
 
     public ModFileService(
         IProfilePathService profilePaths,
@@ -83,7 +87,8 @@ public class ModFileService : IModFileService
         IModRepository repository,
         ILogHelper logger,
         IPathHelper pathHelper,
-        IImageService imageService)
+        IImageService imageService,
+        IModOperationQueue operationQueue)
     {
         _profilePaths = profilePaths;
         _fileService = fileService;
@@ -92,6 +97,7 @@ public class ModFileService : IModFileService
         _logger = logger;
         _pathHelper = pathHelper;
         _imageService = imageService;
+        _operationQueue = operationQueue;
     }
 
     #region Load/Unload Operations
@@ -101,46 +107,58 @@ public class ModFileService : IModFileService
     /// If mod is already cached (disabled state), just rename it to enable
     /// Cache can be in loaded (active) or unloaded/disabled mode
     /// Detects and updates archive type if needed
+    ///
+    /// CONCURRENCY: Uses operation queue to prevent concurrent operations on same mod
+    /// RETRY: Automatically retries on transient IOException (file/folder locks)
     /// </summary>
     public async Task<bool> LoadAsync(string sha)
     {
-        try
+        // Queue operation to prevent concurrent load/unload on same mod
+        return await _operationQueue.EnqueueAsync(sha, async () =>
         {
-            var archivePath = GetArchivePath(sha);
-            if (!File.Exists(archivePath))
-            {
-                _logger.Warn($"Archive not found: {archivePath}", "ModFileService");
-                throw new Core.Models.ModException(
-                    ErrorCodes.MOD_ARCHIVE_NOT_FOUND,
-                    $"Mod archive file not found: {archivePath}",
-                    new { sha, archivePath });
-            }
+            return await LoadInternalAsync(sha).ConfigureAwait(false);
+        }).ConfigureAwait(false);
+    }
 
-            var targetDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
-            var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
+    /// <summary>
+    /// Internal load implementation with retry logic for transient errors
+    /// </summary>
+    private async Task<bool> LoadInternalAsync(string sha)
+    {
+        var archivePath = GetArchivePath(sha);
+        if (!File.Exists(archivePath))
+        {
+            _logger.Warn($"Archive not found: {archivePath}", "ModFileService");
+            throw new Core.Models.ModException(
+                ErrorCodes.MOD_ARCHIVE_NOT_FOUND,
+                $"Mod archive file not found: {archivePath}",
+                new { sha, archivePath });
+        }
 
-            // If already extracted as disabled cache, just rename it (remove DISABLED- prefix)
-            if (Directory.Exists(disabledDirectory))
+        var targetDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+        var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
+
+        // If already extracted as disabled cache, try to rename it with retry
+        if (Directory.Exists(disabledDirectory))
+        {
+            return await RetryOperationAsync(async () =>
             {
                 try
                 {
+                    // Ensure target doesn't exist before move
+                    if (Directory.Exists(targetDirectory))
+                    {
+                        Directory.Delete(targetDirectory, true);
+                        await Task.Delay(100).ConfigureAwait(false); // Brief delay after delete
+                    }
+
                     Directory.Move(disabledDirectory, targetDirectory);
                     _logger.Info($"Enabled mod from cache: {sha}", "ModFileService");
                     return true;
                 }
-                catch (IOException ioEx)
-                {
-                    // Folder is in use by another process
-                    _logger.Error($"Cannot enable mod {sha} - folder is in use: {ioEx.Message}", "ModFileService", ioEx);
-                    throw new Core.Models.ModException(
-                        ErrorCodes.MOD_FOLDER_IN_USE,
-                        $"Cannot enable mod - the folder is currently in use by another process. Please close any programs accessing: {disabledDirectory}",
-                        ioEx,
-                        new { sha, path = disabledDirectory });
-                }
                 catch (UnauthorizedAccessException authEx)
                 {
-                    // Access denied
+                    // Don't retry permission errors
                     _logger.Error($"Access denied when enabling mod {sha}: {authEx.Message}", "ModFileService", authEx);
                     throw new Core.Models.ModException(
                         ErrorCodes.FILE_ACCESS_DENIED,
@@ -148,51 +166,57 @@ public class ModFileService : IModFileService
                         authEx,
                         new { sha, path = disabledDirectory });
                 }
-            }
+            }, sha, "enable from cache").ConfigureAwait(false);
+        }
 
-            // Extract archive using ArchiveService (with type detection)
-            if (Directory.Exists(targetDirectory))
+        // Extract archive - also with retry for transient locks
+        return await RetryOperationAsync(async () =>
+        {
+            try
             {
-                Directory.Delete(targetDirectory, true);
-            }
-
-            var extractionResult = await _archiveService.ExtractArchiveAsync(archivePath, targetDirectory).ConfigureAwait(false);
-
-            if (extractionResult.Success)
-            {
-                _logger.Info($"Loaded mod: {sha} ({extractionResult.FileCount} files)", "ModFileService");
-
-                // Update mod Type in database if detected and different from stored
-                if (!string.IsNullOrEmpty(extractionResult.DetectedType))
+                // Clear target directory if it exists
+                if (Directory.Exists(targetDirectory))
                 {
-                    await UpdateModTypeIfNeededAsync(sha, extractionResult.DetectedType).ConfigureAwait(false);
+                    Directory.Delete(targetDirectory, true);
+                    await Task.Delay(100).ConfigureAwait(false); // Brief delay after delete
                 }
 
-                return true;
+                var extractionResult = await _archiveService.ExtractArchiveAsync(archivePath, targetDirectory).ConfigureAwait(false);
+
+                if (extractionResult.Success)
+                {
+                    _logger.Info($"Loaded mod: {sha} ({extractionResult.FileCount} files)", "ModFileService");
+
+                    // Update mod Type in database if detected and different from stored
+                    if (!string.IsNullOrEmpty(extractionResult.DetectedType))
+                    {
+                        await UpdateModTypeIfNeededAsync(sha, extractionResult.DetectedType).ConfigureAwait(false);
+                    }
+
+                    return true;
+                }
+                else
+                {
+                    throw new Core.Models.ModException(
+                        ErrorCodes.MOD_EXTRACTION_FAILED,
+                        "Failed to extract mod archive. The file may be corrupted or in an unsupported format.",
+                        new { sha, archivePath });
+                }
             }
-            else
+            catch (Core.Models.ModException)
             {
-                throw new Core.Models.ModException(
-                    ErrorCodes.MOD_EXTRACTION_FAILED,
-                    "Failed to extract mod archive. The file may be corrupted or in an unsupported format.",
-                    new { sha, archivePath });
+                throw; // Don't wrap ModExceptions
             }
-        }
-        catch (Core.Models.ModException)
-        {
-            // Re-throw ModException as-is for proper error handling
-            throw;
-        }
-        catch (Exception ex)
-        {
-            // Wrap unknown exceptions in ModException
-            _logger.Error($"Unexpected error loading mod {sha}: {ex.Message}", "ModFileService", ex);
-            throw new Core.Models.ModException(
-                ErrorCodes.UNKNOWN_ERROR,
-                $"An unexpected error occurred while loading the mod: {ex.Message}",
-                ex,
-                new { sha, exceptionType = ex.GetType().Name });
-        }
+            catch (UnauthorizedAccessException authEx)
+            {
+                // Don't retry permission errors
+                throw new Core.Models.ModException(
+                    ErrorCodes.FILE_ACCESS_DENIED,
+                    $"Access denied when extracting mod. Please run with appropriate permissions.",
+                    authEx,
+                    new { sha, path = targetDirectory });
+            }
+        }, sha, "extract").ConfigureAwait(false);
     }
 
     /// <summary>
@@ -231,44 +255,61 @@ public class ModFileService : IModFileService
 
     /// <summary>
     /// Unload a mod by renaming its cache directory to DISABLED-{SHA} (disables cache)
+    ///
+    /// CONCURRENCY: Uses operation queue to prevent concurrent operations on same mod
+    /// RETRY: Automatically retries on transient IOException (file/folder locks)
     /// </summary>
     public async Task<bool> UnloadAsync(string sha)
     {
-        try
+        // Queue operation to prevent concurrent load/unload on same mod
+        return await _operationQueue.EnqueueAsync(sha, async () =>
         {
-            var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
-            if (!Directory.Exists(cacheDirectory))
-            {
-                _logger.Warn($"Mod not loaded: {sha}", "ModFileService");
-                return false;
-            }
+            return await UnloadInternalAsync(sha).ConfigureAwait(false);
+        }).ConfigureAwait(false);
+    }
 
-            // Rename to DISABLED-{SHA} instead of deleting (disables cache for fast re-enable)
-            var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
-            if (Directory.Exists(disabledDirectory))
-            {
-                Directory.Delete(disabledDirectory, true);
-            }
+    /// <summary>
+    /// Internal unload without operation queue (used when already holding category lock)
+    /// CRITICAL: Only call this when you already hold the category lock to prevent deadlock
+    /// Use case: LoadInternalAsync needs to unload other mods while holding category lock
+    /// </summary>
+    public async Task<bool> UnloadWithoutLockAsync(string sha)
+    {
+        return await UnloadInternalAsync(sha).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// Internal unload implementation with retry logic for transient errors
+    /// </summary>
+    private async Task<bool> UnloadInternalAsync(string sha)
+    {
+        var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+        if (!Directory.Exists(cacheDirectory))
+        {
+            _logger.Warn($"Mod not loaded: {sha}", "ModFileService");
+            return false;
+        }
+
+        var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
+
+        return await RetryOperationAsync(async () =>
+        {
             try
             {
+                // Clear disabled directory if it exists
+                if (Directory.Exists(disabledDirectory))
+                {
+                    Directory.Delete(disabledDirectory, true);
+                    await Task.Delay(100).ConfigureAwait(false); // Brief delay after delete
+                }
+
                 Directory.Move(cacheDirectory, disabledDirectory);
                 _logger.Info($"Unloaded mod (disabled cache): {sha}", "ModFileService");
-                return await Task.FromResult(true).ConfigureAwait(false);
-            }
-            catch (IOException ioEx)
-            {
-                // Folder is in use by another process
-                _logger.Error($"Cannot unload mod {sha} - folder is in use: {ioEx.Message}", "ModFileService", ioEx);
-                throw new Core.Models.ModException(
-                    ErrorCodes.MOD_FOLDER_IN_USE,
-                    $"Cannot unload mod - the folder is currently in use by another process. Please close any programs accessing: {cacheDirectory}",
-                    ioEx,
-                    new { sha, path = cacheDirectory });
+                return true;
             }
             catch (UnauthorizedAccessException authEx)
             {
-                // Access denied
+                // Don't retry permission errors
                 _logger.Error($"Access denied when unloading mod {sha}: {authEx.Message}", "ModFileService", authEx);
                 throw new Core.Models.ModException(
                     ErrorCodes.FILE_ACCESS_DENIED,
@@ -276,22 +317,57 @@ public class ModFileService : IModFileService
                     authEx,
                     new { sha, path = cacheDirectory });
             }
-        }
-        catch (Core.Models.ModException)
+        }, sha, "disable to cache").ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retry an operation with exponential backoff for transient IOException
+    /// Retries on IOException (file/folder locks), but not on ModException or UnauthorizedAccessException
+    /// </summary>
+    private async Task<T> RetryOperationAsync<T>(Func<Task<T>> operation, string sha, string operationName)
+    {
+        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++)
         {
-            // Re-throw ModException for proper error handling
-            throw;
+            try
+            {
+                return await operation().ConfigureAwait(false);
+            }
+            catch (Core.Models.ModException)
+            {
+                // Don't retry known mod exceptions (they're handled by caller)
+                throw;
+            }
+            catch (IOException ioEx) when (attempt < MAX_RETRY_ATTEMPTS)
+            {
+                // Retry on IOException (file/folder lock) with exponential backoff
+                var delayMs = RETRY_DELAY_MS * attempt;
+                _logger.Warn($"Retry {attempt}/{MAX_RETRY_ATTEMPTS} for {operationName} on mod {sha} after {delayMs}ms (error: {ioEx.Message})", "ModFileService");
+                await Task.Delay(delayMs).ConfigureAwait(false);
+            }
+            catch (IOException ioEx) when (attempt == MAX_RETRY_ATTEMPTS)
+            {
+                // Final attempt failed - throw ModException
+                _logger.Error($"Failed {operationName} on mod {sha} after {MAX_RETRY_ATTEMPTS} attempts: {ioEx.Message}", "ModFileService", ioEx);
+                throw new Core.Models.ModException(
+                    ErrorCodes.MOD_FOLDER_IN_USE,
+                    $"Cannot {operationName} - the folder is in use by another process after {MAX_RETRY_ATTEMPTS} retry attempts. Please close any programs accessing the mod folder.",
+                    ioEx,
+                    new { sha, operation = operationName, attempts = MAX_RETRY_ATTEMPTS });
+            }
+            catch (Exception ex)
+            {
+                // Unexpected error - wrap and throw immediately
+                _logger.Error($"Unexpected error during {operationName} on mod {sha}: {ex.Message}", "ModFileService", ex);
+                throw new Core.Models.ModException(
+                    ErrorCodes.UNKNOWN_ERROR,
+                    $"An unexpected error occurred during {operationName}: {ex.Message}",
+                    ex,
+                    new { sha, operation = operationName, exceptionType = ex.GetType().Name });
+            }
         }
-        catch (Exception ex)
-        {
-            // Wrap unknown exceptions in ModException
-            _logger.Error($"Unexpected error unloading mod {sha}: {ex.Message}", "ModFileService", ex);
-            throw new Core.Models.ModException(
-                ErrorCodes.UNKNOWN_ERROR,
-                $"An unexpected error occurred while unloading the mod: {ex.Message}",
-                ex,
-                new { sha, exceptionType = ex.GetType().Name });
-        }
+
+        // Should never reach here
+        throw new InvalidOperationException($"Retry loop completed without returning for {operationName} on {sha}");
     }
 
     /// <summary>

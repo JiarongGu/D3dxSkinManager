@@ -9,8 +9,8 @@ import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { eventBus, Module, WorkflowEventType } from '../../../../shared/services/eventBus';
 import { refreshMods } from '../../../mod/operations/modOperations';
-import { systemService } from '../../../../shared/services/systemService';
-import { workflowService } from '../../services/workflowService';
+import { systemService } from '../../../../shared/services/ipc';
+import { workflowService } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import './ModImportWorkflowScreen.css';
 

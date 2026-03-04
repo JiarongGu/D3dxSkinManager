@@ -27,7 +27,6 @@ import {
   ModImportWorkflowContext,
   ModImportWorkflowSteps,
 } from "../../types/workflow.types";
-import { workflowService } from "../../services/workflowService";
 import { handleError } from "../../../../shared/utils/errorHandler";
 import {
   ModImportMetadataDialog,
@@ -35,6 +34,8 @@ import {
 } from "./ModImportMetadataDialog";
 import "./ModImportWorkflowTable.css";
 import { CompactButton } from "../../../../shared/components/compact";
+import { parseWorkflowError, getErrorI18nKey } from "../../utils/errorParser";
+import { workflowService } from "../../../../shared/services/ipc";
 
 interface ModImportWorkflowTableProps {
   workflows: WorkflowInfo[];
@@ -428,9 +429,35 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         return statusPriority[a.workflow.status] - statusPriority[b.workflow.status];
       },
       showSorterTooltip: false,
-      render: (statusText: string, row: WorkflowTableRow) => (
-        <Tag color={getStatusColor(row.workflow.status)}>{statusText}</Tag>
-      ),
+      render: (statusText: string, row: WorkflowTableRow) => {
+        const tag = <Tag color={getStatusColor(row.workflow.status)}>{statusText}</Tag>;
+
+        // Show error message in tooltip for failed workflows
+        if (row.workflow.status === WorkflowStatus.Failed && row.workflow.errorMessage) {
+          // Parse error message and get translated text
+          const parsedError = parseWorkflowError(row.workflow.errorMessage);
+          const i18nKey = getErrorI18nKey(parsedError.code);
+
+          // Try to translate with parameters, fallback to original message if translation missing
+          const errorMessage = t(i18nKey, {
+            ...parsedError.parameters,
+            defaultValue: parsedError.fallbackMessage
+          });
+
+          return (
+            <Tooltip
+              title={errorMessage}
+              placement="bottom"
+              overlayStyle={{ maxWidth: 'calc(100vw - 200px)' }}
+              overlayInnerStyle={{ whiteSpace: 'normal' }}
+            >
+              {tag}
+            </Tooltip>
+          );
+        }
+
+        return tag;
+      },
     },
     {
       title: t("workflow.queue.progress"),
@@ -536,19 +563,6 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
                 />
               </Tooltip>
             )}
-
-            {/* Error message - show when failed */}
-            {workflow.status === WorkflowStatus.Failed &&
-              workflow.errorMessage && (
-                <Tooltip title={t("workflow.queue.viewError")}>
-                  <Button
-                    size="small"
-                    shape="default"
-                    icon={<ExclamationCircleOutlined />}
-                    danger
-                  />
-                </Tooltip>
-              )}
           </Space>
         );
       },

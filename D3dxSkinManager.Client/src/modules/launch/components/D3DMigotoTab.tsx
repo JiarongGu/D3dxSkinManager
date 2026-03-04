@@ -1,4 +1,3 @@
-import { notification } from '../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
 import { Form, Select, Alert, Spin, Row, Col } from 'antd';
 import {
@@ -7,15 +6,16 @@ import {
   PlayCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+
 import { CompactButton, CompactCard, CompactSpace, CompactDivider } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs';
-import { fileDialogService } from '../../../shared/services/systemService';
-import { profileService } from '../../profile/services/profileService';
-import { launchService, D3DMigotoVersion } from '../services/launchService';
+import { systemService } from '../../../shared/services/ipc';
+import { launchService, D3DMigotoVersion, profileService } from '../../../shared/services/ipc';
 import { useProfile } from '../../../shared/context/ProfileContext';
-import { useTranslation } from 'react-i18next';
-import './D3DMigotoTab.css';
+import { notification } from '../../../shared/utils/notification';
 import logger from '../../../shared/utils/logger';
+import './D3DMigotoTab.css';
 
 const { Option } = Select;
 
@@ -96,12 +96,12 @@ export const D3DMigotoTab: React.FC = () => {
     try {
       // TODO: Get work directory path from profile configuration
       // For now, let user browse for the directory
-      const result = await fileDialogService.openFolderDialog({
+      const result = await systemService.openFolderDialog({
         title: t('launch.d3dmigoto.selectWorkDir'),
       });
 
       if (result.success && result.filePath) {
-        await fileDialogService.openDirectory(result.filePath);
+        await systemService.openDirectory(result.filePath);
         notification.success(t('launch.d3dmigoto.openedWorkDir'));
       }
     } catch (error: unknown) {

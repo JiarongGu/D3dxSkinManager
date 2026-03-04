@@ -75,7 +75,7 @@ export const ModHierarchicalView: React.FC = () => {
     const load = async () => {
       if (!profileState.selectedProfile?.id) return;
       try {
-        const { modService } = await import("../services/modService");
+        const { modService } = await import("../../../shared/services/ipc");
         const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
         setUnclassifiedCount(count);
       } catch (error: unknown) {
@@ -90,7 +90,7 @@ export const ModHierarchicalView: React.FC = () => {
     const load = async () => {
       if (!profileState.selectedProfile?.id) return;
       try {
-        const { modService } = await import("../services/modService");
+        const { modService } = await import("../../../shared/services/ipc");
         const tags = await modService.getTags(profileState.selectedProfile.id);
         setAvailableTags(tags);
       } catch (error: unknown) {
@@ -108,7 +108,7 @@ export const ModHierarchicalView: React.FC = () => {
     // Reload unclassified count
     if (profileState.selectedProfile?.id) {
       try {
-        const { modService } = await import("../services/modService");
+        const { modService } = await import("../../../shared/services/ipc");
         const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
         setUnclassifiedCount(count);
       } catch (error: unknown) {

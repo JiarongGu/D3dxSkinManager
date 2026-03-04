@@ -1,4 +1,4 @@
-import { BaseModuleService } from '../../../shared/services/baseModuleService';
+import { BaseModuleService } from '../baseModuleService';
 
 export interface D3DMigotoVersion {
   name: string;
@@ -14,7 +14,7 @@ export interface DeploymentResult {
   error?: string;
 }
 
-class LaunchService extends BaseModuleService {
+export class LaunchService extends BaseModuleService {
   constructor() {
     super('LAUNCH');
   }
@@ -48,5 +48,3 @@ class LaunchService extends BaseModuleService {
     });
   }
 }
-
-export const launchService = new LaunchService();

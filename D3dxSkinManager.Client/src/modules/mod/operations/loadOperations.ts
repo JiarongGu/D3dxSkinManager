@@ -3,10 +3,10 @@
  */
 
 import { useModsStore } from '../store/modsStore';
-import { modService } from '../services/modService';
 import { notification } from '../../../shared/utils/notification';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { refreshMods } from './modOperations';
+import { modService } from '../../../shared/services/ipc';
 
 /**
  * Load a mod in-game with optimistic updates

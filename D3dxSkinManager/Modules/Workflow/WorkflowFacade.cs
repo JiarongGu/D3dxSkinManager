@@ -60,6 +60,7 @@ public class WorkflowFacade : IWorkflowFacade
                 "UPDATE_WORKFLOW_CONTEXT" => await UpdateWorkflowContextAsync(request),
                 "PAUSE_WORKFLOW" => await PauseWorkflowAsync(request),
                 "RESUME_WORKFLOW" => await ResumeWorkflowAsync(request),
+                "CONTINUE_WORKFLOW" => await ContinueWorkflowAsync(request),
 
                 // Batch operations
                 "BATCH_DELETE_WORKFLOWS" => await BatchDeleteWorkflowsAsync(request),
@@ -167,6 +168,22 @@ public class WorkflowFacade : IWorkflowFacade
         // Route to appropriate handler based on workflow type
         var handler = GetHandler(workflow.Type);
         return await handler.ResumeFromCurrentStepAsync(workflowId);
+    }
+
+    private async Task<Models.WorkflowInfo> ContinueWorkflowAsync(IpcRequest request)
+    {
+        var workflowId = request.Payload?.ToString();
+        if (string.IsNullOrEmpty(workflowId))
+            throw new ArgumentException("Workflow ID is required");
+
+        var workflow = await _workflowRepository.GetByIdAsync(workflowId);
+        if (workflow == null)
+            throw new InvalidOperationException($"Workflow not found: {workflowId}");
+
+        // Route to appropriate handler based on workflow type
+        // ContinueAsync is specifically for workflows in WaitingForInput status
+        var handler = GetHandler(workflow.Type);
+        return await handler.ContinueAsync(workflowId);
     }
 
     private async Task<Models.WorkflowInfo> PauseWorkflowAsync(IpcRequest request)

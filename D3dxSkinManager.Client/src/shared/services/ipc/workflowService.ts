@@ -1,5 +1,5 @@
-import { BaseModuleService } from '../../../shared/services/baseModuleService';
-import type { WorkflowInfo } from '../types/workflow.types';
+import { BaseModuleService } from '../baseModuleService';
+import type { WorkflowInfo } from '../../../modules/workflow/types/workflow.types';
 
 export interface BatchOperationResult {
   totalRequested: number;
@@ -14,7 +14,7 @@ export interface BatchOperationResult {
  * Workflow service for IPC communication with backend
  * Profile-scoped service for workflow operations
  */
-class WorkflowService extends BaseModuleService {
+export class WorkflowService extends BaseModuleService {
   constructor() {
     super('WORKFLOW');
   }
@@ -66,10 +66,11 @@ class WorkflowService extends BaseModuleService {
   }
 
   /**
-   * Continue workflow to next step (alias for resumeWorkflow)
+   * Continue workflow to next step (for workflows waiting for user input)
+   * Different from resumeWorkflow - specifically for WaitingForInput status
    */
   async continueWorkflow(profileId: string, workflowId: string): Promise<WorkflowInfo> {
-    return this.resumeWorkflow(profileId, workflowId);
+    return this.sendMessage<WorkflowInfo>('CONTINUE_WORKFLOW', profileId, workflowId);
   }
 
   /**
@@ -151,5 +152,3 @@ class WorkflowService extends BaseModuleService {
     return workflows;
   }
 }
-
-export const workflowService = new WorkflowService();

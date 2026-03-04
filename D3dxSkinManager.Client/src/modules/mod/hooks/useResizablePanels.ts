@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { settingsService } from '../../setting/services/settingsService';
+
 import { useModsStore } from '../store/modsStore';
+import { settingsService } from '../../../shared/services/ipc';
 
 interface PanelSizes {
   categoryWidth: number; // percentage

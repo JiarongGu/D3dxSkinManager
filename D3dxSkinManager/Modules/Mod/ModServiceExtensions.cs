@@ -22,6 +22,8 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<ITagRepository, TagRepository>();
 
         //// Register domain services
+        services.TryAddSingleton<IModOperationQueue, ModOperationQueue>(); // Operation queue for load/unload concurrency control
+        services.TryAddSingleton<IModCacheWatcher, ModCacheWatcher>(); // File system watcher for cache directory changes
         services.TryAddSingleton<IModFileService, ModFileService>();
         services.TryAddSingleton<IModManagementService, ModManagementService>();
         services.TryAddSingleton<IModImportService, ModImportService>();

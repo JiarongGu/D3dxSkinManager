@@ -2,7 +2,7 @@
  * Settings Service - Handles global settings storage via backend
  */
 
-import { bridgeService } from '../../../shared/services/bridgeService';
+import { bridgeService } from '../bridgeService';
 
 export interface ModTabSettings {
   panelSize: string; // Format: "categoryWidth modListWidth" (e.g., "25 40")
@@ -27,7 +27,7 @@ export interface SettingsUpdateResult {
   settings?: GlobalSettings;
 }
 
-class SettingsService {
+export class SettingsService {
   /**
    * Get global settings from backend
    */
@@ -96,5 +96,3 @@ class SettingsService {
     });
   }
 }
-
-export const settingsService = new SettingsService();

@@ -11,7 +11,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { GlobalSettings } from '../services/settingsService';
+import { GlobalSettings } from '../../../shared/services/ipc';
 
 // ============================================================================
 // State Interface

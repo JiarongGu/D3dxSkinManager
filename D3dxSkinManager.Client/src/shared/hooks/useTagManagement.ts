@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { debounce } from "lodash-es";
 import type { Color } from "antd/es/color-picker";
 import { Tag } from "../types/mod.types";
-import { modService } from "../../modules/mod/services/modService";
+import { modService } from "../services/ipc";
 import { handleError } from "../utils/errorHandler";
 import { notification } from "../utils/notification";
 

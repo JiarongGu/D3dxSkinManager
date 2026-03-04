@@ -28,7 +28,6 @@ export function useMods() {
 
   const operations = {
     // Mod operations
-    loadMods: () => selectedProfileId && modOps.loadMods(selectedProfileId),
     refreshMods: () => selectedProfileId && modOps.refreshMods(selectedProfileId),
     updateMod: (sha: string, data: Partial<ModInfo>) =>
       selectedProfileId && modOps.updateMod(selectedProfileId, sha, data),

@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Tooltip } from "antd";
 import type { TooltipPlacement } from "antd/es/tooltip";
-import { settingsService } from "../../../modules/setting/services/settingsService";
-
+import { settingsService } from "../../services/ipc";
 /**
  * Annotation levels for tooltips
  * - all: Show all tooltips (levels 1, 2, 3)
@@ -337,13 +336,13 @@ export const annotations = {
 export const getAnnotationLevelLabel = (level: AnnotationLevel): string => {
   switch (level) {
     case "all":
-      return "All (È«²¿)";
+      return "All (È«ï¿½ï¿½)";
     case "more":
-      return "More (½Ï¶à)";
+      return "More (ï¿½Ï¶ï¿½)";
     case "less":
-      return "Less (½ÏÉÙ)";
+      return "Less (ï¿½ï¿½ï¿½ï¿½)";
     case "off":
-      return "Off (¹Ø±Õ)";
+      return "Off (ï¿½Ø±ï¿½)";
     default:
       return "All";
   }

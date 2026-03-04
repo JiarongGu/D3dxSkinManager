@@ -1,4 +1,4 @@
-import { BaseModuleService } from '../../../shared/services/baseModuleService';
+import { BaseModuleService } from '../baseModuleService';
 
 export enum ValidationSeverity {
   Info = 'Info',
@@ -21,7 +21,7 @@ export interface StartupValidationReport {
   infoCount: number;
 }
 
-class ValidationService extends BaseModuleService {
+export class ValidationService extends BaseModuleService {
   constructor() {
     super('TOOL');
   }
@@ -30,5 +30,3 @@ class ValidationService extends BaseModuleService {
     return this.sendMessage<StartupValidationReport>('VALIDATE_STARTUP');
   }
 }
-
-export const validationService = new ValidationService();

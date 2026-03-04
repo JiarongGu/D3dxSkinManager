@@ -1,8 +1,8 @@
-﻿import { BaseModuleService } from '../../../shared/services/baseModuleService';
-import { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest } from '../../../shared/types/mod.types';
+import { BaseModuleService } from '../baseModuleService';
+import { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest, ModStatistics } from '../../types/mod.types';
 
 // Re-export types for backwards compatibility
-export type { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest };
+export type { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest, ModStatistics };
 
 /**
  * Service for mod management operations
@@ -14,7 +14,7 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Get all available mods
+   * Get all available mods (not used in category-based workflow, kept for api reference)
    */
   async getAllMods(profileId: string): Promise<ModInfo[]> {
     return this.sendArrayMessage<ModInfo>('GET_ALL', profileId);
@@ -57,6 +57,13 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Delete mod cache (both active and disabled cache folders)
+   */
+  async deleteCache(profileId: string, sha: string): Promise<boolean> {
+    return this.sendBooleanMessage('DELETE_CACHE', profileId, { sha });
+  }
+
+  /**
    * Export a mod to a file
    */
   async exportMod(profileId: string, sha: string, targetPath: string): Promise<boolean> {
@@ -89,6 +96,13 @@ export class ModService extends BaseModuleService {
    */
   async getAuthors(profileId: string): Promise<string[]> {
     return this.sendArrayMessage<string>('GET_AUTHORS', profileId);
+  }
+
+  /**
+   * Get mod statistics (total mods, loaded mods, etc.)
+   */
+  async getStatistics(profileId: string): Promise<ModStatistics> {
+    return this.sendMessage<ModStatistics>('GET_STATISTICS', profileId);
   }
 
   /**
@@ -330,5 +344,3 @@ export class ModService extends BaseModuleService {
     return this.sendArrayMessage<ModKeybinding>('GET_KEYBINDINGS', profileId, { sha });
   }
 }
-
-export const modService = new ModService();

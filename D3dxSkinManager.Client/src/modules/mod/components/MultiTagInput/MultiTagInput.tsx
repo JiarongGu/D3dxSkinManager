@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Select, Tag } from "antd";
-import { modService } from "../../services/modService";
+import { modService } from "../../../../shared/services/ipc";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import type { Tag as TagType } from "../../../../shared/types/mod.types";
 import "./MultiTagInput.css";

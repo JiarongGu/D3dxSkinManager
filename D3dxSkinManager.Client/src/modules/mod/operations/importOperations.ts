@@ -3,12 +3,12 @@
  */
 
 import { useModsStore } from '../store/modsStore';
-import { modService } from '../services/modService';
 import { ImportTask } from '../types/importTask.types';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { notification } from '../../../shared/utils/notification';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { refreshMods } from './modOperations';
+import { modService } from '../../../shared/services/ipc';
 
 /**
  * Add import task to queue

@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useProfile } from '../../../../shared/context/ProfileContext';
-import { workflowService } from '../../services/workflowService';
+import { workflowService } from '../../../../shared/services/ipc';
 import { eventBus, Module, WorkflowEventType } from '../../../../shared/services/eventBus';
 import type { WorkflowInfo } from '../../types/workflow.types';
 import { handleError } from '../../../../shared/utils/errorHandler';

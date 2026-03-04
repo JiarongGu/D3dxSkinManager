@@ -1,10 +1,10 @@
-import { BaseModuleService } from './baseModuleService';
-import { LanguageSettings } from '../types/language.types';
+import { BaseModuleService } from '../baseModuleService';
+import { LanguageSettings } from '../../types/language.types';
 
 /**
  * Service for managing language/i18n operations
  */
-class LanguageService extends BaseModuleService {
+export class LanguageService extends BaseModuleService {
   constructor() {
     super('SETTING');
   }
@@ -68,5 +68,3 @@ class LanguageService extends BaseModuleService {
     }
   }
 }
-
-export const languageService = new LanguageService();

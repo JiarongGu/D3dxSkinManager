@@ -6,10 +6,10 @@ import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactAlert, CompactCard, CompactSpace, CompactDivider } from '../../../../../shared/components/compact';
 import { usePythonMigrationTool } from '../context/PythonMigrationToolContext';
 import { migrationService } from '../services/migrationService';
-import { fileDialogService } from '../../../../../shared/services/systemService';
 import { useProfile } from '../../../../../shared/context/ProfileContext';
 import { notification } from '../../../../../shared/utils/notification';
 import './DetectionStep.css';
+import { systemService } from '../../../../../shared/services/ipc';
 
 /**
  * Step 1: Detection
@@ -32,7 +32,7 @@ export const DetectionStep: React.FC = () => {
    */
   const handleBrowse = async () => {
     try {
-      const result = await fileDialogService.openFolderDialog({
+      const result = await systemService.openFolderDialog({
         title: t('migration.detection.selectPythonDir'),
         defaultPath: 'E:\\Games',
         rememberPathKey: 'migration-python-install',

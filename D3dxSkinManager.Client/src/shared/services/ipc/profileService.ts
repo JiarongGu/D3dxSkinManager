@@ -1,11 +1,11 @@
-import { BaseModuleService } from '../../../shared/services/baseModuleService';
+import { BaseModuleService } from '../baseModuleService';
 import {
   Profile,
   CreateProfileRequest,
   UpdateProfileRequest,
   ProfileSwitchResult,
   ProfileListResponse
-} from '../../../shared/types/profile.types';
+} from '../../types/profile.types';
 
 /**
  * Mod Cache Configuration Model
@@ -29,7 +29,7 @@ export interface ProfileConfiguration {
  * Service for managing mod management profiles
  * Provides type-safe communication with the PROFILE module backend
  */
-class ProfileService extends BaseModuleService {
+export class ProfileService extends BaseModuleService {
   constructor() {
     super('PROFILE');
   }
@@ -140,6 +140,3 @@ class ProfileService extends BaseModuleService {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   }
 }
-
-// Export singleton instance
-export const profileService = new ProfileService();

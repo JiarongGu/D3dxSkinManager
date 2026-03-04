@@ -15,6 +15,10 @@ import {
   PlayCircleOutlined,
   ToolOutlined,
   BulbOutlined,
+  InfoCircleOutlined,
+  GithubOutlined,
+  CopyrightOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import classNames from 'classnames';
 import './HelpWindow.css';
@@ -30,7 +34,8 @@ type HelpSection =
   | 'tags'
   | 'launch'
   | 'tools'
-  | 'tips';
+  | 'tips'
+  | 'about';
 
 export const HelpWindow: React.FC = () => {
   const [activeSection, setActiveSection] = useState<HelpSection>('quickstart');
@@ -46,6 +51,7 @@ export const HelpWindow: React.FC = () => {
     { key: 'launch', label: 'Game Launch', icon: <PlayCircleOutlined /> },
     { key: 'tools', label: 'Tools & Utilities', icon: <ToolOutlined /> },
     { key: 'tips', label: 'Tips & Best Practices', icon: <BulbOutlined /> },
+    { key: 'about', label: 'About', icon: <InfoCircleOutlined /> },
   ];
 
   // Content for Quick Start section
@@ -658,6 +664,102 @@ export const HelpWindow: React.FC = () => {
     </Space>
   );
 
+  // Content for About section
+  const aboutContent = (
+    <Space className="help-window-content" vertical size="large">
+      <Alert
+        type="info"
+        showIcon
+        icon={<InfoCircleOutlined />}
+        description={
+          <>
+            <strong>d3dx Skin Manager v2.0</strong>
+            <br />
+            Modern mod management for 3DMigoto-compatible games
+          </>
+        }
+      />
+
+      <div>
+        <Title level={4}>Version Information</Title>
+        <Space>
+          <Tag color="blue">Version 2.0.0</Tag>
+          <Tag>Build: 2026-02-17</Tag>
+        </Space>
+      </div>
+
+      <div>
+        <Title level={4}>
+          <LinkOutlined /> Tech Stack
+        </Title>
+        <Space wrap>
+          <Tag color="geekblue">React 19</Tag>
+          <Tag color="blue">TypeScript</Tag>
+          <Tag color="purple">.NET 10</Tag>
+          <Tag color="cyan">Ant Design v6</Tag>
+          <Tag color="green">WebView2</Tag>
+          <Tag color="orange">SQLite</Tag>
+        </Space>
+      </div>
+
+      <div>
+        <Title level={4}>Key Features</Title>
+        <ul className="help-window-list">
+          <li>Hierarchical category tree with GUID-based organization</li>
+          <li>Plugin architecture supporting multiple games and mod formats</li>
+          <li>Real-time search with negation and advanced filtering</li>
+          <li>Batch operations and workflow-based import queue</li>
+          <li>Annotation system for content ratings and filtering</li>
+          <li>Keyboard shortcuts for power users</li>
+          <li>Mod warehouse with tag management and color coding</li>
+        </ul>
+      </div>
+
+      <div>
+        <Title level={4}>
+          <CopyrightOutlined /> Credits
+        </Title>
+        <Space direction="vertical" size="small">
+          <Paragraph>
+            <strong>Original Python Version:</strong> Based on community-driven Python mod manager
+          </Paragraph>
+          <Paragraph>
+            <strong>Refactored UI:</strong> React 19 + .NET 10 + WebView2 architecture
+          </Paragraph>
+          <Paragraph>
+            <strong>3DMigoto:</strong> Graphics framework for modding DirectX games
+          </Paragraph>
+        </Space>
+      </div>
+
+      <div>
+        <Title level={4}>
+          <GithubOutlined /> Resources
+        </Title>
+        <Space direction="vertical">
+          <Paragraph>
+            <strong>GitHub:</strong> Source code and issue tracking
+          </Paragraph>
+          <Paragraph>
+            <strong>Documentation:</strong> Comprehensive guides and API reference
+          </Paragraph>
+          <Paragraph>
+            <strong>3DMigoto:</strong> Official 3DMigoto documentation and downloads
+          </Paragraph>
+        </Space>
+      </div>
+
+      <div>
+        <Title level={4}>License</Title>
+        <Paragraph type="secondary">
+          Released under open source license.
+          <br />
+          © 2026 d3dx Skin Manager Contributors
+        </Paragraph>
+      </div>
+    </Space>
+  );
+
   // Render content based on active section
   const renderContent = () => {
     switch (activeSection) {
@@ -679,6 +781,8 @@ export const HelpWindow: React.FC = () => {
         return toolsContent;
       case 'tips':
         return tipsContent;
+      case 'about':
+        return aboutContent;
       default:
         return quickStartContent;
     }

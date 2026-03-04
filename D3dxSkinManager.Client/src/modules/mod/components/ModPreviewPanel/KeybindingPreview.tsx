@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Empty, Spin, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { ModKeybinding } from '../../../../shared/types/mod.types';
-import { modService } from '../../services/modService';
+import { modService } from '../../../../shared/services/ipc';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import './KeybindingPreview.css';
 

@@ -5,46 +5,35 @@
 
 import { debounce } from 'lodash-es';
 import { useModsStore } from '../store/modsStore';
-import { modService } from '../services/modService';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { notification } from '../../../shared/utils/notification';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
-
-/**
- * Load all mods for a profile
- * Uses delayed loading (100ms) to avoid flicker for fast loads
- */
-export async function loadMods(profileId: string): Promise<void> {
-  const { setModsLoading, setError, setMods } = useModsStore.getState();
-
-  setError(undefined);
-
-  try {
-    await executeWithDelayedLoading(
-      async () => {
-        const mods = await modService.getAllMods(profileId);
-        setMods(mods);
-      },
-      setModsLoading,
-      100
-    );
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to load mods';
-    setError(errorMessage);
-    handleError(error);
-  }
-}
+import { modService } from '../../../shared/services/ipc';
 
 /**
  * Internal refresh implementation
+ * Refreshes only the currently selected category view for efficiency
  */
 async function _refreshMods(profileId: string): Promise<void> {
-  await loadMods(profileId);
+  const { selectedCategory } = useModsStore.getState();
+
+  // If a category is selected, refresh only that category's mods
+  if (selectedCategory) {
+    const { loadModsByCategory, loadUncategorizedMods } = await import('./categoryOperations');
+
+    if (selectedCategory.id === 'UNCLASSIFIED') {
+      await loadUncategorizedMods(profileId);
+    } else {
+      await loadModsByCategory(profileId, selectedCategory.id);
+    }
+  }
+  // If no category selected, do nothing (user will see empty state)
 }
 
 /**
  * Refresh mods from backend (debounced 10ms to prevent mass IPC hits)
+ * Only refreshes the currently selected category view, not all mods
  */
 export const refreshMods = debounce(_refreshMods, 10);
 

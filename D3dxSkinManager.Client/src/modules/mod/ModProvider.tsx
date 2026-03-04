@@ -10,6 +10,7 @@ import { eventBus, ModEventType, CategoryEventType, MigrationEventType, Module }
 import { CATEGORY_IDS } from '../../shared/types/category.types';
 import * as modOps from './operations/modOperations';
 import * as categoryOps from './operations/categoryOperations';
+import * as statisticsOps from './operations/statisticsOperations';
 
 interface ModsProviderProps {
   children: React.ReactNode;
@@ -27,7 +28,7 @@ interface ModsProviderProps {
  * The mods module listens to profile changes and refreshes itself automatically.
  * Other components (like ProfileSwitcher) don't need to manually trigger refresh.
  */
-export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
+export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   const { selectedProfileId } = useProfile();
   const reset = useModsStore((state) => state.reset);
 
@@ -91,6 +92,12 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       void categoryOps.refreshCategoryTree(selectedProfileId);
     });
 
+    // Subscribe to cache changed event (external folder deletion/modification)
+    const unsubscribeModCacheChanged = eventBus.subscribe(Module.MOD, ModEventType.CACHE_CHANGED, () => {
+      // Refresh mod list to update IsLoaded status
+      handleModStateChange();
+    });
+
     const unsubscribeCategoryTreeUpdated = eventBus.subscribe(
       Module.CATEGORY,
       CategoryEventType.CATEGORY_TREE_UPDATED,
@@ -104,14 +111,14 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       Module.MIGRATION,
       MigrationEventType.COMPLETED,
       () => {
-        // Reload entire profile data after migration completes
-        // This ensures category counts are refreshed after migration
-        void Promise.all([
-          modOps.loadMods(selectedProfileId),
-          categoryOps.loadCategoryTree(selectedProfileId),
-        ]);
+        // Reload category tree after migration completes
+        // User can then select a category to view migrated mods
+        void categoryOps.loadCategoryTree(selectedProfileId);
       }
     );
+
+    // Subscribe to statistics events (load/unload/delete/import updates mod counts)
+    const unsubscribeStatistics = statisticsOps.subscribeToModStatisticsEvents(selectedProfileId);
 
     // Cleanup subscriptions on unmount or profile change
     return () => {
@@ -122,8 +129,10 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
       unsubscribeModDeleted();
       unsubscribeModMetadataUpdated();
       unsubscribeModCategoryUpdated();
+      unsubscribeModCacheChanged();
       unsubscribeCategoryTreeUpdated();
       unsubscribeMigrationCompleted();
+      unsubscribeStatistics();
     };
   }, [selectedProfileId]);
 
@@ -132,11 +141,11 @@ export const ModsProvider: React.FC<ModsProviderProps> = ({ children }) => {
     if (selectedProfileId) {
       // Reset state before loading new profile to clear old data
       reset();
-      // Load/refresh data for the new profile
-      void Promise.all([
-        modOps.loadMods(selectedProfileId),
-        categoryOps.loadCategoryTree(selectedProfileId),
-      ]);
+      // Load category tree for the new profile
+      // User will select a category to view mods (category-based workflow)
+      void categoryOps.loadCategoryTree(selectedProfileId);
+      // Load mod statistics for status bar
+      void statisticsOps.loadStatistics(selectedProfileId);
     } else {
       // Reset state when no profile is selected
       reset();

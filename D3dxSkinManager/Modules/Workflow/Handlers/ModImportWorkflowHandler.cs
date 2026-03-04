@@ -598,11 +598,30 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             // The CancelAsync method will handle cleanup and status updates
             _logger.Info($"Workflow {workflow.Id} was cancelled");
         }
+        catch (WorkflowException wex)
+        {
+            // Known workflow error with structured error code
+            _logger.Error($"Workflow step failed: {wex.Message}", "ModImportWorkflowHandler", wex);
+            workflow.Status = WorkflowStatus.Failed;
+            workflow.ErrorMessage = wex.GetStructuredErrorMessage();
+            workflow.CompletedAt = DateTime.UtcNow;
+            await _workflowRepository.UpdateAsync(workflow);
+
+            // Populate category name before emitting event
+            await PopulateCategoryNameInContextAsync(workflow);
+
+            // Emit failed event
+            await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
+        }
         catch (Exception ex)
         {
-            _logger.Error($"Workflow step failed: {ex.Message}", "ModImportWorkflowHandler", ex);
+            // Unknown error - wrap as UNKNOWN_ERROR
+            _logger.Error($"Workflow step failed with unexpected error: {ex.Message}", "ModImportWorkflowHandler", ex);
             workflow.Status = WorkflowStatus.Failed;
-            workflow.ErrorMessage = ex.Message;
+            workflow.ErrorMessage = WorkflowErrorHelper.CreateErrorMessage(
+                WorkflowErrorCodes.UNKNOWN_ERROR,
+                "message", ex.Message
+            );
             workflow.CompletedAt = DateTime.UtcNow;
             await _workflowRepository.UpdateAsync(workflow);
 
@@ -637,13 +656,19 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             if (!validation.IsValid)
             {
                 _logger.Error($"Invalid or unsupported file type: {validation.ErrorMessage}");
-                throw new InvalidOperationException($"Unsupported file type. Only archive files (ZIP, 7Z, RAR, TAR, GZIP, BZIP2) and folders are supported.");
+                throw new WorkflowException(
+                    WorkflowErrorCodes.MI_UNSUPPORTED_FILE_TYPE,
+                    message: "Unsupported file type"
+                );
             }
 
             if (validation.IsPasswordProtected)
             {
                 _logger.Error("Archive is password protected");
-                throw new InvalidOperationException("Password-protected archives are not supported. Please extract the archive manually and import the folder instead.");
+                throw new WorkflowException(
+                    WorkflowErrorCodes.MI_PASSWORD_PROTECTED,
+                    message: "Password-protected archive"
+                );
             }
 
             _logger.Info($"Archive validation successful. Type: {validation.DetectedType}");
@@ -734,11 +759,15 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             throw new InvalidOperationException("Folder path is required");
 
         if (!_fileHelper.DirectoryExists(context.FolderPath))
-            throw new InvalidOperationException($"Folder not found: {context.FolderPath}");
+            throw new WorkflowException(
+                WorkflowErrorCodes.MI_FOLDER_NOT_FOUND,
+                "path", context.FolderPath,
+                $"Folder not found: {context.FolderPath}"
+            );
 
         _logger.Info($"Compressing folder: {context.FolderPath}");
 
-        // Create temp archive in profile's temp directory (no extension, single purpose - 7z file)
+        // Create temp archive in profile's temp directory (ZIP format - SharpCompress only supports writing ZIP/TAR, not 7z)
         var tempPath = Path.Combine(_profilePathService.TempDirectory, TempFileConstants.GetModImportCompressTempName(Guid.NewGuid()));
 
         try
@@ -752,7 +781,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             await _archiveHelper.CompressFolderAsync(
                 context.FolderPath,
                 tempPath,
-                ArchiveFormat.SevenZip,
+                ArchiveFormat.Zip,
                 progressPercent =>
                 {
                     // Scale compression progress to 0-90% range
@@ -820,15 +849,15 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 File.Delete(tempPath);
             }
 
-            // Mark workflow as failed with duplicate error
+            // Mark workflow as failed with duplicate error and throw WorkflowException
             workflow.Status = WorkflowStatus.Failed;
-            workflow.ErrorMessage = $"This mod already exists in your library: \"{existingMod.Name}\"";
-            await _workflowRepository.UpdateAsync(workflow);
-
             await PopulateCategoryNameInContextAsync(workflow);
-            await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
 
-            throw new InvalidOperationException($"Duplicate mod: {existingMod.Name} (SHA: {archiveSha})");
+            throw new WorkflowException(
+                WorkflowErrorCodes.MI_DUPLICATE_MOD,
+                new Dictionary<string, string> { { "name", existingMod.Name } },
+                $"Duplicate mod: {existingMod.Name} (SHA: {archiveSha})"
+            );
         }
 
         // Update context - compression done, SHA verified, wait for user confirmation

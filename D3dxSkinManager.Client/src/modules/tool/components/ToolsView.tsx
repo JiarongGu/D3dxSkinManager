@@ -3,16 +3,12 @@ import { Row, Col, Space } from 'antd';
 import {
   CheckCircleOutlined,
   ImportOutlined,
-  DeleteOutlined,
   TagsOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
 import { StartupValidationTool } from './StartupValidationTool';
-import { CacheManagementTool } from './CacheManagementTool';
 import { TagManagementTool } from './TagManagementTool/TagManagementTool';
 import { PythonMigrationTool } from './PythonMigrationTool/PythonMigrationTool';
-import { useProfile } from '../../../shared/context/ProfileContext';
-import { loadMods } from '../../mod/operations/modOperations';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { CompactCard } from '../../../shared/components/compact';
 import './ToolsView.css';
@@ -31,20 +27,17 @@ interface ToolCardData {
  * Features:
  * - Startup Validation
  * - Python Migration
- * - Cache Management
  * - Tag Management
- * - Utilities
  */
 export const ToolsView: React.FC = () => {
-  const { selectedProfileId } = useProfile();
   const { openScreen } = useSlideInScreenContext();
   const [showMigrationTool, setShowMigrationTool] = React.useState(false);
 
+  // ModsProvider already handles migration completion events
+  // No need to manually refresh here
   const handleModsChanged = useCallback(() => {
-    if (selectedProfileId) {
-      loadMods(selectedProfileId);
-    }
-  }, [selectedProfileId]);
+    // No-op: ModsProvider handles this automatically
+  }, []);
 
   const tools: ToolCardData[] = [
     {
@@ -60,13 +53,6 @@ export const ToolsView: React.FC = () => {
       description: 'Migrate from Python version to React version',
       icon: <ImportOutlined />,
       content: null, // Special case - handled separately
-    },
-    {
-      key: 'cache-management',
-      title: 'Cache Management',
-      description: 'Manage mod cache files and cleanup unused data',
-      icon: <DeleteOutlined />,
-      content: <CacheManagementTool />,
     },
     {
       key: 'tag-management',

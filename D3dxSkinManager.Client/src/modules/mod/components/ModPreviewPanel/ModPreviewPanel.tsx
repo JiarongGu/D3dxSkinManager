@@ -33,8 +33,8 @@ import { ModPreviewProvider, useModView } from "./ModPreviewContext";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useModsStore } from "../../store/modsStore";
 import { useMods } from "../../hooks/useMods";
-import { modService } from "../../services/modService";
-import { fileDialogService } from "../../../../shared/services/systemService";
+import { modService } from "../../../../shared/services/ipc";
+import { systemService } from "../../../../shared/services/ipc";
 import "./ModPreviewPanel.css";
 
 const { Text, Paragraph, Title } = Typography;
@@ -194,7 +194,7 @@ export const ModPreviewPanelContent: React.FC = () => {
     try {
       const paths = await modService.checkFilePaths(selectedProfileId, mod.sha);
       if (paths.cachePath) {
-        await fileDialogService.openDirectory(paths.cachePath);
+        await systemService.openDirectory(paths.cachePath);
       } else {
         notification.warning(t("mods.preview.cacheFolderNotFound"));
       }
@@ -209,7 +209,7 @@ export const ModPreviewPanelContent: React.FC = () => {
     try {
       const paths = await modService.checkFilePaths(selectedProfileId, mod.sha);
       if (paths.thumbnailPath) {
-        await fileDialogService.openDirectory(paths.thumbnailPath);
+        await systemService.openDirectory(paths.thumbnailPath);
       } else {
         notification.warning(t("mods.preview.previewFolderNotFound"));
       }
@@ -226,7 +226,7 @@ export const ModPreviewPanelContent: React.FC = () => {
     try {
       // Convert relative path to absolute for clipboard
       const absolutePath =
-        await fileDialogService.getAbsolutePath(currentImagePath);
+        await systemService.getAbsolutePath(currentImagePath);
       await navigator.clipboard.writeText(absolutePath);
       notification.success(t("mods.preview.pathCopied"));
     } catch (error: unknown) {
@@ -276,7 +276,7 @@ export const ModPreviewPanelContent: React.FC = () => {
     if (!mod || !selectedProfileId) return;
 
     try {
-      const result = await fileDialogService.openFileDialog({
+      const result = await systemService.openFileDialog({
         title: t("mods.preview.selectImage"),
         filters: [
           {
@@ -451,7 +451,7 @@ export const ModPreviewPanelContent: React.FC = () => {
                   0,
                   previewPaths[0].lastIndexOf("\\"),
                 );
-                await fileDialogService.openDirectory(folderPath);
+                await systemService.openDirectory(folderPath);
               } else {
                 notification.info(t("mods.preview.noPreviewFolder"));
               }

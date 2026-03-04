@@ -9,7 +9,7 @@ import { useMods } from "../../hooks/useMods";
 import { useTranslation } from "react-i18next";
 import { useDropZone } from "../../../../shared/hooks/useDropZone";
 import { useProfile } from "../../../../shared/context/ProfileContext";
-import { workflowService } from "../../../workflow/services/workflowService";
+import { workflowService } from "../../../../shared/services/ipc";
 import { handleError } from "../../../../shared/utils/errorHandler";
 import "./ModListPanel.css";
 

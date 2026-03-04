@@ -14,9 +14,8 @@ import {
   CopyOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
-import { fileDialogService } from "../../../../shared/services/systemService";
-import { modService } from "../../services/modService";
-import { cacheService } from "../../../tool/services/cacheService";
+import { systemService } from "../../../../shared/services/ipc";
+import { modService } from "../../../../shared/services/ipc";
 import { GradingTag } from "../GradingTag";
 import { TagChip } from "../../../../shared/components/TagChip";
 import { useProfile } from "../../../../shared/context/ProfileContext";
@@ -145,7 +144,7 @@ export const ModList: React.FC<ModListProps> = ({
     await executeDeleteCache(async () => {
       try {
         // Delete the cache
-        const success = await cacheService.deleteCacheItem(profileId, mod.sha);
+        const success = await modService.deleteCache(profileId, mod.sha);
         if (success) {
           notification.success(t('mods.notifications.cacheDeleted', { name: mod.name }));
 
@@ -205,7 +204,7 @@ export const ModList: React.FC<ModListProps> = ({
       label: t('contextMenu.exportMod'),
       icon: <ExportOutlined />,
       onClick: async () => {
-        const result = await fileDialogService.saveFileDialog({
+        const result = await systemService.saveFileDialog({
           title: t('dialogs.exportMod.title'),
           defaultPath: `${mod.name}.zip`,
           filters: [
@@ -262,7 +261,7 @@ export const ModList: React.FC<ModListProps> = ({
       onClick: async () => {
         if (checkedPaths?.originalPath) {
           try {
-            await fileDialogService.openFileInExplorer(
+            await systemService.openFileInExplorer(
               checkedPaths.originalPath,
             );
             notification.success(t('mods.notifications.openedOriginal'));
@@ -280,7 +279,7 @@ export const ModList: React.FC<ModListProps> = ({
       onClick: async () => {
         if (checkedPaths?.cachePath) {
           try {
-            await fileDialogService.openDirectory(checkedPaths.cachePath);
+            await systemService.openDirectory(checkedPaths.cachePath);
             notification.success(t('mods.notifications.openedCache'));
           } catch (error: unknown) {
             notification.error(t('mods.notifications.openCacheFailed'));
@@ -296,7 +295,7 @@ export const ModList: React.FC<ModListProps> = ({
       onClick: async () => {
         if (checkedPaths?.thumbnailPath) {
           try {
-            await fileDialogService.openDirectory(checkedPaths.thumbnailPath);
+            await systemService.openDirectory(checkedPaths.thumbnailPath);
             notification.success(t('mods.notifications.openedPreview'));
           } catch (error: unknown) {
             notification.error(t('mods.notifications.openPreviewFailed'));

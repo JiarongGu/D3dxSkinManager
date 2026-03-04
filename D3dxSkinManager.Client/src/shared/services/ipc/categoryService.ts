@@ -1,11 +1,11 @@
-﻿import { BaseModuleService } from "./baseModuleService";
-import type { CategoryInfo } from "../types/category.types";
+import { BaseModuleService } from "../baseModuleService";
+import type { CategoryInfo } from "../../types/category.types";
 
 /**
  * Service for managing character Category tree
  * Communicates with backend CategoryService via IPC
  */
-class CategoryService extends BaseModuleService {
+export class CategoryService extends BaseModuleService {
   constructor() {
     super("CATEGORY");
   }
@@ -179,5 +179,3 @@ class CategoryService extends BaseModuleService {
     });
   }
 }
-
-export const categoryService = new CategoryService();

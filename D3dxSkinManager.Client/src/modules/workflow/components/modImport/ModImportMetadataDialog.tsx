@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { FormDialog } from '../../../../shared/components/dialogs/FormDialog';
 import { CompactInput, CompactTextArea, CompactSelect } from '../../../../shared/components/compact';
 import { WorkflowInfo, ModImportWorkflowContext } from '../../types/workflow.types';
-import { categoryService } from '../../../../shared/services/categoryService';
+import { categoryService } from '../../../../shared/services/ipc';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import './ModImportMetadataDialog.css';
 

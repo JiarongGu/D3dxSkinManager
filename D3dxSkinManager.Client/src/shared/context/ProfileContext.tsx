@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Profile, ProfileSwitchResult } from '../types/profile.types';
-import { profileService } from '../../modules/profile/services/profileService';
+import { profileService } from '../services/ipc';
 
 /**
  * Profile context state

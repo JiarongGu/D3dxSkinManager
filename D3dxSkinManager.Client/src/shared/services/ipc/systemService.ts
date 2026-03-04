@@ -1,4 +1,4 @@
-import { BaseModuleService } from './baseModuleService';
+import { BaseModuleService } from '../baseModuleService';
 
 export interface FileDialogOptions {
   title?: string;
@@ -24,7 +24,7 @@ export interface SystemSettings {
  * System service for file operations, dialogs, and system settings
  * Handles all system-level operations and configuration
  */
-class SystemService extends BaseModuleService {
+export class SystemService extends BaseModuleService {
   constructor() {
     super('SYSTEM');
   }
@@ -110,8 +110,3 @@ class SystemService extends BaseModuleService {
     await this.sendMessage('STOP_DROP_LISTENING');
   }
 }
-
-export const systemService = new SystemService();
-
-// Export as fileDialogService for backward compatibility
-export const fileDialogService = systemService;

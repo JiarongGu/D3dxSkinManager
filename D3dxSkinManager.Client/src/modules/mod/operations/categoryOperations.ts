@@ -4,13 +4,13 @@
  */
 
 import { debounce } from 'lodash-es';
+
 import { useModsStore } from '../store/modsStore';
-import { modService } from '../services/modService';
 import { CategoryInfo, CATEGORY_IDS } from '../../../shared/types/category.types';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { notification } from '../../../shared/utils/notification';
 import { refreshMods } from './modOperations';
-import { categoryService } from '../../../shared/services/categoryService';
+import { categoryService, modService } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
 

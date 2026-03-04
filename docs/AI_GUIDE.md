@@ -102,20 +102,47 @@ public class ModService : IModService {
 services.AddSingleton<IModService, ModService>();
 ```
 
-### Frontend Service
+### Frontend IPC Services
+**ALL IPC services are consolidated in `shared/services/ipc/`**
+
 ```typescript
-class ModService extends BaseModuleService {
+// Location: shared/services/ipc/modService.ts
+export class ModService extends BaseModuleService {
   constructor() {
     super('MOD');  // Module name
   }
 
-  async getAllMods(profileId?: string): Promise<ModInfo[]> {
-    return this.sendArrayMessage<ModInfo>('GET_ALL', profileId);
+  async getModsByCategory(profileId: string, categoryId: string): Promise<ModInfo[]> {
+    return this.sendArrayMessage<ModInfo>('GET_BY_CATEGORY', profileId, { categoryId });
   }
 }
 
+// Export singleton instance
 export const modService = new ModService();
 ```
+
+**Importing IPC Services:**
+```typescript
+// ✅ Use the consolidated API (recommended)
+import { api } from '@/shared/services/ipc';
+const mods = await api.mod.getModsByCategory(profileId, categoryId);
+const profile = await api.profile.getActiveProfile();
+
+// ✅ Or import individual services
+import { modService, profileService } from '@/shared/services/ipc';
+const mods = await modService.getModsByCategory(profileId, categoryId);
+```
+
+**Available IPC Services:**
+- `api.mod` - Mod management (ModService)
+- `api.profile` - Profile operations (ProfileService)
+- `api.workflow` - Workflow management (WorkflowService)
+- `api.launch` - Launch 3DMigoto/game (LaunchService)
+- `api.settings` - Global settings (SettingsService)
+- `api.validation` - Startup validation (ValidationService)
+- `api.category` - Category tree (CategoryService)
+- `api.language` - Language/i18n (LanguageService)
+- `api.system` - File dialogs, system settings (SystemService)
 
 ### IPC Events (Module + Type Pattern)
 ```csharp
@@ -369,13 +396,19 @@ cd <frontend> && npm run build       # Frontend
 - **ALWAYS** use module facades for IPC
 - **ALWAYS** inject dependencies via constructor
 
-### 4. UI Consistency
+### 4. Concurrency & File Operations
+- **Per-Resource Locking**: Use operation queue pattern (see ModOperationQueue) for file operations
+- **Retry Logic**: Implement exponential backoff for transient IOException (file locks)
+- **Non-Blocking UI**: Queue operations, return immediately, don't disable UI
+- Example: Mod load/unload uses semaphores per SHA to prevent concurrent operations on same mod
+
+### 5. UI Consistency
 - Use BEM naming for component CSS
 - Use classnames library for conditionals
 - Font sizes: 12px or 14px only
 - Load `visual-enhancements.css` for global utilities
 
-### 5. Git Discipline
+### 6. Git Discipline
 - **ALWAYS** ask before committing
 - **NEVER** commit without user approval
 - Include clear commit messages

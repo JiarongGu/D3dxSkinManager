@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ModInfo } from '../../../../shared/types/mod.types';
-import { modService } from '../../services/modService';
+import { modService } from '../../../../shared/services/ipc';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { useModsStore } from '../../store/modsStore';
 import { executeWithDelayedLoading } from '../../../../shared/utils/delayedLoading';

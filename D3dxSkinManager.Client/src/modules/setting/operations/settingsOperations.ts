@@ -4,11 +4,10 @@
  */
 
 import { useSettingsStore } from '../store/settingsStore';
-import { settingsService } from '../services/settingsService';
-import { profileService } from '../../profile/services/profileService';
 import { logger } from '../../../shared/utils/logger';
 import { notification } from '../../../shared/utils/notification';
 import { handleError } from '../../../shared/utils/errorHandler';
+import { profileService, settingsService } from '../../../shared/services/ipc';
 
 /**
  * Load global settings from backend

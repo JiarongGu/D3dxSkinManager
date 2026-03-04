@@ -19,6 +19,9 @@ public class ExtractionResult
 
 /// <summary>
 /// Archive format for compression
+/// NOTE: SharpCompress only supports WRITING to Zip and Tar formats.
+/// SevenZip is kept for future compatibility but will throw NotSupportedException if used for compression.
+/// Reading supports all formats (Zip, 7z, Tar, Rar, etc.)
 /// </summary>
 public enum ArchiveFormat
 {
@@ -310,9 +313,16 @@ public class ArchiveHelper : IArchiveHelper
         if (!Directory.Exists(folderPath))
             throw new DirectoryNotFoundException($"Folder not found: {folderPath}");
 
+        // Validate format - SharpCompress only supports writing Zip and Tar
+        if (format == ArchiveFormat.SevenZip)
+        {
+            _logger.Warn("SevenZip format requested but SharpCompress does not support writing 7z archives. Falling back to Zip format.", "ArchiveService");
+            format = ArchiveFormat.Zip;
+        }
+
         var result = await Task.Run(() =>
         {
-            _logger.Info($"Compressing folder: {Path.GetFileName(folderPath)} -> {Path.GetFileName(outputPath)}", "ArchiveService");
+            _logger.Info($"Compressing folder: {Path.GetFileName(folderPath)} -> {Path.GetFileName(outputPath)} (format: {format})", "ArchiveService");
 
             // Create output directory if needed
             var outputDir = Path.GetDirectoryName(outputPath);

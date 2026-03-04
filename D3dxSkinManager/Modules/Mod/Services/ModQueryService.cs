@@ -154,6 +154,10 @@ public class ModQueryService : IModQueryService
     {
         var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
 
+        // CRITICAL: Populate status flags from file system before counting
+        // IsLoaded, IsAvailable are computed properties, not stored in DB
+        PopulateStatusFlagsBulk(allMods);
+
         return new ModStatistics
         {
             TotalMods = allMods.Count,

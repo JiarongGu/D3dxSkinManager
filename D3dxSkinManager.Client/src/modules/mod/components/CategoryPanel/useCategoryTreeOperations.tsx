@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { App } from "antd";
 import { CategoryInfo, CATEGORY_IDS } from "../../../../shared/types/category.types";
-import { categoryService } from "../../../../shared/services/categoryService";
+import { categoryService } from "../../../../shared/services/ipc";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useModCategoryUpdate } from "./useModCategoryUpdate";
 import { notification } from "../../../../shared/utils/notification";

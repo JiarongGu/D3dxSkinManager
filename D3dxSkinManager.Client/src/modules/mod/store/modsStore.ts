@@ -11,7 +11,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { ModInfo } from '../../../shared/types/mod.types';
+import { ModInfo, ModStatistics } from '../../../shared/types/mod.types';
 import { CategoryInfo } from '../../../shared/types/category.types';
 import { ImportTask } from '../types/importTask.types';
 
@@ -26,6 +26,9 @@ export interface ModsState {
   error: string | undefined;
   selectedMod: ModInfo | undefined;
   selectedMods: ModInfo[];
+
+  // Statistics (global mod stats - not affected by category selection)
+  statistics: ModStatistics | undefined;
 
   // Category Panel
   CategoryTree: CategoryInfo[];
@@ -81,6 +84,9 @@ export interface ModsActions {
   optimisticLoadUpdate: (sha: string, unloadedShas: string[]) => void;
   optimisticUnloadUpdate: (sha: string) => void;
   optimisticCategoryUpdate: (sha: string, categoryId: string) => void;
+
+  // Statistics Actions
+  setStatistics: (statistics: ModStatistics) => void;
 
   // Category Panel Actions
   setCategoryTree: (tree: CategoryInfo[]) => void;
@@ -138,6 +144,9 @@ const initialState: ModsState = {
   error: undefined,
   selectedMod: undefined,
   selectedMods: [],
+
+  // Statistics
+  statistics: undefined,
 
   // Category Panel
   CategoryTree: [],
@@ -325,6 +334,15 @@ export const useModsStore = create<ModsStore>()(
               mod.sha === sha ? { ...mod, category: categoryId } : mod
             );
           }
+        }),
+
+      // ============================================================
+      // Statistics Actions
+      // ============================================================
+
+      setStatistics: (statistics) =>
+        set((state) => {
+          state.statistics = statistics;
         }),
 
       // ============================================================

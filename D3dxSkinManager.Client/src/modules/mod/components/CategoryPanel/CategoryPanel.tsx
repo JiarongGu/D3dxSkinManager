@@ -10,7 +10,7 @@ import { useModCategoryUpdate } from './useModCategoryUpdate';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { useModsStore } from '../../store/modsStore';
 import { useMods } from '../../hooks/useMods';
-import { categoryService } from '../../../../shared/services/categoryService';
+import { categoryService } from '../../../../shared/services/ipc';
 import { useTranslation } from 'react-i18next';
 import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
 import './CategoryPanel.css';

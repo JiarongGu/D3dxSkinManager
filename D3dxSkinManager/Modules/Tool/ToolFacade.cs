@@ -5,7 +5,6 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mod.Services;
-using D3dxSkinManager.Modules.Context;
 
 namespace D3dxSkinManager.Modules.Tool;
 
@@ -21,7 +20,6 @@ public interface IToolFacade : IModuleFacade
     Task<List<CacheItem>> ScanCacheAsync();
     Task<CacheStatistics> GetCacheStatisticsAsync();
     Task<int> CleanCacheAsync(CacheCategory category);
-    Task<bool> DeleteCacheItemAsync(string sha);
 
     // Validation
     Task<StartupValidationReport> ValidateStartupAsync();
@@ -61,7 +59,6 @@ public class ToolFacade : BaseFacade, IToolFacade
             "SCAN_CACHE" => await ScanCacheAsync(),
             "TOOLS_GET_CACHE_STATS" or "GET_CACHE_STATISTICS" => await GetCacheStatisticsAsync(),
             "CLEAN_CACHE" => await CleanCacheAsync(request),
-            "DELETE_CACHE_ITEM" => await DeleteCacheItemAsync(request),
             "VALIDATE_STARTUP" => await ValidateStartupAsync(),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -89,21 +86,6 @@ public class ToolFacade : BaseFacade, IToolFacade
         return deletedCount;
     }
 
-    public async Task<bool> DeleteCacheItemAsync(string sha)
-    {
-        var success = await _modFileService.DeleteCacheAsync(sha).ConfigureAwait(false);
-
-        if (success)
-        {
-            await _eventBus.EmitAsync(
-                ModuleNames.TOOL,
-                ToolEvents.CACHE_ITEM_DELETED,
-                new { sha }).ConfigureAwait(false);
-        }
-
-        return success;
-    }
-
     public async Task<StartupValidationReport> ValidateStartupAsync()
     {
         return await _validationService.ValidateStartupAsync().ConfigureAwait(false);
@@ -119,11 +101,5 @@ public class ToolFacade : BaseFacade, IToolFacade
         }
 
         return await CleanCacheAsync(category).ConfigureAwait(false);
-    }
-
-    private async Task<bool> DeleteCacheItemAsync(IpcRequest request)
-    {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        return await DeleteCacheItemAsync(sha).ConfigureAwait(false);
     }
 }

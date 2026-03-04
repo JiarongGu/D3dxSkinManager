@@ -3,7 +3,7 @@
  */
 
 // Provider
-export { ModsProvider } from './ModsProvider';
+export { ModProvider } from './ModProvider';
 
 // Main hook
 export { useMods, useModsState } from './hooks/useMods';

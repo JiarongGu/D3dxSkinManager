@@ -25,6 +25,7 @@ public interface IModFacade : IModuleFacade
     Task<List<string>> GetLoadedModIdsAsync();
     Task<ModInfo?> ImportModAsync(string filePath);
     Task<bool> DeleteModAsync(string sha);
+    Task<bool> DeleteCacheAsync(string sha);
 
     // Query Operations
     Task<List<string>> GetAuthorsAsync();
@@ -75,6 +76,8 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IPayloadHelper _payloadHelper;
     private readonly IProfileEventBus _eventBus;
     private readonly IImageService _imageService;
+    private readonly IModOperationQueue _operationQueue;
+    private readonly IModCacheWatcher _cacheWatcher;
 
     public ModFacade(
         IModRepository repository,
@@ -87,6 +90,8 @@ public class ModFacade : BaseFacade, IModFacade
         IPayloadHelper payloadHelper,
         IProfileEventBus eventBus,
         IImageService imageService,
+        IModOperationQueue operationQueue,
+        IModCacheWatcher cacheWatcher,
         ILogHelper logger) : base(logger)
     {
         _repository = repository;
@@ -99,6 +104,11 @@ public class ModFacade : BaseFacade, IModFacade
         _payloadHelper = payloadHelper;
         _eventBus = eventBus;
         _imageService = imageService;
+        _operationQueue = operationQueue;
+        _cacheWatcher = cacheWatcher;
+
+        // Start watching cache directory for external changes
+        _cacheWatcher.StartWatching();
     }
 
     /// <summary>
@@ -115,8 +125,10 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_LOADED" => await GetLoadedModIdsAsync(),
             "IMPORT" => await ImportModAsync(request),
             "DELETE" => await DeleteModAsync(request),
+            "DELETE_CACHE" => await DeleteCacheAsync(request),
             "GET_AUTHORS" => await GetAuthorsAsync(),
             "GET_TAGS" => await GetTagsAsync(),
+            "GET_STATISTICS" => await GetStatisticsAsync(),
 
             "SEARCH" => await SearchModsAsync(request),
             "UPDATE_METADATA" => await UpdateMetadataAsync(request),
@@ -184,16 +196,31 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<ModLoadResult> LoadModAsync(string sha)
     {
-        // Track unloaded mods for efficient frontend updates (avoids full mod list refresh)
-        var unloadedModShas = new List<string>();
-
-        // Get mod information for operation display and category checking
+        // Get mod information for category checking
         var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
         if (mod == null)
         {
             throw new ModException(ErrorCodes.MOD_NOT_FOUND, $"Mod not found: {sha}", new { sha });
         }
 
+        // CRITICAL: Use category-wide lock for categorized mods
+        // - Prevents race: Load Mod B trying to unload Mod A (same category) while A is still loading
+        // - Unclassified mods (null/empty category): Category lock is BYPASSED, they only use per-mod lock
+        //   This allows multiple unclassified mods to load in parallel (they can coexist)
+        return await _operationQueue.EnqueueCategoryOperationAsync(mod.Category, async () =>
+        {
+            return await LoadModInternalAsync(sha, mod).ConfigureAwait(false);
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Internal load implementation with category-based unloading
+    /// Runs within category lock to prevent concurrent load operations in same category
+    /// </summary>
+    private async Task<ModLoadResult> LoadModInternalAsync(string sha, ModInfo mod)
+    {
+        // Track unloaded mods for efficient frontend updates (avoids full mod list refresh)
+        var unloadedModShas = new List<string>();
         var modName = mod.Name ?? $"Mod {sha.Substring(0, 8)}";
 
         try
@@ -219,7 +246,10 @@ public class ModFacade : BaseFacade, IModFacade
 
                     foreach (var modToUnload in modsToUnload)
                     {
-                        var unloadSuccess = await _fileService.UnloadAsync(modToUnload.SHA).ConfigureAwait(false);
+                        // CRITICAL: Use UnloadWithoutLockAsync to prevent deadlock
+                        // We already hold the category lock, so don't try to acquire per-mod lock
+                        // This prevents: Load B (holds category lock) → Unload A (tries per-mod lock A) → deadlock if A is loading
+                        var unloadSuccess = await _fileService.UnloadWithoutLockAsync(modToUnload.SHA).ConfigureAwait(false);
 
                         if (unloadSuccess)
                         {
@@ -326,6 +356,24 @@ public class ModFacade : BaseFacade, IModFacade
         if (success)
         {
             await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Sha = sha, Mod = mod }).ConfigureAwait(false);
+        }
+
+        return success;
+    }
+
+    public async Task<bool> DeleteCacheAsync(string sha)
+    {
+        var success = await _fileService.DeleteCacheAsync(sha).ConfigureAwait(false);
+
+        if (success)
+        {
+            // Emit cache changed event (FileSystemWatcher will also detect this, but emit anyway for consistency)
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CACHE_CHANGED, new
+            {
+                Sha = sha,
+                WasLoaded = false, // Could be either, but now it's definitely gone
+                ChangeType = "deleted"
+            }).ConfigureAwait(false);
         }
 
         return success;
@@ -535,6 +583,12 @@ public class ModFacade : BaseFacade, IModFacade
     {
         var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await DeleteModAsync(sha).ConfigureAwait(false);
+    }
+
+    private async Task<bool> DeleteCacheAsync(IpcRequest request)
+    {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        return await DeleteCacheAsync(sha).ConfigureAwait(false);
     }
 
     private async Task<List<ModInfo>> SearchModsAsync(IpcRequest request)

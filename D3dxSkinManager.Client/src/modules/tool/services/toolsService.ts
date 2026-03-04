@@ -1,25 +1,22 @@
 ﻿/**
  * Tools module service
- * Handles cache management, Category, and validation operations
+ * Handles validation and utility operations
  */
 
 import { BaseModuleService } from '../../../shared/services/baseModuleService';
 
 // Re-export from existing services for backward compatibility
-export { cacheService } from './cacheService';
-export { validationService } from './validationService';
+export { validationService } from '../../../shared/services/ipc';
 
 /**
  * Unified Tools service
- * Aggregates cache, d3dmigoto, and validation services
+ * Aggregates validation and utility services
  */
-class ToolsService extends BaseModuleService {
+export class ToolsService extends BaseModuleService {
   constructor() {
     super('TOOL');
   }
 
-  // Cache operations are handled by cacheService
-  // D3DMigoto operations are handled by d3dMigotoService
   // Validation operations are handled by validationService
 }
 
