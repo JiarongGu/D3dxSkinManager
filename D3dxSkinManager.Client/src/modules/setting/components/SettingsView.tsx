@@ -33,7 +33,8 @@ export const SettingsView: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { selectedProfile, selectedProfileId } = useProfile();
 
-  // Zustand store - following mod module pattern
+  // Zustand store - settings are preloaded by SettingsProvider
+  // No need to load data here - it's already loaded and persisted
   const {
     logLevel,
     modCacheMode,
@@ -45,34 +46,17 @@ export const SettingsView: React.FC = () => {
     resetProfileConfig,
   } = useSettingsStore();
 
-  // Load global settings on mount
-  useEffect(() => {
-    const loadSettings = async () => {
-      await settingsOps.loadGlobalSettings();
-      const currentLogLevel = useSettingsStore.getState().logLevel;
-      form.setFieldValue("logLevel", currentLogLevel);
-    };
-    void loadSettings();
-  }, [form]);
-
-  // Load profile config when profile changes
-  useEffect(() => {
-    if (selectedProfileId) {
-      void settingsOps.loadProfileConfig(selectedProfileId);
-      // Update form fields after config loads
-      const { modCacheMode: mode, modCacheDirectory: dir } = useSettingsStore.getState();
-      form.setFieldValue("modCacheMode", mode);
-      form.setFieldValue("modCacheDirectory", dir);
-    }
-  }, [selectedProfileId, selectedProfile, form]);
-
-  // Initialize form with theme and language
+  // Sync form fields with store state whenever they change
+  // This ensures form reflects the latest store values
   useEffect(() => {
     form.setFieldsValue({
       theme: theme,
       language: i18n.language,
+      logLevel: logLevel,
+      modCacheMode: modCacheMode,
+      modCacheDirectory: modCacheDirectory,
     });
-  }, [theme, i18n.language, form]);
+  }, [form, theme, i18n.language, logLevel, modCacheMode, modCacheDirectory]);
 
   const handleLogLevelChange = async (value: string) => {
     await settingsOps.updateLogLevel(value, t);

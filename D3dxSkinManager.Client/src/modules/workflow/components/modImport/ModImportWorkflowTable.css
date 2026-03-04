@@ -13,6 +13,11 @@
   background: transparent;
 }
 
+.mod-import-workflow-table .ant-table-body {
+  overflow-y: auto !important;
+  height: calc(100vh - 282px) !important;
+}
+
 .mod-import-workflow-table .ant-table-thead > tr > th {
   background: var(--color-table-header-bg);
   border-bottom: 2px solid var(--color-primary);

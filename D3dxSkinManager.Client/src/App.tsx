@@ -5,6 +5,7 @@ import { AppHeader } from './modules/core/components/layout/AppHeader';
 import { AppStatusBar, StatusType } from './modules/core/components/layout/AppStatusBar';
 import { ModHierarchicalView } from './modules/mod/components/ModHierarchicalView';
 import { ModProvider } from './modules/mod';
+import { SettingsProvider } from './modules/setting';
 import { LaunchView } from './modules/launch/components/LaunchView';
 import { SettingsView } from './modules/setting/components/SettingsView';
 import { ToolsView } from './modules/tool/components/ToolsView';
@@ -176,9 +177,11 @@ const App: React.FC = () => {
         <NotificationInitializer>
           <ProfileProvider>
             <AppInitializer>
-              <ModProvider>
-                <AppContent />
-              </ModProvider>
+              <SettingsProvider>
+                <ModProvider>
+                  <AppContent />
+                </ModProvider>
+              </SettingsProvider>
             </AppInitializer>
           </ProfileProvider>
         </NotificationInitializer>

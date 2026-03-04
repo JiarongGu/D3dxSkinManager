@@ -320,98 +320,131 @@ public class ArchiveHelper : IArchiveHelper
             format = ArchiveFormat.Zip;
         }
 
-        var result = await Task.Run(() =>
+        // Use Task.Run to offload blocking I/O to thread pool
+        // We use a result wrapper to capture exceptions and re-throw them after the task completes
+        // This gives cleaner stack traces and proper exception handling outside the task thread
+        Exception? capturedException = null;
+        string? result = null;
+
+        try
         {
-            _logger.Info($"Compressing folder: {Path.GetFileName(folderPath)} -> {Path.GetFileName(outputPath)} (format: {format})", "ArchiveService");
-
-            // Create output directory if needed
-            var outputDir = Path.GetDirectoryName(outputPath);
-            if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
+            result = await Task.Run(() =>
             {
-                Directory.CreateDirectory(outputDir);
-            }
+                _logger.Info($"Compressing folder: {Path.GetFileName(folderPath)} -> {Path.GetFileName(outputPath)} (format: {format})", "ArchiveService");
 
-            try
-            {
-                // Determine SharpCompress archive type and writer options
-                var archiveType = format switch
+                // Create output directory if needed
+                var outputDir = Path.GetDirectoryName(outputPath);
+                if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
                 {
-                    ArchiveFormat.SevenZip => ArchiveType.SevenZip,
-                    ArchiveFormat.Tar => ArchiveType.Tar,
-                    ArchiveFormat.Zip => ArchiveType.Zip,
-                    _ => ArchiveType.Zip
-                };
-
-                var compressionType = format switch
-                {
-                    ArchiveFormat.SevenZip => CompressionType.LZMA,
-                    ArchiveFormat.Tar => CompressionType.GZip,
-                    ArchiveFormat.Zip => CompressionType.Deflate,
-                    _ => CompressionType.Deflate
-                };
-
-                var writerOptions = new WriterOptions(compressionType)
-                {
-                    LeaveStreamOpen = false,
-                    ArchiveEncoding = new ArchiveEncoding
-                    {
-                        Default = Encoding.UTF8
-                    }
-                };
-
-                // Get all files in the folder recursively
-                var files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
-                var totalFiles = files.Length;
-                var processedFiles = 0;
-
-                using var stream = File.Create(outputPath);
-                using var writer = WriterFactory.OpenWriter(stream, archiveType, writerOptions);
-
-                foreach (var file in files)
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        _logger.Info("Compression was cancelled", "ArchiveService");
-                        throw new OperationCanceledException(cancellationToken);
-                    }
-
-                    // Get relative path for the archive entry
-                    var relativePath = Path.GetRelativePath(folderPath, file);
-
-                    // Add file to archive
-                    writer.Write(relativePath, file);
-
-                    processedFiles++;
-
-                    // Report progress
-                    if (progressCallback != null && totalFiles > 0)
-                    {
-                        var progress = (int)((double)processedFiles / totalFiles * 100);
-                        progressCallback(progress);
-                    }
+                    Directory.CreateDirectory(outputDir);
                 }
 
-                var fileInfo = new FileInfo(outputPath);
-                _logger.Info($"Compressed to {Path.GetFileName(outputPath)} ({fileInfo.Length / 1024} KB)", "ArchiveService");
-
-                return outputPath;
-            }
-            catch (OperationCanceledException)
-            {
-                // Clean up partial file if cancelled
-                if (File.Exists(outputPath))
+                try
                 {
-                    try { File.Delete(outputPath); } catch { /* Ignore cleanup errors */ }
-                }
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Folder compression failed: {ex.Message}", "ArchiveService", ex);
-                throw new InvalidOperationException($"Failed to compress folder: {ex.Message}", ex);
-            }
-        }, cancellationToken);
+                    // Determine SharpCompress archive type and writer options
+                    var archiveType = format switch
+                    {
+                        ArchiveFormat.SevenZip => ArchiveType.SevenZip,
+                        ArchiveFormat.Tar => ArchiveType.Tar,
+                        ArchiveFormat.Zip => ArchiveType.Zip,
+                        _ => ArchiveType.Zip
+                    };
 
-        return result;
+                    var compressionType = format switch
+                    {
+                        ArchiveFormat.SevenZip => CompressionType.LZMA,
+                        ArchiveFormat.Tar => CompressionType.GZip,
+                        ArchiveFormat.Zip => CompressionType.Deflate,
+                        _ => CompressionType.Deflate
+                    };
+
+                    var writerOptions = new WriterOptions(compressionType)
+                    {
+                        LeaveStreamOpen = false,
+                        ArchiveEncoding = new ArchiveEncoding
+                        {
+                            Default = Encoding.UTF8
+                        }
+                    };
+
+                    // Get all files in the folder recursively
+                    var files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
+                    var totalFiles = files.Length;
+                    var processedFiles = 0;
+
+                    using var stream = File.Create(outputPath);
+                    using var writer = WriterFactory.OpenWriter(stream, archiveType, writerOptions);
+
+                    foreach (var file in files)
+                    {
+                        // Check for cancellation before processing each file
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            _logger.Info("Compression was cancelled", "ArchiveService");
+                            throw new OperationCanceledException(cancellationToken);
+                        }
+
+                        // Get relative path for the archive entry
+                        var relativePath = Path.GetRelativePath(folderPath, file);
+
+                        // Add file to archive
+                        writer.Write(relativePath, file);
+
+                        processedFiles++;
+
+                        // Report progress
+                        if (progressCallback != null && totalFiles > 0)
+                        {
+                            var progress = (int)((double)processedFiles / totalFiles * 100);
+                            progressCallback(progress);
+                        }
+                    }
+
+                    var fileInfo = new FileInfo(outputPath);
+                    _logger.Info($"Compressed to {Path.GetFileName(outputPath)} ({fileInfo.Length / 1024} KB)", "ArchiveService");
+
+                    return outputPath;
+                }
+                catch (OperationCanceledException ex)
+                {
+                    // Clean up partial file if cancelled
+                    if (File.Exists(outputPath))
+                    {
+                        try { File.Delete(outputPath); } catch { /* Ignore cleanup errors */ }
+                    }
+                    // Store exception to re-throw after task completes
+                    capturedException = ex;
+                    return null!;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Folder compression failed: {ex.Message}", "ArchiveService", ex);
+                    // Store exception to re-throw after task completes
+                    capturedException = new InvalidOperationException($"Failed to compress folder: {ex.Message}", ex);
+                    return null!;
+                }
+            }, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Task was cancelled (either before starting or during execution)
+            // This includes TaskCanceledException which is a subclass
+            // Re-throw to propagate to workflow handler for deletion
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Task.Run itself threw an exception (rare - usually task start issues)
+            throw new InvalidOperationException($"Failed to start compression task: {ex.Message}", ex);
+        }
+
+        // Re-throw captured exception after task completes (outside task thread)
+        // This gives cleaner stack traces and proper exception handling on the calling thread
+        if (capturedException != null)
+        {
+            throw capturedException;
+        }
+
+        return result!;
     }
 }

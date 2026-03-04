@@ -143,8 +143,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             }
             catch (OperationCanceledException)
             {
-                _logger.Info($"Workflow {workflow.Id} was cancelled");
+                _logger.Info($"Workflow {workflow.Id} was cancelled - will be deleted by cleanup task");
                 // Workflow already marked as Deleting by CancelAsync
+                // Cleanup task will delete temp files and remove from database
             }
             catch (Exception ex)
             {
@@ -224,8 +225,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             }
             catch (OperationCanceledException)
             {
-                _logger.Info($"Workflow {workflow.Id} was cancelled during resume");
+                _logger.Info($"Workflow {workflow.Id} was cancelled during resume - will be deleted by cleanup task");
                 // Workflow already marked as Deleting by CancelAsync
+                // Cleanup task will delete temp files and remove from database
             }
             catch (Exception ex)
             {
@@ -537,8 +539,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             }
             catch (OperationCanceledException)
             {
-                _logger.Info($"Workflow {workflow.Id} was cancelled during resume");
+                _logger.Info($"Workflow {workflow.Id} was cancelled during resume - will be deleted by cleanup task");
                 // Workflow already marked as Deleting by CancelAsync
+                // Cleanup task will delete temp files and remove from database
             }
             catch (Exception ex)
             {
@@ -594,9 +597,11 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         }
         catch (OperationCanceledException)
         {
-            // Workflow was cancelled - this is expected, don't mark as failed
-            // The CancelAsync method will handle cleanup and status updates
-            _logger.Info($"Workflow {workflow.Id} was cancelled");
+            // Workflow was cancelled by user (via CancelAsync)
+            // CancelAsync already set status to Deleting and started cleanup task
+            // The async cleanup will delete temp files and remove workflow from database
+            // No need to mark as failed - just let it delete
+            _logger.Info($"Workflow {workflow.Id} was cancelled - will be deleted by cleanup task");
         }
         catch (WorkflowException wex)
         {
