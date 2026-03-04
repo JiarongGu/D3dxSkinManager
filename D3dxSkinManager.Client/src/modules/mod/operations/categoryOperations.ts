@@ -143,27 +143,41 @@ function updateTreeCounts(
 }
 
 /**
- * Batch update categories for multiple mods
+ * Batch update categories for multiple mods using bulk IPC call
  */
 export async function batchUpdateCategories(
   profileId: string,
   shas: string[],
-  categoryId: string
-): Promise<void> {
+  categoryId: string,
+  onMismatch?: () => void
+): Promise<boolean> {
+  const state = useModsStore.getState();
+
   try {
     // For batch operations, skip optimistic updates due to complexity
     // Just perform the operation and refresh
-    await Promise.all(
-      shas.map((sha) => modService.updateCategory(profileId, sha, categoryId))
-    );
+    const updatedCount = await modService.batchUpdateCategory(profileId, shas, categoryId);
 
-    notification.success(`Updated ${shas.length} mod(s) category`);
+    if (updatedCount > 0) {
+      notification.success(`Updated ${updatedCount} mod(s) category`);
 
-    // Refresh both mods and tree
-    await Promise.all([refreshMods(profileId), refreshCategoryTree(profileId)]);
+      // Refresh both mods and tree
+      // The backend emits MOD.CATEGORY_UPDATED → CategoryEventHandler invalidates cache → emits CATEGORY_TREE_UPDATED
+      await refreshMods(profileId);
+
+      return true;
+    } else {
+      notification.error('No mods were updated');
+      return false;
+    }
   } catch (error: unknown) {
     notification.error('Failed to batch update categories');
-    throw error;
+
+    // Refresh tree on error to ensure counts are correct
+    if (onMismatch) {
+      onMismatch();
+    }
+    return false;
   }
 }
 

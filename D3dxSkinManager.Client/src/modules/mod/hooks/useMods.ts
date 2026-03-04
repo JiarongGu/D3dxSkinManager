@@ -51,8 +51,10 @@ export function useMods() {
     updateModCategory: (sha: string, categoryId: string, onMismatch?: () => void) =>
       selectedProfileId &&
       categoryOps.updateModCategory(selectedProfileId, sha, categoryId, onMismatch),
-    batchUpdateCategories: (shas: string[], categoryId: string) =>
-      selectedProfileId && categoryOps.batchUpdateCategories(selectedProfileId, shas, categoryId),
+    updateModsCategory: (shas: string[], categoryId: string, onMismatch?: () => void) =>
+      selectedProfileId && categoryOps.batchUpdateCategories(selectedProfileId, shas, categoryId, onMismatch),
+    batchUpdateCategories: (shas: string[], categoryId: string, onMismatch?: () => void) =>
+      selectedProfileId && categoryOps.batchUpdateCategories(selectedProfileId, shas, categoryId, onMismatch),
 
     // Category operations
     loadCategoryTree: () =>

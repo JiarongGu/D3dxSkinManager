@@ -208,6 +208,20 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Batch update category for multiple mods
+   */
+  async batchUpdateCategory(
+    profileId: string,
+    shas: string[],
+    category: string
+  ): Promise<number> {
+    return this.sendMessage<number>('BATCH_UPDATE_CATEGORY', profileId, {
+      shas,
+      category
+    });
+  }
+
+  /**
    * Batch update metadata for multiple mods
    */
   async batchUpdateMetadata(

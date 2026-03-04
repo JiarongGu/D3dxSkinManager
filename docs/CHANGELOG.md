@@ -12,6 +12,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-03-05 - Mod Management: Multi-Select for Bulk Category Updates ⭐⭐
+Implemented multi-select functionality in mod list with Ctrl+Click, Shift+Click, and bulk drag-drop to category tree.
+**Impact**: ✅ Users can now select multiple mods and move them to categories in bulk, significantly improving workflow efficiency for organizing large mod collections
+**Problem**: Users could only move mods to categories one at a time, making it tedious to organize multiple mods
+**Solution**: Added multi-selection with keyboard modifiers, visual feedback, and bulk backend operations for efficient category updates
+**Frontend Changes - ModListPanel.tsx**:
+- Added local state for multi-selection: `selectedModShas` (array), `anchorSha` (for range selection)
+- Implemented `handleModClick` with three modes: regular click (single select), Ctrl+Click (toggle individual), Shift+Click (range select)
+- Multi-selection automatically clears when category/object changes
+- Passes selection count to status bar
+**Frontend Changes - ModList.tsx**:
+- Updated props to accept `selectedModShas` array and pass mouse event to parent
+- Enhanced drag behavior: single mod uses `application/mod-sha`, multi-select uses `application/mod-shas` with JSON array
+- Visual classes: `.mod-list-item-selected` (primary), `.mod-list-item-multi-selected` (same style as primary)
+**Frontend Changes - ModList.css**:
+- Multi-selected items use identical styling to primary selection (same blue highlight and border)
+- No opacity or filter differences - clean, consistent visual experience
+**Frontend Changes - ModListStatusBar.tsx**:
+- Shows "X Mods selected" when multiple mods selected (takes priority over active mod display)
+- Added i18n support with translations for selection count
+**Frontend Changes - CategoryTree.tsx**:
+- Added third drag/drop handler for `application/mod-shas` event type
+- Parses JSON array of mod SHAs and calls `handleBulkModClassify`
+**Frontend Changes - Category Operations**:
+- `useCategoryTreeOperations.tsx`: Added `handleBulkModClassify` for multiple mods
+- `useModCategoryUpdate.ts`: Added `updateModsCategory` function with bulk IPC call
+- `categoryOperations.ts`: Updated `batchUpdateCategories` to use new bulk IPC method
+- `useMods.ts`: Added `updateModsCategory` operation
+**Frontend Changes - IPC Service (modService.ts)**:
+- Added `batchUpdateCategory` method sending `BATCH_UPDATE_CATEGORY` message
+- Returns count of successfully updated mods
+**Backend Changes - ModMetadataService.cs**:
+- Added `BatchUpdateCategoryAsync` method to interface and implementation
+- Iterates through mod SHAs, unloads loaded mods before category change
+- Returns count of successfully updated mods with comprehensive logging
+**Backend Changes - ModFacade.cs**:
+- Added `BatchUpdateCategoryAsync` public method calling metadata service
+- Emits `MOD.CATEGORY_UPDATED` event with bulk payload for reactive updates
+- Added IPC routing for `BATCH_UPDATE_CATEGORY` message type
+- Added private handler method for IPC request parsing
+**i18n Translations**:
+- English (en.json): "{{count}} Mods selected", "No active mod"
+- Chinese (cn.json): "已选择 {{count}} 个模组", "无激活模组"
+**Key Design Decisions**:
+- Multi-selection state is local (not in global store) - temporary for selection workflow only
+- Preview always shows first selected mod only (primary selection)
+- Backend bulk operation more efficient than N individual IPC calls
+- Same visual style for all selections provides clean, consistent UX
+- Event-based reactive updates maintain UI consistency across components
+**Files Changed**: 15 files (11 frontend, 2 backend, 2 i18n)
+**Code Changes**: +450 lines frontend, +90 lines backend, +4 translation keys
+
 ### Enhanced - 2026-03-04 - Help System: Redesigned with SlideInScreen & Updated Content ⭐⭐
 Complete redesign of help window with modern sliding screen interface and comprehensive content updates reflecting current architecture.
 **Impact**: ✅ Users get accurate, well-organized help documentation in a modern UI that matches the app's design system

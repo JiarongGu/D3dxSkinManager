@@ -194,6 +194,7 @@ const CategoryTreeInner: React.FC = () => {
     handleRightClick,
     handleNodeReorder,
     handleModClassify,
+    handleBulkModClassify,
   } = useCategoryTreeContext();
 
   // Track which node is being dragged
@@ -217,7 +218,7 @@ const CategoryTreeInner: React.FC = () => {
 
   // Enhanced drag and drop with simplified API
   const { containerRef: treeContainerRef } = useDragDrop<HTMLDivElement>(
-    // Handler 1: Mod drops from the mod list (only allow dropping into nodes)
+    // Handler 1: Single mod drops from the mod list (only allow dropping into nodes)
     {
       eventType: "application/mod-sha",
       nodeSelector: ".ant-tree-node-content-wrapper",
@@ -238,6 +239,35 @@ const CategoryTreeInner: React.FC = () => {
 
         handleModClassify(data, nodeId);
         return true;
+      },
+    },
+    // Handler 2: Multiple mods drops from the mod list (only allow dropping into nodes)
+    {
+      eventType: "application/mod-shas",
+      nodeSelector: ".ant-tree-node-content-wrapper",
+      allow: "node", // Only allow dropping into categories, not between them
+      onDrop: ({ data, target }) => {
+        if (!data) {
+          logger.error("[BulkModDrop] No mod SHAs provided");
+          return false;
+        }
+
+        if (!target) {
+          logger.error("[BulkModDrop] No target element");
+          return false;
+        }
+
+        try {
+          const modShas = JSON.parse(data) as string[];
+          const nodeId = extractNodeId(target);
+          logger.debug("[BulkModDrop] Dropping mods:", modShas, "onto node:", nodeId);
+
+          handleBulkModClassify(modShas, nodeId);
+          return true;
+        } catch (error) {
+          logger.error("[BulkModDrop] Failed to parse mod SHAs:", error);
+          return false;
+        }
       },
     },
     // Handler 2: Tree node reorganization with automatic drop zones

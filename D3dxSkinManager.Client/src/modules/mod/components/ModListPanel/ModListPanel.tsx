@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState, useCallback } from "react";
 import { Layout, Empty, Input, Button, Tooltip } from "antd";
 import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
@@ -47,6 +47,10 @@ export const ModListPanel: React.FC = () => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
   const contentRef = React.useRef<HTMLDivElement>(null);
+
+  // Multi-selection state (local - not stored in mod store)
+  const [selectedModShas, setSelectedModShas] = useState<string[]>([]);
+  const [anchorSha, setAnchorSha] = useState<string | undefined>(undefined);
 
   // Enable drop zone for batch mod import
   useDropZone({
@@ -145,6 +149,85 @@ export const ModListPanel: React.FC = () => {
     searchQuery,
   ]);
 
+  /**
+   * Handle mod selection with multi-select support
+   * @param mod - The mod being clicked
+   * @param event - Mouse event (to check for Ctrl/Shift keys)
+   */
+  const handleModClick = useCallback(
+    (mod: ModInfo, event?: React.MouseEvent) => {
+      // Special handling for unload option
+      if (mod.sha === "__UNLOAD__") {
+        selectMod(mod);
+        setSelectedModShas([]);
+        setAnchorSha(undefined);
+        return;
+      }
+
+      const ctrlKey = event?.ctrlKey || event?.metaKey; // metaKey for Mac
+      const shiftKey = event?.shiftKey;
+
+      if (ctrlKey) {
+        // Ctrl+Click: Toggle selection
+        const isSelected = selectedModShas.includes(mod.sha);
+        if (isSelected) {
+          // Remove from selection
+          const newSelection = selectedModShas.filter((sha) => sha !== mod.sha);
+          setSelectedModShas(newSelection);
+          // Update anchor to last remaining item or undefined
+          setAnchorSha(newSelection.length > 0 ? newSelection[newSelection.length - 1] : undefined);
+          // Update primary selection to first item or undefined
+          if (newSelection.length > 0) {
+            const firstMod = filteredMods.find((m) => m.sha === newSelection[0]);
+            if (firstMod) selectMod(firstMod);
+          } else {
+            selectMod(undefined);
+          }
+        } else {
+          // Add to selection
+          const newSelection = [...selectedModShas, mod.sha];
+          setSelectedModShas(newSelection);
+          setAnchorSha(mod.sha);
+          // If this is the first selection, set it as primary
+          if (selectedModShas.length === 0) {
+            selectMod(mod);
+          }
+        }
+      } else if (shiftKey && anchorSha) {
+        // Shift+Click: Select range from anchor to current
+        const anchorIndex = filteredMods.findIndex((m) => m.sha === anchorSha);
+        const currentIndex = filteredMods.findIndex((m) => m.sha === mod.sha);
+
+        if (anchorIndex !== -1 && currentIndex !== -1) {
+          const start = Math.min(anchorIndex, currentIndex);
+          const end = Math.max(anchorIndex, currentIndex);
+          const rangeSelection = filteredMods
+            .slice(start, end + 1)
+            .filter((m) => m.sha !== "__UNLOAD__") // Exclude special items
+            .map((m) => m.sha);
+          setSelectedModShas(rangeSelection);
+          // Keep anchor unchanged, primary selection is first in range
+          const firstMod = filteredMods.find((m) => m.sha === rangeSelection[0]);
+          if (firstMod) selectMod(firstMod);
+        }
+      } else {
+        // Regular click: Single selection
+        selectMod(mod);
+        setSelectedModShas([mod.sha]);
+        setAnchorSha(mod.sha);
+      }
+    },
+    [selectedModShas, anchorSha, filteredMods, selectMod]
+  );
+
+  /**
+   * Clear multi-selection when category/object changes
+   */
+  React.useEffect(() => {
+    setSelectedModShas([]);
+    setAnchorSha(undefined);
+  }, [selectedCategory, selectedObject]);
+
   const handleLoadedModClick = (mod: ModInfo) => {
     // Scroll to the loaded mod and select it
     selectMod(mod);
@@ -208,8 +291,9 @@ export const ModListPanel: React.FC = () => {
               onUnload={unloadModFromGame}
               onDelete={deleteMod}
               onEdit={openEditDialog}
-              onRowClick={selectMod}
+              onRowClick={handleModClick}
               selectedMod={selectedMod}
+              selectedModShas={selectedModShas}
             />
           ) : (
             <div className="mod-list-panel-content-empty-container">
@@ -241,6 +325,7 @@ export const ModListPanel: React.FC = () => {
           selectedCategory={selectedCategory}
           selectedObject={selectedObject}
           onLoadedModClick={handleLoadedModClick}
+          selectedModCount={selectedModShas.length}
         />
       </div>
     </Sider>

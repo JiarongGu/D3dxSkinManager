@@ -16,7 +16,7 @@ interface UseModCategoryUpdateProps {
 export function useModCategoryUpdate({
   onRefreshTree,
 }: UseModCategoryUpdateProps) {
-  const { updateModCategory: updateModCategoryOp } = useMods();
+  const { updateModCategory: updateModCategoryOp, updateModsCategory: updateModsCategoryOp } = useMods();
   const mods = useModsStore(s => s.mods);
 
   // Store mods in a stable ref to avoid closure issues
@@ -58,5 +58,36 @@ export function useModCategoryUpdate({
     [updateModCategoryOp, onRefreshTree], // modsRef is stable
   );
 
-  return { updateModCategory };
+  /**
+   * Update multiple mods' categories with optimistic updates
+   * @param modShas - Array of mod SHAs to update
+   * @param categoryId - New category ID (empty string for unclassified)
+   * @param categoryName - Display name of the category (for success message)
+   */
+  const updateModsCategory = useCallback(
+    async (modShas: string[], categoryId: string, categoryName: string) => {
+      try {
+        // Use bulk category operation
+        const success = await updateModsCategoryOp(
+          modShas,
+          categoryId,
+          onRefreshTree, // Only called when verification mismatch or error occurs
+        );
+
+        if (success) {
+          notification.success(`Moved ${modShas.length} mod(s) to "${categoryName}"`);
+          return true;
+        } else {
+          notification.error("Failed to update categories for selected mods");
+          return false;
+        }
+      } catch (error: unknown) {
+                notification.error("Failed to update categories for selected mods");
+        return false;
+      }
+    },
+    [updateModsCategoryOp, onRefreshTree]
+  );
+
+  return { updateModCategory, updateModsCategory };
 }

@@ -105,6 +105,7 @@ interface CategoryTreeContextValue {
     gapSide?: 'top' | 'bottom'
   ) => Promise<void>;
   handleModClassify: (modSha: string, nodeId: string) => Promise<void>;
+  handleBulkModClassify: (modShas: string[], nodeId: string) => Promise<void>;
 
   // Tree handlers
   handleToggleExpand: (nodeId: string) => void;
@@ -145,6 +146,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     handleDeleteNode,
     handleNodeReorder,
     handleModClassify,
+    handleBulkModClassify,
     deleteConfirmation,
     handleDeleteConfirm,
     closeDeleteConfirmation,
@@ -298,6 +300,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     handleDeleteNode,
     handleNodeReorder,
     handleModClassify,
+    handleBulkModClassify,
 
     // Tree handlers
     handleToggleExpand,

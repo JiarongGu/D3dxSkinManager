@@ -36,6 +36,7 @@ public interface IModFacade : IModuleFacade
     // Metadata Operations
     Task<bool> UpdateMetadataAsync(string sha, UpdateModMetadataRequest request);
     Task<bool> UpdateCategoryAsync(string sha, string category);
+    Task<int> BatchUpdateCategoryAsync(List<string> shas, string category);
     Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask);
     Task<bool> ImportPreviewImageAsync(string sha, string imagePath);
     Task<bool> CheckClipboardHasImageAsync();
@@ -133,6 +134,7 @@ public class ModFacade : BaseFacade, IModFacade
             "SEARCH" => await SearchModsAsync(request),
             "UPDATE_METADATA" => await UpdateMetadataAsync(request),
             "UPDATE_CATEGORY" => await UpdateCategoryAsync(request),
+            "BATCH_UPDATE_CATEGORY" => await BatchUpdateCategoryAsync(request),
             "BATCH_UPDATE_METADATA" => await BatchUpdateMetadataAsync(request),
             "IMPORT_PREVIEW_IMAGE" => await ImportPreviewImageAsync(request),
             "CHECK_CLIPBOARD_HAS_IMAGE" => await CheckClipboardHasImageAsync(),
@@ -440,6 +442,23 @@ public class ModFacade : BaseFacade, IModFacade
         return success;
     }
 
+    public async Task<int> BatchUpdateCategoryAsync(List<string> shas, string category)
+    {
+        _logger.Info($"Starting batch category update for {shas.Count} mods to category '{category}'");
+
+        var updatedCount = await _metadataService.BatchUpdateCategoryAsync(shas, category, UnloadModAsync, GetModByIdAsync).ConfigureAwait(false);
+
+        // Emit a single bulk category update event
+        // The category tree and mod list will refresh based on this event
+        if (updatedCount > 0)
+        {
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, new { shas, category, count = updatedCount }).ConfigureAwait(false);
+        }
+
+        _logger.Info($"Completed batch category update: {updatedCount} mods successfully updated");
+        return updatedCount;
+    }
+
     public async Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask)
     {
         var updatedCount = await _metadataService.BatchUpdateMetadataAsync(shas, name, author, tags, grading, description, fieldMask).ConfigureAwait(false);
@@ -620,6 +639,14 @@ public class ModFacade : BaseFacade, IModFacade
         var category = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
 
         return await UpdateCategoryAsync(sha, category).ConfigureAwait(false);
+    }
+
+    private async Task<int> BatchUpdateCategoryAsync(IpcRequest request)
+    {
+        var shas = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "shas");
+        var category = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
+
+        return await BatchUpdateCategoryAsync(shas, category).ConfigureAwait(false);
     }
 
     private async Task<object> BatchUpdateMetadataAsync(IpcRequest request)

@@ -38,8 +38,9 @@ interface ModListProps {
   onUnload: (sha: string) => void;
   onDelete: (sha: string, name: string) => void;
   onEdit?: (mod: ModInfo) => void;
-  onRowClick?: (mod: ModInfo) => void;
+  onRowClick?: (mod: ModInfo, event?: React.MouseEvent) => void;
   selectedMod?: ModInfo;
+  selectedModShas?: string[];
 }
 
 export const ModList: React.FC<ModListProps> = ({
@@ -51,6 +52,7 @@ export const ModList: React.FC<ModListProps> = ({
   onEdit,
   onRowClick,
   selectedMod,
+  selectedModShas = [],
 }) => {
   const { t } = useTranslation();
   const [displayCount, setDisplayCount] = useState(50);
@@ -331,7 +333,8 @@ export const ModList: React.FC<ModListProps> = ({
       ) : (
         <>
           {displayedMods.map((mod) => {
-            const isSelected = selectedMod?.sha === mod.sha;
+            const isPrimarySelection = selectedMod?.sha === mod.sha;
+            const isInMultiSelection = selectedModShas.includes(mod.sha);
 
             return (
               <div
@@ -339,12 +342,21 @@ export const ModList: React.FC<ModListProps> = ({
                 data-mod-sha={mod.sha}
                 draggable
                 onDragStart={(e) => {
-                  e.dataTransfer.setData("application/mod-sha", mod.sha);
+                  // If this mod is part of multi-selection, drag all selected mods
+                  if (isInMultiSelection && selectedModShas.length > 1) {
+                    e.dataTransfer.setData("application/mod-shas", JSON.stringify(selectedModShas));
+                  } else {
+                    // Single mod drag
+                    e.dataTransfer.setData("application/mod-sha", mod.sha);
+                  }
                   e.dataTransfer.effectAllowed = "move";
                 }}
-                className={classNames('mod-list-item', { 'mod-list-item-selected': isSelected })}
-                onClick={() => {
-                  onRowClick?.(mod);
+                className={classNames('mod-list-item', {
+                  'mod-list-item-selected': isPrimarySelection,
+                  'mod-list-item-multi-selected': isInMultiSelection && !isPrimarySelection
+                })}
+                onClick={(e) => {
+                  onRowClick?.(mod, e);
                 }}
                 onContextMenu={async (e) => {
                   e.preventDefault();

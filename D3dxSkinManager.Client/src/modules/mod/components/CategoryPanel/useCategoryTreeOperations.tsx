@@ -104,7 +104,7 @@ export function useCategoryTreeOperations({
   const { modal } = App.useApp();
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
-  const { updateModCategory } = useModCategoryUpdate({ onRefreshTree });
+  const { updateModCategory, updateModsCategory } = useModCategoryUpdate({ onRefreshTree });
   const { openCategoryScreen } = useCategoryScreen();
 
   const [treeRef, selectedProfileIdRef] = useStableRef(tree, selectedProfileId);
@@ -406,11 +406,54 @@ export function useCategoryTreeOperations({
     [updateModCategory]
   );
 
+  // Bulk mod classification handler - takes array of mod SHAs and category node ID
+  const handleBulkModClassify = useCallback(
+    async (modShas: string[], nodeId: string) => {
+      if (!modShas || modShas.length === 0) {
+        notification.error('No mods selected');
+        return;
+      }
+
+      if (!nodeId) {
+        notification.error('No category selected');
+        return;
+      }
+
+      try {
+        // Find the node name from the tree
+        const findNodeName = (nodes: CategoryInfo[], id: string): string | undefined => {
+          for (const node of nodes) {
+            if (node.id === id) {
+              return node.name;
+            }
+            if (node.children.length > 0) {
+              const found = findNodeName(node.children, id);
+              if (found) return found;
+            }
+          }
+          return undefined;
+        };
+
+        const nodeName = findNodeName(treeRef.current, nodeId) || nodeId;
+
+        // If moving to "Unclassified", clear the category by passing empty string
+        const categoryValue = nodeId === CATEGORY_IDS.UNCLASSIFIED ? '' : nodeId;
+
+        // Call batch update category
+        await updateModsCategory(modShas, categoryValue, nodeName);
+      } catch (error: unknown) {
+                notification.error('Failed to update category for selected mods');
+      }
+    },
+    [updateModsCategory]
+  );
+
   return {
     handleEditNode,
     handleDeleteNode,
     handleNodeReorder,
     handleModClassify,
+    handleBulkModClassify,
     // Expose delete confirmation state and handlers for the component to use
     deleteConfirmation,
     handleDeleteConfirm,

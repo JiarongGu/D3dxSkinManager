@@ -30,6 +30,16 @@
   background: var(--color-primary-bg-hover);
 }
 
+/* Multi-selection styling - same as single select */
+.mod-list-item-multi-selected {
+  background: var(--color-primary-bg);
+  border-left: 3px solid var(--color-primary);
+}
+
+.mod-list-item-multi-selected:hover {
+  background: var(--color-primary-bg-hover);
+}
+
 .mod-list-item-content {
   flex: 1;
   min-width: 0;

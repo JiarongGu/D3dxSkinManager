@@ -11,6 +11,7 @@ public interface IModMetadataService
 {
     Task<bool> UpdateMetadataAsync(string sha, UpdateModMetadataRequest request);
     Task<bool> UpdateCategoryAsync(string sha, string category, Func<string, Task<bool>> unloadModFunc, Func<string, Task<ModInfo?>> getModFunc);
+    Task<int> BatchUpdateCategoryAsync(List<string> shas, string category, Func<string, Task<bool>> unloadModFunc, Func<string, Task<ModInfo?>> getModFunc);
     Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask);
 }
 
@@ -75,6 +76,44 @@ public class ModMetadataService : IModMetadataService
         // and will invalidate the category tree cache automatically
 
         return true;
+    }
+
+    public async Task<int> BatchUpdateCategoryAsync(List<string> shas, string category, Func<string, Task<bool>> unloadModFunc, Func<string, Task<ModInfo?>> getModFunc)
+    {
+        int updatedCount = 0;
+        _logger.Info($"Batch updating category for {shas.Count} mods to category '{category}'", "ModMetadataService");
+
+        foreach (var sha in shas)
+        {
+            try
+            {
+                var mod = await getModFunc(sha).ConfigureAwait(false);
+                if (mod == null)
+                {
+                    _logger.Verbose($"Mod {sha} not found, skipping", "ModMetadataService");
+                    continue;
+                }
+
+                // If the mod is currently loaded, unload it since category determines which object it applies to
+                if (mod.IsLoaded)
+                {
+                    _logger.Verbose($"Unloading mod {sha} before category change", "ModMetadataService");
+                    await unloadModFunc(sha).ConfigureAwait(false);
+                }
+
+                mod.Category = category;
+                await _repository.UpdateAsync(mod).ConfigureAwait(false);
+                updatedCount++;
+                _logger.Verbose($"Updated category for mod {sha}", "ModMetadataService");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Error updating category for mod {sha}: {ex.Message}", "ModMetadataService", ex);
+            }
+        }
+
+        _logger.Info($"Successfully updated category for {updatedCount} out of {shas.Count} mods", "ModMetadataService");
+        return updatedCount;
     }
 
     public async Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask)
