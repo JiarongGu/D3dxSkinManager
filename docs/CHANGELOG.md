@@ -12,6 +12,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2026-03-05 - Configuration: Work Directory Replaces Mod Cache Configuration ⭐⭐
+Refactored profile configuration from `modCache` to `work` directory to correctly represent the work directory architecture (parent of Mods folder). Fixed critical bug where external work directory configuration was not being applied.
+**Impact**: ✅ Configuration now accurately reflects the documented architecture where work directory is the parent containing the Mods subfolder. External work directory mode now functions correctly.
+**Problem 1**: The `modCache` configuration incorrectly pointed directly to the Mods folder, when it should target the parent work directory
+**Problem 2**: The `WorkDirectory` property in ProfilePathService was hardcoded to always return internal path, ignoring external configuration
+**Solution**: Renamed configuration from `modCache` → `work` throughout the stack, made `WorkDirectory` property dynamic with caching like `CacheModsDirectory`
+**Backend Changes**:
+- Renamed `ModCacheConfiguration.cs` → `WorkDirectoryConfiguration.cs` with updated documentation
+- ProfileConfiguration.cs: Changed `ModCache` property → `Work` property
+- ProfilePathService.cs: Made `WorkDirectory` property dynamic with cache support (reads from config like `CacheModsDirectory`)
+- ProfilePathService.cs:148-200: Updated `LoadCacheDirectoryAsync()` to cache both work directory AND cache mods directory
+- ProfilePathService.cs:88-92: Updated `InvalidateCacheDirectory()` to clear both cache keys
+- ProfileFacade.cs:167-187: Added computed `InternalWorkDirectory` to GET_CONFIG response for UI display
+- ProfileFacade.cs: Changed IPC payload parameters from `modCacheMode/modCacheDirectory` → `workMode/workDirectory`
+- WorkDirectoryConfiguration.cs: Added `InternalWorkDirectory` property for computed internal path (not persisted)
+**Frontend Changes**:
+- profileService.ts: Renamed `ModCacheConfiguration` → `WorkDirectoryConfiguration` interface, added `internalWorkDirectory` field
+- settingsStore.ts: Renamed all state (`modCacheMode` → `workMode`, `modCacheDirectory` → `workDirectory`, `internalModCachePath` → `internalWorkPath`)
+- settingsOperations.ts: Updated to load `internalWorkDirectory` from backend response and set in store
+- SettingsView.tsx: Updated component handlers and form fields to use work directory terminology
+**Localization Changes**:
+- en.json/cn.json: Updated all `settings.profile.modCache.*` → `settings.profile.work.*` keys
+- English: "Mod Cache Directory" → "Work Directory" with tooltip clarifying parent of Mods folder
+- Chinese: "模组缓存目录" → "工作目录" with updated tooltip
+**Architecture Alignment**: Configuration now matches documented structure: `work/Mods/{SHA}/` instead of directly pointing to Mods folder
+
 ### Added - 2026-03-05 - Mod Management: Multi-Select for Bulk Category Updates ⭐⭐
 Implemented multi-select functionality in mod list with Ctrl+Click, Shift+Click, and bulk drag-drop to category tree.
 **Impact**: ✅ Users can now select multiple mods and move them to categories in bulk, significantly improving workflow efficiency for organizing large mod collections
@@ -248,8 +274,8 @@ Complete fix for external mod cache directory configuration and parent category 
 **Root Cause**: Frontend re-filtering logic only matched exact category IDs, didn't include descendant categories like backend does
 **Problem 3 - Unclassified Category Not Refreshing**: Event handler used wrong ID constant `'__uncategorized__'` instead of `'__unclassified__'`
 **Backend Changes**:
-- ModCacheConfiguration.cs: Added IsExternal() method with case-insensitive comparison (StringComparison.OrdinalIgnoreCase)
-- ProfilePathService.cs:136: Replaced string comparison with config?.ModCache?.IsExternal() call
+- ModCacheConfiguration.cs: Added IsExternal() method with case-insensitive comparison (StringComparison.OrdinalIgnoreCase) *(Note: Later refactored to WorkDirectoryConfiguration on 2026-03-05)*
+- ProfilePathService.cs:136: Replaced string comparison with config?.ModCache?.IsExternal() call *(Note: Later changed to config?.Work?.IsExternal() on 2026-03-05)*
 **Frontend Changes**:
 - category.types.ts: Added CATEGORY_IDS constant object with UNCLASSIFIED: '__unclassified__'
 - modsStore.ts: Removed incorrect frontend re-filtering logic (lines 200-232), now relies on backend for filtering

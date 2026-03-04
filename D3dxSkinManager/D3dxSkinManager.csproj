@@ -7,7 +7,7 @@
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>false</UseWPF>
 		<!-- Application Icon -->
-		<ApplicationIcon>app.ico</ApplicationIcon>
+		<ApplicationIcon>favicon.ico</ApplicationIcon>
 	</PropertyGroup>
 
 	<!-- Release configuration: Disable debug symbols and hide console window -->
@@ -40,8 +40,8 @@
 			<LogicalName>D3dxSkinManager.wwwroot.%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
 		</EmbeddedResource>
 		<!-- Embed application icon -->
-		<EmbeddedResource Include="app.ico">
-			<LogicalName>D3dxSkinManager.app.ico</LogicalName>
+		<EmbeddedResource Include="favicon.ico">
+			<LogicalName>D3dxSkinManager.favicon.ico</LogicalName>
 		</EmbeddedResource>
 	</ItemGroup>
 

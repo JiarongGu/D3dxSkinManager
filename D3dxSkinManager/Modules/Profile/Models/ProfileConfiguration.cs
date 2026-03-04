@@ -16,7 +16,7 @@ public class ProfileConfiguration
     public string MigotoVersion { get; set; } = "3dmigoto";
 
     /// <summary>
-    /// Mod cache storage configuration
+    /// Work directory configuration (parent of Mods folder)
     /// </summary>
-    public ModCacheConfiguration ModCache { get; set; } = new ModCacheConfiguration();
+    public WorkDirectoryConfiguration Work { get; set; } = new WorkDirectoryConfiguration();
 }

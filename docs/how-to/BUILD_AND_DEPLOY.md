@@ -167,7 +167,7 @@ The following resources are **embedded inside the executable**:
    - Configured as EmbeddedResource in .csproj
    - Served via custom scheme handler (`https://app.local/`)
 
-3. **Application icon (app.ico)**
+3. **Application icon (favicon.ico)**
    - Multi-resolution icon (256, 128, 64, 48, 32, 16px)
    - Embedded as manifest resource
    - Used for both exe file and window icon
@@ -275,12 +275,12 @@ See `D3dxSkinManager/libs/README.md` for detailed instructions.
 **Application Icon Configuration (.csproj):**
 ```xml
 <PropertyGroup>
-    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
 </PropertyGroup>
 
 <ItemGroup>
-    <EmbeddedResource Include="app.ico">
-        <LogicalName>D3dxSkinManager.app.ico</LogicalName>
+    <EmbeddedResource Include="favicon.ico">
+        <LogicalName>D3dxSkinManager.favicon.ico</LogicalName>
     </EmbeddedResource>
 </ItemGroup>
 ```
@@ -638,7 +638,7 @@ Package Contents:
 Embedded in exe:
   ✓ All managed DLLs (merged via Costura.Fody)
   ✓ All web resources (React app, HTML, JS, CSS, images)
-  ✓ Application icon (app.ico - multi-resolution, for exe and window)
+  ✓ Application icon (favicon.ico - multi-resolution, for exe and window)
   ✓ SQLite native library (e_sqlite3.dll - extracted to temp at runtime)
 
 Separate files (required):

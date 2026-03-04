@@ -141,7 +141,7 @@ public class ApplicationHost
         try
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            using var iconStream = assembly.GetManifestResourceStream("D3dxSkinManager.app.ico");
+            using var iconStream = assembly.GetManifestResourceStream("D3dxSkinManager.favicon.ico");
             if (iconStream != null)
             {
                 _mainForm.Icon = new Icon(iconStream);

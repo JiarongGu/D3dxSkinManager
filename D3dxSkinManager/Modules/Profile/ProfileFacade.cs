@@ -4,6 +4,7 @@ using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Modules.Profiles;
 
@@ -40,18 +41,21 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitter _eventEmitter;
     private readonly IPathHelper _pathHelper;
+    private readonly IGlobalPathService _globalPathService;
 
     public ProfileFacade(
         IProfileService profileService,
         IPayloadHelper payloadHelper,
         IEventEmitter eventEmitter,
         IPathHelper pathHelper,
+        IGlobalPathService globalPathService,
         ILogHelper logger) : base(logger)
     {
         _profileService = profileService ?? throw new ArgumentNullException(nameof(profileService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
         _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
+        _globalPathService = globalPathService ?? throw new ArgumentNullException(nameof(globalPathService));
     }
 
     protected override async Task<object?> RouteMessageAsync(IpcRequest request)
@@ -166,7 +170,21 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
     public async Task<ProfileConfiguration?> GetProfileConfigAsync(string profileId)
     {
-        return await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+        var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+
+        // Add computed internal work directory path for display in UI
+        if (config != null)
+        {
+            // Get the profile's data directory path from global path service
+            var profileDataPath = _globalPathService.GetProfileDirectoryPath(profileId);
+            var internalWorkPath = Path.Combine(profileDataPath, "work");
+
+            // Add as a computed property that won't be persisted
+            // Frontend will use this to display internal path when mode is "internal"
+            config.Work.InternalWorkDirectory = internalWorkPath;
+        }
+
+        return config;
     }
 
     public async Task<bool> UpdateProfileConfigAsync(ProfileConfiguration config)
@@ -262,9 +280,9 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         var migotoVersion = _payloadHelper.GetOptionalValue<string>(request.Payload, "migotoVersion");
 
-        // ModCache nested object
-        var modCacheMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "modCacheMode");
-        var modCacheDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "modCacheDirectory");
+        // Work directory nested object
+        var workMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "workMode");
+        var workDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workDirectory");
 
         var config = new ProfileConfiguration
         {
@@ -273,16 +291,16 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
         if (migotoVersion != null) config.MigotoVersion = migotoVersion;
 
-        // Handle ModCache nested object
-        if (modCacheMode != null || modCacheDirectory != null)
+        // Handle Work directory nested object
+        if (workMode != null || workDirectory != null)
         {
-            var normalizedMode = (modCacheMode ?? "internal").ToLowerInvariant();
-            config.ModCache = new ModCacheConfiguration
+            var normalizedMode = (workMode ?? "internal").ToLowerInvariant();
+            config.Work = new WorkDirectoryConfiguration
             {
                 // Normalize mode to lowercase for storage
                 Mode = normalizedMode,
                 // Only store directory for external mode
-                Directory = normalizedMode == "external" ? modCacheDirectory : null
+                Directory = normalizedMode == "external" ? workDirectory : null
             };
         }
 

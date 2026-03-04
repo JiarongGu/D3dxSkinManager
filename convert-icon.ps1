@@ -2,8 +2,8 @@
 # Creates a multi-resolution ICO file with sizes: 16, 32, 48, 64, 128, 256
 
 param(
-    [string]$InputPng = "D3dxSkinManager\icon.png",
-    [string]$OutputIco = "D3dxSkinManager\app.ico"
+    [string]$InputPng = "D3dxSkinManager\favicon.png",
+    [string]$OutputIco = "D3dxSkinManager\favicon.ico"
 )
 
 Add-Type -AssemblyName System.Drawing

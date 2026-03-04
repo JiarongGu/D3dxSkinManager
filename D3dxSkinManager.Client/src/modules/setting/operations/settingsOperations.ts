@@ -77,13 +77,13 @@ export async function resetWindowState(t: (key: string) => string): Promise<void
 }
 
 /**
- * Load profile configuration (mod cache settings)
+ * Load profile configuration (work directory settings)
  * Called when profile changes or settings view mounts
  */
 export async function loadProfileConfig(
   profileId: string
 ): Promise<void> {
-  const { setInitialProfileConfig, setInternalModCachePath, setError } = useSettingsStore.getState();
+  const { setInitialProfileConfig, setInternalWorkPath, setError } = useSettingsStore.getState();
 
   if (!profileId) {
     return;
@@ -96,14 +96,17 @@ export async function loadProfileConfig(
 
     if (config) {
       // Use case-insensitive reading - normalize to lowercase
-      const mode = (config.modCache?.mode?.toLowerCase() || 'internal') as 'internal' | 'external';
-      const directory = config.modCache?.directory || '';
+      const mode = (config.work?.mode?.toLowerCase() || 'internal') as 'internal' | 'external';
+      const directory = config.work?.directory || '';
+      const internalPath = config.work?.internalWorkDirectory || '';
 
       // Update store with initial config
       setInitialProfileConfig({ mode, directory });
 
-      // Internal path is now calculated by backend
-      // No need to compute it here since profiles don't store dataDirectory anymore
+      // Set internal work path from backend (for display when mode is "internal")
+      if (internalPath) {
+        setInternalWorkPath(internalPath);
+      }
     }
   } catch (error: unknown) {
     logger.error('[settingsOperations] Failed to load profile config:', error);
@@ -113,13 +116,13 @@ export async function loadProfileConfig(
 }
 
 /**
- * Save profile configuration (mod cache settings)
- * Validates and persists mod cache settings
+ * Save profile configuration (work directory settings)
+ * Validates and persists work directory settings
  */
 export async function saveProfileConfig(
   profileId: string,
-  modCacheMode: 'internal' | 'external',
-  modCacheDirectory: string,
+  workMode: 'internal' | 'external',
+  workDirectory: string,
   t: (key: string) => string
 ): Promise<boolean> {
   const { setInitialProfileConfig, setError } = useSettingsStore.getState();
@@ -130,10 +133,10 @@ export async function saveProfileConfig(
   }
 
   // Validate external directory if external mode
-  if (modCacheMode === 'external') {
-    const isValid = validateDirectoryPath(modCacheDirectory);
+  if (workMode === 'external') {
+    const isValid = validateDirectoryPath(workDirectory);
     if (!isValid) {
-      notification.error(t('settings.notifications.modCacheDirectoryInvalid'));
+      notification.error(t('settings.notifications.workDirectoryInvalid'));
       return false;
     }
   }
@@ -143,16 +146,16 @@ export async function saveProfileConfig(
   try {
     await profileService.updateProfileConfig({
       profileId,
-      modCache: {
-        mode: modCacheMode,
-        directory: modCacheMode === 'external' ? modCacheDirectory : undefined,
+      work: {
+        mode: workMode,
+        directory: workMode === 'external' ? workDirectory : undefined,
       },
     });
 
     // Update initial config in store to reflect saved state
     setInitialProfileConfig({
-      mode: modCacheMode,
-      directory: modCacheDirectory,
+      mode: workMode,
+      directory: workDirectory,
     });
 
     notification.success(t('settings.notifications.profileConfigSaved'));

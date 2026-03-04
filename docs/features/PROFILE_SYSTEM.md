@@ -1,6 +1,6 @@
 # Profile System
 
-**Last Updated:** 2026-02-23
+**Last Updated:** 2026-03-05
 **Status:** Implemented
 
 ## Overview
@@ -67,15 +67,37 @@ public class Profile {
 
 ### Profile Configuration
 ```csharp
+/// <summary>
+/// Profile configuration settings stored in {profileId}/config.json
+/// </summary>
 public class ProfileConfiguration {
     public string ProfileId { get; set; }
-    public string WorkDirectory { get; set; }
-    public ModLoadBehavior LoadBehavior { get; set; }
-    public bool EnableAutoDetection { get; set; }
-    public bool ShowNotifications { get; set; }
-    public List<string> IgnoredPaths { get; set; }
+    public string MigotoVersion { get; set; }  // "3dmigoto", "3dmigoto-dev", "custom"
+    public WorkDirectoryConfiguration Work { get; set; }
+}
+
+/// <summary>
+/// Work directory configuration (parent of Mods folder)
+/// </summary>
+public class WorkDirectoryConfiguration {
+    public string Mode { get; set; }  // "internal" or "external"
+    public string? Directory { get; set; }  // Custom path when Mode is "external"
+    public string? InternalWorkDirectory { get; set; }  // Computed by backend (not persisted)
 }
 ```
+
+**Work Directory Modes:**
+- **Internal Mode**: Uses `{profile folder}/work` as work directory (default)
+  - Mods extracted to: `{profile folder}/work/Mods/{SHA}/`
+- **External Mode**: Uses custom directory path specified by user
+  - Mods extracted to: `{custom path}/Mods/{SHA}/`
+  - Useful for: game directories, separate SSDs, shared locations
+
+**Implementation Details:**
+- `ProfilePathService.WorkDirectory` property is dynamic and cached, reading from configuration
+- Both `WorkDirectory` and `CacheModsDirectory` are resolved asynchronously via `LoadCacheDirectoryAsync()`
+- Configuration changes trigger cache invalidation and reload via event subscription
+- `InternalWorkDirectory` is computed by backend for UI display only (not saved to config.json)
 
 ## Frontend Implementation
 

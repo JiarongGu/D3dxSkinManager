@@ -8,21 +8,22 @@ import {
 } from '../../types/profile.types';
 
 /**
- * Mod Cache Configuration Model
+ * Work Directory Configuration Model
  */
-export interface ModCacheConfiguration {
+export interface WorkDirectoryConfiguration {
   mode: string;
   directory?: string;
+  internalWorkDirectory?: string; // Computed by backend, for display only
 }
 
 /**
  * Profile Configuration Model (stored in {profileId}/config.json)
- * Simplified: only contains profileId, migotoVersion, and modCache
+ * Simplified: only contains profileId, migotoVersion, and work directory
  */
 export interface ProfileConfiguration {
   profileId: string;
   migotoVersion: string;
-  modCache: ModCacheConfiguration;
+  work: WorkDirectoryConfiguration;
 }
 
 /**
@@ -124,8 +125,8 @@ export class ProfileService extends BaseModuleService {
     return this.sendBooleanMessage('UPDATE_CONFIG', undefined, {
       profileId: config.profileId,
       migotoVersion: config.migotoVersion,
-      modCacheMode: config.modCache?.mode,
-      modCacheDirectory: config.modCache?.directory
+      workMode: config.work?.mode,
+      workDirectory: config.work?.directory
     });
   }
 

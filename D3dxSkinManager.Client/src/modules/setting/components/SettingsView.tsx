@@ -37,12 +37,12 @@ export const SettingsView: React.FC = () => {
   // No need to load data here - it's already loaded and persisted
   const {
     logLevel,
-    modCacheMode,
-    modCacheDirectory,
-    internalModCachePath,
+    workMode,
+    workDirectory,
+    internalWorkPath,
     profileConfigChanged,
-    setModCacheMode,
-    setModCacheDirectory,
+    setWorkMode,
+    setWorkDirectory,
     resetProfileConfig,
   } = useSettingsStore();
 
@@ -53,10 +53,10 @@ export const SettingsView: React.FC = () => {
       theme: theme,
       language: i18n.language,
       logLevel: logLevel,
-      modCacheMode: modCacheMode,
-      modCacheDirectory: modCacheDirectory,
+      workMode: workMode,
+      workDirectory: workDirectory,
     });
-  }, [form, theme, i18n.language, logLevel, modCacheMode, modCacheDirectory]);
+  }, [form, theme, i18n.language, logLevel, workMode, workDirectory]);
 
   const handleLogLevelChange = async (value: string) => {
     await settingsOps.updateLogLevel(value, t);
@@ -94,11 +94,11 @@ export const SettingsView: React.FC = () => {
     await settingsOps.resetWindowState(t);
   };
 
-  const handleModCacheModeChange = (value: 'internal' | 'external') => {
-    setModCacheMode(value);
+  const handleWorkModeChange = (value: 'internal' | 'external') => {
+    setWorkMode(value);
   };
 
-  const handleBrowseModCacheDirectory = async () => {
+  const handleBrowseWorkDirectory = async () => {
     if (!selectedProfileId) {
       notification.error(t("errors.noProfileSelected"));
       return;
@@ -106,24 +106,24 @@ export const SettingsView: React.FC = () => {
 
     try {
       const result = await systemService.openFolderDialog({
-        title: t("settings.profile.modCache.directory.dialogTitle"),
+        title: t("settings.profile.work.directory.dialogTitle"),
       });
 
       if (result.success && result.filePath) {
-        setModCacheDirectory(result.filePath);
-        form.setFieldValue("modCacheDirectory", result.filePath);
+        setWorkDirectory(result.filePath);
+        form.setFieldValue("workDirectory", result.filePath);
       }
     } catch (error: unknown) {
-      notification.error(t("settings.notifications.modCacheDirectoryFailed"));
-      logger.error("[SettingsView] Failed to browse mod cache directory:", error);
+      notification.error(t("settings.notifications.workDirectoryFailed"));
+      logger.error("[SettingsView] Failed to browse work directory:", error);
     }
   };
 
-  const handleModCacheDirectoryChange = (
+  const handleWorkDirectoryChange = (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const newPath = e.target.value;
-    setModCacheDirectory(newPath);
+    setWorkDirectory(newPath);
   };
 
   const handleSaveProfileConfig = async () => {
@@ -134,17 +134,17 @@ export const SettingsView: React.FC = () => {
 
     await settingsOps.saveProfileConfig(
       selectedProfileId,
-      modCacheMode,
-      modCacheDirectory,
+      workMode,
+      workDirectory,
       t
     );
   };
 
   const handleResetProfileConfig = () => {
     resetProfileConfig();
-    const { modCacheMode: mode, modCacheDirectory: dir } = useSettingsStore.getState();
-    form.setFieldValue("modCacheMode", mode);
-    form.setFieldValue("modCacheDirectory", dir);
+    const { workMode: mode, workDirectory: dir } = useSettingsStore.getState();
+    form.setFieldValue("workMode", mode);
+    form.setFieldValue("workDirectory", dir);
   };
 
   return (
@@ -157,8 +157,8 @@ export const SettingsView: React.FC = () => {
             theme: theme,
             language: i18n.language,
             logLevel: logLevel,
-            modCacheMode: modCacheMode,
-            modCacheDirectory: modCacheDirectory,
+            workMode: workMode,
+            workDirectory: workDirectory,
           }}
         >
           <CompactCard
@@ -237,44 +237,44 @@ export const SettingsView: React.FC = () => {
             className={"settings-view-card-margin"}
           >
             <Form.Item
-              label={t("settings.profile.modCache.directory.label")}
-              tooltip={t("settings.profile.modCache.directory.tooltip")}
+              label={t("settings.profile.work.directory.label")}
+              tooltip={t("settings.profile.work.directory.tooltip")}
             >
               <Space.Compact style={{ width: "100%" }}>
                 <CompactSelect
-                  value={modCacheMode}
-                  onChange={handleModCacheModeChange}
+                  value={workMode}
+                  onChange={handleWorkModeChange}
                   style={{ width: "140px" }}
                 >
                   <Option value="internal">
-                    {t("settings.profile.modCache.mode.internal")}
+                    {t("settings.profile.work.mode.internal")}
                   </Option>
                   <Option value="external">
-                    {t("settings.profile.modCache.mode.external")}
+                    {t("settings.profile.work.mode.external")}
                   </Option>
                 </CompactSelect>
                 <CompactInput
                   value={
-                    modCacheMode === "internal"
-                      ? internalModCachePath
-                      : modCacheDirectory
+                    workMode === "internal"
+                      ? internalWorkPath
+                      : workDirectory
                   }
-                  disabled={modCacheMode === "internal"}
+                  disabled={workMode === "internal"}
                   onChange={
-                    modCacheMode === "external"
-                      ? handleModCacheDirectoryChange
+                    workMode === "external"
+                      ? handleWorkDirectoryChange
                       : undefined
                   }
                   placeholder={
-                    modCacheMode === "external"
-                      ? t("settings.profile.modCache.directory.placeholder")
+                    workMode === "external"
+                      ? t("settings.profile.work.directory.placeholder")
                       : ""
                   }
                 />
-                {modCacheMode === "external" && (
+                {workMode === "external" && (
                   <CompactButton
                     icon={<FolderOpenOutlined />}
-                    onClick={handleBrowseModCacheDirectory}
+                    onClick={handleBrowseWorkDirectory}
                   >
                     {t("common.browse")}
                   </CompactButton>

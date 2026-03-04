@@ -23,7 +23,7 @@
 - **ApplicationHost** → `D3dxSkinManager/Infrastructure/ApplicationHost.cs`
   - WinForms main form with WebView2 control
   - Manages window state and lifecycle
-  - Loads window icon from embedded resource (app.ico)
+  - Loads window icon from embedded resource (favicon.ico)
 
 - **WebViewInitializer** → `D3dxSkinManager/Infrastructure/WebViewInitializer.cs`
   - WebView2 environment setup

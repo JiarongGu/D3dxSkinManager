@@ -25,10 +25,10 @@ export interface SettingsState {
   // Log Level
   logLevel: string;
 
-  // Profile-Specific Settings
-  modCacheMode: 'internal' | 'external';
-  modCacheDirectory: string;
-  internalModCachePath: string;
+  // Profile-Specific Settings (Work Directory)
+  workMode: 'internal' | 'external';
+  workDirectory: string;
+  internalWorkPath: string;
   profileConfigChanged: boolean;
   initialProfileConfig: {
     mode: 'internal' | 'external';
@@ -51,15 +51,15 @@ export interface SettingsActions {
   // Log Level Actions
   setLogLevel: (level: string) => void;
 
-  // Profile Settings Actions
-  setModCacheMode: (mode: 'internal' | 'external') => void;
-  setModCacheDirectory: (directory: string) => void;
-  setInternalModCachePath: (path: string) => void;
+  // Profile Settings Actions (Work Directory)
+  setWorkMode: (mode: 'internal' | 'external') => void;
+  setWorkDirectory: (directory: string) => void;
+  setInternalWorkPath: (path: string) => void;
   setProfileConfigChanged: (changed: boolean) => void;
   setInitialProfileConfig: (config: { mode: 'internal' | 'external'; directory: string }) => void;
 
   // Combined Actions
-  updateModCacheSettings: (mode: 'internal' | 'external', directory: string) => void;
+  updateWorkSettings: (mode: 'internal' | 'external', directory: string) => void;
   resetProfileConfig: () => void;
 
   // Error Actions
@@ -83,10 +83,10 @@ const initialState: SettingsState = {
   // Log Level
   logLevel: 'info',
 
-  // Profile-Specific Settings
-  modCacheMode: 'internal',
-  modCacheDirectory: '',
-  internalModCachePath: '',
+  // Profile-Specific Settings (Work Directory)
+  workMode: 'internal',
+  workDirectory: '',
+  internalWorkPath: '',
   profileConfigChanged: false,
   initialProfileConfig: {
     mode: 'internal',
@@ -132,32 +132,32 @@ export const useSettingsStore = create<SettingsStore>()(
       }),
 
     // ============================================================
-    // Profile Settings Actions
+    // Profile Settings Actions (Work Directory)
     // ============================================================
 
-    setModCacheMode: (mode) =>
+    setWorkMode: (mode) =>
       set((state) => {
-        state.modCacheMode = mode;
+        state.workMode = mode;
         // Check if config changed
         const hasChanged =
           mode !== state.initialProfileConfig.mode ||
-          state.modCacheDirectory !== state.initialProfileConfig.directory;
+          state.workDirectory !== state.initialProfileConfig.directory;
         state.profileConfigChanged = hasChanged;
       }),
 
-    setModCacheDirectory: (directory) =>
+    setWorkDirectory: (directory) =>
       set((state) => {
-        state.modCacheDirectory = directory;
+        state.workDirectory = directory;
         // Check if config changed
         const hasChanged =
-          state.modCacheMode !== state.initialProfileConfig.mode ||
+          state.workMode !== state.initialProfileConfig.mode ||
           directory !== state.initialProfileConfig.directory;
         state.profileConfigChanged = hasChanged;
       }),
 
-    setInternalModCachePath: (path) =>
+    setInternalWorkPath: (path) =>
       set((state) => {
-        state.internalModCachePath = path;
+        state.internalWorkPath = path;
       }),
 
     setProfileConfigChanged: (changed) =>
@@ -168,8 +168,8 @@ export const useSettingsStore = create<SettingsStore>()(
     setInitialProfileConfig: (config) =>
       set((state) => {
         state.initialProfileConfig = config;
-        state.modCacheMode = config.mode;
-        state.modCacheDirectory = config.directory;
+        state.workMode = config.mode;
+        state.workDirectory = config.directory;
         state.profileConfigChanged = false;
       }),
 
@@ -177,10 +177,10 @@ export const useSettingsStore = create<SettingsStore>()(
     // Combined Actions
     // ============================================================
 
-    updateModCacheSettings: (mode, directory) =>
+    updateWorkSettings: (mode, directory) =>
       set((state) => {
-        state.modCacheMode = mode;
-        state.modCacheDirectory = directory;
+        state.workMode = mode;
+        state.workDirectory = directory;
         // Check if config changed
         const hasChanged =
           mode !== state.initialProfileConfig.mode ||
@@ -190,8 +190,8 @@ export const useSettingsStore = create<SettingsStore>()(
 
     resetProfileConfig: () =>
       set((state) => {
-        state.modCacheMode = state.initialProfileConfig.mode;
-        state.modCacheDirectory = state.initialProfileConfig.directory;
+        state.workMode = state.initialProfileConfig.mode;
+        state.workDirectory = state.initialProfileConfig.directory;
         state.profileConfigChanged = false;
       }),
 
