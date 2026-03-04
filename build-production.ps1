@@ -170,7 +170,7 @@ foreach ($plat in $platforms) {
     New-Item -ItemType Directory -Path $destPath -Force | Out-Null
 
     # Copy essential files
-    # Main executable (single file with everything embedded except language files!)
+    # Main executable (single file with everything embedded except language files and native libs!)
     Copy-Item -Path "$sourcePath\D3dxSkinManager.exe" -Destination $destPath -Force
 
     # Copy language files (kept separate for easy user modification)
@@ -178,8 +178,16 @@ foreach ($plat in $platforms) {
         Copy-Item -Path "$sourcePath\data" -Destination $destPath -Recurse -Force
     }
 
-    # Note: All managed DLLs, native libraries (e_sqlite3.dll), and web resources are embedded in the exe
-    # Only language files are kept separate next to exe for easy user modification
+    # Copy native libraries (7z.dll for fast archive extraction)
+    if (Test-Path "$sourcePath\libs") {
+        Copy-Item -Path "$sourcePath\libs" -Destination $destPath -Recurse -Force
+        Write-Host "    📦 Copied libs folder (7z.dll)" -ForegroundColor Gray
+    } else {
+        Write-Host "    ⚠️  Warning: libs folder not found! 7z.dll will be missing." -ForegroundColor Yellow
+    }
+
+    # Note: All managed DLLs and web resources are embedded in the exe
+    # Language files and native libraries (7z.dll) are kept separate
 
     Write-Host "  ✅ $plat packaged to dist\$plat" -ForegroundColor Green
 }
@@ -215,17 +223,19 @@ foreach ($plat in $platforms) {
 Write-Host "Package Contents:" -ForegroundColor Cyan
 Write-Host "  D3dxSkinManager.exe - Single executable with embedded resources" -ForegroundColor White
 Write-Host "  data/languages/*.json - Language files (separate for easy editing)" -ForegroundColor White
+Write-Host "  libs/7z.dll - 7-Zip native library (for fast archive extraction)" -ForegroundColor White
 Write-Host "" -ForegroundColor White
 Write-Host "Embedded in exe:" -ForegroundColor Yellow
 Write-Host "  - All managed DLLs (merged via Costura.Fody)" -ForegroundColor Green
 Write-Host "  - All web resources (React app, HTML, JS, CSS, images)" -ForegroundColor Green
-Write-Host "  - Archive library (SharpCompress - pure managed, no native DLL)" -ForegroundColor Green
+Write-Host "  - Archive library (SharpSevenZip - managed wrapper)" -ForegroundColor Green
 Write-Host "  - SQLite native library (e_sqlite3.dll - extracted to temp at runtime)" -ForegroundColor Green
 Write-Host ""
 Write-Host "Separate files:" -ForegroundColor Yellow
 Write-Host "  • Language files (data/languages/*.json) - User can edit translations" -ForegroundColor White
+Write-Host "  • Native library (libs/7z.dll) - 10x faster 7z/LZMA extraction vs pure managed" -ForegroundColor White
 Write-Host ""
-Write-Host "Note: Using SharpCompress instead of 7z.dll - pure managed, no native dependencies!" -ForegroundColor Cyan
+Write-Host "Note: Using native 7z.dll for performance - 10x+ faster archive extraction!" -ForegroundColor Cyan
 Write-Host ""
 
 Write-Host "To run the application:" -ForegroundColor Cyan

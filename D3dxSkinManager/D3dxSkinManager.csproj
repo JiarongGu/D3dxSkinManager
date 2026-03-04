@@ -6,6 +6,8 @@
 		<Nullable>enable</Nullable>
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>false</UseWPF>
+		<!-- Application Icon -->
+		<ApplicationIcon>app.ico</ApplicationIcon>
 	</PropertyGroup>
 
 	<!-- Release configuration: Disable debug symbols and hide console window -->
@@ -27,7 +29,7 @@
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
 		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3800.47" />
-		<PackageReference Include="SharpCompress" Version="0.46.4" />
+		<PackageReference Include="SharpSevenZip" Version="*" />
 		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
 	</ItemGroup>
 
@@ -36,6 +38,10 @@
 		<!-- Embed wwwroot files as embedded resources -->
 		<EmbeddedResource Include="wwwroot\**\*.*" Condition="Exists('wwwroot')">
 			<LogicalName>D3dxSkinManager.wwwroot.%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+		</EmbeddedResource>
+		<!-- Embed application icon -->
+		<EmbeddedResource Include="app.ico">
+			<LogicalName>D3dxSkinManager.app.ico</LogicalName>
 		</EmbeddedResource>
 	</ItemGroup>
 
@@ -47,6 +53,26 @@
 			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
 			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
 			<TargetPath>data\languages\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+		</Content>
+	</ItemGroup>
+
+	<!-- Native libraries (7z.dll - architecture-specific, kept separate for runtime loading) -->
+	<ItemGroup>
+		<!-- Copy x64 7z.dll for 64-bit builds (default when Platform is not specified or is x64/AnyCPU) -->
+		<Content Include="libs\x64\7z.dll" Condition="'$(Platform)' == 'x64' OR '$(Platform)' == 'Any CPU' OR '$(Platform)' == '' OR '$(Platform)' == 'AnyCPU'">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+			<Link>libs\7z.dll</Link>
+			<TargetPath>libs\7z.dll</TargetPath>
+		</Content>
+		<!-- Copy x86 7z.dll for 32-bit builds -->
+		<Content Include="libs\x86\7z.dll" Condition="'$(Platform)' == 'x86'">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+			<Link>libs\7z.dll</Link>
+			<TargetPath>libs\7z.dll</TargetPath>
 		</Content>
 	</ItemGroup>
 

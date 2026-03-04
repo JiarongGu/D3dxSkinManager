@@ -137,6 +137,26 @@ public class ApplicationHost
 
         _mainForm.Text = "D3dxSkinManager";
 
+        // Set window icon from embedded resource
+        try
+        {
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            using var iconStream = assembly.GetManifestResourceStream("D3dxSkinManager.app.ico");
+            if (iconStream != null)
+            {
+                _mainForm.Icon = new Icon(iconStream);
+                _logger.Info("Window icon loaded from embedded resource", "Host");
+            }
+            else
+            {
+                _logger.Warn("Embedded icon resource not found", "Host");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Failed to load window icon: {ex.Message}", "Host");
+        }
+
         // Apply loaded window state immediately
         _mainForm.Width = width;
         _mainForm.Height = height;

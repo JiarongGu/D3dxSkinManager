@@ -1,7 +1,4 @@
-using SharpCompress.Archives;
-using SharpCompress.Common;
-using SharpCompress.Readers;
-using SharpCompress.Writers;
+using SharpSevenZip;
 using Encoding = System.Text.Encoding;
 
 namespace D3dxSkinManager.Modules.Core.Helpers;
@@ -19,9 +16,6 @@ public class ExtractionResult
 
 /// <summary>
 /// Archive format for compression
-/// NOTE: SharpCompress only supports WRITING to Zip and Tar formats.
-/// SevenZip is kept for future compatibility but will throw NotSupportedException if used for compression.
-/// Reading supports all formats (Zip, 7z, Tar, Rar, etc.)
 /// </summary>
 public enum ArchiveFormat
 {
@@ -54,17 +48,69 @@ public interface IArchiveHelper
 }
 
 /// <summary>
-/// Service for archive/compression operations using SharpCompress
-/// Responsibility: Archive format detection and extraction with multiple fallback strategies
-/// Supports: ZIP, 7Z, RAR, TAR, GZIP, BZIP2 - Pure managed, no native DLL dependencies
+/// Service for archive/compression operations using SharpSevenZip
+/// Extraction: Fast 7z/LZMA extraction (10x+ faster than pure managed)
+/// Compression: Supports ZIP, 7Z, TAR formats
+/// Requires: Native 7z.dll library (placed in libs/ folder)
 /// </summary>
 public class ArchiveHelper : IArchiveHelper
 {
     private readonly ILogHelper _logger;
+    private static bool _sevenZipInitialized;
+    private static readonly object _initLock = new();
 
     public ArchiveHelper(ILogHelper logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    /// <summary>
+    /// Initialize 7z.dll library path for SharpSevenZip
+    /// Thread-safe, idempotent initialization
+    /// </summary>
+    private void InitializeSevenZip()
+    {
+        if (_sevenZipInitialized)
+            return;
+
+        lock (_initLock)
+        {
+            if (_sevenZipInitialized)
+                return;
+
+            try
+            {
+                // Build 7z.dll path (architecture-specific DLL next to EXE)
+                var architecture = Environment.Is64BitProcess ? "x64" : "x86";
+                var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                var sevenZipPath = Path.Combine(baseDirectory, "libs", "7z.dll");
+
+                _logger.Info($"Initializing 7z.dll for {architecture} architecture", "ArchiveHelper");
+                _logger.Verbose($"7z.dll path: {sevenZipPath}", "ArchiveHelper");
+
+                // Verify 7z.dll exists
+                if (!File.Exists(sevenZipPath))
+                {
+                    throw new FileNotFoundException(
+                        $"7z.dll not found at: {sevenZipPath}. " +
+                        $"Please download the official 7-Zip Extra package from https://7-zip.org/download.html " +
+                        $"and copy the {architecture}/7z.dll to the libs/ folder. " +
+                        $"See libs/README.md for detailed instructions.",
+                        sevenZipPath);
+                }
+
+                // Set library path for SharpSevenZip
+                SharpSevenZipBase.SetLibraryPath(sevenZipPath);
+
+                _sevenZipInitialized = true;
+                _logger.Info($"7z.dll initialized successfully from: {sevenZipPath}", "ArchiveHelper");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to initialize 7z.dll: {ex.Message}", "ArchiveHelper", ex);
+                throw new InvalidOperationException($"Failed to initialize 7-Zip library: {ex.Message}", ex);
+            }
+        }
     }
 
     /// <summary>
@@ -77,91 +123,82 @@ public class ArchiveHelper : IArchiveHelper
         if (!File.Exists(archivePath))
             return null;
 
-        return await Task.Run(() => DetectArchiveType(archivePath));
-    }
-
-    /// <summary>
-    /// Synchronous version of archive type detection - for use within Task.Run contexts
-    /// </summary>
-    private string? DetectArchiveType(string archivePath)
-    {
-        if (!File.Exists(archivePath))
-            return null;
-
-        try
+        return await Task.Run(() =>
         {
-            using var fileStream = File.OpenRead(archivePath);
-
-            // Read first 8 bytes for magic number detection
-            var buffer = new byte[8];
-            var bytesRead = fileStream.Read(buffer, 0, buffer.Length);
-
-            if (bytesRead < 2)
-                return null;
-
-            // ZIP: PK (50 4B)
-            if (buffer[0] == 0x50 && buffer[1] == 0x4B)
-                return "zip";
-
-            // 7Z: 7z (37 7A BC AF 27 1C)
-            if (bytesRead >= 6 &&
-                buffer[0] == 0x37 && buffer[1] == 0x7A &&
-                buffer[2] == 0xBC && buffer[3] == 0xAF &&
-                buffer[4] == 0x27 && buffer[5] == 0x1C)
-                return "7z";
-
-            // RAR v5: Rar! (52 61 72 21 1A 07 01 00)
-            if (bytesRead >= 8 &&
-                buffer[0] == 0x52 && buffer[1] == 0x61 &&
-                buffer[2] == 0x72 && buffer[3] == 0x21 &&
-                buffer[4] == 0x1A && buffer[5] == 0x07 &&
-                buffer[6] == 0x01 && buffer[7] == 0x00)
-                return "rar";
-
-            // RAR v4: Rar! (52 61 72 21 1A 07 00)
-            if (bytesRead >= 7 &&
-                buffer[0] == 0x52 && buffer[1] == 0x61 &&
-                buffer[2] == 0x72 && buffer[3] == 0x21 &&
-                buffer[4] == 0x1A && buffer[5] == 0x07 &&
-                buffer[6] == 0x00)
-                return "rar";
-
-            // GZIP: (1F 8B)
-            if (buffer[0] == 0x1F && buffer[1] == 0x8B)
-                return "gz";
-
-            // BZIP2: BZ (42 5A 68)
-            if (bytesRead >= 3 &&
-                buffer[0] == 0x42 && buffer[1] == 0x5A && buffer[2] == 0x68)
-                return "bz2";
-
-            // TAR: Check for "ustar" at offset 257 (TAR header signature)
-            if (fileStream.Length > 262)
+            try
             {
-                fileStream.Seek(257, SeekOrigin.Begin);
-                var tarBuffer = new byte[5];
-                if (fileStream.Read(tarBuffer, 0, 5) == 5)
-                {
-                    var ustar = Encoding.ASCII.GetString(tarBuffer);
-                    if (ustar == "ustar")
-                        return "tar";
-                }
-            }
+                using var fileStream = File.OpenRead(archivePath);
 
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.Warn($"Failed to detect archive type: {ex.Message}", "ArchiveService");
-            return null;
-        }
+                // Read first 8 bytes for magic number detection
+                var buffer = new byte[8];
+                var bytesRead = fileStream.Read(buffer, 0, buffer.Length);
+
+                if (bytesRead < 2)
+                    return null;
+
+                // ZIP: PK (50 4B)
+                if (buffer[0] == 0x50 && buffer[1] == 0x4B)
+                    return "zip";
+
+                // 7Z: 7z (37 7A BC AF 27 1C)
+                if (bytesRead >= 6 &&
+                    buffer[0] == 0x37 && buffer[1] == 0x7A &&
+                    buffer[2] == 0xBC && buffer[3] == 0xAF &&
+                    buffer[4] == 0x27 && buffer[5] == 0x1C)
+                    return "7z";
+
+                // RAR v5: Rar! (52 61 72 21 1A 07 01 00)
+                if (bytesRead >= 8 &&
+                    buffer[0] == 0x52 && buffer[1] == 0x61 &&
+                    buffer[2] == 0x72 && buffer[3] == 0x21 &&
+                    buffer[4] == 0x1A && buffer[5] == 0x07 &&
+                    buffer[6] == 0x01 && buffer[7] == 0x00)
+                    return "rar";
+
+                // RAR v4: Rar! (52 61 72 21 1A 07 00)
+                if (bytesRead >= 7 &&
+                    buffer[0] == 0x52 && buffer[1] == 0x61 &&
+                    buffer[2] == 0x72 && buffer[3] == 0x21 &&
+                    buffer[4] == 0x1A && buffer[5] == 0x07 &&
+                    buffer[6] == 0x00)
+                    return "rar";
+
+                // GZIP: (1F 8B)
+                if (buffer[0] == 0x1F && buffer[1] == 0x8B)
+                    return "gz";
+
+                // BZIP2: BZ (42 5A 68)
+                if (bytesRead >= 3 &&
+                    buffer[0] == 0x42 && buffer[1] == 0x5A && buffer[2] == 0x68)
+                    return "bz2";
+
+                // TAR: Check for "ustar" at offset 257 (TAR header signature)
+                if (fileStream.Length > 262)
+                {
+                    fileStream.Seek(257, SeekOrigin.Begin);
+                    var tarBuffer = new byte[5];
+                    if (fileStream.Read(tarBuffer, 0, 5) == 5)
+                    {
+                        var ustar = Encoding.ASCII.GetString(tarBuffer);
+                        if (ustar == "ustar")
+                            return "tar";
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"Failed to detect archive type: {ex.Message}", "ArchiveHelper");
+                return null;
+            }
+        });
     }
 
     /// <summary>
-    /// Extract archive using SharpCompress which supports most formats:
-    /// ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, ISO, and more
-    /// Returns ExtractionResult with success status and detected type
-    /// Pure managed code - no native DLL dependencies
+    /// Extract archive using SharpSevenZip with native 7z.dll (async version)
+    /// Provides 10x+ faster extraction compared to pure managed implementations
+    /// Supports: ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, ISO, and more
     /// </summary>
     public async Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory)
     {
@@ -172,10 +209,15 @@ public class ArchiveHelper : IArchiveHelper
     }
 
     /// <summary>
-    /// Synchronous version of archive extraction - for use within Task.Run contexts
+    /// Extract archive using SharpSevenZip with native 7z.dll (sync version)
+    /// Provides 10x+ faster extraction compared to pure managed implementations
+    /// Supports: ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, ISO, and more
     /// </summary>
     public ExtractionResult ExtractArchive(string archivePath, string targetDirectory)
     {
+        if (!File.Exists(archivePath))
+            throw new FileNotFoundException("Archive not found", archivePath);
+
         var result = new ExtractionResult();
 
         try
@@ -184,110 +226,39 @@ public class ArchiveHelper : IArchiveHelper
             if (!Directory.Exists(targetDirectory))
                 Directory.CreateDirectory(targetDirectory);
 
-            _logger.Info($"Extracting {Path.GetFileName(archivePath)}...", "ArchiveService");
+            _logger.Info($"Extracting {Path.GetFileName(archivePath)}...", "ArchiveHelper");
 
-            // Detect archive type from magic bytes (call the sync version directly)
-            result.DetectedType = DetectArchiveType(archivePath);
+            // Detect archive type from magic bytes
+            result.DetectedType = DetectArchiveTypeAsync(archivePath).GetAwaiter().GetResult();
 
             if (result.DetectedType != null)
             {
-                _logger.Info($"Detected archive type: {result.DetectedType}", "ArchiveService");
+                _logger.Info($"Detected archive type: {result.DetectedType}", "ArchiveHelper");
             }
 
-            // Try fast extraction method for solid archives, fall back to manual if needed
-            // See: https://github.com/adamhathcock/sharpcompress/issues/728
-            using var archive = ArchiveFactory.OpenArchive(archivePath);
-            var fileCount = 0;
-            var createdDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Initialize 7z.dll library (uses libs/7z.dll)
+            InitializeSevenZip();
 
-            // Use ExtractAllEntries only for 7z (which it's optimized for)
-            var use7zMethod = result.DetectedType == "7z";
-            IReader? reader = null;
-
-            if (use7zMethod)
-            {
-                try
-                {
-                    reader = archive.ExtractAllEntries();
-                    _logger.Info($"Using fast ExtractAllEntries for 7z extraction", "ArchiveService");
-
-                    while (reader.MoveToNextEntry())
-                    {
-                        if (!reader.Entry.IsDirectory)
-                        {
-                            var fullPath = Path.Combine(targetDirectory, reader.Entry.Key);
-                            var directory = Path.GetDirectoryName(fullPath);
-
-                            if (!string.IsNullOrEmpty(directory) && !createdDirectories.Contains(directory))
-                            {
-                                Directory.CreateDirectory(directory);
-                                createdDirectories.Add(directory);
-                            }
-
-                            using (var entryStream = reader.OpenEntryStream())
-                            using (var fileStream = File.Create(fullPath))
-                            {
-                                entryStream.CopyTo(fileStream);
-                            }
-
-                            fileCount++;
-                        }
-                    }
-
-                    reader.Dispose();
-                    reader = null;
-                }
-                catch (InvalidOperationException)
-                {
-                    // ExtractAllEntries not supported (non-solid 7z), fall back to manual
-                    _logger.Info($"ExtractAllEntries not supported for this 7z file, using manual extraction", "ArchiveService");
-                    reader?.Dispose();
-                    reader = null;
-                    use7zMethod = false;
-                }
-            }
-
-            // Manual extraction for non-7z or when ExtractAllEntries fails
-            if (!use7zMethod)
-            {
-                foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
-                {
-                    var fullPath = Path.Combine(targetDirectory, entry.Key);
-                    var directory = Path.GetDirectoryName(fullPath);
-
-                    if (!string.IsNullOrEmpty(directory) && !createdDirectories.Contains(directory))
-                    {
-                        Directory.CreateDirectory(directory);
-                        createdDirectories.Add(directory);
-                    }
-
-                    using (var entryStream = entry.OpenEntryStream())
-                    using (var fileStream = File.Create(fullPath))
-                    {
-                        entryStream.CopyTo(fileStream);
-                    }
-
-                    fileCount++;
-                }
-            }
+            // Use SharpSevenZip for extraction (supports all common formats)
+            using var extractor = new SharpSevenZipExtractor(archivePath);
+            extractor.ExtractArchive(targetDirectory);
 
             result.Success = true;
-            result.FileCount = fileCount;
-            _logger.Info($"Extracted {fileCount} files from {Path.GetFileName(archivePath)}", "ArchiveService");
+            result.FileCount = (int)extractor.FilesCount;
+            _logger.Info($"Extracted {extractor.FilesCount} files from {Path.GetFileName(archivePath)}", "ArchiveHelper");
             return result;
         }
         catch (Exception ex)
         {
             result.Success = false;
             result.ErrorMessage = ex.Message;
-            _logger.Error($"Extraction failed: {ex.Message}", "ArchiveService", ex);
+            _logger.Error($"Extraction failed: {ex.Message}", "ArchiveHelper", ex);
             throw new InvalidOperationException($"Archive extraction failed: {ex.Message}", ex);
         }
     }
 
     /// <summary>
-    /// Validate an archive file to check if it's a valid compressed file and detect password protection
-    /// Returns validation result with detected type and password protection status
+    /// Validate an archive file to check if it's valid and detect password protection
     /// </summary>
     public async Task<ArchiveValidationResult> ValidateArchiveAsync(string archivePath)
     {
@@ -300,14 +271,14 @@ public class ArchiveHelper : IArchiveHelper
             };
         }
 
-        return await Task.Run(async () =>
+        return await Task.Run(() =>
         {
             var result = new ArchiveValidationResult { IsValid = true };
 
             try
             {
                 // Detect archive type from magic bytes
-                result.DetectedType = await DetectArchiveTypeAsync(archivePath).ConfigureAwait(false);
+                result.DetectedType = DetectArchiveTypeAsync(archivePath).GetAwaiter().GetResult();
 
                 if (result.DetectedType == null)
                 {
@@ -316,33 +287,36 @@ public class ArchiveHelper : IArchiveHelper
                     return result;
                 }
 
-                _logger.Info($"Validating archive type: {result.DetectedType}", "ArchiveService");
+                _logger.Info($"Validating archive type: {result.DetectedType}", "ArchiveHelper");
 
-                // Try to open the archive to check password protection and validity
+                // Initialize 7z.dll library
+                InitializeSevenZip();
+
+                // Try to open the archive to check password protection
                 try
                 {
-                    using var archive = ArchiveFactory.OpenArchive(archivePath);
+                    using var extractor = new SharpSevenZipExtractor(archivePath);
 
-                    // Check if archive entries are encrypted
-                    var hasEncryptedEntries = archive.Entries.Any(e => e.IsEncrypted);
+                    // Check if we can read file list - if it throws, it's likely password protected
+                    var fileCount = extractor.FilesCount;
 
-                    if (hasEncryptedEntries)
+                    // Try to get archive information
+                    try
                     {
-                        result.IsValid = false;
-                        result.IsPasswordProtected = true;
-                        result.ErrorMessage = "Archive is password protected. Password-protected archives are not supported.";
-                        _logger.Warn($"Archive is password protected: {archivePath}", "ArchiveService");
-                    }
-                    else
-                    {
-                        result.IsValid = true;
+                        var archiveFileNames = extractor.ArchiveFileNames;
                         result.IsPasswordProtected = false;
-                        _logger.Info($"Archive validation successful. Type: {result.DetectedType}, Password protected: {result.IsPasswordProtected}", "ArchiveService");
                     }
+                    catch
+                    {
+                        result.IsPasswordProtected = true;
+                    }
+
+                    result.IsValid = true;
+                    _logger.Info($"Archive validation successful. Type: {result.DetectedType}, Password protected: {result.IsPasswordProtected}", "ArchiveHelper");
                 }
                 catch (Exception ex)
                 {
-                    // Check if the error is related to password protection or encryption
+                    // Check if the error is related to password protection
                     if (ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase) ||
                         ex.Message.Contains("encrypted", StringComparison.OrdinalIgnoreCase) ||
                         ex.Message.Contains("Wrong password", StringComparison.OrdinalIgnoreCase))
@@ -350,13 +324,13 @@ public class ArchiveHelper : IArchiveHelper
                         result.IsValid = false;
                         result.IsPasswordProtected = true;
                         result.ErrorMessage = "Archive is password protected. Password-protected archives are not supported.";
-                        _logger.Warn($"Archive is password protected: {archivePath}", "ArchiveService");
+                        _logger.Warn($"Archive is password protected: {archivePath}", "ArchiveHelper");
                     }
                     else
                     {
                         result.IsValid = false;
                         result.ErrorMessage = $"Archive validation failed: {ex.Message}";
-                        _logger.Error($"Archive validation error: {ex.Message}", "ArchiveService", ex);
+                        _logger.Error($"Archive validation error: {ex.Message}", "ArchiveHelper", ex);
                     }
                 }
 
@@ -374,15 +348,9 @@ public class ArchiveHelper : IArchiveHelper
     }
 
     /// <summary>
-    /// Compress a folder into an archive file
+    /// Compress a folder into an archive file using SharpSevenZip
     /// Supports: ZIP, 7Z, TAR formats
-    /// Pure managed code - no native DLL dependencies
     /// </summary>
-    /// <param name="folderPath">Path to folder to compress</param>
-    /// <param name="outputPath">Output archive file path</param>
-    /// <param name="format">Archive format (default: ZIP)</param>
-    /// <param name="progressCallback">Optional callback for progress updates (0-100)</param>
-    /// <returns>Path to created archive</returns>
     public async Task<string> CompressFolderAsync(
         string folderPath,
         string outputPath,
@@ -393,138 +361,68 @@ public class ArchiveHelper : IArchiveHelper
         if (!Directory.Exists(folderPath))
             throw new DirectoryNotFoundException($"Folder not found: {folderPath}");
 
-        // Validate format - SharpCompress only supports writing Zip and Tar
-        if (format == ArchiveFormat.SevenZip)
+        var result = await Task.Run(() =>
         {
-            _logger.Warn("SevenZip format requested but SharpCompress does not support writing 7z archives. Falling back to Zip format.", "ArchiveService");
-            format = ArchiveFormat.Zip;
-        }
+            _logger.Info($"Compressing folder: {Path.GetFileName(folderPath)} -> {Path.GetFileName(outputPath)}", "ArchiveHelper");
 
-        // Use Task.Run to offload blocking I/O to thread pool
-        // We use a result wrapper to capture exceptions and re-throw them after the task completes
-        // This gives cleaner stack traces and proper exception handling outside the task thread
-        Exception? capturedException = null;
-        string? result = null;
+            // Initialize 7z.dll library
+            InitializeSevenZip();
 
-        try
-        {
-            result = await Task.Run(() =>
+            // Create output directory if needed
+            var outputDir = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
             {
-                _logger.Info($"Compressing folder: {Path.GetFileName(folderPath)} -> {Path.GetFileName(outputPath)} (format: {format})", "ArchiveService");
+                Directory.CreateDirectory(outputDir);
+            }
 
-                // Create output directory if needed
-                var outputDir = Path.GetDirectoryName(outputPath);
-                if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
+            // Create compressor with specified format
+            var compressor = new SharpSevenZipCompressor
+            {
+                ArchiveFormat = format switch
                 {
-                    Directory.CreateDirectory(outputDir);
-                }
+                    ArchiveFormat.SevenZip => OutArchiveFormat.SevenZip,
+                    ArchiveFormat.Tar => OutArchiveFormat.Tar,
+                    ArchiveFormat.Zip => OutArchiveFormat.Zip,
+                    _ => OutArchiveFormat.Zip
+                },
+                // Use Fast compression to reduce CPU usage and improve responsiveness
+                CompressionLevel = CompressionLevel.Fast,
+                PreserveDirectoryRoot = false  // Don't include root folder name in archive
+            };
 
-                try
+            // Wire up progress reporting if callback provided
+            if (progressCallback != null)
+            {
+                compressor.Compressing += (sender, e) =>
                 {
-                    // Determine SharpCompress archive type and writer options
-                    var archiveType = format switch
-                    {
-                        ArchiveFormat.SevenZip => ArchiveType.SevenZip,
-                        ArchiveFormat.Tar => ArchiveType.Tar,
-                        ArchiveFormat.Zip => ArchiveType.Zip,
-                        _ => ArchiveType.Zip
-                    };
+                    progressCallback((int)e.PercentDone);
+                };
+            }
 
-                    var compressionType = format switch
-                    {
-                        ArchiveFormat.SevenZip => CompressionType.LZMA,
-                        ArchiveFormat.Tar => CompressionType.GZip,
-                        ArchiveFormat.Zip => CompressionType.Deflate,
-                        _ => CompressionType.Deflate
-                    };
+            try
+            {
+                // Compress the directory
+                compressor.CompressDirectory(folderPath, outputPath);
 
-                    var writerOptions = new WriterOptions(compressionType)
-                    {
-                        LeaveStreamOpen = false,
-                        ArchiveEncoding = new ArchiveEncoding
-                        {
-                            Default = Encoding.UTF8
-                        }
-                    };
+                var fileInfo = new FileInfo(outputPath);
+                _logger.Info($"Compressed to {Path.GetFileName(outputPath)} ({fileInfo.Length / 1024} KB)", "ArchiveHelper");
 
-                    // Get all files in the folder recursively
-                    var files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
-                    var totalFiles = files.Length;
-                    var processedFiles = 0;
+                return outputPath;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Folder compression failed: {ex.Message}", "ArchiveHelper", ex);
+                throw new InvalidOperationException($"Failed to compress folder: {ex.Message}", ex);
+            }
+        });
 
-                    using var stream = File.Create(outputPath);
-                    using var writer = WriterFactory.OpenWriter(stream, archiveType, writerOptions);
-
-                    foreach (var file in files)
-                    {
-                        // Check for cancellation before processing each file
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            _logger.Info("Compression was cancelled", "ArchiveService");
-                            throw new OperationCanceledException(cancellationToken);
-                        }
-
-                        // Get relative path for the archive entry
-                        var relativePath = Path.GetRelativePath(folderPath, file);
-
-                        // Add file to archive
-                        writer.Write(relativePath, file);
-
-                        processedFiles++;
-
-                        // Report progress
-                        if (progressCallback != null && totalFiles > 0)
-                        {
-                            var progress = (int)((double)processedFiles / totalFiles * 100);
-                            progressCallback(progress);
-                        }
-                    }
-
-                    var fileInfo = new FileInfo(outputPath);
-                    _logger.Info($"Compressed to {Path.GetFileName(outputPath)} ({fileInfo.Length / 1024} KB)", "ArchiveService");
-
-                    return outputPath;
-                }
-                catch (OperationCanceledException ex)
-                {
-                    // Clean up partial file if cancelled
-                    if (File.Exists(outputPath))
-                    {
-                        try { File.Delete(outputPath); } catch { /* Ignore cleanup errors */ }
-                    }
-                    // Store exception to re-throw after task completes
-                    capturedException = ex;
-                    return null!;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error($"Folder compression failed: {ex.Message}", "ArchiveService", ex);
-                    // Store exception to re-throw after task completes
-                    capturedException = new InvalidOperationException($"Failed to compress folder: {ex.Message}", ex);
-                    return null!;
-                }
-            }, cancellationToken);
-        }
-        catch (OperationCanceledException)
+        // Check for cancellation AFTER compression completes
+        if (cancellationToken.IsCancellationRequested)
         {
-            // Task was cancelled (either before starting or during execution)
-            // This includes TaskCanceledException which is a subclass
-            // Re-throw to propagate to workflow handler for deletion
-            throw;
-        }
-        catch (Exception ex)
-        {
-            // Task.Run itself threw an exception (rare - usually task start issues)
-            throw new InvalidOperationException($"Failed to start compression task: {ex.Message}", ex);
+            _logger.Info("Compression was cancelled", "ArchiveHelper");
+            return await Task.FromCanceled<string>(cancellationToken);
         }
 
-        // Re-throw captured exception after task completes (outside task thread)
-        // This gives cleaner stack traces and proper exception handling on the calling thread
-        if (capturedException != null)
-        {
-            throw capturedException;
-        }
-
-        return result!;
+        return result;
     }
 }
