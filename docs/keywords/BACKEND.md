@@ -23,6 +23,7 @@
 - **ApplicationHost** → `D3dxSkinManager/Infrastructure/ApplicationHost.cs`
   - WinForms main form with WebView2 control
   - Manages window state and lifecycle
+  - Loads window icon from embedded resource (app.ico)
 
 - **WebViewInitializer** → `D3dxSkinManager/Infrastructure/WebViewInitializer.cs`
   - WebView2 environment setup
@@ -179,15 +180,17 @@
 #### Helpers
 
 - **ArchiveHelper** → `Modules/Core/Helpers/ArchiveHelper.cs`
-  - Archive extraction and compression using SharpCompress
+  - Archive extraction and compression using **SharpSevenZip** with native 7z.dll (~10x faster than SharpCompress)
+  - **7z.dll Initialization** → Automatic architecture-specific DLL loading (x64/x86) on first use
   - **DetectArchiveTypeAsync** → Async wrapper for archive type detection
   - **DetectArchiveType** → Synchronous archive type detection (7z, zip, rar, tar, etc.)
-  - **ExtractArchiveAsync** → Async wrapper for archive extraction
-  - **ExtractArchive** → Synchronous archive extraction with manual file writing (performance optimized)
-  - **CompressFolderAsync** → Create archives (Zip, Tar formats supported)
+  - **ExtractArchiveAsync** → Async wrapper for archive extraction using native 7z.dll
+  - **ExtractArchive** → Synchronous archive extraction with SharpSevenZipExtractor
+  - **CompressDirectoryAsync** → Create 7z archives with configurable compression level
   - **ValidateArchiveAsync** → Check if archive is valid and detect password protection
-  - **Performance**: Manual file extraction with cached directory creation (avoids SharpCompress WriteToDirectory bug)
-  - Created: 2024 | Updated: 2026-03-05 (renamed sync methods, removed 'Sync' suffix per C# conventions)
+  - **Performance**: Native 7z.dll provides ~10x faster extraction for LZMA/7z archives vs pure managed code
+  - **Native DLL**: Requires `libs/7z.dll` (architecture-specific, copied during build from libs/x64/ or libs/x86/)
+  - Created: 2024 | Updated: 2026-03-05 (migrated to SharpSevenZip, added native DLL initialization)
 
 #### Utilities
 
@@ -602,10 +605,15 @@ Located in `Plugins/` directory (external to backend):
 | Newtonsoft.Json | 13.0.4 | JSON serialization |
 | Microsoft.Extensions.DependencyInjection | 10.0.3 | DI container |
 | System.Drawing.Common | 10.0.3 | Image processing |
-| SharpCompress | Latest | Archive format detection |
+| SharpSevenZip | Latest | Archive extraction/compression with native 7z.dll (~10x faster) |
+| SixLabors.ImageSharp | 3.1.12 | Image processing |
+| Costura.Fody | 6.0.0 | Single-file deployment (embeds managed DLLs) |
 | xUnit | Latest | Unit testing |
 | Moq | 4.20.73 | Mocking |
 | FluentAssertions | 7.0.1 | Test assertions |
+
+**Native Libraries:**
+- `libs/7z.dll` - Official 7-Zip DLL (architecture-specific: x64/x86) for fast archive operations
 
 ---
 

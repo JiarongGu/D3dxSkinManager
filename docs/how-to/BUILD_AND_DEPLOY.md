@@ -1,6 +1,6 @@
 # Build and Deploy Guide
 
-**Last Updated:** 2026-03-04
+**Last Updated:** 2026-03-05
 **Purpose:** Complete guide for building and deploying D3dxSkinManager
 
 ---
@@ -28,8 +28,9 @@ This guide covers the entire build and deployment process for D3dxSkinManager, i
 3. **Resources**
    - Web resources: Embedded via EmbeddedResource
    - Language files: Separate (user-editable)
+   - Native libraries: 7z.dll (architecture-specific, separate file)
+   - Application icon: Embedded as manifest resource
    - SQLite native library: Embedded in exe
-   - Archive library: Pure managed (SharpCompress)
 
 ---
 
@@ -101,6 +102,8 @@ The `build-production.ps1` script automates the entire production build process:
 ```
 dist/win-x64/
 ├── D3dxSkinManager.exe  (14 MB, single-file)
+├── libs/
+│   └── 7z.dll           (architecture-specific: x64 or x86)
 └── data/languages/
     ├── cn.json
     └── en.json
@@ -164,13 +167,14 @@ The following resources are **embedded inside the executable**:
    - Configured as EmbeddedResource in .csproj
    - Served via custom scheme handler (`https://app.local/`)
 
-3. **SQLite native library (e_sqlite3.dll)**
+3. **Application icon (app.ico)**
+   - Multi-resolution icon (256, 128, 64, 48, 32, 16px)
+   - Embedded as manifest resource
+   - Used for both exe file and window icon
+
+4. **SQLite native library (e_sqlite3.dll)**
    - Embedded in single-file exe
    - Extracted to temp at runtime
-
-4. **Archive library (SharpCompress)**
-   - Pure managed code (no native DLL)
-   - Fully embedded
 
 ### Separate Resources
 
@@ -179,6 +183,13 @@ The following resources are **kept separate** for user access:
 1. **Language files (data/languages/*.json)**
    - Allows users to edit translations
    - Not embedded in exe
+   - Configured with `ExcludeFromSingleFile=true`
+
+2. **Native 7z.dll (libs/7z.dll)**
+   - Official 7-Zip DLL for fast archive operations (~10x faster than managed code)
+   - Architecture-specific (x64 or x86)
+   - Automatically copied during build based on Platform property
+   - Must be kept separate (native library cannot be embedded with Fody)
    - Configured with `ExcludeFromSingleFile=true`
 
 ### Resource Configuration
@@ -206,43 +217,92 @@ The following resources are **kept separate** for user access:
 
 ---
 
-## Archive Library (SharpCompress)
+## Archive Library (SharpSevenZip + Native 7z.dll)
 
-### Migration from 7z.dll
+### Migration to SharpSevenZip
 
-Previously, the application used SharpSevenZip with a native `7z.dll` dependency. This has been **migrated to SharpCompress 0.46.4**, a pure managed library.
+**Updated:** 2026-03-05 - Migrated from SharpCompress to SharpSevenZip for ~10x faster extraction performance.
+
+The application uses **SharpSevenZip** with the official native **7z.dll** from 7-Zip for significantly improved archive extraction performance, especially for LZMA/7z compressed mod archives.
 
 ### Benefits
 
-- ✅ No native DLL dependencies
-- ✅ Simpler deployment (no libs/ folder)
-- ✅ Fully embedded (everything in single exe)
-- ✅ Cross-platform compatible
+- ✅ **~10x faster extraction** for 7z/LZMA archives compared to pure managed code
+- ✅ Native performance for user-provided mod archives
 - ✅ Supports all common formats (ZIP, 7Z, RAR, TAR, GZIP, BZIP2)
+- ✅ Industry-standard compression with official 7-Zip library
+- ✅ Architecture-specific builds (x64/x86) handled automatically
+
+### Native Library Requirement
+
+**7z.dll Location:**
+- Source: `libs/x64/7z.dll` and `libs/x86/7z.dll`
+- Build Output: `libs/7z.dll` (architecture-specific copy)
+- Must be distributed alongside the executable
+
+**Obtaining 7z.dll:**
+Download from official 7-Zip Extra package: https://www.7-zip.org/download.html
+
+See `D3dxSkinManager/libs/README.md` for detailed instructions.
 
 ### Implementation
 
 **Package Reference (.csproj):**
 ```xml
-<PackageReference Include="SharpCompress" Version="0.46.4" />
+<PackageReference Include="SharpSevenZip" Version="*" />
+```
+
+**Native DLL Configuration (.csproj):**
+```xml
+<!-- Copy x64 7z.dll for 64-bit builds -->
+<Content Include="libs\x64\7z.dll" Condition="'$(Platform)' == 'x64' OR '$(Platform)' == 'AnyCPU'">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    <Link>libs\7z.dll</Link>
+    <TargetPath>libs\7z.dll</TargetPath>
+</Content>
+<!-- Copy x86 7z.dll for 32-bit builds -->
+<Content Include="libs\x86\7z.dll" Condition="'$(Platform)' == 'x86'">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    <Link>libs\7z.dll</Link>
+    <TargetPath>libs\7z.dll</TargetPath>
+</Content>
+```
+
+**Application Icon Configuration (.csproj):**
+```xml
+<PropertyGroup>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+</PropertyGroup>
+
+<ItemGroup>
+    <EmbeddedResource Include="app.ico">
+        <LogicalName>D3dxSkinManager.app.ico</LogicalName>
+    </EmbeddedResource>
+</ItemGroup>
 ```
 
 **Usage (ArchiveHelper.cs):**
 ```csharp
-// Extract archive
-using var archive = ArchiveFactory.OpenArchive(archivePath);
-foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+// Initialize 7z.dll (automatic, thread-safe)
+private void InitializeSevenZip()
 {
-    entry.WriteToDirectory(targetDirectory);
+    var architecture = Environment.Is64BitProcess ? "x64" : "x86";
+    var sevenZipPath = Path.Combine(baseDirectory, "libs", "7z.dll");
+    SharpSevenZipBase.SetLibraryPath(sevenZipPath);
 }
 
+// Extract archive
+using var extractor = new SharpSevenZipExtractor(archivePath);
+extractor.ExtractArchive(targetDirectory);
+
 // Create archive
-using var stream = File.Create(outputPath);
-using var writer = WriterFactory.OpenWriter(stream, archiveType, writerOptions);
-foreach (var file in files)
-{
-    writer.Write(relativePath, file);
-}
+using var compressor = new SharpSevenZipCompressor();
+compressor.CompressionLevel = CompressionLevel.Normal;
+compressor.CompressDirectory(sourceDirectory, outputPath);
 ```
 
 ---
@@ -404,6 +464,8 @@ rm -rf bin obj
 ```
 MyApp-v1.0.0-win-x64/
 ├── D3dxSkinManager.exe  (14 MB)
+├── libs/
+│   └── 7z.dll          (architecture-specific)
 └── data/languages/
     ├── cn.json
     └── en.json
@@ -431,6 +493,8 @@ MyApp-v1.0.0-win-x64/
 ```
 MyApp-v1.0.0-win-x64/
 ├── D3dxSkinManager.exe  (80 MB, includes .NET runtime)
+├── libs/
+│   └── 7z.dll          (architecture-specific)
 └── data/languages/
     ├── cn.json
     └── en.json
@@ -568,15 +632,20 @@ Platform: win-x64
 
 Package Contents:
   • D3dxSkinManager.exe - Single executable with embedded resources
+  • libs/7z.dll - Native 7-Zip library for fast archive operations (~10x faster)
   • data/languages/*.json - Language files (separate for easy editing)
 
 Embedded in exe:
   ✓ All managed DLLs (merged via Costura.Fody)
   ✓ All web resources (React app, HTML, JS, CSS, images)
-  ✓ Archive library (SharpCompress - pure managed, no native DLL)
+  ✓ Application icon (app.ico - multi-resolution, for exe and window)
   ✓ SQLite native library (e_sqlite3.dll - extracted to temp at runtime)
 
-Note: Using SharpCompress instead of 7z.dll - pure managed, no native dependencies!
+Separate files (required):
+  ✓ libs/7z.dll - Official 7-Zip DLL (architecture-specific: x64/x86)
+  ✓ data/languages/*.json - User-editable language files
+
+Note: Using SharpSevenZip with native 7z.dll for ~10x faster archive extraction!
 ```
 
 ---
@@ -657,7 +726,8 @@ The application displays version in:
 ### External Links
 
 - [.NET Single-File Publishing](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/)
-- [SharpCompress Documentation](https://github.com/adamhathcock/sharpcompress)
+- [SharpSevenZip Documentation](https://github.com/squid-box/SevenZipSharp)
+- [7-Zip Official Downloads](https://www.7-zip.org/download.html)
 - [WebView2 Documentation](https://learn.microsoft.com/en-us/microsoft-edge/webview2/)
 - [Vite Build Options](https://vitejs.dev/guide/build.html)
 
