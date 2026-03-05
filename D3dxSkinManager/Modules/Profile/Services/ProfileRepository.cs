@@ -80,6 +80,32 @@ namespace D3dxSkinManager.Modules.Profiles.Services
             }
         }
 
+        /// <summary>
+        /// Ensure profiles are loaded from disk if the list is empty
+        /// This handles cases where SaveProfileConfigurationAsync is called before any other profile operations
+        /// NOTE: Caller must NOT hold _profilesLock when calling this method to avoid deadlock
+        /// </summary>
+        private async Task EnsureProfilesLoadedAsync()
+        {
+            // Quick check without lock first (optimization)
+            if (_profiles.Count > 0) return;
+
+            await _profilesLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                // Double-check after acquiring lock
+                if (_profiles.Count == 0 && File.Exists(_globalPaths.ProfilesConfigPath))
+                {
+                    _logger.Info("Profiles list is empty, reloading from disk", "ProfileRepository");
+                    LoadProfiles();
+                }
+            }
+            finally
+            {
+                _profilesLock.Release();
+            }
+        }
+
         public async Task CreateProfileAsync(Profile profile)
         {
             await _profilesLock.WaitAsync().ConfigureAwait(false);
@@ -321,6 +347,9 @@ namespace D3dxSkinManager.Modules.Profiles.Services
 
         public async Task SaveProfileConfigurationAsync(string profileId, ProfileConfiguration config)
         {
+            // Ensure profiles are loaded from disk first (before acquiring any locks)
+            await EnsureProfilesLoadedAsync().ConfigureAwait(false);
+
             await _configurationsLock.WaitAsync().ConfigureAwait(false);
             try
             {

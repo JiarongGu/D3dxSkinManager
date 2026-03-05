@@ -32,7 +32,6 @@ public class ProfileService : IProfileService
     private readonly IHashHelper _hashHelper;
     private readonly IImageHelper _imageHelper;
     private readonly IFileHelper _fileService;
-    private readonly IFileTransferService _fileTransferService;
     private readonly IProfileRepository _repository;
     private readonly ILogHelper _logger;
     private readonly Lazy<Task> _init;
@@ -40,7 +39,6 @@ public class ProfileService : IProfileService
     public ProfileService(
         IGlobalPathService globalPaths,
         IFileHelper fileService,
-        IFileTransferService fileTransferService,
         IPathHelper pathHelper,
         IHashHelper hashHelper,
         IImageHelper imageHelper,
@@ -52,7 +50,6 @@ public class ProfileService : IProfileService
         _hashHelper = hashHelper;
         _imageHelper = imageHelper;
         _fileService = fileService;
-        _fileTransferService = fileTransferService;
         _repository = repository;
         _logger = logger;
 

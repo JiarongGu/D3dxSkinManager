@@ -1,20 +1,27 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
-import type { FormInstance } from 'antd';
-import { api } from '../../../../shared/services/ipc';
-import { handleError } from '../../../../shared/utils/errorHandler';
-import { notification } from '../../../../shared/utils/notification';
-import { useProfile } from '../../../../shared/context/ProfileContext';
-import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
-import { useStableRef } from '../../../../shared/hooks/useStableRef';
-import type { ScreenCaptureProfile } from '../../../../shared/types/capture.types';
-import { useTranslation } from 'react-i18next';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useCallback,
+  useEffect,
+} from "react";
+import type { FormInstance } from "antd";
+import { api } from "../../../../shared/services/ipc";
+import { handleError } from "../../../../shared/utils/errorHandler";
+import { notification } from "../../../../shared/utils/notification";
+import { useProfile } from "../../../../shared/context/ProfileContext";
+import { useDelayedLoading } from "../../../../shared/hooks/useDelayedLoading";
+import { useStableRef } from "../../../../shared/hooks/useStableRef";
+import type { ScreenCaptureProfile } from "../../../../shared/types/capture.types";
+import { useTranslation } from "react-i18next";
 import {
   eventBus,
   Module,
   ToolsEventType,
-} from '../../../../shared/services/eventBus';
+} from "../../../../shared/services/eventBus";
 
-const NEW_PROFILE_ID = '__new__';
+const NEW_PROFILE_ID = "__new__";
 
 /**
  * Screen Capture context state
@@ -52,7 +59,9 @@ interface ScreenCaptureContextState {
   handleFormValuesChange: (changedValues: Record<string, unknown>) => void;
 }
 
-const ScreenCaptureContext = createContext<ScreenCaptureContextState | undefined>(undefined);
+const ScreenCaptureContext = createContext<
+  ScreenCaptureContextState | undefined
+>(undefined);
 
 /**
  * Hook to use screen capture context
@@ -61,7 +70,9 @@ const ScreenCaptureContext = createContext<ScreenCaptureContextState | undefined
 export const useScreenCapture = (): ScreenCaptureContextState => {
   const context = useContext(ScreenCaptureContext);
   if (!context) {
-    throw new Error('useScreenCapture must be used within ScreenCaptureProvider');
+    throw new Error(
+      "useScreenCapture must be used within ScreenCaptureProvider",
+    );
   }
   return context;
 };
@@ -74,17 +85,20 @@ interface ScreenCaptureProviderProps {
  * Screen Capture context provider
  * Manages state and operations for screen capture profiles
  */
-export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ children }) => {
+export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({
+  children,
+}) => {
   const { t } = useTranslation();
   const { selectedProfileId: currentProfileId } = useProfile();
   const { loading, execute } = useDelayedLoading(100);
 
   // State
   const [profiles, setProfiles] = useState<ScreenCaptureProfile[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>(NEW_PROFILE_ID);
+  const [selectedProfileId, setSelectedProfileId] =
+    useState<string>(NEW_PROFILE_ID);
   const [isDirty, setIsDirty] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [editingName, setEditingName] = useState('');
+  const [editingName, setEditingName] = useState("");
   const [showingBorder, setShowingBorder] = useState(false);
   const [form, setForm] = useState<FormInstance>();
 
@@ -92,7 +106,7 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
   const [currentProfileIdRef, selectedProfileIdRef, formRef] = useStableRef(
     currentProfileId,
     selectedProfileId,
-    form
+    form,
   );
 
   // Computed
@@ -126,7 +140,7 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
   // Reset profile state
   const resetProfile = useCallback((profileId?: string) => {
     setIsEditingName(false);
-    setEditingName('');
+    setEditingName("");
     setSelectedProfileId(profileId ?? NEW_PROFILE_ID);
     setIsDirty(false);
   }, []);
@@ -145,7 +159,7 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
       // If a profile ID was provided, select it and load its values
       const profileToSelect = selectProfileId || selectedProfileIdRef.current;
       if (profileToSelect && profileToSelect !== NEW_PROFILE_ID) {
-        const selectedProfile = data.find(p => p.id === profileToSelect);
+        const selectedProfile = data.find((p) => p.id === profileToSelect);
         if (selectedProfile) {
           formRef.current.setFieldsValue({
             x: selectedProfile.x,
@@ -179,22 +193,25 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
   }, [currentProfileId, form, loadProfiles]);
 
   // Handle profile change
-  const handleProfileChange = useCallback((profileId: string | undefined) => {
-    resetProfile(profileId);
-    if (!profileId || profileId === NEW_PROFILE_ID || !form) {
-      // Switching to <New Profile> - keep current form values
-      return;
-    }
-    const profile = profiles.find((p) => p.id === profileId);
-    if (profile) {
-      form.setFieldsValue({
-        x: profile.x,
-        y: profile.y,
-        width: profile.width,
-        height: profile.height,
-      });
-    }
-  }, [profiles, resetProfile, form]);
+  const handleProfileChange = useCallback(
+    (profileId: string | undefined) => {
+      resetProfile(profileId);
+      if (!profileId || profileId === NEW_PROFILE_ID || !form) {
+        // Switching to <New Profile> - keep current form values
+        return;
+      }
+      const profile = profiles.find((p) => p.id === profileId);
+      if (profile) {
+        form.setFieldsValue({
+          x: profile.x,
+          y: profile.y,
+          width: profile.width,
+          height: profile.height,
+        });
+      }
+    },
+    [profiles, resetProfile, form],
+  );
 
   // Handle save profile
   const handleSaveProfile = useCallback(async () => {
@@ -203,7 +220,7 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
     // Workflow 1: New profile - prompt for name first
     if (isNew && !isEditingName) {
       setIsEditingName(true);
-      setEditingName('');
+      setEditingName("");
       return;
     }
 
@@ -225,7 +242,7 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
         // Workflow 1 continued: Create new profile with name
         if (isNew && isEditingName) {
           if (!editingName.trim()) {
-            notification.warning(t('capture.enterName'), 1);
+            notification.warning(t("capture.enterName"), 1);
             return;
           }
 
@@ -244,7 +261,9 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
 
         // Workflow 2: Update existing profile
         if (!isNew && selectedProfileIdRef.current) {
-          const profile = profiles.find((p) => p.id === selectedProfileIdRef.current);
+          const profile = profiles.find(
+            (p) => p.id === selectedProfileIdRef.current,
+          );
           if (!profile) return;
 
           await api.tool.saveProfile(currentProfileIdRef.current, {
@@ -258,18 +277,32 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
         handleError(error);
       }
     });
-  }, [isEditingName, editingName, profiles, execute, form, loadProfiles, resetProfile, t, currentProfileIdRef, selectedProfileIdRef]);
+  }, [
+    isEditingName,
+    editingName,
+    profiles,
+    execute,
+    form,
+    loadProfiles,
+    resetProfile,
+    t,
+    currentProfileIdRef,
+    selectedProfileIdRef,
+  ]);
 
   // Handle cancel edit name
   const handleCancelEditName = useCallback(() => {
     setIsEditingName(false);
-    setEditingName('');
+    setEditingName("");
   }, []);
 
   // Handle delete profile
   const handleDeleteProfile = useCallback(async () => {
-    if (!selectedProfileIdRef.current || selectedProfileIdRef.current === NEW_PROFILE_ID) {
-      notification.warning(t('capture.noProfileSelected'), 1);
+    if (
+      !selectedProfileIdRef.current ||
+      selectedProfileIdRef.current === NEW_PROFILE_ID
+    ) {
+      notification.warning(t("capture.noProfileSelected"), 1);
       return;
     }
 
@@ -295,13 +328,21 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
         handleError(error);
       }
     });
-  }, [execute, form, loadProfiles, resetProfile, t, currentProfileIdRef, selectedProfileIdRef]);
+  }, [
+    execute,
+    form,
+    loadProfiles,
+    resetProfile,
+    t,
+    currentProfileIdRef,
+    selectedProfileIdRef,
+  ]);
 
   // Handle toggle border
   const handleToggleBorder = useCallback(async () => {
     execute(async () => {
       if (!currentProfileIdRef.current || !form) {
-        notification.error(t('capture.noActiveProfile'), 1.5);
+        notification.error(t("capture.noActiveProfile"), 1.5);
         return;
       }
 
@@ -357,8 +398,13 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({ ch
           },
         );
 
-        if (!result.success) {
-          notification.error(result.errorMessage || t('capture.captureFailed'), 1.5);
+        if (result.success) {
+          notification.success(t("capture.captured"), 1);
+        } else {
+          notification.error(
+            result.errorMessage || t("capture.captureFailed"),
+            1.5,
+          );
         }
       } catch (error) {
         handleError(error);
