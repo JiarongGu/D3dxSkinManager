@@ -1,12 +1,12 @@
 ﻿using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Infrastructure.Resources;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.WinForms;
+using D3dxSkinManager.Infrastructure.WebView;
 
-namespace D3dxSkinManager.Infrastructure.WebView
+namespace D3dxSkinManager.Modules.Core.Models
 {
     public sealed class WebViewSession : IDisposable
     {

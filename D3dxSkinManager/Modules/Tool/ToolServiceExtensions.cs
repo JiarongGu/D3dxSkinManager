@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using D3dxSkinManager.Modules.Tool.ScreenCapture.Services;
 using D3dxSkinManager.Modules.Tool.Services;
 
 namespace D3dxSkinManager.Modules.Tool;
@@ -22,6 +23,13 @@ public static class ToolServiceExtensions
 
         // Register validation service
         services.TryAddSingleton<IStartupValidationService, StartupValidationService>();
+
+        // Register screen capture services
+        services.TryAddSingleton<IScreenCaptureProfileRepository, ScreenCaptureProfileRepository>();
+        services.TryAddSingleton<IScreenCaptureService, ScreenCaptureService>();
+
+        // Register secondary window service (profile-scoped for capture window)
+        services.TryAddSingleton<Infrastructure.WebView.ISecondaryWindowService, Infrastructure.WebView.SecondaryWindowService>();
 
         // Register facade
         services.TryAddSingleton<IToolFacade, ToolFacade>();

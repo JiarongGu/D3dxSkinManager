@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Space, Tag, Progress, Button } from 'antd';
 import {
   LoadingOutlined,
@@ -11,11 +11,6 @@ import './AppStatusBar.css';
 export type StatusType = 'normal' | 'warning' | 'error';
 
 interface AppStatusBarProps {
-  serverStatus: 'connected' | 'disconnected' | 'connecting';
-  statusMessage?: string;
-  statusType?: StatusType;
-  progressPercent?: number;
-  progressVisible?: boolean;
   operationName?: string; // Current operation name
   activeOperationCount?: number; // Number of active operations
   onHelpClick?: () => void;
@@ -23,11 +18,6 @@ interface AppStatusBarProps {
 }
 
 export const AppStatusBar: React.FC<AppStatusBarProps> = ({
-  serverStatus,
-  statusMessage,
-  statusType = 'normal',
-  progressPercent = 0,
-  progressVisible = false,
   operationName,
   activeOperationCount = 0,
   onHelpClick,
@@ -35,6 +25,11 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  const [statusMessage, setStatusMessage] = useState<string>("");
+  const [statusType, setStatusType] = useState<StatusType>("normal");
+  const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [progressVisible, setProgressVisible] = useState<boolean>(false);
+  
   // Get mod statistics from store (global counts, not affected by category selection)
   const statistics = useModsStore((state) => state.statistics);
 

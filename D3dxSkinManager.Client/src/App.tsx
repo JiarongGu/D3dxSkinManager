@@ -7,12 +7,8 @@ import {
 } from "antd";
 import { setNotificationApi } from "./shared/utils/notification";
 import { AppHeader } from "./modules/core/components/layout/AppHeader";
-import {
-  AppStatusBar,
-  StatusType,
-} from "./modules/core/components/layout/AppStatusBar";
+import { AppStatusBar } from "./modules/core/components/layout/AppStatusBar";
 import { ModHierarchicalView } from "./modules/mod/components/ModHierarchicalView";
-import { LaunchView } from "./modules/launch/components/LaunchView";
 import { SettingsView } from "./modules/setting/components/SettingsView";
 import { ToolsView } from "./modules/tool/components/ToolsView";
 import { PluginsView } from "./modules/plugin/components/PluginsView";
@@ -48,12 +44,6 @@ const { Content } = Layout;
 const AppContent: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState("mods");
   const [shortcutsDialogVisible, setShortcutsDialogVisible] = useState(false);
-
-  // Status bar state
-  const [statusMessage, setStatusMessage] = useState<string>("");
-  const [statusType, setStatusType] = useState<StatusType>("normal");
-  const [progressPercent, setProgressPercent] = useState<number>(0);
-  const [progressVisible, setProgressVisible] = useState<boolean>(false);
 
   // Get slide-in screen controls
   const { openScreen, closeScreen, closeAllScreens, screens } =
@@ -122,7 +112,7 @@ const AppContent: React.FC = () => {
         <Layout className="app-content-layout">
           <Content className="app-content">
             {selectedTab === "mods" && <ModHierarchicalView />}
-            {selectedTab === "launch" && <LaunchView />}
+            {/* {selectedTab === "launch" && <LaunchView />} //TODO: disabled for now until its implemented*/}
             {selectedTab === "tools" && <ToolsView />}
             {selectedTab === "plugins" && <PluginsView />}
             {selectedTab === "settings" && <SettingsView />}
@@ -130,14 +120,7 @@ const AppContent: React.FC = () => {
         </Layout>
 
         {/* Fixed Footer */}
-        <AppStatusBar
-          serverStatus="connected"
-          statusMessage={statusMessage}
-          statusType={statusType}
-          progressPercent={progressPercent}
-          progressVisible={progressVisible}
-          onHelpClick={handleHelpClick}
-        />
+        <AppStatusBar onHelpClick={handleHelpClick} />
       </Layout>
 
       {/* Keyboard Shortcuts Dialog */}

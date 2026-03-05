@@ -4,7 +4,6 @@ using D3dxSkinManager.Modules.Category;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.System;
-using D3dxSkinManager.Modules.System.Services;
 using D3dxSkinManager.Modules.Tool;
 using D3dxSkinManager.Modules.Launch;
 using D3dxSkinManager.Modules.Migration;
@@ -28,7 +27,7 @@ namespace D3dxSkinManager.Infrastructure;
 public class ApplicationHost
 {
     // Session management
-    private WebViewSessionManager _sessionManager = null!;
+    private IWebViewSessionManager _sessionManager = null!;
     private const string MAIN_SESSION_ID = "main";
 
     // Main window components
@@ -65,7 +64,7 @@ public class ApplicationHost
 
         // Create EmbeddedResourceProvider immediately to start background preloading
         // This happens BEFORE ConfigureServices, so preloading starts as early as possible
-        var embeddedResourceProvider = new Resources.EmbeddedResourceProvider();
+        var embeddedResourceProvider = new EmbeddedResourceProvider();
         services.AddSingleton<IEmbeddedResourceProvider>(embeddedResourceProvider);
 
         ConfigureServices(services);
@@ -255,9 +254,9 @@ public class ApplicationHost
             // This allows profile-scoped cache warming (category tree, mods) via MessageDispatcher
             await PerformEagerLoadingAsync();
 
-            // Initialize Session Manager
-            _logger.Info("Initializing session manager...", "Host");
-            _sessionManager = new WebViewSessionManager(_logger);
+            // Get Session Manager from DI
+            _logger.Info("Getting session manager from DI...", "Host");
+            _sessionManager = _serviceProvider.GetRequiredService<IWebViewSessionManager>();
 
             // Create main WebView session
             await CreateMainSessionAsync();
@@ -270,6 +269,14 @@ public class ApplicationHost
             {
                 _logger.Info("Received window state reset event", "Host");
                 await HandleWindowStateResetAsync(eventMessage);
+            });
+
+            // Subscribe to profile switch events to close all secondary windows (e.g., screen capture control panels)
+            eventBus.Subscribe(ModuleNames.PROFILE, ProfileEvents.SWITCHED, async (eventMessage) =>
+            {
+                _logger.Info("Received profile switched event, closing all secondary windows", "Host");
+                _profileRouter.CloseAllSecondaryWindows();
+                await Task.CompletedTask;
             });
 
             _logger.Info("All components initialized", "Host");
@@ -424,6 +431,21 @@ public class ApplicationHost
                 catch (Exception ex)
                 {
                     _logger.Error($"Failed to save window state: {ex.Message}", "Host", ex);
+                }
+            }
+
+            // Dispose ProfileServiceRouter (which disposes all profile-scoped services including SecondaryWindowService)
+            if (_profileRouter != null)
+            {
+                try
+                {
+                    _logger.Info("Disposing ProfileServiceRouter (closes all secondary windows)...", "Host");
+                    _profileRouter.Dispose();
+                    _logger.Info("ProfileServiceRouter disposed", "Host");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Failed to dispose ProfileServiceRouter: {ex.Message}", "Host", ex);
                 }
             }
 

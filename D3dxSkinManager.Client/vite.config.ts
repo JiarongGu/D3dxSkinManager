@@ -34,6 +34,10 @@ export default defineConfig({
     minify: 'esbuild', // Use esbuild (default, faster than terser)
     target: 'esnext', // Modern browsers only - smaller bundle
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        capture: path.resolve(__dirname, 'capture.html'),
+      },
       output: {
         // Split vendor chunks for better caching
         manualChunks: {

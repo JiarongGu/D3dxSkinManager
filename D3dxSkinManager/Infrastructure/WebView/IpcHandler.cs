@@ -239,17 +239,30 @@ public class IpcHandler : IIpcHandler
 
                 var json = JsonSerializer.Serialize(message, _jsonOptions);
 
-                // Marshal to UI thread
+                // Marshal to UI thread - all WebView2 access must be on UI thread
                 if (_webView.InvokeRequired)
                 {
                     _webView.BeginInvoke(() =>
                     {
-                        _webView.CoreWebView2.PostWebMessageAsString(json);
+                        try
+                        {
+                            if (_webView.CoreWebView2 != null)
+                            {
+                                _webView.CoreWebView2.PostWebMessageAsString(json);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error($"Error posting message from UI thread: {ex.Message}", "IPC");
+                        }
                     });
                 }
                 else
                 {
-                    _webView.CoreWebView2.PostWebMessageAsString(json);
+                    if (_webView.CoreWebView2 != null)
+                    {
+                        _webView.CoreWebView2.PostWebMessageAsString(json);
+                    }
                 }
             }
             catch (Exception ex)

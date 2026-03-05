@@ -19,4 +19,18 @@ public class ProfileConfiguration
     /// Work directory configuration (parent of Mods folder)
     /// </summary>
     public WorkDirectoryConfiguration Work { get; set; } = new WorkDirectoryConfiguration();
+
+    /// <summary>
+    /// Capture window position
+    /// </summary>
+    public CaptureWindowConfiguration? Capture { get; set; }
+}
+
+/// <summary>
+/// Capture window position configuration
+/// </summary>
+public class CaptureWindowConfiguration
+{
+    public int? X { get; set; }
+    public int? Y { get; set; }
 }

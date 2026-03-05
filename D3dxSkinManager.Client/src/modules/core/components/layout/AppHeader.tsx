@@ -1,12 +1,11 @@
 import React from "react";
-import classNames from 'classnames';
+import classNames from "classnames";
 import { Layout, Button } from "antd";
 import {
   AppstoreOutlined,
   ToolOutlined,
   ApiOutlined,
   SettingOutlined,
-  RocketOutlined,
 } from "@ant-design/icons";
 import { ProfileSwitcher } from "../../../profile/components/ProfileSwitcher";
 import { ProfileManager } from "../../../profile/components/ProfileManager";
@@ -35,11 +34,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const { t } = useTranslation();
 
   const tabs: TabItem[] = [
-    { key: "mods", icon: <AppstoreOutlined />, label: t('header.tabs.mods') },
-    { key: "launch", icon: <RocketOutlined />, label: t('header.tabs.launch') },
-    { key: "tools", icon: <ToolOutlined />, label: t('header.tabs.tools') },
-    { key: "plugins", icon: <ApiOutlined />, label: t('header.tabs.plugins') },
-    { key: "settings", icon: <SettingOutlined />, label: t('header.tabs.settings') },
+    { key: "mods", icon: <AppstoreOutlined />, label: t("header.tabs.mods") },
+    // { key: "launch", icon: <RocketOutlined />, label: t('header.tabs.launch') }, //TODO: disabled for now until its implemented
+    { key: "tools", icon: <ToolOutlined />, label: t("header.tabs.tools") },
+    { key: "plugins", icon: <ApiOutlined />, label: t("header.tabs.plugins") },
+    {
+      key: "settings",
+      icon: <SettingOutlined />,
+      label: t("header.tabs.settings"),
+    },
   ];
 
   const handleProfileSwitch = () => {
@@ -48,7 +51,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const handleManageProfiles = () => {
     openScreen({
-      title: t('header.profile.manage'),
+      title: t("header.profile.manage"),
       content: <ProfileManager />,
       width: "900px",
     });
@@ -67,7 +70,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 type="text"
                 icon={tab.icon}
                 onClick={() => onTabChange(tab.key)}
-                className={classNames('app-header-tab', { 'app-header-tab-selected': isSelected })}
+                className={classNames("app-header-tab", {
+                  "app-header-tab-selected": isSelected,
+                })}
               >
                 {tab.label}
               </Button>

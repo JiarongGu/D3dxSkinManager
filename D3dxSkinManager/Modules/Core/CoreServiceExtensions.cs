@@ -75,6 +75,11 @@ public static class CoreServiceExtensions
         // Eager loading service for startup optimizations
         AddSingleton<IEagerLoadingService, EagerLoadingService>(services);
 
+        // WebView infrastructure services (shared with profile-scoped services)
+        AddSingleton<IWebViewSessionManager, WebViewSessionManager>(services);
+
+        AddSingleton<IFormInteractionService, FormInteractionService>(services);
+
         return services;
     }
 
@@ -82,6 +87,7 @@ public static class CoreServiceExtensions
     {
         services.AddSingleton(serviceProvider.GetRequiredService<IMemoryCache>());
         services.AddSingleton(serviceProvider.GetRequiredService<IMessageDispatcher>());
+        services.AddSingleton(serviceProvider.GetRequiredService<Infrastructure.Resources.IEmbeddedResourceProvider>());
 
         foreach (var serviceType in _registerdServices)
         {

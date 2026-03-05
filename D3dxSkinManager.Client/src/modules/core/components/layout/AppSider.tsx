@@ -1,14 +1,13 @@
-import React from 'react';
-import { Layout, Menu } from 'antd';
+import React from "react";
+import { Layout, Menu } from "antd";
 import {
   AppstoreOutlined,
   ToolOutlined,
   ApiOutlined,
   SettingOutlined,
   RocketOutlined,
-  PlayCircleOutlined
-} from '@ant-design/icons';
-import './AppSider.css';
+} from "@ant-design/icons";
+import "./AppSider.css";
 
 const { Sider } = Layout;
 
@@ -17,7 +16,10 @@ interface AppSiderProps {
   onTabChange: (tab: string) => void;
 }
 
-export const AppSider: React.FC<AppSiderProps> = ({ selectedTab, onTabChange }) => {
+export const AppSider: React.FC<AppSiderProps> = ({
+  selectedTab,
+  onTabChange,
+}) => {
   return (
     <Sider width={160} className="app-sider">
       <Menu
@@ -26,35 +28,35 @@ export const AppSider: React.FC<AppSiderProps> = ({ selectedTab, onTabChange }) 
         className="app-sider-menu"
         items={[
           {
-            key: 'mods',
+            key: "mods",
             icon: <AppstoreOutlined />,
-            label: 'Mods',
-            onClick: () => onTabChange('mods')
+            label: "Mods",
+            onClick: () => onTabChange("mods"),
           },
           {
-            key: 'launch',
+            key: "launch",
             icon: <RocketOutlined />,
-            label: 'Launch',
-            onClick: () => onTabChange('launch')
+            label: "Launch",
+            onClick: () => onTabChange("launch"),
           },
           {
-            key: 'tools',
+            key: "tools",
             icon: <ToolOutlined />,
-            label: 'Tools',
-            onClick: () => onTabChange('tools')
+            label: "Tools",
+            onClick: () => onTabChange("tools"),
           },
           {
-            key: 'plugins',
+            key: "plugins",
             icon: <ApiOutlined />,
-            label: 'Plugins',
-            onClick: () => onTabChange('plugins')
+            label: "Plugins",
+            onClick: () => onTabChange("plugins"),
           },
           {
-            key: 'settings',
+            key: "settings",
             icon: <SettingOutlined />,
-            label: 'Settings',
-            onClick: () => onTabChange('settings')
-          }
+            label: "Settings",
+            onClick: () => onTabChange("settings"),
+          },
         ]}
       />
     </Sider>

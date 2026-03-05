@@ -1,9 +1,19 @@
 ﻿using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
 using System.Collections.Concurrent;
 
-namespace D3dxSkinManager.Infrastructure.WebView
+namespace D3dxSkinManager.Modules.Core.Services
 {
-    public sealed class WebViewSessionManager
+    public interface IWebViewSessionManager
+    {
+        ICollection<WebViewSession> Sessions { get; }
+        WebViewSession Create(string sessionId, Func<WebViewSession> factory);
+        bool TryGet(string sessionId, out WebViewSession session);
+        void Remove(string sessionId);
+        void BroadcastNotification(string module, string type, object? payload = null);
+    }
+
+    public sealed class WebViewSessionManager : IWebViewSessionManager
     {
         private readonly ConcurrentDictionary<string, WebViewSession> _sessions = new();
         private readonly ILogHelper _logger;

@@ -95,6 +95,7 @@ export enum MigrationEventType {
 export enum ToolsEventType {
   CACHE_CLEANED = "CACHE_CLEANED",
   CACHE_ITEM_DELETED = "CACHE_ITEM_DELETED",
+  CAPTURE_BOUNDS_CHANGED = "CAPTURE_BOUNDS_CHANGED",
 }
 
 // NOTE: Plugin events are NOT currently used in backend - reserved for future cross-plugin communication
@@ -198,6 +199,7 @@ export interface EventPayloadMap {
   [Module.TOOL]: {
     [ToolsEventType.CACHE_CLEANED]: unknown;
     [ToolsEventType.CACHE_ITEM_DELETED]: { key: string };
+    [ToolsEventType.CAPTURE_BOUNDS_CHANGED]: { x: number; y: number; width: number; height: number };
   };
 
   // Plugins events (not currently used)

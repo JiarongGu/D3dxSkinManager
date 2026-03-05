@@ -31,7 +31,7 @@ export const SettingsView: React.FC = () => {
   const [form] = Form.useForm();
   const { theme, setTheme } = useTheme();
   const { t, i18n } = useTranslation();
-  const { selectedProfile, selectedProfileId } = useProfile();
+  const { selectedProfileId } = useProfile();
 
   // Zustand store - settings are preloaded by SettingsProvider
   // No need to load data here - it's already loaded and persisted

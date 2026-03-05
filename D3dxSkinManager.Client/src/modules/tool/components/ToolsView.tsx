@@ -5,12 +5,15 @@ import {
   ImportOutlined,
   TagsOutlined,
   ToolOutlined,
+  CameraOutlined,
 } from '@ant-design/icons';
 import { StartupValidationTool } from './StartupValidationTool';
 import { TagManagementTool } from './TagManagementTool/TagManagementTool';
 import { PythonMigrationTool } from './PythonMigrationTool/PythonMigrationTool';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { CompactCard } from '../../../shared/components/compact';
+import { api } from '../../../shared/services/ipc';
+import { useProfile } from '../../../shared/context/ProfileContext';
 import './ToolsView.css';
 
 interface ToolCardData {
@@ -26,11 +29,13 @@ interface ToolCardData {
  *
  * Features:
  * - Startup Validation
+ * - Screen Capture
  * - Python Migration
  * - Tag Management
  */
 export const ToolsView: React.FC = () => {
   const { openScreen } = useSlideInScreenContext();
+  const { selectedProfileId } = useProfile();
   const [showMigrationTool, setShowMigrationTool] = React.useState(false);
 
   // ModsProvider already handles migration completion events
@@ -46,6 +51,13 @@ export const ToolsView: React.FC = () => {
       description: 'Validate system startup requirements and configuration',
       icon: <CheckCircleOutlined />,
       content: <StartupValidationTool />,
+    },
+    {
+      key: 'screen-capture',
+      title: 'Screen Capture',
+      description: 'Capture screen regions with customizable profiles',
+      icon: <CameraOutlined />,
+      content: null, // Special case - opens WinForm control panel
     },
     {
       key: 'python-migration',
@@ -67,6 +79,23 @@ export const ToolsView: React.FC = () => {
     // Special handling for Python Migration - open wizard directly
     if (tool.key === 'python-migration') {
       setShowMigrationTool(true);
+      return;
+    }
+
+    // Special handling for Screen Capture - toggle WinForm control panel
+    if (tool.key === 'screen-capture') {
+      if (!selectedProfileId) {
+        console.error('[ToolsView] No profile selected');
+        return;
+      }
+      console.log('[ToolsView] Calling api.tool.toggleControlPanel()...');
+      api.tool.toggleControlPanel(selectedProfileId)
+        .then(() => {
+          console.log('[ToolsView] Control panel toggled successfully');
+        })
+        .catch((error) => {
+          console.error('[ToolsView] Failed to toggle capture control panel:', error);
+        });
       return;
     }
 

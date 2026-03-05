@@ -12,6 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2026-03-05 - Screen Capture: Toggle Control Panel & Profile Switch Cleanup ⭐
+Refactored screen capture control panel from "show" to "toggle" behavior and implemented automatic window cleanup on profile switch.
+**Impact**: ✅ Improved UX with single-button toggle for control panel, automatic cleanup prevents orphaned windows
+**Problem 1**: Control panel could only be opened, not closed programmatically - users had to manually close window
+**Problem 2**: Switching profiles left control panel windows open from previous profile
+**Problem 3**: `ISecondaryWindowService` is profile-scoped but cleanup attempted to access from global service provider
+**Solution**: Implemented toggle logic with profile-aware window tracking, added cleanup via ProfileServiceRouter on profile switch events
+**Backend Changes**:
+- SecondaryWindowService.cs: Added `HasWindowForProfile()` and `CloseWindowForProfile()` methods to ISecondaryWindowService interface
+- ScreenCaptureService.cs: Renamed `ShowCaptureControlPanel` → `ToggleCaptureControlPanel` with toggle logic (check if exists, close if open, open if closed)
+- ToolFacade.cs: Updated IPC routing from `SCREEN_CAPTURE_SHOW_CONTROL_PANEL` → `SCREEN_CAPTURE_TOGGLE_CONTROL_PANEL`
+- ProfileServiceRouter.cs: Added `CloseAllSecondaryWindows()` method to iterate all profile-scoped services and close windows
+- ApplicationHost.cs: Subscribed to `PROFILE:SWITCHED` event to call `ProfileServiceRouter.CloseAllSecondaryWindows()`
+- IpcHandler.cs:242-266: Fixed threading bug - moved all `CoreWebView2` access inside UI thread invocation to prevent `InvalidOperationException`
+**Frontend Changes**:
+- toolService.ts: Renamed `showControlPanel` → `toggleControlPanel`, updated message type to `SCREEN_CAPTURE_TOGGLE_CONTROL_PANEL`
+- ToolsView.tsx: Updated to call `api.tool.toggleControlPanel()` instead of `showControlPanel()`
+**Architecture Fix**: Properly handles profile-scoped services - uses ProfileServiceRouter to access ISecondaryWindowService across all profiles instead of attempting global service provider access
+**Threading Fix**: All WebView2 property access now properly marshalled to UI thread, preventing "CoreWebView2 can only be accessed from the UI thread" errors
+**Documentation**: Added comprehensive `docs/features/SCREEN_CAPTURE_TOOL.md` covering architecture, threading model, IPC messages, and troubleshooting
+
 ### Changed - 2026-03-05 - Configuration: Work Directory Replaces Mod Cache Configuration ⭐⭐
 Refactored profile configuration from `modCache` to `work` directory to correctly represent the work directory architecture (parent of Mods folder). Fixed critical bug where external work directory configuration was not being applied.
 **Impact**: ✅ Configuration now accurately reflects the documented architecture where work directory is the parent containing the Mods subfolder. External work directory mode now functions correctly.

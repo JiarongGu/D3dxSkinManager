@@ -1,0 +1,22 @@
+.screen-capture-tool {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.screen-capture-tool-form {
+  display: flex;
+  width: '100%';
+  justify-content: space-between;
+}
+
+.screen-capture-tool-form .ant-form-item {
+  margin-right: 0 !important;
+}
+
+.screen-capture-tool-form .ant-form-item .ant-form-item-label >label::after {
+  content: "" !important;
+  margin-right: 4px !important;
+}

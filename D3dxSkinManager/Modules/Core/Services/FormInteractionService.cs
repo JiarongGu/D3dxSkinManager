@@ -1,6 +1,6 @@
 using System.Windows.Forms;
 
-namespace D3dxSkinManager.Modules.System.Services;
+namespace D3dxSkinManager.Modules.Core.Services;
 
 /// <summary>
 /// Service for managing form interaction blocking

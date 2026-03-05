@@ -14,6 +14,7 @@ export * from './validationService';
 export * from './categoryService';
 export * from './languageService';
 export * from './systemService';
+export * from './toolService';
 
 // Import classes for creating singleton instances
 import { ModService } from './modService';
@@ -25,6 +26,7 @@ import { ValidationService } from './validationService';
 import { CategoryService } from './categoryService';
 import { LanguageService } from './languageService';
 import { SystemService } from './systemService';
+import { ToolService } from './toolService';
 
 /**
  * Consolidated API with all IPC services
@@ -39,6 +41,7 @@ export const api = {
   category: new CategoryService(),
   language: new LanguageService(),
   system: new SystemService(),
+  tool: new ToolService(),
 } as const;
 
 // Legacy exports for backward compatibility
@@ -51,3 +54,4 @@ export const validationService = api.validation;
 export const categoryService = api.category;
 export const languageService = api.language;
 export const systemService = api.system;
+export const toolService = api.tool;

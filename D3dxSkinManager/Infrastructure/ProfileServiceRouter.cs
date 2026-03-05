@@ -193,6 +193,28 @@ public class ProfileServiceRouter : IDisposable
         }
     }
 
+    /// <summary>
+    /// Close all secondary windows across all profile-scoped services
+    /// </summary>
+    public void CloseAllSecondaryWindows()
+    {
+        foreach (var kvp in _profileServiceCache)
+        {
+            try
+            {
+                var secondaryWindowService = kvp.Value.GetService(typeof(ISecondaryWindowService)) as ISecondaryWindowService;
+                if (secondaryWindowService != null)
+                {
+                    secondaryWindowService.CloseAllWindows();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to close secondary windows for profile {kvp.Key}: {ex.Message}", "ProfileServiceRouter");
+            }
+        }
+    }
+
     public void Dispose()
     {
         if (!_disposed)
