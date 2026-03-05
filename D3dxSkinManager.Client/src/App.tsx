@@ -5,7 +5,6 @@ import {
   theme as antdTheme,
   App as AntdApp,
 } from "antd";
-import { setNotificationApi } from "./shared/utils/notification";
 import { AppHeader } from "./modules/core/components/layout/AppHeader";
 import { AppStatusBar } from "./modules/core/components/layout/AppStatusBar";
 import { ModHierarchicalView } from "./modules/mod/components/ModHierarchicalView";
@@ -30,10 +29,12 @@ import { HelpWindow } from "./modules/help";
 import { SettingsProvider } from "./modules/setting";
 import { ProfileProvider } from "./shared/context/ProfileContext";
 import { ModProvider } from "./modules/mod";
+import { NotificationInitializer } from "./shared/components/NotificationInitializer";
 import "./App.css";
 import "./styles/visual-enhancements.css";
 import "./styles/theme-colors.css";
 import "./styles/custom-notification.css";
+import { AppWrapper } from "./shared/components/AppWrapper";
 
 const { Content } = Layout;
 
@@ -136,78 +137,18 @@ const AppContent: React.FC = () => {
   );
 };
 
-/**
- * Component to initialize notification API from AntdApp context
- */
-const NotificationInitializer: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const { notification: notificationApi } = AntdApp.useApp();
-
-  useEffect(() => {
-    // Initialize the notification API singleton
-    setNotificationApi(notificationApi);
-  }, [notificationApi]);
-
-  return <>{children}</>;
-};
-
-/**
- * App wrapper with theme and config providers
- * ProfileProvider wraps everything and manages profile state
- */
-const App: React.FC = () => {
-  const { effectiveTheme } = useTheme();
-
+export const App: React.FC = () => {
   return (
-    <ConfigProvider
-      theme={{
-        algorithm:
-          effectiveTheme === "dark"
-            ? antdTheme.darkAlgorithm
-            : antdTheme.defaultAlgorithm,
-      }}
-      componentSize="middle"
-    >
-      <I18nInitializer>
+    <AppWrapper>
+      <ModProvider>
         <SlideInScreenProvider>
-          <AntdApp notification={{ maxCount: 1, stack: false }}>
-            <NotificationInitializer>
-              <AppInitializer>
-                <AppContent />
-              </AppInitializer>
-            </NotificationInitializer>
-          </AntdApp>
+          <AppInitializer>
+            <AppContent />
+          </AppInitializer>
         </SlideInScreenProvider>
-      </I18nInitializer>
-    </ConfigProvider>
+      </ModProvider>
+    </AppWrapper>
   );
 };
 
-/**
- * Root app component with all providers
- *
- * Provider hierarchy (order matters):
- * 1. ProfileProvider - Profile context management (highest level, provides profile context)
- * 2. SettingsProvider - Loads global settings into settingsStore
- * 3. ModProvider - Profile-scoped side effects (depends on ProfileProvider for context)
- * 4. ThemeProvider - Reads from settingsStore (must come after SettingsProvider)
- *
- * This order ensures stores are initialized before components try to read from them,
- * preventing duplicate API calls and race conditions during startup.
- */
-const AppWithProviders: React.FC = () => {
-  return (
-    <ProfileProvider>
-      <SettingsProvider>
-        <ModProvider>
-          <ThemeProvider>
-            <App />
-          </ThemeProvider>
-        </ModProvider>
-      </SettingsProvider>
-    </ProfileProvider>
-  );
-};
-
-export default AppWithProviders;
+export default App;

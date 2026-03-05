@@ -3,6 +3,7 @@ import { I18nextProvider } from 'react-i18next';
 import { Spin } from 'antd';
 import i18n, { loadLanguageFromSettings } from './i18n';
 import logger from '../shared/utils/logger';
+import { eventBus, Module, SettingsEventType } from '../shared/services/eventBus';
 
 interface I18nInitializerProps {
   children: React.ReactNode;
@@ -30,6 +31,30 @@ export const I18nInitializer: React.FC<I18nInitializerProps> = ({ children }) =>
     };
 
     initialize();
+  }, []);
+
+  // Listen for global settings changes from backend (syncs language across all windows)
+  useEffect(() => {
+    const unsubscribe = eventBus.subscribe(
+      Module.SETTING,
+      SettingsEventType.GLOBAL_SETTINGS_CHANGED,
+      async (event) => {
+        if (event.payload?.language) {
+          const newLanguage = event.payload.language;
+          logger.info('[I18nInitializer] Language changed via event:', newLanguage);
+
+          // Change i18n language
+          try {
+            await i18n.changeLanguage(newLanguage);
+            logger.info('[I18nInitializer] Language changed successfully to:', newLanguage);
+          } catch (error: unknown) {
+            logger.error('[I18nInitializer] Failed to change language:', error);
+          }
+        }
+      }
+    );
+
+    return unsubscribe;
   }, []);
 
   if (!isInitialized) {

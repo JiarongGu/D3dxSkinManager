@@ -1,7 +1,5 @@
-using System.Drawing;
 using System.Drawing.Imaging;
 using D3dxSkinManager.Modules.Tool.ScreenCapture.Models;
-using D3dxSkinManager.Modules.Tool.ScreenCapture.Forms;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Utilities;
@@ -13,8 +11,6 @@ namespace D3dxSkinManager.Modules.Tool.ScreenCapture.Services;
 public interface IScreenCaptureService
 {
     Task<ScreenCaptureResult> CaptureAsync(ScreenCaptureConfig config);
-    Task<ScreenCaptureResult> CaptureWithProfileAsync(string profileId);
-    Task<ScreenCaptureResult> CaptureInteractiveAsync(bool isDarkTheme = false);
     Task ShowBorderOverlayAsync(int x, int y, int width, int height, IProfileEventBus eventBus);
     Task HideBorderOverlayAsync();
     void ToggleCaptureControlPanel(string profileId);
@@ -28,7 +24,7 @@ public class ScreenCaptureService : IScreenCaptureService
     private readonly ISecondaryWindowService _windowService;
     private readonly IFormInteractionService _formInteractionService;
 
-    private ScreenCaptureOverlayForm? _overlayForm;
+    private ScreenCaptureOverlay? _overlayForm;
     private Thread? _overlayThread;
     private readonly object _overlayLock = new object();
 
@@ -109,39 +105,6 @@ public class ScreenCaptureService : IScreenCaptureService
         }
     }
 
-    public async Task<ScreenCaptureResult> CaptureWithProfileAsync(string profileId)
-    {
-        var profile = await _profileRepository.GetByIdAsync(profileId);
-        if (profile == null)
-        {
-            return new ScreenCaptureResult
-            {
-                Success = false,
-                ErrorMessage = $"Profile not found: {profileId}"
-            };
-        }
-
-        var config = new ScreenCaptureConfig
-        {
-            X = profile.X,
-            Y = profile.Y,
-            Width = profile.Width,
-            Height = profile.Height,
-            CopyToClipboard = true
-        };
-
-        return await CaptureAsync(config);
-    }
-
-    public Task<ScreenCaptureResult> CaptureInteractiveAsync(bool isDarkTheme = false)
-    {
-        return Task.FromResult(new ScreenCaptureResult
-        {
-            Success = false,
-            ErrorMessage = "Interactive capture is only available through the control panel"
-        });
-    }
-
     public Task ShowBorderOverlayAsync(int x, int y, int width, int height, IProfileEventBus eventBus)
     {
         _logger.Info($"[ScreenCaptureService] ShowBorderOverlayAsync called: ({x}, {y}) {width}x{height}");
@@ -165,7 +128,7 @@ public class ScreenCaptureService : IScreenCaptureService
                 {
                     _logger.Info($"[ScreenCaptureService] STA thread started, creating overlay at ({x}, {y}) size {width}x{height}");
 
-                    var form = new ScreenCaptureOverlayForm(x, y, width, height);
+                    var form = new ScreenCaptureOverlay(x, y, width, height);
                     _logger.Info("[ScreenCaptureService] ScreenCaptureOverlayForm created");
 
                     // Hook into main form's FormClosed event to close overlay when main form closes
@@ -206,14 +169,16 @@ public class ScreenCaptureService : IScreenCaptureService
                     {
                         _boundsChangeThrottle.Execute(() =>
                         {
-                            _logger.Verbose($"[ScreenCaptureService] Overlay bounds changed: ({newX}, {newY}) {newWidth}x{newHeight}");
-                            eventBus.EmitAsync("TOOL", "SCREEN_CAPTURE_BOUNDS_CHANGED", new
+                            _logger.Info($"[ScreenCaptureService] Overlay bounds changed: ({newX}, {newY}) {newWidth}x{newHeight}");
+                            _logger.Info($"[ScreenCaptureService] Emitting event: {ModuleNames.TOOL}/{ToolEvents.CAPTURE_BOUNDS_CHANGED}");
+                            eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.CAPTURE_BOUNDS_CHANGED, new
                             {
                                 x = newX,
                                 y = newY,
                                 width = newWidth,
                                 height = newHeight
                             }).Wait();
+                            _logger.Info("[ScreenCaptureService] Event emitted successfully");
                         });
                     };
 

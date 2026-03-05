@@ -4,6 +4,7 @@ using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Setting.Models;
+using D3dxSkinManager.Modules.Core.Event;
 
 namespace D3dxSkinManager.Modules.Setting.Services;
 
@@ -43,13 +44,15 @@ public class GlobalSettingService : IGlobalSettingService
     private readonly string _settingsFilePath;
     private readonly IMemoryCache _cache;
     private readonly IAppEnvironment _appEnvironment;
+    private readonly IEventBus? _eventBus;
     private const string CacheKey = "GlobalSettings";
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(30);
 
-    public GlobalSettingService(IGlobalPathService globalPaths, IAppEnvironment appEnvironment, IMemoryCache cache)
+    public GlobalSettingService(IGlobalPathService globalPaths, IAppEnvironment appEnvironment, IMemoryCache cache, IEventBus? eventBus = null)
     {
         _appEnvironment = appEnvironment ?? throw new ArgumentNullException(nameof(appEnvironment));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _eventBus = eventBus;
         var globalPathsService = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));
 
         // Use GlobalPathService direct property for global settings file
@@ -110,6 +113,12 @@ public class GlobalSettingService : IGlobalSettingService
 
         // Invalidate cache so next read gets fresh data
         InvalidateCache();
+
+        // Emit event to notify all windows of settings change
+        if (_eventBus != null)
+        {
+            await _eventBus.EmitAsync(ModuleNames.SETTING, SettingEvents.GLOBAL_SETTINGS_CHANGED, settings).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -154,6 +163,12 @@ public class GlobalSettingService : IGlobalSettingService
 
         // Invalidate cache so next read gets fresh data
         InvalidateCache();
+
+        // Emit event to notify all windows of settings change
+        if (_eventBus != null)
+        {
+            await _eventBus.EmitAsync(ModuleNames.SETTING, SettingEvents.GLOBAL_SETTINGS_CHANGED, settings).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -166,6 +181,12 @@ public class GlobalSettingService : IGlobalSettingService
 
         // Invalidate cache so next read gets fresh data
         InvalidateCache();
+
+        // Emit event to notify all windows of settings change
+        if (_eventBus != null)
+        {
+            await _eventBus.EmitAsync(ModuleNames.SETTING, SettingEvents.GLOBAL_SETTINGS_CHANGED, defaultSettings).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

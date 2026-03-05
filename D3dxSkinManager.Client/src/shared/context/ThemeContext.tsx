@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { settingsService } from '../services/ipc';
 import { useSettingsStore } from '../../modules/setting/store/settingsStore';
+import { eventBus, Module, SettingsEventType } from '../services/eventBus';
 
 export type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -62,6 +63,36 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  // Listen for global settings changes from backend (syncs across all windows)
+  useEffect(() => {
+    const unsubscribe = eventBus.subscribe(
+      Module.SETTING,
+      SettingsEventType.GLOBAL_SETTINGS_CHANGED,
+      (event) => {
+        if (event.payload?.theme) {
+          const newTheme = event.payload.theme as ThemeMode;
+          setThemeState(newTheme);
+
+          // Update store to keep it in sync
+          const { setGlobalSettings } = useSettingsStore.getState();
+          const currentSettings = useSettingsStore.getState().globalSettings;
+          if (currentSettings) {
+            setGlobalSettings({
+              ...currentSettings,
+              theme: event.payload.theme as ThemeMode,
+              annotationLevel: event.payload.annotationLevel,
+              logLevel: event.payload.logLevel,
+              language: event.payload.language,
+              lastUpdated: event.payload.lastUpdated
+            });
+          }
+        }
+      }
+    );
+
+    return unsubscribe;
   }, []);
 
   // Update backend when theme changes

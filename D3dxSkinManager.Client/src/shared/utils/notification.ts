@@ -35,7 +35,7 @@ export const setNotificationApi = (api: NotificationAPI) => {
  * Now uses App.useApp() context to support dynamic theme
  */
 export const notification = {
-  success: (content: string) => {
+  success: (content: string, duration: number = 2) => {
     if (!notificationApi) {
       logger.error('[notification] API not initialized. Wrap your app with <App> component.');
       return;
@@ -46,7 +46,7 @@ export const notification = {
         message: content,
       }),
       placement: 'top',
-      duration: 2,
+      duration,
       className: 'custom-notification-wrapper',
       closeIcon: null, // Close icon is handled by CustomNotification
     });
@@ -69,7 +69,7 @@ export const notification = {
     });
   },
 
-  info: (content: string) => {
+  info: (content: string, duration: number = 2) => {
     if (!notificationApi) {
       logger.error('[notification] API not initialized. Wrap your app with <App> component.');
       return;
@@ -80,13 +80,13 @@ export const notification = {
         message: content,
       }),
       placement: 'top',
-      duration: 2,
+      duration,
       className: 'custom-notification-wrapper',
       closeIcon: null,
     });
   },
 
-  warning: (content: string) => {
+  warning: (content: string, duration: number = 2.5) => {
     if (!notificationApi) {
       logger.error('[notification] API not initialized. Wrap your app with <App> component.');
       return;
@@ -97,7 +97,7 @@ export const notification = {
         message: content,
       }),
       placement: 'top',
-      duration: 2.5,
+      duration,
       className: 'custom-notification-wrapper',
       closeIcon: null,
     });

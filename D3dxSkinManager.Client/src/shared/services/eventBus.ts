@@ -176,7 +176,13 @@ export interface EventPayloadMap {
   // Settings events
   [Module.SETTING]: {
     [SettingsEventType.WINDOW_STATE_RESET]: void;
-    [SettingsEventType.GLOBAL_SETTINGS_CHANGED]: unknown;
+    [SettingsEventType.GLOBAL_SETTINGS_CHANGED]: {
+      theme: string;
+      annotationLevel: string;
+      logLevel: string;
+      language: string;
+      lastUpdated: string;
+    };
   };
 
   // Profile events

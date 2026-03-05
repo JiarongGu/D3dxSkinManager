@@ -27,10 +27,8 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const buttonRef = React.useRef<HTMLButtonElement>(null);
 
-  // Reload profiles when component mounts and when profiles list might have changed
-  React.useEffect(() => {
-    actions.loadProfiles();
-  }, []);
+  // Note: ProfileProvider handles profile initialization on mount
+  // No need to call loadProfiles here as it would cause duplicate API calls
 
   const handleProfileSwitch = async (profileId: string) => {
     if (profileId === state.selectedProfile?.id) {

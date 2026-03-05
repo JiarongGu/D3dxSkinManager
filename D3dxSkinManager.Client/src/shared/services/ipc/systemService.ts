@@ -20,6 +20,11 @@ export interface SystemSettings {
   lastUpdated: string;
 }
 
+export interface ScreenResolution {
+  width: number;
+  height: number;
+}
+
 /**
  * System service for file operations, dialogs, and system settings
  * Handles all system-level operations and configuration
@@ -108,5 +113,11 @@ export class SystemService extends BaseModuleService {
 
   async stopDropListening(): Promise<void> {
     await this.sendMessage('STOP_DROP_LISTENING');
+  }
+
+  // Screen Info
+
+  async getScreenResolution(): Promise<ScreenResolution> {
+    return this.sendMessage<ScreenResolution>('GET_SCREEN_RESOLUTION');
   }
 }

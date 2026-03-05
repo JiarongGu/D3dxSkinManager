@@ -14,4 +14,7 @@ public static class ToolEvents
     public const string CAPTURE_PROFILE_CREATED = "CAPTURE_PROFILE_CREATED";
     public const string CAPTURE_PROFILE_UPDATED = "CAPTURE_PROFILE_UPDATED";
     public const string CAPTURE_PROFILE_DELETED = "CAPTURE_PROFILE_DELETED";
+
+    // Screen capture overlay events
+    public const string CAPTURE_BOUNDS_CHANGED = "CAPTURE_BOUNDS_CHANGED";
 }

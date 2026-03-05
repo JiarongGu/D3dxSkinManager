@@ -57,14 +57,49 @@ export function ProfileProvider({ children, initialProfile }: ProfileProviderPro
   const [state, setState] = useState<ProfileState>({
     selectedProfile: initialProfile,
     profiles: [],
-    loading: false,
+    loading: true, // Start in loading state
     error: undefined
   });
+
+  // Initialize profiles on mount - only run once
+  useEffect(() => {
+    initializeProfiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Track when profile changes
   useEffect(() => {
     // Profile changed
   }, [state.selectedProfile]);
+
+  /**
+   * Initialize profiles and select the active one
+   */
+  const initializeProfiles = async () => {
+    try {
+      setState(prev => ({ ...prev, loading: true, error: undefined }));
+
+      // Load all profiles
+      const response = await profileService.getAllProfiles();
+      const { profiles, activeProfileId } = response;
+
+      // Find the active profile or default to the first one
+      let profileToSelect = profiles.find(p => p.id === activeProfileId) || profiles[0];
+
+      setState(prev => ({
+        ...prev,
+        profiles,
+        selectedProfile: profileToSelect,
+        loading: false
+      }));
+    } catch (error: unknown) {
+      setState(prev => ({
+        ...prev,
+        error: 'Failed to initialize profiles',
+        loading: false
+      }));
+    }
+  };
 
   /**
    * Set the selected profile

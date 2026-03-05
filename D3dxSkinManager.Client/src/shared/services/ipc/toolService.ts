@@ -21,29 +21,29 @@ export class ToolService extends BaseModuleService {
   /**
    * Get all capture profiles
    */
-  async getProfiles(): Promise<ScreenCaptureProfile[]> {
-    return this.sendArrayMessage<ScreenCaptureProfile>('SCREEN_CAPTURE_GET_PROFILES', undefined, undefined);
+  async getProfiles(profileId: string): Promise<ScreenCaptureProfile[]> {
+    return this.sendArrayMessage<ScreenCaptureProfile>('SCREEN_CAPTURE_GET_PROFILES', profileId, undefined);
   }
 
   /**
    * Get a specific capture profile by ID
    */
-  async getProfile(id: string): Promise<ScreenCaptureProfile | undefined> {
-    return this.sendOptionalMessage<ScreenCaptureProfile>('SCREEN_CAPTURE_GET_PROFILE', undefined, { id });
+  async getProfile(profileId: string, id: string): Promise<ScreenCaptureProfile | undefined> {
+    return this.sendOptionalMessage<ScreenCaptureProfile>('SCREEN_CAPTURE_GET_PROFILE', profileId, { id });
   }
 
   /**
    * Save a capture profile (create or update)
    */
-  async saveProfile(request: SaveScreenCaptureProfileRequest): Promise<string> {
-    return this.sendMessage<string>('SCREEN_CAPTURE_SAVE_PROFILE', undefined, request);
+  async saveProfile(profileId: string, request: SaveScreenCaptureProfileRequest): Promise<string> {
+    return this.sendMessage<string>('SCREEN_CAPTURE_SAVE_PROFILE', profileId, request);
   }
 
   /**
    * Delete a capture profile
    */
-  async deleteProfile(id: string): Promise<void> {
-    return this.sendMessage<void>('SCREEN_CAPTURE_DELETE_PROFILE', undefined, { id });
+  async deleteProfile(profileId: string, id: string): Promise<void> {
+    return this.sendMessage<void>('SCREEN_CAPTURE_DELETE_PROFILE', profileId, { id });
   }
 
   // ===== Screen Capture Operations =====
@@ -51,22 +51,8 @@ export class ToolService extends BaseModuleService {
   /**
    * Capture screen with specific configuration
    */
-  async captureScreen(config: ScreenCaptureConfig): Promise<ScreenCaptureResult> {
-    return this.sendMessage<ScreenCaptureResult>('SCREEN_CAPTURE_SCREEN', undefined, config);
-  }
-
-  /**
-   * Capture screen using a saved profile
-   */
-  async captureWithProfile(profileId: string): Promise<ScreenCaptureResult> {
-    return this.sendMessage<ScreenCaptureResult>('SCREEN_CAPTURE_WITH_PROFILE', undefined, { profileId });
-  }
-
-  /**
-   * Interactive capture with selection UI
-   */
-  async captureInteractive(isDarkTheme: boolean = false): Promise<ScreenCaptureResult> {
-    return this.sendMessage<ScreenCaptureResult>('SCREEN_CAPTURE_INTERACTIVE', undefined, { isDarkTheme });
+  async captureScreen(profileId: string, config: ScreenCaptureConfig): Promise<ScreenCaptureResult> {
+    return this.sendMessage<ScreenCaptureResult>('SCREEN_CAPTURE_SCREEN', profileId, config);
   }
 
   // ===== Border Overlay =====

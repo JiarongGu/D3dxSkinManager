@@ -31,6 +31,9 @@ public interface ISystemFacade : IModuleFacade
     Task<SystemSettings> GetSystemSettingsAsync();
     Task UpdateSystemSettingsAsync(SystemSettings settings);
     Task ResetSystemSettingsAsync();
+
+    // Screen Info
+    Task<ScreenResolution> GetScreenResolutionAsync();
 }
 
 /// <summary>
@@ -86,6 +89,9 @@ public class SystemFacade : BaseFacade, ISystemFacade
             "GET_SETTINGS" => await GetSystemSettingsHandlerAsync(request),
             "UPDATE_SETTINGS" => await UpdateSystemSettingsHandlerAsync(request),
             "RESET_SETTINGS" => await ResetSystemSettingsHandlerAsync(request),
+
+            // Screen info
+            "GET_SCREEN_RESOLUTION" => await GetScreenResolutionAsync(),
 
             // Frontend logging
             "LOG_FROM_FRONTEND" => LogFromFrontendHandler(request),
@@ -330,5 +336,19 @@ public class SystemFacade : BaseFacade, ISystemFacade
             _logger.Error($"Failed to log frontend message: {ex.Message}", "SystemFacade", ex);
             return new { success = false, error = ex.Message };
         }
+    }
+
+    public Task<ScreenResolution> GetScreenResolutionAsync()
+    {
+        // Get primary screen resolution
+        var screen = global::System.Windows.Forms.Screen.PrimaryScreen;
+        var resolution = new ScreenResolution
+        {
+            Width = screen!.Bounds.Width,
+            Height = screen.Bounds.Height
+        };
+
+        _logger.Debug($"[SystemFacade] Screen resolution: {resolution.Width}x{resolution.Height}");
+        return Task.FromResult(resolution);
     }
 }

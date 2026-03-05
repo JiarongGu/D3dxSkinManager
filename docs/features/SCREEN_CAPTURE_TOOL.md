@@ -1,7 +1,7 @@
 # Screen Capture Tool
 
 **Module:** Tool (profile-scoped)
-**Last Updated:** 2026-03-05
+**Last Updated:** 2026-03-06
 
 ## Overview
 
@@ -9,6 +9,7 @@ The Screen Capture Tool provides a desktop screen capture feature with customiza
 - **Control Panel**: A secondary WebView2 window for managing capture operations
 - **Border Overlay**: A transparent WinForms overlay showing the capture area boundary
 - **Profile Storage**: Capture profiles stored per-profile in `profile.db`
+- **Theme/Language Sync**: Automatic synchronization of theme and language settings across all windows
 
 ## Architecture
 
@@ -196,6 +197,131 @@ form.BoundsChanged += (x, y, w, h) =>
 ```
 
 **Utility Location:** `D3dxSkinManager/Modules/Core/Utilities/Throttle.cs`
+
+## Theme and Language Synchronization
+
+### Overview
+
+The screen capture control panel automatically synchronizes theme and language settings with the main application window in real-time. This ensures a consistent user experience across all windows.
+
+### Architecture
+
+**Backend (GlobalSettingService.cs):**
+- Emits `GLOBAL_SETTINGS_CHANGED` event when settings are updated
+- Event includes full settings object: `{theme, language, annotationLevel, logLevel, lastUpdated}`
+- Events are emitted from:
+  - `UpdateSettingsAsync()` - bulk settings update
+  - `UpdateSettingAsync()` - single field update (theme, language, etc.)
+  - `ResetSettingsAsync()` - reset to defaults
+
+**Frontend (ThemeContext.tsx):**
+- Subscribes to `GLOBAL_SETTINGS_CHANGED` events
+- Updates theme state and applies new theme via ConfigProvider
+- Syncs settings store to keep all consumers in sync
+
+**Frontend (I18nInitializer.tsx):**
+- Subscribes to `GLOBAL_SETTINGS_CHANGED` events
+- Calls `i18n.changeLanguage()` to update UI language immediately
+- All React components re-render with new translations
+
+### Implementation
+
+```typescript
+// ThemeContext.tsx - Listen for theme changes
+useEffect(() => {
+  const unsubscribe = eventBus.subscribe(
+    Module.SETTING,
+    SettingsEventType.GLOBAL_SETTINGS_CHANGED,
+    (event) => {
+      if (event.payload?.theme) {
+        const newTheme = event.payload.theme as ThemeMode;
+        setThemeState(newTheme);
+        // Update settings store for consistency
+        const { setGlobalSettings } = useSettingsStore.getState();
+        // ...
+      }
+    }
+  );
+  return unsubscribe;
+}, []);
+```
+
+```typescript
+// I18nInitializer.tsx - Listen for language changes
+useEffect(() => {
+  const unsubscribe = eventBus.subscribe(
+    Module.SETTING,
+    SettingsEventType.GLOBAL_SETTINGS_CHANGED,
+    async (event) => {
+      if (event.payload?.language) {
+        await i18n.changeLanguage(event.payload.language);
+      }
+    }
+  );
+  return unsubscribe;
+}, []);
+```
+
+### Shared App Initialization
+
+Both the main app and capture window use `AppWrapper` component for consistent initialization:
+
+**Location:** `shared/components/AppWrapper.tsx`
+
+**Provides:**
+- ProfileProvider - Profile context management
+- SettingsProvider - Loads global settings into store
+- ThemeProvider - Theme management with event subscriptions
+- I18nInitializer - Language initialization with event subscriptions
+- ConfigProvider - Ant Design theme algorithm
+- NotificationInitializer - Sets up notification API
+
+**Usage:**
+```typescript
+// Main app (App.tsx)
+<AppWrapper>
+  <ModProvider>
+    <SlideInScreenProvider>
+      <AppInitializer>
+        <AppContent />
+      </AppInitializer>
+    </SlideInScreenProvider>
+  </ModProvider>
+</AppWrapper>
+
+// Capture window (capture.tsx)
+<AppWrapper>
+  <ScreenCaptureTool />
+</AppWrapper>
+```
+
+### CSS Styling
+
+**Full Height Layout:**
+
+The capture window uses `.ant-app { height: 100vh; }` in `visual-enhancements.css` to ensure the content fills the entire window without black areas.
+
+**Form Background:**
+
+The WinForms `Form` has `BackColor = Color.White` set to match the default light theme and prevent black background showing through during load.
+
+### Event Flow Example
+
+1. **User changes theme in settings** (main app or capture window)
+2. **Frontend calls** `settingsService.updateGlobalSetting('theme', 'dark')`
+3. **Backend updates** settings file and cache via `GlobalSettingService`
+4. **Backend emits** `GLOBAL_SETTINGS_CHANGED` event with updated settings
+5. **All windows receive event** via EventBus bridge
+6. **ThemeProvider updates** theme state in each window
+7. **ConfigProvider applies** dark theme algorithm to all Ant Design components
+8. **UI re-renders** with new theme immediately
+
+### Benefits
+
+- **Real-time sync**: Changes appear instantly in all open windows
+- **Consistent UX**: All windows always match the current theme/language
+- **No manual refresh**: Users don't need to close/reopen windows
+- **Centralized logic**: Theme/language handling is shared via AppWrapper
 
 ## Service Registration
 

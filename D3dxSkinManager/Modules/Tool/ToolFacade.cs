@@ -15,29 +15,7 @@ namespace D3dxSkinManager.Modules.Tool;
 /// Module: TOOL
 /// Handles: SCAN_CACHE, CLEAN_CACHE, VALIDATE_STARTUP, screen capture, etc.
 /// </summary>
-public interface IToolFacade : IModuleFacade
-{
-
-    // Cache Management
-    Task<List<CacheItem>> ScanCacheAsync();
-    Task<CacheStatistics> GetCacheStatisticsAsync();
-    Task<int> CleanCacheAsync(CacheCategory category);
-
-    // Validation
-    Task<StartupValidationReport> ValidateStartupAsync();
-
-    // Screen Capture
-    Task<List<ScreenCaptureProfile>> GetCaptureProfilesAsync();
-    Task<ScreenCaptureProfile?> GetCaptureProfileAsync(string id);
-    Task<string> SaveCaptureProfileAsync(SaveScreenCaptureProfileRequest request);
-    Task DeleteCaptureProfileAsync(string id);
-    Task<ScreenCaptureResult> CaptureScreenAsync(ScreenCaptureConfig config);
-    Task<ScreenCaptureResult> CaptureWithProfileAsync(string profileId);
-    Task<ScreenCaptureResult> CaptureInteractiveAsync(bool isDarkTheme);
-    Task ShowBorderOverlayAsync(int x, int y, int width, int height);
-    Task HideBorderOverlayAsync();
-    void ToggleCaptureControlPanel(string profileId);
-}
+public interface IToolFacade : IModuleFacade { }
 
 /// <summary>
 /// Facade for tools and utilities
@@ -92,8 +70,6 @@ public class ToolFacade : BaseFacade, IToolFacade
 
             // Screen Capture - Capture Operations
             "SCREEN_CAPTURE_SCREEN" => await CaptureScreenAsync(request),
-            "SCREEN_CAPTURE_WITH_PROFILE" => await CaptureWithProfileAsync(request),
-            "SCREEN_CAPTURE_INTERACTIVE" => await CaptureInteractiveAsync(request),
 
             // Screen Capture - Border Overlay
             "SCREEN_CAPTURE_SHOW_BORDER" => await ShowBorderOverlayAsync(request),
@@ -237,6 +213,10 @@ public class ToolFacade : BaseFacade, IToolFacade
 
     private async Task<ScreenCaptureResult> CaptureScreenAsync(IpcRequest request)
     {
+        _logger.Info("[ToolFacade] CaptureScreenAsync called");
+        var payloadJson = global::System.Text.Json.JsonSerializer.Serialize(request.Payload);
+        _logger.Info($"[ToolFacade] Request payload: {payloadJson}");
+
         var config = new ScreenCaptureConfig
         {
             ProfileId = _payloadHelper.GetOptionalValue<string>(request.Payload, "profileId"),
@@ -250,29 +230,13 @@ public class ToolFacade : BaseFacade, IToolFacade
             OutputPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "outputPath")
         };
 
-        return await CaptureScreenAsync(config).ConfigureAwait(false);
-    }
+        _logger.Info($"[ToolFacade] Capture config: X={config.X}, Y={config.Y}, W={config.Width}, H={config.Height}, Clipboard={config.CopyToClipboard}");
+        _logger.Info("[ToolFacade] Calling ScreenCaptureService.CaptureAsync...");
 
-    public async Task<ScreenCaptureResult> CaptureWithProfileAsync(string profileId)
-    {
-        return await _screenCaptureService.CaptureWithProfileAsync(profileId).ConfigureAwait(false);
-    }
+        var result = await CaptureScreenAsync(config).ConfigureAwait(false);
 
-    private async Task<ScreenCaptureResult> CaptureWithProfileAsync(IpcRequest request)
-    {
-        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
-        return await CaptureWithProfileAsync(profileId).ConfigureAwait(false);
-    }
-
-    public async Task<ScreenCaptureResult> CaptureInteractiveAsync(bool isDarkTheme)
-    {
-        return await _screenCaptureService.CaptureInteractiveAsync(isDarkTheme).ConfigureAwait(false);
-    }
-
-    private async Task<ScreenCaptureResult> CaptureInteractiveAsync(IpcRequest request)
-    {
-        var isDarkTheme = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "isDarkTheme") ?? false;
-        return await CaptureInteractiveAsync(isDarkTheme).ConfigureAwait(false);
+        _logger.Info($"[ToolFacade] Capture result: Success={result.Success}, Error={result.ErrorMessage}");
+        return result;
     }
 
     // ===== Screen Capture - Border Overlay =====

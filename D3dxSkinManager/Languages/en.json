@@ -531,6 +531,23 @@
     "workflow.errors.WORKFLOW_UNKNOWN_ERROR": "{{message}}",
     "common.files": "files",
     "common.none": "None",
-    "common.notSet": "Not Set"
+    "common.notSet": "Not Set",
+    "capture.selectProfile": "Select profile",
+    "capture.newProfile": "<New Profile>",
+    "capture.enterProfileName": "Enter profile name",
+    "capture.profileCreated": "Profile created",
+    "capture.profileUpdated": "Profile updated",
+    "capture.profileDeleted": "Profile deleted",
+    "capture.noProfileSelected": "No profile selected",
+    "capture.enterName": "Please enter a profile name",
+    "capture.noActiveProfile": "No active profile",
+    "capture.captured": "Screen captured and copied to clipboard",
+    "capture.captureFailed": "Capture failed",
+    "capture.button.rename": "Rename",
+    "capture.button.save": "Save",
+    "capture.button.delete": "Delete",
+    "capture.button.showArea": "Show Area",
+    "capture.button.hideArea": "Hide Area",
+    "capture.button.capture": "Capture"
   }
 }

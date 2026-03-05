@@ -3,6 +3,10 @@
  * Hover states, transitions, and visual feedback
  */
 
+.ant-app {
+  height: 100vh;
+}
+
 /* === Button Hover Effects === */
 .ant-btn:not(.ant-btn-disabled):hover {
   transform: translateY(-1px);

@@ -4,6 +4,8 @@
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
+  background: var(--color-bg-container);
+  height: 100%;
 }
 
 .screen-capture-tool-form {
@@ -14,6 +16,16 @@
 
 .screen-capture-tool-form .ant-form-item {
   margin-right: 0 !important;
+  width: 118px;
+}
+
+.screen-capture-tool-form .ant-form-item-control {
+  flex-grow: unset !important;
+}
+
+.screen-capture-tool-form .ant-form-item-row {
+  display: flex;
+  justify-content: space-between;
 }
 
 .screen-capture-tool-form .ant-form-item .ant-form-item-label >label::after {

@@ -1,13 +1,13 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
 
-namespace D3dxSkinManager.Modules.Tool.ScreenCapture.Forms;
+namespace D3dxSkinManager.Modules.Tool.ScreenCapture.Services;
 
 /// <summary>
 /// Draggable and resizable capture area overlay
 /// Shows a border with resize handles that can be moved and resized
 /// </summary>
-public class ScreenCaptureOverlayForm : Form
+public class ScreenCaptureOverlay : Form
 {
     // Event fired when bounds change (move or resize)
     public event Action<int, int, int, int>? BoundsChanged;
@@ -45,13 +45,9 @@ public class ScreenCaptureOverlayForm : Form
     private static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
 
     private const int GWL_EXSTYLE = -20;
-    private const int WS_EX_LAYERED = 0x80000;
-    private const int WS_EX_TRANSPARENT = 0x20;
     private const int WS_EX_TOOLWINDOW = 0x80;
-    private const uint LWA_ALPHA = 0x2;
-    private const uint LWA_COLORKEY = 0x1;
 
-    public ScreenCaptureOverlayForm(int x, int y, int width, int height)
+    public ScreenCaptureOverlay(int x, int y, int width, int height)
     {
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
@@ -68,7 +64,7 @@ public class ScreenCaptureOverlayForm : Form
         SetWindowLong(Handle, GWL_EXSTYLE, exStyle | WS_EX_TOOLWINDOW);
     }
 
-    public void UpdateBounds(int x, int y, int width, int height)
+    public new void UpdateBounds(int x, int y, int width, int height)
     {
         Bounds = new Rectangle(x, y, width, height);
         Invalidate();

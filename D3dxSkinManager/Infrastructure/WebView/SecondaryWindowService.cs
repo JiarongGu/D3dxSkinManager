@@ -1,12 +1,9 @@
 using Microsoft.Web.WebView2.WinForms;
-using Microsoft.Web.WebView2.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Profiles.Models;
 using D3dxSkinManager.Modules.Context.Services;
-using D3dxSkinManager.Infrastructure.Resources;
-using System.Drawing;
 using System.Text.Json;
 
 namespace D3dxSkinManager.Infrastructure.WebView;
@@ -62,12 +59,12 @@ public class SecondaryWindowService : ISecondaryWindowService
             var form = new Form
             {
                 Text = "Screen Capture",
-                Size = new Size(400, 180), // Compact size
+                Size = new Size(300, 210), // Compact size
                 StartPosition = FormStartPosition.Manual,
                 FormBorderStyle = FormBorderStyle.FixedToolWindow, // Slim style with close only
                 MaximizeBox = false, // No maximize button
                 MinimizeBox = true,  // Keep minimize button
-                TopMost = false, // Don't block main window
+                TopMost = true, // Always on top of all windows
                 ShowInTaskbar = true,
                 Icon = null // TODO: Add icon if needed
             };
