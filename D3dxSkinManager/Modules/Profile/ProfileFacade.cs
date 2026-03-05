@@ -284,11 +284,17 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         var workMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "workMode");
         var workDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workDirectory");
 
-        var config = new ProfileConfiguration
+        // Load existing configuration to preserve fields like Capture
+        var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+        if (config == null)
         {
-            ProfileId = profileId
-        };
+            config = new ProfileConfiguration
+            {
+                ProfileId = profileId
+            };
+        }
 
+        // Update only the fields that were provided
         if (migotoVersion != null) config.MigotoVersion = migotoVersion;
 
         // Handle Work directory nested object

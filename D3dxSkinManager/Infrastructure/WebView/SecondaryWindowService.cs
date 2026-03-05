@@ -2,32 +2,39 @@ using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Profiles.Models;
-using D3dxSkinManager.Modules.Context.Services;
-using System.Text.Json;
+using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context;
+using System.Collections.Concurrent;
 
 namespace D3dxSkinManager.Infrastructure.WebView;
 
 /// <summary>
 /// Service for creating and managing secondary WebView2 windows
+/// Note: This service is scoped to ProfileContext - profileId comes from IProfileContext
 /// </summary>
 public interface ISecondaryWindowService : IDisposable
 {
-    Task<Form?> CreateCaptureWindowAsync(string profileId);
+    Task<Form?> CreateSecondaryWindowAsync(string windowName, string title, int defaultWidth, int defaultHeight, string htmlPage);
     void CloseAllWindows();
-    bool HasWindowForProfile(string profileId);
-    void CloseWindowForProfile(string profileId);
+    bool HasWindow(string windowName);
+    void CloseWindow(string windowName);
 }
 
 public class SecondaryWindowService : ISecondaryWindowService
 {
+    /// <summary>
+    /// Represents an open secondary window entry
+    /// </summary>
+    private record WindowEntry(Form Form, WebViewSession Session, string WindowName);
+
     private readonly ILogHelper _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly IWebViewSessionManager _sessionManager;
     private readonly ICustomSchemeHandler _schemeHandler;
-    private readonly IProfilePathService _profilePathService;
+    private readonly IProfileContext _profileContext;
+    private readonly IProfileService _profileService;
     private readonly IAppEnvironment _appEnvironment;
-    private readonly List<(Form Form, WebViewSession Session, string ProfileId)> _openWindows = new();
+    private readonly ConcurrentDictionary<string, WindowEntry> _openWindows = new();
     private int _windowCounter = 0;
 
     public SecondaryWindowService(
@@ -35,47 +42,59 @@ public class SecondaryWindowService : ISecondaryWindowService
         IServiceProvider serviceProvider,
         IWebViewSessionManager sessionManager,
         ICustomSchemeHandler schemeHandler,
-        IProfilePathService profilePathService,
+        IProfileContext profileContext,
+        IProfileService profileService,
         IAppEnvironment appEnvironment)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
         _sessionManager = sessionManager;
         _schemeHandler = schemeHandler;
-        _profilePathService = profilePathService;
+        _profileContext = profileContext;
+        _profileService = profileService;
         _appEnvironment = appEnvironment;
     }
 
-    public async Task<Form?> CreateCaptureWindowAsync(string profileId)
+    /// <summary>
+    /// Generic method to create any secondary window with saved position/size
+    /// </summary>
+    public async Task<Form?> CreateSecondaryWindowAsync(
+        string windowName,
+        string title,
+        int defaultWidth,
+        int defaultHeight,
+        string htmlPage)
     {
         try
         {
-            _logger.Info($"[SecondaryWindow] Creating capture window for profile {profileId}");
+            var profileId = _profileContext.ProfileId;
+            _logger.Info($"[SecondaryWindow] Creating '{windowName}' window for profile {profileId}");
 
-            var sessionId = $"capture_{++_windowCounter}";
+            var sessionId = $"{windowName}_{++_windowCounter}";
             _logger.Info($"[SecondaryWindow] Session ID: {sessionId}");
 
             _logger.Info("[SecondaryWindow] Creating Form...");
             var form = new Form
             {
-                Text = "Screen Capture",
-                Size = new Size(300, 210), // Compact size
+                Text = title,
+                Size = new Size(defaultWidth, defaultHeight),
                 StartPosition = FormStartPosition.Manual,
-                FormBorderStyle = FormBorderStyle.FixedToolWindow, // Slim style with close only
-                MaximizeBox = false, // No maximize button
-                MinimizeBox = true,  // Keep minimize button
-                TopMost = true, // Always on top of all windows
+                FormBorderStyle = FormBorderStyle.FixedToolWindow,
+                MaximizeBox = false,
+                MinimizeBox = true,
+                TopMost = true,
                 ShowInTaskbar = true,
-                Icon = null // TODO: Add icon if needed
+                Icon = null
             };
             _logger.Info("[SecondaryWindow] Form created");
 
-            // Load saved position or default to right-bottom corner
-            _logger.Info("[SecondaryWindow] Loading window position...");
+            // Load saved position/size or use defaults
+            _logger.Info("[SecondaryWindow] Loading window configuration...");
             var screen = Screen.PrimaryScreen!.WorkingArea;
-            Point position = await LoadWindowPositionAsync(profileId, form.Width, form.Height, screen);
+            var (position, size) = await LoadWindowConfigurationAsync(windowName, defaultWidth, defaultHeight, screen).ConfigureAwait(false);
             form.Location = position;
-            _logger.Info($"[SecondaryWindow] Window position set to: ({position.X}, {position.Y})");
+            form.Size = size;
+            _logger.Info($"[SecondaryWindow] Window configuration set: ({position.X}, {position.Y}) {size.Width}x{size.Height}");
 
             _logger.Info("[SecondaryWindow] Creating WebView2 control...");
             var webView = new WebView2
@@ -88,7 +107,7 @@ public class SecondaryWindowService : ISecondaryWindowService
             form.Controls.Add(webView);
             _logger.Info("[SecondaryWindow] WebView2 added to form");
 
-            // Create WebView session (this handles WebView2 initialization and IPC)
+            // Create WebView session
             _logger.Info("[SecondaryWindow] Creating WebView session...");
             var session = _sessionManager.Create(sessionId, () =>
             {
@@ -106,38 +125,36 @@ public class SecondaryWindowService : ISecondaryWindowService
             });
             _logger.Info("[SecondaryWindow] WebView session registered with SessionManager");
 
-            // Handle window closing - save position and cleanup
+            // Handle window closing - save position/size and cleanup
             _logger.Info("[SecondaryWindow] Attaching FormClosing event handler...");
             form.FormClosing += (s, e) =>
             {
                 _logger.Info($"[SecondaryWindow] FormClosing event fired for {sessionId}");
-                var windowEntry = _openWindows.FirstOrDefault(w => w.Form == form);
-                if (windowEntry != default)
+
+                // Remove from dictionary
+                if (_openWindows.TryRemove(windowName, out var windowEntry))
                 {
-                    _openWindows.Remove(windowEntry);
                     _sessionManager.Remove(sessionId);
 
-                    // Save window position synchronously
-                    SaveWindowPositionAsync(windowEntry.ProfileId, form.Location).GetAwaiter().GetResult();
-
-                    // Close the capture overlay when control panel closes
-                    try
+                    // Save window position/size asynchronously (fire and forget with proper error handling)
+                    _ = Task.Run(async () =>
                     {
-                        var captureService = _serviceProvider.GetService(typeof(D3dxSkinManager.Modules.Tool.ScreenCapture.Services.IScreenCaptureService))
-                            as D3dxSkinManager.Modules.Tool.ScreenCapture.Services.IScreenCaptureService;
-                        if (captureService != null && captureService.IsBorderOverlayVisible)
+                        try
                         {
-                            _logger.Info("[SecondaryWindow] Closing capture overlay");
-                            captureService.HideBorderOverlayAsync().GetAwaiter().GetResult();
+                            await SaveWindowConfigurationAsync(
+                                windowEntry.WindowName,
+                                form.Location,
+                                form.Size
+                            ).ConfigureAwait(false);
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error($"[SecondaryWindow] Failed to close capture overlay: {ex.Message}");
-                    }
+                        catch (Exception ex)
+                        {
+                            _logger.Error($"[SecondaryWindow] Error saving window configuration on close: {ex.Message}");
+                        }
+                    });
                 }
 
-                _logger.Info($"[SecondaryWindow] Capture window closed: {sessionId}");
+                _logger.Info($"[SecondaryWindow] Window '{windowName}' closed: {sessionId}");
             };
 
             // Handle form load event - initialize WebView2 after form is shown
@@ -146,20 +163,17 @@ public class SecondaryWindowService : ISecondaryWindowService
             {
                 _logger.Info("[SecondaryWindow] Form Load event fired, initializing WebView2...");
 
-                // Use BeginInvoke to run asynchronously on the UI thread
                 form.BeginInvoke(async () =>
                 {
                     try
                     {
                         await session.StartAsync();
-                        _logger.Info("[SecondaryWindow] Session started, navigating to capture.html...");
+                        _logger.Info($"[SecondaryWindow] Session started, navigating to {htmlPage}...");
 
-                        // Detect dev mode and navigate accordingly
                         var baseUrl = _appEnvironment.IsDevelopment
-                            ? "http://localhost:3000/capture.html"
-                            : "https://app.local/capture.html";
+                            ? $"http://localhost:3000/{htmlPage}"
+                            : $"https://app.local/{htmlPage}";
 
-                        // Append profileId as query parameter
                         var url = $"{baseUrl}?profileId={Uri.EscapeDataString(profileId)}";
 
                         _logger.Info($"[SecondaryWindow] Navigation URL: {url} (dev mode: {_appEnvironment.IsDevelopment})");
@@ -173,26 +187,45 @@ public class SecondaryWindowService : ISecondaryWindowService
                 });
             };
 
-            _logger.Info("[SecondaryWindow] Adding window to tracking list...");
-            _openWindows.Add((form, session, profileId));
+            _logger.Info("[SecondaryWindow] Adding window to tracking dictionary...");
+            var entry = new WindowEntry(form, session, windowName);
+            if (!_openWindows.TryAdd(windowName, entry))
+            {
+                _logger.Warn($"[SecondaryWindow] Window '{windowName}' already exists, closing old one");
+                CloseWindow(windowName);
+                _openWindows.TryAdd(windowName, entry);
+            }
 
-            _logger.Info($"[SecondaryWindow] Capture window created successfully: {sessionId}");
-            _logger.Info("[SecondaryWindow] Returning form to caller");
+            _logger.Info($"[SecondaryWindow] Window '{windowName}' created successfully: {sessionId}");
             return form;
         }
         catch (Exception ex)
         {
-            _logger.Error($"[SecondaryWindow] Failed to create capture window: {ex.Message}");
+            _logger.Error($"[SecondaryWindow] Failed to create '{windowName}' window: {ex.Message}");
             return null;
         }
     }
 
     public void CloseAllWindows()
     {
-        foreach (var (form, session, profileId) in _openWindows.ToList())
+        foreach (var kvp in _openWindows.ToArray())
+        {
+            CloseWindow(kvp.Key);
+        }
+    }
+
+    public bool HasWindow(string windowName)
+    {
+        return _openWindows.ContainsKey(windowName);
+    }
+
+    public void CloseWindow(string windowName)
+    {
+        if (_openWindows.TryGetValue(windowName, out var entry))
         {
             try
             {
+                var form = entry.Form;
                 // Need to invoke on the form's thread to close it
                 if (form.InvokeRequired)
                 {
@@ -202,145 +235,103 @@ public class SecondaryWindowService : ISecondaryWindowService
                 {
                     form.Close();
                 }
+                _logger.Info($"[SecondaryWindow] Closed window: {windowName}");
             }
             catch (Exception ex)
             {
-                _logger.Error($"[SecondaryWindow] Error closing window: {ex.Message}");
-            }
-        }
-        _openWindows.Clear();
-    }
-
-    public bool HasWindowForProfile(string profileId)
-    {
-        return _openWindows.Any(w => w.ProfileId == profileId);
-    }
-
-    public void CloseWindowForProfile(string profileId)
-    {
-        var windowEntry = _openWindows.FirstOrDefault(w => w.ProfileId == profileId);
-        if (windowEntry != default)
-        {
-            try
-            {
-                var form = windowEntry.Form;
-                // Need to invoke on the form's thread to close it
-                if (form.InvokeRequired)
-                {
-                    form.Invoke(() => form.Close());
-                }
-                else
-                {
-                    form.Close();
-                }
-                _logger.Info($"[SecondaryWindow] Closed window for profile: {profileId}");
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"[SecondaryWindow] Error closing window for profile {profileId}: {ex.Message}");
+                _logger.Error($"[SecondaryWindow] Error closing window '{windowName}': {ex.Message}");
             }
         }
     }
 
-    private Task<Point> LoadWindowPositionAsync(string profileId, int windowWidth, int windowHeight, Rectangle screen)
+
+    /// <summary>
+    /// Load window configuration (position and size) from profile config
+    /// </summary>
+    private async Task<(Point Position, Size Size)> LoadWindowConfigurationAsync(
+        string windowName,
+        int defaultWidth,
+        int defaultHeight,
+        Rectangle screen)
     {
         try
         {
-            _logger.Info("[SecondaryWindow] Getting profile path from ProfilePathService...");
-            var profileDir = _profilePathService.ProfilePath;
-            _logger.Info($"[SecondaryWindow] Profile directory: {profileDir}");
+            var profileId = _profileContext.ProfileId;
+            _logger.Info($"[SecondaryWindow] Loading configuration for window '{windowName}'...");
+            var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
 
-            var configPath = Path.Combine(profileDir, "config.json");
-            _logger.Info($"[SecondaryWindow] Config path: {configPath}");
-
-            if (File.Exists(configPath))
+            if (config?.Windows != null && config.Windows.TryGetValue(windowName, out var windowConfig))
             {
-                _logger.Info("[SecondaryWindow] Config file exists, reading...");
-                // Use synchronous read to avoid deadlock on STA thread
-                var json = File.ReadAllText(configPath);
-                _logger.Info($"[SecondaryWindow] Config JSON read, length: {json.Length}");
+                _logger.Info($"[SecondaryWindow] Found saved configuration for '{windowName}'");
 
-                var config = JsonSerializer.Deserialize<ProfileConfiguration>(json);
-                _logger.Info($"[SecondaryWindow] Config deserialized, Capture null? {config?.Capture == null}");
+                int width = windowConfig.Width ?? defaultWidth;
+                int height = windowConfig.Height ?? defaultHeight;
 
-                if (config?.Capture?.X != null && config.Capture.Y != null)
+                if (windowConfig.X != null && windowConfig.Y != null)
                 {
-                    int x = config.Capture.X.Value;
-                    int y = config.Capture.Y.Value;
-                    _logger.Info($"[SecondaryWindow] Saved position found: ({x}, {y})");
+                    int x = windowConfig.X.Value;
+                    int y = windowConfig.Y.Value;
+                    _logger.Info($"[SecondaryWindow] Saved config: ({x}, {y}) {width}x{height}");
 
                     // Validate position is on screen
-                    if (IsPositionValid(x, y, windowWidth, windowHeight, screen))
+                    if (IsPositionValid(x, y, width, height, screen))
                     {
-                        _logger.Info($"[SecondaryWindow] Position is valid, using saved position");
-                        return Task.FromResult(new Point(x, y));
+                        _logger.Info($"[SecondaryWindow] Configuration is valid, using saved values");
+                        return (new Point(x, y), new Size(width, height));
                     }
                     else
                     {
                         _logger.Info("[SecondaryWindow] Saved position is off-screen, using default");
                     }
                 }
-                else
-                {
-                    _logger.Info("[SecondaryWindow] No saved position in config");
-                }
             }
             else
             {
-                _logger.Info("[SecondaryWindow] Config file does not exist");
+                _logger.Info($"[SecondaryWindow] No saved configuration for '{windowName}'");
             }
         }
         catch (Exception ex)
         {
-            _logger.Error($"[SecondaryWindow] Exception loading window position: {ex.Message}");
+            _logger.Error($"[SecondaryWindow] Exception loading window configuration: {ex.Message}");
             _logger.Error($"[SecondaryWindow] Stack trace: {ex.StackTrace}");
         }
 
-        // Default to right-bottom corner
-        _logger.Info($"[SecondaryWindow] Calculating default position for screen: {screen}");
-        int defaultX = screen.Right - windowWidth - 20;
-        int defaultY = screen.Bottom - windowHeight - 20;
-        _logger.Info($"[SecondaryWindow] Using default position (right-bottom): ({defaultX}, {defaultY})");
-        return Task.FromResult(new Point(defaultX, defaultY));
+        // Default to right-bottom corner with default size
+        _logger.Info($"[SecondaryWindow] Using default configuration for screen: {screen}");
+        int defaultX = screen.Right - defaultWidth - 20;
+        int defaultY = screen.Bottom - defaultHeight - 20;
+        _logger.Info($"[SecondaryWindow] Default: ({defaultX}, {defaultY}) {defaultWidth}x{defaultHeight}");
+        return (new Point(defaultX, defaultY), new Size(defaultWidth, defaultHeight));
     }
 
-    private Task SaveWindowPositionAsync(string profileId, Point location)
+    /// <summary>
+    /// Save window configuration (position and size) to profile config
+    /// </summary>
+    private async Task SaveWindowConfigurationAsync(
+        string windowName,
+        Point location,
+        Size size)
     {
         try
         {
-            var profileDir = _profilePathService.ProfilePath;
-            var configPath = Path.Combine(profileDir, "config.json");
+            var profileId = _profileContext.ProfileId;
+            _logger.Info($"[SecondaryWindow] Saving configuration for '{windowName}': ({location.X}, {location.Y}) {size.Width}x{size.Height}");
 
-            ProfileConfiguration config;
-            if (File.Exists(configPath))
-            {
-                // Use synchronous I/O to avoid issues with event handlers
-                var json = File.ReadAllText(configPath);
-                config = JsonSerializer.Deserialize<ProfileConfiguration>(json) ?? new ProfileConfiguration { ProfileId = profileId };
-            }
-            else
-            {
-                config = new ProfileConfiguration { ProfileId = profileId };
-            }
+            await _profileService.UpdateWindowConfigurationAsync(
+                profileId,
+                windowName,
+                location.X,
+                location.Y,
+                size.Width,
+                size.Height
+            ).ConfigureAwait(false);
 
-            config.Capture = new CaptureWindowConfiguration
-            {
-                X = location.X,
-                Y = location.Y
-            };
-
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            var updatedJson = JsonSerializer.Serialize(config, options);
-            File.WriteAllText(configPath, updatedJson);
-
-            _logger.Info($"[SecondaryWindow] Saved window position: ({location.X}, {location.Y})");
+            _logger.Info($"[SecondaryWindow] Saved window '{windowName}' configuration");
         }
         catch (Exception ex)
         {
-            _logger.Error($"[SecondaryWindow] Failed to save window position: {ex.Message}");
+            _logger.Error($"[SecondaryWindow] Failed to save window configuration: {ex.Message}");
         }
-
-        return Task.CompletedTask;
     }
 
     private bool IsPositionValid(int x, int y, int width, int height, Rectangle screen)

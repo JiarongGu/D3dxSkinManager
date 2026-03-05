@@ -12,6 +12,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2026-03-06 - Generic Window System with ProfileContext Integration ⭐⭐
+Refactored window configuration system from capture-specific to generic multi-window support with ProfileContext integration and thread-safe ConcurrentDictionary management.
+**Impact**: ✅ Enables multiple window types (capture, debug, tools) with independent position/size storage, eliminates profileId parameter passing, prevents race conditions
+**Problem 1**: Hard-coded `Capture` field in ProfileConfiguration limited to single window type
+**Problem 2**: ProfileId passed as parameters throughout SecondaryWindowService instead of using ProfileContext
+**Problem 3**: `CreateCaptureWindowAsync` in generic SecondaryWindowService created circular dependency with ScreenCaptureService
+**Problem 4**: List-based `_openWindows` caused race conditions and couldn't differentiate window types for toggle operations
+**Problem 5**: Direct file I/O in SecondaryWindowService bypassed ProfileService locking, causing config.json conflicts
+**Solution**: Implemented generic Windows dictionary in ProfileConfiguration, ProfileContext injection, separated concerns between services, ConcurrentDictionary for thread-safe window tracking
+**Backend Changes**:
+- ProfileConfiguration.cs: Removed `Capture` field, added `Dictionary<string, WindowConfiguration> Windows` with `WindowConfiguration { X, Y, Width, Height }`
+- ProfileService.cs: Added `UpdateWindowConfigurationAsync(profileId, windowName, x, y, width, height)` for generic window updates
+- ProfileFacade.cs:278-314: Fixed `UpdateProfileConfigAsync` to load existing config before updating to preserve all fields (Capture, Work, MigotoVersion)
+- SecondaryWindowService.cs: Injected `IProfileContext`, removed profileId parameters, exposed public `CreateSecondaryWindowAsync(windowName, title, width, height, htmlPage)`
+- SecondaryWindowService.cs: Changed `List<(Form, Session, ProfileId, WindowName)>` → `ConcurrentDictionary<string, WindowEntry>` for thread-safe window tracking by name
+- SecondaryWindowService.cs: Added window-specific methods `HasWindow(windowName)`, `CloseWindow(windowName)` replacing profile-based methods
+- SecondaryWindowService.cs: Removed direct file I/O, now uses `ProfileService.UpdateWindowConfigurationAsync()` for all config operations
+- ScreenCaptureService.cs: Moved `CreateCaptureWindowAsync()` from SecondaryWindowService, calls generic `CreateSecondaryWindowAsync()` and adds capture-specific overlay cleanup
+- ScreenCaptureService.cs:224-233: Updated `ToggleCaptureControlPanel` to use `HasWindow("capture")` and `CloseWindow("capture")` instead of profile-based checks
+**Architecture Benefits**:
+- **Generic Windows**: Support any window type without code changes (e.g., "capture", "debug", "tools")
+- **No Circular Dependencies**: ScreenCaptureService → SecondaryWindowService (one direction)
+- **ProfileContext-Scoped**: Services get profileId from IProfileContext injection
+- **Thread-Safe**: ConcurrentDictionary prevents race conditions in window management
+- **Config Preservation**: All config updates preserve existing fields via ProfileService
+**Config Format**:
+```json
+{
+  "windows": {
+    "capture": { "x": 1600, "y": 800, "width": 300, "height": 210 },
+    "debug": { "x": 100, "y": 100, "width": 400, "height": 600 }
+  }
+}
+```
+**Documentation**: Updated PROFILE_SYSTEM.md and SCREEN_CAPTURE_TOOL.md with generic window system architecture
+
 ### Changed - 2026-03-05 - Screen Capture: Toggle Control Panel & Profile Switch Cleanup ⭐
 Refactored screen capture control panel from "show" to "toggle" behavior and implemented automatic window cleanup on profile switch.
 **Impact**: ✅ Improved UX with single-button toggle for control panel, automatic cleanup prevents orphaned windows

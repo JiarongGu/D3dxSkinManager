@@ -21,8 +21,10 @@ The Screen Capture Tool provides a desktop screen capture feature with customiza
    - Location: `D3dxSkinManager/Modules/Tool/ScreenCapture/Services/ScreenCaptureService.cs`
 
 2. **SecondaryWindowService** (Profile-scoped)
-   - Manages secondary WebView2 windows (control panels)
-   - Tracks open windows per profile
+   - Manages secondary WebView2 windows (generic for any window type)
+   - Uses `ConcurrentDictionary<string, WindowEntry>` for thread-safe window tracking by name
+   - Provides window-specific operations: `HasWindow(name)`, `CloseWindow(name)`
+   - Stores window positions/sizes in profile configuration via `ProfileService`
    - Location: `D3dxSkinManager/Infrastructure/WebView/SecondaryWindowService.cs`
 
 3. **ScreenCaptureProfileRepository** (Profile-scoped)
@@ -59,10 +61,12 @@ await api.tool.toggleControlPanel(profileId);
 ```csharp
 public void ToggleCaptureControlPanel(string profileId)
 {
-    // Check if window already exists for this profile
-    if (_windowService.HasWindowForProfile(profileId))
+    const string captureWindowName = "capture";
+
+    // Check if capture window already exists (service is scoped to current profile)
+    if (_windowService.HasWindow(captureWindowName))
     {
-        _windowService.CloseWindowForProfile(profileId);
+        _windowService.CloseWindow(captureWindowName);
         return;
     }
 
@@ -71,9 +75,25 @@ public void ToggleCaptureControlPanel(string profileId)
 }
 ```
 
-### 2. Profile-Scoped Windows
+### 2. Generic Window System
 
-Each profile can have its own control panel window. Windows are tracked by `profileId` in `SecondaryWindowService._openWindows` list.
+SecondaryWindowService provides a generic system for creating and managing multiple window types:
+
+**Window Types:**
+- `"capture"` - Screen capture control panel
+- `"debug"` - Debug console (future)
+- `"tools"` - Tool windows (future)
+
+**Storage:**
+- Window configurations stored in `ProfileConfiguration.Windows` dictionary
+- Each window saves: `{x, y, width, height}`
+- Managed via `ProfileService.UpdateWindowConfigurationAsync(profileId, windowName, x, y, width, height)`
+
+**Architecture:**
+- Service is profile-scoped (gets profileId from `IProfileContext`)
+- Windows tracked by name in `ConcurrentDictionary<string, WindowEntry>`
+- Thread-safe operations for concurrent access
+- Auto-saves position/size on window close
 
 ### 3. Auto-Close on Profile Switch
 
@@ -371,25 +391,81 @@ Registered in `ProfileServiceRouter` during profile service creation.
 
 ## Common Patterns
 
-### Creating Secondary Windows
+### Creating Capture Window (ScreenCaptureService)
 
 ```csharp
-public async Task<Form?> CreateCaptureWindowAsync(string profileId)
+// Capture-specific window creation in ScreenCaptureService
+private async Task<Form?> CreateCaptureWindowAsync()
 {
+    const string windowName = "capture";
+    const string title = "Screen Capture";
+    const int defaultWidth = 300;
+    const int defaultHeight = 210;
+
+    // Call generic SecondaryWindowService
+    var form = await _windowService.CreateSecondaryWindowAsync(
+        windowName,
+        title,
+        defaultWidth,
+        defaultHeight,
+        "capture.html"
+    );
+
+    if (form != null)
+    {
+        // Add capture-specific behavior: close overlay when window closes
+        form.FormClosing += (s, e) =>
+        {
+            if (IsBorderOverlayVisible)
+            {
+                HideBorderOverlayAsync().GetAwaiter().GetResult();
+            }
+        };
+    }
+
+    return form;
+}
+```
+
+### Generic Window Creation (SecondaryWindowService)
+
+```csharp
+// Generic method for creating any secondary window
+public async Task<Form?> CreateSecondaryWindowAsync(
+    string windowName,
+    string title,
+    int defaultWidth,
+    int defaultHeight,
+    string htmlPage)
+{
+    // Load saved position/size from ProfileConfiguration.Windows[windowName]
+    var (position, size) = await LoadWindowConfigurationAsync(windowName, defaultWidth, defaultHeight, screen);
+
     var form = new Form
     {
-        Text = "Screen Capture",
-        Size = new Size(400, 180),
+        Text = title,
+        Size = size,
+        Location = position,
         FormBorderStyle = FormBorderStyle.FixedToolWindow,
-        TopMost = false
+        TopMost = true
     };
 
-    var webView = new WebView2 { Dock = DockStyle.Fill };
-    form.Controls.Add(webView);
+    // ... WebView2 setup ...
 
-    var session = _sessionManager.Create(sessionId, () => new WebViewSession(...));
+    // Save window configuration on close
+    form.FormClosing += (s, e) =>
+    {
+        if (_openWindows.TryRemove(windowName, out var entry))
+        {
+            _ = Task.Run(async () =>
+            {
+                await SaveWindowConfigurationAsync(windowName, form.Location, form.Size);
+            });
+        }
+    };
 
-    _openWindows.Add((form, session, profileId));
+    // Add to tracking dictionary
+    _openWindows.TryAdd(windowName, new WindowEntry(form, session, windowName));
 
     return form;
 }
@@ -398,9 +474,23 @@ public async Task<Form?> CreateCaptureWindowAsync(string profileId)
 ### Checking Window Existence
 
 ```csharp
-public bool HasWindowForProfile(string profileId)
+// Check if specific window exists
+public bool HasWindow(string windowName)
 {
-    return _openWindows.Any(w => w.ProfileId == profileId);
+    return _openWindows.ContainsKey(windowName);
+}
+
+// Close specific window
+public void CloseWindow(string windowName)
+{
+    if (_openWindows.TryGetValue(windowName, out var entry))
+    {
+        var form = entry.Form;
+        if (form.InvokeRequired)
+            form.Invoke(() => form.Close());
+        else
+            form.Close();
+    }
 }
 ```
 

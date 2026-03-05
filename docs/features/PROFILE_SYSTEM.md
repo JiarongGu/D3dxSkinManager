@@ -74,6 +74,7 @@ public class ProfileConfiguration {
     public string ProfileId { get; set; }
     public string MigotoVersion { get; set; }  // "3dmigoto", "3dmigoto-dev", "custom"
     public WorkDirectoryConfiguration Work { get; set; }
+    public Dictionary<string, WindowConfiguration> Windows { get; set; }  // Window positions/sizes
 }
 
 /// <summary>
@@ -84,6 +85,16 @@ public class WorkDirectoryConfiguration {
     public string? Directory { get; set; }  // Custom path when Mode is "external"
     public string? InternalWorkDirectory { get; set; }  // Computed by backend (not persisted)
 }
+
+/// <summary>
+/// Window position and size configuration for secondary windows
+/// </summary>
+public class WindowConfiguration {
+    public int? X { get; set; }
+    public int? Y { get; set; }
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+}
 ```
 
 **Work Directory Modes:**
@@ -93,11 +104,23 @@ public class WorkDirectoryConfiguration {
   - Mods extracted to: `{custom path}/Mods/{SHA}/`
   - Useful for: game directories, separate SSDs, shared locations
 
+**Windows Configuration:**
+- **Generic System**: Supports multiple window types (capture, debug, tools, etc.)
+- **Per-Window Storage**: Each window saves position (X, Y) and size (Width, Height)
+- **Thread-Safe**: Managed via `ConcurrentDictionary` in SecondaryWindowService
+- **Profile-Scoped**: Each profile remembers its own window positions
+- **Examples**:
+  - `"capture"` - Screen capture control panel window
+  - `"debug"` - Debug console window (future)
+  - `"tools"` - Tool windows (future)
+
 **Implementation Details:**
 - `ProfilePathService.WorkDirectory` property is dynamic and cached, reading from configuration
 - Both `WorkDirectory` and `CacheModsDirectory` are resolved asynchronously via `LoadCacheDirectoryAsync()`
 - Configuration changes trigger cache invalidation and reload via event subscription
 - `InternalWorkDirectory` is computed by backend for UI display only (not saved to config.json)
+- Window configurations managed by `ProfileService.UpdateWindowConfigurationAsync()`
+- All config updates preserve existing fields (Work, MigotoVersion, Windows)
 
 ## Frontend Implementation
 

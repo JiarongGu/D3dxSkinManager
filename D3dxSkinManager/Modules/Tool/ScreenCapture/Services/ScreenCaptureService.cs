@@ -223,11 +223,13 @@ public class ScreenCaptureService : IScreenCaptureService
 
     public void ToggleCaptureControlPanel(string profileId)
     {
-        // Check if window already exists for this profile
-        if (_windowService.HasWindowForProfile(profileId))
+        const string captureWindowName = "capture";
+
+        // Check if capture window already exists (service is scoped to current profile)
+        if (_windowService.HasWindow(captureWindowName))
         {
             _logger.Info($"[ScreenCaptureService] Closing existing capture control panel for profile {profileId}");
-            _windowService.CloseWindowForProfile(profileId);
+            _windowService.CloseWindow(captureWindowName);
             return;
         }
 
@@ -243,7 +245,7 @@ public class ScreenCaptureService : IScreenCaptureService
                 _logger.Info("[ScreenCaptureService] Creating capture window...");
 
                 // Call async method synchronously on STA thread
-                var form = _windowService.CreateCaptureWindowAsync(profileId).GetAwaiter().GetResult();
+                var form = CreateCaptureWindowAsync().GetAwaiter().GetResult();
 
                 if (form == null)
                 {
@@ -265,6 +267,47 @@ public class ScreenCaptureService : IScreenCaptureService
         thread.IsBackground = false;
         thread.Start();
         _logger.Info("[ScreenCaptureService] STA thread launched");
+    }
+
+    /// <summary>
+    /// Create capture-specific window with overlay cleanup behavior
+    /// </summary>
+    private async Task<Form?> CreateCaptureWindowAsync()
+    {
+        const string windowName = "capture";
+        const string title = "Screen Capture";
+        const int defaultWidth = 300;
+        const int defaultHeight = 210;
+
+        var form = await _windowService.CreateSecondaryWindowAsync(
+            windowName,
+            title,
+            defaultWidth,
+            defaultHeight,
+            "capture.html"
+        ).ConfigureAwait(false);
+
+        if (form != null)
+        {
+            // Capture-specific: Close the capture overlay when control panel closes
+            form.FormClosing += (s, e) =>
+            {
+                try
+                {
+                    if (IsBorderOverlayVisible)
+                    {
+                        _logger.Info("[ScreenCaptureService] Closing capture overlay with control panel");
+                        HideBorderOverlayAsync().GetAwaiter().GetResult();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"[ScreenCaptureService] Failed to close capture overlay: {ex.Message}");
+                }
+            };
+        }
+
+        return form;
     }
 
     private Bitmap CaptureScreen(int x, int y, int width, int height)

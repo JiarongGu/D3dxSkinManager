@@ -22,6 +22,7 @@ public interface IProfileService
     Task<Profile?> ImportProfileConfigAsync(string configJson, string workDirectory);
     Task<ProfileConfiguration?> GetProfileConfigurationAsync(string profileId);
     Task<bool> UpdateProfileConfigurationAsync(ProfileConfiguration config);
+    Task<bool> UpdateWindowConfigurationAsync(string profileId, string windowName, int x, int y, int width, int height);
 }
 
 public class ProfileService : IProfileService
@@ -361,6 +362,34 @@ public class ProfileService : IProfileService
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
         await _repository.SaveProfileConfigurationAsync(config.ProfileId, config).ConfigureAwait(false);
+        return true;
+    }
+
+    public async Task<bool> UpdateWindowConfigurationAsync(string profileId, string windowName, int x, int y, int width, int height)
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        // Get current configuration
+        var config = await _repository.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+        if (config == null)
+        {
+            _logger.Warn($"Profile configuration not found for {profileId}, creating new", "ProfileService");
+            config = new ProfileConfiguration { ProfileId = profileId };
+        }
+
+        // Update the window configuration in the Windows dictionary
+        config.Windows[windowName] = new WindowConfiguration
+        {
+            X = x,
+            Y = y,
+            Width = width,
+            Height = height
+        };
+
+        // Save via repository (handles locking and cache)
+        await _repository.SaveProfileConfigurationAsync(profileId, config).ConfigureAwait(false);
+
+        _logger.Verbose($"Updated window '{windowName}' configuration for profile {profileId}: ({x}, {y}, {width}x{height})", "ProfileService");
         return true;
     }
 

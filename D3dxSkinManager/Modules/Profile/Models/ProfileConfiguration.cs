@@ -21,16 +21,19 @@ public class ProfileConfiguration
     public WorkDirectoryConfiguration Work { get; set; } = new WorkDirectoryConfiguration();
 
     /// <summary>
-    /// Capture window position
+    /// Window positions and sizes for secondary windows (e.g., "capture", "debug")
+    /// Key: window name, Value: window configuration (position and size)
     /// </summary>
-    public CaptureWindowConfiguration? Capture { get; set; }
+    public Dictionary<string, WindowConfiguration> Windows { get; set; } = new Dictionary<string, WindowConfiguration>();
 }
 
 /// <summary>
-/// Capture window position configuration
+/// Window position and size configuration for any secondary window
 /// </summary>
-public class CaptureWindowConfiguration
+public class WindowConfiguration
 {
     public int? X { get; set; }
     public int? Y { get; set; }
+    public int? Width { get; set; }
+    public int? Height { get; set; }
 }
