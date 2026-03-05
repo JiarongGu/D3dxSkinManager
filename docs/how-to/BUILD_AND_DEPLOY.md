@@ -22,14 +22,20 @@ This guide covers the entire build and deployment process for D3dxSkinManager, i
 
 2. **Backend (.NET 10)**
    - WinForms + WebView2
-   - Single-file executable
+   - Costura-merged single executable
    - Framework-dependent by default
 
-3. **Resources**
+3. **C++ Launcher**
+   - Native C++ bootstrapper (~336KB)
+   - Auto-installs .NET 10 runtime if missing
+   - Launches main application
+   - Future: auto-update support
+
+4. **Resources**
    - Web resources: Embedded via EmbeddedResource
    - Language files: Separate (user-editable)
    - Native libraries: 7z.dll (architecture-specific, separate file)
-   - Application icon: Embedded as manifest resource
+   - Application icon: Embedded in launcher.rc
    - SQLite native library: Embedded in exe
 
 ---
@@ -75,7 +81,8 @@ The `build-production.ps1` script automates the entire production build process:
 1. Builds React frontend
 2. Copies frontend to backend `wwwroot/`
 3. Publishes .NET application
-4. Organizes distribution files
+4. Builds C++ launcher (native bootstrapper)
+5. Organizes publish files
 
 ### Usage
 
@@ -96,18 +103,36 @@ The `build-production.ps1` script automates the entire production build process:
 |-----------|-------------|---------|
 | `-SkipFrontend` | Skip React build (use existing wwwroot) | `$false` |
 | `-SelfContained` | Include .NET runtime in output | `$false` |
+| `-SkipBootstrapper` | Skip C++ launcher build | `$false` |
 
-### Build Output
+### Build Output (Framework-Dependent with Launcher)
 
 ```
-dist/win-x64/
-├── D3dxSkinManager.exe  (14 MB, single-file)
+publish/win-x64/
+├── D3dxSkinManager Launcher.exe  (~336 KB, native C++)
+├── D3dxSkinManager.exe            (~12 MB, Costura-merged)
 ├── libs/
-│   └── 7z.dll           (architecture-specific: x64 or x86)
+│   └── 7z.dll                     (~1.9 MB, architecture-specific)
+└── data/languages/
+    ├── cn.json                    (~32 KB)
+    └── en.json                    (~33 KB)
+```
+
+**Total Size:** ~14 MB
+
+### Build Output (Self-Contained)
+
+```
+publish/win-x64/
+├── D3dxSkinManager.exe  (~150 MB, includes .NET runtime)
+├── libs/
+│   └── 7z.dll
 └── data/languages/
     ├── cn.json
     └── en.json
 ```
+
+**Total Size:** ~150-160 MB
 
 ---
 
