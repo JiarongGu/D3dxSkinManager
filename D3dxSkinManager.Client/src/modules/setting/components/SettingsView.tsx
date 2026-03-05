@@ -107,6 +107,7 @@ export const SettingsView: React.FC = () => {
     try {
       const result = await systemService.openFolderDialog({
         title: t("settings.profile.work.directory.dialogTitle"),
+        rememberPathKey: 'mod-work'
       });
 
       if (result.success && result.filePath) {

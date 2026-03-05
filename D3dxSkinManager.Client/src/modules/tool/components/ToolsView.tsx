@@ -46,13 +46,6 @@ export const ToolsView: React.FC = () => {
 
   const tools: ToolCardData[] = [
     {
-      key: 'startup-validation',
-      title: 'Startup Validation',
-      description: 'Validate system startup requirements and configuration',
-      icon: <CheckCircleOutlined />,
-      content: <StartupValidationTool />,
-    },
-    {
       key: 'screen-capture',
       title: 'Screen Capture',
       description: 'Capture screen regions with customizable profiles',
@@ -72,6 +65,13 @@ export const ToolsView: React.FC = () => {
       description: 'Manage mod tags and categories',
       icon: <TagsOutlined />,
       content: <TagManagementTool />,
+    },
+    {
+      key: 'startup-validation',
+      title: 'Startup Validation',
+      description: 'Validate system startup requirements and configuration',
+      icon: <CheckCircleOutlined />,
+      content: <StartupValidationTool />,
     }
   ];
 

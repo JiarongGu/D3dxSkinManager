@@ -98,6 +98,7 @@ export const D3DMigotoTab: React.FC = () => {
       // For now, let user browse for the directory
       const result = await systemService.openFolderDialog({
         title: t('launch.d3dmigoto.selectWorkDir'),
+        rememberPathKey: "d3migoto"
       });
 
       if (result.success && result.filePath) {

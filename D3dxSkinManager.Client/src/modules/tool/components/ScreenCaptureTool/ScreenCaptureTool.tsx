@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Form, InputNumber, Button, Select, Space, Input } from "antd";
+import { Form, InputNumber, Button, Space, Input, Select } from "antd";
 import {
   CameraOutlined,
   EyeOutlined,
@@ -34,7 +34,6 @@ const ScreenCaptureToolInner: React.FC = () => {
     editingName,
     setEditingName,
     showingBorder,
-    loading,
     setForm,
     handleProfileChange,
     handleSaveProfile,
@@ -86,8 +85,9 @@ const ScreenCaptureToolInner: React.FC = () => {
               placeholder={t("capture.selectProfile")}
               value={selectedProfileId ?? NEW_PROFILE_ID}
               onChange={handleProfileChange}
-              loading={loading}
               size="small"
+              showSearch
+              listHeight={100}
               options={[
                 { label: t("capture.newProfile"), value: NEW_PROFILE_ID },
                 ...profiles.map((p) => ({
@@ -95,6 +95,9 @@ const ScreenCaptureToolInner: React.FC = () => {
                   value: p.id,
                 }))
               ]}
+              filterOption={(input, option) =>
+                (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+              }
             />
             <Button
               size="small"

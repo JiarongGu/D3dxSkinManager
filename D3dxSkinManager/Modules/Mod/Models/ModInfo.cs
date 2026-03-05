@@ -29,6 +29,9 @@ public class ModInfo
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // Extension field for future use - can store JSON data without database migration
+    public string? Metadata { get; set; }
+
     // Note: Preview paths and thumbnails are scanned dynamically from previews/{SHA}/ folder
     // Allows users to add preview images directly to folder
     // Use GET_PREVIEW_PATHS IPC call to retrieve them

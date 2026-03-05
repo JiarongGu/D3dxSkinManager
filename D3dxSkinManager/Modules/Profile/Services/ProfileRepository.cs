@@ -31,7 +31,6 @@ namespace D3dxSkinManager.Modules.Profiles.Services
     public class ProfileRepository : IProfileRepository
     {
         private readonly IGlobalPathService _globalPaths;
-        private readonly IPathHelper _pathHelper;
         private readonly IFileHelper _fileHelper;
         private readonly ILogHelper _logger;
 
@@ -43,10 +42,9 @@ namespace D3dxSkinManager.Modules.Profiles.Services
 
         private ConcurrentDictionary<string, ProfileConfiguration> _profileConfigurations = new ConcurrentDictionary<string, ProfileConfiguration>();
 
-        public ProfileRepository(IGlobalPathService globalPath, IPathHelper pathHelper, IFileHelper fileHelper, ILogHelper logger)
+        public ProfileRepository(IGlobalPathService globalPath, IFileHelper fileHelper, ILogHelper logger)
         {
             _globalPaths = globalPath;
-            _pathHelper = pathHelper;
             _fileHelper = fileHelper;
             _logger = logger;
 

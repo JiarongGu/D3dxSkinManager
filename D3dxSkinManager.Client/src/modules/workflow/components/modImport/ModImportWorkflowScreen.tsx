@@ -194,7 +194,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
       setImporting(true);
       const result = await systemService.openFolderDialog({
         title: t('mods.import.selectFolderOrFile'),
-        rememberPathKey: 'mod-import-folder',
+        rememberPathKey: 'mod-import',
         allowFileSelection: true,
         filters: [
           { name: 'Archive Files', extensions: ['zip', '7z', 'rar', 'tar', 'gz', 'bz2'] },

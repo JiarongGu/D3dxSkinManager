@@ -21,6 +21,7 @@ export interface ModInfo {
   originalPath?: string;  // Path to original archive file
   cachePath?: string;     // Path to cache directory (extracted files in active/loaded state)
   // Note: workPath is deprecated - use cachePath instead. Cache folder can be in loaded or unloaded/disabled mode
+  metadata?: string;  // Extension field for future use - can store JSON data without database migration
 }
 
 export type GradingLevel = 'G' | 'P' | 'R' | 'X';

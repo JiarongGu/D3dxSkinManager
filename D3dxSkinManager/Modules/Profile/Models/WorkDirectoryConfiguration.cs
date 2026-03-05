@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace D3dxSkinManager.Modules.Profiles.Models;
 
 /// <summary>
