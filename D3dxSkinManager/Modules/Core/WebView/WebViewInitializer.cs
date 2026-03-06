@@ -1,9 +1,8 @@
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Services;
-using D3dxSkinManager.Infrastructure.Resources;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Modules.Core.WebView;
 
 /// <summary>
 /// Handles WebView2 initialization and configuration
@@ -298,7 +297,7 @@ public class WebViewInitializer
                     {
                         // Resource not found
                         Console.WriteLine($"[WebView2] ✗ NOT FOUND: {virtualPath}");
-                        var errorStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes($"Embedded resource not found: {virtualPath}"));
+                        var errorStream = new MemoryStream(global::System.Text.Encoding.UTF8.GetBytes($"Embedded resource not found: {virtualPath}"));
                         var errorResponse = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
                             errorStream,
                             404,
@@ -314,7 +313,7 @@ public class WebViewInitializer
                 Console.WriteLine($"[WebView2] Error handling custom scheme: {ex.Message}");
 
                 // Return 404 error
-                var errorStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("Resource not found"));
+                var errorStream = new MemoryStream(global::System.Text.Encoding.UTF8.GetBytes("Resource not found"));
                 var errorResponse = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
                     errorStream,
                     404,

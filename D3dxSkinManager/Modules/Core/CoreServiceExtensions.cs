@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Core.WebView;
 
 namespace D3dxSkinManager.Modules.Core;
 
@@ -87,7 +88,7 @@ public static class CoreServiceExtensions
     {
         services.AddSingleton(serviceProvider.GetRequiredService<IMemoryCache>());
         services.AddSingleton(serviceProvider.GetRequiredService<IMessageDispatcher>());
-        services.AddSingleton(serviceProvider.GetRequiredService<Infrastructure.Resources.IEmbeddedResourceProvider>());
+        services.AddSingleton(serviceProvider.GetRequiredService<IEmbeddedResourceProvider>());
 
         foreach (var serviceType in _registerdServices)
         {

@@ -1,5 +1,5 @@
 ﻿using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.WebView;
 using System.Collections.Concurrent;
 
 namespace D3dxSkinManager.Modules.Core.Services

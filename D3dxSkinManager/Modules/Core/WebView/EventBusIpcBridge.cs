@@ -1,7 +1,7 @@
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Modules.Core.WebView;
 
 /// <summary>
 /// Bridge between backend EventBus and frontend via IPC

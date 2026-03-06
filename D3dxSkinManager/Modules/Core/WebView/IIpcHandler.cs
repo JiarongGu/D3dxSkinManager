@@ -1,6 +1,6 @@
 using D3dxSkinManager.Modules.Core.Models;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Modules.Core.WebView;
 
 /// <summary>
 /// Interface for IPC (Inter-Process Communication) handler between backend and frontend.

@@ -14,10 +14,11 @@
  */
 
 import React, { useEffect } from 'react';
-import { useProfile } from '../../shared/context/ProfileContext';
-import { useSettingsStore } from './store/settingsStore';
-import { eventBus, Module, SettingsEventType } from '../../shared/services/eventBus';
-import * as settingsOps from './operations/settingsOperations';
+import { useProfile } from './ProfileContext';
+import { useSettingsStore } from '../../modules/setting/store/settingsStore';
+import { eventBus, Module, SettingsEventType } from '../services/eventBus';
+import * as settingsOps from '../../modules/setting/operations/settingsOperations';
+import logger from '../utils/logger';
 
 interface SettingsProviderProps {
   children: React.ReactNode;
@@ -47,7 +48,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       Module.SETTING,
       SettingsEventType.GLOBAL_SETTINGS_CHANGED,
       () => {
-        console.log('[SettingsProvider] Global settings changed event received, reloading settings...');
+        logger.info('[SettingsProvider] Global settings changed event received, reloading settings...');
         void settingsOps.loadGlobalSettings();
       }
     );

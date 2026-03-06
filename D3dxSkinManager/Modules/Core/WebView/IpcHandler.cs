@@ -8,7 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Timers;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Modules.Core.WebView;
 
 /// <summary>
 /// Event args for IPC message received events
@@ -37,7 +37,7 @@ public class IpcHandler : IIpcHandler
 
     // Notification batching
     private readonly ConcurrentQueue<(string module, string type, object? payload)> _pendingNotifications = new();
-    private readonly System.Timers.Timer _batchTimer;
+    private readonly global::System.Timers.Timer _batchTimer;
     private readonly object _batchLock = new();
     private const int BatchIntervalMs = 50;
 
@@ -52,7 +52,7 @@ public class IpcHandler : IIpcHandler
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Initialize batch timer
-        _batchTimer = new System.Timers.Timer(BatchIntervalMs);
+        _batchTimer = new global::System.Timers.Timer(BatchIntervalMs);
         _batchTimer.Elapsed += (sender, e) => FlushNotificationBatch();
         _batchTimer.AutoReset = true;
         _batchTimer.Start();

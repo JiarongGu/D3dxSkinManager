@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { settingsService } from '../services/ipc';
 import { useSettingsStore } from '../../modules/setting/store/settingsStore';
-import { eventBus, Module, SettingsEventType } from '../services/eventBus';
 
 export type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -36,12 +35,15 @@ function getSystemTheme(): 'light' | 'dark' {
  * This prevents duplicate GET_GLOBAL calls on startup (was causing 8+ simultaneous calls).
  */
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<ThemeMode>('light');
-  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme());
-
   // Read from settingsStore instead of calling backend
   const globalSettings = useSettingsStore((state) => state.globalSettings);
   const isLoading = useSettingsStore((state) => state.globalSettingsLoading);
+
+  // Initialize theme from store if available, otherwise default to 'light'
+  const [theme, setThemeState] = useState<ThemeMode>(() => {
+    return (globalSettings?.theme as ThemeMode) || 'light';
+  });
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme());
 
   // Calculate effective theme (resolve 'auto' to actual theme)
   const effectiveTheme: 'light' | 'dark' = theme === 'auto' ? systemTheme : theme;
@@ -65,35 +67,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  // Listen for global settings changes from backend (syncs across all windows)
-  useEffect(() => {
-    const unsubscribe = eventBus.subscribe(
-      Module.SETTING,
-      SettingsEventType.GLOBAL_SETTINGS_CHANGED,
-      (event) => {
-        if (event.payload?.theme) {
-          const newTheme = event.payload.theme as ThemeMode;
-          setThemeState(newTheme);
-
-          // Update store to keep it in sync
-          const { setGlobalSettings } = useSettingsStore.getState();
-          const currentSettings = useSettingsStore.getState().globalSettings;
-          if (currentSettings) {
-            setGlobalSettings({
-              ...currentSettings,
-              theme: event.payload.theme as ThemeMode,
-              annotationLevel: event.payload.annotationLevel,
-              logLevel: event.payload.logLevel,
-              language: event.payload.language,
-              lastUpdated: event.payload.lastUpdated
-            });
-          }
-        }
-      }
-    );
-
-    return unsubscribe;
-  }, []);
+  // Note: We don't listen to GLOBAL_SETTINGS_CHANGED here
+  // SettingsProvider handles that event and reloads settings into the store
+  // We just react to store changes via the useEffect on globalSettings above
+  // This prevents duplicate event handlers and race conditions
 
   // Update backend when theme changes
   const setTheme = async (newTheme: ThemeMode) => {

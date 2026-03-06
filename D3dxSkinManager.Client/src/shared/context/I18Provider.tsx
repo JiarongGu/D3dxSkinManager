@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { Spin } from 'antd';
-import i18n, { loadLanguageFromSettings } from './i18n';
-import logger from '../shared/utils/logger';
-import { eventBus, Module, SettingsEventType } from '../shared/services/eventBus';
+import logger from '../utils/logger';
+import i18n, { loadLanguageFromSettings } from '../services/i18n';
+import { useSettingsStore } from '../../modules/setting/store/settingsStore';
 
-interface I18nInitializerProps {
+interface I18ProviderProps {
   children: React.ReactNode;
 }
 
@@ -13,8 +13,9 @@ interface I18nInitializerProps {
  * Initializes i18next before rendering children
  * Loads language preference from backend settings
  */
-export const I18nInitializer: React.FC<I18nInitializerProps> = ({ children }) => {
+export const I18Provider: React.FC<I18ProviderProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
+  const globalSettings = useSettingsStore((state) => state.globalSettings);
 
   useEffect(() => {
     const initialize = async () => {
@@ -33,29 +34,18 @@ export const I18nInitializer: React.FC<I18nInitializerProps> = ({ children }) =>
     initialize();
   }, []);
 
-  // Listen for global settings changes from backend (syncs language across all windows)
+  // Note: We don't listen to GLOBAL_SETTINGS_CHANGED here
+  // SettingsProvider handles that event and reloads settings into the store
+  // We just react to store changes via the useEffect on globalSettings below
+  // This prevents duplicate event handlers and race conditions
   useEffect(() => {
-    const unsubscribe = eventBus.subscribe(
-      Module.SETTING,
-      SettingsEventType.GLOBAL_SETTINGS_CHANGED,
-      async (event) => {
-        if (event.payload?.language) {
-          const newLanguage = event.payload.language;
-          logger.info('[I18nInitializer] Language changed via event:', newLanguage);
-
-          // Change i18n language
-          try {
-            await i18n.changeLanguage(newLanguage);
-            logger.info('[I18nInitializer] Language changed successfully to:', newLanguage);
-          } catch (error: unknown) {
-            logger.error('[I18nInitializer] Failed to change language:', error);
-          }
-        }
-      }
-    );
-
-    return unsubscribe;
-  }, []);
+    if (globalSettings?.language && isInitialized && i18n.language !== globalSettings.language) {
+      logger.info('[I18nInitializer] Language changed via store:', globalSettings.language);
+      i18n.changeLanguage(globalSettings.language).catch((error: unknown) => {
+        logger.error('[I18nInitializer] Failed to change language:', error);
+      });
+    }
+  }, [globalSettings, isInitialized]);
 
   if (!isInitialized) {
     return (

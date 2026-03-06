@@ -1,6 +1,6 @@
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Infrastructure;
-using D3dxSkinManager.Infrastructure.WebView;
+using D3dxSkinManager.Modules.Core.WebView;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Setting.Services;
 using Microsoft.Extensions.DependencyInjection;

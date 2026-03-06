@@ -1,4 +1,3 @@
-using D3dxSkinManager.Infrastructure.WebView;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
 using System.Text.Json;
@@ -49,6 +48,17 @@ public class MessageDispatcher : IMessageDispatcher
             _logger.Error($"Error processing message: {ex.Message}", "MessageDispatcher", ex);
             return IpcResponse.CreateError(message.Id, $"Dispatcher error: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Process a message with session context (for WebView IPC messages).
+    /// The session parameter can be accessed by middleware/handlers.
+    /// </summary>
+    public async Task<IpcResponse?> ProcessMessageAsync(IpcRequest message, object? session)
+    {
+        // Store session in message for handlers to access
+        // For now, just call the regular pipeline - handlers will be refactored to access session
+        return await ProcessMessageAsync(message);
     }
 
     /// <summary>

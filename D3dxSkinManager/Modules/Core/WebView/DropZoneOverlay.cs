@@ -1,7 +1,10 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
 using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Helpers;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Modules.Core.WebView;
 
 /// <summary>
 /// Overlay panel that captures file drag-drop events and hides itself on mouse enter
@@ -59,7 +62,7 @@ public class DropZoneOverlay : Panel
         MouseLeave += OnMouseLeave;
 
         // Setup timer to restore overlay when cursor leaves area
-        _visibilityCheckTimer = new System.Windows.Forms.Timer();
+        _visibilityCheckTimer = new global::System.Windows.Forms.Timer();
         _visibilityCheckTimer.Interval = 100; // Check every 100ms
         _visibilityCheckTimer.Tick += CheckOverlayVisibility;
         _visibilityCheckTimer.Start();
@@ -92,7 +95,7 @@ public class DropZoneOverlay : Panel
         base.WndProc(ref m);
     }
 
-    private System.Windows.Forms.Timer? _visibilityCheckTimer;
+    private global::System.Windows.Forms.Timer? _visibilityCheckTimer;
     private bool _hiddenForMouseDown;
     private bool _mouseIsInside = false;  // Track if mouse is currently inside the zone
     private bool _requestsVisible = true;  // Track what frontend wants

@@ -15,7 +15,6 @@ import {
 } from "../../../shared/components/compact";
 import { useTheme, ThemeMode } from "../../../shared/context/ThemeContext";
 import { useTranslation } from "react-i18next";
-import { changeLanguage } from "../../../i18n/i18n";
 import { AVAILABLE_LANGUAGES } from "../../../shared/types/language.types";
 import { logger, Logger } from "../../../shared/utils/logger";
 import { useProfile } from "../../../shared/context/ProfileContext";
@@ -24,6 +23,7 @@ import * as settingsOps from "../operations/settingsOperations";
 import { notification } from "../../../shared/utils/notification";
 import "./SettingsView.css";
 import { systemService } from "../../../shared/services/ipc";
+import { changeLanguage } from "../../../shared/services/i18n";
 
 const { Option } = Select;
 

@@ -1,6 +1,6 @@
 using System.Windows.Forms;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Infrastructure;
 
 /// <summary>
 /// Optimized WinForms form with double buffering and performance improvements

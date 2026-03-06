@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using D3dxSkinManager.Infrastructure;
 using D3dxSkinManager.Modules.System.Services;
-using D3dxSkinManager.Infrastructure.WebView;
+using D3dxSkinManager.Modules.Core.WebView;
 
 namespace D3dxSkinManager.Modules.System;
 

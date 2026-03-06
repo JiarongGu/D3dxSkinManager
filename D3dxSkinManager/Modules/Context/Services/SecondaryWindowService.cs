@@ -1,9 +1,12 @@
 using Microsoft.Web.WebView2.WinForms;
+using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Context;
+using D3dxSkinManager.Modules.Core.WebView;
+using D3dxSkinManager.Modules.Setting.Services;
 using System.Collections.Concurrent;
 
 namespace D3dxSkinManager.Modules.Context.Services;
@@ -99,7 +102,8 @@ public class SecondaryWindowService : ISecondaryWindowService
             _logger.Info("[SecondaryWindow] Creating WebView2 control...");
             var webView = new WebView2
             {
-                Dock = DockStyle.Fill
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(26, 26, 26) // Prevent white flash
             };
             _logger.Info("[SecondaryWindow] WebView2 control created");
 
@@ -107,7 +111,30 @@ public class SecondaryWindowService : ISecondaryWindowService
             form.Controls.Add(webView);
             _logger.Info("[SecondaryWindow] WebView2 added to form");
 
-            // Create WebView session
+            // Load theme from global settings for splash screen
+            _logger.Info("[SecondaryWindow] Loading theme from settings...");
+            bool isDarkTheme = true; // Default to dark
+            try
+            {
+                var settingService = _serviceProvider.GetRequiredService<IGlobalSettingService>();
+                var settings = await settingService.GetSettingsAsync().ConfigureAwait(false);
+                isDarkTheme = settings.Theme == "dark";
+                _logger.Info($"[SecondaryWindow] Using theme: {settings.Theme}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"[SecondaryWindow] Failed to load theme from settings, using dark default: {ex.Message}");
+            }
+
+            // Create splash screen panel with theme from settings
+            _logger.Info("[SecondaryWindow] Creating splash screen panel...");
+            var splashScreenPanel = new SplashScreenPanel(isDarkTheme);
+            splashScreenPanel.UpdateStatus("Initializing...");
+            form.Controls.Add(splashScreenPanel);
+            splashScreenPanel.BringToFront();
+            _logger.Info($"[SecondaryWindow] Splash screen panel added (theme: {(isDarkTheme ? "dark" : "light")})");
+
+            // Create WebView session with splash screen
             _logger.Info("[SecondaryWindow] Creating WebView session...");
             var session = _sessionManager.Create(sessionId, () =>
             {
@@ -118,7 +145,8 @@ public class SecondaryWindowService : ISecondaryWindowService
                     _logger,
                     _serviceProvider,
                     _schemeHandler,
-                    form
+                    form,
+                    splashScreenPanel  // Pass splash screen to session
                 );
                 _logger.Info("[SecondaryWindow] WebViewSession instance created");
                 return newSession;

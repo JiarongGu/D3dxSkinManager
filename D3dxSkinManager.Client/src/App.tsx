@@ -130,9 +130,7 @@ export const App: React.FC = () => {
     <AppWrapper>
       <ModProvider>
         <SlideInScreenProvider>
-          <AppLoader>
-            <AppContent />
-          </AppLoader>
+          <AppContent />
         </SlideInScreenProvider>
       </ModProvider>
     </AppWrapper>

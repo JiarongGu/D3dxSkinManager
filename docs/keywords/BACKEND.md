@@ -64,12 +64,6 @@
   - Properties: ErrorCode, Data (additional context)
   - Created: 2026-02-21
 
-- **OperationProgress** → `Modules/Core/Models/OperationProgress.cs`
-  - OperationStatus enum (Running, Completed, Failed, Cancelled)
-  - OperationProgress class - tracks operation state and progress
-  - OperationNotificationType enum - notification types for IPC
-  - OperationNotification class - IPC push notification payload
-  - Created: 2026-02-21
 
 #### Utilities
 

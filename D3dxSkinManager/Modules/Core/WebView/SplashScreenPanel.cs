@@ -2,7 +2,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Modules.Core.WebView;
 
 /// <summary>
 /// Splash screen panel overlay shown while WebView2 compiles JavaScript
@@ -25,7 +25,7 @@ public class SplashScreenPanel : Panel
         BackColor = _isDarkTheme ? Color.FromArgb(31, 31, 31) : Color.FromArgb(230, 244, 255); // Dark: #1f1f1f (bg-container), Light: #e6f4ff (bg-container)
         DoubleBuffered = true;
 
-        // Content panel (clean minimal progress bar)
+        // Content panel (clean minimal progress bar) - size calculated on resize
         _contentPanel = new Panel
         {
             Size = new Size(400, 4),
@@ -48,15 +48,23 @@ public class SplashScreenPanel : Panel
         };
         _contentPanel.Controls.Add(_progressBar);
 
-        // Handle resize to center the content panel
-        Resize += (s, e) => CenterContentPanel();
+        // Handle resize to update size and center the content panel
+        Resize += (s, e) => UpdateProgressBarSize();
 
         // Bring to front
         BringToFront();
     }
 
-    private void CenterContentPanel()
+    private void UpdateProgressBarSize()
     {
+        // Calculate width: 70% of screen width, max 400px
+        int progressWidth = Math.Min((int)(Width * 0.7), 400);
+
+        // Update content panel and progress bar size
+        _contentPanel.Size = new Size(progressWidth, 4);
+        _progressBar.Size = new Size(progressWidth, 4);
+
+        // Center the content panel
         _contentPanel.Location = new Point(
             (Width - _contentPanel.Width) / 2,
             (Height - _contentPanel.Height) / 2

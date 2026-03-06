@@ -51,29 +51,3 @@ export interface ImportTask {
   operationId?: string;          // If backend supports progress reporting
   importedModSha?: string;       // SHA of imported mod (set when MOD_IMPORTED event received)
 }
-
-/**
- * Import statistics for status bar
- */
-export interface ImportStats {
-  total: number;
-  pending: number;
-  processing: number;
-  success: number;
-  error: number;
-  cancelled: number;
-}
-
-/**
- * Helper to calculate import stats
- */
-export function calculateImportStats(tasks: ImportTask[]): ImportStats {
-  return {
-    total: tasks.length,
-    pending: tasks.filter(t => t.status === 'pending').length,
-    processing: tasks.filter(t => t.status === 'processing').length,
-    success: tasks.filter(t => t.status === 'success').length,
-    error: tasks.filter(t => t.status === 'error').length,
-    cancelled: tasks.filter(t => t.status === 'cancelled').length,
-  };
-}

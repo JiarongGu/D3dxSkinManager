@@ -735,13 +735,6 @@
   - ErrorCode type → Union type of all error codes
   - Created: 2026-02-21
 
-- **operation.types.ts** → `src/shared/types/operation.types.ts`
-  - OperationStatus type (Running, Completed, Failed, Cancelled)
-  - OperationNotificationType - notification event types
-  - OperationProgress interface - matches backend model
-  - OperationNotificationMessage - IPC push message format
-  - Created: 2026-02-21
-
 ---
 
 ## Styles

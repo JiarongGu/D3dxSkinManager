@@ -1,9 +1,9 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { languageService } from './ipc';
+import logger from '../utils/logger';
+import { DEFAULT_LANGUAGE } from '../types/language.types';
 
-import { DEFAULT_LANGUAGE } from '../shared/types/language.types';
-import logger from '../shared/utils/logger';
-import { languageService } from '../shared/services/ipc';
 
 /**
  * Custom backend for i18next that loads translations from our backend service
@@ -67,7 +67,7 @@ export default i18n;
  */
 export const loadLanguageFromSettings = async () => {
   try {
-    const { settingsService } = await import('../shared/services/ipc');
+    const { settingsService } = await import('./ipc');
     const settings = await settingsService.getGlobalSettings();
     const savedLanguage = settings.language || DEFAULT_LANGUAGE;
 
@@ -92,7 +92,7 @@ export const changeLanguage = async (language: string) => {
     await i18n.changeLanguage(language);
 
     // Save to backend settings
-    const { settingsService } = await import('../shared/services/ipc');
+    const { settingsService } = await import('./ipc');
     await settingsService.updateGlobalSetting('language', language);
 
     logger.info(`[i18n] Language changed successfully`);

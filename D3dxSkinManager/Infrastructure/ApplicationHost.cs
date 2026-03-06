@@ -16,8 +16,7 @@ using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Plugin;
 using D3dxSkinManager.Modules.Setting;
 using D3dxSkinManager.Modules.Setting.Services;
-using D3dxSkinManager.Infrastructure.WebView;
-using D3dxSkinManager.Infrastructure.Resources;
+using D3dxSkinManager.Modules.Core.WebView;
 
 namespace D3dxSkinManager.Infrastructure;
 
@@ -83,39 +82,13 @@ public class ApplicationHost
     private void ShowSplashScreen()
     {
         // Default to dark theme (most users prefer dark)
-        // Frontend will update theme once settings are loaded if needed
+        // Theme will be loaded properly when WebView initializes
         _splashScreenPanel = new SplashScreenPanel(true);
         _splashScreenPanel.UpdateStatus("Initializing application...");
 
         _logger.Info("Splash screen panel created (dark theme default)", "Host");
     }
 
-    /// <summary>
-    /// Hide and dispose splash screen panel
-    /// </summary>
-    public void HideSplashScreen()
-    {
-        if (_splashScreenPanel != null && _mainForm != null)
-        {
-            _logger.Info("Hiding splash screen panel", "Host");
-
-            if (_mainForm.InvokeRequired)
-            {
-                _mainForm.Invoke(new Action(() =>
-                {
-                    _mainForm.Controls.Remove(_splashScreenPanel);
-                    _splashScreenPanel.Dispose();
-                    _splashScreenPanel = null;
-                }));
-            }
-            else
-            {
-                _mainForm.Controls.Remove(_splashScreenPanel);
-                _splashScreenPanel.Dispose();
-                _splashScreenPanel = null;
-            }
-        }
-    }
 
     /// <summary>
     /// Create and configure the main application form
@@ -304,20 +277,18 @@ public class ApplicationHost
         {
             var schemeHandler = _serviceProvider.GetRequiredService<ICustomSchemeHandler>();
 
-            // Create session - it will automatically wire up to the global singleton MessageDispatcher
+            // Create session with splash screen - it will automatically register session-specific routes
             var newSession = new WebViewSession(
                 MAIN_SESSION_ID,
                 _webView,
                 _logger,
                 _serviceProvider,
                 schemeHandler,
-                _mainForm
+                _mainForm,
+                _splashScreenPanel  // Pass splash screen to session
             );
             return newSession;
         });
-
-        // Register session-specific routes (WEBVIEW_READY, SUBSCRIBE, DROP_ZONE, etc.)
-        RegisterSessionRoutes(session);
 
         await session.StartAsync();
 
@@ -534,92 +505,10 @@ public class ApplicationHost
         dispatcher.UseProfileFacade(_serviceProvider);
         dispatcher.UsePluginFacade(_serviceProvider);
 
-        // Session-specific routes (WEBVIEW_READY, DROP_ZONE)
-        // will be registered by ApplicationHost.RegisterSessionRoutes() after session creation
-        // This keeps the global dispatcher clean while allowing per-session operations
+        // Note: Session-specific routes (APP/WEBVIEW_READY, DROP_ZONE)
+        // are registered by each WebViewSession in its constructor automatically
 
-        _logger.Info("Global message dispatcher configured", "Host");
-    }
-
-    /// <summary>
-    /// Register session-specific routes for the main session
-    /// These routes need access to the specific WebViewSession's IPC and DropZone
-    /// </summary>
-    private void RegisterSessionRoutes(WebViewSession session)
-    {
-        var dispatcher = _serviceProvider.GetRequiredService<MessageDispatcher>();
-        _logger.Info($"[{session.SessionId}] Registering session-specific routes...", "Host");
-
-        // Register session-specific APP routes
-        dispatcher.MapModule("APP", routes =>
-        {
-            routes.Route("WEBVIEW_READY", message =>
-            {
-                var webViewId = message.Payload?.GetProperty("webViewId").GetString() ?? "unknown";
-                _logger.Info($"WebView ready and app initialized (ID: {webViewId})", "Host");
-
-                // Clear all drop zones on webview startup/hot-reload
-                _logger.Info("Clearing all drop zones due to webview startup", "Host");
-                session.DropZone?.ClearAll();
-
-                // Hide the splash screen now that the app is ready
-                _logger.Info("Hiding splash screen", "Host");
-                HideSplashScreen();
-
-                return new { success = true, webViewId };
-            });
-        });
-
-        // Register DROP_ZONE module for managing WinForms drop overlays
-        dispatcher.MapModule("DROP_ZONE", routes =>
-        {
-            routes.Route("REGISTER", message =>
-            {
-                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                var x = message.Payload?.GetProperty("x").GetInt32() ?? 0;
-                var y = message.Payload?.GetProperty("y").GetInt32() ?? 0;
-                var width = message.Payload?.GetProperty("width").GetInt32() ?? 0;
-                var height = message.Payload?.GetProperty("height").GetInt32() ?? 0;
-
-                session.DropZone.RegisterZone(zoneId, x, y, width, height);
-                return new { success = true, zoneId };
-            });
-
-            routes.Route("UPDATE", message =>
-            {
-                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                var x = message.Payload?.GetProperty("x").GetInt32() ?? 0;
-                var y = message.Payload?.GetProperty("y").GetInt32() ?? 0;
-                var width = message.Payload?.GetProperty("width").GetInt32() ?? 0;
-                var height = message.Payload?.GetProperty("height").GetInt32() ?? 0;
-
-                session.DropZone.UpdateZoneBounds(zoneId, x, y, width, height);
-                return new { success = true };
-            });
-
-            routes.Route("SHOW", message =>
-            {
-                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                session.DropZone.ShowZone(zoneId);
-                return new { success = true };
-            });
-
-            routes.Route("HIDE", message =>
-            {
-                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                session.DropZone.HideZone(zoneId);
-                return new { success = true };
-            });
-
-            routes.Route("UNREGISTER", message =>
-            {
-                var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                session.DropZone.UnregisterZone(zoneId);
-                return new { success = true };
-            });
-        });
-
-        // Register TEST module routes
+        // Register TEST module routes for debugging
         dispatcher.MapModule("TEST", routes =>
         {
             routes.Route("ECHO", message => message.Payload);
@@ -633,8 +522,9 @@ public class ApplicationHost
             routes.Route("ERROR", message => throw new Exception("Test error requested"));
         });
 
-        _logger.Info("Message pipeline configured", "Host");
+        _logger.Info("Global message dispatcher configured", "Host");
     }
+
 
     /// <summary>
     /// Perform eager loading operations during startup

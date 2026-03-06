@@ -2,7 +2,7 @@ using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Modules.Core.WebView;
 
 /// <summary>
 /// Manages drop zone overlays that capture all mouse events and forward them to frontend.
