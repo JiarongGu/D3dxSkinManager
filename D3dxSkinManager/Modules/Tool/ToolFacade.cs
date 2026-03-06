@@ -26,7 +26,7 @@ public class ToolFacade : BaseFacade, IToolFacade
 {
     protected override string ModuleName => "ToolsFacade";
 
-    private readonly IModFileService _modFileService;
+    private readonly IModCacheService _cacheService;
     private readonly IStartupValidationService _validationService;
     private readonly IScreenCaptureProfileRepository _captureProfileRepository;
     private readonly IScreenCaptureService _screenCaptureService;
@@ -34,7 +34,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     private readonly IProfileEventBus _eventBus;
 
     public ToolFacade(
-        IModFileService modFileService,
+        IModCacheService cacheService,
         IStartupValidationService validationService,
         IScreenCaptureProfileRepository captureProfileRepository,
         IScreenCaptureService screenCaptureService,
@@ -42,7 +42,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
     {
-        _modFileService = modFileService ?? throw new ArgumentNullException(nameof(modFileService));
+        _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
         _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
         _captureProfileRepository = captureProfileRepository ?? throw new ArgumentNullException(nameof(captureProfileRepository));
         _screenCaptureService = screenCaptureService ?? throw new ArgumentNullException(nameof(screenCaptureService));
@@ -84,17 +84,17 @@ public class ToolFacade : BaseFacade, IToolFacade
 
     public async Task<List<CacheItem>> ScanCacheAsync()
     {
-        return await _modFileService.ScanCacheAsync().ConfigureAwait(false);
+        return await _cacheService.ScanCacheAsync().ConfigureAwait(false);
     }
 
     public async Task<CacheStatistics> GetCacheStatisticsAsync()
     {
-        return await _modFileService.GetCacheStatisticsAsync().ConfigureAwait(false);
+        return await _cacheService.GetCacheStatisticsAsync().ConfigureAwait(false);
     }
 
     public async Task<int> CleanCacheAsync(CacheCategory category)
     {
-        var deletedCount = await _modFileService.CleanCacheAsync(category).ConfigureAwait(false);
+        var deletedCount = await _cacheService.CleanCacheAsync(category).ConfigureAwait(false);
 
         await _eventBus.EmitAsync(
             ModuleNames.TOOL,

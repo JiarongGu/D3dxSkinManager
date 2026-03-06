@@ -85,7 +85,6 @@ interface UseCategoryTreeOperationsProps {
   expandedKeys: React.Key[];
   selectedCategoryId?: string;
   onExpandedKeysChange: (keys: React.Key[]) => void;
-  onRefreshTree?: () => Promise<void>;
   onModsRefresh?: () => Promise<void>;
 }
 
@@ -98,13 +97,12 @@ export function useCategoryTreeOperations({
   expandedKeys,
   selectedCategoryId,
   onExpandedKeysChange,
-  onRefreshTree,
   onModsRefresh,
 }: UseCategoryTreeOperationsProps) {
   const { modal } = App.useApp();
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
-  const { updateModCategory, updateModsCategory } = useModCategoryUpdate({ onRefreshTree });
+  const { updateModCategory, updateModsCategory } = useModCategoryUpdate();
   const { openCategoryScreen } = useCategoryScreen();
 
   const [treeRef, selectedProfileIdRef] = useStableRef(tree, selectedProfileId);
@@ -183,11 +181,6 @@ export function useCategoryTreeOperations({
             if (response && moveSuccess) {
               notification.success(t('category.updateSuccess', { name: data.name }));
 
-              // Refresh the tree to show updated name and/or new parent
-              if (onRefreshTree) {
-                await onRefreshTree();
-              }
-
               // Only refresh mods if:
               // 1. The name actually changed AND
               // 2. The updated node affects the current mod list view (current node or its descendants)
@@ -197,10 +190,6 @@ export function useCategoryTreeOperations({
               }
             } else if (response && !moveSuccess && parentChanged) {
               notification.error(t('category.moveError', { name: data.name }));
-              // Still refresh to show the name/description changes even if move failed
-              if (onRefreshTree) {
-                await onRefreshTree();
-              }
             } else {
               notification.error(t('category.updateFailed', { name: data.name }));
             }
@@ -214,7 +203,7 @@ export function useCategoryTreeOperations({
         },
       });
     },
-    [openCategoryScreen, onRefreshTree, onModsRefresh, modal, t],
+    [openCategoryScreen, onModsRefresh, modal, t],
   );
 
   // Delete node handler - opens confirmation dialog
@@ -250,16 +239,13 @@ export function useCategoryTreeOperations({
       if (response) {
         notification.success(t('category.deleteSuccess'));
         setDeleteConfirmation({ visible: false, nodeId: '', nodeName: '', hasChildren: false });
-        if (onRefreshTree) {
-          await onRefreshTree();
-        }
       } else {
         notification.error(t('category.deleteFailed'));
       }
     } catch (error: unknown) {
             notification.error(t('category.deleteError'));
     }
-  }, [deleteConfirmation.nodeId, onRefreshTree, t]);
+  }, [deleteConfirmation.nodeId, t]);
 
   // Simplified node reorder handler - just takes node IDs and drop type
   // dropNodeId can be empty string to indicate dropping to root level
@@ -290,10 +276,6 @@ export function useCategoryTreeOperations({
             undefined, // undefined parent = root level
             0
           );
-
-          if (onRefreshTree) {
-            await onRefreshTree();
-          }
           return;
         }
 
@@ -349,17 +331,11 @@ export function useCategoryTreeOperations({
             0
           );
         }
-
-        // After backend operation completes, refresh tree
-        // The delayed loading in useCategoryData will prevent flicker
-        if (onRefreshTree) {
-          await onRefreshTree();
-        }
       } catch (error: unknown) {
                 notification.error("Failed to move Category node");
       }
     },
-    [expandedKeys, onExpandedKeysChange, onRefreshTree],
+    [expandedKeys, onExpandedKeysChange],
   );
 
 

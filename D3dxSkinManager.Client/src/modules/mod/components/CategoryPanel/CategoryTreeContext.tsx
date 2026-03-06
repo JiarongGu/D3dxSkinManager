@@ -64,7 +64,6 @@ interface CategoryTreeProviderProps {
   expandedKeys: React.Key[];
   onExpandedKeysChange: (keys: React.Key[]) => void;
   onAddCategory?: (parentId?: string) => void;
-  onRefreshTree?: () => Promise<void>;
   onModsRefresh?: () => Promise<void>;
 }
 
@@ -82,7 +81,6 @@ interface CategoryTreeContextValue {
   expandedKeys: React.Key[];
   onExpandedKeysChange: (keys: React.Key[]) => void;
   onAddCategory?: (parentId?: string) => void;
-  onRefreshTree?: () => Promise<void>;
 
   // Derived state
   filteredTree: CategoryInfo[];
@@ -130,7 +128,6 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
   expandedKeys,
   onExpandedKeysChange,
   onAddCategory,
-  onRefreshTree,
   onModsRefresh,
 }) => {
   const { t } = useTranslation();
@@ -155,7 +152,6 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     expandedKeys,
     selectedCategoryId: selectedNode?.id,
     onExpandedKeysChange,
-    onRefreshTree, // ✅ Pass tree refresh callback
     onModsRefresh, // ✅ Pass mods refresh callback
   });
 

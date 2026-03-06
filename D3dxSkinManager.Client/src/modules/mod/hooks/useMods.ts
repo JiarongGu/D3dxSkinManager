@@ -6,7 +6,6 @@
 import { useModsStore } from '../store/modsStore';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import * as modOps from '../operations/modOperations';
-import * as loadOps from '../operations/loadOperations';
 import * as categoryOps from '../operations/categoryOperations';
 import { ModInfo } from '../../../shared/types/mod.types';
 
@@ -32,10 +31,10 @@ export function useMods() {
     deleteMod: (sha: string) => selectedProfileId && modOps.deleteMod(selectedProfileId, sha),
 
     // Load operations
-    loadModInGame: (sha: string) =>
-      selectedProfileId && loadOps.loadModInGame(selectedProfileId, sha),
-    unloadModFromGame: (sha: string) =>
-      selectedProfileId && loadOps.unloadModFromGame(selectedProfileId, sha),
+    loadMod: (sha: string) =>
+      selectedProfileId && modOps.loadMod(selectedProfileId, sha),
+    unloadMod: (sha: string) =>
+      selectedProfileId && modOps.unloadMod(selectedProfileId, sha),
 
     // Category operations
     updateModCategory: (sha: string, categoryId: string, onMismatch?: () => void) =>

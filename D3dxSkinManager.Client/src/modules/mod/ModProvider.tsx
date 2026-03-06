@@ -1,17 +1,16 @@
-﻿/**
+/**
  * Thin ModsProvider - handles initialization and profile changes
  * No longer manages state (moved to Zustand store)
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useProfile } from '../../shared/context/ProfileContext';
 import { useModsStore } from './store/modsStore';
-import { eventBus, ModEventType, CategoryEventType, MigrationEventType, ProfileEventType, Module } from '../../shared/services/eventBus';
-import { CATEGORY_IDS } from '../../shared/types/category.types';
+import { eventBus, ModEventType, CategoryEventType, ProfileEventType, Module } from '../../shared/services/eventBus';
 import { profileService } from '../../shared/services/ipc';
 import * as modOps from './operations/modOperations';
 import * as categoryOps from './operations/categoryOperations';
-import * as statisticsOps from './operations/statisticsOperations';
+import { debounce } from 'lodash-es';
 
 interface ModsProviderProps {
   children: React.ReactNode;
@@ -35,192 +34,106 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   const reset = useModsStore((state) => state.reset);
   const setPanelSizes = useModsStore((state) => state.setPanelSizes);
 
-  // Initialize panel sizes from profile config when profile changes
-  useEffect(() => {
+  // Load panel sizes from profile config
+  const loadPanelSizes = useCallback(async () => {
     if (!selectedProfileId) {
       console.log('[ModProvider] No profile selected, using default panel sizes');
       return;
     }
 
-    const loadPanelSizes = async () => {
-      try {
-        const config = await profileService.getProfileConfiguration(selectedProfileId);
-        const panelSize = config?.tabs?.mod?.panelSize;
+    try {
+      const config = await profileService.getProfileConfiguration(selectedProfileId);
+      const panelSize = config?.tabs?.mod?.panelSize;
 
-        if (panelSize) {
-          console.log('[ModProvider] Loading panel sizes from profile config:', panelSize);
-          const [category, modList] = panelSize.split(' ').map(Number);
-          if (!isNaN(category) && !isNaN(modList)) {
-            const sizes = {
-              categoryWidth: category,
-              modListWidth: modList,
-              previewWidth: 100 - category - modList
-            };
-            console.log('[ModProvider] Setting panel sizes:', sizes);
-            setPanelSizes(sizes);
-          } else {
-            console.warn('[ModProvider] Invalid panel size format:', panelSize);
-          }
+      if (panelSize) {
+        console.log('[ModProvider] Loading panel sizes from profile config:', panelSize);
+        const [category, modList] = panelSize.split(' ').map(Number);
+        if (!isNaN(category) && !isNaN(modList)) {
+          const sizes = {
+            categoryWidth: category,
+            modListWidth: modList,
+            previewWidth: 100 - category - modList
+          };
+          console.log('[ModProvider] Setting panel sizes:', sizes);
+          setPanelSizes(sizes);
         } else {
-          console.log('[ModProvider] No panel sizes found in profile config, using defaults');
+          console.warn('[ModProvider] Invalid panel size format:', panelSize);
         }
-      } catch (error) {
-        console.error('[ModProvider] Failed to load panel sizes:', error);
+      } else {
+        console.log('[ModProvider] No panel sizes found in profile config, using defaults');
       }
-    };
-
-    void loadPanelSizes();
+    } catch (error) {
+      console.error('[ModProvider] Failed to load panel sizes:', error);
+    }
   }, [selectedProfileId, setPanelSizes]);
+
+  // Debounced handler for mod list updates (20ms prevents rapid-fire events)
+  // Also refreshes statistics since they depend on mod list state
+  const handleModListUpdate = useCallback(
+    debounce(() => {
+      if (!selectedProfileId) return;
+      void modOps.refreshMods(selectedProfileId);
+      void modOps.loadStatistics(selectedProfileId);
+    }, 20),
+    [selectedProfileId]
+  );
+
+  // Debounced handler for category tree updates (20ms prevents bulk operation spam)
+  const handleCategoryTreeUpdate = useCallback(
+    debounce(() => {
+      if (!selectedProfileId) return;
+      categoryOps.refreshCategoryTree(selectedProfileId);
+    }, 20),
+    [selectedProfileId]
+  );
+
+  // Load panel sizes on profile change
+  useEffect(() => {
+    void loadPanelSizes();
+  }, [loadPanelSizes]);
 
   // Subscribe to backend events
   useEffect(() => {
     if (!selectedProfileId) return;
 
-    // Subscribe to profile config changes to reload panel sizes
     const unsubscribeProfileConfigChanged = eventBus.subscribe(
       Module.PROFILE,
       ProfileEventType.CONFIG_UPDATED,
-      async () => {
-        try {
-          const config = await profileService.getProfileConfiguration(selectedProfileId);
-          const panelSize = config?.tabs?.mod?.panelSize;
-
-          if (panelSize) {
-            console.log('[ModProvider] Profile config changed, reloading panel sizes:', panelSize);
-            const [category, modList] = panelSize.split(' ').map(Number);
-            if (!isNaN(category) && !isNaN(modList)) {
-              const sizes = {
-                categoryWidth: category,
-                modListWidth: modList,
-                previewWidth: 100 - category - modList
-              };
-              setPanelSizes(sizes);
-            }
-          }
-        } catch (error) {
-          console.error('[ModProvider] Failed to reload panel sizes after config change:', error);
-        }
-      }
+      () => void loadPanelSizes()
     );
 
-    // Shared handler for mod state changes (load/unload)
-    const handleModStateChange = () => {
-      const state = useModsStore.getState();
-      // If a category is selected, refresh the filtered mods from backend
-      if (state.selectedCategory) {
-        if (state.selectedCategory.id === CATEGORY_IDS.UNCLASSIFIED) {
-          void categoryOps.loadUncategorizedMods(selectedProfileId);
-        } else {
-          void categoryOps.loadModsByCategory(selectedProfileId, state.selectedCategory.id);
-        }
-      }
-      // Also refresh the main mod list to update status
-      void modOps.refreshMods(selectedProfileId);
-    };
-
-    // Subscribe to backend mod events
-    const unsubscribeModsRefreshed = eventBus.subscribe(Module.MOD, ModEventType.REFRESHED, () => {
-      modOps.refreshMods(selectedProfileId);
-    });
-
-    // Subscribe to mod loaded/unloaded events to refresh both category-filtered mods AND category tree counts
-    const unsubscribeModLoaded = eventBus.subscribe(Module.MOD, ModEventType.LOADED, () => {
-      handleModStateChange();
-      // Refresh category tree to update mod counts
-      void categoryOps.refreshCategoryTree(selectedProfileId);
-    });
-    const unsubscribeModUnloaded = eventBus.subscribe(Module.MOD, ModEventType.UNLOADED, () => {
-      handleModStateChange();
-      // Refresh category tree to update mod counts
-      void categoryOps.refreshCategoryTree(selectedProfileId);
-    });
-
-    // Subscribe to mod imported/deleted events to refresh category tree counts AND mod list
-    const unsubscribeModImported = eventBus.subscribe(Module.MOD, ModEventType.IMPORTED, () => {
-      // Refresh mod list to show newly imported mod
-      handleModStateChange();
-      // Refresh category tree to update mod counts (new mod added)
-      void categoryOps.refreshCategoryTree(selectedProfileId);
-    });
-    const unsubscribeModDeleted = eventBus.subscribe(Module.MOD, ModEventType.DELETED, () => {
-      // Refresh category tree to update mod counts (mod removed)
-      void categoryOps.refreshCategoryTree(selectedProfileId);
-    });
-
-    // Subscribe to mod metadata updated event to refresh mod list
-    const unsubscribeModMetadataUpdated = eventBus.subscribe(Module.MOD, ModEventType.METADATA_UPDATED, () => {
-      handleModStateChange();
-    });
-
-    // Subscribe to mod category updated event to refresh both mod list and category tree
-    const unsubscribeModCategoryUpdated = eventBus.subscribe(Module.MOD, ModEventType.CATEGORY_UPDATED, () => {
-      handleModStateChange();
-      // Refresh category tree to update mod counts (mod moved to different category)
-      void categoryOps.refreshCategoryTree(selectedProfileId);
-    });
-
-    // Subscribe to cache changed event (external folder deletion/modification)
-    const unsubscribeModCacheChanged = eventBus.subscribe(Module.MOD, ModEventType.CACHE_CHANGED, () => {
-      // Refresh mod list to update IsLoaded status
-      handleModStateChange();
-    });
+    const unsubscribeModListUpdated = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.MOD_LIST_UPDATED,
+      handleModListUpdate
+    );
 
     const unsubscribeCategoryTreeUpdated = eventBus.subscribe(
       Module.CATEGORY,
       CategoryEventType.CATEGORY_TREE_UPDATED,
-      () => {
-        categoryOps.refreshCategoryTree(selectedProfileId);
-      }
+      handleCategoryTreeUpdate
     );
 
-    // Subscribe to migration completion events to reload profile data
-    const unsubscribeMigrationCompleted = eventBus.subscribe(
-      Module.MIGRATION,
-      MigrationEventType.COMPLETED,
-      () => {
-        // Reload category tree after migration completes
-        // User can then select a category to view migrated mods
-        void categoryOps.loadCategoryTree(selectedProfileId);
-      }
-    );
-
-    // Subscribe to statistics events (load/unload/delete/import updates mod counts)
-    const unsubscribeStatistics = statisticsOps.subscribeToModStatisticsEvents(selectedProfileId);
-
-    // Cleanup subscriptions on unmount or profile change
     return () => {
-      unsubscribeProfileConfigChanged();
-      unsubscribeModsRefreshed();
-      unsubscribeModLoaded();
-      unsubscribeModUnloaded();
-      unsubscribeModImported();
-      unsubscribeModDeleted();
-      unsubscribeModMetadataUpdated();
-      unsubscribeModCategoryUpdated();
-      unsubscribeModCacheChanged();
-      unsubscribeCategoryTreeUpdated();
-      unsubscribeMigrationCompleted();
-      unsubscribeStatistics();
-    };
-  }, [selectedProfileId, setPanelSizes]);
+      handleModListUpdate.cancel();
+      handleCategoryTreeUpdate.cancel();
 
-  // REACTIVE: Handle profile changes automatically
+      unsubscribeProfileConfigChanged();
+      unsubscribeModListUpdated();
+      unsubscribeCategoryTreeUpdated();
+    };
+  }, [selectedProfileId, loadPanelSizes, handleModListUpdate, handleCategoryTreeUpdate]);
+
+  // Reload data on profile change
   useEffect(() => {
     if (selectedProfileId) {
-      // Reset state before loading new profile to clear old data
       reset();
-      // Load category tree for the new profile
-      // User will select a category to view mods (category-based workflow)
       void categoryOps.loadCategoryTree(selectedProfileId);
-      // Load mod statistics for status bar
-      void statisticsOps.loadStatistics(selectedProfileId);
+      void modOps.loadStatistics(selectedProfileId);
     } else {
-      // Reset state when no profile is selected
       reset();
     }
   }, [selectedProfileId, reset]);
 
-  // Provider doesn't need to pass anything via context
-  // Components can use useMods() hook directly
   return <>{children}</>;
 };

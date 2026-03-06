@@ -9,7 +9,7 @@ import { ModInfo } from '../../../shared/types/mod.types';
 import { notification } from '../../../shared/utils/notification';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
-import { modService } from '../../../shared/services/ipc';
+import { api, modService } from '../../../shared/services/ipc';
 
 /**
  * Internal refresh implementation
@@ -40,7 +40,6 @@ export const refreshMods = debounce(_refreshMods, 10);
 /**
  * Update mod metadata
  * Uses delayed loading (100ms) to avoid flicker for fast updates
- * If category is updated, refreshes the category tree
  */
 export async function updateMod(
   profileId: string,
@@ -72,12 +71,6 @@ export async function updateMod(
         updateModLocal(sha, data);
 
         notification.success('Mod updated successfully');
-
-        // If category changed, refresh category tree to update counts
-        if (categoryChanged) {
-          const { refreshCategoryTree } = await import('./categoryOperations');
-          await refreshCategoryTree(profileId);
-        }
       },
       setModsLoading,
       100
@@ -111,14 +104,74 @@ export async function deleteMod(profileId: string, sha: string): Promise<void> {
         removeMod(sha);
 
         notification.success('Mod deleted successfully');
-
-        // Refresh to sync with backend
-        await refreshMods(profileId);
       },
       setModsLoading,
       100
     );
   } catch (error: unknown) {
+    handleError(error);
+    throw error;
+  }
+}
+
+export async function loadStatistics(profileId: string): Promise<void> {
+  try {
+    const statistics = await api.mod.getStatistics(profileId);
+    useModsStore.getState().setStatistics(statistics);
+  } catch (error: unknown) {
+    console.error('Failed to load mod statistics:', error);
+  }
+}
+
+/**
+ * Load a mod in-game with optimistic updates
+ */
+export async function loadMod(profileId: string, sha: string): Promise<void> {
+  const { optimisticLoadUpdate, optimisticUnloadUpdate } = useModsStore.getState();
+
+  // 1. Apply optimistic update
+  optimisticLoadUpdate(sha, []);
+
+  try {
+    // 2. Perform backend operation - returns affected mod SHAs
+    const result = await modService.loadMod(profileId, sha);
+    notification.success('Mod loaded successfully');
+
+    // 3. Efficient partial update: Only update the loaded mod and unloaded mods
+    if (result.unloadedModShas && result.unloadedModShas.length > 0) {
+      // Update unloaded mods locally (Zustand automatically syncs all state)
+      result.unloadedModShas.forEach((unloadedSha) => {
+        optimisticUnloadUpdate(unloadedSha);
+      });
+    }
+  } catch (error: unknown) {
+    // 5. Revert optimistic update on error
+    optimisticUnloadUpdate(sha);
+
+    // Handle error with user-friendly messages
+    handleError(error);
+    throw error;
+  }
+}
+
+/**
+ * Unload a mod from game with optimistic updates
+ */
+export async function unloadMod(profileId: string, sha: string): Promise<void> {
+  const { optimisticUnloadUpdate, optimisticLoadUpdate } = useModsStore.getState();
+
+  // 1. Apply optimistic update
+  optimisticUnloadUpdate(sha);
+
+  try {
+    // 2. Perform backend operation
+    await modService.unloadMod(profileId, sha);
+    notification.success('Mod unloaded successfully');
+  } catch (error: unknown) {
+    // 4. Revert optimistic update on error
+    optimisticLoadUpdate(sha, []);
+
+    // Handle error with user-friendly messages
     handleError(error);
     throw error;
   }

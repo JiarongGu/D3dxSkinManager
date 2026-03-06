@@ -1,9 +1,11 @@
+using D3dxSkinManager.Modules.Category;
 using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Profiles.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
@@ -169,7 +171,10 @@ public class ProfileServiceRouter : IDisposable
 
         // Initialize CategoryEventHandler to ensure it subscribes to events
         // Must be called after ServiceProvider is built
-        D3dxSkinManager.Modules.Category.CategoryServiceExtensions.InitializeCategoryEventHandler(serviceProvider);
+        CategoryServiceExtensions.InitializeCategoryEventHandler(serviceProvider);
+
+        // Initialize ModListEventHandler to ensure it subscribes to events
+        ModsServiceExtensions.InitializeModListEventHandler(serviceProvider);
 
         _logger.Debug($"Created profile-scoped services for: {profile.Name} ({profile.Id})", "ProfileServiceRouter");
 

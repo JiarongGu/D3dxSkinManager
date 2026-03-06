@@ -3,6 +3,7 @@ using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
+using D3dxSkinManager.Modules.Core.Event;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -24,29 +25,32 @@ public class ModImportService : IModImportService
     private readonly IHashHelper _hashHelper;
     private readonly IImageService _imageService;
     private readonly IModRepository _repository;
-    private readonly IModFileService _modFileService;
-    private readonly IModManagementService _modManagementService;
+    private readonly IModArchiveService _archiveService;
+    private readonly IModMetadataService _metadataService;
     private readonly IPathValidator _pathValidator;
     private readonly ILogHelper _logger;
+    private readonly IProfileEventBus _eventBus;
 
     public ModImportService(
         IFileHelper fileService,
         IHashHelper hashHelper,
         IImageService imageService,
         IModRepository repository,
-        IModFileService modFileService,
-        IModManagementService modManagementService,
+        IModArchiveService archiveService,
+        IModMetadataService metadataService,
         IPathValidator pathValidator,
-        ILogHelper logger)
+        ILogHelper logger,
+        IProfileEventBus eventBus)
     {
         _fileService = fileService;
         _hashHelper = hashHelper;
         _imageService = imageService;
         _repository = repository;
-        _modFileService = modFileService;
-        _modManagementService = modManagementService;
+        _archiveService = archiveService;
+        _metadataService = metadataService;
         _pathValidator = pathValidator;
         _logger = logger;
+        _eventBus = eventBus;
     }
 
     /// <summary>
@@ -72,7 +76,7 @@ public class ModImportService : IModImportService
             }
 
             // Step 2: Copy archive to mods directory
-            await _modFileService.CopyArchiveAsync(filePath, sha).ConfigureAwait(false);
+            await _archiveService.CopyArchiveAsync(filePath, sha).ConfigureAwait(false);
 
             // Step 3: Try to scan for preview images from cache directory
             // This will look in common cache locations for matching images
@@ -102,8 +106,11 @@ public class ModImportService : IModImportService
                 Tags = new List<string>()
             };
 
-            var mod = await _modManagementService.CreateModAsync(createRequest).ConfigureAwait(false);
+            var mod = await _metadataService.CreateAsync(createRequest).ConfigureAwait(false);
             _logger.Info($"Import complete: {mod.Name} ({sha})", "ModImportService");
+
+            // Emit IMPORTED event
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.IMPORTED, mod).ConfigureAwait(false);
 
             return mod;
         }

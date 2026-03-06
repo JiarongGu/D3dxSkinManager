@@ -116,17 +116,11 @@ namespace D3dxSkinManager.Modules.Core.WebView
                     return new { success = true };
                 });
 
-                routes.Route("SHOW", message =>
+                routes.Route("SET_OCCLUSION", message =>
                 {
                     var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                    DropZone.ShowZone(zoneId);
-                    return new { success = true };
-                });
-
-                routes.Route("HIDE", message =>
-                {
-                    var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                    DropZone.HideZone(zoneId);
+                    var isOccluded = message.Payload?.GetProperty("isOccluded").GetBoolean() ?? false;
+                    DropZone.SetZoneOcclusion(zoneId, isOccluded);
                     return new { success = true };
                 });
 

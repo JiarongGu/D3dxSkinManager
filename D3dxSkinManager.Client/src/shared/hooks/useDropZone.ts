@@ -53,9 +53,12 @@ const isElementOccluded = (elem: HTMLElement): boolean => {
 /**
  * Hook to create a WinForms drop zone overlay that syncs with a web element
  *
- * This creates a transparent WinForms panel that overlays the target element,
- * captures file drops at the OS level (with real paths), and syncs position/size
- * automatically when the element moves, resizes, or scrolls.
+ * SIMPLIFIED LOGIC:
+ * 1. Frontend sends dropzone size/location to backend (updates on resize, scroll, etc.)
+ * 2. Frontend checks if zone is covered by other HTML elements (sends occlusion state to backend)
+ * 3. Backend tracks mouse position (inside/outside zone area)
+ * 4. Backend activates zone when: file dragging OR (mouse outside AND not occluded)
+ * 5. Visibility changes are debounced (50-100ms) to prevent excessive updates
  *
  * Features:
  * - Captures real OS file paths (not blob URLs)
@@ -71,29 +74,6 @@ const isElementOccluded = (elem: HTMLElement): boolean => {
  * @param options.classes Optional CSS class names for different states
  * @param options.classes.hover CSS class for hover state (default: 'use-drop-zone-hover')
  * @param options.classes.drop CSS class for drag-over state (default: 'use-drop-zone-drop')
- *
- * @example
- * const uploadRef = useRef<HTMLDivElement>(null);
- *
- * useDropZone({
- *   targetRef: uploadRef,
- *   onDrop: (files) => {
- *     logger.log('Real paths:', files);
- *     // files[0] = "C:\\Users\\...\\image.jpg"
- *   }
- * });
- *
- * // With custom classes:
- * useDropZone({
- *   targetRef: uploadRef,
- *   onDrop: handleDrop,
- *   classes: {
- *     hover: 'my-hover-class',
- *     drop: 'my-drop-class'
- *   }
- * });
- *
- * return <div ref={uploadRef}>Drop files here</div>;
  */
 export function useDropZone(options: {
   targetRef: React.RefObject<HTMLElement | null>;
@@ -128,103 +108,66 @@ export function useDropZone(options: {
   // Track last known bounds to avoid redundant updates
   const lastBoundsRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
-  // Track last known visibility state (true = visible, false = hidden)
-  const lastVisibleStateRef = useRef<boolean | null>(null);
+  // Track if zone is currently occluded by other elements
+  const isOccludedRef = useRef(false);
 
   /**
-   * Helper function to send show command to backend
+   * Helper function to check if element is occluded by other HTML elements
+   * Returns true if occluded
    */
-  const showZone = useCallback(() => {
-    if (lastVisibleStateRef.current !== true) {
-      lastVisibleStateRef.current = true;
-      bridgeService.sendMessage({
-        module: 'DROP_ZONE',
-        type: 'SHOW',
-        payload: { zoneId: zoneIdRef.current }
-      }).catch(err => {
-        logger.error('[useDropZone] Failed to show zone:', err);
-      });
-    }
-  }, []);
-
-  /**
-   * Helper function to send hide command to backend
-   */
-  const hideZone = useCallback(() => {
-    if (lastVisibleStateRef.current !== false) {
-      lastVisibleStateRef.current = false;
-      bridgeService.sendMessage({
-        module: 'DROP_ZONE',
-        type: 'HIDE',
-        payload: { zoneId: zoneIdRef.current }
-      }).catch(err => {
-        logger.error('[useDropZone] Failed to hide zone:', err);
-      });
-    }
-  }, []);
-
-  /**
-   * Helper function to check element visibility and occlusion state
-   * Returns true if element should be visible (not occluded and has size)
-   */
-  const checkElementVisibility = useCallback((element: HTMLElement): boolean => {
+  const checkOcclusion = useCallback((element: HTMLElement): boolean => {
     const rect = element.getBoundingClientRect();
 
-    // Element must have size
+    // Element must have size to be visible
     if (rect.width === 0 || rect.height === 0) {
-      return false;
+      return true; // No size = occluded
     }
 
-    // Element must not be occluded
-    if (isElementOccluded(element)) {
-      return false;
-    }
-
-    return true;
+    // Check if element is occluded by another element
+    return isElementOccluded(element);
   }, []);
 
   /**
-   * Helper function to sync zone visibility based on element state
+   * Send occlusion state to backend
+   * Backend will use this to determine zone visibility
    */
-  const syncZoneVisibility = useCallback((element: HTMLElement, context: string) => {
-    const shouldBeVisible = checkElementVisibility(element);
+  const updateOcclusionStateImmediate = useCallback(() => {
+    if (!targetRef.current || !isRegisteredRef.current) return;
 
-    if (shouldBeVisible) {
-      logger.verbose(`[useDropZone] ${context} - element is visible, showing zone`);
-      showZone();
-    } else {
-      logger.verbose(`[useDropZone] ${context} - element is hidden/occluded, hiding zone`);
-      hideZone();
+    const isCurrentlyOccluded = checkOcclusion(targetRef.current);
+
+    // Only send update if state changed
+    if (isCurrentlyOccluded !== isOccludedRef.current) {
+      isOccludedRef.current = isCurrentlyOccluded;
+
+      logger.verbose(`[useDropZone] Occlusion state changed: ${isCurrentlyOccluded ? 'occluded' : 'visible'}`);
+
+      bridgeService.sendMessage({
+        module: 'DROP_ZONE',
+        type: 'SET_OCCLUSION',
+        payload: {
+          zoneId: zoneIdRef.current,
+          isOccluded: isCurrentlyOccluded
+        }
+      }).catch(err => {
+        logger.error('[useDropZone] Failed to update occlusion state:', err);
+      });
     }
-  }, [checkElementVisibility, showZone, hideZone]);
+  }, [checkOcclusion, targetRef]);
 
-  // Function to update zone position
-  const updateZoneImmediate = useCallback(() => {
+  // Debounce occlusion updates to prevent excessive calls (75ms)
+  const updateOcclusionState = useRef(debounce(updateOcclusionStateImmediate, 75)).current;
+
+  /**
+   * Function to update zone bounds
+   */
+  const updateZoneBoundsImmediate = useCallback(() => {
     if (!targetRef.current) return;
 
     const element = targetRef.current;
     const rect = element.getBoundingClientRect();
 
-    if (rect.width === 0 || rect.height === 0) {
-      // Element not visible, hide zone
-      if (isRegisteredRef.current) {
-        hideZone();
-      }
-      return;
-    }
-
-    // Check if element is occluded by another element
-    if (isElementOccluded(element)) {
-      logger.verbose("[useDropZone] occluded to hide zone")
-      // Element is covered, hide zone
-      if (isRegisteredRef.current) {
-        hideZone();
-      }
-      // Reset lastBounds so we'll update when occlusion is removed
-      lastBoundsRef.current = { x: -1, y: -1, width: -1, height: -1 };
-      return;
-    }
-
+    // Calculate new bounds
     const bounds = {
       zoneId: zoneIdRef.current,
       x: Math.round(rect.left),
@@ -233,75 +176,70 @@ export function useDropZone(options: {
       height: Math.round(rect.height)
     };
 
-    // Skip if bounds haven't changed (but only if bounds are valid)
-    if (
-      isRegisteredRef.current &&
-      lastBoundsRef.current.x >= 0 && // Check if lastBounds is valid (not reset)
-      bounds.x === lastBoundsRef.current.x &&
-      bounds.y === lastBoundsRef.current.y &&
-      bounds.width === lastBoundsRef.current.width &&
-      bounds.height === lastBoundsRef.current.height
-    ) {
-      return;
-    }
-
-    lastBoundsRef.current = bounds;
+    // Check if bounds changed
+    const boundsChanged =
+      !isRegisteredRef.current ||
+      bounds.x !== lastBoundsRef.current.x ||
+      bounds.y !== lastBoundsRef.current.y ||
+      bounds.width !== lastBoundsRef.current.width ||
+      bounds.height !== lastBoundsRef.current.height;
 
     if (!isRegisteredRef.current) {
       // Register new zone
-      lastVisibleStateRef.current = true;
+      lastBoundsRef.current = bounds;
+      logger.debug(`[useDropZone] Registering zone: ${zoneIdRef.current}`);
       bridgeService.sendMessage({
         module: 'DROP_ZONE',
         type: 'REGISTER',
         payload: bounds
       }).then(() => {
         isRegisteredRef.current = true;
+        // Send initial occlusion state after registration
+        updateOcclusionState();
       }).catch(err => {
         logger.error('[useDropZone] Failed to register zone:', err);
       });
-    } else {
-      // Update existing zone
+    } else if (boundsChanged) {
+      // Update existing zone bounds
+      lastBoundsRef.current = bounds;
+      logger.verbose(`[useDropZone] Updating zone bounds: ${zoneIdRef.current}`);
       bridgeService.sendMessage({
         module: 'DROP_ZONE',
         type: 'UPDATE',
         payload: bounds
-      }).then(() => {
-        // Show zone only if it was previously hidden
-        showZone();
       }).catch(err => {
         logger.error('[useDropZone] Failed to update zone:', err);
       });
     }
-  }, []);
 
-  // Debounce updateZone to prevent excessive calls during resize/scroll (100ms)
-  // useRef ensures the debounced function persists across renders and is only created once
-  const updateZone = useRef(debounce(updateZoneImmediate, 100)).current;
+    // Always check occlusion state after bounds update
+    updateOcclusionState();
+  }, [updateOcclusionState, targetRef]);
+
+  // Debounce bounds updates to prevent excessive calls during resize/scroll (100ms)
+  const updateZoneBounds = useRef(debounce(updateZoneBoundsImmediate, 100)).current;
 
   // Register/update drop zone when element bounds change
   useEffect(() => {
-    // If disabled or element not in DOM, hide the zone if it was previously registered
+    // If disabled or element not in DOM, unregister if needed
     if (!enabled || !targetRef.current) {
-      if (isRegisteredRef.current) {
-        hideZone();
-      }
       return;
     }
 
     const element = targetRef.current;
 
     // Initial registration
-    updateZone();
+    updateZoneBounds();
 
     // Use ResizeObserver to detect element size changes
     const resizeObserver = new ResizeObserver(() => {
-      updateZone();
+      updateZoneBounds();
     });
     resizeObserver.observe(element);
 
     // Use IntersectionObserver to detect element visibility/position changes
     const intersectionObserver = new IntersectionObserver(() => {
-      updateZone();
+      updateZoneBounds();
     }, {
       threshold: [0, 0.1, 0.5, 0.9, 1.0] // Multiple thresholds for better detection
     });
@@ -309,20 +247,20 @@ export function useDropZone(options: {
 
     // Update on scroll (element position changes)
     const handleScroll = () => {
-      updateZone();
+      updateZoneBounds();
     };
     window.addEventListener('scroll', handleScroll, true); // Use capture to catch all scrolls
 
     // Update on window resize (element may reflow)
     const handleResize = () => {
-      updateZone();
+      updateZoneBounds();
     };
     window.addEventListener('resize', handleResize);
 
     // Use MutationObserver to detect when overlays (modals, dialogs, slide-in screens) are added/removed
     const mutationObserver = new MutationObserver(() => {
-      // When DOM changes (like modals opening/closing), check if zone should be updated
-      updateZone();
+      // When DOM changes (like modals opening/closing), check occlusion state
+      updateOcclusionState();
     });
 
     // Observe the entire document body for added/removed overlays
@@ -334,14 +272,15 @@ export function useDropZone(options: {
     });
 
     return () => {
-      updateZone.cancel(); // Cancel any pending debounced calls
+      updateZoneBounds.cancel(); // Cancel any pending debounced calls
+      updateOcclusionState.cancel();
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
       mutationObserver.disconnect();
       window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleResize);
     };
-  }, [enabled, targetRef, updateZone]);
+  }, [enabled, targetRef, updateZoneBounds, updateOcclusionState]);
 
   // Subscribe to backend drag/drop events for visual styling
   useEffect(() => {
@@ -380,20 +319,12 @@ export function useDropZone(options: {
 
     const unsubscribeMouseEnter = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.MOUSE_ENTER, (event) => {
       if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
-
       element.classList.add(classesRef.current.hover);
-
-      // Sync zone visibility when mouse enters
-      syncZoneVisibility(element, "Mouse entered");
     });
 
     const unsubscribeMouseLeave = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.MOUSE_LEAVE, (event) => {
       if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
-
       element.classList.remove(classesRef.current.hover);
-
-      // Sync zone visibility when mouse leaves
-      syncZoneVisibility(element, "Mouse left");
     });
 
     return () => {

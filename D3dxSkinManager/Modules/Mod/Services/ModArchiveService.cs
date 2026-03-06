@@ -1,0 +1,206 @@
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Core.Utilities;
+
+namespace D3dxSkinManager.Modules.Mod.Services;
+
+/// <summary>
+/// Result of archive extraction operation
+/// </summary>
+public class ArchiveExtractionResult
+{
+    public bool Success { get; set; }
+    public string? DetectedType { get; set; }
+    public int FileCount { get; set; }
+    public string? ErrorMessage { get; set; }
+    public Exception? Exception { get; set; }
+}
+
+/// <summary>
+/// Service for mod archive file operations
+/// Responsibility: Pure archive file operations (no business logic, no events)
+/// </summary>
+public interface IModArchiveService
+{
+    Task<ArchiveExtractionResult> ExtractAsync(string sha, string targetDirectory);
+    Task<bool> DeleteArchiveAsync(string sha);
+    Task<string> CopyArchiveAsync(string sourcePath, string sha);
+    bool ArchiveExists(string sha);
+    string GetArchivePath(string sha);
+}
+
+/// <summary>
+/// Service for mod archive file operations
+/// Handles archive extraction, copying, deletion, and path management
+/// Uses atomic file operation planner for all operations
+/// </summary>
+public class ModArchiveService : IModArchiveService
+{
+    private readonly IProfilePathService _profilePaths;
+    private readonly IFileOperationPlanner _operationPlanner;
+    private readonly ILogHelper _logger;
+
+    public ModArchiveService(
+        IProfilePathService profilePaths,
+        IFileOperationPlanner operationPlanner,
+        ILogHelper logger)
+    {
+        _profilePaths = profilePaths;
+        _operationPlanner = operationPlanner;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Extract archive to target directory
+    /// Returns extraction result with detected type and file count
+    /// Uses atomic file operation planner
+    /// </summary>
+    public async Task<ArchiveExtractionResult> ExtractAsync(string sha, string targetDirectory)
+    {
+        var result = new ArchiveExtractionResult { Success = false };
+
+        try
+        {
+            var archivePath = GetArchivePath(sha);
+            if (!File.Exists(archivePath))
+            {
+                result.ErrorMessage = $"Archive not found: {archivePath}";
+                _logger.Warn(result.ErrorMessage, "ModArchiveService");
+                return result;
+            }
+
+            // Extract archive using file operation planner
+            var extractOp = new FileSystemOperation
+            {
+                OperationType = FileSystemOperationType.ExtractArchive,
+                SourcePath = archivePath,
+                TargetPath = targetDirectory,
+                Overwrite = true
+            };
+
+            var extractResult = await _operationPlanner.SubmitOperationAsync(extractOp).ConfigureAwait(false);
+
+            if (!extractResult.Success)
+            {
+                result.ErrorMessage = extractResult.ErrorMessage ?? "Failed to extract mod archive";
+                result.Exception = extractResult.Exception;
+                _logger.Error($"Extraction failed for {sha}: {result.ErrorMessage}", "ModArchiveService", result.Exception);
+                return result;
+            }
+
+            // Extract detected type from result data
+            if (extractResult.Data.TryGetValue("detectedType", out var detectedTypeObj))
+            {
+                if (detectedTypeObj is string detectedType && !string.IsNullOrEmpty(detectedType))
+                {
+                    result.DetectedType = detectedType;
+                }
+            }
+
+            // Extract file count from result data
+            if (extractResult.Data.TryGetValue("fileCount", out var fileCountObj) && fileCountObj is int fileCount)
+            {
+                result.FileCount = fileCount;
+            }
+
+            result.Success = true;
+            _logger.Info($"Extracted archive: {sha} ({result.FileCount} files)", "ModArchiveService");
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result.ErrorMessage = $"Error extracting archive: {ex.Message}";
+            result.Exception = ex;
+            _logger.Error($"Error extracting archive {sha}: {ex.Message}", "ModArchiveService", ex);
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Delete archive file permanently
+    /// Uses atomic file operation planner
+    /// </summary>
+    public async Task<bool> DeleteArchiveAsync(string sha)
+    {
+        try
+        {
+            var archivePath = GetArchivePath(sha);
+            if (!File.Exists(archivePath))
+            {
+                _logger.Warn($"Archive not found for deletion: {archivePath}", "ModArchiveService");
+                return false;
+            }
+
+            var deleteFileOp = new FileSystemOperation
+            {
+                OperationType = FileSystemOperationType.DeleteFile,
+                SourcePath = archivePath
+            };
+
+            var result = await _operationPlanner.SubmitOperationAsync(deleteFileOp).ConfigureAwait(false);
+
+            if (result.Success)
+            {
+                _logger.Info($"Deleted archive: {archivePath}", "ModArchiveService");
+                return true;
+            }
+            else
+            {
+                _logger.Error($"Failed to delete archive: {result.ErrorMessage}", "ModArchiveService", result.Exception);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error deleting archive {sha}: {ex.Message}", "ModArchiveService", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Copy archive file to mods directory
+    /// Stores without extension (like Python version) - SharpCompress auto-detects format
+    /// Uses atomic file operation planner
+    /// </summary>
+    public async Task<string> CopyArchiveAsync(string sourcePath, string sha)
+    {
+        var targetPath = _profilePaths.GetModArchivePath(sha, "");
+
+        var copyOp = new FileSystemOperation
+        {
+            OperationType = FileSystemOperationType.CopyFile,
+            SourcePath = sourcePath,
+            TargetPath = targetPath,
+            Overwrite = true
+        };
+
+        var result = await _operationPlanner.SubmitOperationAsync(copyOp).ConfigureAwait(false);
+
+        if (!result.Success)
+        {
+            throw new InvalidOperationException($"Failed to copy archive: {result.ErrorMessage}", result.Exception);
+        }
+
+        _logger.Info($"Copied archive to: {targetPath}", "ModArchiveService");
+        return targetPath;
+    }
+
+    /// <summary>
+    /// Check if mod archive exists
+    /// </summary>
+    public bool ArchiveExists(string sha)
+    {
+        return File.Exists(GetArchivePath(sha));
+    }
+
+    /// <summary>
+    /// Get the path to a mod's archive file
+    /// Archives are stored without extensions (like Python version)
+    /// </summary>
+    public string GetArchivePath(string sha)
+    {
+        return _profilePaths.GetModArchivePath(sha, "");
+    }
+}

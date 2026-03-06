@@ -39,7 +39,6 @@ export const ModHierarchicalView: React.FC = () => {
     loadUnclassifiedMods,
     setSelectedCategory,
     clearCategoryFilter,
-    refreshCategoryTree,
     setAvailableTags,
     closeImportWorkflowScreen,
   } = useMods();
@@ -164,7 +163,6 @@ export const ModHierarchicalView: React.FC = () => {
         <div style={{ width: `${sizes.categoryWidth}%` }}>
           <CategoryPanel
             onSelect={handleCategorieselect}
-            onRefreshTree={async () => { const p = refreshCategoryTree(); if (p) await p; }}
             onModsRefresh={handleModsRefreshAfterCategoryChange}
             unclassifiedCount={unclassifiedCount}
             onUnclassifiedClick={handleUnclassifiedClick}

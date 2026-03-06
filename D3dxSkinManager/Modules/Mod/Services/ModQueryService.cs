@@ -1,7 +1,5 @@
-﻿using D3dxSkinManager.Modules.Context.Services;
-using D3dxSkinManager.Modules.Category.Models;
+﻿using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Category.Services;
-using D3dxSkinManager.Modules.Mod.Models;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -20,11 +18,6 @@ public interface IModQueryService
     Task<int> GetUnclassifiedCountAsync();
     Task<List<string>> GetDistinctCategoriesAsync();
     Task<List<string>> GetDistinctAuthorsAsync();
-
-    // Enrichment operations
-    void PopulateStatusFlagsBulk(List<ModInfo> mods);
-    Task PopulateCategoryNamesBulkAsync(List<ModInfo> mods);
-    Task PopulateTagMetadataBulkAsync(List<ModInfo> mods);
 }
 
 /// <summary>
@@ -35,22 +28,13 @@ public class ModQueryService : IModQueryService
 {
     private readonly IModRepository _repository;
     private readonly ICategoryRepository _categoryRepository;
-    private readonly IProfilePathService _profilePaths;
-    private readonly ICategoryService _categoryService;
-    private readonly ITagRepository _tagRepository;
 
     public ModQueryService(
         IModRepository repository,
-        ICategoryRepository categoryRepository,
-        IProfilePathService profilePaths,
-        ICategoryService categoryService,
-        ITagRepository tagRepository)
+        ICategoryRepository categoryRepository)
     {
         _repository = repository;
         _categoryRepository = categoryRepository;
-        _profilePaths = profilePaths;
-        _categoryService = categoryService;
-        _tagRepository = tagRepository;
     }
 
     /// <summary>
@@ -98,8 +82,6 @@ public class ModQueryService : IModQueryService
             }).ToList();
         }
 
-        // Populate category names and sort
-        await PopulateCategoryNamesBulkAsync(results).ConfigureAwait(false);
         return SortMods(results);
     }
 
@@ -143,8 +125,6 @@ public class ModQueryService : IModQueryService
             mods = mods.Where(m => m.IsAvailable == isAvailable.Value).ToList();
         }
 
-        // Populate category names and sort
-        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
         return SortMods(mods);
     }
 
@@ -154,9 +134,6 @@ public class ModQueryService : IModQueryService
     public async Task<Dictionary<string, List<ModInfo>>> GetGroupedByObjectAsync()
     {
         var mods = await _repository.GetAllAsync().ConfigureAwait(false);
-
-        // Populate category names and sort
-        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
         var sortedMods = SortMods(mods);
 
         return sortedMods.GroupBy(m => m.Category)
@@ -169,10 +146,6 @@ public class ModQueryService : IModQueryService
     public async Task<ModStatistics> GetStatisticsAsync()
     {
         var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
-
-        // CRITICAL: Populate status flags from file system before counting
-        // IsLoaded, IsAvailable are computed properties, not stored in DB
-        PopulateStatusFlagsBulk(allMods);
 
         return new ModStatistics
         {
@@ -207,8 +180,6 @@ public class ModQueryService : IModQueryService
         // Get mods by categories
         var matchingMods = await _repository.GetByMultipleCategoriesAsync(descendantIds).ConfigureAwait(false);
 
-        // Populate category names and sort
-        await PopulateCategoryNamesBulkAsync(matchingMods).ConfigureAwait(false);
         return SortMods(matchingMods);
     }
 
@@ -235,8 +206,6 @@ public class ModQueryService : IModQueryService
                          !validCategoryIds.Contains(mod.Category))
             .ToList();
 
-        // Populate category names and sort
-        await PopulateCategoryNamesBulkAsync(unclassifiedMods).ConfigureAwait(false);
         return SortMods(unclassifiedMods);
     }
 
@@ -266,11 +235,10 @@ public class ModQueryService : IModQueryService
     /// <summary>
     /// Centralized sorting for all mod queries: sort by category name then mod name
     /// This ensures consistent ordering across all mod list views
-    /// IMPORTANT: PopulateCategoryNamesBulkAsync must be called first to populate CategoryName
     /// </summary>
     private List<ModInfo> SortMods(List<ModInfo> mods)
     {
-        // Sort by CategoryName (populated by PopulateCategoryNamesBulkAsync), fallback to Category ID
+        // Sort by CategoryName, fallback to Category ID
         // Then sort by mod Name
         return mods.OrderBy(mod => mod.CategoryName ?? mod.Category, StringComparer.OrdinalIgnoreCase)
             .ThenBy(mod => mod.Name, StringComparer.OrdinalIgnoreCase)
@@ -303,120 +271,5 @@ public class ModQueryService : IModQueryService
     public async Task<List<string>> GetDistinctAuthorsAsync()
     {
         return await _repository.GetDistinctAuthorsAsync().ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Populates status flags (IsLoaded, IsAvailable, HasPreviewFolder) for all mods in bulk by scanning directories once
-    /// </summary>
-    public void PopulateStatusFlagsBulk(List<ModInfo> mods)
-    {
-        var availableFiles = Directory.Exists(_profilePaths.ModsDirectory)
-            ? Directory.GetFiles(_profilePaths.ModsDirectory)
-                .Select(Path.GetFileName)
-                .Where(f => !string.IsNullOrEmpty(f))
-                .Select(f => f!)
-                .ToHashSet()
-            : new HashSet<string>();
-
-        var loadedDirectories = Directory.Exists(_profilePaths.CacheModsDirectory)
-            ? Directory.GetDirectories(_profilePaths.CacheModsDirectory)
-                .Select(Path.GetFileName)
-                .Where(d => !string.IsNullOrEmpty(d) && !d.StartsWith("DISABLED-"))
-                .Select(d => d!)
-                .ToHashSet()
-            : new HashSet<string>();
-
-        var allCacheDirectories = Directory.Exists(_profilePaths.CacheModsDirectory)
-            ? Directory.GetDirectories(_profilePaths.CacheModsDirectory)
-                .Select(Path.GetFileName)
-                .Where(d => !string.IsNullOrEmpty(d))
-                .Select(d => d!.StartsWith("DISABLED-") ? d.Substring(9) : d)  // Remove DISABLED- prefix
-                .ToHashSet()
-            : new HashSet<string>();
-
-        // Build a HashSet of mods that have preview folders with actual preview images
-        var modsWithPreviews = new HashSet<string>();
-        if (Directory.Exists(_profilePaths.PreviewsDirectory))
-        {
-            foreach (var previewDir in Directory.GetDirectories(_profilePaths.PreviewsDirectory))
-            {
-                var sha = Path.GetFileName(previewDir);
-                if (string.IsNullOrEmpty(sha))
-                    continue;
-
-                // Check if directory contains any preview image files
-                var hasPreviewFiles = Directory.GetFiles(previewDir, "preview*.*")
-                    .Any(f => Core.Constants.ImageConstants.IsImageExtension(Path.GetExtension(f)));
-
-                if (hasPreviewFiles)
-                {
-                    modsWithPreviews.Add(sha);
-                }
-            }
-        }
-
-        foreach (var mod in mods)
-        {
-            mod.IsAvailable = availableFiles.Contains(mod.SHA);
-            mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
-            mod.HasCache = allCacheDirectories.Contains(mod.SHA);
-            mod.HasPreviewFolder = modsWithPreviews.Contains(mod.SHA);
-        }
-    }
-
-    /// <summary>
-    /// Populates CategoryName field for all mods based on their Category (Category ID)
-    /// Uses CategoryService.GetCategoryNameAsync which has built-in caching
-    /// </summary>
-    public async Task PopulateCategoryNamesBulkAsync(List<ModInfo> mods)
-    {
-        // Get distinct category IDs that need names
-        var categoryIds = mods
-            .Where(m => !string.IsNullOrEmpty(m.Category))
-            .Select(m => m.Category)
-            .Distinct()
-            .ToList();
-
-        if (!categoryIds.Any())
-            return;
-
-        // Populate category names using the cached service method
-        // The first call will build and cache the map, subsequent calls use the cache
-        foreach (var mod in mods)
-        {
-            if (!string.IsNullOrEmpty(mod.Category))
-            {
-                mod.CategoryName = await _categoryService.GetCategoryNameAsync(mod.Category).ConfigureAwait(false) ?? "";
-            }
-        }
-    }
-
-    /// <summary>
-    /// Populates tag metadata (colors) for all mods
-    /// </summary>
-    public async Task PopulateTagMetadataBulkAsync(List<ModInfo> mods)
-    {
-        var allTagNames = mods
-            .Where(m => m.Tags != null && m.Tags.Count > 0)
-            .SelectMany(m => m.Tags!)
-            .Distinct()
-            .ToList();
-
-        if (!allTagNames.Any())
-            return;
-
-        var allTags = await _tagRepository.GetAllAsync().ConfigureAwait(false);
-        var tagMap = allTags.ToDictionary(t => t.Name, t => t);
-
-        foreach (var mod in mods)
-        {
-            if (mod.Tags == null || mod.Tags.Count == 0)
-                continue;
-
-            mod.TagsWithMetadata = mod.Tags
-                .Where(tagName => tagMap.ContainsKey(tagName))
-                .Select(tagName => tagMap[tagName])
-                .ToList();
-        }
     }
 }

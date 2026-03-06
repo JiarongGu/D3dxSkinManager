@@ -5,11 +5,12 @@ namespace D3dxSkinManager.Modules.Core.Utilities;
 /// Ensures an action is not executed more frequently than the specified interval.
 /// Thread-safe implementation.
 /// </summary>
-public class Throttle
+public class Throttle : IDisposable
 {
     private readonly TimeSpan _interval;
     private DateTime _lastExecutionTime = DateTime.MinValue;
     private readonly object _lock = new object();
+    private bool _isDisposed;
 
     /// <summary>
     /// Creates a throttle with the specified interval
@@ -37,6 +38,8 @@ public class Throttle
     {
         lock (_lock)
         {
+            if (_isDisposed) return false;
+
             var now = DateTime.UtcNow;
             if (now - _lastExecutionTime >= _interval)
             {
@@ -94,102 +97,19 @@ public class Throttle
     {
         lock (_lock)
         {
+            if (_isDisposed) return false;
+
             var now = DateTime.UtcNow;
             return now - _lastExecutionTime >= _interval;
         }
     }
-}
 
-/// <summary>
-/// Utility for debouncing action execution.
-/// Delays action execution until a specified time has passed without new calls.
-/// Useful for scenarios where you want to wait for user input to settle.
-/// Thread-safe implementation.
-/// </summary>
-public class Debounce
-{
-    private readonly TimeSpan _delay;
-    private CancellationTokenSource? _cts;
-    private readonly object _lock = new object();
-
-    /// <summary>
-    /// Creates a debounce with the specified delay
-    /// </summary>
-    /// <param name="delay">Time to wait after last call before executing</param>
-    public Debounce(TimeSpan delay)
-    {
-        _delay = delay;
-    }
-
-    /// <summary>
-    /// Creates a debounce with the specified delay in milliseconds
-    /// </summary>
-    /// <param name="delayMs">Time to wait after last call before executing in milliseconds</param>
-    public Debounce(int delayMs) : this(TimeSpan.FromMilliseconds(delayMs))
-    {
-    }
-
-    /// <summary>
-    /// Executes the action after the debounce delay, cancelling any pending execution
-    /// </summary>
-    /// <param name="action">Action to execute</param>
-    public async Task ExecuteAsync(Action action)
-    {
-        CancellationTokenSource cts;
-
-        lock (_lock)
-        {
-            _cts?.Cancel();
-            _cts = new CancellationTokenSource();
-            cts = _cts;
-        }
-
-        try
-        {
-            await Task.Delay(_delay, cts.Token);
-            action();
-        }
-        catch (TaskCanceledException)
-        {
-            // Expected when debounce is called again before delay expires
-        }
-    }
-
-    /// <summary>
-    /// Executes the async action after the debounce delay, cancelling any pending execution
-    /// </summary>
-    /// <param name="action">Async action to execute</param>
-    public async Task ExecuteAsync(Func<Task> action)
-    {
-        CancellationTokenSource cts;
-
-        lock (_lock)
-        {
-            _cts?.Cancel();
-            _cts = new CancellationTokenSource();
-            cts = _cts;
-        }
-
-        try
-        {
-            await Task.Delay(_delay, cts.Token);
-            await action();
-        }
-        catch (TaskCanceledException)
-        {
-            // Expected when debounce is called again before delay expires
-        }
-    }
-
-    /// <summary>
-    /// Cancels any pending execution
-    /// </summary>
-    public void Cancel()
+    public void Dispose()
     {
         lock (_lock)
         {
-            _cts?.Cancel();
-            _cts = null;
+            if (_isDisposed) return;
+            _isDisposed = true;
         }
     }
 }

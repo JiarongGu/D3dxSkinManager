@@ -18,7 +18,6 @@ export * from './store/selectors/categorySelectors';
 
 // Operations (for direct use without hook)
 export * as modOperations from './operations/modOperations';
-export * as loadOperations from './operations/loadOperations';
 export * as categoryOperations from './operations/categoryOperations';
 
 // Components

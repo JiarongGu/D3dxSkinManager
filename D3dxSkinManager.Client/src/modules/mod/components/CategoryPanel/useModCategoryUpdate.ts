@@ -1,26 +1,28 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useMods } from "../../hooks/useMods";
 import { useModsStore } from "../../store/modsStore";
 import { useStableRef } from "../../../../shared/hooks/useStableRef";
 import { notification } from "../../../../shared/utils/notification";
-
-interface UseModCategoryUpdateProps {
-  onRefreshTree?: () => Promise<void>;
-}
 
 /**
  * Custom hook for updating mod categories via drag-and-drop
  * Consolidates logic for both tree nodes and unclassified item
  * Uses optimistic updates for instant UI feedback
  */
-export function useModCategoryUpdate({
-  onRefreshTree,
-}: UseModCategoryUpdateProps) {
+export function useModCategoryUpdate() {
   const { updateModCategory: updateModCategoryOp, updateModsCategory: updateModsCategoryOp } = useMods();
   const mods = useModsStore(s => s.mods);
+  const categoryFilteredMods = useModsStore(s => s.CategoryFilteredMods);
+
+  // Combine both mod lists to ensure we can find the mod name
+  // When a category is selected, the mod being dragged is in categoryFilteredMods, not in mods
+  // Memoize to avoid creating new array on every render
+  const allMods = useMemo(() => {
+    return categoryFilteredMods ? [...mods, ...categoryFilteredMods] : mods;
+  }, [mods, categoryFilteredMods]);
 
   // Store mods in a stable ref to avoid closure issues
-  const modsRef = useStableRef(mods);
+  const modsRef = useStableRef(allMods);
 
   /**
    * Update a mod's category with optimistic updates
@@ -35,12 +37,9 @@ export function useModCategoryUpdate({
       const modName = mod?.name || modSha;
 
       try {
-        // Use new category operation - handles optimistic updates and verification automatically
-        // If verification detects a mismatch, the onMismatch callback will refresh the tree
         const success = await updateModCategoryOp(
           modSha,
           categoryId,
-          onRefreshTree, // Only called when verification mismatch or error occurs
         );
 
         if (success) {
@@ -55,7 +54,7 @@ export function useModCategoryUpdate({
         return false;
       }
     },
-    [updateModCategoryOp, onRefreshTree], // modsRef is stable
+    [updateModCategoryOp], // modsRef is stable
   );
 
   /**
@@ -67,11 +66,9 @@ export function useModCategoryUpdate({
   const updateModsCategory = useCallback(
     async (modShas: string[], categoryId: string, categoryName: string) => {
       try {
-        // Use bulk category operation
         const success = await updateModsCategoryOp(
           modShas,
           categoryId,
-          onRefreshTree, // Only called when verification mismatch or error occurs
         );
 
         if (success) {
@@ -86,7 +83,7 @@ export function useModCategoryUpdate({
         return false;
       }
     },
-    [updateModsCategoryOp, onRefreshTree]
+    [updateModsCategoryOp]
   );
 
   return { updateModCategory, updateModsCategory };

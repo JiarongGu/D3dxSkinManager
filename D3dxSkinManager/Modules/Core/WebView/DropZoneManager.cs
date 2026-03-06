@@ -66,8 +66,7 @@ public class DropZoneManager : IDisposable
                 (id) => NotifyDragEnter(id),
                 (id) => NotifyDragLeave(id),
                 (id) => NotifyMouseEnter(id),
-                (id) => NotifyMouseLeave(id),
-                (id) => UnregisterZone(id)
+                (id) => NotifyMouseLeave(id)
             );
 
             // Convert WebView coordinates to Form coordinates
@@ -146,21 +145,15 @@ public class DropZoneManager : IDisposable
         RegisterZone(zoneId, x, y, width, height);
     }
 
-    public void ShowZone(string zoneId)
+    /// <summary>
+    /// Set occlusion state for a zone (called from frontend)
+    /// Frontend checks if zone is covered by other HTML elements
+    /// </summary>
+    public void SetZoneOcclusion(string zoneId, bool isOccluded)
     {
         if (_activeOverlays.TryGetValue(zoneId, out var overlay))
         {
-            // Trust frontend's decision about visibility
-            // Frontend handles element visibility and occlusion checks
-            overlay.Show();
-        }
-    }
-
-    public void HideZone(string zoneId)
-    {
-        if (_activeOverlays.TryGetValue(zoneId, out var overlay))
-        {
-            overlay.Hide();
+            overlay.SetOccluded(isOccluded);
         }
     }
 

@@ -17,6 +17,7 @@ using D3dxSkinManager.Modules.Plugin;
 using D3dxSkinManager.Modules.Setting;
 using D3dxSkinManager.Modules.Setting.Services;
 using D3dxSkinManager.Modules.Core.WebView;
+using D3dxSkinManager.Modules.Core.Utilities;
 
 namespace D3dxSkinManager.Infrastructure;
 
@@ -41,6 +42,9 @@ public class ApplicationHost
     private IWindowStateService _windowStateService = null!;
     private ILogHelper _logger;
     private readonly IAppEnvironment _environment;
+
+    // Throttle form resize events to improve performance
+    private WinFormsDebounce? _resizeDebounce;
 
     public ApplicationHost(IAppEnvironment environment, ILogHelper logHelper)
     {
@@ -371,15 +375,23 @@ public class ApplicationHost
 
     /// <summary>
     /// Handle form resize to optimize WebView2 rendering
+    /// Debounced to reduce excessive layout operations during rapid resize
     /// </summary>
     private void OnFormResize(object? sender, EventArgs e)
     {
-        // Suspend WebView2 layout during resize for smoother performance
-        if (_webView?.IsHandleCreated == true && _mainForm.WindowState != FormWindowState.Minimized)
+        // Initialize debounce on first use
+        _resizeDebounce ??= new WinFormsDebounce(50); // 50ms debounce
+
+        // Debounce the layout operations to avoid excessive reflows during drag-resize
+        _resizeDebounce.Execute(() =>
         {
-            _webView.SuspendLayout();
-            _webView.ResumeLayout(false);
-        }
+            // Suspend WebView2 layout during resize for smoother performance
+            if (_webView?.IsHandleCreated == true && _mainForm.WindowState != FormWindowState.Minimized)
+            {
+                _webView.SuspendLayout();
+                _webView.ResumeLayout(false);
+            }
+        });
     }
 
     /// <summary>
@@ -433,6 +445,9 @@ public class ApplicationHost
                 _serviceProvider.Dispose();
                 _logger.Info("Service provider disposed", "Host");
             }
+
+            // Dispose resize debounce
+            _resizeDebounce?.Dispose();
 
             _logger.Info("Cleanup completed", "Host");
         }

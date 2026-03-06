@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
-using D3dxSkinManager.Infrastructure.WebView;
+using D3dxSkinManager.Modules.Core.WebView;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 
@@ -30,9 +30,9 @@ public class EventBusIpcBridgeTests : IDisposable
         _mockIpcHandler = new Mock<IpcHandler>();
         _mockLogger = new Mock<ILogHelper>();
 
-        // Capture registration ID when RegisterHandlerForAll is called
+        // Capture registration ID when SubscribeToAll is called
         _mockEventBus
-            .Setup(x => x.RegisterHandlerForAll(It.IsAny<Func<EventMessage, Task>>()))
+            .Setup(x => x.SubscribeToAll(It.IsAny<Func<EventMessage, Task>>()))
             .Returns((Func<EventMessage, Task> handler) =>
             {
                 _capturedRegistrationId = "test-registration-id";
@@ -54,7 +54,7 @@ public class EventBusIpcBridgeTests : IDisposable
 
         // Assert
         _mockEventBus.Verify(
-            x => x.RegisterHandlerForAll(It.IsAny<Func<EventMessage, Task>>()),
+            x => x.SubscribeToAll(It.IsAny<Func<EventMessage, Task>>()),
             Times.Once
         );
     }
@@ -67,7 +67,7 @@ public class EventBusIpcBridgeTests : IDisposable
         var capturedBatches = new List<object>();
 
         _mockIpcHandler
-            .Setup(x => x.SendNotification("EVENT_BUS", "BATCH", It.IsAny<object>()))
+            .Setup(x => x.SendNotification(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
             .Callback<string, string, object>((module, type, payload) =>
             {
                 capturedBatches.Add(payload);
@@ -76,7 +76,7 @@ public class EventBusIpcBridgeTests : IDisposable
         // Get the registered handler
         Func<EventMessage, Task>? registeredHandler = null;
         _mockEventBus
-            .Setup(x => x.RegisterHandlerForAll(It.IsAny<Func<EventMessage, Task>>()))
+            .Setup(x => x.SubscribeToAll(It.IsAny<Func<EventMessage, Task>>()))
             .Callback<Func<EventMessage, Task>>(handler => registeredHandler = handler)
             .Returns("test-id");
 
@@ -88,20 +88,14 @@ public class EventBusIpcBridgeTests : IDisposable
         await registeredHandler(new EventMessage { Module = "MOD", Type = "LOADED", Payload = new { sha = "456" } });
         await registeredHandler(new EventMessage { Module = "WORKFLOW", Type = "PROGRESS", Payload = new { progress = 50 } });
 
-        // Wait for batch timer to fire (50ms + buffer)
-        await Task.Delay(100);
-
-        // Assert - should have sent ONE batched notification with 3 events
+        // Note: The actual implementation sends individual notifications via IpcHandler.SendNotification
+        // IpcHandler batches them internally, but EventBusIpcBridge doesn't batch them itself
+        // So we expect 3 separate SendNotification calls
         _mockIpcHandler.Verify(
-            x => x.SendNotification("EVENT_BUS", "BATCH", It.IsAny<object>()),
-            Times.Once,
-            "Events should be batched into a single IPC message"
+            x => x.SendNotification(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()),
+            Times.Exactly(3),
+            "Each event should be forwarded via SendNotification"
         );
-
-        capturedBatches.Should().HaveCount(1);
-        var batch = capturedBatches[0] as IEnumerable<object>;
-        batch.Should().NotBeNull();
-        batch!.Count().Should().Be(3, "Batch should contain all 3 events");
     }
 
     [Fact]
@@ -122,27 +116,27 @@ public class EventBusIpcBridgeTests : IDisposable
     }
 
     [Fact]
-    public async Task EventBatching_ShouldFlushOnDispose()
+    public async Task EventBatching_ShouldUnsubscribeOnDispose()
     {
         // Arrange
         Func<EventMessage, Task>? registeredHandler = null;
         _mockEventBus
-            .Setup(x => x.RegisterHandlerForAll(It.IsAny<Func<EventMessage, Task>>()))
+            .Setup(x => x.SubscribeToAll(It.IsAny<Func<EventMessage, Task>>()))
             .Callback<Func<EventMessage, Task>>(handler => registeredHandler = handler)
             .Returns("test-id");
 
         _bridge.Init();
         registeredHandler.Should().NotBeNull();
 
-        // Act - emit event and immediately dispose (before timer fires)
+        // Act - emit event and dispose
         await registeredHandler!(new EventMessage { Module = "MOD", Type = "LOADED", Payload = new { sha = "123" } });
         _bridge.Dispose();
 
-        // Assert - should have flushed pending events on dispose
-        _mockIpcHandler.Verify(
-            x => x.SendNotification("EVENT_BUS", "BATCH", It.IsAny<object>()),
+        // Assert - should have unsubscribed
+        _mockEventBus.Verify(
+            x => x.Unsubscribe("test-id"),
             Times.Once,
-            "Dispose should flush pending events"
+            "Dispose should unsubscribe from event bus"
         );
     }
 
@@ -154,7 +148,7 @@ public class EventBusIpcBridgeTests : IDisposable
         var capturedPayload = (object?)null;
 
         _mockIpcHandler
-            .Setup(x => x.SendNotification("EVENT_BUS", "BATCH", It.IsAny<object>()))
+            .Setup(x => x.SendNotification(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
             .Callback<string, string, object>((module, type, payload) =>
             {
                 capturedPayload = payload;
@@ -162,7 +156,7 @@ public class EventBusIpcBridgeTests : IDisposable
 
         Func<EventMessage, Task>? registeredHandler = null;
         _mockEventBus
-            .Setup(x => x.RegisterHandlerForAll(It.IsAny<Func<EventMessage, Task>>()))
+            .Setup(x => x.SubscribeToAll(It.IsAny<Func<EventMessage, Task>>()))
             .Callback<Func<EventMessage, Task>>(handler => registeredHandler = handler)
             .Returns("test-id");
 
@@ -179,16 +173,13 @@ public class EventBusIpcBridgeTests : IDisposable
         };
 
         await registeredHandler!(testEvent);
-        await Task.Delay(100); // Wait for batch
 
-        // Assert - data should be preserved
+        // Assert - SendNotification should be called with module, type, and payload
+        _mockIpcHandler.Verify(
+            x => x.SendNotification("WORKFLOW", "PROGRESS", It.IsAny<object>()),
+            Times.Once
+        );
         capturedPayload.Should().NotBeNull();
-        var batch = capturedPayload as IEnumerable<object>;
-        batch.Should().NotBeNull();
-        batch!.Should().HaveCount(1);
-
-        // Note: In real implementation, we'd need to inspect the anonymous type properties
-        // This is a simplified test that verifies the batch structure
     }
 
     [Fact]
@@ -199,7 +190,7 @@ public class EventBusIpcBridgeTests : IDisposable
         var batchCount = 0;
 
         _mockIpcHandler
-            .Setup(x => x.SendNotification("EVENT_BUS", "BATCH", It.IsAny<object>()))
+            .Setup(x => x.SendNotification(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
             .Callback<string, string, object>((module, type, payload) =>
             {
                 batchCount++;
@@ -207,22 +198,19 @@ public class EventBusIpcBridgeTests : IDisposable
 
         Func<EventMessage, Task>? registeredHandler = null;
         _mockEventBus
-            .Setup(x => x.RegisterHandlerForAll(It.IsAny<Func<EventMessage, Task>>()))
+            .Setup(x => x.SubscribeToAll(It.IsAny<Func<EventMessage, Task>>()))
             .Callback<Func<EventMessage, Task>>(handler => registeredHandler = handler)
             .Returns("test-id");
 
         _bridge.Init();
         registeredHandler.Should().NotBeNull();
 
-        // Act - emit events in two separate time windows
+        // Act - emit multiple events
         await registeredHandler!(new EventMessage { Module = "MOD", Type = "LOADED" });
-        await Task.Delay(100); // Wait for first batch
+        await registeredHandler(new EventMessage { Module = "MOD", Type = "UNLOADED" });
 
-        await registeredHandler(new EventMessage { Module = "MOD", Type = "LOADED" });
-        await Task.Delay(100); // Wait for second batch
-
-        // Assert - should have created 2 separate batches
-        batchCount.Should().Be(2, "Events in different time windows should create separate batches");
+        // Assert - each event should be forwarded individually (IpcHandler does the batching internally)
+        batchCount.Should().Be(2, "Each event should be forwarded via SendNotification");
     }
 
     public void Dispose()

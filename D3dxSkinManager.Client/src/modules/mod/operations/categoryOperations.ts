@@ -9,7 +9,6 @@ import { useModsStore } from '../store/modsStore';
 import { CategoryInfo, CATEGORY_IDS } from '../../../shared/types/category.types';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { notification } from '../../../shared/utils/notification';
-import { refreshMods } from './modOperations';
 import { categoryService, modService } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
@@ -54,11 +53,6 @@ export async function updateModCategory(
     // 2. Perform backend operation
     await modService.updateCategory(profileId, sha, categoryId);
     notification.success('Category updated');
-
-    // 3. Refresh mods list (category tree will be refreshed by CATEGORY_TREE_UPDATED event)
-    // The backend emits MOD.CATEGORY_UPDATED → CategoryEventHandler invalidates cache → emits CATEGORY_TREE_UPDATED
-    // ModsProvider listens to CATEGORY_TREE_UPDATED and calls refreshCategoryTree automatically
-    await refreshMods(profileId);
 
     return true;
   } catch (error: unknown) {
@@ -158,11 +152,6 @@ export async function batchUpdateCategories(
 
     if (updatedCount > 0) {
       notification.success(`Updated ${updatedCount} mod(s) category`);
-
-      // Refresh both mods and tree
-      // The backend emits MOD.CATEGORY_UPDATED → CategoryEventHandler invalidates cache → emits CATEGORY_TREE_UPDATED
-      await refreshMods(profileId);
-
       return true;
     } else {
       notification.error('No mods were updated');

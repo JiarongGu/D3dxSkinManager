@@ -3,11 +3,19 @@ using System.Drawing;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Utilities;
 
 namespace D3dxSkinManager.Modules.Core.WebView;
 
 /// <summary>
-/// Overlay panel that captures file drag-drop events and hides itself on mouse enter
+/// Overlay panel that captures file drag-drop events
+///
+/// SIMPLIFIED LOGIC:
+/// - Frontend sends bounds and occlusion state
+/// - Backend tracks mouse position (inside/outside zone)
+/// - Backend tracks file drag state
+/// - Visibility: Show when (file dragging OR (mouse outside AND not occluded))
+/// - Debounced visibility updates (50-100ms) prevent excessive UI changes
 /// </summary>
 public class DropZoneOverlay : Panel
 {
@@ -17,9 +25,18 @@ public class DropZoneOverlay : Panel
     private readonly Action<string> _onDragLeave;
     private readonly Action<string>? _onMouseEnter;
     private readonly Action<string>? _onMouseLeave;
-    private readonly Action<string>? _onHide;
     private readonly WebView2? _webView;
     public string ZoneId { get; }
+
+    // State tracking
+    private bool _mouseIsInside = false;  // Is mouse currently inside zone bounds?
+    private bool _isOccluded = false;     // Is zone covered by other HTML elements? (from frontend)
+    private bool _isDragging = false;      // Is a file drag operation in progress?
+
+    // Visibility management
+    private readonly WinFormsDebounce _visibilityDebounce;
+    private global::System.Windows.Forms.Timer? _mouseTrackTimer;
+    private bool _isDisposed = false;
 
     public DropZoneOverlay(
         string zoneId,
@@ -29,8 +46,7 @@ public class DropZoneOverlay : Panel
         Action<string> onDragEnter,
         Action<string> onDragLeave,
         Action<string>? onMouseEnter = null,
-        Action<string>? onMouseLeave = null,
-        Action<string>? onHide = null)
+        Action<string>? onMouseLeave = null)
     {
         ZoneId = zoneId;
         _logger = logger;
@@ -40,15 +56,11 @@ public class DropZoneOverlay : Panel
         _onDragLeave = onDragLeave;
         _onMouseEnter = onMouseEnter;
         _onMouseLeave = onMouseLeave;
-        _onHide = onHide;
 
         // Make overlay transparent
         SetStyle(ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
         AllowDrop = true;
-
-        // Don't override cursor - let it be determined by WebView content
-        // Cursor will be updated dynamically based on what's underneath
 
         // Wire up drag events
         DragEnter += OnDragEnter;
@@ -56,16 +68,18 @@ public class DropZoneOverlay : Panel
         DragLeave += OnDragLeave;
         DragOver += OnDragOver;
 
-        // Wire up overlay-level mouse events
-        // Overlay hides on enter, restores on leave
+        // Wire up mouse events
         MouseEnter += OnMouseEnter;
         MouseLeave += OnMouseLeave;
 
-        // Setup timer to restore overlay when cursor leaves area
-        _visibilityCheckTimer = new global::System.Windows.Forms.Timer();
-        _visibilityCheckTimer.Interval = 100; // Check every 100ms
-        _visibilityCheckTimer.Tick += CheckOverlayVisibility;
-        _visibilityCheckTimer.Start();
+        // Setup debounced visibility updates (75ms)
+        _visibilityDebounce = new WinFormsDebounce(75);
+
+        // Setup mouse position tracking timer (check every 100ms)
+        _mouseTrackTimer = new global::System.Windows.Forms.Timer();
+        _mouseTrackTimer.Interval = 100;
+        _mouseTrackTimer.Tick += CheckMousePosition;
+        _mouseTrackTimer.Start();
 
         _logger.Info($"DropZoneOverlay created: {zoneId}", "DropZone");
     }
@@ -77,7 +91,7 @@ public class DropZoneOverlay : Panel
             const int WS_EX_TRANSPARENT = 0x20;
 
             var cp = base.CreateParams;
-            // Use TRANSPARENT for visual transparency (mouse events don't pass through but we forward them)
+            // Use TRANSPARENT for visual transparency
             cp.ExStyle |= WS_EX_TRANSPARENT;
             return cp;
         }
@@ -88,42 +102,46 @@ public class DropZoneOverlay : Panel
         // Don't paint - overlay is invisible
     }
 
-    protected override void WndProc(ref Message m)
+    /// <summary>
+    /// Check mouse position periodically to detect if it left the zone without triggering events
+    /// </summary>
+    private void CheckMousePosition(object? sender, EventArgs e)
     {
-        // No special handling needed - overlay hides on mouse enter
-        // allowing WebView to receive all events directly
-        base.WndProc(ref m);
-    }
-
-    private global::System.Windows.Forms.Timer? _visibilityCheckTimer;
-    private bool _hiddenForMouseDown;
-    private bool _mouseIsInside = false;  // Track if mouse is currently inside the zone
-    private bool _requestsVisible = true;  // Track what frontend wants
-
-    private void CheckOverlayVisibility(object? sender, EventArgs e)
-    {
-        // Check if mouse position has changed without triggering mouse events
-        var cursorPos = Cursor.Position;
-        var overlayPt = PointToClient(cursorPos);
-        bool mouseCurrentlyInside = ClientRectangle.Contains(overlayPt);
-
-        // If mouse state has changed, update it and refresh visibility
-        if (mouseCurrentlyInside != _mouseIsInside)
+        // Safety check: don't process if disposed
+        if (_isDisposed || IsDisposed)
         {
-            _logger.Verbose($"Mouse state changed via timer check: inside={mouseCurrentlyInside}", "DropZone");
-            _mouseIsInside = mouseCurrentlyInside;
+            return;
+        }
 
-            // Notify frontend about mouse state change if needed
-            if (_mouseIsInside)
-            {
-                _onMouseEnter?.Invoke(ZoneId);
-            }
-            else
-            {
-                _onMouseLeave?.Invoke(ZoneId);
-            }
+        try
+        {
+            var cursorPos = Cursor.Position;
+            var overlayPt = PointToClient(cursorPos);
+            bool mouseCurrentlyInside = ClientRectangle.Contains(overlayPt);
 
-            UpdateVisibility();
+            // If mouse state changed, update it
+            if (mouseCurrentlyInside != _mouseIsInside)
+            {
+                _mouseIsInside = mouseCurrentlyInside;
+
+                // Notify frontend about mouse state change
+                if (_mouseIsInside)
+                {
+                    _onMouseEnter?.Invoke(ZoneId);
+                }
+                else
+                {
+                    _onMouseLeave?.Invoke(ZoneId);
+                }
+
+                // Recalculate visibility
+                UpdateVisibility();
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Control was disposed, stop the timer
+            _mouseTrackTimer?.Stop();
         }
     }
 
@@ -132,8 +150,12 @@ public class DropZoneOverlay : Panel
         if (e.Data?.GetDataPresent(DataFormats.FileDrop) == true)
         {
             e.Effect = DragDropEffects.Copy;
+            _isDragging = true;
             _logger.Debug($"Drag enter zone: {ZoneId}", "DropZone");
             _onDragEnter?.Invoke(ZoneId);
+
+            // Recalculate visibility (drag started, should be visible)
+            UpdateVisibility();
         }
         else
         {
@@ -151,8 +173,12 @@ public class DropZoneOverlay : Panel
 
     private void OnDragLeave(object? sender, EventArgs e)
     {
+        _isDragging = false;
         _logger.Debug($"Drag leave zone: {ZoneId}", "DropZone");
         _onDragLeave?.Invoke(ZoneId);
+
+        // Recalculate visibility (drag ended)
+        UpdateVisibility();
     }
 
     private void OnDragDrop(object? sender, DragEventArgs e)
@@ -170,49 +196,99 @@ public class DropZoneOverlay : Panel
         {
             _logger.Error($"Error handling drop on zone {ZoneId}: {ex.Message}", "DropZone", ex);
         }
+        finally
+        {
+            _isDragging = false;
+            // Recalculate visibility (drag ended)
+            UpdateVisibility();
+        }
     }
-
 
     private void OnMouseEnter(object? sender, EventArgs e)
     {
-        _logger.Verbose($"Mouse enter zone: {ZoneId} - hiding overlay to allow WebView interaction", "DropZone");
         _mouseIsInside = true;
         _onMouseEnter?.Invoke(ZoneId);
 
-        // Hide overlay immediately when mouse enters (not during file drag)
-        // This allows user to interact with WebView elements without wasting a click
-        _hiddenForMouseDown = true;
+        // Recalculate visibility (mouse entered)
         UpdateVisibility();
     }
 
     private void OnMouseLeave(object? sender, EventArgs e)
     {
-        _logger.Verbose($"Mouse leave zone: {ZoneId}", "DropZone");
         _mouseIsInside = false;
         _onMouseLeave?.Invoke(ZoneId);
 
-        // Note: Overlay will be restored by timer when cursor leaves overlay area
+        // Recalculate visibility (mouse left)
         UpdateVisibility();
     }
 
     /// <summary>
-    /// Updates visibility based on both frontend requests and mouse state
+    /// Set occlusion state from frontend
+    /// Frontend checks if zone is covered by other HTML elements
+    /// </summary>
+    public void SetOccluded(bool isOccluded)
+    {
+        if (_isOccluded != isOccluded)
+        {
+            _isOccluded = isOccluded;
+            _logger.Verbose($"Zone {ZoneId} occlusion changed: {isOccluded}", "DropZone");
+
+            // Recalculate visibility
+            UpdateVisibility();
+        }
+    }
+
+    /// <summary>
+    /// Calculate and schedule visibility update with debouncing
+    ///
+    /// Logic: Show zone when:
+    /// - File is being dragged over zone, OR
+    /// - Mouse is outside zone AND zone is not occluded
     /// </summary>
     private void UpdateVisibility()
     {
-        // Determine if we should be visible
-        // We're visible only if frontend wants us visible AND mouse is not inside
-        bool shouldBeVisible = _requestsVisible && !_mouseIsInside;
+        // Calculate desired visibility
+        // Show if: dragging OR (mouse outside AND not occluded)
+        bool shouldBeVisible = _isDragging || (!_mouseIsInside && !_isOccluded);
 
-        if (shouldBeVisible && !Visible)
+        // Only update if state actually changed
+        if (shouldBeVisible == Visible)
+        {
+            // Already in correct state, cancel any pending updates
+            _visibilityDebounce.Cancel();
+            return;
+        }
+
+        // Schedule visibility update with debouncing (75ms)
+        _visibilityDebounce.Execute(() => ApplyVisibilityUpdate(shouldBeVisible));
+    }
+
+    /// <summary>
+    /// Apply visibility update after debounce period
+    /// </summary>
+    private void ApplyVisibilityUpdate(bool targetVisibility)
+    {
+        // Double-check current state matches target (may have changed during debounce)
+        // Recalculate: Show if dragging OR (mouse outside AND not occluded)
+        bool currentShouldBeVisible = _isDragging || (!_mouseIsInside && !_isOccluded);
+
+        if (currentShouldBeVisible != targetVisibility)
+        {
+            // State changed during debounce, schedule another update
+            UpdateVisibility();
+            return;
+        }
+
+        // Apply visibility change
+        if (currentShouldBeVisible && !Visible)
         {
             Visible = true;
-            _hiddenForMouseDown = false;
+            _logger.Verbose($"Zone {ZoneId} shown (dragging={_isDragging}, mouseInside={_mouseIsInside}, occluded={_isOccluded})", "DropZone");
         }
-        else if (!shouldBeVisible && Visible)
+        else if (!currentShouldBeVisible && Visible)
         {
             Visible = false;
-            _hiddenForMouseDown = _mouseIsInside;  // Track if hidden due to mouse
+            _logger.Verbose($"Zone {ZoneId} hidden (dragging={_isDragging}, mouseInside={_mouseIsInside}, occluded={_isOccluded})", "DropZone");
         }
     }
 
@@ -225,36 +301,19 @@ public class DropZoneOverlay : Panel
         }
     }
 
-    public new void Show()
-    {
-        // Frontend wants us visible
-        _requestsVisible = true;
-
-        // Update visibility considering both frontend request and mouse state
-        UpdateVisibility();
-    }
-
-    public new void Hide()
-    {
-        // Frontend wants us hidden
-        _requestsVisible = false;
-
-        // Update visibility
-        UpdateVisibility();
-
-        // Notify manager to unregister and dispose this zone if needed
-        if (!_requestsVisible)
-        {
-            _onHide?.Invoke(ZoneId);
-        }
-    }
-
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && !_isDisposed)
         {
-            _visibilityCheckTimer?.Stop();
-            _visibilityCheckTimer?.Dispose();
+            _isDisposed = true;
+
+            // Stop and dispose debounce and timers
+            _visibilityDebounce?.Dispose();
+
+            _mouseTrackTimer?.Stop();
+            _mouseTrackTimer?.Dispose();
+            _mouseTrackTimer = null;
+
             _logger.Info($"DropZoneOverlay disposed: {ZoneId}", "DropZone");
         }
         base.Dispose(disposing);

@@ -19,7 +19,6 @@ const { Sider } = Layout;
 
 interface CategoryPanelProps {
   onSelect: (node: CategoryInfo | undefined) => void; // Coordination callback with load logic
-  onRefreshTree: () => Promise<void>;
   onModsRefresh?: () => Promise<void>;
   unclassifiedCount: number;
   onUnclassifiedClick: () => void;
@@ -35,7 +34,6 @@ interface CategoryPanelProps {
  */
 export const CategoryPanel: React.FC<CategoryPanelProps> = ({
   onSelect,
-  onRefreshTree,
   onModsRefresh,
   unclassifiedCount,
   onUnclassifiedClick,
@@ -55,7 +53,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
   const { openCategoryScreen } = useCategoryScreen();
-  const { updateModCategory } = useModCategoryUpdate({ onRefreshTree });
+  const { updateModCategory } = useModCategoryUpdate();
   const { loading: delayedLoading, execute } = useDelayedLoading(200); // Show loading only if operation takes >100ms
 
   const handleAddCategory = (parentId?: string) => {
@@ -83,8 +81,6 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
 
             if (createdNode) {
               notification.success(t('category.createSuccess', { name: data.name }));
-              // Refresh the Category tree to show the new node
-              await onRefreshTree();
             } else {
               notification.error(t('category.createFailed', { name: data.name }));
             }
@@ -126,7 +122,6 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
           onSearchChange={setcategorySearch}
           expandedKeys={expandedKeys}
           onExpandedKeysChange={setExpandedKeys}
-          onRefreshTree={onRefreshTree}
           onModsRefresh={onModsRefresh}
           onAddCategory={handleAddCategory}
         />

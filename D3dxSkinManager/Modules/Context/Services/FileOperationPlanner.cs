@@ -1,8 +1,7 @@
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Mod.Models;
-using System.Collections.Concurrent;
+using D3dxSkinManager.Modules.Core.Utilities;
 
-namespace D3dxSkinManager.Modules.Mod.Services;
+namespace D3dxSkinManager.Modules.Context.Services;
 
 /// <summary>
 /// Interface for atomic file system operation planning and execution

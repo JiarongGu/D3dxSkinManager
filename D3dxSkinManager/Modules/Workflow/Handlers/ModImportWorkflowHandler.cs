@@ -38,15 +38,15 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 {
     private readonly IWorkflowRepository _workflowRepository;
     private readonly IModImportService _modImportService;
-    private readonly IModManagementService _modManagementService;
-    private readonly IModFacade _modFacade;
+    private readonly IModMetadataService _metadataService;
+    private readonly IModRepository _modRepository;
     private readonly IProfilePathService _profilePathService;
     private readonly IArchiveHelper _archiveHelper;
     private readonly IFileHelper _fileHelper;
     private readonly IHashHelper _hashHelper;
     private readonly IEventBus _eventBus;
     private readonly ILogHelper _logger;
-    private readonly IModQueryService _modQueryService;
+    private readonly IModEnrichmentService _enrichmentService;
     private readonly IWorkflowConcurrencyManager _concurrencyManager;
     private readonly ICategoryService _categoryService;
 
@@ -58,29 +58,29 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     public ModImportWorkflowHandler(
         IWorkflowRepository workflowRepository,
         IModImportService modImportService,
-        IModManagementService modManagementService,
-        IModFacade modFacade,
+        IModMetadataService metadataService,
+        IModRepository modRepository,
         IProfilePathService profilePathService,
         IArchiveHelper archiveHelper,
         IFileHelper fileHelper,
         IHashHelper hashHelper,
         IEventBus eventBus,
         ILogHelper logger,
-        IModQueryService modQueryService,
+        IModEnrichmentService enrichmentService,
         IWorkflowConcurrencyManager concurrencyManager,
         ICategoryService categoryService)
     {
         _workflowRepository = workflowRepository;
         _modImportService = modImportService;
-        _modManagementService = modManagementService;
-        _modFacade = modFacade;
+        _metadataService = metadataService;
+        _modRepository = modRepository;
         _profilePathService = profilePathService;
         _archiveHelper = archiveHelper;
         _fileHelper = fileHelper;
         _hashHelper = hashHelper;
         _eventBus = eventBus;
         _logger = logger;
-        _modQueryService = modQueryService;
+        _enrichmentService = enrichmentService;
         _concurrencyManager = concurrencyManager;
         _categoryService = categoryService;
     }
@@ -854,7 +854,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             _logger.Info($"Archive SHA256: {archiveSha}");
 
         // Check if a mod with this SHA already exists
-        var existingMod = await _modFacade.GetModByIdAsync(archiveSha);
+        var existingMod = await _modRepository.GetByIdAsync(archiveSha);
         if (existingMod != null)
         {
             _logger.Info($"Duplicate mod detected: {archiveSha} (Name: {existingMod.Name})");
@@ -946,17 +946,22 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         }
 
         // Step 2: Update metadata with user-edited values from context
-        var updateRequest = new UpdateModRequest
+        var updateRequest = new UpdateModMetadataRequest
         {
             Name = context.Name,
             Author = context.Author,
             Description = context.Description,
-            Category = context.Category,
             Grading = context.Grading ?? "G",
             Tags = context.Tags ?? new List<string>()
         };
 
-        modInfo = await _modManagementService.UpdateModAsync(modInfo.SHA, updateRequest);
+        modInfo = await _metadataService.UpdateAsync(modInfo.SHA, updateRequest);
+
+        // Update category separately if provided
+        if (!string.IsNullOrEmpty(context.Category))
+        {
+            modInfo = await _metadataService.UpdateCategoryAsync(modInfo.SHA, context.Category);
+        }
 
         _logger.Info($"Mod imported successfully: {modInfo.SHA}");
 
@@ -1054,7 +1059,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
             // Single batch query to populate all category names
             var modList = contextsWithCategory.Select(x => x.tempMod).ToList();
-            await _modQueryService.PopulateCategoryNamesBulkAsync(modList).ConfigureAwait(false);
+            await _enrichmentService.PopulateCategoryNamesAsync(modList).ConfigureAwait(false);
 
             // Update contexts with populated category names
             foreach (var (workflow, context, tempMod) in contextsWithCategory)

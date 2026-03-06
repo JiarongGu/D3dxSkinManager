@@ -15,6 +15,9 @@ namespace D3dxSkinManager.Modules.Context
             services.AddSingleton<IProfileServerService, ProfileServerService>();
             services.AddSingleton<IImageService, ImageService>();
 
+            // Register atomic file operation planner (serializes file operations to prevent conflicts)
+            services.TryAddSingleton<IFileOperationPlanner, FileOperationPlanner>();
+
             // Register profile-scoped EventBus (filters events by profileId, auto-injects profileId on emit)
             services.AddSingleton<IProfileEventBus, ProfileEventBus>();
 

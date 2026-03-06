@@ -2,6 +2,8 @@ using System.Drawing.Imaging;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Mod;
 using Drawing2D = System.Drawing.Drawing2D;
 
 namespace D3dxSkinManager.Modules.Context.Services;
@@ -35,14 +37,16 @@ public class ImageService : IImageService
     private readonly ILogHelper _logger;
     private readonly IHashHelper _hashHelper;
     private readonly ICustomSchemeHandler _schemeHandler;
+    private readonly IProfileEventBus _eventBus;
 
-    public ImageService(IProfilePathService profilePaths, IPathHelper pathHelper, ILogHelper logger, IHashHelper hashHelper, ICustomSchemeHandler schemeHandler)
+    public ImageService(IProfilePathService profilePaths, IPathHelper pathHelper, ILogHelper logger, IHashHelper hashHelper, ICustomSchemeHandler schemeHandler, IProfileEventBus eventBus)
     {
         _profilePaths = profilePaths;
         _pathHelper = pathHelper;
         _logger = logger;
         _hashHelper = hashHelper;
         _schemeHandler = schemeHandler;
+        _eventBus = eventBus;
     }
 
     /// <summary>
@@ -388,6 +392,14 @@ public class ImageService : IImageService
         }
 
         _logger.Info($"Successfully imported preview from clipboard for mod {sha}", "ImageService");
+
+        // Get the newly imported preview path for the event
+        var previews = await GetPreviewPathsAsync(sha).ConfigureAwait(false);
+        var latestPreview = previews.LastOrDefault();
+
+        // Emit PREVIEW_IMPORTED event
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { sha, imagePath = latestPreview }).ConfigureAwait(false);
+
         return await Task.FromResult(true).ConfigureAwait(false);
     }
 
@@ -423,6 +435,10 @@ public class ImageService : IImageService
         File.Copy(imagePath, targetPath, overwrite: true);
 
         _logger.Info($"Imported preview image: {imagePath} -> {targetPath}", "ImageService");
+
+        // Emit PREVIEW_IMPORTED event
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { sha, imagePath }).ConfigureAwait(false);
+
         return await Task.FromResult(true).ConfigureAwait(false);
     }
 
@@ -526,6 +542,9 @@ public class ImageService : IImageService
                 }
             }
             _schemeHandler.InvalidatePaths(affectedPaths.Distinct());
+
+            // Emit THUMBNAIL_UPDATED event
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.THUMBNAIL_UPDATED, new { sha, previewPath }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -570,6 +589,9 @@ public class ImageService : IImageService
         // Invalidate CustomSchemeHandler cache for this image
         // Use relative path since that's what the frontend uses in app:// URLs
         _schemeHandler.InvalidatePath(previewPath);
+
+        // Emit PREVIEW_DELETED event
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_DELETED, new { sha, previewPath }).ConfigureAwait(false);
 
         return await Task.FromResult(true).ConfigureAwait(false);
     }

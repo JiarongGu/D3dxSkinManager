@@ -20,7 +20,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
     private readonly IFileHelper _fileService;
     private readonly IArchiveHelper _archiveService;
     private readonly IPythonModIndexParser _modIndexParser;
-    private readonly IModManagementService _modManagementService;
+    private readonly IModMetadataService _metadataService;
     private readonly ICategoryService _categoryService;
     private readonly IModRepository _modRepository;
     private readonly ILogHelper _logger;
@@ -33,7 +33,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         IFileHelper fileService,
         IArchiveHelper archiveService,
         IPythonModIndexParser modIndexParser,
-        IModManagementService modManagementService,
+        IModMetadataService metadataService,
         ICategoryService categoryService,
         IModRepository modRepository,
         ILogHelper logger)
@@ -42,7 +42,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
         _fileService = fileService;
         _archiveService = archiveService;
         _modIndexParser = modIndexParser;
-        _modManagementService = modManagementService;
+        _metadataService = metadataService;
         _categoryService = categoryService;
         _modRepository = modRepository;
         _logger = logger;
@@ -175,7 +175,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 copied++;
 
                 // Create mod entry using service (categoryId was already looked up above)
-                var mod = await _modManagementService.GetOrCreateModAsync(
+                var mod = await _metadataService.GetOrCreateAsync(
                     modEntry.Sha,
                     new CreateModRequest
                     {

@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using D3dxSkinManager.Modules.Core.Utilities;
 
 namespace D3dxSkinManager.Modules.Core.WebView;
 
@@ -15,6 +16,7 @@ public class SplashScreenPanel : Panel
     private readonly Label _statusLabel;
     private readonly Panel _contentPanel;
     private bool _isDarkTheme;
+    private readonly WinFormsDebounce _resizeDebounce;
 
     public SplashScreenPanel(bool isDarkTheme = false)
     {
@@ -48,8 +50,12 @@ public class SplashScreenPanel : Panel
         };
         _contentPanel.Controls.Add(_progressBar);
 
+        // Initialize debounce for resize events (50ms delay)
+        _resizeDebounce = new WinFormsDebounce(50);
+
         // Handle resize to update size and center the content panel
-        Resize += (s, e) => UpdateProgressBarSize();
+        // Debounced to avoid excessive layout calculations during drag-resize
+        Resize += (s, e) => _resizeDebounce.Execute(UpdateProgressBarSize);
 
         // Bring to front
         BringToFront();
@@ -104,5 +110,14 @@ public class SplashScreenPanel : Panel
         BackColor = _isDarkTheme ? Color.FromArgb(31, 31, 31) : Color.FromArgb(230, 244, 255); // Dark: #1f1f1f (bg-container), Light: #e6f4ff (bg-container)
         _progressBar.ForeColor = _isDarkTheme ? Color.FromArgb(23, 125, 220) : Color.FromArgb(24, 144, 255); // Dark: #177ddc, Light: #1890ff
         Invalidate();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _resizeDebounce?.Dispose();
+        }
+        base.Dispose(disposing);
     }
 }

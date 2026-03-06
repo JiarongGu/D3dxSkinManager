@@ -1,7 +1,7 @@
 # AI Assistant Guide
 
-**Version:** 3.0
-**Last Updated:** 2026-03-03
+**Version:** 3.1
+**Last Updated:** 2026-03-06
 **Critical:** NEVER commit without explicit user approval!
 
 ---
@@ -42,6 +42,16 @@
 // Frontend: UI only, NO data processing
 // Paths: Relative in DB, absolute at runtime
 // DI: Constructor injection via interfaces
+
+// Facades: THIN IPC layer ONLY
+// - NO business logic in facades
+// - NO event emission in facades
+// - Just delegate to services and return results
+
+// Services: Business logic + Event emission
+// - Services perform operations AND emit events
+// - Inject IProfileEventBus into services
+// - Event handlers consolidate events for frontend
 ```
 
 ### 3. Error Handling
@@ -82,24 +92,99 @@ if (!data) return null;
 
 ## 🏗️ Core Patterns (Minimal Reference)
 
-### Backend Service
+### Backend Service (with Event Emission)
 ```csharp
 // 1. Interface
-public interface IModService {
-    Task<List<ModInfo>> GetAllAsync();
+public interface IModLifecycleService {
+    Task<ModLoadResult> LoadAsync(string sha);
+    Task<bool> UnloadAsync(string sha);
 }
 
-// 2. Implementation with DI
-public class ModService : IModService {
+// 2. Implementation with DI + Event Emission
+public class ModLifecycleService : IModLifecycleService {
     private readonly IModRepository _repository;
+    private readonly IModArchiveService _archiveService;
+    private readonly IModCacheService _cacheService;
+    private readonly IProfileEventBus _eventBus;  // ✅ Inject EventBus
+    private readonly ILogHelper _logger;
 
-    public ModService(IModRepository repository) {
+    public ModLifecycleService(
+        IModRepository repository,
+        IModArchiveService archiveService,
+        IModCacheService cacheService,
+        IProfileEventBus eventBus,  // ✅ Inject EventBus
+        ILogHelper logger) {
         _repository = repository;
+        _archiveService = archiveService;
+        _cacheService = cacheService;
+        _eventBus = eventBus;
+        _logger = logger;
+    }
+
+    public async Task<ModLoadResult> LoadAsync(string sha) {
+        // Business logic: category conflict resolution, extraction, etc.
+        var mod = await _repository.GetByIdAsync(sha);
+
+        // Unload conflicting mods in same category
+        await HandleCategoryConflicts(mod);
+
+        // Enable cache or extract archive
+        var success = await _cacheService.EnableCacheAsync(sha)
+                   || await ExtractArchive(sha);
+
+        if (success) {
+            // ✅ Service emits event after successful operation
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha });
+        }
+
+        return new ModLoadResult { Success = success };
     }
 }
 
 // 3. Register in {Module}ServiceExtensions.cs
-services.AddSingleton<IModService, ModService>();
+services.AddSingleton<IModLifecycleService, ModLifecycleService>();
+```
+
+### Backend Facade (Thin IPC Layer)
+```csharp
+// ❌ OLD WAY: Facade has business logic + events
+public class ModFacade {
+    private readonly IModRepository _repository;
+    private readonly IProfileEventBus _eventBus;
+
+    public async Task<bool> LoadModAsync(string sha) {
+        // ❌ Business logic in facade
+        var mod = await _repository.GetByIdAsync(sha);
+        if (mod.Category != null) {
+            var conflicting = await _repository.GetByCategoryAsync(mod.Category);
+            // Unload conflicting mods...
+        }
+        // ❌ Event emission in facade
+        await _eventBus.EmitAsync(...);
+    }
+}
+
+// ✅ NEW WAY: Facade is thin IPC layer
+// Facades should ONLY handle IPC routing, not be called by other services
+public interface IModFacade : IModuleFacade {
+    // Empty interface - facade only handles IPC routing
+    // Other services should call underlying services directly (IModRepository, IModLifecycleService, etc.)
+}
+
+public class ModFacade : BaseFacade, IModFacade {
+    private readonly IModLifecycleService _lifecycleService;
+
+    public ModFacade(IModLifecycleService lifecycleService) {
+        _lifecycleService = lifecycleService;
+    }
+
+    // IPC handler method (private, called by IPC routing)
+    private async Task<ModLoadResult> LoadModAsync(IpcRequest request) {
+        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        // ✅ Just delegate - service handles everything
+        return await _lifecycleService.LoadAsync(sha);
+    }
+}
 ```
 
 ### Frontend IPC Services
@@ -144,7 +229,103 @@ const mods = await modService.getModsByCategory(profileId, categoryId);
 - `api.language` - Language/i18n (LanguageService)
 - `api.system` - File dialogs, system settings (SystemService)
 
-### IPC Events (Module + Type Pattern)
+### Event-Driven Architecture
+
+**CRITICAL RULE: Services emit events, NOT facades!**
+
+```csharp
+// ❌ WRONG: Facade emits events
+public class ModFacade {
+    private readonly IModFileService _fileService;
+    private readonly IProfileEventBus _eventBus;  // ❌ NO!
+
+    public async Task<bool> LoadModAsync(string sha) {
+        await _fileService.LoadAsync(sha);
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { sha });  // ❌ NO!
+        return true;
+    }
+}
+
+// ✅ CORRECT: Service emits events
+public class ModFileService {
+    private readonly IProfileEventBus _eventBus;  // ✅ YES!
+
+    public async Task<bool> LoadAsync(string sha) {
+        // Business logic here...
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { sha });  // ✅ YES!
+        return true;
+    }
+}
+
+// ✅ Facade is thin - just delegates
+public class ModFacade {
+    private readonly IModFileService _fileService;  // NO EventBus!
+
+    public async Task<bool> LoadModAsync(string sha) {
+        return await _fileService.LoadAsync(sha);  // Just delegate
+    }
+}
+```
+
+**Event Handler Pattern:**
+```csharp
+// Event handlers consolidate multiple events into one for frontend
+public class ModListEventHandler : IModListEventHandler {
+    public ModListEventHandler(IProfileEventBus eventBus) {
+        // Subscribe to all mod state change events
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.LOADED,
+            async (_) => await EmitModListUpdated("LOADED"));
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.UNLOADED,
+            async (_) => await EmitModListUpdated("UNLOADED"));
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.DELETED,
+            async (_) => await EmitModListUpdated("DELETED"));
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.IMPORTED,
+            async (_) => await EmitModListUpdated("IMPORTED"));
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.METADATA_UPDATED,
+            async (_) => await EmitModListUpdated("METADATA_UPDATED"));
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED,
+            async (_) => await EmitModListUpdated("CATEGORY_UPDATED"));
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED,
+            async (_) => await EmitModListUpdated("CACHE_CHANGED"));
+        // Total: 8 event subscriptions (was 7, added CACHE_CHANGED)
+    }
+
+    private async Task EmitModListUpdated(string sourceEvent) {
+        // Consolidate into single frontend event
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LIST_UPDATED);
+    }
+}
+```
+
+**Frontend subscribes to consolidated events:**
+```typescript
+// In ModProvider.tsx - subscribe to consolidated MOD_LIST_UPDATED event
+const handleModListUpdate = useCallback(
+  debounce(() => {
+    if (!selectedProfileId) return;
+    void modOps.refreshMods(selectedProfileId);  // Reload mod list
+    void statisticsOps.loadStatistics(selectedProfileId);  // Reload statistics
+  }, 20),  // 20ms debounce prevents rapid-fire events
+  [selectedProfileId]
+);
+
+useEffect(() => {
+  if (!selectedProfileId) return;
+
+  const unsubscribe = eventBus.subscribe(
+    Module.MOD,
+    ModEventType.MOD_LIST_UPDATED,  // Single consolidated event
+    handleModListUpdate
+  );
+
+  return () => {
+    handleModListUpdate.cancel();  // Cancel debounce on cleanup
+    unsubscribe();
+  };
+}, [selectedProfileId, handleModListUpdate]);
+```
+
+**IPC Events (Module + Type Pattern):**
 ```csharp
 // Backend - NO module prefix in type names
 await _eventBus.EmitAsync(

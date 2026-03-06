@@ -36,8 +36,8 @@ export const ModListPanel: React.FC = () => {
   // Get operations
   const {
     setSearchQuery,
-    loadModInGame,
-    unloadModFromGame,
+    loadMod,
+    unloadMod,
     deleteMod,
     openEditDialog,
     selectMod,
@@ -257,8 +257,8 @@ export const ModListPanel: React.FC = () => {
             <ModList
               mods={filteredMods}
               loading={loading}
-              onLoad={loadModInGame}
-              onUnload={unloadModFromGame}
+              onLoad={loadMod}
+              onUnload={unloadMod}
               onDelete={deleteMod}
               onEdit={openEditDialog}
               onRowClick={handleModClick}

@@ -6,7 +6,7 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 /// Service for tag management operations
 /// Handles all tag-related business logic
 /// </summary>
-public interface ITagService
+public interface IModTagService
 {
     Task<List<Tag>> GetAllTagsAsync();
     Task<Tag?> GetTagByNameAsync(string name);
@@ -17,12 +17,12 @@ public interface ITagService
     Task<List<Tag>> SearchTagsAsync(string searchTerm);
 }
 
-public class TagService : ITagService
+public class ModTagService : IModTagService
 {
     private readonly ITagRepository _tagRepository;
     private readonly IModRepository _modRepository;
 
-    public TagService(ITagRepository tagRepository, IModRepository modRepository)
+    public ModTagService(ITagRepository tagRepository, IModRepository modRepository)
     {
         _tagRepository = tagRepository;
         _modRepository = modRepository;

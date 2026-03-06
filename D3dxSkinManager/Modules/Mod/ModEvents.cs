@@ -17,5 +17,6 @@ public static class ModEvents
     public const string PREVIEW_IMPORTED = "PREVIEW_IMPORTED";
     public const string THUMBNAIL_UPDATED = "THUMBNAIL_UPDATED";
     public const string PREVIEW_DELETED = "PREVIEW_DELETED";
-    public const string CACHE_CHANGED = "CACHE_CHANGED"; // Emitted when cache folder is externally deleted/modified
+    public const string CACHE_CHANGED = "CACHE_CHANGED";
+    public const string MOD_LIST_UPDATED = "MOD_LIST_UPDATED"; // Emitted when mod list state changes (for frontend refresh)
 }

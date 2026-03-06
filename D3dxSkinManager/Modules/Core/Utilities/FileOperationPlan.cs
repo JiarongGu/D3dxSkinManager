@@ -1,4 +1,4 @@
-namespace D3dxSkinManager.Modules.Mod.Models;
+namespace D3dxSkinManager.Modules.Core.Utilities;
 
 /// <summary>
 /// Represents a low-level file system operation
