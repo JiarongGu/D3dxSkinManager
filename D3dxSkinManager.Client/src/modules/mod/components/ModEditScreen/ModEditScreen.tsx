@@ -20,9 +20,9 @@ import './ModEditScreen.css';
 const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   // Subscribe to state from store
   const visible = useModsStore(s => s.editDialogVisible);
-  const CategoryTree = useModsStore(s => s.CategoryTree);
+  const CategoryTree = useModsStore(s => s.categoryTree);
   const { state: profileState } = useProfile();
-  const { updateMod, updateModLocal, closeEditDialog } = useMods();
+  const { updateMod, closeEditDialog } = useMods();
 
   // Local state
   const [form] = Form.useForm();
@@ -153,16 +153,6 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
 
       // Save mod metadata
       await updateMod(mod.sha, modData);
-
-      // Refresh the mod to get updated tagsWithMetadata with colors
-      try {
-        const updatedMod = await modService.getModBySha(profileState.selectedProfile.id, mod.sha);
-        if (updatedMod) {
-          updateModLocal(mod.sha, updatedMod);
-        }
-      } catch (refreshError: unknown) {
-        logger.debug('Failed to refresh mod after save:', refreshError);
-      }
 
       form.resetFields();
       setSelectedTags([]);

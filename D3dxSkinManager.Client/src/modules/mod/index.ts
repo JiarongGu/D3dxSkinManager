@@ -12,10 +12,6 @@ export { useMods, useModsState } from './hooks/useMods';
 export { useModsStore } from './store/modsStore';
 export type { ModsStore, ModsState, ModsActions } from './store/modsStore';
 
-// Selectors (for performance-optimized subscriptions)
-export * from './store/selectors/modSelectors';
-export * from './store/selectors/categorySelectors';
-
 // Operations (for direct use without hook)
 export * as modOperations from './operations/modOperations';
 export * as categoryOperations from './operations/categoryOperations';

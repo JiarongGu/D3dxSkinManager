@@ -51,9 +51,9 @@ async function _refreshMods(profileId: string): Promise<void> {
   // After refreshing category mods, update selectedMod if it still exists
   // This ensures preview panel shows updated data (isLoaded, metadata, etc.)
   if (selectedMod?.sha) {
-    const { mods, CategoryFilteredMods } = useModsStore.getState();
-    const modList = CategoryFilteredMods || mods;
-    const updatedMod = modList.find(m => m.sha === selectedMod.sha);
+    const { mods } = useModsStore.getState();
+    const modList = mods || [];
+    const updatedMod = modList.find((m: ModInfo) => m.sha === selectedMod.sha);
 
     if (updatedMod) {
       // Update selectedMod with fresh data from backend
@@ -80,7 +80,7 @@ export async function updateMod(
   sha: string,
   data: Partial<ModInfo>
 ): Promise<void> {
-  const { setModsLoading, updateModLocal } = useModsStore.getState();
+  const { updateModLocal } = useModsStore.getState();
   const categoryChanged = data.category !== undefined;
 
   try {
@@ -101,12 +101,12 @@ export async function updateMod(
           await modService.updateCategory(profileId, sha, data.category);
         }
 
-        // Update local state (Zustand automatically updates category filtered mods)
+        // Update local state (Zustand automatically updates mods)
         updateModLocal(sha, data);
 
         notification.success('Mod updated successfully');
       },
-      setModsLoading,
+      useModsStore.getState().setModLoading,
       100
     );
   } catch (error: unknown) {
@@ -116,18 +116,11 @@ export async function updateMod(
 }
 
 /**
- * Update mod locally without backend call (for optimistic updates)
- */
-export function updateModLocal(sha: string, data: Partial<ModInfo>): void {
-  useModsStore.getState().updateModLocal(sha, data);
-}
-
-/**
  * Delete a mod
  * Uses delayed loading (100ms) to avoid flicker for fast deletes
  */
 export async function deleteMod(profileId: string, sha: string): Promise<void> {
-  const { setModsLoading, removeMod } = useModsStore.getState();
+  const { removeMod } = useModsStore.getState();
 
   try {
     await executeWithDelayedLoading(
@@ -139,7 +132,7 @@ export async function deleteMod(profileId: string, sha: string): Promise<void> {
 
         notification.success('Mod deleted successfully');
       },
-      setModsLoading,
+      useModsStore.getState().setModLoading,
       100
     );
   } catch (error: unknown) {
@@ -209,30 +202,17 @@ export async function reloadCurrentPreview(profileId: string): Promise<void> {
 }
 
 /**
- * Load a mod in-game with optimistic updates
+ * Load a mod in-game
+ * Backend will fire MOD_LIST_UPDATED event which triggers refresh via ModProvider
  */
 export async function loadMod(profileId: string, sha: string): Promise<void> {
-  const { optimisticLoadUpdate, optimisticUnloadUpdate } = useModsStore.getState();
-
-  // 1. Apply optimistic update
-  optimisticLoadUpdate(sha, []);
-
   try {
-    // 2. Perform backend operation - returns affected mod SHAs
-    const result = await modService.loadMod(profileId, sha);
+    // Perform backend operation - returns affected mod SHAs
+    await modService.loadMod(profileId, sha);
     notification.success('Mod loaded successfully');
 
-    // 3. Efficient partial update: Only update the loaded mod and unloaded mods
-    if (result.unloadedModShas && result.unloadedModShas.length > 0) {
-      // Update unloaded mods locally (Zustand automatically syncs all state)
-      result.unloadedModShas.forEach((unloadedSha) => {
-        optimisticUnloadUpdate(unloadedSha);
-      });
-    }
+    // Backend fires MOD_LIST_UPDATED event → ModProvider refreshes mods automatically
   } catch (error: unknown) {
-    // 5. Revert optimistic update on error
-    optimisticUnloadUpdate(sha);
-
     // Handle error with user-friendly messages
     handleError(error);
     throw error;
@@ -240,22 +220,17 @@ export async function loadMod(profileId: string, sha: string): Promise<void> {
 }
 
 /**
- * Unload a mod from game with optimistic updates
+ * Unload a mod from game
+ * Backend will fire MOD_LIST_UPDATED event which triggers refresh via ModProvider
  */
 export async function unloadMod(profileId: string, sha: string): Promise<void> {
-  const { optimisticUnloadUpdate, optimisticLoadUpdate } = useModsStore.getState();
-
-  // 1. Apply optimistic update
-  optimisticUnloadUpdate(sha);
-
   try {
-    // 2. Perform backend operation
+    // Perform backend operation
     await modService.unloadMod(profileId, sha);
     notification.success('Mod unloaded successfully');
-  } catch (error: unknown) {
-    // 4. Revert optimistic update on error
-    optimisticLoadUpdate(sha, []);
 
+    // Backend fires MOD_LIST_UPDATED event → ModProvider refreshes mods automatically
+  } catch (error: unknown) {
     // Handle error with user-friendly messages
     handleError(error);
     throw error;

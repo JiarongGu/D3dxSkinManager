@@ -20,6 +20,7 @@ public interface IImageService
     Task<int> ScanAndImportFromCacheAsync(string sha, string cacheDirectory);
     Task<bool> CheckClipboardHasImageAsync();
     Task<bool> ImportPreviewFromClipboardAsync(string sha);
+    Task<bool> CopyPreviewToClipboardAsync(string previewPath);
     Task<bool> ImportPreviewImageAsync(string sha, string imagePath);
     Task<bool> SetThumbnailAsync(string sha, string previewPath);
     Task<bool> DeletePreviewAsync(string sha, string previewPath);
@@ -467,6 +468,60 @@ public class ImageService : IImageService
         // Emit PREVIEW_IMPORTED event
         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { sha, imagePath = latestPreview }).ConfigureAwait(false);
 
+        return await Task.FromResult(true).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Copy a preview image to the Windows clipboard
+    /// Uses STA thread for clipboard access
+    /// </summary>
+    public async Task<bool> CopyPreviewToClipboardAsync(string previewPath)
+    {
+        // Convert relative path to absolute if needed
+        var absolutePath = _pathHelper.ToAbsolutePath(previewPath) ?? previewPath;
+
+        if (!File.Exists(absolutePath))
+        {
+            throw new FileNotFoundException($"Preview image not found: {absolutePath}");
+        }
+
+        // Clipboard access must be done on STA thread
+        bool success = false;
+        Exception? clipboardException = null;
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                // Load image from file
+                using var image = Image.FromFile(absolutePath);
+                // Copy to clipboard
+                Clipboard.SetImage(image);
+                _logger.Info($"Copied preview image to clipboard: {absolutePath}", "ImageService");
+                success = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to copy image to clipboard: {ex.Message}", "ImageService", ex);
+                clipboardException = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (clipboardException != null)
+        {
+            throw new InvalidOperationException("Failed to access clipboard", clipboardException);
+        }
+
+        if (!success)
+        {
+            throw new InvalidOperationException("Failed to copy image to clipboard");
+        }
+
+        _logger.Info($"Successfully copied preview to clipboard: {previewPath}", "ImageService");
         return await Task.FromResult(true).ConfigureAwait(false);
     }
 

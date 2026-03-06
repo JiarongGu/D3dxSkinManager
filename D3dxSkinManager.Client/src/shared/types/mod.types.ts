@@ -49,6 +49,8 @@ export interface ModStatistics {
   totalMods: number;
   loadedMods: number;
   availableMods: number;
+  // Note: Backend also sends uniqueObjects, uniqueAuthors, modsByGrading
+  // but they're not used in the UI yet
 }
 
 /**

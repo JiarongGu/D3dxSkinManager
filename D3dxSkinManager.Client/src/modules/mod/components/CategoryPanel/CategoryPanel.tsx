@@ -39,8 +39,8 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
   onUnclassifiedClick,
 }) => {
   // Subscribe to state this component needs
-  const tree = useModsStore(s => s.CategoryTree);
-  const loading = useModsStore(s => s.CategoryLoading);
+  const tree = useModsStore(s => s.categoryTree);
+  const loading = useModsStore(s => s.categoryLoading);
   const selectedNode = useModsStore(s => s.selectedCategory);
   const searchQuery = useModsStore(s => s.categorySearch);
   const expandedKeys = useModsStore(s => s.expandedKeys);

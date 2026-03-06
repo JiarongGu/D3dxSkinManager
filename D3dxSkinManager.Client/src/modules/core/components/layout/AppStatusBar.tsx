@@ -27,7 +27,9 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [progressVisible, setProgressVisible] = useState<boolean>(false);
 
-  // Get mod statistics from store (global counts, not affected by category selection)
+  // Get mod statistics from store
+  // Note: statistics contains GLOBAL counts (all mods across all categories)
+  // state.mods/categoryFilteredMods only contain currently filtered mods
   const statistics = useModsStore((state) => state.statistics);
 
   const modsLoaded = statistics?.loadedMods ?? 0;

@@ -82,7 +82,7 @@ export const ModHierarchicalView: React.FC = () => {
       }
     };
     load();
-  }, [mods.length, profileState.selectedProfile?.id]);
+  }, [mods?.length, profileState.selectedProfile?.id]);
 
   // Load available tags into store
   useEffect(() => {
@@ -97,7 +97,7 @@ export const ModHierarchicalView: React.FC = () => {
       }
     };
     load();
-  }, [mods.length, profileState.selectedProfile?.id, setAvailableTags]);
+  }, [mods?.length, profileState.selectedProfile?.id, setAvailableTags]);
 
   // Coordination: refresh after category change
   const handleModsRefreshAfterCategoryChange = useCallback(async () => {

@@ -29,7 +29,7 @@ Fixed keybinding button visibility, preview panel flash on delete, and unnecessa
 - modOperations.ts:129-164: Added preview loading state (`setPreviewLoading(true)`) during delete operation to show spinner instead of empty state
 - modOperations.ts:135-137,153-155,158-160: Show preview loading before delete, clear after completion or on error
 - ModPreviewPanel.tsx:44-53: Removed `mod?.isLoaded` from effect dependencies as load status doesn't affect preview images
-**Architecture**: Optimistic updates now maintain full consistency across all store fields (mods, CategoryFilteredMods, AND selectedMod)
+**Architecture**: Optimistic updates now maintain full consistency across all store fields (mods, categoryFilteredMods, AND selectedMod)
 
 ### Fixed - 2026-03-06 - DropZone Race Condition Prevention ⭐⭐
 Fixed race conditions in dropzone visibility management by implementing bidirectional state checking between frontend and backend.

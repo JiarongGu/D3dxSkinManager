@@ -20,20 +20,18 @@ import { CategoryInfo } from '../../../shared/types/category.types';
 
 export interface ModsState {
   // Mod List Panel
-  mods: ModInfo[];
-  modsLoading: boolean; // Loading state for mod list panel
-  error: string | undefined;
   selectedMod: ModInfo | undefined;
   selectedMods: ModInfo[];
+  mods: ModInfo[] | undefined; // Current mods list (filtered by category)
+  modLoading: boolean; // Loading state for mod list operations (update, delete, refresh)
 
   // Statistics (global mod stats - not affected by category selection)
   statistics: ModStatistics | undefined;
 
   // Category Panel
-  CategoryTree: CategoryInfo[];
-  CategoryLoading: boolean; // Loading state for Category tree panel
+  categoryTree: CategoryInfo[];
+  categoryLoading: boolean; // Loading state for Category tree panel
   selectedCategory: CategoryInfo | undefined;
-  CategoryFilteredMods: ModInfo[] | undefined;
   categorySearch: string;
 
   // Preview Panel
@@ -66,14 +64,12 @@ export interface ModsState {
 
 export interface ModsActions {
   // Mod List Panel Actions
-  setModsLoading: (loading: boolean) => void;
   setSelectedMod: (mod: ModInfo | undefined) => void;
   setSelectedMods: (mods: ModInfo[]) => void;
+  setMods: (mods: ModInfo[] | undefined) => void;
+  setModLoading: (loading: boolean) => void;
   updateModLocal: (sha: string, data: Partial<ModInfo>) => void;
   removeMod: (sha: string) => void;
-  optimisticLoadUpdate: (sha: string, unloadedShas: string[]) => void;
-  optimisticUnloadUpdate: (sha: string) => void;
-  optimisticCategoryUpdate: (sha: string, categoryId: string) => void;
 
   // Statistics Actions
   setStatistics: (statistics: ModStatistics) => void;
@@ -82,7 +78,6 @@ export interface ModsActions {
   setCategoryTree: (tree: CategoryInfo[]) => void;
   setCategoryLoading: (loading: boolean) => void;
   setSelectedCategory: (node: CategoryInfo | undefined) => void;
-  setCategoryFilteredMods: (mods: ModInfo[] | undefined) => void;
 
   // Preview Panel Actions
   setPreviewLoading: (loading: boolean) => void;
@@ -120,20 +115,18 @@ export type ModsStore = ModsState & ModsActions;
 
 const initialState: ModsState = {
   // Mod List Panel
-  mods: [],
-  modsLoading: false,
-  error: undefined,
   selectedMod: undefined,
   selectedMods: [],
+  mods: undefined,
+  modLoading: false,
 
   // Statistics
   statistics: undefined,
 
   // Category Panel
-  CategoryTree: [],
-  CategoryLoading: false,
+  categoryTree: [],
+  categoryLoading: false,
   selectedCategory: undefined,
-  CategoryFilteredMods: undefined,
   categorySearch: '',
 
   // Preview Panel
@@ -172,11 +165,6 @@ export const useModsStore = create<ModsStore>()(
       // Mod Actions
       // ============================================================
 
-      setModsLoading: (loading) =>
-        set((state) => {
-          state.modsLoading = loading;
-        }),
-
       setSelectedMod: (mod) =>
         set((state) => {
           state.selectedMod = mod;
@@ -187,17 +175,25 @@ export const useModsStore = create<ModsStore>()(
           state.selectedMods = mods;
         }),
 
+      setMods: (mods) =>
+        set((state) => {
+          state.mods = mods;
+        }),
+
+      setModLoading: (loading) =>
+        set((state) => {
+          state.modLoading = loading;
+        }),
+
       updateModLocal: (sha, data) =>
         set((state) => {
-          state.mods = state.mods.map((mod: ModInfo) =>
-            mod.sha === sha ? { ...mod, ...data } : mod
-          );
+          // Update selectedMod if it matches
           if (state.selectedMod?.sha === sha) {
             state.selectedMod = { ...state.selectedMod, ...data };
           }
-          // Also update Category filtered mods if present
-          if (state.CategoryFilteredMods) {
-            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) =>
+          // Update mods list if present
+          if (state.mods) {
+            state.mods = state.mods.map((mod: ModInfo) =>
               mod.sha === sha ? { ...mod, ...data } : mod
             );
           }
@@ -205,78 +201,16 @@ export const useModsStore = create<ModsStore>()(
 
       removeMod: (sha) =>
         set((state) => {
-          state.mods = state.mods.filter((mod: ModInfo) => mod.sha !== sha);
+          // Clear selectedMod if it matches
           if (state.selectedMod?.sha === sha) {
             state.selectedMod = undefined;
           }
+          // Remove from selectedMods
           state.selectedMods = state.selectedMods.filter((mod: ModInfo) => mod.sha !== sha);
-          // Also update Category filtered mods if present
-          if (state.CategoryFilteredMods) {
-            state.CategoryFilteredMods = state.CategoryFilteredMods.filter(
+          // Remove from mods list if present
+          if (state.mods) {
+            state.mods = state.mods.filter(
               (mod: ModInfo) => mod.sha !== sha
-            );
-          }
-        }),
-
-      optimisticLoadUpdate: (sha, unloadedShas) =>
-        set((state) => {
-          state.mods = state.mods.map((mod: ModInfo) => {
-            if (mod.sha === sha) {
-              return { ...mod, isLoaded: true, hasCache: true };
-            }
-            if (unloadedShas.includes(mod.sha)) {
-              return { ...mod, isLoaded: false };
-            }
-            return mod;
-          });
-          // Update selectedMod if it's the loaded mod
-          if (state.selectedMod?.sha === sha) {
-            state.selectedMod = { ...state.selectedMod, isLoaded: true, hasCache: true };
-          }
-          // Update selectedMod if it's one of the unloaded mods
-          if (state.selectedMod && unloadedShas.includes(state.selectedMod.sha)) {
-            state.selectedMod = { ...state.selectedMod, isLoaded: false };
-          }
-          // Also update Category filtered mods if present
-          if (state.CategoryFilteredMods) {
-            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) => {
-              if (mod.sha === sha) {
-                return { ...mod, isLoaded: true, hasCache: true };
-              }
-              if (unloadedShas.includes(mod.sha)) {
-                return { ...mod, isLoaded: false };
-              }
-              return mod;
-            });
-          }
-        }),
-
-      optimisticUnloadUpdate: (sha) =>
-        set((state) => {
-          state.mods = state.mods.map((mod: ModInfo) =>
-            mod.sha === sha ? { ...mod, isLoaded: false } : mod
-          );
-          // Update selectedMod if it's the unloaded mod
-          if (state.selectedMod?.sha === sha) {
-            state.selectedMod = { ...state.selectedMod, isLoaded: false };
-          }
-          // Also update Category filtered mods if present
-          if (state.CategoryFilteredMods) {
-            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) =>
-              mod.sha === sha ? { ...mod, isLoaded: false } : mod
-            );
-          }
-        }),
-
-      optimisticCategoryUpdate: (sha, categoryId) =>
-        set((state) => {
-          state.mods = state.mods.map((mod: ModInfo) =>
-            mod.sha === sha ? { ...mod, category: categoryId } : mod
-          );
-          // Also update Category filtered mods if present
-          if (state.CategoryFilteredMods) {
-            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) =>
-              mod.sha === sha ? { ...mod, category: categoryId } : mod
             );
           }
         }),
@@ -296,12 +230,12 @@ export const useModsStore = create<ModsStore>()(
 
       setCategoryTree: (tree) =>
         set((state) => {
-          state.CategoryTree = tree;
+          state.categoryTree = tree;
         }),
 
       setCategoryLoading: (loading) =>
         set((state) => {
-          state.CategoryLoading = loading;
+          state.categoryLoading = loading;
         }),
 
       setPreviewLoading: (loading) =>
@@ -324,11 +258,6 @@ export const useModsStore = create<ModsStore>()(
           state.selectedCategory = node;
         }),
 
-      setCategoryFilteredMods: (mods) =>
-        set((state) => {
-          state.CategoryFilteredMods = mods;
-        }),
-
       setcategorySearch: (search) =>
         set((state) => {
           state.categorySearch = search;
@@ -337,7 +266,7 @@ export const useModsStore = create<ModsStore>()(
       clearCategoryFilter: () =>
         set((state) => {
           state.selectedCategory = undefined;
-          state.CategoryFilteredMods = undefined;
+          state.mods = undefined;
         }),
 
       // ============================================================

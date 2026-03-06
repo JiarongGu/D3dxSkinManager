@@ -1,6 +1,6 @@
 import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useRef, useCallback } from "react";
-import classNames from 'classnames';
+import classNames from "classnames";
 import { Tag, Button, Space, Spin } from "antd";
 import {
   PlayCircleOutlined,
@@ -19,8 +19,6 @@ import { modService } from "../../../../shared/services/ipc";
 import { GradingTag } from "../GradingTag";
 import { TagChip } from "../../../../shared/components/TagChip";
 import { useProfile } from "../../../../shared/context/ProfileContext";
-import { useMods } from "../../hooks/useMods";
-import { useDelayedLoading } from "../../../../shared/hooks/useDelayedLoading";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
 import {
   ContextMenu,
@@ -58,8 +56,6 @@ export const ModList: React.FC<ModListProps> = ({
   const [displayCount, setDisplayCount] = useState(50);
   const observerTarget = useRef<HTMLDivElement>(null);
   const { state: profileState } = useProfile();
-  const { updateModLocal } = useMods();
-  const { loading: deletingCache, execute: executeDeleteCache } = useDelayedLoading(200);
   const menuState = useContextMenu();
   const [contextMenuMod, setContextMenuMod] = useState<ModInfo>();
   const [checkedPaths, setCheckedPaths] = useState<{
@@ -67,7 +63,10 @@ export const ModList: React.FC<ModListProps> = ({
     cachePath: string | undefined;
     thumbnailPath: string | undefined;
   }>();
-  const [deleteConfirm, setDeleteConfirm] = useState<{ visible: boolean; mod?: ModInfo }>({ visible: false });
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    visible: boolean;
+    mod?: ModInfo;
+  }>({ visible: false });
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(
@@ -137,38 +136,40 @@ export const ModList: React.FC<ModListProps> = ({
    */
   const handleDeleteCachedMod = async (mod: ModInfo) => {
     if (!profileState.selectedProfile?.id) {
-      notification.error(t('mods.notifications.noProfileSelected'));
+      notification.error(t("mods.notifications.noProfileSelected"));
       return;
     }
 
     const profileId = profileState.selectedProfile.id;
 
-    await executeDeleteCache(async () => {
-      try {
-        // Delete the cache
-        const success = await modService.deleteCache(profileId, mod.sha);
-        if (success) {
-          notification.success(t('mods.notifications.cacheDeleted', { name: mod.name }));
+    try {
+      // Delete the cache
+      const success = await modService.deleteCache(profileId, mod.sha);
+      if (success) {
+        notification.success(
+          t("mods.notifications.cacheDeleted", { name: mod.name }),
+        );
 
-          // Refresh from backend to update hasCache and other properties
-          await refreshMods(profileId);
+        // Refresh from backend to update hasCache and other properties
+        await refreshMods(profileId);
 
-          // Refresh checked paths after deletion
-          if (contextMenuMod?.sha === mod.sha) {
-            try {
-              const paths = await modService.checkFilePaths(profileId, mod.sha);
-              setCheckedPaths(paths);
-            } catch (error: unknown) {
-                          }
-          }
-        } else {
-          notification.error(t('mods.notifications.deleteCacheFailed'));
-                  }
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        notification.error(`${t('mods.notifications.deleteCacheFailed')}: ${errorMessage}`);
-              }
-    });
+        // Refresh checked paths after deletion
+        if (contextMenuMod?.sha === mod.sha) {
+          try {
+            const paths = await modService.checkFilePaths(profileId, mod.sha);
+            setCheckedPaths(paths);
+          } catch (error: unknown) {}
+        }
+      } else {
+        notification.error(t("mods.notifications.deleteCacheFailed"));
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      notification.error(
+        `${t("mods.notifications.deleteCacheFailed")}: ${errorMessage}`,
+      );
+    }
   };
 
   const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => [
@@ -176,13 +177,13 @@ export const ModList: React.FC<ModListProps> = ({
     !mod.isLoaded
       ? {
           key: "load",
-          label: t('contextMenu.loadMod'),
+          label: t("contextMenu.loadMod"),
           icon: <PlayCircleOutlined />,
           onClick: () => onLoad(mod.sha),
         }
       : {
           key: "unload",
-          label: t('contextMenu.unloadMod'),
+          label: t("contextMenu.unloadMod"),
           icon: <PauseCircleOutlined />,
           onClick: () => onUnload(mod.sha),
         },
@@ -191,27 +192,29 @@ export const ModList: React.FC<ModListProps> = ({
     // Group 2: Edit & Export Operations
     {
       key: "edit",
-      label: t('contextMenu.editModInfo'),
+      label: t("contextMenu.editModInfo"),
       icon: <EditOutlined />,
       onClick: () => {
         if (onEdit) {
           onEdit(mod);
         } else {
-          notification.info(t('mods.notifications.editMod', { name: mod.name }));
+          notification.info(
+            t("mods.notifications.editMod", { name: mod.name }),
+          );
         }
       },
     },
     {
       key: "export",
-      label: t('contextMenu.exportMod'),
+      label: t("contextMenu.exportMod"),
       icon: <ExportOutlined />,
       onClick: async () => {
         const result = await systemService.saveFileDialog({
-          title: t('dialogs.exportMod.title'),
+          title: t("dialogs.exportMod.title"),
           defaultPath: `${mod.name}.zip`,
           filters: [
-            { name: t('dialogs.exportMod.zipArchive'), extensions: ["zip"] },
-            { name: t('dialogs.exportMod.allFiles'), extensions: ["*"] },
+            { name: t("dialogs.exportMod.zipArchive"), extensions: ["zip"] },
+            { name: t("dialogs.exportMod.allFiles"), extensions: ["*"] },
           ],
         });
 
@@ -222,9 +225,11 @@ export const ModList: React.FC<ModListProps> = ({
               mod.sha,
               result.filePath,
             );
-            notification.success(t('mods.notifications.exportSuccess', { name: mod.name }));
+            notification.success(
+              t("mods.notifications.exportSuccess", { name: mod.name }),
+            );
           } catch (error: unknown) {
-            notification.error(t('mods.notifications.exportFailed'));
+            notification.error(t("mods.notifications.exportFailed"));
           }
         } else if (result.error) {
           notification.error(result.error);
@@ -236,20 +241,20 @@ export const ModList: React.FC<ModListProps> = ({
     // Group 3: Copy Operations
     {
       key: "copy-sha",
-      label: t('contextMenu.copySHA'),
+      label: t("contextMenu.copySHA"),
       icon: <CopyOutlined />,
       onClick: () => {
         navigator.clipboard.writeText(mod.sha);
-        notification.success(t('mods.notifications.shaCopied'));
+        notification.success(t("mods.notifications.shaCopied"));
       },
     },
     {
       key: "copy-name",
-      label: t('contextMenu.copyName'),
+      label: t("contextMenu.copyName"),
       icon: <CopyOutlined />,
       onClick: () => {
         navigator.clipboard.writeText(mod.name);
-        notification.success(t('mods.notifications.nameCopied'));
+        notification.success(t("mods.notifications.nameCopied"));
       },
     },
     { type: "divider" as const },
@@ -257,50 +262,48 @@ export const ModList: React.FC<ModListProps> = ({
     // Group 4: File Operations
     {
       key: "view-original",
-      label: t('contextMenu.viewOriginalFile'),
+      label: t("contextMenu.viewOriginalFile"),
       icon: <FileZipOutlined />,
       disabled: !checkedPaths?.originalPath,
       onClick: async () => {
         if (checkedPaths?.originalPath) {
           try {
-            await systemService.openFileInExplorer(
-              checkedPaths.originalPath,
-            );
-            notification.success(t('mods.notifications.openedOriginal'));
+            await systemService.openFileInExplorer(checkedPaths.originalPath);
+            notification.success(t("mods.notifications.openedOriginal"));
           } catch (error: unknown) {
-            notification.error(t('mods.notifications.openOriginalFailed'));
+            notification.error(t("mods.notifications.openOriginalFailed"));
           }
         }
       },
     },
     {
       key: "view-cache",
-      label: t('contextMenu.openCacheFolder'),
+      label: t("contextMenu.openCacheFolder"),
       icon: <FolderOpenOutlined />,
       disabled: !checkedPaths?.cachePath,
       onClick: async () => {
         if (checkedPaths?.cachePath) {
           try {
             await systemService.openDirectory(checkedPaths.cachePath);
-            notification.success(t('mods.notifications.openedCache'));
+            notification.success(t("mods.notifications.openedCache"));
           } catch (error: unknown) {
-            notification.error(t('mods.notifications.openCacheFailed'));
+            notification.error(t("mods.notifications.openCacheFailed"));
           }
         }
       },
     },
     {
       key: "view-preview",
-      label: t('contextMenu.openPreviewFolder'),
+      label: t("contextMenu.openPreviewFolder"),
       icon: <FolderOpenOutlined />,
       disabled: !checkedPaths?.thumbnailPath,
       onClick: async () => {
         if (checkedPaths?.thumbnailPath) {
           try {
             await systemService.openDirectory(checkedPaths.thumbnailPath);
-            notification.success(t('mods.notifications.openedPreview'));
+            notification.success(t("mods.notifications.openedPreview"));
           } catch (error: unknown) {
-            notification.error(t('mods.notifications.openPreviewFailed'));
+            notification.error(t("mods.notifications.openPreviewFailed"));
           }
         }
       },
@@ -310,14 +313,14 @@ export const ModList: React.FC<ModListProps> = ({
     // Group 5: Destructive Operations
     {
       key: "delete-cache",
-      label: t('contextMenu.deleteCachedMod'),
+      label: t("contextMenu.deleteCachedMod"),
       icon: <ClearOutlined />,
       disabled: !checkedPaths?.cachePath,
       onClick: () => handleDeleteCachedMod(mod),
     },
     {
       key: "delete",
-      label: t('contextMenu.deleteMod'),
+      label: t("contextMenu.deleteMod"),
       icon: <DeleteOutlined />,
       danger: true,
       onClick: () => handleShowDeleteConfirm(mod),
@@ -326,7 +329,7 @@ export const ModList: React.FC<ModListProps> = ({
 
   return (
     <>
-      {loading || deletingCache ? (
+      {loading ? (
         <div className="mod-list-loading-container">
           <Spin size="large" />
         </div>
@@ -344,16 +347,20 @@ export const ModList: React.FC<ModListProps> = ({
                 onDragStart={(e) => {
                   // If this mod is part of multi-selection, drag all selected mods
                   if (isInMultiSelection && selectedModShas.length > 1) {
-                    e.dataTransfer.setData("application/mod-shas", JSON.stringify(selectedModShas));
+                    e.dataTransfer.setData(
+                      "application/mod-shas",
+                      JSON.stringify(selectedModShas),
+                    );
                   } else {
                     // Single mod drag
                     e.dataTransfer.setData("application/mod-sha", mod.sha);
                   }
                   e.dataTransfer.effectAllowed = "move";
                 }}
-                className={classNames('mod-list-item', {
-                  'mod-list-item-selected': isPrimarySelection,
-                  'mod-list-item-multi-selected': isInMultiSelection && !isPrimarySelection
+                className={classNames("mod-list-item", {
+                  "mod-list-item-selected": isPrimarySelection,
+                  "mod-list-item-multi-selected":
+                    isInMultiSelection && !isPrimarySelection,
                 })}
                 onClick={(e) => {
                   onRowClick?.(mod, e);
@@ -371,7 +378,7 @@ export const ModList: React.FC<ModListProps> = ({
                       );
                       setCheckedPaths(paths);
                     } catch (error: unknown) {
-                                            setCheckedPaths({
+                      setCheckedPaths({
                         originalPath: undefined,
                         cachePath: undefined,
                         thumbnailPath: undefined,
@@ -394,7 +401,7 @@ export const ModList: React.FC<ModListProps> = ({
                     <span className="mod-list-item-name">{mod.name}</span>
                     {mod.isLoaded && (
                       <Tag color="success" className="mod-list-item-loaded-tag">
-                        {t('mods.list.loaded')}
+                        {t("mods.list.loaded")}
                       </Tag>
                     )}
                   </div>
@@ -406,12 +413,14 @@ export const ModList: React.FC<ModListProps> = ({
                       </Tag>
                     )}
                     <Tag color="geekblue" className="mod-list-item-tag">
-                      {mod.categoryName || t('category.unclassified')}
+                      {mod.categoryName || t("category.unclassified")}
                     </Tag>
                     {mod.tags &&
                       mod.tags.slice(0, 3).map((tagName) => {
                         // Use pre-loaded tag data if available
-                        const tagData = mod.tagsWithMetadata?.find(t => t.name === tagName);
+                        const tagData = mod.tagsWithMetadata?.find(
+                          (t) => t.name === tagName,
+                        );
                         return (
                           <TagChip
                             key={tagName}
@@ -424,7 +433,7 @@ export const ModList: React.FC<ModListProps> = ({
                       })}
                     {mod.tags && mod.tags.length > 3 && (
                       <Tag className="mod-list-item-tag" color="default">
-                        +{mod.tags.length - 3} {t('mods.list.more')}
+                        +{mod.tags.length - 3} {t("mods.list.more")}
                       </Tag>
                     )}
                   </Space>
@@ -449,18 +458,24 @@ export const ModList: React.FC<ModListProps> = ({
                           onLoad(mod.sha);
                         }
                       }}
-                      title={mod.isLoaded ? t('mods.list.unloadMod') : t('mods.list.loadMod')}
+                      title={
+                        mod.isLoaded
+                          ? t("mods.list.unloadMod")
+                          : t("mods.list.loadMod")
+                      }
                       className="mod-list-item-action-button"
                     />
                     <Button
                       type="text"
                       size="middle"
-                      icon={<EditOutlined className="mod-list-item-action-icon" />}
+                      icon={
+                        <EditOutlined className="mod-list-item-action-icon" />
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
                         onEdit?.(mod);
                       }}
-                      title={t('mods.list.editMod')}
+                      title={t("mods.list.editMod")}
                       className="mod-list-item-action-button"
                     />
                   </div>
@@ -474,14 +489,14 @@ export const ModList: React.FC<ModListProps> = ({
       {/* Infinite scroll trigger */}
       {displayCount < mods.length && (
         <div ref={observerTarget} className="mod-list-scroll-trigger">
-          {t('mods.list.loadingMore')}
+          {t("mods.list.loadingMore")}
         </div>
       )}
 
       {/* Show total count */}
       {displayCount >= mods.length && mods.length > 50 && (
         <div className="mod-list-total-count">
-          {t('mods.list.showingAll', { count: mods.length })}
+          {t("mods.list.showingAll", { count: mods.length })}
         </div>
       )}
 
@@ -501,10 +516,12 @@ export const ModList: React.FC<ModListProps> = ({
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         visible={deleteConfirm.visible}
-        title={t('contextMenu.deleteMod')}
-        content={t('mods.notifications.confirmDelete', { name: deleteConfirm.mod?.name || '' })}
-        okText={t('common.delete')}
-        cancelText={t('common.cancel')}
+        title={t("contextMenu.deleteMod")}
+        content={t("mods.notifications.confirmDelete", {
+          name: deleteConfirm.mod?.name || "",
+        })}
+        okText={t("common.delete")}
+        cancelText={t("common.cancel")}
         okType="danger"
         onOk={handleConfirmDelete}
         onCancel={() => setDeleteConfirm({ visible: false })}

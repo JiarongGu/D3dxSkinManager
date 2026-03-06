@@ -7,14 +7,14 @@ import { debounce } from 'lodash-es';
 
 import { useModsStore } from '../store/modsStore';
 import { CategoryInfo, CATEGORY_IDS } from '../../../shared/types/category.types';
-import { ModInfo } from '../../../shared/types/mod.types';
 import { notification } from '../../../shared/utils/notification';
 import { categoryService, modService } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
 
 /**
- * Update mod category with optimistic updates and tree count recalculation
+ * Update mod category
+ * Backend will fire MOD_LIST_UPDATED and CATEGORY_TREE_UPDATED events which trigger refresh via ModProvider
  */
 export async function updateModCategory(
   profileId: string,
@@ -22,46 +22,15 @@ export async function updateModCategory(
   categoryId: string,
   onMismatch?: () => void
 ): Promise<boolean> {
-  const state = useModsStore.getState();
-
-  // Find the mod being updated
-  const modBeingUpdated = state.mods.find((m) => m.sha === sha);
-  const oldCategoryId = modBeingUpdated?.category;
-
-  // If moving to the same category, do nothing
-  if (oldCategoryId === categoryId) {
-    return true;
-  }
-
-  // Capture current state for rollback
-  const currentMods = state.mods;
-  const currentTree = state.CategoryTree;
-
-  // Calculate optimistic tree with updated counts
-  const optimisticTree = updateTreeCounts(
-    currentTree,
-    currentMods,
-    oldCategoryId,
-    categoryId
-  );
-
-  // 1. Apply optimistic updates to mod and tree (Zustand automatically updates all slices)
-  state.optimisticCategoryUpdate(sha, categoryId);
-  state.setCategoryTree(optimisticTree);
-
   try {
-    // 2. Perform backend operation
+    // Perform backend operation
     await modService.updateCategory(profileId, sha, categoryId);
     notification.success('Category updated');
 
+    // Backend fires MOD_LIST_UPDATED and CATEGORY_TREE_UPDATED events
+    // → ModProvider refreshes mods and category tree automatically
     return true;
   } catch (error: unknown) {
-    // 4. Revert optimistic update on error
-    if (modBeingUpdated) {
-      state.optimisticCategoryUpdate(sha, modBeingUpdated.category);
-    }
-    state.setCategoryTree(currentTree);
-
     notification.error('Failed to update category');
 
     // Refresh tree on error to ensure counts are correct
@@ -70,70 +39,6 @@ export async function updateModCategory(
     }
     return false;
   }
-}
-
-/**
- * Helper function to update tree counts when moving a mod between categories
- * Logic: -1 from old category, +1 to new category UNLESS new is ancestor of old
- *
- * This is the SINGLE SOURCE OF TRUTH for tree count calculation
- */
-function updateTreeCounts(
-  tree: CategoryInfo[],
-  mods: ModInfo[],
-  oldCategory: string | undefined,
-  newCategory: string
-): CategoryInfo[] {
-  // Check if newCategory is an ancestor of oldCategory
-  const isAncestor = (
-    tree: CategoryInfo[],
-    ancestorId: string,
-    childId: string
-  ): boolean => {
-    for (const node of tree) {
-      if (node.id === ancestorId) {
-        // Found the potential ancestor, check if childId exists in its subtree
-        const hasChild = (n: CategoryInfo): boolean => {
-          if (n.id === childId) return true;
-          if (n.children) {
-            return n.children.some(hasChild);
-          }
-          return false;
-        };
-        return hasChild(node);
-      }
-      if (node.children && isAncestor(node.children, ancestorId, childId)) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  const movingToAncestor = oldCategory ? isAncestor(tree, newCategory, oldCategory) : false;
-
-  const updateNode = (node: CategoryInfo): CategoryInfo => {
-    let updatedNode = { ...node };
-
-    // Decrement old category
-    if (oldCategory && node.id === oldCategory) {
-      updatedNode.modCount = Math.max(0, (node.modCount || 0) - 1);
-    }
-
-    // Increment new category ONLY if not moving to ancestor
-    // (if moving to ancestor, the count stays the same because child count already contributes to parent)
-    if (node.id === newCategory && !movingToAncestor) {
-      updatedNode.modCount = (node.modCount || 0) + 1;
-    }
-
-    // Recursively update children
-    if (node.children && node.children.length > 0) {
-      updatedNode.children = node.children.map(updateNode);
-    }
-
-    return updatedNode;
-  };
-
-  return tree.map(updateNode);
 }
 
 /**
@@ -208,13 +113,13 @@ async function _loadModsByCategory(
   profileId: string,
   nodeId: string
 ): Promise<void> {
-  const { setCategoryLoading, setCategoryFilteredMods } = useModsStore.getState();
+  const { setCategoryLoading, setMods } = useModsStore.getState();
 
   try {
     await executeWithDelayedLoading(
       async () => {
         const mods = await modService.getModsByCategory(profileId, nodeId);
-        setCategoryFilteredMods(mods);
+        setMods(mods);
       },
       setCategoryLoading,
       100
@@ -235,13 +140,13 @@ export const loadModsByCategory = debounce(_loadModsByCategory, 10);
  * Uses delayed loading (100ms) to avoid flicker for fast queries
  */
 export async function loadUncategorizedMods(profileId: string): Promise<void> {
-  const { setCategoryLoading, setCategoryFilteredMods } = useModsStore.getState();
+  const { setCategoryLoading, setMods } = useModsStore.getState();
 
   try {
     await executeWithDelayedLoading(
       async () => {
         const mods = await modService.getUnclassifiedMods(profileId);
-        setCategoryFilteredMods(mods);
+        setMods(mods);
       },
       setCategoryLoading,
       100
@@ -268,7 +173,7 @@ export async function selectCategory(
   const state = useModsStore.getState();
 
   // Find the node in the tree
-  const findNode = (nodes: typeof state.CategoryTree): typeof state.selectedCategory => {
+  const findNode = (nodes: typeof state.categoryTree): typeof state.selectedCategory => {
     for (const node of nodes) {
       if (node.id === nodeId) return node;
       if (node.children) {
@@ -279,7 +184,7 @@ export async function selectCategory(
     return undefined;
   };
 
-  const node = findNode(state.CategoryTree);
+  const node = findNode(state.categoryTree);
   state.setSelectedCategory(node);
 
   // Load mods for this Category

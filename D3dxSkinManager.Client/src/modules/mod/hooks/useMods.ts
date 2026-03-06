@@ -27,7 +27,6 @@ export function useMods() {
     refreshMods: () => selectedProfileId && modOps.refreshMods(selectedProfileId),
     updateMod: (sha: string, data: Partial<ModInfo>) =>
       selectedProfileId && modOps.updateMod(selectedProfileId, sha, data),
-    updateModLocal: modOps.updateModLocal,
     deleteMod: (sha: string) => selectedProfileId && modOps.deleteMod(selectedProfileId, sha),
 
     // Load operations

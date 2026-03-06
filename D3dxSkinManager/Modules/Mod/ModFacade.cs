@@ -106,6 +106,7 @@ public class ModFacade : BaseFacade, IModFacade
             "IMPORT_PREVIEW_IMAGE" => await ImportPreviewImageAsync(request),
             "CHECK_CLIPBOARD_HAS_IMAGE" => await CheckClipboardHasImageAsync(),
             "IMPORT_PREVIEW_FROM_CLIPBOARD" => await ImportPreviewFromClipboardAsync(request),
+            "COPY_PREVIEW_TO_CLIPBOARD" => await CopyPreviewToClipboardAsync(request),
             "GET_PREVIEW_PATHS" => await GetPreviewPathsAsync(request),
             "SET_THUMBNAIL" => await SetThumbnailAsync(request),
             "DELETE_PREVIEW" => await DeletePreviewAsync(request),
@@ -285,6 +286,12 @@ public class ModFacade : BaseFacade, IModFacade
         return await _imageService.ImportPreviewFromClipboardAsync(sha).ConfigureAwait(false);
     }
 
+    public async Task<bool> CopyPreviewToClipboardAsync(string previewPath)
+    {
+        // Delegate to ImageService
+        return await _imageService.CopyPreviewToClipboardAsync(previewPath).ConfigureAwait(false);
+    }
+
     public async Task<List<string>> GetPreviewPathsAsync(string sha)
     {
         // Delegate auto-import to ImageService
@@ -425,6 +432,15 @@ public class ModFacade : BaseFacade, IModFacade
         var success = await ImportPreviewFromClipboardAsync(sha).ConfigureAwait(false);
 
         return new { success, message = $"Preview image imported from clipboard for mod: {sha}" };
+    }
+
+    private async Task<object> CopyPreviewToClipboardAsync(IpcRequest request)
+    {
+        var previewPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "previewPath");
+
+        var success = await CopyPreviewToClipboardAsync(previewPath).ConfigureAwait(false);
+
+        return new { success, message = $"Preview image copied to clipboard: {previewPath}" };
     }
 
     private async Task<List<string>> GetPreviewPathsAsync(IpcRequest request)

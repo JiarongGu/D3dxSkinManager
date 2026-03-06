@@ -285,6 +285,20 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Copy a preview image to clipboard
+   */
+  async copyPreviewToClipboard(profileId: string, previewPath: string): Promise<boolean> {
+    const result = await this.sendMessage<{ success: boolean; message: string }>(
+      'COPY_PREVIEW_TO_CLIPBOARD',
+      profileId,
+      {
+        previewPath
+      }
+    );
+    return result.success;
+  }
+
+  /**
    * Set a preview image as the mod thumbnail
    */
   async setThumbnail(profileId: string, sha: string, previewPath: string): Promise<boolean> {

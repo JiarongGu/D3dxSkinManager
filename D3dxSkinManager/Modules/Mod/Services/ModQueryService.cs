@@ -11,7 +11,6 @@ public interface IModQueryService
     Task<List<ModInfo>> SearchAsync(string searchTerm);
     Task<List<ModInfo>> FilterAsync(string? category = null, string? author = null,
         string? grading = null, bool? isLoaded = null, bool? isAvailable = null);
-    Task<Dictionary<string, List<ModInfo>>> GetGroupedByObjectAsync();
     Task<ModStatistics> GetStatisticsAsync();
     Task<List<ModInfo>> GetModsByCategoryAsync(string categoryId);
     Task<List<ModInfo>> GetUnclassifiedModsAsync();
@@ -28,13 +27,16 @@ public class ModQueryService : IModQueryService
 {
     private readonly IModRepository _repository;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly IModEnrichmentService _enrichmentService;
 
     public ModQueryService(
         IModRepository repository,
-        ICategoryRepository categoryRepository)
+        ICategoryRepository categoryRepository,
+        IModEnrichmentService enrichmentService)
     {
         _repository = repository;
         _categoryRepository = categoryRepository;
+        _enrichmentService = enrichmentService;
     }
 
     /// <summary>
@@ -129,36 +131,27 @@ public class ModQueryService : IModQueryService
     }
 
     /// <summary>
-    /// Get mods grouped by object name
-    /// </summary>
-    public async Task<Dictionary<string, List<ModInfo>>> GetGroupedByObjectAsync()
-    {
-        var mods = await _repository.GetAllAsync().ConfigureAwait(false);
-        var sortedMods = SortMods(mods);
-
-        return sortedMods.GroupBy(m => m.Category)
-                   .ToDictionary(g => g.Key, g => g.ToList());
-    }
-
-    /// <summary>
     /// Get statistics about mods
+    /// IMPORTANT: Enriches mods to populate IsLoaded and IsAvailable flags from file system
     /// </summary>
     public async Task<ModStatistics> GetStatisticsAsync()
     {
         var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
+
+        // CRITICAL: Populate status flags (IsLoaded, IsAvailable) by scanning directories
+        // Without this, IsLoaded and IsAvailable will always be false!
+        _enrichmentService.PopulateStatusFlags(allMods);
 
         return new ModStatistics
         {
             TotalMods = allMods.Count,
             LoadedMods = allMods.Count(m => m.IsLoaded),
             AvailableMods = allMods.Count(m => m.IsAvailable),
-            UniqueObjects = allMods.Select(m => m.Category).Distinct().Count(),
-            UniqueAuthors = allMods.Where(m => !string.IsNullOrEmpty(m.Author))
+            TotalCategories = allMods.Select(m => m.Category).Distinct().Count(),
+            TotalAuthors = allMods.Where(m => !string.IsNullOrEmpty(m.Author))
                                     .Select(m => m.Author)
                                     .Distinct()
-                                    .Count(),
-            ModsByGrading = allMods.GroupBy(m => m.Grading)
-                                    .ToDictionary(g => g.Key, g => g.Count())
+                                    .Count()
         };
     }
 

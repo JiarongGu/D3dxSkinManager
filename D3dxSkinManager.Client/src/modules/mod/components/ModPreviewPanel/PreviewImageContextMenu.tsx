@@ -125,6 +125,19 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
     onClose();
   };
 
+  const handleCopyImageToClipboard = async () => {
+    if (!mod || !profileId) return;
+    const currentImagePath = allImagePaths[currentImageIndex];
+
+    try {
+      await modService.copyPreviewToClipboard(profileId, currentImagePath);
+      notification.success(t("mods.preview.imageCopied"));
+    } catch (error: unknown) {
+      notification.error(t("mods.preview.imageCopyFailed"));
+    }
+    onClose();
+  };
+
   const handleDeletePreview = () => {
     onClose();
     setDeleteConfirmVisible(true);
@@ -230,11 +243,12 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
   // Context menu items (show only relevant items based on state)
   const contextMenuItems: ContextMenuItem[] = hasImages
     ? [
+        // Group 1: Common Actions (Clipboard Operations)
         {
-          key: "add-from-file",
-          label: t("mods.preview.addFromFile"),
-          icon: <PlusOutlined />,
-          onClick: handleAddFromFile,
+          key: "copy-image",
+          label: t("mods.preview.copyToClipboard"),
+          icon: <CopyOutlined />,
+          onClick: handleCopyImageToClipboard,
         },
         {
           key: "paste-clipboard",
@@ -242,9 +256,6 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
           icon: <SnippetsOutlined />,
           onClick: handlePasteFromClipboard,
           disabled: !clipboardHasImage,
-        },
-        {
-          type: "divider",
         },
         {
           key: "set-thumbnail",
@@ -256,6 +267,7 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
         {
           type: "divider",
         },
+        // Group 2: File/Folder Navigation
         {
           key: "open-cache-folder",
           label: t("mods.preview.openCacheFolder"),
@@ -278,6 +290,13 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
         },
         {
           type: "divider",
+        },
+        // Group 3: Less Common / Destructive Actions
+        {
+          key: "add-from-file",
+          label: t("mods.preview.addFromFile"),
+          icon: <PlusOutlined />,
+          onClick: handleAddFromFile,
         },
         {
           key: "toggle-preview",

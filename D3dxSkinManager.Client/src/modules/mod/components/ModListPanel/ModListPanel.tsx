@@ -1,12 +1,13 @@
-import React, { useMemo, useRef, useState, useCallback } from "react";
-import { Layout, Empty, Input, Button, Tooltip } from "antd";
+import React, { useMemo, useState, useCallback } from "react";
+import { Layout, Empty, Input, Button } from "antd";
 import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
+
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { ModList } from "./ModList";
 import { ModListStatusBar } from "./ModListStatusBar";
 import { useModsStore } from "../../store/modsStore";
 import { useMods } from "../../hooks/useMods";
-import { useTranslation } from "react-i18next";
 import { useDropZone } from "../../../../shared/hooks/useDropZone";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { workflowService } from "../../../../shared/services/ipc";
@@ -26,12 +27,11 @@ const { Search } = Input;
  */
 export const ModListPanel: React.FC = () => {
   // Subscribe to state this component needs
-  const mods = useModsStore((s) => s.mods);
-  const loading = useModsStore((s) => s.modsLoading); // Mod list panel loading state
+  const loading = useModsStore((s) => s.modLoading); // Mod loading state
   const selectedMod = useModsStore((s) => s.selectedMod);
   const searchQuery = useModsStore((s) => s.searchQuery);
   const selectedCategory = useModsStore((s) => s.selectedCategory);
-  const CategoryFilteredMods = useModsStore((s) => s.CategoryFilteredMods);
+  const mods = useModsStore((s) => s.mods);
 
   // Get operations
   const {
@@ -89,13 +89,8 @@ export const ModListPanel: React.FC = () => {
 
   // Compute filtered mods based on search and Category
   const filteredMods = useMemo(() => {
-    // If a Category is selected, use Category-filtered mods
-    let result: ModInfo[];
-    if (selectedCategory) {
-      result = CategoryFilteredMods || [];
-    } else {
-      result = mods;
-    }
+    // Always use Category-filtered mods (empty array if no category selected)
+    let result: ModInfo[] = mods || [];
 
     // Apply mod search filter
     if (searchQuery) {
@@ -114,8 +109,6 @@ export const ModListPanel: React.FC = () => {
     return result;
   }, [
     mods,
-    CategoryFilteredMods,
-    selectedCategory,
     searchQuery,
   ]);
 

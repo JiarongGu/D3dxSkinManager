@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useMods } from "../../hooks/useMods";
 import { useModsStore } from "../../store/modsStore";
 import { useStableRef } from "../../../../shared/hooks/useStableRef";
@@ -12,17 +12,9 @@ import { notification } from "../../../../shared/utils/notification";
 export function useModCategoryUpdate() {
   const { updateModCategory: updateModCategoryOp, updateModsCategory: updateModsCategoryOp } = useMods();
   const mods = useModsStore(s => s.mods);
-  const categoryFilteredMods = useModsStore(s => s.CategoryFilteredMods);
-
-  // Combine both mod lists to ensure we can find the mod name
-  // When a category is selected, the mod being dragged is in categoryFilteredMods, not in mods
-  // Memoize to avoid creating new array on every render
-  const allMods = useMemo(() => {
-    return categoryFilteredMods ? [...mods, ...categoryFilteredMods] : mods;
-  }, [mods, categoryFilteredMods]);
 
   // Store mods in a stable ref to avoid closure issues
-  const modsRef = useStableRef(allMods);
+  const modsRef = useStableRef(mods ?? []);
 
   /**
    * Update a mod's category with optimistic updates
@@ -33,7 +25,7 @@ export function useModCategoryUpdate() {
   const updateModCategory = useCallback(
     async (modSha: string, categoryId: string, categoryName: string) => {
       // Find the mod name if not provided
-      const mod = modsRef.current.find((m) => m.sha === modSha);
+      const mod = modsRef.current.find((m: { sha: string }) => m.sha === modSha);
       const modName = mod?.name || modSha;
 
       try {

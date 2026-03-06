@@ -10,7 +10,6 @@ public class ModStatistics
     public int TotalMods { get; set; }
     public int LoadedMods { get; set; }
     public int AvailableMods { get; set; }
-    public int UniqueObjects { get; set; }
-    public int UniqueAuthors { get; set; }
-    public Dictionary<string, int> ModsByGrading { get; set; } = new();
+    public int TotalCategories { get; set; }
+    public int TotalAuthors { get; set; }
 }
