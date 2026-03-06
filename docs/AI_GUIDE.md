@@ -338,7 +338,7 @@ await _eventBus.EmitAsync(
 eventBus.subscribe(
   Module.MOD,
   ModEventType.LOADED,
-  (event) => console.log(event.payload.sha)
+  (event) => logger.info(event.payload.sha)
 );
 ```
 

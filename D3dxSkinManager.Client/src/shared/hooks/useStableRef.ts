@@ -8,7 +8,7 @@ import { useRef, useEffect } from 'react';
  * ```tsx
  * const itemsRef = useStableRef(items);
  * const handleClick = useCallback(() => {
- *   console.log(itemsRef.current.length); // Always current
+ *   logger.info(itemsRef.current.length); // Always current
  * }, []); // No deps needed
  * ```
  *

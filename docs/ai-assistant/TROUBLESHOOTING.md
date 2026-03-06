@@ -339,7 +339,7 @@ if (window.chrome?.webview?.postMessage) {
     window.chrome.webview.postMessage(JSON.stringify(message));
 } else {
     // Development fallback
-    console.log('[Dev Mode] Simulating backend response');
+    logger.info('[Dev Mode] Simulating backend response');
     this.simulateBackendResponse(message);
 }
 ```

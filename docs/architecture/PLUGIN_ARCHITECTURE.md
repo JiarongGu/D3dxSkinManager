@@ -228,8 +228,8 @@ const response = await ipc.send("PLUGIN", "GET_ALL");
 const plugins = response.data; // List<PluginInfo>
 
 plugins.forEach(plugin => {
-    console.log(`${plugin.name} v${plugin.version}`);
-    console.log(`Capabilities: ${plugin.capabilities.join(", ")}`);
+    logger.info(`${plugin.name} v${plugin.version}`);
+    logger.info(`Capabilities: ${plugin.capabilities.join(", ")}`);
 });
 ```
 
@@ -247,7 +247,7 @@ const result = await ipc.send("PLUGIN", "INVOKE", {
 });
 
 if (result.success) {
-    console.log("Plugin UI opened:", result.data);
+    logger.info("Plugin UI opened:", result.data);
 }
 ```
 

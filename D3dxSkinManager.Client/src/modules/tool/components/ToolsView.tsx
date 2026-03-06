@@ -15,6 +15,7 @@ import { CompactCard } from '../../../shared/components/compact';
 import { api } from '../../../shared/services/ipc';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import './ToolsView.css';
+import logger from '../../../shared/utils/logger';
 
 interface ToolCardData {
   key: string;
@@ -85,16 +86,16 @@ export const ToolsView: React.FC = () => {
     // Special handling for Screen Capture - toggle WinForm control panel
     if (tool.key === 'screen-capture') {
       if (!selectedProfileId) {
-        console.error('[ToolsView] No profile selected');
+        logger.error('[ToolsView] No profile selected');
         return;
       }
-      console.log('[ToolsView] Calling api.tool.toggleControlPanel()...');
+      logger.info('[ToolsView] Calling api.tool.toggleControlPanel()...');
       api.tool.toggleControlPanel(selectedProfileId)
         .then(() => {
-          console.log('[ToolsView] Control panel toggled successfully');
+          logger.info('[ToolsView] Control panel toggled successfully');
         })
         .catch((error) => {
-          console.error('[ToolsView] Failed to toggle capture control panel:', error);
+          logger.error('[ToolsView] Failed to toggle capture control panel:', error);
         });
       return;
     }

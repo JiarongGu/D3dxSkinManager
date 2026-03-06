@@ -3,7 +3,7 @@
  * No longer manages state (moved to Zustand store)
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { useProfile } from '../../shared/context/ProfileContext';
 import { useModsStore } from './store/modsStore';
 import { eventBus, ModEventType, CategoryEventType, ProfileEventType, Module } from '../../shared/services/eventBus';
@@ -11,6 +11,7 @@ import { profileService } from '../../shared/services/ipc';
 import * as modOps from './operations/modOperations';
 import * as categoryOps from './operations/categoryOperations';
 import { debounce } from 'lodash-es';
+import { logger } from '../../shared/utils/logger';
 
 interface ModsProviderProps {
   children: React.ReactNode;
@@ -34,10 +35,13 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   const reset = useModsStore((state) => state.reset);
   const setPanelSizes = useModsStore((state) => state.setPanelSizes);
 
+  // Track the current work path to detect changes
+  const workPathRef = useRef<string | null>(null);
+
   // Load panel sizes from profile config
   const loadPanelSizes = useCallback(async () => {
     if (!selectedProfileId) {
-      console.log('[ModProvider] No profile selected, using default panel sizes');
+      logger.info('[ModProvider] No profile selected, using default panel sizes');
       return;
     }
 
@@ -47,7 +51,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       const lockedCategories = config?.tabs?.mod?.lockedExpandedCategories || [];
 
       if (panelSize) {
-        console.log('[ModProvider] Loading panel sizes from profile config:', panelSize);
+        logger.info('[ModProvider] Loading panel sizes from profile config:', panelSize);
         const [category, modList] = panelSize.split(' ').map(Number);
         if (!isNaN(category) && !isNaN(modList)) {
           const sizes = {
@@ -55,22 +59,44 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
             modListWidth: modList,
             previewWidth: 100 - category - modList
           };
-          console.log('[ModProvider] Setting panel sizes:', sizes);
+          logger.info('[ModProvider] Setting panel sizes:', sizes);
           setPanelSizes(sizes);
         } else {
-          console.warn('[ModProvider] Invalid panel size format:', panelSize);
+          logger.warn('[ModProvider] Invalid panel size format:', panelSize);
         }
       } else {
-        console.log('[ModProvider] No panel sizes found in profile config, using defaults');
+        logger.info('[ModProvider] No panel sizes found in profile config, using defaults');
       }
 
       // Load locked expanded categories
-      console.log('[ModProvider] Loading locked expanded categories:', lockedCategories);
+      logger.info('[ModProvider] Loading locked expanded categories:', lockedCategories);
       useModsStore.getState().setLockedCategories(lockedCategories);
     } catch (error) {
-      console.error('[ModProvider] Failed to load panel sizes:', error);
+      logger.error('[ModProvider] Failed to load panel sizes:', error);
     }
   }, [selectedProfileId, setPanelSizes]);
+
+  // Check if work path changed and refresh mods/categories if needed
+  const checkWorkPathChange = useCallback(async () => {
+    if (!selectedProfileId) return;
+
+    const config = await profileService.getProfileConfiguration(selectedProfileId);
+    const newWorkPath = config?.work?.mode === 'external'
+      ? config?.work?.directory
+      : config?.work?.internalWorkDirectory;
+
+    const oldWorkPath = workPathRef.current;
+
+    // Only refresh if work path actually changed
+    if (oldWorkPath !== newWorkPath) {
+      logger.info('[ModProvider] Work path changed from', oldWorkPath, 'to', newWorkPath, '- refreshing mods and categories');
+      workPathRef.current = newWorkPath || null;
+      void modOps.refreshMods(selectedProfileId);
+      void categoryOps.refreshCategoryTree(selectedProfileId);
+    } else {
+      logger.info('[ModProvider] Config updated but work path unchanged - skipping refresh');
+    }
+  }, [selectedProfileId]);
 
   // Debounced handler for mod list updates (20ms prevents rapid-fire events)
   // Also refreshes statistics since they depend on mod list state
@@ -104,7 +130,10 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
     const unsubscribeProfileConfigChanged = eventBus.subscribe(
       Module.PROFILE,
       ProfileEventType.CONFIG_UPDATED,
-      () => void loadPanelSizes()
+      () => {
+        void loadPanelSizes();
+        void checkWorkPathChange();
+      }
     );
 
     const unsubscribeModListUpdated = eventBus.subscribe(
@@ -148,7 +177,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       unsubscribeThumbnailUpdated();
       unsubscribePreviewDeleted();
     };
-  }, [selectedProfileId, loadPanelSizes, handleModListUpdate, handleCategoryTreeUpdate]);
+  }, [selectedProfileId, loadPanelSizes, checkWorkPathChange, handleModListUpdate, handleCategoryTreeUpdate]);
 
   // Reload data on profile change
   useEffect(() => {

@@ -117,7 +117,7 @@ class ModList extends React.Component { }
 // Use useStableRef for callbacks
 const itemsRef = useStableRef(items);
 const handleClick = useCallback(() => {
-  console.log(itemsRef.current.length);  // Always current
+  logger.info(itemsRef.current.length);  // Always current
 }, []);  // No deps needed
 ```
 
@@ -126,7 +126,7 @@ const handleClick = useCallback(() => {
 ```typescript
 // BAD - Stale closure
 const handleClick = useCallback(() => {
-  console.log(items.length);  // May be stale!
+  logger.info(items.length);  // May be stale!
 }, [items]);  // Recreates on every change
 ```
 

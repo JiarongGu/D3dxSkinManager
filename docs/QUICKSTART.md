@@ -242,7 +242,7 @@ Start exploring these key areas:
 3. Only restart backend when changing C# code
 
 ### Debugging
-- **Frontend**: Browser DevTools (console.log)
+- **Frontend**: Browser DevTools (logger.info)
 - **Backend**: Add breakpoints in Visual Studio / VS Code
 
 ### Testing Changes

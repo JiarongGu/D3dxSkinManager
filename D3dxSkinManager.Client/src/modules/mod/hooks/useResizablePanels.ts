@@ -3,6 +3,7 @@ import { debounce } from 'lodash-es';
 import { useModsStore } from '../store/modsStore';
 import { profileService } from '../../../shared/services/ipc';
 import { useProfile } from '../../../shared/context/ProfileContext';
+import logger from '../../../shared/utils/logger';
 
 interface PanelSizes {
   categoryWidth: number; // percentage
@@ -29,7 +30,7 @@ export function useResizablePanels() {
   const debouncedSave = useMemo(
     () => debounce(async (newSizes: PanelSizes, profileId: string | undefined) => {
       if (!profileId) {
-        console.warn('[useResizablePanels] No profile selected, cannot save panel sizes');
+        logger.warn('[useResizablePanels] No profile selected, cannot save panel sizes');
         return;
       }
 
@@ -39,10 +40,10 @@ export function useResizablePanels() {
         const modListWidth = Math.round(newSizes.modListWidth * 10) / 10;
         const panelSize = `${categoryWidth} ${modListWidth}`;
 
-        console.log('[useResizablePanels] Saving panel sizes for profile', profileId, ':', panelSize, 'Preview:', Math.round(newSizes.previewWidth * 10) / 10);
+        logger.info('[useResizablePanels] Saving panel sizes for profile', profileId, ':', panelSize, 'Preview:', Math.round(newSizes.previewWidth * 10) / 10);
         await profileService.updateModPanelSize(profileId, panelSize);
       } catch (error: unknown) {
-        console.error('[useResizablePanels] Failed to save panel sizes:', error);
+        logger.error('[useResizablePanels] Failed to save panel sizes:', error);
       }
     }, 200), // 200ms delay
     []

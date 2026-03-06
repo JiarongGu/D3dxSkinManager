@@ -30,7 +30,7 @@ function MyComponent({ items }: { items: Item[] }) {
   // Later, items updates to [item1, item2, item3]
 
   const handleClick = useCallback(() => {
-    console.log(items.length); // Logs 0, even though items has 3 items!
+    logger.info(items.length); // Logs 0, even though items has 3 items!
   }, [items]); // items IS in dependency array!
 
   // This callback is passed to a third-party library or stored in a ref
@@ -58,7 +58,7 @@ When a function is created, it "closes over" variables from its surrounding scop
 const items = [1, 2, 3];
 
 const callback = () => {
-  console.log(items); // Captures [1, 2, 3]
+  logger.info(items); // Captures [1, 2, 3]
 };
 
 // Later...
@@ -72,10 +72,10 @@ callback(); // Still logs [1, 2, 3]
 
 ```tsx
 // Render 1: items = []
-const callback1 = useCallback(() => console.log(items), [items]); // Captures []
+const callback1 = useCallback(() => logger.info(items), [items]); // Captures []
 
 // Render 2: items = [1, 2, 3]
-const callback2 = useCallback(() => console.log(items), [items]); // Captures [1, 2, 3]
+const callback2 = useCallback(() => logger.info(items), [items]); // Captures [1, 2, 3]
 
 // callback1 !== callback2 (different function references)
 ```
@@ -107,7 +107,7 @@ function MyComponent({ items }: { items: Item[] }) {
 
   const handleClick = useCallback(() => {
     // Always accesses current items
-    console.log(itemsRef.current.length);
+    logger.info(itemsRef.current.length);
   }, []); // Empty deps - callback never recreated
 
   useEffect(() => {

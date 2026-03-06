@@ -14,6 +14,7 @@ import { useModsStore } from '../../store/modsStore';
 import { profileService } from '../../../../shared/services/ipc';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import './CategoryTreeContext.css';
+import logger from '../../../../shared/utils/logger';
 
 /**
  * Recursively filter tree nodes by search query
@@ -189,7 +190,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
 
     // Remove invalid locked keys
     if (invalidLockedKeys.length > 0) {
-      console.log('[CategoryTreeContext] Removing invalid locked categories:', invalidLockedKeys);
+      logger.info('[CategoryTreeContext] Removing invalid locked categories:', invalidLockedKeys);
       const newLockedKeys = lockedCategories.filter(k => !invalidLockedKeys.includes(k));
       useModsStore.getState().setLockedCategories(newLockedKeys);
       // Persist to backend

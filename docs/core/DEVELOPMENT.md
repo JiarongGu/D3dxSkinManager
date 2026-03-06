@@ -95,7 +95,7 @@ private async void OnWebMessageReceived(object sender, CoreWebView2WebMessageRec
 ```typescript
 // Frontend: bridgeService.ts
 sendMessage(message: BridgeMessage) {
-    console.log('Sending:', message); // Debug IPC
+    logger.info('Sending:', message); // Debug IPC
 }
 ```
 

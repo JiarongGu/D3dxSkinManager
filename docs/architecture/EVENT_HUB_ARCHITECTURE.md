@@ -452,12 +452,12 @@ To reduce IPC overhead, all notifications are automatically batched at the `IpcH
 ```typescript
 // Subscribe to backend events
 ipc.subscribe("MOD", "LOADED", (event) => {
-    console.log("Mod loaded:", event.payload);
+    logger.info("Mod loaded:", event.payload);
 });
 
 // Subscribe to all MOD events
 ipc.subscribe("MOD", "*", (event) => {
-    console.log("MOD event:", event.type, event.payload);
+    logger.info("MOD event:", event.type, event.payload);
 });
 ```
 

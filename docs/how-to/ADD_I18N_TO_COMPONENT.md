@@ -159,9 +159,9 @@ const enKeys = Object.keys(en.translations);
 const cnKeys = new Set(Object.keys(cn.translations));
 const missing = enKeys.filter(k => !cnKeys.has(k));
 if (missing.length > 0) {
-  console.log('Missing in cn.json:', missing);
+  logger.info('Missing in cn.json:', missing);
 } else {
-  console.log('✓ All keys synchronized!');
+  logger.info('✓ All keys synchronized!');
 }
 "
 ```

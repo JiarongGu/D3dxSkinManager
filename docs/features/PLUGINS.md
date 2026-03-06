@@ -219,7 +219,7 @@ export class MyUIPlugin implements UIPlugin {
   }
 
   private onModLoaded = (args: PluginEventArgs) => {
-    console.log('Mod loaded:', args.data);
+    logger.info('Mod loaded:', args.data);
   };
 
   renderTab = () => {
@@ -248,7 +248,7 @@ export class MyActionPlugin implements ActionPlugin {
   author = 'Your Name';
 
   async Init(context: PluginContext): Promise<void> {
-    console.log('[MyActionPlugin] Initialized');
+    logger.info('[MyActionPlugin] Initialized');
   }
 
   async cleanup(): Promise<void> {}
@@ -260,7 +260,7 @@ export class MyActionPlugin implements ActionPlugin {
         label: 'Custom Action',
         icon: 'StarOutlined',
         onClick: async (mod) => {
-          console.log('Custom action for mod:', mod.name);
+          logger.info('Custom action for mod:', mod.name);
           // Perform action
         }
       }
@@ -318,7 +318,7 @@ await context.EmitEventAsync("MY_EVENT_TYPE", new { data = "value" });
 ```typescript
 // Reserved for future use
 context.subscribeEvent("PLUGIN", "MY_EVENT_TYPE", (event) => {
-  console.log('Received:', event.payload);
+  logger.info('Received:', event.payload);
 });
 ```
 

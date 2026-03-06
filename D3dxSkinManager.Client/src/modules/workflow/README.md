@@ -49,7 +49,7 @@ import { ModImportWorkflowScreen } from '@/modules/workflow/components';
   folderPath="/path/to/folder"
   onClose={() => setShowWorkflow(false)}
   onSuccess={(modSha) => {
-    console.log('Imported:', modSha);
+    logger.info('Imported:', modSha);
   }}
 />
 ```
@@ -83,7 +83,7 @@ The workflow emits real-time events:
 
 ```typescript
 eventBus.subscribe(Module.WORKFLOW, WorkflowEventType.STATUS_CHANGED, (event) => {
-  console.log('Workflow status changed:', event.payload);
+  logger.info('Workflow status changed:', event.payload);
 });
 ```
 

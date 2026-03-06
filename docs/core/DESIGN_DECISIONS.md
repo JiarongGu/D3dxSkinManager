@@ -253,13 +253,13 @@ const { t } = useTranslation();
 ```typescript
 // BAD: Stale closure
 const handleClick = useCallback(() => {
-  console.log(items.length); // May be stale!
+  logger.info(items.length); // May be stale!
 }, [items]);
 
 // GOOD: Always current
 const itemsRef = useStableRef(items);
 const handleClick = useCallback(() => {
-  console.log(itemsRef.current.length); // Always current!
+  logger.info(itemsRef.current.length); // Always current!
 }, []);  // No deps needed
 ```
 
