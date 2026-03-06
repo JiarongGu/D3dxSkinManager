@@ -104,6 +104,13 @@ public class CustomSchemeHandler : ICustomSchemeHandler
                 return new MemoryStream(_emptyPathError.Value);
             }
 
+            // Strip query parameters (e.g., ?t=1234567890) used for cache busting
+            var queryIndex = encodedPath.IndexOf('?');
+            if (queryIndex >= 0)
+            {
+                encodedPath = encodedPath.Slice(0, queryIndex);
+            }
+
             var filePath = WebUtility.UrlDecode(encodedPath.ToString());
 
             // Try to get cached normalized path or compute it

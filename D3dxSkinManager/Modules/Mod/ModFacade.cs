@@ -505,15 +505,22 @@ public class ModFacade : BaseFacade, IModFacade
         // Check cache path using cache service
         var cachePath = _cacheService.GetCachePath(sha);
 
-        // Get preview paths from image service
+        // Get preview directory path (for "Open Preview Folder" context menu)
+        // Get any preview path and extract the directory
         var previewPaths = await _imageService.GetPreviewPathsAsync(sha).ConfigureAwait(false);
-        var thumbnailPath = previewPaths.FirstOrDefault();  // First preview is typically the thumbnail
+        string? previewFolderPath = null;
+        if (previewPaths.Count > 0)
+        {
+            // Extract directory from first preview file path
+            var absolutePath = Path.GetFullPath(previewPaths[0]);
+            previewFolderPath = Path.GetDirectoryName(absolutePath);
+        }
 
         return new
         {
             originalPath = (string?)null,  // Archive path checking removed - no longer needed
             cachePath = cachePath,
-            thumbnailPath = thumbnailPath
+            thumbnailPath = previewFolderPath  // Actually returns preview folder path, keeping name for compatibility
         };
     }
 

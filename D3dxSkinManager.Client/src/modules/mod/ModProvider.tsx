@@ -114,6 +114,24 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       handleCategoryTreeUpdate
     );
 
+    const unsubscribePreviewImported = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.PREVIEW_IMPORTED,
+      () => void modOps.reloadCurrentPreview(selectedProfileId)
+    );
+
+    const unsubscribeThumbnailUpdated = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.THUMBNAIL_UPDATED,
+      () => void modOps.reloadCurrentPreview(selectedProfileId)
+    );
+
+    const unsubscribePreviewDeleted = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.PREVIEW_DELETED,
+      () => void modOps.reloadCurrentPreview(selectedProfileId)
+    );
+
     return () => {
       handleModListUpdate.cancel();
       handleCategoryTreeUpdate.cancel();
@@ -121,6 +139,9 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       unsubscribeProfileConfigChanged();
       unsubscribeModListUpdated();
       unsubscribeCategoryTreeUpdated();
+      unsubscribePreviewImported();
+      unsubscribeThumbnailUpdated();
+      unsubscribePreviewDeleted();
     };
   }, [selectedProfileId, loadPanelSizes, handleModListUpdate, handleCategoryTreeUpdate]);
 

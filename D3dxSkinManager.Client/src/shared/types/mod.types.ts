@@ -19,7 +19,8 @@ export interface ModInfo {
   // The first preview image (sorted alphabetically) is used as the thumbnail
   // File paths (for viewing operations - populated on-demand, not stored in DB)
   originalPath?: string;  // Path to original archive file
-  cachePath?: string;     // Path to cache directory (extracted files in active/loaded state)
+  cachePath?: string;     // Absolute path to cache directory (if exists)
+  previewFolderPath?: string;  // Absolute path to preview directory (if exists)
   // Note: workPath is deprecated - use cachePath instead. Cache folder can be in loaded or unloaded/disabled mode
   metadata?: string;  // Extension field for future use - can store JSON data without database migration
 }

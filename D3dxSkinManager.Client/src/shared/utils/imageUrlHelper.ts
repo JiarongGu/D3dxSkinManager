@@ -6,14 +6,16 @@
 /**
  * Converts a file path to an app:// scheme URL
  * @param path - Relative or absolute file path, or existing URL
+ * @param cacheTimestamp - Optional timestamp to append as query parameter for cache busting
  * @returns app:// scheme URL or the original path if already a URL/data URI
  *
  * Examples:
  * - "profiles/123/thumbnails/abc.png" -> "app://profiles%2F123%2Fthumbnails%2Fabc.png"
+ * - "profiles/123/thumbnails/abc.png", 1234567890 -> "app://profiles%2F123%2Fthumbnails%2Fabc.png?t=1234567890"
  * - "http://example.com/image.png" -> "http://example.com/image.png" (unchanged)
  * - "data:image/png;base64,..." -> "data:image/png;base64,..." (unchanged)
  */
-export function toAppUrl(path: string | undefined): string | undefined {
+export function toAppUrl(path: string | undefined, cacheTimestamp?: number): string | undefined {
   if (!path) {
     return undefined;
   }
@@ -36,7 +38,14 @@ export function toAppUrl(path: string | undefined): string | undefined {
   // Convert file path to app:// URL
   // Note: Backend expects relative paths from data directory
   const encodedPath = encodeURIComponent(path);
-  return `app://${encodedPath}`;
+  const baseUrl = `app://${encodedPath}`;
+
+  // Append timestamp for cache busting if provided
+  if (cacheTimestamp !== undefined) {
+    return `${baseUrl}?t=${cacheTimestamp}`;
+  }
+
+  return baseUrl;
 }
 
 /**

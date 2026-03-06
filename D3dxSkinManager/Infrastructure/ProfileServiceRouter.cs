@@ -6,7 +6,9 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Mod;
+using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Setting;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 
@@ -151,6 +153,9 @@ public class ProfileServiceRouter : IDisposable
         // Register core services and context
         services.AddSingleton(_globalServices.GetRequiredService<IAppEnvironment>());
         services.AddCoreServices(_globalServices);
+        services.AddSettingServices(_globalServices);
+        services.AddProfileServices(_globalServices);
+
         services.AddContextServices(profileId);
 
         // Apply all registered module service configurations

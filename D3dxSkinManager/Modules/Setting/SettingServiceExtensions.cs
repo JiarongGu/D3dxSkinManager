@@ -1,8 +1,9 @@
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Infrastructure;
-using D3dxSkinManager.Modules.Core.WebView;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.WebView;
 using D3dxSkinManager.Modules.Setting.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -14,23 +15,46 @@ namespace D3dxSkinManager.Modules.Setting;
 /// </summary>
 public static class SettingServiceExtensions
 {
+    private static readonly List<Type> _registerdServices = new List<Type>();
+
     /// <summary>
     /// Register Settings module services and facade
     /// </summary>
-    public static IServiceCollection AddSettingsServices(this IServiceCollection services)
+    public static IServiceCollection AddSettingServices(this IServiceCollection services)
     {
         Console.WriteLine("[SettingsFacade] Registering Settings services...");
 
         // Register the underlying services (using TryAdd to avoid duplicates)
-        services.TryAddSingleton<ISettingFileService, SettingFileService>();
-        services.TryAddSingleton<ILanguageService, LanguageService>();
-        services.TryAddSingleton<IWindowStateService, WindowStateService>();
-        services.TryAddSingleton<IGlobalSettingService, GlobalSettingService>();
+        AddSingleton<ISettingFileService, SettingFileService>(services);
+        AddSingleton<ILanguageService, LanguageService>(services);
+        AddSingleton<IWindowStateService, WindowStateService>(services);
+        AddSingleton<IGlobalSettingService, GlobalSettingService>(services);
 
         // Register the facade itself
-        services.TryAddSingleton<ISettingFacade, SettingFacade>();
+        AddSingleton<ISettingFacade, SettingFacade>(services);
 
         Console.WriteLine("[SettingsFacade] Settings services registered");
+        return services;
+    }
+
+
+    public static IServiceCollection AddSettingServices(this IServiceCollection services, IServiceProvider serviceProvider)
+    {
+        foreach (var serviceType in _registerdServices)
+        {
+            var service = serviceProvider.GetService(serviceType);
+            if (service != null)
+            {
+                services.AddSingleton(serviceType, service);
+            }
+        }
+        return services;
+    }
+
+    private static IServiceCollection AddSingleton<TService, TImplementation>(IServiceCollection services)
+    {
+        services.Add(new ServiceDescriptor(typeof(TService), typeof(TImplementation), ServiceLifetime.Singleton));
+        _registerdServices.Add(typeof(TService));
         return services;
     }
 

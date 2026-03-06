@@ -14,11 +14,13 @@ import { api, modService } from '../../../shared/services/ipc';
 /**
  * Internal refresh implementation
  * Refreshes only the currently selected category view for efficiency
+ * Also syncs selectedMod with updated data from backend
  */
 async function _refreshMods(profileId: string): Promise<void> {
-  const { selectedCategory } = useModsStore.getState();
+  const { selectedCategory, selectedMod, setSelectedMod } = useModsStore.getState();
 
   // If a category is selected, refresh only that category's mods
+  // Otherwise, fetch fresh mod data to update selectedMod
   if (selectedCategory) {
     const { loadModsByCategory, loadUncategorizedMods } = await import('./categoryOperations');
 
@@ -27,8 +29,39 @@ async function _refreshMods(profileId: string): Promise<void> {
     } else {
       await loadModsByCategory(profileId, selectedCategory.id);
     }
+  } else if (selectedMod?.sha) {
+    // No category filter active, but we need to update selectedMod with fresh data
+    // Fetch just the selected mod instead of the entire mod list for efficiency
+    try {
+      const freshMod = await modService.getModBySha(profileId, selectedMod.sha);
+      if (freshMod) {
+        setSelectedMod(freshMod);
+      } else {
+        // Mod was deleted
+        setSelectedMod(undefined);
+      }
+    } catch (error) {
+      // Mod not found or error fetching, clear selection
+      setSelectedMod(undefined);
+    }
+    return; // Early return since we already updated selectedMod
   }
-  // If no category selected, do nothing (user will see empty state)
+
+  // After refreshing category mods, update selectedMod if it still exists
+  // This ensures preview panel shows updated data (isLoaded, metadata, etc.)
+  if (selectedMod?.sha) {
+    const { mods, CategoryFilteredMods } = useModsStore.getState();
+    const modList = CategoryFilteredMods || mods;
+    const updatedMod = modList.find(m => m.sha === selectedMod.sha);
+
+    if (updatedMod) {
+      // Update selectedMod with fresh data from backend
+      setSelectedMod(updatedMod);
+    } else {
+      // Mod was deleted, clear selection
+      setSelectedMod(undefined);
+    }
+  }
 }
 
 /**
@@ -114,12 +147,63 @@ export async function deleteMod(profileId: string, sha: string): Promise<void> {
   }
 }
 
+/**
+ * Load mod statistics
+ */
 export async function loadStatistics(profileId: string): Promise<void> {
   try {
     const statistics = await api.mod.getStatistics(profileId);
     useModsStore.getState().setStatistics(statistics);
   } catch (error: unknown) {
     console.error('Failed to load mod statistics:', error);
+  }
+}
+
+/**
+ * Load preview paths for the currently selected mod
+ * Updates previewPaths in store and busts browser cache
+ */
+export async function loadPreviewPaths(profileId: string, sha: string): Promise<void> {
+  const { setPreviewLoading, setPreviewPaths, bustPreviewCache, selectedMod } = useModsStore.getState();
+
+  // Check if preview is disabled for this mod
+  if (selectedMod?.disablePreview) {
+    // Clear previews when disabled
+    setPreviewPaths([]);
+    return;
+  }
+
+  try {
+    await executeWithDelayedLoading(
+      async () => {
+        // Backend automatically imports from cache if no previews exist
+        const paths = await api.mod.getPreviewPaths(profileId, sha);
+        setPreviewPaths(paths);
+        bustPreviewCache(); // Bust browser cache
+      },
+      setPreviewLoading,
+      100
+    );
+  } catch (error: unknown) {
+    // Clear previews on error
+    console.error('Failed to load preview paths:', error);
+    setPreviewPaths([]);
+    bustPreviewCache();
+  }
+}
+
+/**
+ * Reload preview paths for the currently selected mod
+ * Used when PREVIEW_IMPORTED, THUMBNAIL_UPDATED, or PREVIEW_DELETED events are received
+ * Busts cache to force browser to reload images
+ */
+export async function reloadCurrentPreview(profileId: string): Promise<void> {
+  const { selectedMod, bustPreviewCache } = useModsStore.getState();
+
+  if (selectedMod?.sha) {
+    // Bust cache to force browser to reload images (prevents showing cached old images)
+    bustPreviewCache();
+    await loadPreviewPaths(profileId, selectedMod.sha);
   }
 }
 

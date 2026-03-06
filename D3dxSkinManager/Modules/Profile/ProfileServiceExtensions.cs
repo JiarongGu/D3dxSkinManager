@@ -13,6 +13,8 @@ namespace D3dxSkinManager.Modules.Profiles;
 /// </summary>
 public static class ProfileServiceExtensions
 {
+    private static readonly List<Type> _registerdServices = new List<Type>();
+
     /// <summary>
     /// Register global Profile services (no ProfileContext needed)
     /// </summary>
@@ -21,25 +23,33 @@ public static class ProfileServiceExtensions
         Console.WriteLine("[ProfileFacade] Registering Profile services...");
 
         // Register profile service provider and service
-        services.TryAddSingleton<IProfileService, ProfileService>();
-        services.TryAddSingleton<IProfileRepository, ProfileRepository>();
+        AddSingleton<IProfileService, ProfileService>(services);
+        AddSingleton<IProfileRepository, ProfileRepository>(services);
 
         // Register the facade itself
-        services.TryAddSingleton<IProfileFacade, ProfileFacade>();
+        AddSingleton<IProfileFacade, ProfileFacade>(services);
 
         Console.WriteLine("[ProfileFacade] Profile services registered");
         return services;
     }
 
-    /// <summary>
-    /// Register profile-scoped services (requires ProfileContext)
-    /// This is called for each profile's ServiceProvider
-    /// </summary>
-    public static IServiceCollection AddProfileScopedServices(this IServiceCollection services)
+    public static IServiceCollection AddProfileServices(this IServiceCollection services, IServiceProvider serviceProvider)
     {
-        // Register profile path service for centralized path management
-        services.TryAddScoped<IProfilePathService, ProfilePathService>();
+        foreach (var serviceType in _registerdServices)
+        {
+            var service = serviceProvider.GetService(serviceType);
+            if (service != null)
+            {
+                services.AddSingleton(serviceType, service);
+            }
+        }
+        return services;
+    }
 
+    private static IServiceCollection AddSingleton<TService, TImplementation>(IServiceCollection services)
+    {
+        services.Add(new ServiceDescriptor(typeof(TService), typeof(TImplementation), ServiceLifetime.Singleton));
+        _registerdServices.Add(typeof(TService));
         return services;
     }
 

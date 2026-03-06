@@ -38,6 +38,8 @@ export interface ModsState {
 
   // Preview Panel
   previewLoading: boolean; // Loading state for preview panel (images, metadata, etc.)
+  previewPaths: string[]; // Image preview paths for selected mod
+  previewCacheTimestamp: number; // Cache buster for browser image cache
 
   // UI State
   expandedKeys: React.Key[];
@@ -83,6 +85,8 @@ export interface ModsActions {
 
   // Preview Panel Actions
   setPreviewLoading: (loading: boolean) => void;
+  setPreviewPaths: (paths: string[]) => void;
+  bustPreviewCache: () => void;
   setcategorySearch: (search: string) => void;
   clearCategoryFilter: () => void;
 
@@ -130,6 +134,8 @@ const initialState: ModsState = {
 
   // Preview Panel
   previewLoading: false,
+  previewPaths: [],
+  previewCacheTimestamp: Date.now(),
 
   // UI State
   expandedKeys: [],
@@ -284,6 +290,16 @@ export const useModsStore = create<ModsStore>()(
       setPreviewLoading: (loading) =>
         set((state) => {
           state.previewLoading = loading;
+        }),
+
+      setPreviewPaths: (paths) =>
+        set((state) => {
+          state.previewPaths = paths;
+        }),
+
+      bustPreviewCache: () =>
+        set((state) => {
+          state.previewCacheTimestamp = Date.now();
         }),
 
       setSelectedCategory: (node) =>

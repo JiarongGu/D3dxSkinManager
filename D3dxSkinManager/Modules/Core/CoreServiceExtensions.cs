@@ -101,7 +101,7 @@ public static class CoreServiceExtensions
         return services;
     }
 
-    public static IServiceCollection AddSingleton<TService, TImplementation>(IServiceCollection services)
+    private static IServiceCollection AddSingleton<TService, TImplementation>(IServiceCollection services)
     {
         services.Add(new ServiceDescriptor(typeof(TService), typeof(TImplementation), ServiceLifetime.Singleton));
         _registerdServices.Add(typeof(TService));

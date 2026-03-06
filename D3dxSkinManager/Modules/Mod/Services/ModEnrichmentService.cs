@@ -90,6 +90,17 @@ public class ModEnrichmentService : IModEnrichmentService
             mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
             mod.HasCache = allCacheDirectories.Contains(mod.SHA);
             mod.HasPreviewFolder = modsWithPreviews.Contains(mod.SHA);
+
+            // Populate file paths
+            if (mod.HasCache)
+            {
+                mod.CachePath = Path.Combine(_profilePaths.CacheModsDirectory, mod.SHA);
+            }
+
+            if (mod.HasPreviewFolder)
+            {
+                mod.PreviewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.SHA);
+            }
         }
     }
 

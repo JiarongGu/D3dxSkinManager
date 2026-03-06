@@ -470,7 +470,7 @@ public class ApplicationHost
 
         // Register global facades (no profile dependency)
         services.AddCoreServices();
-        services.AddSettingsServices();
+        services.AddSettingServices();
         services.AddSystemServices();
         services.AddProfileServices();
 

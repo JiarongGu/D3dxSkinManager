@@ -25,6 +25,10 @@ public class ModInfo
     public bool HasCache { get; set; }      // True if cache directory exists (either active or with DISABLED- prefix)
     public bool HasPreviewFolder { get; set; } // True if preview directory exists with preview images
 
+    // File paths (populated on-demand from file system, not stored in DB)
+    public string? CachePath { get; set; }  // Absolute path to cache directory (if exists)
+    public string? PreviewFolderPath { get; set; }  // Absolute path to preview directory (if exists)
+
     // Timestamps
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

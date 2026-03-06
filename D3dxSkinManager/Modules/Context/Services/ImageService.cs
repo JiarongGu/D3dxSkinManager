@@ -571,7 +571,9 @@ public class ImageService : IImageService
     }
 
     /// <summary>
-    /// Delete a preview image
+    /// Delete a preview image and renumber remaining previews to fill the gap
+    /// Example: If preview2 is deleted from [preview1, preview2, preview3],
+    /// preview3 is renamed to preview2
     /// </summary>
     public async Task<bool> DeletePreviewAsync(string sha, string previewPath)
     {
@@ -583,12 +585,47 @@ public class ImageService : IImageService
             throw new FileNotFoundException($"Preview image not found: {previewPath}");
         }
 
+        // Get all previews before deletion to determine renumbering
+        var allPreviews = await GetPreviewPathsAsync(sha).ConfigureAwait(false);
+        var deletedIndex = allPreviews.FindIndex(p =>
+            Path.GetFullPath(_pathHelper.ToAbsolutePath(p) ?? p).Equals(absolutePreviewPath, StringComparison.OrdinalIgnoreCase));
+
+        if (deletedIndex == -1)
+        {
+            throw new FileNotFoundException($"Preview image not found in preview list: {previewPath}");
+        }
+
+        // Delete the target file
         File.Delete(absolutePreviewPath);
         _logger.Info($"Deleted preview image: {absolutePreviewPath}", "ImageService");
 
-        // Invalidate CustomSchemeHandler cache for this image
-        // Use relative path since that's what the frontend uses in app:// URLs
-        _schemeHandler.InvalidatePath(previewPath);
+        // Renumber all previews after the deleted one to fill the gap
+        // Example: If preview2 is deleted, preview3 becomes preview2, preview4 becomes preview3, etc.
+        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
+        var pathsToInvalidate = new List<string> { previewPath };
+
+        for (int i = deletedIndex + 1; i < allPreviews.Count; i++)
+        {
+            var currentPath = _pathHelper.ToAbsolutePath(allPreviews[i]) ?? allPreviews[i];
+            var currentExtension = Path.GetExtension(currentPath);
+
+            // New filename is one number lower (fill the gap)
+            var newFileName = $"preview{i}{currentExtension}";
+            var newPath = Path.Combine(previewDirectory, newFileName);
+
+            if (File.Exists(currentPath))
+            {
+                File.Move(currentPath, newPath);
+                _logger.Info($"Renumbered: {Path.GetFileName(currentPath)} → {newFileName}", "ImageService");
+
+                // Invalidate both old and new paths in cache
+                pathsToInvalidate.Add(allPreviews[i]);
+                pathsToInvalidate.Add(_pathHelper.ToRelativePath(newPath) ?? newPath);
+            }
+        }
+
+        // Invalidate CustomSchemeHandler cache for all affected images
+        _schemeHandler.InvalidatePaths(pathsToInvalidate);
 
         // Emit PREVIEW_DELETED event
         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_DELETED, new { sha, previewPath }).ConfigureAwait(false);
