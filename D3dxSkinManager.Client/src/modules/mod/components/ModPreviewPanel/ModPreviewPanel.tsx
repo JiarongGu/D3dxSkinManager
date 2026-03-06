@@ -41,7 +41,8 @@ export const ModPreviewPanel: React.FC = () => {
   const [showKeybindings, setShowKeybindings] = useState(false);
   const [isKeybindingsClosing, setIsKeybindingsClosing] = useState(false);
 
-  // Load preview paths when mod changes, when isLoaded status changes, or when disablePreview changes
+  // Load preview paths when mod changes or when disablePreview changes
+  // Note: isLoaded/hasCache changes don't affect previews, so not included in dependencies
   React.useEffect(() => {
     if (mod?.sha && selectedProfileId) {
       void modOps.loadPreviewPaths(selectedProfileId, mod.sha);
@@ -49,7 +50,7 @@ export const ModPreviewPanel: React.FC = () => {
       // Clear previews when no mod is selected
       useModsStore.getState().setPreviewPaths([]);
     }
-  }, [mod?.sha, mod?.isLoaded, mod?.disablePreview, selectedProfileId]);
+  }, [mod?.sha, mod?.disablePreview, selectedProfileId]);
 
   // Reset image index and keybinding visibility when mod changes (must be before early return)
   React.useEffect(() => {

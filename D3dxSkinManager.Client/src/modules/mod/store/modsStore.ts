@@ -222,18 +222,26 @@ export const useModsStore = create<ModsStore>()(
         set((state) => {
           state.mods = state.mods.map((mod: ModInfo) => {
             if (mod.sha === sha) {
-              return { ...mod, isLoaded: true };
+              return { ...mod, isLoaded: true, hasCache: true };
             }
             if (unloadedShas.includes(mod.sha)) {
               return { ...mod, isLoaded: false };
             }
             return mod;
           });
+          // Update selectedMod if it's the loaded mod
+          if (state.selectedMod?.sha === sha) {
+            state.selectedMod = { ...state.selectedMod, isLoaded: true, hasCache: true };
+          }
+          // Update selectedMod if it's one of the unloaded mods
+          if (state.selectedMod && unloadedShas.includes(state.selectedMod.sha)) {
+            state.selectedMod = { ...state.selectedMod, isLoaded: false };
+          }
           // Also update Category filtered mods if present
           if (state.CategoryFilteredMods) {
             state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) => {
               if (mod.sha === sha) {
-                return { ...mod, isLoaded: true };
+                return { ...mod, isLoaded: true, hasCache: true };
               }
               if (unloadedShas.includes(mod.sha)) {
                 return { ...mod, isLoaded: false };
@@ -248,6 +256,10 @@ export const useModsStore = create<ModsStore>()(
           state.mods = state.mods.map((mod: ModInfo) =>
             mod.sha === sha ? { ...mod, isLoaded: false } : mod
           );
+          // Update selectedMod if it's the unloaded mod
+          if (state.selectedMod?.sha === sha) {
+            state.selectedMod = { ...state.selectedMod, isLoaded: false };
+          }
           // Also update Category filtered mods if present
           if (state.CategoryFilteredMods) {
             state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) =>

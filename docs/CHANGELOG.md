@@ -12,6 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-03-07 - Mod Preview Panel UI Issues After Extraction ⭐⭐
+Fixed keybinding button visibility, preview panel flash on delete, and unnecessary preview reloads.
+**Impact**: ✅ Keybinding button now appears immediately after mod extraction, no flash when deleting, previews don't reload unnecessarily
+**Problem 1**: Keybinding button didn't appear after extracting a mod until mod was reselected
+**Problem 2**: Preview panel flashed to empty state when deleting the currently selected mod
+**Problem 3**: Preview images reloaded unnecessarily when mod load status changed
+**Root Cause 1**: `optimisticLoadUpdate` and `optimisticUnloadUpdate` updated arrays but not `selectedMod`, so `hasCache` wasn't set on selected mod
+**Root Cause 2**: `removeMod()` immediately cleared `selectedMod` causing instant empty state without loading feedback
+**Root Cause 3**: Preview effect had `mod?.isLoaded` in dependencies, triggering reloads on every load/unload despite previews being unchanged
+**Solution**: Update `selectedMod` in optimistic updates, add preview loading state during delete, remove unnecessary effect dependency
+**Frontend Changes**:
+- modsStore.ts:221-252: Added `selectedMod` update in `optimisticLoadUpdate` to set `isLoaded: true, hasCache: true` for selected mod
+- modsStore.ts:233-239: Added logic to update `selectedMod` and unloaded mods when they're the currently selected mod
+- modsStore.ts:254-269: Added `selectedMod` update in `optimisticUnloadUpdate` to set `isLoaded: false` for selected mod
+- modOperations.ts:129-164: Added preview loading state (`setPreviewLoading(true)`) during delete operation to show spinner instead of empty state
+- modOperations.ts:135-137,153-155,158-160: Show preview loading before delete, clear after completion or on error
+- ModPreviewPanel.tsx:44-53: Removed `mod?.isLoaded` from effect dependencies as load status doesn't affect preview images
+**Architecture**: Optimistic updates now maintain full consistency across all store fields (mods, CategoryFilteredMods, AND selectedMod)
+
 ### Fixed - 2026-03-06 - DropZone Race Condition Prevention ⭐⭐
 Fixed race conditions in dropzone visibility management by implementing bidirectional state checking between frontend and backend.
 **Impact**: ✅ Dropzone overlay now correctly shows/hides without flickering or getting stuck in wrong state
