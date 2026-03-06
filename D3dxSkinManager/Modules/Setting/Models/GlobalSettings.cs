@@ -34,11 +34,6 @@ public class GlobalSettings
     /// Window size and position settings
     /// </summary>
     public WindowSettings Window { get; set; } = new();
-
-    /// <summary>
-    /// Tab-specific settings (panel sizes, layouts, etc.)
-    /// </summary>
-    public TabSettings Tabs { get; set; } = new();
 }
 
 /// <summary>
@@ -70,28 +65,4 @@ public class WindowSettings
     /// Whether the window was maximized when last closed
     /// </summary>
     public bool Maximized { get; set; } = false;
-}
-
-/// <summary>
-/// Tab-specific settings for panel layouts
-/// </summary>
-public class TabSettings
-{
-    /// <summary>
-    /// Mod tab settings
-    /// </summary>
-    public ModTabSettings Mod { get; set; } = new();
-}
-
-/// <summary>
-/// Settings specific to the Mod tab
-/// </summary>
-public class ModTabSettings
-{
-    /// <summary>
-    /// Panel sizes as percentages (e.g., "20 35" means CategoryPanel=20%, ModListPanel=35%, Preview=45%)
-    /// Format: "categoryWidth modListWidth" (both in percentage, preview takes remaining space)
-    /// Default: "20 35" (CategoryPanel=20%, ModListPanel=35%, Preview=45%)
-    /// </summary>
-    public string PanelSize { get; set; } = "20 35";
 }

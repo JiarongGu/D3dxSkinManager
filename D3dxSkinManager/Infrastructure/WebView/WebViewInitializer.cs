@@ -265,6 +265,14 @@ public class WebViewInitializer
                     // https://app.local/index.html -> wwwroot/index.html
                     // https://app.local/assets/index.js -> wwwroot/assets/index.js
                     var path = uri.Substring("https://app.local/".Length);
+
+                    // Strip query parameters if present (e.g., capture.html?profileId=xxx -> capture.html)
+                    var queryIndex = path.IndexOf('?');
+                    if (queryIndex >= 0)
+                    {
+                        path = path.Substring(0, queryIndex);
+                    }
+
                     var virtualPath = "wwwroot/" + path;
 
                     var stream = _resourceProvider.GetResourceStream(virtualPath);
@@ -392,43 +400,5 @@ public class WebViewInitializer
                     </html>");
             }
         }
-    }
-
-    private string GetJsPath(string html, string prefix)
-    {
-        var match = System.Text.RegularExpressions.Regex.Match(html, $@"<script[^>]*src=""[^""]*/{prefix}([^""]+)""[^>]*>");
-        if (match.Success)
-        {
-            var filename = $"{prefix}{match.Groups[1].Value}";
-            return $"wwwroot/assets/{filename}";
-        }
-        return "";
-    }
-
-    private string GetCssPath(string html)
-    {
-        var match = System.Text.RegularExpressions.Regex.Match(html, @"<link[^>]*href=""[^""]*/([^""]+\.css)""[^>]*>");
-        if (match.Success)
-        {
-            return $"wwwroot/assets/{match.Groups[1].Value}";
-        }
-        return "";
-    }
-
-    private void ShowEmbeddedResourceError()
-    {
-        var availableResources = string.Join("<br>", _resourceProvider.GetAllResourcePaths().Take(20));
-
-        _webView.CoreWebView2.NavigateToString($@"
-            <html>
-            <body style='font-family: Arial; text-align: center; padding: 50px;'>
-                <h1>Embedded Resources Error</h1>
-                <p>The embedded index.html resource was not found.</p>
-                <h2>Available Resources (first 20):</h2>
-                <div style='text-align: left; max-width: 800px; margin: 0 auto;'>
-                    {availableResources}
-                </div>
-            </body>
-            </html>");
     }
 }

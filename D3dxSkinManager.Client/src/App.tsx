@@ -1,10 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Layout,
-  ConfigProvider,
-  theme as antdTheme,
-  App as AntdApp,
-} from "antd";
+import { Layout } from "antd";
 import { AppHeader } from "./modules/core/components/layout/AppHeader";
 import { AppStatusBar } from "./modules/core/components/layout/AppStatusBar";
 import { ModHierarchicalView } from "./modules/mod/components/ModHierarchicalView";
@@ -12,29 +7,22 @@ import { SettingsView } from "./modules/setting/components/SettingsView";
 import { ToolsView } from "./modules/tool/components/ToolsView";
 import { PluginsView } from "./modules/plugin/components/PluginsView";
 import { AnnotationProvider } from "./shared/components/common/TooltipSystem";
-import { ThemeProvider, useTheme } from "./shared/context/ThemeContext";
 import {
   SlideInScreenProvider,
   useSlideInScreenContext,
 } from "./shared/context/SlideInScreenContext";
-import { I18nInitializer } from "./i18n/I18nInitializer";
 import { SlideInScreenManager } from "./shared/components/common/SlideInScreen";
-import { AppInitializer } from "./shared/components/AppInitializer";
+import { AppLoader } from "./shared/components/AppLoader";
 import {
   keyboardManager,
   SHORTCUTS,
 } from "./modules/core/utils/KeyboardShortcutManager";
 import { KeyboardShortcutsDialog } from "./modules/core/components/dialogs/KeyboardShortcutsDialog";
 import { HelpWindow } from "./modules/help";
-import { SettingsProvider } from "./modules/setting";
-import { ProfileProvider } from "./shared/context/ProfileContext";
 import { ModProvider } from "./modules/mod";
-import { NotificationInitializer } from "./shared/components/NotificationInitializer";
-import "./App.css";
-import "./styles/visual-enhancements.css";
-import "./styles/theme-colors.css";
-import "./styles/custom-notification.css";
 import { AppWrapper } from "./shared/components/AppWrapper";
+
+import "./App.css";
 
 const { Content } = Layout;
 
@@ -142,9 +130,9 @@ export const App: React.FC = () => {
     <AppWrapper>
       <ModProvider>
         <SlideInScreenProvider>
-          <AppInitializer>
+          <AppLoader>
             <AppContent />
-          </AppInitializer>
+          </AppLoader>
         </SlideInScreenProvider>
       </ModProvider>
     </AppWrapper>

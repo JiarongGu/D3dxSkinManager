@@ -117,8 +117,8 @@ class BridgeService {
   }
 
   /**
-   * Notify backend that WebView is ready
-   * This should be called once during app initialization to clear any stale drop zones
+   * Notify backend that WebView is ready and app is fully initialized
+   * This clears stale drop zones and hides the splash screen
    */
   async notifyWebViewReady(): Promise<void> {
     try {
@@ -127,23 +127,8 @@ class BridgeService {
         type: 'WEBVIEW_READY',
         payload: { webViewId: this.webViewId }
       });
-          } catch (error) {
-          }
-  }
-
-  /**
-   * Notify backend that the React app is fully initialized and ready
-   * This will hide the splash screen
-   */
-  async notifyAppInitialized(): Promise<void> {
-    try {
-      await this.sendMessage({
-        module: 'APP',
-        type: 'INITIALIZED',
-        payload: {}
-      });
     } catch (error) {
-      console.error('Failed to notify app initialized:', error);
+      console.error('Failed to notify WebView ready:', error);
     }
   }
 

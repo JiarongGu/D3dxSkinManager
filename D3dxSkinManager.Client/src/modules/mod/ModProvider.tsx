@@ -6,8 +6,9 @@
 import React, { useEffect } from 'react';
 import { useProfile } from '../../shared/context/ProfileContext';
 import { useModsStore } from './store/modsStore';
-import { eventBus, ModEventType, CategoryEventType, MigrationEventType, Module } from '../../shared/services/eventBus';
+import { eventBus, ModEventType, CategoryEventType, MigrationEventType, ProfileEventType, Module } from '../../shared/services/eventBus';
 import { CATEGORY_IDS } from '../../shared/types/category.types';
+import { profileService } from '../../shared/services/ipc';
 import * as modOps from './operations/modOperations';
 import * as categoryOps from './operations/categoryOperations';
 import * as statisticsOps from './operations/statisticsOperations';
@@ -20,6 +21,7 @@ interface ModsProviderProps {
  * ModsProvider - manages mods module lifecycle
  *
  * Responsibilities:
+ * - Initialize panel sizes from profile config for ModHierarchicalView
  * - REACTIVELY refresh mods when profile changes
  * - Subscribe to backend events
  * - Reset state when profile is cleared
@@ -31,10 +33,75 @@ interface ModsProviderProps {
 export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   const { selectedProfileId } = useProfile();
   const reset = useModsStore((state) => state.reset);
+  const setPanelSizes = useModsStore((state) => state.setPanelSizes);
+
+  // Initialize panel sizes from profile config when profile changes
+  useEffect(() => {
+    if (!selectedProfileId) {
+      console.log('[ModProvider] No profile selected, using default panel sizes');
+      return;
+    }
+
+    const loadPanelSizes = async () => {
+      try {
+        const config = await profileService.getProfileConfiguration(selectedProfileId);
+        const panelSize = config?.tabs?.mod?.panelSize;
+
+        if (panelSize) {
+          console.log('[ModProvider] Loading panel sizes from profile config:', panelSize);
+          const [category, modList] = panelSize.split(' ').map(Number);
+          if (!isNaN(category) && !isNaN(modList)) {
+            const sizes = {
+              categoryWidth: category,
+              modListWidth: modList,
+              previewWidth: 100 - category - modList
+            };
+            console.log('[ModProvider] Setting panel sizes:', sizes);
+            setPanelSizes(sizes);
+          } else {
+            console.warn('[ModProvider] Invalid panel size format:', panelSize);
+          }
+        } else {
+          console.log('[ModProvider] No panel sizes found in profile config, using defaults');
+        }
+      } catch (error) {
+        console.error('[ModProvider] Failed to load panel sizes:', error);
+      }
+    };
+
+    void loadPanelSizes();
+  }, [selectedProfileId, setPanelSizes]);
 
   // Subscribe to backend events
   useEffect(() => {
     if (!selectedProfileId) return;
+
+    // Subscribe to profile config changes to reload panel sizes
+    const unsubscribeProfileConfigChanged = eventBus.subscribe(
+      Module.PROFILE,
+      ProfileEventType.CONFIG_UPDATED,
+      async () => {
+        try {
+          const config = await profileService.getProfileConfiguration(selectedProfileId);
+          const panelSize = config?.tabs?.mod?.panelSize;
+
+          if (panelSize) {
+            console.log('[ModProvider] Profile config changed, reloading panel sizes:', panelSize);
+            const [category, modList] = panelSize.split(' ').map(Number);
+            if (!isNaN(category) && !isNaN(modList)) {
+              const sizes = {
+                categoryWidth: category,
+                modListWidth: modList,
+                previewWidth: 100 - category - modList
+              };
+              setPanelSizes(sizes);
+            }
+          }
+        } catch (error) {
+          console.error('[ModProvider] Failed to reload panel sizes after config change:', error);
+        }
+      }
+    );
 
     // Shared handler for mod state changes (load/unload)
     const handleModStateChange = () => {
@@ -122,6 +189,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
 
     // Cleanup subscriptions on unmount or profile change
     return () => {
+      unsubscribeProfileConfigChanged();
       unsubscribeModsRefreshed();
       unsubscribeModLoaded();
       unsubscribeModUnloaded();
@@ -134,7 +202,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       unsubscribeMigrationCompleted();
       unsubscribeStatistics();
     };
-  }, [selectedProfileId]);
+  }, [selectedProfileId, setPanelSizes]);
 
   // REACTIVE: Handle profile changes automatically
   useEffect(() => {

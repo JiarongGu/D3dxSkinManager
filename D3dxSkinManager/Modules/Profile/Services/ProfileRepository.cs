@@ -2,7 +2,7 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Profiles.Models;
-using System.Collections.Concurrent;
+using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
 
 namespace D3dxSkinManager.Modules.Profiles.Services
@@ -33,6 +33,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
         private readonly IGlobalPathService _globalPaths;
         private readonly IFileHelper _fileHelper;
         private readonly ILogHelper _logger;
+        private readonly IMemoryCache _cache;
 
         private readonly SemaphoreSlim _profilesLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _configurationsLock = new SemaphoreSlim(1, 1);
@@ -40,13 +41,12 @@ namespace D3dxSkinManager.Modules.Profiles.Services
         private List<Profile> _profiles = new List<Profile>();
         private string _activeProfileId = string.Empty;
 
-        private ConcurrentDictionary<string, ProfileConfiguration> _profileConfigurations = new ConcurrentDictionary<string, ProfileConfiguration>();
-
-        public ProfileRepository(IGlobalPathService globalPath, IFileHelper fileHelper, ILogHelper logger)
+        public ProfileRepository(IGlobalPathService globalPath, IFileHelper fileHelper, ILogHelper logger, IMemoryCache cache)
         {
             _globalPaths = globalPath;
             _fileHelper = fileHelper;
             _logger = logger;
+            _cache = cache;
 
             LoadProfiles();
         }
@@ -190,7 +190,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 }
 
                 // Remove cached configuration
-                _profileConfigurations.TryRemove(profileId, out _);
+                _cache.Remove($"ProfileConfig_{profileId}");
 
                 await SaveProfilesAsync().ConfigureAwait(false);
             }
@@ -288,8 +288,10 @@ namespace D3dxSkinManager.Modules.Profiles.Services
 
         public async Task<ProfileConfiguration?> GetProfileConfigurationAsync(string profileId)
         {
+            var cacheKey = $"ProfileConfig_{profileId}";
+
             // Check cache first
-            if (_profileConfigurations.TryGetValue(profileId, out var cachedConfig))
+            if (_cache.TryGetValue(cacheKey, out ProfileConfiguration? cachedConfig))
             {
                 return cachedConfig;
             }
@@ -298,7 +300,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
             try
             {
                 // Double-check after acquiring lock
-                if (_profileConfigurations.TryGetValue(profileId, out cachedConfig))
+                if (_cache.TryGetValue(cacheKey, out cachedConfig))
                 {
                     return cachedConfig;
                 }
@@ -328,8 +330,15 @@ namespace D3dxSkinManager.Modules.Profiles.Services
 
                 if (config != null)
                 {
-                    // Cache the configuration
-                    _profileConfigurations.TryAdd(profileId, config);
+                    // Ensure profileId is always populated (in case deserialized config doesn't have it)
+                    config.ProfileId = profileId;
+
+                    // Cache the configuration with sliding expiration (5 minutes)
+                    var cacheOptions = new MemoryCacheEntryOptions
+                    {
+                        SlidingExpiration = TimeSpan.FromMinutes(5)
+                    };
+                    _cache.Set(cacheKey, config, cacheOptions);
                 }
 
                 return config;
@@ -359,11 +368,19 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                     throw new ArgumentException($"Profile with ID {profileId} not found.", nameof(profileId));
                 }
 
+                // Ensure profileId is always set before saving
+                config.ProfileId = profileId;
+
                 var configPath = _globalPaths.GetProfileConfigPath(profileId);
                 await JsonHelper.SerializeToFileAsync(configPath, config).ConfigureAwait(false);
 
-                // Update cache
-                _profileConfigurations.AddOrUpdate(profileId, config, (key, oldValue) => config);
+                // Update cache with sliding expiration (5 minutes)
+                var cacheKey = $"ProfileConfig_{profileId}";
+                var cacheOptions = new MemoryCacheEntryOptions
+                {
+                    SlidingExpiration = TimeSpan.FromMinutes(5)
+                };
+                _cache.Set(cacheKey, config, cacheOptions);
 
                 _logger.Info($"Saved configuration for profile: {profile.Name} ({profileId})", "ProfileRepository");
             }

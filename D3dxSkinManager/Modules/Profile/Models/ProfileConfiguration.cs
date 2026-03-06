@@ -25,6 +25,11 @@ public class ProfileConfiguration
     /// Key: window name, Value: window configuration (position and size)
     /// </summary>
     public Dictionary<string, WindowConfiguration> Windows { get; set; } = new Dictionary<string, WindowConfiguration>();
+
+    /// <summary>
+    /// Tab-specific settings (per-profile UI preferences)
+    /// </summary>
+    public TabSettings Tabs { get; set; } = new TabSettings();
 }
 
 /// <summary>
@@ -36,4 +41,28 @@ public class WindowConfiguration
     public int? Y { get; set; }
     public int? Width { get; set; }
     public int? Height { get; set; }
+}
+
+/// <summary>
+/// Tab-specific settings for the profile
+/// </summary>
+public class TabSettings
+{
+    /// <summary>
+    /// Mod tab settings
+    /// </summary>
+    public ModTabSettings Mod { get; set; } = new ModTabSettings();
+}
+
+/// <summary>
+/// Mod tab specific settings
+/// </summary>
+public class ModTabSettings
+{
+    /// <summary>
+    /// Panel sizes as percentages (e.g., "20 35" means CategoryPanel=20%, ModListPanel=35%, Preview=45%)
+    /// Format: "categoryWidth modListWidth" (both in percentage, preview takes remaining space)
+    /// Default: "20 35" (CategoryPanel=20%, ModListPanel=35%, Preview=45%)
+    /// </summary>
+    public string PanelSize { get; set; } = "20 35";
 }

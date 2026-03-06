@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { debounce } from 'lodash-es';
 import { useModsStore } from '../store/modsStore';
-import { settingsService } from '../../../shared/services/ipc';
+import { profileService } from '../../../shared/services/ipc';
+import { useProfile } from '../../../shared/context/ProfileContext';
 
 interface PanelSizes {
   categoryWidth: number; // percentage
@@ -13,24 +14,46 @@ interface PanelSizes {
  * Custom hook for managing resizable panel sizes
  * - Reads panel sizes from Zustand store (no loading delay)
  * - Provides drag-to-resize functionality
- * - Persists panel sizes to settings
+ * - Persists panel sizes to settings with debouncing
  */
 export function useResizablePanels() {
   const sizes = useModsStore(s => s.panelSizes);
   const setPanelSizes = useModsStore(s => s.setPanelSizes);
+  const { selectedProfileId } = useProfile();
   const [isResizing, setIsResizing] = useState<'category' | 'modList' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef<number>(0);
   const startSizesRef = useRef<PanelSizes>({ categoryWidth: 20, modListWidth: 35, previewWidth: 45 });
 
-  // Save panel sizes to settings
-  const saveSizes = useCallback(async (newSizes: PanelSizes) => {
-    try {
-      const panelSize = `${newSizes.categoryWidth} ${newSizes.modListWidth}`;
-      await settingsService.updateModPanelSize(panelSize);
-    } catch (error: unknown) {
-          }
-  }, []);
+  // Create a debounced save function with 200ms delay
+  const debouncedSave = useMemo(
+    () => debounce(async (newSizes: PanelSizes, profileId: string | undefined) => {
+      if (!profileId) {
+        console.warn('[useResizablePanels] No profile selected, cannot save panel sizes');
+        return;
+      }
+
+      try {
+        // Round to 1 decimal place for cleaner values
+        const categoryWidth = Math.round(newSizes.categoryWidth * 10) / 10;
+        const modListWidth = Math.round(newSizes.modListWidth * 10) / 10;
+        const panelSize = `${categoryWidth} ${modListWidth}`;
+
+        console.log('[useResizablePanels] Saving panel sizes for profile', profileId, ':', panelSize, 'Preview:', Math.round(newSizes.previewWidth * 10) / 10);
+        await profileService.updateModPanelSize(profileId, panelSize);
+      } catch (error: unknown) {
+        console.error('[useResizablePanels] Failed to save panel sizes:', error);
+      }
+    }, 200), // 200ms delay
+    []
+  );
+
+  // Cleanup debounced function on unmount
+  useEffect(() => {
+    return () => {
+      debouncedSave.cancel();
+    };
+  }, [debouncedSave]);
 
   // Start resizing
   const startResize = useCallback((panel: 'category' | 'modList', event: React.MouseEvent) => {
@@ -42,7 +65,7 @@ export function useResizablePanels() {
 
   // Handle mouse move during resize
   useEffect(() => {
-    if (!isResizing || !containerRef.current) return;
+    if (!isResizing) return;
 
     const handleMouseMove = (event: MouseEvent) => {
       if (!containerRef.current) return;
@@ -73,13 +96,16 @@ export function useResizablePanels() {
         newSizes.previewWidth = 20;
       }
 
+      // Update the store immediately for UI responsiveness
       setPanelSizes(newSizes);
+      // Trigger debounced save
+      debouncedSave(newSizes, selectedProfileId);
     };
 
     const handleMouseUp = () => {
       setIsResizing(null);
-      // Save sizes to backend when resize ends
-      void saveSizes(sizes);
+      // Ensure final save happens
+      debouncedSave.flush();
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -89,7 +115,7 @@ export function useResizablePanels() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, sizes, saveSizes, setPanelSizes]);
+  }, [isResizing, setPanelSizes, debouncedSave, selectedProfileId]);
 
   return {
     sizes,

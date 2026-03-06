@@ -10,11 +10,13 @@
  * DESIGN PRINCIPLE:
  * Settings are loaded once at app startup and persist in memory.
  * Tab switches don't trigger reloads - state is maintained.
+ * This is loaded BEFORE AppInitializer to ensure settings are available.
  */
 
 import React, { useEffect } from 'react';
 import { useProfile } from '../../shared/context/ProfileContext';
 import { useSettingsStore } from './store/settingsStore';
+import { eventBus, Module, SettingsEventType } from '../../shared/services/eventBus';
 import * as settingsOps from './operations/settingsOperations';
 
 interface SettingsProviderProps {
@@ -38,6 +40,22 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   useEffect(() => {
     void settingsOps.loadGlobalSettings();
   }, []); // Run only once on mount
+
+  // Subscribe to backend settings change events
+  useEffect(() => {
+    const unsubscribe = eventBus.subscribe(
+      Module.SETTING,
+      SettingsEventType.GLOBAL_SETTINGS_CHANGED,
+      () => {
+        console.log('[SettingsProvider] Global settings changed event received, reloading settings...');
+        void settingsOps.loadGlobalSettings();
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Handle profile changes - load profile-specific settings
   useEffect(() => {

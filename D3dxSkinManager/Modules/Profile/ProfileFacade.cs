@@ -76,6 +76,10 @@ public class ProfileFacade : BaseFacade, IProfileFacade
             "EXPORT_CONFIG" => await ExportProfileConfigAsync(request),
             "GET_CONFIG" => await GetProfileConfigAsync(request),
             "UPDATE_CONFIG" => await UpdateProfileConfigAsync(request),
+
+            // Tab settings (per-profile)
+            "UPDATE_MOD_PANEL_SIZE" => await UpdateModPanelSizeAsync(request),
+
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -324,5 +328,20 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
         // Return the same response as GET_ALL
         return await GetAllProfilesAsync().ConfigureAwait(false);
+    }
+
+    private async Task<object> UpdateModPanelSizeAsync(IpcRequest request)
+    {
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var panelSize = _payloadHelper.GetRequiredValue<string>(request.Payload, "panelSize");
+
+        // Delegate to service (which handles all business logic)
+        await _profileService.UpdateModPanelSizeAsync(profileId, panelSize).ConfigureAwait(false);
+
+        // Emit event to notify of config change
+        var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+        await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
+
+        return new { success = true, message = "Mod panel size updated", config };
     }
 }

@@ -23,6 +23,7 @@ public interface IProfileService
     Task<ProfileConfiguration?> GetProfileConfigurationAsync(string profileId);
     Task<bool> UpdateProfileConfigurationAsync(ProfileConfiguration config);
     Task<bool> UpdateWindowConfigurationAsync(string profileId, string windowName, int x, int y, int width, int height);
+    Task<bool> UpdateModPanelSizeAsync(string profileId, string panelSize);
 }
 
 public class ProfileService : IProfileService
@@ -387,6 +388,28 @@ public class ProfileService : IProfileService
         await _repository.SaveProfileConfigurationAsync(profileId, config).ConfigureAwait(false);
 
         _logger.Verbose($"Updated window '{windowName}' configuration for profile {profileId}: ({x}, {y}, {width}x{height})", "ProfileService");
+        return true;
+    }
+
+    public async Task<bool> UpdateModPanelSizeAsync(string profileId, string panelSize)
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        // Get current configuration
+        var config = await _repository.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+        if (config == null)
+        {
+            _logger.Warn($"Profile configuration not found for {profileId}, creating new", "ProfileService");
+            config = new ProfileConfiguration { ProfileId = profileId };
+        }
+
+        // Update the mod panel size in the Tabs configuration
+        config.Tabs.Mod.PanelSize = panelSize;
+
+        // Save via repository (handles locking and cache)
+        await _repository.SaveProfileConfigurationAsync(profileId, config).ConfigureAwait(false);
+
+        _logger.Verbose($"Updated mod panel size for profile {profileId}: {panelSize}", "ProfileService");
         return true;
     }
 

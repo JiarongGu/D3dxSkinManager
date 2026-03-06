@@ -170,11 +170,9 @@ public class SecondaryWindowService : ISecondaryWindowService
                         await session.StartAsync();
                         _logger.Info($"[SecondaryWindow] Session started, navigating to {htmlPage}...");
 
-                        var baseUrl = _appEnvironment.IsDevelopment
+                        var url = _appEnvironment.IsDevelopment
                             ? $"http://localhost:3000/{htmlPage}"
                             : $"https://app.local/{htmlPage}";
-
-                        var url = $"{baseUrl}?profileId={Uri.EscapeDataString(profileId)}";
 
                         _logger.Info($"[SecondaryWindow] Navigation URL: {url} (dev mode: {_appEnvironment.IsDevelopment})");
                         webView.CoreWebView2.Navigate(url);

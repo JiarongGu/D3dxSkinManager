@@ -1,5 +1,5 @@
-/* AppInitializer Containers */
-.app-initializer-error-container {
+/* AppLoader Containers */
+.app-loader-error-container {
   height: 100vh;
   display: flex;
   align-items: center;
@@ -7,7 +7,7 @@
   padding: 20px;
 }
 
-.app-initializer-selecting-container {
+.app-loader-selecting-container {
   height: 100vh;
   display: flex;
   align-items: center;
@@ -16,7 +16,7 @@
   gap: 20px;
 }
 
-.app-initializer-loading-container {
+.app-loader-loading-container {
   height: 100vh;
   display: flex;
   align-items: center;
@@ -26,11 +26,11 @@
 }
 
 /* Loading Messages */
-.app-initializer-loading-message {
+.app-loader-loading-message {
   color: #666;
 }
 
-.app-initializer-debug-info {
+.app-loader-debug-info {
   font-size: 12px;
   color: #999;
   margin-top: 10px;

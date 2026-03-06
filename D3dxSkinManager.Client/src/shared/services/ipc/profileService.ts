@@ -17,13 +17,22 @@ export interface WorkDirectoryConfiguration {
 }
 
 /**
+ * Tab-specific settings
+ */
+export interface TabSettings {
+  mod: {
+    panelSize: string; // Format: "categoryWidth modListWidth" (e.g., "25 40")
+  };
+}
+
+/**
  * Profile Configuration Model (stored in {profileId}/config.json)
- * Simplified: only contains profileId, migotoVersion, and work directory
  */
 export interface ProfileConfiguration {
   profileId: string;
   migotoVersion: string;
   work: WorkDirectoryConfiguration;
+  tabs: TabSettings;
 }
 
 /**
@@ -119,6 +128,13 @@ export class ProfileService extends BaseModuleService {
   }
 
   /**
+   * Get profile configuration (alias for getProfileConfig for consistency)
+   */
+  async getProfileConfiguration(profileId: string): Promise<ProfileConfiguration | undefined> {
+    return this.getProfileConfig(profileId);
+  }
+
+  /**
    * Update profile configuration
    */
   async updateProfileConfig(config: Partial<ProfileConfiguration> & { profileId: string }): Promise<boolean> {
@@ -128,6 +144,13 @@ export class ProfileService extends BaseModuleService {
       workMode: config.work?.mode,
       workDirectory: config.work?.directory
     });
+  }
+
+  /**
+   * Update mod panel size in profile config
+   */
+  async updateModPanelSize(profileId: string, panelSize: string): Promise<{ success: boolean; config?: ProfileConfiguration }> {
+    return this.sendMessage('UPDATE_MOD_PANEL_SIZE', undefined, { profileId, panelSize });
   }
 
   /**

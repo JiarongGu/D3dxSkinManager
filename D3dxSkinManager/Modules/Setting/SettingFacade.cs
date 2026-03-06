@@ -81,9 +81,6 @@ public class SettingFacade : BaseFacade, ISettingFacade
             // Window state
             "RESET_WINDOW_STATE" => await ResetWindowStateHandlerAsync(request),
 
-            // Tab settings
-            "UPDATE_MOD_PANEL_SIZE" => await UpdateModPanelSizeHandlerAsync(request),
-
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -264,19 +261,4 @@ public class SettingFacade : BaseFacade, ISettingFacade
         return new { success = true, message = "Window state reset to defaults and applied immediately" };
     }
 
-    // Tab Settings Handlers
-
-    private async Task<object> UpdateModPanelSizeHandlerAsync(IpcRequest request)
-    {
-        var panelSize = _payloadHelper.GetRequiredValue<string>(request.Payload, "panelSize");
-
-        _logger.Debug($"Updating mod panel size to: {panelSize}", "SettingsFacade");
-
-        var settings = await _globalSettingsService.GetSettingsAsync().ConfigureAwait(false);
-        settings.Tabs.Mod.PanelSize = panelSize;
-
-        await _globalSettingsService.UpdateSettingsAsync(settings).ConfigureAwait(false);
-
-        return new { success = true, message = "Mod panel size updated", settings };
-    }
 }
