@@ -185,6 +185,9 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       reset();
       void categoryOps.loadCategoryTree(selectedProfileId);
       void modOps.loadStatistics(selectedProfileId);
+      // Explicitly refresh mods to reload selected category (e.g., UNCLASSIFIED)
+      // This ensures that if a category was selected before reset, its mods are refreshed
+      void modOps.refreshMods(selectedProfileId);
     } else {
       reset();
     }

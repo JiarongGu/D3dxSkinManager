@@ -13,6 +13,7 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 public interface IModImportService
 {
     Task<ModInfo?> ImportAsync(string filePath);
+    Task<int> ScanAndImportPreviewsFromFolderAsync(string sha, string folderPath);
 }
 
 /// <summary>
@@ -118,6 +119,42 @@ public class ModImportService : IModImportService
         {
             _logger.Info($"Import failed: {ex.Message}", "ModImportService");
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Scan a folder for preview images and import them for a mod
+    /// This is used during mod import workflow to auto-import previews from the source folder
+    /// Uses the same logic as ScanAndImportFromCacheAsync but for the original folder
+    /// </summary>
+    public async Task<int> ScanAndImportPreviewsFromFolderAsync(string sha, string folderPath)
+    {
+        if (!_fileService.DirectoryExists(folderPath))
+        {
+            _logger.Warn($"Folder does not exist for preview import: {folderPath}", "ModImportService");
+            return 0;
+        }
+
+        try
+        {
+            // Delegate to ImageService which handles the actual scanning and importing
+            // This reuses the existing ScanAndImportFromCacheAsync logic with SHA-based deduplication
+            var importCount = await _imageService.ScanAndImportFromCacheAsync(sha, folderPath).ConfigureAwait(false);
+
+            if (importCount > 0)
+            {
+                _logger.Info($"Imported {importCount} preview image(s) from folder: {folderPath}", "ModImportService");
+
+                // Emit PREVIEW_IMPORTED event to notify frontend
+                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { sha, source = "folder" }).ConfigureAwait(false);
+            }
+
+            return importCount;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to scan and import previews from folder: {ex.Message}", "ModImportService", ex);
+            return 0;
         }
     }
 }

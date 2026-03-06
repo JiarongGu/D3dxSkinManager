@@ -415,6 +415,22 @@ export const useModsStore = create<ModsStore>()(
       // Global Actions
       // ============================================================
 
-      reset: () => set(initialState),
+      reset: () =>
+        set((state) => {
+          // Preserve selectedCategory and expandedKeys during reset
+          // This ensures that when profile changes or work path changes,
+          // the category filter state is maintained and refreshMods() works correctly
+          const preservedCategory = state.selectedCategory;
+          const preservedExpandedKeys = state.expandedKeys;
+          const preservedLockedCategories = state.lockedCategories;
+
+          // Reset to initial state
+          Object.assign(state, initialState);
+
+          // Restore preserved state
+          state.selectedCategory = preservedCategory;
+          state.expandedKeys = preservedExpandedKeys;
+          state.lockedCategories = preservedLockedCategories;
+        }),
     }))
 );

@@ -6,6 +6,7 @@
 import { debounce } from 'lodash-es';
 import { useModsStore } from '../store/modsStore';
 import { ModInfo } from '../../../shared/types/mod.types';
+import { CATEGORY_IDS } from '../../../shared/types/category.types';
 import { notification } from '../../../shared/utils/notification';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
@@ -24,7 +25,7 @@ async function _refreshMods(profileId: string): Promise<void> {
   if (selectedCategory) {
     const { loadModsByCategory, loadUncategorizedMods } = await import('./categoryOperations');
 
-    if (selectedCategory.id === 'UNCLASSIFIED') {
+    if (selectedCategory.id === CATEGORY_IDS.UNCLASSIFIED) {
       await loadUncategorizedMods(profileId);
     } else {
       await loadModsByCategory(profileId, selectedCategory.id);

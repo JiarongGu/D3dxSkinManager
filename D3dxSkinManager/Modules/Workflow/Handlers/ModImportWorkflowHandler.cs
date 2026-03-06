@@ -965,6 +965,27 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         _logger.Info($"Mod imported successfully: {modInfo.SHA}");
 
+        // Step 3: Auto-import preview images from original folder (only for folder imports)
+        // For folder imports, we have access to the original folder path and can scan it for preview images
+        // This mirrors the auto-import logic used when viewing mod previews from cache
+        if (!context.IsArchiveFile && !string.IsNullOrEmpty(context.FolderPath) && _fileHelper.DirectoryExists(context.FolderPath))
+        {
+            try
+            {
+                _logger.Info($"Attempting to auto-import preview images from folder: {context.FolderPath}");
+                var previewCount = await _modImportService.ScanAndImportPreviewsFromFolderAsync(modInfo.SHA, context.FolderPath).ConfigureAwait(false);
+                if (previewCount > 0)
+                {
+                    _logger.Info($"Auto-imported {previewCount} preview image(s) from folder for mod {modInfo.SHA}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Don't fail the import if preview import fails, just log and continue
+                _logger.Warn($"Failed to auto-import previews from folder: {ex.Message}");
+            }
+        }
+
         // Clean up temp file (only if we created it during compression)
         // For folders: IsArchiveFile=false, we created temp .7z -> delete
         // For archives: IsArchiveFile=true, TempArchivePath = user's original -> don't delete

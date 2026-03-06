@@ -191,8 +191,69 @@ public class ImageService : IImageService
     }
 
     /// <summary>
+    /// Check if a file is a 3D texture file that should be excluded from preview imports
+    /// 3D textures typically have .dds extension and contain texture map keywords in filename
+    /// </summary>
+    private bool Is3DTextureFile(string filePath)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(filePath).ToLowerInvariant();
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+        // DDS files are 3D texture files
+        if (extension == ".dds")
+        {
+            return true;
+        }
+
+        // Check for common texture map keywords in filename
+        var textureKeywords = new[]
+        {
+            "diffuse", "normal", "normalmap", "specular", "albedo",
+            "lightmap", "materialmap", "roughness", "metallic",
+            "ambient", "occlusion", "ao", "emission", "emissive",
+            "height", "heightmap", "displacement", "bump", "opacity"
+        };
+
+        return textureKeywords.Any(keyword => fileName.Contains(keyword));
+    }
+
+    /// <summary>
+    /// Resolve the actual directory to scan for images by descending into single-folder structures
+    /// If a folder only contains a single subfolder (no files), descend into it recursively
+    /// This handles cases where mods are nested in wrapper folders
+    /// </summary>
+    private string ResolveScanDirectory(string directory)
+    {
+        const int maxDepth = 5; // Safety limit to prevent infinite loops
+        int depth = 0;
+        string currentDir = directory;
+
+        while (depth < maxDepth && Directory.Exists(currentDir))
+        {
+            var files = Directory.GetFiles(currentDir, "*.*", SearchOption.TopDirectoryOnly);
+            var subdirs = Directory.GetDirectories(currentDir, "*", SearchOption.TopDirectoryOnly);
+
+            // If directory contains files OR multiple subdirectories, stop here
+            if (files.Length > 0 || subdirs.Length != 1)
+            {
+                _logger.Debug($"Resolved scan directory: {currentDir} (depth: {depth})", "ImageService");
+                return currentDir;
+            }
+
+            // Only one subdirectory and no files - descend into it
+            currentDir = subdirs[0];
+            depth++;
+            _logger.Verbose($"Descending into single subfolder: {Path.GetFileName(currentDir)}", "ImageService");
+        }
+
+        _logger.Debug($"Resolved scan directory: {currentDir} (max depth reached: {depth})", "ImageService");
+        return currentDir;
+    }
+
+    /// <summary>
     /// Scan cache directory for images and import them as previews with SHA-based deduplication
     /// This prevents duplicate images from being added to the preview folder
+    /// If the directory only contains a single subfolder, automatically descends into it
     /// Returns the count of new images imported
     /// </summary>
     public async Task<int> ScanAndImportFromCacheAsync(string sha, string cacheDirectory)
@@ -204,6 +265,10 @@ public class ImageService : IImageService
             _logger.Debug($"Cache directory does not exist: {cacheDirectory}", "ImageService");
             return importCount;
         }
+
+        // Resolve the actual directory to scan (descend into single-folder structures)
+        var scanDirectory = ResolveScanDirectory(cacheDirectory);
+        _logger.Info($"Scanning for preview images in: {scanDirectory}", "ImageService");
 
         var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
 
@@ -233,13 +298,15 @@ public class ImageService : IImageService
             Directory.CreateDirectory(modPreviewFolder);
         }
 
-        // Find all images in cache directory (root folder only, not subdirectories)
-        var cacheImages = Directory.GetFiles(cacheDirectory, "*.*", SearchOption.TopDirectoryOnly)
+        // Find all images in resolved scan directory (root folder only, not subdirectories)
+        // Filter out 3D texture files
+        var cacheImages = Directory.GetFiles(scanDirectory, "*.*", SearchOption.TopDirectoryOnly)
             .Where(f => ImageConstants.IsImageExtension(Path.GetExtension(f)))
+            .Where(f => !Is3DTextureFile(f))
             .OrderBy(f => new FileInfo(f).Length) // Prefer smaller files first
             .ToList();
 
-        _logger.Debug($"Found {cacheImages.Count} image(s) in cache directory", "ImageService");
+        _logger.Debug($"Found {cacheImages.Count} image(s) in scan directory (after filtering 3D textures)", "ImageService");
 
         // Calculate the next preview index
         var existingPreviewCount = Directory.Exists(modPreviewFolder)
