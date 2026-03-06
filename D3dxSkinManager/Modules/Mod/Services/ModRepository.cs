@@ -18,6 +18,7 @@ public interface IModRepository
     Task<bool> UpdateAsync(ModInfo mod);
     Task<bool> DeleteAsync(string sha);
     Task<List<ModInfo>> GetByCategoryAsync(string category);
+    Task<List<ModInfo>> GetByMultipleCategoriesAsync(IEnumerable<string> categoryIds);
     Task<List<string>> GetLoadedIdsAsync();
     Task<List<string>> GetDistinctCategoriesAsync();
     Task<List<string>> GetDistinctAuthorsAsync();
@@ -218,8 +219,48 @@ public class ModRepository : IModRepository
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Mods WHERE Category = @category ORDER BY SHA";
+        command.CommandText = "SELECT * FROM Mods WHERE Category = @category ORDER BY Name COLLATE NOCASE";
         command.Parameters.AddWithValue("@category", category);
+
+        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
+        {
+            mods.Add(MapToModInfo(reader));
+        }
+
+        return mods;
+    }
+
+    /// <summary>
+    /// Get mods that belong to any of the specified categories
+    /// Sorting should be done in the service layer after populating CategoryName
+    /// </summary>
+    public async Task<List<ModInfo>> GetByMultipleCategoriesAsync(IEnumerable<string> categoryIds)
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        var categoryList = categoryIds.ToList();
+        if (categoryList.Count == 0)
+        {
+            return new List<ModInfo>();
+        }
+
+        var mods = new List<ModInfo>();
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
+
+        var command = connection.CreateCommand();
+
+        // Build parameterized IN clause
+        var parameters = string.Join(",", categoryList.Select((_, i) => $"@category{i}"));
+        command.CommandText = $"SELECT * FROM Mods WHERE Category IN ({parameters})";
+
+        // Add parameters
+        for (int i = 0; i < categoryList.Count; i++)
+        {
+            command.Parameters.AddWithValue($"@category{i}", categoryList[i]);
+        }
 
         await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
         while (await reader.ReadAsync().ConfigureAwait(false))

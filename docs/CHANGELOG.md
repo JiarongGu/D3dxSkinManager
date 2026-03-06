@@ -12,6 +12,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-03-06 - Category Sub-Category Creation and Thumbnail Path Resolution ⭐⭐
+Fixed critical bug preventing sub-category creation due to empty string parentId normalization and relative thumbnail path issues.
+**Impact**: ✅ Sub-categories now work correctly, inherited thumbnails resolve properly
+**Problem 1**: Empty string `""` for root category parentId wasn't normalized to `NULL` in database, causing orphaned categories
+**Problem 2**: Frontend sent `""` for root categories instead of `undefined`, backend didn't convert to `null` before INSERT
+**Problem 3**: Inherited parent thumbnails (stored as relative paths) failed to resolve to absolute paths during hash calculation
+**Problem 4**: Category name uniqueness check was case-insensitive and in-memory instead of database-level and case-sensitive
+**Solution**: Added empty string normalization, absolute path resolution for thumbnails, case-sensitive database checks
+**Backend Changes**:
+- CategoryService.cs:333-337: Added `if (string.IsNullOrWhiteSpace(parentId)) parentId = null;` normalization in CreateAsync
+- CategoryService.cs:162-166: Added same normalization in UpdateParentAsync for move operations
+- CategoryService.cs:357-358,239-240,415-416: Added `_pathHelper.ToAbsolutePath(thumbnailPath)` before hash calculation in CreateAsync, UpdateCategoryAsync, UpdateThumbnailAsync
+- CategoryService.cs:339-344: Changed from in-memory `allCategories.Any(c => c.Name.Equals(name, OrdinalIgnoreCase))` to database `GetByNameAsync(name)` with case-sensitive check
+- CategoryService.cs:223-230: Updated UpdateCategoryAsync to use direct database check instead of loading all categories
+- CategoryRepository.cs:188: Removed `COLLATE NOCASE` from GetByNameAsync for case-sensitive name matching
+- CategoryService.cs:67,77: Injected ILogHelper, replaced all Console.WriteLine with `_logger.Warn()` and `_logger.Verbose()`
+**Root Cause**: CategoryScreen.tsx uses `""` for root categories (line 293), backend wasn't normalizing to `null`, database stored `ParentId = ""` instead of `NULL`, sub-category lookups failed
+**Side Effects Fixed**: Orphaned categories with empty parentId now properly identified as root categories after normalization
+
+### Changed - 2026-03-06 - Centralized Mod Sorting with CategoryName Population ⭐⭐
+Refactored mod sorting from scattered SQL JOINs to centralized in-memory sorting using cached category names for consistent ordering across all mod queries.
+**Impact**: ✅ All mod lists now sort by category name → mod name consistently, leverages CategoryService cache
+**Problem 1**: Sorting logic duplicated across multiple repository methods with SQL JOINs
+**Problem 2**: Each query built its own category name map, wasting memory and CPU
+**Problem 3**: No single source of truth for sorting behavior
+**Problem 4**: PopulateCategoryNamesBulkAsync built temporary map instead of using CategoryService's cached GetCategoryNameAsync
+**Solution**: Removed SQL sorting, always populate CategoryName via cached service, centralized sort in ModQueryService
+**Backend Changes**:
+- ModRepository.cs: Removed `GetAllSortedAsync()` and `FilterAsync()` methods with SQL JOINs
+- ModRepository.cs:261: Simplified GetByMultipleCategoriesAsync to remove JOIN, just `SELECT * FROM Mods WHERE Category IN (...)`
+- ModQueryService.cs:380-401: Refactored PopulateCategoryNamesBulkAsync to call `_categoryService.GetCategoryNameAsync()` for each mod (uses cached map)
+- ModQueryService.cs:273-279: Added centralized `SortMods(mods)` that sorts by `CategoryName ?? Category` then `Name` (synchronous, no async)
+- ModQueryService.cs:101-103,146-148,158-160,210-212,239-241: Updated all query methods to call PopulateCategoryNamesBulkAsync then SortMods
+- ModQueryService.cs:234-235,260-261: Removed obsolete `mod.Category.Equals("Unknown")` checks from unclassified mod filters
+**Architecture Benefits**:
+- **Single Source of Truth**: SortMods is the only place sorting logic exists
+- **Leverages Cache**: Uses CategoryService's cached category ID→Name map (shared across queries)
+- **Cleaner Code**: No SQL JOINs, simpler repository queries
+- **Consistent Behavior**: All mod lists use identical sort: CategoryName (case-insensitive) → ModName (case-insensitive)
+**Performance**: First query builds cache, all subsequent queries reuse cached map (very fast!)
+
 ### Changed - 2026-03-06 - Generic Window System with ProfileContext Integration ⭐⭐
 Refactored window configuration system from capture-specific to generic multi-window support with ProfileContext integration and thread-safe ConcurrentDictionary management.
 **Impact**: ✅ Enables multiple window types (capture, debug, tools) with independent position/size storage, eliminates profileId parameter passing, prevents race conditions

@@ -58,43 +58,49 @@ public class ModQueryService : IModQueryService
     /// </summary>
     public async Task<List<ModInfo>> SearchAsync(string searchTerm)
     {
-        if (string.IsNullOrWhiteSpace(searchTerm))
-        {
-            return await _repository.GetAllAsync().ConfigureAwait(false);
-        }
-
         var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
 
-        // Split search term into individual terms
-        var terms = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-        var results = allMods.Where(mod =>
+        // Filter by search term
+        List<ModInfo> results;
+        if (string.IsNullOrWhiteSpace(searchTerm))
         {
-            // All terms must match (AND logic)
-            foreach (var term in terms)
+            results = allMods;
+        }
+        else
+        {
+            // Split search term into individual terms
+            var terms = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+            results = allMods.Where(mod =>
             {
-                var isNegation = term.StartsWith("!");
-                var searchValue = isNegation ? term.Substring(1) : term;
-
-                var matches = ModMatchesSearchTerm(mod, searchValue);
-
-                // If negation and matches, exclude
-                if (isNegation && matches)
+                // All terms must match (AND logic)
+                foreach (var term in terms)
                 {
-                    return false;
+                    var isNegation = term.StartsWith("!");
+                    var searchValue = isNegation ? term.Substring(1) : term;
+
+                    var matches = ModMatchesSearchTerm(mod, searchValue);
+
+                    // If negation and matches, exclude
+                    if (isNegation && matches)
+                    {
+                        return false;
+                    }
+
+                    // If not negation and doesn't match, exclude
+                    if (!isNegation && !matches)
+                    {
+                        return false;
+                    }
                 }
 
-                // If not negation and doesn't match, exclude
-                if (!isNegation && !matches)
-                {
-                    return false;
-                }
-            }
+                return true;
+            }).ToList();
+        }
 
-            return true;
-        }).ToList();
-
-        return results;
+        // Populate category names and sort
+        await PopulateCategoryNamesBulkAsync(results).ConfigureAwait(false);
+        return SortMods(results);
     }
 
     /// <summary>
@@ -109,6 +115,7 @@ public class ModQueryService : IModQueryService
     {
         var mods = await _repository.GetAllAsync().ConfigureAwait(false);
 
+        // Apply database-level filters
         if (!string.IsNullOrEmpty(category))
         {
             mods = mods.Where(m => m.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -124,6 +131,8 @@ public class ModQueryService : IModQueryService
             mods = mods.Where(m => m.Grading.Equals(grading, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
+        // Apply runtime filters for computed properties (IsLoaded, IsAvailable)
+        // These can't be done in SQL as they're calculated from file system state
         if (isLoaded.HasValue)
         {
             mods = mods.Where(m => m.IsLoaded == isLoaded.Value).ToList();
@@ -134,7 +143,9 @@ public class ModQueryService : IModQueryService
             mods = mods.Where(m => m.IsAvailable == isAvailable.Value).ToList();
         }
 
-        return mods;
+        // Populate category names and sort
+        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+        return SortMods(mods);
     }
 
     /// <summary>
@@ -143,7 +154,12 @@ public class ModQueryService : IModQueryService
     public async Task<Dictionary<string, List<ModInfo>>> GetGroupedByObjectAsync()
     {
         var mods = await _repository.GetAllAsync().ConfigureAwait(false);
-        return mods.GroupBy(m => m.Category)
+
+        // Populate category names and sort
+        await PopulateCategoryNamesBulkAsync(mods).ConfigureAwait(false);
+        var sortedMods = SortMods(mods);
+
+        return sortedMods.GroupBy(m => m.Category)
                    .ToDictionary(g => g.Key, g => g.ToList());
     }
 
@@ -188,13 +204,12 @@ public class ModQueryService : IModQueryService
         // Get all descendant node IDs (includes self + all children recursively)
         var descendantIds = await _categoryRepository.GetAllDescendantIdsAsync(categoryId).ConfigureAwait(false);
 
-        // Get all mods matching any of these categories
-        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
-        var matchingMods = allMods
-            .Where(mod => descendantIds.Contains(mod.Category))
-            .ToList();
+        // Get mods by categories
+        var matchingMods = await _repository.GetByMultipleCategoriesAsync(descendantIds).ConfigureAwait(false);
 
-        return matchingMods;
+        // Populate category names and sort
+        await PopulateCategoryNamesBulkAsync(matchingMods).ConfigureAwait(false);
+        return SortMods(matchingMods);
     }
 
     /// <summary>
@@ -213,15 +228,16 @@ public class ModQueryService : IModQueryService
         );
 
         // Filter mods that:
-        // 1. Don't have a category assigned (null/empty/unknown)
+        // 1. Don't have a category assigned (null/empty)
         // 2. Have a category that doesn't match any Category ID in the tree
         var unclassifiedMods = allMods
             .Where(mod => string.IsNullOrWhiteSpace(mod.Category) ||
-                         mod.Category.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
                          !validCategoryIds.Contains(mod.Category))
             .ToList();
 
-        return unclassifiedMods;
+        // Populate category names and sort
+        await PopulateCategoryNamesBulkAsync(unclassifiedMods).ConfigureAwait(false);
+        return SortMods(unclassifiedMods);
     }
 
     /// <summary>
@@ -239,13 +255,26 @@ public class ModQueryService : IModQueryService
         );
 
         // Count mods that:
-        // 1. Don't have a category assigned (null/empty/unknown)
+        // 1. Don't have a category assigned (null/empty)
         // 2. Have a category that doesn't match any Category ID in the tree
         var count = allMods.Count(mod => string.IsNullOrWhiteSpace(mod.Category) ||
-                                         mod.Category.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
                                          !validCategoryIds.Contains(mod.Category));
 
         return count;
+    }
+
+    /// <summary>
+    /// Centralized sorting for all mod queries: sort by category name then mod name
+    /// This ensures consistent ordering across all mod list views
+    /// IMPORTANT: PopulateCategoryNamesBulkAsync must be called first to populate CategoryName
+    /// </summary>
+    private List<ModInfo> SortMods(List<ModInfo> mods)
+    {
+        // Sort by CategoryName (populated by PopulateCategoryNamesBulkAsync), fallback to Category ID
+        // Then sort by mod Name
+        return mods.OrderBy(mod => mod.CategoryName ?? mod.Category, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(mod => mod.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private bool ModMatchesSearchTerm(ModInfo mod, string searchTerm)
@@ -337,9 +366,11 @@ public class ModQueryService : IModQueryService
 
     /// <summary>
     /// Populates CategoryName field for all mods based on their Category (Category ID)
+    /// Uses CategoryService.GetCategoryNameAsync which has built-in caching
     /// </summary>
     public async Task PopulateCategoryNamesBulkAsync(List<ModInfo> mods)
     {
+        // Get distinct category IDs that need names
         var categoryIds = mods
             .Where(m => !string.IsNullOrEmpty(m.Category))
             .Select(m => m.Category)
@@ -349,25 +380,14 @@ public class ModQueryService : IModQueryService
         if (!categoryIds.Any())
             return;
 
-        var categoryTree = await _categoryService.GetCategoryTreeAsync().ConfigureAwait(false);
-        var categoryMap = new Dictionary<string, string>();
-
-        void BuildCategoryMap(CategoryInfo node)
-        {
-            if (!string.IsNullOrEmpty(node.Id))
-                categoryMap[node.Id] = node.Name;
-
-            foreach (var child in node.Children)
-                BuildCategoryMap(child);
-        }
-
-        foreach (var root in categoryTree)
-            BuildCategoryMap(root);
-
+        // Populate category names using the cached service method
+        // The first call will build and cache the map, subsequent calls use the cache
         foreach (var mod in mods)
         {
-            if (!string.IsNullOrEmpty(mod.Category) && categoryMap.TryGetValue(mod.Category, out var categoryName))
-                mod.CategoryName = categoryName;
+            if (!string.IsNullOrEmpty(mod.Category))
+            {
+                mod.CategoryName = await _categoryService.GetCategoryNameAsync(mod.Category).ConfigureAwait(false) ?? "";
+            }
         }
     }
 

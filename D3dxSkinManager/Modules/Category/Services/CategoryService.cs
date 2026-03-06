@@ -46,10 +46,10 @@ public class CategoryService : ICategoryService
     private readonly IPathHelper _pathHelper;
     private readonly IHashHelper _hashHelper;
     private readonly IImageHelper _imageHelper;
-    private readonly IFileTransferService _fileTransferService;
     private readonly IProfilePathService _profilePaths;
     private readonly IMemoryCache _cache;
     private readonly IProfileEventBus _eventBus;
+    private readonly ILogHelper _logger;
     private readonly string _cacheKey;
     private readonly string _categoryMapCacheKey;
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(5);
@@ -60,14 +60,13 @@ public class CategoryService : ICategoryService
         IPathHelper pathHelper,
         IHashHelper hashHelper,
         IImageHelper imageHelper,
-        IFileTransferService fileTransferService,
         IProfilePathService profilePaths,
         IMemoryCache cache,
         IProfileEventBus eventBus,
-        IProfileContext profileContext)
+        IProfileContext profileContext,
+        ILogHelper logger)
     {
         _repository = repository;
-        _fileTransferService = fileTransferService;
         _profilePaths = profilePaths;
         _modRepository = modRepository;
         _pathHelper = pathHelper;
@@ -75,6 +74,7 @@ public class CategoryService : ICategoryService
         _imageHelper = imageHelper;
         _cache = cache;
         _eventBus = eventBus;
+        _logger = logger;
 
         // Use profile-specific cache keys since IMemoryCache is shared across all profiles
         _cacheKey = $"CategoryTree_{profileContext.ProfileId}";
@@ -220,14 +220,12 @@ public class CategoryService : ICategoryService
             // Check if name would conflict globally (ensure uniqueness across entire database)
             if (category.Name != name)
             {
-                var allCategories = await _repository.GetAllAsync().ConfigureAwait(false);
-                var otherCategories = allCategories.Where(c => c.Id != categoryId).ToList();
-
-                // Check for name uniqueness globally
-                if (otherCategories.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                // Use direct database check with case-sensitive comparison
+                var existingCategory = await _repository.GetByNameAsync(name).ConfigureAwait(false);
+                if (existingCategory != null && existingCategory.Id != categoryId)
                 {
                     // Another category with this name already exists
-                    Console.WriteLine($"Category with name '{name}' already exists");
+                    _logger.Warn($"Category with name '{name}' already exists", "CategoryService");
                     return false;
                 }
             }
@@ -238,10 +236,13 @@ public class CategoryService : ICategoryService
                 // Convert and copy new thumbnail to data folder if provided
                 if (thumbnailPath != null)
                 {
+                    // Resolve relative path to absolute path (thumbnail might already be stored as relative)
+                    var absoluteThumbnailPath = _pathHelper.ToAbsolutePath(thumbnailPath) ?? thumbnailPath;
+
                     // Convert thumbnail to PNG format for compatibility
                     var thumbnailsDir = _profilePaths.ThumbnailsDirectory;
-                    var hash = await _hashHelper.CalculateFileSHA256Async(thumbnailPath).ConfigureAwait(false);
-                    var convertedPath = await _imageHelper.ConvertToPngAsync(thumbnailPath, thumbnailsDir, hash).ConfigureAwait(false);
+                    var hash = await _hashHelper.CalculateFileSHA256Async(absoluteThumbnailPath).ConfigureAwait(false);
+                    var convertedPath = await _imageHelper.ConvertToPngAsync(absoluteThumbnailPath, thumbnailsDir, hash).ConfigureAwait(false);
 
                     if (convertedPath != null)
                     {
@@ -277,7 +278,7 @@ public class CategoryService : ICategoryService
         catch (Exception ex)
         {
             // Log the error for debugging
-            Console.WriteLine($"Error updating Category: {ex.Message}");
+            _logger.Warn($"Error updating Category: {ex.Message}", "CategoryService");
             return false;
         }
     }
@@ -330,12 +331,18 @@ public class CategoryService : ICategoryService
             // Use provided categoryId if specified, otherwise generate a new GUID
             var generatedId = string.IsNullOrWhiteSpace(categoryId) ? Guid.NewGuid().ToString() : categoryId.Trim();
 
-            // Check if name already exists globally (Category names must be unique across entire database)
-            var allCategories = await _repository.GetAllAsync().ConfigureAwait(false);
-
-            if (allCategories.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            // Normalize empty parentId to null (empty string should be treated as root category)
+            if (string.IsNullOrWhiteSpace(parentId))
             {
-                Console.WriteLine($"[CategoryService] Category with name '{name}' already exists");
+                parentId = null;
+            }
+
+            // Check if name already exists globally (Category names must be unique across entire database)
+            // Use direct database check with case-sensitive comparison
+            var existingCategory = await _repository.GetByNameAsync(name).ConfigureAwait(false);
+            if (existingCategory != null)
+            {
+                _logger.Warn($"Category with name '{name}' already exists", "CategoryService");
                 return null; // Name conflict - must be globally unique
             }
 
@@ -350,10 +357,13 @@ public class CategoryService : ICategoryService
             string? relativeThumbnailPath = null;
             if (!string.IsNullOrEmpty(thumbnailPath))
             {
+                // Resolve relative path to absolute path (thumbnail might already be stored as relative)
+                var absoluteThumbnailPath = _pathHelper.ToAbsolutePath(thumbnailPath) ?? thumbnailPath;
+
                 // Convert thumbnail to PNG format for compatibility
                 var thumbnailsDir = _profilePaths.ThumbnailsDirectory;
-                var hash = await _hashHelper.CalculateFileSHA256Async(thumbnailPath).ConfigureAwait(false);
-                var convertedPath = await _imageHelper.ConvertToPngAsync(thumbnailPath, thumbnailsDir, hash).ConfigureAwait(false);
+                var hash = await _hashHelper.CalculateFileSHA256Async(absoluteThumbnailPath).ConfigureAwait(false);
+                var convertedPath = await _imageHelper.ConvertToPngAsync(absoluteThumbnailPath, thumbnailsDir, hash).ConfigureAwait(false);
 
                 if (convertedPath != null)
                 {
@@ -363,7 +373,7 @@ public class CategoryService : ICategoryService
                 else
                 {
                     // If conversion failed, store original path (will fail gracefully on display)
-                    Console.WriteLine($"[CategoryService] Failed to convert thumbnail, storing original path");
+                    _logger.Warn($"Failed to convert thumbnail, storing original path: {thumbnailPath}", "CategoryService");
                     relativeThumbnailPath = thumbnailPath;
                 }
             }
@@ -383,8 +393,10 @@ public class CategoryService : ICategoryService
             InvalidateTreeCache();
             return category;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.Warn($"Failed to create category '{name}': {ex.Message}", "CategoryService");
+            _logger.Verbose($"Stack trace: {ex.StackTrace}", "CategoryService");
             return null;
         }
     }
@@ -400,10 +412,13 @@ public class CategoryService : ICategoryService
             if (category == null)
                 return false;
 
+            // Resolve relative path to absolute path (thumbnail might already be stored as relative)
+            var absoluteThumbnailPath = _pathHelper.ToAbsolutePath(thumbnailPath) ?? thumbnailPath;
+
             // Convert thumbnail to PNG format for compatibility
             var thumbnailsDir = _profilePaths.ThumbnailsDirectory;
-            var hash = await _hashHelper.CalculateFileSHA256Async(thumbnailPath).ConfigureAwait(false);
-            var convertedPath = await _imageHelper.ConvertToPngAsync(thumbnailPath, thumbnailsDir, hash).ConfigureAwait(false);
+            var hash = await _hashHelper.CalculateFileSHA256Async(absoluteThumbnailPath).ConfigureAwait(false);
+            var convertedPath = await _imageHelper.ConvertToPngAsync(absoluteThumbnailPath, thumbnailsDir, hash).ConfigureAwait(false);
 
             if (convertedPath == null)
             {
