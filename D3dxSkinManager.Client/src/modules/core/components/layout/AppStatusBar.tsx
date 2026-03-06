@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
-import { Space, Tag, Progress, Button } from 'antd';
-import {
-  LoadingOutlined,
-  QuestionCircleOutlined,
-} from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
-import { useModsStore } from '../../../mod/store/modsStore';
-import './AppStatusBar.css';
+import React, { useState } from "react";
+import { Space, Tag, Progress, Button } from "antd";
+import { LoadingOutlined, QuestionCircleOutlined } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
+import { useModsStore } from "../../../mod/store/modsStore";
+import "./AppStatusBar.css";
 
-export type StatusType = 'normal' | 'warning' | 'error';
+export type StatusType = "normal" | "warning" | "error";
 
 interface AppStatusBarProps {
   operationName?: string; // Current operation name
@@ -29,7 +26,7 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
   const [statusType, setStatusType] = useState<StatusType>("normal");
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [progressVisible, setProgressVisible] = useState<boolean>(false);
-  
+
   // Get mod statistics from store (global counts, not affected by category selection)
   const statistics = useModsStore((state) => state.statistics);
 
@@ -47,14 +44,18 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
       {progressVisible && (
         <div
           onClick={onProgressClick}
-          className={onProgressClick ? 'app-status-bar-progress' : 'app-status-bar-progress-default'}
-          title={operationName || t('dialogs.operationMonitor.noOperations')}
+          className={
+            onProgressClick
+              ? "app-status-bar-progress"
+              : "app-status-bar-progress-default"
+          }
+          title={operationName || t("dialogs.operationMonitor.noOperations")}
         >
           <Progress
             percent={progressPercent}
             size="small"
             showInfo={false}
-            status={progressPercent === 100 ? 'success' : 'active'}
+            status={progressPercent === 100 ? "success" : "active"}
             className="app-status-bar-progress-bar"
           />
         </div>
@@ -64,6 +65,19 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
       <div className="app-status-bar-main">
         {/* Left side - Status Message */}
         <Space size="large">
+          {/* Help link */}
+          {onHelpClick && (
+            <Button
+              type="link"
+              size="small"
+              icon={<QuestionCircleOutlined />}
+              onClick={onHelpClick}
+              className="app-status-bar-help-button"
+            >
+              {t("statusBar.help")}
+            </Button>
+          )}
+
           {/* Operation name or status message */}
           {operationName && activeOperationCount > 0 ? (
             <Space size="small">
@@ -78,34 +92,17 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
               )}
             </Space>
           ) : statusMessage ? (
-            <span className={getStatusClass()}>
-              {statusMessage}
-            </span>
+            <span className={getStatusClass()}>{statusMessage}</span>
           ) : null}
         </Space>
 
         {/* Right side - Help, Mods, Version (all aligned to right) */}
-        <Space size="large" style={{ marginLeft: 'auto' }}>
-          {/* Help link */}
-          {onHelpClick && (
-            <Button
-              type="link"
-              size="small"
-              icon={<QuestionCircleOutlined />}
-              onClick={onHelpClick}
-              className="app-status-bar-help-button"
-            >
-              {t('statusBar.help')}
-            </Button>
-          )}
-
-          <Tag color={modsLoaded > 0 ? 'green' : 'default'}>
-            {t('statusBar.modsLoaded', { count: modsLoaded, total: modsTotal })}
+        <Space size="large" style={{ marginLeft: "auto" }}>
+          <Tag color={modsLoaded > 0 ? "green" : "default"}>
+            {t("statusBar.modsLoaded", { count: modsLoaded, total: modsTotal })}
           </Tag>
 
-          <span className="app-status-bar-version">
-            D3dxSkinManager v1.0.0
-          </span>
+          <span className="app-status-bar-version">D3dxSkinManager v1.0.0</span>
         </Space>
       </div>
     </div>

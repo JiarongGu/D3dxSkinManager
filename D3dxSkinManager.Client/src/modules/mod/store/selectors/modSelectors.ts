@@ -12,7 +12,7 @@ import { ModInfo, ModStatistics } from '../../../../shared/types/mod.types';
 export const selectMods = (state: ModsState): ModInfo[] => state.mods;
 
 /**
- * Get filtered mods based on search, object filter, and Category
+ * Get filtered mods based on search and Category
  */
 export const selectFilteredMods = (state: ModsState): ModInfo[] => {
   let filtered = state.mods;
@@ -20,11 +20,6 @@ export const selectFilteredMods = (state: ModsState): ModInfo[] => {
   // Apply Category filter first (if active)
   if (state.CategoryFilteredMods !== undefined) {
     filtered = state.CategoryFilteredMods;
-  }
-
-  // Apply object filter
-  if (state.selectedObject && state.selectedObject !== '') {
-    filtered = filtered.filter((mod) => mod.type === state.selectedObject);
   }
 
   // Apply search query

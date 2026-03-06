@@ -31,7 +31,6 @@ export const ModListPanel: React.FC = () => {
   const selectedMod = useModsStore((s) => s.selectedMod);
   const searchQuery = useModsStore((s) => s.searchQuery);
   const selectedCategory = useModsStore((s) => s.selectedCategory);
-  const selectedObject = useModsStore((s) => s.selectedObject);
   const CategoryFilteredMods = useModsStore((s) => s.CategoryFilteredMods);
 
   // Get operations
@@ -42,7 +41,7 @@ export const ModListPanel: React.FC = () => {
     deleteMod,
     openEditDialog,
     selectMod,
-    openModManagementScreen,
+    openImportWorkflowScreen,
   } = useMods();
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
@@ -55,7 +54,7 @@ export const ModListPanel: React.FC = () => {
   // Enable drop zone for batch mod import
   useDropZone({
     targetRef: contentRef,
-    enabled: !!selectedProfileId && (!!selectedCategory || !!selectedObject),
+    enabled: !!selectedProfileId && !!selectedCategory,
     onDrop: async (files: string[]) => {
       if (!selectedProfileId || files.length === 0) return;
 
@@ -68,7 +67,7 @@ export const ModListPanel: React.FC = () => {
 
         // Open the mod import workflow screen IMMEDIATELY with skeleton loading state
         // This gives instant feedback to the user
-        openModManagementScreen();
+        openImportWorkflowScreen();
 
         // Start batch mod import workflows in background
         // Backend will validate each file/folder and reject invalid ones
@@ -98,11 +97,6 @@ export const ModListPanel: React.FC = () => {
       result = mods;
     }
 
-    // Filter by selected object (only if no Category is selected)
-    if (!selectedCategory && selectedObject && selectedObject !== "all") {
-      result = result.filter((mod: ModInfo) => mod.category === selectedObject);
-    }
-
     // Apply mod search filter
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
@@ -117,34 +111,10 @@ export const ModListPanel: React.FC = () => {
       );
     }
 
-    // Add "Unload" option at the beginning if object is selected and has loaded mod
-    if (selectedObject && selectedObject !== "all") {
-      const hasLoadedMod = result.some((mod: ModInfo) => mod.isLoaded);
-      if (hasLoadedMod) {
-        const unloadOption: ModInfo = {
-          sha: "__UNLOAD__",
-          name: "- [X] Unload This Object -",
-          category: selectedObject,
-          author: "",
-          tags: [],
-          grading: "",
-          description: "",
-          disablePreview: false,
-          isLoaded: false,
-          type: "special",
-          isAvailable: true,
-          hasCache: false,
-          hasPreviewFolder: false,
-        };
-        result = [unloadOption, ...result];
-      }
-    }
-
     return result;
   }, [
     mods,
     CategoryFilteredMods,
-    selectedObject,
     selectedCategory,
     searchQuery,
   ]);
@@ -226,7 +196,7 @@ export const ModListPanel: React.FC = () => {
   React.useEffect(() => {
     setSelectedModShas([]);
     setAnchorSha(undefined);
-  }, [selectedCategory, selectedObject]);
+  }, [selectedCategory]);
 
   const handleLoadedModClick = (mod: ModInfo) => {
     // Scroll to the loaded mod and select it
@@ -244,7 +214,7 @@ export const ModListPanel: React.FC = () => {
     }
   };
 
-  if (!selectedCategory && !selectedObject) {
+  if (!selectedCategory) {
     return (
       <Sider width="100%" className="mod-list-panel">
         <div className="mod-list-panel-empty-container">
@@ -272,7 +242,7 @@ export const ModListPanel: React.FC = () => {
         <Button
           type="default"
           icon={<PlusOutlined />}
-          onClick={() => openModManagementScreen()}
+          onClick={() => openImportWorkflowScreen()}
         />
       </div>
 
@@ -305,11 +275,7 @@ export const ModListPanel: React.FC = () => {
                       ? t("mods.panel.noModsForCategory", {
                           name: selectedCategory.name,
                         })
-                      : selectedObject
-                        ? t("mods.panel.noModsForObject", {
-                            object: selectedObject,
-                          })
-                        : t("mods.panel.noModsAvailable")
+                      : t("mods.panel.noModsAvailable")
                 }
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
@@ -322,8 +288,6 @@ export const ModListPanel: React.FC = () => {
       <div className="mod-list-panel-status-bar-container">
         <ModListStatusBar
           mods={filteredMods}
-          selectedCategory={selectedCategory}
-          selectedObject={selectedObject}
           onLoadedModClick={handleLoadedModClick}
           selectedModCount={selectedModShas.length}
         />

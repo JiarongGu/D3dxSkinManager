@@ -20,7 +20,6 @@ export * from './store/selectors/categorySelectors';
 export * as modOperations from './operations/modOperations';
 export * as loadOperations from './operations/loadOperations';
 export * as categoryOperations from './operations/categoryOperations';
-export * as importOperations from './operations/importOperations';
 
 // Components
 export { ModHierarchicalView } from './components/ModHierarchicalView';

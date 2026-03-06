@@ -13,7 +13,6 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { ModInfo, ModStatistics } from '../../../shared/types/mod.types';
 import { CategoryInfo } from '../../../shared/types/category.types';
-import { ImportTask } from '../types/importTask.types';
 
 // ============================================================================
 // State Interface
@@ -40,14 +39,7 @@ export interface ModsState {
   // Preview Panel
   previewLoading: boolean; // Loading state for preview panel (images, metadata, etc.)
 
-  // Import
-  importTasks: ImportTask[];
-  importProcessing: boolean;
-  taskIdCounter: number;
-  selectedTaskIds: string[];
-
   // UI State
-  selectedObject: string;
   expandedKeys: React.Key[];
   searchQuery: string;
   editDialogVisible: boolean;
@@ -61,9 +53,8 @@ export interface ModsState {
     previewWidth: number; // percentage (calculated)
   };
 
-  // ModManagementScreen - Import queue state
-  modManagementScreenVisible: boolean;
-  modManagementMode: 'import'; // Currently only 'import' mode
+  // Import Workflow Screen
+  importWorkflowScreenVisible: boolean;
 }
 
 // ============================================================================
@@ -72,14 +63,10 @@ export interface ModsState {
 
 export interface ModsActions {
   // Mod List Panel Actions
-  setMods: (mods: ModInfo[]) => void;
   setModsLoading: (loading: boolean) => void;
-  setError: (error: string | undefined) => void;
   setSelectedMod: (mod: ModInfo | undefined) => void;
   setSelectedMods: (mods: ModInfo[]) => void;
   updateModLocal: (sha: string, data: Partial<ModInfo>) => void;
-  updateModsLocal: (shas: string[], data: Partial<ModInfo>) => void;
-  addMod: (mod: ModInfo) => void;
   removeMod: (sha: string) => void;
   optimisticLoadUpdate: (sha: string, unloadedShas: string[]) => void;
   optimisticUnloadUpdate: (sha: string) => void;
@@ -97,24 +84,10 @@ export interface ModsActions {
   // Preview Panel Actions
   setPreviewLoading: (loading: boolean) => void;
   setcategorySearch: (search: string) => void;
-  updateTreeNodeLocal: (nodeId: string, updates: Partial<CategoryInfo>) => void;
   clearCategoryFilter: () => void;
 
-  // Import Actions
-  setImportTasks: (tasks: ImportTask[]) => void;
-  setImportProcessing: (processing: boolean) => void;
-  setSelectedTaskIds: (ids: string[]) => void;
-  addImportTask: (task: Omit<ImportTask, 'id'>) => string;
-  addImportTasks: (tasks: ImportTask[]) => void;
-  updateImportTask: (taskId: string, updates: Partial<ImportTask>) => void;
-  removeImportTask: (taskId: string) => void;
-  clearImportTasks: () => void;
-  updateMultipleTasks: (taskIds: string[], updates: Partial<ImportTask>) => void;
-
   // UI Actions
-  setSelectedObject: (object: string) => void;
   setExpandedKeys: (keys: React.Key[]) => void;
-  toggleExpandedKey: (key: React.Key) => void;
   setSearchQuery: (query: string) => void;
   setAvailableTags: (tags: string[]) => void;
   openEditDialog: (mod: ModInfo) => void;
@@ -123,9 +96,9 @@ export interface ModsActions {
   // Panel Size Actions
   setPanelSizes: (sizes: { categoryWidth: number; modListWidth: number; previewWidth: number }) => void;
 
-  // ModManagementScreen Actions
-  openModManagementScreen: () => void;
-  closeModManagementScreen: () => void;
+  // Import Workflow Screen Actions
+  openImportWorkflowScreen: () => void;
+  closeImportWorkflowScreen: () => void;
 
   // Global Actions
   reset: () => void;
@@ -158,14 +131,7 @@ const initialState: ModsState = {
   // Preview Panel
   previewLoading: false,
 
-  // Import
-  importTasks: [],
-  importProcessing: false,
-  taskIdCounter: 0,
-  selectedTaskIds: [],
-
   // UI State
-  selectedObject: '',
   expandedKeys: [],
   searchQuery: '',
   editDialogVisible: false,
@@ -179,9 +145,8 @@ const initialState: ModsState = {
     previewWidth: 45,
   },
 
-  // ModManagementScreen
-  modManagementScreenVisible: false,
-  modManagementMode: 'import',
+  // Import Workflow Screen
+  importWorkflowScreenVisible: false,
 };
 
 // ============================================================================
@@ -196,31 +161,9 @@ export const useModsStore = create<ModsStore>()(
       // Mod Actions
       // ============================================================
 
-      setMods: (mods) =>
-        set((state) => {
-          state.mods = mods;
-          // Update selectedMod if it exists in the new mods array to sync properties like hasCache
-          if (state.selectedMod) {
-            const updatedSelectedMod = mods.find((mod: ModInfo) => mod.sha === state.selectedMod?.sha);
-            if (updatedSelectedMod) {
-              state.selectedMod = updatedSelectedMod;
-            }
-          }
-          // NOTE: We do NOT re-filter CategoryFilteredMods here
-          // The backend is responsible for filtering mods by category
-          // Frontend just displays what the backend provides
-          // When mods change (load/unload), the backend will emit events
-          // and the frontend will re-fetch the category-filtered list from backend
-        }),
-
       setModsLoading: (loading) =>
         set((state) => {
           state.modsLoading = loading;
-        }),
-
-      setError: (error) =>
-        set((state) => {
-          state.error = error;
         }),
 
       setSelectedMod: (mod) =>
@@ -247,27 +190,6 @@ export const useModsStore = create<ModsStore>()(
               mod.sha === sha ? { ...mod, ...data } : mod
             );
           }
-        }),
-
-      updateModsLocal: (shas, data) =>
-        set((state) => {
-          state.mods = state.mods.map((mod: ModInfo) =>
-            shas.includes(mod.sha) ? { ...mod, ...data } : mod
-          );
-          if (state.selectedMod && shas.includes(state.selectedMod.sha)) {
-            state.selectedMod = { ...state.selectedMod, ...data };
-          }
-          // Also update Category filtered mods if present
-          if (state.CategoryFilteredMods) {
-            state.CategoryFilteredMods = state.CategoryFilteredMods.map((mod: ModInfo) =>
-              shas.includes(mod.sha) ? { ...mod, ...data } : mod
-            );
-          }
-        }),
-
-      addMod: (mod) =>
-        set((state) => {
-          state.mods.push(mod);
         }),
 
       removeMod: (sha) =>
@@ -379,23 +301,6 @@ export const useModsStore = create<ModsStore>()(
           state.categorySearch = search;
         }),
 
-      updateTreeNodeLocal: (nodeId, updates) =>
-        set((state) => {
-          const updateNode = (nodes: CategoryInfo[]): CategoryInfo[] => {
-            return nodes.map((node) => {
-              if (node.id === nodeId) {
-                return { ...node, ...updates };
-              }
-              if (node.children && node.children.length > 0) {
-                return { ...node, children: updateNode(node.children) };
-              }
-              return node;
-            });
-          };
-
-          state.CategoryTree = updateNode(state.CategoryTree);
-        }),
-
       clearCategoryFilter: () =>
         set((state) => {
           state.selectedCategory = undefined;
@@ -403,88 +308,12 @@ export const useModsStore = create<ModsStore>()(
         }),
 
       // ============================================================
-      // Import Actions
-      // ============================================================
-
-      setImportTasks: (tasks) =>
-        set((state) => {
-          state.importTasks = tasks;
-        }),
-
-      setImportProcessing: (processing) =>
-        set((state) => {
-          state.importProcessing = processing;
-        }),
-
-      setSelectedTaskIds: (ids) =>
-        set((state) => {
-          state.selectedTaskIds = ids;
-        }),
-
-      addImportTask: (task) => {
-        const taskId = `TASK-${get().taskIdCounter + 1}`;
-        const newTask: ImportTask = { ...task, id: taskId };
-
-        set((state) => {
-          state.importTasks.push(newTask);
-          state.taskIdCounter++;
-        });
-
-        return taskId;
-      },
-
-      addImportTasks: (tasks) =>
-        set((state) => {
-          state.importTasks.push(...tasks);
-          state.taskIdCounter += tasks.length;
-        }),
-
-      updateImportTask: (taskId, updates) =>
-        set((state) => {
-          state.importTasks = state.importTasks.map((task: ImportTask) =>
-            task.id === taskId ? { ...task, ...updates } : task
-          );
-        }),
-
-      removeImportTask: (taskId) =>
-        set((state) => {
-          state.importTasks = state.importTasks.filter((task: ImportTask) => task.id !== taskId);
-          state.selectedTaskIds = state.selectedTaskIds.filter((id: string) => id !== taskId);
-        }),
-
-      clearImportTasks: () =>
-        set((state) => {
-          state.importTasks = [];
-          state.selectedTaskIds = [];
-        }),
-
-      updateMultipleTasks: (taskIds, updates) =>
-        set((state) => {
-          state.importTasks = state.importTasks.map((task: ImportTask) =>
-            taskIds.includes(task.id) ? { ...task, ...updates } : task
-          );
-        }),
-
-      // ============================================================
       // UI Actions
       // ============================================================
-
-      setSelectedObject: (object) =>
-        set((state) => {
-          state.selectedObject = object;
-        }),
 
       setExpandedKeys: (keys) =>
         set((state) => {
           state.expandedKeys = keys;
-        }),
-
-      toggleExpandedKey: (key) =>
-        set((state) => {
-          const isExpanded = state.expandedKeys.includes(key);
-          state.expandedKeys = isExpanded
-            ? state.expandedKeys.filter((k: React.Key) => k !== key)
-            : [...state.expandedKeys, key];
         }),
 
       setSearchQuery: (query) =>
@@ -519,20 +348,17 @@ export const useModsStore = create<ModsStore>()(
         }),
 
       // ============================================================
-      // ModManagementScreen Actions
+      // Import Workflow Screen Actions
       // ============================================================
 
-      openModManagementScreen: () =>
+      openImportWorkflowScreen: () =>
         set((state) => {
-          state.modManagementScreenVisible = true;
-          state.modManagementMode = 'import';
+          state.importWorkflowScreenVisible = true;
         }),
 
-      closeModManagementScreen: () =>
+      closeImportWorkflowScreen: () =>
         set((state) => {
-          state.modManagementScreenVisible = false;
-          // Reset selection when closing
-          state.selectedTaskIds = [];
+          state.importWorkflowScreenVisible = false;
         }),
 
       // ============================================================

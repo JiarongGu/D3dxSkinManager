@@ -151,8 +151,6 @@ export async function batchUpdateCategories(
   categoryId: string,
   onMismatch?: () => void
 ): Promise<boolean> {
-  const state = useModsStore.getState();
-
   try {
     // For batch operations, skip optimistic updates due to complexity
     // Just perform the operation and refresh

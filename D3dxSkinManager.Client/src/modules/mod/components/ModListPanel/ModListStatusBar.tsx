@@ -3,21 +3,16 @@ import classNames from 'classnames';
 import { CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ModInfo } from '../../../../shared/types/mod.types';
-import { CategoryInfo } from '../../../../shared/types/category.types';
 import './ModListStatusBar.css';
 
 export interface ModListStatusBarProps {
   mods: ModInfo[];
-  selectedCategory: CategoryInfo | undefined;
-  selectedObject: string;
   onLoadedModClick?: (mod: ModInfo) => void;
   selectedModCount?: number;
 }
 
 export const ModListStatusBar: React.FC<ModListStatusBarProps> = ({
   mods,
-  selectedCategory,
-  selectedObject,
   onLoadedModClick,
   selectedModCount = 0,
 }) => {

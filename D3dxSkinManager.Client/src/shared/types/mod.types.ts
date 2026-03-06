@@ -41,7 +41,6 @@ export interface UpdateModMetadataRequest {
 
 export interface ModFilters {
   searchTerm: string;
-  selectedObject: string;
   selectedGrading: string;
 }
 

@@ -30,7 +30,7 @@ export const ModHierarchicalView: React.FC = () => {
   // Only subscribe to what THIS component uses for its coordination logic
   const mods = useModsStore(s => s.mods);
   const selectedCategory = useModsStore(s => s.selectedCategory);
-  const modManagementScreenVisible = useModsStore(s => s.modManagementScreenVisible);
+  const importWorkflowScreenVisible = useModsStore(s => s.importWorkflowScreenVisible);
 
   // Operations for coordination
   const {
@@ -41,7 +41,7 @@ export const ModHierarchicalView: React.FC = () => {
     clearCategoryFilter,
     refreshCategoryTree,
     setAvailableTags,
-    closeModManagementScreen,
+    closeImportWorkflowScreen,
   } = useMods();
 
   // Resizable panels
@@ -53,11 +53,11 @@ export const ModHierarchicalView: React.FC = () => {
 
   // Mod Imports Slide-in Screen
   useSlideInScreen({
-    visible: modManagementScreenVisible,
+    visible: importWorkflowScreenVisible,
     title: t('modManagement.title.modImports'),
     content: <ModImportWorkflowScreen />,
     width: '85%',
-    onClose: closeModManagementScreen,
+    onClose: closeImportWorkflowScreen,
   });
 
   // Add/remove body class during resize for global cursor
