@@ -3,12 +3,16 @@ import type { DataNode } from 'antd/es/tree';
 import type { MenuProps } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { debounce } from 'lodash-es';
 import { CategoryInfo } from '../../../../shared/types/category.types';
 import { convertToDataNode } from './TreeNodeConverter';
 import { getCategoryContextMenu } from './CategoryContextMenu';
 import { useCategoryTreeOperations } from './useCategoryTreeOperations';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
 import { ConfirmDialog } from '../../../../shared/components/dialogs/ConfirmDialog';
+import { useModsStore } from '../../store/modsStore';
+import { profileService } from '../../../../shared/services/ipc';
+import { useProfile } from '../../../../shared/context/ProfileContext';
 import './CategoryTreeContext.css';
 
 /**
@@ -131,11 +135,87 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
   onModsRefresh,
 }) => {
   const { t } = useTranslation();
+  const { selectedProfileId } = useProfile();
   const [contextMenuNode, setContextMenuNode] = useState<string>();
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
+  // Use locked categories from store (persisted across tab switches)
+  const lockedCategories = useModsStore(s => s.lockedCategories);
+  const addLockedCategory = useModsStore(s => s.addLockedCategory);
+  const removeLockedCategory = useModsStore(s => s.removeLockedCategory);
+  const lockedCategoriesSet = useMemo(() => new Set(lockedCategories), [lockedCategories]);
+
   // Store frequently changing values in stable refs to avoid closure issues
   const [treeRef, expandedKeysRef, selectedNodeRef] = useStableRef(tree, expandedKeys, selectedNode);
+
+  // Debounced save to backend (must be declared before useEffect)
+  const debouncedSaveLockedCategories = useMemo(
+    () => debounce(async (lockedKeys: string[], profileId: string | undefined) => {
+      if (!profileId) return;
+      try {
+        await profileService.updateLockedExpandedCategories(profileId, lockedKeys);
+      } catch (error) {
+        console.error('[CategoryTreeContext] Failed to save locked expanded categories:', error);
+      }
+    }, 200),
+    []
+  );
+
+  // Validate locked categories when tree changes
+  React.useEffect(() => {
+    // Build a map of all category IDs and check if they're parent nodes
+    const categoryMap = new Map<string, boolean>(); // id -> isParent
+
+    const buildCategoryMap = (nodes: CategoryInfo[]) => {
+      for (const node of nodes) {
+        categoryMap.set(node.id, node.children.length > 0);
+        if (node.children.length > 0) {
+          buildCategoryMap(node.children);
+        }
+      }
+    };
+
+    buildCategoryMap(tree);
+
+    // Check if any locked categories are now invalid
+    const invalidLockedKeys: string[] = [];
+    for (const lockedKey of lockedCategories) {
+      const isParent = categoryMap.get(lockedKey);
+      // Invalid if: doesn't exist OR is no longer a parent (became a leaf node)
+      if (isParent === undefined || isParent === false) {
+        invalidLockedKeys.push(lockedKey);
+      }
+    }
+
+    // Remove invalid locked keys
+    if (invalidLockedKeys.length > 0) {
+      console.log('[CategoryTreeContext] Removing invalid locked categories:', invalidLockedKeys);
+      const newLockedKeys = lockedCategories.filter(k => !invalidLockedKeys.includes(k));
+      useModsStore.getState().setLockedCategories(newLockedKeys);
+      // Persist to backend
+      if (selectedProfileId) {
+        debouncedSaveLockedCategories(newLockedKeys, selectedProfileId);
+      }
+    }
+  }, [tree, lockedCategories, selectedProfileId, debouncedSaveLockedCategories]);
+
+  // Lock/unlock expansion handlers
+  const handleLockExpanded = useCallback((nodeId: string) => {
+    addLockedCategory(nodeId);
+    // Ensure the node is expanded when locked
+    if (!expandedKeys.includes(nodeId)) {
+      onExpandedKeysChange([...expandedKeys, nodeId]);
+    }
+    // Persist to backend
+    debouncedSaveLockedCategories([...lockedCategories, nodeId], selectedProfileId);
+  }, [addLockedCategory, expandedKeys, onExpandedKeysChange, lockedCategories, selectedProfileId, debouncedSaveLockedCategories]);
+
+  const handleUnlockExpanded = useCallback((nodeId: string) => {
+    removeLockedCategory(nodeId);
+    // Persist to backend
+    const newLockedKeys = lockedCategories.filter(k => k !== nodeId);
+    debouncedSaveLockedCategories(newLockedKeys, selectedProfileId);
+  }, [removeLockedCategory, lockedCategories, selectedProfileId, debouncedSaveLockedCategories]);
 
   // Use the operations hook for edit, delete, drag & drop
   const {
@@ -156,17 +236,15 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
   });
 
   // Get context menu items
-  const contextMenuItems = useMemo(
-    () =>
-      getCategoryContextMenu({
-        nodeId: contextMenuNode,
-        onAddCategory,
-        onEditNode: handleEditNode,
-        onDeleteNode: handleDeleteNode,
-        t,
-      }),
-    [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode, t]
-  );
+  const contextMenuItems = useMemo(() => {
+    return getCategoryContextMenu({
+      nodeId: contextMenuNode,
+      onAddCategory,
+      onEditNode: handleEditNode,
+      onDeleteNode: handleDeleteNode,
+      t,
+    });
+  }, [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode, t]);
 
   // Toggle expansion for a folder node - optimized for performance
   const handleToggleExpand = useCallback(
@@ -176,7 +254,12 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
       const isExpanded = currentExpandedKeys.includes(nodeId);
 
       if (isExpanded) {
-        // Collapse: remove this key and all descendant keys
+        // Check if node is locked - prevent collapse if locked
+        if (lockedCategoriesSet.has(nodeId)) {
+          return; // Don't collapse locked nodes
+        }
+
+        // Collapse: remove this key and all descendant keys (except locked ones)
         const node = findNodeById(currentTree, nodeId);
         if (!node) return;
 
@@ -187,7 +270,10 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
         while (stack.length > 0) {
           const current = stack.pop()!;
           current.children.forEach((child) => {
-            keysToRemove.add(child.id);
+            // Don't remove locked keys
+            if (!lockedCategoriesSet.has(child.id)) {
+              keysToRemove.add(child.id);
+            }
             if (child.children.length > 0) {
               stack.push(child);
             }
@@ -200,7 +286,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
         onExpandedKeysChange([...currentExpandedKeys, nodeId]);
       }
     },
-    [onExpandedKeysChange] // treeRef and expandedKeysRef are stable refs
+    [lockedCategoriesSet, onExpandedKeysChange] // treeRef and expandedKeysRef are stable refs
   );
 
   // Filter tree based on search query
@@ -210,10 +296,22 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     return filterTreeNodes(tree, searchLower);
   }, [tree, searchQuery]);
 
+  // Handler for clicking lock icon to unlock
+  const handleLockIconClick = useCallback((nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleUnlockExpanded(nodeId);
+  }, [handleUnlockExpanded]);
+
+  // Handler for clicking unlock icon to lock
+  const handleUnlockIconClick = useCallback((nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleLockExpanded(nodeId);
+  }, [handleLockExpanded]);
+
   // Convert to Ant Design tree format - direct tree nodes without root wrapper
   const treeData = useMemo((): DataNode[] => {
-    return filteredTree.map((node) => convertToDataNode(node, expandedKeys));
-  }, [filteredTree, expandedKeys]);
+    return filteredTree.map((node) => convertToDataNode(node, expandedKeys, lockedCategoriesSet, handleLockIconClick, handleUnlockIconClick));
+  }, [filteredTree, expandedKeys, lockedCategoriesSet, handleLockIconClick, handleUnlockIconClick]);
 
   const handleSelect = useCallback(
     (selectedKeys: React.Key[], info: any) => {
@@ -228,7 +326,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
       // Check if we're clicking the already selected node
       const isAlreadySelected = currentSelectedNode?.id === key;
 
-      // For folder nodes: toggle expansion
+      // For folder nodes: toggle expansion (unless locked)
       if (isFolderNode) {
         requestAnimationFrame(() => {
           handleToggleExpand(key);
@@ -241,7 +339,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
         }
       }
 
-      // Handle selection (only if not already selected or if it's a leaf node)
+      // Handle selection
       if (selectedKeys.length === 0) {
         onSelect(undefined);
         return;

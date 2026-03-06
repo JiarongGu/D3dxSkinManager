@@ -122,6 +122,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1 !important;
 }
 
 /* Hide the default drag/drop indicator and drag icon handles */

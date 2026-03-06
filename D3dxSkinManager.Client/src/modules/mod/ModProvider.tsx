@@ -44,6 +44,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
     try {
       const config = await profileService.getProfileConfiguration(selectedProfileId);
       const panelSize = config?.tabs?.mod?.panelSize;
+      const lockedCategories = config?.tabs?.mod?.lockedExpandedCategories || [];
 
       if (panelSize) {
         console.log('[ModProvider] Loading panel sizes from profile config:', panelSize);
@@ -62,6 +63,10 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       } else {
         console.log('[ModProvider] No panel sizes found in profile config, using defaults');
       }
+
+      // Load locked expanded categories
+      console.log('[ModProvider] Loading locked expanded categories:', lockedCategories);
+      useModsStore.getState().setLockedCategories(lockedCategories);
     } catch (error) {
       console.error('[ModProvider] Failed to load panel sizes:', error);
     }

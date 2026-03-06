@@ -30,15 +30,80 @@
   margin-right: 4px;
 }
 
-/* Category Tree Node - Name */
-.category-tree-node-name {
-  flex: 1;
-}
-
 /* Category Tree Node - Mod Count */
 .category-tree-node-mod-count {
   font-size: 12px;
   color: #8c8c8c;
   margin-left: 8px;
   flex-shrink: 0;
+}
+
+/* Category Tree Node - Lock Container */
+.category-tree-node-lock-container {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+/* Category Tree Node - Lock Indicator (base styles) */
+.category-tree-node-lock-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  flex-shrink: 0;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+/* Locked icon - always visible when locked */
+.category-tree-node-lock-indicator.locked {
+  color: #faad14; /* Warning yellow color */
+  opacity: 0.8;
+}
+
+.category-tree-node-lock-indicator.locked:hover {
+  opacity: 1;
+  background-color: rgba(250, 173, 20, 0.1);
+  transform: scale(1.1);
+}
+
+/* Unlocked icon - only visible on hover */
+.category-tree-node-lock-indicator.unlocked {
+  color: rgba(0, 0, 0, 0.25); /* Light gray */
+  opacity: 0;
+  transition: opacity 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+/* Show unlock icon on tree node hover (Ant Design tree node hover) */
+.ant-tree-treenode:hover .category-tree-node-lock-indicator.unlocked,
+.category-tree-node-title:hover .category-tree-node-lock-indicator.unlocked {
+  opacity: 0.6;
+}
+
+.category-tree-node-lock-indicator.unlocked:hover {
+  opacity: 1 !important;
+  background-color: rgba(0, 0, 0, 0.06);
+  transform: scale(1.1);
+}
+
+/* Dark theme */
+[data-theme="dark"] .category-tree-node-lock-indicator.locked {
+  color: #ffc53d; /* Lighter yellow for dark theme */
+}
+
+[data-theme="dark"] .category-tree-node-lock-indicator.locked:hover {
+  background-color: rgba(255, 197, 61, 0.15);
+}
+
+[data-theme="dark"] .category-tree-node-lock-indicator.unlocked {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+[data-theme="dark"] .category-tree-node-lock-indicator.unlocked:hover {
+  background-color: rgba(255, 255, 255, 0.08);
 }

@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { FolderOutlined, FolderOpenOutlined, FileOutlined } from '@ant-design/icons';
+import { FolderOutlined, FolderOpenOutlined, FileOutlined, LockFilled, UnlockOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import { CategoryInfo } from '../../../../shared/types/category.types';
 import { toAppUrl } from '../../../../shared/utils/imageUrlHelper';
@@ -7,15 +7,20 @@ import './TreeNodeConverter.css';
 
 /**
  * Converts CategoryInfo to Ant Design DataNode
- * Uses expandedKeys to show folder open/closed state
+ * Uses expandedKeys to show folder open/closed state and lockedExpandedKeys for lock indicator
  */
 export function convertToDataNode(
   node: CategoryInfo,
-  expandedKeys: React.Key[]
+  expandedKeys: React.Key[],
+  lockedExpandedKeys: Set<string>,
+  onUnlockExpanded?: (nodeId: string, e: React.MouseEvent) => void,
+  onLockExpanded?: (nodeId: string, e: React.MouseEvent) => void
 ): DataNode {
   const isLeaf = node.children.length === 0;
   const hasThumbnail = !!node.thumbnail;
   const isExpanded = expandedKeys.includes(node.id);
+  const isLocked = lockedExpandedKeys.has(node.id);
+  const isParent = !isLeaf;
 
   // Determine which icon to show for folders
   const getFolderIcon = () => {
@@ -48,11 +53,43 @@ export function convertToDataNode(
             ({node.modCount})
           </span>
         )}
+        {isParent && (
+          <span className="category-tree-node-lock-container">
+            {/* Locked icon (visible when locked) - click to unlock */}
+            {isLocked && (
+              <span
+                className="category-tree-node-lock-indicator locked"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onUnlockExpanded) {
+                    onUnlockExpanded(node.id, e);
+                  }
+                }}
+              >
+                <LockFilled />
+              </span>
+            )}
+            {/* Unlocked icon (visible on hover) - click to lock */}
+            {!isLocked && (
+              <span
+                className="category-tree-node-lock-indicator unlocked"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onLockExpanded) {
+                    onLockExpanded(node.id, e);
+                  }
+                }}
+              >
+                <UnlockOutlined />
+              </span>
+            )}
+          </span>
+        )}
       </span>
     ),
     // Don't use the icon property at all - embed in title instead
     icon: <span />,
     isLeaf,
-    children: node.children.map(child => convertToDataNode(child, expandedKeys)),
+    children: node.children.map(child => convertToDataNode(child, expandedKeys, lockedExpandedKeys, onUnlockExpanded, onLockExpanded)),
   };
 }

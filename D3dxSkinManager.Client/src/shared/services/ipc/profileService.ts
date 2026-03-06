@@ -22,6 +22,7 @@ export interface WorkDirectoryConfiguration {
 export interface TabSettings {
   mod: {
     panelSize: string; // Format: "categoryWidth modListWidth" (e.g., "25 40")
+    lockedExpandedCategories?: string[]; // Category IDs that are locked expanded
   };
 }
 
@@ -151,6 +152,13 @@ export class ProfileService extends BaseModuleService {
    */
   async updateModPanelSize(profileId: string, panelSize: string): Promise<{ success: boolean; config?: ProfileConfiguration }> {
     return this.sendMessage('UPDATE_MOD_PANEL_SIZE', undefined, { profileId, panelSize });
+  }
+
+  /**
+   * Update locked expanded categories in profile config
+   */
+  async updateLockedExpandedCategories(profileId: string, lockedCategories: string[]): Promise<{ success: boolean; config?: ProfileConfiguration }> {
+    return this.sendMessage('UPDATE_LOCKED_EXPANDED_CATEGORIES', undefined, { profileId, lockedCategories });
   }
 
   /**

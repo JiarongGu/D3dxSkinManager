@@ -1,6 +1,6 @@
 ﻿# Category System
 
-**Last Updated:** 2026-02-26
+**Last Updated:** 2026-03-07
 **Status:** ✅ Active
 
 ## Overview
@@ -129,6 +129,26 @@ interface ModInfo {
   - Drop on "Unclassified" to remove category
 - **Hook:** `useDragDrop()` with declarative configuration
 
+### 5. Lock Expanded Feature
+- **Purpose:** Keep parent categories permanently expanded to prevent accidental collapse
+- **Implementation:**
+  - **Lock Icon (🔒):** Yellow lock icon appears on locked categories (always visible)
+  - **Unlock Icon (🔓):** Gray unlock icon appears on hover for unlocked parent categories
+  - **Click Behavior:** Click either icon to toggle lock state
+  - **Visual Feedback:** Smooth hover animations with scale and background effects
+- **Persistence:**
+  - Stored in Zustand store (`lockedCategories`)
+  - Persisted to profile config (backend: `ProfileConfiguration.Tabs.Mod.LockedExpandedCategories`)
+  - Survives tab switches and app restarts
+- **Validation:**
+  - Auto-validates when category tree updates
+  - Removes locks from deleted categories
+  - Removes locks from categories that became leaf nodes (no children)
+- **Behavior:**
+  - Locked categories cannot be collapsed by clicking
+  - Child categories can still be expanded/collapsed unless also locked
+  - Locked categories stay expanded when collapsing parent categories
+
 ---
 
 ## User Experience
@@ -233,6 +253,51 @@ if (onModsRefresh &&
     nameChanged &&
     shouldRefreshModsForNodeUpdate(tree, nodeId, selectedId)) {
     await onModsRefresh();
+}
+```
+
+### Frontend: Lock Expanded Implementation
+```typescript
+// Store locked categories in Zustand
+const lockedCategories = useModsStore(s => s.lockedCategories);
+const addLockedCategory = useModsStore(s => s.addLockedCategory);
+const removeLockedCategory = useModsStore(s => s.removeLockedCategory);
+
+// Prevent collapse of locked categories
+const handleToggleExpand = useCallback((nodeId: string) => {
+  if (isExpanded && lockedCategoriesSet.has(nodeId)) {
+    return; // Don't collapse locked nodes
+  }
+  // ... normal expand/collapse logic
+}, [lockedCategoriesSet]);
+
+// Lock/unlock handlers with backend persistence
+const handleLockExpanded = useCallback((nodeId: string) => {
+  addLockedCategory(nodeId);
+  // Ensure expanded when locked
+  if (!expandedKeys.includes(nodeId)) {
+    onExpandedKeysChange([...expandedKeys, nodeId]);
+  }
+  // Persist to backend
+  await profileService.updateLockedExpandedCategories(profileId, [...lockedCategories, nodeId]);
+}, [addLockedCategory, expandedKeys, lockedCategories]);
+```
+
+### Backend: Profile Config Persistence
+```csharp
+public class ModTabSettings
+{
+    public string PanelSize { get; set; } = "20 35";
+    public List<string> LockedExpandedCategories { get; set; } = new List<string>();
+}
+
+// Service method to persist locked categories
+public async Task<bool> UpdateLockedExpandedCategoriesAsync(string profileId, List<string> lockedCategories)
+{
+    var config = await _repository.GetProfileConfigurationAsync(profileId);
+    config.Tabs.Mod.LockedExpandedCategories = lockedCategories;
+    await _repository.SaveProfileConfigurationAsync(profileId, config);
+    return true;
 }
 ```
 

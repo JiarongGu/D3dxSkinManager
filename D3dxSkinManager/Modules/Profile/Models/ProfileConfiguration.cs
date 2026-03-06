@@ -65,4 +65,9 @@ public class ModTabSettings
     /// Default: "20 35" (CategoryPanel=20%, ModListPanel=35%, Preview=45%)
     /// </summary>
     public string PanelSize { get; set; } = "20 35";
+
+    /// <summary>
+    /// Category IDs that are locked expanded (cannot be collapsed by clicking)
+    /// </summary>
+    public List<string> LockedExpandedCategories { get; set; } = new List<string>();
 }

@@ -79,6 +79,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
             // Tab settings (per-profile)
             "UPDATE_MOD_PANEL_SIZE" => await UpdateModPanelSizeAsync(request),
+            "UPDATE_LOCKED_EXPANDED_CATEGORIES" => await UpdateLockedExpandedCategoriesAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -343,5 +344,20 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
 
         return new { success = true, message = "Mod panel size updated", config };
+    }
+
+    private async Task<object> UpdateLockedExpandedCategoriesAsync(IpcRequest request)
+    {
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var lockedCategories = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "lockedCategories");
+
+        // Delegate to service (which handles all business logic)
+        await _profileService.UpdateLockedExpandedCategoriesAsync(profileId, lockedCategories).ConfigureAwait(false);
+
+        // Emit event to notify of config change
+        var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+        await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
+
+        return new { success = true, message = "Locked expanded categories updated", config };
     }
 }

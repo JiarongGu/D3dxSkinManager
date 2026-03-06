@@ -43,6 +43,7 @@ export interface ModsState {
 
   // UI State
   expandedKeys: React.Key[];
+  lockedCategories: string[]; // Persisted locked category IDs
   searchQuery: string;
   editDialogVisible: boolean;
   modToEdit: ModInfo | undefined;
@@ -92,6 +93,9 @@ export interface ModsActions {
 
   // UI Actions
   setExpandedKeys: (keys: React.Key[]) => void;
+  setLockedCategories: (keys: string[]) => void;
+  addLockedCategory: (key: string) => void;
+  removeLockedCategory: (key: string) => void;
   setSearchQuery: (query: string) => void;
   setAvailableTags: (tags: string[]) => void;
   openEditDialog: (mod: ModInfo) => void;
@@ -139,6 +143,7 @@ const initialState: ModsState = {
 
   // UI State
   expandedKeys: [],
+  lockedCategories: [],
   searchQuery: '',
   editDialogVisible: false,
   modToEdit: undefined,
@@ -330,6 +335,23 @@ export const useModsStore = create<ModsStore>()(
       setExpandedKeys: (keys) =>
         set((state) => {
           state.expandedKeys = keys;
+        }),
+
+      setLockedCategories: (keys) =>
+        set((state) => {
+          state.lockedCategories = keys;
+        }),
+
+      addLockedCategory: (key) =>
+        set((state) => {
+          if (!state.lockedCategories.includes(key)) {
+            state.lockedCategories.push(key);
+          }
+        }),
+
+      removeLockedCategory: (key) =>
+        set((state) => {
+          state.lockedCategories = state.lockedCategories.filter((k) => k !== key);
         }),
 
       setSearchQuery: (query) =>
