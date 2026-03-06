@@ -96,7 +96,7 @@ export const TagManagementTool: React.FC = () => {
       setShowCreateDialog(false);
       form.resetFields();
     } catch (error: unknown) {
-      notification.error("Failed to create tag");
+      notification.error(t('tags.error.createFailed'));
     }
   };
 
@@ -123,7 +123,7 @@ export const TagManagementTool: React.FC = () => {
       setEditingTag(null);
       form.resetFields();
     } catch (error: unknown) {
-      notification.error("Failed to update tag");
+      notification.error(t('tags.error.updateFailed'));
     }
   };
 
@@ -136,7 +136,7 @@ export const TagManagementTool: React.FC = () => {
       notification.success(`Tag "${tagToDelete}" deleted`);
       setTagToDelete(null);
     } catch (error: unknown) {
-      notification.error("Failed to delete tag");
+      notification.error(t('tags.error.deleteFailed'));
       setTagToDelete(null);
     }
   };
@@ -208,7 +208,7 @@ export const TagManagementTool: React.FC = () => {
       {/* Header with Search and Actions */}
       <div className="tag-management-tool-header">
         <Search
-          placeholder="Search tags..."
+          placeholder={t('tags.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           prefix={<SearchOutlined />}
@@ -278,7 +278,7 @@ export const TagManagementTool: React.FC = () => {
       {/* Create Tag Dialog */}
       <FormDialog
         visible={showCreateDialog}
-        title="Create Tag"
+        title={t('tags.createTitle')}
         onOk={() => form.submit()}
         onCancel={() => {
           setShowCreateDialog(false);
@@ -297,7 +297,7 @@ export const TagManagementTool: React.FC = () => {
               { max: 50, message: "Tag name must be less than 50 characters" },
             ]}
           >
-            <Input placeholder="Enter tag name" />
+            <Input placeholder={t('tags.namePlaceholder')} />
           </Form.Item>
           <Form.Item
             label="Color"
@@ -312,7 +312,7 @@ export const TagManagementTool: React.FC = () => {
       {/* Edit Tag Dialog */}
       <FormDialog
         visible={editingTag !== null}
-        title="Edit Tag"
+        title={t('tags.editTitle')}
         onOk={() => form.submit()}
         onCancel={() => {
           setEditingTag(null);
@@ -331,7 +331,7 @@ export const TagManagementTool: React.FC = () => {
               { max: 50, message: "Tag name must be less than 50 characters" },
             ]}
           >
-            <Input placeholder="Enter tag name" />
+            <Input placeholder={t('tags.namePlaceholder')} />
           </Form.Item>
           <Form.Item
             label="Color"

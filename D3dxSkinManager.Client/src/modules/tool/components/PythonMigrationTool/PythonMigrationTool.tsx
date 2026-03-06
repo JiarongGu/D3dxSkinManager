@@ -1,5 +1,6 @@
 ﻿import { notification } from "../../../../shared/utils/notification";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Steps } from "antd";
 import {
   FolderOpenOutlined,
@@ -63,6 +64,7 @@ export const PythonMigrationToolInner: React.FC<{
   onClose: () => void;
   onMigrationComplete?: () => void;
 }> = ({ onClose, onMigrationComplete }) => {
+  const { t } = useTranslation();
   const { state: profileState } = useProfile();
   const {
     currentStep,
@@ -91,7 +93,7 @@ export const PythonMigrationToolInner: React.FC<{
       currentStep === MigrationStep.Detection &&
       (!analysis || !analysis.isValid)
     ) {
-      notification.error("Please select a valid Python installation first");
+      notification.error(t('migration.error.selectPython'));
       return;
     }
     goToNextStep();
@@ -99,12 +101,12 @@ export const PythonMigrationToolInner: React.FC<{
 
   const handleStartMigration = async () => {
     if (!form) {
-      notification.error("Form not initialized");
+      notification.error(t('migration.error.formNotInitialized'));
       return;
     }
 
     if (!profileState.selectedProfile?.id) {
-      notification.error("No profile selected");
+      notification.error(t('migration.error.noProfile'));
       return;
     }
 
@@ -162,12 +164,12 @@ export const PythonMigrationToolInner: React.FC<{
           }
 
           if (migrationResult.success) {
-            notification.success("Migration completed successfully!");
+            notification.success(t('migration.complete.success'));
             if (onMigrationComplete) {
               onMigrationComplete();
             }
           } else {
-            notification.error("Migration completed with errors");
+            notification.error(t('migration.complete.withErrors'));
           }
         })
         .catch((error: unknown) => {
@@ -182,7 +184,7 @@ export const PythonMigrationToolInner: React.FC<{
 
       // Don't wait for API response - continue and let events drive the UI
     } catch (error) {
-      notification.error("Migration failed to start");
+      notification.error(t('migration.error.failedToStart'));
     }
   };
 

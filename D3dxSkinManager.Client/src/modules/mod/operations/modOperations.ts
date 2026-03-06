@@ -11,6 +11,7 @@ import { notification } from '../../../shared/utils/notification';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
 import { api, modService } from '../../../shared/services/ipc';
+import i18n from '../../../shared/services/i18n';
 
 /**
  * Internal refresh implementation
@@ -104,7 +105,7 @@ export async function updateMod(
         // Update local state (Zustand automatically updates mods)
         updateModLocal(sha, data);
 
-        notification.success('Mod updated successfully');
+        notification.success(i18n.t('mods.operations.updateSuccess'));
       },
       useModsStore.getState().setModLoading,
       100
@@ -130,7 +131,7 @@ export async function deleteMod(profileId: string, sha: string): Promise<void> {
         // Remove from local state
         removeMod(sha);
 
-        notification.success('Mod deleted successfully');
+        notification.success(i18n.t('mods.operations.deleteSuccess'));
       },
       useModsStore.getState().setModLoading,
       100
@@ -209,7 +210,7 @@ export async function loadMod(profileId: string, sha: string): Promise<void> {
   try {
     // Perform backend operation - returns affected mod SHAs
     await modService.loadMod(profileId, sha);
-    notification.success('Mod loaded successfully');
+    notification.success(i18n.t('mods.operations.loadSuccess'));
 
     // Backend fires MOD_LIST_UPDATED event → ModProvider refreshes mods automatically
   } catch (error: unknown) {
@@ -227,7 +228,7 @@ export async function unloadMod(profileId: string, sha: string): Promise<void> {
   try {
     // Perform backend operation
     await modService.unloadMod(profileId, sha);
-    notification.success('Mod unloaded successfully');
+    notification.success(i18n.t('mods.operations.unloadSuccess'));
 
     // Backend fires MOD_LIST_UPDATED event → ModProvider refreshes mods automatically
   } catch (error: unknown) {

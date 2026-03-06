@@ -1,5 +1,6 @@
 import { notification } from '../../../../shared/utils/notification';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Form, Input, Space } from 'antd';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { modService } from '../../../../shared/services/ipc';
@@ -18,6 +19,8 @@ import './ModEditScreen.css';
  * Form content component - contains all state and logic for editing a mod
  */
 const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
+  const { t } = useTranslation();
+
   // Subscribe to state from store
   const visible = useModsStore(s => s.editDialogVisible);
   const CategoryTree = useModsStore(s => s.categoryTree);
@@ -159,7 +162,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       setTagColorsMap(new Map());
       closeEditDialog();
     } catch (error: unknown) {
-            notification.error('Please check all required fields');
+            notification.error(t('mods.edit.checkRequiredFields'));
     } finally {
       setSaving(false);
     }

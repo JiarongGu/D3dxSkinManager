@@ -332,7 +332,7 @@ export function useCategoryTreeOperations({
           );
         }
       } catch (error: unknown) {
-                notification.error("Failed to move Category node");
+                notification.error(t('category.tree.moveNodeFailed'));
       }
     },
     [expandedKeys, onExpandedKeysChange],
@@ -343,12 +343,12 @@ export function useCategoryTreeOperations({
   const handleModClassify = useCallback(
     async (modSha: string, nodeId: string) => {
       if (!modSha) {
-        notification.error('No mod selected');
+        notification.error(t('category.dragDrop.noModSelected'));
         return;
       }
 
       if (!nodeId) {
-        notification.error('No category selected');
+        notification.error(t('category.dragDrop.noCategorySelected'));
         return;
       }
 
@@ -376,7 +376,7 @@ export function useCategoryTreeOperations({
         // Note: modName is optional, pass empty string if not available
         await updateModCategory(modSha, categoryValue, nodeName);
       } catch (error: unknown) {
-                notification.error('Failed to update mod category');
+                notification.error(t('category.dragDrop.updateFailed'));
       }
     },
     [updateModCategory]
@@ -386,12 +386,12 @@ export function useCategoryTreeOperations({
   const handleBulkModClassify = useCallback(
     async (modShas: string[], nodeId: string) => {
       if (!modShas || modShas.length === 0) {
-        notification.error('No mods selected');
+        notification.error(t('category.dragDrop.noModsSelected'));
         return;
       }
 
       if (!nodeId) {
-        notification.error('No category selected');
+        notification.error(t('category.dragDrop.noCategorySelected'));
         return;
       }
 
@@ -418,7 +418,7 @@ export function useCategoryTreeOperations({
         // Call batch update category
         await updateModsCategory(modShas, categoryValue, nodeName);
       } catch (error: unknown) {
-                notification.error('Failed to update category for selected mods');
+                notification.error(t('category.dragDrop.batchUpdateFailed'));
       }
     },
     [updateModsCategory]

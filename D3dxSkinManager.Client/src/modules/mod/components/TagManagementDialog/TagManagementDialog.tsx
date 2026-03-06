@@ -296,7 +296,7 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
         {/* Search bar */}
         <div className="tag-management-search">
           <Search
-            placeholder="Search tags..."
+            placeholder={t('tags.searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<SearchOutlined />}

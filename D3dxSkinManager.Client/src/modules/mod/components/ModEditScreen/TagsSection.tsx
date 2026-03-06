@@ -65,7 +65,7 @@ export const TagsSection: React.FC<TagsSectionProps> = ({
           <CompactButton
             icon={<TagsOutlined />}
             onClick={handleOpenTagSelector}
-            title="Open tag selector"
+            title={t('mods.edit.openTagSelector')}
           />
         </Space.Compact>
       </Form.Item>

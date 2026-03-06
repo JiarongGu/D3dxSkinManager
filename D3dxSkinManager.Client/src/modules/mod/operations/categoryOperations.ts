@@ -11,6 +11,7 @@ import { notification } from '../../../shared/utils/notification';
 import { categoryService, modService } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
+import i18n from '../../../shared/services/i18n';
 
 /**
  * Update mod category
@@ -25,13 +26,13 @@ export async function updateModCategory(
   try {
     // Perform backend operation
     await modService.updateCategory(profileId, sha, categoryId);
-    notification.success('Category updated');
+    notification.success(i18n.t('category.operations.updateSuccess'));
 
     // Backend fires MOD_LIST_UPDATED and CATEGORY_TREE_UPDATED events
     // → ModProvider refreshes mods and category tree automatically
     return true;
   } catch (error: unknown) {
-    notification.error('Failed to update category');
+    notification.error(i18n.t('category.operations.updateFailed'));
 
     // Refresh tree on error to ensure counts are correct
     if (onMismatch) {
@@ -56,14 +57,14 @@ export async function batchUpdateCategories(
     const updatedCount = await modService.batchUpdateCategory(profileId, shas, categoryId);
 
     if (updatedCount > 0) {
-      notification.success(`Updated ${updatedCount} mod(s) category`);
+      notification.success(i18n.t('category.operations.batchUpdateSuccess', { count: updatedCount }));
       return true;
     } else {
-      notification.error('No mods were updated');
+      notification.error(i18n.t('category.operations.noModsUpdated'));
       return false;
     }
   } catch (error: unknown) {
-    notification.error('Failed to batch update categories');
+    notification.error(i18n.t('category.operations.batchUpdateFailed'));
 
     // Refresh tree on error to ensure counts are correct
     if (onMismatch) {

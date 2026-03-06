@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useMods } from "../../hooks/useMods";
 import { useModsStore } from "../../store/modsStore";
 import { useStableRef } from "../../../../shared/hooks/useStableRef";
@@ -10,6 +11,7 @@ import { notification } from "../../../../shared/utils/notification";
  * Uses optimistic updates for instant UI feedback
  */
 export function useModCategoryUpdate() {
+  const { t } = useTranslation();
   const { updateModCategory: updateModCategoryOp, updateModsCategory: updateModsCategoryOp } = useMods();
   const mods = useModsStore(s => s.mods);
 
@@ -38,11 +40,11 @@ export function useModCategoryUpdate() {
           notification.success(`Moved "${modName}" to "${categoryName}"`);
           return true;
         } else {
-          notification.error("Failed to update mod category");
+          notification.error(t('category.update.modCategoryFailed'));
           return false;
         }
       } catch (error: unknown) {
-                notification.error("Failed to update mod category");
+                notification.error(t('category.update.modCategoryFailed'));
         return false;
       }
     },
@@ -67,11 +69,11 @@ export function useModCategoryUpdate() {
           notification.success(`Moved ${modShas.length} mod(s) to "${categoryName}"`);
           return true;
         } else {
-          notification.error("Failed to update categories for selected mods");
+          notification.error(t('category.update.modsCategoryFailed'));
           return false;
         }
       } catch (error: unknown) {
-                notification.error("Failed to update categories for selected mods");
+                notification.error(t('category.update.modsCategoryFailed'));
         return false;
       }
     },
