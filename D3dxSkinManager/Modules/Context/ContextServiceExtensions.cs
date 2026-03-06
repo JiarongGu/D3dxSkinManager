@@ -1,6 +1,7 @@
 ﻿using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Event;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace D3dxSkinManager.Modules.Context
 {
@@ -16,6 +17,9 @@ namespace D3dxSkinManager.Modules.Context
 
             // Register profile-scoped EventBus (filters events by profileId, auto-injects profileId on emit)
             services.AddSingleton<IProfileEventBus, ProfileEventBus>();
+
+            // Register secondary window service (profile-scoped for capture window)
+            services.AddSingleton<ISecondaryWindowService, SecondaryWindowService>();
 
             return services;
         }

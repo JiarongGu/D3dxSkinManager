@@ -94,21 +94,33 @@ public class DropZoneOverlay : Panel
 
     private System.Windows.Forms.Timer? _visibilityCheckTimer;
     private bool _hiddenForMouseDown;
+    private bool _mouseIsInside = false;  // Track if mouse is currently inside the zone
+    private bool _requestsVisible = true;  // Track what frontend wants
 
     private void CheckOverlayVisibility(object? sender, EventArgs e)
     {
-        if (!Visible && _hiddenForMouseDown)
-        {
-            var cursorPos = Cursor.Position;
-            var overlayPt = PointToClient(cursorPos);
+        // Check if mouse position has changed without triggering mouse events
+        var cursorPos = Cursor.Position;
+        var overlayPt = PointToClient(cursorPos);
+        bool mouseCurrentlyInside = ClientRectangle.Contains(overlayPt);
 
-            // Restore overlay when cursor leaves the overlay area
-            if (!ClientRectangle.Contains(overlayPt))
+        // If mouse state has changed, update it and refresh visibility
+        if (mouseCurrentlyInside != _mouseIsInside)
+        {
+            _logger.Verbose($"Mouse state changed via timer check: inside={mouseCurrentlyInside}", "DropZone");
+            _mouseIsInside = mouseCurrentlyInside;
+
+            // Notify frontend about mouse state change if needed
+            if (_mouseIsInside)
             {
-                _logger.Verbose($"Cursor left overlay area - restoring overlay", "DropZone");
-                _hiddenForMouseDown = false;
-                Visible = true;
+                _onMouseEnter?.Invoke(ZoneId);
             }
+            else
+            {
+                _onMouseLeave?.Invoke(ZoneId);
+            }
+
+            UpdateVisibility();
         }
     }
 
@@ -161,20 +173,44 @@ public class DropZoneOverlay : Panel
     private void OnMouseEnter(object? sender, EventArgs e)
     {
         _logger.Verbose($"Mouse enter zone: {ZoneId} - hiding overlay to allow WebView interaction", "DropZone");
+        _mouseIsInside = true;
         _onMouseEnter?.Invoke(ZoneId);
 
         // Hide overlay immediately when mouse enters (not during file drag)
         // This allows user to interact with WebView elements without wasting a click
         _hiddenForMouseDown = true;
-        Visible = false;
+        UpdateVisibility();
     }
 
     private void OnMouseLeave(object? sender, EventArgs e)
     {
         _logger.Verbose($"Mouse leave zone: {ZoneId}", "DropZone");
+        _mouseIsInside = false;
         _onMouseLeave?.Invoke(ZoneId);
 
         // Note: Overlay will be restored by timer when cursor leaves overlay area
+        UpdateVisibility();
+    }
+
+    /// <summary>
+    /// Updates visibility based on both frontend requests and mouse state
+    /// </summary>
+    private void UpdateVisibility()
+    {
+        // Determine if we should be visible
+        // We're visible only if frontend wants us visible AND mouse is not inside
+        bool shouldBeVisible = _requestsVisible && !_mouseIsInside;
+
+        if (shouldBeVisible && !Visible)
+        {
+            Visible = true;
+            _hiddenForMouseDown = false;
+        }
+        else if (!shouldBeVisible && Visible)
+        {
+            Visible = false;
+            _hiddenForMouseDown = _mouseIsInside;  // Track if hidden due to mouse
+        }
     }
 
     public new void UpdateBounds(int x, int y, int width, int height)
@@ -188,21 +224,24 @@ public class DropZoneOverlay : Panel
 
     public new void Show()
     {
-        if (!Visible)
-        {
-            Visible = true;
-            _logger.Debug($"Zone {ZoneId} shown", "DropZone");
-        }
+        // Frontend wants us visible
+        _requestsVisible = true;
+
+        // Update visibility considering both frontend request and mouse state
+        UpdateVisibility();
     }
 
     public new void Hide()
     {
-        if (Visible)
-        {
-            Visible = false;
-            _logger.Debug($"Zone {ZoneId} hidden", "DropZone");
+        // Frontend wants us hidden
+        _requestsVisible = false;
 
-            // Notify manager to unregister and dispose this zone
+        // Update visibility
+        UpdateVisibility();
+
+        // Notify manager to unregister and dispose this zone if needed
+        if (!_requestsVisible)
+        {
             _onHide?.Invoke(ZoneId);
         }
     }

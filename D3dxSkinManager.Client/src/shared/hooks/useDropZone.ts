@@ -131,6 +131,73 @@ export function useDropZone(options: {
   // Track last known visibility state (true = visible, false = hidden)
   const lastVisibleStateRef = useRef<boolean | null>(null);
 
+  /**
+   * Helper function to send show command to backend
+   */
+  const showZone = useCallback(() => {
+    if (lastVisibleStateRef.current !== true) {
+      lastVisibleStateRef.current = true;
+      bridgeService.sendMessage({
+        module: 'DROP_ZONE',
+        type: 'SHOW',
+        payload: { zoneId: zoneIdRef.current }
+      }).catch(err => {
+        logger.error('[useDropZone] Failed to show zone:', err);
+      });
+    }
+  }, []);
+
+  /**
+   * Helper function to send hide command to backend
+   */
+  const hideZone = useCallback(() => {
+    if (lastVisibleStateRef.current !== false) {
+      lastVisibleStateRef.current = false;
+      bridgeService.sendMessage({
+        module: 'DROP_ZONE',
+        type: 'HIDE',
+        payload: { zoneId: zoneIdRef.current }
+      }).catch(err => {
+        logger.error('[useDropZone] Failed to hide zone:', err);
+      });
+    }
+  }, []);
+
+  /**
+   * Helper function to check element visibility and occlusion state
+   * Returns true if element should be visible (not occluded and has size)
+   */
+  const checkElementVisibility = useCallback((element: HTMLElement): boolean => {
+    const rect = element.getBoundingClientRect();
+
+    // Element must have size
+    if (rect.width === 0 || rect.height === 0) {
+      return false;
+    }
+
+    // Element must not be occluded
+    if (isElementOccluded(element)) {
+      return false;
+    }
+
+    return true;
+  }, []);
+
+  /**
+   * Helper function to sync zone visibility based on element state
+   */
+  const syncZoneVisibility = useCallback((element: HTMLElement, context: string) => {
+    const shouldBeVisible = checkElementVisibility(element);
+
+    if (shouldBeVisible) {
+      logger.verbose(`[useDropZone] ${context} - element is visible, showing zone`);
+      showZone();
+    } else {
+      logger.verbose(`[useDropZone] ${context} - element is hidden/occluded, hiding zone`);
+      hideZone();
+    }
+  }, [checkElementVisibility, showZone, hideZone]);
+
   // Function to update zone position
   const updateZoneImmediate = useCallback(() => {
     if (!targetRef.current) return;
@@ -139,16 +206,9 @@ export function useDropZone(options: {
     const rect = element.getBoundingClientRect();
 
     if (rect.width === 0 || rect.height === 0) {
-      // Element not visible, hide zone (only if not already hidden)
-      if (isRegisteredRef.current && lastVisibleStateRef.current !== false) {
-        lastVisibleStateRef.current = false;
-        bridgeService.sendMessage({
-          module: 'DROP_ZONE',
-          type: 'HIDE',
-          payload: { zoneId: zoneIdRef.current }
-        }).catch(err => {
-          logger.error('[useDropZone] Failed to hide zone:', err);
-        });
+      // Element not visible, hide zone
+      if (isRegisteredRef.current) {
+        hideZone();
       }
       return;
     }
@@ -156,16 +216,9 @@ export function useDropZone(options: {
     // Check if element is occluded by another element
     if (isElementOccluded(element)) {
       logger.verbose("[useDropZone] occluded to hide zone")
-      // Element is covered, hide zone (only if not already hidden)
-      if (isRegisteredRef.current && lastVisibleStateRef.current !== false) {
-        lastVisibleStateRef.current = false;
-        bridgeService.sendMessage({
-          module: 'DROP_ZONE',
-          type: 'HIDE',
-          payload: { zoneId: zoneIdRef.current }
-        }).catch(err => {
-          logger.error('[useDropZone] Failed to hide zone (occluded):', err);
-        });
+      // Element is covered, hide zone
+      if (isRegisteredRef.current) {
+        hideZone();
       }
       // Reset lastBounds so we'll update when occlusion is removed
       lastBoundsRef.current = { x: -1, y: -1, width: -1, height: -1 };
@@ -214,16 +267,7 @@ export function useDropZone(options: {
         payload: bounds
       }).then(() => {
         // Show zone only if it was previously hidden
-        if (lastVisibleStateRef.current === false) {
-          lastVisibleStateRef.current = true;
-          bridgeService.sendMessage({
-            module: 'DROP_ZONE',
-            type: 'SHOW',
-            payload: { zoneId: zoneIdRef.current }
-          }).catch(err => {
-            logger.error('[useDropZone] Failed to show zone:', err);
-          });
-        }
+        showZone();
       }).catch(err => {
         logger.error('[useDropZone] Failed to update zone:', err);
       });
@@ -239,13 +283,7 @@ export function useDropZone(options: {
     // If disabled or element not in DOM, hide the zone if it was previously registered
     if (!enabled || !targetRef.current) {
       if (isRegisteredRef.current) {
-        bridgeService.sendMessage({
-          module: 'DROP_ZONE',
-          type: 'HIDE',
-          payload: { zoneId: zoneIdRef.current }
-        }).catch(err => {
-          logger.error('[useDropZone] Failed to hide zone:', err);
-        });
+        hideZone();
       }
       return;
     }
@@ -344,12 +382,18 @@ export function useDropZone(options: {
       if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
 
       element.classList.add(classesRef.current.hover);
+
+      // Sync zone visibility when mouse enters
+      syncZoneVisibility(element, "Mouse entered");
     });
 
     const unsubscribeMouseLeave = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.MOUSE_LEAVE, (event) => {
       if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
 
       element.classList.remove(classesRef.current.hover);
+
+      // Sync zone visibility when mouse leaves
+      syncZoneVisibility(element, "Mouse left");
     });
 
     return () => {

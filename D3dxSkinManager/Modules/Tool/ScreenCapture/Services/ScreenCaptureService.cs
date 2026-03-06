@@ -3,8 +3,8 @@ using D3dxSkinManager.Modules.Tool.ScreenCapture.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Utilities;
-using D3dxSkinManager.Infrastructure.WebView;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Tool.ScreenCapture.Services;
 

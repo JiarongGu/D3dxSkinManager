@@ -150,8 +150,9 @@ public class DropZoneManager : IDisposable
     {
         if (_activeOverlays.TryGetValue(zoneId, out var overlay))
         {
+            // Trust frontend's decision about visibility
+            // Frontend handles element visibility and occlusion checks
             overlay.Show();
-            _logger.Debug($"Zone shown: {zoneId}", "DropZone");
         }
     }
 
@@ -160,7 +161,6 @@ public class DropZoneManager : IDisposable
         if (_activeOverlays.TryGetValue(zoneId, out var overlay))
         {
             overlay.Hide();
-            _logger.Debug($"Zone hidden: {zoneId}", "DropZone");
         }
     }
 

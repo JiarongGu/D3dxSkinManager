@@ -6,7 +6,7 @@ using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Context;
 using System.Collections.Concurrent;
 
-namespace D3dxSkinManager.Infrastructure.WebView;
+namespace D3dxSkinManager.Modules.Context.Services;
 
 /// <summary>
 /// Service for creating and managing secondary WebView2 windows

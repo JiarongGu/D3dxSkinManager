@@ -1,4 +1,3 @@
-using D3dxSkinManager.Infrastructure.WebView;
 using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core;

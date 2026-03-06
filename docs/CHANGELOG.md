@@ -12,6 +12,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-03-06 - DropZone Race Condition Prevention ⭐⭐
+Fixed race conditions in dropzone visibility management by implementing bidirectional state checking between frontend and backend.
+**Impact**: ✅ Dropzone overlay now correctly shows/hides without flickering or getting stuck in wrong state
+**Problem 1**: Frontend sent visibility updates based on element state, backend independently tracked mouse position, causing conflicts
+**Problem 2**: Rapid mouse movements and element state changes created race conditions with conflicting show/hide commands
+**Problem 3**: Backend would show overlay when mouse left, even if frontend detected element was occluded
+**Solution**: Implemented dual-state tracking in backend and bidirectional checks in frontend
+**Frontend Changes**:
+- useDropZone.ts:134-199: Added helper functions `showZone()`, `hideZone()`, `checkElementVisibility()`, `syncZoneVisibility()` to eliminate code duplication
+- useDropZone.ts:387-403: Updated mouse enter/leave handlers to call `syncZoneVisibility()` for consistent state checking
+- useDropZone.ts:354-389: Frontend now rechecks element visibility and occlusion on every mouse event before sending commands
+**Backend Changes**:
+- DropZoneOverlay.cs:97-98: Added `_mouseIsInside` and `_requestsVisible` state tracking variables
+- DropZoneOverlay.cs:188-214: Implemented `UpdateVisibility()` method that shows overlay only when frontend requests AND mouse is outside
+- DropZoneOverlay.cs:100-125: Updated `CheckOverlayVisibility()` timer to detect mouse position changes and sync state
+- DropZoneOverlay.cs:225-247: Modified Show/Hide methods to update `_requestsVisible` flag and call `UpdateVisibility()`
+- DropZoneManager.cs:149-165: Removed mouse position checks, trusts frontend's visibility decisions
+**Root Cause**: Separate visibility logic in frontend (element state) and backend (mouse position) created conflicting decisions
+**Architecture**: Backend now combines both states: visible = (_requestsVisible && !_mouseIsInside), preventing all race conditions
+
 ### Fixed - 2026-03-06 - Category Sub-Category Creation and Thumbnail Path Resolution ⭐⭐
 Fixed critical bug preventing sub-category creation due to empty string parentId normalization and relative thumbnail path issues.
 **Impact**: ✅ Sub-categories now work correctly, inherited thumbnails resolve properly
