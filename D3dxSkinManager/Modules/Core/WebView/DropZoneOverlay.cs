@@ -81,6 +81,10 @@ public class DropZoneOverlay : Panel
         _mouseTrackTimer.Tick += CheckMousePosition;
         _mouseTrackTimer.Start();
 
+        // Initialize visibility state immediately
+        // Without this, the zone won't be active until the first mouse/occlusion event
+        UpdateVisibility();
+
         _logger.Info($"DropZoneOverlay created: {zoneId}", "DropZone");
     }
 
