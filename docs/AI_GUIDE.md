@@ -389,6 +389,87 @@ export const useModsStore = create<ModsState>((set) => ({
 const mods = useModsStore((state) => state.mods);
 ```
 
+### Debouncing with Parameters
+
+**CRITICAL: Standard lodash debounce only keeps the LAST call's parameters!**
+
+When multiple rapid calls occur with different arguments (e.g., `fn('A')`, `fn('B')`, `fn('C')`), only `C` gets processed. This causes parameter loss in event handlers.
+
+**Solution: Use `memoizeDebounce` for per-parameter debouncing**
+
+```typescript
+// Location: shared/utils/memoizeDebounce.ts
+import { memoizeDebounce } from '@/shared/utils/memoizeDebounce';
+
+// ❌ WRONG: Regular debounce loses parameters
+const handleEvent = useCallback(
+  debounce(async (sha: string) => {
+    await refreshMod(sha);  // Only last sha is processed!
+  }, 20),
+  []
+);
+// Problem: LOADED(mod1), UNLOADED(mod2), LOADED(mod3)
+// → Only mod3 gets refreshed, mod1 and mod2 are lost!
+
+// ✅ CORRECT: memoizeDebounce creates separate timer per parameter
+const handleEvent = useCallback(
+  memoizeDebounce(
+    async (sha: string) => {
+      await refreshMod(sha);
+    },
+    20,
+    {},
+    (sha) => sha  // Cache key resolver
+  ),
+  []
+);
+// Result: mod1, mod2, mod3 all get their own 20ms timer
+// Each mod refreshes independently after its timer expires
+```
+
+**When to use which:**
+
+| Scenario | Use | Reason |
+|----------|-----|--------|
+| **Different entities** (different mod SHAs) | `memoizeDebounce` | Each entity needs independent timer |
+| **Same operation batching** (save panel sizes) | Regular `debounce` | Batch all changes into one save |
+| **Multiple params to same entity** (save tag color) | Regular `debounce` | Last value wins (desired behavior) |
+
+**Example: ModProvider event handling**
+```typescript
+// Per-mod refresh - each mod gets own timer
+const handleModLoadStateChange = useCallback(
+  memoizeDebounce(
+    async (sha: string) => {
+      if (selectedProfileIdRef.current) {
+        await modOps.refreshMod(selectedProfileIdRef.current, sha);
+      }
+    },
+    20,
+    {},
+    (sha) => sha  // Each SHA has independent timer
+  ),
+  []
+);
+
+// Event subscriptions
+eventBus.subscribe(Module.MOD, ModEventType.LOADED, (event) => {
+  const sha = event.payload?.sha;
+  if (sha) {
+    handleModLoadStateChange(sha);  // Won't lose parameters
+  }
+});
+```
+
+**Cleanup: cancel() without params cancels ALL timers**
+```typescript
+useEffect(() => {
+  return () => {
+    handleModLoadStateChange.cancel();  // Cancels all memoized timers
+  };
+}, []);
+```
+
 ### Provider Initialization Order
 **Location:** `App.tsx` - `AppWithProviders` component
 

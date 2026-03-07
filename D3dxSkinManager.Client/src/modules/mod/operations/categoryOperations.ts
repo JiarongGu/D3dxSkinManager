@@ -62,7 +62,7 @@ export async function batchUpdateCategories(
 
 /**
  * Load Category tree
- * Uses delayed loading (100ms) to avoid flicker for fast loads
+ * Uses delayed loading (200ms) to avoid flicker for fast loads
  */
 export async function loadCategoryTree(profileId: string): Promise<void> {
   const { setCategoryLoading, setCategoryTree } = useModsStore.getState();
@@ -98,7 +98,7 @@ export async function loadModsByCategory(
   profileId: string,
   nodeId: string
 ): Promise<void> {
-  const { setCategoryLoading, setMods } = useModsStore.getState();
+  const { setModLoading, setMods } = useModsStore.getState();
 
   try {
     await executeWithDelayedLoading(
@@ -106,7 +106,7 @@ export async function loadModsByCategory(
         const mods = await modService.getModsByCategory(profileId, nodeId);
         setMods(mods);
       },
-      setCategoryLoading,
+      setModLoading,
       200
     );
   } catch (error: unknown) {
@@ -116,10 +116,10 @@ export async function loadModsByCategory(
 
 /**
  * Load Unclassified mods (no category assigned)
- * Uses delayed loading (100ms) to avoid flicker for fast queries
+ * Uses delayed loading (200ms) to avoid flicker for fast queries
  */
 export async function loadUnclassifiedMods(profileId: string): Promise<void> {
-  const { setCategoryLoading, setMods } = useModsStore.getState();
+  const { setModLoading, setMods } = useModsStore.getState();
 
   try {
     await executeWithDelayedLoading(
@@ -127,7 +127,7 @@ export async function loadUnclassifiedMods(profileId: string): Promise<void> {
         const mods = await modService.getUnclassifiedMods(profileId);
         setMods(mods);
       },
-      setCategoryLoading,
+      setModLoading,
       200
     );
   } catch (error: unknown) {
@@ -195,7 +195,6 @@ export async function selectCategory(
   if (!node) {
     return;
   }
-  console.log(node);
 
   state.setSelectedCategory(node);
   // Load mods for this Category

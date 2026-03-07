@@ -96,10 +96,12 @@ export const ModList: React.FC<ModListProps> = ({
     };
   }, [handleObserver]);
 
-  // Reset display count when mods change
+  // Reset display count when mods array length changes (category change, search, etc.)
+  // Don't reset on property updates (like isLoaded) to prevent flash during infinite scroll
+  const modsLength = mods.length;
   React.useEffect(() => {
     setDisplayCount(50);
-  }, [mods]);
+  }, [modsLength]);
 
   // Save scroll position before reload and restore after
   React.useEffect(() => {

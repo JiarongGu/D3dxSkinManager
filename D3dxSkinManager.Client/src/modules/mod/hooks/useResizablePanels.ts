@@ -45,7 +45,7 @@ export function useResizablePanels() {
       } catch (error: unknown) {
         logger.error('[useResizablePanels] Failed to save panel sizes:', error);
       }
-    }, 200), // 200ms delay
+    }, 200),
     []
   );
 

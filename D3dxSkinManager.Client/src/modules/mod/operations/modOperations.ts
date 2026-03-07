@@ -33,6 +33,26 @@ export async function refreshMods(profileId: string): Promise<void> {
 }
 
 /**
+ * Refresh a single mod in the mod list with fresh data from backend
+ * Updates the mod's properties (isLoaded, hasCache, cachePath, etc.) without refreshing entire list
+ * Used after load/unload events to verify cache state
+ */
+export async function refreshMod(profileId: string, sha: string): Promise<void> {
+  const { updateModLocal } = useModsStore.getState();
+
+  try {
+    // Fetch fresh enriched mod data from backend
+    const freshMod = await modService.getModBySha(profileId, sha);
+    if (freshMod) {
+      // Update the mod in the list with fresh data
+      updateModLocal(sha, freshMod);
+    }
+  } catch (error) {
+    console.error('Failed to refresh mod:', error);
+  }
+}
+
+/**
  * Refresh the currently selected mod with fresh enriched data from backend
  * Called when specific mod events occur (LOADED, UNLOADED, METADATA_UPDATED, CACHE_CHANGED)
  * Ensures ModPreview shows up-to-date mod properties (hasCache, cachePath, isLoaded, etc.)
@@ -62,14 +82,14 @@ export async function refreshSelectedMod(profileId: string): Promise<void> {
 
 /**
  * Update mod metadata
- * Uses delayed loading (100ms) to avoid flicker for fast updates
+ * Uses delayed loading (200ms) to avoid flicker for fast updates
  */
 export async function updateMod(
   profileId: string,
   sha: string,
   data: Partial<ModInfo>
 ): Promise<void> {
-  const { updateModLocal } = useModsStore.getState();
+  const { updateModLocal, setModLoading } = useModsStore.getState();
 
   try {
     await executeWithDelayedLoading(
@@ -89,7 +109,7 @@ export async function updateMod(
 
         notification.success(i18n.t('mods.operations.updateSuccess'));
       },
-      useModsStore.getState().setModLoading,
+      setModLoading,
       200
     );
   } catch (error: unknown) {
@@ -100,10 +120,10 @@ export async function updateMod(
 
 /**
  * Delete a mod
- * Uses delayed loading (100ms) to avoid flicker for fast deletes
+ * Uses delayed loading (200ms) to avoid flicker for fast deletes
  */
 export async function deleteMod(profileId: string, sha: string): Promise<void> {
-  const { removeMod } = useModsStore.getState();
+  const { removeMod, setModLoading } = useModsStore.getState();
 
   try {
     await executeWithDelayedLoading(
@@ -115,7 +135,7 @@ export async function deleteMod(profileId: string, sha: string): Promise<void> {
 
         notification.success(i18n.t('mods.operations.deleteSuccess'));
       },
-      useModsStore.getState().setModLoading,
+      setModLoading,
       200
     );
   } catch (error: unknown) {
@@ -198,7 +218,7 @@ export async function reloadCurrentPreview(profileId: string): Promise<void> {
 
 /**
  * Load a mod in-game
- * Backend will fire MOD_LIST_UPDATED event which triggers refresh via ModProvider
+ * Backend fires LOADED event → ModProvider updates single mod optimistically + refreshes statistics
  */
 export async function loadMod(profileId: string, sha: string): Promise<void> {
   try {
@@ -206,7 +226,8 @@ export async function loadMod(profileId: string, sha: string): Promise<void> {
     await modService.loadMod(profileId, sha);
     notification.success(i18n.t('mods.operations.loadSuccess'));
 
-    // Backend fires MOD_LIST_UPDATED event → ModProvider refreshes mods automatically
+    // Backend fires LOADED event → ModProvider updates mod.isLoaded and refreshes statistics
+    // No full list refresh needed - optimistic update is instant and smooth
   } catch (error: unknown) {
     // Handle error with user-friendly messages
     handleError(error);
@@ -216,7 +237,7 @@ export async function loadMod(profileId: string, sha: string): Promise<void> {
 
 /**
  * Unload a mod from game
- * Backend will fire MOD_LIST_UPDATED event which triggers refresh via ModProvider
+ * Backend fires UNLOADED event → ModProvider updates single mod optimistically + refreshes statistics
  */
 export async function unloadMod(profileId: string, sha: string): Promise<void> {
   try {
@@ -224,7 +245,8 @@ export async function unloadMod(profileId: string, sha: string): Promise<void> {
     await modService.unloadMod(profileId, sha);
     notification.success(i18n.t('mods.operations.unloadSuccess'));
 
-    // Backend fires MOD_LIST_UPDATED event → ModProvider refreshes mods automatically
+    // Backend fires UNLOADED event → ModProvider updates mod.isLoaded and refreshes statistics
+    // No full list refresh needed - optimistic update is instant and smooth
   } catch (error: unknown) {
     // Handle error with user-friendly messages
     handleError(error);

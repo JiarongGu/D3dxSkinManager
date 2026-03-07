@@ -5,17 +5,19 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 
 /// <summary>
 /// Handles mod events and emits MOD_LIST_UPDATED for frontend refresh
-/// Subscribes to all mod state change events and consolidates them into a single refresh event
+/// Subscribes to mod state change events that require full list refresh
 ///
 /// Subscribed events:
-/// - LOADED: When a mod is loaded (affects IsLoaded flag)
-/// - UNLOADED: When a mod is unloaded (affects IsLoaded flag)
 /// - DELETED: When a mod is deleted (removes from list)
 /// - IMPORTED: When a new mod is imported (adds to list)
 /// - METADATA_UPDATED: When mod metadata changes (name, author, tags, etc.)
 /// - CATEGORY_UPDATED: When mod category changes
 /// - REFRESHED: When mod list needs full refresh
 /// - CACHE_CHANGED: When cache directory changes externally (affects IsLoaded/IsAvailable flags)
+///
+/// NOT subscribed (frontend handles directly for optimistic updates):
+/// - LOADED: Frontend updates single mod's IsLoaded flag + refreshes statistics
+/// - UNLOADED: Frontend updates single mod's IsLoaded flag + refreshes statistics
 /// </summary>
 public interface IModListEventHandler : IDisposable
 {
@@ -25,8 +27,6 @@ public class ModListEventHandler : IModListEventHandler
 {
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
-    private string? _loadedHandlerId;
-    private string? _unloadedHandlerId;
     private string? _deletedHandlerId;
     private string? _importedHandlerId;
     private string? _metadataUpdatedHandlerId;
@@ -41,18 +41,9 @@ public class ModListEventHandler : IModListEventHandler
 
         _logger.Info("ModListEventHandler: Initializing and subscribing to mod events", "ModListEventHandler");
 
-        // Subscribe to all mod state change events that require frontend refresh
-        _loadedHandlerId = _eventBus.Subscribe(
-            ModuleNames.MOD,
-            ModEvents.LOADED,
-            async (_) => await EmitModListUpdatedAsync("LOADED").ConfigureAwait(false)
-        );
-
-        _unloadedHandlerId = _eventBus.Subscribe(
-            ModuleNames.MOD,
-            ModEvents.UNLOADED,
-            async (_) => await EmitModListUpdatedAsync("UNLOADED").ConfigureAwait(false)
-        );
+        // Subscribe to mod state change events that require full list refresh
+        // NOTE: LOADED/UNLOADED are NOT subscribed here - frontend handles them directly
+        // for optimistic single-mod updates + statistics refresh
 
         _deletedHandlerId = _eventBus.Subscribe(
             ModuleNames.MOD,
@@ -90,7 +81,7 @@ public class ModListEventHandler : IModListEventHandler
             async (_) => await EmitModListUpdatedAsync("CACHE_CHANGED").ConfigureAwait(false)
         );
 
-        _logger.Info($"ModListEventHandler: Successfully registered 8 event handlers", "ModListEventHandler");
+        _logger.Info($"ModListEventHandler: Successfully registered 6 event handlers (LOADED/UNLOADED handled by frontend)", "ModListEventHandler");
     }
 
     private async Task EmitModListUpdatedAsync(string sourceEvent)
@@ -103,10 +94,6 @@ public class ModListEventHandler : IModListEventHandler
 
     public void Dispose()
     {
-        if (_loadedHandlerId != null)
-            _eventBus.Unsubscribe(_loadedHandlerId);
-        if (_unloadedHandlerId != null)
-            _eventBus.Unsubscribe(_unloadedHandlerId);
         if (_deletedHandlerId != null)
             _eventBus.Unsubscribe(_deletedHandlerId);
         if (_importedHandlerId != null)
