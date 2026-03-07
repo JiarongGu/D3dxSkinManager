@@ -7,6 +7,7 @@ import {
   ToolOutlined,
   CameraOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { StartupValidationTool } from './StartupValidationTool';
 import { TagManagementTool } from './TagManagementTool/TagManagementTool';
 import { PythonMigrationTool } from './PythonMigrationTool/PythonMigrationTool';
@@ -35,6 +36,7 @@ interface ToolCardData {
  * - Tag Management
  */
 export const ToolsView: React.FC = () => {
+  const { t } = useTranslation();
   const { openScreen } = useSlideInScreenContext();
   const { selectedProfileId } = useProfile();
   const [showMigrationTool, setShowMigrationTool] = React.useState(false);
@@ -48,29 +50,29 @@ export const ToolsView: React.FC = () => {
   const tools: ToolCardData[] = [
     {
       key: 'screen-capture',
-      title: 'Screen Capture',
-      description: 'Capture screen regions with customizable profiles',
+      title: t('tools.screenCapture.title'),
+      description: t('tools.screenCapture.description'),
       icon: <CameraOutlined />,
       content: null, // Special case - opens WinForm control panel
     },
     {
       key: 'python-migration',
-      title: 'Python Migration',
-      description: 'Migrate from Python version to React version',
+      title: t('tools.pythonMigration.title'),
+      description: t('tools.pythonMigration.description'),
       icon: <ImportOutlined />,
       content: null, // Special case - handled separately
     },
     {
       key: 'tag-management',
-      title: 'Tag Management',
-      description: 'Manage mod tags and categories',
+      title: t('tools.tagManagement.title'),
+      description: t('tools.tagManagement.description'),
       icon: <TagsOutlined />,
       content: <TagManagementTool />,
     },
     {
       key: 'startup-validation',
-      title: 'Startup Validation',
-      description: 'Validate system startup requirements and configuration',
+      title: t('tools.startupValidation.title'),
+      description: t('tools.startupValidation.description'),
       icon: <CheckCircleOutlined />,
       content: <StartupValidationTool />,
     }
@@ -116,7 +118,7 @@ export const ToolsView: React.FC = () => {
             <div className="tools-view-header">
               <Space>
                 <ToolOutlined style={{ fontSize: '20px' }} />
-                <span className="tools-view-title">Tools</span>
+                <span className="tools-view-title">{t('tools.title')}</span>
               </Space>
             </div>
             <Row gutter={[16, 16]}>

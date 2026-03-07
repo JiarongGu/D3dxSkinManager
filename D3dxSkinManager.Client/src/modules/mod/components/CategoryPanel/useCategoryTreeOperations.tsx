@@ -26,66 +26,11 @@ function findNodeById(
   return undefined;
 }
 
-/**
- * Check if nodeId is a descendant of ancestorId in the tree
- */
-function isDescendantOf(
-  nodes: CategoryInfo[],
-  nodeId: string,
-  ancestorId: string,
-): boolean {
-  const ancestorNode = findNodeById(nodes, ancestorId);
-  if (!ancestorNode) return false;
-
-  // Check if nodeId exists in ancestor's subtree
-  return findNodeById(ancestorNode.children, nodeId) !== undefined;
-}
-
-/**
- * Check if nodeId is an ancestor of descendantId in the tree
- */
-function isAncestorOf(
-  nodes: CategoryInfo[],
-  nodeId: string,
-  descendantId: string,
-): boolean {
-  return isDescendantOf(nodes, descendantId, nodeId);
-}
-
-/**
- * Check if updating a node should trigger a mod list refresh
- * Returns true if:
- * - The updated node is the currently selected node
- * - The updated node is a descendant of the selected node (its mods are shown in current view)
- *
- * Does NOT refresh if updated node is an ancestor (doesn't affect current view)
- */
-function shouldRefreshModsForNodeUpdate(
-  tree: CategoryInfo[],
-  updatedNodeId: string,
-  selectedNodeId: string | undefined,
-): boolean {
-  if (!selectedNodeId) return false;
-
-  // Check if it's the same node
-  if (updatedNodeId === selectedNodeId) return true;
-
-  // Check if updated node is a descendant of selected node
-  // (i.e., updated node's mods are being shown as part of selected node)
-  if (isDescendantOf(tree, updatedNodeId, selectedNodeId)) return true;
-
-  // Do NOT refresh if updated node is an ancestor
-  // (that doesn't affect the current mod list view)
-
-  return false;
-}
-
 interface UseCategoryTreeOperationsProps {
   tree: CategoryInfo[];
   expandedKeys: React.Key[];
   selectedCategoryId?: string;
   onExpandedKeysChange: (keys: React.Key[]) => void;
-  onModsRefresh?: () => Promise<void>;
 }
 
 /**
@@ -97,7 +42,6 @@ export function useCategoryTreeOperations({
   expandedKeys,
   selectedCategoryId,
   onExpandedKeysChange,
-  onModsRefresh,
 }: UseCategoryTreeOperationsProps) {
   const { modal } = App.useApp();
   const { t } = useTranslation();
@@ -162,14 +106,7 @@ export function useCategoryTreeOperations({
 
             if (response && moveSuccess) {
               notification.success(t('category.updateSuccess', { name: data.name }));
-
-              // Only refresh mods if:
-              // 1. The name actually changed AND
-              // 2. The updated node affects the current mod list view (current node or its descendants)
-              const nameChanged = data.name !== node.name;
-              if (onModsRefresh && nameChanged && shouldRefreshModsForNodeUpdate(treeRef.current, nodeId, selectedCategoryId)) {
-                await onModsRefresh();
-              }
+              // Note: Backend emits CATEGORY_UPDATED event, ModProvider handles refresh automatically
             } else if (response && !moveSuccess && parentChanged) {
               notification.error(t('category.moveError', { name: data.name }));
             } else {
@@ -185,7 +122,7 @@ export function useCategoryTreeOperations({
         },
       });
     },
-    [openCategoryScreen, onModsRefresh, modal, t],
+    [openCategoryScreen, modal, t],
   );
 
   // Delete node handler - opens confirmation dialog

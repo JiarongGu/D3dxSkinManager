@@ -547,6 +547,15 @@
     "capture.button.delete": "Delete",
     "capture.button.showArea": "Show Area",
     "capture.button.hideArea": "Hide Area",
-    "capture.button.capture": "Capture"
+    "capture.button.capture": "Capture",
+    "tools.title": "Tools",
+    "tools.screenCapture.title": "Screen Capture",
+    "tools.screenCapture.description": "Capture screen regions with customizable profiles",
+    "tools.pythonMigration.title": "Python Migration",
+    "tools.pythonMigration.description": "Migrate from Python version to React version",
+    "tools.tagManagement.title": "Tag Management",
+    "tools.tagManagement.description": "Manage mod tags and categories",
+    "tools.startupValidation.title": "Startup Validation",
+    "tools.startupValidation.description": "Validate system startup requirements and configuration"
   }
 }

@@ -137,11 +137,6 @@ export interface CategoryTreeProps {
    * Callback when creating new Category
    */
   onAddCategory?: (parentId?: string) => void;
-
-  /**
-   * Callback to refresh mods after category update
-   */
-  onModsRefresh?: () => Promise<void>;
 }
 
 /**

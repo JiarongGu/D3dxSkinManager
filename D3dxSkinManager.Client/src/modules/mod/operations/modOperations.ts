@@ -22,10 +22,10 @@ export async function refreshMods(profileId: string): Promise<void> {
 
   // If a category is selected, refresh only that category's mods
   if (selectedCategory) {
-    const { loadModsByCategory, loadUncategorizedMods } = await import('./categoryOperations');
+    const { loadModsByCategory, loadUnclassifiedMods } = await import('./categoryOperations');
 
     if (selectedCategory.id === CATEGORY_IDS.UNCLASSIFIED) {
-      await loadUncategorizedMods(profileId);
+      await loadUnclassifiedMods(profileId);
     } else {
       await loadModsByCategory(profileId, selectedCategory.id);
     }
@@ -133,6 +133,18 @@ export async function loadStatistics(profileId: string): Promise<void> {
     useModsStore.getState().setStatistics(statistics);
   } catch (error: unknown) {
     console.error('Failed to load mod statistics:', error);
+  }
+}
+
+/**
+ * Load available tags for autocomplete
+ */
+export async function loadTags(profileId: string): Promise<void> {
+  try {
+    const tags = await modService.getTags(profileId);
+    useModsStore.getState().setAvailableTags(tags);
+  } catch (error: unknown) {
+    console.error('Failed to load tags:', error);
   }
 }
 

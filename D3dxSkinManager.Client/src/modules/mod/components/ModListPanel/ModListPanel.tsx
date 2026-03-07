@@ -111,10 +111,7 @@ export const ModListPanel: React.FC = () => {
     }
 
     return result;
-  }, [
-    mods,
-    searchQuery,
-  ]);
+  }, [ mods, searchQuery]);
 
   /**
    * Handle mod selection with multi-select support
@@ -123,14 +120,6 @@ export const ModListPanel: React.FC = () => {
    */
   const handleModClick = useCallback(
     (mod: ModInfo, event?: React.MouseEvent) => {
-      // Special handling for unload option
-      if (mod.sha === "__UNLOAD__") {
-        selectMod(mod);
-        setSelectedModShas([]);
-        setAnchorSha(undefined);
-        return;
-      }
-
       const ctrlKey = event?.ctrlKey || event?.metaKey; // metaKey for Mac
       const shiftKey = event?.shiftKey;
 
@@ -170,7 +159,6 @@ export const ModListPanel: React.FC = () => {
           const end = Math.max(anchorIndex, currentIndex);
           const rangeSelection = filteredMods
             .slice(start, end + 1)
-            .filter((m) => m.sha !== "__UNLOAD__") // Exclude special items
             .map((m) => m.sha);
           setSelectedModShas(rangeSelection);
           // Keep anchor unchanged, primary selection is first in range
@@ -196,7 +184,7 @@ export const ModListPanel: React.FC = () => {
     resetScrollPosition();
   }, [selectedCategory, resetScrollPosition]);
 
-  const handleLoadedModClick = (mod: ModInfo) => {
+  const handleLoadedModClick = useCallback((mod: ModInfo) => {
     // Scroll to the loaded mod and select it
     selectMod(mod);
 
@@ -210,7 +198,7 @@ export const ModListPanel: React.FC = () => {
         modElement.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
-  };
+  }, [selectMod]);
 
   if (!selectedCategory) {
     return (

@@ -69,7 +69,6 @@ interface CategoryTreeProviderProps {
   expandedKeys: React.Key[];
   onExpandedKeysChange: (keys: React.Key[]) => void;
   onAddCategory?: (parentId?: string) => void;
-  onModsRefresh?: () => Promise<void>;
 }
 
 /**
@@ -133,7 +132,6 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
   expandedKeys,
   onExpandedKeysChange,
   onAddCategory,
-  onModsRefresh,
 }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
@@ -233,7 +231,6 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     expandedKeys,
     selectedCategoryId: selectedNode?.id,
     onExpandedKeysChange,
-    onModsRefresh, // ✅ Pass mods refresh callback
   });
 
   // Get context menu items

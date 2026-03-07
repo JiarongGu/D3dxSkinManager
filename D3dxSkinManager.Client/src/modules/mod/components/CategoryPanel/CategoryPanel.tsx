@@ -1,7 +1,6 @@
 ﻿import { notification } from '../../../../shared/utils/notification';
 import React, { useCallback } from 'react';
 import { Layout } from 'antd';
-import type { Key } from 'react';
 import { CategoryInfo, CATEGORY_IDS } from '../../../../shared/types/category.types';
 import { CategoryTree } from './CategoryTree';
 import { UnclassifiedItem } from './UnclassifiedItem';
@@ -18,35 +17,28 @@ import './CategoryPanel.css';
 const { Sider } = Layout;
 
 interface CategoryPanelProps {
-  onSelect: (node: CategoryInfo | undefined) => void; // Coordination callback with load logic
-  onModsRefresh?: () => Promise<void>;
-  unclassifiedCount: number;
-  onUnclassifiedClick: () => void;
+  // No props needed - component is fully self-contained!
 }
 
 /**
  * CategoryPanel
  *
- * NEW ARCHITECTURE:
+ * SELF-CONTAINED ARCHITECTURE:
  * - Subscribes to its own state from useModsStore
- * - Receives coordination callbacks from parent (onSelect includes load logic)
- * - Much cleaner - reduced from 13 props to 5!
+ * - Gets operations from useMods hook
+ * - No props needed - fully autonomous!
  */
-export const CategoryPanel: React.FC<CategoryPanelProps> = ({
-  onSelect,
-  onModsRefresh,
-  unclassifiedCount,
-  onUnclassifiedClick,
-}) => {
+export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
   // Subscribe to state this component needs
   const tree = useModsStore(s => s.categoryTree);
   const loading = useModsStore(s => s.categoryLoading);
   const selectedNode = useModsStore(s => s.selectedCategory);
   const searchQuery = useModsStore(s => s.categorySearch);
   const expandedKeys = useModsStore(s => s.expandedKeys);
+  const unclassifiedCount = useModsStore(s => s.unclassifiedCount);
 
   // Get operations
-  const { setcategorySearch, setExpandedKeys } = useMods();
+  const { setcategorySearch, setExpandedKeys, selectCategory, setSearchQuery } = useMods();
 
   // Is unclassified selected?
   const isUnclassifiedSelected = selectedNode?.id === CATEGORY_IDS.UNCLASSIFIED;
@@ -101,10 +93,28 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
     // Pass empty string for modName since we don't have it here
     // The updateModCategory function uses it only for the success message
     await updateModCategory(sha, '', 'Unclassified');
-    if (onModsRefresh) {
-      await onModsRefresh();
+    // Note: Backend emits CATEGORY_UPDATED event, ModProvider handles refresh automatically
+  }, [updateModCategory]);
+
+  // Handle category selection
+  const handleCategorySelect = useCallback((node: CategoryInfo | undefined) => {
+    // Clear search when category changes
+    setSearchQuery('');
+
+    if (node) {
+      void selectCategory(node.id);
+    } else {
+      // Clear category filter
+      useModsStore.getState().setSelectedCategory(undefined);
+      useModsStore.getState().setMods([]);
     }
-  }, [updateModCategory, onModsRefresh]);
+  }, [setSearchQuery, selectCategory]);
+
+  // Handle unclassified click
+  const handleUnclassifiedClick = useCallback(() => {
+    setSearchQuery('');
+    void selectCategory(CATEGORY_IDS.UNCLASSIFIED);
+  }, [setSearchQuery, selectCategory]);
 
   return (
     <Sider
@@ -117,12 +127,11 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
           tree={tree}
           loading={loading || delayedLoading}
           selectedNode={selectedNode}
-          onSelect={onSelect}
+          onSelect={handleCategorySelect}
           searchQuery={searchQuery}
           onSearchChange={setcategorySearch}
           expandedKeys={expandedKeys}
           onExpandedKeysChange={setExpandedKeys}
-          onModsRefresh={onModsRefresh}
           onAddCategory={handleAddCategory}
         />
       </div>
@@ -132,7 +141,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = ({
         <UnclassifiedItem
           count={unclassifiedCount}
           isSelected={isUnclassifiedSelected}
-          onClick={onUnclassifiedClick}
+          onClick={handleUnclassifiedClick}
           onModDrop={handleUnclassifiedDrop}
         />
       </div>

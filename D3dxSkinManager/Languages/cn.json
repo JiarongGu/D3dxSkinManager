@@ -547,6 +547,15 @@
     "capture.button.delete": "删除",
     "capture.button.showArea": "显示区域",
     "capture.button.hideArea": "隐藏区域",
-    "capture.button.capture": "截取"
+    "capture.button.capture": "截取",
+    "tools.title": "工具",
+    "tools.screenCapture.title": "屏幕截图",
+    "tools.screenCapture.description": "使用可自定义配置文件捕获屏幕区域",
+    "tools.pythonMigration.title": "Python 迁移",
+    "tools.pythonMigration.description": "从 Python 版本迁移到 React 版本",
+    "tools.tagManagement.title": "标签管理",
+    "tools.tagManagement.description": "管理模组标签和分类",
+    "tools.startupValidation.title": "启动验证",
+    "tools.startupValidation.description": "验证系统启动要求和配置"
   }
 }

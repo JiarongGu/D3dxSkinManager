@@ -4,7 +4,7 @@
  */
 
 import { useModsStore } from '../store/modsStore';
-import { CATEGORY_IDS } from '../../../shared/types/category.types';
+import { CATEGORY_IDS, CategoryInfo } from '../../../shared/types/category.types';
 import { notification } from '../../../shared/utils/notification';
 import { categoryService, modService } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
@@ -115,10 +115,10 @@ export async function loadModsByCategory(
 }
 
 /**
- * Load uncategorized mods (no category assigned)
+ * Load Unclassified mods (no category assigned)
  * Uses delayed loading (100ms) to avoid flicker for fast queries
  */
-export async function loadUncategorizedMods(profileId: string): Promise<void> {
+export async function loadUnclassifiedMods(profileId: string): Promise<void> {
   const { setCategoryLoading, setMods } = useModsStore.getState();
 
   try {
@@ -166,6 +166,18 @@ export async function selectCategory(
 ): Promise<void> {
   const state = useModsStore.getState();
 
+  // load mods for unclassified category
+  if (nodeId === CATEGORY_IDS.UNCLASSIFIED) {
+    state.setSelectedCategory({
+      id: CATEGORY_IDS.UNCLASSIFIED,
+      name: "Unclassified",
+      priority: 0,
+      children: []
+    });
+    await loadUnclassifiedMods(profileId);
+    return;
+  }
+
   // Find the node in the tree
   const findNode = (nodes: typeof state.categoryTree): typeof state.selectedCategory => {
     for (const node of nodes) {
@@ -179,12 +191,13 @@ export async function selectCategory(
   };
 
   const node = findNode(state.categoryTree);
-  state.setSelectedCategory(node);
-
-  // Load mods for this Category
-  if (nodeId === CATEGORY_IDS.UNCLASSIFIED) {
-    await loadUncategorizedMods(profileId);
-  } else {
-    await loadModsByCategory(profileId, nodeId);
+  
+  if (!node) {
+    return;
   }
+  console.log(node);
+
+  state.setSelectedCategory(node);
+  // Load mods for this Category
+  await loadModsByCategory(profileId, nodeId);
 }

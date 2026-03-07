@@ -171,6 +171,7 @@ export const ModPreviewPanel: React.FC = () => {
               className={classNames('mod-preview-keybinding-overlay', {
                 closing: isKeybindingsClosing,
               })}
+              onClick={handleKeybindingToggle}
             >
               <KeybindingPreview modSha={mod.sha} />
             </div>
