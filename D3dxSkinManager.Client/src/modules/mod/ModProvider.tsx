@@ -209,19 +209,37 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
     const unsubscribePreviewImported = eventBus.subscribe(
       Module.MOD,
       ModEventType.PREVIEW_IMPORTED,
-      () => void modOps.reloadCurrentPreview(selectedProfileIdRef.current!),
+      (event) => {
+        const sha = event.payload?.sha;
+        if (sha) {
+          handleSelectedModUpdate(sha);
+        }
+        void modOps.reloadCurrentPreview(selectedProfileIdRef.current!);
+      },
     );
 
     const unsubscribeThumbnailUpdated = eventBus.subscribe(
       Module.MOD,
       ModEventType.THUMBNAIL_UPDATED,
-      () => void modOps.reloadCurrentPreview(selectedProfileIdRef.current!),
+      (event) => {
+        const sha = event.payload?.sha;
+        if (sha) {
+          handleSelectedModUpdate(sha);
+        }
+        void modOps.reloadCurrentPreview(selectedProfileIdRef.current!);
+      },
     );
 
     const unsubscribePreviewDeleted = eventBus.subscribe(
       Module.MOD,
       ModEventType.PREVIEW_DELETED,
-      () => void modOps.reloadCurrentPreview(selectedProfileIdRef.current!),
+      (event) => {
+        const sha = event.payload?.sha;
+        if (sha) {
+          handleSelectedModUpdate(sha);
+        }
+        void modOps.reloadCurrentPreview(selectedProfileIdRef.current!);
+      },
     );
 
     const unsubscribeModLoading = eventBus.subscribe(

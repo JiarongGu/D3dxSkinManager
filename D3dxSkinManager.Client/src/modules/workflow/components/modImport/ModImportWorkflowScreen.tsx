@@ -33,19 +33,19 @@ export const ModImportWorkflowScreen: React.FC = () => {
   const [selectedWorkflowIds, setSelectedWorkflowIds] = React.useState<string[]>([]);
   const [defaultCategory, setDefaultCategory] = React.useState<string | undefined>();
 
-  // Ref for the table tbody to attach drop zone
-  const tbodyRef = useRef<HTMLElement | null>(null);
+  // Ref for the table body to attach drop zone
+  const tableBodyRef = useRef<HTMLElement | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  // Find and store reference to the ant-table-tbody element
+  // Find and store reference to the ant-table-body element
   useEffect(() => {
     if (!tableContainerRef.current) return;
 
     // Use MutationObserver to wait for the table to render
     const observer = new MutationObserver(() => {
-      const tbody = tableContainerRef.current?.querySelector('.ant-table-tbody');
-      if (tbody) {
-        tbodyRef.current = tbody as HTMLElement;
+      const tableBody = tableContainerRef.current?.querySelector('.ant-table-body');
+      if (tableBody) {
+        tableBodyRef.current = tableBody as HTMLElement;
         observer.disconnect();
       }
     });
@@ -56,9 +56,9 @@ export const ModImportWorkflowScreen: React.FC = () => {
     });
 
     // Also try immediately in case table is already rendered
-    const tbody = tableContainerRef.current.querySelector('.ant-table-tbody');
-    if (tbody) {
-      tbodyRef.current = tbody as HTMLElement;
+    const tableBody = tableContainerRef.current.querySelector('.ant-table-body');
+    if (tableBody) {
+      tableBodyRef.current = tableBody as HTMLElement;
       observer.disconnect();
     }
 
@@ -154,10 +154,10 @@ export const ModImportWorkflowScreen: React.FC = () => {
 
   const [importing, setImporting] = React.useState(false);
 
-  // Drop zone for continuous file imports on the table tbody
+  // Drop zone for continuous file imports on the table body
   useDropZone({
-    targetRef: tbodyRef,
-    enabled: !!selectedProfileId && !!tbodyRef.current,
+    targetRef: tableBodyRef,
+    enabled: !!selectedProfileId && !!tableBodyRef.current,
     onDrop: async (files: string[]) => {
       if (!selectedProfileId || files.length === 0) return;
 

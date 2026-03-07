@@ -104,7 +104,7 @@ public class WorkflowRepository : IWorkflowRepository
             SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
             FROM Workflows
             WHERE Type = @Type
-            ORDER BY CreatedAt DESC
+            ORDER BY CreatedAt ASC
         ";
         cmd.Parameters.AddWithValue("@Type", type);
 
@@ -135,7 +135,7 @@ public class WorkflowRepository : IWorkflowRepository
             SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
             FROM Workflows
             WHERE Type = @Type AND Status IN (0, 1, 2)
-            ORDER BY CreatedAt DESC
+            ORDER BY CreatedAt ASC
         ";
         cmd.Parameters.AddWithValue("@Type", type);
 
@@ -257,7 +257,7 @@ public class WorkflowRepository : IWorkflowRepository
             SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
             FROM Workflows
             WHERE Id IN ({inClause})
-            ORDER BY CreatedAt DESC
+            ORDER BY CreatedAt ASC
         ";
 
         for (int i = 0; i < idList.Count; i++)

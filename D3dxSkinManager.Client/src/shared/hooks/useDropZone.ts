@@ -53,12 +53,17 @@ const isElementOccluded = (elem: HTMLElement): boolean => {
 /**
  * Hook to create a WinForms drop zone overlay that syncs with a web element
  *
- * SIMPLIFIED LOGIC:
+ * NEW SIMPLIFIED LOGIC:
  * 1. Frontend sends dropzone size/location to backend (updates on resize, scroll, etc.)
  * 2. Frontend checks if zone is covered by other HTML elements (sends occlusion state to backend)
  * 3. Backend tracks mouse position (inside/outside zone area)
- * 4. Backend activates zone when: file dragging OR (mouse outside AND not occluded)
- * 5. Visibility changes are debounced (50-100ms) to prevent excessive updates
+ * 4. Backend activates zone with new simplified rules:
+ *    - Overlay ALWAYS visible when mouse is outside (no occlusion check needed)
+ *    - When mouse enters: Check if there's a file drop event AND not occluded
+ *      * No file drag → hide overlay
+ *      * File drag BUT occluded → hide overlay
+ *      * File drag AND not occluded → show overlay
+ * 5. Visibility changes are debounced (75ms) to prevent excessive updates
  *
  * Features:
  * - Captures real OS file paths (not blob URLs)

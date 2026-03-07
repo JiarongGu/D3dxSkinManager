@@ -116,14 +116,14 @@
   position: relative; /* For positioning drop message */
 }
 
-/* Drop zone visual feedback on tbody - consistent with ModListPanel drop zone */
+/* Drop zone visual feedback on table body - consistent with ModListPanel drop zone */
 /* Matches CompactUpload hover style when mouse is over overlay (non-dragging) */
-.mod-import-workflow-screen-content .ant-table-tbody.mod-import-workflow-screen-drop-hover {
+.mod-import-workflow-screen-content .ant-table-body.mod-import-workflow-screen-drop-hover {
   cursor: pointer;
 }
 
-/* Drag-over state on tbody - matches ModListPanel pattern */
-.mod-import-workflow-screen-content .ant-table-tbody.mod-import-workflow-screen-drop-active {
+/* Drag-over state on table body - matches ModListPanel pattern */
+.mod-import-workflow-screen-content .ant-table-body.mod-import-workflow-screen-drop-active {
   background: var(--color-primary-bg-hover) !important;
   opacity: 0.8;
   border: 2px solid var(--color-primary) !important;
@@ -132,12 +132,12 @@
 }
 
 /* Dark theme - match CompactUpload dark background */
-[data-theme="dark"] .mod-import-workflow-screen-content .ant-table-tbody.mod-import-workflow-screen-drop-active {
+[data-theme="dark"] .mod-import-workflow-screen-content .ant-table-body.mod-import-workflow-screen-drop-active {
   background: var(--color-primary-bg-hover) !important;
 }
 
 /* Light theme - match CompactUpload light background */
-[data-theme="light"] .mod-import-workflow-screen-content .ant-table-tbody.mod-import-workflow-screen-drop-active {
+[data-theme="light"] .mod-import-workflow-screen-content .ant-table-body.mod-import-workflow-screen-drop-active {
   background: var(--color-primary-bg) !important;
 }
 
@@ -146,8 +146,8 @@
   display: none;
 }
 
-/* Show and style drop message when drop is active on tbody */
-.mod-import-workflow-screen-content:has(.ant-table-tbody.mod-import-workflow-screen-drop-active) .mod-import-workflow-screen-drop-message {
+/* Show and style drop message when drop is active on table body */
+.mod-import-workflow-screen-content:has(.ant-table-body.mod-import-workflow-screen-drop-active) .mod-import-workflow-screen-drop-message {
   display: block;
   position: absolute;
   top: 0;
@@ -162,7 +162,7 @@
   justify-content: center;
 }
 
-.mod-import-workflow-screen-content:has(.ant-table-tbody.mod-import-workflow-screen-drop-active) .mod-import-workflow-screen-drop-message::after {
+.mod-import-workflow-screen-content:has(.ant-table-body.mod-import-workflow-screen-drop-active) .mod-import-workflow-screen-drop-message::after {
   content: attr(data-drop-message);
   font-size: 14px;
   font-weight: 500;

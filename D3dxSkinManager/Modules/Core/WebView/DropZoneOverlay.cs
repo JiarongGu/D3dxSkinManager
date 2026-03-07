@@ -282,15 +282,18 @@ public class DropZoneOverlay : Panel
     /// <summary>
     /// Calculate and schedule visibility update with debouncing
     ///
-    /// Logic: Show zone when:
-    /// - File is being dragged over zone, OR
-    /// - Mouse is outside zone AND zone is not occluded
+    /// NEW SIMPLIFIED Logic:
+    /// 1. Overlay always visible when mouse is outside (no occlusion check needed)
+    /// 2. When mouse enters the area: Check if there's a file drop event AND not occluded
+    ///    - If no file drag → hide overlay
+    ///    - If file drag BUT zone is occluded → also hide overlay
+    ///    - If file drag AND not occluded → show overlay
     /// </summary>
     private void UpdateVisibility()
     {
         // Calculate desired visibility
-        // Show if: dragging OR (mouse outside AND not occluded)
-        bool shouldBeVisible = _isDragging || (!_mouseIsInside && !_isOccluded);
+        // Show if: mouse outside OR (mouse inside AND dragging AND not occluded)
+        bool shouldBeVisible = !_mouseIsInside || (_mouseIsInside && _isDragging && !_isOccluded);
 
         // Only update if state actually changed
         if (shouldBeVisible == Visible)
@@ -310,8 +313,8 @@ public class DropZoneOverlay : Panel
     private void ApplyVisibilityUpdate(bool targetVisibility)
     {
         // Double-check current state matches target (may have changed during debounce)
-        // Recalculate: Show if dragging OR (mouse outside AND not occluded)
-        bool currentShouldBeVisible = _isDragging || (!_mouseIsInside && !_isOccluded);
+        // Recalculate: Show if mouse outside OR (mouse inside AND dragging AND not occluded)
+        bool currentShouldBeVisible = !_mouseIsInside || (_mouseIsInside && _isDragging && !_isOccluded);
 
         if (currentShouldBeVisible != targetVisibility)
         {
