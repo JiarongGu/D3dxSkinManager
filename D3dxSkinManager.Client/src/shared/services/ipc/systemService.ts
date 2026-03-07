@@ -6,7 +6,15 @@ export interface FileDialogOptions {
   filters?: { name: string; extensions: string[] }[];
   multiSelect?: boolean;
   rememberPathKey?: string;
+
+  // Folder dialog options
   allowFileSelection?: boolean; // For folder dialogs: allow both files and folders
+
+  // Advanced dialog configuration (OpenFileDialog properties)
+  checkFileExists?: boolean;  // Default: true for files, false for folders
+  checkPathExists?: boolean;  // Default: true
+  validateNames?: boolean;    // Default: true for files, false for folders
+  fileName?: string;          // Initial filename to display
 }
 
 export interface FileDialogResult {

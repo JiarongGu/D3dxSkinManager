@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-03-07 - Hybrid File/Folder Selection Dialog ⭐
+**Summary**: Fixed mod import workflow file selection dialog to properly support selecting both archive files and folders.
+
+#### Hybrid File/Folder Selection for Mod Import
+**Impact**: ✅ Mod import dialog now correctly allows selecting either archive files (.zip, .7z, .rar) OR folders
+**Problem**: File selection dialog couldn't select folders from explorer - clicking "Open" did nothing when navigating to a folder
+**Root Cause**: `OpenFileDialog` with "Folder Selection" placeholder had file extension appended by Windows (e.g., "Folder Selection.zip"), preventing folder path extraction
+**Solution**: Detect placeholder filename with or without filter extension and extract parent directory
+**Backend Changes**:
+- SystemFileDialogService.cs:206-214: Added logic to check both `fileName == "Folder Selection"` and `fileNameWithoutExt == "Folder Selection"` to handle filter-appended extensions
+- SystemFileDialogService.cs:177-244: Simplified hybrid dialog using `OpenFileDialog` with proper placeholder detection instead of complex COM interop
+**Frontend Changes**: No changes required - existing configuration already correct
+
 ### Fixed - 2026-03-07 - Multiple Bug Fixes and Improvements ⭐⭐⭐
 **Summary**: Fixed 7 critical issues: Python migration multi-environment support, category order preservation, dropzone overlay recovery, browser drop prevention, unclassified count management, mod deletion events, and removed unnecessary UI prompts.
 

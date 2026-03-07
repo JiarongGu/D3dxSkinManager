@@ -230,13 +230,21 @@ public class SystemFacade : BaseFacade, ISystemFacade
         var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
         var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
         var filters = _payloadHelper.GetOptionalValue<List<FileDialogFilter>>(request.Payload, "filters");
+        var checkFileExists = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "checkFileExists");
+        var checkPathExists = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "checkPathExists");
+        var validateNames = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "validateNames");
+        var fileName = _payloadHelper.GetOptionalValue<string>(request.Payload, "fileName");
 
         var options = new FileDialogOptions
         {
             Title = title,
             DefaultPath = defaultPath,
             Filters = filters,
-            RememberPathKey = rememberPathKey
+            RememberPathKey = rememberPathKey,
+            CheckFileExists = checkFileExists,
+            CheckPathExists = checkPathExists,
+            ValidateNames = validateNames,
+            FileName = fileName
         };
 
         return await OpenFileDialogAsync(options).ConfigureAwait(false);
@@ -249,6 +257,10 @@ public class SystemFacade : BaseFacade, ISystemFacade
         var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
         var allowFileSelection = _payloadHelper.GetOptionalValue<bool>(request.Payload, "allowFileSelection");
         var filters = _payloadHelper.GetOptionalValue<List<FileDialogFilter>>(request.Payload, "filters");
+        var checkFileExists = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "checkFileExists");
+        var checkPathExists = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "checkPathExists");
+        var validateNames = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "validateNames");
+        var fileName = _payloadHelper.GetOptionalValue<string>(request.Payload, "fileName");
 
         var options = new FileDialogOptions
         {
@@ -256,7 +268,11 @@ public class SystemFacade : BaseFacade, ISystemFacade
             DefaultPath = defaultPath,
             RememberPathKey = rememberPathKey,
             AllowFileSelection = allowFileSelection,
-            Filters = filters
+            Filters = filters,
+            CheckFileExists = checkFileExists,
+            CheckPathExists = checkPathExists,
+            ValidateNames = validateNames,
+            FileName = fileName
         };
 
         return await OpenFolderDialogAsync(options).ConfigureAwait(false);

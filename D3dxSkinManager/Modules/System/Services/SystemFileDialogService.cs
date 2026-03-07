@@ -86,8 +86,11 @@ public class SystemFileDialogService : ISystemFileDialogService
                 Title = options?.Title ?? "Select File",
                 InitialDirectory = initialPath,
                 RestoreDirectory = false, // We handle this manually for better control
-                CheckFileExists = true,
-                CheckPathExists = true
+                // Use configurable options or defaults for file selection
+                CheckFileExists = options?.CheckFileExists ?? true,  // Default: true for file dialogs
+                CheckPathExists = options?.CheckPathExists ?? true,  // Default: true
+                ValidateNames = options?.ValidateNames ?? true,      // Default: true for file dialogs
+                FileName = options?.FileName ?? "" // Default: empty
             };
 
             // Set filters
@@ -167,7 +170,7 @@ public class SystemFileDialogService : ISystemFileDialogService
     {
         try
         {
-            // If AllowFileSelection is true, use OpenFileDialog with folder selection enabled
+            // If AllowFileSelection is true, use OpenFileDialog with relaxed validation
             if (options?.AllowFileSelection == true)
             {
                 using var dialog = new OpenFileDialog
@@ -175,13 +178,13 @@ public class SystemFileDialogService : ISystemFileDialogService
                     Title = options.Title ?? "Select Folder or File",
                     InitialDirectory = initialPath,
                     RestoreDirectory = false,
-                    CheckFileExists = false, // Allow folder selection
-                    CheckPathExists = true,
-                    ValidateNames = false,   // Allow folder paths
-                    FileName = "Folder Selection" // Placeholder text
+                    CheckFileExists = false,  // Allow non-file selections
+                    CheckPathExists = true,   // But path must exist
+                    ValidateNames = false,    // Allow folder paths
+                    FileName = "Folder Selection"  // Placeholder to enable folder selection
                 };
 
-                // Set filters for archive files if specified
+                // Set file type filters
                 if (options.Filters != null && options.Filters.Count > 0)
                 {
                     var filterStrings = options.Filters
@@ -189,36 +192,38 @@ public class SystemFileDialogService : ISystemFileDialogService
                         .ToList();
                     dialog.Filter = string.Join("|", filterStrings);
                 }
-                else
-                {
-                    // Default to common archive formats for mod imports
-                    dialog.Filter = "Archive Files (*.zip;*.7z;*.rar)|*.zip;*.7z;*.rar|All Files (*.*)|*.*";
-                }
 
-                // Show dialog with owner window handle to maintain proper z-order
+                // Show dialog
                 var result = ownerHandle != IntPtr.Zero
                     ? dialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
                     : dialog.ShowDialog();
 
-                if (result == DialogResult.OK)
+                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.FileName))
                 {
                     var selectedPath = dialog.FileName;
 
-                    // If user typed just a folder path in the filename box, use that
-                    if (string.IsNullOrWhiteSpace(Path.GetFileName(selectedPath)) ||
-                        selectedPath.EndsWith("Folder Selection"))
+                    // Check if user selected the placeholder (folder selection)
+                    var fileName = Path.GetFileName(selectedPath);
+                    var fileNameWithoutExt = Path.GetFileNameWithoutExtension(selectedPath);
+
+                    // If the filename matches the placeholder (with or without extension), extract directory
+                    if (fileName == "Folder Selection" || fileNameWithoutExt == "Folder Selection")
                     {
                         selectedPath = Path.GetDirectoryName(selectedPath) ?? selectedPath;
                     }
 
-                    // Check if it's a file or folder
+                    _logger.Debug($"[FileDialog] Selected path: '{selectedPath}'", "FileDialogService");
+
+                    // Validate the path exists (file or folder)
                     if (File.Exists(selectedPath) || Directory.Exists(selectedPath))
                     {
-                        // Remember the directory (or parent of file) for next time
-                        var pathToRemember = File.Exists(selectedPath)
+                        var isFile = File.Exists(selectedPath);
+                        var pathToRemember = isFile
                             ? Path.GetDirectoryName(selectedPath)
                             : selectedPath;
                         SaveLastUsedPath(options, pathToRemember);
+
+                        _logger.Info($"[FileDialog] Selected {(isFile ? "file" : "folder")}: '{selectedPath}'", "FileDialogService");
 
                         return new FileDialogResult
                         {
@@ -226,6 +231,8 @@ public class SystemFileDialogService : ISystemFileDialogService
                             FilePath = selectedPath
                         };
                     }
+
+                    _logger.Warn($"[FileDialog] Path does not exist: '{selectedPath}'", "FileDialogService");
                 }
 
                 return new FileDialogResult
@@ -234,40 +241,38 @@ public class SystemFileDialogService : ISystemFileDialogService
                     Error = "User cancelled selection"
                 };
             }
-            else
+
+            // Use traditional FolderBrowserDialog for folder-only selection
+            using var folderDialog = new FolderBrowserDialog
             {
-                // Use traditional FolderBrowserDialog for folder-only selection
-                using var dialog = new FolderBrowserDialog
-                {
-                    Description = options?.Title ?? "Select Folder",
-                    SelectedPath = initialPath,
-                    ShowNewFolderButton = true,
-                    UseDescriptionForTitle = true // Better title display on modern Windows
-                };
+                Description = options?.Title ?? "Select Folder",
+                SelectedPath = initialPath,
+                ShowNewFolderButton = true,
+                UseDescriptionForTitle = true // Better title display on modern Windows
+            };
 
-                // Show dialog with owner window handle to maintain proper z-order
-                var result = ownerHandle != IntPtr.Zero
-                    ? dialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
-                    : dialog.ShowDialog();
+            // Show dialog with owner window handle to maintain proper z-order
+            var folderResult = ownerHandle != IntPtr.Zero
+                ? folderDialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
+                : folderDialog.ShowDialog();
 
-                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
-                {
-                    // Remember the selected folder for next time
-                    SaveLastUsedPath(options, dialog.SelectedPath);
-
-                    return new FileDialogResult
-                    {
-                        Success = true,
-                        FilePath = dialog.SelectedPath
-                    };
-                }
+            if (folderResult == DialogResult.OK && !string.IsNullOrWhiteSpace(folderDialog.SelectedPath))
+            {
+                // Remember the selected folder for next time
+                SaveLastUsedPath(options, folderDialog.SelectedPath);
 
                 return new FileDialogResult
                 {
-                    Success = false,
-                    Error = "User cancelled folder selection"
+                    Success = true,
+                    FilePath = folderDialog.SelectedPath
                 };
             }
+
+            return new FileDialogResult
+            {
+                Success = false,
+                Error = "User cancelled folder selection"
+            };
         }
         catch (Exception ex)
         {
