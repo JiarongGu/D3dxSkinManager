@@ -33,6 +33,16 @@ export async function refreshMods(profileId: string): Promise<void> {
 }
 
 /**
+ * Set mod loading state (transient UI state)
+ * Used when LOADING event is received to show loading indicator
+ */
+export function setModLoading(sha: string, isLoading: boolean): void {
+  const { updateModLocal } = useModsStore.getState();
+  // Update only the isLoading flag locally (transient state)
+  updateModLocal(sha, { isLoading });
+}
+
+/**
  * Refresh a single mod in the mod list with fresh data from backend
  * Updates the mod's properties (isLoaded, hasCache, cachePath, etc.) without refreshing entire list
  * Used after load/unload events to verify cache state
@@ -44,8 +54,8 @@ export async function refreshMod(profileId: string, sha: string): Promise<void> 
     // Fetch fresh enriched mod data from backend
     const freshMod = await modService.getModBySha(profileId, sha);
     if (freshMod) {
-      // Update the mod in the list with fresh data
-      updateModLocal(sha, freshMod);
+      // Update the mod in the list with fresh data (and clear loading state)
+      updateModLocal(sha, { ...freshMod, isLoading: false });
     }
   } catch (error) {
     console.error('Failed to refresh mod:', error);

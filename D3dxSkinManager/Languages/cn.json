@@ -207,6 +207,7 @@
     "modManagement.title.modImports": "模组导入",
     "mods.list.editMod": "编辑模组",
     "mods.list.loadMod": "加载模组",
+    "mods.list.loading": "加载中",
     "mods.list.loaded": "已加载",
     "mods.list.loadingMore": "加载更多...",
     "mods.list.more": "更多",

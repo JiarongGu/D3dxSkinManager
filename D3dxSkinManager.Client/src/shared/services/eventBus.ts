@@ -31,6 +31,7 @@ export enum SystemEventType {
 
 // Mod event types
 export enum ModEventType {
+  LOADING = "LOADING",
   LOADED = "LOADED",
   UNLOADED = "UNLOADED",
   DELETED = "DELETED",
@@ -128,6 +129,7 @@ export interface EventPayloadMap {
 
   // Mod events
   [Module.MOD]: {
+    [ModEventType.LOADING]: { sha: string };
     [ModEventType.LOADED]: { sha: string };
     [ModEventType.UNLOADED]: { sha: string };
     [ModEventType.DELETED]: { sha: string; mod?: ModInfo };

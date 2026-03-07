@@ -10,6 +10,7 @@ export interface ModInfo {
   tags: string[];
   tagsWithMetadata?: Tag[];  // Tag objects with colors (populated by backend)
   disablePreview: boolean;  // If true, preview images won't be loaded/displayed for this mod
+  isLoading: boolean;  // True when mod is being loaded (decompressing archive)
   isLoaded: boolean;
   isAvailable: boolean;
   hasCache: boolean;  // True if cache directory exists (either active or DISABLED-)

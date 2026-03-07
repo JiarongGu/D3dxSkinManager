@@ -1,4 +1,4 @@
-import { debounce as lodashDebounce, memoize, DebounceSettings, DebouncedFunc } from 'lodash-es';
+import { debounce as lodashDebounce, DebounceSettings, DebouncedFunc } from 'lodash-es';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyFunction = (...args: any[]) => any;
@@ -12,96 +12,81 @@ export interface MemoizeDebouncedFunction<F extends AnyFunction> {
 }
 
 /**
- * Combines lodash debounce with memoize to allow for debouncing based on parameters.
+ * Creates a debounced function where each unique parameter gets its own timer.
  *
- * Unlike regular debounce which shares a single timer for all calls, this creates separate timers
- * for each unique parameter value. This is useful when you want to debounce operations on different
- * entities independently.
+ * Unlike regular debounce (single timer, last call wins), this creates independent timers
+ * per key, preserving all parameters. Auto-cleans cache after execution.
  *
- * @param func - The function to debounce
- * @param wait - The number of milliseconds to delay
- * @param options - Lodash debounce options object
- * @param resolver - The function to resolve the cache key (defaults to first argument)
- * @returns Memoized debounced function
+ * @param func - Function to debounce
+ * @param resolver - Extract cache key from arguments (e.g., `(sha) => sha`)
+ * @param wait - Delay in milliseconds (default: 0)
+ * @param options - Debounce options (leading, trailing, maxWait)
  *
  * @example
- * // Each mod gets its own debounce timer
- * const refreshMod = memoizeDebounce(
- *   async (sha: string) => {
- *     await api.refreshMod(sha);
- *   },
- *   20,
- *   {},
- *   (sha) => sha // Use sha as cache key
+ * const refresh = memoizeDebounce(
+ *   async (sha: string) => api.refresh(sha),
+ *   (sha) => sha,
+ *   20
  * );
- *
- * refreshMod('mod1'); // Starts 20ms timer for mod1
- * refreshMod('mod2'); // Starts SEPARATE 20ms timer for mod2
- * refreshMod('mod1'); // Resets timer for mod1 (typical debounce behavior)
- * // After 20ms: mod1 and mod2 both refresh independently
- *
- * // Can cancel specific timer or all timers
- * refreshMod.cancel('mod1'); // Cancel only mod1
- * refreshMod.cancel(); // Cancel all timers
+ * refresh('mod1'); refresh('mod2'); // Both get independent 20ms timers
+ * refresh.cancel('mod1');           // Cancel specific timer
+ * refresh.cancel();                 // Cancel all timers
  */
 export function memoizeDebounce<F extends AnyFunction>(
   func: F,
+  resolver: (...args: Parameters<F>) => string | number | symbol,
   wait = 0,
   options: DebounceSettings = {},
-  resolver?: (...args: Parameters<F>) => unknown
 ): MemoizeDebouncedFunction<F> {
-  const debounceMemo = memoize<(...args: Parameters<F>) => DebouncedFunc<F>>(
-    (...args: Parameters<F>) => {
-      // Wrap the function to cleanup cache after execution
-      const wrappedFunc = async (...funcArgs: Parameters<F>) => {
-        try {
-          return await func(...funcArgs);
-        } finally {
-          // Clean up this specific cached entry after execution completes
-          const key = resolver ? resolver(...args) : args[0];
-          const cache = debounceMemo.cache as { delete: (key: unknown) => boolean };
-          cache.delete(key);
-        }
-      };
-      return lodashDebounce(wrappedFunc as F, wait, options);
-    },
-    resolver
-  );
+  const debouncedCache = new Map<string | number | symbol, DebouncedFunc<F>>();
 
   function wrappedFunction(
     this: MemoizeDebouncedFunction<F>,
     ...args: Parameters<F>
   ): ReturnType<F> | undefined {
-    return debounceMemo(...args)(...args);
+    const key = resolver(...args);
+    let debouncedFn = debouncedCache.get(key);
+
+    if (!debouncedFn) {
+      // Wrap to auto-cleanup cache after execution
+      const wrappedFunc = async (...funcArgs: Parameters<F>) => {
+        try {
+          return await func(...funcArgs);
+        } finally {
+          debouncedCache.delete(key);
+        }
+      };
+
+      debouncedFn = lodashDebounce(wrappedFunc as F, wait, options);
+      debouncedCache.set(key, debouncedFn);
+    }
+
+    return debouncedFn(...args);
   }
 
   function flush(...args: Parameters<F>): ReturnType<F> | undefined {
-    // If no args provided, flush all memoized debounced functions
     if (args.length === 0) {
-      // Lodash MapCache structure: { __data__: { map: Map(...) } }
-      const cache = debounceMemo.cache as { __data__?: { map?: Map<unknown, DebouncedFunc<F>> } };
-      const map = cache.__data__?.map;
-      if (map instanceof Map) {
-        map.forEach((debouncedFn) => debouncedFn.flush());
-      }
+      debouncedCache.forEach((debouncedFn) => debouncedFn.flush());
       return undefined;
     }
-    return debounceMemo(...args).flush();
+
+    const key = resolver(...args);
+    return debouncedCache.get(key)?.flush();
   }
 
   function cancel(...args: Parameters<F>): void {
-    // If no args provided, cancel all memoized debounced functions
     if (args.length === 0) {
-      // Lodash MapCache structure: { __data__: { map: Map(...) } }
-      const cache = debounceMemo.cache as { __data__?: { map?: Map<unknown, DebouncedFunc<F>> }; clear: () => void };
-      const map = cache.__data__?.map;
-      if (map instanceof Map) {
-        map.forEach((debouncedFn) => debouncedFn.cancel());
-      }
-      cache.clear();
+      debouncedCache.forEach((debouncedFn) => debouncedFn.cancel());
+      debouncedCache.clear();
       return;
     }
-    return debounceMemo(...args).cancel();
+
+    const key = resolver(...args);
+    const debouncedFn = debouncedCache.get(key);
+    if (debouncedFn) {
+      debouncedFn.cancel();
+      debouncedCache.delete(key);
+    }
   }
 
   wrappedFunction.flush = flush as MemoizeDebouncedFunction<F>['flush'];

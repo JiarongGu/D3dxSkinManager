@@ -218,6 +218,7 @@
     "modManagement.title.modImports": "Mod Imports",
     "mods.list.editMod": "Edit mod",
     "mods.list.loadMod": "Load mod",
+    "mods.list.loading": "LOADING",
     "mods.list.loaded": "LOADED",
     "mods.list.loadingMore": "Loading more...",
     "mods.list.more": "more",

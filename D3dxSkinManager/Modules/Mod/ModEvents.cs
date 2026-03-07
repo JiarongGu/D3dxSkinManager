@@ -7,6 +7,7 @@
 /// </summary>
 public static class ModEvents
 {
+    public const string LOADING = "LOADING";
     public const string LOADED = "LOADED";
     public const string UNLOADED = "UNLOADED";
     public const string DELETED = "DELETED";

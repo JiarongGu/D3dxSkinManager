@@ -373,7 +373,12 @@ export const ModList: React.FC<ModListProps> = ({
                 <div className="mod-list-item-content">
                   <div className="mod-list-item-header">
                     <span className="mod-list-item-name">{mod.name}</span>
-                    {mod.isLoaded && (
+                    {mod.isLoading && (
+                      <Tag color="warning" className="mod-list-item-loaded-tag">
+                        {t("mods.list.loading")}
+                      </Tag>
+                    )}
+                    {mod.isLoaded && !mod.isLoading && (
                       <Tag color="success" className="mod-list-item-loaded-tag">
                         {t("mods.list.loaded")}
                       </Tag>

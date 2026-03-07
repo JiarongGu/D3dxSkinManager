@@ -417,9 +417,8 @@ const handleEvent = useCallback(
     async (sha: string) => {
       await refreshMod(sha);
     },
-    20,
-    {},
-    (sha) => sha  // Cache key resolver
+    (sha) => sha,  // Cache key resolver (required, second param)
+    20
   ),
   []
 );
@@ -445,9 +444,8 @@ const handleModLoadStateChange = useCallback(
         await modOps.refreshMod(selectedProfileIdRef.current, sha);
       }
     },
-    20,
-    {},
-    (sha) => sha  // Each SHA has independent timer
+    (sha) => sha,  // Cache key resolver (each SHA has independent timer)
+    20
   ),
   []
 );

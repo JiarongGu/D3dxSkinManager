@@ -134,6 +134,9 @@ public class ModLifecycleService : IModLifecycleService
             }
             else
             {
+                // Emit LOADING event before extraction (decompression takes time)
+                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADING, new { Sha = sha }).ConfigureAwait(false);
+
                 // No cache exists, extract from archive
                 var cacheDir = Path.Combine(_profilePaths.CacheModsDirectory, sha);
                 var extractResult = await _archiveService.ExtractAsync(sha, cacheDir).ConfigureAwait(false);
