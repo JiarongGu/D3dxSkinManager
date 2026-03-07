@@ -9,7 +9,6 @@ import {
   DeleteOutlined,
   ExportOutlined,
   FolderOpenOutlined,
-  FileZipOutlined,
   ClearOutlined,
   CopyOutlined,
 } from "@ant-design/icons";
@@ -62,11 +61,6 @@ export const ModList: React.FC<ModListProps> = ({
   const { state: profileState } = useProfile();
   const menuState = useContextMenu();
   const [contextMenuMod, setContextMenuMod] = useState<ModInfo>();
-  const [checkedPaths, setCheckedPaths] = useState<{
-    originalPath: string | undefined;
-    cachePath: string | undefined;
-    thumbnailPath: string | undefined;
-  }>();
   const [deleteConfirm, setDeleteConfirm] = useState<{
     visible: boolean;
     mod?: ModInfo;
@@ -165,14 +159,6 @@ export const ModList: React.FC<ModListProps> = ({
 
         // Refresh from backend to update hasCache and other properties
         await refreshMods(profileId);
-
-        // Refresh checked paths after deletion
-        if (contextMenuMod?.sha === mod.sha) {
-          try {
-            const paths = await modService.checkFilePaths(profileId, mod.sha);
-            setCheckedPaths(paths);
-          } catch (error: unknown) {}
-        }
       } else {
         notification.error(t("mods.notifications.deleteCacheFailed"));
       }
@@ -274,30 +260,14 @@ export const ModList: React.FC<ModListProps> = ({
 
     // Group 4: File Operations
     {
-      key: "view-original",
-      label: t("contextMenu.viewOriginalFile"),
-      icon: <FileZipOutlined />,
-      disabled: !checkedPaths?.originalPath,
-      onClick: async () => {
-        if (checkedPaths?.originalPath) {
-          try {
-            await systemService.openFileInExplorer(checkedPaths.originalPath);
-            notification.success(t("mods.notifications.openedOriginal"));
-          } catch (error: unknown) {
-            notification.error(t("mods.notifications.openOriginalFailed"));
-          }
-        }
-      },
-    },
-    {
       key: "view-cache",
       label: t("contextMenu.openCacheFolder"),
       icon: <FolderOpenOutlined />,
-      disabled: !checkedPaths?.cachePath,
+      disabled: !mod?.hasCache,
       onClick: async () => {
-        if (checkedPaths?.cachePath) {
+        if (mod?.cachePath) {
           try {
-            await systemService.openDirectory(checkedPaths.cachePath);
+            await systemService.openDirectory(mod.cachePath);
             notification.success(t("mods.notifications.openedCache"));
           } catch (error: unknown) {
             notification.error(t("mods.notifications.openCacheFailed"));
@@ -309,11 +279,11 @@ export const ModList: React.FC<ModListProps> = ({
       key: "view-preview",
       label: t("contextMenu.openPreviewFolder"),
       icon: <FolderOpenOutlined />,
-      disabled: !checkedPaths?.thumbnailPath,
+      disabled: !mod?.hasPreviewFolder,
       onClick: async () => {
-        if (checkedPaths?.thumbnailPath) {
+        if (mod?.previewFolderPath) {
           try {
-            await systemService.openDirectory(checkedPaths.thumbnailPath);
+            await systemService.openDirectory(mod.previewFolderPath);
             notification.success(t("mods.notifications.openedPreview"));
           } catch (error: unknown) {
             notification.error(t("mods.notifications.openPreviewFailed"));
@@ -328,7 +298,7 @@ export const ModList: React.FC<ModListProps> = ({
       key: "delete-cache",
       label: t("contextMenu.deleteCachedMod"),
       icon: <ClearOutlined />,
-      disabled: !checkedPaths?.cachePath,
+      disabled: !mod?.hasCache,
       onClick: () => handleDeleteCachedMod(mod),
     },
     {
@@ -385,27 +355,9 @@ export const ModList: React.FC<ModListProps> = ({
                 onClick={(e) => {
                   onRowClick?.(mod, e);
                 }}
-                onContextMenu={async (e) => {
+                onContextMenu={(e) => {
                   e.preventDefault();
                   setContextMenuMod(mod);
-
-                  // Check file paths on-demand when opening context menu
-                  if (profileState.selectedProfile?.id) {
-                    try {
-                      const paths = await modService.checkFilePaths(
-                        profileState.selectedProfile.id,
-                        mod.sha,
-                      );
-                      setCheckedPaths(paths);
-                    } catch (error: unknown) {
-                      setCheckedPaths({
-                        originalPath: undefined,
-                        cachePath: undefined,
-                        thumbnailPath: undefined,
-                      });
-                    }
-                  }
-
                   menuState.show(e);
                 }}
                 onDoubleClick={() => {

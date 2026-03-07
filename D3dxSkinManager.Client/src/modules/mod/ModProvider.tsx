@@ -109,6 +109,17 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
     [selectedProfileId]
   );
 
+  // Handler for specific mod events that affect the selected mod
+  // Refreshes selectedMod with enriched data (hasCache, cachePath, isLoaded, etc.)
+  // Debounced 20ms for deduplication when multiple events fire simultaneously
+  const handleSelectedModUpdate = useCallback(
+    debounce(() => {
+      if (!selectedProfileId) return;
+      void modOps.refreshSelectedMod(selectedProfileId);
+    }, 20),
+    [selectedProfileId]
+  );
+
   // Debounced handler for category tree updates (20ms prevents bulk operation spam)
   // Also refreshes unclassified count since it depends on category assignments
   const handleCategoryTreeUpdate = useCallback(
@@ -168,9 +179,36 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       () => void modOps.reloadCurrentPreview(selectedProfileId)
     );
 
+    // Subscribe to specific mod events that affect the selected mod
+    // These events require refreshing selectedMod with enriched data
+    const unsubscribeModLoaded = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.LOADED,
+      handleSelectedModUpdate
+    );
+
+    const unsubscribeModUnloaded = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.UNLOADED,
+      handleSelectedModUpdate
+    );
+
+    const unsubscribeMetadataUpdated = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.METADATA_UPDATED,
+      handleSelectedModUpdate
+    );
+
+    const unsubscribeCacheChanged = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.CACHE_CHANGED,
+      handleSelectedModUpdate
+    );
+
     return () => {
       handleModListUpdate.cancel();
       handleCategoryTreeUpdate.cancel();
+      handleSelectedModUpdate.cancel();
 
       unsubscribeProfileConfigChanged();
       unsubscribeModListUpdated();
@@ -178,8 +216,12 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       unsubscribePreviewImported();
       unsubscribeThumbnailUpdated();
       unsubscribePreviewDeleted();
+      unsubscribeModLoaded();
+      unsubscribeModUnloaded();
+      unsubscribeMetadataUpdated();
+      unsubscribeCacheChanged();
     };
-  }, [selectedProfileId, loadPanelSizes, checkWorkPathChange, handleModListUpdate, handleCategoryTreeUpdate]);
+  }, [selectedProfileId, loadPanelSizes, checkWorkPathChange, handleModListUpdate, handleCategoryTreeUpdate, handleSelectedModUpdate]);
 
   // Reload data on profile change
   useEffect(() => {

@@ -3,8 +3,6 @@
  * Handles complex tree count updates with optimistic UI
  */
 
-import { debounce } from 'lodash-es';
-
 import { useModsStore } from '../store/modsStore';
 import { CATEGORY_IDS } from '../../../shared/types/category.types';
 import { notification } from '../../../shared/utils/notification';
@@ -21,7 +19,6 @@ export async function updateModCategory(
   profileId: string,
   sha: string,
   categoryId: string,
-  onMismatch?: () => void
 ): Promise<boolean> {
   try {
     // Perform backend operation
@@ -33,11 +30,6 @@ export async function updateModCategory(
     return true;
   } catch (error: unknown) {
     notification.error(i18n.t('category.operations.updateFailed'));
-
-    // Refresh tree on error to ensure counts are correct
-    if (onMismatch) {
-      onMismatch();
-    }
     return false;
   }
 }
@@ -48,8 +40,7 @@ export async function updateModCategory(
 export async function batchUpdateCategories(
   profileId: string,
   shas: string[],
-  categoryId: string,
-  onMismatch?: () => void
+  categoryId: string
 ): Promise<boolean> {
   try {
     // For batch operations, skip optimistic updates due to complexity
@@ -65,11 +56,6 @@ export async function batchUpdateCategories(
     }
   } catch (error: unknown) {
     notification.error(i18n.t('category.operations.batchUpdateFailed'));
-
-    // Refresh tree on error to ensure counts are correct
-    if (onMismatch) {
-      onMismatch();
-    }
     return false;
   }
 }
@@ -96,21 +82,19 @@ export async function loadCategoryTree(profileId: string): Promise<void> {
 }
 
 /**
- * Internal refresh implementation
+ * Refresh Category tree
+ * Note: Debouncing is handled by ModProvider (20ms) to prevent rapid-fire events
  */
-async function _refreshCategoryTree(profileId: string): Promise<void> {
+export async function refreshCategoryTree(profileId: string): Promise<void> {
   await loadCategoryTree(profileId);
 }
 
 /**
- * Refresh Category tree (debounced 10ms to prevent mass IPC hits)
+ * Load mods filtered by Category node
+ * Uses delayed loading (200ms) to avoid flicker for fast queries
+ * Note: Debouncing is handled by caller when needed
  */
-export const refreshCategoryTree = debounce(_refreshCategoryTree, 20);
-
-/**
- * Internal implementation for loading mods by category
- */
-async function _loadModsByCategory(
+export async function loadModsByCategory(
   profileId: string,
   nodeId: string
 ): Promise<void> {
@@ -129,12 +113,6 @@ async function _loadModsByCategory(
     handleError(error);
   }
 }
-
-/**
- * Load mods filtered by Category node (debounced 10ms to prevent mass IPC hits)
- * Uses delayed loading (100ms) to avoid flicker for fast queries
- */
-export const loadModsByCategory = debounce(_loadModsByCategory, 20);
 
 /**
  * Load uncategorized mods (no category assigned)

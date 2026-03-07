@@ -3,7 +3,6 @@
  * Centralized business logic with consistent error handling and state updates
  */
 
-import { debounce } from 'lodash-es';
 import { useModsStore } from '../store/modsStore';
 import { ModInfo } from '../../../shared/types/mod.types';
 import { CATEGORY_IDS } from '../../../shared/types/category.types';
@@ -14,15 +13,14 @@ import { api, modService } from '../../../shared/services/ipc';
 import i18n from '../../../shared/services/i18n';
 
 /**
- * Internal refresh implementation
+ * Refresh mods from backend
  * Refreshes only the currently selected category view for efficiency
- * Also syncs selectedMod with updated data from backend
+ * Note: Debouncing is handled by ModProvider (20ms) to prevent rapid-fire events
  */
-async function _refreshMods(profileId: string): Promise<void> {
-  const { selectedCategory, selectedMod, setSelectedMod } = useModsStore.getState();
+export async function refreshMods(profileId: string): Promise<void> {
+  const { selectedCategory } = useModsStore.getState();
 
   // If a category is selected, refresh only that category's mods
-  // Otherwise, fetch fresh mod data to update selectedMod
   if (selectedCategory) {
     const { loadModsByCategory, loadUncategorizedMods } = await import('./categoryOperations');
 
@@ -31,46 +29,36 @@ async function _refreshMods(profileId: string): Promise<void> {
     } else {
       await loadModsByCategory(profileId, selectedCategory.id);
     }
-  } else if (selectedMod?.sha) {
-    // No category filter active, but we need to update selectedMod with fresh data
-    // Fetch just the selected mod instead of the entire mod list for efficiency
-    try {
-      const freshMod = await modService.getModBySha(profileId, selectedMod.sha);
-      if (freshMod) {
-        setSelectedMod(freshMod);
-      } else {
-        // Mod was deleted
-        setSelectedMod(undefined);
-      }
-    } catch (error) {
-      // Mod not found or error fetching, clear selection
-      setSelectedMod(undefined);
-    }
-    return; // Early return since we already updated selectedMod
-  }
-
-  // After refreshing category mods, update selectedMod if it still exists
-  // This ensures preview panel shows updated data (isLoaded, metadata, etc.)
-  if (selectedMod?.sha) {
-    const { mods } = useModsStore.getState();
-    const modList = mods || [];
-    const updatedMod = modList.find((m: ModInfo) => m.sha === selectedMod.sha);
-
-    if (updatedMod) {
-      // Update selectedMod with fresh data from backend
-      setSelectedMod(updatedMod);
-    } else {
-      // Mod was deleted, clear selection
-      setSelectedMod(undefined);
-    }
   }
 }
 
 /**
- * Refresh mods from backend (debounced 10ms to prevent mass IPC hits)
- * Only refreshes the currently selected category view, not all mods
+ * Refresh the currently selected mod with fresh enriched data from backend
+ * Called when specific mod events occur (LOADED, UNLOADED, METADATA_UPDATED, CACHE_CHANGED)
+ * Ensures ModPreview shows up-to-date mod properties (hasCache, cachePath, isLoaded, etc.)
  */
-export const refreshMods = debounce(_refreshMods, 20);
+export async function refreshSelectedMod(profileId: string): Promise<void> {
+  const { selectedMod, setSelectedMod } = useModsStore.getState();
+
+  if (!selectedMod?.sha) {
+    return; // No mod selected, nothing to refresh
+  }
+
+  try {
+    // Fetch fresh enriched mod data from backend
+    const freshMod = await modService.getModBySha(profileId, selectedMod.sha);
+    if (freshMod) {
+      setSelectedMod(freshMod);
+    } else {
+      // Mod was deleted
+      setSelectedMod(undefined);
+    }
+  } catch (error) {
+    // Mod not found or error fetching, clear selection
+    console.error('Failed to refresh selected mod:', error);
+    setSelectedMod(undefined);
+  }
+}
 
 /**
  * Update mod metadata
@@ -82,7 +70,6 @@ export async function updateMod(
   data: Partial<ModInfo>
 ): Promise<void> {
   const { updateModLocal } = useModsStore.getState();
-  const categoryChanged = data.category !== undefined;
 
   try {
     await executeWithDelayedLoading(
@@ -96,11 +83,6 @@ export async function updateMod(
           description: data.description,
           disablePreview: data.disablePreview,
         });
-
-        // Update category separately if it changed
-        if (categoryChanged && data.category) {
-          await modService.updateCategory(profileId, sha, data.category);
-        }
 
         // Update local state (Zustand automatically updates mods)
         updateModLocal(sha, data);

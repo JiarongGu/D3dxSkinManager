@@ -23,15 +23,18 @@ public class ModEnrichmentService : IModEnrichmentService
     private readonly IProfilePathService _profilePaths;
     private readonly ICategoryService _categoryService;
     private readonly ITagRepository _tagRepository;
+    private readonly IModCacheService _cacheService;
 
     public ModEnrichmentService(
         IProfilePathService profilePaths,
         ICategoryService categoryService,
-        ITagRepository tagRepository)
+        ITagRepository tagRepository,
+        IModCacheService cacheService)
     {
         _profilePaths = profilePaths;
         _categoryService = categoryService;
         _tagRepository = tagRepository;
+        _cacheService = cacheService;
     }
 
     /// <summary>
@@ -91,10 +94,11 @@ public class ModEnrichmentService : IModEnrichmentService
             mod.HasCache = allCacheDirectories.Contains(mod.SHA);
             mod.HasPreviewFolder = modsWithPreviews.Contains(mod.SHA);
 
-            // Populate file paths
+            // Populate file paths using proper path resolution
+            // GetCachePath handles both active ({SHA}) and disabled (DISABLED-{SHA}) cache directories
             if (mod.HasCache)
             {
-                mod.CachePath = Path.Combine(_profilePaths.CacheModsDirectory, mod.SHA);
+                mod.CachePath = _cacheService.GetCachePath(mod.SHA);
             }
 
             if (mod.HasPreviewFolder)
