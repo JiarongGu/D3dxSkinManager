@@ -225,6 +225,160 @@ TOOL:CACHE_ITEM_DELETED  // Cache item deleted
 
 Plugin-to-plugin communication via events is not currently supported but could be added in the future if needed for cross-plugin scenarios.
 
+---
+
+## Event Consolidation Pattern (NEW - 2026-03-07)
+
+### Problem
+
+Frontend components subscribing to multiple specific events leads to:
+- 8+ separate event subscriptions in frontend
+- Multiple rapid-fire events causing UI re-renders
+- Complex event handling logic
+- Event storms (multiple events within milliseconds)
+
+### Solution: Event Handler Layer
+
+**Backend Event Handlers** consolidate multiple specific events into single consolidated events for frontend consumption.
+
+#### Example: ModListEventHandler
+
+```csharp
+// Location: Modules/Mod/EventHandlers/ModListEventHandler.cs
+public class ModListEventHandler : IModListEventHandler
+{
+    private readonly IProfileEventBus _eventBus;
+
+    public ModListEventHandler(IProfileEventBus eventBus)
+    {
+        _eventBus = eventBus;
+
+        // Subscribe to 8 specific backend events
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.LOADED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.UNLOADED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.DELETED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.IMPORTED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.METADATA_UPDATED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.REFRESHED, HandleModStateChange);
+    }
+
+    private async Task HandleModStateChange(object data)
+    {
+        // Emit single consolidated event for frontend
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LIST_UPDATED, data);
+    }
+}
+
+// Register as singleton
+services.AddSingleton<IModListEventHandler, ModListEventHandler>();
+```
+
+#### Example: CategoryTreeEventHandler
+
+```csharp
+// Location: Modules/Mod/EventHandlers/CategoryTreeEventHandler.cs
+public class CategoryTreeEventHandler : ICategoryTreeEventHandler
+{
+    private readonly IProfileEventBus _eventBus;
+    private readonly ICategoryTreeCache _cache;
+
+    public CategoryTreeEventHandler(IProfileEventBus eventBus, ICategoryTreeCache cache)
+    {
+        _eventBus = eventBus;
+        _cache = cache;
+
+        // Subscribe to events that affect category tree
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, HandleCategoryChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.IMPORTED, HandleCategoryChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.DELETED, HandleCategoryChange);
+    }
+
+    private async Task HandleCategoryChange(object data)
+    {
+        // Invalidate cache
+        _cache.Invalidate();
+
+        // Emit consolidated event
+        await _eventBus.EmitAsync(ModuleNames.CATEGORY, CategoryEvents.CATEGORY_TREE_UPDATED, data);
+    }
+}
+```
+
+### Frontend Debounced Handlers
+
+Frontend components use **debounced handlers** (20ms) to prevent rapid-fire event handling:
+
+```typescript
+// ModProvider.tsx
+
+// BEFORE (8+ separate subscriptions):
+// eventBus.subscribe(Module.MOD, ModEventType.LOADED, handleModStateChange);
+// eventBus.subscribe(Module.MOD, ModEventType.UNLOADED, handleModStateChange);
+// ... 6 more subscriptions
+
+// AFTER (1 consolidated + debounced subscription):
+const handleModListUpdate = useCallback(
+  debounce(() => {
+    if (!selectedProfileId) return;
+    void modOps.refreshMods(selectedProfileId);
+    void modOps.loadStatistics(selectedProfileId);
+  }, 20),  // 20ms debounce prevents event storms
+  [selectedProfileId]
+);
+
+useEffect(() => {
+  if (!selectedProfileId) return;
+
+  const unsubscribe = eventBus.subscribe(
+    Module.MOD,
+    ModEventType.MOD_LIST_UPDATED,  // Single consolidated event
+    handleModListUpdate
+  );
+
+  return () => {
+    handleModListUpdate.cancel();  // Cancel debounce on cleanup
+    unsubscribe();
+  };
+}, [selectedProfileId, handleModListUpdate]);
+```
+
+### Benefits
+
+1. **Reduced Complexity**: 8+ event handlers → 1 debounced handler
+2. **Prevents Event Storms**: Multiple events within 20ms handled once
+3. **Cleaner Frontend**: Simple, consolidated event flow
+4. **Better Performance**: Fewer re-renders, batched updates
+5. **Easier Maintenance**: Add backend events without changing frontend
+
+### Event Flow Diagram
+
+```
+Backend Services                Event Handlers                Frontend
+─────────────────               ────────────────              ────────
+
+ModLifecycleService
+  └─> MOD.LOADED  ─┐
+                    │
+ModMetadataService  │           ModListEventHandler
+  └─> MOD.METADATA_UPDATED ───>   (Consolidates 8 events) ──> MOD.MOD_LIST_UPDATED ──> ModProvider
+                    │                                             (debounced 20ms)
+ModImportService    │
+  └─> MOD.IMPORTED ─┘
+
+ModMetadataService              CategoryTreeEventHandler
+  └─> MOD.CATEGORY_UPDATED ───>   (Consolidates 3 events) ──> CATEGORY.CATEGORY_TREE_UPDATED
+```
+
+### Registered Event Handlers
+
+Current event handlers in the system:
+- **ModListEventHandler** - Consolidates 8 mod events → MOD_LIST_UPDATED
+- **CategoryTreeEventHandler** - Consolidates 3 events → CATEGORY_TREE_UPDATED
+
+---
+
 ## Usage Examples
 
 ### 1. Subscribing to Events

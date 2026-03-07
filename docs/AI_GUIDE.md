@@ -103,9 +103,9 @@ public interface IModLifecycleService {
 // 2. Implementation with DI + Event Emission
 public class ModLifecycleService : IModLifecycleService {
     private readonly IModRepository _repository;
-    private readonly IModArchiveService _archiveService;
-    private readonly IModCacheService _cacheService;
-    private readonly IProfileEventBus _eventBus;  // ✅ Inject EventBus
+    private readonly IModArchiveService _archiveService;  // ✅ Layer 1 service (pure operations)
+    private readonly IModCacheService _cacheService;      // ✅ Layer 1 service (pure operations)
+    private readonly IProfileEventBus _eventBus;          // ✅ Inject EventBus for event emission
     private readonly ILogHelper _logger;
 
     public ModLifecycleService(
@@ -122,15 +122,15 @@ public class ModLifecycleService : IModLifecycleService {
     }
 
     public async Task<ModLoadResult> LoadAsync(string sha) {
-        // Business logic: category conflict resolution, extraction, etc.
+        // Business logic: category conflict resolution
         var mod = await _repository.GetByIdAsync(sha);
 
         // Unload conflicting mods in same category
         await HandleCategoryConflicts(mod);
 
-        // Enable cache or extract archive
+        // Coordinate Layer 1 services (pure operations)
         var success = await _cacheService.EnableCacheAsync(sha)
-                   || await ExtractArchive(sha);
+                   || await _archiveService.ExtractAsync(sha);
 
         if (success) {
             // ✅ Service emits event after successful operation
@@ -143,6 +143,27 @@ public class ModLifecycleService : IModLifecycleService {
 
 // 3. Register in {Module}ServiceExtensions.cs
 services.AddSingleton<IModLifecycleService, ModLifecycleService>();
+
+// 4. Event Handler (Event Consolidation Layer - OPTIONAL)
+// Use when frontend needs to react to multiple backend events with same action
+public class ModListEventHandler : IModListEventHandler {
+    public ModListEventHandler(IProfileEventBus eventBus) {
+        // Subscribe to all mod state change events
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.LOADED, HandleModChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.UNLOADED, HandleModChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.DELETED, HandleModChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.IMPORTED, HandleModChange);
+        // ... 8 total subscriptions
+    }
+
+    private async Task HandleModChange(object data) {
+        // Consolidate into single frontend event
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LIST_UPDATED, data);
+    }
+}
+
+// Register event handler
+services.AddSingleton<IModListEventHandler, ModListEventHandler>();
 ```
 
 ### Backend Facade (Thin IPC Layer)
@@ -300,11 +321,20 @@ public class ModListEventHandler : IModListEventHandler {
 **Frontend subscribes to consolidated events:**
 ```typescript
 // In ModProvider.tsx - subscribe to consolidated MOD_LIST_UPDATED event
+
+// BEFORE (8+ specific event subscriptions):
+// eventBus.subscribe(Module.MOD, ModEventType.LOADED, handleModStateChange);
+// eventBus.subscribe(Module.MOD, ModEventType.UNLOADED, handleModStateChange);
+// eventBus.subscribe(Module.MOD, ModEventType.DELETED, handleModStateChange);
+// eventBus.subscribe(Module.MOD, ModEventType.IMPORTED, handleModStateChange);
+// ... 8+ separate subscriptions
+
+// AFTER (1 consolidated subscription with debouncing):
 const handleModListUpdate = useCallback(
   debounce(() => {
     if (!selectedProfileId) return;
     void modOps.refreshMods(selectedProfileId);  // Reload mod list
-    void statisticsOps.loadStatistics(selectedProfileId);  // Reload statistics
+    void modOps.loadStatistics(selectedProfileId);  // Reload statistics
   }, 20),  // 20ms debounce prevents rapid-fire events
   [selectedProfileId]
 );
@@ -323,6 +353,11 @@ useEffect(() => {
     unsubscribe();
   };
 }, [selectedProfileId, handleModListUpdate]);
+
+// Benefits:
+// - 8+ event handlers → 1 debounced handler
+// - Prevents event storms (multiple rapid-fire events within 20ms handled once)
+// - Simpler event flow: Backend consolidates → Frontend reacts once
 ```
 
 **IPC Events (Module + Type Pattern):**

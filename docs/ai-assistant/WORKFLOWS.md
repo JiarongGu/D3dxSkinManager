@@ -7,32 +7,145 @@
 
 ## Adding Backend Service
 
+### Service Architecture Layers (Updated 2026-03-07)
+
+**Layer 1 - Pure Operations (No Business Logic, No Events):**
+- Archive/file operations (ModArchiveService, ModCacheService)
+- No EventBus injection, no event emission
+- Pattern: Pure functions, reusable utilities
+
+**Layer 2 - Business Logic + Event Emission:**
+- Orchestration services (ModLifecycleService, ModMetadataService)
+- Injects IProfileEventBus, emits events on completion
+- Pattern: Coordinates Layer 1 services, handles business rules
+
+**Layer 3 - Event Consolidation:**
+- Event handlers (ModListEventHandler, CategoryTreeEventHandler)
+- Subscribes to multiple events, emits single consolidated event
+- Pattern: Reduces frontend event complexity
+
 ### 1. Create Service Interface & Implementation
 
+**Example 1: Pure Operation Service (No Events)**
 ```csharp
 // Location: D3dxSkinManager/Modules/{ModuleName}/Services/
 
-// IYourService.cs
-public interface IYourService
+// IFileOperationService.cs
+public interface IFileOperationService
 {
-    Task<Result> DoSomethingAsync(string param);
+    Task<bool> CopyFileAsync(string source, string destination);
+    Task<bool> DeleteFileAsync(string path);
 }
 
-// YourService.cs
-public class YourService : IYourService
+// FileOperationService.cs
+public class FileOperationService : IFileOperationService
 {
-    private readonly ILogger _logger;
-    private readonly IFileService _fileService;
+    private readonly ILogHelper _logger;
 
-    public YourService(ILogger logger, IFileService fileService)
+    public FileOperationService(ILogHelper logger)
     {
         _logger = logger;
-        _fileService = fileService;
+        // ❌ NO IProfileEventBus - pure operations don't emit events
     }
 
-    public async Task<Result> DoSomethingAsync(string param)
+    public async Task<bool> CopyFileAsync(string source, string destination)
     {
-        // Implementation
+        // Pure file operation - no business logic, no events
+        File.Copy(source, destination);
+        _logger.Info($"Copied file: {source} → {destination}");
+        return true;
+    }
+}
+```
+
+**Example 2: Business Logic Service (With Events)**
+```csharp
+// IModLifecycleService.cs
+public interface IModLifecycleService
+{
+    Task<ModLoadResult> LoadAsync(string sha);
+    Task<bool> UnloadAsync(string sha);
+}
+
+// ModLifecycleService.cs
+public class ModLifecycleService : IModLifecycleService
+{
+    private readonly IModRepository _repository;
+    private readonly IModArchiveService _archiveService;  // ✅ Layer 1 service
+    private readonly IModCacheService _cacheService;      // ✅ Layer 1 service
+    private readonly IProfileEventBus _eventBus;          // ✅ Inject EventBus
+    private readonly ILogHelper _logger;
+
+    public ModLifecycleService(
+        IModRepository repository,
+        IModArchiveService archiveService,
+        IModCacheService cacheService,
+        IProfileEventBus eventBus,  // ✅ Event emission
+        ILogHelper logger)
+    {
+        _repository = repository;
+        _archiveService = archiveService;
+        _cacheService = cacheService;
+        _eventBus = eventBus;
+        _logger = logger;
+    }
+
+    public async Task<ModLoadResult> LoadAsync(string sha)
+    {
+        // Business logic: category conflict resolution
+        var mod = await _repository.GetByIdAsync(sha);
+
+        // Handle category conflicts (one loaded mod per category)
+        if (mod.Category != null)
+        {
+            var conflicting = await _repository.GetByCategoryAsync(mod.Category);
+            foreach (var conflict in conflicting.Where(m => m.IsLoaded))
+            {
+                await UnloadAsync(conflict.SHA);
+            }
+        }
+
+        // Coordinate Layer 1 services
+        var success = await _cacheService.EnableCacheAsync(sha)
+                   || await _archiveService.ExtractAsync(sha);
+
+        if (success)
+        {
+            // ✅ Service emits event after successful operation
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha });
+        }
+
+        return new ModLoadResult { Success = success };
+    }
+}
+```
+
+**Example 3: Event Handler (Event Consolidation)**
+```csharp
+// ModListEventHandler.cs
+public class ModListEventHandler : IModListEventHandler
+{
+    private readonly IProfileEventBus _eventBus;
+
+    public ModListEventHandler(IProfileEventBus eventBus)
+    {
+        _eventBus = eventBus;
+
+        // ✅ Subscribe to 8 specific events
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.LOADED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.UNLOADED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.DELETED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.IMPORTED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.METADATA_UPDATED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED, HandleModStateChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.REFRESHED, HandleModStateChange);
+    }
+
+    private async Task HandleModStateChange(object data)
+    {
+        // ✅ Emit single consolidated event for frontend
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LIST_UPDATED, data);
     }
 }
 ```

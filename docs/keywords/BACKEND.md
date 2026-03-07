@@ -225,18 +225,112 @@
 
 #### Services
 
-- **ModManagementService** → `Modules/Mods/Services/ModManagementService.cs`
-  - CRUD operations for mods
-  - Mod lifecycle management
+**Service Architecture (Updated 2026-03-07):**
+- **Lifecycle Layer**: Business logic + event emission (ModLifecycleService)
+- **Operation Layer**: Pure file operations, no business logic (ModArchiveService, ModCacheService)
+- **Query Layer**: Data retrieval + enrichment (ModQueryService, ModEnrichmentService)
+- **Event Layer**: Event consolidation for frontend (ModListEventHandler, CategoryTreeEventHandler)
 
-- **ModFileService** → `Modules/Mods/Services/ModFileService.cs`
-  - GetArchivePath → Returns path WITHOUT extension (matches Python format)
-  - CopyArchiveAsync → Stores archives without extensions
-  - LoadModAsync → Extract and load mod (via FileOperationPlanner)
-  - UnloadModAsync → Remove extracted mod (via FileOperationPlanner)
-  - ClearCacheAsync → Clear mod cache
+**Core Services:**
 
-- **FileOperationPlanner** → `Modules/Mod/Services/FileOperationPlanner.cs`
+- **ModLifecycleService** → `Modules/Mod/Services/ModLifecycleService.cs` (NEW - 284 lines)
+  - **Purpose**: Business logic for mod load/unload with category conflict resolution
+  - LoadAsync → Load mod, handle category conflicts, auto-import previews
+  - UnloadAsync → Unload mod
+  - **Responsibilities**:
+    - Category conflict resolution (one loaded mod per category)
+    - Coordinates archive extraction via ModArchiveService
+    - Coordinates cache enable/disable via ModCacheService
+    - Emits LOADED/UNLOADED events after successful operations
+  - **Pattern**: Injects IProfileEventBus, emits events on completion
+  - Created: 2026-03-06 (refactored from ModFileService)
+
+- **ModArchiveService** → `Modules/Mod/Services/ModArchiveService.cs` (NEW - 206 lines)
+  - **Purpose**: Pure archive file operations (no business logic, no events)
+  - ExtractAsync → Extract archive to directory
+  - DeleteArchiveAsync → Delete archive file
+  - CopyArchiveAsync → Copy archive to mod storage
+  - ArchiveExists → Check archive presence
+  - GetArchivePath → Get archive file path
+  - **Pattern**: No EventBus injection, no event emission, pure operations
+  - Created: 2026-03-06 (refactored from ModFileService)
+
+- **ModCacheService** → `Modules/Mod/Services/ModCacheService.cs` (NEW - 408 lines)
+  - **Purpose**: Cache directory management (no business logic, no events)
+  - EnableCacheAsync → Rename `DISABLED-{SHA}` → `{SHA}`
+  - DisableCacheAsync → Rename `{SHA}` → `DISABLED-{SHA}`
+  - DeleteCacheAsync → Delete cache directory
+  - ScanCacheAsync → Scan all cache directories
+  - CleanCacheAsync → Clean orphaned/invalid caches
+  - GetCachePath → Get cache path (checks both active and disabled)
+  - **Pattern**: No EventBus injection, no event emission, pure operations
+  - **Bug Fix**: Now checks both loaded and disabled caches (was only checking disabled)
+  - Created: 2026-03-06 (refactored from ModFileService)
+
+- **ModEnrichmentService** → `Modules/Mod/Services/ModEnrichmentService.cs` (NEW - 172 lines)
+  - **Purpose**: Enrich mod data with status flags and metadata
+  - PopulateStatusFlags → Set IsLoaded, HasCache, IsAvailable by scanning directories
+  - PopulateCategoryNames → Resolve category IDs to names
+  - PopulateTagMetadata → Enrich tag information
+  - EnrichAsync / EnrichAllAsync → Full enrichment pipeline
+  - **Critical**: Must be called before returning statistics (was missing, caused stats to show 0)
+  - Created: 2026-03-06 (refactored from ModQueryService)
+
+- **ModQueryService** → `Modules/Mod/Services/ModQueryService.cs`
+  - GetStatisticsAsync → Returns mod statistics (now calls ModEnrichmentService.PopulateStatusFlags)
+  - SearchModsAsync → Search with filters
+  - GetAllAsync → Get all mods for profile
+  - GetByIdAsync → Get mod by SHA
+  - **Bug Fix**: Statistics calculation now correctly populates IsLoaded flags via enrichment service
+  - Updated: 2026-03-06 (integrated ModEnrichmentService)
+
+- **ModMetadataService** → `Modules/Mod/Services/ModMetadataService.cs`
+  - UpdateMetadataAsync → Update mod metadata
+  - UpdateCategoryAsync → Update mod category (no longer takes callbacks)
+  - BatchUpdateCategoryAsync → Bulk category update for multi-select (NEW - 2026-03-05)
+    - Accepts array of mod SHAs
+    - Auto-unloads loaded mods before category change
+    - Emits CATEGORY_UPDATED event after batch completion
+  - **Merged**: ModManagementService functionality merged into this service
+  - **Removed**: Callback anti-patterns (no more `Func<>` parameters)
+  - Updated: 2026-03-06 (service refactoring), 2026-03-05 (batch update)
+
+- **ModTagService** → `Modules/Mod/Services/ModTagService.cs`
+  - Tag management operations
+  - **Renamed**: Was `TagService` (renamed for consistency with "Mod" prefix)
+  - Updated: 2026-03-06
+
+- **ModImportService** → `Modules/Mod/Services/ModImportService.cs:14`
+  - Constructor → `:26-40`
+  - ImportAsync → `:43-120` (complete import workflow)
+  - ReadMetadataAsync → `:123-145`
+  - GenerateNameFromDirectory → `:148-160`
+  - ScanAndImportPreviewsFromFolderAsync → Auto-import previews from source folder (NEW)
+  - **Feature**: Intelligent folder descent (max 5 levels), 3D texture filtering
+  - Updated: 2026-03-06 (added preview auto-import)
+
+**Event Handlers (NEW - Event Consolidation Pattern):**
+
+- **ModListEventHandler** → `Modules/Mod/EventHandlers/ModListEventHandler.cs` (NEW)
+  - **Purpose**: Consolidate 8 mod events into single MOD_LIST_UPDATED event for frontend
+  - **Subscribes to**: LOADED, UNLOADED, DELETED, IMPORTED, METADATA_UPDATED, CATEGORY_UPDATED, CACHE_CHANGED, REFRESHED
+  - **Emits**: MOD_LIST_UPDATED (consolidated event)
+  - **Benefits**: Reduces frontend event subscriptions from 8+ to 1, prevents event storms
+  - Created: 2026-03-06
+
+- **CategoryTreeEventHandler** → `Modules/Mod/EventHandlers/CategoryTreeEventHandler.cs` (NEW)
+  - **Purpose**: Consolidate category-affecting events into CATEGORY_TREE_UPDATED
+  - **Subscribes to**: MOD.CATEGORY_UPDATED, MOD.IMPORTED, MOD.DELETED
+  - **Emits**: CATEGORY_TREE_UPDATED (consolidated event)
+  - **Invalidates**: Category tree cache on relevant changes
+  - Created: 2026-03-06
+
+**Deleted Services (Removed 2026-03-06):**
+- ~~**ModFileService**~~ → Split into ModArchiveService, ModCacheService, ModLifecycleService (856 lines deleted)
+- ~~**ModManagementService**~~ → Merged into ModMetadataService
+
+**Moved to Core Module:**
+- **FileOperationPlanner** → `Modules/Core/Utilities/FileOperationPlanner.cs`
   - Atomic file system operation planner with two-plan batch processing
   - **Two-Plan Model**: Processing Plan (currently executing) + Queued Plan (accumulating operations)
   - **Operations**: ExtractArchive, MoveDirectory, CopyFile, DeleteDirectory, DeleteFile
@@ -246,12 +340,7 @@
   - **Usage**: SubmitOperationAsync() → returns Task that completes when operation finishes
   - **Benefits**: No deadlocks, batches operations during slow extractions, prevents file conflicts
   - Created: 2026-03-05
-
-- **ModImportService** → `Modules/Mods/Services/ModImportService.cs:14`
-  - Constructor → `:26-40`
-  - ImportAsync → `:43-120` (complete import workflow)
-  - ReadMetadataAsync → `:123-145`
-  - GenerateNameFromDirectory → `:148-160`
+  - Moved: 2026-03-06 (from Mod module to Core module - reusable infrastructure)
 
 - **ModRepository** → `Modules/Mods/Services/ModRepository.cs:32`
   - Constructor → `:37-42`

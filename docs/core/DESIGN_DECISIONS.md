@@ -100,9 +100,104 @@ public ModService(IProfileRepository profileRepo) { } // NEVER!
 
 ---
 
+### 6. Service Layer Architecture (NEW - 2026-03-07)
+
+**Decision:** Three-layer service architecture with clear separation of concerns
+
+**Layers:**
+
+**Layer 1 - Pure Operations:**
+- No business logic, no event emission
+- Reusable file/archive operations
+- Example: ModArchiveService, ModCacheService
+- Pattern: NO IProfileEventBus injection
+
+**Layer 2 - Business Logic + Events:**
+- Orchestrates Layer 1 services
+- Handles business rules
+- Emits events after operations
+- Example: ModLifecycleService, ModMetadataService
+- Pattern: Injects IProfileEventBus, emits events on completion
+
+**Layer 3 - Event Consolidation:**
+- Subscribes to multiple backend events
+- Emits single consolidated event for frontend
+- Example: ModListEventHandler, CategoryTreeEventHandler
+- Pattern: Reduces frontend event complexity
+
+**Why:**
+- Clear separation between operations and business logic
+- Reusable operation services (no coupling to events)
+- Simpler frontend event handling (consolidated events)
+- Prevents event storms (8+ events → 1 consolidated event)
+
+**Pattern:**
+```csharp
+// ❌ OLD: God service with everything
+public class ModFileService {
+    // 856 lines: archive ops + cache ops + business logic + events
+}
+
+// ✅ NEW: Layered services
+public class ModArchiveService { }       // Layer 1: Pure operations
+public class ModCacheService { }         // Layer 1: Pure operations
+public class ModLifecycleService { }     // Layer 2: Business logic + events
+public class ModListEventHandler { }     // Layer 3: Event consolidation
+```
+
+---
+
+### 7. Event Consolidation Pattern (NEW - 2026-03-07)
+
+**Decision:** Backend consolidates multiple events, frontend uses debounced handlers
+
+**Problem:**
+- Frontend had 8+ separate event subscriptions
+- Multiple rapid-fire events caused UI re-renders
+- Complex event handling logic in frontend
+
+**Solution:**
+```csharp
+// Backend: Event handler consolidates 8 events → 1
+public class ModListEventHandler {
+    public ModListEventHandler(IProfileEventBus eventBus) {
+        // Subscribe to 8 specific events
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.LOADED, HandleChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.UNLOADED, HandleChange);
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.DELETED, HandleChange);
+        // ... 5 more subscriptions
+    }
+
+    private async Task HandleChange(object data) {
+        // Emit single consolidated event
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LIST_UPDATED, data);
+    }
+}
+```
+
+```typescript
+// Frontend: Debounced handler (20ms) prevents event storms
+const handleModListUpdate = useCallback(
+  debounce(() => {
+    void refreshMods();
+    void loadStatistics();
+  }, 20),  // 20ms debounce
+  [profileId]
+);
+
+eventBus.subscribe(Module.MOD, ModEventType.MOD_LIST_UPDATED, handleModListUpdate);
+```
+
+**Benefits:**
+- 8+ frontend event handlers → 1 debounced handler
+- Prevents event storms (multiple events within 20ms handled once)
+- Simpler frontend code
+
+---
+
 ## Frontend Decisions
 
-### 6. IPC Architecture
+### 8. IPC Architecture
 
 **Decision:** Centralized AppFacade routes ALL frontend→backend communication
 
@@ -126,9 +221,9 @@ interface BridgeMessage {
 
 ---
 
-### 7. State Management
+### 9. State Management
 
-**Decision:** React Context for global state, NO Redux/MobX
+**Decision:** Zustand stores for module state, React Context for global concerns
 
 **Why:**
 - Simpler without external dependencies
@@ -137,20 +232,26 @@ interface BridgeMessage {
 
 **Pattern:**
 ```typescript
-// Separate contexts by domain
+// Zustand stores for module-specific state (Updated 2026-03-07)
+const modsStore = create<ModsState>((set) => ({
+  mods: undefined,  // Current filtered mods
+  modLoading: false,
+  setMods: (mods) => set({ mods }),
+}));
+
+// React Context for global concerns
 ProfileContext     // Current profile
-ModsContext       // Mod list/operations
-OperationContext  // Active operations
-ThemeContext      // UI theme
+ThemeContext       // UI theme
+SettingsContext    // Global settings
 
 // Usage
-const { selectedProfileId } = useProfile();
-const { mods, loadMods } = useMods();
+const mods = useModsStore((state) => state.mods);  // Zustand
+const { selectedProfileId } = useProfile();        // Context
 ```
 
 ---
 
-### 8. Frontend Service Pattern
+### 10. Frontend Service Pattern
 
 **Decision:** ALL frontend services extend BaseModuleService
 
@@ -167,7 +268,7 @@ class ModService extends BaseModuleService {
 
 ---
 
-### 9. Component Architecture
+### 11. Component Architecture
 
 **Decision:** Presentation/Container pattern with hooks
 
@@ -187,7 +288,7 @@ const ModList: FC<Props> = ({ mods, onLoad }) => {
 
 ---
 
-### 10. Modal Dialog Pattern
+### 12. Modal Dialog Pattern
 
 **Decision:** Declarative rendering with DISABLED transitions
 
@@ -212,7 +313,7 @@ Modal.confirm({ ... });  // Causes flashing
 
 ---
 
-### 11. Null vs Undefined
+### 13. Null vs Undefined
 
 **Decision:** Frontend uses `undefined` for absent data, `null` only for React
 
@@ -227,7 +328,7 @@ if (!mod) return null;  // React requirement
 
 ---
 
-### 12. Internationalization (i18n)
+### 14. Internationalization (i18n)
 
 **Decision:** ALL user-facing text MUST use translation keys
 
@@ -243,7 +344,7 @@ const { t } = useTranslation();
 
 ---
 
-### 13. React Closure Pattern
+### 15. React Closure Pattern
 
 **Decision:** Use useStableRef for callbacks to avoid stale closures
 
@@ -265,7 +366,7 @@ const handleClick = useCallback(() => {
 
 ---
 
-### 14. Compact Components
+### 16. Compact Components
 
 **Decision:** Use CompactButton, CompactSpace etc for consistent sizing
 
@@ -279,7 +380,7 @@ import { CompactButton, CompactCard } from 'shared/components/compact';
 
 ---
 
-### 15. CSS Strategy
+### 17. CSS Strategy
 
 **Decision:** CSS Modules/classes over inline styles
 
@@ -296,7 +397,7 @@ import { CompactButton, CompactCard } from 'shared/components/compact';
 
 ## Database Decisions
 
-### 16. SQLite with EF Core
+### 18. SQLite with EF Core
 
 **Decision:** Single-file SQLite database with migrations
 
@@ -315,7 +416,7 @@ dotnet ef database update
 
 ## Testing Decisions
 
-### 17. Testing Strategy
+### 19. Testing Strategy
 
 **Decision:** Unit tests for utilities, integration tests for services
 
@@ -338,7 +439,7 @@ public async Task ModService_LoadsMod_WithDatabase() { }
 
 ## Performance Decisions
 
-### 18. Operation Progress
+### 20. Operation Progress
 
 **Decision:** ALL operations >1 second MUST report progress
 
@@ -357,7 +458,9 @@ _progressReporter.CompleteOperation(opId, result);
 | Scenario | Decision | Rationale |
 |----------|----------|-----------|
 | Heavy computation | C# backend | 10-100x faster |
-| State management | React Context | Simplicity |
+| **Service architecture** | **3-layer (operation/logic/event)** | **Separation of concerns** |
+| **Event handling** | **Backend consolidation + frontend debounce** | **Prevents event storms** |
+| State management | Zustand stores + Context | Module state + global concerns |
 | Service pattern | Extend BaseModuleService | Consistency |
 | Modal dialogs | Declarative, no transitions | No flashing |
 | Missing data | undefined (TS), null (C#) | Convention |
@@ -370,3 +473,5 @@ _progressReporter.CompleteOperation(opId, result);
 ---
 
 **Remember:** These aren't preferences - they're architectural constraints. Violating them causes bugs.
+
+**Updated:** 2026-03-07 - Added service layer architecture and event consolidation patterns

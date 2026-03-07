@@ -46,6 +46,159 @@
 
 ---
 
+## State Management (Zustand Stores)
+
+### ModProvider
+
+**Location:** `src/modules/mod/ModProvider.tsx`
+
+**Purpose:** Top-level provider for mod module state management and event subscriptions
+
+**Architecture Changes (2026-03-07):**
+- **Event consolidation**: Reduced from 8+ specific event subscriptions to 2 debounced handlers
+- **Simplified event flow**: Backend consolidates events → Frontend reacts to consolidated events
+- **Work path detection**: Automatically refreshes mods when profile work directory changes
+
+**Event Subscriptions:**
+```typescript
+// 1. MOD_LIST_UPDATED (debounced 20ms)
+//    Consolidates: LOADED, UNLOADED, DELETED, IMPORTED, METADATA_UPDATED, CATEGORY_UPDATED, CACHE_CHANGED, REFRESHED
+//    Triggers: refreshMods() + loadStatistics()
+
+// 2. CATEGORY_TREE_UPDATED (debounced 20ms)
+//    Consolidates: MOD.CATEGORY_UPDATED, MOD.IMPORTED, MOD.DELETED
+//    Triggers: refreshCategoryTree()
+```
+
+**Key Features:**
+- Debounced event handlers prevent event storms (20ms debounce)
+- Statistics loading integrated into MOD_LIST_UPDATED handler
+- Locked category persistence (loads/saves from profile config)
+- Work path change detection for automatic refresh
+
+**Removed (2026-03-06):**
+- ~~Individual event subscriptions (LOADED, UNLOADED, etc.)~~
+- ~~Separate statistics event subscription~~
+- ~~Optimistic update handlers~~
+
+### modsStore
+
+**Location:** `src/modules/mod/store/modsStore.ts`
+
+**Architecture:** Simplified flat store structure (removed slices pattern)
+
+**State Structure (Updated 2026-03-07):**
+```typescript
+interface ModsState {
+  // Data
+  mods: ModInfo[] | undefined;              // Current filtered mods (renamed from CategoryFilteredMods)
+  selectedMod: ModInfo | undefined;         // Currently selected mod
+  selectedCategory: CategoryInfo | undefined; // Selected category (preserved during reset)
+
+  // Loading States
+  modLoading: boolean;                      // Mod operation loading (NEW: specific for mod ops)
+  categoryLoading: boolean;                 // Category operation loading
+
+  // UI State
+  expandedKeys: React.Key[];                // Expanded tree nodes (preserved during reset)
+  lockedCategories: string[];               // Locked expanded categories (NEW: persisted)
+
+  // Preview State
+  previewPaths: string[];                   // Preview image paths (NEW)
+  previewCacheTimestamp: number;            // Cache buster for browser (NEW)
+
+  // Workflow State
+  importWorkflowScreenVisible: boolean;     // Import workflow screen visibility (renamed)
+}
+```
+
+**Removed Fields (2026-03-06):**
+- ~~`state.mods`~~ (full mod list) → Removed, backend handles filtering
+- ~~`modsLoading`~~ → Renamed to `modLoading`
+- ~~`error`~~ → Error handling moved to operations
+- ~~`CategoryFilteredMods`~~ → Renamed to `mods`
+- ~~`selectedObject`~~ → Never used
+- ~~`modManagementMode`~~ → Only written, never read
+- ~~`importTasks`~~ → Moved to workflow module
+- ~~`importProcessing`~~ → Moved to workflow module
+- ~~`taskIdCounter`~~ → Moved to workflow module
+- ~~`selectedTaskIds`~~ → Moved to workflow module
+
+**Removed Actions (2026-03-06):**
+- ~~`setMods()`~~ → Replaced by backend event refresh
+- ~~`setError()`~~ → Error handling moved to operations
+- ~~`addMod()`~~ → Not needed with backend refresh
+- ~~`updateTreeNodeLocal()`~~ → Category updates via backend
+- ~~`toggleExpandedKey()`~~ → UI state simplified
+- ~~`updateModsLocal()`~~ → Only used by removed batch operations
+- ~~`optimisticLoadUpdate()`~~ → Optimistic updates eliminated
+- ~~`optimisticUnloadUpdate()`~~ → Optimistic updates eliminated
+- ~~`optimisticCategoryUpdate()`~~ → Optimistic updates eliminated
+
+**Renamed Actions:**
+- `openModManagementScreen()` → `openImportWorkflowScreen()`
+- `closeModManagementScreen()` → `closeImportWorkflowScreen()`
+
+**New Actions (2026-03-06):**
+- `setLockedCategories(keys: string[])` - Load locked categories from config
+- `addLockedCategory(key: string)` - Lock category
+- `removeLockedCategory(key: string)` - Unlock category
+- `bustPreviewCache()` - Increment timestamp to force preview reload
+
+**Store Reset Behavior:**
+```typescript
+// Preserves state during profile changes:
+reset: () => set((state) => {
+  const preserved = {
+    selectedCategory: state.selectedCategory,
+    expandedKeys: state.expandedKeys,
+    lockedCategories: state.lockedCategories
+  };
+  Object.assign(state, initialState);
+  Object.assign(state, preserved);
+})
+```
+
+### Deleted Slices (2026-03-06)
+
+The following slice files were removed and merged into flat modsStore:
+
+- ~~**modsSlice.ts**~~ (121 lines) - Merged into modsStore
+- ~~**categorySlice.ts**~~ (81 lines) - Merged into modsStore
+- ~~**uiSlice.ts**~~ (106 lines) - Merged into modsStore
+- ~~**importSlice.ts**~~ - Moved to workflow module
+
+### Deleted Selectors (2026-03-06)
+
+Selector files removed - use store hooks directly:
+
+- ~~**modSelectors.ts**~~ (96 lines) - Use `useModsStore((state) => state.mods)` directly
+- ~~**categorySelectors.ts**~~ (127 lines) - Use store hooks directly
+
+### Operations (mod/operations/)
+
+**Location:** `src/modules/mod/operations/`
+
+**modOperations.ts** - Mod CRUD operations
+- `refreshMods(profileId)` - Refresh mod list (event-driven, no optimistic updates)
+- `loadStatistics(profileId)` - Load mod statistics
+- ~~`batchUpdateMetadata()`~~ - Removed (workflow handles batch operations)
+- ~~`exportMods()`~~ - Removed (feature unused)
+- ~~`resetModsState()`~~ - Removed (replaced by store.reset())
+- ~~`unloadAllMods()`~~ - Removed (not implemented on backend)
+- ~~`loadMultipleMods()`~~ - Removed (not implemented on backend)
+
+**categoryOperations.ts** - Category operations
+- `refreshCategoryTree(profileId)` - Refresh category tree (event-driven)
+- i18n: All operations now use translation keys (5 keys added)
+
+**Import System Removed (2026-03-06):**
+- ~~`importTask.types.ts`~~ (53 lines) - Moved to workflow module
+- ~~`importSlice.ts`~~ (96 lines) - Moved to workflow module
+- ~~`importOperations.ts`~~ (165 lines) - Moved to workflow module
+
+---
+
 ## Internationalization (i18n)
 
 - **i18n Configuration** → `src/i18n/i18n.ts`
@@ -247,32 +400,57 @@
 > **Architecture:** ModHierarchicalView uses 3 independent panel folders for better organization
 > **Location:** `src/modules/mods/components/[PanelName]/`
 
-- **ClassificationPanel** → `src/modules/mods/components/ClassificationPanel/`
-  - Left panel for classification tree and unclassified mods
-  - **ClassificationPanel.tsx** - Main panel component
-  - **ClassificationTree.tsx** - Hierarchical tree component
-  - **ClassificationTreeContext.tsx** - Tree operations context
-  - **useClassificationTreeOperations.tsx** - Tree manipulation hook
+- **CategoryPanel** → `src/modules/mod/components/CategoryPanel/`
+  - Left panel for category tree and unclassified mods
+  - **CategoryPanel.tsx** - Main panel component
+  - **CategoryTree.tsx** - Hierarchical tree component with **lock expanded feature**
+    - **Lock Expanded**: Lock icon (🔒) on locked categories, unlock icon (🔓) on hover
+    - Locked categories cannot be collapsed by clicking
+    - Locked state persisted to profile config (survives app restarts)
+    - Auto-validates on tree updates (removes invalid locks)
+    - **Multi-Select Support**: Accepts bulk mod drops (application/mod-shas MIME type)
+    - Added: 2026-03-05 (multi-select), 2026-03-07 (lock expanded)
+  - **CategoryTreeContext.tsx** - Tree operations context
+  - **useCategoryTreeOperations.tsx** - Tree manipulation hook
     - shouldRefreshModsForNodeUpdate() - Smart refresh logic (2026-02-23)
-  - **useModCategoryUpdate.ts** - Custom hook for mod category updates via drag-and-drop (2026-02-20)
-  - **ClassificationContextMenu.tsx** - Right-click context menu
+    - Bulk category update handler for multi-select (2026-03-05)
+  - **useModCategoryUpdate.ts** - Custom hook for mod category updates via drag-and-drop
+    - Single mod drag-drop (2026-02-20)
+    - Bulk mod drag-drop for multi-selection (2026-03-05)
+    - Auto-unloads loaded mods before category change
+  - **CategoryContextMenu.tsx** - Right-click context menu
   - **UnclassifiedItem.tsx** - Unclassified mods indicator (drag-and-drop support added 2026-02-20)
-  - **ClassificationScreen.tsx** - Add/edit classification slide-in screen
+  - **CategoryScreen.tsx** - Add/edit category slide-in screen
     - Thumbnail file picker with preview
     - IPC-based async validation for duplicate names
     - Ant Design form validation with Promise.reject/resolve pattern
     - Integration with useProfile for profileId access
     - Updated: 2026-02-21 (thumbnail support, validation)
-  - **TreeNodeConverter.tsx** - Converts ClassificationNode to Ant Design DataNode
-  - Features: Hierarchical classification, search with count indicators, context menu operations, drag-and-drop category updates
+  - **TreeNodeConverter.tsx** - Converts CategoryNode to Ant Design DataNode
+    - Renders lock icons for locked categories (2026-03-07)
+  - Features: Hierarchical categories, search with count indicators, context menu operations, drag-and-drop category updates, **lock expanded state**, **bulk category updates**
   - Refactored: 2026-02-20 - Extracted into panel folder, added drag-and-drop support
 
-- **ModListPanel** → `src/modules/mods/components/ModListPanel/`
-  - Center panel for mod list and search
-  - **ModListPanel.tsx** - Main panel with search bar and empty states
+- **ModListPanel** → `src/modules/mod/components/ModListPanel/`
+  - Center panel for mod list and search with **multi-select support**
+  - **ModListPanel.tsx** - Main panel with search bar, empty states, and multi-select state management
+    - Local multi-selection state with keyboard modifiers
+    - **Ctrl+Click**: Toggle individual mod selection
+    - **Shift+Click**: Select range from anchor to current
+    - Multi-selection clears when category/object changes
+    - Added: 2026-03-05 (multi-select)
   - **ModList.tsx** - List/card view of mods with actions
-  - Features: Search bar, empty state handling, mod selection
-  - Displays filtered mods based on classification/object selection
+    - Enhanced drag/drop supporting single and bulk operations
+    - Drag multi-selection: All selected mods move to dropped category
+    - Multi-selected items use same CSS style as primary selection
+    - Added: 2026-03-05 (multi-select drag-drop)
+  - **ModListStatusBar.tsx** - Status bar showing selection count
+    - Shows "{{count}} Mods selected" when multiple mods selected
+    - Shows "No active mod" when no selection
+    - i18n support (EN/CN)
+    - Added: 2026-03-05
+  - Features: Search bar, empty state handling, mod selection, **multi-select with Ctrl/Shift**, **bulk drag-drop**, **selection status bar**
+  - Displays filtered mods based on category/object selection
   - Refactored: 2026-02-20 - Extracted into panel folder
 
 - **ModPreviewPanel** → `src/modules/mods/components/ModPreviewPanel/`
@@ -788,9 +966,11 @@
 
 ---
 
-**Line Count:** ~550 lines
+**Line Count:** ~700 lines
+**Last Updated:** 2026-03-07 (Added ModProvider and modsStore architecture documentation)
 **Parent:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Note:** If this file exceeds 500 lines, consider splitting into:
+**Note:** If this file exceeds 800 lines, consider splitting into:
 - `FRONTEND_COMPONENTS.md` (components only)
+- `FRONTEND_STATE.md` (stores, providers, context)
 - `FRONTEND_HOOKS_SERVICES.md` (hooks, services, utils)

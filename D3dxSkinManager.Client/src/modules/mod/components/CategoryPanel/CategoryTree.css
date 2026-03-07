@@ -125,6 +125,42 @@
   flex: 1 !important;
 }
 
+/* Force all motion/animation wrappers to maintain full width */
+.category-tree .ant-motion-collapse,
+.category-tree .ant-motion-collapse-active,
+.category-tree .ant-motion-collapse-leave,
+.category-tree .ant-motion-collapse-leave-active,
+.category-tree .ant-motion-collapse-appear,
+.category-tree .ant-motion-collapse-appear-active,
+.category-tree .ant-motion-collapse-enter,
+.category-tree .ant-motion-collapse-enter-active,
+.category-tree .rc-tree-treenode-motion,
+.category-tree .rc-motion-collapse,
+.category-tree .rc-motion-collapse-active {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Disable width transitions during animations to prevent size flickering */
+.category-tree .ant-motion-collapse *,
+.category-tree .ant-motion-collapse-active *,
+.category-tree [class*="motion-collapse"] * {
+  transition-property: height, opacity, transform !important;
+  /* Explicitly exclude width from transitions */
+}
+
+/* Ensure treenode maintains width during ALL animation states */
+.category-tree .ant-tree-treenode,
+.category-tree .ant-tree-treenode * {
+  box-sizing: border-box !important;
+}
+
+.category-tree .ant-tree-treenode.ant-tree-treenode-motion {
+  width: 100% !important;
+}
+
 /* Hide the default drag/drop indicator and drag icon handles */
 .category-tree .ant-tree-draggable-icon {
   display: none !important;
