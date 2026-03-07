@@ -30,6 +30,11 @@ public class ProfileConfiguration
     /// Tab-specific settings (per-profile UI preferences)
     /// </summary>
     public TabSettings Tabs { get; set; } = new TabSettings();
+
+    /// <summary>
+    /// Cache management configuration
+    /// </summary>
+    public CacheManagementConfiguration CacheManagement { get; set; } = new CacheManagementConfiguration();
 }
 
 /// <summary>
@@ -70,4 +75,23 @@ public class ModTabSettings
     /// Category IDs that are locked expanded (cannot be collapsed by clicking)
     /// </summary>
     public List<string> LockedExpandedCategories { get; set; } = new List<string>();
+}
+
+/// <summary>
+/// Cache management configuration for disabled mod caches
+/// </summary>
+public class CacheManagementConfiguration
+{
+    /// <summary>
+    /// Enable automatic cleanup of old disabled caches
+    /// Default: true
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Maximum number of disabled caches to keep (default: 10)
+    /// When exceeded, oldest caches (by LastWriteTime) are deleted automatically
+    /// Valid range: 1-100
+    /// </summary>
+    public int MaxDisabledCaches { get; set; } = 10;
 }

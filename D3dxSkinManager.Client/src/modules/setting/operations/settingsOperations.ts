@@ -95,11 +95,11 @@ export async function resetWindowState(
 }
 
 /**
- * Load profile configuration (work directory settings)
+ * Load profile configuration (work directory settings + cache management)
  * Called when profile changes or settings view mounts
  */
 export async function loadProfileConfig(profileId: string): Promise<void> {
-  const { setInitialProfileConfig, setInternalWorkPath, setError } =
+  const { setInitialProfileConfig, setInternalWorkPath, setInitialCacheManagementConfig, setError } =
     useSettingsStore.getState();
 
   if (!profileId) {
@@ -112,7 +112,7 @@ export async function loadProfileConfig(profileId: string): Promise<void> {
     const config = await profileService.getProfileConfig(profileId);
 
     if (config) {
-      // Use case-insensitive reading - normalize to lowercase
+      // Work directory configuration
       const mode = (config.work?.mode?.toLowerCase() || "internal") as
         | "internal"
         | "external";
@@ -126,6 +126,16 @@ export async function loadProfileConfig(profileId: string): Promise<void> {
       if (internalPath) {
         setInternalWorkPath(internalPath);
       }
+
+      // Cache management configuration
+      const cacheEnabled = config.cacheManagement?.enabled ?? true;
+      const maxCaches = config.cacheManagement?.maxDisabledCaches ?? 10;
+
+      // Update store with cache management config
+      setInitialCacheManagementConfig({
+        enabled: cacheEnabled,
+        maxDisabledCaches: maxCaches,
+      });
     }
   } catch (error: unknown) {
     logger.error("[settingsOperations] Failed to load profile config:", error);
@@ -137,16 +147,18 @@ export async function loadProfileConfig(profileId: string): Promise<void> {
 }
 
 /**
- * Save profile configuration (work directory settings)
- * Validates and persists work directory settings
+ * Save profile configuration (work directory settings + cache management)
+ * Validates and persists work directory settings and cache management settings
  */
 export async function saveProfileConfig(
   profileId: string,
   workMode: "internal" | "external",
   workDirectory: string,
+  cacheManagementEnabled: boolean,
+  maxDisabledCaches: number,
   t: (key: string) => string,
 ): Promise<boolean> {
-  const { setInitialProfileConfig, setError } = useSettingsStore.getState();
+  const { setInitialProfileConfig, setInitialCacheManagementConfig, setError } = useSettingsStore.getState();
 
   if (!profileId) {
     notification.error(t("errors.noProfileSelected"));
@@ -162,6 +174,9 @@ export async function saveProfileConfig(
     }
   }
 
+  // Validate maxDisabledCaches range
+  const clampedMaxCaches = Math.max(1, Math.min(100, maxDisabledCaches));
+
   setError(undefined);
 
   try {
@@ -171,12 +186,21 @@ export async function saveProfileConfig(
         mode: workMode,
         directory: workMode === "external" ? workDirectory : undefined,
       },
+      cacheManagement: {
+        enabled: cacheManagementEnabled,
+        maxDisabledCaches: clampedMaxCaches,
+      },
     });
 
     // Update initial config in store to reflect saved state
     setInitialProfileConfig({
       mode: workMode,
       directory: workDirectory,
+    });
+
+    setInitialCacheManagementConfig({
+      enabled: cacheManagementEnabled,
+      maxDisabledCaches: clampedMaxCaches,
     });
 
     notification.success(t("settings.notifications.profileConfigSaved"));

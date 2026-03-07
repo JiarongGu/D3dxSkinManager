@@ -179,6 +179,25 @@ public class ModLifecycleService : IModLifecycleService
             // Emit LOADED event
             await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha }).ConfigureAwait(false);
 
+            // Trigger cache cleanup for this category (fire-and-forget, non-blocking)
+            // Only cleans up disabled caches within the same category
+            // Skips cleanup for unclassified mods (null/empty/whitespace category)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var cleanedCount = await _cacheService.CleanupOldDisabledCachesAsync(mod.Category).ConfigureAwait(false);
+                    if (cleanedCount > 0)
+                    {
+                        _logger.Info($"Cache cleanup: removed {cleanedCount} old disabled cache(s) from category '{mod.Category}'", "ModLifecycleService");
+                    }
+                }
+                catch (Exception cleanupEx)
+                {
+                    _logger.Warn($"Cache cleanup failed: {cleanupEx.Message}", "ModLifecycleService");
+                }
+            });
+
             return new ModLoadResult
             {
                 LoadedModSha = sha,
@@ -207,11 +226,34 @@ public class ModLifecycleService : IModLifecycleService
     /// </summary>
     public async Task<bool> UnloadAsync(string sha)
     {
+        // Get mod info to retrieve category before unloading
+        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var modCategory = mod?.Category;
+
         var success = await _cacheService.DisableCacheAsync(sha).ConfigureAwait(false);
 
         if (success)
         {
             await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Sha = sha }).ConfigureAwait(false);
+
+            // Trigger cache cleanup for this category (fire-and-forget, non-blocking)
+            // Only cleans up disabled caches within the same category
+            // Skips cleanup for unclassified mods (null/empty/whitespace category)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var cleanedCount = await _cacheService.CleanupOldDisabledCachesAsync(modCategory).ConfigureAwait(false);
+                    if (cleanedCount > 0)
+                    {
+                        _logger.Info($"Cache cleanup: removed {cleanedCount} old disabled cache(s) from category '{modCategory}'", "ModLifecycleService");
+                    }
+                }
+                catch (Exception cleanupEx)
+                {
+                    _logger.Warn($"Cache cleanup failed: {cleanupEx.Message}", "ModLifecycleService");
+                }
+            });
         }
 
         return success;

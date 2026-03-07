@@ -289,6 +289,10 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         var workMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "workMode");
         var workDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workDirectory");
 
+        // Cache management nested object
+        var cacheManagementEnabled = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "cacheManagementEnabled");
+        var maxDisabledCaches = _payloadHelper.GetOptionalValue<int?>(request.Payload, "maxDisabledCaches");
+
         // Load existing configuration to preserve fields like Capture
         var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
         if (config == null)
@@ -313,6 +317,21 @@ public class ProfileFacade : BaseFacade, IProfileFacade
                 // Only store directory for external mode
                 Directory = normalizedMode == "external" ? workDirectory : null
             };
+        }
+
+        // Handle Cache management nested object
+        if (cacheManagementEnabled.HasValue || maxDisabledCaches.HasValue)
+        {
+            if (cacheManagementEnabled.HasValue)
+            {
+                config.CacheManagement.Enabled = cacheManagementEnabled.Value;
+            }
+            if (maxDisabledCaches.HasValue)
+            {
+                // Validate range: 1-100
+                var clampedValue = Math.Max(1, Math.Min(100, maxDisabledCaches.Value));
+                config.CacheManagement.MaxDisabledCaches = clampedValue;
+            }
         }
 
         return await UpdateProfileConfigAsync(config).ConfigureAwait(false);

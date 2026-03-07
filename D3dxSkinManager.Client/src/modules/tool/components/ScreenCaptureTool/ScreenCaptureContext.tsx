@@ -90,7 +90,7 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({
 }) => {
   const { t } = useTranslation();
   const { selectedProfileId: currentProfileId } = useProfile();
-  const { loading, execute } = useDelayedLoading(100);
+  const { loading, execute } = useDelayedLoading(200);
 
   // State
   const [profiles, setProfiles] = useState<ScreenCaptureProfile[]>([]);

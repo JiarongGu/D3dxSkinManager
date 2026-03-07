@@ -6,6 +6,8 @@ using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Core.Utilities;
+using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Context;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -21,6 +23,7 @@ public interface IModCacheService
     Task<bool> DeleteCacheAsync(string sha);
     Task<bool> EnableCacheAsync(string sha); // Rename DISABLED-{SHA} to {SHA}
     Task<bool> DisableCacheAsync(string sha); // Rename {SHA} to DISABLED-{SHA}
+    Task<int> CleanupOldDisabledCachesAsync(string? modCategory); // Cleanup old disabled caches for specific category
     bool HasCache(string sha);
     string? GetCachePath(string sha);
 }
@@ -38,6 +41,8 @@ public class ModCacheService : IModCacheService
     private readonly IProfilePathService _profilePaths;
     private readonly IFileOperationPlanner _operationPlanner;
     private readonly IModRepository _repository;
+    private readonly IProfileRepository _profileRepository;
+    private readonly IProfileContext _profileContext;
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
     private const string DISABLED_PREFIX = "DISABLED-";
@@ -46,12 +51,16 @@ public class ModCacheService : IModCacheService
         IProfilePathService profilePaths,
         IFileOperationPlanner operationPlanner,
         IModRepository repository,
+        IProfileRepository profileRepository,
+        IProfileContext profileContext,
         ILogHelper logger,
         IProfileEventBus eventBus)
     {
         _profilePaths = profilePaths;
         _operationPlanner = operationPlanner;
         _repository = repository;
+        _profileRepository = profileRepository;
+        _profileContext = profileContext;
         _logger = logger;
         _eventBus = eventBus;
     }
@@ -404,5 +413,128 @@ public class ModCacheService : IModCacheService
 
         // Rarely used: SHA exists in database but not loaded
         return CacheCategory.RarelyUsed;
+    }
+
+    /// <summary>
+    /// Clean up old disabled caches for a specific category based on profile configuration
+    /// Only affects disabled caches of mods in the same category
+    /// Unclassified mods (null/empty/whitespace category) are NOT cleaned up
+    /// Keeps only the most recently disabled caches (by LastWriteTime)
+    /// Uses FileOperationPlanner for atomic deletions
+    /// </summary>
+    /// <param name="modCategory">The category to clean up caches for. If null/empty/whitespace, no cleanup is performed.</param>
+    /// <returns>Number of caches deleted</returns>
+    public async Task<int> CleanupOldDisabledCachesAsync(string? modCategory)
+    {
+        try
+        {
+            // Skip cleanup for unclassified mods (null, empty, or whitespace category)
+            if (string.IsNullOrWhiteSpace(modCategory))
+            {
+                _logger.Verbose("Skipping cache cleanup for unclassified mod", "ModCacheService");
+                return 0;
+            }
+
+            // Get cache management configuration
+            var config = await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
+
+            if (config?.CacheManagement?.Enabled != true)
+            {
+                _logger.Verbose("Cache cleanup disabled in configuration", "ModCacheService");
+                return 0; // Feature disabled
+            }
+
+            var maxCaches = config.CacheManagement.MaxDisabledCaches;
+            if (maxCaches <= 0)
+            {
+                _logger.Warn($"Invalid MaxDisabledCaches value: {maxCaches}", "ModCacheService");
+                return 0;
+            }
+
+            // Get all mods in the same category
+            var categoryMods = await _repository.GetByCategoryAsync(modCategory).ConfigureAwait(false);
+            var categoryShas = categoryMods.Select(m => m.SHA).ToHashSet();
+
+            // Scan for disabled caches of mods in this category
+            var disabledCaches = GetDisabledCacheDirectories()
+                .Where(path => {
+                    var dirName = Path.GetFileName(path);
+                    if (string.IsNullOrEmpty(dirName) || !dirName.StartsWith(DISABLED_PREFIX))
+                        return false;
+
+                    var sha = dirName.Substring(DISABLED_PREFIX.Length);
+                    return categoryShas.Contains(sha);
+                })
+                .OrderByDescending(d => Directory.GetLastWriteTime(d)) // Most recent first
+                .ToList();
+
+            if (disabledCaches.Count <= maxCaches)
+            {
+                _logger.Verbose($"Disabled cache count for category '{modCategory}': {disabledCaches.Count} (within limit {maxCaches})", "ModCacheService");
+                return 0; // Within limit
+            }
+
+            // Delete oldest caches (beyond the limit)
+            var cachesToDelete = disabledCaches.Skip(maxCaches).ToList();
+            _logger.Info($"Cleaning up {cachesToDelete.Count} old disabled cache(s) for category '{modCategory}' (limit: {maxCaches}, current: {disabledCaches.Count})", "ModCacheService");
+
+            int deletedCount = 0;
+
+            foreach (var cachePath in cachesToDelete)
+            {
+                try
+                {
+                    var deleteOp = new FileSystemOperation
+                    {
+                        OperationType = FileSystemOperationType.DeleteDirectory,
+                        SourcePath = cachePath
+                    };
+
+                    var result = await _operationPlanner.SubmitOperationAsync(deleteOp).ConfigureAwait(false);
+
+                    if (result.Success)
+                    {
+                        deletedCount++;
+                        var dirName = Path.GetFileName(cachePath);
+                        _logger.Info($"Cleaned up old disabled cache: {dirName} (category: {modCategory})", "ModCacheService");
+                    }
+                    else
+                    {
+                        _logger.Warn($"Failed to clean up cache {cachePath}: {result.ErrorMessage}", "ModCacheService");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Error cleaning up cache {cachePath}: {ex.Message}", "ModCacheService", ex);
+                }
+            }
+
+            if (deletedCount > 0)
+            {
+                _logger.Info($"Cache cleanup completed for category '{modCategory}': {deletedCount} old cache(s) removed", "ModCacheService");
+            }
+
+            return deletedCount;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error during cache cleanup: {ex.Message}", "ModCacheService", ex);
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Get all disabled cache directories (DISABLED-{SHA})
+    /// </summary>
+    private List<string> GetDisabledCacheDirectories()
+    {
+        if (!Directory.Exists(_profilePaths.CacheModsDirectory))
+        {
+            return new List<string>();
+        }
+
+        return Directory.GetDirectories(_profilePaths.CacheModsDirectory)
+            .Where(d => Path.GetFileName(d)?.StartsWith(DISABLED_PREFIX) == true)
+            .ToList();
     }
 }

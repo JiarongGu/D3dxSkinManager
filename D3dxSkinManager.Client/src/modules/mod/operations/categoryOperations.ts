@@ -6,7 +6,7 @@
 import { debounce } from 'lodash-es';
 
 import { useModsStore } from '../store/modsStore';
-import { CategoryInfo, CATEGORY_IDS } from '../../../shared/types/category.types';
+import { CATEGORY_IDS } from '../../../shared/types/category.types';
 import { notification } from '../../../shared/utils/notification';
 import { categoryService, modService } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
@@ -88,7 +88,7 @@ export async function loadCategoryTree(profileId: string): Promise<void> {
         setCategoryTree(tree);
       },
       setCategoryLoading,
-      100
+      200
     );
   } catch (error: unknown) {
     handleError(error);
@@ -123,7 +123,7 @@ async function _loadModsByCategory(
         setMods(mods);
       },
       setCategoryLoading,
-      100
+      200
     );
   } catch (error: unknown) {
     handleError(error);
@@ -150,7 +150,7 @@ export async function loadUncategorizedMods(profileId: string): Promise<void> {
         setMods(mods);
       },
       setCategoryLoading,
-      100
+      200
     );
   } catch (error: unknown) {
     handleError(error);

@@ -20,7 +20,7 @@ import { useState, useRef, useCallback } from 'react';
  * <Button loading={loading} onClick={handleSave}>Save</Button>
  * ```
  */
-export function useDelayedLoading(delayMs: number = 50) {
+export function useDelayedLoading(delayMs: number = 100) {
   const [loading, setLoading] = useState(false);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const isProcessingRef = useRef(false);

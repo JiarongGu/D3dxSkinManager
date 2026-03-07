@@ -23,3 +23,9 @@
 .settings-view-card-margin {
   margin-bottom: 24px;
 }
+
+.settings-view-profile-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}

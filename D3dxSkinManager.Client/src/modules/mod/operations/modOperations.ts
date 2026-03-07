@@ -108,7 +108,7 @@ export async function updateMod(
         notification.success(i18n.t('mods.operations.updateSuccess'));
       },
       useModsStore.getState().setModLoading,
-      100
+      200
     );
   } catch (error: unknown) {
     handleError(error);
@@ -134,7 +134,7 @@ export async function deleteMod(profileId: string, sha: string): Promise<void> {
         notification.success(i18n.t('mods.operations.deleteSuccess'));
       },
       useModsStore.getState().setModLoading,
-      100
+      200
     );
   } catch (error: unknown) {
     handleError(error);
@@ -177,7 +177,7 @@ export async function loadPreviewPaths(profileId: string, sha: string): Promise<
         bustPreviewCache(); // Bust browser cache
       },
       setPreviewLoading,
-      100
+      200
     );
   } catch (error: unknown) {
     // Clear previews on error

@@ -36,7 +36,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   footer,
   destroyOnHidden = false,
 }) => {
-  const { loading, execute, reset } = useDelayedLoading(50);
+  const { loading, execute, reset } = useDelayedLoading(200);
 
   // Reset loading state when dialog visibility changes
   React.useEffect(() => {

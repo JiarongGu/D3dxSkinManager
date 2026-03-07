@@ -17,6 +17,14 @@ export interface WorkDirectoryConfiguration {
 }
 
 /**
+ * Cache Management Configuration Model
+ */
+export interface CacheManagementConfiguration {
+  enabled: boolean;
+  maxDisabledCaches: number;
+}
+
+/**
  * Tab-specific settings
  */
 export interface TabSettings {
@@ -33,6 +41,7 @@ export interface ProfileConfiguration {
   profileId: string;
   migotoVersion: string;
   work: WorkDirectoryConfiguration;
+  cacheManagement: CacheManagementConfiguration;
   tabs: TabSettings;
 }
 
@@ -143,7 +152,9 @@ export class ProfileService extends BaseModuleService {
       profileId: config.profileId,
       migotoVersion: config.migotoVersion,
       workMode: config.work?.mode,
-      workDirectory: config.work?.directory
+      workDirectory: config.work?.directory,
+      cacheManagementEnabled: config.cacheManagement?.enabled,
+      maxDisabledCaches: config.cacheManagement?.maxDisabledCaches
     });
   }
 

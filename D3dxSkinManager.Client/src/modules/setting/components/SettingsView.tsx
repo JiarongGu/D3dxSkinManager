@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Form, Space, Select } from "antd";
+import { Form, Space, Select, InputNumber } from "antd";
 import {
   SettingOutlined,
   ReloadOutlined,
@@ -12,6 +12,7 @@ import {
   CompactInput,
   CompactSelect,
   CompactDangerButton,
+  CompactSwitch,
 } from "../../../shared/components/compact";
 import { useTheme, ThemeMode } from "../../../shared/context/ThemeContext";
 import { useTranslation } from "react-i18next";
@@ -40,9 +41,13 @@ export const SettingsView: React.FC = () => {
     workMode,
     workDirectory,
     internalWorkPath,
+    cacheManagementEnabled,
+    maxDisabledCaches,
     profileConfigChanged,
     setWorkMode,
     setWorkDirectory,
+    setCacheManagementEnabled,
+    setMaxDisabledCaches,
     resetProfileConfig,
   } = useSettingsStore();
 
@@ -55,8 +60,19 @@ export const SettingsView: React.FC = () => {
       logLevel: logLevel,
       workMode: workMode,
       workDirectory: workDirectory,
+      cacheManagementEnabled: cacheManagementEnabled,
+      maxDisabledCaches: maxDisabledCaches,
     });
-  }, [form, theme, i18n.language, logLevel, workMode, workDirectory]);
+  }, [
+    form,
+    theme,
+    i18n.language,
+    logLevel,
+    workMode,
+    workDirectory,
+    cacheManagementEnabled,
+    maxDisabledCaches,
+  ]);
 
   const handleLogLevelChange = async (value: string) => {
     await settingsOps.updateLogLevel(value, t);
@@ -94,7 +110,7 @@ export const SettingsView: React.FC = () => {
     await settingsOps.resetWindowState(t);
   };
 
-  const handleWorkModeChange = (value: 'internal' | 'external') => {
+  const handleWorkModeChange = (value: "internal" | "external") => {
     setWorkMode(value);
   };
 
@@ -107,7 +123,7 @@ export const SettingsView: React.FC = () => {
     try {
       const result = await systemService.openFolderDialog({
         title: t("settings.profile.work.directory.dialogTitle"),
-        rememberPathKey: 'mod-work'
+        rememberPathKey: "mod-work",
       });
 
       if (result.success && result.filePath) {
@@ -127,6 +143,16 @@ export const SettingsView: React.FC = () => {
     setWorkDirectory(newPath);
   };
 
+  const handleCacheManagementToggle = (checked: boolean) => {
+    setCacheManagementEnabled(checked);
+  };
+
+  const handleMaxCachesChange = (value: number | null) => {
+    if (value !== null) {
+      setMaxDisabledCaches(value);
+    }
+  };
+
   const handleSaveProfileConfig = async () => {
     if (!selectedProfileId) {
       notification.error(t("errors.noProfileSelected"));
@@ -137,15 +163,24 @@ export const SettingsView: React.FC = () => {
       selectedProfileId,
       workMode,
       workDirectory,
-      t
+      cacheManagementEnabled,
+      maxDisabledCaches,
+      t,
     );
   };
 
   const handleResetProfileConfig = () => {
     resetProfileConfig();
-    const { workMode: mode, workDirectory: dir } = useSettingsStore.getState();
+    const {
+      workMode: mode,
+      workDirectory: dir,
+      cacheManagementEnabled: cacheEnabled,
+      maxDisabledCaches: maxCaches,
+    } = useSettingsStore.getState();
     form.setFieldValue("workMode", mode);
     form.setFieldValue("workDirectory", dir);
+    form.setFieldValue("cacheManagementEnabled", cacheEnabled);
+    form.setFieldValue("maxDisabledCaches", maxCaches);
   };
 
   return (
@@ -160,6 +195,8 @@ export const SettingsView: React.FC = () => {
             logLevel: logLevel,
             workMode: workMode,
             workDirectory: workDirectory,
+            cacheManagementEnabled: cacheManagementEnabled,
+            maxDisabledCaches: maxDisabledCaches,
           }}
         >
           <CompactCard
@@ -237,69 +274,109 @@ export const SettingsView: React.FC = () => {
             title={t("settings.profile.title")}
             className={"settings-view-card-margin"}
           >
-            <Form.Item
-              label={t("settings.profile.work.directory.label")}
-              tooltip={t("settings.profile.work.directory.tooltip")}
-            >
-              <Space.Compact style={{ width: "100%" }}>
-                <CompactSelect
-                  value={workMode}
-                  onChange={handleWorkModeChange}
-                  style={{ width: "140px" }}
-                >
-                  <Option value="internal">
-                    {t("settings.profile.work.mode.internal")}
-                  </Option>
-                  <Option value="external">
-                    {t("settings.profile.work.mode.external")}
-                  </Option>
-                </CompactSelect>
-                <CompactInput
-                  value={
-                    workMode === "internal"
-                      ? internalWorkPath
-                      : workDirectory
-                  }
-                  disabled={workMode === "internal"}
-                  onChange={
-                    workMode === "external"
-                      ? handleWorkDirectoryChange
-                      : undefined
-                  }
-                  placeholder={
-                    workMode === "external"
-                      ? t("settings.profile.work.directory.placeholder")
-                      : ""
-                  }
-                />
-                {workMode === "external" && (
-                  <CompactButton
-                    icon={<FolderOpenOutlined />}
-                    onClick={handleBrowseWorkDirectory}
+            <div className={"settings-view-profile-form-grid"}>
+              <Form.Item
+                label={t("settings.profile.work.directory.label")}
+                tooltip={t("settings.profile.work.directory.tooltip")}
+              >
+                <Space.Compact style={{ width: "100%" }}>
+                  <CompactSelect
+                    value={workMode}
+                    onChange={handleWorkModeChange}
+                    style={{ width: "140px" }}
                   >
-                    {t("common.browse")}
-                  </CompactButton>
-                )}
-              </Space.Compact>
-            </Form.Item>
+                    <Option value="internal">
+                      {t("settings.profile.work.mode.internal")}
+                    </Option>
+                    <Option value="external">
+                      {t("settings.profile.work.mode.external")}
+                    </Option>
+                  </CompactSelect>
+                  <CompactInput
+                    value={
+                      workMode === "internal" ? internalWorkPath : workDirectory
+                    }
+                    disabled={workMode === "internal"}
+                    onChange={
+                      workMode === "external"
+                        ? handleWorkDirectoryChange
+                        : undefined
+                    }
+                    placeholder={
+                      workMode === "external"
+                        ? t("settings.profile.work.directory.placeholder")
+                        : ""
+                    }
+                  />
+                  {workMode === "external" && (
+                    <CompactButton
+                      icon={<FolderOpenOutlined />}
+                      onClick={handleBrowseWorkDirectory}
+                    >
+                      {t("common.browse")}
+                    </CompactButton>
+                  )}
+                </Space.Compact>
+              </Form.Item>
 
-            <Form.Item style={{ marginTop: "16px" }}>
-              <Space style={{ width: "100%", justifyContent: "flex-end" }}>
-                <CompactDangerButton
-                  onClick={handleResetProfileConfig}
-                  disabled={!profileConfigChanged}
-                >
-                  {t("settings.profile.discard")}
-                </CompactDangerButton>
-                <CompactButton
-                  type="primary"
-                  onClick={handleSaveProfileConfig}
-                  disabled={!profileConfigChanged}
-                >
-                  {t("settings.profile.saveChanges")}
-                </CompactButton>
-              </Space>
-            </Form.Item>
+              <Form.Item
+                label={t("settings.profile.cacheManagement.title")}
+                tooltip={t("settings.profile.cacheManagement.tooltip")}
+              >
+                <Space style={{ alignItems: "center" }}>
+                  <Form.Item
+                    name="cacheManagementEnabled"
+                    valuePropName="checked"
+                    style={{ marginBottom: 0 }}
+                    noStyle
+                  >
+                    <CompactSwitch
+                      checkedChildren={t("common.enable")}
+                      unCheckedChildren={t("common.disable")}
+                      onChange={handleCacheManagementToggle}
+                    />
+                  </Form.Item>
+                  <span>{t("settings.profile.cacheManagement.maxCaches")}</span>
+                  <Form.Item
+                    name="maxDisabledCaches"
+                    style={{ marginBottom: 0 }}
+                    noStyle
+                  >
+                    <InputNumber
+                      min={1}
+                      max={100}
+                      value={maxDisabledCaches}
+                      onChange={handleMaxCachesChange}
+                      disabled={!cacheManagementEnabled}
+                      style={{ width: "80px" }}
+                    />
+                  </Form.Item>
+                  <span
+                    style={{ color: "var(--text-secondary)", fontSize: "12px" }}
+                  >
+                    {t("settings.profile.cacheManagement.hint")}
+                  </span>
+                </Space>
+              </Form.Item>
+
+              <Form.Item style={{ marginTop: "16px" }}>
+                <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+                  <CompactDangerButton
+                    onClick={handleResetProfileConfig}
+                    disabled={!profileConfigChanged}
+                  >
+                    {t("settings.profile.discard")}
+                  </CompactDangerButton>
+                  <CompactButton
+                    type="primary"
+                    onClick={handleSaveProfileConfig}
+                    disabled={!profileConfigChanged}
+                  >
+                    {t("settings.profile.saveChanges")}
+                  </CompactButton>
+                </Space>
+              </Form.Item>
+            </div>
           </CompactCard>
         </Form>
       </div>

@@ -45,7 +45,7 @@ export const ModInfoSection: React.FC<ModInfoSectionProps> = ({ mod }) => {
               </Text>
               <Space size={[4, 4]} wrap className="mod-preview-info-value">
                 {mod.tags.map((tag) => (
-                  <Tag key={tag} color={mod.tagsWithMetadata?.find((t) => t.name === tag)?.color}>
+                  <Tag key={tag}>
                     {tag}
                   </Tag>
                 ))}

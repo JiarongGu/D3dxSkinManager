@@ -35,6 +35,14 @@ export interface SettingsState {
     directory: string;
   };
 
+  // Profile-Specific Settings (Cache Management)
+  cacheManagementEnabled: boolean;
+  maxDisabledCaches: number;
+  initialCacheManagementConfig: {
+    enabled: boolean;
+    maxDisabledCaches: number;
+  };
+
   // UI State
   error: string | undefined;
 }
@@ -57,6 +65,11 @@ export interface SettingsActions {
   setInternalWorkPath: (path: string) => void;
   setProfileConfigChanged: (changed: boolean) => void;
   setInitialProfileConfig: (config: { mode: 'internal' | 'external'; directory: string }) => void;
+
+  // Profile Settings Actions (Cache Management)
+  setCacheManagementEnabled: (enabled: boolean) => void;
+  setMaxDisabledCaches: (max: number) => void;
+  setInitialCacheManagementConfig: (config: { enabled: boolean; maxDisabledCaches: number }) => void;
 
   // Combined Actions
   updateWorkSettings: (mode: 'internal' | 'external', directory: string) => void;
@@ -91,6 +104,14 @@ const initialState: SettingsState = {
   initialProfileConfig: {
     mode: 'internal',
     directory: '',
+  },
+
+  // Profile-Specific Settings (Cache Management)
+  cacheManagementEnabled: true,
+  maxDisabledCaches: 10,
+  initialCacheManagementConfig: {
+    enabled: true,
+    maxDisabledCaches: 10,
   },
 
   // UI State
@@ -141,7 +162,9 @@ export const useSettingsStore = create<SettingsStore>()(
         // Check if config changed
         const hasChanged =
           mode !== state.initialProfileConfig.mode ||
-          state.workDirectory !== state.initialProfileConfig.directory;
+          state.workDirectory !== state.initialProfileConfig.directory ||
+          state.cacheManagementEnabled !== state.initialCacheManagementConfig.enabled ||
+          state.maxDisabledCaches !== state.initialCacheManagementConfig.maxDisabledCaches;
         state.profileConfigChanged = hasChanged;
       }),
 
@@ -151,7 +174,9 @@ export const useSettingsStore = create<SettingsStore>()(
         // Check if config changed
         const hasChanged =
           state.workMode !== state.initialProfileConfig.mode ||
-          directory !== state.initialProfileConfig.directory;
+          directory !== state.initialProfileConfig.directory ||
+          state.cacheManagementEnabled !== state.initialCacheManagementConfig.enabled ||
+          state.maxDisabledCaches !== state.initialCacheManagementConfig.maxDisabledCaches;
         state.profileConfigChanged = hasChanged;
       }),
 
@@ -174,6 +199,42 @@ export const useSettingsStore = create<SettingsStore>()(
       }),
 
     // ============================================================
+    // Profile Settings Actions (Cache Management)
+    // ============================================================
+
+    setCacheManagementEnabled: (enabled) =>
+      set((state) => {
+        state.cacheManagementEnabled = enabled;
+        // Check if config changed
+        const hasChanged =
+          state.workMode !== state.initialProfileConfig.mode ||
+          state.workDirectory !== state.initialProfileConfig.directory ||
+          enabled !== state.initialCacheManagementConfig.enabled ||
+          state.maxDisabledCaches !== state.initialCacheManagementConfig.maxDisabledCaches;
+        state.profileConfigChanged = hasChanged;
+      }),
+
+    setMaxDisabledCaches: (max) =>
+      set((state) => {
+        state.maxDisabledCaches = max;
+        // Check if config changed
+        const hasChanged =
+          state.workMode !== state.initialProfileConfig.mode ||
+          state.workDirectory !== state.initialProfileConfig.directory ||
+          state.cacheManagementEnabled !== state.initialCacheManagementConfig.enabled ||
+          max !== state.initialCacheManagementConfig.maxDisabledCaches;
+        state.profileConfigChanged = hasChanged;
+      }),
+
+    setInitialCacheManagementConfig: (config) =>
+      set((state) => {
+        state.initialCacheManagementConfig = config;
+        state.cacheManagementEnabled = config.enabled;
+        state.maxDisabledCaches = config.maxDisabledCaches;
+        state.profileConfigChanged = false;
+      }),
+
+    // ============================================================
     // Combined Actions
     // ============================================================
 
@@ -184,7 +245,9 @@ export const useSettingsStore = create<SettingsStore>()(
         // Check if config changed
         const hasChanged =
           mode !== state.initialProfileConfig.mode ||
-          directory !== state.initialProfileConfig.directory;
+          directory !== state.initialProfileConfig.directory ||
+          state.cacheManagementEnabled !== state.initialCacheManagementConfig.enabled ||
+          state.maxDisabledCaches !== state.initialCacheManagementConfig.maxDisabledCaches;
         state.profileConfigChanged = hasChanged;
       }),
 
@@ -192,6 +255,8 @@ export const useSettingsStore = create<SettingsStore>()(
       set((state) => {
         state.workMode = state.initialProfileConfig.mode;
         state.workDirectory = state.initialProfileConfig.directory;
+        state.cacheManagementEnabled = state.initialCacheManagementConfig.enabled;
+        state.maxDisabledCaches = state.initialCacheManagementConfig.maxDisabledCaches;
         state.profileConfigChanged = false;
       }),
 
