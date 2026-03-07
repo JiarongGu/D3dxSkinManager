@@ -126,6 +126,9 @@ public class ModMetadataService : IModMetadataService
         if (success)
         {
             _logger.Info($"Deleted mod: {sha}", "ModMetadataService");
+
+            // Emit DELETED event to notify frontend
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Sha = sha }).ConfigureAwait(false);
         }
 
         return success;

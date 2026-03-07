@@ -19,4 +19,5 @@ public class MigrationAnalysis
     public List<string> Errors { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
     public PythonConfiguration? Configuration { get; set; }
+    public Dictionary<string, PythonConfiguration> EnvironmentConfigurations { get; set; } = new();
 }

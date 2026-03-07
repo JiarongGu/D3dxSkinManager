@@ -12,6 +12,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-03-07 - Multiple Bug Fixes and Improvements ⭐⭐⭐
+**Summary**: Fixed 7 critical issues: Python migration multi-environment support, category order preservation, dropzone overlay recovery, browser drop prevention, unclassified count management, mod deletion events, and removed unnecessary UI prompts.
+
+#### 1. Python Migration - Multiple Environment Support
+**Impact**: ✅ Migration now checks ALL environment folders for configuration, not just the first one
+**Problem**: Only checked configuration for first/active environment folder in `home/`, ignoring other valid environments
+**Root Cause**: `MigrationStep1AnalyzeSource` only called `_configParser.ParseAsync()` once with `analysis.ActiveEnvironment`
+**Solution**: Loop through all environments and parse each configuration
+**Backend Changes**:
+- MigrationAnalysis.cs:22: Added `EnvironmentConfigurations` dictionary to store configs for all environments
+- MigrationStep1AnalyzeSource.cs:222-246: Now loops through all detected environments, parses their configs, stores in dictionary
+- MigrationStep1AnalyzeSource.cs:231-235: Logs which environments have valid configurations for debugging
+
+#### 2. Category Tree Order Preservation on Save
+**Impact**: ✅ Category priority/order no longer resets when saving category name, description, or thumbnail changes
+**Problem**: Category tree order appeared to reset when saving category metadata modifications
+**Root Cause**: Priority field could be lost or reset during update operations
+**Solution**: Added explicit priority preservation with logging during metadata updates
+**Backend Changes**:
+- CategoryService.cs:266-278: Added safeguard to store and restore original priority, added verbose logging
+
+#### 3. Category Creation - No Default Description
+**Impact**: ✅ New categories no longer have auto-generated "Category: {name}" description
+**Problem**: Creating a new category automatically added default description "Category: {name}"
+**Solution**: Removed default description fallback, now uses `null` if not provided
+**Backend Changes**:
+- CategoryService.cs:396: Changed from `description ?? $"Category: {name}"` to `description`
+
+#### 4. Category Thumbnail Confirmation Dialog Removed
+**Impact**: ✅ No confirmation dialog when changing category thumbnails
+**Problem**: Unnecessary confirmation dialog appeared when saving category with changed thumbnail
+**Solution**: Removed modal confirmation logic, use thumbnail directly from form data
+**Frontend Changes**:
+- useCategoryTreeOperations.tsx:137-138: Simplified to use `thumbnailToUse = data.thumbnail` directly, removed confirmation modal
+
+#### 5. Clear Search on Category Selection
+**Impact**: ✅ Mod search query automatically clears when selecting a different category
+**Problem**: Search query persisted when switching categories, showing filtered results from previous category
+**Solution**: Clear search query in category selection handler
+**Frontend Changes**:
+- ModHierarchicalView.tsx:134-135: Added `setSearchQuery('')` in `handleCategorieselect` callback
+
+#### 6. Unclassified Mods Count - Store Management
+**Impact**: ✅ Unclassified count now managed in centralized store with automatic event-based updates
+**Problem**: Unclassified count was local component state with manual loading, not reactive to backend events
+**Solution**: Moved to Zustand store, added event subscriptions, removed manual loading
+**Frontend Changes**:
+- modsStore.ts:36,82,133,264-267: Added `unclassifiedCount` state, setter action, initial value, implementation
+- categoryOperations.ts:167-180: Added `loadUnclassifiedCount()` function that updates store
+- ModProvider.tsx:118,189: Load unclassified count on initialization and category tree updates
+- ModHierarchicalView.tsx:34: Now subscribes to store `unclassifiedCount`, removed local state and manual loading
+- useMods.ts:54-55: Exposed `loadUnclassifiedCount()` operation
+
+#### 7. Mod Deletion Event Emission
+**Impact**: ✅ Frontend now receives DELETED event when mod is deleted from database
+**Problem**: `ModEvents.DELETED` was never emitted, frontend didn't know when mods were deleted
+**Root Cause**: `ModMetadataService.DeleteAsync()` didn't emit event after deletion
+**Solution**: Added event emission in service layer following architecture pattern (services emit events, not facades)
+**Backend Changes**:
+- ModMetadataService.cs:130-131: Added `_eventBus.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Sha = sha })` after successful deletion
+
+#### 8. Dropzone Overlay Focus Recovery
+**Impact**: ✅ Dropzone overlay automatically recovers state when application window regains focus (applies to both main and secondary windows)
+**Problem**: Overlay wouldn't recover after window lost and regained focus, mouse tracking timer could stop
+**Root Cause**: No mechanism to detect form activation and restore overlay state
+**Solution**: Added parent form activation monitoring with timer health checks
+**Backend Changes**:
+- DropZoneOverlay.cs:40,85-91: Added `_parentForm` field and attached to `Form.Activated` event
+- DropZoneOverlay.cs:118-144: Added `OnParentFormActivated()` handler that verifies timer is running, restarts if stopped, forces visibility recalculation
+- DropZoneOverlay.cs:351-356: Proper cleanup detaches form activation handler
+
+#### 9. Browser Drop Behavior Prevention (Selective)
+**Impact**: ✅ External file drops no longer open in browser, React internal drag-and-drop still works (applies to both main and secondary windows)
+**Problem 1**: Files dropped in WebView would open in browser (new tab behavior)
+**Problem 2**: Need to preserve React internal drag-and-drop for UI interactions (e.g., dragging mods between categories)
+**Solution**: Detect external file drops via `dataTransfer.types` and prevent ONLY those, allow React HTML element drags
+**Backend Changes**:
+- WebViewInitializer.cs:157,168-213: Added `PreventDefaultDropBehavior()` that injects JavaScript to check `dataTransfer.types.indexOf('Files')` and only prevent external files
+
+**Architecture**: All dropzone fixes automatically apply to both main window and secondary windows (screen capture, etc.) through shared `WebViewInitializer` and `DropZoneManager` usage
+
 ### Fixed - 2026-03-07 - Mod Preview Panel UI Issues After Extraction ⭐⭐
 Fixed keybinding button visibility, preview panel flash on delete, and unnecessary preview reloads.
 **Impact**: ✅ Keybinding button now appears immediately after mod extraction, no flash when deleting, previews don't reload unnecessarily

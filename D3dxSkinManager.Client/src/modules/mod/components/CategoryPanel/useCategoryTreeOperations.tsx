@@ -134,26 +134,8 @@ export function useCategoryTreeOperations({
             // With stable IDs, we don't need to worry about cascading updates
             // Just check for name uniqueness (handled by backend)
 
-            // Check if thumbnail is being changed
-            let thumbnailToUse = data.thumbnail;
-            if (data.thumbnail !== node.thumbnail) {
-              if (data.thumbnail && node.thumbnail) {
-                // Replacing existing thumbnail
-                await new Promise<void>((resolve, reject) => {
-                  modal.confirm({
-                    title: t('category.edit.replaceThumbnail'),
-                    content: t('category.edit.replaceThumbnailMessage'),
-                    okText: t('common.replace'),
-                    cancelText: t('common.keepExisting'),
-                    onOk: () => resolve(),
-                    onCancel: () => {
-                      thumbnailToUse = node.thumbnail || undefined; // Keep existing thumbnail, convert null to undefined
-                      resolve();
-                    }
-                  });
-                });
-              }
-            }
+            // Use the thumbnail from form data directly (no confirmation needed)
+            const thumbnailToUse = data.thumbnail;
 
             // Check if parent has changed
             const parentChanged = data.parentId !== node.parentId;

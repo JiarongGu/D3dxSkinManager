@@ -70,7 +70,7 @@ async function _refreshMods(profileId: string): Promise<void> {
  * Refresh mods from backend (debounced 10ms to prevent mass IPC hits)
  * Only refreshes the currently selected category view, not all mods
  */
-export const refreshMods = debounce(_refreshMods, 10);
+export const refreshMods = debounce(_refreshMods, 20);
 
 /**
  * Update mod metadata

@@ -153,6 +153,9 @@ public class WebViewInitializer
         // Set default background color to prevent white flash
         _webView.DefaultBackgroundColor = Color.FromArgb(26, 26, 26); // #1a1a1a
 
+        // Prevent default browser drop behavior (opening files in new tab)
+        PreventDefaultDropBehavior();
+
         // Block browser keyboard shortcuts in production
         if (!isDevelopment)
         {
@@ -160,6 +163,53 @@ public class WebViewInitializer
         }
 
         Console.WriteLine($"[WebView2] Settings configured (Mode: {(isDevelopment ? "Development" : "Production")})");
+    }
+
+    /// <summary>
+    /// Prevent default browser drop behavior (opening files in new tab) for EXTERNAL FILES ONLY
+    /// Allows React internal drag-and-drop to work normally
+    /// External file drops are handled by DropZoneOverlay at Form level
+    /// </summary>
+    private void PreventDefaultDropBehavior()
+    {
+        var preventDropScript = @"
+(function() {
+    // Prevent default browser behavior ONLY for external file drops
+    // Allow React internal drag-and-drop (HTML elements) to work normally
+
+    document.addEventListener('dragover', function(e) {
+        // Check if this is an external file drag (not internal HTML element drag)
+        var types = e.dataTransfer.types;
+        var isFileDrag = types && types.indexOf('Files') !== -1;
+
+        if (isFileDrag) {
+            // External file: allow drag over but prevent default browser behavior
+            e.preventDefault();
+        }
+        // For internal HTML drags: do nothing, let React handle it
+    }, true);
+
+    document.addEventListener('drop', function(e) {
+        // Check if this is an external file drop
+        var types = e.dataTransfer.types;
+        var isFileDrop = types && types.indexOf('Files') !== -1;
+
+        if (isFileDrop) {
+            // External file drop: prevent browser from opening the file
+            e.preventDefault();
+            console.log('[DropZone] Browser file drop prevented - handled by WinForms overlay');
+        }
+        // For internal HTML drops: do nothing, let React handle it
+    }, true);
+
+    console.log('[DropZone] Default browser file drop behavior disabled (React drag-and-drop still works)');
+})();
+";
+
+        // Add script to execute on every page navigation
+        _webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(preventDropScript);
+
+        Console.WriteLine("[WebView2] Default file drop prevention enabled - React drag-and-drop preserved (JavaScript injection)");
     }
 
     /// <summary>

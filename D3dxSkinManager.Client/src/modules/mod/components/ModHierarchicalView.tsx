@@ -31,6 +31,7 @@ export const ModHierarchicalView: React.FC = () => {
   const mods = useModsStore(s => s.mods);
   const selectedCategory = useModsStore(s => s.selectedCategory);
   const importWorkflowScreenVisible = useModsStore(s => s.importWorkflowScreenVisible);
+  const unclassifiedCount = useModsStore(s => s.unclassifiedCount);
 
   // Operations for coordination
   const {
@@ -41,13 +42,13 @@ export const ModHierarchicalView: React.FC = () => {
     clearCategoryFilter,
     setAvailableTags,
     closeImportWorkflowScreen,
+    setSearchQuery,
   } = useMods();
 
   // Resizable panels
   const { sizes, isResizing, startResize, containerRef } = useResizablePanels();
 
   // Local state (not in global store)
-  const [unclassifiedCount, setUnclassifiedCount] = useState<number>(0);
   const { state: profileState } = useProfile();
 
   // Mod Imports Slide-in Screen
@@ -69,21 +70,6 @@ export const ModHierarchicalView: React.FC = () => {
     return () => document.body.classList.remove('resizing');
   }, [isResizing]);
 
-  // Load unclassified count
-  useEffect(() => {
-    const load = async () => {
-      if (!profileState.selectedProfile?.id) return;
-      try {
-        const { modService } = await import("../../../shared/services/ipc");
-        const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
-        setUnclassifiedCount(count);
-      } catch (error: unknown) {
-        // Silently fail - not critical
-      }
-    };
-    load();
-  }, [mods?.length, profileState.selectedProfile?.id]);
-
   // Load available tags into store
   useEffect(() => {
     const load = async () => {
@@ -104,16 +90,7 @@ export const ModHierarchicalView: React.FC = () => {
     const p = refreshMods();
     if (p) await p;
 
-    // Reload unclassified count
-    if (profileState.selectedProfile?.id) {
-      try {
-        const { modService } = await import("../../../shared/services/ipc");
-        const count = await modService.getUnclassifiedCount(profileState.selectedProfile.id);
-        setUnclassifiedCount(count);
-      } catch (error: unknown) {
-        // Silently fail - not critical
-      }
-    }
+    // Note: Unclassified count is now managed by ModProvider via event subscriptions
 
     // Reload Category filtered mods if needed
     if (selectedCategory?.id && selectedCategory.id !== CATEGORY_IDS.UNCLASSIFIED) {
@@ -130,6 +107,9 @@ export const ModHierarchicalView: React.FC = () => {
     (node: CategoryInfo | undefined) => {
       setSelectedCategory(node);
 
+      // Clear search when category changes
+      setSearchQuery('');
+
       if (node) {
         if (node.id === CATEGORY_IDS.UNCLASSIFIED) {
           void loadUnclassifiedMods();
@@ -140,7 +120,7 @@ export const ModHierarchicalView: React.FC = () => {
         clearCategoryFilter();
       }
     },
-    [setSelectedCategory, loadUnclassifiedMods, loadModsByCategory, clearCategoryFilter],
+    [setSelectedCategory, setSearchQuery, loadUnclassifiedMods, loadModsByCategory, clearCategoryFilter],
   );
 
   const handleUnclassifiedClick = useCallback(() => {

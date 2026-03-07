@@ -263,9 +263,17 @@ public class CategoryService : ICategoryService
                 // A separate cleanup tool can be used to remove orphaned thumbnails later
             }
 
-            // Update fields - ID remains stable
+            // Update fields - ID and Priority remain stable
+            // Store the original priority to ensure it's not accidentally modified
+            var originalPriority = category.Priority;
+
             category.Name = name;
             category.Description = description;
+
+            // Safeguard: Ensure Priority is preserved (should already be correct, but defensive programming)
+            category.Priority = originalPriority;
+
+            _logger.Verbose($"Updating category '{categoryId}': Name='{name}', Priority={category.Priority} (preserved)", "CategoryService");
 
             var updated = await _repository.UpdateAsync(category).ConfigureAwait(false);
             if (updated)
@@ -385,7 +393,7 @@ public class CategoryService : ICategoryService
                 ParentId = parentId,
                 Thumbnail = relativeThumbnailPath,
                 Priority = priority,
-                Description = description ?? $"Category: {name}",
+                Description = description, // No default description - null if not provided
                 Children = new List<CategoryInfo>()
             };
 

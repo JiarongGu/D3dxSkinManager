@@ -105,7 +105,7 @@ async function _refreshCategoryTree(profileId: string): Promise<void> {
 /**
  * Refresh Category tree (debounced 10ms to prevent mass IPC hits)
  */
-export const refreshCategoryTree = debounce(_refreshCategoryTree, 10);
+export const refreshCategoryTree = debounce(_refreshCategoryTree, 20);
 
 /**
  * Internal implementation for loading mods by category
@@ -134,7 +134,7 @@ async function _loadModsByCategory(
  * Load mods filtered by Category node (debounced 10ms to prevent mass IPC hits)
  * Uses delayed loading (100ms) to avoid flicker for fast queries
  */
-export const loadModsByCategory = debounce(_loadModsByCategory, 10);
+export const loadModsByCategory = debounce(_loadModsByCategory, 20);
 
 /**
  * Load uncategorized mods (no category assigned)
@@ -162,6 +162,21 @@ export async function loadUncategorizedMods(profileId: string): Promise<void> {
  */
 export function clearCategoryFilter(): void {
   useModsStore.getState().clearCategoryFilter();
+}
+
+/**
+ * Load unclassified mod count
+ * Updates store state with count of mods without category assignment
+ */
+export async function loadUnclassifiedCount(profileId: string): Promise<void> {
+  const { setUnclassifiedCount } = useModsStore.getState();
+
+  try {
+    const count = await modService.getUnclassifiedCount(profileId);
+    setUnclassifiedCount(count);
+  } catch (error: unknown) {
+    handleError(error);
+  }
 }
 
 /**

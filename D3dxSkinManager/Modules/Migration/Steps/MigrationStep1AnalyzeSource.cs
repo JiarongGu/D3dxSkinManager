@@ -74,6 +74,16 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
         await LogAsync(context.LogPath, $"Environment: {envName}").ConfigureAwait(false);
         await LogAsync(context.LogPath, $"Found {analysis.TotalMods} mods, {analysis.Environments.Count} environments").ConfigureAwait(false);
 
+        // Log which environments have configurations
+        if (analysis.EnvironmentConfigurations.Count > 0)
+        {
+            await LogAsync(context.LogPath, $"Environments with configurations: {string.Join(", ", analysis.EnvironmentConfigurations.Keys)}").ConfigureAwait(false);
+        }
+        else
+        {
+            await LogAsync(context.LogPath, "No environment configurations found").ConfigureAwait(false);
+        }
+
         _logger.Info($"Analysis complete: {analysis.TotalMods} mods", "Migration");
     }
 
@@ -219,8 +229,31 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
                 }
             }
 
-            // Parse configuration if available
-            analysis.Configuration = await _configParser.ParseAsync(pythonPath, analysis.ActiveEnvironment).ConfigureAwait(false);
+            // Parse configuration for all environments
+            foreach (var envName in analysis.Environments)
+            {
+                var envConfig = await _configParser.ParseAsync(pythonPath, envName).ConfigureAwait(false);
+                if (envConfig != null)
+                {
+                    analysis.EnvironmentConfigurations[envName] = envConfig;
+                }
+            }
+
+            // Set the primary configuration to the active environment's config (for backward compatibility)
+            if (analysis.EnvironmentConfigurations.TryGetValue(analysis.ActiveEnvironment, out var activeConfig))
+            {
+                analysis.Configuration = activeConfig;
+            }
+            else if (analysis.EnvironmentConfigurations.Count > 0)
+            {
+                // Fallback: use the first available configuration
+                analysis.Configuration = analysis.EnvironmentConfigurations.Values.First();
+            }
+            else
+            {
+                // No environment configs found, try parsing from root
+                analysis.Configuration = await _configParser.ParseAsync(pythonPath, analysis.ActiveEnvironment).ConfigureAwait(false);
+            }
 
             // Format sizes for display
             analysis.TotalArchiveSizeFormatted = FileUtilities.FormatBytes(analysis.TotalArchiveSize);

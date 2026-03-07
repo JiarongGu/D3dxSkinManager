@@ -37,6 +37,7 @@ public class DropZoneOverlay : Panel
     private readonly WinFormsDebounce _visibilityDebounce;
     private global::System.Windows.Forms.Timer? _mouseTrackTimer;
     private bool _isDisposed = false;
+    private Form? _parentForm = null;
 
     public DropZoneOverlay(
         string zoneId,
@@ -81,6 +82,14 @@ public class DropZoneOverlay : Panel
         _mouseTrackTimer.Tick += CheckMousePosition;
         _mouseTrackTimer.Start();
 
+        // Monitor parent form activation to restore state on focus recovery
+        _parentForm = FindForm();
+        if (_parentForm != null)
+        {
+            _parentForm.Activated += OnParentFormActivated;
+            _logger.Debug($"Attached to parent form activation events: {zoneId}", "DropZone");
+        }
+
         // Initialize visibility state immediately
         // Without this, the zone won't be active until the first mouse/occlusion event
         UpdateVisibility();
@@ -104,6 +113,34 @@ public class DropZoneOverlay : Panel
     protected override void OnPaintBackground(PaintEventArgs e)
     {
         // Don't paint - overlay is invisible
+    }
+
+    /// <summary>
+    /// Called when parent form is activated/focused
+    /// Ensures overlay state recovers correctly after focus loss
+    /// </summary>
+    private void OnParentFormActivated(object? sender, EventArgs e)
+    {
+        if (_isDisposed || IsDisposed) return;
+
+        try
+        {
+            // Verify timer is still running, restart if needed
+            if (_mouseTrackTimer != null && !_mouseTrackTimer.Enabled)
+            {
+                _logger.Warn($"Mouse tracking timer was stopped, restarting for zone: {ZoneId}", "DropZone");
+                _mouseTrackTimer.Start();
+            }
+
+            // Force visibility recalculation to recover overlay state
+            UpdateVisibility();
+
+            _logger.Debug($"Parent form activated, overlay state recovered: {ZoneId}", "DropZone");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error recovering overlay state on form activation: {ex.Message}", "DropZone");
+        }
     }
 
     /// <summary>
@@ -310,6 +347,13 @@ public class DropZoneOverlay : Panel
         if (disposing && !_isDisposed)
         {
             _isDisposed = true;
+
+            // Detach parent form activation handler
+            if (_parentForm != null)
+            {
+                _parentForm.Activated -= OnParentFormActivated;
+                _parentForm = null;
+            }
 
             // Stop and dispose debounce and timers
             _visibilityDebounce?.Dispose();

@@ -33,6 +33,7 @@ export interface ModsState {
   categoryLoading: boolean; // Loading state for Category tree panel
   selectedCategory: CategoryInfo | undefined;
   categorySearch: string;
+  unclassifiedCount: number; // Count of mods without category assignment
 
   // Preview Panel
   previewLoading: boolean; // Loading state for preview panel (images, metadata, etc.)
@@ -78,6 +79,7 @@ export interface ModsActions {
   setCategoryTree: (tree: CategoryInfo[]) => void;
   setCategoryLoading: (loading: boolean) => void;
   setSelectedCategory: (node: CategoryInfo | undefined) => void;
+  setUnclassifiedCount: (count: number) => void;
 
   // Preview Panel Actions
   setPreviewLoading: (loading: boolean) => void;
@@ -128,6 +130,7 @@ const initialState: ModsState = {
   categoryLoading: false,
   selectedCategory: undefined,
   categorySearch: '',
+  unclassifiedCount: 0,
 
   // Preview Panel
   previewLoading: false,
@@ -256,6 +259,11 @@ export const useModsStore = create<ModsStore>()(
       setSelectedCategory: (node) =>
         set((state) => {
           state.selectedCategory = node;
+        }),
+
+      setUnclassifiedCount: (count) =>
+        set((state) => {
+          state.unclassifiedCount = count;
         }),
 
       setcategorySearch: (search) =>

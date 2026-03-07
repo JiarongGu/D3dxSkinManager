@@ -110,10 +110,12 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   );
 
   // Debounced handler for category tree updates (20ms prevents bulk operation spam)
+  // Also refreshes unclassified count since it depends on category assignments
   const handleCategoryTreeUpdate = useCallback(
     debounce(() => {
       if (!selectedProfileId) return;
-      categoryOps.refreshCategoryTree(selectedProfileId);
+      void categoryOps.refreshCategoryTree(selectedProfileId);
+      void categoryOps.loadUnclassifiedCount(selectedProfileId);
     }, 20),
     [selectedProfileId]
   );
@@ -184,6 +186,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
     if (selectedProfileId) {
       reset();
       void categoryOps.loadCategoryTree(selectedProfileId);
+      void categoryOps.loadUnclassifiedCount(selectedProfileId);
       void modOps.loadStatistics(selectedProfileId);
       // Explicitly refresh mods to reload selected category (e.g., UNCLASSIFIED)
       // This ensures that if a category was selected before reset, its mods are refreshed
