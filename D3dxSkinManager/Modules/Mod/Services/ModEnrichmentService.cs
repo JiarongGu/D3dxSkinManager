@@ -105,6 +105,9 @@ public class ModEnrichmentService : IModEnrichmentService
             {
                 mod.PreviewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.SHA);
             }
+
+            // Always populate ArchiveFolderPath - this is where mod archives are stored
+            mod.ArchiveFolderPath = _profilePaths.ModsDirectory;
         }
     }
 

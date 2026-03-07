@@ -43,7 +43,7 @@ public interface IArchiveHelper
     Task<string?> DetectArchiveTypeAsync(string archivePath);
     Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory);
     ExtractionResult ExtractArchive(string archivePath, string targetDirectory);
-    Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.Zip, Action<int>? progressCallback = null, CancellationToken cancellationToken = default);
+    Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.SevenZip, Action<int>? progressCallback = null, CancellationToken cancellationToken = default);
     Task<ArchiveValidationResult> ValidateArchiveAsync(string archivePath);
 }
 
@@ -350,11 +350,12 @@ public class ArchiveHelper : IArchiveHelper
     /// <summary>
     /// Compress a folder into an archive file using SharpSevenZip
     /// Supports: ZIP, 7Z, TAR formats
+    /// Default: 7Z format for best compression ratio
     /// </summary>
     public async Task<string> CompressFolderAsync(
         string folderPath,
         string outputPath,
-        ArchiveFormat format = ArchiveFormat.Zip,
+        ArchiveFormat format = ArchiveFormat.SevenZip,
         Action<int>? progressCallback = null,
         CancellationToken cancellationToken = default)
     {
@@ -383,10 +384,11 @@ public class ArchiveHelper : IArchiveHelper
                     ArchiveFormat.SevenZip => OutArchiveFormat.SevenZip,
                     ArchiveFormat.Tar => OutArchiveFormat.Tar,
                     ArchiveFormat.Zip => OutArchiveFormat.Zip,
-                    _ => OutArchiveFormat.Zip
+                    _ => OutArchiveFormat.SevenZip  // Default to 7Z for best compression
                 },
-                // Use Fast compression to reduce CPU usage and improve responsiveness
-                CompressionLevel = CompressionLevel.Fast,
+                // Use High compression for smaller file sizes (better for storage)
+                // Trade-off: Slower compression but significantly smaller archives
+                CompressionLevel = CompressionLevel.High,
                 PreserveDirectoryRoot = false  // Don't include root folder name in archive
             };
 

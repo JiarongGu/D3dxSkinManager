@@ -29,6 +29,7 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<IModCacheService, ModCacheService>(); // Cache management (enable, disable, scan, clean)
         services.TryAddSingleton<IModLifecycleService, ModLifecycleService>(); // Load/unload business logic
         services.TryAddSingleton<IModEnrichmentService, ModEnrichmentService>(); // Enrichment of mod data with transient fields
+        services.TryAddSingleton<IModDeletionService, ModDeletionService>(); // Deletion orchestration (cache, preview, archive, database)
 
         // Other mod services
         services.TryAddSingleton<IModImportService, ModImportService>();

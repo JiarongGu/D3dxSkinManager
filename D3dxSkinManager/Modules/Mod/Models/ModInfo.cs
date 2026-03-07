@@ -28,6 +28,7 @@ public class ModInfo
     // File paths (populated on-demand from file system, not stored in DB)
     public string? CachePath { get; set; }  // Absolute path to cache directory (if exists)
     public string? PreviewFolderPath { get; set; }  // Absolute path to preview directory (if exists)
+    public string? ArchiveFolderPath { get; set; }  // Absolute path to mods directory containing the archive file
 
     // Timestamps
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -262,6 +262,24 @@ export const ModList: React.FC<ModListProps> = ({
 
     // Group 4: File Operations
     {
+      key: "view-archive",
+      label: t("contextMenu.openModFolder"),
+      icon: <FolderOpenOutlined />,
+      disabled: !mod?.archiveFolderPath || !mod?.isAvailable,
+      onClick: async () => {
+        if (mod?.archiveFolderPath && mod?.sha) {
+          try {
+            // Construct the archive file path (archives are stored without extension)
+            const archiveFilePath = `${mod.archiveFolderPath}\\${mod.sha}`;
+            await systemService.openFileInExplorer(archiveFilePath);
+            notification.success(t("mods.notifications.openedModFolder"));
+          } catch (error: unknown) {
+            notification.error(t("mods.notifications.openModFolderFailed"));
+          }
+        }
+      },
+    },
+    {
       key: "view-cache",
       label: t("contextMenu.openCacheFolder"),
       icon: <FolderOpenOutlined />,

@@ -22,6 +22,7 @@ export interface ModInfo {
   originalPath?: string;  // Path to original archive file
   cachePath?: string;     // Absolute path to cache directory (if exists)
   previewFolderPath?: string;  // Absolute path to preview directory (if exists)
+  archiveFolderPath?: string;  // Absolute path to mods directory containing the archive file
   // Note: workPath is deprecated - use cachePath instead. Cache folder can be in loaded or unloaded/disabled mode
   metadata?: string;  // Extension field for future use - can store JSON data without database migration
 }

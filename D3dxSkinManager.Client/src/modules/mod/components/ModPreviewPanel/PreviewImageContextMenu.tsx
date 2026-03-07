@@ -269,6 +269,27 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
         },
         // Group 2: File/Folder Navigation
         {
+          key: "open-mod-folder",
+          label: t("mods.preview.openModFolder"),
+          icon: <FolderOpenOutlined />,
+          onClick: async () => {
+            if (!mod || !profileId) return;
+            try {
+              if (mod.archiveFolderPath && mod.sha && mod.isAvailable) {
+                // Construct the archive file path (archives are stored without extension)
+                const archiveFilePath = `${mod.archiveFolderPath}\\${mod.sha}`;
+                await systemService.openFileInExplorer(archiveFilePath);
+              } else {
+                notification.warning(t("mods.preview.modFolderNotFound"));
+              }
+            } catch (error: unknown) {
+              notification.error(t("mods.preview.openExplorerFailed"));
+            }
+            onClose();
+          },
+          disabled: !mod?.archiveFolderPath || !mod?.isAvailable,
+        },
+        {
           key: "open-cache-folder",
           label: t("mods.preview.openCacheFolder"),
           icon: <FolderOpenOutlined />,
@@ -283,12 +304,6 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
           disabled: !mod?.hasPreviewFolder,
         },
         {
-          key: "copy-path",
-          label: t("mods.preview.copyImagePath"),
-          icon: <CopyOutlined />,
-          onClick: handleCopyImagePath,
-        },
-        {
           type: "divider",
         },
         // Group 3: Less Common / Destructive Actions
@@ -297,6 +312,12 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
           label: t("mods.preview.addFromFile"),
           icon: <PlusOutlined />,
           onClick: handleAddFromFile,
+        },
+        {
+          key: "copy-path",
+          label: t("mods.preview.copyImagePath"),
+          icon: <CopyOutlined />,
+          onClick: handleCopyImagePath,
         },
         {
           key: "toggle-preview",
@@ -330,6 +351,27 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
         },
         {
           type: "divider",
+        },
+        {
+          key: "open-mod-folder",
+          label: t("mods.preview.openModFolder"),
+          icon: <FolderOpenOutlined />,
+          onClick: async () => {
+            if (!mod || !profileId) return;
+            try {
+              if (mod.archiveFolderPath && mod.sha && mod.isAvailable) {
+                // Construct the archive file path (archives are stored without extension)
+                const archiveFilePath = `${mod.archiveFolderPath}\\${mod.sha}`;
+                await systemService.openFileInExplorer(archiveFilePath);
+              } else {
+                notification.warning(t("mods.preview.modFolderNotFound"));
+              }
+            } catch (error: unknown) {
+              notification.error(t("mods.preview.openExplorerFailed"));
+            }
+            onClose();
+          },
+          disabled: !mod?.archiveFolderPath || !mod?.isAvailable,
         },
         {
           key: "open-cache-folder",

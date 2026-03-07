@@ -13,6 +13,7 @@ public interface IWorkflowRepository
     Task<List<WorkflowInfo>> GetByTypeAsync(string type);
     Task<List<WorkflowInfo>> GetActiveByTypeAsync(string type);
     Task UpdateAsync(WorkflowInfo workflow);
+    Task UpdateContextAsync(string workflowId, string context);
     Task DeleteAsync(string id);
     Task<int> DeleteBatchAsync(IEnumerable<string> ids);
     Task<List<WorkflowInfo>> GetByIdsAsync(IEnumerable<string> ids);

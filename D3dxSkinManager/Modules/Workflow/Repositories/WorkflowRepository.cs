@@ -177,6 +177,28 @@ public class WorkflowRepository : IWorkflowRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// Update only the Context field of a workflow
+    /// This is much more efficient than UpdateAsync for progress updates
+    /// </summary>
+    public async Task UpdateContextAsync(string workflowId, string context)
+    {
+        await EnsureInitializedAsync();
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var cmd = connection.CreateCommand();
+        cmd.CommandText = @"
+            UPDATE Workflows
+            SET Context = @Context
+            WHERE Id = @Id
+        ";
+        cmd.Parameters.AddWithValue("@Id", workflowId);
+        cmd.Parameters.AddWithValue("@Context", context);
+
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     public async Task DeleteAsync(string id)
     {
         await EnsureInitializedAsync();

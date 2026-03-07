@@ -797,8 +797,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             await _archiveHelper.CompressFolderAsync(
                 context.FolderPath,
                 tempPath,
-                ArchiveFormat.Zip,
-                progressPercent =>
+                progressCallback: progressPercent =>
                 {
                     // Scale compression progress to 0-90% range
                     var scaledProgress = (int)(progressPercent * 0.9);
@@ -818,6 +817,22 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                         // Update context in memory
                         context.Progress = scaledProgress;
 
+                        // Persist progress to database so users can see it when reopening the screen
+                        // Use UpdateContextAsync for better performance (only updates Context field, not entire workflow)
+                        // Fire and forget - don't block compression callback
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                var serializedContext = JsonHelper.Serialize(context);
+                                await _workflowRepository.UpdateContextAsync(workflow.Id, serializedContext);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Warn($"Failed to persist compression progress to database: {ex.Message}");
+                            }
+                        });
+
                         // Emit progress event - fire and forget (don't await)
                         // Reduced frequency (2/sec instead of 10/sec) minimizes thread pool pressure
                         _ = _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.PROGRESS, new
@@ -830,7 +845,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                         _logger.Verbose($"Compression progress: {scaledProgress}% (raw: {progressPercent}%)");
                     }
                 },
-                cancellationToken
+                cancellationToken: cancellationToken
             );
 
             _logger.Info($"Created temp archive: {tempPath}");

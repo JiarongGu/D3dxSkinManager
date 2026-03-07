@@ -1,7 +1,9 @@
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Constants;
+using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -51,6 +53,7 @@ public class ModMetadataService : IModMetadataService
 {
     private readonly IModRepository _repository;
     private readonly IModLifecycleService _lifecycleService;
+    private readonly IModDeletionService _deletionService;
     private readonly IModQueryService _queryService;
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
@@ -58,12 +61,14 @@ public class ModMetadataService : IModMetadataService
     public ModMetadataService(
         IModRepository repository,
         IModLifecycleService lifecycleService,
+        IModDeletionService deletionService,
         IModQueryService queryService,
         ILogHelper logger,
         IProfileEventBus eventBus)
     {
         _repository = repository;
         _lifecycleService = lifecycleService;
+        _deletionService = deletionService;
         _queryService = queryService;
         _logger = logger;
         _eventBus = eventBus;
@@ -109,29 +114,11 @@ public class ModMetadataService : IModMetadataService
 
     /// <summary>
     /// Delete a mod by SHA
+    /// Delegates to ModDeletionService which orchestrates the complete deletion workflow
     /// </summary>
     public async Task<bool> DeleteAsync(string sha)
     {
-        if (string.IsNullOrWhiteSpace(sha))
-            throw new ArgumentException("SHA is required", nameof(sha));
-
-        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
-        if (!exists)
-        {
-            _logger.Warn($"Mod not found for deletion: {sha}", "ModMetadataService");
-            return false;
-        }
-
-        var success = await _repository.DeleteAsync(sha).ConfigureAwait(false);
-        if (success)
-        {
-            _logger.Info($"Deleted mod: {sha}", "ModMetadataService");
-
-            // Emit DELETED event to notify frontend
-            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Sha = sha }).ConfigureAwait(false);
-        }
-
-        return success;
+        return await _deletionService.DeleteAsync(sha).ConfigureAwait(false);
     }
 
     /// <summary>
