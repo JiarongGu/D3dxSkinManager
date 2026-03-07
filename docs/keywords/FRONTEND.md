@@ -775,6 +775,13 @@ Selector files removed - use store hooks directly:
   - Returns: isDelayedLoading boolean
   - Created: 2026-02-20
 
+- **useScrollPosition** → `src/shared/hooks/useScrollPosition.ts`
+  - Persists and restores scroll position during content reloads
+  - Prevents loss of scroll position when using overlay spinners
+  - Returns: { scrollRef, saveScrollPosition, restoreScrollPosition, resetScrollPosition }
+  - Usage: ModListPanel, CategoryTree
+  - Created: 2026-03-07
+
 - **useOptimisticUpdate** → `src/shared/hooks/useOptimisticUpdate.ts`
   - Optimistic UI updates with automatic verification
   - Handles update → verify → rollback on mismatch workflow

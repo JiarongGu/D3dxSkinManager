@@ -1,3 +1,33 @@
+/* Overlay spinner for non-intrusive loading */
+.mod-list-container {
+  position: relative;
+}
+
+.mod-list-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(1px);
+  z-index: 10;
+  pointer-events: all;
+  cursor: auto;
+}
+
+.mod-list-content {
+  transition: opacity 0.2s;
+}
+
+.mod-list-content-loading {
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* Legacy loading container - kept for backwards compatibility */
 .mod-list-loading-container {
   display: flex;
   align-items: center;

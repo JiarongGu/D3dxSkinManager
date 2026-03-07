@@ -39,6 +39,8 @@ interface ModListProps {
   onRowClick?: (mod: ModInfo, event?: React.MouseEvent) => void;
   selectedMod?: ModInfo;
   selectedModShas?: string[];
+  onBeforeReload?: () => void;
+  onAfterReload?: () => void;
 }
 
 export const ModList: React.FC<ModListProps> = ({
@@ -51,6 +53,8 @@ export const ModList: React.FC<ModListProps> = ({
   onRowClick,
   selectedMod,
   selectedModShas = [],
+  onBeforeReload,
+  onAfterReload,
 }) => {
   const { t } = useTranslation();
   const [displayCount, setDisplayCount] = useState(50);
@@ -102,6 +106,15 @@ export const ModList: React.FC<ModListProps> = ({
   React.useEffect(() => {
     setDisplayCount(50);
   }, [mods]);
+
+  // Save scroll position before reload and restore after
+  React.useEffect(() => {
+    if (loading) {
+      onBeforeReload?.();
+    } else {
+      onAfterReload?.();
+    }
+  }, [loading, onBeforeReload, onAfterReload]);
 
   const displayedMods = mods.slice(0, displayCount);
 
@@ -329,12 +342,19 @@ export const ModList: React.FC<ModListProps> = ({
 
   return (
     <>
-      {loading ? (
-        <div className="mod-list-loading-container">
+      {/* Overlay spinner that doesn't replace content */}
+      {loading && (
+        <div className="mod-list-loading-overlay">
           <Spin size="large" />
         </div>
-      ) : (
-        <>
+      )}
+      <div className="mod-list-container">
+        {/* Mod list content */}
+        <div
+          className={classNames("mod-list-content", {
+            "mod-list-content-loading": loading,
+          })}
+        >
           {displayedMods.map((mod) => {
             const isPrimarySelection = selectedMod?.sha === mod.sha;
             const isInMultiSelection = selectedModShas.includes(mod.sha);
@@ -483,23 +503,20 @@ export const ModList: React.FC<ModListProps> = ({
               </div>
             );
           })}
-        </>
-      )}
-
+        </div>
+      </div>
       {/* Infinite scroll trigger */}
       {displayCount < mods.length && (
         <div ref={observerTarget} className="mod-list-scroll-trigger">
           {t("mods.list.loadingMore")}
         </div>
       )}
-
       {/* Show total count */}
       {displayCount >= mods.length && mods.length > 50 && (
         <div className="mod-list-total-count">
           {t("mods.list.showingAll", { count: mods.length })}
         </div>
       )}
-
       {/* Context menu */}
       {contextMenuMod && (
         <ContextMenu
@@ -512,7 +529,6 @@ export const ModList: React.FC<ModListProps> = ({
           }}
         />
       )}
-
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         visible={deleteConfirm.visible}

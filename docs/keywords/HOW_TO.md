@@ -327,6 +327,108 @@ case "SET_DATA":
 - ✅ Data fetching (mods, classifications, profiles)
 - ✅ UI interactions (dialogs, confirmations)
 - ✅ Tree operations (drag-drop, reordering)
+
+---
+
+### Scroll Position Preservation
+
+**"How do I preserve scroll position during reloads?"** ⭐ **NEW PATTERN (2026-03-07)**
+- **Hook:** `src/shared/hooks/useScrollPosition.ts`
+- **Use Case:** Prevent scroll position loss when content reloads
+- **Examples:** ModListPanel, CategoryTree
+
+**The Problem:**
+When using a full-screen loader that replaces content, scroll position is lost after reload completes. This creates a poor UX where users lose their place in long lists.
+
+**The Solution: Overlay Spinner + Scroll Position Persistence**
+
+**Pattern:**
+```typescript
+import { useScrollPosition } from '@/shared/hooks/useScrollPosition';
+
+export const MyPanel: React.FC = () => {
+  // 1. Initialize scroll position hook with unique key
+  const { scrollRef, saveScrollPosition, restoreScrollPosition, resetScrollPosition } =
+    useScrollPosition('my-panel-scroll');
+
+  // 2. Attach ref to scrollable container
+  return (
+    <div ref={scrollRef} className="scrollable-content">
+      <MyList
+        onBeforeReload={saveScrollPosition}
+        onAfterReload={restoreScrollPosition}
+      />
+    </div>
+  );
+};
+
+// In child component (MyList):
+export const MyList: React.FC<Props> = ({ loading, onBeforeReload, onAfterReload }) => {
+  // 3. Save/restore on loading state changes
+  React.useEffect(() => {
+    if (loading) {
+      onBeforeReload?.();
+    } else {
+      onAfterReload?.();
+    }
+  }, [loading, onBeforeReload, onAfterReload]);
+
+  // 4. Use overlay spinner instead of content replacement
+  return (
+    <div className="list-container">
+      {loading && (
+        <div className="loading-overlay">
+          <Spin size="large" />
+        </div>
+      )}
+      <div className={classNames('list-content', { 'loading': loading })}>
+        {items.map(item => <Item key={item.id} {...item} />)}
+      </div>
+    </div>
+  );
+};
+```
+
+**CSS for Overlay Spinner:**
+```css
+.list-container {
+  position: relative;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(1px);
+  z-index: 10;
+  pointer-events: all;
+  cursor: auto;
+}
+
+.list-content {
+  transition: opacity 0.2s;
+}
+
+.list-content.loading {
+  opacity: 0.9;
+  pointer-events: none;
+}
+```
+
+**When to use:**
+- ✅ Long scrollable lists (mod list, category tree)
+- ✅ When reloading after operations (update, delete, refresh)
+- ✅ When you want to maintain user's context
+
+**When NOT to use:**
+- ❌ Initial load (no scroll position to preserve)
+- ❌ When changing filters/categories (use resetScrollPosition instead)
+- ❌ Short lists where scroll position doesn't matter
 - ❌ File uploads/downloads (always slow, use progress bar)
 - ❌ Complex verification needed (use `useOptimisticUpdate` instead)
 

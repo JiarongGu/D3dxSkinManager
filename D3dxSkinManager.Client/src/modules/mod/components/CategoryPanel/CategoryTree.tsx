@@ -12,8 +12,10 @@ import {
 } from "../../../../shared/components/menu/ContextMenu";
 import { useDragDrop } from "../../../../shared/hooks/useDragDrop";
 import { logger } from "../../../../shared/utils/logger";
+import { useScrollPosition } from "../../../../shared/hooks/useScrollPosition";
 import { useTranslation } from "react-i18next";
 import type { MenuProps } from "antd";
+import classNames from "classnames";
 import "./CategoryTree.css";
 
 const { Search } = Input;
@@ -195,6 +197,18 @@ const CategoryTreeInner: React.FC = () => {
   // Track which node is being dragged
   const draggedNodeKeyRef = React.useRef<string>(undefined);
 
+  // Scroll position persistence for category tree
+  const { scrollRef, saveScrollPosition, restoreScrollPosition } = useScrollPosition('category-tree');
+
+  // Save scroll position before reload and restore after
+  React.useEffect(() => {
+    if (loading) {
+      saveScrollPosition();
+    } else {
+      restoreScrollPosition();
+    }
+  }, [loading, saveScrollPosition, restoreScrollPosition]);
+
   // Shared context menu handler
   const handleContextMenu = React.useCallback(
     (e: React.MouseEvent, nodeId: string | undefined) => {
@@ -317,19 +331,7 @@ const CategoryTreeInner: React.FC = () => {
     },
   );
 
-  if (loading) {
-    return (
-      <div className="category-tree-loading-container">
-        <Spin>
-          <div className="category-tree-loading-text">
-            {t("category.tree.loading")}
-          </div>
-        </Spin>
-      </div>
-    );
-  }
-
-  if (tree.length === 0) {
+  if (tree.length === 0 && !loading) {
     return (
       <>
         <div
@@ -368,21 +370,37 @@ const CategoryTreeInner: React.FC = () => {
         />
       </div>
 
-      <div
-        ref={(el) => treeContainerRef(el || undefined)}
-        className="category-tree-scroll-container"
-        onContextMenu={(e) => {
-          // Handle context menu on empty areas (not on tree nodes)
-          const target = e.target as HTMLElement;
-          // Check if click is on tree node or empty area
-          if (!target.closest(".ant-tree-node-content-wrapper")) {
-            e.stopPropagation();
-            handleContextMenu(e, ""); // Empty string for empty area context menu
-          }
-        }}
-      >
-        <div className="category-tree-inner">
-          <Tree
+      <div className="category-tree-content-wrapper">
+        {/* Overlay spinner that doesn't replace content */}
+        {loading && (
+          <div className="category-tree-loading-overlay">
+            <Spin size="large" />
+          </div>
+        )}
+
+        {/* Tree content */}
+        <div
+          ref={(el) => {
+            treeContainerRef(el || undefined);
+            if (el) {
+              scrollRef.current = el;
+            }
+          }}
+          className={classNames("category-tree-scroll-container", {
+            "category-tree-content-loading": loading,
+          })}
+          onContextMenu={(e) => {
+            // Handle context menu on empty areas (not on tree nodes)
+            const target = e.target as HTMLElement;
+            // Check if click is on tree node or empty area
+            if (!target.closest(".ant-tree-node-content-wrapper")) {
+              e.stopPropagation();
+              handleContextMenu(e, ""); // Empty string for empty area context menu
+            }
+          }}
+        >
+          <div className="category-tree-inner">
+            <Tree
             className="category-tree"
             showIcon
             draggable
@@ -409,12 +427,13 @@ const CategoryTreeInner: React.FC = () => {
             treeData={treeData}
           />
         </div>
-        <TreeContextMenu
-          items={contextMenuItems}
-          visible={contextMenuNode !== undefined}
-          position={contextMenuPosition}
-          onClose={handleContextMenuClose}
-        />
+          <TreeContextMenu
+            items={contextMenuItems}
+            visible={contextMenuNode !== undefined}
+            position={contextMenuPosition}
+            onClose={handleContextMenuClose}
+          />
+        </div>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { ModListStatusBar } from "./ModListStatusBar";
 import { useModsStore } from "../../store/modsStore";
 import { useMods } from "../../hooks/useMods";
 import { useDropZone } from "../../../../shared/hooks/useDropZone";
+import { useScrollPosition } from "../../../../shared/hooks/useScrollPosition";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { workflowService } from "../../../../shared/services/ipc";
 import { handleError } from "../../../../shared/utils/errorHandler";
@@ -46,6 +47,9 @@ export const ModListPanel: React.FC = () => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
   const contentRef = React.useRef<HTMLDivElement>(null);
+
+  // Scroll position persistence for mod list
+  const { scrollRef, saveScrollPosition, restoreScrollPosition, resetScrollPosition } = useScrollPosition('mod-list');
 
   // Multi-selection state (local - not stored in mod store)
   const [selectedModShas, setSelectedModShas] = useState<string[]>([]);
@@ -184,12 +188,13 @@ export const ModListPanel: React.FC = () => {
   );
 
   /**
-   * Clear multi-selection when category/object changes
+   * Clear multi-selection when category changes and reset scroll position
    */
   React.useEffect(() => {
     setSelectedModShas([]);
     setAnchorSha(undefined);
-  }, [selectedCategory]);
+    resetScrollPosition();
+  }, [selectedCategory, resetScrollPosition]);
 
   const handleLoadedModClick = (mod: ModInfo) => {
     // Scroll to the loaded mod and select it
@@ -245,7 +250,7 @@ export const ModListPanel: React.FC = () => {
         ref={contentRef}
       >
         <div className="mod-list-panel-drop-message" data-drop-message={t("mods.panel.dropToImport")} />
-        <div className="mod-list-panel-content-scrollable">
+        <div className="mod-list-panel-content-scrollable" ref={scrollRef}>
           {filteredMods.length > 0 ? (
             <ModList
               mods={filteredMods}
@@ -257,6 +262,8 @@ export const ModListPanel: React.FC = () => {
               onRowClick={handleModClick}
               selectedMod={selectedMod}
               selectedModShas={selectedModShas}
+              onBeforeReload={saveScrollPosition}
+              onAfterReload={restoreScrollPosition}
             />
           ) : (
             <div className="mod-list-panel-content-empty-container">

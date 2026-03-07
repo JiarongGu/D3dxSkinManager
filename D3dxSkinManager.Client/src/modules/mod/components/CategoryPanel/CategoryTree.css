@@ -190,6 +190,35 @@
   margin-top: 8px;
 }
 
+/* Overlay spinner for non-intrusive loading */
+.category-tree-content-wrapper {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.category-tree-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(1px);
+  z-index: 10;
+  pointer-events: all;
+  cursor: auto;
+}
+
+.category-tree-content-loading {
+  opacity: 0.9;
+  pointer-events: none;
+}
+
 .category-tree-empty-container {
   padding: 16px;
   user-select: none;
