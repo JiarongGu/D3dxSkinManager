@@ -338,7 +338,15 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
       }
 
       // Handle selection
+      // IMPORTANT: Prevent deselection when clicking already selected node
+      // If selectedKeys is empty but we're clicking an already selected node,
+      // it means the tree is trying to deselect - we should ignore this
       if (selectedKeys.length === 0) {
+        // If clicking the already selected node, ignore the deselection
+        if (isAlreadySelected) {
+          return;
+        }
+        // Otherwise, it's a real deselection (e.g., programmatic)
         onSelect(undefined);
         return;
       }

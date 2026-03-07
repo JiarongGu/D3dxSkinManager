@@ -81,11 +81,7 @@ export const SettingsView: React.FC = () => {
   const handleThemeChange = (value: ThemeMode) => {
     setTheme(value);
     const themeLabel =
-      value === "auto"
-        ? t("settings.theme.auto")
-        : value === "light"
-          ? t("settings.theme.light")
-          : t("settings.theme.dark");
+      value === "light" ? t("settings.theme.light") : t("settings.theme.dark");
     notification.success(
       t("settings.notifications.themeChanged", { theme: themeLabel }),
     );
@@ -216,7 +212,6 @@ export const SettingsView: React.FC = () => {
                 <CompactSelect onChange={handleThemeChange}>
                   <Option value="light">{t("settings.theme.light")}</Option>
                   <Option value="dark">{t("settings.theme.dark")}</Option>
-                  <Option value="auto">{t("settings.theme.auto")}</Option>
                 </CompactSelect>
               </Form.Item>
 

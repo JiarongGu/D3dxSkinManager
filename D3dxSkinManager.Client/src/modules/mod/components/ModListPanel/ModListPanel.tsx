@@ -188,17 +188,48 @@ export const ModListPanel: React.FC = () => {
     // Scroll to the loaded mod and select it
     selectMod(mod);
 
+    // Find the mod's index in the filtered list
+    const modIndex = filteredMods.findIndex(m => m.sha === mod.sha);
+    if (modIndex === -1) return;
+
     // Scroll the mod into view
+    // For lazy-loaded lists, we need to ensure the item is rendered first
     if (contentRef.current) {
-      // Find the mod element by its SHA
       const modElement = contentRef.current.querySelector(
         `[data-mod-sha="${mod.sha}"]`,
       );
+
       if (modElement) {
+        // Element is already rendered, scroll to it
         modElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        // Element not rendered yet due to lazy loading
+        // Scroll to approximate position to trigger lazy loading
+        const listContainer = scrollRef.current;
+        if (listContainer) {
+          // Estimate item height (64px per item based on CSS)
+          const estimatedItemHeight = 64;
+          const estimatedScrollPosition = modIndex * estimatedItemHeight;
+
+          // Scroll to estimated position (this will trigger lazy loading)
+          listContainer.scrollTo({
+            top: estimatedScrollPosition,
+            behavior: "smooth"
+          });
+
+          // Wait for DOM to update after lazy loading, then scroll precisely
+          setTimeout(() => {
+            const modElement = contentRef.current?.querySelector(
+              `[data-mod-sha="${mod.sha}"]`,
+            );
+            if (modElement) {
+              modElement.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          }, 300);
+        }
       }
     }
-  }, [selectMod]);
+  }, [selectMod, filteredMods, scrollRef]);
 
   if (!selectedCategory) {
     return (
