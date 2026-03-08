@@ -56,14 +56,14 @@ export function getCategoryContextMenu({
 
     items.push({
       key: 'edit',
-      label: t('category.tree.edit'),
+      label: t("common.edit"),
       icon: <EditOutlined />,
       onClick: () => onEditNode(nodeId),
     });
 
     items.push({
       key: 'delete',
-      label: t('category.tree.delete'),
+      label: t("common.delete"),
       icon: <DeleteOutlined />,
       danger: true,
       onClick: () => onDeleteNode(nodeId),

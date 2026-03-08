@@ -65,7 +65,7 @@ export const PluginsView: React.FC = () => {
 
   const columns: ColumnsType<PluginInfo> = [
     {
-      title: t('plugins.table.status'),
+      title: t("common.status"),
       dataIndex: 'isEnabled',
       key: 'status',
       width: 100,
@@ -87,13 +87,13 @@ export const PluginsView: React.FC = () => {
       ),
     },
     {
-      title: t('plugins.table.version'),
+      title: t("common.version"),
       dataIndex: 'version',
       key: 'version',
       width: 100,
     },
     {
-      title: t('plugins.table.capabilities'),
+      title: t("common.capabilities"),
       dataIndex: 'capabilities',
       key: 'capabilities',
       render: (capabilities: string[]) => (
@@ -111,13 +111,13 @@ export const PluginsView: React.FC = () => {
       ),
     },
     {
-      title: t('plugins.table.description'),
+      title: t("common.description"),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
     },
     {
-      title: t('plugins.table.actions'),
+      title: t("common.actions"),
       key: 'actions',
       width: 150,
       render: (_: unknown, record: PluginInfo) => (
@@ -179,16 +179,16 @@ export const PluginsView: React.FC = () => {
             <Descriptions.Item label={t('plugins.details.id')}>
               {selectedPlugin.id}
             </Descriptions.Item>
-            <Descriptions.Item label={t('plugins.details.version')}>
+            <Descriptions.Item label={t("common.version")}>
               {selectedPlugin.version}
             </Descriptions.Item>
-            <Descriptions.Item label={t('plugins.details.author')}>
+            <Descriptions.Item label={t("common.author")}>
               {selectedPlugin.author}
             </Descriptions.Item>
-            <Descriptions.Item label={t('plugins.details.description')}>
+            <Descriptions.Item label={t("common.description")}>
               {selectedPlugin.description}
             </Descriptions.Item>
-            <Descriptions.Item label={t('plugins.details.capabilities')}>
+            <Descriptions.Item label={t("common.capabilities")}>
               {selectedPlugin.capabilities.length > 0 ? (
                 <Space>
                   {selectedPlugin.capabilities.map((cap) => (
@@ -201,7 +201,7 @@ export const PluginsView: React.FC = () => {
                 t('plugins.capabilities.none')
               )}
             </Descriptions.Item>
-            <Descriptions.Item label={t('plugins.details.status')}>
+            <Descriptions.Item label={t("common.status")}>
               <Tag icon={<CheckCircleOutlined />} color="success">
                 {t('plugins.status.active')}
               </Tag>

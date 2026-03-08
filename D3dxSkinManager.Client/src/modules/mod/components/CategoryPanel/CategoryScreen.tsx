@@ -206,7 +206,7 @@ export const CategoryScreenContent: React.FC<
         title: t("category.screen.selectThumbnailTitle"),
         filters: [
           {
-            name: t("category.screen.imageFiles"),
+            name: t("common.imageFiles"),
             extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
           },
         ],
@@ -373,7 +373,7 @@ export const CategoryScreenContent: React.FC<
       <div className="slide-in-screen-footer">
         <Space>
           <CompactButton onClick={handleCancel} size="large">
-            {t("category.screen.cancelButton")}
+            {t("common.cancel")}
           </CompactButton>
           <CompactPrimaryButton
             onClick={handleSubmit}

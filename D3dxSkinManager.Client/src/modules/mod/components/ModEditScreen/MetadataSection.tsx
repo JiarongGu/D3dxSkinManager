@@ -64,7 +64,7 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
   return (
     <Space className="metadata-section-container" size="middle">
       <Form.Item
-        label={t("mods.edit.category")}
+        label={t("common.category")}
         name="category"
         className="metadata-section-category"
       >
@@ -82,7 +82,7 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
       </Form.Item>
       
       <Form.Item
-        label={t("mods.edit.author")}
+        label={t("common.author")}
         name="author"
         className="metadata-section-author"
       >

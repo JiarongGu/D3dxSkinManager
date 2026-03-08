@@ -126,7 +126,7 @@ export const ModImportMetadataDialog: React.FC<ModImportMetadataDialogProps> = (
         <div className="mod-import-metadata-dialog-row">
           <Form.Item
             name="category"
-            label={t('mods.edit.category')}
+            label={t("common.category")}
             tooltip={t('mods.edit.categoryTooltip') || 'Leave empty for Unclassified'}
             className="mod-import-metadata-dialog-col"
           >
@@ -144,7 +144,7 @@ export const ModImportMetadataDialog: React.FC<ModImportMetadataDialogProps> = (
 
           <Form.Item
             name="author"
-            label={t('mods.edit.author')}
+            label={t("common.author")}
             className="mod-import-metadata-dialog-col"
           >
             <CompactInput placeholder={t('mods.edit.authorPlaceholder')} />
@@ -160,7 +160,7 @@ export const ModImportMetadataDialog: React.FC<ModImportMetadataDialogProps> = (
         </div>
 
         {/* Description - Full Width */}
-        <Form.Item name="description" label={t('mods.edit.description')}>
+        <Form.Item name="description" label={t("common.description")}>
           <CompactTextArea rows={3} placeholder={t('mods.edit.descriptionPlaceholder')} />
         </Form.Item>
       </Form>

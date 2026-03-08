@@ -67,7 +67,7 @@ export const D3DMigotoTab: React.FC = () => {
 
   const handleMigotoVersionChange = async (value: string) => {
     if (!profileState.selectedProfile) {
-      notification.error(t('launch.notifications.noProfileSelected'));
+      notification.error(t("errors.noProfileSelected"));
       return;
     }
 
@@ -89,7 +89,7 @@ export const D3DMigotoTab: React.FC = () => {
 
   const handleOpenWorkDirectory = async () => {
     if (!profileState.selectedProfile) {
-      notification.error(t('launch.notifications.noProfileSelected'));
+      notification.error(t("errors.noProfileSelected"));
       return;
     }
 
@@ -117,7 +117,7 @@ export const D3DMigotoTab: React.FC = () => {
    */
   const handleLoad3DMigotoVersions = async () => {
     if (!profileState.selectedProfile) {
-      notification.error(t('launch.notifications.noProfileSelected'));
+      notification.error(t("errors.noProfileSelected"));
       return;
     }
 
@@ -154,7 +154,7 @@ export const D3DMigotoTab: React.FC = () => {
   const handleConfirmDeploy = async () => {
     const version = deployConfirm.version;
     if (!version || !profileState.selectedProfile) {
-      notification.error(t('launch.notifications.noProfileSelected'));
+      notification.error(t("errors.noProfileSelected"));
       setDeployConfirm({ visible: false });
       return;
     }
@@ -183,7 +183,7 @@ export const D3DMigotoTab: React.FC = () => {
    */
   const handleLaunch3DMigotoLoader = async () => {
     if (!profileState.selectedProfile) {
-      notification.error(t('launch.notifications.noProfileSelected'));
+      notification.error(t("errors.noProfileSelected"));
       return;
     }
 

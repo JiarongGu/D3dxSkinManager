@@ -69,7 +69,7 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
       ),
     },
     {
-      title: t('shortcuts.table.description'),
+      title: t("common.description"),
       dataIndex: 'config',
       key: 'description',
       render: (config: ShortcutConfig) => (

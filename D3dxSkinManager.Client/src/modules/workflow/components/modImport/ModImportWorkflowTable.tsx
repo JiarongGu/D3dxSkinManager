@@ -320,22 +320,22 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         <Descriptions.Item label={t("workflow.queue.fileCount")}>
           {context?.fileCount || 0}
         </Descriptions.Item>
-        <Descriptions.Item label={t("workflow.queue.author")}>
+        <Descriptions.Item label={t("common.author")}>
           {context?.author || t("common.notSet")}
         </Descriptions.Item>
-        <Descriptions.Item label={t("workflow.queue.category")}>
+        <Descriptions.Item label={t("common.category")}>
           {context?.categoryName || t("common.notSet")}
         </Descriptions.Item>
         <Descriptions.Item label={t("workflow.queue.grading")}>
           {context?.grading || "G"}
         </Descriptions.Item>
-        <Descriptions.Item label={t("workflow.queue.tags")} span={2}>
+        <Descriptions.Item label={t("common.tags")} span={2}>
           {context?.tags && context.tags.length > 0
             ? context.tags.join(", ")
             : t("common.none")}
         </Descriptions.Item>
         {context?.description && (
-          <Descriptions.Item label={t("workflow.queue.description")} span={2}>
+          <Descriptions.Item label={t("common.description")} span={2}>
             {context.description}
           </Descriptions.Item>
         )}
@@ -366,7 +366,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 
   const columns: ColumnsType<WorkflowTableRow> = useMemo(() => [
     {
-      title: t("workflow.queue.name"),
+      title: t("common.name"),
       dataIndex: "name",
       key: "name",
       width: "25%",
@@ -388,7 +388,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       ),
     },
     {
-      title: t("workflow.queue.category"),
+      title: t("common.category"),
       dataIndex: "category",
       key: "category",
       width: "15%",
@@ -408,7 +408,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       },
     },
     {
-      title: t("workflow.queue.status"),
+      title: t("common.status"),
       dataIndex: "statusText",
       key: "status",
       width: "15%",
@@ -480,7 +480,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       },
     },
     {
-      title: t("workflow.queue.actions"),
+      title: t("common.actions"),
       key: "actions",
       width: "15%",
       render: (_: unknown, row: WorkflowTableRow) => {
@@ -508,7 +508,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 
             {/* Edit button - always show for active workflows */}
             {isActive && (
-              <Tooltip title={t("workflow.queue.edit")}>
+              <Tooltip title={t("common.edit")}>
                 <CompactButton.Primary
                   size="small"
                   shape="default"
@@ -544,7 +544,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 
             {/* Delete button - hide during final import step (after user confirmation) */}
             {!(row.context?.step === ModImportWorkflowSteps.ImportMod && workflow.status === WorkflowStatus.Processing) && (
-              <Tooltip title={t("workflow.queue.delete")}>
+              <Tooltip title={t("common.delete")}>
                 <CompactButton.Danger
                   size="small"
                   shape="default"

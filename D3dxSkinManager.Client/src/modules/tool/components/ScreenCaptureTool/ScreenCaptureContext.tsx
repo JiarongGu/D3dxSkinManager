@@ -302,7 +302,7 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({
       !selectedProfileIdRef.current ||
       selectedProfileIdRef.current === NEW_PROFILE_ID
     ) {
-      notification.warning(t("capture.noProfileSelected"), 1);
+      notification.warning(t("errors.noProfileSelected"), 1);
       return;
     }
 

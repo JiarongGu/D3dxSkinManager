@@ -24,7 +24,7 @@ export const BasicInfoSection: React.FC = () => {
 
       {/* Description */}
       <Form.Item
-        label={t('mods.edit.description')}
+        label={t("common.description")}
         name="description"
         tooltip={t('mods.edit.descriptionTooltip')}
       >

@@ -140,7 +140,7 @@ export const ModList: React.FC<ModListProps> = ({
     if (isMultiSelect) {
       // Batch delete all selected mods using backend batch API
       if (!profileState.selectedProfile?.id) {
-        notification.error(t("mods.notifications.noProfileSelected"));
+        notification.error(t("errors.noProfileSelected"));
         setDeleteConfirm({ visible: false });
         return;
       }
@@ -184,7 +184,7 @@ export const ModList: React.FC<ModListProps> = ({
    */
   const handleDeleteCachedMod = async (mod: ModInfo) => {
     if (!profileState.selectedProfile?.id) {
-      notification.error(t("mods.notifications.noProfileSelected"));
+      notification.error(t("errors.noProfileSelected"));
       return;
     }
 
@@ -273,7 +273,7 @@ export const ModList: React.FC<ModListProps> = ({
           disabled: cacheCount === 0,
           onClick: async () => {
             if (!profileState.selectedProfile?.id) {
-              notification.error(t("mods.notifications.noProfileSelected"));
+              notification.error(t("errors.noProfileSelected"));
               return;
             }
 

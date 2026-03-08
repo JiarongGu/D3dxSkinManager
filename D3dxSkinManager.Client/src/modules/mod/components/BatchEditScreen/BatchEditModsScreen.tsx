@@ -239,9 +239,9 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
   };
 
   const columns = [
-    { label: t('mods.batchEdit.column.name'), value: 'name' },
-    { label: t('mods.batchEdit.column.author'), value: 'author' },
-    { label: t('mods.batchEdit.column.description'), value: 'description' },
+    { label: t("common.name"), value: 'name' },
+    { label: t("common.author"), value: 'author' },
+    { label: t("common.description"), value: 'description' },
   ];
 
   return (
@@ -306,7 +306,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
       <div className="slide-in-screen-footer">
         <div style={{ display: 'flex', gap: '8px' }}>
           <CompactButton onClick={handleCancel} icon={<CloseOutlined />} disabled={saving}>
-            {t('mods.batchEdit.toolbar.cancel')}
+            {t("common.cancel")}
           </CompactButton>
           <CompactButton
             type="primary"
@@ -315,7 +315,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
             disabled={!hasChanges}
             icon={<SaveOutlined />}
           >
-            {t('mods.batchEdit.toolbar.saveChanges')}
+            {t("common.saveChanges")}
           </CompactButton>
         </div>
       </div>

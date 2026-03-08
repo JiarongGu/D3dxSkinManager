@@ -367,7 +367,7 @@ export const SettingsView: React.FC = () => {
                     onClick={handleSaveProfileConfig}
                     disabled={!profileConfigChanged}
                   >
-                    {t("settings.profile.saveChanges")}
+                    {t("common.saveChanges")}
                   </CompactButton>
                 </Space>
               </Form.Item>

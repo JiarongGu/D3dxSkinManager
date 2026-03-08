@@ -113,7 +113,7 @@ const ScreenCaptureToolInner: React.FC = () => {
               onClick={handleDeleteProfile}
               disabled={isNewProfile}
               danger
-              title={t("capture.button.delete")}
+              title={t("common.delete")}
             />
           </Space>
         )}

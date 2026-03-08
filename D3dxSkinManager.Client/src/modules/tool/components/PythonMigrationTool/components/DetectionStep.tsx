@@ -52,7 +52,7 @@ export const DetectionStep: React.FC = () => {
    */
   const handleAnalyze = async (path: string) => {
     if (!profileState.selectedProfile?.id) {
-      notification.error(t('migration.detection.noProfileSelected'));
+      notification.error(t("errors.noProfileSelected"));
       return;
     }
     const profileId = profileState.selectedProfile.id;

@@ -30,7 +30,7 @@ export const ModInfoSection: React.FC<ModInfoSectionProps> = ({ mod }) => {
             <>
               <Text type="secondary" className="mod-preview-info-label">
                 <UserOutlined className="mod-preview-info-icon" />
-                {t('mods.details.author')}
+                {t("common.author")}
               </Text>
               <Text className="mod-preview-info-value">{mod.author}</Text>
             </>
@@ -41,7 +41,7 @@ export const ModInfoSection: React.FC<ModInfoSectionProps> = ({ mod }) => {
             <>
               <Text type="secondary" className="mod-preview-info-label">
                 <TagsOutlined className="mod-preview-info-icon" />
-                {t('mods.details.tags')}
+                {t("common.tags")}
               </Text>
               <Space size={[4, 4]} wrap className="mod-preview-info-value">
                 {mod.tags.map((tag) => (
@@ -59,7 +59,7 @@ export const ModInfoSection: React.FC<ModInfoSectionProps> = ({ mod }) => {
       {mod.description && mod.description.trim() !== '' && (
         <div className="mod-preview-info-item">
           <Text type="secondary" className="mod-preview-info-label">
-            {t('mods.details.description')}
+            {t("common.description")}
           </Text>
           <Paragraph className="mod-preview-description">
             {mod.description}

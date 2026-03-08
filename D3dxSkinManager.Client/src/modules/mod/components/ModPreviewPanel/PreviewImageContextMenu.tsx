@@ -181,7 +181,7 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
         title: t("mods.preview.selectImage"),
         filters: [
           {
-            name: t("mods.preview.imageFiles"),
+            name: t("common.imageFiles"),
             extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
           },
         ],

@@ -106,7 +106,7 @@ export const PythonMigrationToolInner: React.FC<{
     }
 
     if (!profileState.selectedProfile?.id) {
-      notification.error(t('migration.error.noProfile'));
+      notification.error(t("errors.noProfileSelected"));
       return;
     }
 

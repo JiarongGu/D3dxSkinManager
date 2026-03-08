@@ -50,7 +50,7 @@ export const TagsSection: React.FC<TagsSectionProps> = ({
   return (
     <>
       <Form.Item
-        label={t('mods.edit.tags')}
+        label={t("common.tags")}
         tooltip={t('mods.edit.tagsTooltip')}
       >
         <Space.Compact style={{ width: '100%' }}>

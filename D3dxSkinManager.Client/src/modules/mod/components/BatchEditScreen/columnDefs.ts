@@ -12,7 +12,7 @@ interface SearchHighlight {
 export const getColumnDefs = (tags: Tag[], searchHighlight: SearchHighlight | null | undefined, t: TFunction): ColDef[] => [
   {
     field: 'name',
-    headerName: t('mods.batchEdit.column.name'),
+    headerName: t("common.name"),
     flex: 2,
     editable: true,
     cellEditor: 'agTextCellEditor',
@@ -23,7 +23,7 @@ export const getColumnDefs = (tags: Tag[], searchHighlight: SearchHighlight | nu
   },
   {
     field: 'author',
-    headerName: t('mods.batchEdit.column.author'),
+    headerName: t("common.author"),
     flex: 1,
     editable: true,
     cellEditor: 'agTextCellEditor',
@@ -34,7 +34,7 @@ export const getColumnDefs = (tags: Tag[], searchHighlight: SearchHighlight | nu
   },
   {
     field: 'tags',
-    headerName: t('mods.batchEdit.column.tags'),
+    headerName: t("common.tags"),
     flex: 2,
     editable: true,
     cellEditor: 'agTextCellEditor',
@@ -77,7 +77,7 @@ export const getColumnDefs = (tags: Tag[], searchHighlight: SearchHighlight | nu
   },
   {
     field: 'description',
-    headerName: t('mods.batchEdit.column.description'),
+    headerName: t("common.description"),
     flex: 2,
     editable: true,
     cellEditor: 'agLargeTextCellEditor',

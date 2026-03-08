@@ -189,7 +189,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
         title: t("profiles.form.thumbnail.selectTitle"),
         filters: [
           {
-            name: t("profiles.form.thumbnail.imageFiles"),
+            name: t("common.imageFiles"),
             extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
           },
         ],
@@ -210,7 +210,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
         title: t("profiles.form.thumbnail.selectTitle"),
         filters: [
           {
-            name: t("profiles.form.thumbnail.imageFiles"),
+            name: t("common.imageFiles"),
             extensions: ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
           },
         ],
@@ -317,7 +317,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                         />
                       </Tooltip>
                     )}
-                    <Tooltip title={t("profiles.tooltip.edit")}>
+                    <Tooltip title={t("common.edit")}>
                       <Button
                         icon={<EditOutlined />}
                         size="small"
@@ -340,11 +340,11 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                         title={t("profiles.delete.title")}
                         description={t("profiles.delete.description")}
                         onConfirm={() => handleDelete(profile.id)}
-                        okText={t("profiles.delete.confirm")}
+                        okText={t("common.delete")}
                         cancelText={t("common.cancel")}
                         okButtonProps={{ danger: true }}
                       >
-                        <Tooltip title={t("profiles.tooltip.delete")}>
+                        <Tooltip title={t("common.delete")}>
                           <Button
                             icon={<DeleteOutlined />}
                             size="small"
@@ -417,7 +417,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
           </Form.Item>
 
           <Form.Item
-            label={t("profiles.form.description.label")}
+            label={t("common.description")}
             name="description"
             style={{ marginBottom: 12 }}
           >
@@ -489,7 +489,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
           </Form.Item>
 
           <Form.Item
-            label={t("profiles.form.description.label")}
+            label={t("common.description")}
             name="description"
             style={{ marginBottom: 12 }}
           >

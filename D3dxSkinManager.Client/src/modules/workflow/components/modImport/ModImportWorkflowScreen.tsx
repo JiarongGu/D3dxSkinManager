@@ -371,7 +371,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
             disabled={selectedWorkflowIds.length === 0}
             onClick={handleClearSelected}
           >
-            {t('workflow.queue.delete')}
+            {t("common.delete")}
           </CompactButton.Danger>
         </Space>
       </div>
