@@ -60,6 +60,10 @@ export interface ModsState {
 
   // Import Workflow Screen
   importWorkflowScreenVisible: boolean;
+
+  // Batch Edit Screen
+  batchEditScreenVisible: boolean;
+  modsToEdit: ModInfo[];
 }
 
 // ============================================================================
@@ -108,6 +112,10 @@ export interface ModsActions {
   // Import Workflow Screen Actions
   openImportWorkflowScreen: () => void;
   closeImportWorkflowScreen: () => void;
+
+  // Batch Edit Screen Actions
+  openBatchEditScreen: (mods: ModInfo[]) => void;
+  closeBatchEditScreen: () => void;
 
   // Global Actions
   reset: () => void;
@@ -159,6 +167,10 @@ const initialState: ModsState = {
 
   // Import Workflow Screen
   importWorkflowScreenVisible: false,
+
+  // Batch Edit Screen
+  batchEditScreenVisible: false,
+  modsToEdit: [],
 };
 
 // ============================================================================
@@ -356,6 +368,18 @@ export const useModsStore = create<ModsStore>()(
       closeImportWorkflowScreen: () =>
         set((state) => {
           state.importWorkflowScreenVisible = false;
+        }),
+
+      openBatchEditScreen: (mods: ModInfo[]) =>
+        set((state) => {
+          state.batchEditScreenVisible = true;
+          state.modsToEdit = mods;
+        }),
+
+      closeBatchEditScreen: () =>
+        set((state) => {
+          state.batchEditScreenVisible = false;
+          state.modsToEdit = [];
         }),
 
       // ============================================================

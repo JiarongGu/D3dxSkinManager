@@ -1,0 +1,191 @@
+/* VSCode-style Find/Replace Panel */
+.find-replace-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  background: var(--color-bg-elevated);
+  border-left: 1px solid var(--color-border-base);
+  border-bottom: 1px solid var(--color-border-base);
+  box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.15);
+  min-width: 340px;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.find-replace-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.find-replace-input-group {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--color-bg-container);
+  border: 1px solid var(--color-border-base);
+  border-radius: 3px;
+  padding: 0 6px;
+  height: 28px;
+  gap: 2px;
+  transition: border-color 0.2s;
+}
+
+.find-replace-input-group:focus-within {
+  border-color: var(--color-primary);
+}
+
+.find-replace-icon {
+  color: var(--color-text-secondary);
+  margin-right: 4px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.find-replace-input {
+  flex: 1;
+  font-size: 13px;
+  min-height: 26px;
+  background: var(--color-bg-container) !important;
+}
+
+.find-replace-input input {
+  font-size: 13px !important;
+  line-height: 26px;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 4px;
+}
+
+/* Remove all focus/hover styling from input - parent container handles it */
+.find-replace-input-group .ant-input:focus,
+.find-replace-input-group .ant-input:hover,
+.find-replace-input-group .ant-input-focused,
+.find-replace-input .ant-input:focus,
+.find-replace-input .ant-input:hover,
+.find-replace-input input:focus,
+.find-replace-input input:hover {
+  outline: none !important;
+  border: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.find-replace-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Icon-style toggle buttons - inline within input */
+.find-replace-checkbox-inline {
+  margin: 0 !important;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  text-align: center;
+  line-height: 24px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.find-replace-checkbox-inline .ant-checkbox {
+  display: none;
+}
+
+.find-replace-checkbox-inline:hover {
+  background: var(--color-bg-text-hover);
+  color: var(--color-text-secondary);
+}
+
+.find-replace-checkbox-inline.ant-checkbox-wrapper-checked {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+  border-radius: 4px;
+}
+
+.find-replace-checkbox-inline.ant-checkbox-wrapper-checked:hover {
+  background: var(--color-primary-bg-hover);
+}
+
+.find-replace-column-select {
+  min-width: 90px;
+}
+
+.find-replace-column-select .ant-select-selector {
+  height: 22px !important;
+  min-height: 22px !important;
+  padding: 0 6px !important;
+  font-size: 12px !important;
+}
+
+.find-replace-column-select .ant-select-selection-item {
+  line-height: 20px !important;
+  font-size: 12px !important;
+}
+
+.find-replace-column-select .ant-select-arrow {
+  font-size: 10px;
+}
+
+.find-replace-button {
+  font-size: 12px;
+  height: 22px;
+  line-height: 20px;
+  padding: 0 10px;
+}
+
+.find-replace-close,
+.find-replace-icon-button {
+  padding: 0 !important;
+  height: 24px !important;
+  width: 24px !important;
+  min-width: 24px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  border: 1px solid transparent;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.find-replace-close:hover,
+.find-replace-icon-button:hover {
+  color: var(--color-text-base);
+  background: var(--color-bg-text-hover);
+}
+
+.find-replace-error {
+  font-size: 11px;
+  color: var(--color-error);
+  padding: 0 6px 2px 6px;
+}
+
+.find-replace-hint {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  padding: 0 6px 2px 6px;
+  line-height: 1.3;
+}
+
+.find-replace-hint code {
+  background: var(--color-fill-quaternary);
+  padding: 1px 3px;
+  font-family: monospace;
+  font-size: 10px;
+}

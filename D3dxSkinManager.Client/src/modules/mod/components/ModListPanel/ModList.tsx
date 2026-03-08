@@ -25,6 +25,8 @@ import {
 } from "../../../../shared/components/menu";
 import { refreshMods } from "../../operations/modOperations";
 import { useTranslation } from "react-i18next";
+import { BatchEditModsScreen } from "../BatchEditScreen";
+import { useMods } from "../../hooks/useMods";
 import "./ModList.css";
 
 interface ModListProps {
@@ -58,6 +60,7 @@ export const ModList: React.FC<ModListProps> = ({
   const [displayCount, setDisplayCount] = useState(50);
   const observerTarget = useRef<HTMLDivElement>(null);
   const { state: profileState } = useProfile();
+  const { openBatchEditScreen } = useMods();
   const menuState = useContextMenu();
   const [contextMenuMod, setContextMenuMod] = useState<ModInfo>();
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -251,6 +254,16 @@ export const ModList: React.FC<ModListProps> = ({
       const cacheCount = selectedModsWithCache.length;
 
       return [
+        {
+          key: "batch-edit",
+          label: t("contextMenu.batchEditMods", { count: selectedModShas.length }),
+          icon: <EditOutlined />,
+          onClick: () => {
+            const selectedMods = mods.filter(m => selectedModShas.includes(m.sha));
+            openBatchEditScreen(selectedMods);
+          },
+        },
+        { type: "divider" as const },
         {
           key: "batch-delete-caches",
           label: cacheCount > 0
@@ -622,6 +635,8 @@ export const ModList: React.FC<ModListProps> = ({
         onOk={handleConfirmDelete}
         onCancel={() => setDeleteConfirm({ visible: false })}
       />
+      {/* Batch Edit Screen */}
+      <BatchEditModsScreen />
     </>
   );
 };

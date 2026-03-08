@@ -1,0 +1,36 @@
+/* Minimal CSS overrides - Theming API handles most styling */
+
+/* Search highlight colors - for inline text highlighting */
+.batch-edit-grid {
+  --search-highlight-bg: rgba(255, 235, 59, 0.4);
+}
+
+/* Light theme - use lighter yellow */
+:root:not(.dark) .batch-edit-grid {
+  --search-highlight-bg: #ffeb3b80;
+}
+
+/* Dark theme - use more visible yellow with transparency */
+:root.dark .batch-edit-grid {
+  --search-highlight-bg: rgba(255, 235, 59, 0.3);
+}
+
+/* Editing cell background - Override to use input background */
+.batch-edit-grid .ag-cell.ag-cell-inline-editing {
+  background-color: var(--color-input-bg) !important;
+  background-image: none !important;
+}
+
+/* Input field wrapper - Ensure proper background */
+.batch-edit-grid .ag-cell-edit-wrapper {
+  background: var(--color-input-bg) !important;
+}
+
+.batch-edit-grid .ag-cell-edit-wrapper input,
+.batch-edit-grid .ag-cell-edit-wrapper textarea,
+.batch-edit-grid .ag-cell-edit-wrapper select {
+  background: var(--color-input-bg) !important;
+  color: var(--color-text-base);
+  border: none;
+  outline: none;
+}

@@ -1,0 +1,88 @@
+/* Wrapper to remove padding and fill space */
+.batch-edit-screen-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% + 40px);
+  margin: -20px -24px;
+}
+
+/* Main content container - fill available space in slide-in screen */
+.batch-edit-screen-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* Allow flex child to shrink below content size */
+  overflow: hidden;
+}
+
+/* Editor-style toolbar */
+.batch-edit-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--color-bg-container);
+  border-bottom: 1px solid var(--color-border-base);
+  flex-shrink: 0;
+}
+
+.batch-edit-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.batch-edit-toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.batch-edit-toolbar-info {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+/* Custom divider to avoid deprecation */
+.batch-edit-divider {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-base);
+  margin: 0 8px;
+  vertical-align: middle;
+}
+
+/* Shortcut key hint on buttons */
+.batch-edit-shortcut {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  color: var(--color-text-tertiary);
+  background: var(--color-fill-quaternary);
+  border-radius: 3px;
+  border: 1px solid var(--color-border-secondary);
+}
+
+/* Shortcuts hint on right side */
+.batch-edit-shortcuts-hint {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+/* Grid wrapper */
+.batch-edit-grid-wrapper {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Footer styling within batch edit screen */
+.batch-edit-screen-wrapper .slide-in-screen-footer {
+  padding: 12px 24px;
+  margin: 0;
+}

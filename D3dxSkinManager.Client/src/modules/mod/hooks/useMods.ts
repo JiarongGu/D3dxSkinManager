@@ -77,6 +77,10 @@ export function useMods() {
     openImportWorkflowScreen: state.openImportWorkflowScreen,
     closeImportWorkflowScreen: state.closeImportWorkflowScreen,
 
+    // Batch Edit Screen operations
+    openBatchEditScreen: state.openBatchEditScreen,
+    closeBatchEditScreen: state.closeBatchEditScreen,
+
     // Global
     reset: state.reset,
   };
