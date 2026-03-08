@@ -1,7 +1,10 @@
-﻿using D3dxSkinManager.Modules.Mod.Models;
+﻿using Microsoft.Extensions.Caching.Memory;
+using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Context;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -32,17 +35,35 @@ public class ModQueryService : IModQueryService
     private readonly ICategoryRepository _categoryRepository;
     private readonly IModEnrichmentService _enrichmentService;
     private readonly IProfilePathService _profilePaths;
+    private readonly IMemoryCache _cache;
+    private readonly IProfileEventBus _eventBus;
+    private readonly string _activeModsCacheKey;
 
     public ModQueryService(
         IModRepository repository,
         ICategoryRepository categoryRepository,
         IModEnrichmentService enrichmentService,
-        IProfilePathService profilePaths)
+        IProfilePathService profilePaths,
+        IMemoryCache cache,
+        IProfileEventBus eventBus,
+        IProfileContext profileContext)
     {
         _repository = repository;
         _categoryRepository = categoryRepository;
         _enrichmentService = enrichmentService;
         _profilePaths = profilePaths;
+        _cache = cache;
+        _eventBus = eventBus;
+
+        // Use profile-specific cache key since IMemoryCache is shared across all profiles
+        _activeModsCacheKey = $"ActiveMods_{profileContext.ProfileId}";
+
+        // Subscribe to CACHE_CHANGED event to invalidate active mods cache
+        _eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED, _ =>
+        {
+            _cache.Remove(_activeModsCacheKey);
+            return Task.CompletedTask;
+        });
     }
 
     /// <summary>
@@ -275,59 +296,69 @@ public class ModQueryService : IModQueryService
     /// <summary>
     /// Get active mods by scanning cache folder first, then matching with database
     /// Returns mods that are currently active in cache (not DISABLED-), including orphaned ones not in DB
+    /// Uses IMemoryCache for performance - cache invalidated on CACHE_CHANGED event (load/unload/delete)
     /// Orchestration:
-    /// 1. Scan cache folder for active mod SHAs (not DISABLED-)
-    /// 2. For each SHA, get ModInfo from repository
-    /// 3. Enrich ModInfo using enrichment service (populates status flags)
-    /// 4. For orphaned mods (not in DB), return minimal ModInfo with IsOrphaned flag for cleanup
+    /// 1. Check IMemoryCache first (fast path)
+    /// 2. Scan cache folder for active mod SHAs (not DISABLED-)
+    /// 3. For each SHA, get ModInfo from repository
+    /// 4. Enrich ModInfo using enrichment service (populates status flags)
+    /// 5. For orphaned mods (not in DB), return minimal ModInfo with IsOrphaned flag for cleanup
     /// </summary>
     public async Task<List<ModInfo>> GetActiveModsAsync()
     {
-        var activeMods = new List<ModInfo>();
-        var cacheModsDir = _profilePaths.CacheModsDirectory;
-
-        if (!Directory.Exists(cacheModsDir))
+        // Use GetOrCreateAsync for cleaner cache-first pattern
+        return await _cache.GetOrCreateAsync(_activeModsCacheKey, async entry =>
         {
-            return activeMods;
-        }
+            // Yield to ensure async execution and allow UI updates
+            await Task.Yield();
 
-        // Step 1: Scan cache folder for active mods (not DISABLED-)
-        var cacheDirs = Directory.GetDirectories(cacheModsDir)
-            .Select(Path.GetFileName)
-            .Where(name => !string.IsNullOrEmpty(name) && !name.StartsWith("DISABLED-"))
-            .ToList();
+            // Cache miss - scan cache folder and build list
+            var activeMods = new List<ModInfo>();
+            var cacheModsDir = _profilePaths.CacheModsDirectory;
 
-        // Step 2-3: For each SHA found in cache, get from repository and enrich
-        foreach (var sha in cacheDirs)
-        {
-            if (string.IsNullOrEmpty(sha)) continue;
-
-            // Step 2: Get ModInfo from repository
-            var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-
-            if (mod != null)
+            if (!Directory.Exists(cacheModsDir))
             {
-                // Step 3: Enrich ModInfo (populate status flags, cache paths, etc.)
-                var enriched = await _enrichmentService.EnrichAsync(mod).ConfigureAwait(false);
-                activeMods.Add(enriched);
+                return activeMods;  // Return empty list
             }
-            else
+
+            // Step 1: Scan cache folder for active mods (not DISABLED-)
+            var cacheDirs = Directory.GetDirectories(cacheModsDir)
+                .Select(Path.GetFileName)
+                .Where(name => !string.IsNullOrEmpty(name) && !name.StartsWith("DISABLED-"))
+                .ToList();
+
+            // Step 2-3: For each SHA found in cache, get from repository and enrich
+            foreach (var sha in cacheDirs)
             {
-                // Step 4: Orphaned mod - not in database but exists in cache
-                // Create minimal ModInfo with IsOrphaned flag for frontend to handle i18n
-                // Use truncated SHA (first 6 characters) for display name
-                activeMods.Add(new ModInfo
+                if (string.IsNullOrEmpty(sha)) continue;
+
+                // Step 2: Get ModInfo from repository
+                var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+
+                if (mod != null)
                 {
-                    SHA = sha,
-                    Name = sha.Length >= 6 ? sha.Substring(0, 6) : sha, // Truncate SHA for display
-                    IsLoaded = true,
-                    HasCache = true,
-                    IsOrphaned = true,
-                    CachePath = Path.Combine(cacheModsDir, sha)
-                });
+                    // Step 3: Enrich ModInfo (populate status flags, cache paths, etc.)
+                    var enriched = await _enrichmentService.EnrichAsync(mod).ConfigureAwait(false);
+                    activeMods.Add(enriched);
+                }
+                else
+                {
+                    // Step 4: Orphaned mod - not in database but exists in cache
+                    // Create minimal ModInfo with IsOrphaned flag for frontend to handle i18n
+                    // Use truncated SHA (first 6 characters) for display name
+                    activeMods.Add(new ModInfo
+                    {
+                        SHA = sha,
+                        Name = sha.Length >= 6 ? sha.Substring(0, 6) : sha, // Truncate SHA for display
+                        IsLoaded = true,
+                        HasCache = true,
+                        IsOrphaned = true,
+                        CachePath = Path.Combine(cacheModsDir, sha)
+                    });
+                }
             }
-        }
 
-        return SortMods(activeMods);
+            return SortMods(activeMods);
+        }) ?? new List<ModInfo>();  // Fallback to empty list if null
     }
 }

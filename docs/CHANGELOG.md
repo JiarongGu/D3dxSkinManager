@@ -12,6 +12,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-03-08 - Active Mods View with Orphaned Mod Detection ⭐⭐⭐
+**Summary**: Added "Show Loaded Mods" feature with cache-first scanning, orphaned mod detection, and IMemoryCache optimization for performance.
+
+#### Active Mods View ("Show Loaded Mods" Button)
+**Impact**: ✅ Users can now view all currently loaded mods in one click with instant subsequent loads
+**Features**:
+- Scans cache folder first, then matches with database
+- Detects orphaned mods (in cache but not in database) for cleanup
+- Displays orphaned mods as "Unmanaged [SHA]" with i18n support (EN/CN)
+- Simplified context menu for orphaned mods (only "Open Cache Folder" and "Delete Cache")
+- IMemoryCache caching with automatic invalidation on cache changes
+
+**Backend Changes**:
+- ModQueryService.cs: Added `GetActiveModsAsync()` with IMemoryCache caching
+- ModQueryService.cs: Profile-specific cache key: `ActiveMods_{profileId}`
+- ModQueryService.cs: Cache invalidated on CACHE_CHANGED event from ModCacheWatcher
+- ModFacade.cs: Added GET_ACTIVE_MODS IPC endpoint
+- ModInfo.cs: Added `IsOrphaned` property for frontend handling
+
+**Frontend Changes**:
+- CategoryPanel.tsx: Added "Show All Mods" and "Show Loaded Mods" icon buttons
+- CategoryPanel.css: Split status bar into left (unclassified) and right (buttons) sections
+- ModList.tsx: Orphaned mod display with i18n formatting
+- ModList.tsx: Simplified context menu for orphaned mods (2 options only)
+- modsStore.ts: Added ModListViewMode state ('category' | 'unclassified' | 'all' | 'loaded')
+- categoryOperations.ts: Added loadAllMods() and loadLoadedMods()
+- modOperations.ts: Updated refresh to respect view mode
+- modService.ts: Added getActiveMods() IPC method
+
+**Performance Optimization**:
+- First call: Scans cache folder (slow) and stores in IMemoryCache
+- Subsequent calls: Returns cached result instantly (fast)
+- Cache automatically invalidated when mods are loaded/unloaded/deleted (FileSystemWatcher)
+
+**Translation Updates**:
+- English: "Unmanaged [{{sha}}]"
+- Chinese: "未托管 [{{sha}}]"
+
+**Documentation**:
+- AI_GUIDE.md: Added IMemoryCache caching pattern section
+- AI_GUIDE.md: Added FileSystemWatcher pattern section
+- BACKEND.md: Added IMemoryCache usage pattern with code examples
+- BACKEND.md: Updated ModQueryService entry with caching details
+
+**Commits**: 9b810c4, 29a9b35
+
+### Added - 2026-03-08 - Configurable Minimum Window and Panel Widths ⭐
+**Summary**: Added minimum width constraints for main window (800x600) and category panel (240px) with dynamic percentage calculation.
+
+**Features**:
+- Main window cannot be resized smaller than 800x600
+- Category panel maintains minimum 240px width
+- Dynamic percentage calculation preserves minimum widths during window resize
+
+**Backend Changes**:
+- ApplicationHost.cs: Set Form.MinimumSize to 800x600
+
+**Frontend Changes**:
+- useResizablePanels.ts: Made minimum widths configurable (minCategoryWidth, minModListWidth)
+- useResizablePanels.ts: Dynamic percentage calculation ensuring minimums
+- ModHierarchicalView.css: Added CSS min-width constraints
+
+**Commit**: c8ef023
+
 ### Fixed - 2026-03-07 - Hybrid File/Folder Selection Dialog ⭐
 **Summary**: Fixed mod import workflow file selection dialog to properly support selecting both archive files and folders.
 

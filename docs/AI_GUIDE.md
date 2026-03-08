@@ -1,8 +1,14 @@
 # AI Assistant Guide
 
-**Version:** 3.1
-**Last Updated:** 2026-03-06
+**Version:** 3.2
+**Last Updated:** 2026-03-08
 **Critical:** NEVER commit without explicit user approval!
+
+**Recent Additions (v3.2):**
+- IMemoryCache caching pattern with event-driven invalidation
+- FileSystemWatcher pattern for cache invalidation
+- Orphaned mod detection and cleanup workflow
+- Context menu simplification for special cases (orphaned mods)
 
 ---
 
@@ -513,6 +519,137 @@ _logger.Verbose($"Per-item detail");     // High-frequency
 _logger.Info($"Step completed");         // Milestones
 _logger.Warn($"Recoverable issue");      // Potential problems
 ```
+
+### Caching with IMemoryCache
+
+**Pattern** (follows CategoryService, ModQueryService):
+```csharp
+public class SomeService {
+    private readonly IMemoryCache _cache;
+    private readonly IProfileEventBus _eventBus;
+    private readonly string _cacheKey;
+
+    public SomeService(
+        IMemoryCache cache,
+        IProfileContext profileContext,
+        IProfileEventBus eventBus) {
+        _cache = cache;
+        _eventBus = eventBus;
+
+        // Use profile-specific cache key (IMemoryCache is singleton)
+        _cacheKey = $"CacheName_{profileContext.ProfileId}";
+
+        // Subscribe to events to invalidate cache
+        _eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED, _ => {
+            _cache.Remove(_cacheKey);
+            return Task.CompletedTask;
+        });
+    }
+
+    public async Task<List<Data>> GetDataAsync() {
+        // GetOrCreateAsync handles cache-first pattern cleanly
+        return await _cache.GetOrCreateAsync(_cacheKey, async entry => {
+            // IMPORTANT: Yield to ensure async execution and allow UI updates
+            // Without this, IPC calls may block UI thread during cache creation
+            await Task.Yield();
+
+            // Cache miss - build data (slow path)
+            return await BuildDataAsync();
+        }) ?? new List<Data>();  // Fallback if null
+    }
+}
+```
+
+**Key Points:**
+- Always use profile-specific cache keys (IMemoryCache is singleton shared across profiles)
+- Subscribe to relevant events for automatic cache invalidation
+- Use `GetOrCreateAsync` for cleaner cache-first pattern (preferred over TryGetValue/Set)
+- **CRITICAL: Add `await Task.Yield()` at start of factory to prevent UI blocking**
+- Event-driven invalidation is preferred over time-based expiration
+- Use `_cache.Remove(key)` in event handlers to invalidate cache
+
+**Why Task.Yield() is Critical:**
+- Long-running cache factories block the IPC thread
+- UI thread can't process state updates (e.g., loading spinners won't show)
+- `Task.Yield()` forces execution to continue asynchronously
+- Apply to: cache factories, migration operations, workflow tasks, category tree building
+
+**When to Use Caching:**
+- Expensive file system operations (scanning directories)
+- Complex database queries with joins
+- Data that changes infrequently but is accessed frequently
+- Operations triggered by FileSystemWatcher events for cache invalidation
+
+**Example: GetActiveModsAsync**
+- First call: Scans cache folder (slow)
+- Subsequent calls: Returns cached result (fast)
+- Cache invalidated on CACHE_CHANGED event (mod load/unload/delete)
+- Uses ModCacheWatcher FileSystemWatcher for automatic invalidation
+
+### FileSystemWatcher for Cache Invalidation
+
+**Pattern** (follows ModCacheWatcher):
+```csharp
+public class SomeWatcher : IDisposable {
+    private readonly IProfileEventBus _eventBus;
+    private FileSystemWatcher? _watcher;
+    private readonly object _lock = new();
+
+    public void StartWatching() {
+        lock (_lock) {
+            if (_watcher != null) return; // Already started
+
+            _watcher = new FileSystemWatcher(directoryPath) {
+                NotifyFilter = NotifyFilters.DirectoryName,
+                IncludeSubdirectories = false,
+                EnableRaisingEvents = true
+            };
+
+            _watcher.Deleted += OnFolderDeleted;
+            _watcher.Renamed += OnFolderRenamed;
+        }
+    }
+
+    private void OnFolderDeleted(object sender, FileSystemEventArgs e) {
+        // Use fire-and-forget pattern (don't block FileSystemWatcher thread)
+        _ = Task.Run(async () => {
+            try {
+                await _eventBus.EmitAsync(
+                    ModuleNames.MOD,
+                    ModEvents.CACHE_CHANGED,
+                    new { ChangeType = "deleted" }
+                );
+            } catch (Exception ex) {
+                _logger.Error($"Failed to emit event: {ex.Message}");
+            }
+        });
+    }
+
+    public void Dispose() {
+        lock (_lock) {
+            if (_watcher != null) {
+                _watcher.EnableRaisingEvents = false;
+                _watcher.Deleted -= OnFolderDeleted;
+                _watcher.Renamed -= OnFolderRenamed;
+                _watcher.Dispose();
+                _watcher = null;
+            }
+        }
+    }
+}
+```
+
+**Key Points:**
+- Use fire-and-forget `Task.Run` to avoid blocking FileSystemWatcher thread
+- Emit events that trigger cache invalidation in other services
+- Proper cleanup with lock synchronization
+- NotifyFilter should be specific to avoid excessive events
+
+**Example: ModCacheWatcher**
+- Watches cache/Mods directory for folder changes
+- Detects load/unload (rename) and delete operations
+- Emits CACHE_CHANGED event consumed by ModQueryService
+- ModQueryService invalidates IMemoryCache on event
 
 ---
 

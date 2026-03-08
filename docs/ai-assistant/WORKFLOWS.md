@@ -1,7 +1,12 @@
 # Workflows - Code Generation Patterns
 
-**Last Updated:** 2026-02-23
+**Last Updated:** 2026-03-08
 **Purpose:** Essential patterns for creating new code components
+
+**Recent Additions:**
+- IMemoryCache caching pattern with event-driven invalidation
+- FileSystemWatcher pattern for cache invalidation
+- Orphaned entity detection and cleanup workflow
 
 ---
 
@@ -150,6 +155,70 @@ public class ModListEventHandler : IModListEventHandler
 }
 ```
 
+**Example 4: Service with IMemoryCache (Expensive Operations)**
+```csharp
+// IModQueryService.cs
+public interface IModQueryService
+{
+    Task<List<ModInfo>> GetActiveModsAsync();  // Cache-first scanning
+}
+
+// ModQueryService.cs
+public class ModQueryService : IModQueryService
+{
+    private readonly IModRepository _repository;
+    private readonly IMemoryCache _cache;              // ✅ Inject IMemoryCache
+    private readonly IProfileEventBus _eventBus;
+    private readonly string _cacheKey;
+
+    public ModQueryService(
+        IModRepository repository,
+        IMemoryCache cache,                            // ✅ DI injected
+        IProfileContext profileContext,                // ✅ For cache key
+        IProfileEventBus eventBus)
+    {
+        _repository = repository;
+        _cache = cache;
+        _eventBus = eventBus;
+
+        // ✅ Profile-specific cache key (IMemoryCache is singleton)
+        _cacheKey = $"ActiveMods_{profileContext.ProfileId}";
+
+        // ✅ Subscribe to events for cache invalidation
+        _eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED, _ => {
+            _cache.Remove(_cacheKey);
+            return Task.CompletedTask;
+        });
+    }
+
+    public async Task<List<ModInfo>> GetActiveModsAsync()
+    {
+        // ✅ GetOrCreateAsync handles cache-first pattern cleanly
+        return await _cache.GetOrCreateAsync(_cacheKey, async entry => {
+            // IMPORTANT: Yield to ensure async execution and allow UI updates
+            await Task.Yield();
+
+            // Cache miss - build data (expensive file system scan)
+            return await ScanCacheFolderAsync();
+        }) ?? new List<ModInfo>();  // Fallback if null
+    }
+}
+```
+
+**When to Use IMemoryCache:**
+- Expensive file system operations (scanning directories)
+- Complex database queries with joins
+- Data that changes infrequently but is accessed frequently
+- Operations with FileSystemWatcher for automatic invalidation
+
+**Key Points:**
+- Always use profile-specific cache keys (IMemoryCache is singleton)
+- Subscribe to events for automatic invalidation
+- Use `GetOrCreateAsync` for cleaner cache-first pattern (preferred over TryGetValue/Set)
+- **CRITICAL: Add `await Task.Yield()` at start of factory to prevent UI blocking**
+- Prefer event-driven invalidation over time-based expiration
+- Use `_cache.Remove(key)` in event handlers to invalidate
+
 ### 2. Register in Module Extensions
 
 ```csharp
@@ -171,6 +240,169 @@ case "DO_SOMETHING":
     var result = await _yourService.DoSomethingAsync(payload.GetString("param"));
     return MessageResponse.Success(result);
 ```
+
+---
+
+## Adding FileSystemWatcher for Cache Invalidation
+
+### Pattern: Watch Directory Changes and Emit Events
+
+**Use Case:** Automatically invalidate IMemoryCache when files/folders change
+
+```csharp
+// Location: D3dxSkinManager/Modules/{ModuleName}/Services/
+
+public interface ISomeWatcher : IDisposable
+{
+    void StartWatching();
+    void StopWatching();
+}
+
+public class SomeWatcher : ISomeWatcher
+{
+    private readonly IProfilePathService _profilePaths;
+    private readonly IProfileEventBus _eventBus;
+    private readonly ILogHelper _logger;
+    private FileSystemWatcher? _watcher;
+    private readonly object _lock = new();
+    private bool _isDisposed;
+
+    public SomeWatcher(
+        IProfilePathService profilePaths,
+        IProfileEventBus eventBus,
+        ILogHelper logger)
+    {
+        _profilePaths = profilePaths;
+        _eventBus = eventBus;
+        _logger = logger;
+    }
+
+    public void StartWatching()
+    {
+        lock (_lock)
+        {
+            if (_watcher != null) return; // Already started
+
+            var directoryPath = _profilePaths.CacheModsDirectory;
+
+            // Create directory if it doesn't exist
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            _watcher = new FileSystemWatcher(directoryPath)
+            {
+                NotifyFilter = NotifyFilters.DirectoryName,  // ✅ Be specific
+                IncludeSubdirectories = false,               // ✅ Avoid excessive events
+                EnableRaisingEvents = true
+            };
+
+            // Subscribe to relevant events
+            _watcher.Deleted += OnFolderDeleted;
+            _watcher.Renamed += OnFolderRenamed;
+
+            _logger.Info($"Started watching: {directoryPath}");
+        }
+    }
+
+    private void OnFolderDeleted(object sender, FileSystemEventArgs e)
+    {
+        // ✅ Use fire-and-forget to avoid blocking FileSystemWatcher thread
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var folderName = Path.GetFileName(e.FullPath);
+
+                // Emit event for cache invalidation
+                await _eventBus.EmitAsync(
+                    ModuleNames.MOD,
+                    ModEvents.CACHE_CHANGED,
+                    new {
+                        FolderName = folderName,
+                        ChangeType = "deleted"
+                    }
+                );
+
+                _logger.Info($"Emitted CACHE_CHANGED event for: {folderName}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to emit event: {ex.Message}", ex);
+            }
+        });
+    }
+
+    private void OnFolderRenamed(object sender, RenamedEventArgs e)
+    {
+        // ✅ Fire-and-forget pattern
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _eventBus.EmitAsync(
+                    ModuleNames.MOD,
+                    ModEvents.CACHE_CHANGED,
+                    new {
+                        OldName = Path.GetFileName(e.OldFullPath),
+                        NewName = Path.GetFileName(e.FullPath),
+                        ChangeType = "renamed"
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to emit event: {ex.Message}", ex);
+            }
+        });
+    }
+
+    public void StopWatching()
+    {
+        lock (_lock)
+        {
+            if (_watcher != null)
+            {
+                _watcher.EnableRaisingEvents = false;
+                _watcher.Deleted -= OnFolderDeleted;
+                _watcher.Renamed -= OnFolderRenamed;
+                _watcher.Dispose();
+                _watcher = null;
+
+                _logger.Info("Stopped watching");
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_isDisposed) return;
+        StopWatching();
+        _isDisposed = true;
+        GC.SuppressFinalize(this);
+    }
+}
+```
+
+**Key Points:**
+- Use `Task.Run` fire-and-forget pattern to avoid blocking FileSystemWatcher thread
+- Be specific with `NotifyFilter` to avoid excessive events
+- Set `IncludeSubdirectories = false` if not needed
+- Emit events that trigger cache invalidation in other services
+- Proper cleanup with lock synchronization
+- Always implement IDisposable
+
+**Integration with IMemoryCache:**
+```csharp
+// Service subscribes to CACHE_CHANGED event
+_eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED, _ => {
+    _cache.Remove(_cacheKey);  // Invalidate cache
+    return Task.CompletedTask;
+});
+```
+
+**Real Example:** ModCacheWatcher watches `cache/Mods/` directory and emits CACHE_CHANGED events. ModQueryService subscribes to these events and invalidates its GetActiveModsAsync cache.
 
 ---
 

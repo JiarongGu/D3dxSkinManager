@@ -3,7 +3,100 @@
 > **Purpose:** Task-based quick reference for common operations
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-03-04
+**Last Updated:** 2026-03-08
+
+**Recent Additions:**
+- IMemoryCache caching pattern → See "Adding Performance Caching"
+- FileSystemWatcher pattern → See "Adding File Monitoring"
+
+---
+
+## Performance Optimization
+
+### Adding IMemoryCache Caching
+
+**"How do I add caching to expensive operations?"**
+- **Full Pattern:** `docs/ai-assistant/WORKFLOWS.md` (Example 4) ⭐⭐⭐
+- **Architecture:** `docs/AI_GUIDE.md` (Caching with IMemoryCache section)
+- **Real Example:** ModQueryService.GetActiveModsAsync
+
+**Quick Pattern:**
+```csharp
+public class YourService {
+    private readonly IMemoryCache _cache;
+    private readonly string _cacheKey;
+
+    public YourService(IMemoryCache cache, IProfileContext profileContext, IProfileEventBus eventBus) {
+        _cache = cache;
+        _cacheKey = $"CacheName_{profileContext.ProfileId}";  // Profile-specific!
+
+        // Subscribe to events for invalidation
+        eventBus.Subscribe(ModuleNames.MOD, ModEvents.SOME_CHANGED, _ => {
+            _cache.Remove(_cacheKey);
+            return Task.CompletedTask;
+        });
+    }
+
+    public async Task<List<Data>> GetDataAsync() {
+        return await _cache.GetOrCreateAsync(_cacheKey, async entry => {
+            return await BuildExpensiveDataAsync();  // Slow path
+        }) ?? new List<Data>();  // Fallback
+    }
+}
+```
+
+**When to Use:**
+- Expensive file system scans
+- Complex database queries
+- Data accessed frequently but changes rarely
+- Operations with FileSystemWatcher for auto-invalidation
+
+### Adding File Monitoring (FileSystemWatcher)
+
+**"How do I monitor directory changes and invalidate cache?"**
+- **Full Pattern:** `docs/ai-assistant/WORKFLOWS.md` (Adding FileSystemWatcher) ⭐⭐⭐
+- **Real Example:** ModCacheWatcher monitors cache/Mods folder
+
+**Quick Pattern:**
+```csharp
+public class SomeWatcher : IDisposable {
+    private readonly IProfileEventBus _eventBus;
+    private FileSystemWatcher? _watcher;
+    private readonly object _lock = new();
+
+    public void StartWatching() {
+        lock (_lock) {
+            _watcher = new FileSystemWatcher(path) {
+                NotifyFilter = NotifyFilters.DirectoryName,
+                EnableRaisingEvents = true
+            };
+            _watcher.Deleted += OnDeleted;
+        }
+    }
+
+    private void OnDeleted(object sender, FileSystemEventArgs e) {
+        // Fire-and-forget to avoid blocking watcher thread
+        _ = Task.Run(async () => {
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CACHE_CHANGED, new { });
+        });
+    }
+
+    public void Dispose() {
+        lock (_lock) {
+            if (_watcher != null) {
+                _watcher.EnableRaisingEvents = false;
+                _watcher.Dispose();
+            }
+        }
+    }
+}
+```
+
+**Key Points:**
+- Use `Task.Run` fire-and-forget pattern
+- Be specific with NotifyFilter
+- Emit events that other services subscribe to
+- Always implement IDisposable
 
 ---
 

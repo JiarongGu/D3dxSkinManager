@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { Layout, Empty, Input, Button } from "antd";
+import { Layout, Empty, Input, Button, Spin } from "antd";
 import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 
@@ -289,6 +289,11 @@ export const ModListPanel: React.FC = () => {
             />
           ) : (
             <div className="mod-list-panel-content-empty-container">
+              {loading && (
+                <div className="mod-list-loading-overlay">
+                  <Spin size="large" />
+                </div>
+              )}
               <Empty
                 description={
                   searchQuery

@@ -17,7 +17,7 @@ public class WorkflowConcurrencyManager : IWorkflowConcurrencyManager
     public WorkflowConcurrencyManager(ILogHelper logger)
     {
         _logger = logger;
-        _maxConcurrentWorkflows = 10; // Default: 10 concurrent workflows
+        _maxConcurrentWorkflows = 5; // Default: 5 concurrent workflows (compression is CPU intensive)
         _semaphore = new SemaphoreSlim(_maxConcurrentWorkflows, _maxConcurrentWorkflows);
         _runningWorkflows = new ConcurrentDictionary<string, bool>();
     }

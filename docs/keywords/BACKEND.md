@@ -171,6 +171,53 @@
   - Created: 2026-03-04
   - Updated: 2026-03-04 - Added profile-scoped cache warming via MessageDispatcher
 
+- **PathCache** → `Modules/Core/Services/PathCache.cs`
+  - IMemoryCache implementation with size-limited LRU eviction
+  - Used by CustomSchemeHandler for caching normalized file paths
+  - Size limit: 500 cached paths with 25% compaction on overflow
+  - Interface: IPathCache (extends IMemoryCache)
+  - Created: 2026
+
+#### IMemoryCache Usage Pattern
+
+**General Pattern** (used by CategoryService, ModQueryService, etc.):
+```csharp
+public class SomeService {
+    private readonly IMemoryCache _cache;
+    private readonly string _cacheKey;
+
+    public SomeService(IMemoryCache cache, IProfileContext profileContext) {
+        _cache = cache;
+        // Use profile-specific cache key since IMemoryCache is shared across profiles
+        _cacheKey = $"CacheName_{profileContext.ProfileId}";
+
+        // Subscribe to events to invalidate cache
+        _eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED, _ => {
+            _cache.Remove(_cacheKey);
+            return Task.CompletedTask;
+        });
+    }
+
+    public async Task<List<Data>> GetDataAsync() {
+        // Check cache first
+        if (_cache.TryGetValue(_cacheKey, out List<Data>? cached))
+            return cached!;
+
+        // Cache miss - build list
+        var data = await BuildDataAsync();
+
+        // Cache result
+        _cache.Set(_cacheKey, data);
+        return data;
+    }
+}
+```
+
+**Key Points**:
+- Always use profile-specific cache keys (IMemoryCache is singleton)
+- Subscribe to relevant events to invalidate cache
+- Use `_cache.Remove(key)` or `_cache.Set(key, newValue)` to invalidate/update
+
 #### Helpers
 
 - **ArchiveHelper** → `Modules/Core/Helpers/ArchiveHelper.cs`
@@ -281,7 +328,15 @@
   - SearchModsAsync → Search with filters
   - GetAllAsync → Get all mods for profile
   - GetByIdAsync → Get mod by SHA
+  - **GetActiveModsAsync** → Cache-first scanning of active mods in cache folder
+    - Uses IMemoryCache for performance (profile-scoped cache key)
+    - Scans cache folder for active mods (not DISABLED-)
+    - Matches with database and enriches ModInfo
+    - Returns orphaned mods (in cache but not in DB) with IsOrphaned flag
+    - Cache invalidated on CACHE_CHANGED event (FileSystemWatcher detects load/unload/delete)
   - **Bug Fix**: Statistics calculation now correctly populates IsLoaded flags via enrichment service
+  - Created: 2026-03-06
+  - Updated: 2026-03-08 - Added IMemoryCache caching for GetActiveModsAsync
   - Updated: 2026-03-06 (integrated ModEnrichmentService)
 
 - **ModMetadataService** → `Modules/Mod/Services/ModMetadataService.cs`

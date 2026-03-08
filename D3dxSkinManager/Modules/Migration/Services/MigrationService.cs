@@ -89,6 +89,9 @@ public class MigrationService : IMigrationService
         IProgress<MigrationProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        // Yield to prevent blocking UI thread
+        await Task.Yield();
+
         var startTime = DateTime.Now;
 
         var context = new MigrationContext

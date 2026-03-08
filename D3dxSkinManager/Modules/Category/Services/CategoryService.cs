@@ -90,6 +90,9 @@ public class CategoryService : ICategoryService
         // Try to get from cache, or create if not exists
         return await _cache.GetOrCreateAsync(_cacheKey, async entry =>
         {
+            // Yield to prevent blocking UI thread
+            await Task.Yield();
+
             entry.SlidingExpiration = CacheExpiry;
             return await BuildTreeAsync().ConfigureAwait(false);
         }).ConfigureAwait(false) ?? new List<CategoryInfo>();

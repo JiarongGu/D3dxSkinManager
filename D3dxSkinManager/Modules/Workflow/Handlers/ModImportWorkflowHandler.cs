@@ -94,6 +94,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// <param name="defaultCategory">Optional default category name to pre-fill</param>
     public async Task<WorkflowInfo> StartImportAsync(string folderPath, string? defaultCategory = null)
     {
+        // Yield to prevent blocking UI thread
+        await Task.Yield();
+
         _logger.Info($"Starting mod import workflow for folder: {folderPath}" +
             (defaultCategory != null ? $" with default category: {defaultCategory}" : ""));
 
@@ -178,6 +181,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// </summary>
     public async Task<WorkflowInfo> ContinueAsync(string workflowId)
     {
+        // Yield to prevent blocking UI thread
+        await Task.Yield();
+
         var workflow = await _workflowRepository.GetByIdAsync(workflowId);
         if (workflow == null)
             throw new InvalidOperationException($"Workflow not found: {workflowId}");
@@ -260,6 +266,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// </summary>
     public async Task<WorkflowInfo> CancelAsync(string workflowId)
     {
+        // Yield to prevent blocking UI thread
+        await Task.Yield();
+
         var workflow = await _workflowRepository.GetByIdAsync(workflowId);
         if (workflow == null)
             throw new InvalidOperationException($"Workflow not found: {workflowId}");
@@ -771,6 +780,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// </summary>
     private async Task CompressFolderAsync(WorkflowInfo workflow, ModImportWorkflowContext context, CancellationToken cancellationToken = default)
     {
+        // Yield to prevent blocking UI thread
+        await Task.Yield();
+
         if (string.IsNullOrEmpty(context.FolderPath))
             throw new InvalidOperationException("Folder path is required");
 
@@ -939,6 +951,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// </summary>
     private async Task ImportModAsync(WorkflowInfo workflow, ModImportWorkflowContext context, CancellationToken cancellationToken = default)
     {
+        // Yield to prevent blocking UI thread
+        await Task.Yield();
+
         if (string.IsNullOrEmpty(context.TempArchivePath))
             throw new InvalidOperationException("Temp archive path is required");
 
