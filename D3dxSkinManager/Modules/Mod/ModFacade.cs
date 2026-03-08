@@ -37,6 +37,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModRepository _repository;
     private readonly IModLifecycleService _lifecycleService;
     private readonly IModCacheService _cacheService;
+    private readonly IModDeletionService _deletionService;
     private readonly IModImportService _importService;
     private readonly IModQueryService _queryService;
     private readonly IModEnrichmentService _enrichmentService;
@@ -51,6 +52,7 @@ public class ModFacade : BaseFacade, IModFacade
         IModRepository repository,
         IModLifecycleService lifecycleService,
         IModCacheService cacheService,
+        IModDeletionService deletionService,
         IModImportService importService,
         IModQueryService queryService,
         IModEnrichmentService enrichmentService,
@@ -65,6 +67,7 @@ public class ModFacade : BaseFacade, IModFacade
         _repository = repository;
         _lifecycleService = lifecycleService;
         _cacheService = cacheService;
+        _deletionService = deletionService;
         _importService = importService;
         _queryService = queryService;
         _enrichmentService = enrichmentService;
@@ -95,6 +98,8 @@ public class ModFacade : BaseFacade, IModFacade
             "IMPORT" => await ImportModAsync(request),
             "DELETE" => await DeleteModAsync(request),
             "DELETE_CACHE" => await DeleteCacheAsync(request),
+            "BATCH_DELETE" => await BatchDeleteModsAsync(request),
+            "BATCH_DELETE_CACHES" => await BatchDeleteCachesAsync(request),
             "GET_AUTHORS" => await GetAuthorsAsync(),
             "GET_TAGS" => await GetTagsAsync(),
             "GET_STATISTICS" => await GetStatisticsAsync(),
@@ -190,6 +195,18 @@ public class ModFacade : BaseFacade, IModFacade
     {
         // Delegate to service - it handles event emission
         return await _cacheService.DeleteCacheAsync(sha).ConfigureAwait(false);
+    }
+
+    public async Task<BatchDeleteResult> BatchDeleteModsAsync(List<string> shas)
+    {
+        // Delegate to deletion service - it handles all deletion steps and events
+        return await _deletionService.BatchDeleteAsync(shas).ConfigureAwait(false);
+    }
+
+    public async Task<BatchDeleteResult> BatchDeleteCachesAsync(List<string> shas)
+    {
+        // Delegate to cache service - it handles event emission
+        return await _cacheService.BatchDeleteCachesAsync(shas).ConfigureAwait(false);
     }
 
     public async Task<List<string>> GetAuthorsAsync()
@@ -365,6 +382,18 @@ public class ModFacade : BaseFacade, IModFacade
     {
         var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
         return await DeleteCacheAsync(sha).ConfigureAwait(false);
+    }
+
+    private async Task<BatchDeleteResult> BatchDeleteModsAsync(IpcRequest request)
+    {
+        var shas = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "shas");
+        return await BatchDeleteModsAsync(shas).ConfigureAwait(false);
+    }
+
+    private async Task<BatchDeleteResult> BatchDeleteCachesAsync(IpcRequest request)
+    {
+        var shas = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "shas");
+        return await BatchDeleteCachesAsync(shas).ConfigureAwait(false);
     }
 
     private async Task<List<ModInfo>> SearchModsAsync(IpcRequest request)

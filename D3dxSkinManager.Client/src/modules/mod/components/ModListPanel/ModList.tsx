@@ -7,7 +7,6 @@ import {
   PauseCircleOutlined,
   EditOutlined,
   DeleteOutlined,
-  ExportOutlined,
   FolderOpenOutlined,
   ClearOutlined,
   CopyOutlined,
@@ -123,6 +122,7 @@ export const ModList: React.FC<ModListProps> = ({
 
   /**
    * Execute delete mod after confirmation
+   * Supports both single mod deletion and batch deletion
    */
   const handleConfirmDelete = async () => {
     const mod = deleteConfirm.mod;
@@ -131,7 +131,43 @@ export const ModList: React.FC<ModListProps> = ({
       return;
     }
 
-    await onDelete(mod.sha, mod.name);
+    // Check if this is a batch deletion (multiple mods selected)
+    const isMultiSelect = selectedModShas.length > 1;
+
+    if (isMultiSelect) {
+      // Batch delete all selected mods using backend batch API
+      if (!profileState.selectedProfile?.id) {
+        notification.error(t("mods.notifications.noProfileSelected"));
+        setDeleteConfirm({ visible: false });
+        return;
+      }
+
+      const profileId = profileState.selectedProfile.id;
+
+      try {
+        const result = await modService.batchDeleteMods(profileId, selectedModShas);
+
+        if (result.successCount > 0) {
+          notification.success(
+            t("mods.notifications.batchDeleteSuccess", { count: result.successCount })
+          );
+        }
+
+        if (result.failedCount > 0) {
+          notification.error(
+            t("mods.notifications.batchDeleteFailed", { count: result.failedCount })
+          );
+        }
+      } catch (error: unknown) {
+        notification.error(
+          t("mods.notifications.batchDeleteFailed", { count: selectedModShas.length })
+        );
+      }
+    } else {
+      // Single mod deletion
+      await onDelete(mod.sha, mod.name);
+    }
+
     setDeleteConfirm({ visible: false });
   };
 
@@ -174,6 +210,8 @@ export const ModList: React.FC<ModListProps> = ({
   };
 
   const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => {
+    const isMultiSelect = selectedModShas.length > 1 && selectedModShas.includes(mod.sha);
+
     // For orphaned mods, only show Open Cache Folder and Delete Cache
     if (mod.isOrphaned) {
       return [
@@ -195,7 +233,7 @@ export const ModList: React.FC<ModListProps> = ({
         },
         {
           key: "delete-cache",
-          label: t("contextMenu.deleteCachedMod"),
+          label: t("contextMenu.deleteCache"),
           icon: <ClearOutlined />,
           danger: true,
           disabled: !mod?.hasCache,
@@ -204,9 +242,74 @@ export const ModList: React.FC<ModListProps> = ({
       ];
     }
 
-    // Regular mod context menu
+    // Batch operations menu for multi-select
+    if (isMultiSelect) {
+      // Filter selected mods to only those with cache
+      const selectedModsWithCache = mods.filter(m =>
+        selectedModShas.includes(m.sha) && m.hasCache
+      );
+      const cacheCount = selectedModsWithCache.length;
+
+      return [
+        {
+          key: "batch-delete-caches",
+          label: cacheCount > 0
+            ? t("contextMenu.deleteAllCaches", { count: cacheCount })
+            : t("contextMenu.deleteAllCachesDisabled"),
+          icon: <ClearOutlined />,
+          disabled: cacheCount === 0,
+          onClick: async () => {
+            if (!profileState.selectedProfile?.id) {
+              notification.error(t("mods.notifications.noProfileSelected"));
+              return;
+            }
+
+            // Filter to only mods with cache (button is disabled when none have cache)
+            const shasWithCache = selectedModsWithCache.map(m => m.sha);
+            const profileId = profileState.selectedProfile.id;
+
+            try {
+              const result = await modService.batchDeleteCaches(profileId, shasWithCache);
+
+              if (result.successCount > 0) {
+                notification.success(
+                  t("mods.notifications.batchCacheDeleted", { count: result.successCount })
+                );
+                await refreshMods(profileId);
+              }
+
+              if (result.failedCount > 0) {
+                notification.error(
+                  t("mods.notifications.batchCacheDeleteFailed", { count: result.failedCount })
+                );
+              }
+            } catch (error: unknown) {
+              notification.error(t("mods.notifications.batchCacheDeleteFailed", { count: shasWithCache.length }));
+            }
+          },
+        },
+        {
+          key: "batch-delete-mods",
+          label: t("contextMenu.deleteAllMods", { count: selectedModShas.length }),
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => {
+            // Show confirmation dialog with selected mod count
+            setDeleteConfirm({
+              visible: true,
+              mod: {
+                ...mod,
+                name: t("mods.notifications.selectedMods", { count: selectedModShas.length }),
+              },
+            });
+          },
+        },
+      ];
+    }
+
+    // Regular single-mod context menu
     return [
-    // Group 1: Load/Unload Operations
+    // Group 1: Load/Unload and Edit Operations
     !mod.isLoaded
       ? {
           key: "load",
@@ -220,12 +323,9 @@ export const ModList: React.FC<ModListProps> = ({
           icon: <PauseCircleOutlined />,
           onClick: () => onUnload(mod.sha),
         },
-    { type: "divider" as const },
-
-    // Group 2: Edit & Export Operations
     {
       key: "edit",
-      label: t("contextMenu.editModInfo"),
+      label: t("contextMenu.editMod"),
       icon: <EditOutlined />,
       onClick: () => {
         if (onEdit) {
@@ -237,41 +337,9 @@ export const ModList: React.FC<ModListProps> = ({
         }
       },
     },
-    {
-      key: "export",
-      label: t("contextMenu.exportMod"),
-      icon: <ExportOutlined />,
-      onClick: async () => {
-        const result = await systemService.saveFileDialog({
-          title: t("dialogs.exportMod.title"),
-          defaultPath: `${mod.name}.zip`,
-          filters: [
-            { name: t("dialogs.exportMod.zipArchive"), extensions: ["zip"] },
-            { name: t("dialogs.exportMod.allFiles"), extensions: ["*"] },
-          ],
-        });
-
-        if (result.success && result.filePath && profileState.selectedProfile) {
-          try {
-            await modService.exportMod(
-              profileState.selectedProfile.id,
-              mod.sha,
-              result.filePath,
-            );
-            notification.success(
-              t("mods.notifications.exportSuccess", { name: mod.name }),
-            );
-          } catch (error: unknown) {
-            notification.error(t("mods.notifications.exportFailed"));
-          }
-        } else if (result.error) {
-          notification.error(result.error);
-        }
-      },
-    },
     { type: "divider" as const },
 
-    // Group 3: Copy Operations
+    // Group 2: Copy Operations
     {
       key: "copy-sha",
       label: t("contextMenu.copySHA"),
@@ -292,7 +360,7 @@ export const ModList: React.FC<ModListProps> = ({
     },
     { type: "divider" as const },
 
-    // Group 4: File Operations
+    // Group 3: File Operations
     {
       key: "view-archive",
       label: t("contextMenu.openModFolder"),
@@ -345,10 +413,10 @@ export const ModList: React.FC<ModListProps> = ({
     },
     { type: "divider" as const },
 
-    // Group 5: Destructive Operations
+    // Group 4: Destructive Operations
     {
       key: "delete-cache",
-      label: t("contextMenu.deleteCachedMod"),
+      label: t("contextMenu.deleteCache"),
       icon: <ClearOutlined />,
       disabled: !mod?.hasCache,
       onClick: () => handleDeleteCachedMod(mod),

@@ -1,8 +1,8 @@
 import { BaseModuleService } from '../baseModuleService';
-import { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest, ModStatistics } from '../../types/mod.types';
+import { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest, ModStatistics, BatchDeleteResult } from '../../types/mod.types';
 
 // Re-export types for backwards compatibility
-export type { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest, ModStatistics };
+export type { ModInfo, ModLoadResult, Tag, ModKeybinding, UpdateModMetadataRequest, ModStatistics, BatchDeleteResult };
 
 /**
  * Service for mod management operations
@@ -61,6 +61,20 @@ export class ModService extends BaseModuleService {
    */
   async deleteCache(profileId: string, sha: string): Promise<boolean> {
     return this.sendBooleanMessage('DELETE_CACHE', profileId, { sha });
+  }
+
+  /**
+   * Batch delete mods permanently (cache, preview, archive, database)
+   */
+  async batchDeleteMods(profileId: string, shas: string[]): Promise<BatchDeleteResult> {
+    return this.sendMessage<BatchDeleteResult>('BATCH_DELETE', profileId, { shas });
+  }
+
+  /**
+   * Batch delete mod caches (both active and disabled cache folders)
+   */
+  async batchDeleteCaches(profileId: string, shas: string[]): Promise<BatchDeleteResult> {
+    return this.sendMessage<BatchDeleteResult>('BATCH_DELETE_CACHES', profileId, { shas });
   }
 
   /**

@@ -21,6 +21,7 @@ public interface IModCacheService
     Task<CacheStatistics> GetCacheStatisticsAsync();
     Task<int> CleanCacheAsync(CacheCategory category);
     Task<bool> DeleteCacheAsync(string sha);
+    Task<BatchDeleteResult> BatchDeleteCachesAsync(List<string> shas);
     Task<bool> EnableCacheAsync(string sha); // Rename DISABLED-{SHA} to {SHA}
     Task<bool> DisableCacheAsync(string sha); // Rename {SHA} to DISABLED-{SHA}
     Task<int> CleanupOldDisabledCachesAsync(string? modCategory); // Cleanup old disabled caches for specific category
@@ -235,6 +236,71 @@ public class ModCacheService : IModCacheService
             _logger.Error($"Error deleting cache for {sha}: {ex.Message}", "ModCacheService", ex);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Batch delete caches for multiple mods
+    /// Processes all deletions and returns summary of results
+    /// Skips mods without cache (not counted as failure)
+    /// Emits single CACHE_CHANGED event after all deletions complete
+    /// </summary>
+    public async Task<BatchDeleteResult> BatchDeleteCachesAsync(List<string> shas)
+    {
+        var result = new BatchDeleteResult();
+
+        if (shas == null || shas.Count == 0)
+        {
+            return result;
+        }
+
+        _logger.Info($"Starting batch cache deletion for {shas.Count} mods", "ModCacheService");
+
+        foreach (var sha in shas)
+        {
+            try
+            {
+                // Check if cache exists before attempting deletion
+                if (!HasCache(sha))
+                {
+                    _logger.Debug($"Skipping {sha} - no cache found", "ModCacheService");
+                    continue; // Skip, don't count as success or failure
+                }
+
+                var success = await DeleteCacheAsync(sha).ConfigureAwait(false);
+                if (success)
+                {
+                    result.SuccessCount++;
+                }
+                else
+                {
+                    // Cache exists but deletion failed - this is an actual error
+                    result.FailedCount++;
+                    result.FailedShas.Add(sha);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Error deleting cache for {sha}: {ex.Message}", "ModCacheService", ex);
+                result.FailedCount++;
+                result.FailedShas.Add(sha);
+            }
+        }
+
+        _logger.Info($"Batch cache deletion completed: {result.SuccessCount} succeeded, {result.FailedCount} failed", "ModCacheService");
+
+        // Emit single consolidated event after all deletions
+        if (result.SuccessCount > 0)
+        {
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CACHE_CHANGED, new
+            {
+                BatchOperation = true,
+                SuccessCount = result.SuccessCount,
+                FailedCount = result.FailedCount,
+                ChangeType = "batch_deleted"
+            }).ConfigureAwait(false);
+        }
+
+        return result;
     }
 
     /// <summary>

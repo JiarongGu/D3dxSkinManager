@@ -85,6 +85,15 @@ export interface Tag {
 }
 
 /**
+ * Result of a batch delete operation
+ */
+export interface BatchDeleteResult {
+  successCount: number;
+  failedCount: number;
+  failedShas: string[];
+}
+
+/**
  * Mod keybinding information parsed from .ini files
  */
 export interface ModKeybinding {

@@ -13,6 +13,7 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 public interface IModDeletionService
 {
     Task<bool> DeleteAsync(string sha);
+    Task<BatchDeleteResult> BatchDeleteAsync(List<string> shas);
 }
 
 /// <summary>
@@ -219,5 +220,49 @@ public class ModDeletionService : IModDeletionService
         }
 
         _logger.Info($"Successfully deleted mod from database: {mod.SHA}", "ModDeletionService");
+    }
+
+    /// <summary>
+    /// Batch delete multiple mods
+    /// Processes all deletions and returns summary of results
+    /// Emits events for each successful deletion
+    /// </summary>
+    public async Task<BatchDeleteResult> BatchDeleteAsync(List<string> shas)
+    {
+        var result = new BatchDeleteResult();
+
+        if (shas == null || shas.Count == 0)
+        {
+            return result;
+        }
+
+        _logger.Info($"Starting batch deletion for {shas.Count} mods", "ModDeletionService");
+
+        foreach (var sha in shas)
+        {
+            try
+            {
+                var success = await DeleteAsync(sha).ConfigureAwait(false);
+                if (success)
+                {
+                    result.SuccessCount++;
+                }
+                else
+                {
+                    result.FailedCount++;
+                    result.FailedShas.Add(sha);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Error deleting mod {sha}: {ex.Message}", "ModDeletionService", ex);
+                result.FailedCount++;
+                result.FailedShas.Add(sha);
+            }
+        }
+
+        _logger.Info($"Batch deletion completed: {result.SuccessCount} succeeded, {result.FailedCount} failed", "ModDeletionService");
+
+        return result;
     }
 }
