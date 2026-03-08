@@ -9,6 +9,8 @@ using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Setting;
+using D3dxSkinManager.Modules.Fluent;
+using D3dxSkinManager.Modules.Fluent.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 
@@ -158,6 +160,9 @@ public class ProfileServiceRouter : IDisposable
 
         services.AddContextServices(profileId);
 
+        // Register Fluent migration services (profile-scoped, no facade needed)
+        services.AddFluentMigrationServices();
+
         // Apply all registered module service configurations
         foreach (var configureServices in _serviceConfigurations)
         {
@@ -172,6 +177,24 @@ public class ProfileServiceRouter : IDisposable
         {
             // Load cache directory configuration asynchronously without blocking
             _ = profilePathService.LoadCacheDirectoryAsync();
+        }
+
+        // Run database migrations for this profile
+        // This ensures the database schema is up to date before any services try to access it
+        var migrationService = serviceProvider.GetService<IDatabaseMigrationService>();
+        if (migrationService != null)
+        {
+            try
+            {
+                // Use Task.Run to avoid async deadlock from GetAwaiter().GetResult()
+                migrationService.RunStartupMigrationsAsync().GetAwaiter().GetResult();
+                _logger.Info($"Database migrations completed for profile: {profile.Name}", "ProfileServiceRouter");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Database migration failed for profile {profile.Name}: {ex.Message}", "ProfileServiceRouter", ex);
+                throw; // Re-throw to prevent service creation with invalid schema
+            }
         }
 
         // Initialize CategoryEventHandler to ensure it subscribes to events

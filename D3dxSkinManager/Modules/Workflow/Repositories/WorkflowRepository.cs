@@ -12,44 +12,15 @@ namespace D3dxSkinManager.Modules.Workflow.Repositories;
 public class WorkflowRepository : IWorkflowRepository
 {
     private readonly string _connectionString;
-    private readonly Lazy<Task> _init;
 
     public WorkflowRepository(IProfilePathService profilePaths)
     {
         _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
-        _init = new Lazy<Task>(InitializeDatabaseAsync, isThreadSafe: true);
-    }
-
-    private async Task EnsureInitializedAsync()
-    {
-        await _init.Value;
-    }
-
-    private async Task InitializeDatabaseAsync()
-    {
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
-
-        var createTableCmd = connection.CreateCommand();
-        createTableCmd.CommandText = @"
-            CREATE TABLE IF NOT EXISTS Workflows (
-                Id TEXT PRIMARY KEY,
-                Type TEXT NOT NULL,
-                Status INTEGER NOT NULL,
-                Context TEXT NOT NULL DEFAULT '{}',
-                ErrorMessage TEXT,
-                CreatedAt TEXT NOT NULL,
-                CompletedAt TEXT
-            );
-            CREATE INDEX IF NOT EXISTS idx_workflows_type ON Workflows(Type);
-            CREATE INDEX IF NOT EXISTS idx_workflows_status ON Workflows(Status);
-        ";
-        await createTableCmd.ExecuteNonQueryAsync();
+        // Table creation now handled by Fluent migrations (Migration_202603080004_CreateWorkflowsTable)
     }
 
     public async Task<WorkflowInfo> AddAsync(WorkflowInfo workflow)
     {
-        await EnsureInitializedAsync();
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -72,7 +43,6 @@ public class WorkflowRepository : IWorkflowRepository
 
     public async Task<WorkflowInfo?> GetByIdAsync(string id)
     {
-        await EnsureInitializedAsync();
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -95,7 +65,6 @@ public class WorkflowRepository : IWorkflowRepository
 
     public async Task<List<WorkflowInfo>> GetByTypeAsync(string type)
     {
-        await EnsureInitializedAsync();
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -120,7 +89,6 @@ public class WorkflowRepository : IWorkflowRepository
 
     public async Task<List<WorkflowInfo>> GetActiveByTypeAsync(string type)
     {
-        await EnsureInitializedAsync();
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -151,7 +119,6 @@ public class WorkflowRepository : IWorkflowRepository
 
     public async Task UpdateAsync(WorkflowInfo workflow)
     {
-        await EnsureInitializedAsync();
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -183,7 +150,6 @@ public class WorkflowRepository : IWorkflowRepository
     /// </summary>
     public async Task UpdateContextAsync(string workflowId, string context)
     {
-        await EnsureInitializedAsync();
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -201,7 +167,6 @@ public class WorkflowRepository : IWorkflowRepository
 
     public async Task DeleteAsync(string id)
     {
-        await EnsureInitializedAsync();
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -218,7 +183,6 @@ public class WorkflowRepository : IWorkflowRepository
         if (idList.Count == 0)
             return 0;
 
-        await EnsureInitializedAsync();
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -244,7 +208,6 @@ public class WorkflowRepository : IWorkflowRepository
         if (idList.Count == 0)
             return new List<WorkflowInfo>();
 
-        await EnsureInitializedAsync();
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 

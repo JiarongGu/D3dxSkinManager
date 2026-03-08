@@ -438,7 +438,108 @@ public class SomeService {
 
 ---
 
-### Migration Module
+### Fluent Module (Database Migrations)
+
+**📖 Detailed Documentation:** [architecture/DATABASE_MIGRATION_ARCHITECTURE.md](../architecture/DATABASE_MIGRATION_ARCHITECTURE.md)
+
+> **Purpose:** Fluent API for SQLite database schema migrations
+> **Design:** FluentMigrator-style with `[Migration]` attribute and Up()/Down() methods
+> **Integration:** Profile-scoped, runs automatically at profile startup
+
+#### Core Classes
+
+- **Migration** → `Modules/Fluent/Migration.cs`
+  - Base class for all migrations with fluent API
+  - Properties: Create, Delete, Alter, Execute (expression roots)
+  - Abstract method: Up() - forward migration
+  - Virtual method: Down() - rollback migration (optional)
+
+- **MigrationAttribute** → `Modules/Fluent/MigrationAttribute.cs`
+  - Marks migration classes with version numbers (YYYYMMDDHHmm format)
+  - Properties: Version (long), Description (string, optional)
+
+#### Services
+
+- **IDatabaseMigrationService** → `Modules/Fluent/Services/IDatabaseMigrationService.cs`
+- **DatabaseMigrationService** → `Modules/Fluent/Services/DatabaseMigrationService.cs`
+  - Entry point for migration system
+  - RunStartupMigrationsAsync() - executes pending migrations
+
+- **IMigrationRunner** → `Modules/Fluent/Services/IMigrationRunner.cs`
+- **MigrationRunner** → `Modules/Fluent/Services/MigrationRunner.cs`
+  - Discovers migrations via reflection
+  - Executes migrations in version order
+  - Uses single connection/transaction for atomicity
+  - Profile-scoped via IProfileContext
+
+- **IMigrationHistoryRepository** → `Modules/Fluent/Services/IMigrationHistoryRepository.cs`
+- **MigrationHistoryRepository** → `Modules/Fluent/Services/MigrationHistoryRepository.cs`
+  - Tracks applied migrations in `_MigrationHistory` table
+  - GetAppliedVersionsAsync() - returns list of applied versions
+  - RecordMigrationAsync() - records successful migration
+  - Internal overloads accept existing connection/transaction to prevent SQLite deadlock
+
+#### Fluent API Builders
+
+- **ICreateExpressionRoot** → `Modules/Fluent/Expressions/ICreateExpressionRoot.cs`
+- **CreateExpressionRoot** → `Modules/Fluent/Expressions/CreateExpressionRoot.cs`
+  - Table(name) → CreateTableBuilder
+  - Index(name) → CreateIndexBuilder
+
+- **CreateTableBuilder** → `Modules/Fluent/Builders/CreateTableBuilder.cs`
+  - WithColumn(name) → ColumnDefinitionBuilder
+  - Complete() → generates CREATE TABLE SQL
+
+- **CreateIndexBuilder** → `Modules/Fluent/Builders/CreateIndexBuilder.cs`
+  - OnTable(name) → OnColumn(name) → Complete()
+  - Supports Unique(), Ascending(), Descending()
+
+- **AlterTableBuilder** → `Modules/Fluent/Builders/AlterTableBuilder.cs`
+  - AddColumn(name) → ColumnDefinitionBuilder
+  - RenameTo(newName) → Complete()
+
+- **ColumnDefinitionBuilder** → `Modules/Fluent/Builders/ColumnDefinitionBuilder.cs`
+  - Type methods: AsText(), AsInteger(), AsReal(), AsBoolean(), AsDateTime(), AsBlob()
+  - Constraints: NotNullable(), PrimaryKey(), Unique(), Identity(), WithDefaultValue()
+
+#### Base Schema Migrations
+
+- **Migration_202603080001_CreateModsTable** → `Modules/Fluent/Migrations/Migration_202603080001_CreateModsTable.cs`
+- **Migration_202603080002_CreateCategoriesTable** → `Modules/Fluent/Migrations/Migration_202603080002_CreateCategoriesTable.cs`
+- **Migration_202603080003_CreateTagsTable** → `Modules/Fluent/Migrations/Migration_202603080003_CreateTagsTable.cs`
+- **Migration_202603080004_CreateWorkflowsTable** → `Modules/Fluent/Migrations/Migration_202603080004_CreateWorkflowsTable.cs`
+
+#### Integration
+
+- **FluentServiceExtensions** → `Modules/Fluent/FluentServiceExtensions.cs`
+  - AddFluentMigrationServices() - registers services as TryAddSingleton
+  - Profile-scoped pattern: each profile gets its own ServiceProvider with singleton services
+
+- **ProfileServiceRouter** → `Infrastructure/ProfileServiceRouter.cs:189`
+  - Executes migrations synchronously during profile initialization
+  - Uses `.GetAwaiter().GetResult()` to avoid async deadlock
+  - Runs before other profile services to ensure schema is ready
+
+#### Key Design Patterns
+
+- **Synchronous Execution**: Migrations run synchronously to maintain thread affinity for SQLite transactions
+- **Single Connection**: Migration history updates use same connection/transaction to prevent deadlock
+- **Transactional**: Each migration runs in a transaction (all-or-nothing)
+- **Profile-Scoped**: Each profile has its own database and migration history
+- **Version-Based**: YYYYMMDDHHmm format ensures chronological ordering
+
+#### Repository Schema Management
+
+**IMPORTANT**: Repositories no longer contain `CREATE TABLE IF NOT EXISTS` code. All schema management is now handled by migrations.
+
+- ~~ModRepository~~ - InitializeDatabaseAsync removed (2026-03-08)
+- ~~CategoryRepository~~ - Table initialization removed (2026-03-08)
+- ~~TagRepository~~ - Table initialization removed (2026-03-08)
+- ~~WorkflowRepository~~ - Table initialization removed (2026-03-08)
+
+---
+
+### Migration Module (Python → React)
 
 > **Key Update (2026-02-20):** Archives now stored WITHOUT extensions (matches Python format)
 > **Architecture:** Step-based migration system with 6 steps

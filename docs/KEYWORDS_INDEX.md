@@ -75,7 +75,8 @@
 ### Backend Entry Points
 - **Program.cs** → `D3dxSkinManager/Program.cs` (main entry, DI, IPC)
 - **ModFacade** → `Modules/Mods/ModFacade.cs` (mod operations)
-- **MigrationService** → `Modules/Migration/Services/MigrationService.cs` (migration)
+- **MigrationService** → `Modules/Migration/Services/MigrationService.cs` (Python → React migration)
+- **MigrationRunner** → `Modules/Fluent/Services/MigrationRunner.cs` (database schema migrations)
 
 **Full Backend Index:** [keywords/BACKEND.md](keywords/BACKEND.md)
 
@@ -89,9 +90,8 @@
 ### Essential Documentation
 - **AI_GUIDE.md** → `docs/AI_GUIDE.md` (start here for AI workflows)
 - **ARCHITECTURE.md** → `docs/architecture/CURRENT_ARCHITECTURE.md` (system design)
-- **MIGRATION_ARCHITECTURE.md** → `docs/architecture/MIGRATION_ARCHITECTURE.md` (migration system)
-
-**Full Documentation Index:** [keywords/DOCUMENTATION.md](keywords/DOCUMENTATION.md)
+- **MIGRATION_ARCHITECTURE.md** → `docs/architecture/MIGRATION_ARCHITECTURE.md` (Python → React migration system)
+- **DATABASE_MIGRATION_ARCHITECTURE.md** → `docs/architecture/DATABASE_MIGRATION_ARCHITECTURE.md` (Fluent database migrations)
 
 ### Quick How-To
 - **Add backend service** → [keywords/HOW_TO.md#adding-services](keywords/HOW_TO.md#adding-services)

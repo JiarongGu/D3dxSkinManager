@@ -61,39 +61,15 @@ public interface ITagRepository
 public class TagRepository : ITagRepository
 {
     private readonly string _connectionString;
-    private readonly Lazy<Task> _init;
 
     public TagRepository(IProfilePathService profilePaths)
     {
         _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
-        _init = new Lazy<Task>(InitAsync, isThreadSafe: true);
+        // Table creation now handled by Fluent migrations (Migration_202603080003_CreateTagsTable)
     }
-
-    private async Task InitAsync()
-    {
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = @"
-            CREATE TABLE IF NOT EXISTS Tags (
-                Name TEXT PRIMARY KEY,
-                Color TEXT NOT NULL,
-                CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-                UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_tags_name ON Tags(Name);
-        ";
-
-        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-    }
-
-    private Task EnsureInitializedAsync() => _init.Value;
 
     public async Task<List<Tag>> GetAllAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var tags = new List<Tag>();
 
@@ -120,7 +96,6 @@ public class TagRepository : ITagRepository
 
     public async Task<Tag?> GetByNameAsync(string name)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -146,7 +121,6 @@ public class TagRepository : ITagRepository
 
     public async Task<bool> UpsertAsync(Tag tag)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -171,7 +145,6 @@ public class TagRepository : ITagRepository
 
     public async Task<bool> DeleteAsync(string name)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -186,7 +159,6 @@ public class TagRepository : ITagRepository
 
     public async Task<List<string>> GetUsedTagNamesAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var allTags = new HashSet<string>();
 
@@ -218,7 +190,6 @@ public class TagRepository : ITagRepository
 
     public async Task<int> GetUsageCountAsync(string name)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -251,8 +222,6 @@ public class TagRepository : ITagRepository
         {
             return await GetAllAsync().ConfigureAwait(false);
         }
-
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var tags = new List<Tag>();
 

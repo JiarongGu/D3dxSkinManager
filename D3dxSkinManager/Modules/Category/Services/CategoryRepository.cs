@@ -32,45 +32,15 @@ public interface ICategoryRepository
 public class CategoryRepository : ICategoryRepository
 {
     private readonly string _connectionString;
-    private readonly Lazy<Task> _init;
 
     public CategoryRepository(IProfilePathService profilePaths)
     {
         _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
-        _init = new Lazy<Task>(InitializeDatabaseAsync, isThreadSafe: true);
-    }
-
-    private Task EnsureInitializedAsync() => _init.Value;
-
-    private async Task InitializeDatabaseAsync()
-    {
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        // Create Categories table
-        var createCategoriesCmd = connection.CreateCommand();
-        createCategoriesCmd.CommandText = @"
-            CREATE TABLE IF NOT EXISTS Categories (
-                Id TEXT PRIMARY KEY,
-                Name TEXT NOT NULL UNIQUE COLLATE NOCASE,
-                ParentId TEXT NULL,
-                ThumbnailPath TEXT NULL,
-                Priority INTEGER DEFAULT 0,
-                Description TEXT NULL,
-                Metadata TEXT NULL,
-                CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-                UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_Categories_parent ON Categories(ParentId);
-            CREATE INDEX IF NOT EXISTS idx_Categories_priority ON Categories(Priority DESC);
-        ";
-        await createCategoriesCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+        // Table creation now handled by Fluent migrations (Migration_202603080002_CreateCategoriesTable)
     }
 
     public async Task<List<CategoryInfo>> GetAllAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var categories = new List<CategoryInfo>();
 
@@ -91,7 +61,6 @@ public class CategoryRepository : ICategoryRepository
 
     public async Task<CategoryInfo?> GetByIdAsync(string id)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -111,7 +80,6 @@ public class CategoryRepository : ICategoryRepository
 
     public async Task<List<CategoryInfo>> GetChildrenAsync(string? parentId)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var categories = new List<CategoryInfo>();
 
@@ -144,7 +112,6 @@ public class CategoryRepository : ICategoryRepository
     /// </summary>
     public async Task<List<string>> GetAllDescendantIdsAsync(string parentId)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var descendantIds = new List<string>();
         var toProcess = new Queue<string>();
@@ -179,9 +146,7 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task<CategoryInfo?> GetByNameAsync(string name)
-    {
-
-        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+    { await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
@@ -198,9 +163,7 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task<CategoryInfo> InsertAsync(CategoryInfo category)
-    {
-
-        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+    { await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
@@ -222,8 +185,7 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task<bool> UpdateAsync(CategoryInfo category)
-    {
-        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+    { await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
@@ -252,8 +214,7 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task<bool> DeleteAsync(string id)
-    {
-        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+    { await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
@@ -265,8 +226,7 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task<bool> ExistsAsync(string id)
-    {
-        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+    { await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
@@ -278,8 +238,7 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task ClearAllAsync()
-    {
-        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+    { await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
@@ -288,8 +247,7 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task<bool> MoveCategoryAsync(string categoryId, string? newParentId)
-    {
-        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+    { await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();
@@ -307,8 +265,7 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task<bool> UpdatePriorityAsync(string categoryId, int priority)
-    {
-        await EnsureInitializedAsync().ConfigureAwait(false); await using var connection = new SqliteConnection(_connectionString);
+    { await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         var command = connection.CreateCommand();

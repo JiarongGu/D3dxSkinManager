@@ -33,48 +33,15 @@ public interface IModRepository
 public class ModRepository : IModRepository
 {
     private readonly string _connectionString;
-    private readonly Lazy<Task> _init;
 
     public ModRepository(IProfilePathService profilePaths)
     {
         _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
-        _init = new Lazy<Task>(InitializeDatabaseAsync, isThreadSafe: true);
-    }
-
-    private Task EnsureInitializedAsync() => _init.Value;
-
-    private async Task InitializeDatabaseAsync()
-    {
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        // Create Mods table
-        var createModsCmd = connection.CreateCommand();
-        createModsCmd.CommandText = @"
-            CREATE TABLE IF NOT EXISTS Mods (
-                SHA TEXT PRIMARY KEY,
-                Category TEXT NOT NULL,
-                Name TEXT NOT NULL,
-                Author TEXT,
-                Description TEXT,
-                Type TEXT DEFAULT '7z',
-                Grading TEXT DEFAULT 'G',
-                Tags TEXT,
-                DisablePreview INTEGER DEFAULT 0,
-                CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-                UpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-                Metadata TEXT
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_mods_category ON Mods(Category);
-            CREATE INDEX IF NOT EXISTS idx_mods_author ON Mods(Author);
-        ";
-        await createModsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+        // Table creation now handled by Fluent migrations (Migration_202603080001_CreateModsTable)
     }
 
     public async Task<List<ModInfo>> GetAllAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var mods = new List<ModInfo>();
 
@@ -95,7 +62,6 @@ public class ModRepository : IModRepository
 
     public async Task<ModInfo?> GetByIdAsync(string sha)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -115,7 +81,6 @@ public class ModRepository : IModRepository
 
     public async Task<bool> ExistsAsync(string sha)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -130,7 +95,6 @@ public class ModRepository : IModRepository
 
     public async Task<ModInfo> InsertAsync(ModInfo mod)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -158,7 +122,6 @@ public class ModRepository : IModRepository
 
     public async Task<bool> UpdateAsync(ModInfo mod)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -196,7 +159,6 @@ public class ModRepository : IModRepository
 
     public async Task<bool> DeleteAsync(string sha)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -211,7 +173,6 @@ public class ModRepository : IModRepository
 
     public async Task<List<ModInfo>> GetByCategoryAsync(string category)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var mods = new List<ModInfo>();
 
@@ -237,7 +198,6 @@ public class ModRepository : IModRepository
     /// </summary>
     public async Task<List<ModInfo>> GetByMultipleCategoriesAsync(IEnumerable<string> categoryIds)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var categoryList = categoryIds.ToList();
         if (categoryList.Count == 0)
@@ -273,7 +233,6 @@ public class ModRepository : IModRepository
 
     public async Task<List<string>> GetLoadedIdsAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var shas = new List<string>();
 
@@ -294,7 +253,6 @@ public class ModRepository : IModRepository
 
     public async Task<List<string>> GetDistinctCategoriesAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var categories = new List<string>();
 
@@ -315,7 +273,6 @@ public class ModRepository : IModRepository
 
     public async Task<List<string>> GetDistinctAuthorsAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var authors = new List<string>();
 
@@ -336,7 +293,6 @@ public class ModRepository : IModRepository
 
     public async Task<List<string>> GetAllTagsAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var allTags = new HashSet<string>();
 
