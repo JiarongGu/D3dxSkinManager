@@ -5,7 +5,6 @@ import {
   Space,
   Tag,
   Tooltip,
-  Popconfirm,
   Form,
   Input,
   ColorPicker,
@@ -29,7 +28,7 @@ import {
 } from "../../../shared/types/profile.types";
 import { useProfile } from "../../../shared/context/ProfileContext";
 import { handleError } from "../../../shared/utils/errorHandler";
-import { FormDialog } from "../../../shared/components/dialogs";
+import { FormDialog, ConfirmDialog } from "../../../shared/components/dialogs";
 import { toAppUrl } from "../../../shared/utils/imageUrlHelper";
 import "./ProfileManager.css";
 import { notification } from "../../../shared/utils/notification";
@@ -56,6 +55,8 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
   const [editThumbnailPath, setEditThumbnailPath] = useState<string>();
   const [editNewThumbnailPath, setEditNewThumbnailPath] = useState<string>(); // Separate state for new uploads
   const [editThumbnailRemoved, setEditThumbnailRemoved] = useState(false); // Track if user explicitly removed thumbnail
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [profileToDelete, setProfileToDelete] = useState<string>();
 
   useEffect(() => {
     loadProfiles();
@@ -154,10 +155,14 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
     }
   };
 
-  const handleDelete = async (profileId: string) => {
+  const handleDeleteConfirm = async () => {
+    if (!profileToDelete) return;
+
     try {
-      await profileService.deleteProfile(profileId);
+      await profileService.deleteProfile(profileToDelete);
       notification.success(t("profiles.notifications.deleteSuccess"));
+      setDeleteConfirmVisible(false);
+      setProfileToDelete(undefined);
       await loadProfiles();
 
       if (onProfileChanged) {
@@ -336,22 +341,17 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                       />
                     </Tooltip>
                     {profile.id !== activeProfileId && (
-                      <Popconfirm
-                        title={t("profiles.delete.title")}
-                        description={t("profiles.delete.description")}
-                        onConfirm={() => handleDelete(profile.id)}
-                        okText={t("common.delete")}
-                        cancelText={t("common.cancel")}
-                        okButtonProps={{ danger: true }}
-                      >
-                        <Tooltip title={t("common.delete")}>
-                          <Button
-                            icon={<DeleteOutlined />}
-                            size="small"
-                            danger
-                          />
-                        </Tooltip>
-                      </Popconfirm>
+                      <Tooltip title={t("common.delete")}>
+                        <Button
+                          icon={<DeleteOutlined />}
+                          size="small"
+                          danger
+                          onClick={() => {
+                            setProfileToDelete(profile.id);
+                            setDeleteConfirmVisible(true);
+                          }}
+                        />
+                      </Tooltip>
                     )}
                   </Space>
                 </Flex>
@@ -514,6 +514,21 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
           </Form.Item>
         </Form>
       </FormDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        visible={deleteConfirmVisible}
+        title={t("profiles.delete.title")}
+        content={t("profiles.delete.description")}
+        okText={t("common.delete")}
+        cancelText={t("common.cancel")}
+        okType="danger"
+        onOk={handleDeleteConfirm}
+        onCancel={() => {
+          setDeleteConfirmVisible(false);
+          setProfileToDelete(undefined);
+        }}
+      />
     </>
   );
 };
