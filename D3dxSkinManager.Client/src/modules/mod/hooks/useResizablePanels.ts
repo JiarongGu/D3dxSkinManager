@@ -11,20 +11,72 @@ interface PanelSizes {
   previewWidth: number; // calculated (remaining)
 }
 
+interface UseResizablePanelsOptions {
+  minCategoryWidth?: number; // Minimum width for category panel in pixels (default: 240)
+  minModListWidth?: number;  // Minimum width for mod list panel in pixels (default: 260)
+}
+
 /**
  * Custom hook for managing resizable panel sizes
  * - Reads panel sizes from Zustand store (no loading delay)
  * - Provides drag-to-resize functionality
  * - Persists panel sizes to settings with debouncing
+ * - Enforces configurable minimum widths for category and mod list panels
  */
-export function useResizablePanels() {
-  const sizes = useModsStore(s => s.panelSizes);
+export function useResizablePanels(options: UseResizablePanelsOptions = {}) {
+  const { minCategoryWidth = 240, minModListWidth = 260 } = options;
+  const storedSizes = useModsStore(s => s.panelSizes);
   const setPanelSizes = useModsStore(s => s.setPanelSizes);
   const { selectedProfileId } = useProfile();
   const [isResizing, setIsResizing] = useState<'category' | 'modList' | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef<number>(0);
   const startSizesRef = useRef<PanelSizes>({ categoryWidth: 20, modListWidth: 35, previewWidth: 45 });
+
+  // Track container width changes on window resize
+  useEffect(() => {
+    const updateContainerWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+
+    // Initial measurement
+    updateContainerWidth();
+
+    // Listen to window resize
+    window.addEventListener('resize', updateContainerWidth);
+
+    return () => {
+      window.removeEventListener('resize', updateContainerWidth);
+    };
+  }, []);
+
+  // Calculate adjusted sizes to ensure minimum widths for panels
+  const sizes = useMemo(() => {
+    if (!containerWidth) return storedSizes;
+
+    const minCategoryWidthPercent = (minCategoryWidth / containerWidth) * 100;
+    const minModListWidthPercent = (minModListWidth / containerWidth) * 100;
+
+    let adjustedSizes = { ...storedSizes };
+
+    // Enforce minimum category width
+    if (adjustedSizes.categoryWidth < minCategoryWidthPercent) {
+      adjustedSizes.categoryWidth = minCategoryWidthPercent;
+    }
+
+    // Enforce minimum mod list width
+    if (adjustedSizes.modListWidth < minModListWidthPercent) {
+      adjustedSizes.modListWidth = minModListWidthPercent;
+    }
+
+    // Recalculate preview width
+    adjustedSizes.previewWidth = 100 - adjustedSizes.categoryWidth - adjustedSizes.modListWidth;
+
+    return adjustedSizes;
+  }, [storedSizes, containerWidth, minCategoryWidth, minModListWidth]);
 
   // Create a debounced save function with 200ms delay
   const debouncedSave = useMemo(
@@ -77,13 +129,19 @@ export function useResizablePanels() {
 
       const newSizes = { ...startSizesRef.current };
 
+      // Calculate minimum widths as percentages based on configured minimums
+      const minCategoryWidthPercent = (minCategoryWidth / containerWidth) * 100;
+      const minModListWidthPercent = (minModListWidth / containerWidth) * 100;
+
       if (isResizing === 'category') {
         // Resize category panel (affects category and mod list)
-        newSizes.categoryWidth = Math.max(10, Math.min(50, startSizesRef.current.categoryWidth + deltaPercent));
+        // Enforce minimum width (calculated as percentage, max 50%)
+        newSizes.categoryWidth = Math.max(minCategoryWidthPercent, Math.min(50, startSizesRef.current.categoryWidth + deltaPercent));
         newSizes.previewWidth = 100 - newSizes.categoryWidth - newSizes.modListWidth;
       } else if (isResizing === 'modList') {
         // Resize mod list panel (affects mod list and preview)
-        newSizes.modListWidth = Math.max(20, Math.min(60, startSizesRef.current.modListWidth + deltaPercent));
+        // Enforce minimum width (calculated as percentage, max 60%)
+        newSizes.modListWidth = Math.max(minModListWidthPercent, Math.min(60, startSizesRef.current.modListWidth + deltaPercent));
         newSizes.previewWidth = 100 - newSizes.categoryWidth - newSizes.modListWidth;
       }
 
@@ -116,7 +174,7 @@ export function useResizablePanels() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, setPanelSizes, debouncedSave, selectedProfileId]);
+  }, [isResizing, setPanelSizes, debouncedSave, selectedProfileId, minCategoryWidth, minModListWidth]);
 
   return {
     sizes,

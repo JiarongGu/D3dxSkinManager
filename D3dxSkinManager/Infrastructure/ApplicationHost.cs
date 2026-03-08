@@ -136,6 +136,7 @@ public class ApplicationHost
         // Apply loaded window state immediately
         _mainForm.Width = width;
         _mainForm.Height = height;
+        _mainForm.MinimumSize = new Size(800, 600); // Enforce minimum window size
         _mainForm.StartPosition = FormStartPosition.Manual;
         _mainForm.BackColor = Color.FromArgb(26, 26, 26); // Match WebView2 background
 
