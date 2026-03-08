@@ -116,12 +116,6 @@
   position: relative; /* For positioning drop message */
 }
 
-/* Drop zone visual feedback on table body - consistent with ModListPanel drop zone */
-/* Matches CompactUpload hover style when mouse is over overlay (non-dragging) */
-.mod-import-workflow-screen-content .ant-table-body.mod-import-workflow-screen-drop-hover {
-  cursor: pointer;
-}
-
 /* Drag-over state on table body - matches ModListPanel pattern */
 .mod-import-workflow-screen-content .ant-table-body.mod-import-workflow-screen-drop-active {
   background: var(--color-primary-bg-hover) !important;

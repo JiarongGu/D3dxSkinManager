@@ -248,7 +248,7 @@ export const TagManagementTool: React.FC = () => {
           compact
           loading={loading}
           locale={{
-            emptyText: searchTerm ? "No tags found" : "No tags available"
+            emptyText: searchTerm ? t('tags.noTagsFound') : t('tags.noTagsAvailable')
           }}
           pagination={false}
         />
@@ -284,25 +284,25 @@ export const TagManagementTool: React.FC = () => {
           setShowCreateDialog(false);
           form.resetFields();
         }}
-        okText="Create"
+        okText={t('common.create')}
         cancelText={t("common.cancel")}
         destroyOnHidden
       >
         <Form form={form} onFinish={handleCreateTag} layout="vertical">
           <Form.Item
-            label="Tag Name"
+            label={t('tags.tagName')}
             name="name"
             rules={[
-              { required: true, message: "Please enter tag name" },
-              { max: 50, message: "Tag name must be less than 50 characters" },
+              { required: true, message: t('tags.enterTagName') },
+              { max: 50, message: t('tags.tagNameMaxLength') },
             ]}
           >
             <Input placeholder={t('tags.namePlaceholder')} />
           </Form.Item>
           <Form.Item
-            label="Color"
+            label={t('tags.color')}
             name="color"
-            rules={[{ required: true, message: "Please select a color" }]}
+            rules={[{ required: true, message: t('tags.selectColor') }]}
           >
             <ColorPicker showText />
           </Form.Item>
@@ -318,25 +318,25 @@ export const TagManagementTool: React.FC = () => {
           setEditingTag(null);
           form.resetFields();
         }}
-        okText="Update"
+        okText={t('common.update')}
         cancelText={t("common.cancel")}
         destroyOnHidden
       >
         <Form form={form} onFinish={handleEditTag} layout="vertical">
           <Form.Item
-            label="Tag Name"
+            label={t('tags.tagName')}
             name="name"
             rules={[
-              { required: true, message: "Please enter tag name" },
-              { max: 50, message: "Tag name must be less than 50 characters" },
+              { required: true, message: t('tags.enterTagName') },
+              { max: 50, message: t('tags.tagNameMaxLength') },
             ]}
           >
             <Input placeholder={t('tags.namePlaceholder')} />
           </Form.Item>
           <Form.Item
-            label="Color"
+            label={t('tags.color')}
             name="color"
-            rules={[{ required: true, message: "Please select a color" }]}
+            rules={[{ required: true, message: t('tags.selectColor') }]}
           >
             <ColorPicker showText />
           </Form.Item>

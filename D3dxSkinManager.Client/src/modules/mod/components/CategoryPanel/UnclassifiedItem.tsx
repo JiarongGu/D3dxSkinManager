@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import { Badge } from 'antd';
 import { AppstoreOutlined } from '@ant-design/icons';
@@ -18,6 +19,8 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
   onClick,
   onModDrop,
 }) => {
+  const { t } = useTranslation();
+
   // Use the unified drag-and-drop hook
   const { containerRef } = useDragDrop<HTMLDivElement>(
     {
@@ -48,7 +51,7 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
     >
       <div className="category-panel-unclassified-item-content">
         <AppstoreOutlined className="category-panel-unclassified-item-icon" />
-        <span className="category-panel-unclassified-item-text">Unclassified</span>
+        <span className="category-panel-unclassified-item-text">{t('category.unclassified')}</span>
       </div>
       <Badge
         count={count}

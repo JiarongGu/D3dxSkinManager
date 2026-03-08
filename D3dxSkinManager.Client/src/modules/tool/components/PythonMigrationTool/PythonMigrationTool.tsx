@@ -147,18 +147,18 @@ export const PythonMigrationToolInner: React.FC<{
               const profileName =
                 values.profileName ||
                 analysis?.activeEnvironment ||
-                "Migrated Profile";
+                t('migration.defaultProfileName');
               await profileService.createProfile({
                 name: profileName,
-                description: `Migrated from Python d3dxSkinManage on ${new Date().toLocaleDateString()}`,
+                description: t('migration.profileDescription', { date: new Date().toLocaleDateString() }),
                 gameName: analysis?.activeEnvironment,
               });
               notification.success(
-                `Profile "${profileName}" created successfully!`,
+                t('migration.profileCreated', { profileName }),
               );
             } catch (error) {
               notification.warning(
-                "Migration succeeded but profile creation failed",
+                t('migration.profileCreationFailed'),
               );
             }
           }
@@ -208,14 +208,14 @@ export const PythonMigrationToolInner: React.FC<{
       <div className="slide-in-screen-footer">
         <CompactSpace>
           {currentStep === MigrationStep.Detection && (
-            <CompactButton onClick={handleClose}>Cancel</CompactButton>
+            <CompactButton onClick={handleClose}>{t('common.cancel')}</CompactButton>
           )}
           {currentStep === MigrationStep.Options && (
-            <CompactButton onClick={goToPreviousStep}>Back</CompactButton>
+            <CompactButton onClick={goToPreviousStep}>{t('common.back')}</CompactButton>
           )}
           {currentStep === MigrationStep.Options && (
             <CompactButton type="primary" onClick={handleStartMigration}>
-              Start Migration
+              {t('migration.buttons.startMigration')}
             </CompactButton>
           )}
           {currentStep === MigrationStep.Detection && (
@@ -224,12 +224,12 @@ export const PythonMigrationToolInner: React.FC<{
               onClick={handleNext}
               disabled={!analysis || !analysis.isValid}
             >
-              Next
+              {t('common.next')}
             </CompactButton>
           )}
           {currentStep === MigrationStep.Complete && (
             <CompactButton type="primary" onClick={handleClose}>
-              Close
+              {t('common.close')}
             </CompactButton>
           )}
         </CompactSpace>
@@ -243,10 +243,10 @@ export const PythonMigrationToolInner: React.FC<{
         current={currentStep}
         className="migration-wizard-steps"
         items={[
-          { title: "Detection", icon: <FolderOpenOutlined /> },
-          { title: "Options", icon: <InfoCircleOutlined /> },
-          { title: "Migration", icon: <SyncOutlined /> },
-          { title: "Complete", icon: <CheckCircleOutlined /> },
+          { title: t('migration.steps.detection'), icon: <FolderOpenOutlined /> },
+          { title: t('migration.steps.options'), icon: <InfoCircleOutlined /> },
+          { title: t('migration.steps.migration'), icon: <SyncOutlined /> },
+          { title: t('migration.steps.complete'), icon: <CheckCircleOutlined /> },
         ]}
       />
       {renderStepContent()}
@@ -264,6 +264,8 @@ export const PythonMigrationTool: React.FC<PythonMigrationToolProps> = ({
   onClose,
   onMigrationComplete,
 }) => {
+  const { t } = useTranslation();
+
   // Wrap content in provider so it's available in slide-in context
   const content = (
     <PythonMigrationToolProvider>
@@ -277,7 +279,7 @@ export const PythonMigrationTool: React.FC<PythonMigrationToolProps> = ({
 
   useSlideInScreen({
     visible,
-    title: "Python D3dxSkinManage Migration",
+    title: t('migration.title'),
     content,
     width: "85%",
     onClose,

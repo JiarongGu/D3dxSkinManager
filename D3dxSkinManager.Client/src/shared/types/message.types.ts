@@ -34,11 +34,12 @@ export interface BridgeMessage<TPayload = unknown> {
 }
 
 /**
- * Error details from backend ModException
+ * Error details from backend OperationException
+ * Backend sends: { code: "ERROR_CODE", parameters: { key: "value" } }
  */
 export interface ErrorDetails {
-  errorCode: string;
-  data?: unknown;
+  code: string;
+  parameters?: Record<string, string>;
 }
 
 /**

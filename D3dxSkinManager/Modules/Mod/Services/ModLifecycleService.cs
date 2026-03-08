@@ -1,7 +1,7 @@
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Event;
-using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mod.Models;
 
@@ -73,7 +73,11 @@ public class ModLifecycleService : IModLifecycleService
         var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
         if (mod == null)
         {
-            throw new ModException(ErrorCodes.MOD_NOT_FOUND, $"Mod not found: {sha}", new { sha });
+            throw new OperationException(
+                ErrorCodes.MOD_NOT_FOUND,
+                new Dictionary<string, string> { { "sha", sha } },
+                $"Mod not found: {sha}"
+            );
         }
 
         // Track unloaded mods for efficient frontend updates
@@ -147,16 +151,20 @@ public class ModLifecycleService : IModLifecycleService
 
                     if (extractResult.Exception != null)
                     {
-                        throw new ModException(ErrorCodes.MOD_EXTRACTION_FAILED,
+                        throw new OperationException(
+                            ErrorCodes.MOD_EXTRACTION_FAILED,
+                            new Dictionary<string, string> { { "sha", sha } },
                             errorMessage,
-                            extractResult.Exception,
-                            new { sha });
+                            extractResult.Exception
+                        );
                     }
                     else
                     {
-                        throw new ModException(ErrorCodes.MOD_EXTRACTION_FAILED,
-                            errorMessage,
-                            new { sha });
+                        throw new OperationException(
+                            ErrorCodes.MOD_EXTRACTION_FAILED,
+                            new Dictionary<string, string> { { "sha", sha } },
+                            errorMessage
+                        );
                     }
                 }
 
@@ -208,15 +216,20 @@ public class ModLifecycleService : IModLifecycleService
                 Success = true
             };
         }
-        catch (ModException)
+        catch (OperationException)
         {
-            // Re-throw ModException as-is for proper error handling
+            // Re-throw OperationException as-is for proper error handling
             throw;
         }
         catch (Exception ex)
         {
             _logger.Error($"Error loading mod {sha}: {ex.Message}", "ModLifecycleService", ex);
-            throw new ModException(ErrorCodes.UNKNOWN_ERROR, $"Failed to load mod: {ex.Message}", ex, new { sha, modName });
+            throw new OperationException(
+                ErrorCodes.UNKNOWN_ERROR,
+                new Dictionary<string, string> { { "sha", sha }, { "name", modName } },
+                $"Failed to load mod: {ex.Message}",
+                ex
+            );
         }
     }
 

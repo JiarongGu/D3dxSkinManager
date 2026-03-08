@@ -12,6 +12,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2026-03-09 - Unified Error Handling with OperationException ⭐⭐⭐
+**Summary**: Replaced ModException and WorkflowException with single OperationException using Code + Parameters pattern for consistent error handling across the entire stack.
+
+#### Unified Exception Pattern
+**Impact**: ✅ Single source of truth for error handling, consistent naming, full i18n support
+**Features**:
+- Single `OperationException` for all operations (mod, workflow, file, etc.)
+- Consistent Code + Parameters pattern (backend and frontend aligned)
+- camelCase JSON serialization: `{"code":"ERROR_CODE","parameters":{...}}`
+- Unified i18n pattern: `errors.{CODE}` for all error translations
+- Added `translateErrorMessage()` helper for displaying stored errors
+
+**Backend Changes**:
+- OperationException.cs: New unified exception in Core/Exceptions
+- OperationException: Properties `Code` (string) + `Parameters` (Dictionary<string, string>)
+- OperationException.GetStructuredMessage(): Uses JsonHelper.Serialize() for camelCase
+- BaseFacade.cs: Updated IPC error response to use `{ code, parameters }`
+- ModCacheService.cs: Migrated to OperationException
+- ModDeletionService.cs: Migrated to OperationException
+- ModLifecycleService.cs: Migrated to OperationException
+- ModImportWorkflowHandler.cs: Migrated to OperationException
+- Deleted: ModException.cs, WorkflowException.cs, WorkflowErrorHelper.cs
+
+**Frontend Changes**:
+- ErrorDetails: Changed interface to `{ code, parameters }` (was `{ errorCode, data }`)
+- OperationError: Updated class to match backend structure
+- errorHandler.ts: Updated handleError() to use new property names
+- errorHandler.ts: Added translateErrorMessage() for stored error strings
+- ModImportWorkflowTable.tsx: Refactored to use translateErrorMessage()
+
+**Documentation Updates**:
+- AI_GUIDE.md: Updated error handling section with unified pattern
+- BACKEND.md: Updated ModException → OperationException reference
+- Version bump: AI_GUIDE v3.4 → v3.5
+
+**Migration Notes**:
+- MigrationError kept separate (different purpose: batch operation result DTO)
+- All error codes use unified `errors.{CODE}` i18n pattern
+- Backend serializes with camelCase for frontend compatibility
+
 ### Added - 2026-03-08 - Active Mods View with Orphaned Mod Detection ⭐⭐⭐
 **Summary**: Added "Show Loaded Mods" feature with cache-first scanning, orphaned mod detection, and IMemoryCache optimization for performance.
 

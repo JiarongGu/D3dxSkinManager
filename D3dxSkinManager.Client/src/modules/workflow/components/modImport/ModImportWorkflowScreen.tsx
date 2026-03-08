@@ -182,7 +182,6 @@ export const ModImportWorkflowScreen: React.FC = () => {
       }
     },
     classes: {
-      hover: 'mod-import-workflow-screen-drop-hover',
       drop: 'mod-import-workflow-screen-drop-active'
     }
   });

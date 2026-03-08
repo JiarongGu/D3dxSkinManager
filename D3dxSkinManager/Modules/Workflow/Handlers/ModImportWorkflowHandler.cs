@@ -3,6 +3,7 @@ using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Constants;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Workflow.Models;
 using D3dxSkinManager.Modules.Workflow.Repositories;
 using D3dxSkinManager.Modules.Workflow.Entities;
@@ -623,12 +624,12 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             // No need to mark as failed - just let it delete
             _logger.Info($"Workflow {workflow.Id} was cancelled - will be deleted by cleanup task");
         }
-        catch (WorkflowException wex)
+        catch (OperationException opEx)
         {
-            // Known workflow error with structured error code
-            _logger.Error($"Workflow step failed: {wex.Message}", "ModImportWorkflowHandler", wex);
+            // Known operation error with structured error code
+            _logger.Error($"Workflow step failed: {opEx.Message}", "ModImportWorkflowHandler", opEx);
             workflow.Status = WorkflowStatus.Failed;
-            workflow.ErrorMessage = wex.GetStructuredErrorMessage();
+            workflow.ErrorMessage = opEx.GetStructuredMessage();
             workflow.CompletedAt = DateTime.UtcNow;
             await _workflowRepository.UpdateAsync(workflow);
 
@@ -643,10 +644,14 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             // Unknown error - wrap as UNKNOWN_ERROR
             _logger.Error($"Workflow step failed with unexpected error: {ex.Message}", "ModImportWorkflowHandler", ex);
             workflow.Status = WorkflowStatus.Failed;
-            workflow.ErrorMessage = WorkflowErrorHelper.CreateErrorMessage(
+
+            var opEx = new OperationException(
                 WorkflowErrorCodes.UNKNOWN_ERROR,
-                "message", ex.Message
+                new Dictionary<string, string> { { "message", ex.Message } },
+                ex.Message,
+                ex
             );
+            workflow.ErrorMessage = opEx.GetStructuredMessage();
             workflow.CompletedAt = DateTime.UtcNow;
             await _workflowRepository.UpdateAsync(workflow);
 
@@ -681,7 +686,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             if (!validation.IsValid)
             {
                 _logger.Error($"Invalid or unsupported file type: {validation.ErrorMessage}");
-                throw new WorkflowException(
+                throw new OperationException(
                     WorkflowErrorCodes.MI_UNSUPPORTED_FILE_TYPE,
                     message: "Unsupported file type"
                 );
@@ -690,7 +695,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             if (validation.IsPasswordProtected)
             {
                 _logger.Error("Archive is password protected");
-                throw new WorkflowException(
+                throw new OperationException(
                     WorkflowErrorCodes.MI_PASSWORD_PROTECTED,
                     message: "Password-protected archive"
                 );
@@ -787,9 +792,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             throw new InvalidOperationException("Folder path is required");
 
         if (!_fileHelper.DirectoryExists(context.FolderPath))
-            throw new WorkflowException(
+            throw new OperationException(
                 WorkflowErrorCodes.MI_FOLDER_NOT_FOUND,
-                "path", context.FolderPath,
+                new Dictionary<string, string> { { "path", context.FolderPath } },
                 $"Folder not found: {context.FolderPath}"
             );
 
@@ -892,11 +897,11 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 File.Delete(tempPath);
             }
 
-            // Mark workflow as failed with duplicate error and throw WorkflowException
+            // Mark workflow as failed with duplicate error and throw OperationException
             workflow.Status = WorkflowStatus.Failed;
             await PopulateCategoryNameInContextAsync(workflow);
 
-            throw new WorkflowException(
+            throw new OperationException(
                 WorkflowErrorCodes.MI_DUPLICATE_MOD,
                 new Dictionary<string, string> { { "name", existingMod.Name } },
                 $"Duplicate mod: {existingMod.Name} (SHA: {archiveSha})"

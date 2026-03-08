@@ -1,6 +1,7 @@
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Mod;
@@ -98,18 +99,18 @@ public class ModCacheService : IModCacheService
 
             if (result.Exception != null)
             {
-                throw new Core.Models.ModException(
+                throw new OperationException(
                     ErrorCodes.FILE_ACCESS_DENIED,
+                    new Dictionary<string, string> { { "sha", sha }, { "path", disabledDirectory } },
                     errorMessage,
-                    result.Exception,
-                    new { sha, disabledDirectory, targetDirectory });
+                    result.Exception);
             }
             else
             {
-                throw new Core.Models.ModException(
+                throw new OperationException(
                     ErrorCodes.FILE_ACCESS_DENIED,
-                    errorMessage,
-                    new { sha, disabledDirectory, targetDirectory });
+                    new Dictionary<string, string> { { "sha", sha }, { "path", disabledDirectory } },
+                    errorMessage);
             }
         }
 
@@ -149,18 +150,18 @@ public class ModCacheService : IModCacheService
 
             if (result.Exception != null)
             {
-                throw new Core.Models.ModException(
+                throw new OperationException(
                     ErrorCodes.MOD_FOLDER_IN_USE,
+                    new Dictionary<string, string> { { "sha", sha }, { "path", cacheDirectory } },
                     errorMessage,
-                    result.Exception,
-                    new { sha, cacheDirectory, disabledDirectory });
+                    result.Exception);
             }
             else
             {
-                throw new Core.Models.ModException(
+                throw new OperationException(
                     ErrorCodes.MOD_FOLDER_IN_USE,
-                    errorMessage,
-                    new { sha, cacheDirectory, disabledDirectory });
+                    new Dictionary<string, string> { { "sha", sha }, { "path", cacheDirectory } },
+                    errorMessage);
             }
         }
 

@@ -204,7 +204,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
 
         {/* Read-only SHA display */}
         {mod && (
-          <Form.Item label="SHA Hash" tooltip="Unique identifier (read-only)">
+          <Form.Item label="SHA Hash" tooltip={t('mods.edit.shaHashTooltip')}>
             <Input value={mod.sha} disabled className="mod-edit-screen-sha-input" />
           </Form.Item>
         )}
@@ -214,10 +214,10 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       <div className="slide-in-screen-footer">
         <Space>
           <CompactButton onClick={handleCancel}>
-            Cancel
+            {t('common.cancel')}
           </CompactButton>
           <CompactButton type="primary" onClick={handleSave} loading={saving}>
-            Save Changes
+            {t('common.saveChanges')}
           </CompactButton>
         </Space>
       </div>
@@ -230,13 +230,14 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
  * Lightweight wrapper that manages the slide-in dialog
  */
 export const ModEditScreen: React.FC = () => {
+  const { t } = useTranslation();
   const visible = useModsStore(s => s.editDialogVisible);
   const mod = useModsStore(s => s.modToEdit);
   const { closeEditDialog } = useMods();
 
   useSlideInScreen({
     visible,
-    title: mod ? `Edit Mod: ${mod.name}` : 'Edit Mod',
+    title: mod ? t('mods.edit.titleWithName', { name: mod.name }) : t('mods.edit.title'),
     content: <ModEditFormContent mod={mod} />,
     width: '55%',
     onClose: closeEditDialog,

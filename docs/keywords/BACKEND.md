@@ -59,10 +59,12 @@
   - MOD_FOLDER_IN_USE, MOD_ARCHIVE_NOT_FOUND, MOD_NOT_FOUND, etc.
   - Created: 2026-02-21
 
-- **ModException** → `Modules/Core/Models/ModException.cs`
-  - Custom exception with error code and data for frontend error handling
-  - Properties: ErrorCode, Data (additional context)
-  - Created: 2026-02-21
+- **OperationException** → `Modules/Core/Exceptions/OperationException.cs`
+  - Unified exception for all operations with structured error information
+  - Properties: Code, Parameters (Dictionary<string, string>)
+  - Serializes to JSON: `{ "code": "ERROR_CODE", "parameters": {...} }`
+  - Frontend uses pattern: `errors.{Code}` for i18n lookup
+  - Created: 2026-03-09 (replaces ModException and WorkflowException)
 
 
 #### Utilities

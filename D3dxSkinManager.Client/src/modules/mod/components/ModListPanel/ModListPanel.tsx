@@ -88,7 +88,6 @@ export const ModListPanel: React.FC = () => {
       }
     },
     classes: {
-      hover: 'mod-list-panel-drop-hover',
       drop: 'mod-list-panel-drop-active'
     }
   });

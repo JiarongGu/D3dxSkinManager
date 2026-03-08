@@ -287,8 +287,8 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
       title={title}
       onOk={handleConfirm}
       onCancel={onCancel}
-      okText={`Confirm (${localSelectedTags.length})`}
-      cancelText="Cancel"
+      okText={t('tags.confirmWithCount', { count: localSelectedTags.length })}
+      cancelText={t('common.cancel')}
       width={700}
       destroyOnHidden
     >
@@ -330,7 +330,7 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
           {filteredNewTags.length > 0 && (
             <div className="tag-management-section">
               <div className="tag-management-section-header">
-                <PlusOutlined /> Newly Created Tags
+                <PlusOutlined /> {t('tags.newlyCreatedTags')}
               </div>
               <div className="tag-management-section-content">
                 {filteredNewTags.map((tag) => renderTagItem(tag, true))}
@@ -342,7 +342,7 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
           {filteredExistingTags.length > 0 && (
             <div className="tag-management-section">
               {filteredNewTags.length > 0 && (
-                <div className="tag-management-section-header">Existing Tags</div>
+                <div className="tag-management-section-header">{t('tags.existingTags')}</div>
               )}
               <div className="tag-management-section-content">
                 {filteredExistingTags.map((tag) => renderTagItem(tag))}
@@ -354,7 +354,7 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
           {filteredExistingTags.length === 0 &&
             filteredNewTags.length === 0 && (
               <Empty
-                description={searchTerm ? "No tags found" : "No tags available"}
+                description={searchTerm ? t('tags.noTagsFound') : t('tags.noTagsAvailable')}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             )}

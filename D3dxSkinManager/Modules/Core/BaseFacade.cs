@@ -2,6 +2,7 @@ using D3dxSkinManager.Infrastructure;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Exceptions;
 
 namespace D3dxSkinManager.Modules.Core;
 
@@ -36,15 +37,15 @@ public abstract class BaseFacade : IModuleFacade
 
             return IpcResponse.CreateSuccess(request.Id, responseData);
         }
-        catch (ModException modEx)
+        catch (OperationException opEx)
         {
-            // Handle ModException specially to include error code and data
-            _logger.Error($"Mod operation error '{request.Type}': [{modEx.ErrorCode}] {modEx.Message}", ModuleName, modEx);
+            // Handle OperationException with structured error code and parameters
+            _logger.Error($"Operation error '{request.Type}': [{opEx.Code}] {opEx.Message}", ModuleName, opEx);
 
-            return IpcResponse.CreateError(request.Id, modEx.Message, new
+            return IpcResponse.CreateError(request.Id, opEx.GetStructuredMessage(), new
             {
-                errorCode = modEx.ErrorCode,
-                data = modEx.Data
+                code = opEx.Code,
+                parameters = opEx.Parameters
             });
         }
         catch (Exception ex)
@@ -54,8 +55,8 @@ public abstract class BaseFacade : IModuleFacade
 
             return Models.IpcResponse.CreateError(request.Id, ex.Message, new
             {
-                errorCode = ErrorCodes.UNKNOWN_ERROR,
-                data = new { exceptionType = ex.GetType().Name }
+                code = ErrorCodes.UNKNOWN_ERROR,
+                parameters = new { exceptionType = ex.GetType().Name }
             });
         }
     }

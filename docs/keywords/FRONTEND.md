@@ -855,7 +855,7 @@ Selector files removed - use store hooks directly:
 
 - **errorHandler** → `src/shared/utils/errorHandler.ts`
   - handleError(error) → Processes errors and shows user-friendly messages based on error code
-  - ModOperationError class → Typed error with errorCode and data
+  - OperationError class → Typed error with errorCode and data
   - getErrorMessage(errorCode) → Get user-friendly message for error code
   - isErrorCode(error, errorCode) → Check if error matches specific code
   - ERROR_MESSAGES mapping for all error codes

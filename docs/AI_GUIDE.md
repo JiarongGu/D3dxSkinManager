@@ -1,10 +1,17 @@
 # AI Assistant Guide
 
-**Version:** 3.4
+**Version:** 3.5
 **Last Updated:** 2026-03-09
 **Critical:** NEVER commit without explicit user approval!
 
-**Recent Additions (v3.4):**
+**Recent Additions (v3.5):**
+- Unified error handling with OperationException (Code + Parameters pattern)
+- Single exception type for all operations (backend and frontend)
+- Added `translateErrorMessage()` helper for consistent error translation
+- Backend uses JsonHelper.Serialize() for camelCase serialization
+- Removed ModException and WorkflowException in favor of OperationException
+
+**Previous (v3.4):**
 - Batch edit save with loading overlay and close prevention
 - Centralized `setLoading` in SlideInScreenContext for loading states
 - AG Grid dirty state tracking for changed mods detection
@@ -73,21 +80,50 @@
 // - Event handlers consolidate events for frontend
 ```
 
-### 3. Error Handling
+### 3. Error Handling (Unified Pattern)
+
+**Backend: OperationException (Code + Parameters)**
+```csharp
+// ✅ Throw structured exceptions
+using D3dxSkinManager.Modules.Core.Exceptions;
+
+throw new OperationException(
+    "MOD_DELETE_FAILED",
+    new Dictionary<string, string> { { "name", modName }, { "sha", sha } },
+    "Failed to delete mod"  // Optional fallback message
+);
+
+// ✅ BaseFacade automatically handles OperationException
+// IPC response: { code: "MOD_DELETE_FAILED", parameters: { name: "MyMod", sha: "abc..." } }
+```
+
+**Frontend: handleError() and translateErrorMessage()**
 ```typescript
-// ✅ Always use handleError utility
+// ✅ For IPC errors (real-time operations)
 import { handleError } from '@/shared/utils/errorHandler';
 try {
-  await operation();
+  await modService.deleteMod(profileId, sha);
 } catch (error: unknown) {
-  handleError(error);  // Shows user-friendly message
+  handleError(error);  // Parses error, shows i18n notification
 }
+
+// ✅ For displaying stored errors (workflow.errorMessage, etc.)
+import { translateErrorMessage } from '@/shared/utils/errorHandler';
+const errorText = translateErrorMessage(workflow.errorMessage);
+// Returns: "Failed to delete mod: MyMod" (translated with parameters)
 
 // ❌ Never manually extract error messages
 catch (error) {
-  notification.error((error as Error).message);  // WRONG
+  notification.error((error as Error).message);  // WRONG - no i18n
 }
 ```
+
+**Error Pattern Summary:**
+- Backend: Single `OperationException` with `Code` + `Parameters`
+- Frontend: Single `OperationError` with `code` + `parameters`
+- IPC: `{ code, parameters }` serialized with camelCase
+- i18n: `errors.{CODE}` pattern for all error translations
+- Display: Use `translateErrorMessage()` for stored error strings
 
 ### 4. Data Conventions
 ```typescript
@@ -96,6 +132,17 @@ const [mod, setMod] = useState<ModInfo>();
 
 // ✅ null ONLY for React render returns
 if (!data) return null;
+```
+
+### 5. i18n Translations
+```json
+// ✅ All error codes must have translations in both en.json and cn.json
+// Location: D3dxSkinManager/Languages/*.json
+{
+  "errors.MOD_DELETE_FAILED": "Failed to delete mod: {{name}}",
+  "errors.WORKFLOW_MI_DUPLICATE_MOD": "This mod already exists in your library: {{name}}",
+  "errors.UNKNOWN_ERROR": "An unknown error occurred."
+}
 ```
 
 ---
@@ -783,8 +830,9 @@ className={`mod-list-item ${isSelected ? 'selected' : ''}`}
 
 4. **Error handling**
    ```bash
-   Backend: throw ModException(ErrorCodes.X)
+   Backend: throw new OperationException(code, parameters)
    Frontend: catch + handleError(error)
+   i18n: Add errors.{CODE} to en.json and cn.json
    ```
 
 5. **Test & commit**
@@ -871,8 +919,10 @@ cd <frontend> && npm run build       # Frontend
 - **ALWAYS** load WORKFLOWS.md for implementation patterns
 
 ### 2. Error Handling
-- Backend: `throw ModException(ErrorCodes.X, message, context)`
+- Backend: `throw new OperationException(code, parameters, message)`
 - Frontend: `catch (error: unknown) { handleError(error); }`
+- Display stored errors: `translateErrorMessage(errorString)`
+- All errors use unified `errors.{CODE}` i18n pattern
 
 ### 3. Module Boundaries
 - **NEVER** access other module's repositories

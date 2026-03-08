@@ -26,14 +26,13 @@ import {
   ModImportWorkflowContext,
   ModImportWorkflowSteps,
 } from "../../types/workflow.types";
-import { handleError } from "../../../../shared/utils/errorHandler";
+import { handleError, translateErrorMessage } from "../../../../shared/utils/errorHandler";
 import {
   ModImportMetadataDialog,
   ModImportMetadataFormValues,
 } from "./ModImportMetadataDialog";
 import "./ModImportWorkflowTable.css";
 import { CompactButton } from "../../../../shared/components/compact";
-import { parseWorkflowError, getErrorI18nKey } from "../../utils/errorParser";
 import { workflowService } from "../../../../shared/services/ipc";
 
 interface ModImportWorkflowTableProps {
@@ -433,15 +432,8 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 
         // Show error message in tooltip for failed workflows
         if (row.workflow.status === WorkflowStatus.Failed && row.workflow.errorMessage) {
-          // Parse error message and get translated text
-          const parsedError = parseWorkflowError(row.workflow.errorMessage);
-          const i18nKey = getErrorI18nKey(parsedError.code);
-
-          // Try to translate with parameters, fallback to original message if translation missing
-          const errorMessage = t(i18nKey, {
-            ...parsedError.parameters,
-            defaultValue: parsedError.fallbackMessage
-          });
+          // Use shared error translation logic
+          const errorMessage = translateErrorMessage(row.workflow.errorMessage, 'WORKFLOW_UNKNOWN_ERROR');
 
           return (
             <Tooltip

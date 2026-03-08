@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PictureOutlined, DeleteOutlined, FileImageOutlined } from '@ant-design/icons';
 import './CompactThumbnailUpload.css';
 
@@ -44,6 +45,7 @@ export const CompactThumbnailUpload: React.FC<CompactThumbnailUploadProps> = ({
   alt = 'Thumbnail',
   className = '',
 }) => {
+  const { t } = useTranslation();
   const [imageError, setImageError] = useState(false);
   const containerClassName = `compact-thumbnail-upload ${className}`.trim();
 
@@ -69,14 +71,14 @@ export const CompactThumbnailUpload: React.FC<CompactThumbnailUploadProps> = ({
           ) : (
             <div className="compact-thumbnail-error">
               <FileImageOutlined className="compact-thumbnail-error-icon" />
-              <div className="compact-thumbnail-error-text">Failed to load</div>
+              <div className="compact-thumbnail-error-text">{t('common.failedToLoad')}</div>
             </div>
           )}
           {/* Remove overlay */}
           {onRemove && (
             <div className="compact-thumbnail-overlay" onClick={onRemove}>
               <DeleteOutlined className="compact-thumbnail-overlay-icon" />
-              <div className="compact-thumbnail-overlay-text">Remove</div>
+              <div className="compact-thumbnail-overlay-text">{t('common.remove')}</div>
             </div>
           )}
         </div>
