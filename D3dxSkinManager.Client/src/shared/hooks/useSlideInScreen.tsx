@@ -18,6 +18,10 @@ interface SlideInDialogOptions {
  * - Level is automatically determined based on current screen stack depth
  * - Child screens (screens opened from within other screens) get higher levels
  * - Same-level screens automatically close when a new one opens
+ *
+ * Returns:
+ * - screenId: The ID of the current screen (or undefined if not visible)
+ * - setLoading: Function to set loading state for the screen (automatically manages closable state)
  */
 export function useSlideInScreen({
   visible,
@@ -26,7 +30,7 @@ export function useSlideInScreen({
   width = '60%',
   onClose,
 }: SlideInDialogOptions) {
-  const { openScreen, closeScreen } = useSlideInScreenContext();
+  const { openScreen, closeScreen, setLoading: setLoadingContext } = useSlideInScreenContext();
   const parentScreenId = useCurrentSlideInScreenId();
   const screenIdRef = useRef<string>(undefined);
 
@@ -54,4 +58,16 @@ export function useSlideInScreen({
       }
     };
   }, [closeScreen]);
+
+  // Return setLoading function that works with current screen ID
+  const setLoading = (loading: boolean, loadingText?: string) => {
+    if (screenIdRef.current) {
+      setLoadingContext(screenIdRef.current, loading, loadingText);
+    }
+  };
+
+  return {
+    screenId: screenIdRef.current,
+    setLoading,
+  };
 }

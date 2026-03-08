@@ -43,9 +43,15 @@ export async function batchUpdateCategories(
   categoryId: string
 ): Promise<boolean> {
   try {
+    // Build updates object - all mods get the same category
+    const updates: Record<string, string> = {};
+    shas.forEach(sha => {
+      updates[sha] = categoryId;
+    });
+
     // For batch operations, skip optimistic updates due to complexity
     // Just perform the operation and refresh
-    const updatedCount = await modService.batchUpdateCategory(profileId, shas, categoryId);
+    const updatedCount = await modService.batchUpdateCategory(profileId, updates);
 
     if (updatedCount > 0) {
       notification.success(i18n.t('category.operations.batchUpdateSuccess', { count: updatedCount }));

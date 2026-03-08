@@ -20,11 +20,11 @@ public interface IModMetadataService
 
     // Update metadata operations (from original ModMetadataService)
     Task<ModInfo> UpdateAsync(string sha, UpdateModMetadataRequest request);
-    Task<int> BatchUpdateAsync(List<string> shas, UpdateModMetadataRequest request, List<string> fieldMask);
+    Task<int> BatchUpdateAsync(Dictionary<string, UpdateModMetadataRequest> updates);
 
     // Update category operations (refactored - no callbacks)
     Task<ModInfo> UpdateCategoryAsync(string sha, string category);
-    Task<int> BatchUpdateCategoryAsync(List<string> shas, string category);
+    Task<int> BatchUpdateCategoryAsync(Dictionary<string, string> updates);
 }
 
 /// <summary>
@@ -180,28 +180,31 @@ public class ModMetadataService : IModMetadataService
     }
 
     /// <summary>
-    /// Batch update metadata for multiple mods
-    /// Uses fieldMask to determine which fields to update
+    /// Batch update metadata for multiple mods with individual values for each mod
+    /// Each mod can have its own specific metadata values
     /// Emits METADATA_UPDATED event for each successfully updated mod
     /// </summary>
-    public async Task<int> BatchUpdateAsync(List<string> shas, UpdateModMetadataRequest request, List<string> fieldMask)
+    public async Task<int> BatchUpdateAsync(Dictionary<string, UpdateModMetadataRequest> updates)
     {
         int updatedCount = 0;
 
-        foreach (var sha in shas)
+        foreach (var (sha, request) in updates)
         {
+            // Yield to prevent UI blocking during long operations
+            await Task.Yield();
+
             try
             {
                 var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
                 if (mod == null) continue;
 
-                // Apply updates based on fieldMask
-                if (fieldMask.Contains("name") && request.Name != null) mod.Name = request.Name;
-                if (fieldMask.Contains("author") && request.Author != null) mod.Author = request.Author;
-                if (fieldMask.Contains("tags") && request.Tags != null) mod.Tags = request.Tags;
-                if (fieldMask.Contains("grading") && request.Grading != null) mod.Grading = request.Grading;
-                if (fieldMask.Contains("description") && request.Description != null) mod.Description = request.Description;
-                if (fieldMask.Contains("disablePreview") && request.DisablePreview != null) mod.DisablePreview = request.DisablePreview.Value;
+                // Apply updates - only update non-null fields
+                if (request.Name != null) mod.Name = request.Name;
+                if (request.Author != null) mod.Author = request.Author;
+                if (request.Tags != null) mod.Tags = request.Tags;
+                if (request.Grading != null) mod.Grading = request.Grading;
+                if (request.Description != null) mod.Description = request.Description;
+                if (request.DisablePreview != null) mod.DisablePreview = request.DisablePreview.Value;
 
                 await _repository.UpdateAsync(mod).ConfigureAwait(false);
 
@@ -216,7 +219,7 @@ public class ModMetadataService : IModMetadataService
             }
         }
 
-        _logger.Info($"Batch updated metadata for {updatedCount} out of {shas.Count} mods", "ModMetadataService");
+        _logger.Info($"Batch updated metadata for {updatedCount} out of {updates.Count} mods", "ModMetadataService");
 
         return updatedCount;
     }
@@ -270,16 +273,16 @@ public class ModMetadataService : IModMetadataService
     }
 
     /// <summary>
-    /// Batch update category for multiple mods
+    /// Batch update category for multiple mods with individual values for each mod
     /// Unloads any loaded mods before category change
     /// Emits single CATEGORY_UPDATED event for the batch operation
     /// </summary>
-    public async Task<int> BatchUpdateCategoryAsync(List<string> shas, string category)
+    public async Task<int> BatchUpdateCategoryAsync(Dictionary<string, string> updates)
     {
         int updatedCount = 0;
-        _logger.Info($"Batch updating category for {shas.Count} mods to category '{category}'", "ModMetadataService");
+        _logger.Info($"Batch updating category for {updates.Count} mods with individual categories", "ModMetadataService");
 
-        foreach (var sha in shas)
+        foreach (var (sha, category) in updates)
         {
             try
             {
@@ -300,7 +303,7 @@ public class ModMetadataService : IModMetadataService
                 mod.Category = category;
                 await _repository.UpdateAsync(mod).ConfigureAwait(false);
                 updatedCount++;
-                _logger.Verbose($"Updated category for mod {sha}", "ModMetadataService");
+                _logger.Verbose($"Updated category for mod {sha} to '{category}'", "ModMetadataService");
             }
             catch (Exception ex)
             {
@@ -308,12 +311,12 @@ public class ModMetadataService : IModMetadataService
             }
         }
 
-        _logger.Info($"Successfully updated category for {updatedCount} out of {shas.Count} mods", "ModMetadataService");
+        _logger.Info($"Successfully updated category for {updatedCount} out of {updates.Count} mods", "ModMetadataService");
 
         // Emit single CATEGORY_UPDATED event for batch operation
         if (updatedCount > 0)
         {
-            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, new { shas, category, count = updatedCount }).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, new { updates, count = updatedCount }).ConfigureAwait(false);
         }
 
         return updatedCount;

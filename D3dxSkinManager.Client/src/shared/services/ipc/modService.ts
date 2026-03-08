@@ -231,35 +231,29 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Batch update category for multiple mods
+   * Batch update category for multiple mods with individual values for each mod
    */
   async batchUpdateCategory(
     profileId: string,
-    shas: string[],
-    category: string
+    updates: Record<string, string>
   ): Promise<number> {
     return this.sendMessage<number>('BATCH_UPDATE_CATEGORY', profileId, {
-      shas,
-      category
+      updates
     });
   }
 
   /**
-   * Batch update metadata for multiple mods
+   * Batch update metadata for multiple mods with individual values for each mod
    */
   async batchUpdateMetadata(
     profileId: string,
-    shas: string[],
-    metadata: UpdateModMetadataRequest,
-    fieldMask: string[]
+    updates: Record<string, UpdateModMetadataRequest>
   ): Promise<{ updatedCount: number; totalRequested: number }> {
     return this.sendMessage<{ updatedCount: number; totalRequested: number }>(
       'BATCH_UPDATE_METADATA',
       profileId,
       {
-        shas,
-        ...metadata,
-        fieldMask
+        updates
       }
     );
   }

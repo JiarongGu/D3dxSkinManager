@@ -10,6 +10,8 @@ export interface SlideInScreenConfig {
   isClosing?: boolean;
   level: number;
   parentId?: string;
+  loading?: boolean;
+  loadingText?: string;
 }
 
 interface SlideInScreenContextValue {
@@ -19,6 +21,7 @@ interface SlideInScreenContextValue {
   closeTopScreen: () => void;
   closeAllScreens: () => void;
   getCurrentLevel: () => number;
+  setLoading: (id: string, loading: boolean, loadingText?: string) => void;
   currentScreenId?: string;
 }
 
@@ -135,6 +138,12 @@ export function SlideInScreenProvider({ children }: SlideInScreenProviderProps) 
     });
   }, []);
 
+  const setLoading = useCallback((id: string, loading: boolean, loadingText?: string) => {
+    setScreens(prev =>
+      prev.map(s => (s.id === id ? { ...s, loading, loadingText } : s))
+    );
+  }, []);
+
   return (
     <SlideInScreenContext.Provider
       value={{
@@ -144,6 +153,7 @@ export function SlideInScreenProvider({ children }: SlideInScreenProviderProps) 
         closeTopScreen,
         closeAllScreens,
         getCurrentLevel,
+        setLoading,
         currentScreenId,
       }}
     >

@@ -252,32 +252,21 @@ public class ModFacade : BaseFacade, IModFacade
         return result != null;
     }
 
-    public async Task<int> BatchUpdateCategoryAsync(List<string> shas, string category)
+    public async Task<int> BatchUpdateCategoryAsync(Dictionary<string, string> updates)
     {
-        _logger.Info($"Starting batch category update for {shas.Count} mods to category '{category}'");
+        _logger.Info($"Starting batch category update for {updates.Count} mods with individual categories");
 
         // Delegate to service - it handles event emission
-        // New merged ModMetadataService doesn't need callbacks anymore
-        var updatedCount = await _metadataService.BatchUpdateCategoryAsync(shas, category).ConfigureAwait(false);
+        var updatedCount = await _metadataService.BatchUpdateCategoryAsync(updates).ConfigureAwait(false);
 
         _logger.Info($"Completed batch category update: {updatedCount} mods successfully updated");
         return updatedCount;
     }
 
-    public async Task<int> BatchUpdateMetadataAsync(List<string> shas, string? name, string? author, List<string>? tags, string? grading, string? description, List<string> fieldMask)
+    public async Task<int> BatchUpdateMetadataAsync(Dictionary<string, UpdateModMetadataRequest> updates)
     {
-        // Create update request
-        var request = new UpdateModMetadataRequest
-        {
-            Name = name,
-            Author = author,
-            Tags = tags,
-            Grading = grading,
-            Description = description
-        };
-
         // Delegate to service - it handles event emissions for each mod
-        return await _metadataService.BatchUpdateAsync(shas, request, fieldMask).ConfigureAwait(false);
+        return await _metadataService.BatchUpdateAsync(updates).ConfigureAwait(false);
     }
 
     public async Task<bool> ImportPreviewImageAsync(string sha, string imagePath)
@@ -429,25 +418,18 @@ public class ModFacade : BaseFacade, IModFacade
 
     private async Task<int> BatchUpdateCategoryAsync(IpcRequest request)
     {
-        var shas = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "shas");
-        var category = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
+        var updates = _payloadHelper.GetRequiredValue<Dictionary<string, string>>(request.Payload, "updates");
 
-        return await BatchUpdateCategoryAsync(shas, category).ConfigureAwait(false);
+        return await BatchUpdateCategoryAsync(updates).ConfigureAwait(false);
     }
 
     private async Task<object> BatchUpdateMetadataAsync(IpcRequest request)
     {
-        var shas = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "shas");
-        var name = _payloadHelper.GetOptionalValue<string>(request.Payload, "name");
-        var author = _payloadHelper.GetOptionalValue<string>(request.Payload, "author");
-        var tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags");
-        var grading = _payloadHelper.GetOptionalValue<string>(request.Payload, "grading");
-        var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
-        var fieldMask = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "fieldMask");
+        var updates = _payloadHelper.GetRequiredValue<Dictionary<string, UpdateModMetadataRequest>>(request.Payload, "updates");
 
-        var updatedCount = await BatchUpdateMetadataAsync(shas, name, author, tags, grading, description, fieldMask).ConfigureAwait(false);
+        var updatedCount = await BatchUpdateMetadataAsync(updates).ConfigureAwait(false);
 
-        return new { updatedCount, totalRequested = shas.Count };
+        return new { updatedCount, totalRequested = updates.Count };
     }
 
     private async Task<object> ImportPreviewImageAsync(IpcRequest request)

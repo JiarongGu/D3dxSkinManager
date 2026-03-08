@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Typography, Button } from 'antd';
 import { SearchOutlined, UndoOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
+import { cloneDeep } from 'lodash-es';
+import { AgGridReact } from 'ag-grid-react';
 import { BatchEditGrid } from './BatchEditGrid';
 import { FindReplacePanel, ReplaceConfig } from './FindReplacePanel';
 import { modService } from '../../../../shared/services/ipc';
@@ -18,10 +20,14 @@ import logger from '../../../../shared/utils/logger';
 
 const { Text } = Typography;
 
+interface BatchEditFormContentProps {
+  setLoading: (loading: boolean, loadingText?: string) => void;
+}
+
 /**
  * Form content component - contains all state and logic for batch editing mods
  */
-const BatchEditFormContent: React.FC = () => {
+const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading }) => {
   const { t } = useTranslation();
 
   // Subscribe to state from store
@@ -29,9 +35,11 @@ const BatchEditFormContent: React.FC = () => {
   const { state: profileState } = useProfile();
   const { closeBatchEditScreen } = useMods();
 
+  // Grid ref to access AG Grid API
+  const gridRef = useRef<AgGridReact>(null);
+
   // Local state
   const [editedMods, setEditedMods] = useState<ModInfo[]>([]);
-  const [originalMods, setOriginalMods] = useState<ModInfo[]>([]);
   const [showSearchReplace, setShowSearchReplace] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -57,11 +65,10 @@ const BatchEditFormContent: React.FC = () => {
   useEffect(() => {
     logger.verbose('[BatchEdit] modsToEdit changed:', modsToEdit.length);
     if (modsToEdit.length > 0) {
-      // Deep clone mods
-      const clonedMods = modsToEdit.map(mod => ({ ...mod }));
+      // Deep clone mods to avoid reference issues with nested objects/arrays
+      const clonedMods = cloneDeep(modsToEdit);
       logger.verbose('[BatchEdit] Setting editedMods:', clonedMods.length);
       setEditedMods(clonedMods);
-      setOriginalMods(clonedMods);
       setHasChanges(false);
     }
   }, [modsToEdit]);
@@ -133,7 +140,9 @@ const BatchEditFormContent: React.FC = () => {
   };
 
   const handleReset = () => {
-    setEditedMods([...originalMods]);
+    // Reset to original data using AG Grid API
+    const clonedMods = cloneDeep(modsToEdit);
+    setEditedMods(clonedMods);
     setHasChanges(false);
     notification.info(t('mods.batchEdit.notifications.resetSuccess'));
   };
@@ -143,46 +152,89 @@ const BatchEditFormContent: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!profileState.selectedProfile?.id) return;
+    if (!profileState.selectedProfile?.id || !gridRef.current) return;
 
-    setSaving(true);
-    let successCount = 0;
-    let failCount = 0;
+    // Get dirty (modified) rows from AG Grid
+    const dirtyNodes: any[] = [];
+    gridRef.current.api.forEachNode((node) => {
+      if (node.data && gridRef.current!.api.getCellEditorInstances({ rowNodes: [node] }).length > 0) {
+        // Cell is currently being edited
+        dirtyNodes.push(node);
+      }
+    });
 
-    try {
-      for (const mod of editedMods) {
-        try {
-          await modService.updateMetadata(profileState.selectedProfile.id, mod.sha, {
-            name: mod.name,
-            author: mod.author,
-            tags: mod.tags,
-            grading: mod.grading,
-            description: mod.description,
-            disablePreview: mod.disablePreview,
-          });
-          successCount++;
-        } catch (error) {
-          logger.error(`Failed to update mod ${mod.sha}:`, error);
-          failCount++;
+    // Get all current row data and compare with original to find changes
+    const changedMods: ModInfo[] = [];
+    const originalModsMap = new Map(modsToEdit.map(m => [m.sha, m]));
+
+    gridRef.current.api.forEachNode((node) => {
+      if (node.data) {
+        const originalMod = originalModsMap.get(node.data.sha);
+        if (originalMod) {
+          // Simple shallow comparison for the editable fields
+          const hasChanged =
+            node.data.name !== originalMod.name ||
+            node.data.author !== originalMod.author ||
+            JSON.stringify(node.data.tags) !== JSON.stringify(originalMod.tags) ||
+            node.data.grading !== originalMod.grading ||
+            node.data.description !== originalMod.description ||
+            node.data.disablePreview !== originalMod.disablePreview;
+
+          if (hasChanged) {
+            changedMods.push(node.data);
+          }
         }
       }
+    });
 
-      if (successCount > 0) {
+    // If no changes, just close
+    if (changedMods.length === 0) {
+      notification.info(t('mods.batchEdit.notifications.noChanges'));
+      closeBatchEditScreen();
+      return;
+    }
+
+    setSaving(true);
+    setLoading(true, t('mods.batchEdit.notifications.saving'));
+
+    try {
+      // Build updates object with SHA as key and metadata as value
+      const updates: Record<string, any> = {};
+      changedMods.forEach((mod) => {
+        updates[mod.sha] = {
+          name: mod.name,
+          author: mod.author,
+          tags: mod.tags,
+          grading: mod.grading,
+          description: mod.description,
+          disablePreview: mod.disablePreview,
+        };
+      });
+
+      // Call batch update API
+      const result = await modService.batchUpdateMetadata(profileState.selectedProfile.id, updates);
+
+      if (result.updatedCount > 0) {
         notification.success(
-          t('mods.notifications.batchUpdateSuccess', { count: successCount })
+          t('mods.notifications.batchUpdateSuccess', { count: result.updatedCount })
         );
         closeBatchEditScreen();
         // Refresh mods list
         await refreshMods(profileState.selectedProfile.id);
       }
 
+      const failCount = result.totalRequested - result.updatedCount;
       if (failCount > 0) {
         notification.error(
           t('mods.notifications.batchUpdateFailed', { count: failCount })
         );
       }
+    } catch (error) {
+      logger.error('Failed to batch update mods:', error);
+      notification.error(t('mods.notifications.batchUpdateFailed', { count: changedMods.length }));
     } finally {
       setSaving(false);
+      setLoading(false);
     }
   };
 
@@ -245,6 +297,7 @@ const BatchEditFormContent: React.FC = () => {
             tags={allTags}
             onModsChange={handleModsChange}
             searchHighlight={searchHighlight}
+            gridRef={gridRef}
           />
         </div>
       </div>
@@ -252,7 +305,7 @@ const BatchEditFormContent: React.FC = () => {
       {/* Footer with action buttons */}
       <div className="slide-in-screen-footer">
         <div style={{ display: 'flex', gap: '8px' }}>
-          <CompactButton onClick={handleCancel} icon={<CloseOutlined />}>
+          <CompactButton onClick={handleCancel} icon={<CloseOutlined />} disabled={saving}>
             {t('mods.batchEdit.toolbar.cancel')}
           </CompactButton>
           <CompactButton
@@ -271,6 +324,13 @@ const BatchEditFormContent: React.FC = () => {
 };
 
 /**
+ * Wrapper component that provides setLoading to the form content
+ */
+const BatchEditScreenContent: React.FC<{ setLoadingFn: (loading: boolean, text?: string) => void }> = ({ setLoadingFn }) => {
+  return <BatchEditFormContent setLoading={setLoadingFn} />;
+};
+
+/**
  * Slide-in screen for batch editing mod metadata
  * Lightweight wrapper that manages the slide-in dialog
  */
@@ -280,13 +340,25 @@ export const BatchEditModsScreen: React.FC = () => {
   const modsToEdit = useModsStore(s => s.modsToEdit);
   const { closeBatchEditScreen } = useMods();
 
-  useSlideInScreen({
+  // Create a ref to store setLoading function
+  const setLoadingRef = useRef<(loading: boolean, text?: string) => void>(() => {});
+
+  // Create content with the ref
+  const content = useMemo(
+    () => <BatchEditScreenContent setLoadingFn={(loading, text) => setLoadingRef.current(loading, text)} />,
+    []
+  );
+
+  const { setLoading } = useSlideInScreen({
     visible,
     title: `${t('mods.batchEdit.title')} (${modsToEdit.length} ${t('common.selected')})`,
-    content: <BatchEditFormContent />,
+    content,
     width: '80%',
     onClose: closeBatchEditScreen,
   });
+
+  // Update the ref when setLoading changes
+  setLoadingRef.current = setLoading;
 
   return null;
 };

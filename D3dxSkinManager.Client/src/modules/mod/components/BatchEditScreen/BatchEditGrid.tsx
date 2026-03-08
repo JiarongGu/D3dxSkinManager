@@ -33,16 +33,19 @@ interface BatchEditGridProps {
     caseSensitive: boolean;
     useRegex: boolean;
   } | null;
+  gridRef?: React.RefObject<AgGridReact | null>;
 }
 
 export const BatchEditGrid: React.FC<BatchEditGridProps> = ({
   mods,
   tags,
   onModsChange,
-  searchHighlight
+  searchHighlight,
+  gridRef: externalGridRef
 }) => {
   const { t } = useTranslation();
-  const gridRef = useRef<AgGridReact>(null);
+  const internalGridRef = useRef<AgGridReact>(null);
+  const gridRef = externalGridRef || internalGridRef;
 
   const columnDefs = useMemo(() => getColumnDefs(tags, searchHighlight, t), [tags, searchHighlight, t]);
 

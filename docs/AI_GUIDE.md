@@ -1,10 +1,17 @@
 # AI Assistant Guide
 
-**Version:** 3.3
+**Version:** 3.4
 **Last Updated:** 2026-03-09
 **Critical:** NEVER commit without explicit user approval!
 
-**Recent Additions (v3.3):**
+**Recent Additions (v3.4):**
+- Batch edit save with loading overlay and close prevention
+- Centralized `setLoading` in SlideInScreenContext for loading states
+- AG Grid dirty state tracking for changed mods detection
+- Fixed `BATCH_UPDATE_METADATA` and `BATCH_UPDATE_CATEGORY` to accept individual values per mod (Dictionary pattern)
+- Deep cloning with lodash-es for proper state management
+
+**Previous (v3.3):**
 - Batch edit feature with AG Grid and inline text highlighting
 - VSCode-style find/replace panel with global search
 - Custom cell renderers for search result highlighting

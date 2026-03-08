@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, createContext, useContext } from 'react';
 import classNames from 'classnames';
 import { CloseOutlined } from '@ant-design/icons';
-import { Button } from 'antd';
+import { Button, Spin } from 'antd';
 import { useSlideInScreenContext } from '../../context/SlideInScreenContext';
 import './SlideInScreen.css';
 
@@ -20,6 +20,8 @@ export interface SlideInScreenProps {
   level: number;
   onClose: () => void;
   isClosing?: boolean;
+  loading?: boolean;
+  loadingText?: string;
 }
 
 /**
@@ -35,20 +37,22 @@ export function SlideInScreen({
   level,
   onClose,
   isClosing = false,
+  loading = false,
+  loadingText,
 }: SlideInScreenProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Handle ESC key to close top screen
+  // Handle ESC key to close top screen (disabled during loading)
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isClosing) {
+      if (e.key === 'Escape' && !isClosing && !loading) {
         onClose();
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose, isClosing]);
+  }, [onClose, isClosing, loading]);
 
   // Calculate blur backdrop width based on level - smaller widths
   const blurWidth = level === 1 ? '5%' : `${5 + (level - 1) * 3}%`;
@@ -61,8 +65,8 @@ export function SlideInScreen({
       {/* Blur backdrop indicator */}
       <div
         className="slide-in-screen-blur-backdrop"
-        style={{ width: blurWidth }}
-        onClick={() => !isClosing && onClose()}
+        style={{ width: blurWidth, cursor: loading ? 'default' : 'pointer' }}
+        onClick={() => !isClosing && !loading && onClose()}
       >
         {/* Soft edge gradient */}
         <div className="slide-in-screen-blur-edge" />
@@ -73,13 +77,22 @@ export function SlideInScreen({
         className="slide-in-screen-panel"
         style={{ width }}
       >
+        {/* Loading Overlay */}
+        {loading && (
+          <div className="slide-in-screen-loading-overlay">
+            <Spin size="large" />
+            {loadingText && <div className="slide-in-screen-loading-text">{loadingText}</div>}
+          </div>
+        )}
+
         {/* Header */}
         <div className="slide-in-screen-header">
           <h2 className="slide-in-screen-title">{title}</h2>
           <Button
             type="text"
             icon={<CloseOutlined />}
-            onClick={() => !isClosing && onClose()}
+            onClick={() => !isClosing && !loading && onClose()}
+            disabled={loading}
             className="slide-in-screen-close-btn"
           />
         </div>
@@ -117,6 +130,8 @@ export function SlideInScreenManager() {
           level={screen.level}
           onClose={() => closeScreen(screen.id)}
           isClosing={screen.isClosing}
+          loading={screen.loading}
+          loadingText={screen.loadingText}
         >
           {screen.content}
         </SlideInScreen>
