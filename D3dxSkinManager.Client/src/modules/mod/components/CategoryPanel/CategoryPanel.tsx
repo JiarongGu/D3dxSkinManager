@@ -1,6 +1,7 @@
 ﻿import { notification } from '../../../../shared/utils/notification';
 import React, { useCallback } from 'react';
-import { Layout } from 'antd';
+import { Layout, Button, Tooltip } from 'antd';
+import { AppstoreOutlined, CheckCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { CategoryInfo, CATEGORY_IDS } from '../../../../shared/types/category.types';
 import { CategoryTree } from './CategoryTree';
 import { UnclassifiedItem } from './UnclassifiedItem';
@@ -38,7 +39,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
   const unclassifiedCount = useModsStore(s => s.unclassifiedCount);
 
   // Get operations
-  const { setcategorySearch, setExpandedKeys, selectCategory, setSearchQuery } = useMods();
+  const { setcategorySearch, setExpandedKeys, selectCategory, setSearchQuery, loadAllMods, loadLoadedMods } = useMods();
 
   // Is unclassified selected?
   const isUnclassifiedSelected = selectedNode?.id === CATEGORY_IDS.UNCLASSIFIED;
@@ -116,6 +117,22 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
     void selectCategory(CATEGORY_IDS.UNCLASSIFIED);
   }, [setSearchQuery, selectCategory]);
 
+  // Handle show all mods
+  const handleShowAllMods = useCallback(() => {
+    setSearchQuery('');
+    if (loadAllMods) {
+      void loadAllMods();
+    }
+  }, [setSearchQuery, loadAllMods]);
+
+  // Handle show loaded mods
+  const handleShowLoadedMods = useCallback(() => {
+    setSearchQuery('');
+    if (loadLoadedMods) {
+      void loadLoadedMods();
+    }
+  }, [setSearchQuery, loadLoadedMods]);
+
   return (
     <Sider
       width="100%"
@@ -136,14 +153,39 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
         />
       </div>
 
-      {/* Unclassified Item - fixed at bottom, doesn't scroll */}
+      {/* Status Bar - split into left (unclassified) and right (action buttons) */}
       <div className="category-panel-unclassified-container">
-        <UnclassifiedItem
-          count={unclassifiedCount}
-          isSelected={isUnclassifiedSelected}
-          onClick={handleUnclassifiedClick}
-          onModDrop={handleUnclassifiedDrop}
-        />
+        {/* Left section - Unclassified Item */}
+        <div className="category-panel-status-left">
+          <UnclassifiedItem
+            count={unclassifiedCount}
+            isSelected={isUnclassifiedSelected}
+            onClick={handleUnclassifiedClick}
+            onModDrop={handleUnclassifiedDrop}
+          />
+        </div>
+
+        {/* Right section - Action icon buttons */}
+        <div className="category-panel-status-right">
+          <Tooltip title={t('category.showAllMods')} placement="top">
+            <Button
+              type="text"
+              size="small"
+              icon={<UnorderedListOutlined />}
+              onClick={handleShowAllMods}
+              className="category-panel-action-button"
+            />
+          </Tooltip>
+          <Tooltip title={t('category.showLoadedMods')} placement="top">
+            <Button
+              type="text"
+              size="small"
+              icon={<CheckCircleOutlined />}
+              onClick={handleShowLoadedMods}
+              className="category-panel-action-button"
+            />
+          </Tooltip>
+        </div>
       </div>
     </Sider>
   );

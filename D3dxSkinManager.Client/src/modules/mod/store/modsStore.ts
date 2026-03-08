@@ -18,12 +18,15 @@ import { CategoryInfo } from '../../../shared/types/category.types';
 // State Interface
 // ============================================================================
 
+export type ModListViewMode = 'category' | 'unclassified' | 'all' | 'loaded';
+
 export interface ModsState {
   // Mod List Panel
   selectedMod: ModInfo | undefined;
   selectedMods: ModInfo[];
-  mods: ModInfo[] | undefined; // Current mods list (filtered by category)
+  mods: ModInfo[] | undefined; // Current mods list (filtered by view mode)
   modLoading: boolean; // Loading state for mod list operations (update, delete, refresh)
+  viewMode: ModListViewMode; // Current view mode for mod list
 
   // Statistics (global mod stats - not affected by category selection)
   statistics: ModStatistics | undefined;
@@ -69,6 +72,7 @@ export interface ModsActions {
   setSelectedMods: (mods: ModInfo[]) => void;
   setMods: (mods: ModInfo[] | undefined) => void;
   setModLoading: (loading: boolean) => void;
+  setViewMode: (mode: ModListViewMode) => void;
   updateModLocal: (sha: string, data: Partial<ModInfo>) => void;
   removeMod: (sha: string) => void;
 
@@ -121,6 +125,7 @@ const initialState: ModsState = {
   selectedMods: [],
   mods: undefined,
   modLoading: false,
+  viewMode: 'category', // Default to category view
 
   // Statistics
   statistics: undefined,
@@ -186,6 +191,11 @@ export const useModsStore = create<ModsStore>()(
       setModLoading: (loading) =>
         set((state) => {
           state.modLoading = loading;
+        }),
+
+      setViewMode: (mode) =>
+        set((state) => {
+          state.viewMode = mode;
         }),
 
       updateModLocal: (sha, data) =>

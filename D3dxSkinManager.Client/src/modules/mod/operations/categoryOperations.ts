@@ -98,9 +98,12 @@ export async function loadModsByCategory(
   profileId: string,
   nodeId: string
 ): Promise<void> {
-  const { setModLoading, setMods } = useModsStore.getState();
+  const { setModLoading, setMods, setViewMode } = useModsStore.getState();
 
   try {
+    // Set view mode to category
+    setViewMode('category');
+
     await executeWithDelayedLoading(
       async () => {
         const mods = await modService.getModsByCategory(profileId, nodeId);
@@ -119,9 +122,12 @@ export async function loadModsByCategory(
  * Uses delayed loading (200ms) to avoid flicker for fast queries
  */
 export async function loadUnclassifiedMods(profileId: string): Promise<void> {
-  const { setModLoading, setMods } = useModsStore.getState();
+  const { setModLoading, setMods, setViewMode } = useModsStore.getState();
 
   try {
+    // Set view mode to unclassified
+    setViewMode('unclassified');
+
     await executeWithDelayedLoading(
       async () => {
         const mods = await modService.getUnclassifiedMods(profileId);
@@ -152,6 +158,58 @@ export async function loadUnclassifiedCount(profileId: string): Promise<void> {
   try {
     const count = await modService.getUnclassifiedCount(profileId);
     setUnclassifiedCount(count);
+  } catch (error: unknown) {
+    handleError(error);
+  }
+}
+
+/**
+ * Load all mods (no category filter)
+ * Uses delayed loading (200ms) to avoid flicker for fast queries
+ */
+export async function loadAllMods(profileId: string): Promise<void> {
+  const { setModLoading, setMods, setSelectedCategory, setViewMode } = useModsStore.getState();
+
+  try {
+    // Clear selected category and set view mode
+    setSelectedCategory(undefined);
+    setViewMode('all');
+
+    await executeWithDelayedLoading(
+      async () => {
+        const mods = await modService.getAllMods(profileId);
+        setMods(mods);
+      },
+      setModLoading,
+      200
+    );
+  } catch (error: unknown) {
+    handleError(error);
+  }
+}
+
+/**
+ * Load active mods (scans cache folder first, then matches with database)
+ * Uses delayed loading (200ms) to avoid flicker for fast queries
+ * Includes orphaned mods (in cache but not in DB) with IsOrphaned flag for cleanup
+ */
+export async function loadLoadedMods(profileId: string): Promise<void> {
+  const { setModLoading, setMods, setSelectedCategory, setViewMode } = useModsStore.getState();
+
+  try {
+    // Clear selected category and set view mode
+    setSelectedCategory(undefined);
+    setViewMode('loaded');
+
+    await executeWithDelayedLoading(
+      async () => {
+        // Use backend API to scan cache folder and match with database
+        const activeMods = await modService.getActiveMods(profileId);
+        setMods(activeMods);
+      },
+      setModLoading,
+      200
+    );
   } catch (error: unknown) {
     handleError(error);
   }

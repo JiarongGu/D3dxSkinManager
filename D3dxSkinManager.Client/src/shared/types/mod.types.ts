@@ -15,6 +15,7 @@ export interface ModInfo {
   isAvailable: boolean;
   hasCache: boolean;  // True if cache directory exists (either active or DISABLED-)
   hasPreviewFolder: boolean;  // True if preview directory exists with preview images
+  isOrphaned: boolean;  // True if mod exists in cache but not in database (allows cleanup)
   // Note: Preview images and thumbnails are stored dynamically in previews/{SHA}/ folder
   // Use modService.getPreviewPaths(sha) to fetch them
   // The first preview image (sorted alphabetically) is used as the thumbnail

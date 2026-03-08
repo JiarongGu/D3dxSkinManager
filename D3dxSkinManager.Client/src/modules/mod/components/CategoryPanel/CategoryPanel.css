@@ -17,4 +17,37 @@
 .category-panel-unclassified-container {
   border-top: 1px solid var(--color-border-secondary);
   height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.category-panel-status-left {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.category-panel-status-right {
+  width: auto;
+  height: 100%;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.category-panel-action-button {
+  color: var(--color-text-secondary);
+  height: 28px;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.category-panel-action-button:hover {
+  color: var(--color-primary);
+  background-color: var(--color-bg-text-hover);
 }

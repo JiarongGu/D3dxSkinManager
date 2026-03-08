@@ -32,6 +32,7 @@ export const ModListPanel: React.FC = () => {
   const selectedMod = useModsStore((s) => s.selectedMod);
   const searchQuery = useModsStore((s) => s.searchQuery);
   const selectedCategory = useModsStore((s) => s.selectedCategory);
+  const viewMode = useModsStore((s) => s.viewMode);
   const mods = useModsStore((s) => s.mods);
 
   // Get operations
@@ -56,9 +57,10 @@ export const ModListPanel: React.FC = () => {
   const [anchorSha, setAnchorSha] = useState<string | undefined>(undefined);
 
   // Enable drop zone for batch mod import
+  // Allow dropping when there's a profile and either a category is selected or we're in all/loaded view
   useDropZone({
     targetRef: contentRef,
-    enabled: !!selectedProfileId && !!selectedCategory,
+    enabled: !!selectedProfileId && (!!selectedCategory || viewMode === 'all' || viewMode === 'loaded'),
     onDrop: async (files: string[]) => {
       if (!selectedProfileId || files.length === 0) return;
 
@@ -231,7 +233,8 @@ export const ModListPanel: React.FC = () => {
     }
   }, [selectMod, filteredMods, scrollRef]);
 
-  if (!selectedCategory) {
+  // Show empty state only when in category mode without a selected category
+  if (viewMode === 'category' && !selectedCategory) {
     return (
       <Sider width="100%" className="mod-list-panel">
         <div className="mod-list-panel-empty-container">

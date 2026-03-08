@@ -173,7 +173,39 @@ export const ModList: React.FC<ModListProps> = ({
     }
   };
 
-  const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => [
+  const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => {
+    // For orphaned mods, only show Open Cache Folder and Delete Cache
+    if (mod.isOrphaned) {
+      return [
+        {
+          key: "view-cache",
+          label: t("contextMenu.openCacheFolder"),
+          icon: <FolderOpenOutlined />,
+          disabled: !mod?.hasCache,
+          onClick: async () => {
+            if (mod?.cachePath) {
+              try {
+                await systemService.openDirectory(mod.cachePath);
+                notification.success(t("mods.notifications.openedCache"));
+              } catch (error: unknown) {
+                notification.error(t("mods.notifications.openCacheFailed"));
+              }
+            }
+          },
+        },
+        {
+          key: "delete-cache",
+          label: t("contextMenu.deleteCachedMod"),
+          icon: <ClearOutlined />,
+          danger: true,
+          disabled: !mod?.hasCache,
+          onClick: () => handleDeleteCachedMod(mod),
+        },
+      ];
+    }
+
+    // Regular mod context menu
+    return [
     // Group 1: Load/Unload Operations
     !mod.isLoaded
       ? {
@@ -329,6 +361,7 @@ export const ModList: React.FC<ModListProps> = ({
       onClick: () => handleShowDeleteConfirm(mod),
     },
   ];
+  };
 
   return (
     <>
@@ -390,7 +423,9 @@ export const ModList: React.FC<ModListProps> = ({
               >
                 <div className="mod-list-item-content">
                   <div className="mod-list-item-header">
-                    <span className="mod-list-item-name">{mod.name}</span>
+                    <span className="mod-list-item-name">
+                      {mod.isOrphaned ? t('mods.list.unmanaged', { sha: mod.name }) : mod.name}
+                    </span>
                     {mod.isLoading && (
                       <Tag color="warning" className="mod-list-item-loaded-tag">
                         {t("mods.list.loading")}

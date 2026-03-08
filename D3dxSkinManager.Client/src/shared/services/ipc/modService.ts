@@ -92,6 +92,15 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Get active mods by scanning cache folder first, then matching with database
+   * Returns mods that are currently active in cache (not DISABLED-), including orphaned ones not in DB
+   * Orphaned mods have IsOrphaned flag set to true for frontend to handle i18n display
+   */
+  async getActiveMods(profileId: string): Promise<ModInfo[]> {
+    return this.sendArrayMessage<ModInfo>('GET_ACTIVE_MODS', profileId);
+  }
+
+  /**
    * Get unique authors
    */
   async getAuthors(profileId: string): Promise<string[]> {

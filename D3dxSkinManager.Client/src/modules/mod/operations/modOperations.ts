@@ -14,21 +14,40 @@ import i18n from '../../../shared/services/i18n';
 
 /**
  * Refresh mods from backend
- * Refreshes only the currently selected category view for efficiency
+ * Refreshes based on current view mode for efficiency
  * Note: Debouncing is handled by ModProvider (20ms) to prevent rapid-fire events
  */
 export async function refreshMods(profileId: string): Promise<void> {
-  const { selectedCategory } = useModsStore.getState();
+  const { selectedCategory, viewMode } = useModsStore.getState();
 
-  // If a category is selected, refresh only that category's mods
-  if (selectedCategory) {
-    const { loadModsByCategory, loadUnclassifiedMods } = await import('./categoryOperations');
+  // Import category operations
+  const { loadModsByCategory, loadUnclassifiedMods, loadAllMods, loadLoadedMods } = await import('./categoryOperations');
 
-    if (selectedCategory.id === CATEGORY_IDS.UNCLASSIFIED) {
+  // Refresh based on current view mode
+  switch (viewMode) {
+    case 'all':
+      await loadAllMods(profileId);
+      break;
+
+    case 'loaded':
+      await loadLoadedMods(profileId);
+      break;
+
+    case 'unclassified':
       await loadUnclassifiedMods(profileId);
-    } else {
-      await loadModsByCategory(profileId, selectedCategory.id);
-    }
+      break;
+
+    case 'category':
+    default:
+      // If a category is selected, refresh that category's mods
+      if (selectedCategory) {
+        if (selectedCategory.id === CATEGORY_IDS.UNCLASSIFIED) {
+          await loadUnclassifiedMods(profileId);
+        } else {
+          await loadModsByCategory(profileId, selectedCategory.id);
+        }
+      }
+      break;
   }
 }
 

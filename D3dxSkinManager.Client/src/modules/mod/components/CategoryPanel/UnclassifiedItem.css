@@ -4,13 +4,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0 8px;
   cursor: pointer;
-  border-radius: 4px;
   transition: background-color 0.2s;
-  min-height: 28px;
   user-select: none;
-  height: 40px;
+  height: 100%;
+  width: 100%;
 }
 
 .category-panel-unclassified-item:hover {
@@ -30,7 +29,7 @@
 .category-panel-unclassified-item-content {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
 }
 
@@ -44,22 +43,22 @@
 }
 
 .category-panel-unclassified-item-text {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--color-text);
 }
 
 .category-panel-unclassified-item-badge {
-  margin-left: 8px;
+  margin-left: 4px;
 }
 
 .category-panel-unclassified-item-badge .ant-badge-count {
   background-color: var(--color-primary);
   color: #fff;
   font-size: 12px;
-  height: 20px;
-  line-height: 18px;
-  padding: 0 6px;
-  border-radius: 10px;
+  height: 18px;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 9px;
   /* Disable animations for static badge */
   animation: none !important;
   transition: none !important;

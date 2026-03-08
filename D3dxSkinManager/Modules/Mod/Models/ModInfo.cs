@@ -24,6 +24,7 @@ public class ModInfo
     public bool IsAvailable { get; set; }   // True if original archive file exists in mods folder
     public bool HasCache { get; set; }      // True if cache directory exists (either active or with DISABLED- prefix)
     public bool HasPreviewFolder { get; set; } // True if preview directory exists with preview images
+    public bool IsOrphaned { get; set; }    // True if mod exists in cache but not in database (allows cleanup)
 
     // File paths (populated on-demand from file system, not stored in DB)
     public string? CachePath { get; set; }  // Absolute path to cache directory (if exists)

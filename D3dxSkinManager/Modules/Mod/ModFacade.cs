@@ -91,6 +91,7 @@ public class ModFacade : BaseFacade, IModFacade
             "LOAD" => await LoadModAsync(request),
             "UNLOAD" => await UnloadModAsync(request),
             "GET_LOADED" => await GetLoadedModIdsAsync(),
+            "GET_ACTIVE_MODS" => await GetActiveModsAsync(),
             "IMPORT" => await ImportModAsync(request),
             "DELETE" => await DeleteModAsync(request),
             "DELETE_CACHE" => await DeleteCacheAsync(request),
@@ -166,6 +167,11 @@ public class ModFacade : BaseFacade, IModFacade
     public async Task<List<string>> GetLoadedModIdsAsync()
     {
         return await _repository.GetLoadedIdsAsync().ConfigureAwait(false);
+    }
+
+    public async Task<List<ModInfo>> GetActiveModsAsync()
+    {
+        return await _queryService.GetActiveModsAsync().ConfigureAwait(false);
     }
 
     public async Task<ModInfo?> ImportModAsync(string filePath)

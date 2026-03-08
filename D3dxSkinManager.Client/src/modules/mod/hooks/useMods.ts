@@ -52,6 +52,10 @@ export function useMods() {
       selectedProfileId && categoryOps.loadUnclassifiedMods(selectedProfileId),
     loadUnclassifiedCount: () =>
       selectedProfileId && categoryOps.loadUnclassifiedCount(selectedProfileId),
+    loadAllMods: () =>
+      selectedProfileId && categoryOps.loadAllMods(selectedProfileId),
+    loadLoadedMods: () =>
+      selectedProfileId && categoryOps.loadLoadedMods(selectedProfileId),
     clearCategoryFilter: categoryOps.clearCategoryFilter,
     selectCategory: (nodeId: string) =>
       selectedProfileId && categoryOps.selectCategory(selectedProfileId, nodeId),
