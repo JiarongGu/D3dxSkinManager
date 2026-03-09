@@ -291,5 +291,5 @@ jobs:
           Write-Host "https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }}" -ForegroundColor White
           Write-Host ""
           if ("${{ inputs.draft }}" -eq "true") {
-            Write-Host "⚠️  DRAFT RELEASE - Review and click 'Publish release' when ready!" -ForegroundColor Yellow
+            Write-Host "DRAFT RELEASE - Review and click 'Publish release' when ready!" -ForegroundColor Yellow
           }
