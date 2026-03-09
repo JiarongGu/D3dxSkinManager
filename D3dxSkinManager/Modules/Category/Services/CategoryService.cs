@@ -499,11 +499,11 @@ public class CategoryService : ICategoryService
     private async Task CalculateModCountsAsync(List<CategoryInfo> categories)
     {
         // Get all mods from database once
-        var allMods = await _modRepository.GetAllAsync().ConfigureAwait(false);
+        var modEntities = await _modRepository.GetAllAsync().ConfigureAwait(false);
 
         // Group mods by category for quick lookup
-        var modsByCategory = allMods
-            .GroupBy(m => m.Category)
+        var modsByCategory = modEntities
+            .GroupBy(e => e.Category)
             .ToDictionary(g => g.Key, g => g.Count());
 
         // Calculate counts recursively for each root category

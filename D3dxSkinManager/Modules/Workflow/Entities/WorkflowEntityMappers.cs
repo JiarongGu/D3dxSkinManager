@@ -8,9 +8,9 @@ namespace D3dxSkinManager.Modules.Workflow.Entities;
 public static class WorkflowEntityMappers
 {
     /// <summary>
-    /// Convert WorkflowEntity (DB) to WorkflowInfo (model)
+    /// Convert WorkflowEntity (DB) to WorkflowInfo (domain)
     /// </summary>
-    public static WorkflowInfo ToModel(this WorkflowEntity entity)
+    public static WorkflowInfo ToDomain(this WorkflowEntity entity)
     {
         return new WorkflowInfo
         {
@@ -25,19 +25,27 @@ public static class WorkflowEntityMappers
     }
 
     /// <summary>
-    /// Convert WorkflowInfo (model) to WorkflowEntity (DB)
+    /// Convert WorkflowInfo (domain) to WorkflowEntity (DB)
     /// </summary>
-    public static WorkflowEntity ToEntity(this WorkflowInfo model)
+    public static WorkflowEntity ToEntity(this WorkflowInfo domain)
     {
         return new WorkflowEntity
         {
-            Id = model.Id,
-            Type = model.Type,
-            Status = model.Status,
-            Context = model.Context,
-            ErrorMessage = model.ErrorMessage,
-            CreatedAt = model.CreatedAt,
-            CompletedAt = model.CompletedAt
+            Id = domain.Id,
+            Type = domain.Type,
+            Status = domain.Status,
+            Context = domain.Context,
+            ErrorMessage = domain.ErrorMessage,
+            CreatedAt = domain.CreatedAt,
+            CompletedAt = domain.CompletedAt
         };
+    }
+
+    /// <summary>
+    /// Convert list of WorkflowEntity to list of WorkflowInfo
+    /// </summary>
+    public static List<WorkflowInfo> ToDomainList(this IEnumerable<WorkflowEntity> entities)
+    {
+        return entities.Select(ToDomain).ToList();
     }
 }

@@ -22,14 +22,18 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <!-- Use v143 (VS2022) on CI for GitHub Actions compatibility, v145 (VS2025+) locally -->
+    <PlatformToolset Condition="'$(CI)'=='true'">v143</PlatformToolset>
+    <PlatformToolset Condition="'$(CI)'!='true'">v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <!-- Use v143 (VS2022) on CI for GitHub Actions compatibility, v145 (VS2025+) locally -->
+    <PlatformToolset Condition="'$(CI)'=='true'">v143</PlatformToolset>
+    <PlatformToolset Condition="'$(CI)'!='true'">v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>

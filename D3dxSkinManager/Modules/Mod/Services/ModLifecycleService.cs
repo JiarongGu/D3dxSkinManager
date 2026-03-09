@@ -4,6 +4,7 @@ using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Mappers;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -70,8 +71,8 @@ public class ModLifecycleService : IModLifecycleService
     public async Task<ModLoadResult> LoadAsync(string sha)
     {
         // Get mod information for category checking
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        if (entity == null)
         {
             throw new OperationException(
                 ErrorCodes.MOD_NOT_FOUND,
@@ -79,6 +80,9 @@ public class ModLifecycleService : IModLifecycleService
                 $"Mod not found: {sha}"
             );
         }
+
+        // Convert to domain model
+        var mod = ModMapper.ToDomain(entity);
 
         // Track unloaded mods for efficient frontend updates
         var unloadedModShas = new List<string>();
@@ -93,7 +97,8 @@ public class ModLifecycleService : IModLifecycleService
 
             if (!isUnclassified)
             {
-                var sameCategoryMods = await _repository.GetByCategoryAsync(mod.Category).ConfigureAwait(false);
+                var sameCategoryEntities = await _repository.GetByCategoryAsync(mod.Category).ConfigureAwait(false);
+                var sameCategoryMods = ModMapper.ToDomainList(sameCategoryEntities);
                 var loadedSameCategoryMods = sameCategoryMods.Where(m => m.SHA != sha).ToList();
 
                 // Populate IsLoaded flags to check which mods need to be unloaded
@@ -243,8 +248,8 @@ public class ModLifecycleService : IModLifecycleService
     public async Task<bool> UnloadAsync(string sha)
     {
         // Get mod info to retrieve category before unloading
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        var modCategory = mod?.Category;
+        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var modCategory = entity != null ? ModMapper.ToDomain(entity).Category : null;
 
         var success = await _cacheService.DisableCacheAsync(sha).ConfigureAwait(false);
 
@@ -311,11 +316,14 @@ public class ModLifecycleService : IModLifecycleService
     {
         try
         {
-            var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-            if (mod == null)
+            var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+            if (entity == null)
             {
                 return;
             }
+
+            // Convert to domain model
+            var mod = ModMapper.ToDomain(entity);
 
             // Normalize both types for comparison (remove dots, lowercase)
             var storedType = (mod.Type ?? "").TrimStart('.').ToLowerInvariant();
@@ -326,7 +334,10 @@ public class ModLifecycleService : IModLifecycleService
             {
                 var oldType = mod.Type;
                 mod.Type = normalizedDetectedType;
-                await _repository.UpdateAsync(mod).ConfigureAwait(false);
+
+                // Convert to entity and update
+                var updatedEntity = ModMapper.ToEntity(mod);
+                await _repository.UpdateAsync(updatedEntity).ConfigureAwait(false);
 
                 _logger.Info($"Updated mod type: {sha} ({oldType ?? "empty"} -> {normalizedDetectedType})", "ModLifecycleService");
             }

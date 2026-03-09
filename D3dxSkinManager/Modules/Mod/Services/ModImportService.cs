@@ -1,5 +1,6 @@
 ﻿using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
@@ -73,7 +74,8 @@ public class ModImportService : IModImportService
             if (await _repository.ExistsAsync(sha))
             {
                 _logger.Info($"Mod already exists: {sha}", "ModImportService");
-                return await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+                var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+                return entity != null ? ModMapper.ToDomain(entity) : null;
             }
 
             // Step 2: Copy archive to mods directory

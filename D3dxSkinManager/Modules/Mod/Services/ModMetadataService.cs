@@ -3,6 +3,7 @@ using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
@@ -52,6 +53,7 @@ public class CreateModRequest
 public class ModMetadataService : IModMetadataService
 {
     private readonly IModRepository _repository;
+    private readonly IModEnrichmentService _enrichmentService;
     private readonly IModLifecycleService _lifecycleService;
     private readonly IModDeletionService _deletionService;
     private readonly IModQueryService _queryService;
@@ -60,6 +62,7 @@ public class ModMetadataService : IModMetadataService
 
     public ModMetadataService(
         IModRepository repository,
+        IModEnrichmentService enrichmentService,
         IModLifecycleService lifecycleService,
         IModDeletionService deletionService,
         IModQueryService queryService,
@@ -67,6 +70,7 @@ public class ModMetadataService : IModMetadataService
         IProfileEventBus eventBus)
     {
         _repository = repository;
+        _enrichmentService = enrichmentService;
         _lifecycleService = lifecycleService;
         _deletionService = deletionService;
         _queryService = queryService;
@@ -106,7 +110,9 @@ public class ModMetadataService : IModMetadataService
             // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system
         };
 
-        await _repository.InsertAsync(mod).ConfigureAwait(false);
+        // Convert to entity for database insertion
+        var entity = ModMapper.ToEntity(mod);
+        await _repository.InsertAsync(entity).ConfigureAwait(false);
         _logger.Verbose($"Created mod: {mod.Name} ({mod.SHA})", "ModMetadataService");
 
         return mod;
@@ -131,9 +137,10 @@ public class ModMetadataService : IModMetadataService
             throw new ArgumentException("SHA is required", nameof(sha));
 
         // Try to get existing mod
-        var existing = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (existing != null)
+        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        if (entity != null)
         {
+            var existing = ModMapper.ToDomain(entity);
             _logger.Debug($"Mod already exists: {existing.Name} ({sha})", "ModMetadataService");
             return existing;
         }
@@ -155,11 +162,14 @@ public class ModMetadataService : IModMetadataService
         if (string.IsNullOrWhiteSpace(sha))
             throw new ArgumentException("SHA is required", nameof(sha));
 
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        if (entity == null)
         {
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
+
+        // Convert to domain model
+        var mod = ModMapper.ToDomain(entity);
 
         // Apply updates only for non-null values
         if (request.Name != null) mod.Name = request.Name;
@@ -169,7 +179,9 @@ public class ModMetadataService : IModMetadataService
         if (request.Description != null) mod.Description = request.Description;
         if (request.DisablePreview != null) mod.DisablePreview = request.DisablePreview.Value;
 
-        await _repository.UpdateAsync(mod).ConfigureAwait(false);
+        // Convert back to entity and update
+        var updatedEntity = ModMapper.ToEntity(mod);
+        await _repository.UpdateAsync(updatedEntity).ConfigureAwait(false);
 
         // Emit METADATA_UPDATED event
         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.METADATA_UPDATED, new { sha, mod }).ConfigureAwait(false);
@@ -195,8 +207,11 @@ public class ModMetadataService : IModMetadataService
 
             try
             {
-                var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-                if (mod == null) continue;
+                var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+                if (entity == null) continue;
+
+                // Convert to domain model
+                var mod = ModMapper.ToDomain(entity);
 
                 // Apply updates - only update non-null fields
                 if (request.Name != null) mod.Name = request.Name;
@@ -206,7 +221,9 @@ public class ModMetadataService : IModMetadataService
                 if (request.Description != null) mod.Description = request.Description;
                 if (request.DisablePreview != null) mod.DisablePreview = request.DisablePreview.Value;
 
-                await _repository.UpdateAsync(mod).ConfigureAwait(false);
+                // Convert back to entity and update
+                var updatedEntity = ModMapper.ToEntity(mod);
+                await _repository.UpdateAsync(updatedEntity).ConfigureAwait(false);
 
                 // Emit METADATA_UPDATED event for each mod
                 await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.METADATA_UPDATED, new { sha, mod }).ConfigureAwait(false);
@@ -238,11 +255,15 @@ public class ModMetadataService : IModMetadataService
         if (string.IsNullOrWhiteSpace(sha))
             throw new ArgumentException("SHA is required", nameof(sha));
 
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        if (entity == null)
         {
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
+
+        // Convert to domain model and enrich to populate IsLoaded flag
+        var mod = ModMapper.ToDomain(entity);
+        _enrichmentService.PopulateStatusFlags(new List<ModInfo> { mod });
 
         _logger.Info($"Mod {sha} current state: IsLoaded={mod.IsLoaded}", "ModMetadataService");
 
@@ -260,16 +281,20 @@ public class ModMetadataService : IModMetadataService
 
         mod.Category = category;
 
-        await _repository.UpdateAsync(mod).ConfigureAwait(false);
+        // Convert to entity and update
+        var updatedEntity = ModMapper.ToEntity(mod);
+        await _repository.UpdateAsync(updatedEntity).ConfigureAwait(false);
 
         // Re-fetch the mod to get the updated IsLoaded state from file system
-        var updatedMod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var refetchedEntity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var updatedMod = ModMapper.ToDomain(refetchedEntity!);
+        _enrichmentService.PopulateStatusFlags(new List<ModInfo> { updatedMod });
 
         // Emit CATEGORY_UPDATED event
         // Note: CategoryEventHandler subscribes to this event and invalidates the category tree cache
         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CATEGORY_UPDATED, new { sha, category, mod = updatedMod }).ConfigureAwait(false);
 
-        return updatedMod!;
+        return updatedMod;
     }
 
     /// <summary>
@@ -286,12 +311,16 @@ public class ModMetadataService : IModMetadataService
         {
             try
             {
-                var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-                if (mod == null)
+                var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+                if (entity == null)
                 {
                     _logger.Verbose($"Mod {sha} not found, skipping", "ModMetadataService");
                     continue;
                 }
+
+                // Convert to domain model and enrich to populate IsLoaded flag
+                var mod = ModMapper.ToDomain(entity);
+                _enrichmentService.PopulateStatusFlags(new List<ModInfo> { mod });
 
                 // If the mod is currently loaded, unload it since category determines which object it applies to
                 if (mod.IsLoaded)
@@ -301,7 +330,10 @@ public class ModMetadataService : IModMetadataService
                 }
 
                 mod.Category = category;
-                await _repository.UpdateAsync(mod).ConfigureAwait(false);
+
+                // Convert to entity and update
+                var updatedEntity = ModMapper.ToEntity(mod);
+                await _repository.UpdateAsync(updatedEntity).ConfigureAwait(false);
                 updatedCount++;
                 _logger.Verbose($"Updated category for mod {sha} to '{category}'", "ModMetadataService");
             }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Context.Services;
@@ -71,7 +72,14 @@ public class ModQueryService : IModQueryService
     /// </summary>
     public async Task<List<ModInfo>> SearchAsync(string searchTerm)
     {
-        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
+        // Get entities from repository
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+
+        // Convert to domain models
+        var allMods = ModMapper.ToDomainList(entities);
+
+        // Enrich with computed properties
+        await _enrichmentService.EnrichAllAsync(allMods).ConfigureAwait(false);
 
         // Filter by search term
         List<ModInfo> results;
@@ -124,7 +132,14 @@ public class ModQueryService : IModQueryService
         bool? isLoaded = null,
         bool? isAvailable = null)
     {
-        var mods = await _repository.GetAllAsync().ConfigureAwait(false);
+        // Get entities from repository
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+
+        // Convert to domain models
+        var mods = ModMapper.ToDomainList(entities);
+
+        // Enrich with computed properties
+        await _enrichmentService.EnrichAllAsync(mods).ConfigureAwait(false);
 
         // Apply database-level filters
         if (!string.IsNullOrEmpty(category))
@@ -163,7 +178,11 @@ public class ModQueryService : IModQueryService
     /// </summary>
     public async Task<ModStatistics> GetStatisticsAsync()
     {
-        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
+        // Get entities from repository
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+
+        // Convert to domain models
+        var allMods = ModMapper.ToDomainList(entities);
 
         // CRITICAL: Populate status flags (IsLoaded, IsAvailable) by scanning directories
         // Without this, IsLoaded and IsAvailable will always be false!
@@ -198,7 +217,13 @@ public class ModQueryService : IModQueryService
         var descendantIds = await _categoryRepository.GetAllDescendantIdsAsync(categoryId).ConfigureAwait(false);
 
         // Get mods by categories
-        var matchingMods = await _repository.GetByMultipleCategoriesAsync(descendantIds).ConfigureAwait(false);
+        var entities = await _repository.GetByMultipleCategoriesAsync(descendantIds).ConfigureAwait(false);
+
+        // Convert to domain models
+        var matchingMods = ModMapper.ToDomainList(entities);
+
+        // Enrich with computed properties
+        await _enrichmentService.EnrichAllAsync(matchingMods).ConfigureAwait(false);
 
         return SortMods(matchingMods);
     }
@@ -209,7 +234,15 @@ public class ModQueryService : IModQueryService
     /// </summary>
     public async Task<List<ModInfo>> GetUnclassifiedModsAsync()
     {
-        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
+        // Get entities from repository
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+
+        // Convert to domain models
+        var allMods = ModMapper.ToDomainList(entities);
+
+        // Enrich with computed properties
+        await _enrichmentService.EnrichAllAsync(allMods).ConfigureAwait(false);
+
         var allCategories = await _categoryRepository.GetAllAsync().ConfigureAwait(false);
 
         // Get all valid Category IDs
@@ -234,7 +267,12 @@ public class ModQueryService : IModQueryService
     /// </summary>
     public async Task<int> GetUnclassifiedCountAsync()
     {
-        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
+        // Get entities from repository
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+
+        // Convert to domain models
+        var allMods = ModMapper.ToDomainList(entities);
+
         var allCategories = await _categoryRepository.GetAllAsync().ConfigureAwait(false);
 
         // Get all valid Category IDs
@@ -332,11 +370,14 @@ public class ModQueryService : IModQueryService
             {
                 if (string.IsNullOrEmpty(sha)) continue;
 
-                // Step 2: Get ModInfo from repository
-                var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+                // Step 2: Get ModEntity from repository
+                var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
 
-                if (mod != null)
+                if (entity != null)
                 {
+                    // Convert entity to domain model
+                    var mod = ModMapper.ToDomain(entity);
+
                     // Step 3: Enrich ModInfo (populate status flags, cache paths, etc.)
                     var enriched = await _enrichmentService.EnrichAsync(mod).ConfigureAwait(false);
                     activeMods.Add(enriched);

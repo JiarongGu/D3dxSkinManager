@@ -6,6 +6,7 @@ using Xunit;
 using D3dxSkinManager.Modules.Category;
 using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Mod;
+using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Event;
@@ -27,7 +28,6 @@ public class CategoryCacheInvalidationIntegrationTests : IDisposable
     private readonly Mock<IPathHelper> _mockPathHelper;
     private readonly Mock<IHashHelper> _mockHashHelper;
     private readonly Mock<IImageHelper> _mockImageHelper;
-    private readonly Mock<IFileTransferService> _mockFileTransferService;
     private readonly Mock<IProfilePathService> _mockProfilePathService;
     private readonly Mock<IMemoryCache> _mockCache;
     private readonly Mock<IProfileEventBus> _mockEventBus;
@@ -46,7 +46,6 @@ public class CategoryCacheInvalidationIntegrationTests : IDisposable
         _mockPathHelper = new Mock<IPathHelper>();
         _mockHashHelper = new Mock<IHashHelper>();
         _mockImageHelper = new Mock<IImageHelper>();
-        _mockFileTransferService = new Mock<IFileTransferService>();
         _mockProfilePathService = new Mock<IProfilePathService>();
         _mockCache = new Mock<IMemoryCache>();
         _mockEventBus = new Mock<IProfileEventBus>();
@@ -58,7 +57,7 @@ public class CategoryCacheInvalidationIntegrationTests : IDisposable
 
         // Capture the event handler registered by CategoryEventHandler
         _mockEventBus
-            .Setup(x => x.RegisterHandler(
+            .Setup(x => x.Subscribe(
                 ModuleNames.MOD,
                 ModEvents.CATEGORY_UPDATED,
                 It.IsAny<Func<EventMessage, Task>>()))
@@ -75,11 +74,11 @@ public class CategoryCacheInvalidationIntegrationTests : IDisposable
             _mockPathHelper.Object,
             _mockHashHelper.Object,
             _mockImageHelper.Object,
-            _mockFileTransferService.Object,
             _mockProfilePathService.Object,
             _mockCache.Object,
             _mockEventBus.Object,
-            _mockProfileContext.Object
+            _mockProfileContext.Object,
+            _mockLogger.Object
         );
 
         _eventHandler = new CategoryEventHandler(
@@ -179,7 +178,7 @@ public class CategoryCacheInvalidationIntegrationTests : IDisposable
     {
         // Assert
         _mockEventBus.Verify(
-            x => x.RegisterHandler(
+            x => x.Subscribe(
                 ModuleNames.MOD,
                 ModEvents.CATEGORY_UPDATED,
                 It.IsAny<Func<EventMessage, Task>>()),

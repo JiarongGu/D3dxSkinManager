@@ -179,6 +179,8 @@ jobs:
       # ========================================
       - name: Build C++ Launcher (x64)
         working-directory: D3dxSkinManager.Launcher
+        env:
+          CI: true  # Use v143 toolset for GitHub Actions compatibility
         run: |
           msbuild Launcher.vcxproj /p:Configuration=Release /p:Platform=x64 /t:Rebuild /m /v:minimal /nologo
 

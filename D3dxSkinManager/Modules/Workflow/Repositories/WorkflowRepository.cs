@@ -1,3 +1,4 @@
+using Dapper;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Workflow.Models;
 using D3dxSkinManager.Modules.Workflow.Entities;
@@ -22,126 +23,91 @@ public class WorkflowRepository : IWorkflowRepository
     public async Task<WorkflowInfo> AddAsync(WorkflowInfo workflow)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        var entity = workflow.ToEntity();
 
-        var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            INSERT INTO Workflows (Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt)
-            VALUES (@Id, @Type, @Status, @Context, @ErrorMessage, @CreatedAt, @CompletedAt)
-        ";
-        cmd.Parameters.AddWithValue("@Id", workflow.Id);
-        cmd.Parameters.AddWithValue("@Type", workflow.Type);
-        cmd.Parameters.AddWithValue("@Status", (int)workflow.Status);
-        cmd.Parameters.AddWithValue("@Context", workflow.Context);
-        cmd.Parameters.AddWithValue("@ErrorMessage", workflow.ErrorMessage ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@CreatedAt", workflow.CreatedAt.ToString("O"));
-        cmd.Parameters.AddWithValue("@CompletedAt", workflow.CompletedAt?.ToString("O") ?? (object)DBNull.Value);
-
-        await cmd.ExecuteNonQueryAsync();
+        await connection.ExecuteAsync(
+            @"INSERT INTO Workflows (Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt)
+              VALUES (@Id, @Type, @Status, @Context, @ErrorMessage, @CreatedAt, @CompletedAt)",
+            new
+            {
+                entity.Id,
+                entity.Type,
+                Status = (int)entity.Status,
+                entity.Context,
+                entity.ErrorMessage,
+                CreatedAt = entity.CreatedAt.ToString("O"),
+                CompletedAt = entity.CompletedAt?.ToString("O")
+            }
+        );
         return workflow;
     }
 
     public async Task<WorkflowInfo?> GetByIdAsync(string id)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        var entity = await connection.QuerySingleOrDefaultAsync<WorkflowEntity>(
+            @"SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
+              FROM Workflows
+              WHERE Id = @Id",
+            new { Id = id }
+        );
 
-        var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
-            FROM Workflows
-            WHERE Id = @Id
-        ";
-        cmd.Parameters.AddWithValue("@Id", id);
-
-        await using var reader = await cmd.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
-        {
-            return MapToWorkflowInfo(reader);
-        }
-
-        return null;
+        return entity?.ToDomain();
     }
 
     public async Task<List<WorkflowInfo>> GetByTypeAsync(string type)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        var entities = await connection.QueryAsync<WorkflowEntity>(
+            @"SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
+              FROM Workflows
+              WHERE Type = @Type
+              ORDER BY CreatedAt ASC",
+            new { Type = type }
+        );
 
-        var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
-            FROM Workflows
-            WHERE Type = @Type
-            ORDER BY CreatedAt ASC
-        ";
-        cmd.Parameters.AddWithValue("@Type", type);
-
-        var workflows = new List<WorkflowInfo>();
-        await using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            workflows.Add(MapToWorkflowInfo(reader));
-        }
-
-        return workflows;
+        return entities.ToDomainList();
     }
 
     public async Task<List<WorkflowInfo>> GetActiveByTypeAsync(string type)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        var entities = await connection.QueryAsync<WorkflowEntity>(
+            @"SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
+              FROM Workflows
+              WHERE Type = @Type AND Status IN (0, 1, 2)
+              ORDER BY CreatedAt ASC",
+            new { Type = type }
+        );
 
-        var activeStatuses = new[] {
-            (int)WorkflowStatus.Pending,
-            (int)WorkflowStatus.Processing,
-            (int)WorkflowStatus.WaitingForInput
-        };
-
-        var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
-            FROM Workflows
-            WHERE Type = @Type AND Status IN (0, 1, 2)
-            ORDER BY CreatedAt ASC
-        ";
-        cmd.Parameters.AddWithValue("@Type", type);
-
-        var workflows = new List<WorkflowInfo>();
-        await using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            workflows.Add(MapToWorkflowInfo(reader));
-        }
-
-        return workflows;
+        return entities.ToDomainList();
     }
 
     public async Task UpdateAsync(WorkflowInfo workflow)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        var entity = workflow.ToEntity();
 
-        var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            UPDATE Workflows
-            SET Type = @Type,
-                Status = @Status,
-                Context = @Context,
-                ErrorMessage = @ErrorMessage,
-                CreatedAt = @CreatedAt,
-                CompletedAt = @CompletedAt
-            WHERE Id = @Id
-        ";
-        cmd.Parameters.AddWithValue("@Id", workflow.Id);
-        cmd.Parameters.AddWithValue("@Type", workflow.Type);
-        cmd.Parameters.AddWithValue("@Status", (int)workflow.Status);
-        cmd.Parameters.AddWithValue("@Context", workflow.Context);
-        cmd.Parameters.AddWithValue("@ErrorMessage", workflow.ErrorMessage ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@CreatedAt", workflow.CreatedAt.ToString("O"));
-        cmd.Parameters.AddWithValue("@CompletedAt", workflow.CompletedAt?.ToString("O") ?? (object)DBNull.Value);
-
-        await cmd.ExecuteNonQueryAsync();
+        await connection.ExecuteAsync(
+            @"UPDATE Workflows
+              SET Type = @Type,
+                  Status = @Status,
+                  Context = @Context,
+                  ErrorMessage = @ErrorMessage,
+                  CreatedAt = @CreatedAt,
+                  CompletedAt = @CompletedAt
+              WHERE Id = @Id",
+            new
+            {
+                entity.Id,
+                entity.Type,
+                Status = (int)entity.Status,
+                entity.Context,
+                entity.ErrorMessage,
+                CreatedAt = entity.CreatedAt.ToString("O"),
+                CompletedAt = entity.CompletedAt?.ToString("O")
+            }
+        );
     }
 
     /// <summary>
@@ -151,30 +117,21 @@ public class WorkflowRepository : IWorkflowRepository
     public async Task UpdateContextAsync(string workflowId, string context)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
-
-        var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            UPDATE Workflows
-            SET Context = @Context
-            WHERE Id = @Id
-        ";
-        cmd.Parameters.AddWithValue("@Id", workflowId);
-        cmd.Parameters.AddWithValue("@Context", context);
-
-        await cmd.ExecuteNonQueryAsync();
+        await connection.ExecuteAsync(
+            @"UPDATE Workflows
+              SET Context = @Context
+              WHERE Id = @Id",
+            new { Id = workflowId, Context = context }
+        );
     }
 
     public async Task DeleteAsync(string id)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
-
-        var cmd = connection.CreateCommand();
-        cmd.CommandText = "DELETE FROM Workflows WHERE Id = @Id";
-        cmd.Parameters.AddWithValue("@Id", id);
-
-        await cmd.ExecuteNonQueryAsync();
+        await connection.ExecuteAsync(
+            "DELETE FROM Workflows WHERE Id = @Id",
+            new { Id = id }
+        );
     }
 
     public async Task<int> DeleteBatchAsync(IEnumerable<string> ids)
@@ -184,21 +141,22 @@ public class WorkflowRepository : IWorkflowRepository
             return 0;
 
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
 
         // Build parameterized query with IN clause
         var parameters = idList.Select((id, index) => $"@id{index}").ToList();
         var inClause = string.Join(",", parameters);
 
-        var cmd = connection.CreateCommand();
-        cmd.CommandText = $"DELETE FROM Workflows WHERE Id IN ({inClause})";
-
+        var dynamicParams = new DynamicParameters();
         for (int i = 0; i < idList.Count; i++)
         {
-            cmd.Parameters.AddWithValue($"@id{i}", idList[i]);
+            dynamicParams.Add($"@id{i}", idList[i]);
         }
 
-        var rowsAffected = await cmd.ExecuteNonQueryAsync();
+        var rowsAffected = await connection.ExecuteAsync(
+            $"DELETE FROM Workflows WHERE Id IN ({inClause})",
+            dynamicParams
+        );
+
         return rowsAffected;
     }
 
@@ -209,46 +167,25 @@ public class WorkflowRepository : IWorkflowRepository
             return new List<WorkflowInfo>();
 
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
 
         // Build parameterized query with IN clause
         var parameters = idList.Select((id, index) => $"@id{index}").ToList();
         var inClause = string.Join(",", parameters);
 
-        var cmd = connection.CreateCommand();
-        cmd.CommandText = $@"
-            SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
-            FROM Workflows
-            WHERE Id IN ({inClause})
-            ORDER BY CreatedAt ASC
-        ";
-
+        var dynamicParams = new DynamicParameters();
         for (int i = 0; i < idList.Count; i++)
         {
-            cmd.Parameters.AddWithValue($"@id{i}", idList[i]);
+            dynamicParams.Add($"@id{i}", idList[i]);
         }
 
-        var workflows = new List<WorkflowInfo>();
-        await using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            workflows.Add(MapToWorkflowInfo(reader));
-        }
+        var entities = await connection.QueryAsync<WorkflowEntity>(
+            $@"SELECT Id, Type, Status, Context, ErrorMessage, CreatedAt, CompletedAt
+               FROM Workflows
+               WHERE Id IN ({inClause})
+               ORDER BY CreatedAt ASC",
+            dynamicParams
+        );
 
-        return workflows;
-    }
-
-    private static WorkflowInfo MapToWorkflowInfo(SqliteDataReader reader)
-    {
-        return new WorkflowInfo
-        {
-            Id = reader.GetString(0),
-            Type = reader.GetString(1),
-            Status = (WorkflowStatus)reader.GetInt32(2),
-            Context = reader.GetString(3),
-            ErrorMessage = reader.IsDBNull(4) ? null : reader.GetString(4),
-            CreatedAt = DateTime.Parse(reader.GetString(5)),
-            CompletedAt = reader.IsDBNull(6) ? null : DateTime.Parse(reader.GetString(6))
-        };
+        return entities.ToDomainList();
     }
 }

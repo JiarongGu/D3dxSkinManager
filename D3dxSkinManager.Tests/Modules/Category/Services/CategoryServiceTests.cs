@@ -8,6 +8,7 @@ using Xunit;
 using D3dxSkinManager.Modules.Category.Models;
 using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Event;
@@ -29,10 +30,11 @@ public class CategoryServiceTests
     private readonly Mock<IPathHelper> _mockPathHelper;
     private readonly Mock<IHashHelper> _mockHashHelper;
     private readonly Mock<IImageHelper> _mockImageHelper;
-    private readonly Mock<IFileTransferService> _mockFileTransferService;
     private readonly Mock<IProfilePathService> _mockProfilePathService;
     private readonly Mock<IMemoryCache> _mockCache;
+    private readonly Mock<IProfileEventBus> _mockEventBus;
     private readonly Mock<IProfileContext> _mockProfileContext;
+    private readonly Mock<ILogHelper> _mockLogger;
     private readonly CategoryService _service;
 
     public CategoryServiceTests()
@@ -42,15 +44,14 @@ public class CategoryServiceTests
         _mockPathHelper = new Mock<IPathHelper>();
         _mockHashHelper = new Mock<IHashHelper>();
         _mockImageHelper = new Mock<IImageHelper>();
-        _mockFileTransferService = new Mock<IFileTransferService>();
         _mockProfilePathService = new Mock<IProfilePathService>();
         _mockCache = new Mock<IMemoryCache>();
+        _mockEventBus = new Mock<IProfileEventBus>();
         _mockProfileContext = new Mock<IProfileContext>();
+        _mockLogger = new Mock<ILogHelper>();
 
         // Setup profile context
         _mockProfileContext.Setup(x => x.ProfileId).Returns("test-profile-id");
-
-        var mockEventBus = new Mock<IProfileEventBus>();
 
         _service = new CategoryService(
             _mockRepository.Object,
@@ -58,15 +59,15 @@ public class CategoryServiceTests
             _mockPathHelper.Object,
             _mockHashHelper.Object,
             _mockImageHelper.Object,
-            _mockFileTransferService.Object,
             _mockProfilePathService.Object,
             _mockCache.Object,
-            mockEventBus.Object,
-            _mockProfileContext.Object
+            _mockEventBus.Object,
+            _mockProfileContext.Object,
+            _mockLogger.Object
         );
 
         // Setup default mock behaviors
-        _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ModInfo>());
+        _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ModEntity>());
     }
 
     [Fact]

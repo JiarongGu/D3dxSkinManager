@@ -204,9 +204,42 @@ update-1.1.0.zip
 
 ### Requirements
 
-- Visual Studio 2022 with C++ development tools
+- **Local Development:** Visual Studio 2025+ (v145 toolset) or Visual Studio 2022 (v143 toolset)
+- **CI/CD (GitHub Actions):** Visual Studio 2022 (v143 toolset) - automatically configured
 - Windows 10 SDK
 - MSBuild
+
+### Platform Toolset Configuration
+
+The launcher project uses **conditional toolset selection** to support both modern local development and CI/CD environments:
+
+```xml
+<!-- Launcher.vcxproj -->
+<PlatformToolset Condition="'$(CI)'=='true'">v143</PlatformToolset>
+<PlatformToolset Condition="'$(CI)'!='true'">v145</PlatformToolset>
+```
+
+**How it works:**
+
+| Environment | Toolset | Visual Studio Version |
+|-------------|---------|----------------------|
+| **Local Development** | v145 | VS 2025+ (recommended) |
+| **GitHub Actions CI** | v143 | VS 2022 (windows-latest runner) |
+
+**Why?**
+- v145 (VS 2025+) provides latest C++ features and optimizations for local development
+- v143 (VS 2022) is required for GitHub Actions `windows-latest` runners
+- Conditional toolset allows seamless builds in both environments
+- No manual configuration needed - automatically detects CI environment via `CI=true` variable
+
+**For CI/CD:**
+The GitHub Actions workflow automatically sets `CI=true`:
+```yaml
+- name: Build C++ Launcher (x64)
+  env:
+    CI: true  # Use v143 toolset for GitHub Actions compatibility
+  run: msbuild Launcher.vcxproj /p:Configuration=Release /p:Platform=x64
+```
 
 ### Manual Build
 

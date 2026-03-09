@@ -179,4 +179,54 @@ public class FileHelper : IFileHelper
 
         return Directory.GetFiles(path, searchPattern, searchOption);
     }
+
+    /// <summary>
+    /// Delete file/directory with retry logic for locked files
+    /// More robust than DeleteFileAsync - handles transient file locks
+    /// </summary>
+    public async Task<bool> DeleteWithRetryAsync(
+        string path,
+        int maxRetries = 3,
+        int delayMs = 100)
+    {
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    await Task.Run(() => File.Delete(path));
+                }
+                else if (Directory.Exists(path))
+                {
+                    await Task.Run(() => Directory.Delete(path, recursive: true));
+                }
+                return true;
+            }
+            catch (IOException) when (attempt < maxRetries - 1)
+            {
+                _logger.Warn($"Delete attempt {attempt + 1} failed for '{path}', retrying...", "FileHelper");
+                await Task.Delay(delayMs);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to delete '{path}' after {attempt + 1} attempts: {ex.Message}", "FileHelper", ex);
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Synchronous version - Ensures directory exists, creates if missing
+    /// Useful for inline calls: EnsureDirectoryExists(path);
+    /// </summary>
+    public void EnsureDirectoryExists(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            Directory.CreateDirectory(path);
+        }
+    }
 }

@@ -26,7 +26,7 @@ public class CategoryEventHandlerTests : IDisposable
 
         // Capture the registered handler
         _mockEventBus
-            .Setup(x => x.RegisterHandler(
+            .Setup(x => x.Subscribe(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<Func<EventMessage, Task>>()))
@@ -48,7 +48,7 @@ public class CategoryEventHandlerTests : IDisposable
     {
         // Assert
         _mockEventBus.Verify(
-            x => x.RegisterHandler(
+            x => x.Subscribe(
                 ModuleNames.MOD,
                 ModEvents.CATEGORY_UPDATED,
                 It.IsAny<Func<EventMessage, Task>>()),
@@ -142,7 +142,7 @@ public class CategoryEventHandlerTests : IDisposable
 
         // Assert
         _mockEventBus.Verify(
-            x => x.UnregisterHandler("test-handler-id"),
+            x => x.Unsubscribe("test-handler-id"),
             Times.Once,
             "Should unregister handler on dispose"
         );

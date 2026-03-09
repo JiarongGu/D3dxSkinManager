@@ -3,6 +3,7 @@ using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Mod.Services;
 
 namespace D3dxSkinManager.Modules.Mod;
@@ -136,7 +137,10 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<List<ModInfo>> GetAllModsAsync()
     {
-        var mods = await _repository.GetAllAsync().ConfigureAwait(false);
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+
+        // Convert to domain models
+        var mods = ModMapper.ToDomainList(entities);
 
         // Enrich all mods with status flags, category names, and tag metadata
         await _enrichmentService.EnrichAllAsync(mods).ConfigureAwait(false);
@@ -146,13 +150,18 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<ModInfo?> GetModByIdAsync(string sha)
     {
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+
+        if (entity == null)
+        {
+            return null;
+        }
+
+        // Convert to domain model
+        var mod = ModMapper.ToDomain(entity);
 
         // Enrich single mod with status flags, category name, and tag metadata
-        if (mod != null)
-        {
-            await _enrichmentService.EnrichAsync(mod).ConfigureAwait(false);
-        }
+        await _enrichmentService.EnrichAsync(mod).ConfigureAwait(false);
 
         return mod;
     }
@@ -271,8 +280,8 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> ImportPreviewImageAsync(string sha, string imagePath)
     {
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
+        if (!exists)
         {
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
@@ -288,8 +297,8 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> ImportPreviewFromClipboardAsync(string sha)
     {
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
+        if (!exists)
         {
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
@@ -313,8 +322,8 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> SetThumbnailAsync(string sha, string previewPath)
     {
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
+        if (!exists)
         {
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
@@ -325,8 +334,8 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> DeletePreviewAsync(string sha, string previewPath)
     {
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
+        if (!exists)
         {
             throw new InvalidOperationException($"Mod not found: {sha}");
         }
@@ -528,9 +537,9 @@ public class ModFacade : BaseFacade, IModFacade
     private async Task<object> CheckFilePathsAsync(IpcRequest request)
     {
         var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
 
-        if (mod == null)
+        if (!exists)
         {
             throw new InvalidOperationException($"Mod with SHA {sha} not found");
         }

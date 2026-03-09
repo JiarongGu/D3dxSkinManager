@@ -1,6 +1,9 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using Dapper;
+using Microsoft.Data.Sqlite;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Category.Models;
+using D3dxSkinManager.Modules.Category.Entities;
+using D3dxSkinManager.Modules.Category.Mappers;
 using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Category.Services;
@@ -41,69 +44,44 @@ public class CategoryRepository : ICategoryRepository
 
     public async Task<List<CategoryInfo>> GetAllAsync()
     {
-
-        var categories = new List<CategoryInfo>();
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Categories ORDER BY Priority DESC, Name";
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            categories.Add(MapToCategory(reader));
-        }
-
-        return categories;
+        var entities = await connection.QueryAsync<CategoryEntity>(
+            "SELECT Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata, CreatedAt, UpdatedAt FROM Categories ORDER BY Priority DESC, Name"
+        );
+        return CategoryMapper.ToDomainList(entities);
     }
 
     public async Task<CategoryInfo?> GetByIdAsync(string id)
     {
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        var entity = await connection.QuerySingleOrDefaultAsync<CategoryEntity>(
+            "SELECT Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata, CreatedAt, UpdatedAt FROM Categories WHERE Id = @id",
+            new { id }
+        );
 
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Categories WHERE Id = @id";
-        command.Parameters.AddWithValue("@id", id);
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        if (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            return MapToCategory(reader);
-        }
-
-        return null;
+        return entity != null ? CategoryMapper.ToDomain(entity) : null;
     }
 
     public async Task<List<CategoryInfo>> GetChildrenAsync(string? parentId)
     {
-
-        var categories = new List<CategoryInfo>();
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
 
-        var command = connection.CreateCommand();
+        IEnumerable<CategoryEntity> entities;
         if (parentId == null)
         {
-            command.CommandText = "SELECT * FROM Categories WHERE ParentId IS NULL ORDER BY Priority DESC, Name";
+            entities = await connection.QueryAsync<CategoryEntity>(
+                "SELECT Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata, CreatedAt, UpdatedAt FROM Categories WHERE ParentId IS NULL ORDER BY Priority DESC, Name"
+            );
         }
         else
         {
-            command.CommandText = "SELECT * FROM Categories WHERE ParentId = @parentId ORDER BY Priority DESC, Name";
-            command.Parameters.AddWithValue("@parentId", parentId);
+            entities = await connection.QueryAsync<CategoryEntity>(
+                "SELECT Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata, CreatedAt, UpdatedAt FROM Categories WHERE ParentId = @parentId ORDER BY Priority DESC, Name",
+                new { parentId }
+            );
         }
 
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            categories.Add(MapToCategory(reader));
-        }
-
-        return categories;
+        return CategoryMapper.ToDomainList(entities);
     }
 
     /// <summary>
@@ -112,13 +90,11 @@ public class CategoryRepository : ICategoryRepository
     /// </summary>
     public async Task<List<string>> GetAllDescendantIdsAsync(string parentId)
     {
-
         var descendantIds = new List<string>();
         var toProcess = new Queue<string>();
         toProcess.Enqueue(parentId);
 
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
 
         // BFS to collect all descendants
         while (toProcess.Count > 0)
@@ -126,15 +102,14 @@ public class CategoryRepository : ICategoryRepository
             var currentId = toProcess.Dequeue();
             descendantIds.Add(currentId);
 
-            // Get direct children
-            var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id FROM Categories WHERE ParentId = @parentId";
-            command.Parameters.AddWithValue("@parentId", currentId);
+            // Get direct children using Dapper
+            var childIds = await connection.QueryAsync<string>(
+                "SELECT Id FROM Categories WHERE ParentId = @parentId",
+                new { parentId = currentId }
+            );
 
-            await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-            while (await reader.ReadAsync().ConfigureAwait(false))
+            foreach (var childId in childIds)
             {
-                var childId = reader["Id"].ToString();
                 if (!string.IsNullOrEmpty(childId))
                 {
                     toProcess.Enqueue(childId);
@@ -146,139 +121,96 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public async Task<CategoryInfo?> GetByNameAsync(string name)
-    { await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        var entity = await connection.QuerySingleOrDefaultAsync<CategoryEntity>(
+            "SELECT Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata, CreatedAt, UpdatedAt FROM Categories WHERE Name = @name LIMIT 1",
+            new { name }
+        );
 
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Categories WHERE Name = @name LIMIT 1";
-        command.Parameters.AddWithValue("@name", name);
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        if (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            return MapToCategory(reader);
-        }
-
-        return null;
+        return entity != null ? CategoryMapper.ToDomain(entity) : null;
     }
 
     public async Task<CategoryInfo> InsertAsync(CategoryInfo category)
-    { await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        var entity = CategoryMapper.ToEntity(category);
 
-        var command = connection.CreateCommand();
-        command.CommandText = @"
-            INSERT INTO Categories (Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata)
-            VALUES (@id, @name, @parentId, @thumbnailPath, @priority, @description, @metadata)
-        ";
-
-        command.Parameters.AddWithValue("@id", category.Id);
-        command.Parameters.AddWithValue("@name", category.Name);
-        command.Parameters.AddWithValue("@parentId", category.ParentId ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@thumbnailPath", category.Thumbnail ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@priority", category.Priority);
-        command.Parameters.AddWithValue("@description", category.Description ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@metadata", category.Metadata != null ? JsonHelper.Serialize(category.Metadata) : (object)DBNull.Value);
-
-        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+        await connection.ExecuteAsync(
+            @"INSERT INTO Categories (Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata)
+              VALUES (@Id, @Name, @ParentId, @ThumbnailPath, @Priority, @Description, @Metadata)",
+            entity
+        );
         return category;
     }
 
     public async Task<bool> UpdateAsync(CategoryInfo category)
-    { await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        var entity = CategoryMapper.ToEntity(category);
 
-        var command = connection.CreateCommand();
-        command.CommandText = @"
-            UPDATE Categories
-            SET Name = @name,
-                ParentId = @parentId,
-                ThumbnailPath = @thumbnailPath,
-                Priority = @priority,
-                Description = @description,
-                Metadata = @metadata,
-                UpdatedAt = CURRENT_TIMESTAMP
-            WHERE Id = @id
-        ";
-
-        command.Parameters.AddWithValue("@id", category.Id);
-        command.Parameters.AddWithValue("@name", category.Name);
-        command.Parameters.AddWithValue("@parentId", category.ParentId ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@thumbnailPath", category.Thumbnail ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@priority", category.Priority);
-        command.Parameters.AddWithValue("@description", category.Description ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@metadata", category.Metadata != null ? JsonHelper.Serialize(category.Metadata) : (object)DBNull.Value);
-
-        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+        var rowsAffected = await connection.ExecuteAsync(
+            @"UPDATE Categories
+              SET Name = @Name,
+                  ParentId = @ParentId,
+                  ThumbnailPath = @ThumbnailPath,
+                  Priority = @Priority,
+                  Description = @Description,
+                  Metadata = @Metadata,
+                  UpdatedAt = CURRENT_TIMESTAMP
+              WHERE Id = @Id",
+            entity
+        );
         return rowsAffected > 0;
     }
 
     public async Task<bool> DeleteAsync(string id)
-    { await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM Categories WHERE Id = @id";
-        command.Parameters.AddWithValue("@id", id);
-
-        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        var rowsAffected = await connection.ExecuteAsync(
+            "DELETE FROM Categories WHERE Id = @id",
+            new { id }
+        );
         return rowsAffected > 0;
     }
 
     public async Task<bool> ExistsAsync(string id)
-    { await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM Categories WHERE Id = @id";
-        command.Parameters.AddWithValue("@id", id);
-
-        var count = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        var count = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM Categories WHERE Id = @id",
+            new { id }
+        );
         return count > 0;
     }
 
     public async Task ClearAllAsync()
-    { await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM Categories";
-        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.ExecuteAsync("DELETE FROM Categories");
     }
 
     public async Task<bool> MoveCategoryAsync(string categoryId, string? newParentId)
-    { await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = @"
-            UPDATE Categories
-            SET ParentId = @newParentId
-            WHERE Id = @categoryId
-        ";
-
-        command.Parameters.AddWithValue("@categoryId", categoryId);
-        command.Parameters.AddWithValue("@newParentId", newParentId ?? (object)DBNull.Value);
-
-        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        var rowsAffected = await connection.ExecuteAsync(
+            @"UPDATE Categories
+              SET ParentId = @newParentId
+              WHERE Id = @categoryId",
+            new { categoryId, newParentId }
+        );
         return rowsAffected > 0;
     }
 
     public async Task<bool> UpdatePriorityAsync(string categoryId, int priority)
-    { await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = @"
-            UPDATE Categories
-            SET Priority = @priority
-            WHERE Id = @categoryId
-        ";
-
-        command.Parameters.AddWithValue("@categoryId", categoryId);
-        command.Parameters.AddWithValue("@priority", priority);
-
-        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        var rowsAffected = await connection.ExecuteAsync(
+            @"UPDATE Categories
+              SET Priority = @priority
+              WHERE Id = @categoryId",
+            new { categoryId, priority }
+        );
         return rowsAffected > 0;
     }
 
@@ -292,18 +224,13 @@ public class CategoryRepository : ICategoryRepository
         {
             foreach (var (categoryId, priority) in updates)
             {
-                var command = connection.CreateCommand();
-                command.Transaction = transaction;
-                command.CommandText = @"
-                    UPDATE Categories
-                    SET Priority = @priority
-                    WHERE Id = @categoryId
-                ";
-
-                command.Parameters.AddWithValue("@categoryId", categoryId);
-                command.Parameters.AddWithValue("@priority", priority);
-
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await connection.ExecuteAsync(
+                    @"UPDATE Categories
+                      SET Priority = @priority
+                      WHERE Id = @categoryId",
+                    new { categoryId, priority },
+                    transaction
+                );
             }
 
             transaction.Commit();
@@ -314,30 +241,6 @@ public class CategoryRepository : ICategoryRepository
             transaction.Rollback();
             return false;
         }
-    }
-
-    private CategoryInfo MapToCategory(SqliteDataReader reader)
-    {
-        var metadataJson = reader["Metadata"] as string;
-        Dictionary<string, object>? metadata = null;
-        if (!string.IsNullOrEmpty(metadataJson))
-        {
-            metadata = JsonHelper.Deserialize<Dictionary<string, object>>(metadataJson);
-        }
-
-        return new CategoryInfo
-        {
-            Id = reader["Id"].ToString() ?? string.Empty,
-            Name = reader["Name"].ToString() ?? string.Empty,
-            ParentId = reader["ParentId"] as string,
-            Thumbnail = reader["ThumbnailPath"] as string,
-            Priority = Convert.ToInt32(reader["Priority"]),
-            Description = reader["Description"] as string,
-            Metadata = metadata,
-            Children = new List<CategoryInfo>(),
-            CreatedAt = DateTime.Parse(reader["CreatedAt"].ToString() ?? DateTime.UtcNow.ToString()),
-            UpdatedAt = DateTime.Parse(reader["UpdatedAt"].ToString() ?? DateTime.UtcNow.ToString())
-        };
     }
 }
 

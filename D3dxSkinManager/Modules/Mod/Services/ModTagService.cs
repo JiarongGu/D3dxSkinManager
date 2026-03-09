@@ -1,4 +1,5 @@
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Mappers;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -68,8 +69,9 @@ public class ModTagService : IModTagService
 
     public async Task<int> GetTagUsageCountAsync(string tag)
     {
-        var mods = await _modRepository.GetAllAsync();
-        return mods.Count(m => m.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
+        var entities = await _modRepository.GetAllAsync();
+        var mods = ModMapper.ToDomainList(entities);
+        return mods.Count(m => m.Tags.Any(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase)));
     }
 
     public async Task<List<Tag>> SearchTagsAsync(string searchTerm)

@@ -6,6 +6,7 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Context;
@@ -318,8 +319,8 @@ public class ModCacheService : IModCacheService
         }
 
         // Get all mods from database
-        var allMods = await _repository.GetAllAsync().ConfigureAwait(false);
-        var allShas = allMods.Select(m => m.SHA).ToHashSet();
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+        var allShas = entities.Select(e => e.SHA).ToHashSet();
         var loadedShas = (await _repository.GetLoadedIdsAsync()).ToHashSet();
 
         // Scan for disabled cache directories
@@ -519,8 +520,8 @@ public class ModCacheService : IModCacheService
             }
 
             // Get all mods in the same category
-            var categoryMods = await _repository.GetByCategoryAsync(modCategory).ConfigureAwait(false);
-            var categoryShas = categoryMods.Select(m => m.SHA).ToHashSet();
+            var categoryEntities = await _repository.GetByCategoryAsync(modCategory).ConfigureAwait(false);
+            var categoryShas = categoryEntities.Select(e => e.SHA).ToHashSet();
 
             // Scan for disabled caches of mods in this category
             var disabledCaches = GetDisabledCacheDirectories()

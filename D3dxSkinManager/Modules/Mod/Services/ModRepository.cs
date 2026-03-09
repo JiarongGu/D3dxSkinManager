@@ -1,311 +1,203 @@
+using Dapper;
 using Microsoft.Data.Sqlite;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
-
-using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
 /// <summary>
 /// Interface for mod repository
+/// Works with ModEntity (database model) - use ModMapper to convert to ModInfo (domain model)
 /// </summary>
 public interface IModRepository
 {
-    Task<List<ModInfo>> GetAllAsync();
-    Task<ModInfo?> GetByIdAsync(string sha);
+    Task<List<ModEntity>> GetAllAsync();
+    Task<ModEntity?> GetByIdAsync(string sha);
     Task<bool> ExistsAsync(string sha);
-    Task<ModInfo> InsertAsync(ModInfo mod);
-    Task<bool> UpdateAsync(ModInfo mod);
+    Task<ModEntity> InsertAsync(ModEntity entity);
+    Task<bool> UpdateAsync(ModEntity entity);
     Task<bool> DeleteAsync(string sha);
-    Task<List<ModInfo>> GetByCategoryAsync(string category);
-    Task<List<ModInfo>> GetByMultipleCategoriesAsync(IEnumerable<string> categoryIds);
-    Task<List<string>> GetLoadedIdsAsync();
+    Task<List<ModEntity>> GetByCategoryAsync(string category);
+    Task<List<ModEntity>> GetByMultipleCategoriesAsync(IEnumerable<string> categoryIds);
     Task<List<string>> GetDistinctCategoriesAsync();
     Task<List<string>> GetDistinctAuthorsAsync();
     Task<List<string>> GetAllTagsAsync();
-    Task<bool> SetLoadedStateAsync(string sha, bool isLoaded);
+    Task<List<string>> GetLoadedIdsAsync(); // File system-based: scans cache directory for active mods
 }
 
 /// <summary>
 /// Repository for mod database operations (CRUD)
-/// Responsibility: All direct database interactions
+/// Uses Dapper for clean, efficient data access
 /// </summary>
 public class ModRepository : IModRepository
 {
     private readonly string _connectionString;
+    private readonly IProfilePathService _profilePaths;
+    private readonly ILogHelper _logger;
 
-    public ModRepository(IProfilePathService profilePaths)
+    public ModRepository(IProfilePathService profilePaths, ILogHelper logger)
     {
         _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
+        _profilePaths = profilePaths;
+        _logger = logger;
         // Table creation now handled by Fluent migrations (Migration_202603080001_CreateModsTable)
     }
 
-    public async Task<List<ModInfo>> GetAllAsync()
+    public async Task<List<ModEntity>> GetAllAsync()
     {
-
-        var mods = new List<ModInfo>();
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Mods ORDER BY SHA";
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            mods.Add(MapToModInfo(reader));
-        }
-
-        return mods;
+        var entities = await connection.QueryAsync<ModEntity>("SELECT * FROM Mods ORDER BY SHA");
+        return entities.ToList();
     }
 
-    public async Task<ModInfo?> GetByIdAsync(string sha)
+    public async Task<ModEntity?> GetByIdAsync(string sha)
     {
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Mods WHERE SHA = @sha";
-        command.Parameters.AddWithValue("@sha", sha);
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        if (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            return MapToModInfo(reader);
-        }
-
-        return null;
+        return await connection.QuerySingleOrDefaultAsync<ModEntity>(
+            "SELECT * FROM Mods WHERE SHA = @sha",
+            new { sha }
+        );
     }
 
     public async Task<bool> ExistsAsync(string sha)
     {
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM Mods WHERE SHA = @sha";
-        command.Parameters.AddWithValue("@sha", sha);
-
-        var count = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+        var count = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM Mods WHERE SHA = @sha",
+            new { sha }
+        );
         return count > 0;
     }
 
-    public async Task<ModInfo> InsertAsync(ModInfo mod)
+    public async Task<ModEntity> InsertAsync(ModEntity entity)
     {
+        var sql = @"
+            INSERT INTO Mods (SHA, Category, Name, Author, Description, Type, Grading, Tags, DisablePreview, Metadata)
+            VALUES (@SHA, @Category, @Name, @Author, @Description, @Type, @Grading, @Tags, @DisablePreview, @Metadata)";
 
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        await connection.ExecuteAsync(sql, new
+        {
+            entity.SHA,
+            entity.Category,
+            entity.Name,
+            entity.Author,
+            entity.Description,
+            entity.Type,
+            entity.Grading,
+            entity.Tags,
+            DisablePreview = entity.DisablePreview ? 1 : 0,
+            entity.Metadata
+        });
 
-        var command = connection.CreateCommand();
-        command.CommandText = @"
-            INSERT INTO Mods (SHA, Category, Name, Author, Description, Type, Grading, Tags, DisablePreview, Metadata)
-            VALUES (@sha, @category, @name, @author, @description, @type, @grading, @tags, @disablePreview, @metadata)
-        ";
-
-        command.Parameters.AddWithValue("@sha", mod.SHA);
-        command.Parameters.AddWithValue("@category", mod.Category);
-        command.Parameters.AddWithValue("@name", mod.Name);
-        command.Parameters.AddWithValue("@author", mod.Author ?? string.Empty);
-        command.Parameters.AddWithValue("@description", mod.Description ?? string.Empty);
-        command.Parameters.AddWithValue("@type", mod.Type);
-        command.Parameters.AddWithValue("@grading", mod.Grading);
-        command.Parameters.AddWithValue("@tags", JsonHelper.Serialize(mod.Tags));
-        command.Parameters.AddWithValue("@disablePreview", mod.DisablePreview ? 1 : 0);
-        command.Parameters.AddWithValue("@metadata", (object?)mod.Metadata ?? DBNull.Value);
-
-        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-        return mod;
+        return entity;
     }
 
-    public async Task<bool> UpdateAsync(ModInfo mod)
+    public async Task<bool> UpdateAsync(ModEntity entity)
     {
+        var sql = @"
+            UPDATE Mods SET
+                Category = @Category,
+                Name = @Name,
+                Author = @Author,
+                Description = @Description,
+                Type = @Type,
+                Grading = @Grading,
+                Tags = @Tags,
+                DisablePreview = @DisablePreview,
+                Metadata = @Metadata,
+                UpdatedAt = CURRENT_TIMESTAMP
+            WHERE SHA = @SHA";
 
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        var rowsAffected = await connection.ExecuteAsync(sql, new
+        {
+            entity.SHA,
+            entity.Category,
+            entity.Name,
+            entity.Author,
+            entity.Description,
+            entity.Type,
+            entity.Grading,
+            entity.Tags,
+            DisablePreview = entity.DisablePreview ? 1 : 0,
+            entity.Metadata
+        });
 
-        var command = connection.CreateCommand();
-        command.CommandText = @"
-            UPDATE Mods SET
-                Category = @category,
-                Name = @name,
-                Author = @author,
-                Description = @description,
-                Type = @type,
-                Grading = @grading,
-                Tags = @tags,
-                DisablePreview = @disablePreview,
-                Metadata = @metadata,
-                UpdatedAt = CURRENT_TIMESTAMP
-            WHERE SHA = @sha
-        ";
-
-        command.Parameters.AddWithValue("@sha", mod.SHA);
-        command.Parameters.AddWithValue("@category", mod.Category);
-        command.Parameters.AddWithValue("@name", mod.Name);
-        command.Parameters.AddWithValue("@author", mod.Author ?? string.Empty);
-        command.Parameters.AddWithValue("@description", mod.Description ?? string.Empty);
-        command.Parameters.AddWithValue("@type", mod.Type);
-        command.Parameters.AddWithValue("@grading", mod.Grading);
-        command.Parameters.AddWithValue("@tags", JsonHelper.Serialize(mod.Tags));
-        command.Parameters.AddWithValue("@disablePreview", mod.DisablePreview ? 1 : 0);
-        command.Parameters.AddWithValue("@metadata", (object?)mod.Metadata ?? DBNull.Value);
-
-        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
     }
 
     public async Task<bool> DeleteAsync(string sha)
     {
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        var rowsAffected = await connection.ExecuteAsync(
+            "DELETE FROM Mods WHERE SHA = @sha",
+            new { sha }
+        );
 
-        var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM Mods WHERE SHA = @sha";
-        command.Parameters.AddWithValue("@sha", sha);
-
-        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         return rowsAffected > 0;
     }
 
-    public async Task<List<ModInfo>> GetByCategoryAsync(string category)
+    public async Task<List<ModEntity>> GetByCategoryAsync(string category)
     {
-
-        var mods = new List<ModInfo>();
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Mods WHERE Category = @category ORDER BY Name COLLATE NOCASE";
-        command.Parameters.AddWithValue("@category", category);
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            mods.Add(MapToModInfo(reader));
-        }
-
-        return mods;
+        var entities = await connection.QueryAsync<ModEntity>(
+            "SELECT * FROM Mods WHERE Category = @category ORDER BY Name COLLATE NOCASE",
+            new { category }
+        );
+        return entities.ToList();
     }
 
-    /// <summary>
-    /// Get mods that belong to any of the specified categories
-    /// Sorting should be done in the service layer after populating CategoryName
-    /// </summary>
-    public async Task<List<ModInfo>> GetByMultipleCategoriesAsync(IEnumerable<string> categoryIds)
+    public async Task<List<ModEntity>> GetByMultipleCategoriesAsync(IEnumerable<string> categoryIds)
     {
-
         var categoryList = categoryIds.ToList();
         if (categoryList.Count == 0)
         {
-            return new List<ModInfo>();
+            return new List<ModEntity>();
         }
-
-        var mods = new List<ModInfo>();
 
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
 
-        var command = connection.CreateCommand();
+        // Dapper supports IN clauses with collections
+        var entities = await connection.QueryAsync<ModEntity>(
+            "SELECT * FROM Mods WHERE Category IN @categoryIds",
+            new { categoryIds = categoryList }
+        );
 
-        // Build parameterized IN clause
-        var parameters = string.Join(",", categoryList.Select((_, i) => $"@category{i}"));
-        command.CommandText = $"SELECT * FROM Mods WHERE Category IN ({parameters})";
-
-        // Add parameters
-        for (int i = 0; i < categoryList.Count; i++)
-        {
-            command.Parameters.AddWithValue($"@category{i}", categoryList[i]);
-        }
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            mods.Add(MapToModInfo(reader));
-        }
-
-        return mods;
-    }
-
-    public async Task<List<string>> GetLoadedIdsAsync()
-    {
-
-        var shas = new List<string>();
-
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT SHA FROM Mods WHERE IsLoaded = 1";
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            shas.Add(reader.GetString(0));
-        }
-
-        return shas;
+        return entities.ToList();
     }
 
     public async Task<List<string>> GetDistinctCategoriesAsync()
     {
-
-        var categories = new List<string>();
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT DISTINCT Category FROM Mods WHERE Category != '' ORDER BY Category";
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            categories.Add(reader.GetString(0));
-        }
-
-        return categories;
+        var categories = await connection.QueryAsync<string>(
+            "SELECT DISTINCT Category FROM Mods WHERE Category != '' ORDER BY Category"
+        );
+        return categories.ToList();
     }
 
     public async Task<List<string>> GetDistinctAuthorsAsync()
     {
-
-        var authors = new List<string>();
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT DISTINCT Author FROM Mods WHERE Author != '' ORDER BY Author";
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            authors.Add(reader.GetString(0));
-        }
-
-        return authors;
+        var authors = await connection.QueryAsync<string>(
+            "SELECT DISTINCT Author FROM Mods WHERE Author != '' ORDER BY Author"
+        );
+        return authors.ToList();
     }
 
     public async Task<List<string>> GetAllTagsAsync()
     {
+        await using var connection = new SqliteConnection(_connectionString);
+
+        var tagsJsonList = await connection.QueryAsync<string>(
+            "SELECT Tags FROM Mods WHERE Tags != ''"
+        );
 
         var allTags = new HashSet<string>();
-
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT Tags FROM Mods WHERE Tags != ''";
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        foreach (var tagsJson in tagsJsonList)
         {
-            var tagsJson = reader.GetString(0);
             if (!string.IsNullOrEmpty(tagsJson))
             {
                 var tags = JsonHelper.Deserialize<List<string>>(tagsJson);
@@ -323,46 +215,30 @@ public class ModRepository : IModRepository
     }
 
     /// <summary>
-    /// This method is a no-op placeholder kept for backward compatibility.
-    /// IsLoaded is determined dynamically from file system (work directory existence),
-    /// not stored in the database. See ModInfo.IsLoaded comment.
+    /// Get list of loaded mod SHAs (file system-based check)
+    /// Returns SHAs of mods that have cache directories without DISABLED- prefix
+    /// NOTE: This is not a database query - it scans the file system
     /// </summary>
-    public async Task<bool> SetLoadedStateAsync(string sha, bool isLoaded)
+    public Task<List<string>> GetLoadedIdsAsync()
     {
-        // IsLoaded is not stored in database - it's determined dynamically by checking
-        // if work directory exists (see PopulateStatusFlagsBulk in ModFacade)
-        // This method is kept for interface compatibility but does nothing
-        return await Task.FromResult(true).ConfigureAwait(false);
-    }
+        var loadedShas = new List<string>();
 
-    private ModInfo MapToModInfo(SqliteDataReader reader)
-    {
-        var tagsJson = reader.GetString(reader.GetOrdinal("Tags"));
-        var tags = string.IsNullOrEmpty(tagsJson)
-            ? new List<string>()
-            : JsonHelper.Deserialize<List<string>>(tagsJson) ?? new List<string>();
-
-        var disablePreviewOrdinal = reader.GetOrdinal("DisablePreview");
-        var disablePreview = !reader.IsDBNull(disablePreviewOrdinal) && reader.GetInt32(disablePreviewOrdinal) == 1;
-
-        var metadataOrdinal = reader.GetOrdinal("Metadata");
-        var metadata = reader.IsDBNull(metadataOrdinal) ? null : reader.GetString(metadataOrdinal);
-
-        return new ModInfo
+        var cacheDir = _profilePaths.CacheModsDirectory;
+        if (!Directory.Exists(cacheDir))
         {
-            SHA = reader.GetString(reader.GetOrdinal("SHA")),
-            Category = reader.GetString(reader.GetOrdinal("Category")),
-            Name = reader.GetString(reader.GetOrdinal("Name")),
-            Author = reader.GetString(reader.GetOrdinal("Author")),
-            Description = reader.GetString(reader.GetOrdinal("Description")),
-            Type = reader.GetString(reader.GetOrdinal("Type")),
-            Grading = reader.GetString(reader.GetOrdinal("Grading")),
-            Tags = tags,
-            DisablePreview = disablePreview,
-            CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
-            UpdatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("UpdatedAt"))),
-            Metadata = metadata
-            // Note: IsLoaded, IsAvailable, preview paths, and thumbnails are populated dynamically from file system
-        };
+            return Task.FromResult(loadedShas);
+        }
+
+        var directories = Directory.GetDirectories(cacheDir);
+        foreach (var dir in directories)
+        {
+            var dirName = Path.GetFileName(dir);
+            if (!string.IsNullOrEmpty(dirName) && !dirName.StartsWith("DISABLED-"))
+            {
+                loadedShas.Add(dirName);
+            }
+        }
+
+        return Task.FromResult(loadedShas);
     }
 }

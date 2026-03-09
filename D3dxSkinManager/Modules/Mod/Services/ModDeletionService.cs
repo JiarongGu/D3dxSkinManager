@@ -3,6 +3,7 @@ using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Context.Services;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
@@ -62,8 +63,8 @@ public class ModDeletionService : IModDeletionService
             throw new ArgumentException("SHA is required", nameof(sha));
 
         // Check if mod exists
-        var mod = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
-        if (mod == null)
+        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        if (entity == null)
         {
             _logger.Warn($"Mod not found for deletion: {sha}", "ModDeletionService");
             throw new OperationException(
@@ -72,6 +73,9 @@ public class ModDeletionService : IModDeletionService
                 $"Mod not found: {sha}"
             );
         }
+
+        // Convert to domain model
+        var mod = ModMapper.ToDomain(entity);
 
         // Use enrichment service to populate status flags from filesystem
         // This ensures we accurately detect what needs to be deleted

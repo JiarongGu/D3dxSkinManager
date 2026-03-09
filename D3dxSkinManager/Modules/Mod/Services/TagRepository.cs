@@ -1,5 +1,8 @@
+using Dapper;
 using Microsoft.Data.Sqlite;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Entities;
+using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
 
@@ -70,108 +73,66 @@ public class TagRepository : ITagRepository
 
     public async Task<List<Tag>> GetAllAsync()
     {
-
-        var tags = new List<Tag>();
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT Name, Color, CreatedAt, UpdatedAt FROM Tags ORDER BY Name";
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            tags.Add(new Tag
-            {
-                Name = reader.GetString(0),
-                Color = reader.GetString(1),
-                CreatedAt = DateTime.Parse(reader.GetString(2)),
-                UpdatedAt = DateTime.Parse(reader.GetString(3))
-            });
-        }
-
-        return tags;
+        var entities = await connection.QueryAsync<TagEntity>(
+            "SELECT Name, Color, CreatedAt, UpdatedAt FROM Tags ORDER BY Name"
+        );
+        return TagMapper.ToDomainList(entities);
     }
 
     public async Task<Tag?> GetByNameAsync(string name)
     {
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT Name, Color, CreatedAt, UpdatedAt FROM Tags WHERE Name = @name";
-        command.Parameters.AddWithValue("@name", name);
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        if (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            return new Tag
-            {
-                Name = reader.GetString(0),
-                Color = reader.GetString(1),
-                CreatedAt = DateTime.Parse(reader.GetString(2)),
-                UpdatedAt = DateTime.Parse(reader.GetString(3))
-            };
-        }
-
-        return null;
+        var entity = await connection.QuerySingleOrDefaultAsync<TagEntity>(
+            "SELECT Name, Color, CreatedAt, UpdatedAt FROM Tags WHERE Name = @name",
+            new { name }
+        );
+        return entity != null ? TagMapper.ToDomain(entity) : null;
     }
 
     public async Task<bool> UpsertAsync(Tag tag)
     {
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        var entity = TagMapper.ToEntity(tag);
 
-        var command = connection.CreateCommand();
-        command.CommandText = @"
-            INSERT INTO Tags (Name, Color, CreatedAt, UpdatedAt)
-            VALUES (@name, @color, @createdAt, @updatedAt)
-            ON CONFLICT(Name) DO UPDATE SET
-                Color = @color,
-                UpdatedAt = @updatedAt
-        ";
-
-        command.Parameters.AddWithValue("@name", tag.Name);
-        command.Parameters.AddWithValue("@color", tag.Color);
-        command.Parameters.AddWithValue("@createdAt", tag.CreatedAt.ToString("o"));
-        command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow.ToString("o"));
-
-        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+        var rowsAffected = await connection.ExecuteAsync(
+            @"INSERT INTO Tags (Name, Color, CreatedAt, UpdatedAt)
+              VALUES (@Name, @Color, @CreatedAt, @UpdatedAt)
+              ON CONFLICT(Name) DO UPDATE SET
+                  Color = @Color,
+                  UpdatedAt = @UpdatedAt",
+            new
+            {
+                entity.Name,
+                entity.Color,
+                CreatedAt = entity.CreatedAt.ToString("o"),
+                UpdatedAt = DateTime.UtcNow.ToString("o")
+            }
+        );
         return rowsAffected > 0;
     }
 
     public async Task<bool> DeleteAsync(string name)
     {
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM Tags WHERE Name = @name";
-        command.Parameters.AddWithValue("@name", name);
-
-        var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+        var rowsAffected = await connection.ExecuteAsync(
+            "DELETE FROM Tags WHERE Name = @name",
+            new { name }
+        );
         return rowsAffected > 0;
     }
 
     public async Task<List<string>> GetUsedTagNamesAsync()
     {
-
         var allTags = new HashSet<string>();
 
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        var tagsJsonList = await connection.QueryAsync<string>(
+            "SELECT Tags FROM Mods WHERE Tags != ''"
+        );
 
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT Tags FROM Mods WHERE Tags != ''";
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        foreach (var tagsJson in tagsJsonList)
         {
-            var tagsJson = reader.GetString(0);
             if (!string.IsNullOrEmpty(tagsJson))
             {
                 var tags = JsonHelper.Deserialize<List<string>>(tagsJson);
@@ -190,19 +151,14 @@ public class TagRepository : ITagRepository
 
     public async Task<int> GetUsageCountAsync(string name)
     {
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT Tags FROM Mods WHERE Tags != ''";
+        var tagsJsonList = await connection.QueryAsync<string>(
+            "SELECT Tags FROM Mods WHERE Tags != ''"
+        );
 
         int count = 0;
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        foreach (var tagsJson in tagsJsonList)
         {
-            var tagsJson = reader.GetString(0);
             if (!string.IsNullOrEmpty(tagsJson))
             {
                 var tags = JsonHelper.Deserialize<List<string>>(tagsJson);
@@ -223,32 +179,15 @@ public class TagRepository : ITagRepository
             return await GetAllAsync().ConfigureAwait(false);
         }
 
-        var tags = new List<Tag>();
-
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        var entities = await connection.QueryAsync<TagEntity>(
+            @"SELECT Name, Color, CreatedAt, UpdatedAt
+              FROM Tags
+              WHERE Name LIKE @searchTerm
+              ORDER BY Name",
+            new { searchTerm = $"%{searchTerm}%" }
+        );
 
-        var command = connection.CreateCommand();
-        command.CommandText = @"
-            SELECT Name, Color, CreatedAt, UpdatedAt
-            FROM Tags
-            WHERE Name LIKE @searchTerm
-            ORDER BY Name
-        ";
-        command.Parameters.AddWithValue("@searchTerm", $"%{searchTerm}%");
-
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            tags.Add(new Tag
-            {
-                Name = reader.GetString(0),
-                Color = reader.GetString(1),
-                CreatedAt = DateTime.Parse(reader.GetString(2)),
-                UpdatedAt = DateTime.Parse(reader.GetString(3))
-            });
-        }
-
-        return tags;
+        return TagMapper.ToDomainList(entities);
     }
 }
