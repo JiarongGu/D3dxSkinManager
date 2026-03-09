@@ -78,7 +78,7 @@ dotnet test --filter "FullyQualifiedName~ClassificationServiceTests"
 dotnet test /p:CollectCoverage=true
 ```
 
-### Frontend (React 18 + Jest + React Testing Library)
+### Frontend (React 19 + Jest + React Testing Library)
 
 **Location:** `D3dxSkinManager.Client/src/`
 

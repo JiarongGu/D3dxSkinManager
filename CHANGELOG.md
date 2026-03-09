@@ -41,10 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Details
 - Built on .NET 10 with WinForms + WebView2
-- React 18 + TypeScript frontend with Vite
+- React 19 + TypeScript frontend with Vite
 - SQLite database for profile-scoped data storage
 - Native C++ launcher for seamless .NET runtime installation
-- Single-file executable with embedded resources (~14 MB)
+- Framework-dependent executable (~14 MB total)
 
 **Initial release of D3dxSkinManager v2.0** - Complete rewrite with modern architecture.
 
