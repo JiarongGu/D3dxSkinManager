@@ -37,15 +37,17 @@ public static class ModMapper
             SHA = entity.SHA,
             Category = entity.Category,
             Name = entity.Name,
-            Author = entity.Author,
-            Description = entity.Description,
+            // Impedance mismatch: Persistence layer (nullable) → Domain layer (non-nullable)
+            // Database is flexible and compatible (allows NULL), domain is strict (never null)
+            Author = entity.Author ?? string.Empty,
+            Description = entity.Description ?? string.Empty,
             Type = entity.Type,
             Grading = entity.Grading,
             Tags = tags,
             DisablePreview = entity.DisablePreview,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt,
-            Metadata = entity.Metadata,
+            Metadata = entity.Metadata ?? string.Empty,
 
             // Computed properties - initialized to defaults
             // Services should populate these after conversion

@@ -176,7 +176,7 @@ public class CategoryMapperEdgeCaseTests
                 { "int", 42 },
                 { "double", 3.14 },
                 { "bool", true },
-                { "null", null },
+                { "null", null! },  // Intentionally testing null handling
                 { "array", new[] { 1, 2, 3 } },
                 { "nested", new Dictionary<string, object> { { "key", "value" } } }
             }

@@ -133,7 +133,8 @@ public class ModMapperTests
         entity.Type.Should().Be("7z");
         entity.Grading.Should().Be("G");
         // Tags JSON may be formatted, so deserialize to compare
-        var deserializedTags = JsonHelper.Deserialize<List<string>>(entity.Tags);
+        entity.Tags.Should().NotBeNull();
+        var deserializedTags = JsonHelper.Deserialize<List<string>>(entity.Tags!);
         deserializedTags.Should().BeEquivalentTo(new List<string> { "action", "rpg" });
         entity.DisablePreview.Should().BeTrue();
         entity.CreatedAt.Should().Be(new DateTime(2024, 1, 1));
@@ -266,8 +267,10 @@ public class ModMapperTests
         roundTripEntity.Type.Should().Be(originalEntity.Type);
         roundTripEntity.Grading.Should().Be(originalEntity.Grading);
         // Compare tags by deserializing (JSON formatting may differ)
-        var originalTags = JsonHelper.Deserialize<List<string>>(originalEntity.Tags);
-        var roundTripTags = JsonHelper.Deserialize<List<string>>(roundTripEntity.Tags);
+        originalEntity.Tags.Should().NotBeNull();
+        roundTripEntity.Tags.Should().NotBeNull();
+        var originalTags = JsonHelper.Deserialize<List<string>>(originalEntity.Tags!);
+        var roundTripTags = JsonHelper.Deserialize<List<string>>(roundTripEntity.Tags!);
         roundTripTags.Should().BeEquivalentTo(originalTags);
         roundTripEntity.DisablePreview.Should().Be(originalEntity.DisablePreview);
     }

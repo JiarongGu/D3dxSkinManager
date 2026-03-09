@@ -95,7 +95,7 @@ public class ModMapperEdgeCaseTests
         var domain = new ModInfo
         {
             SHA = "test",
-            Tags = null
+            Tags = null!  // Intentionally testing null handling
         };
 
         // Act
@@ -487,7 +487,7 @@ public class ModMapperEdgeCaseTests
     public void UpdateEntity_WithNullEntity_ShouldThrowArgumentNullException()
     {
         // Arrange
-        ModEntity entity = null;
+        ModEntity entity = null!;  // Intentionally testing null handling
         var domainModel = new ModInfo { SHA = "test", Category = "test" };
 
         // Act & Assert
@@ -509,10 +509,10 @@ public class ModMapperEdgeCaseTests
         {
             SHA = "test",
             Category = "test",
-            Name = null,
-            Description = null,
-            Author = null,
-            Tags = null
+            Name = null!,  // Intentionally testing null handling
+            Description = null!,  // Intentionally testing null handling
+            Author = null!,  // Intentionally testing null handling
+            Tags = null!  // Intentionally testing null handling
         };
 
         // Act

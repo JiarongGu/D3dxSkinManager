@@ -110,10 +110,12 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                 if (existingMod != null)
                 {
                     // Mod exists - update its category if it's different
-                    if (existingMod.Category != categoryId)
+                    // If no category found, use empty string (unclassified)
+                    var newCategory = categoryId ?? string.Empty;
+                    if (existingMod.Category != newCategory)
                     {
-                        _logger.Verbose($"Updating category for existing mod: {modEntry.Name} ({modEntry.Sha}) from '{existingMod.Category}' to '{categoryId}'", "Migration");
-                        existingMod.Category = categoryId;
+                        _logger.Verbose($"Updating category for existing mod: {modEntry.Name} ({modEntry.Sha}) from '{existingMod.Category}' to '{newCategory}'", "Migration");
+                        existingMod.Category = newCategory;
                         await _modRepository.UpdateAsync(existingMod).ConfigureAwait(false);
                     }
                     else

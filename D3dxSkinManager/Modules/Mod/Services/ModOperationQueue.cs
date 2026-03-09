@@ -24,6 +24,16 @@ public interface IModOperationQueue
     /// Use null/empty category for unclassified mods (no category lock)
     /// </summary>
     Task<T> EnqueueCategoryOperationAsync<T>(string? category, Func<Task<T>> operation);
+
+    /// <summary>
+    /// Gets the number of active per-mod locks (for testing memory leak prevention)
+    /// </summary>
+    int ActiveModLockCount { get; }
+
+    /// <summary>
+    /// Gets the number of active per-category locks (for testing memory leak prevention)
+    /// </summary>
+    int ActiveCategoryLockCount { get; }
 }
 
 public class ModOperationQueue : IModOperationQueue
@@ -34,6 +44,16 @@ public class ModOperationQueue : IModOperationQueue
     // Per-category semaphores: Only one load operation per category at a time
     // Prevents race: Load B trying to unload A while A is still loading
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _categoryLocks = new();
+
+    /// <summary>
+    /// Gets the number of active per-mod locks (for testing memory leak prevention)
+    /// </summary>
+    public int ActiveModLockCount => _modLocks.Count;
+
+    /// <summary>
+    /// Gets the number of active per-category locks (for testing memory leak prevention)
+    /// </summary>
+    public int ActiveCategoryLockCount => _categoryLocks.Count;
 
     /// <summary>
     /// Enqueue operation for mod - serializes operations per SHA, allows parallel across SHAs

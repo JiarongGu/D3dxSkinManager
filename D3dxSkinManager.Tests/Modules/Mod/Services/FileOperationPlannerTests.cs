@@ -1,10 +1,10 @@
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Services;
 using Moq;
 using Xunit;
+using D3dxSkinManager.Modules.Context.Models;
 
 namespace D3dxSkinManager.Tests.Modules.Mod.Services;
 

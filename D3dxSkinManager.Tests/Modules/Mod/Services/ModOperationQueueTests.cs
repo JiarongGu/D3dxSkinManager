@@ -6,12 +6,14 @@ namespace D3dxSkinManager.Tests.Modules.Mod.Services;
 /// <summary>
 /// Tests for ModOperationQueue concurrency control
 /// Ensures proper locking behavior to prevent deadlocks and race conditions
+/// Uses moderate delays (10-30ms) that are long enough to test concurrency properly
+/// but shorter than typical I/O operations
 ///
 /// IMPORTANT: These are pure unit tests with NO external dependencies:
 /// - No file system operations
 /// - No database access
 /// - No network calls
-/// - Only in-memory operations and async delays
+/// - Only in-memory operations with delays sufficient to test concurrency behavior
 /// </summary>
 public class ModOperationQueueTests
 {
@@ -35,14 +37,14 @@ public class ModOperationQueueTests
         var task1 = _queue.EnqueueAsync(sha, async () =>
         {
             executionOrder.Add(1);
-            await Task.Delay(50); // Simulate async work (not file I/O)
+            await Task.Delay(20); // Real delay needed - FakeTimeProvider doesn't work with SemaphoreSlim
             return true;
         });
 
         var task2 = _queue.EnqueueAsync(sha, async () =>
         {
             executionOrder.Add(2);
-            await Task.Delay(50); // Simulate async work (not file I/O)
+            await Task.Delay(20);
             return true;
         });
 
@@ -72,21 +74,21 @@ public class ModOperationQueueTests
         var task1 = _queue.EnqueueAsync(sha1, async () =>
         {
             lock (lockObj) startTimes[sha1] = DateTime.UtcNow;
-            await Task.Delay(100); // Simulate async work (not file I/O)
+            await Task.Delay(30);
             return true;
         });
 
         var task2 = _queue.EnqueueAsync(sha2, async () =>
         {
             lock (lockObj) startTimes[sha2] = DateTime.UtcNow;
-            await Task.Delay(100); // Simulate async work (not file I/O)
+            await Task.Delay(30);
             return true;
         });
 
         var task3 = _queue.EnqueueAsync(sha3, async () =>
         {
             lock (lockObj) startTimes[sha3] = DateTime.UtcNow;
-            await Task.Delay(100); // Simulate async work (not file I/O)
+            await Task.Delay(30);
             return true;
         });
 
@@ -112,7 +114,7 @@ public class ModOperationQueueTests
             tasks.Add(_queue.EnqueueAsync<int>(sha, async () =>
             {
                 var current = counter;
-                await Task.Delay(10); // Simulate async work (not file I/O)
+                await Task.Delay(10);
                 counter = current + 1;
                 return counter;
             }));
@@ -135,13 +137,13 @@ public class ModOperationQueueTests
         // Act - Test exception handling without any file system operations
         var task1 = _queue.EnqueueAsync<bool>(sha, async () =>
         {
-            await Task.Delay(10); // Simulate async work (not file I/O)
+            await Task.Delay(10);
             throw new InvalidOperationException("Test exception");
         });
 
         var task2 = _queue.EnqueueAsync(sha, async () =>
         {
-            await Task.Delay(10); // Simulate async work (not file I/O)
+            await Task.Delay(10);
             executedAfterException = true;
             return true;
         });
@@ -167,14 +169,14 @@ public class ModOperationQueueTests
         var task1 = _queue.EnqueueCategoryOperationAsync(category, async () =>
         {
             executionOrder.Add(1);
-            await Task.Delay(50); // Simulate async work (not file I/O)
+            await Task.Delay(20);
             return true;
         });
 
         var task2 = _queue.EnqueueCategoryOperationAsync(category, async () =>
         {
             executionOrder.Add(2);
-            await Task.Delay(50); // Simulate async work (not file I/O)
+            await Task.Delay(20);
             return true;
         });
 
@@ -204,21 +206,21 @@ public class ModOperationQueueTests
         var task1 = _queue.EnqueueCategoryOperationAsync(category1, async () =>
         {
             lock (lockObj) startTimes[category1] = DateTime.UtcNow;
-            await Task.Delay(100); // Simulate async work (not file I/O)
+            await Task.Delay(30);
             return true;
         });
 
         var task2 = _queue.EnqueueCategoryOperationAsync(category2, async () =>
         {
             lock (lockObj) startTimes[category2] = DateTime.UtcNow;
-            await Task.Delay(100); // Simulate async work (not file I/O)
+            await Task.Delay(30);
             return true;
         });
 
         var task3 = _queue.EnqueueCategoryOperationAsync(category3, async () =>
         {
             lock (lockObj) startTimes[category3] = DateTime.UtcNow;
-            await Task.Delay(100); // Simulate async work (not file I/O)
+            await Task.Delay(30);
             return true;
         });
 
@@ -298,7 +300,7 @@ public class ModOperationQueueTests
         var task1 = _queue.EnqueueCategoryOperationAsync(category1, async () =>
         {
             executionOrder.Add("first");
-            await Task.Delay(50); // Simulate async work (not file I/O)
+            await Task.Delay(20);
             return true;
         });
 
@@ -329,7 +331,7 @@ public class ModOperationQueueTests
         var tasks = Enumerable.Range(0, 5).Select(i =>
             _queue.EnqueueCategoryOperationAsync(category, async () =>
             {
-                await Task.Delay(20); // Simulate async work (not file I/O)
+                await Task.Delay(10);
                 Interlocked.Increment(ref executionCount);
                 return true;
             })
@@ -355,21 +357,21 @@ public class ModOperationQueueTests
         // Act - Mix per-mod and category operations (in-memory only, no file system)
         var task1 = _queue.EnqueueAsync(sha1, async () =>
         {
-            await Task.Delay(20); // Simulate async work (not file I/O)
+            await Task.Delay(10);
             lock (lockObj) results.Add("mod1");
             return true;
         });
 
         var task2 = _queue.EnqueueCategoryOperationAsync(category, async () =>
         {
-            await Task.Delay(20); // Simulate async work (not file I/O)
+            await Task.Delay(10);
             lock (lockObj) results.Add("category");
             return true;
         });
 
         var task3 = _queue.EnqueueAsync(sha2, async () =>
         {
-            await Task.Delay(20); // Simulate async work (not file I/O)
+            await Task.Delay(10);
             lock (lockObj) results.Add("mod2");
             return true;
         });
@@ -403,7 +405,7 @@ public class ModOperationQueueTests
                 // Category operation (no file system access)
                 tasks.Add(_queue.EnqueueCategoryOperationAsync(category, async () =>
                 {
-                    await Task.Delay(Random.Shared.Next(5, 20)); // Simulate async work (not file I/O)
+                    await Task.Delay(Random.Shared.Next(5, 15)); // Short random delay
                     return true;
                 }));
             }
@@ -412,7 +414,7 @@ public class ModOperationQueueTests
                 // Per-mod operation (no file system access)
                 tasks.Add(_queue.EnqueueAsync(sha, async () =>
                 {
-                    await Task.Delay(Random.Shared.Next(5, 20)); // Simulate async work (not file I/O)
+                    await Task.Delay(Random.Shared.Next(5, 15)); // Short random delay
                     return true;
                 }));
             }
@@ -420,7 +422,7 @@ public class ModOperationQueueTests
 
         // Should complete within reasonable time without deadlock
         var allTasksCompleted = Task.WhenAll(tasks);
-        var completedTask = await Task.WhenAny(allTasksCompleted, Task.Delay(TimeSpan.FromSeconds(10)));
+        var completedTask = await Task.WhenAny(allTasksCompleted, Task.Delay(TimeSpan.FromSeconds(5)));
 
         // Assert - All operations should complete without deadlock
         Assert.Same(allTasksCompleted, completedTask);
@@ -432,62 +434,89 @@ public class ModOperationQueueTests
     #region Memory Leak Prevention Tests
 
     [Fact]
-    public async Task EnqueueAsync_SemaphoreCleanup_PreventsMemoryLeak()
+    public async Task EnqueueAsync_CleansUpSemaphoresAfterOperations()
     {
         // Arrange
         var queue = new ModOperationQueue();
-        var shaPrefix = "test-sha-";
+        var operations = new List<Task>();
 
-        // Act - Create and complete 1000 operations with different SHAs (in-memory only)
-        for (int i = 0; i < 1000; i++)
+        // Act - Create 50 operations with different SHAs
+        for (int i = 0; i < 50; i++)
         {
-            var sha = $"{shaPrefix}{i:0000}";
-            await queue.EnqueueAsync(sha, async () =>
+            var sha = $"test-sha-{i:000}";
+            operations.Add(queue.EnqueueAsync(sha, async () =>
             {
-                await Task.Delay(1); // Minimal delay (not file I/O)
+                await Task.Delay(10);
                 return true;
-            });
+            }));
         }
 
-        // Assert - Verify semaphores are cleaned up (no memory leak)
-        // If semaphores aren't cleaned up, memory would grow indefinitely
-        var testSha = $"{shaPrefix}final";
-        var result = await queue.EnqueueAsync(testSha, async () =>
-        {
-            await Task.CompletedTask; // No actual I/O
-            return true;
-        });
+        // Wait for all operations to complete
+        await Task.WhenAll(operations);
 
-        Assert.True(result);
+        // Small delay to ensure cleanup completes
+        await Task.Delay(50);
+
+        // Assert - All semaphores should be cleaned up
+        Assert.Equal(0, queue.ActiveModLockCount);
     }
 
     [Fact]
-    public async Task EnqueueCategoryOperationAsync_SemaphoreCleanup_PreventsMemoryLeak()
+    public async Task EnqueueCategoryOperationAsync_CleansUpSemaphoresAfterOperations()
     {
         // Arrange
         var queue = new ModOperationQueue();
-        var categoryPrefix = "category-";
+        var operations = new List<Task>();
 
-        // Act - Create and complete 1000 operations with different categories (in-memory only)
-        for (int i = 0; i < 1000; i++)
+        // Act - Create 50 operations with different categories
+        for (int i = 0; i < 50; i++)
         {
-            var category = $"{categoryPrefix}{i:0000}";
-            await queue.EnqueueCategoryOperationAsync(category, async () =>
+            var category = $"category-{i:000}";
+            operations.Add(queue.EnqueueCategoryOperationAsync(category, async () =>
             {
-                await Task.Delay(1); // Minimal delay (not file I/O)
+                await Task.Delay(10);
                 return true;
-            });
+            }));
         }
 
-        // Assert - Verify semaphores are cleaned up (no memory leak)
-        var testCategory = $"{categoryPrefix}final";
-        var result = await queue.EnqueueCategoryOperationAsync(testCategory, async () =>
+        // Wait for all operations to complete
+        await Task.WhenAll(operations);
+
+        // Small delay to ensure cleanup completes
+        await Task.Delay(50);
+
+        // Assert - All semaphores should be cleaned up
+        Assert.Equal(0, queue.ActiveCategoryLockCount);
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_ReusingSameSHA_MaintainsLockWhileActive()
+    {
+        // Arrange
+        var queue = new ModOperationQueue();
+        var sha = "test-sha-001";
+
+        // Act - Start an operation but don't await it yet
+        var operation1 = queue.EnqueueAsync(sha, async () =>
         {
-            await Task.CompletedTask; // No actual I/O
+            await Task.Delay(100);
             return true;
         });
 
-        Assert.True(result);
+        // Small delay to ensure first operation has acquired the lock
+        await Task.Delay(10);
+
+        // Assert - Lock should exist while operation is active
+        Assert.Equal(1, queue.ActiveModLockCount);
+
+        // Wait for operation to complete
+        await operation1;
+
+        // Small delay to ensure cleanup completes
+        await Task.Delay(50);
+
+        // Assert - Lock should be cleaned up
+        Assert.Equal(0, queue.ActiveModLockCount);
     }
 
     #endregion
@@ -504,7 +533,7 @@ public class ModOperationQueueTests
         // Act - In-memory computation only, no file system access
         var result = await _queue.EnqueueAsync(sha, async () =>
         {
-            await Task.Delay(10); // Simulate async work (not file I/O)
+            await Task.Delay(10);
             return expectedValue;
         });
 
@@ -522,7 +551,7 @@ public class ModOperationQueueTests
         // Act - In-memory computation only, no file system access
         var result = await _queue.EnqueueCategoryOperationAsync(category, async () =>
         {
-            await Task.Delay(10); // Simulate async work (not file I/O)
+            await Task.Delay(10);
             return expectedValue;
         });
 

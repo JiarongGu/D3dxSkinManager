@@ -4,11 +4,13 @@ namespace D3dxSkinManager.Modules.Core.Utilities;
 /// Utility for throttling action execution to a specified interval.
 /// Ensures an action is not executed more frequently than the specified interval.
 /// Thread-safe implementation.
+/// Supports TimeProvider for testability (use FakeTimeProvider in tests for instant time control).
 /// </summary>
 public class Throttle : IDisposable
 {
     private readonly TimeSpan _interval;
-    private DateTime _lastExecutionTime = DateTime.MinValue;
+    private readonly TimeProvider _timeProvider;
+    private DateTimeOffset _lastExecutionTime = DateTimeOffset.MinValue;
     private readonly object _lock = new object();
     private bool _isDisposed;
 
@@ -16,16 +18,19 @@ public class Throttle : IDisposable
     /// Creates a throttle with the specified interval
     /// </summary>
     /// <param name="interval">Minimum time between action executions</param>
-    public Throttle(TimeSpan interval)
+    /// <param name="timeProvider">Time provider for testing (defaults to TimeProvider.System)</param>
+    public Throttle(TimeSpan interval, TimeProvider? timeProvider = null)
     {
         _interval = interval;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
     /// Creates a throttle with the specified interval in milliseconds
     /// </summary>
     /// <param name="intervalMs">Minimum time between action executions in milliseconds</param>
-    public Throttle(int intervalMs) : this(TimeSpan.FromMilliseconds(intervalMs))
+    /// <param name="timeProvider">Time provider for testing (defaults to TimeProvider.System)</param>
+    public Throttle(int intervalMs, TimeProvider? timeProvider = null) : this(TimeSpan.FromMilliseconds(intervalMs), timeProvider)
     {
     }
 
@@ -40,7 +45,7 @@ public class Throttle : IDisposable
         {
             if (_isDisposed) return false;
 
-            var now = DateTime.UtcNow;
+            var now = _timeProvider.GetUtcNow();
             if (now - _lastExecutionTime >= _interval)
             {
                 _lastExecutionTime = now;
@@ -62,7 +67,7 @@ public class Throttle : IDisposable
 
         lock (_lock)
         {
-            var now = DateTime.UtcNow;
+            var now = _timeProvider.GetUtcNow();
             if (now - _lastExecutionTime >= _interval)
             {
                 _lastExecutionTime = now;
@@ -85,7 +90,7 @@ public class Throttle : IDisposable
     {
         lock (_lock)
         {
-            _lastExecutionTime = DateTime.MinValue;
+            _lastExecutionTime = DateTimeOffset.MinValue;
         }
     }
 
@@ -99,7 +104,7 @@ public class Throttle : IDisposable
         {
             if (_isDisposed) return false;
 
-            var now = DateTime.UtcNow;
+            var now = _timeProvider.GetUtcNow();
             return now - _lastExecutionTime >= _interval;
         }
     }

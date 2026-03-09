@@ -5,10 +5,12 @@ namespace D3dxSkinManager.Modules.Core.Utilities;
 /// Delays action execution until a specified time has passed without new calls.
 /// Useful for scenarios where you want to wait for user input to settle.
 /// Thread-safe implementation using async/await.
+/// Supports TimeProvider for testability (use FakeTimeProvider in tests for instant time control).
 /// </summary>
 public class Debounce : IDisposable
 {
     private readonly TimeSpan _delay;
+    private readonly TimeProvider _timeProvider;
     private CancellationTokenSource? _cts;
     private readonly object _lock = new object();
     private bool _isDisposed;
@@ -17,16 +19,19 @@ public class Debounce : IDisposable
     /// Creates a debounce with the specified delay
     /// </summary>
     /// <param name="delay">Time to wait after last call before executing</param>
-    public Debounce(TimeSpan delay)
+    /// <param name="timeProvider">Time provider for testing (defaults to TimeProvider.System)</param>
+    public Debounce(TimeSpan delay, TimeProvider? timeProvider = null)
     {
         _delay = delay;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
     /// Creates a debounce with the specified delay in milliseconds
     /// </summary>
     /// <param name="delayMs">Time to wait after last call before executing in milliseconds</param>
-    public Debounce(int delayMs) : this(TimeSpan.FromMilliseconds(delayMs))
+    /// <param name="timeProvider">Time provider for testing (defaults to TimeProvider.System)</param>
+    public Debounce(int delayMs, TimeProvider? timeProvider = null) : this(TimeSpan.FromMilliseconds(delayMs), timeProvider)
     {
     }
 
@@ -49,7 +54,7 @@ public class Debounce : IDisposable
 
         try
         {
-            await Task.Delay(_delay, cts.Token);
+            await Task.Delay(_delay, _timeProvider, cts.Token);
             action();
         }
         catch (TaskCanceledException)
@@ -77,7 +82,7 @@ public class Debounce : IDisposable
 
         try
         {
-            await Task.Delay(_delay, cts.Token);
+            await Task.Delay(_delay, _timeProvider, cts.Token);
             await action();
         }
         catch (TaskCanceledException)

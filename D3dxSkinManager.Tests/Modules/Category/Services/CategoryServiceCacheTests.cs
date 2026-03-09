@@ -58,7 +58,7 @@ public class CategoryServiceCacheTests
     }
 
     [Fact]
-    public void InvalidateTreeCache_ShouldRemoveCacheEntry()
+    public async Task InvalidateTreeCache_ShouldRemoveCacheEntry()
     {
         // Arrange
         var expectedCacheKey = "CategoryTree_test-profile-id";
@@ -67,7 +67,7 @@ public class CategoryServiceCacheTests
         _service.InvalidateTreeCache();
 
         // Give Task.Run time to complete
-        Task.Delay(100).Wait();
+        await Task.Delay(100);
 
         // Assert
         _mockCache.Verify(
@@ -78,13 +78,13 @@ public class CategoryServiceCacheTests
     }
 
     [Fact]
-    public void InvalidateTreeCache_ShouldEmitCategoryTreeUpdatedEvent()
+    public async Task InvalidateTreeCache_ShouldEmitCategoryTreeUpdatedEvent()
     {
         // Act
         _service.InvalidateTreeCache();
 
         // Give Task.Run time to complete the async event emission
-        Task.Delay(100).Wait();
+        await Task.Delay(100);
 
         // Assert
         _mockEventBus.Verify(
@@ -112,7 +112,7 @@ public class CategoryServiceCacheTests
     }
 
     [Fact]
-    public void InvalidateTreeCache_CalledMultipleTimes_ShouldInvalidateAndEmitEachTime()
+    public async Task InvalidateTreeCache_CalledMultipleTimes_ShouldInvalidateAndEmitEachTime()
     {
         // Act
         _service.InvalidateTreeCache();
@@ -120,7 +120,7 @@ public class CategoryServiceCacheTests
         _service.InvalidateTreeCache();
 
         // Give Task.Run time to complete
-        Task.Delay(200).Wait();
+        await Task.Delay(200);
 
         // Assert
         // InvalidateTreeCache removes 2 keys (tree cache and category map cache)

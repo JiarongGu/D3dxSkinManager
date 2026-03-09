@@ -10,6 +10,7 @@ using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Context;
+using D3dxSkinManager.Modules.Context.Models;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
