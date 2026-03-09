@@ -58,11 +58,11 @@
 
   /* Component Specific */
   --color-card-bg: #e6f4ff;
-  --color-card-header-bg: #fafafa;
+  --color-card-header-bg: #f8f8f8;
   --color-input-bg: #ffffff;
   --color-input-border: #d9d9d9;
   --color-select-bg: #ffffff;
-  --color-table-header-bg: #fafafa;
+  --color-table-header-bg: #f8f8f8;
   --color-table-row-hover: #fafafa;
   --color-sider-bg: #ffffff;
   --color-header-bg: #001529;
@@ -131,11 +131,11 @@
 
   /* Component Specific */
   --color-card-bg: #1f1f1f;
-  --color-card-header-bg: #141414;
+  --color-card-header-bg: #1a1a1a;
   --color-input-bg: #141414;
   --color-input-border: #434343;
   --color-select-bg: #141414;
-  --color-table-header-bg: #1f1f1f;
+  --color-table-header-bg: #1a1a1a;
   --color-table-row-hover: #262626;
   --color-sider-bg: #141414;
   --color-header-bg: #141414;
@@ -176,14 +176,14 @@ body {
 
 /* Card Components */
 .ant-card {
-  background: var(--color-card-bg);
-  border-color: var(--color-border-secondary);
+  background: var(--color-card-bg) !important;
+  border-color: var(--color-border-secondary) !important;
   color: var(--color-text-base);
 }
 
 .ant-card-head {
-  background: var(--color-card-header-bg);
-  border-bottom-color: var(--color-border-secondary);
+  background: var(--color-card-header-bg) !important;
+  border-bottom-color: var(--color-border-secondary) !important;
   color: var(--color-text-base);
 }
 

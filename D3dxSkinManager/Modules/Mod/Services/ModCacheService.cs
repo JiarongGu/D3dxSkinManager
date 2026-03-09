@@ -502,16 +502,16 @@ public class ModCacheService : IModCacheService
                 return 0;
             }
 
-            // Get cache management configuration
+            // Get cache cleanup configuration
             var config = await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
 
-            if (config?.CacheManagement?.Enabled != true)
+            if (config?.ModWork?.CleanupEnabled != true)
             {
                 _logger.Verbose("Cache cleanup disabled in configuration", "ModCacheService");
                 return 0; // Feature disabled
             }
 
-            var maxCaches = config.CacheManagement.MaxDisabledCaches;
+            var maxCaches = config.ModWork.CleanupMaxCaches;
             if (maxCaches <= 0)
             {
                 _logger.Warn($"Invalid MaxDisabledCaches value: {maxCaches}", "ModCacheService");

@@ -1,6 +1,6 @@
 import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useEffect, useCallback } from "react";
-import { Form, Space, Row, Col, Select } from "antd";
+import { Form, Space, Row, Col } from "antd";
 import { FolderOpenOutlined } from "@ant-design/icons";
 import { CategoryInfo } from "../../../../shared/types/category.types";
 import { useSlideInScreenContext } from "../../../../shared/context/SlideInScreenContext";
@@ -13,14 +13,11 @@ import {
   CompactTextArea,
   CompactSelect,
   CompactButton,
-  CompactPrimaryButton,
   CompactUpload,
 } from "../../../../shared/components/compact";
 import { useTranslation } from "react-i18next";
 import { debounce } from "lodash-es";
 import "./CategoryScreen.css";
-
-const { Option } = Select;
 
 interface CategoryScreenProps {
   /**
@@ -372,16 +369,16 @@ export const CategoryScreenContent: React.FC<
 
       <div className="slide-in-screen-footer">
         <Space>
-          <CompactButton onClick={handleCancel} size="large">
+          <CompactButton.Danger onClick={handleCancel} size="large">
             {t("common.cancel")}
-          </CompactButton>
-          <CompactPrimaryButton
+          </CompactButton.Danger>
+          <CompactButton.Primary
             onClick={handleSubmit}
             loading={loading}
             size="large"
           >
             {t("category.screen.saveButton")}
-          </CompactPrimaryButton>
+          </CompactButton.Primary>
         </Space>
       </div>
     </div>

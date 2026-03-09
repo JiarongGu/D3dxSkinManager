@@ -147,19 +147,6 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
   // Store frequently changing values in stable refs to avoid closure issues
   const [treeRef, expandedKeysRef, selectedNodeRef] = useStableRef(tree, expandedKeys, selectedNode);
 
-  // Debounced save to backend (must be declared before useEffect)
-  const debouncedSaveLockedCategories = useMemo(
-    () => debounce(async (lockedKeys: string[], profileId: string | undefined) => {
-      if (!profileId) return;
-      try {
-        await profileService.updateLockedExpandedCategories(profileId, lockedKeys);
-      } catch (error) {
-        console.error('[CategoryTreeContext] Failed to save locked expanded categories:', error);
-      }
-    }, 200),
-    []
-  );
-
   // Validate locked categories when tree changes
   React.useEffect(() => {
     // Build a map of all category IDs and check if they're parent nodes
@@ -191,12 +178,8 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
       logger.info('[CategoryTreeContext] Removing invalid locked categories:', invalidLockedKeys);
       const newLockedKeys = lockedCategories.filter(k => !invalidLockedKeys.includes(k));
       useModsStore.getState().setLockedCategories(newLockedKeys);
-      // Persist to backend
-      if (selectedProfileId) {
-        debouncedSaveLockedCategories(newLockedKeys, selectedProfileId);
-      }
     }
-  }, [tree, lockedCategories, selectedProfileId, debouncedSaveLockedCategories]);
+  }, [tree, lockedCategories, selectedProfileId]);
 
   // Lock/unlock expansion handlers
   const handleLockExpanded = useCallback((nodeId: string) => {
@@ -205,16 +188,11 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     if (!expandedKeys.includes(nodeId)) {
       onExpandedKeysChange([...expandedKeys, nodeId]);
     }
-    // Persist to backend
-    debouncedSaveLockedCategories([...lockedCategories, nodeId], selectedProfileId);
-  }, [addLockedCategory, expandedKeys, onExpandedKeysChange, lockedCategories, selectedProfileId, debouncedSaveLockedCategories]);
+  }, [addLockedCategory, expandedKeys, onExpandedKeysChange, lockedCategories, selectedProfileId]);
 
   const handleUnlockExpanded = useCallback((nodeId: string) => {
     removeLockedCategory(nodeId);
-    // Persist to backend
-    const newLockedKeys = lockedCategories.filter(k => k !== nodeId);
-    debouncedSaveLockedCategories(newLockedKeys, selectedProfileId);
-  }, [removeLockedCategory, lockedCategories, selectedProfileId, debouncedSaveLockedCategories]);
+  }, [removeLockedCategory, lockedCategories, selectedProfileId]);
 
   // Use the operations hook for edit, delete, drag & drop
   const {

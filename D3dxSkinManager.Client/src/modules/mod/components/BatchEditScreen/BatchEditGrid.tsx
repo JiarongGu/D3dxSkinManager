@@ -14,7 +14,7 @@ const customTheme = themeQuartz.withParams({
   backgroundColor: 'var(--color-bg-container)',
   foregroundColor: 'var(--color-text-base)',
   borderColor: 'var(--color-border-secondary)',
-  headerBackgroundColor: 'var(--color-bg-elevated)',
+  headerBackgroundColor: 'var(--color-table-header-bg)',
   headerTextColor: 'var(--color-text-base)',
   rowBorder: true,
   borderRadius: 0,

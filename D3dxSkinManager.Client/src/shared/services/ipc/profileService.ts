@@ -8,20 +8,22 @@ import {
 } from '../../types/profile.types';
 
 /**
- * Work Directory Configuration Model
+ * Mod Work Configuration Model (work directory with flattened cache cleanup)
  */
-export interface WorkDirectoryConfiguration {
-  mode: string;
+export interface ModWorkConfiguration {
+  mode: 'internal' | 'external';
   directory?: string;
-  internalWorkDirectory?: string; // Computed by backend, for display only
+  cleanupEnabled: boolean;
+  cleanupMaxCaches: number;
+  internalDirectory?: string; // Computed by backend, for display only - not persisted
 }
 
 /**
- * Cache Management Configuration Model
+ * Mod Import Configuration Model
  */
-export interface CacheManagementConfiguration {
-  enabled: boolean;
-  maxDisabledCaches: number;
+export interface ModImportConfiguration {
+  compressionType: '7z' | 'zip' | 'rar';
+  compressionMode: 'fast' | 'high' | 'ultra';
 }
 
 /**
@@ -36,13 +38,14 @@ export interface TabSettings {
 
 /**
  * Profile Configuration Model (stored in {profileId}/config.json)
+ * Note: Windows and Tabs come from other update events
  */
 export interface ProfileConfiguration {
   profileId: string;
-  migotoVersion: string;
-  work: WorkDirectoryConfiguration;
-  cacheManagement: CacheManagementConfiguration;
+  modWork: ModWorkConfiguration;
+  modImport: ModImportConfiguration;
   tabs: TabSettings;
+  windows?: Record<string, any>; // Updated via other events
 }
 
 /**
@@ -147,14 +150,23 @@ export class ProfileService extends BaseModuleService {
   /**
    * Update profile configuration
    */
-  async updateProfileConfig(config: Partial<ProfileConfiguration> & { profileId: string }): Promise<boolean> {
+  async updateProfileConfig(params: {
+    profileId: string;
+    workMode?: ModWorkConfiguration['mode'];
+    workDirectory?: string;
+    cleanupEnabled?: boolean;
+    cleanupMaxCaches?: number;
+    compressionType?: ModImportConfiguration['compressionType'];
+    compressionMode?: ModImportConfiguration['compressionMode'];
+  }): Promise<boolean> {
     return this.sendBooleanMessage('UPDATE_CONFIG', undefined, {
-      profileId: config.profileId,
-      migotoVersion: config.migotoVersion,
-      workMode: config.work?.mode,
-      workDirectory: config.work?.directory,
-      cacheManagementEnabled: config.cacheManagement?.enabled,
-      maxDisabledCaches: config.cacheManagement?.maxDisabledCaches
+      profileId: params.profileId,
+      workMode: params.workMode,
+      workDirectory: params.workDirectory,
+      cleanupEnabled: params.cleanupEnabled,
+      cleanupMaxCaches: params.cleanupMaxCaches,
+      compressionType: params.compressionType,
+      compressionMode: params.compressionMode,
     });
   }
 
@@ -163,13 +175,6 @@ export class ProfileService extends BaseModuleService {
    */
   async updateModPanelSize(profileId: string, panelSize: string): Promise<{ success: boolean; config?: ProfileConfiguration }> {
     return this.sendMessage('UPDATE_MOD_PANEL_SIZE', undefined, { profileId, panelSize });
-  }
-
-  /**
-   * Update locked expanded categories in profile config
-   */
-  async updateLockedExpandedCategories(profileId: string, lockedCategories: string[]): Promise<{ success: boolean; config?: ProfileConfiguration }> {
-    return this.sendMessage('UPDATE_LOCKED_EXPANDED_CATEGORIES', undefined, { profileId, lockedCategories });
   }
 
   /**

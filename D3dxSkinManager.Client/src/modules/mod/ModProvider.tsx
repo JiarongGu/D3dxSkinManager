@@ -107,9 +107,9 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       selectedProfileIdRef.current,
     );
     const newWorkPath =
-      config?.work?.mode === "external"
-        ? config?.work?.directory
-        : config?.work?.internalWorkDirectory;
+      config?.modWork?.mode === "external"
+        ? config?.modWork?.directory
+        : config?.modWork?.internalDirectory;
 
     const oldWorkPath = workPathRef.current;
 

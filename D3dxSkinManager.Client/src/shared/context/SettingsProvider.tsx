@@ -70,6 +70,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       setInitialProfileConfig({
         mode: 'internal',
         directory: '',
+        cleanupEnabled: true,
+        cleanupMaxCaches: 10,
       });
     }
   }, [selectedProfileId]);

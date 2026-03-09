@@ -80,6 +80,8 @@
   padding: 0 0px 0 26px;
   color: var(--color-text-base);
   transition: padding 0.2s;
+  background-color: var(--color-input-bg);
+  border-radius: 4px;
 }
 
 .compact-switch .ant-switch-inner-checked {

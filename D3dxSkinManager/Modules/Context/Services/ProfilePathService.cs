@@ -159,9 +159,9 @@ public class ProfilePathService : IProfilePathService
 
                 // Determine work directory based on mode
                 string workDirectory;
-                if (config?.Work?.IsExternal() == true && !string.IsNullOrEmpty(config.Work.Directory))
+                if (config?.ModWork?.IsExternal() == true && !string.IsNullOrEmpty(config.ModWork.Directory))
                 {
-                    workDirectory = config.Work.Directory;
+                    workDirectory = config.ModWork.Directory;
                 }
                 else
                 {

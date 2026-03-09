@@ -11,14 +11,9 @@ public class ProfileConfiguration
     public string ProfileId { get; set; } = string.Empty;
 
     /// <summary>
-    /// 3DMigoto version to use (3dmigoto, 3dmigoto-dev, custom)
+    /// Mod work directory configuration (parent of Mods folder) with cache cleanup
     /// </summary>
-    public string MigotoVersion { get; set; } = "3dmigoto";
-
-    /// <summary>
-    /// Work directory configuration (parent of Mods folder)
-    /// </summary>
-    public WorkDirectoryConfiguration Work { get; set; } = new WorkDirectoryConfiguration();
+    public ModWorkConfiguration ModWork { get; set; } = new ModWorkConfiguration();
 
     /// <summary>
     /// Window positions and sizes for secondary windows (e.g., "capture", "debug")
@@ -32,9 +27,9 @@ public class ProfileConfiguration
     public TabSettings Tabs { get; set; } = new TabSettings();
 
     /// <summary>
-    /// Cache management configuration
+    /// Mod import configuration (compression settings, etc.)
     /// </summary>
-    public CacheManagementConfiguration CacheManagement { get; set; } = new CacheManagementConfiguration();
+    public ModImportConfiguration ModImport { get; set; } = new ModImportConfiguration();
 }
 
 /// <summary>
@@ -65,33 +60,29 @@ public class TabSettings
 public class ModTabSettings
 {
     /// <summary>
-    /// Panel sizes as percentages (e.g., "20 35" means CategoryPanel=20%, ModListPanel=35%, Preview=45%)
+    /// Panel sizes as percentages (e.g., "30 35" means CategoryPanel=20%, ModListPanel=35%, Preview=45%)
     /// Format: "categoryWidth modListWidth" (both in percentage, preview takes remaining space)
-    /// Default: "20 35" (CategoryPanel=20%, ModListPanel=35%, Preview=45%)
+    /// Default: "30 35" (CategoryPanel=30%, ModListPanel=35%, Preview=35%)
     /// </summary>
-    public string PanelSize { get; set; } = "20 35";
-
-    /// <summary>
-    /// Category IDs that are locked expanded (cannot be collapsed by clicking)
-    /// </summary>
-    public List<string> LockedExpandedCategories { get; set; } = new List<string>();
+    public string PanelSize { get; set; } = "30 35";
 }
 
 /// <summary>
-/// Cache management configuration for disabled mod caches
+/// Mod import configuration (compression settings, etc.)
 /// </summary>
-public class CacheManagementConfiguration
+public class ModImportConfiguration
 {
     /// <summary>
-    /// Enable automatic cleanup of old disabled caches
-    /// Default: true
+    /// Compression type for imported mods
+    /// Valid values: "7z", "zip", "rar"
+    /// Default: "7z"
     /// </summary>
-    public bool Enabled { get; set; } = true;
+    public string CompressionType { get; set; } = "7z";
 
     /// <summary>
-    /// Maximum number of disabled caches to keep (default: 10)
-    /// When exceeded, oldest caches (by LastWriteTime) are deleted automatically
-    /// Valid range: 1-100
+    /// Compression mode/level
+    /// Valid values: "fast", "high", "ultra"
+    /// Default: "fast"
     /// </summary>
-    public int MaxDisabledCaches { get; set; } = 10;
+    public string CompressionMode { get; set; } = "fast";
 }

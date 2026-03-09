@@ -7,7 +7,7 @@ import { useSettingsStore } from "../store/settingsStore";
 import { logger } from "../../../shared/utils/logger";
 import { notification } from "../../../shared/utils/notification";
 import { handleError } from "../../../shared/utils/errorHandler";
-import { profileService, settingsService } from "../../../shared/services/ipc";
+import { ModImportConfiguration, ModWorkConfiguration, profileService, settingsService } from "../../../shared/services/ipc";
 import { executeWithDelayedLoading } from "../../../shared/utils/delayedLoading";
 
 /**
@@ -95,11 +95,11 @@ export async function resetWindowState(
 }
 
 /**
- * Load profile configuration (work directory settings + cache management)
+ * Load profile configuration (work directory, cleanup, mod import settings)
  * Called when profile changes or settings view mounts
  */
 export async function loadProfileConfig(profileId: string): Promise<void> {
-  const { setInitialProfileConfig, setInternalWorkPath, setInitialCacheManagementConfig, setError } =
+  const { setInitialProfileConfig, setInternalWorkPath, setInitialModImportConfig, setError } =
     useSettingsStore.getState();
 
   if (!profileId) {
@@ -112,29 +112,34 @@ export async function loadProfileConfig(profileId: string): Promise<void> {
     const config = await profileService.getProfileConfig(profileId);
 
     if (config) {
-      // Work directory configuration
-      const mode = (config.work?.mode?.toLowerCase() || "internal") as
-        | "internal"
-        | "external";
-      const directory = config.work?.directory || "";
-      const internalPath = config.work?.internalWorkDirectory || "";
+      // Mod work directory and cleanup configuration
+      const mode = (config.modWork?.mode?.toLowerCase() || "internal") as ModWorkConfiguration['mode'];
+      const directory = config.modWork?.directory || "";
+      const internalPath = config.modWork?.internalDirectory || "";
+      const cleanupEnabled = config.modWork?.cleanupEnabled ?? true;
+      const cleanupMaxCaches = config.modWork?.cleanupMaxCaches ?? 10;
 
       // Update store with initial config
-      setInitialProfileConfig({ mode, directory });
+      setInitialProfileConfig({
+        mode,
+        directory,
+        cleanupEnabled,
+        cleanupMaxCaches,
+      });
 
       // Set internal work path from backend (for display when mode is "internal")
       if (internalPath) {
         setInternalWorkPath(internalPath);
       }
 
-      // Cache management configuration
-      const cacheEnabled = config.cacheManagement?.enabled ?? true;
-      const maxCaches = config.cacheManagement?.maxDisabledCaches ?? 10;
+      // Mod import configuration
+      const compressionType = (config.modImport?.compressionType || "7z") as ModImportConfiguration['compressionType'];
+      const compressionMode = (config.modImport?.compressionMode || "high") as ModImportConfiguration['compressionMode'];
 
-      // Update store with cache management config
-      setInitialCacheManagementConfig({
-        enabled: cacheEnabled,
-        maxDisabledCaches: maxCaches,
+      // Update store with mod import config
+      setInitialModImportConfig({
+        compressionType,
+        compressionMode,
       });
     }
   } catch (error: unknown) {
@@ -147,18 +152,20 @@ export async function loadProfileConfig(profileId: string): Promise<void> {
 }
 
 /**
- * Save profile configuration (work directory settings + cache management)
- * Validates and persists work directory settings and cache management settings
+ * Save profile configuration (work directory, cleanup, mod import settings)
+ * Validates and persists all profile configuration settings
  */
 export async function saveProfileConfig(
   profileId: string,
-  workMode: "internal" | "external",
+  workMode: ModWorkConfiguration['mode'],
   workDirectory: string,
-  cacheManagementEnabled: boolean,
-  maxDisabledCaches: number,
+  cleanupEnabled: boolean,
+  cleanupMaxCaches: number,
+  compressionType: ModImportConfiguration['compressionType'],
+  compressionMode: ModImportConfiguration['compressionMode'],
   t: (key: string) => string,
 ): Promise<boolean> {
-  const { setInitialProfileConfig, setInitialCacheManagementConfig, setError } = useSettingsStore.getState();
+  const { setInitialProfileConfig, setInitialModImportConfig, setError } = useSettingsStore.getState();
 
   if (!profileId) {
     notification.error(t("errors.noProfileSelected"));
@@ -174,33 +181,33 @@ export async function saveProfileConfig(
     }
   }
 
-  // Validate maxDisabledCaches range
-  const clampedMaxCaches = Math.max(1, Math.min(100, maxDisabledCaches));
+  // Validate cleanupMaxCaches range
+  const clampedMaxCaches = Math.max(1, Math.min(100, cleanupMaxCaches));
 
   setError(undefined);
 
   try {
     await profileService.updateProfileConfig({
       profileId,
-      work: {
-        mode: workMode,
-        directory: workMode === "external" ? workDirectory : undefined,
-      },
-      cacheManagement: {
-        enabled: cacheManagementEnabled,
-        maxDisabledCaches: clampedMaxCaches,
-      },
+      workMode,
+      workDirectory: workMode === "external" ? workDirectory : undefined,
+      cleanupEnabled,
+      cleanupMaxCaches: clampedMaxCaches,
+      compressionType,
+      compressionMode,
     });
 
     // Update initial config in store to reflect saved state
     setInitialProfileConfig({
       mode: workMode,
       directory: workDirectory,
+      cleanupEnabled,
+      cleanupMaxCaches: clampedMaxCaches,
     });
 
-    setInitialCacheManagementConfig({
-      enabled: cacheManagementEnabled,
-      maxDisabledCaches: clampedMaxCaches,
+    setInitialModImportConfig({
+      compressionType,
+      compressionMode,
     });
 
     notification.success(t("settings.notifications.profileConfigSaved"));

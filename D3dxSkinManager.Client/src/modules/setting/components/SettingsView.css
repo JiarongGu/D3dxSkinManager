@@ -29,3 +29,39 @@
   grid-template-columns: 1fr;
   gap: 16px;
 }
+
+/* Tab Styling */
+.settings-view-content-wrapper .ant-tabs .ant-tabs-tab {
+  padding: 8px;
+}
+
+.settings-view-content-wrapper .ant-tabs .ant-tabs-tab+.ant-tabs-tab
+{
+  margin: 0 0 0 12px;
+}
+
+.settings-view-content-wrapper .ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--color-primary);
+}
+
+.settings-view-content-wrapper .ant-tabs .ant-tabs-ink-bar {
+  background: var(--color-primary);
+}
+
+/* Gap between icon and text in tabs */
+.settings-view-content-wrapper .ant-tabs .ant-tabs-tab-btn > span {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+}
+
+/* Card title styling */
+.settings-view-content-wrapper .ant-card-head-title {
+  font-size: 14px;
+}
+
+.settings-view-content-wrapper .ant-card-head {
+  padding: 0 16px;
+  min-height: 48px;
+  background: var(--color-card-header-bg);
+}

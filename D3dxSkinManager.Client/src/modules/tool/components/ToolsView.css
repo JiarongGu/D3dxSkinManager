@@ -22,6 +22,7 @@
   height: 56px;
   display: flex;
   align-items: center;
+  background: var(--color-card-header-bg);
   border-bottom: 1px solid var(--color-border-secondary);
 }
 

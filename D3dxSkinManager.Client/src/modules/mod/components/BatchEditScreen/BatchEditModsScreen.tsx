@@ -9,7 +9,7 @@ import { modService } from '../../../../shared/services/ipc';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { useTranslation } from 'react-i18next';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
-import { CompactButton } from '../../../../shared/components/compact/CompactButton';
+import { CompactButton } from '../../../../shared/components/compact';
 import { notification } from '../../../../shared/utils/notification';
 import { useModsStore } from '../../store/modsStore';
 import { useMods } from '../../hooks/useMods';
@@ -305,18 +305,17 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
       {/* Footer with action buttons */}
       <div className="slide-in-screen-footer">
         <div style={{ display: 'flex', gap: '8px' }}>
-          <CompactButton onClick={handleCancel} icon={<CloseOutlined />} disabled={saving}>
+          <CompactButton.Danger onClick={handleCancel} icon={<CloseOutlined />} disabled={saving}>
             {t("common.cancel")}
-          </CompactButton>
-          <CompactButton
-            type="primary"
+          </CompactButton.Danger>
+          <CompactButton.Primary
             onClick={handleSave}
             loading={saving}
             disabled={!hasChanges}
             icon={<SaveOutlined />}
           >
             {t("common.saveChanges")}
-          </CompactButton>
+          </CompactButton.Primary>
         </div>
       </div>
     </div>

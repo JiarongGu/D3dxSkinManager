@@ -3,9 +3,9 @@ using System.Text.Json.Serialization;
 namespace D3dxSkinManager.Modules.Profiles.Models;
 
 /// <summary>
-/// Work directory configuration (parent of Mods folder)
+/// Mod work directory configuration (parent of Mods folder) with cache cleanup settings
 /// </summary>
-public class WorkDirectoryConfiguration
+public class ModWorkConfiguration
 {
     /// <summary>
     /// Storage mode: "internal" or "external"
@@ -21,15 +21,24 @@ public class WorkDirectoryConfiguration
     public string? Directory { get; set; }
 
     /// <summary>
-    /// Cache cleanup configuration for disabled mod caches
+    /// Enable automatic cleanup of old disabled caches
+    /// Default: true
     /// </summary>
-    public CacheCleanupConfiguration Cleanup { get; set; } = new CacheCleanupConfiguration();
+    public bool CleanupEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Maximum number of disabled caches to keep (default: 10)
+    /// When exceeded, oldest caches (by LastWriteTime) are deleted automatically
+    /// Valid range: 1-100
+    /// </summary>
+    public int CleanupMaxCaches { get; set; } = 10;
 
     /// <summary>
     /// Computed internal work directory path (computed by backend, not user-editable)
     /// This is included in IPC responses for display in UI but not saved to config.json
+    /// Excluded from serialization when null (during save), included when has value (during read)
     /// </summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.Always)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? InternalDirectory { get; set; }
 
     /// <summary>
@@ -40,23 +49,4 @@ public class WorkDirectoryConfiguration
     {
         return "external".Equals(Mode, StringComparison.OrdinalIgnoreCase);
     }
-}
-
-/// <summary>
-/// Cache cleanup configuration for disabled mod caches
-/// </summary>
-public class CacheCleanupConfiguration
-{
-    /// <summary>
-    /// Enable automatic cleanup of old disabled caches
-    /// Default: true
-    /// </summary>
-    public bool Enabled { get; set; } = true;
-
-    /// <summary>
-    /// Maximum number of disabled caches to keep (default: 10)
-    /// When exceeded, oldest caches (by LastWriteTime) are deleted automatically
-    /// Valid range: 1-100
-    /// </summary>
-    public int MaxCaches { get; set; } = 10;
 }

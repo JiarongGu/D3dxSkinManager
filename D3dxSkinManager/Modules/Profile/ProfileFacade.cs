@@ -79,7 +79,6 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
             // Tab settings (per-profile)
             "UPDATE_MOD_PANEL_SIZE" => await UpdateModPanelSizeAsync(request),
-            "UPDATE_LOCKED_EXPANDED_CATEGORIES" => await UpdateLockedExpandedCategoriesAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -184,9 +183,9 @@ public class ProfileFacade : BaseFacade, IProfileFacade
             var profileDataPath = _globalPathService.GetProfileDirectoryPath(profileId);
             var internalWorkPath = Path.Combine(profileDataPath, "work");
 
-            // Add as a computed property that won't be persisted
+            // Add as a computed property that won't be persisted (JsonIgnore on property)
             // Frontend will use this to display internal path when mode is "internal"
-            config.Work.InternalWorkDirectory = internalWorkPath;
+            config.ModWork.InternalDirectory = internalWorkPath;
         }
 
         return config;
@@ -283,17 +282,18 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     private async Task<bool> UpdateProfileConfigAsync(IpcRequest request)
     {
         var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
-        var migotoVersion = _payloadHelper.GetOptionalValue<string>(request.Payload, "migotoVersion");
 
-        // Work directory nested object
+        // Mod work directory and cleanup configuration
         var workMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "workMode");
         var workDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workDirectory");
+        var cleanupEnabled = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "cleanupEnabled");
+        var cleanupMaxCaches = _payloadHelper.GetOptionalValue<int?>(request.Payload, "cleanupMaxCaches");
 
-        // Cache management nested object
-        var cacheManagementEnabled = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "cacheManagementEnabled");
-        var maxDisabledCaches = _payloadHelper.GetOptionalValue<int?>(request.Payload, "maxDisabledCaches");
+        // Mod import configuration
+        var compressionType = _payloadHelper.GetOptionalValue<string>(request.Payload, "compressionType");
+        var compressionMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "compressionMode");
 
-        // Load existing configuration to preserve fields like Capture
+        // Load existing configuration to preserve fields like Windows and Tabs
         var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
         if (config == null)
         {
@@ -303,34 +303,35 @@ public class ProfileFacade : BaseFacade, IProfileFacade
             };
         }
 
-        // Update only the fields that were provided
-        if (migotoVersion != null) config.MigotoVersion = migotoVersion;
-
-        // Handle Work directory nested object
-        if (workMode != null || workDirectory != null)
+        // Handle ModWork directory and cleanup configuration
+        if (workMode != null || workDirectory != null || cleanupEnabled.HasValue || cleanupMaxCaches.HasValue)
         {
-            var normalizedMode = (workMode ?? "internal").ToLowerInvariant();
-            config.Work = new WorkDirectoryConfiguration
+            var normalizedMode = (workMode ?? config.ModWork.Mode ?? "internal").ToLowerInvariant();
+
+            config.ModWork = new ModWorkConfiguration
             {
                 // Normalize mode to lowercase for storage
                 Mode = normalizedMode,
                 // Only store directory for external mode
-                Directory = normalizedMode == "external" ? workDirectory : null
+                Directory = normalizedMode == "external" ? (workDirectory ?? config.ModWork.Directory) : null,
+                // Update or preserve cleanup settings
+                CleanupEnabled = cleanupEnabled ?? config.ModWork.CleanupEnabled,
+                CleanupMaxCaches = cleanupMaxCaches.HasValue
+                    ? Math.Max(1, Math.Min(100, cleanupMaxCaches.Value))  // Validate range: 1-100
+                    : config.ModWork.CleanupMaxCaches
             };
         }
 
-        // Handle Cache management nested object
-        if (cacheManagementEnabled.HasValue || maxDisabledCaches.HasValue)
+        // Handle Mod import configuration
+        if (compressionType != null || compressionMode != null)
         {
-            if (cacheManagementEnabled.HasValue)
+            if (compressionType != null)
             {
-                config.CacheManagement.Enabled = cacheManagementEnabled.Value;
+                config.ModImport.CompressionType = compressionType;
             }
-            if (maxDisabledCaches.HasValue)
+            if (compressionMode != null)
             {
-                // Validate range: 1-100
-                var clampedValue = Math.Max(1, Math.Min(100, maxDisabledCaches.Value));
-                config.CacheManagement.MaxDisabledCaches = clampedValue;
+                config.ModImport.CompressionMode = compressionMode;
             }
         }
 
@@ -363,20 +364,5 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
 
         return new { success = true, message = "Mod panel size updated", config };
-    }
-
-    private async Task<object> UpdateLockedExpandedCategoriesAsync(IpcRequest request)
-    {
-        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
-        var lockedCategories = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "lockedCategories");
-
-        // Delegate to service (which handles all business logic)
-        await _profileService.UpdateLockedExpandedCategoriesAsync(profileId, lockedCategories).ConfigureAwait(false);
-
-        // Emit event to notify of config change
-        var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
-        await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
-
-        return new { success = true, message = "Locked expanded categories updated", config };
     }
 }

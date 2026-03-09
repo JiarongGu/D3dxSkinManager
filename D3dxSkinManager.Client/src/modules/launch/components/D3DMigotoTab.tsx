@@ -44,7 +44,7 @@ export const D3DMigotoTab: React.FC = () => {
         const config = await profileService.getProfileConfig(profileState.selectedProfile.id);
         if (config) {
           form.setFieldsValue({
-            migotoVersion: config.migotoVersion,
+            // migotoVersion: config.migotoVersion, // TODO: migotoVersion removed from ProfileConfiguration
           });
         }
       } catch (error: unknown) {
@@ -71,12 +71,14 @@ export const D3DMigotoTab: React.FC = () => {
       return;
     }
 
+    // TODO: migotoVersion removed from ProfileConfiguration - this feature needs to be moved elsewhere
     try {
-      await profileService.updateProfileConfig({
-        profileId: profileState.selectedProfile.id,
-        migotoVersion: value
-      });
-      notification.success(t('launch.d3dmigoto.versionChangedTo', { version: value }));
+      // await profileService.updateProfileConfig({
+      //   profileId: profileState.selectedProfile.id,
+      //   migotoVersion: value
+      // });
+      notification.warning('MigotoVersion feature temporarily disabled (config restructure)');
+      // notification.success(t('launch.d3dmigoto.versionChangedTo', { version: value }));
     } catch (error) {
       notification.error(t('launch.d3dmigoto.updateVersionFailed'));
     }

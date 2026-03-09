@@ -11,7 +11,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { GlobalSettings } from '../../../shared/services/ipc';
+import { GlobalSettings, ModImportConfiguration, ModWorkConfiguration } from '../../../shared/services/ipc';
 
 // ============================================================================
 // State Interface
@@ -25,22 +25,26 @@ export interface SettingsState {
   // Log Level
   logLevel: string;
 
-  // Profile-Specific Settings (Work Directory)
-  workMode: 'internal' | 'external';
+  // Profile-Specific Settings (Mod Work Directory & Cleanup)
+  workMode: ModWorkConfiguration['mode'];
   workDirectory: string;
   internalWorkPath: string;
+  cleanupEnabled: boolean;
+  cleanupMaxCaches: number;
   profileConfigChanged: boolean;
   initialProfileConfig: {
-    mode: 'internal' | 'external';
+    mode: ModWorkConfiguration['mode'];
     directory: string;
+    cleanupEnabled: boolean;
+    cleanupMaxCaches: number;
   };
 
-  // Profile-Specific Settings (Cache Management)
-  cacheManagementEnabled: boolean;
-  maxDisabledCaches: number;
-  initialCacheManagementConfig: {
-    enabled: boolean;
-    maxDisabledCaches: number;
+  // Profile-Specific Settings (Mod Import)
+  compressionType: ModImportConfiguration['compressionType'];
+  compressionMode: ModImportConfiguration["compressionMode"];
+  initialModImportConfig: {
+    compressionType: ModImportConfiguration['compressionType'];
+    compressionMode: ModImportConfiguration['compressionMode'];
   };
 
   // UI State
@@ -59,20 +63,22 @@ export interface SettingsActions {
   // Log Level Actions
   setLogLevel: (level: string) => void;
 
-  // Profile Settings Actions (Work Directory)
-  setWorkMode: (mode: 'internal' | 'external') => void;
+  // Profile Settings Actions (Work Directory & Cleanup)
+  setWorkMode: (mode: ModWorkConfiguration['mode']) => void;
   setWorkDirectory: (directory: string) => void;
   setInternalWorkPath: (path: string) => void;
+  setCleanupEnabled: (enabled: boolean) => void;
+  setCleanupMaxCaches: (max: number) => void;
   setProfileConfigChanged: (changed: boolean) => void;
-  setInitialProfileConfig: (config: { mode: 'internal' | 'external'; directory: string }) => void;
+  setInitialProfileConfig: (config: { mode:  ModWorkConfiguration['mode']; directory: string; cleanupEnabled: boolean; cleanupMaxCaches: number }) => void;
 
-  // Profile Settings Actions (Cache Management)
-  setCacheManagementEnabled: (enabled: boolean) => void;
-  setMaxDisabledCaches: (max: number) => void;
-  setInitialCacheManagementConfig: (config: { enabled: boolean; maxDisabledCaches: number }) => void;
+  // Profile Settings Actions (Mod Import)
+  setCompressionType: (type: ModImportConfiguration['compressionType']) => void;
+  setCompressionMode: (mode: ModImportConfiguration['compressionMode']) => void;
+  setInitialModImportConfig: (config: ModImportConfiguration) => void;
 
   // Combined Actions
-  updateWorkSettings: (mode: 'internal' | 'external', directory: string) => void;
+  updateWorkSettings: (mode:  ModWorkConfiguration['mode'], directory: string) => void;
   resetProfileConfig: () => void;
 
   // Error Actions
@@ -96,22 +102,26 @@ const initialState: SettingsState = {
   // Log Level
   logLevel: 'info',
 
-  // Profile-Specific Settings (Work Directory)
+  // Profile-Specific Settings (Work Directory & Cleanup)
   workMode: 'internal',
   workDirectory: '',
   internalWorkPath: '',
+  cleanupEnabled: true,
+  cleanupMaxCaches: 10,
   profileConfigChanged: false,
   initialProfileConfig: {
     mode: 'internal',
     directory: '',
+    cleanupEnabled: true,
+    cleanupMaxCaches: 10,
   },
 
-  // Profile-Specific Settings (Cache Management)
-  cacheManagementEnabled: true,
-  maxDisabledCaches: 10,
-  initialCacheManagementConfig: {
-    enabled: true,
-    maxDisabledCaches: 10,
+  // Profile-Specific Settings (Mod Import)
+  compressionType: '7z',
+  compressionMode: 'high',
+  initialModImportConfig: {
+    compressionType: '7z',
+    compressionMode: 'high',
   },
 
   // UI State
@@ -153,7 +163,7 @@ export const useSettingsStore = create<SettingsStore>()(
       }),
 
     // ============================================================
-    // Profile Settings Actions (Work Directory)
+    // Profile Settings Actions (Work Directory & Cleanup)
     // ============================================================
 
     setWorkMode: (mode) =>
@@ -163,8 +173,10 @@ export const useSettingsStore = create<SettingsStore>()(
         const hasChanged =
           mode !== state.initialProfileConfig.mode ||
           state.workDirectory !== state.initialProfileConfig.directory ||
-          state.cacheManagementEnabled !== state.initialCacheManagementConfig.enabled ||
-          state.maxDisabledCaches !== state.initialCacheManagementConfig.maxDisabledCaches;
+          state.cleanupEnabled !== state.initialProfileConfig.cleanupEnabled ||
+          state.cleanupMaxCaches !== state.initialProfileConfig.cleanupMaxCaches ||
+          state.compressionType !== state.initialModImportConfig.compressionType ||
+          state.compressionMode !== state.initialModImportConfig.compressionMode;
         state.profileConfigChanged = hasChanged;
       }),
 
@@ -175,14 +187,44 @@ export const useSettingsStore = create<SettingsStore>()(
         const hasChanged =
           state.workMode !== state.initialProfileConfig.mode ||
           directory !== state.initialProfileConfig.directory ||
-          state.cacheManagementEnabled !== state.initialCacheManagementConfig.enabled ||
-          state.maxDisabledCaches !== state.initialCacheManagementConfig.maxDisabledCaches;
+          state.cleanupEnabled !== state.initialProfileConfig.cleanupEnabled ||
+          state.cleanupMaxCaches !== state.initialProfileConfig.cleanupMaxCaches ||
+          state.compressionType !== state.initialModImportConfig.compressionType ||
+          state.compressionMode !== state.initialModImportConfig.compressionMode;
         state.profileConfigChanged = hasChanged;
       }),
 
     setInternalWorkPath: (path) =>
       set((state) => {
         state.internalWorkPath = path;
+      }),
+
+    setCleanupEnabled: (enabled) =>
+      set((state) => {
+        state.cleanupEnabled = enabled;
+        // Check if config changed
+        const hasChanged =
+          state.workMode !== state.initialProfileConfig.mode ||
+          state.workDirectory !== state.initialProfileConfig.directory ||
+          enabled !== state.initialProfileConfig.cleanupEnabled ||
+          state.cleanupMaxCaches !== state.initialProfileConfig.cleanupMaxCaches ||
+          state.compressionType !== state.initialModImportConfig.compressionType ||
+          state.compressionMode !== state.initialModImportConfig.compressionMode;
+        state.profileConfigChanged = hasChanged;
+      }),
+
+    setCleanupMaxCaches: (max) =>
+      set((state) => {
+        state.cleanupMaxCaches = max;
+        // Check if config changed
+        const hasChanged =
+          state.workMode !== state.initialProfileConfig.mode ||
+          state.workDirectory !== state.initialProfileConfig.directory ||
+          state.cleanupEnabled !== state.initialProfileConfig.cleanupEnabled ||
+          max !== state.initialProfileConfig.cleanupMaxCaches ||
+          state.compressionType !== state.initialModImportConfig.compressionType ||
+          state.compressionMode !== state.initialModImportConfig.compressionMode;
+        state.profileConfigChanged = hasChanged;
       }),
 
     setProfileConfigChanged: (changed) =>
@@ -195,43 +237,48 @@ export const useSettingsStore = create<SettingsStore>()(
         state.initialProfileConfig = config;
         state.workMode = config.mode;
         state.workDirectory = config.directory;
+        state.cleanupEnabled = config.cleanupEnabled;
+        state.cleanupMaxCaches = config.cleanupMaxCaches;
         state.profileConfigChanged = false;
       }),
 
     // ============================================================
-    // Profile Settings Actions (Cache Management)
+    // Profile Settings Actions (Mod Import)
     // ============================================================
 
-    setCacheManagementEnabled: (enabled) =>
+    setCompressionType: (type) =>
       set((state) => {
-        state.cacheManagementEnabled = enabled;
+        state.compressionType = type;
         // Check if config changed
         const hasChanged =
           state.workMode !== state.initialProfileConfig.mode ||
           state.workDirectory !== state.initialProfileConfig.directory ||
-          enabled !== state.initialCacheManagementConfig.enabled ||
-          state.maxDisabledCaches !== state.initialCacheManagementConfig.maxDisabledCaches;
+          state.cleanupEnabled !== state.initialProfileConfig.cleanupEnabled ||
+          state.cleanupMaxCaches !== state.initialProfileConfig.cleanupMaxCaches ||
+          type !== state.initialModImportConfig.compressionType ||
+          state.compressionMode !== state.initialModImportConfig.compressionMode;
         state.profileConfigChanged = hasChanged;
       }),
 
-    setMaxDisabledCaches: (max) =>
+    setCompressionMode: (mode) =>
       set((state) => {
-        state.maxDisabledCaches = max;
+        state.compressionMode = mode;
         // Check if config changed
         const hasChanged =
           state.workMode !== state.initialProfileConfig.mode ||
           state.workDirectory !== state.initialProfileConfig.directory ||
-          state.cacheManagementEnabled !== state.initialCacheManagementConfig.enabled ||
-          max !== state.initialCacheManagementConfig.maxDisabledCaches;
+          state.cleanupEnabled !== state.initialProfileConfig.cleanupEnabled ||
+          state.cleanupMaxCaches !== state.initialProfileConfig.cleanupMaxCaches ||
+          state.compressionType !== state.initialModImportConfig.compressionType ||
+          mode !== state.initialModImportConfig.compressionMode;
         state.profileConfigChanged = hasChanged;
       }),
 
-    setInitialCacheManagementConfig: (config) =>
+    setInitialModImportConfig: (config) =>
       set((state) => {
-        state.initialCacheManagementConfig = config;
-        state.cacheManagementEnabled = config.enabled;
-        state.maxDisabledCaches = config.maxDisabledCaches;
-        state.profileConfigChanged = false;
+        state.initialModImportConfig = config;
+        state.compressionType = config.compressionType;
+        state.compressionMode = config.compressionMode;
       }),
 
     // ============================================================
@@ -246,8 +293,10 @@ export const useSettingsStore = create<SettingsStore>()(
         const hasChanged =
           mode !== state.initialProfileConfig.mode ||
           directory !== state.initialProfileConfig.directory ||
-          state.cacheManagementEnabled !== state.initialCacheManagementConfig.enabled ||
-          state.maxDisabledCaches !== state.initialCacheManagementConfig.maxDisabledCaches;
+          state.cleanupEnabled !== state.initialProfileConfig.cleanupEnabled ||
+          state.cleanupMaxCaches !== state.initialProfileConfig.cleanupMaxCaches ||
+          state.compressionType !== state.initialModImportConfig.compressionType ||
+          state.compressionMode !== state.initialModImportConfig.compressionMode;
         state.profileConfigChanged = hasChanged;
       }),
 
@@ -255,8 +304,10 @@ export const useSettingsStore = create<SettingsStore>()(
       set((state) => {
         state.workMode = state.initialProfileConfig.mode;
         state.workDirectory = state.initialProfileConfig.directory;
-        state.cacheManagementEnabled = state.initialCacheManagementConfig.enabled;
-        state.maxDisabledCaches = state.initialCacheManagementConfig.maxDisabledCaches;
+        state.cleanupEnabled = state.initialProfileConfig.cleanupEnabled;
+        state.cleanupMaxCaches = state.initialProfileConfig.cleanupMaxCaches;
+        state.compressionType = state.initialModImportConfig.compressionType;
+        state.compressionMode = state.initialModImportConfig.compressionMode;
         state.profileConfigChanged = false;
       }),
 

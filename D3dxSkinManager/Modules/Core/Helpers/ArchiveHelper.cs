@@ -43,7 +43,7 @@ public interface IArchiveHelper
     Task<string?> DetectArchiveTypeAsync(string archivePath);
     Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory);
     ExtractionResult ExtractArchive(string archivePath, string targetDirectory);
-    Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.SevenZip, Action<int>? progressCallback = null, CancellationToken cancellationToken = default);
+    Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.SevenZip, CompressionLevel compressionLevel = CompressionLevel.High, Action<int>? progressCallback = null, CancellationToken cancellationToken = default);
     Task<ArchiveValidationResult> ValidateArchiveAsync(string archivePath);
 }
 
@@ -356,6 +356,7 @@ public class ArchiveHelper : IArchiveHelper
         string folderPath,
         string outputPath,
         ArchiveFormat format = ArchiveFormat.SevenZip,
+        CompressionLevel compressionLevel = CompressionLevel.High,
         Action<int>? progressCallback = null,
         CancellationToken cancellationToken = default)
     {
@@ -386,9 +387,8 @@ public class ArchiveHelper : IArchiveHelper
                     ArchiveFormat.Zip => OutArchiveFormat.Zip,
                     _ => OutArchiveFormat.SevenZip  // Default to 7Z for best compression
                 },
-                // Use High compression for smaller file sizes (better for storage)
-                // Trade-off: Slower compression but significantly smaller archives
-                CompressionLevel = CompressionLevel.High,
+                // Use configured compression level from profile settings
+                CompressionLevel = compressionLevel,
                 PreserveDirectoryRoot = false  // Don't include root folder name in archive
             };
 

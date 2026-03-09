@@ -24,7 +24,6 @@ public interface IProfileService
     Task<bool> UpdateProfileConfigurationAsync(ProfileConfiguration config);
     Task<bool> UpdateWindowConfigurationAsync(string profileId, string windowName, int x, int y, int width, int height);
     Task<bool> UpdateModPanelSizeAsync(string profileId, string panelSize);
-    Task<bool> UpdateLockedExpandedCategoriesAsync(string profileId, List<string> lockedCategories);
 }
 
 public class ProfileService : IProfileService
@@ -411,28 +410,6 @@ public class ProfileService : IProfileService
         await _repository.SaveProfileConfigurationAsync(profileId, config).ConfigureAwait(false);
 
         _logger.Verbose($"Updated mod panel size for profile {profileId}: {panelSize}", "ProfileService");
-        return true;
-    }
-
-    public async Task<bool> UpdateLockedExpandedCategoriesAsync(string profileId, List<string> lockedCategories)
-    {
-        await EnsureInitializedAsync().ConfigureAwait(false);
-
-        // Get current configuration
-        var config = await _repository.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
-        if (config == null)
-        {
-            _logger.Warn($"Profile configuration not found for {profileId}, creating new", "ProfileService");
-            config = new ProfileConfiguration { ProfileId = profileId };
-        }
-
-        // Update the locked expanded categories in the Tabs configuration
-        config.Tabs.Mod.LockedExpandedCategories = lockedCategories;
-
-        // Save via repository (handles locking and cache)
-        await _repository.SaveProfileConfigurationAsync(profileId, config).ConfigureAwait(false);
-
-        _logger.Verbose($"Updated locked expanded categories for profile {profileId}: [{string.Join(", ", lockedCategories)}]", "ProfileService");
         return true;
     }
 

@@ -11,8 +11,12 @@ using D3dxSkinManager.Modules.Workflow.Services;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Category.Services;
+using D3dxSkinManager.Modules.Profiles.Services;
+using D3dxSkinManager.Modules.Profiles;
+using SharpSevenZip;
 
 namespace D3dxSkinManager.Modules.Workflow.Handlers;
 
@@ -42,6 +46,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     private readonly IModMetadataService _metadataService;
     private readonly IModRepository _modRepository;
     private readonly IProfilePathService _profilePathService;
+    private readonly IProfileService _profileService;
+    private readonly IProfileContext _profileContext;
     private readonly IArchiveHelper _archiveHelper;
     private readonly IFileHelper _fileHelper;
     private readonly IHashHelper _hashHelper;
@@ -62,6 +68,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         IModMetadataService metadataService,
         IModRepository modRepository,
         IProfilePathService profilePathService,
+        IProfileService profileService,
+        IProfileContext profileContext,
         IArchiveHelper archiveHelper,
         IFileHelper fileHelper,
         IHashHelper hashHelper,
@@ -76,6 +84,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         _metadataService = metadataService;
         _modRepository = modRepository;
         _profilePathService = profilePathService;
+        _profileService = profileService;
+        _profileContext = profileContext;
         _archiveHelper = archiveHelper;
         _fileHelper = fileHelper;
         _hashHelper = hashHelper;
@@ -800,7 +810,10 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         _logger.Info($"Compressing folder: {context.FolderPath}");
 
-        // Create temp archive in profile's temp directory (ZIP format - SharpCompress only supports writing ZIP/TAR, not 7z)
+        // Load compression settings from profile configuration
+        var (format, level) = await GetCompressionSettingsAsync();
+
+        // Create temp archive in profile's temp directory
         var tempPath = Path.Combine(_profilePathService.TempDirectory, TempFileConstants.GetModImportCompressTempName(Guid.NewGuid()));
 
         try
@@ -814,6 +827,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             await _archiveHelper.CompressFolderAsync(
                 context.FolderPath,
                 tempPath,
+                format: format,
+                compressionLevel: level,
                 progressCallback: progressPercent =>
                 {
                     // Scale compression progress to 0-90% range
@@ -1153,6 +1168,56 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         catch (Exception ex)
         {
             _logger.Warn($"Failed to populate category name for workflow {workflow.Id}: {ex.Message}", "ModImportWorkflowHandler");
+        }
+    }
+
+    /// <summary>
+    /// Get compression settings from profile configuration
+    /// Returns (format, level) tuple with defaults if config is unavailable
+    /// </summary>
+    private async Task<(ArchiveFormat format, CompressionLevel level)> GetCompressionSettingsAsync()
+    {
+        try
+        {
+            var profileId = _profileContext.ProfileId;
+            if (string.IsNullOrEmpty(profileId))
+            {
+                _logger.Warn("Profile ID not available, using default compression settings");
+                return (ArchiveFormat.SevenZip, CompressionLevel.High);
+            }
+
+            var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+            if (config?.ModImport == null)
+            {
+                _logger.Warn("Profile configuration not available, using default compression settings");
+                return (ArchiveFormat.SevenZip, CompressionLevel.High);
+            }
+
+            // Map compression type from config
+            var format = (config.ModImport.CompressionType?.ToLowerInvariant()) switch
+            {
+                "zip" => ArchiveFormat.Zip,
+                "7z" => ArchiveFormat.SevenZip,
+                "rar" => ArchiveFormat.SevenZip, // RAR write not supported, use 7z
+                _ => ArchiveFormat.SevenZip
+            };
+
+            // Map compression mode from config
+            var level = (config.ModImport.CompressionMode?.ToLowerInvariant()) switch
+            {
+                "fast" => CompressionLevel.Fast,
+                "high" => CompressionLevel.High,
+                "ultra" => CompressionLevel.Ultra,
+                _ => CompressionLevel.High
+            };
+
+            _logger.Info($"Using compression settings from profile: format={format}, level={level}");
+            return (format, level);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Failed to load compression settings from profile config: {ex.Message}");
+            return (ArchiveFormat.SevenZip, CompressionLevel.High);
         }
     }
 }
