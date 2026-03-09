@@ -52,8 +52,7 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
   setTagColorsMap,
 }) => {
   const { t } = useTranslation();
-  const { state: profileState } = useProfile();
-  const selectedProfileId = profileState.selectedProfile?.id;
+  const { selectedProfileId } = useProfile();
   const [searchTerm, setSearchTerm] = useState("");
   const [localSelectedTags, setLocalSelectedTags] =
     useState<string[]>(selectedTags);

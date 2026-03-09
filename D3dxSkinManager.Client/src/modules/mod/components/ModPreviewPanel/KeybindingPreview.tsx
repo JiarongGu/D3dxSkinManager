@@ -14,8 +14,7 @@ export interface KeybindingPreviewProps {
 
 export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modSha }) => {
   const { t } = useTranslation();
-  const { state: profileState } = useProfile();
-  const selectedProfileId = profileState.selectedProfile?.id;
+  const { selectedProfileId } = useProfile();
 
   const [keybindings, setKeybindings] = useState<ModKeybinding[]>([]);
   const [loading, setLoading] = useState(false);

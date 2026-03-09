@@ -1,6 +1,6 @@
 /* Tag Management Tool Container - BEM Convention */
 .tag-management-tool-container {
-  height: calc(100% - 24px);
+  height: 100%;
   margin-right: 16px;
   display: flex;
   flex-direction: column;
@@ -41,6 +41,12 @@
   background: var(--color-bg-spotlight) !important;
 }
 
+.tag-management-tool-table-container .ant-table-tbody > tr > td .ant-btn {
+  min-width: 80px;
+  width: 80px;
+}
+
+
 /* Pagination */
 .tag-management-tool-pagination {
   display: flex;
@@ -71,6 +77,15 @@
 
 .tag-management-tool-pagination .ant-pagination-options {
   height: 24px;
+  width: 120px;
+  position: relative;
+}
+
+.tag-management-tool-pagination .ant-select {
+  height: 100%;
+  width: 100%;
+  padding: 12px;
+  border-radius: 4px;
 }
 
 .tag-management-tool-pagination .ant-select-selector {

@@ -190,19 +190,6 @@
   outline: none;
 }
 
-/* Ant Design component overrides within slide-in screen */
-.slide-in-screen-content .ant-form {
-  max-width: 100%;
-}
-
-.slide-in-screen-content .ant-form-item {
-  margin-bottom: 16px;
-}
-
-.slide-in-screen-content .ant-btn {
-  min-width: 80px;
-}
-
 /* Footer area for actions */
 .slide-in-screen-footer {
   padding: 12px 0;

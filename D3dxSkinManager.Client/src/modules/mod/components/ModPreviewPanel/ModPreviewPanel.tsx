@@ -21,8 +21,7 @@ const { Text, Title } = Typography;
 
 export const ModPreviewPanel: React.FC = () => {
   const { t } = useTranslation();
-  const { state: profileState } = useProfile();
-  const selectedProfileId = profileState.selectedProfile?.id;
+  const { selectedProfileId } = useProfile();
 
   // Subscribe to store state
   const mod = useModsStore((s) => s.selectedMod);

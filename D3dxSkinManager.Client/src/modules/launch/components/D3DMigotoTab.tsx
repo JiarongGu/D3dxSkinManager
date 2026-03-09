@@ -25,14 +25,14 @@ export const D3DMigotoTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [d3dVersions, setD3dVersions] = useState<D3DMigotoVersion[]>([]);
   const [d3dLoading, setD3dLoading] = useState(false);
-  const { state: profileState } = useProfile();
+  const { selectedProfileId, selectedProfile } = useProfile();
   const [deployConfirm, setDeployConfirm] = useState<{ visible: boolean; version?: D3DMigotoVersion }>({ visible: false });
 
   // Load configuration when profile changes
   useEffect(() => {
     const loadConfig = async () => {
       // Only load if we have a selected profile
-      if (!profileState.selectedProfile) {
+      if (!selectedProfile) {
         logger.info('[D3DMigotoTab] No profile selected, skipping config load');
         setLoading(false);
         return;
@@ -40,8 +40,8 @@ export const D3DMigotoTab: React.FC = () => {
 
       try {
         setLoading(true);
-        logger.info(`[D3DMigotoTab] Loading config for profile: ${profileState.selectedProfile.name}`);
-        const config = await profileService.getProfileConfig(profileState.selectedProfile.id);
+        logger.info(`[D3DMigotoTab] Loading config for profile: ${selectedProfile.name}`);
+        const config = await profileService.getProfileConfig(selectedProfile.id);
         if (config) {
           form.setFieldsValue({
             // migotoVersion: config.migotoVersion, // TODO: migotoVersion removed from ProfileConfiguration
@@ -60,13 +60,13 @@ export const D3DMigotoTab: React.FC = () => {
     };
 
     loadConfig();
-    if (profileState.selectedProfile) {
+    if (selectedProfile) {
       handleLoad3DMigotoVersions();
     }
-  }, [form, profileState.selectedProfile?.id]); // React to profile ID changes
+  }, [form, selectedProfileId]); // React to profile ID changes
 
   const handleMigotoVersionChange = async (value: string) => {
-    if (!profileState.selectedProfile) {
+    if (!selectedProfileId) {
       notification.error(t("errors.noProfileSelected"));
       return;
     }
@@ -90,7 +90,7 @@ export const D3DMigotoTab: React.FC = () => {
   };
 
   const handleOpenWorkDirectory = async () => {
-    if (!profileState.selectedProfile) {
+    if (!selectedProfile) {
       notification.error(t("errors.noProfileSelected"));
       return;
     }
@@ -118,16 +118,14 @@ export const D3DMigotoTab: React.FC = () => {
    * Load 3DMigoto versions
    */
   const handleLoad3DMigotoVersions = async () => {
-    if (!profileState.selectedProfile) {
+    if (!selectedProfileId) {
       notification.error(t("errors.noProfileSelected"));
       return;
     }
 
-    const profileId = profileState.selectedProfile.id;
-
     try {
       setD3dLoading(true);
-      const versions = await launchService.getAvailableVersions(profileId);
+      const versions = await launchService.getAvailableVersions(selectedProfileId);
       setD3dVersions(versions);
 
       if (versions.length === 0) {
@@ -155,7 +153,7 @@ export const D3DMigotoTab: React.FC = () => {
    */
   const handleConfirmDeploy = async () => {
     const version = deployConfirm.version;
-    if (!version || !profileState.selectedProfile) {
+    if (!version || !selectedProfileId) {
       notification.error(t("errors.noProfileSelected"));
       setDeployConfirm({ visible: false });
       return;
@@ -163,7 +161,7 @@ export const D3DMigotoTab: React.FC = () => {
 
     try {
       setD3dLoading(true);
-      const result = await launchService.deployVersion(profileState.selectedProfile.id, version.name);
+      const result = await launchService.deployVersion(selectedProfileId, version.name);
 
       if (result.success) {
         notification.success(result.message || t('launch.d3dmigoto.deploySuccess'));
@@ -184,13 +182,13 @@ export const D3DMigotoTab: React.FC = () => {
    * Launch 3DMigoto
    */
   const handleLaunch3DMigotoLoader = async () => {
-    if (!profileState.selectedProfile) {
+    if (!selectedProfileId) {
       notification.error(t("errors.noProfileSelected"));
       return;
     }
 
     try {
-      const result = await launchService.launch3DMigoto(profileState.selectedProfile.id);
+      const result = await launchService.launch3DMigoto(selectedProfileId);
       if (result) {
         notification.success(t('launch.d3dmigoto.launchSuccess'));
       } else {

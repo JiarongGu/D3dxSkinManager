@@ -65,7 +65,7 @@ export const PythonMigrationToolInner: React.FC<{
   onMigrationComplete?: () => void;
 }> = ({ onClose, onMigrationComplete }) => {
   const { t } = useTranslation();
-  const { state: profileState } = useProfile();
+  const { selectedProfileId } = useProfile();
   const {
     currentStep,
     analysis,
@@ -105,7 +105,7 @@ export const PythonMigrationToolInner: React.FC<{
       return;
     }
 
-    if (!profileState.selectedProfile?.id) {
+    if (!selectedProfileId) {
       notification.error(t("errors.noProfileSelected"));
       return;
     }
@@ -130,7 +130,7 @@ export const PythonMigrationToolInner: React.FC<{
       setMigrationProgress(0);
       setCurrentMigrationProgress(undefined);
 
-      const profileId = profileState.selectedProfile?.id || "";
+      const profileId = selectedProfileId || "";
 
       // Start migration - don't wait for response as it will timeout for long migrations
       // Rely on PROGRESS and COMPLETED events instead
@@ -208,7 +208,7 @@ export const PythonMigrationToolInner: React.FC<{
       <div className="slide-in-screen-footer">
         <CompactSpace>
           {currentStep === MigrationStep.Detection && (
-            <CompactButton onClick={handleClose}>{t('common.cancel')}</CompactButton>
+            <CompactButton.Danger onClick={handleClose}>{t('common.cancel')}</CompactButton.Danger>
           )}
           {currentStep === MigrationStep.Options && (
             <CompactButton onClick={goToPreviousStep}>{t('common.back')}</CompactButton>

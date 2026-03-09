@@ -32,7 +32,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
 
   // Subscribe to state from store
   const modsToEdit = useModsStore(s => s.modsToEdit);
-  const { state: profileState } = useProfile();
+  const { selectedProfileId } = useProfile();
   const { closeBatchEditScreen } = useMods();
 
   // Grid ref to access AG Grid API
@@ -49,9 +49,9 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
   // Load tags when screen opens
   useEffect(() => {
     const loadTags = async () => {
-      if (profileState.selectedProfile?.id) {
+      if (selectedProfileId) {
         try {
-          const tags = await modService.getAllTags(profileState.selectedProfile.id);
+          const tags = await modService.getAllTags(selectedProfileId);
           setAllTags(tags);
         } catch (error) {
           logger.error('Failed to load tags:', error);
@@ -59,7 +59,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
       }
     };
     loadTags();
-  }, [profileState.selectedProfile?.id]);
+  }, [selectedProfileId]);
 
   // Initialize mods when modsToEdit changes
   useEffect(() => {
@@ -152,7 +152,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
   };
 
   const handleSave = async () => {
-    if (!profileState.selectedProfile?.id || !gridRef.current) return;
+    if (!selectedProfileId || !gridRef.current) return;
 
     // Get dirty (modified) rows from AG Grid
     const dirtyNodes: any[] = [];
@@ -212,7 +212,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
       });
 
       // Call batch update API
-      const result = await modService.batchUpdateMetadata(profileState.selectedProfile.id, updates);
+      const result = await modService.batchUpdateMetadata(selectedProfileId, updates);
 
       if (result.updatedCount > 0) {
         notification.success(
@@ -220,7 +220,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
         );
         closeBatchEditScreen();
         // Refresh mods list
-        await refreshMods(profileState.selectedProfile.id);
+        await refreshMods(selectedProfileId);
       }
 
       const failCount = result.totalRequested - result.updatedCount;

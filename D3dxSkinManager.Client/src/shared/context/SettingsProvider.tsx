@@ -19,6 +19,7 @@ import { useSettingsStore } from '../../modules/setting/store/settingsStore';
 import { eventBus, Module, SettingsEventType } from '../services/eventBus';
 import * as settingsOps from '../../modules/setting/operations/settingsOperations';
 import logger from '../utils/logger';
+import { useStableRef } from '../hooks/useStableRef';
 
 interface SettingsProviderProps {
   children: React.ReactNode;
@@ -34,8 +35,6 @@ interface SettingsProviderProps {
  */
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
   const { selectedProfileId } = useProfile();
-  const reset = useSettingsStore((state) => state.reset);
-
   // Load global settings once on mount
   // This prevents flash of default state when navigating to settings tab
   useEffect(() => {

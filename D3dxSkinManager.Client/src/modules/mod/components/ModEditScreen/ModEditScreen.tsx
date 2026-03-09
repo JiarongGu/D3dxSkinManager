@@ -1,19 +1,19 @@
-import { notification } from '../../../../shared/utils/notification';
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Form, Input, Space } from 'antd';
-import { ModInfo } from '../../../../shared/types/mod.types';
-import { modService } from '../../../../shared/services/ipc';
-import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
-import { CompactButton } from '../../../../shared/components/compact/CompactButton';
-import { BasicInfoSection } from './BasicInfoSection';
-import { MetadataSection } from './MetadataSection';
-import { TagsSection } from './TagsSection';
-import { useProfile } from '../../../../shared/context/ProfileContext';
-import { useModsStore } from '../../store/modsStore';
-import { useMods } from '../../hooks/useMods';
-import logger from '../../../../shared/utils/logger';
-import './ModEditScreen.css';
+import { notification } from "../../../../shared/utils/notification";
+import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { Form, Input, Space } from "antd";
+import { ModInfo } from "../../../../shared/types/mod.types";
+import { modService } from "../../../../shared/services/ipc";
+import { useSlideInScreen } from "../../../../shared/hooks/useSlideInScreen";
+import { CompactButton } from "../../../../shared/components/compact/CompactButton";
+import { BasicInfoSection } from "./BasicInfoSection";
+import { MetadataSection } from "./MetadataSection";
+import { TagsSection } from "./TagsSection";
+import { useProfile } from "../../../../shared/context/ProfileContext";
+import { useModsStore } from "../../store/modsStore";
+import { useMods } from "../../hooks/useMods";
+import logger from "../../../../shared/utils/logger";
+import "./ModEditScreen.css";
 
 /**
  * Form content component - contains all state and logic for editing a mod
@@ -22,9 +22,9 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   const { t } = useTranslation();
 
   // Subscribe to state from store
-  const visible = useModsStore(s => s.editDialogVisible);
-  const CategoryTree = useModsStore(s => s.categoryTree);
-  const { state: profileState } = useProfile();
+  const visible = useModsStore((s) => s.editDialogVisible);
+  const CategoryTree = useModsStore((s) => s.categoryTree);
+  const { selectedProfileId } = useProfile();
   const { updateMod, closeEditDialog } = useMods();
 
   // Local state
@@ -32,10 +32,14 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   const [saving, setSaving] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [authors, setAuthors] = useState<string[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [categoryOptions, setCategoryOptions] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   // Map to store all tag colors (both from database and newly generated)
-  const [tagColorsMap, setTagColorsMap] = useState<Map<string, string>>(new Map());
+  const [tagColorsMap, setTagColorsMap] = useState<Map<string, string>>(
+    new Map(),
+  );
 
   // Wrapper for setSelectedTags
   const handleTagsChange = (newTags: string[]) => {
@@ -44,18 +48,19 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
 
   // Refresh available tags when a tag is deleted
   const handleTagDeleted = async () => {
-    if (!profileState.selectedProfile?.id) return;
+    if (!selectedProfileId) return;
 
     try {
-      const tagsFromTable = await modService.getAllTags(profileState.selectedProfile.id);
-      setAvailableTags(tagsFromTable.map(t => t.name));
-    } catch (error: unknown) {
-          }
+      const tagsFromTable = await modService.getAllTags(selectedProfileId);
+      setAvailableTags(tagsFromTable.map((t) => t.name));
+    } catch (error: unknown) {}
   };
 
   // Build category options from Category tree
   useEffect(() => {
-    const flattenTree = (nodes: typeof CategoryTree): Array<{ id: string; name: string }> => {
+    const flattenTree = (
+      nodes: typeof CategoryTree,
+    ): Array<{ id: string; name: string }> => {
       const result: Array<{ id: string; name: string }> = [];
       for (const node of nodes) {
         result.push({ id: node.id, name: node.name });
@@ -72,38 +77,37 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   // Load authors and tags for autocomplete
   useEffect(() => {
     const loadAutocompleteData = async () => {
-      if (!profileState.selectedProfile?.id) {
+      if (!selectedProfileId) {
         return;
       }
       try {
         const [authorsData, tagsFromTable] = await Promise.all([
-          modService.getAuthors(profileState.selectedProfile.id),
-          modService.getAllTags(profileState.selectedProfile.id) // Get tags from Tags table only
+          modService.getAuthors(selectedProfileId),
+          modService.getAllTags(selectedProfileId), // Get tags from Tags table only
         ]);
         setAuthors(authorsData);
-        setAvailableTags(tagsFromTable.map(t => t.name));
+        setAvailableTags(tagsFromTable.map((t) => t.name));
 
         // Initialize tag colors map with existing tags from database
-        const colorsMap = new Map(tagsFromTable.map(t => [t.name, t.color]));
+        const colorsMap = new Map(tagsFromTable.map((t) => [t.name, t.color]));
         setTagColorsMap(colorsMap);
-      } catch (error: unknown) {
-              }
+      } catch (error: unknown) {}
     };
 
     if (visible) {
       loadAutocompleteData();
     }
-  }, [visible, profileState.selectedProfile?.id]);
+  }, [visible, selectedProfileId]);
 
   // Initialize form when mod is available
   useEffect(() => {
     if (mod) {
       form.setFieldsValue({
         name: mod.name,
-        description: mod.description || '',
-        grading: mod.grading || '',
-        author: mod.author || '',
-        category: mod.category || '',
+        description: mod.description || "",
+        grading: mod.grading || "",
+        author: mod.author || "",
+        category: mod.category || "",
         disablePreview: mod.disablePreview ?? false,
       });
       setSelectedTags(mod.tags || []);
@@ -111,7 +115,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   }, [mod, form]);
 
   const handleSave = async () => {
-    if (!mod || !profileState.selectedProfile?.id) return;
+    if (!mod || !selectedProfileId) return;
 
     try {
       const values = await form.validateFields();
@@ -133,24 +137,26 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       }
 
       // Get all existing tags from database
-      const existingTags = await modService.getAllTags(profileState.selectedProfile.id);
-      const existingTagNames = new Set(existingTags.map(t => t.name));
+      const existingTags = await modService.getAllTags(selectedProfileId);
+      const existingTagNames = new Set(existingTags.map((t) => t.name));
 
       // Find new tags that need to be saved to Tags table
-      const newTags = selectedTags.filter(tagName => !existingTagNames.has(tagName));
+      const newTags = selectedTags.filter(
+        (tagName) => !existingTagNames.has(tagName),
+      );
 
       // Save new tags with their pre-generated colors to Tags table
       if (newTags.length > 0) {
         try {
           await Promise.all(
-            newTags.map(tagName => {
-              const color = tagColorsMap.get(tagName) || '#1890ff'; // Fallback color
-              return modService.upsertTag(profileState.selectedProfile!.id, tagName, color);
-            })
+            newTags.map((tagName) => {
+              const color = tagColorsMap.get(tagName) || "#1890ff"; // Fallback color
+              return modService.upsertTag(selectedProfileId, tagName, color);
+            }),
           );
         } catch (tagSaveError: unknown) {
           // Continue with mod save even if tag save fails
-          logger.warn('Failed to save some tags:', tagSaveError);
+          logger.warn("Failed to save some tags:", tagSaveError);
         }
       }
 
@@ -162,7 +168,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       setTagColorsMap(new Map());
       closeEditDialog();
     } catch (error: unknown) {
-            notification.error(t('mods.edit.checkRequiredFields'));
+      notification.error(t("mods.edit.checkRequiredFields"));
     } finally {
       setSaving(false);
     }
@@ -177,11 +183,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
 
   return (
     <>
-      <Form
-        form={form}
-        layout="vertical"
-        autoComplete="off"
-      >
+      <Form form={form} layout="vertical" autoComplete="off">
         {/* Basic Information Section */}
         <BasicInfoSection />
 
@@ -204,8 +206,12 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
 
         {/* Read-only SHA display */}
         {mod && (
-          <Form.Item label="SHA Hash" tooltip={t('mods.edit.shaHashTooltip')}>
-            <Input value={mod.sha} disabled className="mod-edit-screen-sha-input" />
+          <Form.Item label="SHA Hash" tooltip={t("mods.edit.shaHashTooltip")}>
+            <Input
+              value={mod.sha}
+              disabled
+              className="mod-edit-screen-sha-input"
+            />
           </Form.Item>
         )}
       </Form>
@@ -214,10 +220,10 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       <div className="slide-in-screen-footer">
         <Space>
           <CompactButton onClick={handleCancel}>
-            {t('common.cancel')}
+            {t("common.cancel")}
           </CompactButton>
           <CompactButton type="primary" onClick={handleSave} loading={saving}>
-            {t('common.saveChanges')}
+            {t("common.saveChanges")}
           </CompactButton>
         </Space>
       </div>
@@ -231,15 +237,17 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
  */
 export const ModEditScreen: React.FC = () => {
   const { t } = useTranslation();
-  const visible = useModsStore(s => s.editDialogVisible);
-  const mod = useModsStore(s => s.modToEdit);
+  const visible = useModsStore((s) => s.editDialogVisible);
+  const mod = useModsStore((s) => s.modToEdit);
   const { closeEditDialog } = useMods();
 
   useSlideInScreen({
     visible,
-    title: mod ? t('mods.edit.titleWithName', { name: mod.name }) : t('mods.edit.title'),
+    title: mod
+      ? t("mods.edit.titleWithName", { name: mod.name })
+      : t("mods.edit.title"),
     content: <ModEditFormContent mod={mod} />,
-    width: '55%',
+    width: "55%",
     onClose: closeEditDialog,
   });
 

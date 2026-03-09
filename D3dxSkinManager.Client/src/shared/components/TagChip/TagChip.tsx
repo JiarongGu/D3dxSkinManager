@@ -37,8 +37,6 @@ export const TagChip: React.FC<TagChipProps> = ({
   className,
   size = 'default',
 }) => {
-  const { state: profileState } = useProfile();
-  const selectedProfileId = profileState.selectedProfile?.id;
   const [tagData, setTagData] = useState<Tag | undefined>(tag);
   const [loading, setLoading] = useState(!tag);
 

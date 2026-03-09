@@ -40,8 +40,7 @@ interface TagFormValues {
  */
 export const TagManagementTool: React.FC = () => {
   const { t } = useTranslation();
-  const { state: profileState } = useProfile();
-  const selectedProfileId = profileState.selectedProfile?.id;
+  const { selectedProfileId } = useProfile();
   const [searchTerm, setSearchTerm] = useState("");
   const [tagToDelete, setTagToDelete] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
@@ -231,13 +230,6 @@ export const TagManagementTool: React.FC = () => {
           />
         </CompactSpace>
       </div>
-
-      {/* Alert */}
-      <CompactAlert
-        description="Create new tags, edit tag names and colors, or delete tags. Changes to colors are saved automatically."
-        type="info"
-        showIcon
-      />
 
       {/* Tags Table */}
       <div className="tag-management-tool-table-container">

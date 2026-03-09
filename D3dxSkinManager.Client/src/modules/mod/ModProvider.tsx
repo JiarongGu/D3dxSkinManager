@@ -142,13 +142,17 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   );
 
   const handleSelectedModUpdate = useCallback(
-    memoizeDebounce((sha: string) => {
-      if (!selectedProfileIdRef.current) return;
-      const { selectedMod } = useModsStore.getState();
-      if (selectedMod?.sha === sha) {
-        void modOps.refreshSelectedMod(selectedProfileIdRef.current);
-      }
-    }, sha => sha, 20),
+    memoizeDebounce(
+      (sha: string) => {
+        if (!selectedProfileIdRef.current) return;
+        const { selectedMod } = useModsStore.getState();
+        if (selectedMod?.sha === sha) {
+          void modOps.refreshSelectedMod(selectedProfileIdRef.current);
+        }
+      },
+      (sha) => sha,
+      20,
+    ),
     [],
   );
 
@@ -161,10 +165,14 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   );
 
   const handleModLoadStateChange = useCallback(
-    memoizeDebounce(async (sha: string) => {
-      if (!selectedProfileIdRef.current) return;
-      await modOps.refreshMod(selectedProfileIdRef.current, sha);
-    }, sha => sha, 20),
+    memoizeDebounce(
+      async (sha: string) => {
+        if (!selectedProfileIdRef.current) return;
+        await modOps.refreshMod(selectedProfileIdRef.current, sha);
+      },
+      (sha) => sha,
+      20,
+    ),
     [],
   );
 
@@ -176,10 +184,6 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
     }, 20),
     [],
   );
-
-  useEffect(() => {
-    void loadPanelSizes();
-  }, []);
 
   // Subscribe to backend events
   useEffect(() => {
@@ -320,20 +324,28 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
     };
   }, []);
 
+  // Handle profile changes - reset store and reload data
   useEffect(() => {
-    if (selectedProfileIdRef.current) {
+    if (selectedProfileId) {
+      // Reset store to clear previous profile's data
       resetRef.current();
-      void categoryOps.loadCategoryTree(selectedProfileIdRef.current);
-      void categoryOps.loadUnclassifiedCount(selectedProfileIdRef.current);
-      void modOps.loadStatistics(selectedProfileIdRef.current);
-      void modOps.loadTags(selectedProfileIdRef.current);
+
+      // Load profile-specific UI config (panel sizes, locked categories)
+      void loadPanelSizes();
+
+      // Load data for the new profile
+      void categoryOps.loadCategoryTree(selectedProfileId);
+      void categoryOps.loadUnclassifiedCount(selectedProfileId);
+      void modOps.loadStatistics(selectedProfileId);
+      void modOps.loadTags(selectedProfileId);
       // Explicitly refresh mods to reload selected category (e.g., UNCLASSIFIED)
       // This ensures that if a category was selected before reset, its mods are refreshed
-      void modOps.refreshMods(selectedProfileIdRef.current);
+      void modOps.refreshMods(selectedProfileId);
     } else {
+      // No profile selected - reset to initial state
       resetRef.current();
     }
-  }, []);
+  }, [selectedProfileId]);
 
   return <>{children}</>;
 };

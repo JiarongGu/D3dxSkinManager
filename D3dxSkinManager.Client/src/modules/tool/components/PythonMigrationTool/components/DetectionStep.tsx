@@ -25,7 +25,7 @@ export const DetectionStep: React.FC = () => {
     loading,
     setLoading,
   } = usePythonMigrationTool();
-  const { state: profileState } = useProfile();
+  const { selectedProfileId } = useProfile();
 
   /**
    * Browse for Python installation directory
@@ -51,11 +51,11 @@ export const DetectionStep: React.FC = () => {
    * Analyze selected Python installation
    */
   const handleAnalyze = async (path: string) => {
-    if (!profileState.selectedProfile?.id) {
+    if (!selectedProfileId) {
       notification.error(t("errors.noProfileSelected"));
       return;
     }
-    const profileId = profileState.selectedProfile.id;
+    const profileId = selectedProfileId
     try {
       setLoading(true);
       const analysisResult = await migrationService.analyzePythonInstallation(profileId, path);

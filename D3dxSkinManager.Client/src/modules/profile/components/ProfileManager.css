@@ -4,12 +4,13 @@
   padding: 0;
 }
 
-.profile-manager-vertical-space {
-  width: 100%;
+.profile-manager-container .ant-btn {
+  min-width: 40px;
+  min-height: 28px;
 }
 
-.profile-manager-list-container {
-  /* Flex container managed by Ant Design Flex component */
+.profile-manager-vertical-space {
+  width: 100%;
 }
 
 .profile-manager-item {
@@ -23,10 +24,6 @@
 
 .profile-manager-item--active {
   border: 1px solid var(--color-border);
-}
-
-.profile-manager-item--inactive {
-  /* No border for inactive items */
 }
 
 .profile-manager-avatar {
@@ -66,10 +63,6 @@
 .profile-manager-stats {
   font-size: 12px;
   color: #8c8c8c;
-}
-
-.profile-manager-actions {
-  /* Space component handles layout */
 }
 
 .profile-manager-full-width-input {

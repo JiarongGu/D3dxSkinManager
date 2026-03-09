@@ -43,7 +43,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
   onProfileChanged,
 }) => {
   const { t } = useTranslation();
-  const { state, actions } = useProfile();
+  const { selectedProfileId, actions } = useProfile();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -138,7 +138,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
       await actions.loadProfiles();
 
       // If the edited profile is the currently selected one, update it in context
-      if (editingProfile.id === state.selectedProfile?.id) {
+      if (editingProfile.id === selectedProfileId) {
         const updatedProfile = await profileService.getProfileById(
           editingProfile.id,
         );

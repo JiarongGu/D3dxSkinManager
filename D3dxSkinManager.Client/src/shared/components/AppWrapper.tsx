@@ -1,7 +1,7 @@
 import { App, ConfigProvider, theme } from "antd";
 import { useEffect } from "react";
 
-import { ProfileProvider } from "../context/ProfileContext";
+import { ProfileProvider, useProfile } from "../context/ProfileContext";
 import { SettingsProvider } from "../context/SettingsProvider";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { I18Provider } from "../context/I18Provider";
@@ -29,12 +29,11 @@ export const NotificationInitializer: React.FC<{
   return <>{children}</>;
 };
 
-
-const AppWrapperInner: React.FC<{
+const AppWrapperSettingsInner: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
   const { effectiveTheme } = useTheme();
-  
+
   return (
     <ConfigProvider
       theme={{
@@ -45,11 +44,11 @@ const AppWrapperInner: React.FC<{
       }}
       componentSize="middle"
     >
-        <App notification={{ maxCount: 1, stack: false }}>
-          <NotificationInitializer>
-            <AppLoader>{children}</AppLoader>
-          </NotificationInitializer>
-        </App>
+      <App notification={{ maxCount: 1, stack: false }}>
+        <NotificationInitializer>
+          <AppLoader>{children}</AppLoader>
+        </NotificationInitializer>
+      </App>
     </ConfigProvider>
   );
 };
@@ -62,7 +61,7 @@ export const AppWrapper: React.FC<{
       <SettingsProvider>
         <I18Provider>
           <ThemeProvider>
-            <AppWrapperInner>{children}</AppWrapperInner>
+            <AppWrapperSettingsInner>{children}</AppWrapperSettingsInner>
           </ThemeProvider>
         </I18Provider>
       </SettingsProvider>

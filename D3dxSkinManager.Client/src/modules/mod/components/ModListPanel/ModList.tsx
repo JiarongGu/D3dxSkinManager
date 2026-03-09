@@ -59,7 +59,7 @@ export const ModList: React.FC<ModListProps> = ({
   const { t } = useTranslation();
   const [displayCount, setDisplayCount] = useState(50);
   const observerTarget = useRef<HTMLDivElement>(null);
-  const { state: profileState } = useProfile();
+  const { selectedProfileId } = useProfile();
   const { openBatchEditScreen } = useMods();
   const menuState = useContextMenu();
   const [contextMenuMod, setContextMenuMod] = useState<ModInfo>();
@@ -139,13 +139,13 @@ export const ModList: React.FC<ModListProps> = ({
 
     if (isMultiSelect) {
       // Batch delete all selected mods using backend batch API
-      if (!profileState.selectedProfile?.id) {
+      if (!selectedProfileId) {
         notification.error(t("errors.noProfileSelected"));
         setDeleteConfirm({ visible: false });
         return;
       }
 
-      const profileId = profileState.selectedProfile.id;
+      const profileId = selectedProfileId;
 
       try {
         const result = await modService.batchDeleteMods(profileId, selectedModShas);
@@ -183,12 +183,12 @@ export const ModList: React.FC<ModListProps> = ({
    * Uses delayed loading to show spinner only if operation takes >100ms.
    */
   const handleDeleteCachedMod = async (mod: ModInfo) => {
-    if (!profileState.selectedProfile?.id) {
+    if (!selectedProfileId) {
       notification.error(t("errors.noProfileSelected"));
       return;
     }
 
-    const profileId = profileState.selectedProfile.id;
+    const profileId = selectedProfileId;
 
     try {
       // Delete the cache
@@ -272,14 +272,14 @@ export const ModList: React.FC<ModListProps> = ({
           icon: <ClearOutlined />,
           disabled: cacheCount === 0,
           onClick: async () => {
-            if (!profileState.selectedProfile?.id) {
+            if (!selectedProfileId) {
               notification.error(t("errors.noProfileSelected"));
               return;
             }
 
             // Filter to only mods with cache (button is disabled when none have cache)
             const shasWithCache = selectedModsWithCache.map(m => m.sha);
-            const profileId = profileState.selectedProfile.id;
+            const profileId = selectedProfileId;
 
             try {
               const result = await modService.batchDeleteCaches(profileId, shasWithCache);

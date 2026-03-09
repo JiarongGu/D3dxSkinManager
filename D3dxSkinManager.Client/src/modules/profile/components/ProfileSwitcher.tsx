@@ -22,7 +22,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   onProfileSwitch
 }) => {
   const { t } = useTranslation();
-  const { state, actions } = useProfile();
+  const { selectedProfile, selectedProfileId, profiles, loading, actions } = useProfile();
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const buttonRef = React.useRef<HTMLButtonElement>(null);
@@ -31,7 +31,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   // No need to call loadProfiles here as it would cause duplicate API calls
 
   const handleProfileSwitch = async (profileId: string) => {
-    if (profileId === state.selectedProfile?.id) {
+    if (profileId === selectedProfileId) {
       return; // Already selected
     }
 
@@ -40,8 +40,8 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
       notification.success(t('profiles.notifications.switched'));
 
       // Notify parent component
-      if (onProfileSwitch && state.selectedProfile) {
-        onProfileSwitch(state.selectedProfile);
+      if (onProfileSwitch && selectedProfile) {
+        onProfileSwitch(selectedProfile);
       }
 
       // NOTE: No manual refresh needed - ModsProvider reactively listens to profile changes
@@ -51,10 +51,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
     }
   };
 
-  const activeProfile = state.selectedProfile;
-
-  // Ensure profiles is an array
-  const profiles = Array.isArray(state.profiles) ? state.profiles : [];
+  const activeProfile = selectedProfile;
 
   const renderProfileAvatar = (profile: Profile) => {
     if (profile.thumbnail) {
@@ -82,7 +79,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
   };
 
   const renderProfileLabel = (profile: Profile) => {
-    const isActive = profile.id === state.selectedProfile?.id;
+    const isActive = profile.id === selectedProfileId;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
         <span>{profile.name}</span>
@@ -126,8 +123,8 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
       <Button
         ref={buttonRef}
         className="profile-switcher-button"
-        loading={state.loading}
-        disabled={state.loading}
+        loading={loading}
+        disabled={loading}
         onClick={() => {
           if (buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();

@@ -13,7 +13,7 @@ interface ProfileSelectorProps {
  * Shows current profile and allows switching
  */
 export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onManageProfiles }) => {
-  const { state, actions } = useProfile();
+  const { selectedProfile, selectedProfileId, profiles, loading, actions } = useProfile();
 
   const handleProfileChange = async (profileId: string) => {
     try {
@@ -23,7 +23,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onManageProfil
     }
   };
 
-  if (state.loading && !state.selectedProfile) {
+  if (loading && !selectedProfile) {
     return <Spin size="small" />;
   }
 
@@ -31,12 +31,12 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onManageProfil
     <Space>
       <UserOutlined className="profile-selector-icon" />
       <Select
-        value={state.selectedProfile?.id}
+        value={selectedProfileId}
         onChange={handleProfileChange}
         className="profile-selector-dropdown"
         size="small"
-        loading={state.loading}
-        options={state.profiles.map(profile => ({
+        loading={loading}
+        options={profiles.map(profile => ({
           label: profile.name,
           value: profile.id
         }))}
