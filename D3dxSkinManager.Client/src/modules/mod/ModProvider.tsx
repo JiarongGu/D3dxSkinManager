@@ -62,8 +62,6 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
         selectedProfileIdRef.current,
       );
       const panelSize = config?.tabs?.mod?.panelSize;
-      const lockedCategories =
-        config?.tabs?.mod?.lockedExpandedCategories || [];
 
       if (panelSize) {
         logger.info(
@@ -87,13 +85,6 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
           "[ModProvider] No panel sizes found in profile config, using defaults",
         );
       }
-
-      // Load locked expanded categories
-      logger.info(
-        "[ModProvider] Loading locked expanded categories:",
-        lockedCategories,
-      );
-      useModsStore.getState().setLockedCategories(lockedCategories);
     } catch (error) {
       logger.error("[ModProvider] Failed to load panel sizes:", error);
     }
@@ -327,8 +318,8 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   // Handle profile changes - reset store and reload data
   useEffect(() => {
     if (selectedProfileId) {
-      // Reset store to clear previous profile's data
-      resetRef.current();
+      // Reset store with new profile (saves old state, restores new state if cached)
+      resetRef.current(selectedProfileId);
 
       // Load profile-specific UI config (panel sizes, locked categories)
       void loadPanelSizes();
@@ -343,7 +334,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       void modOps.refreshMods(selectedProfileId);
     } else {
       // No profile selected - reset to initial state
-      resetRef.current();
+      resetRef.current(undefined);
     }
   }, [selectedProfileId]);
 

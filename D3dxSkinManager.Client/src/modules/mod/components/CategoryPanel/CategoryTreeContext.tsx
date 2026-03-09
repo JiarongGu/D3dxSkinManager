@@ -3,7 +3,7 @@ import type { DataNode } from 'antd/es/tree';
 import type { MenuProps } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { debounce } from 'lodash-es';
+
 import { CategoryInfo } from '../../../../shared/types/category.types';
 import { convertToDataNode } from './TreeNodeConverter';
 import { getCategoryContextMenu } from './CategoryContextMenu';
@@ -11,10 +11,10 @@ import { useCategoryTreeOperations } from './useCategoryTreeOperations';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
 import { ConfirmDialog } from '../../../../shared/components/dialogs/ConfirmDialog';
 import { useModsStore } from '../../store/modsStore';
-import { profileService } from '../../../../shared/services/ipc';
 import { useProfile } from '../../../../shared/context/ProfileContext';
-import './CategoryTreeContext.css';
 import logger from '../../../../shared/utils/logger';
+
+import './CategoryTreeContext.css';
 
 /**
  * Recursively filter tree nodes by search query
@@ -149,6 +149,11 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
 
   // Validate locked categories when tree changes
   React.useEffect(() => {
+    // Skip validation if tree is empty (transition state during profile switching)
+    if (tree.length === 0) {
+      return;
+    }
+
     // Build a map of all category IDs and check if they're parent nodes
     const categoryMap = new Map<string, boolean>(); // id -> isParent
 

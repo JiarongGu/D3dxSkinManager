@@ -11,6 +11,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { current } from 'immer';
 import { ModInfo, ModStatistics } from '../../../shared/types/mod.types';
 import { CategoryInfo } from '../../../shared/types/category.types';
 
@@ -21,6 +22,9 @@ import { CategoryInfo } from '../../../shared/types/category.types';
 export type ModListViewMode = 'category' | 'unclassified' | 'all' | 'loaded';
 
 export interface ModsState {
+  // Profile tracking for state preservation
+  profileId?: string;
+
   // Mod List Panel
   selectedMod: ModInfo | undefined;
   selectedMods: ModInfo[];
@@ -118,16 +122,35 @@ export interface ModsActions {
   closeBatchEditScreen: () => void;
 
   // Global Actions
-  reset: () => void;
+  reset: (newProfileId?: string) => void;
 }
 
 export type ModsStore = ModsState & ModsActions;
+
+// ============================================================================
+// Per-Profile State Cache
+// ============================================================================
+
+interface ProfileUIState {
+  selectedCategory?: CategoryInfo;
+  selectedMod?: ModInfo;
+  expandedKeys: React.Key[];
+  lockedCategories: string[];
+  searchQuery: string;
+  viewMode: ModListViewMode;
+}
+
+// Cache UI state per profile for seamless switching between profiles
+const profileStateCache = new Map<string, ProfileUIState>();
 
 // ============================================================================
 // Initial State
 // ============================================================================
 
 const initialState: ModsState = {
+  // Profile tracking
+  profileId: undefined,
+
   // Mod List Panel
   selectedMod: undefined,
   selectedMods: [],
@@ -386,12 +409,37 @@ export const useModsStore = create<ModsStore>()(
       // Global Actions
       // ============================================================
 
-      reset: () =>
+      reset: (newProfileId?: string) =>
         set((state) => {
-          // Full reset to initial state when switching profiles
-          // Each profile has its own category tree, so don't preserve category selection
-          // Panel sizes and locked categories are loaded from profile config after reset
+          // Step 1: Save current profile's UI state before resetting
+          // Use current() to extract plain values from Immer draft proxies
+          if (state.profileId) {
+            profileStateCache.set(state.profileId, {
+              selectedCategory: state.selectedCategory ? current(state.selectedCategory) : undefined,
+              selectedMod: state.selectedMod ? current(state.selectedMod) : undefined,
+              expandedKeys: current(state.expandedKeys),
+              lockedCategories: current(state.lockedCategories),
+              searchQuery: state.searchQuery,
+              viewMode: state.viewMode,
+            });
+          }
+
+          // Step 2: Reset to initial state
           Object.assign(state, initialState);
+
+          // Step 3: Set new profile ID
+          state.profileId = newProfileId;
+
+          // Step 4: Restore cached UI state for new profile if available
+          if (newProfileId && profileStateCache.has(newProfileId)) {
+            const cached = profileStateCache.get(newProfileId)!;
+            state.selectedCategory = cached.selectedCategory;
+            state.selectedMod = cached.selectedMod;
+            state.expandedKeys = cached.expandedKeys;
+            state.lockedCategories = cached.lockedCategories;
+            state.searchQuery = cached.searchQuery;
+            state.viewMode = cached.viewMode;
+          }
         }),
     }))
 );
