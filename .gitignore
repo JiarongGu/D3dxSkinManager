@@ -5,6 +5,7 @@ obj/
 *.suo
 *.cache
 *.dll
+!D3dxSkinManager/libs/**/*.dll
 *.exe
 *.pdb
 *.log
