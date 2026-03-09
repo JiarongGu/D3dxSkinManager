@@ -5,7 +5,6 @@
 Easy-to-use desktop application for organizing, loading, and managing your game mods with a beautiful interface.
 
 [![Latest Release](https://img.shields.io/github/v/release/JiarongGu/D3dxSkinManager?label=Download)](https://github.com/JiarongGu/D3dxSkinManager/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/JiarongGu/D3dxSkinManager/total)](https://github.com/JiarongGu/D3dxSkinManager/releases)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/download/dotnet/10.0)
 [![React](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)

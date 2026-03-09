@@ -622,7 +622,7 @@ const { theme, effectiveTheme, setTheme } = useTheme();
 ### Run in Development
 
 **"How do I run in development?"**
-- **Documentation:** `docs/QUICKSTART.md`
+- **Documentation:** See root `README.md` for setup and `docs/core/DEVELOPMENT.md` for details
 
 **Backend:**
 ```bash
@@ -721,18 +721,6 @@ wc -l docs/CHANGELOG.md
 ```bash
 wc -l docs/KEYWORDS_INDEX.md
 ```
-
----
-
-### Archiving Old Docs
-
-**"When should I archive documentation?"**
-- **Location:** `docs/archive/YYYY-MM-DD-topic/`
-- **Criteria:**
-  - Outdated session documents
-  - Superseded by newer docs
-  - Historical reference only
-- **Keep:** Migration history, refactoring summaries
 
 ---
 

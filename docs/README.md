@@ -23,7 +23,6 @@ docs/
 ├── AI_GUIDE.md                    ⭐ START HERE (AI assistants)
 ├── KEYWORDS_INDEX.md              ⭐ Component lookup
 ├── CHANGELOG.md                   ⭐ Complete change history
-├── QUICKSTART.md                  User guide
 │
 ├── ai-assistant/                  🤖 AI workflows & guidelines
 │   ├── GUIDELINES.md              Coding patterns & best practices
@@ -133,10 +132,10 @@ docs/
 ✅ UI Complete (14 phases, 40+ components)
 ✅ Frontend: ~470 kB bundle (Vite build)
 ✅ Backend: .NET 10 + WebView2
-✅ Technology Stack: React 19.2.4 + TypeScript 5.9.3 + Ant Design 6.3.0
+✅ Technology Stack: React 19 + TypeScript 5.9 + Vite 7 + Ant Design 6
 ✅ i18n: Complete bilingual support (EN/CN, 507 keys each)
 ✅ Operation Notifications: Real-time progress tracking with IProgressReporter
-✅ Docs: Complete & organized (85 files, well-structured)
+✅ Docs: Complete & organized (well-structured)
 📊 Feature Parity: ~70% vs Python v1.6.3
 
 ---
@@ -164,4 +163,4 @@ docs/
 
 ---
 
-*Updated: 2026-02-21*
+*Updated: 2026-03-09*

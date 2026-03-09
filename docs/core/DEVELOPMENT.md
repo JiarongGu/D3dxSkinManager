@@ -10,10 +10,10 @@
 | Component | Technology | Version |
 |-----------|------------|---------|
 | Backend | .NET/C# | 10.0 |
-| Frontend | React + TypeScript | 18.x + 4.9 |
+| Frontend | React + TypeScript | 19 + 5.9 |
 | Desktop | WinForms + WebView2 | Latest |
 | Database | SQLite + EF Core | Latest |
-| Build | Vite | 5.x |
+| Build | Vite | 7.x |
 
 ---
 
