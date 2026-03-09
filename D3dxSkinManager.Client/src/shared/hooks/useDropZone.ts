@@ -6,9 +6,6 @@ import { debounce } from 'lodash-es';
 import './useDropZone.css';
 import logger from '../utils/logger';
 
-/**
- * Drop zone file drop data from backend
- */
 export interface DropZoneFileDropData {
   zoneId: string;
   files: string[];
@@ -16,163 +13,43 @@ export interface DropZoneFileDropData {
 }
 
 /**
- * Check if element is occluded by another element with higher z-index
- */
-const isElementOccluded = (elem: HTMLElement): boolean => {
-  const rect = elem.getBoundingClientRect();
-
-  // Check multiple points across the element to be thorough
-  const testPoints = [
-    { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }, // center
-    { x: rect.left + 10, y: rect.top + 10 }, // top-left
-    { x: rect.right - 10, y: rect.top + 10 }, // top-right
-    { x: rect.left + 10, y: rect.bottom - 10 }, // bottom-left
-    { x: rect.right - 10, y: rect.bottom - 10 }, // bottom-right
-  ];
-
-  // If any test point is occluded, consider the element occluded
-  for (const point of testPoints) {
-    const topElement = document.elementFromPoint(point.x, point.y);
-
-    // If the top element is our element OR a descendant of it, it's NOT occluded
-    // This allows child elements (like mod list items) to exist without being considered occlusion
-    if (topElement && (topElement === elem || elem.contains(topElement))) {
-      continue; // This point is not occluded
-    }
-
-    // If we get here, the top element is NOT our element or a child
-    // This means something else is on top - the drop zone IS occluded
-    if (topElement) {
-      return true;
-    }
-  }
-
-  return false;
-};
-
-/**
- * Hook to create a WinForms drop zone overlay that syncs with a web element
+ * Creates a WinForms drop zone overlay that syncs with a web element
  *
- * NEW SIMPLIFIED LOGIC:
- * 1. Frontend sends dropzone size/location to backend (updates on resize, scroll, etc.)
- * 2. Frontend checks if zone is covered by other HTML elements (sends occlusion state to backend)
- * 3. Backend tracks mouse position (inside/outside zone area)
- * 4. Backend activates zone with new simplified rules:
- *    - Overlay ALWAYS visible when mouse is outside (no occlusion check needed)
- *    - When mouse enters: Check if there's a file drop event AND not occluded
- *      * No file drag → hide overlay
- *      * File drag BUT occluded → hide overlay
- *      * File drag AND not occluded → show overlay
- * 5. Visibility changes are debounced (75ms) to prevent excessive updates
+ * How it works:
+ * - Frontend sets data-drop-zone-id on element and sends bounds to backend
+ * - Backend creates overlay at specified position, tracks mouse/drag state
+ * - Backend uses ExecuteScriptAsync to check DOM occlusion when file drag enters
+ * - Overlay visibility: mouse outside OR file dragging (unless occluded)
  *
  * Features:
  * - Captures real OS file paths (not blob URLs)
- * - Click-through when not dragging (WM_NCHITTEST)
- * - Auto-tracks element position with ResizeObserver + IntersectionObserver
- * - Adds CSS classes for visual feedback: 'use-drop-zone-hover' and 'use-drop-zone-drop' (styles in useDropZone.css)
- *
- * @param options Configuration options
- * @param options.targetRef Ref to the DOM element to track
- * @param options.onDrop Callback when files are dropped with real OS paths
- * @param options.enabled Whether the drop zone is active (default: true)
- * @param options.zoneId Optional custom zone ID (auto-generated if not provided)
- * @param options.classes Optional CSS class names for different states
- * @param options.classes.hover CSS class for hover state (default: 'use-drop-zone-hover')
- * @param options.classes.drop CSS class for drag-over state (default: 'use-drop-zone-drop')
+ * - Auto-syncs position on resize/scroll
+ * - CSS class for visual feedback on drag-over
  */
 export function useDropZone(options: {
   targetRef: React.RefObject<HTMLElement | null>;
   onDrop: (files: string[]) => void;
   enabled?: boolean;
   zoneId?: string;
-  classes?: {
-    hover?: string;
-    drop?: string;
-  };
+  className?: string;
 }) {
-  const { targetRef, onDrop, enabled = true, zoneId: customZoneId, classes } = options;
+  const { targetRef, onDrop, enabled = true, zoneId: customZoneId, className = 'use-drop-zone-drop' } = options;
 
-  // Generate stable zone ID
   const zoneIdRef = useRef(customZoneId || `drop-zone-${uuidv4()}`);
-
-  // Store class names as stable references (they never change)
-  const classesRef = useRef({
-    hover: classes?.hover ?? 'use-drop-zone-hover',
-    drop: classes?.drop ?? 'use-drop-zone-drop'
-  });
-
-  // Store latest callback to avoid re-subscribing
+  const dropClassRef = useRef(className);
   const onDropRef = useRef(onDrop);
+  const isRegisteredRef = useRef(false);
+  const lastBoundsRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  const mouseInsideRef = useRef(false);
+
   useEffect(() => {
     onDropRef.current = onDrop;
   }, [onDrop]);
 
-  // Track if zone is registered
-  const isRegisteredRef = useRef(false);
-
-  // Track last known bounds to avoid redundant updates
-  const lastBoundsRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
-
-  // Track if zone is currently occluded by other elements
-  const isOccludedRef = useRef(false);
-
-  /**
-   * Helper function to check if element is occluded by other HTML elements
-   * Returns true if occluded
-   */
-  const checkOcclusion = useCallback((element: HTMLElement): boolean => {
-    const rect = element.getBoundingClientRect();
-
-    // Element must have size to be visible
-    if (rect.width === 0 || rect.height === 0) {
-      return true; // No size = occluded
-    }
-
-    // Check if element is occluded by another element
-    return isElementOccluded(element);
-  }, []);
-
-  /**
-   * Send occlusion state to backend
-   * Backend will use this to determine zone visibility
-   */
-  const updateOcclusionStateImmediate = useCallback(() => {
-    if (!targetRef.current || !isRegisteredRef.current) return;
-
-    const isCurrentlyOccluded = checkOcclusion(targetRef.current);
-
-    // Only send update if state changed
-    if (isCurrentlyOccluded !== isOccludedRef.current) {
-      isOccludedRef.current = isCurrentlyOccluded;
-
-      logger.verbose(`[useDropZone] Occlusion state changed: ${isCurrentlyOccluded ? 'occluded' : 'visible'}`);
-
-      bridgeService.sendMessage({
-        module: 'DROP_ZONE',
-        type: 'SET_OCCLUSION',
-        payload: {
-          zoneId: zoneIdRef.current,
-          isOccluded: isCurrentlyOccluded
-        }
-      }).catch(err => {
-        logger.error('[useDropZone] Failed to update occlusion state:', err);
-      });
-    }
-  }, [checkOcclusion, targetRef]);
-
-  // Debounce occlusion updates to prevent excessive calls (75ms)
-  const updateOcclusionState = useRef(debounce(updateOcclusionStateImmediate, 75)).current;
-
-  /**
-   * Function to update zone bounds
-   */
   const updateZoneBoundsImmediate = useCallback(() => {
     if (!targetRef.current) return;
 
-    const element = targetRef.current;
-    const rect = element.getBoundingClientRect();
-
-    // Calculate new bounds
+    const rect = targetRef.current.getBoundingClientRect();
     const bounds = {
       zoneId: zoneIdRef.current,
       x: Math.round(rect.left),
@@ -181,7 +58,6 @@ export function useDropZone(options: {
       height: Math.round(rect.height)
     };
 
-    // Check if bounds changed
     const boundsChanged =
       !isRegisteredRef.current ||
       bounds.x !== lastBoundsRef.current.x ||
@@ -190,7 +66,6 @@ export function useDropZone(options: {
       bounds.height !== lastBoundsRef.current.height;
 
     if (!isRegisteredRef.current) {
-      // Register new zone
       lastBoundsRef.current = bounds;
       logger.debug(`[useDropZone] Registering zone: ${zoneIdRef.current}`);
       bridgeService.sendMessage({
@@ -199,13 +74,10 @@ export function useDropZone(options: {
         payload: bounds
       }).then(() => {
         isRegisteredRef.current = true;
-        // Send initial occlusion state after registration
-        updateOcclusionState();
       }).catch(err => {
         logger.error('[useDropZone] Failed to register zone:', err);
       });
     } else if (boundsChanged) {
-      // Update existing zone bounds
       lastBoundsRef.current = bounds;
       logger.verbose(`[useDropZone] Updating zone bounds: ${zoneIdRef.current}`);
       bridgeService.sendMessage({
@@ -216,167 +88,131 @@ export function useDropZone(options: {
         logger.error('[useDropZone] Failed to update zone:', err);
       });
     }
+  }, [targetRef]);
 
-    // Always check occlusion state after bounds update
-    updateOcclusionState();
-  }, [updateOcclusionState, targetRef]);
-
-  // Debounce bounds updates to prevent excessive calls during resize/scroll (100ms)
   const updateZoneBounds = useRef(debounce(updateZoneBoundsImmediate, 100)).current;
 
-  // Register/update drop zone when element bounds change
+  // Track element position and register/update zone
   useEffect(() => {
-    // If disabled or element not in DOM, unregister if needed
-    if (!enabled || !targetRef.current) {
-      return;
-    }
+    if (!enabled || !targetRef.current) return;
 
     const element = targetRef.current;
 
-    // Initial registration
+    element.setAttribute('data-drop-zone-id', zoneIdRef.current);
     updateZoneBounds();
 
-    // Use ResizeObserver to detect element size changes
-    const resizeObserver = new ResizeObserver(() => {
-      updateZoneBounds();
+    // Track mouse globally to detect when it leaves zone bounds (debounced for performance)
+    const handleGlobalMouseMoveImmediate = (e: MouseEvent) => {
+      const rect = element.getBoundingClientRect();
+      const isInside =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+
+      // Only send SHOW when transitioning from inside to outside
+      if (mouseInsideRef.current && !isInside) {
+        mouseInsideRef.current = false;
+        bridgeService.sendMessage({
+          module: 'DROP_ZONE',
+          type: 'SHOW',
+          payload: { zoneId: zoneIdRef.current }
+        }).catch(err => {
+          logger.error('[useDropZone] Failed to send SHOW:', err);
+        });
+      } else if (!mouseInsideRef.current && isInside) {
+        mouseInsideRef.current = true;
+      }
+    };
+
+    const handleGlobalMouseMove = debounce(handleGlobalMouseMoveImmediate, 100);
+
+    // Show overlay when document loses focus (mousemove stops firing)
+    const handleDocumentBlur = () => {
+      mouseInsideRef.current = false;
+      bridgeService.sendMessage({
+        module: 'DROP_ZONE',
+        type: 'SHOW',
+        payload: { zoneId: zoneIdRef.current }
+      }).catch(err => {
+        logger.error('[useDropZone] Failed to send SHOW on blur:', err);
+      });
+    };
+
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('blur', handleDocumentBlur);
+
+    const resizeObserver = new ResizeObserver(() => updateZoneBounds());
+    const intersectionObserver = new IntersectionObserver(() => updateZoneBounds(), {
+      threshold: [0, 0.1, 0.5, 0.9, 1.0]
     });
+
     resizeObserver.observe(element);
-
-    // Use IntersectionObserver to detect element visibility/position changes
-    const intersectionObserver = new IntersectionObserver(() => {
-      updateZoneBounds();
-    }, {
-      threshold: [0, 0.1, 0.5, 0.9, 1.0] // Multiple thresholds for better detection
-    });
     intersectionObserver.observe(element);
-
-    // Update on scroll (element position changes)
-    const handleScroll = () => {
-      updateZoneBounds();
-    };
-    window.addEventListener('scroll', handleScroll, true); // Use capture to catch all scrolls
-
-    // Update on window resize (element may reflow)
-    const handleResize = () => {
-      updateZoneBounds();
-    };
-    window.addEventListener('resize', handleResize);
-
-    // Use MutationObserver to detect when overlays (modals, dialogs, slide-in screens) are added/removed
-    const mutationObserver = new MutationObserver(() => {
-      // When DOM changes (like modals opening/closing), check occlusion state
-      updateOcclusionState();
-    });
-
-    // Observe the entire document body for added/removed overlays
-    mutationObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style'] // Watch for visibility/z-index changes
-    });
+    window.addEventListener('scroll', updateZoneBounds, true);
+    window.addEventListener('resize', updateZoneBounds);
 
     return () => {
-      updateZoneBounds.cancel(); // Cancel any pending debounced calls
-      updateOcclusionState.cancel();
+      updateZoneBounds.cancel();
+      handleGlobalMouseMove.cancel();
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
-      mutationObserver.disconnect();
-      window.removeEventListener('scroll', handleScroll, true);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', updateZoneBounds, true);
+      window.removeEventListener('resize', updateZoneBounds);
+      window.removeEventListener('blur', handleDocumentBlur);
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      element.removeAttribute('data-drop-zone-id');
     };
-  }, [enabled, targetRef, updateZoneBounds, updateOcclusionState]);
+  }, [enabled, targetRef, updateZoneBounds]);
 
-  // Subscribe to backend drag/drop events for visual styling
+  // Handle drag enter/leave for visual feedback
   useEffect(() => {
-    if (!enabled || !targetRef.current) {
-      return;
-    }
+    if (!enabled || !targetRef.current) return;
 
     const element = targetRef.current;
 
-    // Subscribe to backend drag enter/leave/drop notifications
-    const unsubscribeDragEnter = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.DRAG_ENTER, (event) => {
-      if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
-      element.classList.add(classesRef.current.drop);
-    });
+    const handleDragEnter = (event: any) => {
+      if (event?.payload?.zoneId === zoneIdRef.current) {
+        element.classList.add(dropClassRef.current);
+      }
+    };
 
-    const unsubscribeDragLeave = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.DRAG_LEAVE, (event) => {
-      if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
-      element.classList.remove(classesRef.current.drop);
-    });
+    const handleDragLeave = (event: any) => {
+      if (event?.payload?.zoneId === zoneIdRef.current) {
+        element.classList.remove(dropClassRef.current);
+      }
+    };
+
+    const unsubscribeDragEnter = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.DRAG_ENTER, handleDragEnter);
+    const unsubscribeDragLeave = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.DRAG_LEAVE, handleDragLeave);
 
     return () => {
       unsubscribeDragEnter();
       unsubscribeDragLeave();
-      // Clean up class on unmount
-      element.classList.remove(classesRef.current.drop);
+      element.classList.remove(dropClassRef.current);
     };
   }, [enabled, targetRef]);
 
-  // Subscribe to mouse enter/leave events from overlay to trigger hover state
+  // Handle file drops
   useEffect(() => {
-    if (!enabled || !targetRef.current) {
-      return;
-    }
-
-    const element = targetRef.current;
-
-    const unsubscribeMouseEnter = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.MOUSE_ENTER, (event) => {
-      if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
-      element.classList.add(classesRef.current.hover);
-    });
-
-    const unsubscribeMouseLeave = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.MOUSE_LEAVE, (event) => {
-      if (!event?.payload || !('zoneId' in event.payload) || event.payload.zoneId !== zoneIdRef.current) return;
-      element.classList.remove(classesRef.current.hover);
-    });
-
-    return () => {
-      unsubscribeMouseEnter();
-      unsubscribeMouseLeave();
-      // Clean up hover class on unmount
-      element.classList.remove(classesRef.current.hover);
-    };
-  }, [enabled, targetRef]);
-
-  // Subscribe to drop events
-  useEffect(() => {
-    const unsubscribe = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.FILE_DROP, (event) => {
-      if (!event) {
-        return;
-      }
+    const handleFileDrop = (event: any) => {
+      if (!event) return;
 
       const data = event.payload as DropZoneFileDropData;
+      if (!data?.zoneId || data.zoneId !== zoneIdRef.current) return;
 
-      if (!data) {
-        logger.error('[useDropZone] Event payload is undefined:', event);
-        return;
-      }
-
-      if (!data.zoneId) {
-        logger.error('[useDropZone] Event payload missing zoneId:', data);
-        return;
-      }
-
-      // Only handle drops for our zone
-      if (data.zoneId !== zoneIdRef.current) {
-        return;
-      }
-
-      // Remove drag-over styling
       if (targetRef.current) {
-        targetRef.current.classList.remove(classesRef.current.drop);
+        targetRef.current.classList.remove(dropClassRef.current);
       }
 
-      // Call the drop handler
       onDropRef.current(data.files);
-    });
+    };
 
+    const unsubscribe = eventBus.subscribe(Module.DROP_ZONE, DropZoneEventType.FILE_DROP, handleFileDrop);
     return () => unsubscribe();
   }, [targetRef]);
 
-  // Unregister zone on unmount
+  // Unregister on unmount
   useEffect(() => {
     return () => {
       if (isRegisteredRef.current) {

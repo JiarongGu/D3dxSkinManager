@@ -178,6 +178,7 @@
     "mods.edit.shaHashTooltip": "SHA标识符 (只读)",
     "mods.edit.authorPlaceholder": "模组作者名称",
     "mods.edit.categoryPlaceholder": "例如: 角色、武器",
+    "mods.edit.categoryTooltip": "留空表示未分类",
     "mods.edit.checkRequiredFields": "请检查所有必填字段",
     "mods.edit.descriptionPlaceholder": "输入模组描述...",
     "mods.edit.descriptionTooltip": "模组的详细描述或说明",

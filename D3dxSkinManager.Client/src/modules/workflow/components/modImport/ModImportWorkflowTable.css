@@ -20,7 +20,7 @@
 
 .mod-import-workflow-table .ant-table-thead > tr > th {
   background: var(--color-table-header-bg);
-  border-bottom: 2px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-border-secondary);
   font-weight: 600;
   font-size: 14px;
   color: var(--color-text-base);

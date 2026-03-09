@@ -199,6 +199,7 @@
     "mods.edit.shaHashTooltip": "Unique identifier (read-only)",
     "mods.edit.authorPlaceholder": "Mod author name",
     "mods.edit.categoryPlaceholder": "e.g., Character, Weapon",
+    "mods.edit.categoryTooltip": "Leave empty for Unclassified",
     "mods.edit.checkRequiredFields": "Please check all required fields",
     "mods.edit.descriptionPlaceholder": "Enter mod description...",
     "mods.edit.descriptionTooltip": "Detailed description or explanation of the mod",

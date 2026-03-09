@@ -56,8 +56,6 @@ export enum DropZoneEventType {
   DRAG_ENTER = "DRAG_ENTER",
   DRAG_LEAVE = "DRAG_LEAVE",
   FILE_DROP = "FILE_DROP",
-  MOUSE_ENTER = "MOUSE_ENTER",
-  MOUSE_LEAVE = "MOUSE_LEAVE",
 }
 
 // Workflow event types
@@ -163,8 +161,6 @@ export interface EventPayloadMap {
     [DropZoneEventType.DRAG_ENTER]: { zoneId: string };
     [DropZoneEventType.DRAG_LEAVE]: { zoneId: string };
     [DropZoneEventType.FILE_DROP]: { zoneId: string; files: string[] };
-    [DropZoneEventType.MOUSE_ENTER]: { zoneId: string };
-    [DropZoneEventType.MOUSE_LEAVE]: { zoneId: string };
   };
 
   // Workflow events

@@ -123,6 +123,7 @@
   border: 2px solid var(--color-primary) !important;
   box-shadow: 0 0 8px rgba(24, 144, 255, 0.4);
   border-radius: 4px;
+  overflow: hidden !important;
 }
 
 /* Dark theme - match CompactUpload dark background */

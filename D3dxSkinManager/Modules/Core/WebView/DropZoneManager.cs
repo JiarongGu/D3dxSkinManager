@@ -31,13 +31,44 @@ public class DropZoneManager : IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _ipcHandler = ipcHandler;
 
+        // Show all overlays when form loses/gains focus to ensure correct state
+        _parentForm.Deactivate += OnFormDeactivate;
+        _parentForm.Activated += OnFormActivated;
+
         _logger.Info("DropZoneManager initialized (overlays created on registration)", "DropZone");
     }
 
     public void Dispose()
     {
+        if (_parentForm != null)
+        {
+            _parentForm.Deactivate -= OnFormDeactivate;
+            _parentForm.Activated -= OnFormActivated;
+        }
         DestroyAllOverlays();
         _logger.Info("DropZoneManager disposed", "DropZone");
+    }
+
+    private void OnFormDeactivate(object? sender, EventArgs e)
+    {
+        // Form lost focus - mark all overlays as inactive (keeps them visible for drag-drop from other apps)
+        foreach (var overlay in _activeOverlays.Values)
+        {
+            overlay.SetFormActive(false);
+        }
+        _logger.Debug("Form deactivated - all overlays set to inactive mode", "DropZone");
+    }
+
+    private void OnFormActivated(object? sender, EventArgs e)
+    {
+        // Form regained focus - resume normal behavior (frontend controls overlay visibility)
+        foreach (var overlay in _activeOverlays.Values)
+        {
+            overlay.SetFormActive(true);
+            // Also show overlays as safety reset
+            overlay.OnFrontendMouseLeave();
+        }
+        _logger.Debug("Form activated - overlays resume normal mode", "DropZone");
     }
 
     #endregion
@@ -64,9 +95,7 @@ public class DropZoneManager : IDisposable
                 _webView,
                 (files, pos) => NotifyFileDrop(zoneId, files, pos),
                 (id) => NotifyDragEnter(id),
-                (id) => NotifyDragLeave(id),
-                (id) => NotifyMouseEnter(id),
-                (id) => NotifyMouseLeave(id)
+                (id) => NotifyDragLeave(id)
             );
 
             // Convert WebView coordinates to Form coordinates
@@ -79,7 +108,6 @@ public class DropZoneManager : IDisposable
             overlay.SetBounds(formPos.X, formPos.Y, width, height);
             _parentForm.Controls.Add(overlay);
             overlay.BringToFront();
-            overlay.Visible = true;
 
             _activeOverlays[zoneId] = overlay;
             _logger.Info($"✓ Overlay created successfully: {zoneId}, Visible={overlay.Visible}, Bounds=({overlay.Left},{overlay.Top},{overlay.Width}x{overlay.Height})", "DropZone");
@@ -145,15 +173,11 @@ public class DropZoneManager : IDisposable
         RegisterZone(zoneId, x, y, width, height);
     }
 
-    /// <summary>
-    /// Set occlusion state for a zone (called from frontend)
-    /// Frontend checks if zone is covered by other HTML elements
-    /// </summary>
-    public void SetZoneOcclusion(string zoneId, bool isOccluded)
+    public void NotifyMouseLeave(string zoneId)
     {
         if (_activeOverlays.TryGetValue(zoneId, out var overlay))
         {
-            overlay.SetOccluded(isOccluded);
+            overlay.OnFrontendMouseLeave();
         }
     }
 
@@ -175,16 +199,6 @@ public class DropZoneManager : IDisposable
     private void NotifyDragLeave(string zoneId)
     {
         _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.DRAG_LEAVE, new { zoneId });
-    }
-
-    private void NotifyMouseEnter(string zoneId)
-    {
-        _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.MOUSE_ENTER, new { zoneId });
-    }
-
-    private void NotifyMouseLeave(string zoneId)
-    {
-        _ipcHandler?.SendNotification(ModuleNames.DROP_ZONE, DropZoneEvents.MOUSE_LEAVE, new { zoneId });
     }
 
     private void NotifyFileDrop(string zoneId, string[] files, Point position)

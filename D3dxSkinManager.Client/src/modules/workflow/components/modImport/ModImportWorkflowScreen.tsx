@@ -181,9 +181,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
         handleError(error);
       }
     },
-    classes: {
-      drop: 'mod-import-workflow-screen-drop-active'
-    }
+    className: 'mod-import-workflow-screen-drop-active'
   });
 
   const handleImportFolder = async () => {

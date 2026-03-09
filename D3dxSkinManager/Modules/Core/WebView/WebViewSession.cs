@@ -116,18 +116,17 @@ namespace D3dxSkinManager.Modules.Core.WebView
                     return new { success = true };
                 });
 
-                routes.Route("SET_OCCLUSION", message =>
-                {
-                    var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                    var isOccluded = message.Payload?.GetProperty("isOccluded").GetBoolean() ?? false;
-                    DropZone.SetZoneOcclusion(zoneId, isOccluded);
-                    return new { success = true };
-                });
-
                 routes.Route("UNREGISTER", message =>
                 {
                     var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
                     DropZone.UnregisterZone(zoneId);
+                    return new { success = true };
+                });
+
+                routes.Route("SHOW", message =>
+                {
+                    var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
+                    DropZone.NotifyMouseLeave(zoneId);
                     return new { success = true };
                 });
             });

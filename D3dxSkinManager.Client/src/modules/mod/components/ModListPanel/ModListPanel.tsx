@@ -87,9 +87,7 @@ export const ModListPanel: React.FC = () => {
                 handleError(error);
       }
     },
-    classes: {
-      drop: 'mod-list-panel-drop-active'
-    }
+    className: 'mod-list-panel-drop-active'
   });
 
   // Compute filtered mods based on search and Category
