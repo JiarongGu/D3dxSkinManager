@@ -60,11 +60,11 @@ public class TabSettings
 public class ModTabSettings
 {
     /// <summary>
-    /// Panel sizes as percentages (e.g., "30 35" means CategoryPanel=20%, ModListPanel=35%, Preview=45%)
+    /// Panel sizes as percentages (e.g., "20 35" means CategoryPanel=20%, ModListPanel=35%, Preview=45%)
     /// Format: "categoryWidth modListWidth" (both in percentage, preview takes remaining space)
-    /// Default: "30 35" (CategoryPanel=30%, ModListPanel=35%, Preview=35%)
+    /// Default: "20 35" (CategoryPanel=20%, ModListPanel=35%, Preview=45%)
     /// </summary>
-    public string PanelSize { get; set; } = "30 35";
+    public string PanelSize { get; set; } = "20 35";
 }
 
 /// <summary>

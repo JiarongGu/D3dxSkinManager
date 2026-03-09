@@ -55,6 +55,9 @@ export function useResizablePanels(options: UseResizablePanelsOptions = {}) {
 
   // Calculate adjusted sizes to ensure minimum widths for panels
   const sizes = useMemo(() => {
+    // Return undefined if sizes haven't been loaded yet
+    if (!storedSizes) return undefined;
+
     if (!containerWidth) return storedSizes;
 
     const minCategoryWidthPercent = (minCategoryWidth / containerWidth) * 100;
@@ -110,6 +113,9 @@ export function useResizablePanels(options: UseResizablePanelsOptions = {}) {
 
   // Start resizing
   const startResize = useCallback((panel: 'category' | 'modList', event: React.MouseEvent) => {
+    // Don't allow resizing if sizes haven't been loaded yet
+    if (!sizes) return;
+
     event.preventDefault();
     setIsResizing(panel);
     startXRef.current = event.clientX;

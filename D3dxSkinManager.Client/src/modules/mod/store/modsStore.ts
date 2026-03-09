@@ -60,7 +60,7 @@ export interface ModsState {
     categoryWidth: number; // percentage
     modListWidth: number; // percentage
     previewWidth: number; // percentage (calculated)
-  };
+  } | undefined;
 
   // Import Workflow Screen
   importWorkflowScreenVisible: boolean;
@@ -138,6 +138,11 @@ interface ProfileUIState {
   lockedCategories: string[];
   searchQuery: string;
   viewMode: ModListViewMode;
+  panelSizes?: {
+    categoryWidth: number;
+    modListWidth: number;
+    previewWidth: number;
+  };
 }
 
 // Cache UI state per profile for seamless switching between profiles
@@ -181,12 +186,8 @@ const initialState: ModsState = {
   modToEdit: undefined,
   availableTags: [],
 
-  // Panel Sizes
-  panelSizes: {
-    categoryWidth: 20,
-    modListWidth: 35,
-    previewWidth: 45,
-  },
+  // Panel Sizes (undefined until loaded from backend)
+  panelSizes: undefined,
 
   // Import Workflow Screen
   importWorkflowScreenVisible: false,
@@ -421,6 +422,7 @@ export const useModsStore = create<ModsStore>()(
               lockedCategories: current(state.lockedCategories),
               searchQuery: state.searchQuery,
               viewMode: state.viewMode,
+              panelSizes: state.panelSizes ? current(state.panelSizes) : undefined,
             });
           }
 
@@ -439,6 +441,7 @@ export const useModsStore = create<ModsStore>()(
             state.lockedCategories = cached.lockedCategories;
             state.searchQuery = cached.searchQuery;
             state.viewMode = cached.viewMode;
+            state.panelSizes = cached.panelSizes;
           }
         }),
     }))

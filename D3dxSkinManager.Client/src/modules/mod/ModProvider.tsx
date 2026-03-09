@@ -22,6 +22,12 @@ interface ModsProviderProps {
   children: React.ReactNode;
 }
 
+const defaultTabSize = {
+  categoryWidth: 20,
+  modListWidth: 35,
+  previewWidth: 45,
+};
+
 /**
  * ModsProvider - manages mods module lifecycle
  *
@@ -79,14 +85,20 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
           setPanelSizesRef.current(sizes);
         } else {
           logger.warn("[ModProvider] Invalid panel size format:", panelSize);
+          // Set default sizes on invalid format
+          setPanelSizesRef.current(Object.assign({}, defaultTabSize));
         }
       } else {
         logger.info(
           "[ModProvider] No panel sizes found in profile config, using defaults",
         );
+        // Set default sizes when no config exists
+        setPanelSizesRef.current(Object.assign({}, defaultTabSize));
       }
     } catch (error) {
       logger.error("[ModProvider] Failed to load panel sizes:", error);
+      // Set default sizes on error
+      setPanelSizesRef.current(Object.assign({}, defaultTabSize));
     }
   }, []);
 
@@ -321,8 +333,11 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       // Reset store with new profile (saves old state, restores new state if cached)
       resetRef.current(selectedProfileId);
 
-      // Load profile-specific UI config (panel sizes, locked categories)
-      void loadPanelSizes();
+      // Load profile-specific UI config (panel sizes) only if not cached
+      const { panelSizes } = useModsStore.getState();
+      if (!panelSizes) {
+        void loadPanelSizes();
+      }
 
       // Load data for the new profile
       void categoryOps.loadCategoryTree(selectedProfileId);

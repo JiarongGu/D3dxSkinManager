@@ -1,4 +1,5 @@
 ﻿import React, { useEffect } from "react";
+import { Spin } from "antd";
 
 import { ModPreviewPanel } from "./ModPreviewPanel";
 import { CategoryPanel } from "./CategoryPanel";
@@ -10,8 +11,8 @@ import { useMods } from "../hooks/useMods";
 import { useResizablePanels } from "../hooks/useResizablePanels";
 import { useSlideInScreen } from "../../../shared/hooks/useSlideInScreen";
 import { ModImportWorkflowScreen } from "../../workflow/components";
-import { useTranslation } from 'react-i18next';
-import './ModHierarchicalView.css';
+import { useTranslation } from "react-i18next";
+import "./ModHierarchicalView.css";
 
 /**
  * ModHierarchicalView - Main mods management view
@@ -26,7 +27,9 @@ export const ModHierarchicalView: React.FC = () => {
   const { t } = useTranslation();
 
   // Only subscribe to what THIS component uses for its coordination logic
-  const importWorkflowScreenVisible = useModsStore(s => s.importWorkflowScreenVisible);
+  const importWorkflowScreenVisible = useModsStore(
+    (s) => s.importWorkflowScreenVisible,
+  );
 
   // Operations for coordination
   const { closeImportWorkflowScreen } = useMods();
@@ -37,21 +40,36 @@ export const ModHierarchicalView: React.FC = () => {
   // Mod Imports Slide-in Screen
   useSlideInScreen({
     visible: importWorkflowScreenVisible,
-    title: t('modManagement.title.modImports'),
+    title: t("modManagement.title.modImports"),
     content: <ModImportWorkflowScreen />,
-    width: '85%',
+    width: "85%",
     onClose: closeImportWorkflowScreen,
   });
 
   // Add/remove body class during resize for global cursor
   useEffect(() => {
     if (isResizing) {
-      document.body.classList.add('resizing');
+      document.body.classList.add("resizing");
     } else {
-      document.body.classList.remove('resizing');
+      document.body.classList.remove("resizing");
     }
-    return () => document.body.classList.remove('resizing');
+    return () => document.body.classList.remove("resizing");
   }, [isResizing]);
+
+  // Show loading spinner while panel sizes are being loaded
+  if (!sizes) {
+    return (
+      <Spin
+        size="large"
+        className="mod-hierarchical-view-container"
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center"
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -63,8 +81,8 @@ export const ModHierarchicalView: React.FC = () => {
 
         {/* Resize handle between category and mod list */}
         <ResizeHandle
-          onMouseDown={(e) => startResize('category', e)}
-          isResizing={isResizing === 'category'}
+          onMouseDown={(e) => startResize("category", e)}
+          isResizing={isResizing === "category"}
         />
 
         {/* Mods List - subscribes to its own state inside */}
@@ -74,12 +92,15 @@ export const ModHierarchicalView: React.FC = () => {
 
         {/* Resize handle between mod list and preview */}
         <ResizeHandle
-          onMouseDown={(e) => startResize('modList', e)}
-          isResizing={isResizing === 'modList'}
+          onMouseDown={(e) => startResize("modList", e)}
+          isResizing={isResizing === "modList"}
         />
 
         {/* Preview - subscribes to selectedMod inside */}
-        <div style={{ width: `${sizes.previewWidth}%` }} className="mod-hierarchical-view-preview">
+        <div
+          style={{ width: `${sizes.previewWidth}%` }}
+          className="mod-hierarchical-view-preview"
+        >
           <ModPreviewPanel />
         </div>
       </div>
