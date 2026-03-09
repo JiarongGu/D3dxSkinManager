@@ -11,8 +11,8 @@ public static class TempFileConstants
 
     /// <summary>
     /// Extension for mod import folder compression temp files.
-    /// Format: "{guid}.mic" (7z file with .mic extension)
-    /// Location: {ProfilePath}/temp/{guid}.mic
+    /// Format: "{workflowId}.mic" (7z file with .mic extension)
+    /// Location: {ProfilePath}/temp/{workflowId}.mic
     /// Used by: ModImportWorkflowHandler (folder import compression step)
     /// Cleanup: Workflow module handles cleanup on cancellation/completion
     /// </summary>
@@ -42,11 +42,11 @@ public static class TempFileConstants
     // ==================== Helper Methods ====================
 
     /// <summary>
-    /// Create a mod import compress temp file name from GUID.
+    /// Create a mod import compress temp file name from workflow ID.
     /// </summary>
-    /// <param name="guid">Unique identifier</param>
-    /// <returns>Filename: "{guid}.mic"</returns>
-    public static string GetModImportCompressTempName(Guid guid) => $"{guid}{MOD_IMPORT_COMPRESS_EXT}";
+    /// <param name="workflowId">Workflow unique identifier</param>
+    /// <returns>Filename: "{workflowId}.mic"</returns>
+    public static string GetModImportCompressTempName(string workflowId) => $"{workflowId}{MOD_IMPORT_COMPRESS_EXT}";
 
     /// <summary>
     /// Create a preview reorder temp file name with extension.

@@ -813,8 +813,16 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         // Load compression settings from profile configuration
         var (format, level) = await GetCompressionSettingsAsync();
 
-        // Create temp archive in profile's temp directory
-        var tempPath = Path.Combine(_profilePathService.TempDirectory, TempFileConstants.GetModImportCompressTempName(Guid.NewGuid()));
+        // Create temp archive in profile's temp directory using workflow ID (not random GUID)
+        // This makes debugging easier and prevents race conditions
+        var tempPath = Path.Combine(_profilePathService.TempDirectory, TempFileConstants.GetModImportCompressTempName(workflow.Id));
+
+        // CRITICAL: Set TempArchivePath BEFORE starting compression to prevent race conditions
+        // Progress callbacks fire-and-forget save context, so TempArchivePath must be set first
+        // Otherwise, progress updates may overwrite the path after compression completes
+        context.TempArchivePath = tempPath;
+        workflow.Context = JsonHelper.Serialize(context);
+        await _workflowRepository.UpdateAsync(workflow);
 
         try
         {
@@ -882,9 +890,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
             _logger.Info($"Created temp archive: {tempPath}");
 
-            // Store temp path in context immediately after compression
-            // This ensures cleanup works even if we get cancelled during SHA calculation
-            context.TempArchivePath = tempPath;
+            // Update progress to 90% (compression complete, starting SHA calculation)
+            // Note: TempArchivePath was already set BEFORE compression started (line 823)
+            // to prevent race conditions with progress callback updates
             context.Progress = 90;
             workflow.Context = JsonHelper.Serialize(context);
             await _workflowRepository.UpdateAsync(workflow);
@@ -924,7 +932,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         }
 
         // Update context - compression done, SHA verified, wait for user confirmation
-        // Note: TempArchivePath already set at line 724 after compression
+        // Note: TempArchivePath was already set before compression started (line 823)
         context.Progress = 100; // Compression complete, only confirmation step left
 
         workflow.Context = JsonHelper.Serialize(context);
