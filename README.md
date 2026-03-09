@@ -2,7 +2,28 @@
 
 A modern desktop application for managing 3DMigoto game mods. Built with **.NET 10 + WebView2** backend and **React 19 + TypeScript** frontend.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue) ![.NET](https://img.shields.io/badge/.NET-10.0-purple) ![React](https://img.shields.io/badge/React-19-61DAFB)
+[![Latest Release](https://img.shields.io/github/v/release/JiarongGu/D3dxSkinManager?label=Latest%20Release)](https://github.com/JiarongGu/D3dxSkinManager/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/JiarongGu/D3dxSkinManager/total?label=Downloads)](https://github.com/JiarongGu/D3dxSkinManager/releases)
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![React](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
+[![License](https://img.shields.io/github/license/JiarongGu/D3dxSkinManager)](LICENSE)
+
+---
+
+## Download
+
+**Latest Release:** [Download D3dxSkinManager](https://github.com/JiarongGu/D3dxSkinManager/releases/latest) (Windows x64)
+
+**Requirements:**
+- Windows 10/11 (x64)
+- .NET 10 Runtime (automatically installed by launcher)
+- ~14 MB disk space
+
+**Installation:**
+1. Download `D3dxSkinManager-vX.Y.Z-win-x64.zip` from [Releases](https://github.com/JiarongGu/D3dxSkinManager/releases)
+2. Extract to any folder
+3. Run `D3dxSkinManager Launcher.exe`
+4. Done! The launcher auto-installs .NET 10 if needed
 
 ---
 
@@ -22,10 +43,18 @@ D3dxSkinManager is a desktop application for organizing and managing game mods t
 
 ## Quick Links
 
-- **🤖 AI Guide**: [docs/AI_GUIDE.md](docs/AI_GUIDE.md) - Primary reference for AI assistants ⭐
-- **🔍 Keywords Index**: [docs/KEYWORDS_INDEX.md](docs/KEYWORDS_INDEX.md) - Fast file lookup
-- **📚 Documentation**: [docs/](docs/) - Complete documentation
-- **📝 Changelog**: [docs/CHANGELOG.md](docs/CHANGELOG.md) - What's new
+### For Users
+- **📦 [Download Latest Release](https://github.com/JiarongGu/D3dxSkinManager/releases/latest)** - Get the app
+- **📝 [Changelog](CHANGELOG.md)** - What's new in each version
+- **🐛 [Report Issues](https://github.com/JiarongGu/D3dxSkinManager/issues)** - Bug reports & feature requests
+- **📚 [Documentation](docs/)** - User guides and feature documentation
+
+### For Developers
+- **🤖 [AI Guide](docs/AI_GUIDE.md)** - Primary reference for AI assistants ⭐
+- **🔍 [Keywords Index](docs/KEYWORDS_INDEX.md)** - Fast file lookup
+- **🚀 [Release Guide](RELEASING.md)** - How to create releases
+- **🧪 [Testing Releases](docs/how-to/TESTING_RELEASES.md)** - Test locally and on GitHub before publishing
+- **📝 [Technical Changelog](docs/CHANGELOG.md)** - Detailed technical changes
 
 ---
 
@@ -289,4 +318,10 @@ Contributions are welcome! Please see [docs/core/DEVELOPMENT.md](docs/core/DEVEL
 
 **For AI Code Generation**: Start with [AI_GUIDE.md](docs/AI_GUIDE.md) → [KEYWORDS_INDEX.md](docs/KEYWORDS_INDEX.md)
 
-*Last updated: 2026-03-02*
+> **⚠️ Documentation Status**: This project is under active development. Some documentation may be outdated. The most reliable references are:
+> - [AI_GUIDE.md](docs/AI_GUIDE.md) - Actively maintained for code generation
+> - [CHANGELOG.md](CHANGELOG.md) - User-facing changes (up to date)
+> - [docs/CHANGELOG.md](docs/CHANGELOG.md) - Technical changes (up to date)
+> - Source code - Always the source of truth
+
+*Last updated: 2026-03-09*

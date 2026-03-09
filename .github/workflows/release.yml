@@ -1,0 +1,295 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.2) - leave empty to use current version'
+        required: false
+        type: string
+      bump:
+        description: 'Version bump type (overrides version input)'
+        required: false
+        type: choice
+        default: 'none'
+        options:
+          - none
+          - minor
+          - major
+      create_tag:
+        description: 'Create git tag'
+        required: false
+        type: boolean
+        default: true
+      draft:
+        description: 'Create as draft (recommended for review before publishing)'
+        required: false
+        type: boolean
+        default: true
+      prerelease:
+        description: 'Mark as pre-release (beta/alpha)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write  # Required for creating releases and tags
+
+jobs:
+  build-and-release:
+    name: Build and Create Release
+    runs-on: windows-latest
+
+    steps:
+      # ========================================
+      # Step 1: Checkout code
+      # ========================================
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog
+
+      # ========================================
+      # Step 2: Setup .NET
+      # ========================================
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # ========================================
+      # Step 3: Setup Node.js for frontend build
+      # ========================================
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: D3dxSkinManager.Client/package-lock.json
+
+      # ========================================
+      # Step 4: Setup MSBuild (for C++ launcher)
+      # ========================================
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      # ========================================
+      # Step 5: Determine version
+      # ========================================
+      - name: Determine version
+        id: version
+        shell: pwsh
+        run: |
+          # Read current version from .csproj
+          [xml]$csproj = Get-Content "D3dxSkinManager\D3dxSkinManager.csproj"
+          $currentVersion = $csproj.Project.PropertyGroup.Version | Where-Object { $_ -ne $null } | Select-Object -First 1
+
+          Write-Host "Current version: $currentVersion"
+
+          # Determine final version
+          $finalVersion = $currentVersion
+
+          if ("${{ inputs.bump }}" -ne "none") {
+            # Bump version (using MAJOR.MINOR format)
+            if ($currentVersion -match '^(\d+)\.(\d+)$') {
+              $major = [int]$matches[1]
+              $minor = [int]$matches[2]
+
+              switch ("${{ inputs.bump }}") {
+                "major" {
+                  $major++
+                  $minor = 0
+                }
+                "minor" {
+                  $minor++
+                }
+              }
+
+              $finalVersion = "$major.$minor"
+              Write-Host "Bumped ${{ inputs.bump }}: $currentVersion → $finalVersion"
+            } else {
+              Write-Host "::error::Invalid version format: $currentVersion (expected: X.Y)"
+              exit 1
+            }
+          } elseif ("${{ inputs.version }}" -ne "") {
+            # Manual version override
+            $finalVersion = "${{ inputs.version }}"
+            Write-Host "Manual version: $finalVersion"
+          }
+
+          # Update .csproj if version changed
+          if ($finalVersion -ne $currentVersion) {
+            Write-Host "Updating .csproj to version $finalVersion"
+
+            $propertyGroup = $csproj.Project.PropertyGroup | Where-Object { $_.Version -ne $null } | Select-Object -First 1
+            $propertyGroup.Version = $finalVersion
+            $propertyGroup.AssemblyVersion = "$finalVersion.0"
+            $propertyGroup.FileVersion = "$finalVersion.0"
+            $propertyGroup.InformationalVersion = $finalVersion
+
+            $csproj.Save("$PWD\D3dxSkinManager\D3dxSkinManager.csproj")
+
+            # Commit version change
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add D3dxSkinManager/D3dxSkinManager.csproj
+            git commit -m "chore: bump version to $finalVersion"
+            git push
+          }
+
+          # Set outputs
+          "version=$finalVersion" >> $env:GITHUB_OUTPUT
+          "tag=v$finalVersion" >> $env:GITHUB_OUTPUT
+
+          Write-Host "Final version: $finalVersion"
+          Write-Host "Tag: v$finalVersion"
+
+      # ========================================
+      # Step 6: Build frontend
+      # ========================================
+      - name: Build React frontend
+        working-directory: D3dxSkinManager.Client
+        run: |
+          npm ci
+          npm run build
+
+      # ========================================
+      # Step 7: Copy frontend to backend
+      # ========================================
+      - name: Copy frontend to wwwroot
+        shell: pwsh
+        run: |
+          $wwwrootPath = "D3dxSkinManager\wwwroot"
+          if (Test-Path $wwwrootPath) {
+            Remove-Item -Recurse -Force $wwwrootPath
+          }
+          New-Item -ItemType Directory -Path $wwwrootPath -Force | Out-Null
+          Copy-Item -Path "D3dxSkinManager.Client\build\*" -Destination $wwwrootPath -Recurse -Force
+
+      # ========================================
+      # Step 8: Build .NET application (x64)
+      # ========================================
+      - name: Publish .NET application (win-x64)
+        working-directory: D3dxSkinManager
+        run: |
+          dotnet publish -c Release -r win-x64 --no-self-contained /p:PublishReadyToRun=true /p:PublishTrimmed=false
+
+      # ========================================
+      # Step 9: Build C++ Launcher (x64)
+      # ========================================
+      - name: Build C++ Launcher (x64)
+        working-directory: D3dxSkinManager.Launcher
+        run: |
+          msbuild Launcher.vcxproj /p:Configuration=Release /p:Platform=x64 /t:Rebuild /m /v:minimal /nologo
+
+      # ========================================
+      # Step 10: Package release (x64)
+      # ========================================
+      - name: Package release artifacts
+        shell: pwsh
+        run: |
+          $publishDir = "D3dxSkinManager\bin\Release\net10.0-windows\win-x64\publish"
+          $releaseDir = "release\win-x64"
+
+          # Create release directory
+          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+
+          # Copy C++ launcher
+          Copy-Item "D3dxSkinManager.Launcher\bin\x64\Release\D3dxSkinManager Launcher.exe" "$releaseDir\D3dxSkinManager Launcher.exe"
+
+          # Copy main application
+          Copy-Item "$publishDir\D3dxSkinManager.exe" "$releaseDir\D3dxSkinManager.exe"
+
+          # Copy language files
+          if (Test-Path "$publishDir\data\languages") {
+            Copy-Item "$publishDir\data" "$releaseDir\" -Recurse -Force
+          }
+
+          # Copy native libraries
+          if (Test-Path "$publishDir\libs") {
+            Copy-Item "$publishDir\libs" "$releaseDir\" -Recurse -Force
+          }
+
+          # Create zip
+          Compress-Archive -Path "$releaseDir\*" -DestinationPath "release\D3dxSkinManager-v${{ steps.version.outputs.version }}-win-x64.zip" -Force
+
+      # ========================================
+      # Step 11: Extract release notes from CHANGELOG
+      # ========================================
+      - name: Extract release notes
+        id: release_notes
+        shell: pwsh
+        run: |
+          $changelogPath = "CHANGELOG.md"  # Root changelog for user-facing releases
+          $releaseNotes = ""
+
+          if (Test-Path $changelogPath) {
+            $content = Get-Content $changelogPath -Raw
+
+            # Extract Unreleased section
+            if ($content -match '(?s)## \[Unreleased\](.*?)(?=##\s|\z)') {
+              $releaseNotes = $matches[1].Trim()
+            } else {
+              # Fallback: try to extract the first release section (e.g., [1.0.0])
+              if ($content -match '(?s)## \[\d+\.\d+\.\d+\](.*?)(?=##\s|\z)') {
+                $releaseNotes = $matches[1].Trim()
+              } else {
+                # Last resort: extract first 100 lines
+                $lines = Get-Content $changelogPath | Select-Object -First 100
+                $releaseNotes = ($lines -join "`n")
+              }
+            }
+          } else {
+            $releaseNotes = "No changelog available."
+          }
+
+          # Save to file for GitHub release
+          $releaseNotes | Out-File -FilePath "release-notes.md" -Encoding UTF8
+
+      # ========================================
+      # Step 12: Create git tag (if requested)
+      # ========================================
+      - name: Create git tag
+        if: inputs.create_tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      # ========================================
+      # Step 13: Create GitHub Release
+      # ========================================
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: D3dxSkinManager ${{ steps.version.outputs.tag }}
+          body_path: release-notes.md
+          draft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          files: |
+            release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ========================================
+      # Step 14: Summary
+      # ========================================
+      - name: Summary
+        shell: pwsh
+        run: |
+          Write-Host "========================================" -ForegroundColor Cyan
+          Write-Host "  Release Created Successfully!" -ForegroundColor Cyan
+          Write-Host "========================================" -ForegroundColor Cyan
+          Write-Host ""
+          Write-Host "Version: ${{ steps.version.outputs.version }}" -ForegroundColor Yellow
+          Write-Host "Tag: ${{ steps.version.outputs.tag }}" -ForegroundColor Yellow
+          Write-Host "Status: ${{ inputs.draft == true && 'Draft (review and publish manually)' || 'Published' }}" -ForegroundColor Yellow
+          Write-Host ""
+          Write-Host "View release at:" -ForegroundColor Cyan
+          Write-Host "https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }}" -ForegroundColor White
+          Write-Host ""
+          if ("${{ inputs.draft }}" -eq "true") {
+            Write-Host "⚠️  DRAFT RELEASE - Review and click 'Publish release' when ready!" -ForegroundColor Yellow
+          }
