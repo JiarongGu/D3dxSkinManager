@@ -419,10 +419,11 @@ public class ModOperationQueueTests
         }
 
         // Should complete within reasonable time without deadlock
-        var completedTask = await Task.WhenAny(Task.WhenAll(tasks), Task.Delay(TimeSpan.FromSeconds(10)));
+        var allTasksCompleted = Task.WhenAll(tasks);
+        var completedTask = await Task.WhenAny(allTasksCompleted, Task.Delay(TimeSpan.FromSeconds(10)));
 
         // Assert - All operations should complete without deadlock
-        Assert.Same(Task.WhenAll(tasks), completedTask);
+        Assert.Same(allTasksCompleted, completedTask);
         Assert.True(tasks.All(t => t.IsCompleted), "All operations should complete");
     }
 

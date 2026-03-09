@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using FluentAssertions;
 using Xunit;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Mod.Mappers;
@@ -131,7 +132,9 @@ public class ModMapperTests
         entity.Description.Should().Be("Test Description");
         entity.Type.Should().Be("7z");
         entity.Grading.Should().Be("G");
-        entity.Tags.Should().Be("[\"action\",\"rpg\"]");
+        // Tags JSON may be formatted, so deserialize to compare
+        var deserializedTags = JsonHelper.Deserialize<List<string>>(entity.Tags);
+        deserializedTags.Should().BeEquivalentTo(new List<string> { "action", "rpg" });
         entity.DisablePreview.Should().BeTrue();
         entity.CreatedAt.Should().Be(new DateTime(2024, 1, 1));
         entity.UpdatedAt.Should().Be(new DateTime(2024, 1, 2));
@@ -187,7 +190,9 @@ public class ModMapperTests
         entity.Name.Should().Be("New Name");
         entity.Author.Should().Be("New Author");
         entity.Description.Should().Be("New Description");
-        entity.Tags.Should().Be("[\"new-tag\"]");
+        // Tags JSON may be formatted, so deserialize to compare
+        var updatedTags = JsonHelper.Deserialize<List<string>>(entity.Tags);
+        updatedTags.Should().BeEquivalentTo(new List<string> { "new-tag" });
         entity.DisablePreview.Should().BeTrue();
     }
 
@@ -260,7 +265,10 @@ public class ModMapperTests
         roundTripEntity.Description.Should().Be(originalEntity.Description);
         roundTripEntity.Type.Should().Be(originalEntity.Type);
         roundTripEntity.Grading.Should().Be(originalEntity.Grading);
-        roundTripEntity.Tags.Should().Be(originalEntity.Tags);
+        // Compare tags by deserializing (JSON formatting may differ)
+        var originalTags = JsonHelper.Deserialize<List<string>>(originalEntity.Tags);
+        var roundTripTags = JsonHelper.Deserialize<List<string>>(roundTripEntity.Tags);
+        roundTripTags.Should().BeEquivalentTo(originalTags);
         roundTripEntity.DisablePreview.Should().Be(originalEntity.DisablePreview);
     }
 }

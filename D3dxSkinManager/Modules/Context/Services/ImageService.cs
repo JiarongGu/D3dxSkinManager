@@ -39,8 +39,16 @@ public class ImageService : IImageService
     private readonly IHashHelper _hashHelper;
     private readonly ICustomSchemeHandler _schemeHandler;
     private readonly IProfileEventBus _eventBus;
+    private readonly IFileHelper _fileHelper;
 
-    public ImageService(IProfilePathService profilePaths, IPathHelper pathHelper, ILogHelper logger, IHashHelper hashHelper, ICustomSchemeHandler schemeHandler, IProfileEventBus eventBus)
+    public ImageService(
+        IProfilePathService profilePaths,
+        IPathHelper pathHelper,
+        ILogHelper logger,
+        IHashHelper hashHelper,
+        ICustomSchemeHandler schemeHandler,
+        IProfileEventBus eventBus,
+        IFileHelper fileHelper)
     {
         _profilePaths = profilePaths;
         _pathHelper = pathHelper;
@@ -48,6 +56,7 @@ public class ImageService : IImageService
         _hashHelper = hashHelper;
         _schemeHandler = schemeHandler;
         _eventBus = eventBus;
+        _fileHelper = fileHelper;
     }
 
     /// <summary>
@@ -60,11 +69,11 @@ public class ImageService : IImageService
         var previewPaths = new List<string>();
         var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
 
-        if (!Directory.Exists(modPreviewFolder))
+        if (!_fileHelper.DirectoryExists(modPreviewFolder))
             return await Task.FromResult(previewPaths).ConfigureAwait(false);
 
         // Find all preview files in the mod's folder (preview1.png, preview2.png, etc.)
-        var previewFiles = Directory.GetFiles(modPreviewFolder, "preview*.*")
+        var previewFiles = _fileHelper.EnumerateFiles(modPreviewFolder, "preview*.*")
             .Where(f => ImageConstants.IsImageExtension(Path.GetExtension(f)))
             .OrderBy(f => f) // Natural sort by filename
             .Select(f => _pathHelper.ToRelativePath(f) ?? f) // Convert to relative paths for portability
@@ -702,7 +711,7 @@ public class ImageService : IImageService
         // Convert to absolute path for file operations
         var absolutePreviewPath = _pathHelper.ToAbsolutePath(previewPath) ?? previewPath;
 
-        if (!File.Exists(absolutePreviewPath))
+        if (!_fileHelper.FileExists(absolutePreviewPath))
         {
             throw new FileNotFoundException($"Preview image not found: {previewPath}");
         }
@@ -710,7 +719,7 @@ public class ImageService : IImageService
         // Get all previews before deletion to determine renumbering
         var allPreviews = await GetPreviewPathsAsync(sha).ConfigureAwait(false);
         var deletedIndex = allPreviews.FindIndex(p =>
-            Path.GetFullPath(_pathHelper.ToAbsolutePath(p) ?? p).Equals(absolutePreviewPath, StringComparison.OrdinalIgnoreCase));
+            Path.GetFullPath(_pathHelper.ToAbsolutePath(p) ?? p).Equals(Path.GetFullPath(absolutePreviewPath), StringComparison.OrdinalIgnoreCase));
 
         if (deletedIndex == -1)
         {
@@ -718,7 +727,7 @@ public class ImageService : IImageService
         }
 
         // Delete the target file
-        File.Delete(absolutePreviewPath);
+        _fileHelper.DeleteFile(absolutePreviewPath);
         _logger.Info($"Deleted preview image: {absolutePreviewPath}", "ImageService");
 
         // Renumber all previews after the deleted one to fill the gap
@@ -735,9 +744,9 @@ public class ImageService : IImageService
             var newFileName = $"preview{i}{currentExtension}";
             var newPath = Path.Combine(previewDirectory, newFileName);
 
-            if (File.Exists(currentPath))
+            if (_fileHelper.FileExists(currentPath))
             {
-                File.Move(currentPath, newPath);
+                _fileHelper.MoveFile(currentPath, newPath, overwrite: false);
                 _logger.Info($"Renumbered: {Path.GetFileName(currentPath)} → {newFileName}", "ImageService");
 
                 // Invalidate both old and new paths in cache

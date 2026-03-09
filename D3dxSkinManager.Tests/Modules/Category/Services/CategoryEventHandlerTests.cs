@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
@@ -16,7 +17,7 @@ public class CategoryEventHandlerTests : IDisposable
     private readonly Mock<IProfileEventBus> _mockEventBus;
     private readonly Mock<ILogHelper> _mockLogger;
     private readonly CategoryEventHandler _handler;
-    private Func<EventMessage, Task>? _registeredHandler;
+    private readonly Dictionary<string, Func<EventMessage, Task>> _registeredHandlers = new();
 
     public CategoryEventHandlerTests()
     {
@@ -24,7 +25,7 @@ public class CategoryEventHandlerTests : IDisposable
         _mockEventBus = new Mock<IProfileEventBus>();
         _mockLogger = new Mock<ILogHelper>();
 
-        // Capture the registered handler
+        // Capture all registered handlers by event type
         _mockEventBus
             .Setup(x => x.Subscribe(
                 It.IsAny<string>(),
@@ -33,7 +34,7 @@ public class CategoryEventHandlerTests : IDisposable
             .Returns("test-handler-id")
             .Callback<string, string, Func<EventMessage, Task>>((module, type, handler) =>
             {
-                _registeredHandler = handler;
+                _registeredHandlers[type] = handler;
             });
 
         _handler = new CategoryEventHandler(
@@ -82,7 +83,7 @@ public class CategoryEventHandlerTests : IDisposable
     public async Task WhenCategoryUpdatedEventReceived_ShouldInvalidateCache()
     {
         // Arrange
-        _registeredHandler.Should().NotBeNull("Handler should be registered in constructor");
+        _registeredHandlers.Should().ContainKey(ModEvents.CATEGORY_UPDATED, "Handler should be registered in constructor");
         var eventMessage = new EventMessage
         {
             Module = ModuleNames.MOD,
@@ -91,7 +92,7 @@ public class CategoryEventHandlerTests : IDisposable
         };
 
         // Act
-        await _registeredHandler!(eventMessage);
+        await _registeredHandlers[ModEvents.CATEGORY_UPDATED](eventMessage);
 
         // Assert
         _mockCategoryService.Verify(
@@ -105,7 +106,7 @@ public class CategoryEventHandlerTests : IDisposable
     public async Task WhenCategoryUpdatedEventReceived_ShouldLogHandling()
     {
         // Arrange
-        _registeredHandler.Should().NotBeNull("Handler should be registered in constructor");
+        _registeredHandlers.Should().ContainKey(ModEvents.CATEGORY_UPDATED, "Handler should be registered in constructor");
         var eventMessage = new EventMessage
         {
             Module = ModuleNames.MOD,
@@ -114,7 +115,7 @@ public class CategoryEventHandlerTests : IDisposable
         };
 
         // Act
-        await _registeredHandler!(eventMessage);
+        await _registeredHandlers[ModEvents.CATEGORY_UPDATED](eventMessage);
 
         // Assert
         _mockLogger.Verify(
@@ -141,10 +142,12 @@ public class CategoryEventHandlerTests : IDisposable
         _handler.Dispose();
 
         // Assert
+        // The handler subscribes to 3 events (CATEGORY_UPDATED, IMPORTED, DELETED)
+        // So it should unsubscribe 3 times
         _mockEventBus.Verify(
             x => x.Unsubscribe("test-handler-id"),
-            Times.Once,
-            "Should unregister handler on dispose"
+            Times.Exactly(3),
+            "Should unregister all 3 handlers on dispose"
         );
     }
 

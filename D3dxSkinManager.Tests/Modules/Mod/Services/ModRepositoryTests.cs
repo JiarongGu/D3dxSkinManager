@@ -3,41 +3,28 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Mod.Services;
-using D3dxSkinManager.Modules.Context.Services;
-using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Tests.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Mod.Services;
 
 /// <summary>
 /// Integration tests for ModRepository
-/// Tests SQLite database operations using in-memory database
-/// No file system dependencies - each test gets a fresh in-memory database
+/// Tests SQLite database operations using in-memory database with migrations
+/// No file system dependencies - each test gets a fresh database with schema from migrations
 /// NOTE: Repository now works with ModEntity (database layer), not ModInfo (domain layer)
 /// </summary>
-public class ModRepositoryTests
+public class ModRepositoryTests : InMemoryDatabaseTestBase
 {
     private readonly ModRepository _repository;
-    private readonly Mock<IProfilePathService> _mockProfilePathService;
-    private readonly Mock<ILogHelper> _mockLogger;
 
     public ModRepositoryTests()
     {
-        // Use shared in-memory SQLite database - no file system access!
-        // Using URI filename with cache=shared allows multiple connections to share the same in-memory database
-        // This is required because ModRepository opens/closes connections for each operation
-        var dbName = $"testdb_{Guid.NewGuid():N}";
-        _mockProfilePathService = new Mock<IProfilePathService>();
-        _mockProfilePathService.Setup(p => p.ProfileDatabasePath).Returns($"file:{dbName}?mode=memory&cache=shared");
-        _mockProfilePathService.Setup(p => p.CacheModsDirectory).Returns("C:\\cache\\mods");
-
-        _mockLogger = new Mock<ILogHelper>();
-
-        _repository = new ModRepository(_mockProfilePathService.Object, _mockLogger.Object);
+        MockProfilePathService.Setup(p => p.CacheModsDirectory).Returns("C:\\cache\\mods");
+        _repository = new ModRepository(MockProfilePathService.Object, MockLogger.Object);
     }
 
     [Fact]

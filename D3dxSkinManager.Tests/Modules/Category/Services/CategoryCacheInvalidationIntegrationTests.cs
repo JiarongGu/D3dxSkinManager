@@ -158,10 +158,12 @@ public class CategoryCacheInvalidationIntegrationTests : IDisposable
         await Task.Delay(200);
 
         // Assert - Each update should invalidate cache and emit event
+        // InvalidateTreeCache removes 2 keys (tree cache and category map cache)
+        // So 3 updates = 6 Remove operations
         _mockCache.Verify(
             x => x.Remove(It.IsAny<string>()),
-            Times.Exactly(3),
-            "Cache should be invalidated for each mod category update"
+            Times.Exactly(6),
+            "Cache should be invalidated for each mod category update (3 updates × 2 keys = 6)"
         );
 
         _mockEventBus.Verify(

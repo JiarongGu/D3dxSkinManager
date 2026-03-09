@@ -115,7 +115,9 @@ public class CategoryServiceTests
         var categoryId = Guid.NewGuid().ToString();
         var name = "Existing Category";
         var existingCategory = new CategoryInfo { Id = "existing-id", Name = name };
-        _mockRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<CategoryInfo> { existingCategory });
+
+        // Mock GetByNameAsync which is actually called by CreateAsync to check for duplicates
+        _mockRepository.Setup(r => r.GetByNameAsync(name)).ReturnsAsync(existingCategory);
 
         // Act
         var result = await _service.CreateAsync(categoryId, name);
@@ -237,11 +239,16 @@ public class CategoryServiceTests
         // Arrange
         var categoryId = Guid.NewGuid().ToString();
         var thumbnailPath = @"C:\test\thumbnail.png";
-        var relativePath = "thumbnails/thumb.png";
+        var convertedPath = @"C:\data\thumbnails\thumb_abc123.png";
+        var relativePath = "thumbnails/thumb_abc123.png";
         var category = new CategoryInfo { Id = categoryId, Name = "Test" };
 
         _mockRepository.Setup(r => r.GetByIdAsync(categoryId)).ReturnsAsync(category);
-        _mockPathHelper.Setup(p => p.ToRelativePath(thumbnailPath)).Returns(relativePath);
+        _mockPathHelper.Setup(p => p.ToAbsolutePath(thumbnailPath)).Returns(thumbnailPath);
+        _mockHashHelper.Setup(h => h.CalculateFileSHA256Async(thumbnailPath)).ReturnsAsync("abc123");
+        _mockProfilePathService.Setup(p => p.ThumbnailsDirectory).Returns(@"C:\data\thumbnails");
+        _mockImageHelper.Setup(i => i.ConvertToPngAsync(thumbnailPath, @"C:\data\thumbnails", "abc123")).ReturnsAsync(convertedPath);
+        _mockPathHelper.Setup(p => p.ToRelativePath(convertedPath)).Returns(relativePath);
         _mockRepository.Setup(r => r.UpdateAsync(It.IsAny<CategoryInfo>())).ReturnsAsync(true);
 
         // Act

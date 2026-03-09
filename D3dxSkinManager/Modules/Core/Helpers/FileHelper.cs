@@ -13,6 +13,9 @@ public interface IFileHelper
     bool DirectoryExists(string directoryPath);
     Task<bool> DeleteFileAsync(string filePath);
     string[] GetFiles(string path, string searchPattern = "*", SearchOption searchOption = SearchOption.TopDirectoryOnly);
+    void DeleteFile(string filePath);
+    void MoveFile(string sourceFile, string destinationFile, bool overwrite = false);
+    IEnumerable<string> EnumerateFiles(string path, string searchPattern = "*", SearchOption searchOption = SearchOption.TopDirectoryOnly);
 }
 
 /// <summary>
@@ -228,5 +231,50 @@ public class FileHelper : IFileHelper
         {
             Directory.CreateDirectory(path);
         }
+    }
+
+    /// <summary>
+    /// Synchronous delete file - for simple operations where async is not needed
+    /// </summary>
+    public void DeleteFile(string filePath)
+    {
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Synchronous move file - for simple operations where async is not needed
+    /// </summary>
+    public void MoveFile(string sourceFile, string destinationFile, bool overwrite = false)
+    {
+        if (!File.Exists(sourceFile))
+            throw new FileNotFoundException($"Source file not found: {sourceFile}");
+
+        // Create destination directory if it doesn't exist
+        var destDir = Path.GetDirectoryName(destinationFile);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+            Directory.CreateDirectory(destDir);
+
+        // If overwrite and destination exists, delete it first
+        if (overwrite && File.Exists(destinationFile))
+        {
+            File.Delete(destinationFile);
+        }
+
+        // Move file
+        File.Move(sourceFile, destinationFile);
+    }
+
+    /// <summary>
+    /// Enumerate files in a directory - more efficient than GetFiles for large directories
+    /// </summary>
+    public IEnumerable<string> EnumerateFiles(string path, string searchPattern = "*", SearchOption searchOption = SearchOption.TopDirectoryOnly)
+    {
+        if (!Directory.Exists(path))
+            return Enumerable.Empty<string>();
+
+        return Directory.EnumerateFiles(path, searchPattern, searchOption);
     }
 }

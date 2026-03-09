@@ -1,32 +1,22 @@
 using FluentAssertions;
-using Moq;
 using D3dxSkinManager.Modules.Category.Models;
 using D3dxSkinManager.Modules.Category.Services;
-using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Tests.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Category.Services;
 
 /// <summary>
 /// Integration tests for CategoryRepository
-/// Tests SQLite database operations using in-memory database
-/// No file system dependencies - each test gets a fresh in-memory database
+/// Tests SQLite database operations using in-memory database with migrations
+/// No file system dependencies - each test gets a fresh database with schema from migrations
 /// </summary>
-public class CategoryRepositoryTests
+public class CategoryRepositoryTests : InMemoryDatabaseTestBase
 {
     private readonly CategoryRepository _repository;
-    private readonly Mock<IProfilePathService> _mockProfilePathService;
 
     public CategoryRepositoryTests()
     {
-        // Use shared in-memory SQLite database - no file system access!
-        // Using URI filename with cache=shared allows multiple connections to share the same in-memory database
-        // This is required because CategoryRepository opens/closes connections for each operation
-        var dbName = $"testdb_{Guid.NewGuid():N}";
-        _mockProfilePathService = new Mock<IProfilePathService>();
-        // CategoryRepository will create connection string as: Data Source=file:testdb_xxx?mode=memory&cache=shared
-        _mockProfilePathService.Setup(p => p.ProfileDatabasePath).Returns($"file:{dbName}?mode=memory&cache=shared");
-
-        _repository = new CategoryRepository(_mockProfilePathService.Object);
+        _repository = new CategoryRepository(MockProfilePathService.Object);
     }
 
     [Fact]

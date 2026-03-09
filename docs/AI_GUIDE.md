@@ -1,10 +1,17 @@
 # AI Assistant Guide
 
-**Version:** 3.5
-**Last Updated:** 2026-03-09
+**Version:** 3.6
+**Last Updated:** 2026-03-10
 **Critical:** NEVER commit without explicit user approval!
 
-**Recent Additions (v3.5):**
+**Recent Additions (v3.6):**
+- Testing principles section with emphasis on verifying design intent
+- Database schema verification through migrations
+- Reusable mock helpers pattern (MockFileHelper, MockHashHelper)
+- Separation of I/O from business logic for testability
+- InMemoryDatabaseTestBase for integration testing with real migrations
+
+**Previous (v3.5):**
 - Unified error handling with OperationException (Code + Parameters pattern)
 - Single exception type for all operations (backend and frontend)
 - Added `translateErrorMessage()` helper for consistent error translation
@@ -125,7 +132,129 @@ catch (error) {
 - i18n: `errors.{CODE}` pattern for all error translations
 - Display: Use `translateErrorMessage()` for stored error strings
 
-### 4. Data Conventions
+### 4. Testing Principles
+
+**CRITICAL: Always verify design intent before fixing tests!**
+
+```csharp
+// ❌ WRONG: Making tests pass without understanding
+[Fact]
+public void Test_ShouldPass()
+{
+    // Change test to match whatever the code does
+    result.Should().BeWhatever();  // Just make it green
+}
+
+// ✅ CORRECT: Verify design intent first
+// 1. Check database migrations for schema
+// 2. Ensure entity types match database
+// 3. Fix the root cause, not symptoms
+```
+
+**Testing Best Practices:**
+
+1. **Verify Database Schema First**
+   ```csharp
+   // Check migration files to understand nullable/required fields
+   // Location: Modules/Fluent/Migrations/Migration_*.cs
+   .WithColumn("Author").AsText().Nullable()     // Can be null
+   .WithColumn("Name").AsText().NotNullable()    // Cannot be null
+
+   // Entity should match:
+   public string Name { get; set; } = string.Empty;  // Required
+   public string? Author { get; set; }               // Nullable
+   ```
+
+2. **Use In-Memory Database with Migrations**
+   ```csharp
+   // Tests should extend InMemoryDatabaseTestBase
+   // This runs real migrations on in-memory SQLite
+   public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
+   {
+       // Tests real database behavior, not mocks
+   }
+   ```
+
+3. **Create Reusable Mock Helpers**
+   ```csharp
+   // Location: D3dxSkinManager.Tests/Helpers/
+
+   // MockFileHelper - In-memory fake file system
+   var mockFileHelper = new MockFileHelper();
+   mockFileHelper.AddFile("path/to/file.txt", "content");
+
+   // MockHashHelper - Predictable hash generation
+   var mockHashHelper = new MockHashHelper();
+   mockHashHelper.SetFileHash("file.txt", "ABC123");
+   ```
+
+4. **Separate I/O from Business Logic**
+   ```csharp
+   // ❌ WRONG: Direct file I/O in service
+   public class ImageService
+   {
+       public void DeleteImage(string path)
+       {
+           File.Delete(path);  // Untestable
+       }
+   }
+
+   // ✅ CORRECT: Inject file operations
+   public class ImageService
+   {
+       private readonly IFileHelper _fileHelper;
+
+       public ImageService(IFileHelper fileHelper)
+       {
+           _fileHelper = fileHelper;
+       }
+
+       public void DeleteImage(string path)
+       {
+           _fileHelper.DeleteFile(path);  // Testable
+       }
+   }
+   ```
+
+5. **Test Naming Convention**
+   ```csharp
+   [Fact]
+   public async Task MethodName_Scenario_ExpectedBehavior()
+   {
+       // Arrange
+       // Act
+       // Assert
+   }
+
+   // Example:
+   public async Task DeletePreviewAsync_WithMiddlePreview_ShouldRenumberSubsequentPreviews()
+   ```
+
+6. **Mock Setup Best Practices**
+   ```csharp
+   // Use specific setups, not general ones
+   _mockRepository
+       .Setup(x => x.GetByNameAsync(It.IsAny<string>()))
+       .ReturnsAsync((string name) =>
+           name == "existing" ? existingEntity : null);
+
+   // Capture callbacks for event testing
+   Func<EventMessage, Task>? capturedHandler = null;
+   _mockEventBus
+       .Setup(x => x.Subscribe(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Func<EventMessage, Task>>()))
+       .Callback<string, string, Func<EventMessage, Task>>((m, t, h) => capturedHandler = h)
+       .Returns("handler-id");
+   ```
+
+**Testing Checklist:**
+- [ ] Check migrations for database schema
+- [ ] Verify entity types match schema (nullable vs required)
+- [ ] Use InMemoryDatabaseTestBase for integration tests
+- [ ] Create mock helpers for reusable test infrastructure
+- [ ] Separate I/O operations for testability
+- [ ] Fix root causes, not just make tests pass
+
+### 5. Data Conventions
 ```typescript
 // ✅ undefined for missing data
 const [mod, setMod] = useState<ModInfo>();
@@ -134,7 +263,7 @@ const [mod, setMod] = useState<ModInfo>();
 if (!data) return null;
 ```
 
-### 5. i18n Translations
+### 6. i18n Translations
 ```json
 // ✅ All error codes must have translations in both en.json and cn.json
 // Location: D3dxSkinManager/Languages/*.json

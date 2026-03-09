@@ -2,12 +2,9 @@ using System;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
-using Xunit;
 using D3dxSkinManager.Modules.Category;
 using D3dxSkinManager.Modules.Category.Services;
-using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Mod.Services;
-using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
@@ -126,10 +123,12 @@ public class CategoryServiceCacheTests
         Task.Delay(200).Wait();
 
         // Assert
+        // InvalidateTreeCache removes 2 keys (tree cache and category map cache)
+        // So 3 calls = 6 Remove operations
         _mockCache.Verify(
             x => x.Remove(It.IsAny<string>()),
-            Times.Exactly(3),
-            "Should invalidate cache each time it's called"
+            Times.Exactly(6),
+            "Should invalidate both caches (tree and map) each time it's called (3 calls × 2 keys = 6)"
         );
 
         _mockEventBus.Verify(

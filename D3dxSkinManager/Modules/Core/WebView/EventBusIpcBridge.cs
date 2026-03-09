@@ -11,14 +11,14 @@ namespace D3dxSkinManager.Modules.Core.WebView;
 public class EventBusIpcBridge : IDisposable
 {
     private readonly IEventBus _eventBus;
-    private readonly IpcHandler _ipcHandler;
+    private readonly IIpcHandler _ipcHandler;
     private readonly ILogHelper _logger;
     private readonly List<string> _registrationIds = new();
     private bool _disposed;
 
     public EventBusIpcBridge(
         IEventBus eventBus,
-        IpcHandler ipcHandler,
+        IIpcHandler ipcHandler,
         ILogHelper logger)
     {
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));

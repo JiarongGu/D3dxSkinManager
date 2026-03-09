@@ -2,32 +2,25 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Services;
-using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Tests.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Mod.Services;
 
 /// <summary>
 /// Integration tests for TagRepository
-/// Tests SQLite database operations using in-memory database
-/// No file system dependencies - each test gets a fresh in-memory database
+/// Tests SQLite database operations using in-memory database with migrations
+/// No file system dependencies - each test gets a fresh database with schema from migrations
 /// </summary>
-public class TagRepositoryTests
+public class TagRepositoryTests : InMemoryDatabaseTestBase
 {
     private readonly TagRepository _repository;
-    private readonly Mock<IProfilePathService> _mockProfilePathService;
 
     public TagRepositoryTests()
     {
-        // Use shared in-memory SQLite database - no file system access!
-        var dbName = $"testdb_{Guid.NewGuid():N}";
-        _mockProfilePathService = new Mock<IProfilePathService>();
-        _mockProfilePathService.Setup(p => p.ProfileDatabasePath).Returns($"file:{dbName}?mode=memory&cache=shared");
-
-        _repository = new TagRepository(_mockProfilePathService.Object);
+        _repository = new TagRepository(MockProfilePathService.Object);
     }
 
     [Fact]

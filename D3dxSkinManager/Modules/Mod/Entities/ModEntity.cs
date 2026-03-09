@@ -25,14 +25,14 @@ public class ModEntity
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Mod author name
+    /// Mod author name (nullable in database)
     /// </summary>
-    public string Author { get; set; } = string.Empty;
+    public string? Author { get; set; }
 
     /// <summary>
-    /// Mod description
+    /// Mod description (nullable in database)
     /// </summary>
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
     /// <summary>
     /// Mod archive type (default: "7z")
@@ -45,11 +45,11 @@ public class ModEntity
     public string Grading { get; set; } = "G";
 
     /// <summary>
-    /// JSON-serialized array of tag names
+    /// JSON-serialized array of tag names (nullable in database)
     /// Stored as: ["tag1", "tag2", "tag3"]
     /// Property name matches database column "Tags"
     /// </summary>
-    public string Tags { get; set; } = "[]";
+    public string? Tags { get; set; }
 
     /// <summary>
     /// Whether preview images should be disabled for this mod

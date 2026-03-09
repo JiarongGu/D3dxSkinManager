@@ -15,6 +15,25 @@ public static class CategoryMapper
     /// </summary>
     public static CategoryInfo ToDomain(CategoryEntity entity)
     {
+        // Parse metadata with error handling
+        Dictionary<string, object> metadata;
+        if (!string.IsNullOrEmpty(entity.Metadata))
+        {
+            try
+            {
+                metadata = JsonHelper.Deserialize<Dictionary<string, object>>(entity.Metadata) ?? new Dictionary<string, object>();
+            }
+            catch
+            {
+                // Invalid JSON - return empty dictionary for graceful degradation
+                metadata = new Dictionary<string, object>();
+            }
+        }
+        else
+        {
+            metadata = new Dictionary<string, object>();
+        }
+
         var category = new CategoryInfo
         {
             Id = entity.Id,
@@ -23,16 +42,11 @@ public static class CategoryMapper
             Thumbnail = entity.ThumbnailPath,  // Map ThumbnailPath -> Thumbnail
             Priority = entity.Priority,
             Description = entity.Description,
+            Metadata = metadata,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt,
             Children = new List<CategoryInfo>()
         };
-
-        // Deserialize Metadata JSON if present
-        if (!string.IsNullOrEmpty(entity.Metadata))
-        {
-            category.Metadata = JsonHelper.Deserialize<Dictionary<string, object>>(entity.Metadata);
-        }
 
         return category;
     }

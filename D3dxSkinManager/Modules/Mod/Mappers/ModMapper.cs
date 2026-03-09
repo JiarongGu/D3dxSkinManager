@@ -17,6 +17,20 @@ public static class ModMapper
     /// <returns>Domain model with basic properties populated</returns>
     public static ModInfo ToDomain(ModEntity entity)
     {
+        // Parse tags with error handling
+        List<string> tags;
+        try
+        {
+            tags = string.IsNullOrEmpty(entity.Tags)
+                ? new List<string>()
+                : JsonHelper.Deserialize<List<string>>(entity.Tags) ?? new List<string>();
+        }
+        catch
+        {
+            // Invalid JSON or wrong type - return empty list for graceful degradation
+            tags = new List<string>();
+        }
+
         return new ModInfo
         {
             // Core properties from database
@@ -27,7 +41,7 @@ public static class ModMapper
             Description = entity.Description,
             Type = entity.Type,
             Grading = entity.Grading,
-            Tags = JsonHelper.Deserialize<List<string>>(entity.Tags) ?? new List<string>(),
+            Tags = tags,
             DisablePreview = entity.DisablePreview,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt,
@@ -65,7 +79,7 @@ public static class ModMapper
             Description = domainModel.Description,
             Type = domainModel.Type,
             Grading = domainModel.Grading,
-            Tags = JsonHelper.Serialize(domainModel.Tags),
+            Tags = domainModel.Tags == null ? "[]" : JsonHelper.Serialize(domainModel.Tags),
             DisablePreview = domainModel.DisablePreview,
             CreatedAt = domainModel.CreatedAt,
             UpdatedAt = domainModel.UpdatedAt,
@@ -90,7 +104,7 @@ public static class ModMapper
         entity.Description = domainModel.Description;
         entity.Type = domainModel.Type;
         entity.Grading = domainModel.Grading;
-        entity.Tags = JsonHelper.Serialize(domainModel.Tags);
+        entity.Tags = domainModel.Tags == null ? "[]" : JsonHelper.Serialize(domainModel.Tags);
         entity.DisablePreview = domainModel.DisablePreview;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.Metadata = domainModel.Metadata;

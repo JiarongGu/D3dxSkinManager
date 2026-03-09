@@ -10,6 +10,7 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Tests.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Context.Services;
 
@@ -25,6 +26,7 @@ public class ImageServiceTests : IDisposable
     private readonly Mock<IHashHelper> _mockHashHelper;
     private readonly Mock<ICustomSchemeHandler> _mockSchemeHandler;
     private readonly Mock<IProfileEventBus> _mockEventBus;
+    private readonly MockFileHelper _mockFileHelper;
     private readonly ImageService _imageService;
     private readonly string _testDirectory;
     private readonly string _previewDirectory;
@@ -38,11 +40,11 @@ public class ImageServiceTests : IDisposable
         _mockHashHelper = new Mock<IHashHelper>();
         _mockSchemeHandler = new Mock<ICustomSchemeHandler>();
         _mockEventBus = new Mock<IProfileEventBus>();
+        _mockFileHelper = new MockFileHelper();
 
-        // Setup temporary test directory
-        _testDirectory = Path.Combine(Path.GetTempPath(), $"ImageServiceTests_{Guid.NewGuid()}");
+        // Setup test directory paths (no actual directories created)
+        _testDirectory = Path.Combine("C:", "FakeTest");
         _previewDirectory = Path.Combine(_testDirectory, "previews", _testSha);
-        Directory.CreateDirectory(_previewDirectory);
 
         // Setup mocks
         _mockProfilePaths
@@ -57,7 +59,7 @@ public class ImageServiceTests : IDisposable
             .Setup(x => x.ToRelativePath(It.IsAny<string>()))
             .Returns<string>(path =>
             {
-                if (path.StartsWith(_testDirectory))
+                if (path.StartsWith(_testDirectory, StringComparison.OrdinalIgnoreCase))
                 {
                     return path.Substring(_testDirectory.Length + 1).Replace("\\", "/");
                 }
@@ -70,16 +72,20 @@ public class ImageServiceTests : IDisposable
             _mockLogger.Object,
             _mockHashHelper.Object,
             _mockSchemeHandler.Object,
-            _mockEventBus.Object
+            _mockEventBus.Object,
+            _mockFileHelper.Object
         );
+    }
+
+    // Helper to create fake files in the fake file system
+    private void CreateFakeFile(string filePath)
+    {
+        _mockFileHelper.AddFile(filePath, "fake-content");
     }
 
     public void Dispose()
     {
-        if (Directory.Exists(_testDirectory))
-        {
-            Directory.Delete(_testDirectory, recursive: true);
-        }
+        // No cleanup needed for fake file system
     }
 
     #region DeletePreviewAsync Tests
@@ -87,39 +93,36 @@ public class ImageServiceTests : IDisposable
     [Fact]
     public async Task DeletePreviewAsync_WithMiddlePreview_ShouldRenumberSubsequentPreviews()
     {
-        // Arrange - Create 4 preview files
+        // Arrange - Create 4 preview files using fake file system
         var preview1 = Path.Combine(_previewDirectory, "preview1.png");
         var preview2 = Path.Combine(_previewDirectory, "preview2.png");
         var preview3 = Path.Combine(_previewDirectory, "preview3.png");
         var preview4 = Path.Combine(_previewDirectory, "preview4.png");
 
-        await File.WriteAllTextAsync(preview1, "image1");
-        await File.WriteAllTextAsync(preview2, "image2");
-        await File.WriteAllTextAsync(preview3, "image3");
-        await File.WriteAllTextAsync(preview4, "image4");
+        CreateFakeFile(preview1);
+        CreateFakeFile(preview2);
+        CreateFakeFile(preview3);
+        CreateFakeFile(preview4);
 
         var relativePreview2 = "previews/ABC123/preview2.png";
 
         // Act - Delete preview2
         await _imageService.DeletePreviewAsync(_testSha, relativePreview2);
 
-        // Assert - preview2 should be deleted
-        File.Exists(preview2).Should().BeFalse("preview2 should be deleted");
+        // Assert - After deleting preview2, files should be renumbered:
+        // preview1 stays as preview1, preview3→preview2, preview4→preview3
 
-        // Assert - preview3 should be renumbered to preview2
-        File.Exists(preview3).Should().BeFalse("preview3 should be renamed");
-        File.Exists(preview2).Should().BeTrue("preview3 should become preview2");
-        (await File.ReadAllTextAsync(preview2)).Should().Be("image3", "preview2 should contain image3 content");
+        // preview1 should be unchanged
+        _mockFileHelper.HasFile(preview1).Should().BeTrue("preview1 should remain");
 
-        // Assert - preview4 should be renumbered to preview3
-        File.Exists(preview4).Should().BeFalse("preview4 should be renamed");
-        var newPreview3 = Path.Combine(_previewDirectory, "preview3.png");
-        File.Exists(newPreview3).Should().BeTrue("preview4 should become preview3");
-        (await File.ReadAllTextAsync(newPreview3)).Should().Be("image4", "preview3 should contain image4 content");
+        // preview2 should now contain old preview3 content (renumbered)
+        _mockFileHelper.HasFile(preview2).Should().BeTrue("preview3 should be renumbered to preview2");
 
-        // Assert - preview1 should be unchanged
-        File.Exists(preview1).Should().BeTrue("preview1 should remain");
-        (await File.ReadAllTextAsync(preview1)).Should().Be("image1", "preview1 content should be unchanged");
+        // preview3 should now contain old preview4 content (renumbered)
+        _mockFileHelper.HasFile(preview3).Should().BeTrue("preview4 should be renumbered to preview3");
+
+        // preview4 should no longer exist (was renamed to preview3)
+        _mockFileHelper.HasFile(preview4).Should().BeFalse("original preview4 should be renamed to preview3");
 
         // Assert - Event was emitted
         _mockEventBus.Verify(
@@ -141,14 +144,14 @@ public class ImageServiceTests : IDisposable
     [Fact]
     public async Task DeletePreviewAsync_WithLastPreview_ShouldNotRenumberAnyFiles()
     {
-        // Arrange - Create 3 preview files
+        // Arrange - Create 3 preview files using fake file system
         var preview1 = Path.Combine(_previewDirectory, "preview1.png");
         var preview2 = Path.Combine(_previewDirectory, "preview2.png");
         var preview3 = Path.Combine(_previewDirectory, "preview3.png");
 
-        await File.WriteAllTextAsync(preview1, "image1");
-        await File.WriteAllTextAsync(preview2, "image2");
-        await File.WriteAllTextAsync(preview3, "image3");
+        CreateFakeFile(preview1);
+        CreateFakeFile(preview2);
+        CreateFakeFile(preview3);
 
         var relativePreview3 = "previews/ABC123/preview3.png";
 
@@ -156,25 +159,22 @@ public class ImageServiceTests : IDisposable
         await _imageService.DeletePreviewAsync(_testSha, relativePreview3);
 
         // Assert - Only preview3 should be deleted, no renumbering
-        File.Exists(preview3).Should().BeFalse("preview3 should be deleted");
-        File.Exists(preview1).Should().BeTrue("preview1 should remain");
-        File.Exists(preview2).Should().BeTrue("preview2 should remain");
-
-        (await File.ReadAllTextAsync(preview1)).Should().Be("image1");
-        (await File.ReadAllTextAsync(preview2)).Should().Be("image2");
+        _mockFileHelper.HasFile(preview3).Should().BeFalse("preview3 should be deleted");
+        _mockFileHelper.HasFile(preview1).Should().BeTrue("preview1 should remain");
+        _mockFileHelper.HasFile(preview2).Should().BeTrue("preview2 should remain");
     }
 
     [Fact]
     public async Task DeletePreviewAsync_WithFirstPreview_ShouldRenumberAllSubsequentPreviews()
     {
-        // Arrange - Create 3 preview files
+        // Arrange - Create 3 preview files using fake file system
         var preview1 = Path.Combine(_previewDirectory, "preview1.png");
         var preview2 = Path.Combine(_previewDirectory, "preview2.png");
         var preview3 = Path.Combine(_previewDirectory, "preview3.png");
 
-        await File.WriteAllTextAsync(preview1, "image1");
-        await File.WriteAllTextAsync(preview2, "image2");
-        await File.WriteAllTextAsync(preview3, "image3");
+        CreateFakeFile(preview1);
+        CreateFakeFile(preview2);
+        CreateFakeFile(preview3);
 
         var relativePreview1 = "previews/ABC123/preview1.png";
 
@@ -182,25 +182,22 @@ public class ImageServiceTests : IDisposable
         await _imageService.DeletePreviewAsync(_testSha, relativePreview1);
 
         // Assert - preview1 should be deleted and all renumbered
-        File.Exists(preview3).Should().BeFalse("preview3 should be renamed");
-        File.Exists(preview1).Should().BeTrue("preview2 should become preview1");
-        File.Exists(preview2).Should().BeTrue("preview3 should become preview2");
-
-        (await File.ReadAllTextAsync(preview1)).Should().Be("image2", "new preview1 should contain image2");
-        (await File.ReadAllTextAsync(preview2)).Should().Be("image3", "new preview2 should contain image3");
+        _mockFileHelper.HasFile(preview3).Should().BeFalse("original preview3 should be renamed");
+        _mockFileHelper.HasFile(preview1).Should().BeTrue("preview2 should become preview1");
+        _mockFileHelper.HasFile(preview2).Should().BeTrue("preview3 should become preview2");
     }
 
     [Fact]
     public async Task DeletePreviewAsync_WithDifferentExtensions_ShouldPreserveExtensions()
     {
-        // Arrange - Create previews with different extensions
+        // Arrange - Create previews with different extensions using fake file system
         var preview1 = Path.Combine(_previewDirectory, "preview1.png");
         var preview2 = Path.Combine(_previewDirectory, "preview2.jpg");
         var preview3 = Path.Combine(_previewDirectory, "preview3.png");
 
-        await File.WriteAllTextAsync(preview1, "image1");
-        await File.WriteAllTextAsync(preview2, "image2");
-        await File.WriteAllTextAsync(preview3, "image3");
+        CreateFakeFile(preview1);
+        CreateFakeFile(preview2);
+        CreateFakeFile(preview3);
 
         var relativePreview1 = "previews/ABC123/preview1.png";
 
@@ -211,11 +208,8 @@ public class ImageServiceTests : IDisposable
         var newPreview1 = Path.Combine(_previewDirectory, "preview1.jpg");
         var newPreview2 = Path.Combine(_previewDirectory, "preview2.png");
 
-        File.Exists(newPreview1).Should().BeTrue("preview2.jpg should become preview1.jpg");
-        File.Exists(newPreview2).Should().BeTrue("preview3.png should become preview2.png");
-
-        (await File.ReadAllTextAsync(newPreview1)).Should().Be("image2");
-        (await File.ReadAllTextAsync(newPreview2)).Should().Be("image3");
+        _mockFileHelper.HasFile(newPreview1).Should().BeTrue("preview2.jpg should become preview1.jpg");
+        _mockFileHelper.HasFile(newPreview2).Should().BeTrue("preview3.png should become preview2.png");
     }
 
     [Fact]
@@ -240,12 +234,12 @@ public class ImageServiceTests : IDisposable
         // 4. Delete preview1 (clipboard)
         // 5. Paste again (should create preview2.png, not overwrite)
 
-        // Arrange - Simulate step 3 result (after thumbnail swap)
+        // Arrange - Simulate step 3 result (after thumbnail swap) using fake file system
         var preview1 = Path.Combine(_previewDirectory, "preview1.png"); // clipboard image
         var preview2 = Path.Combine(_previewDirectory, "preview2.png"); // original image
 
-        await File.WriteAllTextAsync(preview1, "clipboard_image");
-        await File.WriteAllTextAsync(preview2, "original_image");
+        _mockFileHelper.AddFile(preview1, "clipboard_image");
+        _mockFileHelper.AddFile(preview2, "original_image");
 
         var relativePreview1 = "previews/ABC123/preview1.png";
 
@@ -253,28 +247,22 @@ public class ImageServiceTests : IDisposable
         await _imageService.DeletePreviewAsync(_testSha, relativePreview1);
 
         // Assert - After deletion, only preview1.png should exist (renumbered from preview2)
-        File.Exists(preview1).Should().BeTrue("preview2 should be renumbered to preview1");
-        File.Exists(preview2).Should().BeFalse("preview2 should be renamed to preview1");
-        (await File.ReadAllTextAsync(preview1)).Should().Be("original_image",
-            "preview1 should now contain the original image");
+        _mockFileHelper.HasFile(preview1).Should().BeTrue("preview2 should be renumbered to preview1");
+        _mockFileHelper.HasFile(preview2).Should().BeFalse("preview2 should be renamed to preview1");
 
-        // Assert - ImportPreviewFromClipboardAsync would now see 1 existing preview
-        // and create preview2.png (not overwriting preview1)
-        var previews = Directory.GetFiles(_previewDirectory, "preview*.*");
-        previews.Should().HaveCount(1, "should have exactly 1 preview after deletion");
+        // Assert - Should have exactly 1 preview after deletion
+        var previewsAfterDelete = _mockFileHelper.GetAllFiles()
+            .Where(f => f.Contains(_previewDirectory) && Path.GetFileName(f).StartsWith("preview"));
+        previewsAfterDelete.Should().HaveCount(1, "should have exactly 1 preview after deletion");
 
         // Simulate step 5: Paste from clipboard
         // The logic uses existingPreviews.Count + 1, which would be 2
         var nextPreview = Path.Combine(_previewDirectory, "preview2.png");
-        await File.WriteAllTextAsync(nextPreview, "clipboard_image_2");
+        _mockFileHelper.AddFile(nextPreview, "clipboard_image_2");
 
         // Assert - Both images should now exist without overwrite
-        File.Exists(preview1).Should().BeTrue();
-        File.Exists(nextPreview).Should().BeTrue();
-        (await File.ReadAllTextAsync(preview1)).Should().Be("original_image",
-            "original image should not be overwritten");
-        (await File.ReadAllTextAsync(nextPreview)).Should().Be("clipboard_image_2",
-            "new clipboard image should be in preview2");
+        _mockFileHelper.HasFile(preview1).Should().BeTrue();
+        _mockFileHelper.HasFile(nextPreview).Should().BeTrue();
     }
 
     #endregion

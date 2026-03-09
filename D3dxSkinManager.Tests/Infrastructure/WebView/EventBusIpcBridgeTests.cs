@@ -19,7 +19,7 @@ namespace D3dxSkinManager.Tests.Infrastructure.WebView;
 public class EventBusIpcBridgeTests : IDisposable
 {
     private readonly Mock<IEventBus> _mockEventBus;
-    private readonly Mock<IpcHandler> _mockIpcHandler;
+    private readonly Mock<IIpcHandler> _mockIpcHandler;
     private readonly Mock<ILogHelper> _mockLogger;
     private readonly EventBusIpcBridge _bridge;
     private string _capturedRegistrationId = string.Empty;
@@ -27,7 +27,7 @@ public class EventBusIpcBridgeTests : IDisposable
     public EventBusIpcBridgeTests()
     {
         _mockEventBus = new Mock<IEventBus>();
-        _mockIpcHandler = new Mock<IpcHandler>();
+        _mockIpcHandler = new Mock<IIpcHandler>();
         _mockLogger = new Mock<ILogHelper>();
 
         // Capture registration ID when SubscribeToAll is called
