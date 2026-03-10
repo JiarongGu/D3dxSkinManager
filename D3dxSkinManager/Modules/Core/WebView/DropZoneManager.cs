@@ -61,14 +61,12 @@ public class DropZoneManager : IDisposable
 
     private void OnFormActivated(object? sender, EventArgs e)
     {
-        // Form regained focus - resume normal behavior (frontend controls overlay visibility)
+        // Form regained focus - update overlay visibility based on current mouse position
         foreach (var overlay in _activeOverlays.Values)
         {
             overlay.SetFormActive(true);
-            // Also show overlays as safety reset
-            overlay.OnFrontendMouseLeave();
         }
-        _logger.Debug("Form activated - overlays resume normal mode", "DropZone");
+        _logger.Debug("Form activated - overlays updated based on mouse position", "DropZone");
     }
 
     #endregion
@@ -173,7 +171,7 @@ public class DropZoneManager : IDisposable
         RegisterZone(zoneId, x, y, width, height);
     }
 
-    public void NotifyMouseLeave(string zoneId)
+    public void ShowOverlay(string zoneId)
     {
         if (_activeOverlays.TryGetValue(zoneId, out var overlay))
         {

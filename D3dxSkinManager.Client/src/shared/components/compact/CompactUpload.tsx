@@ -63,6 +63,7 @@ export const CompactUpload: React.FC<CompactUploadProps> = ({
         onDrop(files);
       }
     },
+    className: 'compact-upload-dragging' // Override default with component-specific class
   });
 
   const uploadClassName = `compact-upload compact-upload-${size} ${className}`.trim();

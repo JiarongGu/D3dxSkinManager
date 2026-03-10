@@ -27,7 +27,6 @@ public class DropZoneOverlay : Panel
     private bool _pendingOcclusionCheck = false;
     private bool _isDisposed = false;
     private bool _formIsActive = true; // Track if parent form is active
-    private global::System.Windows.Forms.Timer? _mouseTrackTimer; // Only used when form is inactive
 
     public DropZoneOverlay(
         string zoneId,
@@ -53,6 +52,7 @@ public class DropZoneOverlay : Panel
         DragLeave += OnDragLeave;
         DragOver += OnDragOver;
         MouseEnter += OnMouseEnter;
+        MouseLeave += OnMouseLeave;
 
         // Start visible by default (overlay shows until mouse enters)
         Visible = true;
@@ -61,17 +61,28 @@ public class DropZoneOverlay : Panel
 
     private void OnMouseEnter(object? sender, EventArgs e)
     {
-        // Always hide overlay on mouse enter (for CSS hover effects)
+        _mouseIsInside = true;
+
+        // Only process if overlay is visible (when mouse enters the visible overlay)
+        if (!Visible) return;
+
+        // Hide overlay when mouse enters (allows hover effects on webview elements)
+        // This works even when form is inactive because element mouseenter fires through overlay
         if (!_isDragging)
         {
-            _mouseIsInside = true;
             HideOverlay("mouse entered overlay");
         }
     }
 
+    private void OnMouseLeave(object? sender, EventArgs e)
+    {
+        _mouseIsInside = false;
+        // Don't show overlay on leave - frontend will send SHOW when needed
+    }
+
     /// <summary>
     /// Called by frontend when mouse leaves the HTML element.
-    /// Only works when form is active (frontend events fire).
+    /// Fallback for when native MouseLeave doesn't fire.
     /// </summary>
     public void OnFrontendMouseLeave()
     {
@@ -81,7 +92,7 @@ public class DropZoneOverlay : Panel
 
     /// <summary>
     /// Set whether the parent form is active.
-    /// When inactive, uses timer polling since frontend events don't fire reliably.
+    /// Updates overlay visibility based on form state and mouse position.
     /// </summary>
     public void SetFormActive(bool isActive)
     {
@@ -89,55 +100,25 @@ public class DropZoneOverlay : Panel
 
         if (!isActive)
         {
-            // Form deactivated - start timer polling (20ms)
-            if (_mouseTrackTimer == null)
+            // Form deactivated - ALWAYS show overlay to enable drag-drop from other apps
+            // This is critical for background drag-drop functionality
+            if (!_isDragging)
             {
-                _mouseTrackTimer = new global::System.Windows.Forms.Timer { Interval = 20 };
-                _mouseTrackTimer.Tick += CheckMousePosition;
+                ShowOverlay("form inactive");
             }
-            _mouseTrackTimer.Start();
-            ShowOverlay("form inactive - timer started");
         }
         else
         {
-            // Form activated - stop timer polling, resume frontend-driven mode
-            _mouseTrackTimer?.Stop();
-            ShowOverlay("form active - timer stopped");
-        }
-    }
-
-    private void CheckMousePosition(object? sender, EventArgs e)
-    {
-        if (_isDisposed || IsDisposed) return;
-
-        try
-        {
-            var cursorPos = Cursor.Position;
-            var overlayPt = PointToClient(cursorPos);
-            bool mouseCurrentlyInside = ClientRectangle.Contains(overlayPt);
-
-            if (mouseCurrentlyInside != _mouseIsInside)
+            // Form activated - check current mouse position
+            // If mouse is inside, keep overlay hidden; otherwise show it
+            if (_mouseIsInside && !_isDragging)
             {
-                _mouseIsInside = mouseCurrentlyInside;
-
-                if (_mouseIsInside)
-                {
-                    // Mouse entered: hide overlay unless dragging files
-                    if (!_isDragging)
-                    {
-                        HideOverlay("timer: mouse entered");
-                    }
-                }
-                else
-                {
-                    // Mouse left: show overlay
-                    ShowOverlay("timer: mouse left");
-                }
+                HideOverlay("form active, mouse inside");
             }
-        }
-        catch (ObjectDisposedException)
-        {
-            _mouseTrackTimer?.Stop();
+            else
+            {
+                ShowOverlay("form active, mouse outside");
+            }
         }
     }
 
@@ -289,7 +270,13 @@ public class DropZoneOverlay : Panel
         if (!Visible)
         {
             Visible = true;
-            _logger.Verbose($"Zone {ZoneId} shown: {reason}", "DropZone");
+            BringToFront(); // Ensure overlay is on top
+            _logger.Info($"Zone {ZoneId} shown: {reason} (Handle={Handle}, FormActive={_formIsActive})", "DropZone");
+        }
+        else
+        {
+            // Already visible but log anyway for debugging
+            _logger.Debug($"Zone {ZoneId} already visible, skipped show: {reason} (FormActive={_formIsActive})", "DropZone");
         }
     }
 
@@ -298,7 +285,12 @@ public class DropZoneOverlay : Panel
         if (Visible)
         {
             Visible = false;
-            _logger.Verbose($"Zone {ZoneId} hidden: {reason}", "DropZone");
+            _logger.Info($"Zone {ZoneId} hidden: {reason} (Handle={Handle}, FormActive={_formIsActive})", "DropZone");
+        }
+        else
+        {
+            // Already hidden but log anyway for debugging
+            _logger.Debug($"Zone {ZoneId} already hidden, skipped hide: {reason} (FormActive={_formIsActive})", "DropZone");
         }
     }
 
@@ -317,15 +309,12 @@ public class DropZoneOverlay : Panel
         {
             _isDisposed = true;
 
-            _mouseTrackTimer?.Stop();
-            _mouseTrackTimer?.Dispose();
-            _mouseTrackTimer = null;
-
             DragEnter -= OnDragEnter;
             DragDrop -= OnDragDrop;
             DragLeave -= OnDragLeave;
             DragOver -= OnDragOver;
             MouseEnter -= OnMouseEnter;
+            MouseLeave -= OnMouseLeave;
 
             _logger.Info($"DropZoneOverlay disposed: {ZoneId}", "DropZone");
         }
@@ -338,4 +327,6 @@ public static class DropZoneEvents
     public const string DRAG_ENTER = "DRAG_ENTER";
     public const string DRAG_LEAVE = "DRAG_LEAVE";
     public const string FILE_DROP = "FILE_DROP";
+    public const string MOUSE_ENTER = "MOUSE_ENTER";
+    public const string MOUSE_LEAVE = "MOUSE_LEAVE";
 }

@@ -16,15 +16,17 @@ export interface DropZoneFileDropData {
  * Creates a WinForms drop zone overlay that syncs with a web element
  *
  * How it works:
- * - Frontend sets data-drop-zone-id on element and sends bounds to backend
- * - Backend creates overlay at specified position, tracks mouse/drag state
- * - Backend uses ExecuteScriptAsync to check DOM occlusion when file drag enters
- * - Overlay visibility: mouse outside OR file dragging (unless occluded)
+ * 1. Mouse leaves area → Frontend sends SHOW → Overlay visible
+ * 2. Mouse enters area → Backend checks occlusion → Hides overlay (unless dragging files)
+ * 3. Form inactive → Show overlay (for drag-drop from other apps)
+ * 4. Form active → Frontend handles via (1)
+ * 5. When overlay visible → Backend sends MOUSE_ENTER/LEAVE events for CSS styles
  *
  * Features:
  * - Captures real OS file paths (not blob URLs)
  * - Auto-syncs position on resize/scroll
- * - CSS class for visual feedback on drag-over
+ * - CSS classes for hover and drag-over feedback
+ * - Works even when form is in background
  */
 export function useDropZone(options: {
   targetRef: React.RefObject<HTMLElement | null>;
@@ -33,14 +35,13 @@ export function useDropZone(options: {
   zoneId?: string;
   className?: string;
 }) {
-  const { targetRef, onDrop, enabled = true, zoneId: customZoneId, className = 'use-drop-zone-drop' } = options;
+  const { targetRef, onDrop, enabled = true, zoneId: customZoneId, className } = options;
 
   const zoneIdRef = useRef(customZoneId || `drop-zone-${uuidv4()}`);
-  const dropClassRef = useRef(className);
+  const dropClassRef = useRef(className || 'use-drop-zone-drop'); // Default drop class
   const onDropRef = useRef(onDrop);
   const isRegisteredRef = useRef(false);
   const lastBoundsRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
-  const mouseInsideRef = useRef(false);
 
   useEffect(() => {
     onDropRef.current = onDrop;
@@ -101,45 +102,30 @@ export function useDropZone(options: {
     element.setAttribute('data-drop-zone-id', zoneIdRef.current);
     updateZoneBounds();
 
-    // Track mouse globally to detect when it leaves zone bounds (debounced for performance)
-    const handleGlobalMouseMoveImmediate = (e: MouseEvent) => {
-      const rect = element.getBoundingClientRect();
-      const isInside =
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom;
-
-      // Only send SHOW when transitioning from inside to outside
-      if (mouseInsideRef.current && !isInside) {
-        mouseInsideRef.current = false;
-        bridgeService.sendMessage({
-          module: 'DROP_ZONE',
-          type: 'SHOW',
-          payload: { zoneId: zoneIdRef.current }
-        }).catch(err => {
-          logger.error('[useDropZone] Failed to send SHOW:', err);
-        });
-      } else if (!mouseInsideRef.current && isInside) {
-        mouseInsideRef.current = true;
-      }
-    };
-
-    const handleGlobalMouseMove = debounce(handleGlobalMouseMoveImmediate, 100);
-
-    // Show overlay when document loses focus (mousemove stops firing)
-    const handleDocumentBlur = () => {
-      mouseInsideRef.current = false;
+    // Shared debounced function to send SHOW message
+    const sendShowMessageImmediate = () => {
       bridgeService.sendMessage({
         module: 'DROP_ZONE',
         type: 'SHOW',
         payload: { zoneId: zoneIdRef.current }
       }).catch(err => {
-        logger.error('[useDropZone] Failed to send SHOW on blur:', err);
+        logger.error('[useDropZone] Failed to send SHOW:', err);
       });
     };
 
-    document.addEventListener('mousemove', handleGlobalMouseMove);
+    const sendShowMessage = debounce(sendShowMessageImmediate, 100);
+
+    // Use native element mouseleave event - send SHOW when mouse leaves
+    const handleElementMouseLeave = () => {
+      sendShowMessage();
+    };
+
+    // Show overlay when document loses focus
+    const handleDocumentBlur = () => {
+      sendShowMessage();
+    };
+
+    element.addEventListener('mouseleave', handleElementMouseLeave);
     window.addEventListener('blur', handleDocumentBlur);
 
     const resizeObserver = new ResizeObserver(() => updateZoneBounds());
@@ -153,21 +139,21 @@ export function useDropZone(options: {
     window.addEventListener('resize', updateZoneBounds);
 
     return () => {
+      sendShowMessage.cancel();
       updateZoneBounds.cancel();
-      handleGlobalMouseMove.cancel();
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
       window.removeEventListener('scroll', updateZoneBounds, true);
       window.removeEventListener('resize', updateZoneBounds);
       window.removeEventListener('blur', handleDocumentBlur);
-      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      element.removeEventListener('mouseleave', handleElementMouseLeave);
       element.removeAttribute('data-drop-zone-id');
     };
   }, [enabled, targetRef, updateZoneBounds]);
 
-  // Handle drag enter/leave for visual feedback
+  // Handle drag enter/leave for drop CSS effects
   useEffect(() => {
-    if (!enabled || !targetRef.current) return;
+    if (!enabled || !targetRef.current || !dropClassRef.current) return;
 
     const element = targetRef.current;
 

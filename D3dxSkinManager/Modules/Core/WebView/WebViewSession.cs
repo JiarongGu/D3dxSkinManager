@@ -126,7 +126,7 @@ namespace D3dxSkinManager.Modules.Core.WebView
                 routes.Route("SHOW", message =>
                 {
                     var zoneId = message.Payload?.GetProperty("zoneId").GetString() ?? "";
-                    DropZone.NotifyMouseLeave(zoneId);
+                    DropZone.ShowOverlay(zoneId);
                     return new { success = true };
                 });
             });
