@@ -194,7 +194,7 @@ export const annotations = {
     },
     shaColumn: {
       level: 3 as TooltipLevel,
-      title: "SHA-256 hash - Unique identifier for this mod file",
+      title: "Mod ID - Unique identifier for this mod",
     },
     gradingColumn: {
       level: 2 as TooltipLevel,
@@ -268,7 +268,7 @@ export const annotations = {
     },
     sha: {
       level: 3 as TooltipLevel,
-      title: "SHA-256 hash - Cannot be edited (read-only)",
+      title: "Mod ID - Cannot be edited (read-only)",
     },
   },
 
@@ -305,7 +305,7 @@ export const annotations = {
     },
     copySha: {
       level: 3 as TooltipLevel,
-      title: "Copy SHA-256 hash to clipboard",
+      title: "Copy Mod ID to clipboard",
     },
     viewFiles: {
       level: 2 as TooltipLevel,

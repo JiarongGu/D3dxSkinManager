@@ -354,7 +354,7 @@ public class ModImportServiceTests
 
         _mockImageService.Verify(x => x.ScanAndImportFromCacheAsync(sha, folderPath), Times.Once);
         _mockEventBus.Verify(x => x.EmitAsync("MOD", "PREVIEW_IMPORTED", It.Is<object>(o =>
-            o.GetType().GetProperty("sha") != null &&
+            o.GetType().GetProperty("id") != null &&
             o.GetType().GetProperty("source") != null
         )), Times.Once);
     }

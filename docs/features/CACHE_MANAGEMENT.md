@@ -64,7 +64,7 @@ public interface IModCacheService
 1. Early exit if category is null/empty/whitespace (unclassified)
 2. Check if feature is enabled in profile configuration
 3. Get all mods in the specified category from database
-4. Filter disabled cache directories to only those matching category SHAs
+4. Filter disabled cache directories to only those matching category mod IDs
 5. Sort by LastWriteTime (most recent first)
 6. Keep configured max count, delete oldest beyond limit
 7. Use FileOperationPlanner for atomic deletion operations
@@ -74,7 +74,7 @@ public interface IModCacheService
 **Location:** `D3dxSkinManager/Modules/Mod/Services/ModLifecycleService.cs`
 
 ```csharp
-public async Task<ModLoadResult> LoadAsync(string sha)
+public async Task<ModLoadResult> LoadAsync(string id)
 {
     // ... load logic ...
 
@@ -85,10 +85,10 @@ public async Task<ModLoadResult> LoadAsync(string sha)
     });
 }
 
-public async Task<bool> UnloadAsync(string sha)
+public async Task<bool> UnloadAsync(string id)
 {
-    var mod = await _repository.GetByIdAsync(sha);
-    var success = await _cacheService.DisableCacheAsync(sha);
+    var mod = await _repository.GetByIdAsync(id);
+    var success = await _cacheService.DisableCacheAsync(id);
 
     if (success)
     {
@@ -263,7 +263,7 @@ export interface SettingsState {
 **Examples:**
 ```
 [INFO] Cleaning up 5 old disabled cache(s) for category 'Character' (limit: 10, current: 15)
-[INFO] Cleaned up old disabled cache: DISABLED-abc123 (category: Character)
+[INFO] Cleaned up old disabled cache: DISABLED-A1B2C3D4E5F6... (category: Character)
 [INFO] Cache cleanup completed for category 'Character': 5 old cache(s) removed
 [VERBOSE] Skipping cache cleanup for unclassified mod
 [VERBOSE] Cache cleanup disabled in configuration

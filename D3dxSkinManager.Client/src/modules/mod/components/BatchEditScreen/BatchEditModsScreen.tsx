@@ -198,7 +198,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
     setLoading(true, t('mods.batchEdit.notifications.saving'));
 
     try {
-      // Build updates object with SHA as key and metadata as value
+      // Build updates object with Mod ID as key and metadata as value
       const updates: Record<string, any> = {};
       changedMods.forEach((mod) => {
         updates[mod.id] = {
@@ -263,7 +263,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
             <div className="batch-edit-toolbar-info">
               <Text type="secondary" style={{ fontSize: '12px' }}>
                 {t('mods.batchEdit.toolbar.modsCount', { count: editedMods.length })}
-                {hasChanges && ` â€?${t('mods.batchEdit.toolbar.modified')}`}
+                {hasChanges && ` ï¿½?${t('mods.batchEdit.toolbar.modified')}`}
               </Text>
             </div>
           </div>

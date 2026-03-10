@@ -42,7 +42,7 @@ export interface ModImportWorkflowContext {
   categoryName?: string; // Category name (for display)
   tags: string[];
   grading: string;
-  importedModSha?: string;
+  importedModId?: string;
 }
 
 export const ModImportWorkflowSteps = {

@@ -21,7 +21,7 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Load a mod by SHA
+   * Load a mod by ID
    * Returns affected mod IDs for efficient frontend updates (avoids full list refresh)
    */
   async loadMod(profileId: string, id: string): Promise<ModLoadResult> {
@@ -29,7 +29,7 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Unload a mod by SHA
+   * Unload a mod by ID
    */
   async unloadMod(profileId: string, id: string): Promise<boolean> {
     return this.sendBooleanMessage('UNLOAD', profileId, { id });
@@ -196,7 +196,7 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Get mod by SHA
+   * Get mod by ID
    */
   async getModBySha(profileId: string, id: string): Promise<ModInfo | undefined> {
     return this.sendOptionalMessage<ModInfo>('GET_BY_SHA', profileId, { id });

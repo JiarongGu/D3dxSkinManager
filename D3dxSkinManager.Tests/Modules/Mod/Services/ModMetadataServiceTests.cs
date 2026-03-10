@@ -496,7 +496,7 @@ public class ModMetadataServiceTests
         _mockEventBus.Verify(x => x.EmitAsync(
             "MOD",
             "METADATA_UPDATED",
-            It.Is<object>(o => o.GetType().GetProperty("sha") != null)
+            It.Is<object>(o => o.GetType().GetProperty("id") != null)
         ), Times.Once);
     }
 

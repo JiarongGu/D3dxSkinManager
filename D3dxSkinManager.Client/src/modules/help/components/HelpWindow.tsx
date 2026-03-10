@@ -226,7 +226,7 @@ export const HelpWindow: React.FC = () => {
           <li>Load/Unload mod</li>
           <li>Edit mod metadata</li>
           <li>Export mod archive</li>
-          <li>Copy SHA hash or name</li>
+          <li>Copy ID or name</li>
           <li>View file locations (original/work/cache)</li>
           <li>View preview image</li>
           <li>Delete mod</li>

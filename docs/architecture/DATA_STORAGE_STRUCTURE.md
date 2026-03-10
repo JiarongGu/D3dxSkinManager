@@ -14,25 +14,25 @@ The application uses a profile-based data isolation architecture where each prof
     ├── profiles.json              # Profile registry and active profile tracking
     └── {ProfileId}/               # Individual profile directory
         ├── mods/                  # Mod archive storage
-        │   ├── {SHA}.7z          # Compressed mod archives (primary format)
-        │   └── {SHA}.zip         # Alternative archive format
+        │   ├── {Id}.7z           # Compressed mod archives (primary format)
+        │   └── {Id}.zip          # Alternative archive format
         │
         ├── thumbnails/            # Mod thumbnail images
-        │   └── {SHA}.png         # Generated or imported thumbnails
+        │   └── {Id}.png          # Generated or imported thumbnails
         │
         ├── previews/              # Mod preview images (per-mod folders)
-        │   └── {SHA}/            # Preview folder for each mod
+        │   └── {Id}/             # Preview folder for each mod
         │       ├── preview1.png  # First preview image
         │       ├── preview2.png  # Additional preview images
         │       └── ...
         │
         ├── work/                  # Work directory (can be external via WorkDirectory config)
         │   └── Mods/             # Runtime mod deployment folder
-        │       ├── {SHA}/        # Active (loaded) mod files
+        │       ├── {Id}/         # Active (loaded) mod files
         │       │   ├── mod.ini
         │       │   ├── textures/
         │       │   └── ...
-        │       └── DISABLED-{SHA}/  # Disabled mod cache (for fast re-enable)
+        │       └── DISABLED-{Id}/   # Disabled mod cache (for fast re-enable)
         │           ├── mod.ini
         │           └── ...
         │
@@ -59,7 +59,7 @@ The application uses a profile-based data isolation architecture where each prof
 
 | Folder | Purpose | Contents | Service Responsible |
 |--------|---------|----------|-------------------|
-| `mods/` | **Mod archive storage** | Compressed mod archives (.7z, .zip) identified by SHA hash | ModFileService |
+| `mods/` | **Mod archive storage** | Compressed mod archives (.7z, .zip) identified by GUID (32-char hex) | ModFileService |
 | `thumbnails/` | **Mod thumbnails** | PNG images (one per mod) for UI display | ImageService |
 | `previews/` | **Mod preview folders** | Per-mod folders containing multiple preview images | ImageService |
 | `work/` | **Work directory base** | Base directory for mod deployment (configurable) | Profile.WorkDirectory |
@@ -73,7 +73,7 @@ The application uses a profile-based data isolation architecture where each prof
 
 ### 1. Import
 ```
-Source Archive → SHA Calculation → Copy to mods/{SHA}.7z
+Source Archive → Generate GUID → Copy to mods/{Id}.7z
                                  ↓
                     Generate thumbnails & previews
                                  ↓
@@ -82,31 +82,33 @@ Source Archive → SHA Calculation → Copy to mods/{SHA}.7z
                     Save to database (mods.db)
 ```
 
+**Note:** Mod IDs are GUIDs (32-character uppercase hex without hyphens) generated using `Guid.NewGuid().ToString("N").ToUpperInvariant()`. This provides stable, unique identifiers that don't change when mod files are modified.
+
 ### 2. Load (Enable)
 ```
-mods/{SHA}.7z → Extract → work/Mods/{SHA}/
-                          (Active mod files)
+mods/{Id}.7z → Extract → work/Mods/{Id}/
+                         (Active mod files)
 ```
 
 ### 3. Unload (Disable)
 ```
-work/Mods/{SHA}/ → Rename → work/Mods/DISABLED-{SHA}/
-                            (Cached for fast re-enable)
+work/Mods/{Id}/ → Rename → work/Mods/DISABLED-{Id}/
+                           (Cached for fast re-enable)
 ```
 
 ### 4. Re-enable
 ```
-work/Mods/DISABLED-{SHA}/ → Rename → work/Mods/{SHA}/
-                                     (Instant, no extraction)
+work/Mods/DISABLED-{Id}/ → Rename → work/Mods/{Id}/
+                                    (Instant, no extraction)
 ```
 
 ### 5. Delete
 ```
-Delete: mods/{SHA}.7z
-        work/Mods/{SHA}/
-        work/Mods/DISABLED-{SHA}/
-        thumbnails/{SHA}.png
-        previews/{SHA}/
+Delete: mods/{Id}.7z
+        work/Mods/{Id}/
+        work/Mods/DISABLED-{Id}/
+        thumbnails/{Id}.png
+        previews/{Id}/
         Database record
 ```
 
@@ -138,21 +140,26 @@ Use Case: Separate SSD for faster loading
 Disabled mods are cached as `DISABLED-{SHA}` directories to enable instant re-activation without re-extraction.
 
 ### Cache Categories
-- **Invalid**: SHA not in database (orphaned cache)
+- **Invalid**: Id not in database (orphaned cache)
 - **Rarely Used**: Mod exists but not currently loaded
 - **Frequently Used**: Should never be in cache (loaded mods)
 
 ### Cache Operations
 - **Scan**: List all disabled mod caches with sizes and categories
 - **Clean by Category**: Delete all caches in specific category
-- **Delete Specific**: Remove cache for specific mod SHA
+- **Delete Specific**: Remove cache for specific mod Id
 
 ## Database Schema
 
 ### mods.db (SQLite)
-- `Mods` table: SHA, Name, Author, Version, Category, Tags, IsLoaded, etc.
+- `Mods` table: Id (GUID), Name, Author, Version, Category, Tags, IsLoaded, etc.
 - `Classifications` table: Classification hierarchy and mod assignments
 - Future: Tags, Favorites, Custom metadata tables
+
+**Mod Identifiers:**
+- **Format:** 32-character uppercase hexadecimal string (e.g., `A1B2C3D4E5F6789012345678ABCDEF01`)
+- **Generation:** `Guid.NewGuid().ToString("N").ToUpperInvariant()`
+- **Advantages:** Stable across file modifications, globally unique, no hash collisions
 
 ## Path Resolution
 
@@ -181,9 +188,10 @@ When migrating from old structure or importing from other tools:
 2. Never hardcode paths - use ProfileContext.GetProfileDataPath()
 3. Store relative paths in database/config
 4. Resolve to absolute paths at runtime using PathHelper
+5. Use `ModInfo.NewId()` to generate new mod IDs (centralized GUID generation)
 
 ### For Services
-- **FileService**: Low-level file operations (SHA, extract, compress)
+- **FileService**: Low-level file operations (extract, compress, copy)
 - **ModFileService**: High-level mod orchestration (import, load, unload, cache)
 - **ProfileService**: Profile management and directory initialization
 - **ConfigurationService**: Profile-specific settings (config.json)

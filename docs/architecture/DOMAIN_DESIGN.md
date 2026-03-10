@@ -27,9 +27,9 @@ Each service should have **ONE reason to change**.
 // ✅ FileService - Only handles file operations
 public class FileService
 {
-    Task<string> CalculateSha256Async(string filePath);
     Task<bool> ExtractArchiveAsync(string archivePath, string targetDirectory);
     Task<bool> CopyFileAsync(string sourceFile, string destinationFile);
+    Task<bool> MoveFileAsync(string sourceFile, string destinationFile);
 }
 
 // ✅ ImageService - Only handles image operations
@@ -602,9 +602,9 @@ public class ServiceB
 // ❌ Anemic service - No business logic
 public class ModManagementService
 {
-    public async Task<ModInfo?> GetModAsync(string sha) => await _repository.GetByIdAsync(sha);
+    public async Task<ModInfo?> GetModAsync(string id) => await _repository.GetByIdAsync(id);
     public async Task<List<ModInfo>> GetAllModsAsync() => await _repository.GetAllAsync();
-    public async Task<bool> DeleteModAsync(string sha) => await _repository.DeleteAsync(sha);
+    public async Task<bool> DeleteModAsync(string id) => await _repository.DeleteAsync(id);
 }
 ```
 
@@ -613,26 +613,26 @@ public class ModManagementService
 // ✅ Rich domain service - Contains business logic
 public class ModManagementService
 {
-    public async Task<ModInfo?> GetModAsync(string sha)
+    public async Task<ModInfo?> GetModAsync(string id)
     {
-        var mod = await _repository.GetByIdAsync(sha);
+        var mod = await _repository.GetByIdAsync(id);
         if (mod != null)
         {
             // Business logic: Load preview paths
-            mod.PreviewPaths = await LoadPreviewPathsAsync(mod.SHA);
+            mod.PreviewPaths = await LoadPreviewPathsAsync(mod.Id);
         }
         return mod;
     }
 
-    public async Task<bool> DeleteModAsync(string sha)
+    public async Task<bool> DeleteModAsync(string id)
     {
-        var mod = await _repository.GetByIdAsync(sha);
+        var mod = await _repository.GetByIdAsync(id);
         if (mod == null) return false;
 
         // Business logic: Clean up related files
-        await _fileService.DeleteDirectoryAsync(GetModPreviewDirectory(sha));
+        await _fileService.DeleteDirectoryAsync(GetModPreviewDirectory(id));
 
-        return await _repository.DeleteAsync(sha);
+        return await _repository.DeleteAsync(id);
     }
 }
 ```

@@ -20,7 +20,7 @@ export function useModCategoryUpdate() {
 
   /**
    * Update a mod's category with optimistic updates
-   * @param modSha - SHA of the mod to update
+   * @param modSha - ID of the mod to update
    * @param categoryId - New category ID (empty string for unclassified)
    * @param categoryName - Display name of the category (for success message)
    */

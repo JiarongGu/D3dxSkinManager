@@ -73,10 +73,10 @@ export const ModPreviewPanel: React.FC = () => {
     }
   };
 
-  const handleCopySHA = () => {
+  const handleCopyId = () => {
     if (!mod) return;
     navigator.clipboard.writeText(mod.id);
-    notification.success(t("mods.notifications.shaCopied"));
+    notification.success(t("mods.notifications.idCopied"));
   };
 
   const handleImageClick = (imageSrc: string) => {
@@ -181,16 +181,16 @@ export const ModPreviewPanel: React.FC = () => {
       {/* Info Section */}
       <ModInfoSection mod={mod} />
 
-      {/* SHA Section - Fixed at Bottom */}
+      {/* Mod ID Section - Fixed at Bottom */}
       <div className="mod-preview-sha">
         <div className="mod-preview-sha-content">
           <Text type="secondary" className="mod-preview-sha-label">
-            SHA256:
+            Mod ID:
           </Text>
           <Text
             className="mod-preview-sha-value"
-            onClick={handleCopySHA}
-            title={t("mods.preview.clickCopySHA")}
+            onClick={handleCopyId}
+            title={t("mods.preview.clickCopyId")}
           >
             {mod.id}
           </Text>
@@ -198,8 +198,8 @@ export const ModPreviewPanel: React.FC = () => {
             type="text"
             size="small"
             icon={<CopyOutlined />}
-            onClick={handleCopySHA}
-            title={t("mods.preview.copySHATooltip")}
+            onClick={handleCopyId}
+            title={t("mods.preview.copyIdTooltip")}
             className="mod-preview-sha-button"
           />
         </div>

@@ -177,8 +177,8 @@ export const ModList: React.FC<ModListProps> = ({
   /**
    * Delete cached mod (no confirmation needed)
    * Deletes cache for both loaded and unloaded mods:
-   * - Loaded: {SHA}/ directory
-   * - Unloaded: DISABLED-{SHA}/ directory
+   * - Loaded: {Id}/ directory
+   * - Unloaded: DISABLED-{Id}/ directory
    * Updates local mod state to set isLoaded=false without backend fetch.
    * Uses delayed loading to show spinner only if operation takes >100ms.
    */
@@ -354,12 +354,12 @@ export const ModList: React.FC<ModListProps> = ({
 
     // Group 2: Copy Operations
     {
-      key: "copy-sha",
-      label: t("contextMenu.copySHA"),
+      key: "copy-id",
+      label: t("contextMenu.copyId"),
       icon: <CopyOutlined />,
       onClick: () => {
         navigator.clipboard.writeText(mod.id);
-        notification.success(t("mods.notifications.shaCopied"));
+        notification.success(t("mods.notifications.idCopied"));
       },
     },
     {

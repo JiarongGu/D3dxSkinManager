@@ -117,7 +117,7 @@ public class ModLifecycleServiceTests
         // Act & Assert
         var exception = await Assert.ThrowsAsync<OperationException>(() => _service.LoadAsync(sha));
         exception.Code.Should().Be("MOD_NOT_FOUND");
-        exception.Parameters.Should().ContainKey("sha");
+        exception.Parameters.Should().ContainKey("id");
     }
 
     [Fact]
@@ -456,7 +456,7 @@ public class ModLifecycleServiceTests
 
         // Verify PREVIEW_IMPORTED event was emitted
         _mockEventBus.Verify(x => x.EmitAsync("MOD", "PREVIEW_IMPORTED", It.Is<object>(o =>
-            o.GetType().GetProperty("Sha") != null
+            o.GetType().GetProperty("Id") != null
         )), Times.Once);
     }
 

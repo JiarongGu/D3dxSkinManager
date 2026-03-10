@@ -204,9 +204,9 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
           setTagColorsMap={setTagColorsMap}
         />
 
-        {/* Read-only SHA display */}
+        {/* Read-only ID display */}
         {mod && (
-          <Form.Item label="SHA Hash" tooltip={t("mods.edit.shaHashTooltip")}>
+          <Form.Item label="Mod ID" tooltip={t("mods.edit.idTooltip")}>
             <Input
               value={mod.id}
               disabled

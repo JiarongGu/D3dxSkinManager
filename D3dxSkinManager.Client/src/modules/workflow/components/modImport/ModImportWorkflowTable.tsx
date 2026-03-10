@@ -352,12 +352,12 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
             <span style={{ color: "#ff4d4f" }}>{workflow.errorMessage}</span>
           </Descriptions.Item>
         )}
-        {context?.importedModSha && (
+        {context?.importedModId && (
           <Descriptions.Item
-            label={t("workflow.queue.importedModSha")}
+            label={t("workflow.queue.importedModId")}
             span={2}
           >
-            {context.importedModSha}
+            {context.importedModId}
           </Descriptions.Item>
         )}
       </Descriptions>
