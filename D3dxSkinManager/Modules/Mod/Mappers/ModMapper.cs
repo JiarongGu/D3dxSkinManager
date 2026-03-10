@@ -34,7 +34,7 @@ public static class ModMapper
         return new ModInfo
         {
             // Core properties from database
-            SHA = entity.SHA,
+            Id = entity.Id,
             Category = entity.Category,
             Name = entity.Name,
             // Impedance mismatch: Persistence layer (nullable) → Domain layer (non-nullable)
@@ -74,7 +74,7 @@ public static class ModMapper
     {
         return new ModEntity
         {
-            SHA = domainModel.SHA,
+            Id = domainModel.Id,
             Category = domainModel.Category,
             Name = domainModel.Name,
             Author = domainModel.Author,
@@ -93,13 +93,13 @@ public static class ModMapper
 
     /// <summary>
     /// Update existing entity from domain model (for updates)
-    /// Does NOT update SHA (primary key) or timestamps
+    /// Does NOT update Id (primary key) or timestamps
     /// </summary>
     /// <param name="entity">Existing entity to update</param>
     /// <param name="domainModel">Domain model with new values</param>
     public static void UpdateEntity(ModEntity entity, ModInfo domainModel)
     {
-        // Do NOT update SHA (primary key)
+        // Do NOT update Id (primary key)
         entity.Category = domainModel.Category;
         entity.Name = domainModel.Name;
         entity.Author = domainModel.Author;

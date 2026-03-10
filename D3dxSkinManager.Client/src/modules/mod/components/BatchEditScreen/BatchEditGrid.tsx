@@ -71,14 +71,14 @@ export const BatchEditGrid: React.FC<BatchEditGridProps> = ({
   const onCellValueChanged = useCallback((event: any) => {
     // Update the mods array when cell changes
     const updatedMods = [...mods];
-    const index = updatedMods.findIndex(m => m.sha === event.data.sha);
+    const index = updatedMods.findIndex(m => m.id === event.data.id);
     if (index !== -1) {
       updatedMods[index] = { ...event.data };
       onModsChange(updatedMods);
     }
   }, [mods, onModsChange]);
 
-  const getRowId = useCallback((params: any) => params.data.sha, []);
+  const getRowId = useCallback((params: any) => params.data.id, []);
 
   return (
     <div className="batch-edit-grid" style={{ height: '100%', width: '100%' }}>

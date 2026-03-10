@@ -43,20 +43,20 @@ export const ModPreviewPanel: React.FC = () => {
   // Load preview paths when mod changes or when disablePreview changes
   // Note: isLoaded/hasCache changes don't affect previews, so not included in dependencies
   React.useEffect(() => {
-    if (mod?.sha && selectedProfileId) {
-      void modOps.loadPreviewPaths(selectedProfileId, mod.sha);
+    if (mod?.id && selectedProfileId) {
+      void modOps.loadPreviewPaths(selectedProfileId, mod.id);
     } else {
       // Clear previews when no mod is selected
       useModsStore.getState().setPreviewPaths([]);
     }
-  }, [mod?.sha, mod?.disablePreview, selectedProfileId]);
+  }, [mod?.id, mod?.disablePreview, selectedProfileId]);
 
   // Reset image index and keybinding visibility when mod changes (must be before early return)
   React.useEffect(() => {
     setCurrentImageIndex(0);
     setShowKeybindings(false);
     setIsKeybindingsClosing(false);
-  }, [mod?.sha]);
+  }, [mod?.id]);
 
   // Handle keybinding toggle with animation
   const handleKeybindingToggle = () => {
@@ -75,7 +75,7 @@ export const ModPreviewPanel: React.FC = () => {
 
   const handleCopySHA = () => {
     if (!mod) return;
-    navigator.clipboard.writeText(mod.sha);
+    navigator.clipboard.writeText(mod.id);
     notification.success(t("mods.notifications.shaCopied"));
   };
 
@@ -172,7 +172,7 @@ export const ModPreviewPanel: React.FC = () => {
               })}
               onClick={handleKeybindingToggle}
             >
-              <KeybindingPreview modSha={mod.sha} />
+              <KeybindingPreview modSha={mod.id} />
             </div>
           )}
         </div>
@@ -192,7 +192,7 @@ export const ModPreviewPanel: React.FC = () => {
             onClick={handleCopySHA}
             title={t("mods.preview.clickCopySHA")}
           >
-            {mod.sha}
+            {mod.id}
           </Text>
           <Button
             type="text"

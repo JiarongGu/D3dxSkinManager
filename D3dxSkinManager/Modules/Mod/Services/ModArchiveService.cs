@@ -23,11 +23,11 @@ public class ArchiveExtractionResult
 /// </summary>
 public interface IModArchiveService
 {
-    Task<ArchiveExtractionResult> ExtractAsync(string sha, string targetDirectory);
-    Task<bool> DeleteArchiveAsync(string sha);
-    Task<string> CopyArchiveAsync(string sourcePath, string sha);
-    bool ArchiveExists(string sha);
-    string GetArchivePath(string sha);
+    Task<ArchiveExtractionResult> ExtractAsync(string id, string targetDirectory);
+    Task<bool> DeleteArchiveAsync(string id);
+    Task<string> CopyArchiveAsync(string sourcePath, string id);
+    bool ArchiveExists(string id);
+    string GetArchivePath(string id);
 }
 
 /// <summary>
@@ -56,13 +56,13 @@ public class ModArchiveService : IModArchiveService
     /// Returns extraction result with detected type and file count
     /// Uses atomic file operation planner
     /// </summary>
-    public async Task<ArchiveExtractionResult> ExtractAsync(string sha, string targetDirectory)
+    public async Task<ArchiveExtractionResult> ExtractAsync(string id, string targetDirectory)
     {
         var result = new ArchiveExtractionResult { Success = false };
 
         try
         {
-            var archivePath = GetArchivePath(sha);
+            var archivePath = GetArchivePath(id);
             if (!File.Exists(archivePath))
             {
                 result.ErrorMessage = $"Archive not found: {archivePath}";
@@ -85,7 +85,7 @@ public class ModArchiveService : IModArchiveService
             {
                 result.ErrorMessage = extractResult.ErrorMessage ?? "Failed to extract mod archive";
                 result.Exception = extractResult.Exception;
-                _logger.Error($"Extraction failed for {sha}: {result.ErrorMessage}", "ModArchiveService", result.Exception);
+                _logger.Error($"Extraction failed for {id}: {result.ErrorMessage}", "ModArchiveService", result.Exception);
                 return result;
             }
 
@@ -105,7 +105,7 @@ public class ModArchiveService : IModArchiveService
             }
 
             result.Success = true;
-            _logger.Info($"Extracted archive: {sha} ({result.FileCount} files)", "ModArchiveService");
+            _logger.Info($"Extracted archive: {id} ({result.FileCount} files)", "ModArchiveService");
 
             return result;
         }
@@ -113,7 +113,7 @@ public class ModArchiveService : IModArchiveService
         {
             result.ErrorMessage = $"Error extracting archive: {ex.Message}";
             result.Exception = ex;
-            _logger.Error($"Error extracting archive {sha}: {ex.Message}", "ModArchiveService", ex);
+            _logger.Error($"Error extracting archive {id}: {ex.Message}", "ModArchiveService", ex);
             return result;
         }
     }
@@ -122,11 +122,11 @@ public class ModArchiveService : IModArchiveService
     /// Delete archive file permanently
     /// Uses atomic file operation planner
     /// </summary>
-    public async Task<bool> DeleteArchiveAsync(string sha)
+    public async Task<bool> DeleteArchiveAsync(string id)
     {
         try
         {
-            var archivePath = GetArchivePath(sha);
+            var archivePath = GetArchivePath(id);
             if (!File.Exists(archivePath))
             {
                 _logger.Warn($"Archive not found for deletion: {archivePath}", "ModArchiveService");
@@ -154,7 +154,7 @@ public class ModArchiveService : IModArchiveService
         }
         catch (Exception ex)
         {
-            _logger.Error($"Error deleting archive {sha}: {ex.Message}", "ModArchiveService", ex);
+            _logger.Error($"Error deleting archive {id}: {ex.Message}", "ModArchiveService", ex);
             return false;
         }
     }
@@ -164,9 +164,9 @@ public class ModArchiveService : IModArchiveService
     /// Stores without extension (like Python version) - SharpCompress auto-detects format
     /// Uses atomic file operation planner
     /// </summary>
-    public async Task<string> CopyArchiveAsync(string sourcePath, string sha)
+    public async Task<string> CopyArchiveAsync(string sourcePath, string id)
     {
-        var targetPath = _profilePaths.GetModArchivePath(sha, "");
+        var targetPath = _profilePaths.GetModArchivePath(id, "");
 
         var copyOp = new FileSystemOperation
         {
@@ -190,17 +190,17 @@ public class ModArchiveService : IModArchiveService
     /// <summary>
     /// Check if mod archive exists
     /// </summary>
-    public bool ArchiveExists(string sha)
+    public bool ArchiveExists(string id)
     {
-        return File.Exists(GetArchivePath(sha));
+        return File.Exists(GetArchivePath(id));
     }
 
     /// <summary>
     /// Get the path to a mod's archive file
     /// Archives are stored without extensions (like Python version)
     /// </summary>
-    public string GetArchivePath(string sha)
+    public string GetArchivePath(string id)
     {
-        return _profilePaths.GetModArchivePath(sha, "");
+        return _profilePaths.GetModArchivePath(id, "");
     }
 }

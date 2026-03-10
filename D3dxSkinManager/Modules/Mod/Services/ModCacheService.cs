@@ -23,13 +23,13 @@ public interface IModCacheService
     Task<List<CacheItem>> ScanCacheAsync();
     Task<CacheStatistics> GetCacheStatisticsAsync();
     Task<int> CleanCacheAsync(CacheCategory category);
-    Task<bool> DeleteCacheAsync(string sha);
-    Task<BatchDeleteResult> BatchDeleteCachesAsync(List<string> shas);
-    Task<bool> EnableCacheAsync(string sha); // Rename DISABLED-{SHA} to {SHA}
-    Task<bool> DisableCacheAsync(string sha); // Rename {SHA} to DISABLED-{SHA}
+    Task<bool> DeleteCacheAsync(string id);
+    Task<BatchDeleteResult> BatchDeleteCachesAsync(List<string> ids);
+    Task<bool> EnableCacheAsync(string id); // Rename DISABLED-{Id} to {Id}
+    Task<bool> DisableCacheAsync(string id); // Rename {Id} to DISABLED-{Id}
     Task<int> CleanupOldDisabledCachesAsync(string? modCategory); // Cleanup old disabled caches for specific category
-    bool HasCache(string sha);
-    string? GetCachePath(string sha);
+    bool HasCache(string id);
+    string? GetCachePath(string id);
 }
 
 /// <summary>
@@ -37,8 +37,8 @@ public interface IModCacheService
 /// Responsibility: Manage disabled mod caches (DISABLED-{SHA} directories)
 ///
 /// Cache directory structure:
-/// - Active/loaded cache: {WorkDirectory}/Mods/{SHA}/
-/// - Disabled/unloaded cache: {WorkDirectory}/Mods/DISABLED-{SHA}/
+/// - Active/loaded cache: {WorkDirectory}/Mods/{Id}/
+/// - Disabled/unloaded cache: {WorkDirectory}/Mods/DISABLED-{Id}/
 /// </summary>
 public class ModCacheService : IModCacheService
 {
@@ -70,14 +70,14 @@ public class ModCacheService : IModCacheService
     }
 
     /// <summary>
-    /// Enable cache by renaming DISABLED-{SHA} to {SHA}
+    /// Enable cache by renaming DISABLED-{Id} to {Id}
     /// Extracted from ModFileService.LoadAsync (lines 188-210)
     /// Used when loading a mod that already has a disabled cache
     /// </summary>
-    public async Task<bool> EnableCacheAsync(string sha)
+    public async Task<bool> EnableCacheAsync(string id)
     {
-        var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
-        var targetDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+        var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{id}");
+        var targetDirectory = Path.Combine(_profilePaths.CacheModsDirectory, id);
 
         if (!Directory.Exists(disabledDirectory))
         {
@@ -103,7 +103,7 @@ public class ModCacheService : IModCacheService
             {
                 throw new OperationException(
                     ErrorCodes.FILE_ACCESS_DENIED,
-                    new Dictionary<string, string> { { "sha", sha }, { "path", disabledDirectory } },
+                    new Dictionary<string, string> { { "id", id }, { "path", disabledDirectory } },
                     errorMessage,
                     result.Exception);
             }
@@ -111,30 +111,30 @@ public class ModCacheService : IModCacheService
             {
                 throw new OperationException(
                     ErrorCodes.FILE_ACCESS_DENIED,
-                    new Dictionary<string, string> { { "sha", sha }, { "path", disabledDirectory } },
+                    new Dictionary<string, string> { { "id", id }, { "path", disabledDirectory } },
                     errorMessage);
             }
         }
 
-        _logger.Info($"Enabled mod from cache: {sha}", "ModCacheService");
+        _logger.Info($"Enabled mod from cache: {id}", "ModCacheService");
         return true;
     }
 
     /// <summary>
-    /// Disable cache by renaming {SHA} to DISABLED-{SHA}
+    /// Disable cache by renaming {Id} to DISABLED-{Id}
     /// Extracted from ModFileService.UnloadInternalAsync (lines 377-408)
     /// Used when unloading a mod to preserve its cache in disabled state
     /// </summary>
-    public async Task<bool> DisableCacheAsync(string sha)
+    public async Task<bool> DisableCacheAsync(string id)
     {
-        var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+        var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, id);
         if (!Directory.Exists(cacheDirectory))
         {
-            _logger.Warn($"Mod not loaded: {sha}", "ModCacheService");
+            _logger.Warn($"Mod not loaded: {id}", "ModCacheService");
             return false;
         }
 
-        var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
+        var disabledDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{id}");
 
         var moveOp = new FileSystemOperation
         {
@@ -154,7 +154,7 @@ public class ModCacheService : IModCacheService
             {
                 throw new OperationException(
                     ErrorCodes.MOD_FOLDER_IN_USE,
-                    new Dictionary<string, string> { { "sha", sha }, { "path", cacheDirectory } },
+                    new Dictionary<string, string> { { "id", id }, { "path", cacheDirectory } },
                     errorMessage,
                     result.Exception);
             }
@@ -162,29 +162,29 @@ public class ModCacheService : IModCacheService
             {
                 throw new OperationException(
                     ErrorCodes.MOD_FOLDER_IN_USE,
-                    new Dictionary<string, string> { { "sha", sha }, { "path", cacheDirectory } },
+                    new Dictionary<string, string> { { "id", id }, { "path", cacheDirectory } },
                     errorMessage);
             }
         }
 
-        _logger.Info($"Unloaded mod (disabled cache): {sha}", "ModCacheService");
+        _logger.Info($"Unloaded mod (disabled cache): {id}", "ModCacheService");
         return true;
     }
 
     /// <summary>
-    /// Delete specific cache by SHA (both active and disabled cache)
+    /// Delete specific cache by Id (both active and disabled cache)
     /// Extracted from ModFileService.DeleteCacheAsync (lines 695-757)
     /// Uses atomic file operation planner
     /// Emits CACHE_CHANGED event on success
     /// </summary>
-    public async Task<bool> DeleteCacheAsync(string sha)
+    public async Task<bool> DeleteCacheAsync(string id)
     {
         bool anyDeleted = false;
 
         try
         {
-            // Delete active/loaded cache: {SHA}
-            var activeCachePath = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+            // Delete active/loaded cache: {Id}
+            var activeCachePath = Path.Combine(_profilePaths.CacheModsDirectory, id);
             if (Directory.Exists(activeCachePath))
             {
                 var deleteOp = new FileSystemOperation
@@ -195,13 +195,13 @@ public class ModCacheService : IModCacheService
                 var result = await _operationPlanner.SubmitOperationAsync(deleteOp).ConfigureAwait(false);
                 if (result.Success)
                 {
-                    _logger.Info($"Deleted active cache for SHA: {sha}", "ModCacheService");
+                    _logger.Info($"Deleted active cache for Id: {id}", "ModCacheService");
                     anyDeleted = true;
                 }
             }
 
-            // Delete disabled/unloaded cache: DISABLED-{SHA}
-            var disabledCachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
+            // Delete disabled/unloaded cache: DISABLED-{Id}
+            var disabledCachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{id}");
             if (Directory.Exists(disabledCachePath))
             {
                 var deleteOp = new FileSystemOperation
@@ -212,21 +212,21 @@ public class ModCacheService : IModCacheService
                 var result = await _operationPlanner.SubmitOperationAsync(deleteOp).ConfigureAwait(false);
                 if (result.Success)
                 {
-                    _logger.Info($"Deleted disabled cache for SHA: {sha}", "ModCacheService");
+                    _logger.Info($"Deleted disabled cache for Id: {id}", "ModCacheService");
                     anyDeleted = true;
                 }
             }
 
             if (!anyDeleted)
             {
-                _logger.Warn($"No cache found to delete for SHA: {sha}", "ModCacheService");
+                _logger.Warn($"No cache found to delete for Id: {id}", "ModCacheService");
             }
             else
             {
                 // Emit cache changed event (FileSystemWatcher will also detect this, but emit anyway for consistency)
                 await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CACHE_CHANGED, new
                 {
-                    Sha = sha,
+                    Id = id,
                     WasLoaded = false, // Could be either, but now it's definitely gone
                     ChangeType = "deleted"
                 }).ConfigureAwait(false);
@@ -236,7 +236,7 @@ public class ModCacheService : IModCacheService
         }
         catch (Exception ex)
         {
-            _logger.Error($"Error deleting cache for {sha}: {ex.Message}", "ModCacheService", ex);
+            _logger.Error($"Error deleting cache for {id}: {ex.Message}", "ModCacheService", ex);
             return false;
         }
     }
@@ -247,29 +247,29 @@ public class ModCacheService : IModCacheService
     /// Skips mods without cache (not counted as failure)
     /// Emits single CACHE_CHANGED event after all deletions complete
     /// </summary>
-    public async Task<BatchDeleteResult> BatchDeleteCachesAsync(List<string> shas)
+    public async Task<BatchDeleteResult> BatchDeleteCachesAsync(List<string> ids)
     {
         var result = new BatchDeleteResult();
 
-        if (shas == null || shas.Count == 0)
+        if (ids == null || ids.Count == 0)
         {
             return result;
         }
 
-        _logger.Info($"Starting batch cache deletion for {shas.Count} mods", "ModCacheService");
+        _logger.Info($"Starting batch cache deletion for {ids.Count} mods", "ModCacheService");
 
-        foreach (var sha in shas)
+        foreach (var id in ids)
         {
             try
             {
                 // Check if cache exists before attempting deletion
-                if (!HasCache(sha))
+                if (!HasCache(id))
                 {
-                    _logger.Debug($"Skipping {sha} - no cache found", "ModCacheService");
+                    _logger.Debug($"Skipping {id} - no cache found", "ModCacheService");
                     continue; // Skip, don't count as success or failure
                 }
 
-                var success = await DeleteCacheAsync(sha).ConfigureAwait(false);
+                var success = await DeleteCacheAsync(id).ConfigureAwait(false);
                 if (success)
                 {
                     result.SuccessCount++;
@@ -278,14 +278,14 @@ public class ModCacheService : IModCacheService
                 {
                     // Cache exists but deletion failed - this is an actual error
                     result.FailedCount++;
-                    result.FailedShas.Add(sha);
+                    result.FailedShas.Add(id);
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error($"Error deleting cache for {sha}: {ex.Message}", "ModCacheService", ex);
+                _logger.Error($"Error deleting cache for {id}: {ex.Message}", "ModCacheService", ex);
                 result.FailedCount++;
-                result.FailedShas.Add(sha);
+                result.FailedShas.Add(id);
             }
         }
 
@@ -321,8 +321,8 @@ public class ModCacheService : IModCacheService
 
         // Get all mods from database
         var entities = await _repository.GetAllAsync().ConfigureAwait(false);
-        var allShas = entities.Select(e => e.SHA).ToHashSet();
-        var loadedShas = (await _repository.GetLoadedIdsAsync()).ToHashSet();
+        var allIds = entities.Select(e => e.Id).ToHashSet();
+        var loadedIds = (await _repository.GetLoadedIdsAsync()).ToHashSet();
 
         // Scan for disabled cache directories
         var directories = Directory.GetDirectories(_profilePaths.CacheModsDirectory);
@@ -337,8 +337,8 @@ public class ModCacheService : IModCacheService
                 continue;
             }
 
-            // Extract SHA from directory name
-            var sha = dirName.Substring(DISABLED_PREFIX.Length);
+            // Extract ID from directory name
+            var id = dirName.Substring(DISABLED_PREFIX.Length);
 
             // Calculate directory size
             long sizeBytes = FileUtilities.GetDirectorySize(dir);
@@ -347,12 +347,12 @@ public class ModCacheService : IModCacheService
             var lastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss");
 
             // Categorize cache
-            var category = CategorizCache(sha, allShas, loadedShas);
+            var category = CategorizCache(id, allIds, loadedIds);
 
             cacheItems.Add(new CacheItem
             {
                 Path = dir,
-                Sha = sha,
+                Sha = id,
                 SizeBytes = sizeBytes,
                 Category = category,
                 LastModified = lastModified
@@ -429,31 +429,31 @@ public class ModCacheService : IModCacheService
     }
 
     /// <summary>
-    /// Check if a SHA has cached files (DISABLED-{SHA} directory exists)
+    /// Check if an Id has cached files (DISABLED-{Id} directory exists)
     /// Extracted from ModFileService.HasCache (lines 762-766)
     /// </summary>
-    public bool HasCache(string sha)
+    public bool HasCache(string id)
     {
-        var cachePath = GetCachePath(sha);
+        var cachePath = GetCachePath(id);
         return !string.IsNullOrEmpty(cachePath) && Directory.Exists(cachePath);
     }
 
     /// <summary>
-    /// Get cache path for a specific SHA
+    /// Get cache path for a specific Id
     /// Returns null if cache doesn't exist
-    /// Checks both loaded ({SHA}) and disabled (DISABLED-{SHA}) cache directories
+    /// Checks both loaded ({Id}) and disabled (DISABLED-{Id}) cache directories
     /// </summary>
-    public string? GetCachePath(string sha)
+    public string? GetCachePath(string id)
     {
         // Check for loaded cache first (most common case when querying for deletion)
-        var loadedCachePath = Path.Combine(_profilePaths.CacheModsDirectory, sha);
+        var loadedCachePath = Path.Combine(_profilePaths.CacheModsDirectory, id);
         if (Directory.Exists(loadedCachePath))
         {
             return loadedCachePath;
         }
 
         // Check for disabled cache
-        var disabledCachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{sha}");
+        var disabledCachePath = Path.Combine(_profilePaths.CacheModsDirectory, $"{DISABLED_PREFIX}{id}");
         if (Directory.Exists(disabledCachePath))
         {
             return disabledCachePath;
@@ -463,24 +463,24 @@ public class ModCacheService : IModCacheService
     }
 
     /// <summary>
-    /// Categorize cache based on SHA presence in database and loaded state
+    /// Categorize cache based on ID presence in database and loaded state
     /// Extracted from ModFileService.CategorizCache (lines 778-797)
     /// </summary>
-    private CacheCategory CategorizCache(string sha, HashSet<string> allShas, HashSet<string> loadedShas)
+    private CacheCategory CategorizCache(string id, HashSet<string> allIds, HashSet<string> loadedIds)
     {
-        // Invalid: SHA not found in database at all
-        if (!allShas.Contains(sha))
+        // Invalid: ID not found in database at all
+        if (!allIds.Contains(id))
         {
             return CacheCategory.Invalid;
         }
 
-        // Frequently used: SHA is currently loaded (shouldn't happen, but check anyway)
-        if (loadedShas.Contains(sha))
+        // Frequently used: ID is currently loaded (shouldn't happen, but check anyway)
+        if (loadedIds.Contains(id))
         {
             return CacheCategory.FrequentlyUsed;
         }
 
-        // Rarely used: SHA exists in database but not loaded
+        // Rarely used: ID exists in database but not loaded
         return CacheCategory.RarelyUsed;
     }
 
@@ -522,7 +522,7 @@ public class ModCacheService : IModCacheService
 
             // Get all mods in the same category
             var categoryEntities = await _repository.GetByCategoryAsync(modCategory).ConfigureAwait(false);
-            var categoryShas = categoryEntities.Select(e => e.SHA).ToHashSet();
+            var categoryShas = categoryEntities.Select(e => e.Id).ToHashSet();
 
             // Scan for disabled caches of mods in this category
             var disabledCaches = GetDisabledCacheDirectories()
@@ -531,8 +531,8 @@ public class ModCacheService : IModCacheService
                     if (string.IsNullOrEmpty(dirName) || !dirName.StartsWith(DISABLED_PREFIX))
                         return false;
 
-                    var sha = dirName.Substring(DISABLED_PREFIX.Length);
-                    return categoryShas.Contains(sha);
+                    var id = dirName.Substring(DISABLED_PREFIX.Length);
+                    return categoryShas.Contains(id);
                 })
                 .OrderByDescending(d => Directory.GetLastWriteTime(d)) // Most recent first
                 .ToList();

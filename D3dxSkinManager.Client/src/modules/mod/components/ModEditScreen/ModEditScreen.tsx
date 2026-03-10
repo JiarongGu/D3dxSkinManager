@@ -161,7 +161,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       }
 
       // Save mod metadata
-      await updateMod(mod.sha, modData);
+      await updateMod(mod.id, modData);
 
       form.resetFields();
       setSelectedTags([]);
@@ -208,7 +208,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
         {mod && (
           <Form.Item label="SHA Hash" tooltip={t("mods.edit.shaHashTooltip")}>
             <Input
-              value={mod.sha}
+              value={mod.id}
               disabled
               className="mod-edit-screen-sha-input"
             />

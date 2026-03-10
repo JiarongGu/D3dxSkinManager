@@ -67,17 +67,17 @@ public class ModLifecycleService : IModLifecycleService
     /// CONCURRENCY: Uses atomic file operation planner via cache/archive services - no locks needed
     /// RETRY: Planner handles automatic retries for transient IOException
     /// </summary>
-    /// <param name="sha">SHA hash of the mod</param>
-    public async Task<ModLoadResult> LoadAsync(string sha)
+    /// <param name="id">Mod ID</param>
+    public async Task<ModLoadResult> LoadAsync(string id)
     {
         // Get mod information for category checking
-        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
         if (entity == null)
         {
             throw new OperationException(
                 ErrorCodes.MOD_NOT_FOUND,
-                new Dictionary<string, string> { { "sha", sha } },
-                $"Mod not found: {sha}"
+                new Dictionary<string, string> { { "id", id } },
+                $"Mod not found: {id}"
             );
         }
 
@@ -85,8 +85,8 @@ public class ModLifecycleService : IModLifecycleService
         var mod = ModMapper.ToDomain(entity);
 
         // Track unloaded mods for efficient frontend updates
-        var unloadedModShas = new List<string>();
-        var modName = mod.Name ?? $"Mod {sha.Substring(0, 8)}";
+        var unloadedModIds = new List<string>();
+        var modName = mod.Name ?? $"Mod {id.Substring(0, 8)}";
 
         try
         {
@@ -99,7 +99,7 @@ public class ModLifecycleService : IModLifecycleService
             {
                 var sameCategoryEntities = await _repository.GetByCategoryAsync(mod.Category).ConfigureAwait(false);
                 var sameCategoryMods = ModMapper.ToDomainList(sameCategoryEntities);
-                var loadedSameCategoryMods = sameCategoryMods.Where(m => m.SHA != sha).ToList();
+                var loadedSameCategoryMods = sameCategoryMods.Where(m => m.Id != id).ToList();
 
                 // Populate IsLoaded flags to check which mods need to be unloaded
                 PopulateIsLoadedFlags(loadedSameCategoryMods);
@@ -113,17 +113,17 @@ public class ModLifecycleService : IModLifecycleService
                     foreach (var modToUnload in modsToUnload)
                     {
                         // Unload the mod via cache service
-                        var unloadSuccess = await _cacheService.DisableCacheAsync(modToUnload.SHA).ConfigureAwait(false);
+                        var unloadSuccess = await _cacheService.DisableCacheAsync(modToUnload.Id).ConfigureAwait(false);
 
                         if (unloadSuccess)
                         {
                             // Track successfully unloaded mods for efficient frontend update
-                            unloadedModShas.Add(modToUnload.SHA);
-                            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Sha = modToUnload.SHA }).ConfigureAwait(false);
+                            unloadedModIds.Add(modToUnload.Id);
+                            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Id = modToUnload.Id }).ConfigureAwait(false);
                         }
                         else
                         {
-                            _logger.Warn($"Failed to unload mod '{modToUnload.Name}' (SHA: {modToUnload.SHA})", "ModLifecycleService");
+                            _logger.Warn($"Failed to unload mod '{modToUnload.Name}' (ID: {modToUnload.Id})", "ModLifecycleService");
                         }
                     }
                 }
@@ -135,20 +135,20 @@ public class ModLifecycleService : IModLifecycleService
 
             // Load the requested mod
             // Try to enable cache first (if mod was previously unloaded), otherwise extract archive
-            var cacheEnabled = await _cacheService.EnableCacheAsync(sha).ConfigureAwait(false);
+            var cacheEnabled = await _cacheService.EnableCacheAsync(id).ConfigureAwait(false);
 
             if (cacheEnabled)
             {
-                _logger.Info($"Enabled mod from cache: {sha}", "ModLifecycleService");
+                _logger.Info($"Enabled mod from cache: {id}", "ModLifecycleService");
             }
             else
             {
                 // Emit LOADING event before extraction (decompression takes time)
-                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADING, new { Sha = sha }).ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADING, new { Id = id }).ConfigureAwait(false);
 
                 // No cache exists, extract from archive
-                var cacheDir = Path.Combine(_profilePaths.CacheModsDirectory, sha);
-                var extractResult = await _archiveService.ExtractAsync(sha, cacheDir).ConfigureAwait(false);
+                var cacheDir = Path.Combine(_profilePaths.CacheModsDirectory, id);
+                var extractResult = await _archiveService.ExtractAsync(id, cacheDir).ConfigureAwait(false);
 
                 if (!extractResult.Success)
                 {
@@ -158,7 +158,7 @@ public class ModLifecycleService : IModLifecycleService
                     {
                         throw new OperationException(
                             ErrorCodes.MOD_EXTRACTION_FAILED,
-                            new Dictionary<string, string> { { "sha", sha } },
+                            new Dictionary<string, string> { { "id", id } },
                             errorMessage,
                             extractResult.Exception
                         );
@@ -167,7 +167,7 @@ public class ModLifecycleService : IModLifecycleService
                     {
                         throw new OperationException(
                             ErrorCodes.MOD_EXTRACTION_FAILED,
-                            new Dictionary<string, string> { { "sha", sha } },
+                            new Dictionary<string, string> { { "id", id } },
                             errorMessage
                         );
                     }
@@ -176,24 +176,24 @@ public class ModLifecycleService : IModLifecycleService
                 // Update mod Type in database if detected
                 if (!string.IsNullOrEmpty(extractResult.DetectedType))
                 {
-                    await UpdateModTypeIfNeededAsync(sha, extractResult.DetectedType).ConfigureAwait(false);
+                    await UpdateModTypeIfNeededAsync(id, extractResult.DetectedType).ConfigureAwait(false);
                 }
 
-                _logger.Info($"Loaded mod: {sha} ({extractResult.FileCount} files)", "ModLifecycleService");
+                _logger.Info($"Loaded mod: {id} ({extractResult.FileCount} files)", "ModLifecycleService");
             }
 
             // Try to auto-import preview images from cache folder after loading
-            var importedPreviews = await _imageService.TryAutoImportPreviewsFromCacheAsync(sha).ConfigureAwait(false);
+            var importedPreviews = await _imageService.TryAutoImportPreviewsFromCacheAsync(id).ConfigureAwait(false);
 
             if (importedPreviews > 0)
             {
                 await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new {
-                    Sha = sha
+                    Id = id
                 }).ConfigureAwait(false);
             }
 
             // Emit LOADED event
-            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha }).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Id = id }).ConfigureAwait(false);
 
             // Trigger cache cleanup for this category (fire-and-forget, non-blocking)
             // Only cleans up disabled caches within the same category
@@ -216,8 +216,8 @@ public class ModLifecycleService : IModLifecycleService
 
             return new ModLoadResult
             {
-                LoadedModSha = sha,
-                UnloadedModShas = unloadedModShas,
+                LoadedModId = id,
+                UnloadedModIds = unloadedModIds,
                 Success = true
             };
         }
@@ -228,10 +228,10 @@ public class ModLifecycleService : IModLifecycleService
         }
         catch (Exception ex)
         {
-            _logger.Error($"Error loading mod {sha}: {ex.Message}", "ModLifecycleService", ex);
+            _logger.Error($"Error loading mod {id}: {ex.Message}", "ModLifecycleService", ex);
             throw new OperationException(
                 ErrorCodes.UNKNOWN_ERROR,
-                new Dictionary<string, string> { { "sha", sha }, { "name", modName } },
+                new Dictionary<string, string> { { "id", id }, { "name", modName } },
                 $"Failed to load mod: {ex.Message}",
                 ex
             );
@@ -245,17 +245,17 @@ public class ModLifecycleService : IModLifecycleService
     /// CONCURRENCY: Uses atomic file operation planner via cache service - no locks needed
     /// RETRY: Planner handles automatic retries for transient IOException
     /// </summary>
-    public async Task<bool> UnloadAsync(string sha)
+    public async Task<bool> UnloadAsync(string id)
     {
         // Get mod info to retrieve category before unloading
-        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
         var modCategory = entity != null ? ModMapper.ToDomain(entity).Category : null;
 
-        var success = await _cacheService.DisableCacheAsync(sha).ConfigureAwait(false);
+        var success = await _cacheService.DisableCacheAsync(id).ConfigureAwait(false);
 
         if (success)
         {
-            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Sha = sha }).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.UNLOADED, new { Id = id }).ConfigureAwait(false);
 
             // Trigger cache cleanup for this category (fire-and-forget, non-blocking)
             // Only cleans up disabled caches within the same category
@@ -305,18 +305,18 @@ public class ModLifecycleService : IModLifecycleService
 
         foreach (var mod in mods)
         {
-            mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
+            mod.IsLoaded = loadedDirectories.Contains(mod.Id);
         }
     }
 
     /// <summary>
     /// Update mod Type field if it's empty or different from detected type
     /// </summary>
-    private async Task UpdateModTypeIfNeededAsync(string sha, string detectedType)
+    private async Task UpdateModTypeIfNeededAsync(string id, string detectedType)
     {
         try
         {
-            var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+            var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
             if (entity == null)
             {
                 return;
@@ -339,13 +339,13 @@ public class ModLifecycleService : IModLifecycleService
                 var updatedEntity = ModMapper.ToEntity(mod);
                 await _repository.UpdateAsync(updatedEntity).ConfigureAwait(false);
 
-                _logger.Info($"Updated mod type: {sha} ({oldType ?? "empty"} -> {normalizedDetectedType})", "ModLifecycleService");
+                _logger.Info($"Updated mod type: {id} ({oldType ?? "empty"} -> {normalizedDetectedType})", "ModLifecycleService");
             }
         }
         catch (Exception ex)
         {
             // Don't fail the load operation if type update fails
-            _logger.Warn($"Failed to update mod type for {sha}: {ex.Message}", "ModLifecycleService");
+            _logger.Warn($"Failed to update mod type for {id}: {ex.Message}", "ModLifecycleService");
         }
     }
 

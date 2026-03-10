@@ -903,35 +903,12 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 Step = context.Step
             });
 
-            // Calculate SHA256 of the compressed file to detect duplicates (90-100%)
-            _logger.Info("Calculating archive SHA256...");
-            var archiveSha = await _hashHelper.CalculateFileSHA256Async(tempPath, cancellationToken);
-            _logger.Info($"Archive SHA256: {archiveSha}");
+            // Note: With GUID-based IDs, SHA-based duplicate detection is no longer used
+            // Each import gets a new unique ID regardless of content
+            // Future: Could implement duplicate detection based on file name or metadata if needed
+            _logger.Info("Skipping duplicate detection (using GUID-based IDs)");
 
-        // Check if a mod with this SHA already exists
-        var existingMod = await _modRepository.GetByIdAsync(archiveSha);
-        if (existingMod != null)
-        {
-            _logger.Info($"Duplicate mod detected: {archiveSha} (Name: {existingMod.Name})");
-
-            // Delete the temp archive
-            if (_fileHelper.FileExists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
-
-            // Mark workflow as failed with duplicate error and throw OperationException
-            workflow.Status = WorkflowStatus.Failed;
-            await PopulateCategoryNameInContextAsync(workflow);
-
-            throw new OperationException(
-                WorkflowErrorCodes.MI_DUPLICATE_MOD,
-                new Dictionary<string, string> { { "name", existingMod.Name } },
-                $"Duplicate mod: {existingMod.Name} (SHA: {archiveSha})"
-            );
-        }
-
-        // Update context - compression done, SHA verified, wait for user confirmation
+        // Update context - compression done, wait for user confirmation
         // Note: TempArchivePath was already set before compression started (line 823)
         context.Progress = 100; // Compression complete, only confirmation step left
 
@@ -1013,15 +990,15 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             Tags = context.Tags ?? new List<string>()
         };
 
-        modInfo = await _metadataService.UpdateAsync(modInfo.SHA, updateRequest);
+        modInfo = await _metadataService.UpdateAsync(modInfo.Id, updateRequest);
 
         // Update category separately if provided
         if (!string.IsNullOrEmpty(context.Category))
         {
-            modInfo = await _metadataService.UpdateCategoryAsync(modInfo.SHA, context.Category);
+            modInfo = await _metadataService.UpdateCategoryAsync(modInfo.Id, context.Category);
         }
 
-        _logger.Info($"Mod imported successfully: {modInfo.SHA}");
+        _logger.Info($"Mod imported successfully: {modInfo.Id}");
 
         // Step 3: Auto-import preview images from original folder (only for folder imports)
         // For folder imports, we have access to the original folder path and can scan it for preview images
@@ -1031,10 +1008,10 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             try
             {
                 _logger.Info($"Attempting to auto-import preview images from folder: {context.FolderPath}");
-                var previewCount = await _modImportService.ScanAndImportPreviewsFromFolderAsync(modInfo.SHA, context.FolderPath).ConfigureAwait(false);
+                var previewCount = await _modImportService.ScanAndImportPreviewsFromFolderAsync(modInfo.Id, context.FolderPath).ConfigureAwait(false);
                 if (previewCount > 0)
                 {
-                    _logger.Info($"Auto-imported {previewCount} preview image(s) from folder for mod {modInfo.SHA}");
+                    _logger.Info($"Auto-imported {previewCount} preview image(s) from folder for mod {modInfo.Id}");
                 }
             }
             catch (Exception ex)
@@ -1061,7 +1038,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         }
 
         // Update context
-        context.ImportedModSha = modInfo.SHA;
+        context.ImportedModSha = modInfo.Id;
         context.Step = ModImportWorkflowSteps.ImportMod;
         context.Progress = 100; // Import complete
 

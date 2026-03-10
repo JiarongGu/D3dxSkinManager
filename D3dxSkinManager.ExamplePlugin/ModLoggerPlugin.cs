@@ -89,7 +89,7 @@ public class ModLoggerPlugin : IPlugin
         var mod = args.Payload as ModInfo;
         if (mod != null)
         {
-            var message = $"[MOD_IMPORTED] Name: {mod.Name}, Object: {mod.Category}, SHA: {mod.SHA}";
+            var message = $"[MOD_IMPORTED] Name: {mod.Name}, Object: {mod.Category}, Id: {mod.Id}";
             _context?.Log(LogLevel.Info, $"[{Name}] {message}");
             await WriteLogAsync(message);
         }

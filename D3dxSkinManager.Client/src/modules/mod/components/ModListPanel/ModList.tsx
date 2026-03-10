@@ -32,8 +32,8 @@ import "./ModList.css";
 interface ModListProps {
   mods: ModInfo[];
   loading: boolean;
-  onLoad: (sha: string) => void;
-  onUnload: (sha: string) => void;
+  onLoad: (id: string) => void;
+  onUnload: (id: string) => void;
   onDelete: (sha: string, name: string) => void;
   onEdit?: (mod: ModInfo) => void;
   onRowClick?: (mod: ModInfo, event?: React.MouseEvent) => void;
@@ -168,7 +168,7 @@ export const ModList: React.FC<ModListProps> = ({
       }
     } else {
       // Single mod deletion
-      await onDelete(mod.sha, mod.name);
+      await onDelete(mod.id, mod.name);
     }
 
     setDeleteConfirm({ visible: false });
@@ -192,7 +192,7 @@ export const ModList: React.FC<ModListProps> = ({
 
     try {
       // Delete the cache
-      const success = await modService.deleteCache(profileId, mod.sha);
+      const success = await modService.deleteCache(profileId, mod.id);
       if (success) {
         notification.success(
           t("mods.notifications.cacheDeleted", { name: mod.name }),
@@ -213,7 +213,7 @@ export const ModList: React.FC<ModListProps> = ({
   };
 
   const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => {
-    const isMultiSelect = selectedModShas.length > 1 && selectedModShas.includes(mod.sha);
+    const isMultiSelect = selectedModShas.length > 1 && selectedModShas.includes(mod.id);
 
     // For orphaned mods, only show Open Cache Folder and Delete Cache
     if (mod.isOrphaned) {
@@ -249,7 +249,7 @@ export const ModList: React.FC<ModListProps> = ({
     if (isMultiSelect) {
       // Filter selected mods to only those with cache
       const selectedModsWithCache = mods.filter(m =>
-        selectedModShas.includes(m.sha) && m.hasCache
+        selectedModShas.includes(m.id) && m.hasCache
       );
       const cacheCount = selectedModsWithCache.length;
 
@@ -259,7 +259,7 @@ export const ModList: React.FC<ModListProps> = ({
           label: t("contextMenu.batchEditMods", { count: selectedModShas.length }),
           icon: <EditOutlined />,
           onClick: () => {
-            const selectedMods = mods.filter(m => selectedModShas.includes(m.sha));
+            const selectedMods = mods.filter(m => selectedModShas.includes(m.id));
             openBatchEditScreen(selectedMods);
           },
         },
@@ -278,7 +278,7 @@ export const ModList: React.FC<ModListProps> = ({
             }
 
             // Filter to only mods with cache (button is disabled when none have cache)
-            const shasWithCache = selectedModsWithCache.map(m => m.sha);
+            const shasWithCache = selectedModsWithCache.map(m => m.id);
             const profileId = selectedProfileId;
 
             try {
@@ -328,13 +328,13 @@ export const ModList: React.FC<ModListProps> = ({
           key: "load",
           label: t("contextMenu.loadMod"),
           icon: <PlayCircleOutlined />,
-          onClick: () => onLoad(mod.sha),
+          onClick: () => onLoad(mod.id),
         }
       : {
           key: "unload",
           label: t("contextMenu.unloadMod"),
           icon: <PauseCircleOutlined />,
-          onClick: () => onUnload(mod.sha),
+          onClick: () => onUnload(mod.id),
         },
     {
       key: "edit",
@@ -358,7 +358,7 @@ export const ModList: React.FC<ModListProps> = ({
       label: t("contextMenu.copySHA"),
       icon: <CopyOutlined />,
       onClick: () => {
-        navigator.clipboard.writeText(mod.sha);
+        navigator.clipboard.writeText(mod.id);
         notification.success(t("mods.notifications.shaCopied"));
       },
     },
@@ -380,10 +380,10 @@ export const ModList: React.FC<ModListProps> = ({
       icon: <FolderOpenOutlined />,
       disabled: !mod?.archiveFolderPath || !mod?.isAvailable,
       onClick: async () => {
-        if (mod?.archiveFolderPath && mod?.sha) {
+        if (mod?.archiveFolderPath && mod?.id) {
           try {
             // Construct the archive file path (archives are stored without extension)
-            const archiveFilePath = `${mod.archiveFolderPath}\\${mod.sha}`;
+            const archiveFilePath = `${mod.archiveFolderPath}\\${mod.id}`;
             await systemService.openFileInExplorer(archiveFilePath);
             notification.success(t("mods.notifications.openedModFolder"));
           } catch (error: unknown) {
@@ -460,13 +460,13 @@ export const ModList: React.FC<ModListProps> = ({
           })}
         >
           {displayedMods.map((mod) => {
-            const isPrimarySelection = selectedMod?.sha === mod.sha;
-            const isInMultiSelection = selectedModShas.includes(mod.sha);
+            const isPrimarySelection = selectedMod?.id === mod.id;
+            const isInMultiSelection = selectedModShas.includes(mod.id);
 
             return (
               <div
-                key={mod.sha}
-                data-mod-sha={mod.sha}
+                key={mod.id}
+                data-mod-sha={mod.id}
                 draggable
                 onDragStart={(e) => {
                   // If this mod is part of multi-selection, drag all selected mods
@@ -477,7 +477,7 @@ export const ModList: React.FC<ModListProps> = ({
                     );
                   } else {
                     // Single mod drag
-                    e.dataTransfer.setData("application/mod-sha", mod.sha);
+                    e.dataTransfer.setData("application/mod-sha", mod.id);
                   }
                   e.dataTransfer.effectAllowed = "move";
                 }}
@@ -496,9 +496,9 @@ export const ModList: React.FC<ModListProps> = ({
                 }}
                 onDoubleClick={() => {
                   if (!mod.isLoaded) {
-                    onLoad(mod.sha);
+                    onLoad(mod.id);
                   } else {
-                    onUnload(mod.sha);
+                    onUnload(mod.id);
                   }
                 }}
               >
@@ -566,9 +566,9 @@ export const ModList: React.FC<ModListProps> = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         if (mod.isLoaded) {
-                          onUnload(mod.sha);
+                          onUnload(mod.id);
                         } else {
-                          onLoad(mod.sha);
+                          onLoad(mod.id);
                         }
                       }}
                       title={

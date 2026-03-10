@@ -38,7 +38,12 @@ public class CategoryRepository : ICategoryRepository
 
     public CategoryRepository(IProfilePathService profilePaths)
     {
-        _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
+        // Check if ProfileDatabasePath is already a full connection string (used in tests)
+        // or just a file path (used in production)
+        var path = profilePaths.ProfileDatabasePath;
+        _connectionString = path.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase)
+            ? path
+            : $"Data Source={path}";
         // Table creation now handled by Fluent migrations (Migration_202603080002_CreateCategoriesTable)
     }
 
@@ -136,9 +141,19 @@ public class CategoryRepository : ICategoryRepository
         await using var connection = new SqliteConnection(_connectionString);
         var entity = CategoryMapper.ToEntity(category);
 
+        // Set timestamps if not already set (use default values from entity)
+        if (entity.CreatedAt == default)
+        {
+            entity.CreatedAt = DateTime.UtcNow;
+        }
+        if (entity.UpdatedAt == default)
+        {
+            entity.UpdatedAt = DateTime.UtcNow;
+        }
+
         await connection.ExecuteAsync(
-            @"INSERT INTO Categories (Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata)
-              VALUES (@Id, @Name, @ParentId, @ThumbnailPath, @Priority, @Description, @Metadata)",
+            @"INSERT INTO Categories (Id, Name, ParentId, ThumbnailPath, Priority, Description, Metadata, CreatedAt, UpdatedAt)
+              VALUES (@Id, @Name, @ParentId, @ThumbnailPath, @Priority, @Description, @Metadata, @CreatedAt, @UpdatedAt)",
             entity
         );
         return category;

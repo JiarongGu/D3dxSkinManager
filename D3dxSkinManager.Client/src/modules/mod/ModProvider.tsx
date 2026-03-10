@@ -146,14 +146,14 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
 
   const handleSelectedModUpdate = useCallback(
     memoizeDebounce(
-      (sha: string) => {
+      (id: string) => {
         if (!selectedProfileIdRef.current) return;
         const { selectedMod } = useModsStore.getState();
-        if (selectedMod?.sha === sha) {
+        if (selectedMod?.id === id) {
           void modOps.refreshSelectedMod(selectedProfileIdRef.current);
         }
       },
-      (sha) => sha,
+      (id) => id,
       20,
     ),
     [],
@@ -169,11 +169,11 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
 
   const handleModLoadStateChange = useCallback(
     memoizeDebounce(
-      async (sha: string) => {
+      async (id: string) => {
         if (!selectedProfileIdRef.current) return;
-        await modOps.refreshMod(selectedProfileIdRef.current, sha);
+        await modOps.refreshMod(selectedProfileIdRef.current, id);
       },
-      (sha) => sha,
+      (id) => id,
       20,
     ),
     [],
@@ -217,9 +217,9 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       Module.MOD,
       ModEventType.PREVIEW_IMPORTED,
       (event) => {
-        const sha = event.payload?.sha;
-        if (sha) {
-          handleSelectedModUpdate(sha);
+        const id = event.payload?.id;
+        if (id) {
+          handleSelectedModUpdate(id);
         }
         void modOps.reloadCurrentPreview(selectedProfileIdRef.current!);
       },
@@ -229,9 +229,9 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       Module.MOD,
       ModEventType.THUMBNAIL_UPDATED,
       (event) => {
-        const sha = event.payload?.sha;
-        if (sha) {
-          handleSelectedModUpdate(sha);
+        const id = event.payload?.id;
+        if (id) {
+          handleSelectedModUpdate(id);
         }
         void modOps.reloadCurrentPreview(selectedProfileIdRef.current!);
       },
@@ -241,9 +241,9 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       Module.MOD,
       ModEventType.PREVIEW_DELETED,
       (event) => {
-        const sha = event.payload?.sha;
-        if (sha) {
-          handleSelectedModUpdate(sha);
+        const id = event.payload?.id;
+        if (id) {
+          handleSelectedModUpdate(id);
         }
         void modOps.reloadCurrentPreview(selectedProfileIdRef.current!);
       },
@@ -253,8 +253,8 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       Module.MOD,
       ModEventType.LOADING,
       (event) => {
-        const sha = event.payload?.sha;
-        if (sha) modOps.setModLoading(sha, true);
+        const id = event.payload?.id;
+        if (id) modOps.setModLoading(id, true);
       },
     );
 
@@ -262,10 +262,10 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       Module.MOD,
       ModEventType.LOADED,
       (event) => {
-        const sha = event.payload?.sha;
-        if (sha) {
-          handleSelectedModUpdate(sha);
-          void handleModLoadStateChange(sha);
+        const id = event.payload?.id;
+        if (id) {
+          handleSelectedModUpdate(id);
+          void handleModLoadStateChange(id);
           debouncedStatsRefresh();
         }
       },
@@ -275,10 +275,10 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       Module.MOD,
       ModEventType.UNLOADED,
       (event) => {
-        const sha = event.payload?.sha;
-        if (sha) {
-          handleSelectedModUpdate(sha);
-          void handleModLoadStateChange(sha);
+        const id = event.payload?.id;
+        if (id) {
+          handleSelectedModUpdate(id);
+          void handleModLoadStateChange(id);
           debouncedStatsRefresh();
         }
       },
@@ -288,9 +288,9 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       Module.MOD,
       ModEventType.METADATA_UPDATED,
       (event) => {
-        const sha = event.payload?.sha;
-        if (sha) {
-          handleSelectedModUpdate(sha);
+        const id = event.payload?.id;
+        if (id) {
+          handleSelectedModUpdate(id);
         }
       },
     );
@@ -299,9 +299,9 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       Module.MOD,
       ModEventType.CACHE_CHANGED,
       (event) => {
-        const sha = event.payload?.sha;
-        if (sha) {
-          handleSelectedModUpdate(sha);
+        const id = event.payload?.id;
+        if (id) {
+          handleSelectedModUpdate(id);
         }
       },
     );

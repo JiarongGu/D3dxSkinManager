@@ -12,7 +12,7 @@ public interface IModKeybindingService
     /// <summary>
     /// Parse keybindings from all .ini files in mod's work directory
     /// </summary>
-    Task<List<ModKeybinding>> ParseKeybindingsAsync(string modSha);
+    Task<List<ModKeybinding>> ParseKeybindingsAsync(string modId);
 }
 
 public class ModKeybindingService : IModKeybindingService
@@ -24,7 +24,7 @@ public class ModKeybindingService : IModKeybindingService
         _profilePathService = profilePathService;
     }
 
-    public async Task<List<ModKeybinding>> ParseKeybindingsAsync(string modSha)
+    public async Task<List<ModKeybinding>> ParseKeybindingsAsync(string modId)
     {
         var keybindings = new List<ModKeybinding>();
 
@@ -33,12 +33,12 @@ public class ModKeybindingService : IModKeybindingService
             var cacheModsPath = _profilePathService.CacheModsDirectory;
 
             // Check for active mod folder first (without DISABLED- prefix)
-            var modWorkDir = Path.Combine(cacheModsPath, modSha);
+            var modWorkDir = Path.Combine(cacheModsPath, modId);
 
             // If not found, check for disabled mod folder (with DISABLED- prefix)
             if (!Directory.Exists(modWorkDir))
             {
-                modWorkDir = Path.Combine(cacheModsPath, $"DISABLED-{modSha}");
+                modWorkDir = Path.Combine(cacheModsPath, $"DISABLED-{modId}");
 
                 if (!Directory.Exists(modWorkDir))
                 {
@@ -64,7 +64,7 @@ public class ModKeybindingService : IModKeybindingService
         catch (Exception ex)
         {
             // Log error but don't throw - return empty list if parsing fails
-            Console.WriteLine($"Error parsing keybindings for mod {modSha}: {ex.Message}");
+            Console.WriteLine($"Error parsing keybindings for mod {modId}: {ex.Message}");
         }
 
         return keybindings;

@@ -22,7 +22,6 @@ namespace D3dxSkinManager.Tests.Modules.Mod.Services;
 public class ModImportServiceTests
 {
     private readonly Mock<IFileHelper> _mockFileService;
-    private readonly Mock<IHashHelper> _mockHashHelper;
     private readonly Mock<IImageService> _mockImageService;
     private readonly Mock<IModRepository> _mockRepository;
     private readonly Mock<IModArchiveService> _mockArchiveService;
@@ -35,7 +34,6 @@ public class ModImportServiceTests
     public ModImportServiceTests()
     {
         _mockFileService = new Mock<IFileHelper>();
-        _mockHashHelper = new Mock<IHashHelper>();
         _mockImageService = new Mock<IImageService>();
         _mockRepository = new Mock<IModRepository>();
         _mockArchiveService = new Mock<IModArchiveService>();
@@ -46,7 +44,6 @@ public class ModImportServiceTests
 
         _service = new ModImportService(
             _mockFileService.Object,
-            _mockHashHelper.Object,
             _mockImageService.Object,
             _mockRepository.Object,
             _mockArchiveService.Object,
@@ -61,27 +58,17 @@ public class ModImportServiceTests
 
     /// <summary>
     /// Helper to setup successful import workflow mocks
+    /// NOTE: With GUID-based IDs, we can't predict the ID that will be generated,
+    /// so we use It.IsAny<string>() for ID parameters and verify with argument matchers
     /// </summary>
-    private void SetupSuccessfulImportMocks(string filePath, string sha, ModInfo expectedMod)
+    private void SetupSuccessfulImportMocks(string filePath, ModInfo expectedMod)
     {
         _mockPathValidator.Setup(x => x.ValidateFileExists(filePath));
-        _mockHashHelper.Setup(x => x.CalculateFileSHA256Async(filePath)).ReturnsAsync(sha);
-        _mockRepository.Setup(x => x.ExistsAsync(sha)).ReturnsAsync(false);
-        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, sha)).ReturnsAsync("mock-path");
-        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(sha)).ReturnsAsync(0);
+        _mockRepository.Setup(x => x.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, It.IsAny<string>())).ReturnsAsync("mock-path");
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(It.IsAny<string>())).ReturnsAsync(0);
         _mockMetadataService.Setup(x => x.CreateAsync(It.IsAny<CreateModRequest>())).ReturnsAsync(expectedMod);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
-    }
-
-    /// <summary>
-    /// Helper to setup mocks for existing mod scenario
-    /// </summary>
-    private void SetupExistingModMocks(string filePath, string sha, ModEntity existingEntity)
-    {
-        _mockPathValidator.Setup(x => x.ValidateFileExists(filePath));
-        _mockHashHelper.Setup(x => x.CalculateFileSHA256Async(filePath)).ReturnsAsync(sha);
-        _mockRepository.Setup(x => x.ExistsAsync(sha)).ReturnsAsync(true);
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync(existingEntity);
     }
 
     #endregion
@@ -93,10 +80,9 @@ public class ModImportServiceTests
     {
         // Arrange
         var filePath = "C:\\test\\my-mod.7z";
-        var sha = "abc123";
         var expectedMod = new ModInfo
         {
-            SHA = sha,
+            Id = ModInfo.NewId(), // GUIDs are generated, not predictable
             Category = string.Empty,
             Name = "my-mod",
             Author = string.Empty,
@@ -106,23 +92,23 @@ public class ModImportServiceTests
             Tags = new List<string>()
         };
 
-        SetupSuccessfulImportMocks(filePath, sha, expectedMod);
+        SetupSuccessfulImportMocks(filePath, expectedMod);
 
         // Act
         var result = await _service.ImportAsync(filePath);
 
         // Assert
         result.Should().NotBeNull();
-        result!.SHA.Should().Be(sha);
+        result!.Id.Should().NotBeNullOrEmpty("GUID should be generated");
+        result.Id.Length.Should().Be(32, "GUID without hyphens should be 32 characters");
         result.Name.Should().Be("my-mod");
         result.Type.Should().Be("7z");
         result.Category.Should().Be(string.Empty, "new imports should be uncategorized");
 
-        // Verify workflow steps executed
+        // Verify workflow steps executed (with GUID-based IDs, we use It.IsAny for ID params)
         _mockPathValidator.Verify(x => x.ValidateFileExists(filePath), Times.Once);
-        _mockHashHelper.Verify(x => x.CalculateFileSHA256Async(filePath), Times.Once);
-        _mockRepository.Verify(x => x.ExistsAsync(sha), Times.Once);
-        _mockArchiveService.Verify(x => x.CopyArchiveAsync(filePath, sha), Times.Once);
+        _mockRepository.Verify(x => x.ExistsAsync(It.IsAny<string>()), Times.Once);
+        _mockArchiveService.Verify(x => x.CopyArchiveAsync(filePath, It.IsAny<string>()), Times.Once);
         _mockMetadataService.Verify(x => x.CreateAsync(It.IsAny<CreateModRequest>()), Times.Once);
         _mockEventBus.Verify(x => x.EmitAsync("MOD", "IMPORTED", It.IsAny<object>()), Times.Once);
     }
@@ -132,10 +118,9 @@ public class ModImportServiceTests
     {
         // Arrange
         var filePath = "C:\\test\\my-mod";  // No extension
-        var sha = "abc123";
         var expectedMod = new ModInfo
         {
-            SHA = sha,
+            Id = ModInfo.NewId(),
             Category = string.Empty,
             Name = "my-mod",
             Author = string.Empty,
@@ -145,7 +130,7 @@ public class ModImportServiceTests
             Tags = new List<string>()
         };
 
-        SetupSuccessfulImportMocks(filePath, sha, expectedMod);
+        SetupSuccessfulImportMocks(filePath, expectedMod);
 
         // Act
         var result = await _service.ImportAsync(filePath);
@@ -161,39 +146,14 @@ public class ModImportServiceTests
         )), Times.Once);
     }
 
-    [Fact]
+    // NOTE: With GUID-based IDs, we no longer have "already exists" scenarios
+    // Each import generates a new GUID, so duplicate detection is not possible by ID alone
+    // If duplicate detection is needed, it should be done at a higher level (e.g., by file hash comparison)
+    /* [Fact]
     public async Task ImportAsync_WhenModAlreadyExists_ShouldReturnExistingMod()
     {
-        // Arrange
-        var filePath = "C:\\test\\my-mod.7z";
-        var sha = "abc123";
-        var existingEntity = new ModEntity
-        {
-            SHA = sha,
-            Category = "test-category",
-            Name = "Existing Mod",
-            Author = "Test Author",
-            Description = "Test Description",
-            Type = "7z",
-            Grading = "PG13"
-        };
-
-        SetupExistingModMocks(filePath, sha, existingEntity);
-
-        // Act
-        var result = await _service.ImportAsync(filePath);
-
-        // Assert
-        result.Should().NotBeNull();
-        result!.SHA.Should().Be(sha);
-        result.Name.Should().Be("Existing Mod", "should return existing mod");
-        result.Category.Should().Be("test-category", "should preserve existing category");
-
-        // Verify no import operations were performed
-        _mockArchiveService.Verify(x => x.CopyArchiveAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never, "should not copy archive for existing mod");
-        _mockMetadataService.Verify(x => x.CreateAsync(It.IsAny<CreateModRequest>()), Times.Never, "should not create new mod");
-        _mockEventBus.Verify(x => x.EmitAsync("MOD", "IMPORTED", It.IsAny<object>()), Times.Never, "should not emit IMPORTED event");
-    }
+        // This test is no longer applicable with GUID-based IDs
+    } */
 
     [Fact]
     public async Task ImportAsync_WhenFileDoesNotExist_ShouldThrowException()
@@ -207,7 +167,6 @@ public class ModImportServiceTests
         await Assert.ThrowsAsync<FileNotFoundException>(() => _service.ImportAsync(filePath));
 
         // Verify no operations were performed
-        _mockHashHelper.Verify(x => x.CalculateFileSHA256Async(It.IsAny<string>()), Times.Never);
         _mockArchiveService.Verify(x => x.CopyArchiveAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
@@ -216,10 +175,9 @@ public class ModImportServiceTests
     {
         // Arrange - Auto-import previews throws exception
         var filePath = "C:\\test\\my-mod.7z";
-        var sha = "abc123";
         var expectedMod = new ModInfo
         {
-            SHA = sha,
+            Id = ModInfo.NewId(),
             Category = string.Empty,
             Name = "my-mod",
             Author = string.Empty,
@@ -230,10 +188,9 @@ public class ModImportServiceTests
         };
 
         _mockPathValidator.Setup(x => x.ValidateFileExists(filePath));
-        _mockHashHelper.Setup(x => x.CalculateFileSHA256Async(filePath)).ReturnsAsync(sha);
-        _mockRepository.Setup(x => x.ExistsAsync(sha)).ReturnsAsync(false);
-        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, sha)).ReturnsAsync("mock-path");
-        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(sha))
+        _mockRepository.Setup(x => x.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, It.IsAny<string>())).ReturnsAsync("mock-path");
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(It.IsAny<string>()))
             .ThrowsAsync(new InvalidOperationException("Cache not found"));  // Fails
         _mockMetadataService.Setup(x => x.CreateAsync(It.IsAny<CreateModRequest>())).ReturnsAsync(expectedMod);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
@@ -243,7 +200,7 @@ public class ModImportServiceTests
 
         // Assert - Import should succeed despite preview import failure
         result.Should().NotBeNull();
-        result!.SHA.Should().Be(sha);
+        result!.Id.Should().NotBeNullOrEmpty("GUID should be generated");
 
         // Verify import completed
         _mockMetadataService.Verify(x => x.CreateAsync(It.IsAny<CreateModRequest>()), Times.Once, "import should complete despite preview failure");
@@ -255,12 +212,10 @@ public class ModImportServiceTests
     {
         // Arrange - Archive copy fails
         var filePath = "C:\\test\\my-mod.7z";
-        var sha = "abc123";
 
         _mockPathValidator.Setup(x => x.ValidateFileExists(filePath));
-        _mockHashHelper.Setup(x => x.CalculateFileSHA256Async(filePath)).ReturnsAsync(sha);
-        _mockRepository.Setup(x => x.ExistsAsync(sha)).ReturnsAsync(false);
-        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, sha))
+        _mockRepository.Setup(x => x.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, It.IsAny<string>()))
             .ThrowsAsync(new IOException("Disk full"));
 
         // Act & Assert
@@ -276,10 +231,9 @@ public class ModImportServiceTests
     {
         // Arrange
         var filePath = "C:\\test\\[NSFW] My-Mod (v2.0).7z";
-        var sha = "abc123";
         var expectedMod = new ModInfo
         {
-            SHA = sha,
+            Id = ModInfo.NewId(),
             Category = string.Empty,
             Name = "[NSFW] My-Mod (v2.0)",  // Should preserve filename
             Author = string.Empty,
@@ -289,7 +243,7 @@ public class ModImportServiceTests
             Tags = new List<string>()
         };
 
-        SetupSuccessfulImportMocks(filePath, sha, expectedMod);
+        SetupSuccessfulImportMocks(filePath, expectedMod);
 
         // Act
         var result = await _service.ImportAsync(filePath);
@@ -309,10 +263,9 @@ public class ModImportServiceTests
     {
         // Arrange
         var filePath = "C:\\test\\my-mod.zip";
-        var sha = "abc123";
         var expectedMod = new ModInfo
         {
-            SHA = sha,
+            Id = ModInfo.NewId(),
             Category = string.Empty,
             Name = "my-mod",
             Author = string.Empty,
@@ -322,7 +275,7 @@ public class ModImportServiceTests
             Tags = new List<string>()
         };
 
-        SetupSuccessfulImportMocks(filePath, sha, expectedMod);
+        SetupSuccessfulImportMocks(filePath, expectedMod);
 
         // Act
         var result = await _service.ImportAsync(filePath);
@@ -332,7 +285,8 @@ public class ModImportServiceTests
 
         // Verify CreateAsync was called with correct default values
         _mockMetadataService.Verify(x => x.CreateAsync(It.Is<CreateModRequest>(r =>
-            r.SHA == sha &&
+            !string.IsNullOrEmpty(r.Id) &&  // GUID should be generated
+            r.Id.Length == 32 &&  // GUID without hyphens is 32 characters
             r.Category == null &&  // Should be null (unclassified)
             r.Name == "my-mod" &&
             r.Author == null &&  // Should be null (empty)
@@ -348,10 +302,9 @@ public class ModImportServiceTests
     {
         // Arrange
         var filePath = "C:\\test\\my-mod.7z";
-        var sha = "abc123";
         var expectedMod = new ModInfo
         {
-            SHA = sha,
+            Id = ModInfo.NewId(),
             Category = string.Empty,
             Name = "my-mod",
             Author = string.Empty,
@@ -362,10 +315,9 @@ public class ModImportServiceTests
         };
 
         _mockPathValidator.Setup(x => x.ValidateFileExists(filePath));
-        _mockHashHelper.Setup(x => x.CalculateFileSHA256Async(filePath)).ReturnsAsync(sha);
-        _mockRepository.Setup(x => x.ExistsAsync(sha)).ReturnsAsync(false);
-        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, sha)).ReturnsAsync("mock-path");
-        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(sha)).ReturnsAsync(3);  // Found 3 previews
+        _mockRepository.Setup(x => x.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, It.IsAny<string>())).ReturnsAsync("mock-path");
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(It.IsAny<string>())).ReturnsAsync(3);  // Found 3 previews
         _mockMetadataService.Setup(x => x.CreateAsync(It.IsAny<CreateModRequest>())).ReturnsAsync(expectedMod);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
@@ -375,8 +327,8 @@ public class ModImportServiceTests
         // Assert
         result.Should().NotBeNull();
 
-        // Verify auto-import was attempted
-        _mockImageService.Verify(x => x.TryAutoImportPreviewsFromCacheAsync(sha), Times.Once);
+        // Verify auto-import was attempted (with GUID-based IDs, we use It.IsAny)
+        _mockImageService.Verify(x => x.TryAutoImportPreviewsFromCacheAsync(It.IsAny<string>()), Times.Once);
     }
 
     #endregion

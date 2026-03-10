@@ -14,7 +14,7 @@ public interface IModOperationQueue
 {
     /// <summary>
     /// Enqueue an operation for a specific mod
-    /// Ensures only one operation at a time per mod SHA
+    /// Ensures only one operation at a time per mod ID
     /// </summary>
     Task<T> EnqueueAsync<T>(string modSha, Func<Task<T>> operation);
 
@@ -38,7 +38,7 @@ public interface IModOperationQueue
 
 public class ModOperationQueue : IModOperationQueue
 {
-    // Per-mod semaphores: Only one operation per mod SHA at a time
+    // Per-mod semaphores: Only one operation per mod ID at a time
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _modLocks = new();
 
     // Per-category semaphores: Only one load operation per category at a time

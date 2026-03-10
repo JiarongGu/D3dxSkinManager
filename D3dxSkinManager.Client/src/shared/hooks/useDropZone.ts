@@ -16,11 +16,11 @@ export interface DropZoneFileDropData {
  * Creates a WinForms drop zone overlay that syncs with a web element
  *
  * How it works:
- * 1. Mouse leaves area â†’ Frontend sends SHOW â†’ Overlay visible
- * 2. Mouse enters area â†’ Backend checks occlusion â†’ Hides overlay (unless dragging files)
- * 3. Form inactive â†’ Show overlay (for drag-drop from other apps)
- * 4. Form active â†’ Frontend handles via (1)
- * 5. When overlay visible â†’ Backend sends MOUSE_ENTER/LEAVE events for CSS styles
+ * 1. Mouse leaves area â†?Frontend sends SHOW â†?Overlay visible
+ * 2. Mouse enters area â†?Backend checks occlusion â†?Hides overlay (unless dragging files)
+ * 3. Form inactive â†?Show overlay (for drag-drop from other apps)
+ * 4. Form active â†?Frontend handles via (1)
+ * 5. When overlay visible â†?Backend sends MOUSE_ENTER/LEAVE events for CSS styles
  *
  * Features:
  * - Captures real OS file paths (not blob URLs)
@@ -102,7 +102,7 @@ export function useDropZone(options: {
     element.setAttribute('data-drop-zone-id', zoneIdRef.current);
     updateZoneBounds();
 
-    // Shared debounced function to send SHOW message
+    // IDred debounced function to send SHOW message
     const sendShowMessageImmediate = () => {
       bridgeService.sendMessage({
         module: 'DROP_ZONE',

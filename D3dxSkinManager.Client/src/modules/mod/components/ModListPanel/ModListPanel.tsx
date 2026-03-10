@@ -124,25 +124,25 @@ export const ModListPanel: React.FC = () => {
 
       if (ctrlKey) {
         // Ctrl+Click: Toggle selection
-        const isSelected = selectedModShas.includes(mod.sha);
+        const isSelected = selectedModShas.includes(mod.id);
         if (isSelected) {
           // Remove from selection
-          const newSelection = selectedModShas.filter((sha) => sha !== mod.sha);
+          const newSelection = selectedModShas.filter((id) => id !== mod.id);
           setSelectedModShas(newSelection);
           // Update anchor to last remaining item or undefined
           setAnchorSha(newSelection.length > 0 ? newSelection[newSelection.length - 1] : undefined);
           // Update primary selection to first item or undefined
           if (newSelection.length > 0) {
-            const firstMod = filteredMods.find((m) => m.sha === newSelection[0]);
+            const firstMod = filteredMods.find((m) => m.id === newSelection[0]);
             if (firstMod) selectMod(firstMod);
           } else {
             selectMod(undefined);
           }
         } else {
           // Add to selection
-          const newSelection = [...selectedModShas, mod.sha];
+          const newSelection = [...selectedModShas, mod.id];
           setSelectedModShas(newSelection);
-          setAnchorSha(mod.sha);
+          setAnchorSha(mod.id);
           // If this is the first selection, set it as primary
           if (selectedModShas.length === 0) {
             selectMod(mod);
@@ -150,25 +150,25 @@ export const ModListPanel: React.FC = () => {
         }
       } else if (shiftKey && anchorSha) {
         // Shift+Click: Select range from anchor to current
-        const anchorIndex = filteredMods.findIndex((m) => m.sha === anchorSha);
-        const currentIndex = filteredMods.findIndex((m) => m.sha === mod.sha);
+        const anchorIndex = filteredMods.findIndex((m) => m.id === anchorSha);
+        const currentIndex = filteredMods.findIndex((m) => m.id === mod.id);
 
         if (anchorIndex !== -1 && currentIndex !== -1) {
           const start = Math.min(anchorIndex, currentIndex);
           const end = Math.max(anchorIndex, currentIndex);
           const rangeSelection = filteredMods
             .slice(start, end + 1)
-            .map((m) => m.sha);
+            .map((m) => m.id);
           setSelectedModShas(rangeSelection);
           // Keep anchor unchanged, primary selection is first in range
-          const firstMod = filteredMods.find((m) => m.sha === rangeSelection[0]);
+          const firstMod = filteredMods.find((m) => m.id === rangeSelection[0]);
           if (firstMod) selectMod(firstMod);
         }
       } else {
         // Regular click: Single selection
         selectMod(mod);
-        setSelectedModShas([mod.sha]);
-        setAnchorSha(mod.sha);
+        setSelectedModShas([mod.id]);
+        setAnchorSha(mod.id);
       }
     },
     [selectedModShas, anchorSha, filteredMods, selectMod]
@@ -188,14 +188,14 @@ export const ModListPanel: React.FC = () => {
     selectMod(mod);
 
     // Find the mod's index in the filtered list
-    const modIndex = filteredMods.findIndex(m => m.sha === mod.sha);
+    const modIndex = filteredMods.findIndex(m => m.id === mod.id);
     if (modIndex === -1) return;
 
     // Scroll the mod into view
     // For lazy-loaded lists, we need to ensure the item is rendered first
     if (contentRef.current) {
       const modElement = contentRef.current.querySelector(
-        `[data-mod-sha="${mod.sha}"]`,
+        `[data-mod-sha="${mod.id}"]`,
       );
 
       if (modElement) {
@@ -219,7 +219,7 @@ export const ModListPanel: React.FC = () => {
           // Wait for DOM to update after lazy loading, then scroll precisely
           setTimeout(() => {
             const modElement = contentRef.current?.querySelector(
-              `[data-mod-sha="${mod.sha}"]`,
+              `[data-mod-sha="${mod.id}"]`,
             );
             if (modElement) {
               modElement.scrollIntoView({ behavior: "smooth", block: "center" });

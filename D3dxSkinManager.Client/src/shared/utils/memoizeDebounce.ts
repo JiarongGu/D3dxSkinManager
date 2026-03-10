@@ -18,14 +18,14 @@ export interface MemoizeDebouncedFunction<F extends AnyFunction> {
  * per key, preserving all parameters. Auto-cleans cache after execution.
  *
  * @param func - Function to debounce
- * @param resolver - Extract cache key from arguments (e.g., `(sha) => sha`)
+ * @param resolver - Extract cache key from arguments (e.g., `(id) => sha`)
  * @param wait - Delay in milliseconds (default: 0)
  * @param options - Debounce options (leading, trailing, maxWait)
  *
  * @example
  * const refresh = memoizeDebounce(
- *   async (sha: string) => api.refresh(sha),
- *   (sha) => sha,
+ *   async (id: string) => api.refresh(sha),
+ *   (id) => sha,
  *   20
  * );
  * refresh('mod1'); refresh('mod2'); // Both get independent 20ms timers

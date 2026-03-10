@@ -258,7 +258,7 @@ export function useCategoryTreeOperations({
   );
 
 
-  // Simplified mod Category handler - just takes mod SHA and category node ID
+  // Simplified mod Category handler - just takes mod ID and category node ID
   const handleModClassify = useCallback(
     async (modSha: string, nodeId: string) => {
       if (!modSha) {
@@ -301,7 +301,7 @@ export function useCategoryTreeOperations({
     [updateModCategory]
   );
 
-  // Bulk mod classification handler - takes array of mod SHAs and category node ID
+  // Bulk mod classification handler - takes array of mod IDs and category node ID
   const handleBulkModClassify = useCallback(
     async (modShas: string[], nodeId: string) => {
       if (!modShas || modShas.length === 0) {

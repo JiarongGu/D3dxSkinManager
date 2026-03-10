@@ -21,7 +21,7 @@ public class ModMapperTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "abc123",
+            Id = "abc123",
             Category = "category-1",
             Name = "Test Mod",
             Author = "Test Author",
@@ -40,7 +40,7 @@ public class ModMapperTests
 
         // Assert
         domain.Should().NotBeNull();
-        domain.SHA.Should().Be("abc123");
+        domain.Id.Should().Be("abc123");
         domain.Category.Should().Be("category-1");
         domain.Name.Should().Be("Test Mod");
         domain.Author.Should().Be("Test Author");
@@ -65,7 +65,7 @@ public class ModMapperTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Name = "Test",
             Tags = "[]"
         };
@@ -84,7 +84,7 @@ public class ModMapperTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Name = "Test",
             Tags = ""
         };
@@ -103,7 +103,7 @@ public class ModMapperTests
         // Arrange
         var domain = new ModInfo
         {
-            SHA = "abc123",
+            Id = "abc123",
             Category = "category-1",
             Name = "Test Mod",
             Author = "Test Author",
@@ -125,7 +125,7 @@ public class ModMapperTests
 
         // Assert
         entity.Should().NotBeNull();
-        entity.SHA.Should().Be("abc123");
+        entity.Id.Should().Be("abc123");
         entity.Category.Should().Be("category-1");
         entity.Name.Should().Be("Test Mod");
         entity.Author.Should().Be("Test Author");
@@ -147,7 +147,7 @@ public class ModMapperTests
         // Arrange
         var domain = new ModInfo
         {
-            SHA = "test",
+            Id = "test",
             Name = "Test",
             Tags = new List<string>()
         };
@@ -165,7 +165,7 @@ public class ModMapperTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "abc123",
+            Id = "abc123",
             Name = "Old Name",
             Author = "Old Author",
             Tags = "[]"
@@ -173,7 +173,7 @@ public class ModMapperTests
 
         var domain = new ModInfo
         {
-            SHA = "abc123",
+            Id = "abc123",
             Category = "new-category",
             Name = "New Name",
             Author = "New Author",
@@ -186,7 +186,7 @@ public class ModMapperTests
         ModMapper.UpdateEntity(entity, domain);
 
         // Assert
-        entity.SHA.Should().Be("abc123");  // SHA should not change
+        entity.Id.Should().Be("abc123");  // SHA should not change
         entity.Category.Should().Be("new-category");
         entity.Name.Should().Be("New Name");
         entity.Author.Should().Be("New Author");
@@ -203,9 +203,9 @@ public class ModMapperTests
         // Arrange
         var entities = new List<ModEntity>
         {
-            new ModEntity { SHA = "sha1", Name = "Mod 1", Tags = "[]" },
-            new ModEntity { SHA = "sha2", Name = "Mod 2", Tags = "[\"tag1\"]" },
-            new ModEntity { SHA = "sha3", Name = "Mod 3", Tags = "[\"tag2\",\"tag3\"]" }
+            new ModEntity { Id = "sha1", Name = "Mod 1", Tags = "[]" },
+            new ModEntity { Id = "sha2", Name = "Mod 2", Tags = "[\"tag1\"]" },
+            new ModEntity { Id = "sha3", Name = "Mod 3", Tags = "[\"tag2\",\"tag3\"]" }
         };
 
         // Act
@@ -213,11 +213,11 @@ public class ModMapperTests
 
         // Assert
         domains.Should().HaveCount(3);
-        domains[0].SHA.Should().Be("sha1");
+        domains[0].Id.Should().Be("sha1");
         domains[0].Tags.Should().BeEmpty();
-        domains[1].SHA.Should().Be("sha2");
+        domains[1].Id.Should().Be("sha2");
         domains[1].Tags.Should().BeEquivalentTo(new List<string> { "tag1" });
-        domains[2].SHA.Should().Be("sha3");
+        domains[2].Id.Should().Be("sha3");
         domains[2].Tags.Should().BeEquivalentTo(new List<string> { "tag2", "tag3" });
     }
 
@@ -241,7 +241,7 @@ public class ModMapperTests
         // Arrange
         var originalEntity = new ModEntity
         {
-            SHA = "test123",
+            Id = "test123",
             Category = "category-1",
             Name = "Test Mod",
             Author = "Author",
@@ -259,7 +259,7 @@ public class ModMapperTests
         var roundTripEntity = ModMapper.ToEntity(domain);
 
         // Assert
-        roundTripEntity.SHA.Should().Be(originalEntity.SHA);
+        roundTripEntity.Id.Should().Be(originalEntity.Id);
         roundTripEntity.Category.Should().Be(originalEntity.Category);
         roundTripEntity.Name.Should().Be(originalEntity.Name);
         roundTripEntity.Author.Should().Be(originalEntity.Author);

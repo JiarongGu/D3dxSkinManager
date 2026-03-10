@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Centralized Mods Store using Zustand
  * Single source of truth for all mods module state
  *
@@ -82,7 +82,7 @@ export interface ModsActions {
   setModLoading: (loading: boolean) => void;
   setViewMode: (mode: ModListViewMode) => void;
   updateModLocal: (sha: string, data: Partial<ModInfo>) => void;
-  removeMod: (sha: string) => void;
+  removeMod: (id: string) => void;
 
   // Statistics Actions
   setStatistics: (statistics: ModStatistics) => void;
@@ -237,29 +237,29 @@ export const useModsStore = create<ModsStore>()(
       updateModLocal: (sha, data) =>
         set((state) => {
           // Update selectedMod if it matches
-          if (state.selectedMod?.sha === sha) {
+          if (state.selectedMod?.id === sha) {
             state.selectedMod = { ...state.selectedMod, ...data };
           }
           // Update mods list if present
           if (state.mods) {
             state.mods = state.mods.map((mod: ModInfo) =>
-              mod.sha === sha ? { ...mod, ...data } : mod
+              mod.id === sha ? { ...mod, ...data } : mod
             );
           }
         }),
 
-      removeMod: (sha) =>
+      removeMod: (id) =>
         set((state) => {
           // Clear selectedMod if it matches
-          if (state.selectedMod?.sha === sha) {
+          if (state.selectedMod?.id === id) {
             state.selectedMod = undefined;
           }
           // Remove from selectedMods
-          state.selectedMods = state.selectedMods.filter((mod: ModInfo) => mod.sha !== sha);
+          state.selectedMods = state.selectedMods.filter((mod: ModInfo) => mod.id !== id);
           // Remove from mods list if present
           if (state.mods) {
             state.mods = state.mods.filter(
-              (mod: ModInfo) => mod.sha !== sha
+              (mod: ModInfo) => mod.id !== id
             );
           }
         }),

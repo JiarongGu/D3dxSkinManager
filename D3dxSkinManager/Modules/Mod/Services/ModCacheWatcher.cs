@@ -73,12 +73,12 @@ public class ModCacheWatcher : IModCacheWatcher
                 _watcher.Deleted += OnCacheFolderDeleted;
                 _watcher.Renamed += OnCacheFolderRenamed;
 
-                _logger.Info($"‚úÖ ModCacheWatcher STARTED successfully watching: {cacheDir}", "ModCacheWatcher");
-                _logger.Info($"‚úÖ Watching for: DirectoryName changes (Deleted, Renamed)", "ModCacheWatcher");
+                _logger.Info($"‚ú?ModCacheWatcher STARTED successfully watching: {cacheDir}", "ModCacheWatcher");
+                _logger.Info($"‚ú?Watching for: DirectoryName changes (Deleted, Renamed)", "ModCacheWatcher");
             }
             catch (Exception ex)
             {
-                _logger.Error($"‚ùå Failed to start ModCacheWatcher: {ex.Message}", "ModCacheWatcher", ex);
+                _logger.Error($"‚ù?Failed to start ModCacheWatcher: {ex.Message}", "ModCacheWatcher", ex);
                 _watcher?.Dispose();
                 _watcher = null;
             }
@@ -108,7 +108,7 @@ public class ModCacheWatcher : IModCacheWatcher
         {
             var folderName = Path.GetFileName(e.FullPath);
 
-            // Check if it's a mod folder (SHA) or disabled mod folder (DISABLED-SHA)
+            // Check if it's a mod folder (id) or disabled mod folder (DISABLED-SHA)
             if (string.IsNullOrEmpty(folderName))
                 return;
 

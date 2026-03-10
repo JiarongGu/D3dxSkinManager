@@ -33,7 +33,7 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "abc123",
+            Id = "abc123",
             Category = "category-1",
             Name = "Test Mod",
             Author = "Test Author",
@@ -48,7 +48,7 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
 
         // Assert
         result.Should().NotBeNull();
-        result.SHA.Should().Be("abc123");
+        result.Id.Should().Be("abc123");
         result.Name.Should().Be("Test Mod");
 
         // Verify it was actually inserted
@@ -62,8 +62,8 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task GetAllAsync_WithMultipleEntities_ShouldReturnAll()
     {
         // Arrange
-        var entity1 = new ModEntity { SHA = "sha1", Category = "cat1", Name = "Mod 1", Tags = "[]" };
-        var entity2 = new ModEntity { SHA = "sha2", Category = "cat2", Name = "Mod 2", Tags = "[]" };
+        var entity1 = new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Tags = "[]" };
+        var entity2 = new ModEntity { Id = "sha2", Category = "cat2", Name = "Mod 2", Tags = "[]" };
 
         await _repository.InsertAsync(entity1);
         await _repository.InsertAsync(entity2);
@@ -81,7 +81,7 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task GetByIdAsync_WithExistingId_ShouldReturnEntity()
     {
         // Arrange
-        var entity = new ModEntity { SHA = "test123", Category = "cat1", Name = "Test Mod", Tags = "[]" };
+        var entity = new ModEntity { Id = "test123", Category = "cat1", Name = "Test Mod", Tags = "[]" };
         await _repository.InsertAsync(entity);
 
         // Act
@@ -89,7 +89,7 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
 
         // Assert
         result.Should().NotBeNull();
-        result!.SHA.Should().Be("test123");
+        result!.Id.Should().Be("test123");
         result.Name.Should().Be("Test Mod");
     }
 
@@ -107,7 +107,7 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task ExistsAsync_WithExistingId_ShouldReturnTrue()
     {
         // Arrange
-        var entity = new ModEntity { SHA = "exists123", Category = "cat1", Name = "Test", Tags = "[]" };
+        var entity = new ModEntity { Id = "exists123", Category = "cat1", Name = "Test", Tags = "[]" };
         await _repository.InsertAsync(entity);
 
         // Act
@@ -131,7 +131,7 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task UpdateAsync_WithValidData_ShouldUpdate()
     {
         // Arrange
-        var entity = new ModEntity { SHA = "update123", Category = "cat1", Name = "Original Name", Tags = "[]" };
+        var entity = new ModEntity { Id = "update123", Category = "cat1", Name = "Original Name", Tags = "[]" };
         await _repository.InsertAsync(entity);
 
         entity.Name = "Updated Name";
@@ -152,7 +152,7 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task DeleteAsync_WithExistingId_ShouldDelete()
     {
         // Arrange
-        var entity = new ModEntity { SHA = "delete123", Category = "cat1", Name = "To Delete", Tags = "[]" };
+        var entity = new ModEntity { Id = "delete123", Category = "cat1", Name = "To Delete", Tags = "[]" };
         await _repository.InsertAsync(entity);
 
         // Act
@@ -169,9 +169,9 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task GetByCategoryAsync_ShouldReturnEntitiesInCategory()
     {
         // Arrange
-        var entity1 = new ModEntity { SHA = "sha1", Category = "category-1", Name = "Mod 1", Tags = "[]" };
-        var entity2 = new ModEntity { SHA = "sha2", Category = "category-1", Name = "Mod 2", Tags = "[]" };
-        var entity3 = new ModEntity { SHA = "sha3", Category = "category-2", Name = "Mod 3", Tags = "[]" };
+        var entity1 = new ModEntity { Id = "sha1", Category = "category-1", Name = "Mod 1", Tags = "[]" };
+        var entity2 = new ModEntity { Id = "sha2", Category = "category-1", Name = "Mod 2", Tags = "[]" };
+        var entity3 = new ModEntity { Id = "sha3", Category = "category-2", Name = "Mod 3", Tags = "[]" };
 
         await _repository.InsertAsync(entity1);
         await _repository.InsertAsync(entity2);
@@ -191,9 +191,9 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task GetDistinctCategoriesAsync_ShouldReturnUniqueCategories()
     {
         // Arrange
-        await _repository.InsertAsync(new ModEntity { SHA = "sha1", Category = "cat1", Name = "Mod 1", Tags = "[]" });
-        await _repository.InsertAsync(new ModEntity { SHA = "sha2", Category = "cat2", Name = "Mod 2", Tags = "[]" });
-        await _repository.InsertAsync(new ModEntity { SHA = "sha3", Category = "cat1", Name = "Mod 3", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "sha2", Category = "cat2", Name = "Mod 2", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "sha3", Category = "cat1", Name = "Mod 3", Tags = "[]" });
 
         // Act
         var categories = await _repository.GetDistinctCategoriesAsync();
@@ -208,9 +208,9 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task GetDistinctAuthorsAsync_ShouldReturnUniqueAuthors()
     {
         // Arrange
-        await _repository.InsertAsync(new ModEntity { SHA = "sha1", Category = "cat1", Name = "Mod 1", Author = "Author A", Tags = "[]" });
-        await _repository.InsertAsync(new ModEntity { SHA = "sha2", Category = "cat1", Name = "Mod 2", Author = "Author B", Tags = "[]" });
-        await _repository.InsertAsync(new ModEntity { SHA = "sha3", Category = "cat1", Name = "Mod 3", Author = "Author A", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Author = "Author A", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "sha2", Category = "cat1", Name = "Mod 2", Author = "Author B", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "sha3", Category = "cat1", Name = "Mod 3", Author = "Author A", Tags = "[]" });
 
         // Act
         var authors = await _repository.GetDistinctAuthorsAsync();
@@ -228,14 +228,14 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
         // Arrange
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "sha1",
+            Id = "sha1",
             Category = "cat1",
             Name = "Mod 1",
             Tags = "[\"action\",\"adventure\"]"
         });
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "sha2",
+            Id = "sha2",
             Category = "cat1",
             Name = "Mod 2",
             Tags = "[\"adventure\",\"rpg\"]"

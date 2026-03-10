@@ -66,15 +66,15 @@ export function setModLoading(sha: string, isLoading: boolean): void {
  * Updates the mod's properties (isLoaded, hasCache, cachePath, etc.) without refreshing entire list
  * Used after load/unload events to verify cache state
  */
-export async function refreshMod(profileId: string, sha: string): Promise<void> {
+export async function refreshMod(profileId: string, id: string): Promise<void> {
   const { updateModLocal } = useModsStore.getState();
 
   try {
     // Fetch fresh enriched mod data from backend
-    const freshMod = await modService.getModBySha(profileId, sha);
+    const freshMod = await modService.getModBySha(profileId, id);
     if (freshMod) {
       // Update the mod in the list with fresh data (and clear loading state)
-      updateModLocal(sha, { ...freshMod, isLoading: false });
+      updateModLocal(id, { ...freshMod, isLoading: false });
     }
   } catch (error) {
     console.error('Failed to refresh mod:', error);
@@ -89,13 +89,13 @@ export async function refreshMod(profileId: string, sha: string): Promise<void> 
 export async function refreshSelectedMod(profileId: string): Promise<void> {
   const { selectedMod, setSelectedMod } = useModsStore.getState();
 
-  if (!selectedMod?.sha) {
+  if (!selectedMod?.id) {
     return; // No mod selected, nothing to refresh
   }
 
   try {
     // Fetch fresh enriched mod data from backend
-    const freshMod = await modService.getModBySha(profileId, selectedMod.sha);
+    const freshMod = await modService.getModBySha(profileId, selectedMod.id);
     if (freshMod) {
       setSelectedMod(freshMod);
     } else {
@@ -151,16 +151,16 @@ export async function updateMod(
  * Delete a mod
  * Uses delayed loading (200ms) to avoid flicker for fast deletes
  */
-export async function deleteMod(profileId: string, sha: string): Promise<void> {
+export async function deleteMod(profileId: string, id: string): Promise<void> {
   const { removeMod, setModLoading } = useModsStore.getState();
 
   try {
     await executeWithDelayedLoading(
       async () => {
-        await modService.deleteMod(profileId, sha);
+        await modService.deleteMod(profileId, id);
 
         // Remove from local state
-        removeMod(sha);
+        removeMod(id);
 
         notification.success(i18n.t('mods.operations.deleteSuccess'));
       },
@@ -201,7 +201,7 @@ export async function loadTags(profileId: string): Promise<void> {
  * Load preview paths for the currently selected mod
  * Updates previewPaths in store and busts browser cache
  */
-export async function loadPreviewPaths(profileId: string, sha: string): Promise<void> {
+export async function loadPreviewPaths(profileId: string, id: string): Promise<void> {
   const { setPreviewLoading, setPreviewPaths, bustPreviewCache, selectedMod } = useModsStore.getState();
 
   // Check if preview is disabled for this mod
@@ -215,7 +215,7 @@ export async function loadPreviewPaths(profileId: string, sha: string): Promise<
     await executeWithDelayedLoading(
       async () => {
         // Backend automatically imports from cache if no previews exist
-        const paths = await api.mod.getPreviewPaths(profileId, sha);
+        const paths = await api.mod.getPreviewPaths(profileId, id);
         setPreviewPaths(paths);
         bustPreviewCache(); // Bust browser cache
       },
@@ -238,24 +238,24 @@ export async function loadPreviewPaths(profileId: string, sha: string): Promise<
 export async function reloadCurrentPreview(profileId: string): Promise<void> {
   const { selectedMod, bustPreviewCache } = useModsStore.getState();
 
-  if (selectedMod?.sha) {
+  if (selectedMod?.id) {
     // Bust cache to force browser to reload images (prevents showing cached old images)
     bustPreviewCache();
-    await loadPreviewPaths(profileId, selectedMod.sha);
+    await loadPreviewPaths(profileId, selectedMod.id);
   }
 }
 
 /**
  * Load a mod in-game
- * Backend fires LOADED event → ModProvider updates single mod optimistically + refreshes statistics
+ * Backend fires LOADED event �?ModProvider updates single mod optimistically + refreshes statistics
  */
-export async function loadMod(profileId: string, sha: string): Promise<void> {
+export async function loadMod(profileId: string, id: string): Promise<void> {
   try {
-    // Perform backend operation - returns affected mod SHAs
-    await modService.loadMod(profileId, sha);
+    // Perform backend operation - returns affected mod IDs
+    await modService.loadMod(profileId, id);
     notification.success(i18n.t('mods.operations.loadSuccess'));
 
-    // Backend fires LOADED event → ModProvider updates mod.isLoaded and refreshes statistics
+    // Backend fires LOADED event �?ModProvider updates mod.isLoaded and refreshes statistics
     // No full list refresh needed - optimistic update is instant and smooth
   } catch (error: unknown) {
     // Handle error with user-friendly messages
@@ -266,15 +266,15 @@ export async function loadMod(profileId: string, sha: string): Promise<void> {
 
 /**
  * Unload a mod from game
- * Backend fires UNLOADED event → ModProvider updates single mod optimistically + refreshes statistics
+ * Backend fires UNLOADED event �?ModProvider updates single mod optimistically + refreshes statistics
  */
-export async function unloadMod(profileId: string, sha: string): Promise<void> {
+export async function unloadMod(profileId: string, id: string): Promise<void> {
   try {
     // Perform backend operation
-    await modService.unloadMod(profileId, sha);
+    await modService.unloadMod(profileId, id);
     notification.success(i18n.t('mods.operations.unloadSuccess'));
 
-    // Backend fires UNLOADED event → ModProvider updates mod.isLoaded and refreshes statistics
+    // Backend fires UNLOADED event �?ModProvider updates mod.isLoaded and refreshes statistics
     // No full list refresh needed - optimistic update is instant and smooth
   } catch (error: unknown) {
     // Handle error with user-friendly messages

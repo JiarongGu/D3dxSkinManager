@@ -72,8 +72,8 @@ public class ModEnrichmentService : IModEnrichmentService
         {
             foreach (var previewDir in Directory.GetDirectories(_profilePaths.PreviewsDirectory))
             {
-                var sha = Path.GetFileName(previewDir);
-                if (string.IsNullOrEmpty(sha))
+                var id = Path.GetFileName(previewDir);
+                if (string.IsNullOrEmpty(id))
                     continue;
 
                 // Check if directory contains any preview image files
@@ -82,28 +82,28 @@ public class ModEnrichmentService : IModEnrichmentService
 
                 if (hasPreviewFiles)
                 {
-                    modsWithPreviews.Add(sha);
+                    modsWithPreviews.Add(id);
                 }
             }
         }
 
         foreach (var mod in mods)
         {
-            mod.IsAvailable = availableFiles.Contains(mod.SHA);
-            mod.IsLoaded = loadedDirectories.Contains(mod.SHA);
-            mod.HasCache = allCacheDirectories.Contains(mod.SHA);
-            mod.HasPreviewFolder = modsWithPreviews.Contains(mod.SHA);
+            mod.IsAvailable = availableFiles.Contains(mod.Id);
+            mod.IsLoaded = loadedDirectories.Contains(mod.Id);
+            mod.HasCache = allCacheDirectories.Contains(mod.Id);
+            mod.HasPreviewFolder = modsWithPreviews.Contains(mod.Id);
 
             // Populate file paths using proper path resolution
             // GetCachePath handles both active ({SHA}) and disabled (DISABLED-{SHA}) cache directories
             if (mod.HasCache)
             {
-                mod.CachePath = _cacheService.GetCachePath(mod.SHA);
+                mod.CachePath = _cacheService.GetCachePath(mod.Id);
             }
 
             if (mod.HasPreviewFolder)
             {
-                mod.PreviewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.SHA);
+                mod.PreviewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.Id);
             }
 
             // Always populate ArchiveFolderPath - this is where mod archives are stored

@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Tree, Empty, Spin, Input, Button, Tooltip } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { CategoryInfo } from "../../../../shared/types/category.types";
@@ -204,7 +204,7 @@ const CategoryTreeInner: React.FC = () => {
     }
   }, [loading, saveScrollPosition, restoreScrollPosition]);
 
-  // Shared context menu handler
+  // IDred context menu handler
   const handleContextMenu = React.useCallback(
     (e: React.MouseEvent, nodeId: string | undefined) => {
       e.preventDefault();
@@ -214,7 +214,7 @@ const CategoryTreeInner: React.FC = () => {
     [setContextMenuPosition, setContextMenuNode],
   );
 
-  // Shared context menu close handler
+  // IDred context menu close handler
   const handleContextMenuClose = React.useCallback(() => {
     setContextMenuNode(undefined);
     setContextMenuPosition({ x: 0, y: 0 });
@@ -229,7 +229,7 @@ const CategoryTreeInner: React.FC = () => {
       allow: "node", // Only allow dropping into categories, not between them
       onDrop: ({ data, target }) => {
         if (!data) {
-          logger.error("[ModDrop] No mod SHA provided");
+          logger.error("[ModDrop] No mod ID provided");
           return false;
         }
 
@@ -252,7 +252,7 @@ const CategoryTreeInner: React.FC = () => {
       allow: "node", // Only allow dropping into categories, not between them
       onDrop: ({ data, target }) => {
         if (!data) {
-          logger.error("[BulkModDrop] No mod SHAs provided");
+          logger.error("[BulkModDrop] No mod IDs provided");
           return false;
         }
 
@@ -269,7 +269,7 @@ const CategoryTreeInner: React.FC = () => {
           handleBulkModClassify(modShas, nodeId);
           return true;
         } catch (error) {
-          logger.error("[BulkModDrop] Failed to parse mod SHAs:", error);
+          logger.error("[BulkModDrop] Failed to parse mod IDs:", error);
           return false;
         }
       },

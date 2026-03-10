@@ -13,13 +13,13 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 /// </summary>
 public interface IModDeletionService
 {
-    Task<bool> DeleteAsync(string sha);
-    Task<BatchDeleteResult> BatchDeleteAsync(List<string> shas);
+    Task<bool> DeleteAsync(string id);
+    Task<BatchDeleteResult> BatchDeleteAsync(List<string> ids);
 }
 
 /// <summary>
 /// Orchestrates mod deletion across multiple services
-/// Handles the complete deletion workflow: Cache â†’ Preview â†’ Archive â†’ Database
+/// Handles the complete deletion workflow: Cache â†?Preview â†?Archive â†?Database
 /// Uses enrichment service to accurately detect what needs to be deleted
 /// Each step throws OperationException with specific error codes if it fails
 /// </summary>
@@ -52,25 +52,25 @@ public class ModDeletionService : IModDeletionService
     }
 
     /// <summary>
-    /// Delete a mod by SHA
-    /// Deletion order: Cache â†’ Preview â†’ Archive â†’ Database
+    /// Delete a mod by Id
+    /// Deletion order: Cache â†?Preview â†?Archive â†?Database
     /// If any step fails, the entire operation fails with OperationException
     /// Uses enrichment service to accurately determine what needs to be deleted
     /// </summary>
-    public async Task<bool> DeleteAsync(string sha)
+    public async Task<bool> DeleteAsync(string id)
     {
-        if (string.IsNullOrWhiteSpace(sha))
-            throw new ArgumentException("SHA is required", nameof(sha));
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("Id is required", nameof(id));
 
         // Check if mod exists
-        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
         if (entity == null)
         {
-            _logger.Warn($"Mod not found for deletion: {sha}", "ModDeletionService");
+            _logger.Warn($"Mod not found for deletion: {id}", "ModDeletionService");
             throw new OperationException(
                 ModErrorCodes.DELETE_MOD_NOT_FOUND,
-                new Dictionary<string, string> { { "sha", sha } },
-                $"Mod not found: {sha}"
+                new Dictionary<string, string> { { "id", id } },
+                $"Mod not found: {id}"
             );
         }
 
@@ -81,7 +81,7 @@ public class ModDeletionService : IModDeletionService
         // This ensures we accurately detect what needs to be deleted
         _enrichmentService.PopulateStatusFlags(new List<ModInfo> { mod });
 
-        _logger.Info($"Starting deletion process for mod: {sha} (Name: {mod.Name})", "ModDeletionService");
+        _logger.Info($"Starting deletion process for mod: {id} (Name: {mod.Name})", "ModDeletionService");
         _logger.Debug($"Deletion flags - HasCache: {mod.HasCache}, HasPreviewFolder: {mod.HasPreviewFolder}, IsAvailable: {mod.IsAvailable}", "ModDeletionService");
 
         try
@@ -99,9 +99,9 @@ public class ModDeletionService : IModDeletionService
             await DeleteFromDatabaseAsync(mod).ConfigureAwait(false);
 
             // Emit DELETED event to notify frontend
-            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Sha = sha }).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Id = id }).ConfigureAwait(false);
 
-            _logger.Info($"Mod deletion completed successfully: {sha} (Name: {mod.Name})", "ModDeletionService");
+            _logger.Info($"Mod deletion completed successfully: {id} (Name: {mod.Name})", "ModDeletionService");
             return true;
         }
         catch (OperationException)
@@ -112,11 +112,11 @@ public class ModDeletionService : IModDeletionService
         catch (Exception ex)
         {
             // Wrap unexpected exceptions in OperationException
-            _logger.Error($"Unexpected error during mod deletion {sha}: {ex.Message}", "ModDeletionService", ex);
+            _logger.Error($"Unexpected error during mod deletion {id}: {ex.Message}", "ModDeletionService", ex);
             throw new OperationException(
                 ModErrorCodes.DELETE_FAILED,
-                new Dictionary<string, string> { { "sha", sha }, { "name", mod.Name } },
-                $"Unexpected error deleting mod {sha}: {ex.Message}",
+                new Dictionary<string, string> { { "id", id }, { "name", mod.Name } },
+                $"Unexpected error deleting mod {id}: {ex.Message}",
                 ex
             );
         }
@@ -129,22 +129,22 @@ public class ModDeletionService : IModDeletionService
     {
         if (!mod.HasCache)
         {
-            _logger.Debug($"Step 1/4: No cache to delete for mod: {mod.SHA}", "ModDeletionService");
+            _logger.Debug($"Step 1/4: No cache to delete for mod: {mod.Id}", "ModDeletionService");
             return;
         }
 
-        _logger.Info($"Step 1/4: Deleting cache for mod: {mod.SHA}", "ModDeletionService");
-        var cacheDeleted = await _cacheService.DeleteCacheAsync(mod.SHA).ConfigureAwait(false);
+        _logger.Info($"Step 1/4: Deleting cache for mod: {mod.Id}", "ModDeletionService");
+        var cacheDeleted = await _cacheService.DeleteCacheAsync(mod.Id).ConfigureAwait(false);
         if (!cacheDeleted)
         {
             throw new OperationException(
                 ModErrorCodes.DELETE_CACHE_FAILED,
-                new Dictionary<string, string> { { "sha", mod.SHA }, { "name", mod.Name } },
-                $"Failed to delete cache for mod {mod.SHA}"
+                new Dictionary<string, string> { { "sha", mod.Id }, { "name", mod.Name } },
+                $"Failed to delete cache for mod {mod.Id}"
             );
         }
 
-        _logger.Info($"Successfully deleted cache for mod: {mod.SHA}", "ModDeletionService");
+        _logger.Info($"Successfully deleted cache for mod: {mod.Id}", "ModDeletionService");
     }
 
     /// <summary>
@@ -154,26 +154,26 @@ public class ModDeletionService : IModDeletionService
     {
         if (!mod.HasPreviewFolder)
         {
-            _logger.Debug($"Step 2/4: No preview folder to delete for mod: {mod.SHA}", "ModDeletionService");
+            _logger.Debug($"Step 2/4: No preview folder to delete for mod: {mod.Id}", "ModDeletionService");
             return;
         }
 
-        _logger.Info($"Step 2/4: Deleting preview folder for mod: {mod.SHA}", "ModDeletionService");
+        _logger.Info($"Step 2/4: Deleting preview folder for mod: {mod.Id}", "ModDeletionService");
         try
         {
-            var previewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.SHA);
+            var previewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.Id);
             if (Directory.Exists(previewFolderPath))
             {
                 Directory.Delete(previewFolderPath, recursive: true);
-                _logger.Info($"Successfully deleted preview folder for mod: {mod.SHA}", "ModDeletionService");
+                _logger.Info($"Successfully deleted preview folder for mod: {mod.Id}", "ModDeletionService");
             }
         }
         catch (Exception ex)
         {
             throw new OperationException(
                 ModErrorCodes.DELETE_PREVIEW_FAILED,
-                new Dictionary<string, string> { { "sha", mod.SHA }, { "name", mod.Name } },
-                $"Failed to delete preview folder for mod {mod.SHA}: {ex.Message}",
+                new Dictionary<string, string> { { "sha", mod.Id }, { "name", mod.Name } },
+                $"Failed to delete preview folder for mod {mod.Id}: {ex.Message}",
                 ex
             );
         }
@@ -189,22 +189,22 @@ public class ModDeletionService : IModDeletionService
     {
         if (!mod.IsAvailable)
         {
-            _logger.Debug($"Step 3/4: No archive to delete for mod: {mod.SHA}", "ModDeletionService");
+            _logger.Debug($"Step 3/4: No archive to delete for mod: {mod.Id}", "ModDeletionService");
             return;
         }
 
-        _logger.Info($"Step 3/4: Deleting archive for mod: {mod.SHA}", "ModDeletionService");
-        var archiveDeleted = await _archiveService.DeleteArchiveAsync(mod.SHA).ConfigureAwait(false);
+        _logger.Info($"Step 3/4: Deleting archive for mod: {mod.Id}", "ModDeletionService");
+        var archiveDeleted = await _archiveService.DeleteArchiveAsync(mod.Id).ConfigureAwait(false);
         if (!archiveDeleted)
         {
             throw new OperationException(
                 ModErrorCodes.DELETE_ARCHIVE_FAILED,
-                new Dictionary<string, string> { { "sha", mod.SHA }, { "name", mod.Name } },
-                $"Failed to delete archive for mod {mod.SHA}"
+                new Dictionary<string, string> { { "sha", mod.Id }, { "name", mod.Name } },
+                $"Failed to delete archive for mod {mod.Id}"
             );
         }
 
-        _logger.Info($"Successfully deleted archive for mod: {mod.SHA}", "ModDeletionService");
+        _logger.Info($"Successfully deleted archive for mod: {mod.Id}", "ModDeletionService");
     }
 
     /// <summary>
@@ -212,18 +212,18 @@ public class ModDeletionService : IModDeletionService
     /// </summary>
     private async Task DeleteFromDatabaseAsync(ModInfo mod)
     {
-        _logger.Info($"Step 4/4: Deleting from database for mod: {mod.SHA}", "ModDeletionService");
-        var success = await _repository.DeleteAsync(mod.SHA).ConfigureAwait(false);
+        _logger.Info($"Step 4/4: Deleting from database for mod: {mod.Id}", "ModDeletionService");
+        var success = await _repository.DeleteAsync(mod.Id).ConfigureAwait(false);
         if (!success)
         {
             throw new OperationException(
                 ModErrorCodes.DELETE_DATABASE_FAILED,
-                new Dictionary<string, string> { { "sha", mod.SHA }, { "name", mod.Name } },
-                $"Failed to delete mod from database: {mod.SHA}"
+                new Dictionary<string, string> { { "sha", mod.Id }, { "name", mod.Name } },
+                $"Failed to delete mod from database: {mod.Id}"
             );
         }
 
-        _logger.Info($"Successfully deleted mod from database: {mod.SHA}", "ModDeletionService");
+        _logger.Info($"Successfully deleted mod from database: {mod.Id}", "ModDeletionService");
     }
 
     /// <summary>
@@ -242,11 +242,11 @@ public class ModDeletionService : IModDeletionService
 
         _logger.Info($"Starting batch deletion for {shas.Count} mods", "ModDeletionService");
 
-        foreach (var sha in shas)
+        foreach (var id in shas)
         {
             try
             {
-                var success = await DeleteAsync(sha).ConfigureAwait(false);
+                var success = await DeleteAsync(id).ConfigureAwait(false);
                 if (success)
                 {
                     result.SuccessCount++;
@@ -254,14 +254,14 @@ public class ModDeletionService : IModDeletionService
                 else
                 {
                     result.FailedCount++;
-                    result.FailedShas.Add(sha);
+                    result.FailedShas.Add(id);
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error($"Error deleting mod {sha}: {ex.Message}", "ModDeletionService", ex);
+                _logger.Error($"Error deleting mod {id}: {ex.Message}", "ModDeletionService", ex);
                 result.FailedCount++;
-                result.FailedShas.Add(sha);
+                result.FailedShas.Add(id);
             }
         }
 

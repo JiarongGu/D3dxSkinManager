@@ -5,7 +5,12 @@ namespace D3dxSkinManager.Modules.Mod.Models;
 /// </summary>
 public class ModInfo
 {
-    public string SHA { get; set; } = string.Empty;
+    /// <summary>
+    /// Generates a new GUID-based ID for a mod (32-character uppercase hex without hyphens)
+    /// </summary>
+    public static string NewId() => Guid.NewGuid().ToString("N").ToUpperInvariant();
+
+    public string Id { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;  // Category ID (may be GUID or legacy path)
     public string CategoryName { get; set; } = string.Empty;  // Human-readable category name for display
     public string Name { get; set; } = string.Empty;
@@ -38,7 +43,7 @@ public class ModInfo
     // Extension field for future use - can store JSON data without database migration
     public string? Metadata { get; set; }
 
-    // Note: Preview paths and thumbnails are scanned dynamically from previews/{SHA}/ folder
+    // Note: Preview paths and thumbnails are scanned dynamically from previews/{Id}/ folder
     // Allows users to add preview images directly to folder
     // Use GET_PREVIEW_PATHS IPC call to retrieve them
     // The first preview image (sorted alphabetically) is used as the thumbnail

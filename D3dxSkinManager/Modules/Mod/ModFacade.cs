@@ -148,9 +148,9 @@ public class ModFacade : BaseFacade, IModFacade
         return mods;
     }
 
-    public async Task<ModInfo?> GetModByIdAsync(string sha)
+    public async Task<ModInfo?> GetModByIdAsync(string id)
     {
-        var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+        var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
 
         if (entity == null)
         {
@@ -166,16 +166,16 @@ public class ModFacade : BaseFacade, IModFacade
         return mod;
     }
 
-    public async Task<ModLoadResult> LoadModAsync(string sha)
+    public async Task<ModLoadResult> LoadModAsync(string id)
     {
         // Delegate to service - it handles all business logic and event emissions
-        return await _lifecycleService.LoadAsync(sha).ConfigureAwait(false);
+        return await _lifecycleService.LoadAsync(id).ConfigureAwait(false);
     }
 
-    public async Task<bool> UnloadModAsync(string sha)
+    public async Task<bool> UnloadModAsync(string id)
     {
         // Delegate to service - it handles event emission
-        return await _lifecycleService.UnloadAsync(sha).ConfigureAwait(false);
+        return await _lifecycleService.UnloadAsync(id).ConfigureAwait(false);
     }
 
     public async Task<List<string>> GetLoadedModIdsAsync()
@@ -194,28 +194,28 @@ public class ModFacade : BaseFacade, IModFacade
         return await _importService.ImportAsync(filePath).ConfigureAwait(false);
     }
 
-    public async Task<bool> DeleteModAsync(string sha)
+    public async Task<bool> DeleteModAsync(string id)
     {
         // Delete from database using metadata service
-        return await _metadataService.DeleteAsync(sha).ConfigureAwait(false);
+        return await _metadataService.DeleteAsync(id).ConfigureAwait(false);
     }
 
-    public async Task<bool> DeleteCacheAsync(string sha)
+    public async Task<bool> DeleteCacheAsync(string id)
     {
         // Delegate to service - it handles event emission
-        return await _cacheService.DeleteCacheAsync(sha).ConfigureAwait(false);
+        return await _cacheService.DeleteCacheAsync(id).ConfigureAwait(false);
     }
 
-    public async Task<BatchDeleteResult> BatchDeleteModsAsync(List<string> shas)
+    public async Task<BatchDeleteResult> BatchDeleteModsAsync(List<string> ids)
     {
         // Delegate to deletion service - it handles all deletion steps and events
-        return await _deletionService.BatchDeleteAsync(shas).ConfigureAwait(false);
+        return await _deletionService.BatchDeleteAsync(ids).ConfigureAwait(false);
     }
 
-    public async Task<BatchDeleteResult> BatchDeleteCachesAsync(List<string> shas)
+    public async Task<BatchDeleteResult> BatchDeleteCachesAsync(List<string> ids)
     {
         // Delegate to cache service - it handles event emission
-        return await _cacheService.BatchDeleteCachesAsync(shas).ConfigureAwait(false);
+        return await _cacheService.BatchDeleteCachesAsync(ids).ConfigureAwait(false);
     }
 
     public async Task<List<string>> GetAuthorsAsync()
@@ -245,19 +245,19 @@ public class ModFacade : BaseFacade, IModFacade
         return await _queryService.GetStatisticsAsync().ConfigureAwait(false);
     }
 
-    public async Task<bool> UpdateMetadataAsync(string sha, UpdateModMetadataRequest request)
+    public async Task<bool> UpdateMetadataAsync(string id, UpdateModMetadataRequest request)
     {
         // Delegate to service - it handles event emission
         // New merged ModMetadataService.UpdateAsync returns Task<ModInfo>, so we check if result is not null
-        var result = await _metadataService.UpdateAsync(sha, request).ConfigureAwait(false);
+        var result = await _metadataService.UpdateAsync(id, request).ConfigureAwait(false);
         return result != null;
     }
 
-    public async Task<bool> UpdateCategoryAsync(string sha, string category)
+    public async Task<bool> UpdateCategoryAsync(string id, string category)
     {
         // Delegate to service - it handles event emission
         // New merged ModMetadataService doesn't need callbacks anymore
-        var result = await _metadataService.UpdateCategoryAsync(sha, category).ConfigureAwait(false);
+        var result = await _metadataService.UpdateCategoryAsync(id, category).ConfigureAwait(false);
         return result != null;
     }
 
@@ -278,16 +278,16 @@ public class ModFacade : BaseFacade, IModFacade
         return await _metadataService.BatchUpdateAsync(updates).ConfigureAwait(false);
     }
 
-    public async Task<bool> ImportPreviewImageAsync(string sha, string imagePath)
+    public async Task<bool> ImportPreviewImageAsync(string id, string imagePath)
     {
-        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
+        var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
         if (!exists)
         {
-            throw new InvalidOperationException($"Mod not found: {sha}");
+            throw new InvalidOperationException($"Mod not found: {id}");
         }
 
         // Delegate to ImageService - it handles event emission
-        return await _imageService.ImportPreviewImageAsync(sha, imagePath).ConfigureAwait(false);
+        return await _imageService.ImportPreviewImageAsync(id, imagePath).ConfigureAwait(false);
     }
 
     public async Task<bool> CheckClipboardHasImageAsync()
@@ -295,16 +295,16 @@ public class ModFacade : BaseFacade, IModFacade
         return await _imageService.CheckClipboardHasImageAsync().ConfigureAwait(false);
     }
 
-    public async Task<bool> ImportPreviewFromClipboardAsync(string sha)
+    public async Task<bool> ImportPreviewFromClipboardAsync(string id)
     {
-        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
+        var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
         if (!exists)
         {
-            throw new InvalidOperationException($"Mod not found: {sha}");
+            throw new InvalidOperationException($"Mod not found: {id}");
         }
 
         // Delegate to ImageService - it handles event emission
-        return await _imageService.ImportPreviewFromClipboardAsync(sha).ConfigureAwait(false);
+        return await _imageService.ImportPreviewFromClipboardAsync(id).ConfigureAwait(false);
     }
 
     public async Task<bool> CopyPreviewToClipboardAsync(string previewPath)
@@ -313,55 +313,55 @@ public class ModFacade : BaseFacade, IModFacade
         return await _imageService.CopyPreviewToClipboardAsync(previewPath).ConfigureAwait(false);
     }
 
-    public async Task<List<string>> GetPreviewPathsAsync(string sha)
+    public async Task<List<string>> GetPreviewPathsAsync(string id)
     {
         // Delegate auto-import to ImageService
-        await _imageService.TryAutoImportPreviewsFromCacheAsync(sha).ConfigureAwait(false);
-        return await _imageService.GetPreviewPathsAsync(sha).ConfigureAwait(false);
+        await _imageService.TryAutoImportPreviewsFromCacheAsync(id).ConfigureAwait(false);
+        return await _imageService.GetPreviewPathsAsync(id).ConfigureAwait(false);
     }
 
-    public async Task<bool> SetThumbnailAsync(string sha, string previewPath)
+    public async Task<bool> SetThumbnailAsync(string id, string previewPath)
     {
-        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
+        var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
         if (!exists)
         {
-            throw new InvalidOperationException($"Mod not found: {sha}");
+            throw new InvalidOperationException($"Mod not found: {id}");
         }
 
         // Delegate to ImageService - it handles event emission
-        return await _imageService.SetThumbnailAsync(sha, previewPath).ConfigureAwait(false);
+        return await _imageService.SetThumbnailAsync(id, previewPath).ConfigureAwait(false);
     }
 
-    public async Task<bool> DeletePreviewAsync(string sha, string previewPath)
+    public async Task<bool> DeletePreviewAsync(string id, string previewPath)
     {
-        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
+        var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
         if (!exists)
         {
-            throw new InvalidOperationException($"Mod not found: {sha}");
+            throw new InvalidOperationException($"Mod not found: {id}");
         }
 
         // Delegate to ImageService - it handles event emission
-        return await _imageService.DeletePreviewAsync(sha, previewPath).ConfigureAwait(false);
+        return await _imageService.DeletePreviewAsync(id, previewPath).ConfigureAwait(false);
     }
 
     // ============= Message Handler Methods =============
 
     private async Task<ModInfo?> GetModByIdAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        return await GetModByIdAsync(sha).ConfigureAwait(false);
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await GetModByIdAsync(id).ConfigureAwait(false);
     }
 
     private async Task<Models.ModLoadResult> LoadModAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        return await LoadModAsync(sha).ConfigureAwait(false);
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await LoadModAsync(id).ConfigureAwait(false);
     }
 
     private async Task<bool> UnloadModAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        return await UnloadModAsync(sha).ConfigureAwait(false);
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await UnloadModAsync(id).ConfigureAwait(false);
     }
 
     private async Task<ModInfo?> ImportModAsync(IpcRequest request)
@@ -372,26 +372,26 @@ public class ModFacade : BaseFacade, IModFacade
 
     private async Task<bool> DeleteModAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        return await DeleteModAsync(sha).ConfigureAwait(false);
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await DeleteModAsync(id).ConfigureAwait(false);
     }
 
     private async Task<bool> DeleteCacheAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        return await DeleteCacheAsync(sha).ConfigureAwait(false);
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await DeleteCacheAsync(id).ConfigureAwait(false);
     }
 
     private async Task<BatchDeleteResult> BatchDeleteModsAsync(IpcRequest request)
     {
-        var shas = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "shas");
-        return await BatchDeleteModsAsync(shas).ConfigureAwait(false);
+        var ids = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "ids");
+        return await BatchDeleteModsAsync(ids).ConfigureAwait(false);
     }
 
     private async Task<BatchDeleteResult> BatchDeleteCachesAsync(IpcRequest request)
     {
-        var shas = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "shas");
-        return await BatchDeleteCachesAsync(shas).ConfigureAwait(false);
+        var ids = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "ids");
+        return await BatchDeleteCachesAsync(ids).ConfigureAwait(false);
     }
 
     private async Task<List<ModInfo>> SearchModsAsync(IpcRequest request)
@@ -402,7 +402,7 @@ public class ModFacade : BaseFacade, IModFacade
 
     private async Task<bool> UpdateMetadataAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
 
         var metadataRequest = new UpdateModMetadataRequest
         {
@@ -414,15 +414,15 @@ public class ModFacade : BaseFacade, IModFacade
             DisablePreview = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "disablePreview")
         };
 
-        return await UpdateMetadataAsync(sha, metadataRequest).ConfigureAwait(false);
+        return await UpdateMetadataAsync(id, metadataRequest).ConfigureAwait(false);
     }
 
     private async Task<bool> UpdateCategoryAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         var category = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
 
-        return await UpdateCategoryAsync(sha, category).ConfigureAwait(false);
+        return await UpdateCategoryAsync(id, category).ConfigureAwait(false);
     }
 
     private async Task<int> BatchUpdateCategoryAsync(IpcRequest request)
@@ -443,21 +443,21 @@ public class ModFacade : BaseFacade, IModFacade
 
     private async Task<object> ImportPreviewImageAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         var imagePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "imagePath");
 
-        var success = await ImportPreviewImageAsync(sha, imagePath).ConfigureAwait(false);
+        var success = await ImportPreviewImageAsync(id, imagePath).ConfigureAwait(false);
 
-        return new { success, message = $"Preview image imported for mod: {sha}" };
+        return new { success, message = $"Preview image imported for mod: {id}" };
     }
 
     private async Task<object> ImportPreviewFromClipboardAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
 
-        var success = await ImportPreviewFromClipboardAsync(sha).ConfigureAwait(false);
+        var success = await ImportPreviewFromClipboardAsync(id).ConfigureAwait(false);
 
-        return new { success, message = $"Preview image imported from clipboard for mod: {sha}" };
+        return new { success, message = $"Preview image imported from clipboard for mod: {id}" };
     }
 
     private async Task<object> CopyPreviewToClipboardAsync(IpcRequest request)
@@ -471,26 +471,26 @@ public class ModFacade : BaseFacade, IModFacade
 
     private async Task<List<string>> GetPreviewPathsAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        return await GetPreviewPathsAsync(sha).ConfigureAwait(false);
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await GetPreviewPathsAsync(id).ConfigureAwait(false);
     }
 
     private async Task<object> SetThumbnailAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         var previewPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "previewPath");
 
-        var success = await SetThumbnailAsync(sha, previewPath).ConfigureAwait(false);
+        var success = await SetThumbnailAsync(id, previewPath).ConfigureAwait(false);
 
-        return new { success, message = $"Thumbnail updated for mod: {sha}" };
+        return new { success, message = $"Thumbnail updated for mod: {id}" };
     }
 
     private async Task<object> DeletePreviewAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         var previewPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "previewPath");
 
-        var success = await DeletePreviewAsync(sha, previewPath).ConfigureAwait(false);
+        var success = await DeletePreviewAsync(id, previewPath).ConfigureAwait(false);
 
         return new { success, message = $"Preview image deleted: {previewPath}" };
     }
@@ -536,20 +536,20 @@ public class ModFacade : BaseFacade, IModFacade
     /// </summary>
     private async Task<object> CheckFilePathsAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
-        var exists = await _repository.ExistsAsync(sha).ConfigureAwait(false);
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
 
         if (!exists)
         {
-            throw new InvalidOperationException($"Mod with SHA {sha} not found");
+            throw new InvalidOperationException($"Mod with ID {id} not found");
         }
 
         // Check cache path using cache service
-        var cachePath = _cacheService.GetCachePath(sha);
+        var cachePath = _cacheService.GetCachePath(id);
 
         // Get preview directory path (for "Open Preview Folder" context menu)
         // Get any preview path and extract the directory
-        var previewPaths = await _imageService.GetPreviewPathsAsync(sha).ConfigureAwait(false);
+        var previewPaths = await _imageService.GetPreviewPathsAsync(id).ConfigureAwait(false);
         string? previewFolderPath = null;
         if (previewPaths.Count > 0)
         {
@@ -653,18 +653,18 @@ public class ModFacade : BaseFacade, IModFacade
 
     // ============= Keybinding Methods =============
 
-    public async Task<List<ModKeybinding>> GetKeybindingsAsync(string sha)
+    public async Task<List<ModKeybinding>> GetKeybindingsAsync(string id)
     {
-        return await _keybindingService.ParseKeybindingsAsync(sha);
+        return await _keybindingService.ParseKeybindingsAsync(id);
     }
 
     private async Task<List<ModKeybinding>> GetKeybindingsAsync(IpcRequest request)
     {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
 
-        if (string.IsNullOrEmpty(sha))
-            throw new ArgumentException("Mod SHA is required");
+        if (string.IsNullOrEmpty(id))
+            throw new ArgumentException("Mod ID is required");
 
-        return await GetKeybindingsAsync(sha);
+        return await GetKeybindingsAsync(id);
     }
 }

@@ -94,7 +94,7 @@ export interface DragDropHandler {
  *     nodeSelector: '.ant-tree-node-content-wrapper',
  *     allow: 'node', // Only allow dropping into nodes, not between them
  *     onDrop: ({ data, target }) => {
- *       // data = mod SHA from dataTransfer
+ *       // data = mod ID from dataTransfer
  *       // Extract node ID from DOM element
  *       const nodeId = target?.textContent?.trim().replace(/\s*\(\d+\)$/, '') || '';
  *       handleModDrop(data, nodeId);

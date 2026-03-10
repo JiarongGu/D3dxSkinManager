@@ -27,7 +27,7 @@ export function useModCategoryUpdate() {
   const updateModCategory = useCallback(
     async (modSha: string, categoryId: string, categoryName: string) => {
       // Find the mod name if not provided
-      const mod = modsRef.current.find((m: { sha: string }) => m.sha === modSha);
+      const mod = modsRef.current.find((m: { id: string }) => m.id === modSha);
       const modName = mod?.name || modSha;
 
       try {
@@ -53,7 +53,7 @@ export function useModCategoryUpdate() {
 
   /**
    * Update multiple mods' categories with optimistic updates
-   * @param modShas - Array of mod SHAs to update
+   * @param modShas - Array of mod IDs to update
    * @param categoryId - New category ID (empty string for unclassified)
    * @param categoryName - Display name of the category (for success message)
    */

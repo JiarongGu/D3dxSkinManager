@@ -13,18 +13,18 @@ namespace D3dxSkinManager.Modules.Context.Services;
 /// </summary>
 public interface IImageService
 {
-    Task<List<string>> GetPreviewPathsAsync(string sha);
-    Task<int> GeneratePreviewsAsync(string modDirectory, string sha);
-    Task<bool> ClearModCacheAsync(string sha);
+    Task<List<string>> GetPreviewPathsAsync(string id);
+    Task<int> GeneratePreviewsAsync(string modDirectory, string id);
+    Task<bool> ClearModCacheAsync(string id);
     string[] GetSupportedImageExtensions();
-    Task<int> ScanAndImportFromCacheAsync(string sha, string cacheDirectory);
+    Task<int> ScanAndImportFromCacheAsync(string id, string cacheDirectory);
     Task<bool> CheckClipboardHasImageAsync();
-    Task<bool> ImportPreviewFromClipboardAsync(string sha);
+    Task<bool> ImportPreviewFromClipboardAsync(string id);
     Task<bool> CopyPreviewToClipboardAsync(string previewPath);
-    Task<bool> ImportPreviewImageAsync(string sha, string imagePath);
-    Task<bool> SetThumbnailAsync(string sha, string previewPath);
-    Task<bool> DeletePreviewAsync(string sha, string previewPath);
-    Task<int> TryAutoImportPreviewsFromCacheAsync(string sha);
+    Task<bool> ImportPreviewImageAsync(string id, string imagePath);
+    Task<bool> SetThumbnailAsync(string id, string previewPath);
+    Task<bool> DeletePreviewAsync(string id, string previewPath);
+    Task<int> TryAutoImportPreviewsFromCacheAsync(string id);
 }
 
 /// <summary>
@@ -61,13 +61,13 @@ public class ImageService : IImageService
 
     /// <summary>
     /// Get preview image paths for a mod by scanning the preview folder
-    /// Allows users to add preview images directly to previews/{sha}/ folder
+    /// Allows users to add preview images directly to previews/{id}/ folder
     /// Returns relative paths for portability
     /// </summary>
-    public async Task<List<string>> GetPreviewPathsAsync(string sha)
+    public async Task<List<string>> GetPreviewPathsAsync(string id)
     {
         var previewPaths = new List<string>();
-        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
+        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(id);
 
         if (!_fileHelper.DirectoryExists(modPreviewFolder))
             return await Task.FromResult(previewPaths).ConfigureAwait(false);
@@ -89,7 +89,7 @@ public class ImageService : IImageService
     /// Preserves original image format and quality
     /// Returns the count of previews generated
     /// </summary>
-    public async Task<int> GeneratePreviewsAsync(string modDirectory, string sha)
+    public async Task<int> GeneratePreviewsAsync(string modDirectory, string id)
     {
         int previewCount = 0;
 
@@ -97,7 +97,7 @@ public class ImageService : IImageService
             return previewCount;
 
         // Create mod-specific preview folder
-        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
+        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(id);
         Directory.CreateDirectory(modPreviewFolder);
 
         // Look for preview images in mod directory (all supported formats)
@@ -124,7 +124,7 @@ public class ImageService : IImageService
             {
                 // Copy image directly to preserve original format and quality
                 File.Copy(sourcePath, targetPath, overwrite: true);
-                _logger.Info($"Generated preview {previewIndex} for {sha}", "ImageService");
+                _logger.Info($"Generated preview {previewIndex} for {id}", "ImageService");
                 previewCount++;
                 previewIndex++;
             }
@@ -171,11 +171,11 @@ public class ImageService : IImageService
     /// <summary>
     /// Clear image cache for a specific mod
     /// </summary>
-    public async Task<bool> ClearModCacheAsync(string sha)
+    public async Task<bool> ClearModCacheAsync(string id)
     {
         var cleared = false;
         // Delete preview folder for this mod
-        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
+        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(id);
         if (Directory.Exists(modPreviewFolder))
         {
             try
@@ -266,7 +266,7 @@ public class ImageService : IImageService
     /// If the directory only contains a single subfolder, automatically descends into it
     /// Returns the count of new images imported
     /// </summary>
-    public async Task<int> ScanAndImportFromCacheAsync(string sha, string cacheDirectory)
+    public async Task<int> ScanAndImportFromCacheAsync(string id, string cacheDirectory)
     {
         int importCount = 0;
 
@@ -280,7 +280,7 @@ public class ImageService : IImageService
         var scanDirectory = ResolveScanDirectory(cacheDirectory);
         _logger.Info($"Scanning for preview images in: {scanDirectory}", "ImageService");
 
-        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(sha);
+        var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(id);
 
         // Get existing preview images and calculate their SHA hashes for deduplication
         var existingImageHashes = new HashSet<string>();
@@ -403,14 +403,14 @@ public class ImageService : IImageService
     /// Import an image from the Windows clipboard directly to the preview folder
     /// Uses STA thread for clipboard access
     /// </summary>
-    public async Task<bool> ImportPreviewFromClipboardAsync(string sha)
+    public async Task<bool> ImportPreviewFromClipboardAsync(string id)
     {
         // Get existing preview count to determine next filename
-        var existingPreviews = await GetPreviewPathsAsync(sha).ConfigureAwait(false);
+        var existingPreviews = await GetPreviewPathsAsync(id).ConfigureAwait(false);
         int nextIndex = existingPreviews.Count + 1;
 
         // Get preview directory and ensure it exists
-        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
+        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(id);
         if (!Directory.Exists(previewDirectory))
         {
             Directory.CreateDirectory(previewDirectory);
@@ -468,14 +468,14 @@ public class ImageService : IImageService
             throw new InvalidOperationException("No image found in clipboard or failed to save clipboard image");
         }
 
-        _logger.Info($"Successfully imported preview from clipboard for mod {sha}", "ImageService");
+        _logger.Info($"Successfully imported preview from clipboard for mod {id}", "ImageService");
 
         // Get the newly imported preview path for the event
-        var previews = await GetPreviewPathsAsync(sha).ConfigureAwait(false);
+        var previews = await GetPreviewPathsAsync(id).ConfigureAwait(false);
         var latestPreview = previews.LastOrDefault();
 
         // Emit PREVIEW_IMPORTED event
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { sha, imagePath = latestPreview }).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { id, imagePath = latestPreview }).ConfigureAwait(false);
 
         return await Task.FromResult(true).ConfigureAwait(false);
     }
@@ -537,7 +537,7 @@ public class ImageService : IImageService
     /// <summary>
     /// Import a preview image from a file path
     /// </summary>
-    public async Task<bool> ImportPreviewImageAsync(string sha, string imagePath)
+    public async Task<bool> ImportPreviewImageAsync(string id, string imagePath)
     {
         if (!File.Exists(imagePath))
         {
@@ -551,12 +551,12 @@ public class ImageService : IImageService
         }
 
         // Get existing preview paths and determine next filename
-        var existingPreviews = await GetPreviewPathsAsync(sha).ConfigureAwait(false);
+        var existingPreviews = await GetPreviewPathsAsync(id).ConfigureAwait(false);
         int nextIndex = existingPreviews.Count + 1;
         var targetFileName = $"preview{nextIndex}{extension}";
 
         // Get preview directory and ensure it exists
-        var targetDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
+        var targetDirectory = _profilePaths.GetPreviewDirectoryPath(id);
         if (!Directory.Exists(targetDirectory))
         {
             Directory.CreateDirectory(targetDirectory);
@@ -568,7 +568,7 @@ public class ImageService : IImageService
         _logger.Info($"Imported preview image: {imagePath} -> {targetPath}", "ImageService");
 
         // Emit PREVIEW_IMPORTED event
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { sha, imagePath }).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { id, imagePath }).ConfigureAwait(false);
 
         return await Task.FromResult(true).ConfigureAwait(false);
     }
@@ -577,7 +577,7 @@ public class ImageService : IImageService
     /// Set a preview image as the thumbnail by reordering it to preview1
     /// Optimized to rename in-place without temp folder
     /// </summary>
-    public async Task<bool> SetThumbnailAsync(string sha, string previewPath)
+    public async Task<bool> SetThumbnailAsync(string id, string previewPath)
     {
         // Convert to absolute path if needed for file existence check
         var absolutePreviewPath = _pathHelper.ToAbsolutePath(previewPath) ?? previewPath;
@@ -588,7 +588,7 @@ public class ImageService : IImageService
         }
 
         // Get preview directory
-        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
+        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(id);
         if (!Directory.Exists(previewDirectory))
         {
             throw new DirectoryNotFoundException($"Preview directory not found: {previewDirectory}");
@@ -617,7 +617,7 @@ public class ImageService : IImageService
         // If already the first preview (thumbnail), no need to reorder
         if (selectedIndex == 0)
         {
-            _logger.Info($"Preview is already the thumbnail for mod {sha}", "ImageService");
+            _logger.Info($"Preview is already the thumbnail for mod {id}", "ImageService");
             return true;
         }
 
@@ -649,7 +649,7 @@ public class ImageService : IImageService
             File.Move(tempName, finalName);
             _logger.Info($"Set preview as thumbnail: {Path.GetFileName(selectedFile)} -> preview1", "ImageService");
 
-            _logger.Info($"Reordered {selectedIndex + 1} preview images for mod {sha}", "ImageService");
+            _logger.Info($"Reordered {selectedIndex + 1} preview images for mod {id}", "ImageService");
 
             // Invalidate CustomSchemeHandler cache for all affected preview images
             // Since we renamed multiple files, we need to invalidate all of them
@@ -675,7 +675,7 @@ public class ImageService : IImageService
             _schemeHandler.InvalidatePaths(affectedPaths.Distinct());
 
             // Emit THUMBNAIL_UPDATED event
-            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.THUMBNAIL_UPDATED, new { sha, previewPath }).ConfigureAwait(false);
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.THUMBNAIL_UPDATED, new { id, previewPath }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -706,7 +706,7 @@ public class ImageService : IImageService
     /// Example: If preview2 is deleted from [preview1, preview2, preview3],
     /// preview3 is renamed to preview2
     /// </summary>
-    public async Task<bool> DeletePreviewAsync(string sha, string previewPath)
+    public async Task<bool> DeletePreviewAsync(string id, string previewPath)
     {
         // Convert to absolute path for file operations
         var absolutePreviewPath = _pathHelper.ToAbsolutePath(previewPath) ?? previewPath;
@@ -717,7 +717,7 @@ public class ImageService : IImageService
         }
 
         // Get all previews before deletion to determine renumbering
-        var allPreviews = await GetPreviewPathsAsync(sha).ConfigureAwait(false);
+        var allPreviews = await GetPreviewPathsAsync(id).ConfigureAwait(false);
         var deletedIndex = allPreviews.FindIndex(p =>
             Path.GetFullPath(_pathHelper.ToAbsolutePath(p) ?? p).Equals(Path.GetFullPath(absolutePreviewPath), StringComparison.OrdinalIgnoreCase));
 
@@ -732,7 +732,7 @@ public class ImageService : IImageService
 
         // Renumber all previews after the deleted one to fill the gap
         // Example: If preview2 is deleted, preview3 becomes preview2, preview4 becomes preview3, etc.
-        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(sha);
+        var previewDirectory = _profilePaths.GetPreviewDirectoryPath(id);
         var pathsToInvalidate = new List<string> { previewPath };
 
         for (int i = deletedIndex + 1; i < allPreviews.Count; i++)
@@ -747,7 +747,7 @@ public class ImageService : IImageService
             if (_fileHelper.FileExists(currentPath))
             {
                 _fileHelper.MoveFile(currentPath, newPath, overwrite: false);
-                _logger.Info($"Renumbered: {Path.GetFileName(currentPath)} → {newFileName}", "ImageService");
+                _logger.Info($"Renumbered: {Path.GetFileName(currentPath)} �?{newFileName}", "ImageService");
 
                 // Invalidate both old and new paths in cache
                 pathsToInvalidate.Add(allPreviews[i]);
@@ -759,7 +759,7 @@ public class ImageService : IImageService
         _schemeHandler.InvalidatePaths(pathsToInvalidate);
 
         // Emit PREVIEW_DELETED event
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_DELETED, new { sha, previewPath }).ConfigureAwait(false);
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_DELETED, new { id, previewPath }).ConfigureAwait(false);
 
         return await Task.FromResult(true).ConfigureAwait(false);
     }
@@ -769,19 +769,19 @@ public class ImageService : IImageService
     /// Checks both active and disabled cache directories
     /// Returns the number of images imported (0 if previews already exist)
     /// </summary>
-    public async Task<int> TryAutoImportPreviewsFromCacheAsync(string sha)
+    public async Task<int> TryAutoImportPreviewsFromCacheAsync(string id)
     {
         try
         {
-            var existingPreviews = await GetPreviewPathsAsync(sha).ConfigureAwait(false);
+            var existingPreviews = await GetPreviewPathsAsync(id).ConfigureAwait(false);
             if (existingPreviews.Count > 0)
             {
                 return 0; // Previews already exist
             }
 
             // Get cache directory path (both active and disabled cache)
-            var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, sha);
-            var disabledCacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"DISABLED-{sha}");
+            var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, id);
+            var disabledCacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"DISABLED-{id}");
 
             // Try active cache first, then disabled cache
             string? targetDirectory = null;
@@ -796,10 +796,10 @@ public class ImageService : IImageService
 
             if (targetDirectory != null)
             {
-                var importCount = await ScanAndImportFromCacheAsync(sha, targetDirectory).ConfigureAwait(false);
+                var importCount = await ScanAndImportFromCacheAsync(id, targetDirectory).ConfigureAwait(false);
                 if (importCount > 0)
                 {
-                    _logger.Info($"Auto-imported {importCount} preview image(s) from cache for mod {sha}", "ImageService");
+                    _logger.Info($"Auto-imported {importCount} preview image(s) from cache for mod {id}", "ImageService");
                 }
                 return importCount;
             }

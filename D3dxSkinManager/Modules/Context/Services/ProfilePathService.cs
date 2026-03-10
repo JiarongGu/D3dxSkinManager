@@ -21,7 +21,7 @@ public interface IProfilePathService
     string ModsDirectory { get; }
     string WorkDirectory { get; }
 
-    /// <summary>Extracted mod folders: active ({SHA}) or disabled (DISABLED-{SHA})</summary>
+    /// <summary>Extracted mod folders: active ({Id}) or disabled (DISABLED-{Id})</summary>
     string CacheModsDirectory { get; }
 
     string ThumbnailsDirectory { get; }
@@ -32,8 +32,8 @@ public interface IProfilePathService
     string TempDirectory { get; }
     string ProfileDatabasePath { get; }
     string ConfigPath { get; }
-    string GetModArchivePath(string sha, string extension = ".7z");
-    string GetPreviewDirectoryPath(string sha);
+    string GetModArchivePath(string id, string extension = ".7z");
+    string GetPreviewDirectoryPath(string id);
     Task LoadCacheDirectoryAsync();
     void InvalidateCacheDirectory();
 }
@@ -239,19 +239,19 @@ public class ProfilePathService : IProfilePathService
     // Helper method implementations
 
     /// <summary>
-    /// Get path for a specific mod archive file by SHA
+    /// Get path for a specific mod archive file by Id
     /// </summary>
-    public string GetModArchivePath(string sha, string extension = ".7z")
+    public string GetModArchivePath(string id, string extension = ".7z")
     {
-        return Path.Combine(ModsDirectory, $"{sha}{extension}");
+        return Path.Combine(ModsDirectory, $"{id}{extension}");
     }
 
     /// <summary>
-    /// Get directory path for a specific mod's previews by SHA
+    /// Get directory path for a specific mod's previews by Id
     /// </summary>
-    public string GetPreviewDirectoryPath(string sha)
+    public string GetPreviewDirectoryPath(string id)
     {
-        return Path.Combine(PreviewsDirectory, sha);
+        return Path.Combine(PreviewsDirectory, id);
     }
 }
 

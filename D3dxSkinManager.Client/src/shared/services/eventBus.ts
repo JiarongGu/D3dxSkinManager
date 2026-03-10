@@ -127,23 +127,23 @@ export interface EventPayloadMap {
 
   // Mod events
   [Module.MOD]: {
-    [ModEventType.LOADING]: { sha: string };
-    [ModEventType.LOADED]: { sha: string };
-    [ModEventType.UNLOADED]: { sha: string };
-    [ModEventType.DELETED]: { sha: string; mod?: ModInfo };
+    [ModEventType.LOADING]: { id: string };
+    [ModEventType.LOADED]: { id: string };
+    [ModEventType.UNLOADED]: { id: string };
+    [ModEventType.DELETED]: { id: string; mod?: ModInfo };
     [ModEventType.IMPORTED]: ModInfo;
     [ModEventType.REFRESHED]: void;
-    [ModEventType.METADATA_UPDATED]: { sha: string; mod?: ModInfo };
+    [ModEventType.METADATA_UPDATED]: { id: string; mod?: ModInfo };
     [ModEventType.CATEGORY_UPDATED]: {
-      sha: string;
+      id: string;
       category: string;
       mod?: ModInfo;
     };
-    [ModEventType.PREVIEW_IMPORTED]: { sha: string; imagePath?: string };
-    [ModEventType.THUMBNAIL_UPDATED]: { sha: string; previewPath: string };
-    [ModEventType.PREVIEW_DELETED]: { sha: string; previewPath: string };
+    [ModEventType.PREVIEW_IMPORTED]: { id: string; imagePath?: string };
+    [ModEventType.THUMBNAIL_UPDATED]: { id: string; previewPath: string };
+    [ModEventType.PREVIEW_DELETED]: { id: string; previewPath: string };
     [ModEventType.CACHE_CHANGED]: {
-      sha: string;
+      id: string;
       wasLoaded?: boolean;
       nowLoaded?: boolean;
       changeType: 'deleted' | 'renamed';

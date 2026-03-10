@@ -67,7 +67,12 @@ public class TagRepository : ITagRepository
 
     public TagRepository(IProfilePathService profilePaths)
     {
-        _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
+        // Check if ProfileDatabasePath is already a full connection string (used in tests)
+        // or just a file path (used in production)
+        var path = profilePaths.ProfileDatabasePath;
+        _connectionString = path.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase)
+            ? path
+            : $"Data Source={path}";
         // Table creation now handled by Fluent migrations (Migration_202603080003_CreateTagsTable)
     }
 

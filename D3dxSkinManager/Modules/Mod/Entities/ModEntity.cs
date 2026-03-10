@@ -9,9 +9,9 @@ namespace D3dxSkinManager.Modules.Mod.Entities;
 public class ModEntity
 {
     /// <summary>
-    /// Primary key - SHA hash of mod archive
+    /// Primary key - Unique identifier for mod (GUID)
     /// </summary>
-    public string SHA { get; set; } = string.Empty;
+    public string Id { get; set; } = string.Empty;
 
     /// <summary>
     /// Foreign key to Categories table (ID or legacy path)

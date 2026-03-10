@@ -165,11 +165,11 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
 
     // Get all current row data and compare with original to find changes
     const changedMods: ModInfo[] = [];
-    const originalModsMap = new Map(modsToEdit.map(m => [m.sha, m]));
+    const originalModsMap = new Map(modsToEdit.map(m => [m.id, m]));
 
     gridRef.current.api.forEachNode((node) => {
       if (node.data) {
-        const originalMod = originalModsMap.get(node.data.sha);
+        const originalMod = originalModsMap.get(node.data.id);
         if (originalMod) {
           // Simple shallow comparison for the editable fields
           const hasChanged =
@@ -201,7 +201,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
       // Build updates object with SHA as key and metadata as value
       const updates: Record<string, any> = {};
       changedMods.forEach((mod) => {
-        updates[mod.sha] = {
+        updates[mod.id] = {
           name: mod.name,
           author: mod.author,
           tags: mod.tags,
@@ -263,7 +263,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
             <div className="batch-edit-toolbar-info">
               <Text type="secondary" style={{ fontSize: '12px' }}>
                 {t('mods.batchEdit.toolbar.modsCount', { count: editedMods.length })}
-                {hasChanges && ` â€¢ ${t('mods.batchEdit.toolbar.modified')}`}
+                {hasChanges && ` â€?${t('mods.batchEdit.toolbar.modified')}`}
               </Text>
             </div>
           </div>

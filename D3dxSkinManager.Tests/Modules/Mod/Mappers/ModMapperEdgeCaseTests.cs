@@ -22,7 +22,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Tags = null
         };
 
@@ -40,7 +40,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Tags = "[]"
         };
 
@@ -58,7 +58,7 @@ public class ModMapperEdgeCaseTests
         // Arrange - Invalid JSON
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Tags = "{this is not valid json"
         };
 
@@ -76,7 +76,7 @@ public class ModMapperEdgeCaseTests
         // Arrange - JSON object instead of array
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Tags = "{\"tag1\":\"value\"}"
         };
 
@@ -94,7 +94,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var domain = new ModInfo
         {
-            SHA = "test",
+            Id = "test",
             Tags = null!  // Intentionally testing null handling
         };
 
@@ -111,7 +111,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var domain = new ModInfo
         {
-            SHA = "test",
+            Id = "test",
             Tags = new List<string>()
         };
 
@@ -132,7 +132,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Name = "测试模组 日本語 한국어 العربية",
             Category = "test"
         };
@@ -150,7 +150,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Tags = "[\"tag-with-dash\",\"tag_with_underscore\",\"tag.with.dot\",\"tag@special\"]"
         };
 
@@ -170,7 +170,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var originalDomain = new ModInfo
         {
-            SHA = "test",
+            Id = "test",
             Name = "Cool Mod 🎮🔥💯",
             Category = "test"
         };
@@ -189,7 +189,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Description = "This is a \"quoted\" description with 'single quotes' too"
         };
 
@@ -211,7 +211,7 @@ public class ModMapperEdgeCaseTests
         var longName = new string('A', 1000);
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Name = longName
         };
 
@@ -236,7 +236,7 @@ public class ModMapperEdgeCaseTests
 
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Tags = tagsJson
         };
 
@@ -255,7 +255,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var domain = new ModInfo
         {
-            SHA = new string('A', 40), // SHA-1 length
+            Id = new string('A', 40), // SHA-1 length
             Name = new string('N', 5000),
             Description = new string('D', 10000),
             Author = new string('A', 1000),
@@ -267,7 +267,7 @@ public class ModMapperEdgeCaseTests
         var entity = ModMapper.ToEntity(domain);
 
         // Assert
-        entity.SHA.Should().HaveLength(40);
+        entity.Id.Should().HaveLength(40);
         entity.Name.Should().HaveLength(5000);
         entity.Description.Should().HaveLength(10000);
         entity.Tags.Should().NotBeNullOrEmpty();
@@ -279,7 +279,7 @@ public class ModMapperEdgeCaseTests
         // Arrange - Only required fields
         var entity = new ModEntity
         {
-            SHA = "abc123",
+            Id = "abc123",
             Category = "test"
         };
 
@@ -287,7 +287,7 @@ public class ModMapperEdgeCaseTests
         var domain = ModMapper.ToDomain(entity);
 
         // Assert
-        domain.SHA.Should().Be("abc123");
+        domain.Id.Should().Be("abc123");
         domain.Category.Should().Be("test");
         domain.Tags.Should().NotBeNull();
         domain.Tags.Should().BeEmpty();
@@ -304,7 +304,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             CreatedAt = DateTime.MinValue
         };
 
@@ -321,7 +321,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             UpdatedAt = DateTime.MaxValue
         };
 
@@ -339,7 +339,7 @@ public class ModMapperEdgeCaseTests
         var exactDateTime = new DateTime(2024, 3, 9, 14, 32, 47, 123, DateTimeKind.Utc).AddTicks(4567);
         var originalDomain = new ModInfo
         {
-            SHA = "test",
+            Id = "test",
             Category = "test",
             CreatedAt = exactDateTime,
             UpdatedAt = exactDateTime
@@ -364,7 +364,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Name = "  Name With Spaces  ",
             Author = "\tAuthor With Tabs\t",
             Category = "\nCategory With Newlines\n"
@@ -385,7 +385,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Name = "   ",
             Description = "\t\t\t",
             Author = "   "
@@ -425,7 +425,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entities = new List<ModEntity>
         {
-            new ModEntity { SHA = "test", Category = "cat1" }
+            new ModEntity { Id = "test", Category = "cat1" }
         };
 
         // Act
@@ -433,7 +433,7 @@ public class ModMapperEdgeCaseTests
 
         // Assert
         domainList.Should().HaveCount(1);
-        domainList[0].SHA.Should().Be("test");
+        domainList[0].Id.Should().Be("test");
     }
 
     [Fact]
@@ -442,8 +442,8 @@ public class ModMapperEdgeCaseTests
         // Arrange - Edge case: database shouldn't allow this, but mapper should handle it
         var entities = new List<ModEntity>
         {
-            new ModEntity { SHA = "duplicate", Category = "cat1", Name = "First" },
-            new ModEntity { SHA = "duplicate", Category = "cat2", Name = "Second" }
+            new ModEntity { Id = "duplicate", Category = "cat1", Name = "First" },
+            new ModEntity { Id = "duplicate", Category = "cat2", Name = "Second" }
         };
 
         // Act
@@ -451,8 +451,8 @@ public class ModMapperEdgeCaseTests
 
         // Assert
         domainList.Should().HaveCount(2);
-        domainList[0].SHA.Should().Be("duplicate");
-        domainList[1].SHA.Should().Be("duplicate");
+        domainList[0].Id.Should().Be("duplicate");
+        domainList[1].Id.Should().Be("duplicate");
         domainList[0].Name.Should().Be("First");
         domainList[1].Name.Should().Be("Second");
     }
@@ -464,7 +464,7 @@ public class ModMapperEdgeCaseTests
         var entities = Enumerable.Range(0, 10000)
             .Select(i => new ModEntity
             {
-                SHA = $"sha{i}",
+                Id = $"sha{i}",
                 Category = $"cat{i % 10}",
                 Name = $"Mod {i}"
             })
@@ -475,8 +475,8 @@ public class ModMapperEdgeCaseTests
 
         // Assert
         domainList.Should().HaveCount(10000);
-        domainList[0].SHA.Should().Be("sha0");
-        domainList[9999].SHA.Should().Be("sha9999");
+        domainList[0].Id.Should().Be("sha0");
+        domainList[9999].Id.Should().Be("sha9999");
     }
 
     #endregion
@@ -488,7 +488,7 @@ public class ModMapperEdgeCaseTests
     {
         // Arrange
         ModEntity entity = null!;  // Intentionally testing null handling
-        var domainModel = new ModInfo { SHA = "test", Category = "test" };
+        var domainModel = new ModInfo { Id = "test", Category = "test" };
 
         // Act & Assert
         Assert.Throws<NullReferenceException>(() => ModMapper.UpdateEntity(entity, domainModel));
@@ -500,14 +500,14 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Name = "OldName",
             Description = "OldDesc",
             Author = "OldAuthor"
         };
         var domainModel = new ModInfo
         {
-            SHA = "test",
+            Id = "test",
             Category = "test",
             Name = null!,  // Intentionally testing null handling
             Description = null!,  // Intentionally testing null handling
@@ -531,14 +531,14 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "test",
+            Id = "test",
             Name = "OldName",
             Description = "OldDesc",
             Author = "OldAuthor"
         };
         var domainModel = new ModInfo
         {
-            SHA = "test",
+            Id = "test",
             Category = "test",
             Name = "",
             Description = "",
@@ -562,7 +562,7 @@ public class ModMapperEdgeCaseTests
     public void ToDomain_IsLoadedProperty_ShouldDefaultToFalse()
     {
         // Arrange
-        var entity = new ModEntity { SHA = "test", Category = "test" };
+        var entity = new ModEntity { Id = "test", Category = "test" };
 
         // Act
         var domain = ModMapper.ToDomain(entity);
@@ -575,7 +575,7 @@ public class ModMapperEdgeCaseTests
     public void ToDomain_MultipleCallsSameEntity_ShouldProduceIndependentObjects()
     {
         // Arrange
-        var entity = new ModEntity { SHA = "test", Category = "test" };
+        var entity = new ModEntity { Id = "test", Category = "test" };
 
         // Act
         var domain1 = ModMapper.ToDomain(entity);

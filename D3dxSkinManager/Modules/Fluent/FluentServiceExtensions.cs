@@ -16,10 +16,7 @@ public static class FluentServiceExtensions
     /// </summary>
     public static IServiceCollection AddFluentMigrationServices(this IServiceCollection services)
     {
-        // Register migration history repository - using profile-specific database
-        services.TryAddSingleton<IMigrationHistoryRepository, MigrationHistoryRepository>();
-
-        // Register migration runner - discovers and executes migrations
+        // Register migration runner - discovers and executes migrations using FluentMigrator
         services.TryAddSingleton<IMigrationRunner, MigrationRunner>();
 
         // Register database migration service - coordinates startup migrations

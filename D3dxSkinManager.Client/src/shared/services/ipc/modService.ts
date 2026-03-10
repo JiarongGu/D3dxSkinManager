@@ -22,21 +22,21 @@ export class ModService extends BaseModuleService {
 
   /**
    * Load a mod by SHA
-   * Returns affected mod SHAs for efficient frontend updates (avoids full list refresh)
+   * Returns affected mod IDs for efficient frontend updates (avoids full list refresh)
    */
-  async loadMod(profileId: string, sha: string): Promise<ModLoadResult> {
-    return this.sendMessage<ModLoadResult>('LOAD', profileId, { sha });
+  async loadMod(profileId: string, id: string): Promise<ModLoadResult> {
+    return this.sendMessage<ModLoadResult>('LOAD', profileId, { id });
   }
 
   /**
    * Unload a mod by SHA
    */
-  async unloadMod(profileId: string, sha: string): Promise<boolean> {
-    return this.sendBooleanMessage('UNLOAD', profileId, { sha });
+  async unloadMod(profileId: string, id: string): Promise<boolean> {
+    return this.sendBooleanMessage('UNLOAD', profileId, { id });
   }
 
   /**
-   * Get list of loaded mod SHAs
+   * Get list of loaded mod IDs
    */
   async getLoadedMods(profileId: string): Promise<string[]> {
     return this.sendArrayMessage<string>('GET_LOADED', profileId);
@@ -52,15 +52,15 @@ export class ModService extends BaseModuleService {
   /**
    * Delete a mod permanently
    */
-  async deleteMod(profileId: string, sha: string): Promise<boolean> {
-    return this.sendBooleanMessage('DELETE', profileId, { sha });
+  async deleteMod(profileId: string, id: string): Promise<boolean> {
+    return this.sendBooleanMessage('DELETE', profileId, { id });
   }
 
   /**
    * Delete mod cache (both active and disabled cache folders)
    */
-  async deleteCache(profileId: string, sha: string): Promise<boolean> {
-    return this.sendBooleanMessage('DELETE_CACHE', profileId, { sha });
+  async deleteCache(profileId: string, id: string): Promise<boolean> {
+    return this.sendBooleanMessage('DELETE_CACHE', profileId, { id });
   }
 
   /**
@@ -80,8 +80,8 @@ export class ModService extends BaseModuleService {
   /**
    * Export a mod to a file
    */
-  async exportMod(profileId: string, sha: string, targetPath: string): Promise<boolean> {
-    return this.sendBooleanMessage('EXPORT', profileId, { sha, targetPath });
+  async exportMod(profileId: string, id: string, targetPath: string): Promise<boolean> {
+    return this.sendBooleanMessage('EXPORT', profileId, { id, targetPath });
   }
 
   /**
@@ -198,8 +198,8 @@ export class ModService extends BaseModuleService {
   /**
    * Get mod by SHA
    */
-  async getModBySha(profileId: string, sha: string): Promise<ModInfo | undefined> {
-    return this.sendOptionalMessage<ModInfo>('GET_BY_SHA', profileId, { sha });
+  async getModBySha(profileId: string, id: string): Promise<ModInfo | undefined> {
+    return this.sendOptionalMessage<ModInfo>('GET_BY_SHA', profileId, { id });
   }
 
   /**
@@ -261,19 +261,19 @@ export class ModService extends BaseModuleService {
   /**
    * Get preview paths for a mod
    */
-  async getPreviewPaths(profileId: string, sha: string): Promise<string[]> {
-    return this.sendArrayMessage<string>('GET_PREVIEW_PATHS', profileId, { sha });
+  async getPreviewPaths(profileId: string, id: string): Promise<string[]> {
+    return this.sendArrayMessage<string>('GET_PREVIEW_PATHS', profileId, { id });
   }
 
   /**
    * Import a preview image for a mod
    */
-  async importPreviewImage(profileId: string, sha: string, imagePath: string): Promise<boolean> {
+  async importPreviewImage(profileId: string, id: string, imagePath: string): Promise<boolean> {
     const result = await this.sendMessage<{ success: boolean; message: string }>(
       'IMPORT_PREVIEW_IMAGE',
       profileId,
       {
-        sha,
+        id,
         imagePath
       }
     );
@@ -290,12 +290,12 @@ export class ModService extends BaseModuleService {
   /**
    * Import a preview image from clipboard for a mod
    */
-  async importPreviewFromClipboard(profileId: string, sha: string): Promise<boolean> {
+  async importPreviewFromClipboard(profileId: string, id: string): Promise<boolean> {
     const result = await this.sendMessage<{ success: boolean; message: string }>(
       'IMPORT_PREVIEW_FROM_CLIPBOARD',
       profileId,
       {
-        sha
+        id
       }
     );
     return result.success;
@@ -318,12 +318,12 @@ export class ModService extends BaseModuleService {
   /**
    * Set a preview image as the mod thumbnail
    */
-  async setThumbnail(profileId: string, sha: string, previewPath: string): Promise<boolean> {
+  async setThumbnail(profileId: string, id: string, previewPath: string): Promise<boolean> {
     const result = await this.sendMessage<{ success: boolean; message: string }>(
       'SET_THUMBNAIL',
       profileId,
       {
-        sha,
+        id,
         previewPath
       }
     );
@@ -333,12 +333,12 @@ export class ModService extends BaseModuleService {
   /**
    * Delete a preview image
    */
-  async deletePreview(profileId: string, sha: string, previewPath: string): Promise<boolean> {
+  async deletePreview(profileId: string, id: string, previewPath: string): Promise<boolean> {
     const result = await this.sendMessage<{ success: boolean; message: string }>(
       'DELETE_PREVIEW',
       profileId,
       {
-        sha,
+        id,
         previewPath
       }
     );
@@ -385,7 +385,7 @@ export class ModService extends BaseModuleService {
   /**
    * Get keybindings for a mod (parsed from .ini files in mod's work directory)
    */
-  async getKeybindings(profileId: string, sha: string): Promise<ModKeybinding[]> {
-    return this.sendArrayMessage<ModKeybinding>('GET_KEYBINDINGS', profileId, { sha });
+  async getKeybindings(profileId: string, id: string): Promise<ModKeybinding[]> {
+    return this.sendArrayMessage<ModKeybinding>('GET_KEYBINDINGS', profileId, { id });
   }
 }

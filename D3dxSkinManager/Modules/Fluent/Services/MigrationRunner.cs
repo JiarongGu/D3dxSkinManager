@@ -1,66 +1,87 @@
-using System.Reflection;
-using Microsoft.Data.Sqlite;
+using FluentMigrator.Runner;
+using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Context.Services;
-using D3dxSkinManager.Modules.Fluent.Builders;
 using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Fluent.Services;
 
+public interface IMigrationRunner
+{
+    /// <summary>
+    /// Run all pending migrations for the current profile
+    /// </summary>
+    Task MigrateToLatestAsync();
+
+    /// <summary>
+    /// Migrate to a specific version
+    /// </summary>
+    Task MigrateToVersionAsync(long targetVersion);
+
+    /// <summary>
+    /// Get list of pending migrations
+    /// </summary>
+    Task<List<Type>> GetPendingMigrationsAsync();
+
+    /// <summary>
+    /// Check if database is up to date
+    /// </summary>
+    Task<bool> IsDatabaseUpToDateAsync();
+}
+
 /// <summary>
-/// Service for discovering and running database migrations
+/// Service for running database migrations using FluentMigrator
 /// </summary>
 public class MigrationRunner : IMigrationRunner
 {
-    private readonly IMigrationHistoryRepository _historyRepository;
     private readonly IProfilePathService _profilePaths;
     private readonly ILogHelper _logger;
     private readonly string _connectionString;
-    private readonly List<Type> _migrationTypes;
 
     public MigrationRunner(
-        IMigrationHistoryRepository historyRepository,
         IProfilePathService profilePaths,
         ILogHelper logger)
     {
-        _historyRepository = historyRepository;
         _profilePaths = profilePaths;
         _logger = logger;
-        _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
 
-        // Discover all migration classes in the assembly
-        _migrationTypes = DiscoverMigrations();
+        // Check if ProfileDatabasePath is already a full connection string (used in tests)
+        // or just a file path (used in production)
+        var path = profilePaths.ProfileDatabasePath;
+        _connectionString = path.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase)
+            ? path
+            : $"Data Source={path}";
     }
 
-    /// <summary>
-    /// Discover all migration classes marked with [Migration] attribute
-    /// </summary>
-    private List<Type> DiscoverMigrations()
+    public Task<List<Type>> GetPendingMigrationsAsync()
     {
-        var assembly = Assembly.GetExecutingAssembly();
-        var migrations = assembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(Migration)))
-            .Where(t => t.GetCustomAttribute<MigrationAttribute>() != null)
-            .OrderBy(t => t.GetCustomAttribute<MigrationAttribute>()!.Version)
-            .ToList();
-
-        _logger.Info($"Discovered {migrations.Count} migrations", "MigrationRunner");
-        return migrations;
-    }
-
-    public async Task<List<Type>> GetPendingMigrationsAsync()
-    {
-        var appliedMigrations = await _historyRepository.GetAppliedMigrationsAsync();
-        var appliedVersions = new HashSet<long>(appliedMigrations.Select(m => m.Version));
-
-        var pending = _migrationTypes
-            .Where(t =>
+        try
+        {
+            var serviceProvider = CreateServices();
+            using (var scope = serviceProvider.CreateScope())
             {
-                var attr = t.GetCustomAttribute<MigrationAttribute>();
-                return attr != null && !appliedVersions.Contains(attr.Version);
-            })
-            .ToList();
+                var runner = scope.ServiceProvider.GetRequiredService<FluentMigrator.Runner.IMigrationRunner>();
+                var versionLoader = scope.ServiceProvider.GetRequiredService<FluentMigrator.Runner.IVersionLoader>();
 
-        return pending;
+                // Get all applied migration versions
+                var versionInfo = versionLoader.VersionInfo;
+                var appliedVersions = versionInfo.AppliedMigrations();
+
+                // Get all available migrations and find unapplied ones
+                var allMigrations = runner.MigrationLoader.LoadMigrations();
+                var pendingMigrations = allMigrations
+                    .Where(m => !appliedVersions.Contains(m.Key))
+                    .Select(m => m.Value.Migration.GetType())
+                    .ToList();
+
+                return Task.FromResult(pendingMigrations);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to check pending migrations: {ex.Message}", "MigrationRunner", ex);
+            // If we can't determine, assume migrations are needed to be safe
+            return Task.FromResult(new List<Type> { typeof(object) });
+        }
     }
 
     public async Task<bool> IsDatabaseUpToDateAsync()
@@ -69,177 +90,76 @@ public class MigrationRunner : IMigrationRunner
         return pending.Count == 0;
     }
 
-    public async Task MigrateToLatestAsync()
+    public Task MigrateToLatestAsync()
     {
-        // Yield to prevent blocking UI thread
-
         _logger.Info("Starting migration to latest version", "MigrationRunner");
-
-        var pendingMigrations = await GetPendingMigrationsAsync();
-
-        if (pendingMigrations.Count == 0)
-        {
-            _logger.Info("Database is already up to date", "MigrationRunner");
-            return;
-        }
-
-        _logger.Info($"Found {pendingMigrations.Count} pending migrations", "MigrationRunner");
-
-        foreach (var migrationType in pendingMigrations)
-        {
-            await ExecuteMigrationAsync(migrationType, isUp: true);
-        }
-
-        _logger.Info("Migration completed successfully", "MigrationRunner");
-    }
-
-    public async Task MigrateToVersionAsync(long targetVersion)
-    {
-
-        var appliedMigrations = await _historyRepository.GetAppliedMigrationsAsync();
-        var currentVersion = appliedMigrations.LastOrDefault()?.Version ?? 0;
-
-        if (targetVersion > currentVersion)
-        {
-            // Migrate up
-            var migrationsToApply = _migrationTypes
-                .Where(t =>
-                {
-                    var attr = t.GetCustomAttribute<MigrationAttribute>();
-                    return attr != null && attr.Version > currentVersion && attr.Version <= targetVersion;
-                })
-                .ToList();
-
-            foreach (var migrationType in migrationsToApply)
-            {
-                await ExecuteMigrationAsync(migrationType, isUp: true);
-            }
-        }
-        else if (targetVersion < currentVersion)
-        {
-            // Migrate down
-            var migrationsToRollback = appliedMigrations
-                .Where(m => m.Version > targetVersion)
-                .OrderByDescending(m => m.Version)
-                .Select(m => _migrationTypes.FirstOrDefault(t =>
-                    t.GetCustomAttribute<MigrationAttribute>()?.Version == m.Version))
-                .Where(t => t != null)
-                .Cast<Type>()
-                .ToList();
-
-            foreach (var migrationType in migrationsToRollback)
-            {
-                await ExecuteMigrationAsync(migrationType, isUp: false);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Execute a single migration (up or down)
-    /// </summary>
-    private async Task ExecuteMigrationAsync(Type migrationType, bool isUp)
-    {
-        var attribute = migrationType.GetCustomAttribute<MigrationAttribute>();
-        if (attribute == null)
-        {
-            throw new InvalidOperationException($"Migration {migrationType.Name} is missing [Migration] attribute");
-        }
-
-        var direction = isUp ? "UP" : "DOWN";
-        _logger.Info($"Executing migration {attribute.Version} ({migrationType.Name}) - {direction}", "MigrationRunner");
 
         try
         {
-            // Create migration instance
-            var migration = (Migration?)Activator.CreateInstance(migrationType);
-            if (migration == null)
+            var serviceProvider = CreateServices();
+            using (var scope = serviceProvider.CreateScope())
             {
-                throw new InvalidOperationException($"Failed to create instance of {migrationType.Name}");
+                var runner = scope.ServiceProvider.GetRequiredService<FluentMigrator.Runner.IMigrationRunner>();
+                runner.MigrateUp();
             }
 
-            // Create migration context and expression roots
-            var context = new MigrationContext();
-            var create = new CreateExpressionRoot(context);
-            var delete = new DeleteExpressionRoot(context);
-            var alter = new AlterExpressionRoot(context);
-            var execute = new ExecuteExpressionRoot(context);
-
-            migration.SetExpressionRoots(create, delete, alter, execute);
-
-            // Execute Up() or Down()
-            if (isUp)
-            {
-                migration.Up();
-            }
-            else
-            {
-                migration.Down();
-            }
-
-            // Finalize any pending builders
-            context.CompleteBuilders();
-
-            // Get generated SQL
-            var sqlStatements = context.GetStatements();
-
-            _logger.Info($"Generated {sqlStatements.Count} SQL statements", "MigrationRunner");
-            if (sqlStatements.Count == 0)
-            {
-                _logger.Warn($"Migration {attribute.Version} generated no SQL statements", "MigrationRunner");
-                return;
-            }
-
-            // Execute SQL statements
-            await using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-
-            await using var transaction = await connection.BeginTransactionAsync();
-
-            try
-            {
-                foreach (var sql in sqlStatements)
-                {
-                    _logger.Verbose($"Executing: {sql}", "MigrationRunner");
-
-                    var command = connection.CreateCommand();
-                    command.Transaction = (SqliteTransaction)transaction;
-                    command.CommandText = sql;
-                    await command.ExecuteNonQueryAsync();
-                }
-
-                // Update migration history (using same connection/transaction to avoid deadlock)
-                var historyRepo = (MigrationHistoryRepository)_historyRepository;
-                if (isUp)
-                {
-                    await historyRepo.RecordMigrationAsync(
-                        connection,
-                        (SqliteTransaction)transaction,
-                        attribute.Version,
-                        attribute.Description,
-                        migrationType.Name);
-                }
-                else
-                {
-                    await historyRepo.RemoveMigrationAsync(
-                        connection,
-                        (SqliteTransaction)transaction,
-                        attribute.Version);
-                }
-
-                await transaction.CommitAsync();
-
-                _logger.Info($"Migration {attribute.Version} completed successfully", "MigrationRunner");
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.Error($"Migration {attribute.Version} failed: {ex.Message}", "MigrationRunner", ex);
-                throw;
-            }
+            _logger.Info("Migration completed successfully", "MigrationRunner");
+            return Task.CompletedTask;
         }
         catch (Exception ex)
         {
-            _logger.Error($"Failed to execute migration {attribute.Version}: {ex.Message}", "MigrationRunner", ex);
+            _logger.Error($"Migration failed: {ex.Message}", "MigrationRunner", ex);
+            throw;
+        }
+    }
+
+    public Task MigrateToVersionAsync(long targetVersion)
+    {
+        _logger.Info($"Migrating to version {targetVersion}", "MigrationRunner");
+
+        try
+        {
+            var serviceProvider = CreateServices();
+            using (var scope = serviceProvider.CreateScope())
+            {
+                var runner = scope.ServiceProvider.GetRequiredService<FluentMigrator.Runner.IMigrationRunner>();
+                runner.MigrateUp(targetVersion);
+            }
+
+            _logger.Info($"Migration to version {targetVersion} completed successfully", "MigrationRunner");
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Migration to version {targetVersion} failed: {ex.Message}", "MigrationRunner", ex);
+            throw;
+        }
+    }
+
+    private IServiceProvider CreateServices()
+    {
+        // Get the assembly that contains our migrations (not the test assembly)
+        var migrationAssembly = typeof(MigrationRunner).Assembly;
+
+        try
+        {
+            var services = new ServiceCollection()
+                .AddFluentMigratorCore()
+                .ConfigureRunner(rb => rb
+                    .AddSQLite()
+                    .WithGlobalConnectionString(_connectionString)
+                    .ScanIn(migrationAssembly).For.Migrations())
+                .AddLogging(lb => { /* No console logging */ });
+
+            var provider = services.BuildServiceProvider(false);
+
+            _logger.Info($"FluentMigrator configured with connection: {_connectionString}", "MigrationRunner");
+
+            return provider;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to configure FluentMigrator: {ex.Message}", "MigrationRunner", ex);
             throw;
         }
     }

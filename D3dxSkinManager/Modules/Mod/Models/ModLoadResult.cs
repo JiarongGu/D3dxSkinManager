@@ -7,15 +7,15 @@ namespace D3dxSkinManager.Modules.Mod.Models;
 public class ModLoadResult
 {
     /// <summary>
-    /// SHA of the mod that was loaded
+    /// ID of the mod that was loaded
     /// </summary>
-    public required string LoadedModSha { get; set; }
+    public required string LoadedModId { get; set; }
 
     /// <summary>
-    /// SHAs of mods that were automatically unloaded (same category conflicts)
+    /// IDs of mods that were automatically unloaded (same category conflicts)
     /// Frontend can update these specific mods instead of refreshing entire list
     /// </summary>
-    public required List<string> UnloadedModShas { get; set; }
+    public required List<string> UnloadedModIds { get; set; }
 
     /// <summary>
     /// Whether the load operation succeeded

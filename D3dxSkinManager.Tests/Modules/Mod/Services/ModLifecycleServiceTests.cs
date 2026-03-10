@@ -86,7 +86,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -101,8 +101,8 @@ public class ModLifecycleServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
-        result.LoadedModSha.Should().Be(sha);
-        result.UnloadedModShas.Should().BeEmpty("no conflicting mods");
+        result.LoadedModId.Should().Be(sha);
+        result.UnloadedModIds.Should().BeEmpty("no conflicting mods");
 
         _mockEventBus.Verify(x => x.EmitAsync("MOD", "LOADED", It.IsAny<object>()), Times.Once);
     }
@@ -127,7 +127,7 @@ public class ModLifecycleServiceTests
         var sha = "abc";  // Only 3 characters
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -159,7 +159,7 @@ public class ModLifecycleServiceTests
 
         var entity1 = new ModEntity
         {
-            SHA = sha1,
+            Id = sha1,
             Category = "category1",
             Name = "Mod 1",
             Type = "7z",
@@ -168,7 +168,7 @@ public class ModLifecycleServiceTests
 
         var entity2 = new ModEntity
         {
-            SHA = sha2,
+            Id = sha2,
             Category = "category1",
             Name = "Mod 2",
             Type = "7z",
@@ -190,7 +190,7 @@ public class ModLifecycleServiceTests
 
         // Assert
         result.Success.Should().BeTrue();
-        result.LoadedModSha.Should().Be(sha1);
+        result.LoadedModId.Should().Be(sha1);
 
         // Verify conflicting mod was unloaded (if it was actually loaded)
         // Note: We can't fully test this without file system access for PopulateIsLoadedFlags
@@ -207,7 +207,7 @@ public class ModLifecycleServiceTests
 
         var entity1 = new ModEntity
         {
-            SHA = sha1,
+            Id = sha1,
             Category = string.Empty,  // Unclassified
             Name = "Mod 1",
             Type = "7z",
@@ -216,7 +216,7 @@ public class ModLifecycleServiceTests
 
         var entity2 = new ModEntity
         {
-            SHA = sha2,
+            Id = sha2,
             Category = string.Empty,  // Unclassified
             Name = "Mod 2",
             Type = "7z",
@@ -233,7 +233,7 @@ public class ModLifecycleServiceTests
 
         // Assert
         result.Success.Should().BeTrue();
-        result.UnloadedModShas.Should().BeEmpty("unclassified mods should not conflict");
+        result.UnloadedModIds.Should().BeEmpty("unclassified mods should not conflict");
 
         // Verify no mods were unloaded
         _mockCacheService.Verify(x => x.DisableCacheAsync(It.IsAny<string>()), Times.Never, "unclassified mods can be co-loaded");
@@ -246,7 +246,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "   ",  // Whitespace only
             Name = "Test Mod",
             Type = "7z",
@@ -260,7 +260,7 @@ public class ModLifecycleServiceTests
 
         // Assert
         result.Success.Should().BeTrue();
-        result.UnloadedModShas.Should().BeEmpty("whitespace category should be treated as unclassified");
+        result.UnloadedModIds.Should().BeEmpty("whitespace category should be treated as unclassified");
 
         // Verify GetByCategoryAsync was not called (unclassified check skips it)
         _mockRepository.Verify(x => x.GetByCategoryAsync(It.IsAny<string>()), Times.Never);
@@ -275,7 +275,7 @@ public class ModLifecycleServiceTests
 
         var entity1 = new ModEntity
         {
-            SHA = sha1,
+            Id = sha1,
             Category = "category1",
             Name = "Mod 1",
             Type = "7z",
@@ -284,7 +284,7 @@ public class ModLifecycleServiceTests
 
         var entity2 = new ModEntity
         {
-            SHA = sha2,
+            Id = sha2,
             Category = "category1",
             Name = "Mod 2",
             Type = "7z",
@@ -303,7 +303,7 @@ public class ModLifecycleServiceTests
 
         // Assert - Should continue loading despite unload failure
         result.Success.Should().BeTrue();
-        result.LoadedModSha.Should().Be(sha1);
+        result.LoadedModId.Should().Be(sha1);
 
         // Note: The warning is only logged if PopulateIsLoadedFlags detects the mod as loaded
         // Since we're using mocks without real file system, we can't fully test this scenario
@@ -320,7 +320,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -348,7 +348,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -375,7 +375,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -402,7 +402,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -435,7 +435,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -467,7 +467,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -497,7 +497,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -524,7 +524,7 @@ public class ModLifecycleServiceTests
         var sha = "abc123def456";
         var entity = new ModEntity
         {
-            SHA = sha,
+            Id = sha,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",

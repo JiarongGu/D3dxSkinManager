@@ -68,7 +68,7 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
     try {
       await modService.setThumbnail(
         profileId,
-        mod.sha,
+        mod.id,
         currentImagePath,
       );
       notification.success(t("mods.preview.thumbnailUpdated"));
@@ -151,7 +151,7 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
     try {
       await modService.deletePreview(
         profileId,
-        mod.sha,
+        mod.id,
         currentImagePath,
       );
       notification.success(t("mods.preview.imageDeleted"));
@@ -191,7 +191,7 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
       if (result.success && result.filePath) {
         await modService.importPreviewImage(
           profileId,
-          mod.sha,
+          mod.id,
           result.filePath,
         );
         notification.success(t("mods.preview.imageAdded"));
@@ -208,7 +208,7 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
 
     try {
       // Let backend handle clipboard access (no browser permission issues)
-      await modService.importPreviewFromClipboard(profileId, mod.sha);
+      await modService.importPreviewFromClipboard(profileId, mod.id);
       notification.success(t("mods.preview.imageAdded"));
       // Preview paths will be refreshed automatically by PREVIEW_IMPORTED event
     } catch (error: unknown) {
@@ -222,7 +222,7 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
 
     try {
       const newValue = !mod.disablePreview;
-      await onUpdateMod(mod.sha, { disablePreview: newValue });
+      await onUpdateMod(mod.id, { disablePreview: newValue });
       notification.success(
         newValue
           ? t("mods.preview.previewDisabled")
@@ -275,9 +275,9 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
           onClick: async () => {
             if (!mod || !profileId) return;
             try {
-              if (mod.archiveFolderPath && mod.sha && mod.isAvailable) {
+              if (mod.archiveFolderPath && mod.id && mod.isAvailable) {
                 // Construct the archive file path (archives are stored without extension)
-                const archiveFilePath = `${mod.archiveFolderPath}\\${mod.sha}`;
+                const archiveFilePath = `${mod.archiveFolderPath}\\${mod.id}`;
                 await systemService.openFileInExplorer(archiveFilePath);
               } else {
                 notification.warning(t("mods.preview.modFolderNotFound"));
@@ -359,9 +359,9 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
           onClick: async () => {
             if (!mod || !profileId) return;
             try {
-              if (mod.archiveFolderPath && mod.sha && mod.isAvailable) {
+              if (mod.archiveFolderPath && mod.id && mod.isAvailable) {
                 // Construct the archive file path (archives are stored without extension)
-                const archiveFilePath = `${mod.archiveFolderPath}\\${mod.sha}`;
+                const archiveFilePath = `${mod.archiveFolderPath}\\${mod.id}`;
                 await systemService.openFileInExplorer(archiveFilePath);
               } else {
                 notification.warning(t("mods.preview.modFolderNotFound"));

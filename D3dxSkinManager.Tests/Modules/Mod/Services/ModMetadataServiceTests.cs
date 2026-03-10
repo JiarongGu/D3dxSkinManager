@@ -58,7 +58,7 @@ public class ModMetadataServiceTests
         // Arrange - NULL category (unclassified mod)
         var request = new CreateModRequest
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = null,  // NULL means unclassified
             Name = "Test Mod",
             Author = "Test Author",
@@ -89,7 +89,7 @@ public class ModMetadataServiceTests
         // Arrange - All optional fields are NULL
         var request = new CreateModRequest
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = "test-category",
             Name = "Test Mod",
             Author = null,  // NULL optional field
@@ -114,7 +114,7 @@ public class ModMetadataServiceTests
         // Arrange - User explicitly provides empty strings
         var request = new CreateModRequest
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = string.Empty,  // Explicitly empty
             Name = "Test Mod",
             Author = string.Empty,  // Explicitly empty
@@ -139,7 +139,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            SHA = null!,  // Invalid - SHA is required
+            Id = null!,  // Invalid - SHA is required
             Category = "test-category",
             Name = "Test Mod"
         };
@@ -154,7 +154,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            SHA = "   ",  // Whitespace-only is invalid
+            Id = "   ",  // Whitespace-only is invalid
             Category = "test-category",
             Name = "Test Mod"
         };
@@ -169,7 +169,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = "test-category",
             Name = null!  // Invalid - Name is required
         };
@@ -184,7 +184,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = "test-category",
             Name = "   "  // Whitespace-only is invalid
         };
@@ -199,7 +199,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            SHA = "existing-sha",
+            Id = "existing-sha",
             Category = "test-category",
             Name = "Test Mod"
         };
@@ -217,7 +217,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = "test-category",
             Name = "Test Mod",
             Author = "Test Author",
@@ -234,7 +234,7 @@ public class ModMetadataServiceTests
         var result = await _service.CreateAsync(request);
 
         // Assert
-        result.SHA.Should().Be("test-sha");
+        result.Id.Should().Be("test-sha");
         result.Category.Should().Be("test-category");
         result.Name.Should().Be("Test Mod");
         result.Author.Should().Be("Test Author");
@@ -256,7 +256,7 @@ public class ModMetadataServiceTests
         // Arrange
         var existingEntity = new ModEntity
         {
-            SHA = "existing-sha",
+            Id = "existing-sha",
             Category = "test-category",
             Name = "Existing Mod",
             Author = "Test Author",
@@ -269,7 +269,7 @@ public class ModMetadataServiceTests
 
         var request = new CreateModRequest
         {
-            SHA = "existing-sha",
+            Id = "existing-sha",
             Category = "different-category",  // Different values
             Name = "Different Name"
         };
@@ -295,7 +295,7 @@ public class ModMetadataServiceTests
 
         var request = new CreateModRequest
         {
-            SHA = "new-sha",
+            Id = "new-sha",
             Category = "test-category",
             Name = "New Mod"
         };
@@ -317,7 +317,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = "test-category",
             Name = "Test Mod"
         };
@@ -332,7 +332,7 @@ public class ModMetadataServiceTests
         // Arrange - Existing entity with NULL fields (from database)
         var existingEntity = new ModEntity
         {
-            SHA = "existing-sha",
+            Id = "existing-sha",
             Category = "test-category",
             Name = "Existing Mod",
             Author = null,  // NULL in database
@@ -345,7 +345,7 @@ public class ModMetadataServiceTests
 
         var request = new CreateModRequest
         {
-            SHA = "existing-sha",
+            Id = "existing-sha",
             Category = "test-category",
             Name = "Test Mod"
         };
@@ -369,7 +369,7 @@ public class ModMetadataServiceTests
         // Arrange - Existing mod with all fields populated
         var existingEntity = new ModEntity
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = "original-category",
             Name = "Original Name",
             Author = "Original Author",
@@ -414,7 +414,7 @@ public class ModMetadataServiceTests
         // Arrange - Mod with author
         var existingEntity = new ModEntity
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = "test-category",
             Name = "Test Mod",
             Author = "Original Author",
@@ -474,7 +474,7 @@ public class ModMetadataServiceTests
         // Arrange
         var existingEntity = new ModEntity
         {
-            SHA = "test-sha",
+            Id = "test-sha",
             Category = "test-category",
             Name = "Original Name",
             Type = "7z",
@@ -508,8 +508,8 @@ public class ModMetadataServiceTests
     public async Task BatchUpdateAsync_WithMultipleMods_ShouldUpdateAllSuccessfully()
     {
         // Arrange
-        var mod1 = new ModEntity { SHA = "sha1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
-        var mod2 = new ModEntity { SHA = "sha2", Category = "cat2", Name = "Mod 2", Type = "7z", Grading = "G" };
+        var mod1 = new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
+        var mod2 = new ModEntity { Id = "sha2", Category = "cat2", Name = "Mod 2", Type = "7z", Grading = "G" };
 
         _mockRepository.Setup(x => x.GetByIdAsync("sha1")).ReturnsAsync(mod1);
         _mockRepository.Setup(x => x.GetByIdAsync("sha2")).ReturnsAsync(mod2);
@@ -534,7 +534,7 @@ public class ModMetadataServiceTests
     public async Task BatchUpdateAsync_WithSomeNonExistentMods_ShouldOnlyUpdateExisting()
     {
         // Arrange
-        var mod1 = new ModEntity { SHA = "sha1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
+        var mod1 = new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
 
         _mockRepository.Setup(x => x.GetByIdAsync("sha1")).ReturnsAsync(mod1);
         _mockRepository.Setup(x => x.GetByIdAsync("sha2")).ReturnsAsync((ModEntity?)null);  // Doesn't exist
@@ -558,8 +558,8 @@ public class ModMetadataServiceTests
     public async Task BatchUpdateAsync_WithUpdateFailure_ShouldContinueWithRemainingMods()
     {
         // Arrange
-        var mod1 = new ModEntity { SHA = "sha1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
-        var mod2 = new ModEntity { SHA = "sha2", Category = "cat2", Name = "Mod 2", Type = "7z", Grading = "G" };
+        var mod1 = new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
+        var mod2 = new ModEntity { Id = "sha2", Category = "cat2", Name = "Mod 2", Type = "7z", Grading = "G" };
 
         _mockRepository.Setup(x => x.GetByIdAsync("sha1")).ReturnsAsync(mod1);
         _mockRepository.Setup(x => x.GetByIdAsync("sha2")).ReturnsAsync(mod2);

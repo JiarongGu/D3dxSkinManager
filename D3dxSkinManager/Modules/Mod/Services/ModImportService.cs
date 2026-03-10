@@ -14,17 +14,16 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 public interface IModImportService
 {
     Task<ModInfo?> ImportAsync(string filePath);
-    Task<int> ScanAndImportPreviewsFromFolderAsync(string sha, string folderPath);
+    Task<int> ScanAndImportPreviewsFromFolderAsync(string id, string folderPath);
 }
 
 /// <summary>
 /// Service for importing new mods
-/// Responsibility: Import workflow coordination (hash, extract, classify, generate images, save)
+/// Responsibility: Import workflow coordination (generate ID, extract, classify, generate images, save)
 /// </summary>
 public class ModImportService : IModImportService
 {
     private readonly IFileHelper _fileService;
-    private readonly IHashHelper _hashHelper;
     private readonly IImageService _imageService;
     private readonly IModRepository _repository;
     private readonly IModArchiveService _archiveService;
@@ -35,7 +34,6 @@ public class ModImportService : IModImportService
 
     public ModImportService(
         IFileHelper fileService,
-        IHashHelper hashHelper,
         IImageService imageService,
         IModRepository repository,
         IModArchiveService archiveService,
@@ -45,7 +43,6 @@ public class ModImportService : IModImportService
         IProfileEventBus eventBus)
     {
         _fileService = fileService;
-        _hashHelper = hashHelper;
         _imageService = imageService;
         _repository = repository;
         _archiveService = archiveService;
@@ -66,26 +63,26 @@ public class ModImportService : IModImportService
         {
             _logger.Info($"Starting import: {filePath}", "ModImportService");
 
-            // Step 1: Calculate SHA256
-            var sha = await _hashHelper.CalculateFileSHA256Async(filePath).ConfigureAwait(false);
-            _logger.Info($"SHA256: {sha}", "ModImportService");
+            // Step 1: Generate unique GUID-based ID
+            var id = ModInfo.NewId();
+            _logger.Info($"Generated ID: {id}", "ModImportService");
 
-            // Check if already exists
-            if (await _repository.ExistsAsync(sha))
+            // Check if already exists (should never happen with GUID, but check anyway)
+            if (await _repository.ExistsAsync(id))
             {
-                _logger.Info($"Mod already exists: {sha}", "ModImportService");
-                var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+                _logger.Info($"Mod already exists: {id}", "ModImportService");
+                var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
                 return entity != null ? ModMapper.ToDomain(entity) : null;
             }
 
             // Step 2: Copy archive to mods directory
-            await _archiveService.CopyArchiveAsync(filePath, sha).ConfigureAwait(false);
+            await _archiveService.CopyArchiveAsync(filePath, id).ConfigureAwait(false);
 
             // Step 3: Try to scan for preview images from cache directory
             // This will look in common cache locations for matching images
             try
             {
-                var previewCount = await _imageService.TryAutoImportPreviewsFromCacheAsync(sha).ConfigureAwait(false);
+                var previewCount = await _imageService.TryAutoImportPreviewsFromCacheAsync(id).ConfigureAwait(false);
                 if (previewCount > 0)
                 {
                     _logger.Info($"Auto-imported {previewCount} preview(s) from cache", "ModImportService");
@@ -99,7 +96,7 @@ public class ModImportService : IModImportService
             // Step 4: Create ModInfo with default values (user can edit later)
             var createRequest = new CreateModRequest
             {
-                SHA = sha,
+                Id = id,
                 Category = null, // User will categorize manually
                 Name = Path.GetFileNameWithoutExtension(filePath),
                 Author = null, // User can add later
@@ -110,7 +107,7 @@ public class ModImportService : IModImportService
             };
 
             var mod = await _metadataService.CreateAsync(createRequest).ConfigureAwait(false);
-            _logger.Info($"Import complete: {mod.Name} ({sha})", "ModImportService");
+            _logger.Info($"Import complete: {mod.Name} ({id})", "ModImportService");
 
             // Emit IMPORTED event
             await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.IMPORTED, mod).ConfigureAwait(false);
@@ -129,7 +126,7 @@ public class ModImportService : IModImportService
     /// This is used during mod import workflow to auto-import previews from the source folder
     /// Uses the same logic as ScanAndImportFromCacheAsync but for the original folder
     /// </summary>
-    public async Task<int> ScanAndImportPreviewsFromFolderAsync(string sha, string folderPath)
+    public async Task<int> ScanAndImportPreviewsFromFolderAsync(string id, string folderPath)
     {
         if (!_fileService.DirectoryExists(folderPath))
         {
@@ -140,15 +137,15 @@ public class ModImportService : IModImportService
         try
         {
             // Delegate to ImageService which handles the actual scanning and importing
-            // This reuses the existing ScanAndImportFromCacheAsync logic with SHA-based deduplication
-            var importCount = await _imageService.ScanAndImportFromCacheAsync(sha, folderPath).ConfigureAwait(false);
+            // This reuses the existing ScanAndImportFromCacheAsync logic with ID-based deduplication
+            var importCount = await _imageService.ScanAndImportFromCacheAsync(id, folderPath).ConfigureAwait(false);
 
             if (importCount > 0)
             {
                 _logger.Info($"Imported {importCount} preview image(s) from folder: {folderPath}", "ModImportService");
 
                 // Emit PREVIEW_IMPORTED event to notify frontend
-                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { sha, source = "folder" }).ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_IMPORTED, new { id, source = "folder" }).ConfigureAwait(false);
             }
 
             return importCount;

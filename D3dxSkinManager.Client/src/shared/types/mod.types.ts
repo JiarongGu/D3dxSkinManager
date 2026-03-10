@@ -1,5 +1,5 @@
 export interface ModInfo {
-  sha: string;
+  id: string;
   category: string;
   categoryName?: string;  // Human-readable category name for display
   name: string;
@@ -16,8 +16,8 @@ export interface ModInfo {
   hasCache: boolean;  // True if cache directory exists (either active or DISABLED-)
   hasPreviewFolder: boolean;  // True if preview directory exists with preview images
   isOrphaned: boolean;  // True if mod exists in cache but not in database (allows cleanup)
-  // Note: Preview images and thumbnails are stored dynamically in previews/{SHA}/ folder
-  // Use modService.getPreviewPaths(sha) to fetch them
+  // Note: Preview images and thumbnails are stored dynamically in previews/{Id}/ folder
+  // Use modService.getPreviewPaths(id) to fetch them
   // The first preview image (sorted alphabetically) is used as the thumbnail
   // File paths (for viewing operations - populated on-demand, not stored in DB)
   originalPath?: string;  // Path to original archive file
@@ -61,10 +61,10 @@ export interface ModStatistics {
  * Avoids full mod list refresh by returning only what changed
  */
 export interface ModLoadResult {
-  /** SHA of the mod that was loaded */
-  loadedModSha: string;
-  /** SHAs of mods that were automatically unloaded (same category conflicts) */
-  unloadedModShas: string[];
+  /** ID of the mod that was loaded */
+  loadedModId: string;
+  /** IDs of mods that were automatically unloaded (same category conflicts) */
+  unloadedModIds: string[];
   /** Whether the load operation succeeded */
   success: boolean;
 }
@@ -90,7 +90,7 @@ export interface Tag {
 export interface BatchDeleteResult {
   successCount: number;
   failedCount: number;
-  failedShas: string[];
+  failedIds: string[];
 }
 
 /**

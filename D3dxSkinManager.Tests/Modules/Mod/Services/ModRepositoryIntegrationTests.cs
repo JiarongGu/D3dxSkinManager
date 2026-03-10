@@ -35,7 +35,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         var tasks = Enumerable.Range(0, 10)
             .Select(i => _repository.InsertAsync(new ModEntity
             {
-                SHA = $"concurrent{i}",
+                Id = $"concurrent{i}",
                 Category = "test",
                 Name = $"Mod {i}"
             }))
@@ -55,7 +55,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "concurrent-update",
+            Id = "concurrent-update",
             Category = "test",
             Name = "Original"
         });
@@ -63,7 +63,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         var tasks = Enumerable.Range(0, 10)
             .Select(i => _repository.UpdateAsync(new ModEntity
             {
-                SHA = "concurrent-update",
+                Id = "concurrent-update",
                 Category = "test",
                 Name = $"Updated {i}"
             }))
@@ -88,7 +88,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "duplicate",
+            Id = "duplicate",
             Category = "test",
             Name = "First"
         };
@@ -96,7 +96,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
 
         var duplicate = new ModEntity
         {
-            SHA = "duplicate",
+            Id = "duplicate",
             Category = "test2",
             Name = "Second"
         };
@@ -121,7 +121,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "non-existent",
+            Id = "non-existent",
             Category = "test",
             Name = "Test"
         };
@@ -151,7 +151,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange
         var entity = new ModEntity
         {
-            SHA = new string('A', 40), // SHA-1 max length
+            Id = new string('A', 40), // SHA-1 max length
             Category = new string('C', 500),
             Name = new string('N', 5000),
             Description = new string('D', 10000),
@@ -163,7 +163,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         await _repository.InsertAsync(entity);
 
         // Assert
-        var result = await _repository.GetByIdAsync(entity.SHA);
+        var result = await _repository.GetByIdAsync(entity.Id);
         result.Should().NotBeNull();
         result!.Name.Should().HaveLength(5000);
     }
@@ -174,7 +174,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange - Only required fields
         var entity = new ModEntity
         {
-            SHA = "minimal",
+            Id = "minimal",
             Category = "test"
         };
 
@@ -184,7 +184,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Assert
         var result = await _repository.GetByIdAsync("minimal");
         result.Should().NotBeNull();
-        result!.SHA.Should().Be("minimal");
+        result!.Id.Should().Be("minimal");
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "unicode-test",
+            Id = "unicode-test",
             Category = "test",
             Name = "测试模组 日本語 한국어 العربية",
             Description = "Emoji: 🎮🔥💯",
@@ -221,7 +221,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         var tasks = Enumerable.Range(0, 1000)
             .Select(i => _repository.InsertAsync(new ModEntity
             {
-                SHA = $"perf{i:D4}",
+                Id = $"perf{i:D4}",
                 Category = $"cat{i % 10}",
                 Name = $"Mod {i}"
             }));
@@ -242,7 +242,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         var tasks = Enumerable.Range(0, 500)
             .Select(i => _repository.InsertAsync(new ModEntity
             {
-                SHA = $"cat-test{i}",
+                Id = $"cat-test{i}",
                 Category = "popular",
                 Name = $"Mod {i}"
             }));
@@ -266,19 +266,19 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "tag1",
+            Id = "tag1",
             Category = "test",
             Tags = "[\"action\",\"rpg\"]"
         });
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "tag2",
+            Id = "tag2",
             Category = "test",
             Tags = "[\"rpg\",\"adventure\"]"
         });
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "tag3",
+            Id = "tag3",
             Category = "test",
             Tags = "[\"action\",\"adventure\"]"
         });
@@ -299,13 +299,13 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "empty-tags",
+            Id = "empty-tags",
             Category = "test",
             Tags = "[]"
         });
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "with-tags",
+            Id = "with-tags",
             Category = "test",
             Tags = "[\"test\"]"
         });
@@ -329,7 +329,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         var precise = DateTime.UtcNow;
         var entity = new ModEntity
         {
-            SHA = "datetime-test",
+            Id = "datetime-test",
             Category = "test",
             CreatedAt = precise
         };
@@ -349,7 +349,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         var beforeInsert = DateTime.UtcNow;
         var entity = new ModEntity
         {
-            SHA = "timestamp-test",
+            Id = "timestamp-test",
             Category = "test"
         };
 
@@ -375,7 +375,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Optional fields can be null and will use the entity's defaults
         var entity = new ModEntity
         {
-            SHA = "null-fields",
+            Id = "null-fields",
             Category = "test",
             Name = "Test Mod",  // Name is required (NOT NULL in DB)
             Description = null,  // Will use default string.Empty
@@ -389,7 +389,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Assert
         var result = await _repository.GetByIdAsync("null-fields");
         result.Should().NotBeNull();
-        result!.SHA.Should().Be("null-fields");
+        result!.Id.Should().Be("null-fields");
         result.Name.Should().Be("Test Mod");
         // These fields are allowed to be null in the database
         // When explicitly set to null, they remain null (not converted to empty string)
@@ -404,7 +404,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange
         var entity = new ModEntity
         {
-            SHA = "empty-strings",
+            Id = "empty-strings",
             Category = "test",
             Name = "",
             Description = "",
@@ -429,15 +429,15 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
     public async Task MultipleOperations_InSequence_ShouldAllSucceed()
     {
         // Arrange & Act - Series of operations
-        await _repository.InsertAsync(new ModEntity { SHA = "seq1", Category = "test", Name = "First" });
-        await _repository.InsertAsync(new ModEntity { SHA = "seq2", Category = "test", Name = "Second" });
-        await _repository.UpdateAsync(new ModEntity { SHA = "seq1", Category = "test", Name = "Updated" });
+        await _repository.InsertAsync(new ModEntity { Id = "seq1", Category = "test", Name = "First" });
+        await _repository.InsertAsync(new ModEntity { Id = "seq2", Category = "test", Name = "Second" });
+        await _repository.UpdateAsync(new ModEntity { Id = "seq1", Category = "test", Name = "Updated" });
         await _repository.DeleteAsync("seq2");
 
         // Assert
         var all = await _repository.GetAllAsync();
         all.Should().HaveCount(1);
-        all[0].SHA.Should().Be("seq1");
+        all[0].Id.Should().Be("seq1");
         all[0].Name.Should().Be("Updated");
     }
 

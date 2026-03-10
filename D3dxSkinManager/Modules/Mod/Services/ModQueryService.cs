@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Memory;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Category.Services;
@@ -307,7 +307,7 @@ public class ModQueryService : IModQueryService
     {
         var lowerSearch = searchTerm.ToLowerInvariant();
 
-        return mod.SHA.ToLowerInvariant().Contains(lowerSearch) ||
+        return mod.Id.ToLowerInvariant().Contains(lowerSearch) ||
                mod.Name.ToLowerInvariant().Contains(lowerSearch) ||
                mod.Category.ToLowerInvariant().Contains(lowerSearch) ||
                (mod.Author?.ToLowerInvariant().Contains(lowerSearch) == true) ||
@@ -337,7 +337,7 @@ public class ModQueryService : IModQueryService
     /// Uses IMemoryCache for performance - cache invalidated on CACHE_CHANGED event (load/unload/delete)
     /// Orchestration:
     /// 1. Check IMemoryCache first (fast path)
-    /// 2. Scan cache folder for active mod SHAs (not DISABLED-)
+    /// 2. Scan cache folder for active mod IDs (not DISABLED-)
     /// 3. For each SHA, get ModInfo from repository
     /// 4. Enrich ModInfo using enrichment service (populates status flags)
     /// 5. For orphaned mods (not in DB), return minimal ModInfo with IsOrphaned flag for cleanup
@@ -366,12 +366,12 @@ public class ModQueryService : IModQueryService
                 .ToList();
 
             // Step 2-3: For each SHA found in cache, get from repository and enrich
-            foreach (var sha in cacheDirs)
+            foreach (var id in cacheDirs)
             {
-                if (string.IsNullOrEmpty(sha)) continue;
+                if (string.IsNullOrEmpty(id)) continue;
 
                 // Step 2: Get ModEntity from repository
-                var entity = await _repository.GetByIdAsync(sha).ConfigureAwait(false);
+                var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
 
                 if (entity != null)
                 {
@@ -386,15 +386,15 @@ public class ModQueryService : IModQueryService
                 {
                     // Step 4: Orphaned mod - not in database but exists in cache
                     // Create minimal ModInfo with IsOrphaned flag for frontend to handle i18n
-                    // Use truncated SHA (first 6 characters) for display name
+                    // Use truncated ID (first 6 characters) for display name
                     activeMods.Add(new ModInfo
                     {
-                        SHA = sha,
-                        Name = sha.Length >= 6 ? sha.Substring(0, 6) : sha, // Truncate SHA for display
+                        Id = id,
+                        Name = id.Length >= 6 ? id.Substring(0, 6) : id, // Truncate ID for display
                         IsLoaded = true,
                         HasCache = true,
                         IsOrphaned = true,
-                        CachePath = Path.Combine(cacheModsDir, sha)
+                        CachePath = Path.Combine(cacheModsDir, id)
                     });
                 }
             }

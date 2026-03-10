@@ -24,41 +24,19 @@ public interface IScreenCaptureProfileRepository
 public class ScreenCaptureProfileRepository : IScreenCaptureProfileRepository
 {
     private readonly string _connectionString;
-    private readonly Lazy<Task> _init;
 
     public ScreenCaptureProfileRepository(IProfilePathService profilePaths)
     {
-        _connectionString = $"Data Source={profilePaths.ProfileDatabasePath}";
-        _init = new Lazy<Task>(InitializeDatabaseAsync, isThreadSafe: true);
-    }
-
-    private Task EnsureInitializedAsync() => _init.Value;
-
-    private async Task InitializeDatabaseAsync()
-    {
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
-
-        var createTableSql = @"
-            CREATE TABLE IF NOT EXISTS ScreenCaptureProfiles (
-                Id TEXT PRIMARY KEY,
-                Name TEXT NOT NULL,
-                X INTEGER NOT NULL,
-                Y INTEGER NOT NULL,
-                Width INTEGER NOT NULL,
-                Height INTEGER NOT NULL
-            );
-
-            CREATE INDEX IF NOT EXISTS IX_ScreenCaptureProfiles_Name ON ScreenCaptureProfiles(Name);
-        ";
-
-        await using var command = new SqliteCommand(createTableSql, connection);
-        await command.ExecuteNonQueryAsync();
+        // Check if ProfileDatabasePath is already a full connection string (used in tests)
+        // or just a file path (used in production)
+        var path = profilePaths.ProfileDatabasePath;
+        _connectionString = path.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase)
+            ? path
+            : $"Data Source={path}";
     }
 
     public async Task<List<ScreenCaptureProfile>> GetAllAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
 
         var profiles = new List<ScreenCaptureProfile>();
 
@@ -79,7 +57,6 @@ public class ScreenCaptureProfileRepository : IScreenCaptureProfileRepository
 
     public async Task<ScreenCaptureProfile?> GetByIdAsync(string id)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -98,7 +75,6 @@ public class ScreenCaptureProfileRepository : IScreenCaptureProfileRepository
 
     public async Task<string> InsertAsync(ScreenCaptureProfile profile)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
         if (string.IsNullOrEmpty(profile.Id))
         {
             profile.Id = Guid.NewGuid().ToString();
@@ -123,7 +99,6 @@ public class ScreenCaptureProfileRepository : IScreenCaptureProfileRepository
 
     public async Task UpdateAsync(ScreenCaptureProfile profile)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -146,7 +121,6 @@ public class ScreenCaptureProfileRepository : IScreenCaptureProfileRepository
 
     public async Task DeleteAsync(string id)
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -163,7 +137,6 @@ public class ScreenCaptureProfileRepository : IScreenCaptureProfileRepository
 
     public async Task<int> CountAsync()
     {
-        await EnsureInitializedAsync().ConfigureAwait(false);
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 

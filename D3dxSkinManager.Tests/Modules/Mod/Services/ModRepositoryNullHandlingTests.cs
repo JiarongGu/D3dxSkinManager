@@ -30,7 +30,7 @@ public class ModRepositoryNullHandlingTests : InMemoryDatabaseTestBase
         // Arrange - Entity with NULL optional fields (as database allows)
         var entity = new ModEntity
         {
-            SHA = "null-test",
+            Id = "null-test",
             Category = "test-category",
             Name = "Test Mod",
             Author = null,  // NULL in database
@@ -63,7 +63,7 @@ public class ModRepositoryNullHandlingTests : InMemoryDatabaseTestBase
         // Arrange - Create mod with values
         var original = new ModEntity
         {
-            SHA = "empty-string-test",
+            Id = "empty-string-test",
             Category = "category1",
             Name = "Test Mod",
             Author = "Original Author",
@@ -76,7 +76,7 @@ public class ModRepositoryNullHandlingTests : InMemoryDatabaseTestBase
         // Act - Update with empty strings (user clearing fields)
         var updated = new ModEntity
         {
-            SHA = "empty-string-test",
+            Id = "empty-string-test",
             Category = "category1",
             Name = "Test Mod",
             Author = string.Empty,  // Clearing author
@@ -98,7 +98,7 @@ public class ModRepositoryNullHandlingTests : InMemoryDatabaseTestBase
         // Arrange - Insert mods with various author values
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "author-1",
+            Id = "author-1",
             Category = "test",
             Name = "Mod 1",
             Author = "Author A",  // Valid author
@@ -108,7 +108,7 @@ public class ModRepositoryNullHandlingTests : InMemoryDatabaseTestBase
 
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "author-2",
+            Id = "author-2",
             Category = "test",
             Name = "Mod 2",
             Author = null,  // NULL author
@@ -118,7 +118,7 @@ public class ModRepositoryNullHandlingTests : InMemoryDatabaseTestBase
 
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "author-3",
+            Id = "author-3",
             Category = "test",
             Name = "Mod 3",
             Author = string.Empty,  // Empty author
@@ -128,7 +128,7 @@ public class ModRepositoryNullHandlingTests : InMemoryDatabaseTestBase
 
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "author-4",
+            Id = "author-4",
             Category = "test",
             Name = "Mod 4",
             Author = "Author B",  // Valid author
@@ -138,7 +138,7 @@ public class ModRepositoryNullHandlingTests : InMemoryDatabaseTestBase
 
         await _repository.InsertAsync(new ModEntity
         {
-            SHA = "author-5",
+            Id = "author-5",
             Category = "test",
             Name = "Mod 5",
             Author = "Author A",  // Duplicate (should be distinct)
@@ -163,7 +163,7 @@ public class ModRepositoryNullHandlingTests : InMemoryDatabaseTestBase
         // Arrange - Start with entity containing NULLs
         var originalEntity = new ModEntity
         {
-            SHA = "round-trip-test",
+            Id = "round-trip-test",
             Category = "test",
             Name = "Round Trip Test",
             Author = null,
