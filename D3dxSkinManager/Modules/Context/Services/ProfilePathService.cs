@@ -34,7 +34,6 @@ public interface IProfilePathService
     string ConfigPath { get; }
     string GetModArchivePath(string id, string extension = ".7z");
     string GetPreviewDirectoryPath(string id);
-    Task LoadCacheDirectoryAsync();
     void InvalidateCacheDirectory();
 }
 
@@ -74,10 +73,12 @@ public class ProfilePathService : IProfilePathService
         {
             if (eventMessage.Payload is ProfileConfiguration config && config.ProfileId == _profileContext.ProfileId)
             {
-                // Reload cache directory when config changes
+                // Invalidate cache - paths will be lazily reloaded on next access via GetOrCreate
                 InvalidateCacheDirectory();
-                await LoadCacheDirectoryAsync().ConfigureAwait(false);
             }
+
+            // Suppress async warning - event handler doesn't need to await anything
+            await Task.CompletedTask;
         });
     }
 
@@ -102,102 +103,73 @@ public class ProfilePathService : IProfilePathService
 
     /// <summary>
     /// Work directory - can be internal (profile/work) or external (custom path)
-    /// Reads from cache populated by LoadCacheDirectoryAsync()
+    /// Uses lazy initialization with GetOrCreate for thread-safe configuration loading
     /// </summary>
     public string WorkDirectory
     {
         get
         {
-            // Try to get from cache
-            if (_cache.TryGetValue(_workDirCacheKey, out string? cachedPath) && cachedPath != null)
+            return _cache.GetOrCreate(_workDirCacheKey, entry =>
             {
-                return cachedPath;
-            }
+                entry.SlidingExpiration = CacheExpiry;
 
-            // Default to internal path initially
-            // This will be updated asynchronously by LoadCacheDirectoryAsync
-            return Path.Combine(ProfilePath, "work");
+                try
+                {
+                    // Synchronously load config on first access
+                    var config = _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId)
+                        .GetAwaiter().GetResult();
+
+                    string workDirectory;
+                    if (config?.ModWork?.IsExternal() == true && !string.IsNullOrEmpty(config.ModWork.Directory))
+                    {
+                        workDirectory = config.ModWork.Directory;
+                    }
+                    else
+                    {
+                        workDirectory = Path.Combine(ProfilePath, "work");
+                    }
+
+                    Directory.CreateDirectory(workDirectory);
+                    return workDirectory;
+                }
+                catch
+                {
+                    // Fallback to default on error
+                    return Path.Combine(ProfilePath, "work");
+                }
+            }) ?? Path.Combine(ProfilePath, "work");
         }
     }
 
     /// <summary>
     /// Cache Mods directory - WorkDirectory/Mods subfolder
-    /// Reads from cache populated by LoadCacheDirectoryAsync()
+    /// Uses lazy initialization with GetOrCreate for thread-safe path resolution
     /// </summary>
     public string CacheModsDirectory
     {
         get
         {
-            // Try to get from cache
-            if (_cache.TryGetValue(_cacheModsDirCacheKey, out string? cachedPath) && cachedPath != null)
+            return _cache.GetOrCreate(_cacheModsDirCacheKey, entry =>
             {
-                return cachedPath;
-            }
+                entry.SlidingExpiration = CacheExpiry;
 
-            // Default to internal path initially
-            // This will be updated asynchronously by LoadCacheDirectoryAsync
-            return Path.Combine(ProfilePath, "work", "Mods");
+                try
+                {
+                    // Get work directory (will load from cache or initialize if needed)
+                    var workDir = WorkDirectory;
+                    var modsDirectory = Path.Combine(workDir, "Mods");
+                    Directory.CreateDirectory(modsDirectory);
+                    return modsDirectory;
+                }
+                catch
+                {
+                    // Fallback to default on error
+                    return Path.Combine(ProfilePath, "work", "Mods");
+                }
+            }) ?? Path.Combine(ProfilePath, "work", "Mods");
         }
     }
 
-    /// <summary>
-    /// Load the work and cache directory paths from configuration asynchronously
-    /// This should be called during initialization
-    /// Uses IMemoryCache with automatic expiration
-    /// </summary>
-    public async Task LoadCacheDirectoryAsync()
-    {
-        // Load and cache both work directory and cache mods directory
-        await _cache.GetOrCreateAsync(_workDirCacheKey, async entry =>
-        {
-            entry.SlidingExpiration = CacheExpiry;
-
-            try
-            {
-                // Load configuration to determine work directory
-                var config = await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
-
-                // Determine work directory based on mode
-                string workDirectory;
-                if (config?.ModWork?.IsExternal() == true && !string.IsNullOrEmpty(config.ModWork.Directory))
-                {
-                    workDirectory = config.ModWork.Directory;
-                }
-                else
-                {
-                    // Default internal work path
-                    workDirectory = Path.Combine(ProfilePath, "work");
-                }
-
-                // Ensure the work directory exists
-                Directory.CreateDirectory(workDirectory);
-
-                // Also cache the Mods subdirectory
-                var modsDirectory = Path.Combine(workDirectory, "Mods");
-                Directory.CreateDirectory(modsDirectory);
-                _cache.Set(_cacheModsDirCacheKey, modsDirectory, new MemoryCacheEntryOptions
-                {
-                    SlidingExpiration = CacheExpiry
-                });
-
-                return workDirectory;
-            }
-            catch
-            {
-                // Fallback to default if config loading fails
-                var defaultWorkDirectory = Path.Combine(ProfilePath, "work");
-                var defaultModsDirectory = Path.Combine(defaultWorkDirectory, "Mods");
-                Directory.CreateDirectory(defaultModsDirectory);
-
-                _cache.Set(_cacheModsDirCacheKey, defaultModsDirectory, new MemoryCacheEntryOptions
-                {
-                    SlidingExpiration = CacheExpiry
-                });
-
-                return defaultWorkDirectory;
-            }
-        }).ConfigureAwait(false);
-    }
 
     public string ThumbnailsDirectory => Path.Combine(ProfilePath, "thumbnails");
 
@@ -221,14 +193,13 @@ public class ProfilePathService : IProfilePathService
     /// Ensure all standard profile directories exist
     /// Creates directories if they don't exist
     /// Safe to call multiple times (idempotent)
-    /// Note: CacheModsDirectory is created on-demand in its getter based on configuration
+    /// Note: WorkDirectory and CacheModsDirectory are created on-demand via lazy initialization
     /// </summary>
     private void EnsureDirectoriesExist()
     {
         // Create all standard directories
         Directory.CreateDirectory(ModsDirectory);
-        Directory.CreateDirectory(WorkDirectory);
-        // CacheModsDirectory is created on-demand in the property getter
+        // WorkDirectory and CacheModsDirectory are created on-demand in their property getters
         Directory.CreateDirectory(ThumbnailsDirectory);
         Directory.CreateDirectory(PreviewsDirectory);
         Directory.CreateDirectory(LogsDirectory);
