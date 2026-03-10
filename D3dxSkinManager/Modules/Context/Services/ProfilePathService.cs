@@ -45,7 +45,6 @@ public class ProfilePathService : IProfilePathService
     private readonly IEventBus _eventBus;
     private readonly IMemoryCache _cache;
     private readonly string _workDirCacheKey;
-    private readonly string _cacheModsDirCacheKey;
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromHours(1);
 
     public ProfilePathService(IProfileContext profileContext, IGlobalPathService globalPathService, IProfileRepository profileRepository, IEventBus eventBus, IMemoryCache cache)
@@ -56,9 +55,8 @@ public class ProfilePathService : IProfilePathService
         _eventBus = eventBus;
         _cache = cache;
 
-        // Use profile-specific cache keys since IMemoryCache is shared across all profiles
+        // Use profile-specific cache key since IMemoryCache is shared across all profiles
         _workDirCacheKey = $"WorkDirectory_{profileContext.ProfileId}";
-        _cacheModsDirCacheKey = $"CacheModsDirectory_{profileContext.ProfileId}";
 
         EnsureDirectoriesExist();
         SubscribeToConfigChanges();
@@ -83,13 +81,12 @@ public class ProfilePathService : IProfilePathService
     }
 
     /// <summary>
-    /// Invalidate the cached directory paths
+    /// Invalidate the cached work directory path
     /// Call this when profile configuration changes
     /// </summary>
     public void InvalidateCacheDirectory()
     {
         _cache.Remove(_workDirCacheKey);
-        _cache.Remove(_cacheModsDirCacheKey);
     }
 
     // Standard file name constants
@@ -104,6 +101,7 @@ public class ProfilePathService : IProfilePathService
     /// <summary>
     /// Work directory - can be internal (profile/work) or external (custom path)
     /// Uses lazy initialization with GetOrCreate for thread-safe configuration loading
+    /// Creates both work directory and Mods subdirectory
     /// </summary>
     public string WorkDirectory
     {
@@ -129,7 +127,9 @@ public class ProfilePathService : IProfilePathService
                         workDirectory = Path.Combine(ProfilePath, "work");
                     }
 
+                    // Create both work directory and Mods subdirectory
                     Directory.CreateDirectory(workDirectory);
+                    Directory.CreateDirectory(Path.Combine(workDirectory, "Mods"));
                     return workDirectory;
                 }
                 catch
@@ -143,32 +143,9 @@ public class ProfilePathService : IProfilePathService
 
     /// <summary>
     /// Cache Mods directory - WorkDirectory/Mods subfolder
-    /// Uses lazy initialization with GetOrCreate for thread-safe path resolution
+    /// Directory is created by WorkDirectory getter, just returns the path
     /// </summary>
-    public string CacheModsDirectory
-    {
-        get
-        {
-            return _cache.GetOrCreate(_cacheModsDirCacheKey, entry =>
-            {
-                entry.SlidingExpiration = CacheExpiry;
-
-                try
-                {
-                    // Get work directory (will load from cache or initialize if needed)
-                    var workDir = WorkDirectory;
-                    var modsDirectory = Path.Combine(workDir, "Mods");
-                    Directory.CreateDirectory(modsDirectory);
-                    return modsDirectory;
-                }
-                catch
-                {
-                    // Fallback to default on error
-                    return Path.Combine(ProfilePath, "work", "Mods");
-                }
-            }) ?? Path.Combine(ProfilePath, "work", "Mods");
-        }
-    }
+    public string CacheModsDirectory => Path.Combine(WorkDirectory, "Mods");
 
 
     public string ThumbnailsDirectory => Path.Combine(ProfilePath, "thumbnails");

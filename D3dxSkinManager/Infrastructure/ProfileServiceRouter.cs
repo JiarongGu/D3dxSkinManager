@@ -172,7 +172,7 @@ public class ProfileServiceRouter : IDisposable
         var serviceProvider = services.BuildServiceProvider();
 
         // Note: ProfilePathService uses lazy initialization via GetOrCreate
-        // No explicit initialization needed - paths are loaded on first access
+        // WorkDirectory loads on first access - no explicit init needed
 
         // Run database migrations for this profile
         // This ensures the database schema is up to date before any services try to access it
