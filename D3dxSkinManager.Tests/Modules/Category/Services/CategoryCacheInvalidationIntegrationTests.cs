@@ -19,7 +19,7 @@ namespace D3dxSkinManager.Tests.Modules.Category.Services;
 
 /// <summary>
 /// Integration tests that verify the complete flow:
-/// MOD.CATEGORY_UPDATED â†’ CategoryEventHandler â†’ InvalidateCache â†’ CATEGORY.CATEGORY_TREE_UPDATED
+/// MOD.CATEGORY_UPDATED â†?CategoryEventHandler â†?InvalidateCache â†?CATEGORY.CATEGORY_TREE_UPDATED
 /// </summary>
 public class CategoryCacheInvalidationIntegrationTests : IDisposable
 {
@@ -99,7 +99,7 @@ public class CategoryCacheInvalidationIntegrationTests : IDisposable
         {
             Module = ModuleNames.MOD,
             Type = ModEvents.CATEGORY_UPDATED,
-            Payload = new { sha = "test-mod-sha", category = "new-category-id" }
+            Payload = new { id = "test-mod-id", category = "new-category-id" }
         };
 
         // Act - Simulate the backend emitting MOD.CATEGORY_UPDATED
@@ -137,21 +137,21 @@ public class CategoryCacheInvalidationIntegrationTests : IDisposable
         {
             Module = ModuleNames.MOD,
             Type = ModEvents.CATEGORY_UPDATED,
-            Payload = new { sha = "mod1", category = "cat1" }
+            Payload = new { id = "mod1", category = "cat1" }
         });
 
         await _registeredCategoryUpdateHandler!(new EventMessage
         {
             Module = ModuleNames.MOD,
             Type = ModEvents.CATEGORY_UPDATED,
-            Payload = new { sha = "mod2", category = "cat2" }
+            Payload = new { id = "mod2", category = "cat2" }
         });
 
         await _registeredCategoryUpdateHandler!(new EventMessage
         {
             Module = ModuleNames.MOD,
             Type = ModEvents.CATEGORY_UPDATED,
-            Payload = new { sha = "mod3", category = "cat1" }
+            Payload = new { id = "mod3", category = "cat1" }
         });
 
         // Give time for all async operations

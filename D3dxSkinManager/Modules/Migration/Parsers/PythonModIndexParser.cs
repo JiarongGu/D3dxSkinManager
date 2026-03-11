@@ -14,7 +14,7 @@ public interface IPythonModIndexParser
     /// Parse mod index directory containing index_*.json files
     /// </summary>
     /// <param name="modsIndexDirectory">Path to modsIndex directory (e.g., home/Endfield/modsIndex)</param>
-    /// <returns>List of mod entries with metadata (deduplicated by SHA)</returns>
+    /// <returns>List of mod entries with metadata (deduplicated by ID)</returns>
     Task<List<PythonModEntry>> ParseAsync(string modsIndexDirectory);
 }
 
@@ -33,7 +33,7 @@ public class PythonModIndexParser : IPythonModIndexParser
 
     /// <summary>
     /// Parse all index_*.json files in the directory
-    /// Deduplicates mods by SHA
+    /// Deduplicates mods by ID
     /// </summary>
     public async Task<List<PythonModEntry>> ParseAsync(string modsIndexDirectory)
     {
@@ -67,12 +67,12 @@ public class PythonModIndexParser : IPythonModIndexParser
                 int modCount = 0;
                 foreach (var prop in modsElement.EnumerateObject())
                 {
-                    var sha = prop.Name;
+                    var id = prop.Name;
                     var modData = prop.Value;
 
                     var entry = new PythonModEntry
                     {
-                        Sha = sha,
+                        Sha = id,
                         Object = modData.TryGetProperty("object", out var objProp) ? objProp.GetString() ?? "Unknown" : "Unknown",
                         Type = modData.TryGetProperty("type", out var typeProp) ? typeProp.GetString() ?? "7z" : "7z",
                         Name = modData.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "Unknown" : "Unknown",
@@ -84,8 +84,8 @@ public class PythonModIndexParser : IPythonModIndexParser
                             : new List<string>()
                     };
 
-                    // Deduplicate by SHA
-                    if (!allMods.Any(m => m.Sha == sha))
+                    // Deduplicate by ID
+                    if (!allMods.Any(m => m.Sha == id))
                     {
                         allMods.Add(entry);
                         modCount++;

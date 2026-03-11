@@ -92,7 +92,7 @@ public class FileTransferService : IFileTransferService
         // Ensure target directory exists
         Directory.CreateDirectory(normalizedTargetDir);
 
-        // Check if SHA-named file already exists in destination (deduplication)
+        // Check if ID-named file already exists in destination (deduplication)
         if (File.Exists(targetPath))
         {
             Console.WriteLine($"[FileTransferService] File already exists at destination (deduplication), skipping copy");

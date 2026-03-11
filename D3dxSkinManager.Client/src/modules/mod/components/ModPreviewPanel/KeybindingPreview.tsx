@@ -9,10 +9,10 @@ import './KeybindingPreview.css';
 const { Text } = Typography;
 
 export interface KeybindingPreviewProps {
-  modSha: string;
+  modId: string;
 }
 
-export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modSha }) => {
+export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
 
@@ -21,11 +21,11 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modSha }) 
 
   useEffect(() => {
     const loadKeybindings = async () => {
-      if (!selectedProfileId || !modSha) return;
+      if (!selectedProfileId || !modId) return;
 
       setLoading(true);
       try {
-        const bindings = await modService.getKeybindings(selectedProfileId, modSha);
+        const bindings = await modService.getKeybindings(selectedProfileId, modId);
         setKeybindings(bindings);
       } catch (error: unknown) {
         setKeybindings([]);
@@ -35,7 +35,7 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modSha }) 
     };
 
     void loadKeybindings();
-  }, [selectedProfileId, modSha]);
+  }, [selectedProfileId, modId]);
 
   if (loading) {
     return (

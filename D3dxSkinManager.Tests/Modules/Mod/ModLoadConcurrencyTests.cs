@@ -5,7 +5,7 @@ namespace D3dxSkinManager.Tests.Modules.Mod;
 
 /// <summary>
 /// Unit tests for mod loading concurrency and deadlock prevention
-/// Tests the specific scenario: Load Mod A â†’ Load Mod B (same category) while A is still loading
+/// Tests the specific scenario: Load Mod A â†?Load Mod B (same category) while A is still loading
 ///
 /// IMPORTANT: These are pure unit tests with NO external dependencies:
 /// - No file system operations
@@ -286,7 +286,7 @@ public class ModLoadConcurrencyTests
     {
         // Arrange
         var queue = new ModOperationQueue();
-        var sha = "test-mod-sha";
+        var id = "test-mod-id";
         var operations = new List<string>();
         var lockObj = new object();
 
@@ -295,7 +295,7 @@ public class ModLoadConcurrencyTests
         for (int i = 0; i < 10; i++)
         {
             var index = i;
-            tasks.Add(queue.EnqueueAsync(sha, async () =>
+            tasks.Add(queue.EnqueueAsync(id, async () =>
             {
                 var operation = index % 2 == 0 ? "load" : "unload";
                 lock (lockObj) operations.Add($"{operation}-{index}");
@@ -318,7 +318,7 @@ public class ModLoadConcurrencyTests
         // Arrange
         var queue = new ModOperationQueue();
         var categories = new[] { "CharacterSkins", "WeaponSkins", "Effects", null };
-        var shas = Enumerable.Range(0, 20).Select(i => $"mod-{i:00}").ToArray();
+        var ids = Enumerable.Range(0, 20).Select(i => $"mod-{i:00}").ToArray();
         var tasks = new List<Task>();
         var operationCount = 0;
 
@@ -326,7 +326,7 @@ public class ModLoadConcurrencyTests
         for (int i = 0; i < 100; i++)
         {
             var category = categories[Random.Shared.Next(categories.Length)];
-            var sha = shas[Random.Shared.Next(shas.Length)];
+            var id = ids[Random.Shared.Next(ids.Length)];
 
             // 70% category operations (loads), 30% per-mod operations (unloads, updates)
             if (Random.Shared.NextDouble() < 0.7)
@@ -340,7 +340,7 @@ public class ModLoadConcurrencyTests
             }
             else
             {
-                tasks.Add(queue.EnqueueAsync(sha, async () =>
+                tasks.Add(queue.EnqueueAsync(id, async () =>
                 {
                     await Task.Delay(Random.Shared.Next(5, 30)); // Simulate async work (not file I/O)
                     Interlocked.Increment(ref operationCount);

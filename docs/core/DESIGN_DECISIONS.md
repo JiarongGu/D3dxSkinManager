@@ -80,7 +80,7 @@ if (!File.Exists(path))
 **Pattern:**
 ```csharp
 // Always async for I/O
-public async Task<Result> LoadModAsync(string sha) { ... }
+public async Task<Result> LoadModAsync(string id) { ... }
 ```
 
 ---
@@ -214,7 +214,7 @@ interface BridgeMessage {
 **Pattern:**
 ```typescript
 // Frontend sends
-{ module: 'MOD', type: 'LOAD', profileId: 'abc', payload: { sha: '...' } }
+{ module: 'MOD', type: 'LOAD', profileId: 'abc', payload: { id: '...' } }
 
 // Backend routes through AppFacade → ModuleFacade → Service
 ```
@@ -260,8 +260,8 @@ const { selectedProfileId } = useProfile();        // Context
 class ModService extends BaseModuleService {
   constructor() { super('MOD'); }  // Module name
 
-  async loadMod(sha: string) {
-    return this.sendMessage('LOAD', { sha });
+  async loadMod(id: string) {
+    return this.sendMessage('LOAD', { id });
   }
 }
 ```

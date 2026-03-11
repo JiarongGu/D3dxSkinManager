@@ -19,7 +19,7 @@ public interface IModDeletionService
 
 /// <summary>
 /// Orchestrates mod deletion across multiple services
-/// Handles the complete deletion workflow: Cache â†?Preview â†?Archive â†?Database
+/// Handles the complete deletion workflow: Cache -> Preview -> Archive -> Database
 /// Uses enrichment service to accurately detect what needs to be deleted
 /// Each step throws OperationException with specific error codes if it fails
 /// </summary>
@@ -53,7 +53,7 @@ public class ModDeletionService : IModDeletionService
 
     /// <summary>
     /// Delete a mod by Id
-    /// Deletion order: Cache â†?Preview â†?Archive â†?Database
+    /// Deletion order: Cache -> Preview -> Archive -> Database
     /// If any step fails, the entire operation fails with OperationException
     /// Uses enrichment service to accurately determine what needs to be deleted
     /// </summary>
@@ -139,7 +139,7 @@ public class ModDeletionService : IModDeletionService
         {
             throw new OperationException(
                 ModErrorCodes.DELETE_CACHE_FAILED,
-                new Dictionary<string, string> { { "sha", mod.Id }, { "name", mod.Name } },
+                new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
                 $"Failed to delete cache for mod {mod.Id}"
             );
         }
@@ -172,7 +172,7 @@ public class ModDeletionService : IModDeletionService
         {
             throw new OperationException(
                 ModErrorCodes.DELETE_PREVIEW_FAILED,
-                new Dictionary<string, string> { { "sha", mod.Id }, { "name", mod.Name } },
+                new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
                 $"Failed to delete preview folder for mod {mod.Id}: {ex.Message}",
                 ex
             );
@@ -199,7 +199,7 @@ public class ModDeletionService : IModDeletionService
         {
             throw new OperationException(
                 ModErrorCodes.DELETE_ARCHIVE_FAILED,
-                new Dictionary<string, string> { { "sha", mod.Id }, { "name", mod.Name } },
+                new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
                 $"Failed to delete archive for mod {mod.Id}"
             );
         }
@@ -218,7 +218,7 @@ public class ModDeletionService : IModDeletionService
         {
             throw new OperationException(
                 ModErrorCodes.DELETE_DATABASE_FAILED,
-                new Dictionary<string, string> { { "sha", mod.Id }, { "name", mod.Name } },
+                new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
                 $"Failed to delete mod from database: {mod.Id}"
             );
         }
@@ -231,18 +231,18 @@ public class ModDeletionService : IModDeletionService
     /// Processes all deletions and returns summary of results
     /// Emits events for each successful deletion
     /// </summary>
-    public async Task<BatchDeleteResult> BatchDeleteAsync(List<string> shas)
+    public async Task<BatchDeleteResult> BatchDeleteAsync(List<string> ids)
     {
         var result = new BatchDeleteResult();
 
-        if (shas == null || shas.Count == 0)
+        if (ids == null || ids.Count == 0)
         {
             return result;
         }
 
-        _logger.Info($"Starting batch deletion for {shas.Count} mods", "ModDeletionService");
+        _logger.Info($"Starting batch deletion for {ids.Count} mods", "ModDeletionService");
 
-        foreach (var id in shas)
+        foreach (var id in ids)
         {
             try
             {
@@ -254,14 +254,14 @@ public class ModDeletionService : IModDeletionService
                 else
                 {
                     result.FailedCount++;
-                    result.FailedShas.Add(id);
+                    result.FailedIds.Add(id);
                 }
             }
             catch (Exception ex)
             {
                 _logger.Error($"Error deleting mod {id}: {ex.Message}", "ModDeletionService", ex);
                 result.FailedCount++;
-                result.FailedShas.Add(id);
+                result.FailedIds.Add(id);
             }
         }
 

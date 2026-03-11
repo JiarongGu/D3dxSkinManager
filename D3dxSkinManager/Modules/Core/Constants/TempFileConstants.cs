@@ -21,7 +21,7 @@ public static class TempFileConstants
     /// <summary>
     /// Prefix for preview image reordering temp files.
     /// Format: "_temp_reorder{original_extension}"
-    /// Location: {ProfilePath}/previews/{sha}/_temp_reorder{ext}
+    /// Location: {ProfilePath}/previews/{id}/_temp_reorder{ext}
     /// Used by: ImageService
     /// Cleanup: Automatically after reorder completion or on error recovery
     /// Note: This is in previews dir, not temp dir (legacy pattern)

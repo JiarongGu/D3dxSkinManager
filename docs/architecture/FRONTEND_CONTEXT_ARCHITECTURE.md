@@ -132,8 +132,8 @@ class ModService extends BaseModuleService {
     return this.sendArrayMessage<ModInfo>('GET_ALL', profileId);
   }
 
-  async loadMod(profileId: string, sha: string): Promise<boolean> {
-    return this.sendBooleanMessage('LOAD', profileId, { sha });
+  async loadMod(profileId: string, id: string): Promise<boolean> {
+    return this.sendBooleanMessage('LOAD', profileId, { id });
   }
 }
 ```

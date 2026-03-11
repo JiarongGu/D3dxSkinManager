@@ -222,7 +222,7 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
             <Input
               value={mod.id}
               disabled
-              className="mod-edit-screen-sha-input"
+              className="mod-edit-screen-id-input"
             />
           </Form.Item>
         )}

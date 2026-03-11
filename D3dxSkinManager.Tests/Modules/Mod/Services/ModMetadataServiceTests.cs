@@ -58,7 +58,7 @@ public class ModMetadataServiceTests
         // Arrange - NULL category (unclassified mod)
         var request = new CreateModRequest
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = null,  // NULL means unclassified
             Name = "Test Mod",
             Author = "Test Author",
@@ -89,7 +89,7 @@ public class ModMetadataServiceTests
         // Arrange - All optional fields are NULL
         var request = new CreateModRequest
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = "test-category",
             Name = "Test Mod",
             Author = null,  // NULL optional field
@@ -114,7 +114,7 @@ public class ModMetadataServiceTests
         // Arrange - User explicitly provides empty strings
         var request = new CreateModRequest
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = string.Empty,  // Explicitly empty
             Name = "Test Mod",
             Author = string.Empty,  // Explicitly empty
@@ -139,7 +139,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            Id = null!,  // Invalid - SHA is required
+            Id = null!,  // Invalid - id is required
             Category = "test-category",
             Name = "Test Mod"
         };
@@ -169,7 +169,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = "test-category",
             Name = null!  // Invalid - Name is required
         };
@@ -184,7 +184,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = "test-category",
             Name = "   "  // Whitespace-only is invalid
         };
@@ -199,12 +199,12 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            Id = "existing-sha",
+            Id = "existing-id",
             Category = "test-category",
             Name = "Test Mod"
         };
 
-        _mockRepository.Setup(x => x.ExistsAsync("existing-sha")).ReturnsAsync(true);
+        _mockRepository.Setup(x => x.ExistsAsync("existing-id")).ReturnsAsync(true);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CreateAsync(request));
@@ -217,7 +217,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = "test-category",
             Name = "Test Mod",
             Author = "Test Author",
@@ -234,7 +234,7 @@ public class ModMetadataServiceTests
         var result = await _service.CreateAsync(request);
 
         // Assert
-        result.Id.Should().Be("test-sha");
+        result.Id.Should().Be("test-id");
         result.Category.Should().Be("test-category");
         result.Name.Should().Be("Test Mod");
         result.Author.Should().Be("Test Author");
@@ -256,7 +256,7 @@ public class ModMetadataServiceTests
         // Arrange
         var existingEntity = new ModEntity
         {
-            Id = "existing-sha",
+            Id = "existing-id",
             Category = "test-category",
             Name = "Existing Mod",
             Author = "Test Author",
@@ -265,17 +265,17 @@ public class ModMetadataServiceTests
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync("existing-sha")).ReturnsAsync(existingEntity);
+        _mockRepository.Setup(x => x.GetByIdAsync("existing-id")).ReturnsAsync(existingEntity);
 
         var request = new CreateModRequest
         {
-            Id = "existing-sha",
+            Id = "existing-id",
             Category = "different-category",  // Different values
             Name = "Different Name"
         };
 
         // Act
-        var result = await _service.GetOrCreateAsync("existing-sha", request);
+        var result = await _service.GetOrCreateAsync("existing-id", request);
 
         // Assert - Should return existing mod with original values, not request values
         result.Should().NotBeNull();
@@ -289,19 +289,19 @@ public class ModMetadataServiceTests
     public async Task GetOrCreateAsync_WhenModDoesNotExist_ShouldCreateNewMod()
     {
         // Arrange
-        _mockRepository.Setup(x => x.GetByIdAsync("new-sha")).ReturnsAsync((ModEntity?)null);
-        _mockRepository.Setup(x => x.ExistsAsync("new-sha")).ReturnsAsync(false);
+        _mockRepository.Setup(x => x.GetByIdAsync("new-id")).ReturnsAsync((ModEntity?)null);
+        _mockRepository.Setup(x => x.ExistsAsync("new-id")).ReturnsAsync(false);
         _mockRepository.Setup(x => x.InsertAsync(It.IsAny<ModEntity>())).ReturnsAsync((ModEntity e) => e);
 
         var request = new CreateModRequest
         {
-            Id = "new-sha",
+            Id = "new-id",
             Category = "test-category",
             Name = "New Mod"
         };
 
         // Act
-        var result = await _service.GetOrCreateAsync("new-sha", request);
+        var result = await _service.GetOrCreateAsync("new-id", request);
 
         // Assert - Should create new mod
         result.Should().NotBeNull();
@@ -317,7 +317,7 @@ public class ModMetadataServiceTests
         // Arrange
         var request = new CreateModRequest
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = "test-category",
             Name = "Test Mod"
         };
@@ -332,7 +332,7 @@ public class ModMetadataServiceTests
         // Arrange - Existing entity with NULL fields (from database)
         var existingEntity = new ModEntity
         {
-            Id = "existing-sha",
+            Id = "existing-id",
             Category = "test-category",
             Name = "Existing Mod",
             Author = null,  // NULL in database
@@ -341,17 +341,17 @@ public class ModMetadataServiceTests
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync("existing-sha")).ReturnsAsync(existingEntity);
+        _mockRepository.Setup(x => x.GetByIdAsync("existing-id")).ReturnsAsync(existingEntity);
 
         var request = new CreateModRequest
         {
-            Id = "existing-sha",
+            Id = "existing-id",
             Category = "test-category",
             Name = "Test Mod"
         };
 
         // Act
-        var result = await _service.GetOrCreateAsync("existing-sha", request);
+        var result = await _service.GetOrCreateAsync("existing-id", request);
 
         // Assert - Mapper should convert NULL to empty string when converting entity to domain
         result.Should().NotBeNull();
@@ -369,7 +369,7 @@ public class ModMetadataServiceTests
         // Arrange - Existing mod with all fields populated
         var existingEntity = new ModEntity
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = "original-category",
             Name = "Original Name",
             Author = "Original Author",
@@ -380,7 +380,7 @@ public class ModMetadataServiceTests
             DisablePreview = false
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync("test-sha")).ReturnsAsync(existingEntity);
+        _mockRepository.Setup(x => x.GetByIdAsync("test-id")).ReturnsAsync(existingEntity);
         _mockRepository.Setup(x => x.UpdateAsync(It.IsAny<ModEntity>())).ReturnsAsync(true);
 
         // Update only Name and Author, leave others unchanged
@@ -396,7 +396,7 @@ public class ModMetadataServiceTests
         };
 
         // Act
-        var result = await _service.UpdateAsync("test-sha", request);
+        var result = await _service.UpdateAsync("test-id", request);
 
         // Assert - Only specified fields should be updated
         result.Name.Should().Be("Updated Name", "Name was specified in update");
@@ -414,7 +414,7 @@ public class ModMetadataServiceTests
         // Arrange - Mod with author
         var existingEntity = new ModEntity
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = "test-category",
             Name = "Test Mod",
             Author = "Original Author",
@@ -422,7 +422,7 @@ public class ModMetadataServiceTests
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync("test-sha")).ReturnsAsync(existingEntity);
+        _mockRepository.Setup(x => x.GetByIdAsync("test-id")).ReturnsAsync(existingEntity);
         _mockRepository.Setup(x => x.UpdateAsync(It.IsAny<ModEntity>())).ReturnsAsync(true);
 
         // Update author to empty string (clearing the field)
@@ -432,7 +432,7 @@ public class ModMetadataServiceTests
         };
 
         // Act
-        var result = await _service.UpdateAsync("test-sha", request);
+        var result = await _service.UpdateAsync("test-id", request);
 
         // Assert - Author should be empty string
         result.Author.Should().Be(string.Empty, "user explicitly cleared author field");
@@ -442,7 +442,7 @@ public class ModMetadataServiceTests
     public async Task UpdateAsync_WithNonExistentMod_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        _mockRepository.Setup(x => x.GetByIdAsync("nonexistent-sha")).ReturnsAsync((ModEntity?)null);
+        _mockRepository.Setup(x => x.GetByIdAsync("nonexistent-id")).ReturnsAsync((ModEntity?)null);
 
         var request = new UpdateModMetadataRequest
         {
@@ -451,7 +451,7 @@ public class ModMetadataServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _service.UpdateAsync("nonexistent-sha", request));
+            _service.UpdateAsync("nonexistent-id", request));
         exception.Message.Should().Contain("not found");
     }
 
@@ -474,14 +474,14 @@ public class ModMetadataServiceTests
         // Arrange
         var existingEntity = new ModEntity
         {
-            Id = "test-sha",
+            Id = "test-id",
             Category = "test-category",
             Name = "Original Name",
             Type = "7z",
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync("test-sha")).ReturnsAsync(existingEntity);
+        _mockRepository.Setup(x => x.GetByIdAsync("test-id")).ReturnsAsync(existingEntity);
         _mockRepository.Setup(x => x.UpdateAsync(It.IsAny<ModEntity>())).ReturnsAsync(true);
 
         var request = new UpdateModMetadataRequest
@@ -490,7 +490,7 @@ public class ModMetadataServiceTests
         };
 
         // Act
-        await _service.UpdateAsync("test-sha", request);
+        await _service.UpdateAsync("test-id", request);
 
         // Assert - Event should be emitted
         _mockEventBus.Verify(x => x.EmitAsync(
@@ -508,17 +508,17 @@ public class ModMetadataServiceTests
     public async Task BatchUpdateAsync_WithMultipleMods_ShouldUpdateAllSuccessfully()
     {
         // Arrange
-        var mod1 = new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
-        var mod2 = new ModEntity { Id = "sha2", Category = "cat2", Name = "Mod 2", Type = "7z", Grading = "G" };
+        var mod1 = new ModEntity { Id = "id1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
+        var mod2 = new ModEntity { Id = "id2", Category = "cat2", Name = "Mod 2", Type = "7z", Grading = "G" };
 
-        _mockRepository.Setup(x => x.GetByIdAsync("sha1")).ReturnsAsync(mod1);
-        _mockRepository.Setup(x => x.GetByIdAsync("sha2")).ReturnsAsync(mod2);
+        _mockRepository.Setup(x => x.GetByIdAsync("id1")).ReturnsAsync(mod1);
+        _mockRepository.Setup(x => x.GetByIdAsync("id2")).ReturnsAsync(mod2);
         _mockRepository.Setup(x => x.UpdateAsync(It.IsAny<ModEntity>())).ReturnsAsync(true);
 
         var updates = new Dictionary<string, UpdateModMetadataRequest>
         {
-            { "sha1", new UpdateModMetadataRequest { Name = "Updated Mod 1" } },
-            { "sha2", new UpdateModMetadataRequest { Name = "Updated Mod 2" } }
+            { "id1", new UpdateModMetadataRequest { Name = "Updated Mod 1" } },
+            { "id2", new UpdateModMetadataRequest { Name = "Updated Mod 2" } }
         };
 
         // Act
@@ -534,16 +534,16 @@ public class ModMetadataServiceTests
     public async Task BatchUpdateAsync_WithSomeNonExistentMods_ShouldOnlyUpdateExisting()
     {
         // Arrange
-        var mod1 = new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
+        var mod1 = new ModEntity { Id = "id1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
 
-        _mockRepository.Setup(x => x.GetByIdAsync("sha1")).ReturnsAsync(mod1);
-        _mockRepository.Setup(x => x.GetByIdAsync("sha2")).ReturnsAsync((ModEntity?)null);  // Doesn't exist
+        _mockRepository.Setup(x => x.GetByIdAsync("id1")).ReturnsAsync(mod1);
+        _mockRepository.Setup(x => x.GetByIdAsync("id2")).ReturnsAsync((ModEntity?)null);  // Doesn't exist
         _mockRepository.Setup(x => x.UpdateAsync(It.IsAny<ModEntity>())).ReturnsAsync(true);
 
         var updates = new Dictionary<string, UpdateModMetadataRequest>
         {
-            { "sha1", new UpdateModMetadataRequest { Name = "Updated Mod 1" } },
-            { "sha2", new UpdateModMetadataRequest { Name = "Updated Mod 2" } }  // Won't be updated
+            { "id1", new UpdateModMetadataRequest { Name = "Updated Mod 1" } },
+            { "id2", new UpdateModMetadataRequest { Name = "Updated Mod 2" } }  // Won't be updated
         };
 
         // Act
@@ -558,11 +558,11 @@ public class ModMetadataServiceTests
     public async Task BatchUpdateAsync_WithUpdateFailure_ShouldContinueWithRemainingMods()
     {
         // Arrange
-        var mod1 = new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
-        var mod2 = new ModEntity { Id = "sha2", Category = "cat2", Name = "Mod 2", Type = "7z", Grading = "G" };
+        var mod1 = new ModEntity { Id = "id1", Category = "cat1", Name = "Mod 1", Type = "7z", Grading = "G" };
+        var mod2 = new ModEntity { Id = "id2", Category = "cat2", Name = "Mod 2", Type = "7z", Grading = "G" };
 
-        _mockRepository.Setup(x => x.GetByIdAsync("sha1")).ReturnsAsync(mod1);
-        _mockRepository.Setup(x => x.GetByIdAsync("sha2")).ReturnsAsync(mod2);
+        _mockRepository.Setup(x => x.GetByIdAsync("id1")).ReturnsAsync(mod1);
+        _mockRepository.Setup(x => x.GetByIdAsync("id2")).ReturnsAsync(mod2);
 
         // First update fails, second succeeds
         _mockRepository.SetupSequence(x => x.UpdateAsync(It.IsAny<ModEntity>()))
@@ -571,8 +571,8 @@ public class ModMetadataServiceTests
 
         var updates = new Dictionary<string, UpdateModMetadataRequest>
         {
-            { "sha1", new UpdateModMetadataRequest { Name = "Updated Mod 1" } },
-            { "sha2", new UpdateModMetadataRequest { Name = "Updated Mod 2" } }
+            { "id1", new UpdateModMetadataRequest { Name = "Updated Mod 1" } },
+            { "id2", new UpdateModMetadataRequest { Name = "Updated Mod 2" } }
         };
 
         // Act

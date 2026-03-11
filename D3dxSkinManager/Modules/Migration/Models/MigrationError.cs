@@ -22,9 +22,9 @@ public class MigrationError
     public string? ModName { get; set; }
 
     /// <summary>
-    /// SHA of the mod (for preview errors)
+    /// Id of the mod (for preview errors)
     /// </summary>
-    public string? ModSha { get; set; }
+    public string? ModId { get; set; }
 
     /// <summary>
     /// Step code where the error occurred (e.g., "MIGRATE_MOD_ARCHIVES")

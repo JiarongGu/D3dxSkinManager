@@ -260,8 +260,8 @@ export function useCategoryTreeOperations({
 
   // Simplified mod Category handler - just takes mod ID and category node ID
   const handleModClassify = useCallback(
-    async (modSha: string, nodeId: string) => {
-      if (!modSha) {
+    async (modId: string, nodeId: string) => {
+      if (!modId) {
         notification.error(t('category.dragDrop.noModSelected'));
         return;
       }
@@ -293,7 +293,7 @@ export function useCategoryTreeOperations({
 
         // Update the mod's category using the shared hook
         // Note: modName is optional, pass empty string if not available
-        await updateModCategory(modSha, categoryValue, nodeName);
+        await updateModCategory(modId, categoryValue, nodeName);
       } catch (error: unknown) {
                 notification.error(t('category.dragDrop.updateFailed'));
       }
@@ -303,8 +303,8 @@ export function useCategoryTreeOperations({
 
   // Bulk mod classification handler - takes array of mod IDs and category node ID
   const handleBulkModClassify = useCallback(
-    async (modShas: string[], nodeId: string) => {
-      if (!modShas || modShas.length === 0) {
+    async (modIds: string[], nodeId: string) => {
+      if (!modIds || modIds.length === 0) {
         notification.error(t('category.dragDrop.noModsSelected'));
         return;
       }
@@ -335,7 +335,7 @@ export function useCategoryTreeOperations({
         const categoryValue = nodeId === CATEGORY_IDS.UNCLASSIFIED ? '' : nodeId;
 
         // Call batch update category
-        await updateModsCategory(modShas, categoryValue, nodeName);
+        await updateModsCategory(modIds, categoryValue, nodeName);
       } catch (error: unknown) {
                 notification.error(t('category.dragDrop.batchUpdateFailed'));
       }

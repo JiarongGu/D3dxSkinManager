@@ -62,8 +62,8 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task GetAllAsync_WithMultipleEntities_ShouldReturnAll()
     {
         // Arrange
-        var entity1 = new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Tags = "[]" };
-        var entity2 = new ModEntity { Id = "sha2", Category = "cat2", Name = "Mod 2", Tags = "[]" };
+        var entity1 = new ModEntity { Id = "id1", Category = "cat1", Name = "Mod 1", Tags = "[]" };
+        var entity2 = new ModEntity { Id = "id2", Category = "cat2", Name = "Mod 2", Tags = "[]" };
 
         await _repository.InsertAsync(entity1);
         await _repository.InsertAsync(entity2);
@@ -169,9 +169,9 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task GetByCategoryAsync_ShouldReturnEntitiesInCategory()
     {
         // Arrange
-        var entity1 = new ModEntity { Id = "sha1", Category = "category-1", Name = "Mod 1", Tags = "[]" };
-        var entity2 = new ModEntity { Id = "sha2", Category = "category-1", Name = "Mod 2", Tags = "[]" };
-        var entity3 = new ModEntity { Id = "sha3", Category = "category-2", Name = "Mod 3", Tags = "[]" };
+        var entity1 = new ModEntity { Id = "id1", Category = "category-1", Name = "Mod 1", Tags = "[]" };
+        var entity2 = new ModEntity { Id = "id2", Category = "category-1", Name = "Mod 2", Tags = "[]" };
+        var entity3 = new ModEntity { Id = "id3", Category = "category-2", Name = "Mod 3", Tags = "[]" };
 
         await _repository.InsertAsync(entity1);
         await _repository.InsertAsync(entity2);
@@ -191,9 +191,9 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task GetDistinctCategoriesAsync_ShouldReturnUniqueCategories()
     {
         // Arrange
-        await _repository.InsertAsync(new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Tags = "[]" });
-        await _repository.InsertAsync(new ModEntity { Id = "sha2", Category = "cat2", Name = "Mod 2", Tags = "[]" });
-        await _repository.InsertAsync(new ModEntity { Id = "sha3", Category = "cat1", Name = "Mod 3", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "id1", Category = "cat1", Name = "Mod 1", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "id2", Category = "cat2", Name = "Mod 2", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "id3", Category = "cat1", Name = "Mod 3", Tags = "[]" });
 
         // Act
         var categories = await _repository.GetDistinctCategoriesAsync();
@@ -208,9 +208,9 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     public async Task GetDistinctAuthorsAsync_ShouldReturnUniqueAuthors()
     {
         // Arrange
-        await _repository.InsertAsync(new ModEntity { Id = "sha1", Category = "cat1", Name = "Mod 1", Author = "Author A", Tags = "[]" });
-        await _repository.InsertAsync(new ModEntity { Id = "sha2", Category = "cat1", Name = "Mod 2", Author = "Author B", Tags = "[]" });
-        await _repository.InsertAsync(new ModEntity { Id = "sha3", Category = "cat1", Name = "Mod 3", Author = "Author A", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "id1", Category = "cat1", Name = "Mod 1", Author = "Author A", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "id2", Category = "cat1", Name = "Mod 2", Author = "Author B", Tags = "[]" });
+        await _repository.InsertAsync(new ModEntity { Id = "id3", Category = "cat1", Name = "Mod 3", Author = "Author A", Tags = "[]" });
 
         // Act
         var authors = await _repository.GetDistinctAuthorsAsync();
@@ -228,14 +228,14 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
         // Arrange
         await _repository.InsertAsync(new ModEntity
         {
-            Id = "sha1",
+            Id = "id1",
             Category = "cat1",
             Name = "Mod 1",
             Tags = "[\"action\",\"adventure\"]"
         });
         await _repository.InsertAsync(new ModEntity
         {
-            Id = "sha2",
+            Id = "id2",
             Category = "cat1",
             Name = "Mod 2",
             Tags = "[\"adventure\",\"rpg\"]"

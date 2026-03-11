@@ -219,7 +219,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                     Message = ex.Message,
                     MessageCode = "MOD_MIGRATION_FAILED",
                     ModName = modEntry.Name,
-                    ModSha = modEntry.Sha,
+                    ModId = modEntry.Sha,
                     StepCode = "MIGRATE_MOD_ARCHIVES",
                     CategoryCode = "MOD_MIGRATION",
                     Timestamp = DateTime.UtcNow

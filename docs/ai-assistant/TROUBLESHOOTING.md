@@ -141,7 +141,7 @@ Fixed in commit 2026-02-24. Migration now:
 **If Already Migrated:**
 Re-run migration - it's now idempotent:
 - Won't duplicate classifications (checks by name)
-- Won't duplicate mods (checks by SHA)
+- Won't duplicate mods (checks by ID)
 - Will update mod categories with correct IDs
 
 **Fixed:** 2026-02-24
@@ -391,14 +391,14 @@ const result: Result = someFunction();
 
 ## Database Errors
 
-### Error: `UNIQUE constraint failed: Mods.SHA`
+### Error: `UNIQUE constraint failed: Mods.Id`
 
 **Symptom:**
 ```
-SqliteException: SQLite Error 19: 'UNIQUE constraint failed: Mods.SHA'
+SqliteException: SQLite Error 19: 'UNIQUE constraint failed: Mods.Id'
 ```
 
-**Root Cause:** Trying to insert mod with duplicate SHA
+**Root Cause:** Trying to insert mod with duplicate ID
 
 **Solution:**
 Use INSERT OR REPLACE or check existence first:
@@ -407,13 +407,13 @@ Use INSERT OR REPLACE or check existence first:
 // Option 1: INSERT OR REPLACE
 command.CommandText = @"
     INSERT OR REPLACE INTO Mods
-    (SHA, ObjectName, Name, Author, Description, Tags, IsLoaded)
-    VALUES (@sha, @objectName, @name, @author, @description, @tags, @isLoaded)
+    (Id, ObjectName, Name, Author, Description, Tags, IsLoaded)
+    VALUES (@id, @objectName, @name, @author, @description, @tags, @isLoaded)
 ";
 
 // Option 2: Check first
-command.CommandText = "SELECT COUNT(*) FROM Mods WHERE SHA = @sha";
-command.Parameters.AddWithValue("@sha", sha);
+command.CommandText = "SELECT COUNT(*) FROM Mods WHERE Id = @id";
+command.Parameters.AddWithValue("@id", id);
 var exists = (long)await command.ExecuteScalarAsync() > 0;
 
 if (!exists)
@@ -750,7 +750,7 @@ const columns = [
 <Table
   columns={columns}
   dataSource={mods}
-  rowKey="sha"
+  rowKey="id"
   pagination={{
     pageSize: 50,
     showSizeChanger: true,

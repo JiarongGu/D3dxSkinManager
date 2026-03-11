@@ -87,13 +87,13 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
   };
 
   // Handle dropping mods on Unclassified item
-  const handleUnclassifiedDrop = useCallback(async (sha?: string) => {
-    if (!sha) {
+  const handleUnclassifiedDrop = useCallback(async (id?: string) => {
+    if (!id) {
       return;
     }
     // Pass empty string for modName since we don't have it here
     // The updateModCategory function uses it only for the success message
-    await updateModCategory(sha, '', 'Unclassified');
+    await updateModCategory(id, '', 'Unclassified');
     // Note: Backend emits CATEGORY_UPDATED event, ModProvider handles refresh automatically
   }, [updateModCategory]);
 

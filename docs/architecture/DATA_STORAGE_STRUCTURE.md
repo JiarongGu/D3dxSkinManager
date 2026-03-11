@@ -126,7 +126,7 @@ Use Case: Testing, isolated profiles
 ```
 WorkDirectory: C:/Games/MyGame/
 Use Case: Direct mod deployment to game folder
-Mods deployed to: C:/Games/MyGame/Mods/{SHA}/
+Mods deployed to: C:/Games/MyGame/Mods/{ID}/
 ```
 
 ### External (Custom)
@@ -137,7 +137,7 @@ Use Case: Separate SSD for faster loading
 
 ## Cache Management
 
-Disabled mods are cached as `DISABLED-{SHA}` directories to enable instant re-activation without re-extraction.
+Disabled mods are cached as `DISABLED-{ID}` directories to enable instant re-activation without re-extraction.
 
 ### Cache Categories
 - **Invalid**: Id not in database (orphaned cache)
@@ -177,7 +177,7 @@ Resolved:  C:/Users/Username/AppData/Local/D3dxSkinManager/profiles/default/work
 
 When migrating from old structure or importing from other tools:
 1. Copy mod archives to `mods/`
-2. Copy previews to `previews/{SHA}/`
+2. Copy previews to `previews/{ID}/`
 3. Rebuild database from archives
 4. Generate missing thumbnails
 

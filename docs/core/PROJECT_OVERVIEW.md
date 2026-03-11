@@ -139,7 +139,7 @@ The original d3dxSkinManage (Python) solved these problems:
 **Schema:**
 ```sql
 CREATE TABLE Mods (
-    SHA TEXT PRIMARY KEY,           -- SHA256 hash (unique ID)
+    Id TEXT PRIMARY KEY,            -- GUID (unique ID)
     ObjectName TEXT NOT NULL,       -- Character/object name
     Name TEXT NOT NULL,             -- Mod display name
     Author TEXT,                    -- Mod creator
@@ -444,7 +444,7 @@ Communication between C# backend and React frontend:
 {
   "id": "msg_123",
   "type": "LOAD_MOD",
-  "payload": { "sha": "abc123..." }
+  "payload": { "id": "abc123..." }
 }
 ```
 

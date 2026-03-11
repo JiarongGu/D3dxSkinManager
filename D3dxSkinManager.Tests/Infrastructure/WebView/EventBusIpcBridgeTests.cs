@@ -84,8 +84,8 @@ public class EventBusIpcBridgeTests : IDisposable
         registeredHandler.Should().NotBeNull();
 
         // Act - emit multiple events rapidly
-        await registeredHandler!(new EventMessage { Module = "MOD", Type = "LOADED", Payload = new { sha = "123" } });
-        await registeredHandler(new EventMessage { Module = "MOD", Type = "LOADED", Payload = new { sha = "456" } });
+        await registeredHandler!(new EventMessage { Module = "MOD", Type = "LOADED", Payload = new { id = "123" } });
+        await registeredHandler(new EventMessage { Module = "MOD", Type = "LOADED", Payload = new { id = "456" } });
         await registeredHandler(new EventMessage { Module = "WORKFLOW", Type = "PROGRESS", Payload = new { progress = 50 } });
 
         // Note: The actual implementation sends individual notifications via IpcHandler.SendNotification
@@ -129,7 +129,7 @@ public class EventBusIpcBridgeTests : IDisposable
         registeredHandler.Should().NotBeNull();
 
         // Act - emit event and dispose
-        await registeredHandler!(new EventMessage { Module = "MOD", Type = "LOADED", Payload = new { sha = "123" } });
+        await registeredHandler!(new EventMessage { Module = "MOD", Type = "LOADED", Payload = new { id = "123" } });
         _bridge.Dispose();
 
         // Assert - should have unsubscribed

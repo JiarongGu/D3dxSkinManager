@@ -186,7 +186,7 @@ public class ModImportWorkflowHandlerTests
         .ReturnsAsync((string src, string dest, ArchiveFormat fmt, CompressionLevel lvl, Action<int>? cb, CancellationToken ct) => dest);
 
         _mockHashHelper.Setup(x => x.CalculateFileSHA256Async(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("test-sha-256");
+            .ReturnsAsync("test-id-256");
         _mockModRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>()))
             .ReturnsAsync((ModEntity?)null);
 
@@ -351,7 +351,7 @@ public class ModImportWorkflowHandlerTests
         .ReturnsAsync((string src, string dest, ArchiveFormat fmt, CompressionLevel lvl, Action<int>? cb, CancellationToken ct) => dest);
 
         _mockHashHelper.Setup(x => x.CalculateFileSHA256Async(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("test-sha");
+            .ReturnsAsync("test-id");
         _mockModRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>()))
             .ReturnsAsync((ModEntity?)null);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))

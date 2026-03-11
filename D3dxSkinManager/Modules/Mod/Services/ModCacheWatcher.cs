@@ -73,12 +73,12 @@ public class ModCacheWatcher : IModCacheWatcher
                 _watcher.Deleted += OnCacheFolderDeleted;
                 _watcher.Renamed += OnCacheFolderRenamed;
 
-                _logger.Info($"âœ?ModCacheWatcher STARTED successfully watching: {cacheDir}", "ModCacheWatcher");
-                _logger.Info($"âœ?Watching for: DirectoryName changes (Deleted, Renamed)", "ModCacheWatcher");
+                _logger.Info($"ï¿½?ModCacheWatcher STARTED successfully watching: {cacheDir}", "ModCacheWatcher");
+                _logger.Info($"ï¿½?Watching for: DirectoryName changes (Deleted, Renamed)", "ModCacheWatcher");
             }
             catch (Exception ex)
             {
-                _logger.Error($"â?Failed to start ModCacheWatcher: {ex.Message}", "ModCacheWatcher", ex);
+                _logger.Error($"ï¿½?Failed to start ModCacheWatcher: {ex.Message}", "ModCacheWatcher", ex);
                 _watcher?.Dispose();
                 _watcher = null;
             }
@@ -108,29 +108,30 @@ public class ModCacheWatcher : IModCacheWatcher
         {
             var folderName = Path.GetFileName(e.FullPath);
 
-            // Check if it's a mod folder (id) or disabled mod folder (DISABLED-SHA)
+            // Check if it's a mod folder (id) or disabled mod folder (DISABLED-ID)
             if (string.IsNullOrEmpty(folderName))
                 return;
 
-            string? modSha = null;
+            string? modId = null;
             bool wasLoaded = false;
 
             if (folderName.StartsWith("DISABLED-"))
             {
-                // Disabled cache folder deleted (DISABLED-{SHA})
-                modSha = folderName.Substring("DISABLED-".Length);
+                // Disabled cache folder deleted (DISABLED-{ID})
+                modId = folderName.Substring("DISABLED-".Length);
                 wasLoaded = false;
                 _logger.Info($"Disabled cache folder deleted externally: {folderName}", "ModCacheWatcher");
             }
-            else if (!folderName.Contains("-") && folderName.Length == 64) // SHA-256 is 64 chars
+            else if (!folderName.StartsWith("DISABLED-"))
             {
-                // Active mod folder deleted ({SHA})
-                modSha = folderName;
+                // Active mod folder deleted ({ID})
+                // Don't restrict by length - support any ID format for backward compatibility
+                modId = folderName;
                 wasLoaded = true;
                 _logger.Info($"Active mod cache folder deleted externally: {folderName}", "ModCacheWatcher");
             }
 
-            if (!string.IsNullOrEmpty(modSha))
+            if (!string.IsNullOrEmpty(modId))
             {
                 // Emit event so frontend can refresh mod status
                 // Use fire-and-forget pattern (don't block FileSystemWatcher thread)
@@ -140,12 +141,12 @@ public class ModCacheWatcher : IModCacheWatcher
                     {
                         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CACHE_CHANGED, new
                         {
-                            Sha = modSha,
+                            Id = modId,
                             WasLoaded = wasLoaded,
                             ChangeType = "deleted"
                         }).ConfigureAwait(false);
 
-                        _logger.Info($"Emitted CACHE_CHANGED event for mod {modSha}", "ModCacheWatcher");
+                        _logger.Info($"Emitted CACHE_CHANGED event for mod {modId}", "ModCacheWatcher");
                     }
                     catch (Exception emitEx)
                     {
@@ -169,27 +170,29 @@ public class ModCacheWatcher : IModCacheWatcher
 
             _logger.Verbose($"Cache folder renamed: {oldName} -> {newName}", "ModCacheWatcher");
 
-            // Detect load/unload via rename (DISABLED-{SHA} <-> {SHA})
+            // Detect load/unload via rename (DISABLED-{ID} <-> {ID})
             // This is already handled by our load/unload operations + events
             // But we emit cache changed event for consistency
 
-            string? modSha = null;
+            string? modId = null;
             bool nowLoaded = false;
 
-            if (oldName?.StartsWith("DISABLED-") == true && newName?.Length == 64)
+            if (oldName?.StartsWith("DISABLED-") == true && newName?.StartsWith("DISABLED-") == false)
             {
-                // Renamed from DISABLED-{SHA} to {SHA} = loaded
-                modSha = newName;
+                // Renamed from DISABLED-{ID} to {ID} = loaded
+                // Don't restrict by length - support any ID format for backward compatibility
+                modId = newName;
                 nowLoaded = true;
             }
-            else if (oldName?.Length == 64 && newName?.StartsWith("DISABLED-") == true)
+            else if (oldName?.StartsWith("DISABLED-") == false && newName?.StartsWith("DISABLED-") == true)
             {
-                // Renamed from {SHA} to DISABLED-{SHA} = unloaded
-                modSha = oldName;
+                // Renamed from {ID} to DISABLED-{ID} = unloaded
+                // Don't restrict by length - support any ID format for backward compatibility
+                modId = oldName;
                 nowLoaded = false;
             }
 
-            if (!string.IsNullOrEmpty(modSha))
+            if (!string.IsNullOrEmpty(modId))
             {
                 // Use fire-and-forget pattern (don't block FileSystemWatcher thread)
                 _ = Task.Run(async () =>
@@ -198,13 +201,13 @@ public class ModCacheWatcher : IModCacheWatcher
                     {
                         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CACHE_CHANGED, new
                         {
-                            Sha = modSha,
+                            Id = modId,
                             WasLoaded = !nowLoaded,
                             NowLoaded = nowLoaded,
                             ChangeType = "renamed"
                         }).ConfigureAwait(false);
 
-                        _logger.Info($"Emitted CACHE_CHANGED event for mod {modSha} (renamed)", "ModCacheWatcher");
+                        _logger.Info($"Emitted CACHE_CHANGED event for mod {modId} (renamed)", "ModCacheWatcher");
                     }
                     catch (Exception emitEx)
                     {

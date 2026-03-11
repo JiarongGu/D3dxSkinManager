@@ -48,8 +48,8 @@ import { ModImportWorkflowScreen } from '@/modules/workflow/components';
   visible={showWorkflow}
   folderPath="/path/to/folder"
   onClose={() => setShowWorkflow(false)}
-  onSuccess={(modSha) => {
-    logger.info('Imported:', modSha);
+  onSuccess={(modId) => {
+    logger.info('Imported:', modId);
   }}
 />
 ```

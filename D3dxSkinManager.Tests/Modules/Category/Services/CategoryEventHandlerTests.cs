@@ -88,7 +88,7 @@ public class CategoryEventHandlerTests : IDisposable
         {
             Module = ModuleNames.MOD,
             Type = ModEvents.CATEGORY_UPDATED,
-            Payload = new { sha = "test-sha", category = "test-category" }
+            Payload = new { id = "test-id", category = "test-category" }
         };
 
         // Act
@@ -111,7 +111,7 @@ public class CategoryEventHandlerTests : IDisposable
         {
             Module = ModuleNames.MOD,
             Type = ModEvents.CATEGORY_UPDATED,
-            Payload = new { sha = "test-sha", category = "test-category" }
+            Payload = new { id = "test-id", category = "test-category" }
         };
 
         // Act

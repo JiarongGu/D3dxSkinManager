@@ -14,8 +14,8 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 /// </summary>
 public interface IModLifecycleService
 {
-    Task<ModLoadResult> LoadAsync(string sha);
-    Task<bool> UnloadAsync(string sha);
+    Task<ModLoadResult> LoadAsync(string id);
+    Task<bool> UnloadAsync(string id);
 }
 
 /// <summary>
@@ -239,7 +239,7 @@ public class ModLifecycleService : IModLifecycleService
     }
 
     /// <summary>
-    /// Unload a mod by renaming its cache directory to DISABLED-{SHA} (disables cache)
+    /// Unload a mod by renaming its cache directory to DISABLED-{ID} (disables cache)
     /// Emits UNLOADED event on success
     ///
     /// CONCURRENCY: Uses atomic file operation planner via cache service - no locks needed

@@ -52,9 +52,9 @@ public class ModImportWorkflowContext
     public string? Grading { get; set; }
 
     /// <summary>
-    /// SHA of the imported mod (after successful import)
+    /// ID of the imported mod (after successful import)
     /// </summary>
-    public string? ImportedModSha { get; set; }
+    public string? ImportedModId { get; set; }
 }
 
 /// <summary>

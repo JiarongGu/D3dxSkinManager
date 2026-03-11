@@ -408,7 +408,7 @@ Selector files removed - use store hooks directly:
     - Locked categories cannot be collapsed by clicking
     - Locked state persisted to profile config (survives app restarts)
     - Auto-validates on tree updates (removes invalid locks)
-    - **Multi-Select Support**: Accepts bulk mod drops (application/mod-shas MIME type)
+    - **Multi-Select Support**: Accepts bulk mod drops (application/mod-ids MIME type)
     - Added: 2026-03-05 (multi-select), 2026-03-07 (lock expanded)
   - **CategoryTreeContext.tsx** - Tree operations context
   - **useCategoryTreeOperations.tsx** - Tree manipulation hook
@@ -544,7 +544,7 @@ Selector files removed - use store hooks directly:
   - Props: visible, mod, onSave, onCancel
   - Form fields: Name, Description, Age Rating (G/P/R/X), Author, Category, Tags
   - Uses MultiTagInput for tag editing with autocomplete
-  - Read-only SHA hash display
+  - Read-only ID hash display
   - Age Rating System: G (General), P (Parental Guidance), R (Restricted), X (Adults Only)
   - Moved to mods module: 2026-02-18
   - Refactored into smaller components: 2026-02-18

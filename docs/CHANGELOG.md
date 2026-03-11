@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Features**:
 - Scans cache folder first, then matches with database
 - Detects orphaned mods (in cache but not in database) for cleanup
-- Displays orphaned mods as "Unmanaged [SHA]" with i18n support (EN/CN)
+- Displays orphaned mods as "Unmanaged [ID]" with i18n support (EN/CN)
 - Simplified context menu for orphaned mods (only "Open Cache Folder" and "Delete Cache")
 - IMemoryCache caching with automatic invalidation on cache changes
 
@@ -87,8 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cache automatically invalidated when mods are loaded/unloaded/deleted (FileSystemWatcher)
 
 **Translation Updates**:
-- English: "Unmanaged [{{sha}}]"
-- Chinese: "未托管 [{{sha}}]"
+- English: "Unmanaged [{{id}}]"
+- Chinese: "未托管 [{{id}}]"
 
 **Documentation**:
 - AI_GUIDE.md: Added IMemoryCache caching pattern section
@@ -188,7 +188,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Root Cause**: `ModMetadataService.DeleteAsync()` didn't emit event after deletion
 **Solution**: Added event emission in service layer following architecture pattern (services emit events, not facades)
 **Backend Changes**:
-- ModMetadataService.cs:130-131: Added `_eventBus.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Sha = sha })` after successful deletion
+- ModMetadataService.cs:130-131: Added `_eventBus.EmitAsync(ModuleNames.MOD, ModEvents.DELETED, new { Id = id })` after successful deletion
 
 #### 8. Dropzone Overlay Focus Recovery
 **Impact**: ✅ Dropzone overlay automatically recovers state when application window regains focus (applies to both main and secondary windows)
@@ -371,7 +371,7 @@ Refactored profile configuration from `modCache` to `work` directory to correctl
 - en.json/cn.json: Updated all `settings.profile.modCache.*` → `settings.profile.work.*` keys
 - English: "Mod Cache Directory" → "Work Directory" with tooltip clarifying parent of Mods folder
 - Chinese: "模组缓存目录" → "工作目录" with updated tooltip
-**Architecture Alignment**: Configuration now matches documented structure: `work/Mods/{SHA}/` instead of directly pointing to Mods folder
+**Architecture Alignment**: Configuration now matches documented structure: `work/Mods/{ID}/` instead of directly pointing to Mods folder
 
 ### Added - 2026-03-05 - Mod Management: Multi-Select for Bulk Category Updates ⭐⭐
 Implemented multi-select functionality in mod list with Ctrl+Click, Shift+Click, and bulk drag-drop to category tree.
@@ -385,7 +385,7 @@ Implemented multi-select functionality in mod list with Ctrl+Click, Shift+Click,
 - Passes selection count to status bar
 **Frontend Changes - ModList.tsx**:
 - Updated props to accept `selectedModShas` array and pass mouse event to parent
-- Enhanced drag behavior: single mod uses `application/mod-sha`, multi-select uses `application/mod-shas` with JSON array
+- Enhanced drag behavior: single mod uses `application/mod-id`, multi-select uses `application/mod-ids` with JSON array
 - Visual classes: `.mod-list-item-selected` (primary), `.mod-list-item-multi-selected` (same style as primary)
 **Frontend Changes - ModList.css**:
 - Multi-selected items use identical styling to primary selection (same blue highlight and border)
@@ -394,7 +394,7 @@ Implemented multi-select functionality in mod list with Ctrl+Click, Shift+Click,
 - Shows "X Mods selected" when multiple mods selected (takes priority over active mod display)
 - Added i18n support with translations for selection count
 **Frontend Changes - CategoryTree.tsx**:
-- Added third drag/drop handler for `application/mod-shas` event type
+- Added third drag/drop handler for `application/mod-ids` event type
 - Parses JSON array of mod SHAs and calls `handleBulkModClassify`
 **Frontend Changes - Category Operations**:
 - `useCategoryTreeOperations.tsx`: Added `handleBulkModClassify` for multiple mods
@@ -1146,7 +1146,7 @@ Replaced complex `useOptimisticUpdate` verification with simpler `useDelayedLoad
 - ⭐⭐⭐ Windows Gallery Image Navigation & CSS Refactoring
 - ⭐⭐⭐ Code Quality Refactoring (removed 40+ `any` types)
 - ⭐⭐⭐ Work Directory Refactoring
-- ⭐⭐⭐ Dynamic Preview System (`previews/{SHA}/`)
+- ⭐⭐⭐ Dynamic Preview System (`previews/{ID}/`)
 - ⭐⭐ Drag-and-Drop Mod Classification
 - ⭐⭐ Window State Persistence
 - ⭐⭐ Image Loading with Custom Scheme Handler

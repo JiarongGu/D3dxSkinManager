@@ -199,7 +199,7 @@ if (File.Exists(mod.ThumbnailPath)) // Will fail!
 public async Task<ModInfo> CreateModAsync(ModInfo mod)
 {
     // Generate thumbnail (returns absolute path)
-    var absoluteThumbnailPath = await _imageService.GenerateThumbnailAsync(modDir, sha);
+    var absoluteThumbnailPath = await _imageService.GenerateThumbnailAsync(modDir, id);
 
     // Convert to relative before saving
     mod.ThumbnailPath = _pathHelper.ToRelativePath(absoluteThumbnailPath);
@@ -213,9 +213,9 @@ public async Task<ModInfo> CreateModAsync(ModInfo mod)
 
 ```csharp
 // When loading from database
-public async Task<byte[]?> GetThumbnailAsync(string sha)
+public async Task<byte[]?> GetThumbnailAsync(string id)
 {
-    var mod = await _repository.GetByIdAsync(sha);
+    var mod = await _repository.GetByIdAsync(id);
     if (mod?.ThumbnailPath == null)
         return null;
 
@@ -261,9 +261,9 @@ public async Task<Profile> CreateProfileAsync(CreateProfileRequest request)
 Services that generate/find paths should return relative paths:
 
 ```csharp
-public async Task<string?> GenerateThumbnailAsync(string modDirectory, string sha)
+public async Task<string?> GenerateThumbnailAsync(string modDirectory, string id)
 {
-    var targetPath = Path.Combine(_thumbnailsPath, $"{sha}.png");
+    var targetPath = Path.Combine(_thumbnailsPath, $"{id}.png");
     await ResizeImageAsync(sourcePath, targetPath, 200, 400);
 
     // Return relative path for storage
@@ -299,15 +299,15 @@ When importing from external sources, convert to relative:
 ```csharp
 public async Task<ModInfo> ImportModAsync(string externalPath)
 {
-    // Calculate SHA and copy to our storage
-    var sha = await CalculateSha256Async(externalPath);
-    var archivePath = Path.Combine(_modsDirectory, $"{sha}.7z");
+    // Generate GUID and copy to our storage
+    var id = ModInfo.NewId();
+    var archivePath = Path.Combine(_modsDirectory, $"{id}.7z");
     File.Copy(externalPath, archivePath);
 
     // Store relative path
     var mod = new ModInfo
     {
-        SHA = sha,
+        Id = id,
         OriginalPath = _pathHelper.ToRelativePath(archivePath)
     };
 
@@ -333,9 +333,9 @@ public class ImageService : IImageService
         _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
     }
 
-    public async Task<string?> GenerateThumbnailAsync(string modDir, string sha)
+    public async Task<string?> GenerateThumbnailAsync(string modDir, string id)
     {
-        var targetPath = Path.Combine(_thumbnailsPath, $"{sha}.png");
+        var targetPath = Path.Combine(_thumbnailsPath, $"{id}.png");
 
         // Create thumbnail (file operations use absolute path)
         await ResizeImageAsync(sourcePath, targetPath, 200, 400);

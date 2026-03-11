@@ -152,7 +152,25 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
                 }
                 else
                 {
-                    analysis.ActiveEnvironment = environments[0]; // Default to first
+                    // Find the environment that has a modsIndex directory (the actual profile)
+                    string? validEnvironment = null;
+                    foreach (var env in environments)
+                    {
+                        var modsIndexPath = Path.Combine(homePath, env, "modsIndex");
+                        if (Directory.Exists(modsIndexPath))
+                        {
+                            validEnvironment = env;
+                            break;
+                        }
+                    }
+
+                    // Use the detected environment, or fall back to first if none found
+                    analysis.ActiveEnvironment = validEnvironment ?? environments[0];
+
+                    if (validEnvironment == null)
+                    {
+                        analysis.Warnings.Add($"No environment with modsIndex found, defaulting to '{environments[0]}'");
+                    }
                 }
             }
 

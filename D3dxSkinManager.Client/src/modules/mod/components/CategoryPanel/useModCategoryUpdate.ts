@@ -20,19 +20,19 @@ export function useModCategoryUpdate() {
 
   /**
    * Update a mod's category with optimistic updates
-   * @param modSha - ID of the mod to update
+   * @param modId - ID of the mod to update
    * @param categoryId - New category ID (empty string for unclassified)
    * @param categoryName - Display name of the category (for success message)
    */
   const updateModCategory = useCallback(
-    async (modSha: string, categoryId: string, categoryName: string) => {
+    async (modId: string, categoryId: string, categoryName: string) => {
       // Find the mod name if not provided
-      const mod = modsRef.current.find((m: { id: string }) => m.id === modSha);
-      const modName = mod?.name || modSha;
+      const mod = modsRef.current.find((m: { id: string }) => m.id === modId);
+      const modName = mod?.name || modId;
 
       try {
         const success = await updateModCategoryOp(
-          modSha,
+          modId,
           categoryId,
         );
 
@@ -53,20 +53,20 @@ export function useModCategoryUpdate() {
 
   /**
    * Update multiple mods' categories with optimistic updates
-   * @param modShas - Array of mod IDs to update
+   * @param modIds - Array of mod IDs to update
    * @param categoryId - New category ID (empty string for unclassified)
    * @param categoryName - Display name of the category (for success message)
    */
   const updateModsCategory = useCallback(
-    async (modShas: string[], categoryId: string, categoryName: string) => {
+    async (modIds: string[], categoryId: string, categoryName: string) => {
       try {
         const success = await updateModsCategoryOp(
-          modShas,
+          modIds,
           categoryId,
         );
 
         if (success) {
-          notification.success(`Moved ${modShas.length} mod(s) to "${categoryName}"`);
+          notification.success(`Moved ${modIds.length} mod(s) to "${categoryName}"`);
           return true;
         } else {
           notification.error(t('category.update.modsCategoryFailed'));

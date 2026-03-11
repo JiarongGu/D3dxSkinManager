@@ -7,5 +7,5 @@ public class BatchDeleteResult
 {
     public int SuccessCount { get; set; }
     public int FailedCount { get; set; }
-    public List<string> FailedShas { get; set; } = new();
+    public List<string> FailedIds { get; set; } = new();
 }

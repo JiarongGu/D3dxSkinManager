@@ -339,20 +339,20 @@ public class ModImportServiceTests
     public async Task ScanAndImportPreviewsFromFolderAsync_WithValidFolder_ShouldImportPreviews()
     {
         // Arrange
-        var sha = "abc123";
+        var id = "abc123";
         var folderPath = "C:\\test\\previews";
 
         _mockFileService.Setup(x => x.DirectoryExists(folderPath)).Returns(true);
-        _mockImageService.Setup(x => x.ScanAndImportFromCacheAsync(sha, folderPath)).ReturnsAsync(5);
+        _mockImageService.Setup(x => x.ScanAndImportFromCacheAsync(id, folderPath)).ReturnsAsync(5);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
         // Act
-        var count = await _service.ScanAndImportPreviewsFromFolderAsync(sha, folderPath);
+        var count = await _service.ScanAndImportPreviewsFromFolderAsync(id, folderPath);
 
         // Assert
         count.Should().Be(5, "should return number of imported previews");
 
-        _mockImageService.Verify(x => x.ScanAndImportFromCacheAsync(sha, folderPath), Times.Once);
+        _mockImageService.Verify(x => x.ScanAndImportFromCacheAsync(id, folderPath), Times.Once);
         _mockEventBus.Verify(x => x.EmitAsync("MOD", "PREVIEW_IMPORTED", It.Is<object>(o =>
             o.GetType().GetProperty("id") != null &&
             o.GetType().GetProperty("source") != null
@@ -363,13 +363,13 @@ public class ModImportServiceTests
     public async Task ScanAndImportPreviewsFromFolderAsync_WhenFolderDoesNotExist_ShouldReturnZero()
     {
         // Arrange
-        var sha = "abc123";
+        var id = "abc123";
         var folderPath = "C:\\test\\nonexistent";
 
         _mockFileService.Setup(x => x.DirectoryExists(folderPath)).Returns(false);
 
         // Act
-        var count = await _service.ScanAndImportPreviewsFromFolderAsync(sha, folderPath);
+        var count = await _service.ScanAndImportPreviewsFromFolderAsync(id, folderPath);
 
         // Assert
         count.Should().Be(0, "should return 0 when folder doesn't exist");
@@ -383,14 +383,14 @@ public class ModImportServiceTests
     public async Task ScanAndImportPreviewsFromFolderAsync_WhenNoImagesFound_ShouldReturnZeroWithoutEvent()
     {
         // Arrange
-        var sha = "abc123";
+        var id = "abc123";
         var folderPath = "C:\\test\\empty";
 
         _mockFileService.Setup(x => x.DirectoryExists(folderPath)).Returns(true);
-        _mockImageService.Setup(x => x.ScanAndImportFromCacheAsync(sha, folderPath)).ReturnsAsync(0);
+        _mockImageService.Setup(x => x.ScanAndImportFromCacheAsync(id, folderPath)).ReturnsAsync(0);
 
         // Act
-        var count = await _service.ScanAndImportPreviewsFromFolderAsync(sha, folderPath);
+        var count = await _service.ScanAndImportPreviewsFromFolderAsync(id, folderPath);
 
         // Assert
         count.Should().Be(0, "should return 0 when no images found");
@@ -403,15 +403,15 @@ public class ModImportServiceTests
     public async Task ScanAndImportPreviewsFromFolderAsync_WhenScanFails_ShouldReturnZero()
     {
         // Arrange
-        var sha = "abc123";
+        var id = "abc123";
         var folderPath = "C:\\test\\previews";
 
         _mockFileService.Setup(x => x.DirectoryExists(folderPath)).Returns(true);
-        _mockImageService.Setup(x => x.ScanAndImportFromCacheAsync(sha, folderPath))
+        _mockImageService.Setup(x => x.ScanAndImportFromCacheAsync(id, folderPath))
             .ThrowsAsync(new UnauthorizedAccessException("Access denied"));
 
         // Act
-        var count = await _service.ScanAndImportPreviewsFromFolderAsync(sha, folderPath);
+        var count = await _service.ScanAndImportPreviewsFromFolderAsync(id, folderPath);
 
         // Assert
         count.Should().Be(0, "should return 0 on error and not propagate exception");

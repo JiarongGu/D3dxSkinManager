@@ -73,7 +73,7 @@ public class MyPlugin : IPlugin
 
     private async Task OnModLoaded(PluginEventArgs args)
     {
-        var sha = args.Data?.Sha;
+        var id = args.Data?.Sha;
         // Handle event
     }
 }

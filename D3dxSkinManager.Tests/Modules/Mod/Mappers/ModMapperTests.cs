@@ -186,7 +186,7 @@ public class ModMapperTests
         ModMapper.UpdateEntity(entity, domain);
 
         // Assert
-        entity.Id.Should().Be("abc123");  // SHA should not change
+        entity.Id.Should().Be("abc123");  // id should not change
         entity.Category.Should().Be("new-category");
         entity.Name.Should().Be("New Name");
         entity.Author.Should().Be("New Author");
@@ -203,9 +203,9 @@ public class ModMapperTests
         // Arrange
         var entities = new List<ModEntity>
         {
-            new ModEntity { Id = "sha1", Name = "Mod 1", Tags = "[]" },
-            new ModEntity { Id = "sha2", Name = "Mod 2", Tags = "[\"tag1\"]" },
-            new ModEntity { Id = "sha3", Name = "Mod 3", Tags = "[\"tag2\",\"tag3\"]" }
+            new ModEntity { Id = "id1", Name = "Mod 1", Tags = "[]" },
+            new ModEntity { Id = "id2", Name = "Mod 2", Tags = "[\"tag1\"]" },
+            new ModEntity { Id = "id3", Name = "Mod 3", Tags = "[\"tag2\",\"tag3\"]" }
         };
 
         // Act
@@ -213,11 +213,11 @@ public class ModMapperTests
 
         // Assert
         domains.Should().HaveCount(3);
-        domains[0].Id.Should().Be("sha1");
+        domains[0].Id.Should().Be("id1");
         domains[0].Tags.Should().BeEmpty();
-        domains[1].Id.Should().Be("sha2");
+        domains[1].Id.Should().Be("id2");
         domains[1].Tags.Should().BeEquivalentTo(new List<string> { "tag1" });
-        domains[2].Id.Should().Be("sha3");
+        domains[2].Id.Should().Be("id3");
         domains[2].Tags.Should().BeEquivalentTo(new List<string> { "tag2", "tag3" });
     }
 

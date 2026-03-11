@@ -90,7 +90,7 @@ export interface DragDropHandler {
  * ```tsx
  * const { containerRef } = useDragDrop<HTMLDivElement>(
  *   {
- *     eventType: 'application/mod-sha',
+ *     eventType: 'application/mod-id',
  *     nodeSelector: '.ant-tree-node-content-wrapper',
  *     allow: 'node', // Only allow dropping into nodes, not between them
  *     onDrop: ({ data, target }) => {

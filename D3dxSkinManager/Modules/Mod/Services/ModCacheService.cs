@@ -16,7 +16,7 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 
 /// <summary>
 /// Service for mod cache management
-/// Responsibility: Manage disabled mod caches (DISABLED-{SHA} directories)
+/// Responsibility: Manage disabled mod caches (DISABLED-{ID} directories)
 /// </summary>
 public interface IModCacheService
 {
@@ -34,7 +34,7 @@ public interface IModCacheService
 
 /// <summary>
 /// Service for mod cache management
-/// Responsibility: Manage disabled mod caches (DISABLED-{SHA} directories)
+/// Responsibility: Manage disabled mod caches (DISABLED-{ID} directories)
 ///
 /// Cache directory structure:
 /// - Active/loaded cache: {WorkDirectory}/Mods/{Id}/
@@ -278,14 +278,14 @@ public class ModCacheService : IModCacheService
                 {
                     // Cache exists but deletion failed - this is an actual error
                     result.FailedCount++;
-                    result.FailedShas.Add(id);
+                    result.FailedIds.Add(id);
                 }
             }
             catch (Exception ex)
             {
                 _logger.Error($"Error deleting cache for {id}: {ex.Message}", "ModCacheService", ex);
                 result.FailedCount++;
-                result.FailedShas.Add(id);
+                result.FailedIds.Add(id);
             }
         }
 
@@ -307,7 +307,7 @@ public class ModCacheService : IModCacheService
     }
 
     /// <summary>
-    /// Scan for disabled mod caches (DISABLED-{SHA} directories) and categorize them
+    /// Scan for disabled mod caches (DISABLED-{ID} directories) and categorize them
     /// Extracted from ModFileService.ScanCacheAsync (lines 571-624)
     /// </summary>
     public async Task<List<CacheItem>> ScanCacheAsync()
@@ -352,7 +352,7 @@ public class ModCacheService : IModCacheService
             cacheItems.Add(new CacheItem
             {
                 Path = dir,
-                Sha = id,
+                Id = id,
                 SizeBytes = sizeBytes,
                 Category = category,
                 LastModified = lastModified
@@ -522,7 +522,7 @@ public class ModCacheService : IModCacheService
 
             // Get all mods in the same category
             var categoryEntities = await _repository.GetByCategoryAsync(modCategory).ConfigureAwait(false);
-            var categoryShas = categoryEntities.Select(e => e.Id).ToHashSet();
+            var categoryIds = categoryEntities.Select(e => e.Id).ToHashSet();
 
             // Scan for disabled caches of mods in this category
             var disabledCaches = GetDisabledCacheDirectories()
@@ -532,7 +532,7 @@ public class ModCacheService : IModCacheService
                         return false;
 
                     var id = dirName.Substring(DISABLED_PREFIX.Length);
-                    return categoryShas.Contains(id);
+                    return categoryIds.Contains(id);
                 })
                 .OrderByDescending(d => Directory.GetLastWriteTime(d)) // Most recent first
                 .ToList();
@@ -593,7 +593,7 @@ public class ModCacheService : IModCacheService
     }
 
     /// <summary>
-    /// Get all disabled cache directories (DISABLED-{SHA})
+    /// Get all disabled cache directories (DISABLED-{ID})
     /// </summary>
     private List<string> GetDisabledCacheDirectories()
     {

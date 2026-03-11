@@ -81,7 +81,7 @@ export interface ModsActions {
   setMods: (mods: ModInfo[] | undefined) => void;
   setModLoading: (loading: boolean) => void;
   setViewMode: (mode: ModListViewMode) => void;
-  updateModLocal: (sha: string, data: Partial<ModInfo>) => void;
+  updateModLocal: (id: string, data: Partial<ModInfo>) => void;
   removeMod: (id: string) => void;
 
   // Statistics Actions
@@ -234,16 +234,16 @@ export const useModsStore = create<ModsStore>()(
           state.viewMode = mode;
         }),
 
-      updateModLocal: (sha, data) =>
+      updateModLocal: (id, data) =>
         set((state) => {
           // Update selectedMod if it matches
-          if (state.selectedMod?.id === sha) {
+          if (state.selectedMod?.id === id) {
             state.selectedMod = { ...state.selectedMod, ...data };
           }
           // Update mods list if present
           if (state.mods) {
             state.mods = state.mods.map((mod: ModInfo) =>
-              mod.id === sha ? { ...mod, ...data } : mod
+              mod.id === id ? { ...mod, ...data } : mod
             );
           }
         }),

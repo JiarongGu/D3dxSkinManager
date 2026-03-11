@@ -1,8 +1,8 @@
-.mod-edit-screen-sha-input {
+.mod-edit-screen-id-input {
   font-family: monospace;
   cursor: text !important;
 }
 
-.mod-edit-screen-sha-input:hover {
+.mod-edit-screen-id-input:hover {
   border-color: var(--ant-color-border) !important;
 }

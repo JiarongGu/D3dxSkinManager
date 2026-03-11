@@ -101,7 +101,7 @@ public class ModInfo
 **ModImportService.cs** - Removed SHA calculation:
 ```csharp
 // OLD: Calculate SHA-256 hash during import
-var sha = await _hashHelper.CalculateFileSHA256Async(filePath);
+var id = await _hashHelper.CalculateFileSHA256Async(filePath);
 
 // NEW: Generate GUID instantly
 var id = ModInfo.NewId();
@@ -113,7 +113,7 @@ All repository methods updated:
 ```csharp
 // Before
 Task<ModEntity?> GetByIdAsync(string sha);
-Task<bool> DeleteAsync(string sha);
+Task<bool> DeleteAsync(string id);
 
 // After
 Task<ModEntity?> GetByIdAsync(string id);
@@ -126,7 +126,7 @@ Task<bool> DeleteAsync(string id);
 ```typescript
 // Before
 export interface ModInfo {
-  sha: string;
+  id: string;
   // ...
 }
 
@@ -140,7 +140,7 @@ export interface ModInfo {
 **Event payloads**:
 ```typescript
 // Before
-{ sha: string }
+{ id: string }
 
 // After
 { id: string }
@@ -178,7 +178,7 @@ export interface ModInfo {
 
 ### Test Updates
 
-Fixed 4 test assertions that checked for `sha` property:
+Fixed 4 test assertions that checked for `id` property:
 1. `ModLifecycleServiceTests.LoadAsync_WhenModDoesNotExist_ShouldThrowOperationException`
 2. `ModLifecycleServiceTests.LoadAsync_WithAutoImportedPreviews_ShouldEmitPreviewImportedEvent`
 3. `ModMetadataServiceTests.UpdateAsync_ShouldEmitMetadataUpdatedEvent`
@@ -196,7 +196,7 @@ Updated documentation files:
 
 ### API Changes
 
-All IPC methods that accepted `sha: string` now accept `id: string`:
+All IPC methods that accepted `id: string` now accept `id: string`:
 
 **Backend**:
 ```csharp
@@ -208,8 +208,8 @@ Task<bool> DeleteModAsync(string id);       // Parameter renamed
 **Frontend**:
 ```typescript
 // Service methods updated
-modService.loadMod(profileId, id);          // Was: sha
-modService.deleteMod(profileId, id);        // Was: sha
+modService.loadMod(profileId, id);          // Was: id
+modService.deleteMod(profileId, id);        // Was: id
 ```
 
 ### Database Schema

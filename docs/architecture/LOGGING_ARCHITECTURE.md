@@ -56,18 +56,18 @@ public class ModService
 {
     private readonly LogHelper _logger;
 
-    public async Task LoadModAsync(string sha)
+    public async Task LoadModAsync(string id)
     {
-        _logger.Info($"Loading mod: {sha}");
+        _logger.Info($"Loading mod: {id}");
         try
         {
             // Load mod
-            _logger.Debug($"Mod loaded: {sha}");
-            _logger.Verbose($"Cache lookup for mod: {sha}"); // High-frequency operation
+            _logger.Debug($"Mod loaded: {id}");
+            _logger.Verbose($"Cache lookup for mod: {id}"); // High-frequency operation
         }
         catch (Exception ex)
         {
-            _logger.Error($"Failed to load mod {sha}: {ex.Message}");
+            _logger.Error($"Failed to load mod {id}: {ex.Message}");
             throw;
         }
     }

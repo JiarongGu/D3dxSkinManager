@@ -250,7 +250,7 @@ public class Migration_202603080001_CreateModsTable : Migration
     public override void Up()
     {
         Create.Table("Mods")
-            .WithColumn("SHA").AsText().PrimaryKey()
+            .WithColumn("Id").AsText().PrimaryKey()
             .WithColumn("NewColumn").AsText(); // ❌ Added later
     }
 }

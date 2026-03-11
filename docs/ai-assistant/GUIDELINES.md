@@ -30,7 +30,7 @@ const [modCount, setModCount] = useState(0);  // Duplicates mods.length
 
 ```typescript
 try {
-  await modService.loadMod(sha);
+  await modService.loadMod(id);
   notification.success('Mod loaded');
 } catch (error: unknown) {
   // Type guard for safety
@@ -93,7 +93,7 @@ export const ModList: FC<ModListProps> = ({ mods, onSelect }) => {
   return (
     <div className="mod-list">
       {mods.map(mod => (
-        <ModItem key={mod.sha} mod={mod} onSelect={onSelect} />
+        <ModItem key={mod.id} mod={mod} onSelect={onSelect} />
       ))}
     </div>
   );
@@ -138,7 +138,7 @@ const handleClick = useCallback(() => {
 
 ```typescript
 interface LoadModRequest {
-  sha: string;
+  id: string;
   profileId: string;
 }
 
@@ -271,7 +271,7 @@ useEffect(() => {
 
 ```typescript
 interface ModInfo {
-  sha: string;
+  id: string;
   name: string;
   enabled: boolean;
 }

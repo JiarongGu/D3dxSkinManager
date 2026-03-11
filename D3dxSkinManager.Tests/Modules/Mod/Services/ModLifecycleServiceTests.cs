@@ -59,19 +59,19 @@ public class ModLifecycleServiceTests
     /// <summary>
     /// Helper to setup successful load mocks
     /// </summary>
-    private void SetupSuccessfulLoadMocks(string sha, ModEntity entity, bool cacheEnabled = false)
+    private void SetupSuccessfulLoadMocks(string id, ModEntity entity, bool cacheEnabled = false)
     {
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync(entity);
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
         _mockRepository.Setup(x => x.GetByCategoryAsync(It.IsAny<string>())).ReturnsAsync(new List<ModEntity>());
-        _mockCacheService.Setup(x => x.EnableCacheAsync(sha)).ReturnsAsync(cacheEnabled);
+        _mockCacheService.Setup(x => x.EnableCacheAsync(id)).ReturnsAsync(cacheEnabled);
 
         if (!cacheEnabled)
         {
-            _mockArchiveService.Setup(x => x.ExtractAsync(sha, It.IsAny<string>())).ReturnsAsync(
+            _mockArchiveService.Setup(x => x.ExtractAsync(id, It.IsAny<string>())).ReturnsAsync(
                 new ArchiveExtractionResult { Success = true, FileCount = 10 });
         }
 
-        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(sha)).ReturnsAsync(0);
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(id)).ReturnsAsync(0);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
     }
 
@@ -83,25 +83,25 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WithValidMod_ShouldLoadSuccessfully()
     {
         // Arrange
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        SetupSuccessfulLoadMocks(sha, entity);
+        SetupSuccessfulLoadMocks(id, entity);
 
         // Act
-        var result = await _service.LoadAsync(sha);
+        var result = await _service.LoadAsync(id);
 
         // Assert
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
-        result.LoadedModId.Should().Be(sha);
+        result.LoadedModId.Should().Be(id);
         result.UnloadedModIds.Should().BeEmpty("no conflicting mods");
 
         _mockEventBus.Verify(x => x.EmitAsync("MOD", "LOADED", It.IsAny<object>()), Times.Once);
@@ -111,11 +111,11 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WhenModDoesNotExist_ShouldThrowOperationException()
     {
         // Arrange
-        var sha = "nonexistent";
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync((ModEntity?)null);
+        var id = "nonexistent";
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync((ModEntity?)null);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<OperationException>(() => _service.LoadAsync(sha));
+        var exception = await Assert.ThrowsAsync<OperationException>(() => _service.LoadAsync(id));
         exception.Code.Should().Be("MOD_NOT_FOUND");
         exception.Parameters.Should().ContainKey("id");
     }
@@ -123,27 +123,27 @@ public class ModLifecycleServiceTests
     [Fact]
     public async Task LoadAsync_WithShortSHA_ShouldHandleGracefully()
     {
-        // Arrange - SHA less than 8 characters (edge case for sha.Substring(0, 8))
-        var sha = "abc";  // Only 3 characters
+        // Arrange - id less than 8 characters (edge case for id.Substring(0, 8))
+        var id = "abc";  // Only 3 characters
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync(entity);
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
 
         // Act & Assert
         // The code has try-catch that wraps any exception in OperationException
-        var exception = await Assert.ThrowsAsync<OperationException>(() => _service.LoadAsync(sha));
+        var exception = await Assert.ThrowsAsync<OperationException>(() => _service.LoadAsync(id));
 
         // Should get an operation exception wrapping the underlying error
         exception.Code.Should().Be("UNKNOWN_ERROR");
         exception.InnerException.Should().NotBeNull("error should be wrapped with inner exception");
-        exception.InnerException.Should().BeAssignableTo<ArgumentException>("short SHA causes argument-related errors");
+        exception.InnerException.Should().BeAssignableTo<ArgumentException>("short id causes argument-related errors");
     }
 
     #endregion
@@ -154,12 +154,12 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WithConflictingModInSameCategory_ShouldUnloadConflictingMod()
     {
         // Arrange - Two mods in same category
-        var sha1 = "abc123def456";  // Will be loaded
-        var sha2 = "xyz789ghi012";  // Currently loaded, should be unloaded
+        var id1 = "abc123def456";  // Will be loaded
+        var id2 = "xyz789ghi012";  // Currently loaded, should be unloaded
 
         var entity1 = new ModEntity
         {
-            Id = sha1,
+            Id = id1,
             Category = "category1",
             Name = "Mod 1",
             Type = "7z",
@@ -168,29 +168,29 @@ public class ModLifecycleServiceTests
 
         var entity2 = new ModEntity
         {
-            Id = sha2,
+            Id = id2,
             Category = "category1",
             Name = "Mod 2",
             Type = "7z",
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync(sha1)).ReturnsAsync(entity1);
+        _mockRepository.Setup(x => x.GetByIdAsync(id1)).ReturnsAsync(entity1);
         _mockRepository.Setup(x => x.GetByCategoryAsync("category1")).ReturnsAsync(new List<ModEntity> { entity1, entity2 });
-        _mockCacheService.Setup(x => x.DisableCacheAsync(sha2)).ReturnsAsync(true);
-        _mockCacheService.Setup(x => x.EnableCacheAsync(sha1)).ReturnsAsync(true);
-        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(sha1)).ReturnsAsync(0);
+        _mockCacheService.Setup(x => x.DisableCacheAsync(id2)).ReturnsAsync(true);
+        _mockCacheService.Setup(x => x.EnableCacheAsync(id1)).ReturnsAsync(true);
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(id1)).ReturnsAsync(0);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
-        // Mock PopulateIsLoadedFlags behavior - sha2 is loaded, sha1 is not
+        // Mock PopulateIsLoadedFlags behavior - id2 is loaded, id1 is not
         _mockProfilePaths.Setup(x => x.CacheModsDirectory).Returns("C:\\test\\cache\\Mods");
 
         // Act
-        var result = await _service.LoadAsync(sha1);
+        var result = await _service.LoadAsync(id1);
 
         // Assert
         result.Success.Should().BeTrue();
-        result.LoadedModId.Should().Be(sha1);
+        result.LoadedModId.Should().Be(id1);
 
         // Verify conflicting mod was unloaded (if it was actually loaded)
         // Note: We can't fully test this without file system access for PopulateIsLoadedFlags
@@ -202,12 +202,12 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WithUnclassifiedMod_ShouldNotUnloadOtherUnclassifiedMods()
     {
         // Arrange - Multiple unclassified mods (empty category)
-        var sha1 = "abc123def456";
-        var sha2 = "xyz789ghi012";
+        var id1 = "abc123def456";
+        var id2 = "xyz789ghi012";
 
         var entity1 = new ModEntity
         {
-            Id = sha1,
+            Id = id1,
             Category = string.Empty,  // Unclassified
             Name = "Mod 1",
             Type = "7z",
@@ -216,20 +216,20 @@ public class ModLifecycleServiceTests
 
         var entity2 = new ModEntity
         {
-            Id = sha2,
+            Id = id2,
             Category = string.Empty,  // Unclassified
             Name = "Mod 2",
             Type = "7z",
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync(sha1)).ReturnsAsync(entity1);
-        _mockCacheService.Setup(x => x.EnableCacheAsync(sha1)).ReturnsAsync(true);
-        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(sha1)).ReturnsAsync(0);
+        _mockRepository.Setup(x => x.GetByIdAsync(id1)).ReturnsAsync(entity1);
+        _mockCacheService.Setup(x => x.EnableCacheAsync(id1)).ReturnsAsync(true);
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(id1)).ReturnsAsync(0);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.LoadAsync(sha1);
+        var result = await _service.LoadAsync(id1);
 
         // Assert
         result.Success.Should().BeTrue();
@@ -243,20 +243,20 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WithWhitespaceCategory_ShouldTreatAsUnclassified()
     {
         // Arrange - Category is whitespace (should be treated as unclassified)
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "   ",  // Whitespace only
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        SetupSuccessfulLoadMocks(sha, entity);
+        SetupSuccessfulLoadMocks(id, entity);
 
         // Act
-        var result = await _service.LoadAsync(sha);
+        var result = await _service.LoadAsync(id);
 
         // Assert
         result.Success.Should().BeTrue();
@@ -270,12 +270,12 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WhenUnloadingConflictingModFails_ShouldContinueLoading()
     {
         // Arrange - Conflicting mod unload fails
-        var sha1 = "abc123def456";
-        var sha2 = "xyz789ghi012";
+        var id1 = "abc123def456";
+        var id2 = "xyz789ghi012";
 
         var entity1 = new ModEntity
         {
-            Id = sha1,
+            Id = id1,
             Category = "category1",
             Name = "Mod 1",
             Type = "7z",
@@ -284,26 +284,26 @@ public class ModLifecycleServiceTests
 
         var entity2 = new ModEntity
         {
-            Id = sha2,
+            Id = id2,
             Category = "category1",
             Name = "Mod 2",
             Type = "7z",
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync(sha1)).ReturnsAsync(entity1);
+        _mockRepository.Setup(x => x.GetByIdAsync(id1)).ReturnsAsync(entity1);
         _mockRepository.Setup(x => x.GetByCategoryAsync("category1")).ReturnsAsync(new List<ModEntity> { entity1, entity2 });
-        _mockCacheService.Setup(x => x.DisableCacheAsync(sha2)).ReturnsAsync(false);  // Unload fails
-        _mockCacheService.Setup(x => x.EnableCacheAsync(sha1)).ReturnsAsync(true);
-        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(sha1)).ReturnsAsync(0);
+        _mockCacheService.Setup(x => x.DisableCacheAsync(id2)).ReturnsAsync(false);  // Unload fails
+        _mockCacheService.Setup(x => x.EnableCacheAsync(id1)).ReturnsAsync(true);
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(id1)).ReturnsAsync(0);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.LoadAsync(sha1);
+        var result = await _service.LoadAsync(id1);
 
         // Assert - Should continue loading despite unload failure
         result.Success.Should().BeTrue();
-        result.LoadedModId.Should().Be(sha1);
+        result.LoadedModId.Should().Be(id1);
 
         // Note: The warning is only logged if PopulateIsLoadedFlags detects the mod as loaded
         // Since we're using mocks without real file system, we can't fully test this scenario
@@ -317,26 +317,26 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WithExistingCache_ShouldEnableCacheWithoutExtracting()
     {
         // Arrange - Cache already exists
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        SetupSuccessfulLoadMocks(sha, entity, cacheEnabled: true);
+        SetupSuccessfulLoadMocks(id, entity, cacheEnabled: true);
 
         // Act
-        var result = await _service.LoadAsync(sha);
+        var result = await _service.LoadAsync(id);
 
         // Assert
         result.Success.Should().BeTrue();
 
         // Verify cache was enabled but archive was NOT extracted
-        _mockCacheService.Verify(x => x.EnableCacheAsync(sha), Times.Once);
+        _mockCacheService.Verify(x => x.EnableCacheAsync(id), Times.Once);
         _mockArchiveService.Verify(x => x.ExtractAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never, "should use existing cache");
         _mockEventBus.Verify(x => x.EmitAsync("MOD", "LOADING", It.IsAny<object>()), Times.Never, "LOADING event only for extraction");
     }
@@ -345,26 +345,26 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WithoutCache_ShouldExtractArchive()
     {
         // Arrange - No cache exists
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        SetupSuccessfulLoadMocks(sha, entity, cacheEnabled: false);
+        SetupSuccessfulLoadMocks(id, entity, cacheEnabled: false);
 
         // Act
-        var result = await _service.LoadAsync(sha);
+        var result = await _service.LoadAsync(id);
 
         // Assert
         result.Success.Should().BeTrue();
 
         // Verify extraction was performed
-        _mockArchiveService.Verify(x => x.ExtractAsync(sha, It.IsAny<string>()), Times.Once);
+        _mockArchiveService.Verify(x => x.ExtractAsync(id, It.IsAny<string>()), Times.Once);
         _mockEventBus.Verify(x => x.EmitAsync("MOD", "LOADING", It.IsAny<object>()), Times.Once, "LOADING event before extraction");
     }
 
@@ -372,25 +372,25 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WhenExtractionFails_ShouldThrowOperationException()
     {
         // Arrange - Extraction fails
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync(entity);
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
         _mockRepository.Setup(x => x.GetByCategoryAsync(It.IsAny<string>())).ReturnsAsync(new List<ModEntity>());
-        _mockCacheService.Setup(x => x.EnableCacheAsync(sha)).ReturnsAsync(false);
-        _mockArchiveService.Setup(x => x.ExtractAsync(sha, It.IsAny<string>())).ReturnsAsync(
+        _mockCacheService.Setup(x => x.EnableCacheAsync(id)).ReturnsAsync(false);
+        _mockArchiveService.Setup(x => x.ExtractAsync(id, It.IsAny<string>())).ReturnsAsync(
             new ArchiveExtractionResult { Success = false, ErrorMessage = "Corrupted archive" });
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<OperationException>(() => _service.LoadAsync(sha));
+        var exception = await Assert.ThrowsAsync<OperationException>(() => _service.LoadAsync(id));
         exception.Code.Should().Be("MOD_EXTRACTION_FAILED");
         exception.Message.Should().Contain("Corrupted archive");
     }
@@ -399,10 +399,10 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WhenExtractionFailsWithException_ShouldIncludeInnerException()
     {
         // Arrange - Extraction fails with exception
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
@@ -411,15 +411,15 @@ public class ModLifecycleServiceTests
 
         var innerException = new InvalidOperationException("Archive format not supported");
 
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync(entity);
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
         _mockRepository.Setup(x => x.GetByCategoryAsync(It.IsAny<string>())).ReturnsAsync(new List<ModEntity>());
-        _mockCacheService.Setup(x => x.EnableCacheAsync(sha)).ReturnsAsync(false);
-        _mockArchiveService.Setup(x => x.ExtractAsync(sha, It.IsAny<string>())).ReturnsAsync(
+        _mockCacheService.Setup(x => x.EnableCacheAsync(id)).ReturnsAsync(false);
+        _mockArchiveService.Setup(x => x.ExtractAsync(id, It.IsAny<string>())).ReturnsAsync(
             new ArchiveExtractionResult { Success = false, ErrorMessage = "Extraction failed", Exception = innerException });
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<OperationException>(() => _service.LoadAsync(sha));
+        var exception = await Assert.ThrowsAsync<OperationException>(() => _service.LoadAsync(id));
         exception.Code.Should().Be("MOD_EXTRACTION_FAILED");
         exception.InnerException.Should().Be(innerException);
     }
@@ -432,24 +432,24 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WithAutoImportedPreviews_ShouldEmitPreviewImportedEvent()
     {
         // Arrange - Auto-import finds previews
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync(entity);
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
         _mockRepository.Setup(x => x.GetByCategoryAsync(It.IsAny<string>())).ReturnsAsync(new List<ModEntity>());
-        _mockCacheService.Setup(x => x.EnableCacheAsync(sha)).ReturnsAsync(true);
-        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(sha)).ReturnsAsync(3);  // Found 3 previews
+        _mockCacheService.Setup(x => x.EnableCacheAsync(id)).ReturnsAsync(true);
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(id)).ReturnsAsync(3);  // Found 3 previews
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.LoadAsync(sha);
+        var result = await _service.LoadAsync(id);
 
         // Assert
         result.Success.Should().BeTrue();
@@ -464,20 +464,20 @@ public class ModLifecycleServiceTests
     public async Task LoadAsync_WithNoPreviewsFound_ShouldNotEmitPreviewImportedEvent()
     {
         // Arrange - Auto-import finds no previews
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        SetupSuccessfulLoadMocks(sha, entity);
+        SetupSuccessfulLoadMocks(id, entity);
 
         // Act
-        var result = await _service.LoadAsync(sha);
+        var result = await _service.LoadAsync(id);
 
         // Assert
         result.Success.Should().BeTrue();
@@ -494,26 +494,26 @@ public class ModLifecycleServiceTests
     public async Task UnloadAsync_WithValidMod_ShouldUnloadSuccessfully()
     {
         // Arrange
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync(entity);
-        _mockCacheService.Setup(x => x.DisableCacheAsync(sha)).ReturnsAsync(true);
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
+        _mockCacheService.Setup(x => x.DisableCacheAsync(id)).ReturnsAsync(true);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.UnloadAsync(sha);
+        var result = await _service.UnloadAsync(id);
 
         // Assert
         result.Should().BeTrue();
-        _mockCacheService.Verify(x => x.DisableCacheAsync(sha), Times.Once);
+        _mockCacheService.Verify(x => x.DisableCacheAsync(id), Times.Once);
         _mockEventBus.Verify(x => x.EmitAsync("MOD", "UNLOADED", It.IsAny<object>()), Times.Once);
     }
 
@@ -521,21 +521,21 @@ public class ModLifecycleServiceTests
     public async Task UnloadAsync_WhenDisableCacheFails_ShouldReturnFalse()
     {
         // Arrange
-        var sha = "abc123def456";
+        var id = "abc123def456";
         var entity = new ModEntity
         {
-            Id = sha,
+            Id = id,
             Category = "test-category",
             Name = "Test Mod",
             Type = "7z",
             Grading = "G"
         };
 
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync(entity);
-        _mockCacheService.Setup(x => x.DisableCacheAsync(sha)).ReturnsAsync(false);
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
+        _mockCacheService.Setup(x => x.DisableCacheAsync(id)).ReturnsAsync(false);
 
         // Act
-        var result = await _service.UnloadAsync(sha);
+        var result = await _service.UnloadAsync(id);
 
         // Assert
         result.Should().BeFalse();
@@ -548,17 +548,17 @@ public class ModLifecycleServiceTests
     public async Task UnloadAsync_WhenModDoesNotExist_ShouldStillAttemptUnload()
     {
         // Arrange - Mod doesn't exist in database
-        var sha = "nonexistent";
-        _mockRepository.Setup(x => x.GetByIdAsync(sha)).ReturnsAsync((ModEntity?)null);
-        _mockCacheService.Setup(x => x.DisableCacheAsync(sha)).ReturnsAsync(true);
+        var id = "nonexistent";
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync((ModEntity?)null);
+        _mockCacheService.Setup(x => x.DisableCacheAsync(id)).ReturnsAsync(true);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.UnloadAsync(sha);
+        var result = await _service.UnloadAsync(id);
 
         // Assert - Should still attempt to disable cache even if mod doesn't exist in DB
         result.Should().BeTrue();
-        _mockCacheService.Verify(x => x.DisableCacheAsync(sha), Times.Once);
+        _mockCacheService.Verify(x => x.DisableCacheAsync(id), Times.Once);
     }
 
     #endregion

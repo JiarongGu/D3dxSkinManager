@@ -75,15 +75,15 @@ public class ModService
     private readonly IProfileContext _profileContext;
 
     // ✅ CORRECT: Use IProfileEventBus - ProfileId auto-injected
-    public async Task LoadModAsync(string sha)
+    public async Task LoadModAsync(string id)
     {
         // ProfileId automatically added from ProfileContext
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LOADED, new { sha });
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LOADED, new { id });
     }
 
     // ❌ WRONG: Don't manually add profileId anymore
     // await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LOADED,
-    //     new { sha }, _profileContext.ProfileId);
+    //     new { id }, _profileContext.ProfileId);
 }
 ```
 
@@ -192,10 +192,10 @@ public class ModService
 {
     private readonly IProfileEventBus _eventBus;  // Profile: "abc-123"
 
-    public async Task LoadModAsync(string sha)
+    public async Task LoadModAsync(string id)
     {
         // ProfileId "abc-123" automatically added
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LOADED, new { sha });
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.MOD_LOADED, new { id });
     }
 }
 
@@ -241,13 +241,13 @@ public class ModService
     private readonly IEventBus _eventBus;
     private readonly IProfileContext _profileContext;
 
-    public async Task LoadModAsync(string sha)
+    public async Task LoadModAsync(string id)
     {
         // ❌ OLD: Manually pass profileId
         await _eventBus.EmitAsync(
             ModuleNames.MOD,
             ModEvents.MOD_LOADED,
-            new { sha },
+            new { id },
             _profileContext.ProfileId);  // Manual profileId
     }
 }
@@ -259,13 +259,13 @@ public class ModService
 {
     private readonly IProfileEventBus _eventBus;  // ✨ Changed to IProfileEventBus
 
-    public async Task LoadModAsync(string sha)
+    public async Task LoadModAsync(string id)
     {
         // ✅ NEW: ProfileId auto-injected
         await _eventBus.EmitAsync(
             ModuleNames.MOD,
             ModEvents.MOD_LOADED,
-            new { sha });  // No manual profileId needed!
+            new { id });  // No manual profileId needed!
     }
 }
 ```

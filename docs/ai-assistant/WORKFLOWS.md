@@ -68,8 +68,8 @@ public class FileOperationService : IFileOperationService
 // IModLifecycleService.cs
 public interface IModLifecycleService
 {
-    Task<ModLoadResult> LoadAsync(string sha);
-    Task<bool> UnloadAsync(string sha);
+    Task<ModLoadResult> LoadAsync(string id);
+    Task<bool> UnloadAsync(string id);
 }
 
 // ModLifecycleService.cs
@@ -95,10 +95,10 @@ public class ModLifecycleService : IModLifecycleService
         _logger = logger;
     }
 
-    public async Task<ModLoadResult> LoadAsync(string sha)
+    public async Task<ModLoadResult> LoadAsync(string id)
     {
         // Business logic: category conflict resolution
-        var mod = await _repository.GetByIdAsync(sha);
+        var mod = await _repository.GetByIdAsync(id);
 
         // Handle category conflicts (one loaded mod per category)
         if (mod.Category != null)
@@ -106,18 +106,18 @@ public class ModLifecycleService : IModLifecycleService
             var conflicting = await _repository.GetByCategoryAsync(mod.Category);
             foreach (var conflict in conflicting.Where(m => m.IsLoaded))
             {
-                await UnloadAsync(conflict.SHA);
+                await UnloadAsync(conflict.Id);
             }
         }
 
         // Coordinate Layer 1 services
-        var success = await _cacheService.EnableCacheAsync(sha)
-                   || await _archiveService.ExtractAsync(sha);
+        var success = await _cacheService.EnableCacheAsync(id)
+                   || await _archiveService.ExtractAsync(id);
 
         if (success)
         {
             // ✅ Service emits event after successful operation
-            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha });
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Id = id });
         }
 
         return new ModLoadResult { Success = success };

@@ -224,7 +224,7 @@ const CategoryTreeInner: React.FC = () => {
   const { containerRef: treeContainerRef } = useDragDrop<HTMLDivElement>(
     // Handler 1: Single mod drops from the mod list (only allow dropping into nodes)
     {
-      eventType: "application/mod-sha",
+      eventType: "application/mod-id",
       nodeSelector: ".ant-tree-node-content-wrapper",
       allow: "node", // Only allow dropping into categories, not between them
       onDrop: ({ data, target }) => {
@@ -247,7 +247,7 @@ const CategoryTreeInner: React.FC = () => {
     },
     // Handler 2: Multiple mods drops from the mod list (only allow dropping into nodes)
     {
-      eventType: "application/mod-shas",
+      eventType: "application/mod-ids",
       nodeSelector: ".ant-tree-node-content-wrapper",
       allow: "node", // Only allow dropping into categories, not between them
       onDrop: ({ data, target }) => {
@@ -262,11 +262,11 @@ const CategoryTreeInner: React.FC = () => {
         }
 
         try {
-          const modShas = JSON.parse(data) as string[];
+          const modIds = JSON.parse(data) as string[];
           const nodeId = extractNodeId(target);
-          logger.debug("[BulkModDrop] Dropping mods:", modShas, "onto node:", nodeId);
+          logger.debug("[BulkModDrop] Dropping mods:", modIds, "onto node:", nodeId);
 
-          handleBulkModClassify(modShas, nodeId);
+          handleBulkModClassify(modIds, nodeId);
           return true;
         } catch (error) {
           logger.error("[BulkModDrop] Failed to parse mod IDs:", error);

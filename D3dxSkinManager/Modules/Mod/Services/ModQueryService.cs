@@ -338,7 +338,7 @@ public class ModQueryService : IModQueryService
     /// Orchestration:
     /// 1. Check IMemoryCache first (fast path)
     /// 2. Scan cache folder for active mod IDs (not DISABLED-)
-    /// 3. For each SHA, get ModInfo from repository
+    /// 3. For each ID, get ModInfo from repository
     /// 4. Enrich ModInfo using enrichment service (populates status flags)
     /// 5. For orphaned mods (not in DB), return minimal ModInfo with IsOrphaned flag for cleanup
     /// </summary>
@@ -365,7 +365,7 @@ public class ModQueryService : IModQueryService
                 .Where(name => !string.IsNullOrEmpty(name) && !name.StartsWith("DISABLED-"))
                 .ToList();
 
-            // Step 2-3: For each SHA found in cache, get from repository and enrich
+            // Step 2-3: For each ID found in cache, get from repository and enrich
             foreach (var id in cacheDirs)
             {
                 if (string.IsNullOrEmpty(id)) continue;

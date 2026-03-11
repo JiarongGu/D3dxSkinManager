@@ -53,8 +53,8 @@ export const ModListPanel: React.FC = () => {
   const { scrollRef, saveScrollPosition, restoreScrollPosition, resetScrollPosition } = useScrollPosition('mod-list');
 
   // Multi-selection state (local - not stored in mod store)
-  const [selectedModShas, setSelectedModShas] = useState<string[]>([]);
-  const [anchorSha, setAnchorSha] = useState<string | undefined>(undefined);
+  const [selectedModIds, setSelectedModIds] = useState<string[]>([]);
+  const [anchorId, setAnchorId] = useState<string | undefined>(undefined);
 
   // Enable drop zone for batch mod import
   // Allow dropping when there's a profile and either a category is selected or we're in all/loaded view
@@ -124,13 +124,13 @@ export const ModListPanel: React.FC = () => {
 
       if (ctrlKey) {
         // Ctrl+Click: Toggle selection
-        const isSelected = selectedModShas.includes(mod.id);
+        const isSelected = selectedModIds.includes(mod.id);
         if (isSelected) {
           // Remove from selection
-          const newSelection = selectedModShas.filter((id) => id !== mod.id);
-          setSelectedModShas(newSelection);
+          const newSelection = selectedModIds.filter((id) => id !== mod.id);
+          setSelectedModIds(newSelection);
           // Update anchor to last remaining item or undefined
-          setAnchorSha(newSelection.length > 0 ? newSelection[newSelection.length - 1] : undefined);
+          setAnchorId(newSelection.length > 0 ? newSelection[newSelection.length - 1] : undefined);
           // Update primary selection to first item or undefined
           if (newSelection.length > 0) {
             const firstMod = filteredMods.find((m) => m.id === newSelection[0]);
@@ -140,17 +140,17 @@ export const ModListPanel: React.FC = () => {
           }
         } else {
           // Add to selection
-          const newSelection = [...selectedModShas, mod.id];
-          setSelectedModShas(newSelection);
-          setAnchorSha(mod.id);
+          const newSelection = [...selectedModIds, mod.id];
+          setSelectedModIds(newSelection);
+          setAnchorId(mod.id);
           // If this is the first selection, set it as primary
-          if (selectedModShas.length === 0) {
+          if (selectedModIds.length === 0) {
             selectMod(mod);
           }
         }
-      } else if (shiftKey && anchorSha) {
+      } else if (shiftKey && anchorId) {
         // Shift+Click: Select range from anchor to current
-        const anchorIndex = filteredMods.findIndex((m) => m.id === anchorSha);
+        const anchorIndex = filteredMods.findIndex((m) => m.id === anchorId);
         const currentIndex = filteredMods.findIndex((m) => m.id === mod.id);
 
         if (anchorIndex !== -1 && currentIndex !== -1) {
@@ -159,7 +159,7 @@ export const ModListPanel: React.FC = () => {
           const rangeSelection = filteredMods
             .slice(start, end + 1)
             .map((m) => m.id);
-          setSelectedModShas(rangeSelection);
+          setSelectedModIds(rangeSelection);
           // Keep anchor unchanged, primary selection is first in range
           const firstMod = filteredMods.find((m) => m.id === rangeSelection[0]);
           if (firstMod) selectMod(firstMod);
@@ -167,19 +167,19 @@ export const ModListPanel: React.FC = () => {
       } else {
         // Regular click: Single selection
         selectMod(mod);
-        setSelectedModShas([mod.id]);
-        setAnchorSha(mod.id);
+        setSelectedModIds([mod.id]);
+        setAnchorId(mod.id);
       }
     },
-    [selectedModShas, anchorSha, filteredMods, selectMod]
+    [selectedModIds, anchorId, filteredMods, selectMod]
   );
 
   /**
    * Clear multi-selection when category changes and reset scroll position
    */
   React.useEffect(() => {
-    setSelectedModShas([]);
-    setAnchorSha(undefined);
+    setSelectedModIds([]);
+    setAnchorId(undefined);
     resetScrollPosition();
   }, [selectedCategory, resetScrollPosition]);
 
@@ -195,7 +195,7 @@ export const ModListPanel: React.FC = () => {
     // For lazy-loaded lists, we need to ensure the item is rendered first
     if (contentRef.current) {
       const modElement = contentRef.current.querySelector(
-        `[data-mod-sha="${mod.id}"]`,
+        `[data-mod-id="${mod.id}"]`,
       );
 
       if (modElement) {
@@ -219,7 +219,7 @@ export const ModListPanel: React.FC = () => {
           // Wait for DOM to update after lazy loading, then scroll precisely
           setTimeout(() => {
             const modElement = contentRef.current?.querySelector(
-              `[data-mod-sha="${mod.id}"]`,
+              `[data-mod-id="${mod.id}"]`,
             );
             if (modElement) {
               modElement.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -280,7 +280,7 @@ export const ModListPanel: React.FC = () => {
               onEdit={openEditDialog}
               onRowClick={handleModClick}
               selectedMod={selectedMod}
-              selectedModShas={selectedModShas}
+              selectedModIds={selectedModIds}
               onBeforeReload={saveScrollPosition}
               onAfterReload={restoreScrollPosition}
             />
@@ -313,7 +313,7 @@ export const ModListPanel: React.FC = () => {
         <ModListStatusBar
           mods={filteredMods}
           onLoadedModClick={handleLoadedModClick}
-          selectedModCount={selectedModShas.length}
+          selectedModCount={selectedModIds.length}
         />
       </div>
     </Sider>

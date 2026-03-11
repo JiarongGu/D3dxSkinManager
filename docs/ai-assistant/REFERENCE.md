@@ -226,8 +226,8 @@ await connection.OpenAsync();
 
 // Create command
 var command = connection.CreateCommand();
-command.CommandText = "SELECT * FROM Mods WHERE SHA = @sha";
-command.Parameters.AddWithValue("@sha", sha);
+command.CommandText = "SELECT * FROM Mods WHERE Id = @id";
+command.Parameters.AddWithValue("@id", id);
 
 // Execute query
 using var reader = await command.ExecuteReaderAsync();
@@ -476,7 +476,7 @@ function build-all {
 
 ```sql
 CREATE TABLE Mods (
-    SHA TEXT PRIMARY KEY,
+    Id TEXT PRIMARY KEY,
     ObjectName TEXT NOT NULL,
     Name TEXT NOT NULL,
     Author TEXT,
@@ -503,8 +503,8 @@ CREATE INDEX idx_is_loaded ON Mods(IsLoaded);
 ### Common Patterns
 
 ```regex
-# SHA256 hash
-^[a-fA-F0-9]{64}$
+# GUID (mod ID format - 32 hex chars, uppercase, no hyphens)
+^[A-F0-9]{32}$
 
 # Email
 ^[^\s@]+@[^\s@]+\.[^\s@]+$

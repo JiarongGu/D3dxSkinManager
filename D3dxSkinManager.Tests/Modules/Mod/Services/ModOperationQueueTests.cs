@@ -30,25 +30,25 @@ public class ModOperationQueueTests
     public async Task EnqueueAsync_SingleMod_ExecutesInOrder()
     {
         // Arrange
-        var sha = "test-sha-001";
+        var id = "test-id-001";
         var executionOrder = new List<int>();
 
         // Act - Only in-memory operations, no file system access
-        var task1 = _queue.EnqueueAsync(sha, async () =>
+        var task1 = _queue.EnqueueAsync(id, async () =>
         {
             executionOrder.Add(1);
             await Task.Delay(20); // Real delay needed - FakeTimeProvider doesn't work with SemaphoreSlim
             return true;
         });
 
-        var task2 = _queue.EnqueueAsync(sha, async () =>
+        var task2 = _queue.EnqueueAsync(id, async () =>
         {
             executionOrder.Add(2);
             await Task.Delay(20);
             return true;
         });
 
-        var task3 = _queue.EnqueueAsync(sha, async () =>
+        var task3 = _queue.EnqueueAsync(id, async () =>
         {
             executionOrder.Add(3);
             return true;
@@ -64,30 +64,30 @@ public class ModOperationQueueTests
     public async Task EnqueueAsync_DifferentMods_ExecutesInParallel()
     {
         // Arrange
-        var sha1 = "test-sha-001";
-        var sha2 = "test-sha-002";
-        var sha3 = "test-sha-003";
+        var id1 = "test-id-001";
+        var id2 = "test-id-002";
+        var id3 = "test-id-003";
         var startTimes = new Dictionary<string, DateTime>();
         var lockObj = new object();
 
         // Act - Only in-memory operations, no file system access
-        var task1 = _queue.EnqueueAsync(sha1, async () =>
+        var task1 = _queue.EnqueueAsync(id1, async () =>
         {
-            lock (lockObj) startTimes[sha1] = DateTime.UtcNow;
+            lock (lockObj) startTimes[id1] = DateTime.UtcNow;
             await Task.Delay(30);
             return true;
         });
 
-        var task2 = _queue.EnqueueAsync(sha2, async () =>
+        var task2 = _queue.EnqueueAsync(id2, async () =>
         {
-            lock (lockObj) startTimes[sha2] = DateTime.UtcNow;
+            lock (lockObj) startTimes[id2] = DateTime.UtcNow;
             await Task.Delay(30);
             return true;
         });
 
-        var task3 = _queue.EnqueueAsync(sha3, async () =>
+        var task3 = _queue.EnqueueAsync(id3, async () =>
         {
-            lock (lockObj) startTimes[sha3] = DateTime.UtcNow;
+            lock (lockObj) startTimes[id3] = DateTime.UtcNow;
             await Task.Delay(30);
             return true;
         });
@@ -103,7 +103,7 @@ public class ModOperationQueueTests
     public async Task EnqueueAsync_SameMod_PreventsRaceCondition()
     {
         // Arrange
-        var sha = "test-sha-001";
+        var id = "test-id-001";
         var counter = 0;
         var tasks = new List<Task<int>>();
 
@@ -111,7 +111,7 @@ public class ModOperationQueueTests
         // This tests serialization without any file system operations
         for (int i = 0; i < 10; i++)
         {
-            tasks.Add(_queue.EnqueueAsync<int>(sha, async () =>
+            tasks.Add(_queue.EnqueueAsync<int>(id, async () =>
             {
                 var current = counter;
                 await Task.Delay(10);
@@ -131,17 +131,17 @@ public class ModOperationQueueTests
     public async Task EnqueueAsync_ExceptionInOperation_DoesNotBlockQueue()
     {
         // Arrange
-        var sha = "test-sha-001";
+        var id = "test-id-001";
         var executedAfterException = false;
 
         // Act - Test exception handling without any file system operations
-        var task1 = _queue.EnqueueAsync<bool>(sha, async () =>
+        var task1 = _queue.EnqueueAsync<bool>(id, async () =>
         {
             await Task.Delay(10);
             throw new InvalidOperationException("Test exception");
         });
 
-        var task2 = _queue.EnqueueAsync(sha, async () =>
+        var task2 = _queue.EnqueueAsync(id, async () =>
         {
             await Task.Delay(10);
             executedAfterException = true;
@@ -348,14 +348,14 @@ public class ModOperationQueueTests
     public async Task PerModAndCategoryLocks_DifferentMods_NoDeadlock()
     {
         // Arrange
-        var sha1 = "test-sha-001";
-        var sha2 = "test-sha-002";
+        var id1 = "test-id-001";
+        var id2 = "test-id-002";
         var category = "CharacterSkins";
         var results = new List<string>();
         var lockObj = new object();
 
         // Act - Mix per-mod and category operations (in-memory only, no file system)
-        var task1 = _queue.EnqueueAsync(sha1, async () =>
+        var task1 = _queue.EnqueueAsync(id1, async () =>
         {
             await Task.Delay(10);
             lock (lockObj) results.Add("mod1");
@@ -369,7 +369,7 @@ public class ModOperationQueueTests
             return true;
         });
 
-        var task3 = _queue.EnqueueAsync(sha2, async () =>
+        var task3 = _queue.EnqueueAsync(id2, async () =>
         {
             await Task.Delay(10);
             lock (lockObj) results.Add("mod2");
@@ -391,14 +391,14 @@ public class ModOperationQueueTests
     {
         // Arrange
         var categories = new[] { "Cat1", "Cat2", "Cat3" };
-        var shas = Enumerable.Range(0, 10).Select(i => $"sha-{i:000}").ToArray();
+        var ids = Enumerable.Range(0, 10).Select(i => $"id-{i:000}").ToArray();
         var tasks = new List<Task>();
 
         // Act - Create 50 operations mixing category and per-mod locks (in-memory only)
         for (int i = 0; i < 50; i++)
         {
             var category = categories[i % categories.Length];
-            var sha = shas[i % shas.Length];
+            var id = ids[i % ids.Length];
 
             if (i % 2 == 0)
             {
@@ -412,7 +412,7 @@ public class ModOperationQueueTests
             else
             {
                 // Per-mod operation (no file system access)
-                tasks.Add(_queue.EnqueueAsync(sha, async () =>
+                tasks.Add(_queue.EnqueueAsync(id, async () =>
                 {
                     await Task.Delay(Random.Shared.Next(5, 15)); // Short random delay
                     return true;
@@ -440,11 +440,11 @@ public class ModOperationQueueTests
         var queue = new ModOperationQueue();
         var operations = new List<Task>();
 
-        // Act - Create 50 operations with different SHAs
+        // Act - Create 50 operations with different ids
         for (int i = 0; i < 50; i++)
         {
-            var sha = $"test-sha-{i:000}";
-            operations.Add(queue.EnqueueAsync(sha, async () =>
+            var id = $"test-id-{i:000}";
+            operations.Add(queue.EnqueueAsync(id, async () =>
             {
                 await Task.Delay(10);
                 return true;
@@ -494,10 +494,10 @@ public class ModOperationQueueTests
     {
         // Arrange
         var queue = new ModOperationQueue();
-        var sha = "test-sha-001";
+        var id = "test-id-001";
 
         // Act - Start an operation but don't await it yet
-        var operation1 = queue.EnqueueAsync(sha, async () =>
+        var operation1 = queue.EnqueueAsync(id, async () =>
         {
             await Task.Delay(100);
             return true;
@@ -527,11 +527,11 @@ public class ModOperationQueueTests
     public async Task EnqueueAsync_ReturnsCorrectValue()
     {
         // Arrange
-        var sha = "test-sha-001";
+        var id = "test-id-001";
         var expectedValue = 42;
 
         // Act - In-memory computation only, no file system access
-        var result = await _queue.EnqueueAsync(sha, async () =>
+        var result = await _queue.EnqueueAsync(id, async () =>
         {
             await Task.Delay(10);
             return expectedValue;

@@ -55,10 +55,10 @@ export async function refreshMods(profileId: string): Promise<void> {
  * Set mod loading state (transient UI state)
  * Used when LOADING event is received to show loading indicator
  */
-export function setModLoading(sha: string, isLoading: boolean): void {
+export function setModLoading(id: string, isLoading: boolean): void {
   const { updateModLocal } = useModsStore.getState();
   // Update only the isLoading flag locally (transient state)
-  updateModLocal(sha, { isLoading });
+  updateModLocal(id, { isLoading });
 }
 
 /**
@@ -115,7 +115,7 @@ export async function refreshSelectedMod(profileId: string): Promise<void> {
  */
 export async function updateMod(
   profileId: string,
-  sha: string,
+  id: string,
   data: Partial<ModInfo>
 ): Promise<void> {
   const { updateModLocal, setModLoading } = useModsStore.getState();
@@ -124,7 +124,7 @@ export async function updateMod(
     await executeWithDelayedLoading(
       async () => {
         // Update metadata (name, author, tags, grading, description, disablePreview)
-        await modService.updateMetadata(profileId, sha, {
+        await modService.updateMetadata(profileId, id, {
           name: data.name,
           author: data.author,
           tags: data.tags,
@@ -134,7 +134,7 @@ export async function updateMod(
         });
 
         // Update local state (Zustand automatically updates mods)
-        updateModLocal(sha, data);
+        updateModLocal(id, data);
 
         notification.success(i18n.t('mods.operations.updateSuccess'));
       },

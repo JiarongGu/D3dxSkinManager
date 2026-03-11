@@ -96,10 +96,10 @@ After deleting a preview, renumber all subsequent previews to fill the gap.
 **File:** `D3dxSkinManager\Modules\Context\Services\ImageService.cs` (line 573-634)
 
 ```csharp
-public async Task<bool> DeletePreviewAsync(string sha, string previewPath)
+public async Task<bool> DeletePreviewAsync(string id, string previewPath)
 {
     // 1. Get all previews and find deleted index
-    var allPreviews = await GetPreviewPathsAsync(sha);
+    var allPreviews = await GetPreviewPathsAsync(id);
     var deletedIndex = allPreviews.FindIndex(/*...*/);
 
     // 2. Delete the target file
@@ -143,12 +143,12 @@ public async Task<bool> DeletePreviewAsync(string sha, string previewPath)
 // Populate file paths (line 94-103)
 if (mod.HasCache)
 {
-    mod.CachePath = Path.Combine(_profilePaths.CacheModsDirectory, mod.SHA);
+    mod.CachePath = Path.Combine(_profilePaths.CacheModsDirectory, mod.Id);
 }
 
 if (mod.HasPreviewFolder)
 {
-    mod.PreviewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.SHA);
+    mod.PreviewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.Id);
 }
 ```
 

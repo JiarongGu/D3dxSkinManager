@@ -17,15 +17,15 @@ Refactored from **direct invocation** to **event-based reaction** for refreshing
 async function _refreshMods(profileId: string): Promise<void> {
   if (selectedCategory) {
     await loadModsByCategory(profileId, selectedCategory.id);
-  } else if (selectedMod?.sha) {  // ❌ This prevented proper updates!
-    const freshMod = await modService.getModBySha(profileId, selectedMod.sha);
+  } else if (selectedMod?.id) {  // ❌ This prevented proper updates!
+    const freshMod = await modService.getModById(profileId, selectedMod.id);
     setSelectedMod(freshMod);
     return; // Early return prevented category path from updating selectedMod
   }
 
   // Lines 52-66: UNREACHABLE when category selected + mod selected
-  if (selectedMod?.sha) {
-    const updatedMod = mods.find(m => m.sha === selectedMod.sha);
+  if (selectedMod?.id) {
+    const updatedMod = mods.find(m => m.id === selectedMod.id);
     setSelectedMod(updatedMod);  // Never executed!
   }
 }
@@ -43,9 +43,9 @@ async function _refreshMods(profileId: string): Promise<void> {
 // 1. Dedicated function for selectedMod refresh
 export async function refreshSelectedMod(profileId: string): Promise<void> {
   const { selectedMod, setSelectedMod } = useModsStore.getState();
-  if (!selectedMod?.sha) return;
+  if (!selectedMod?.id) return;
 
-  const freshMod = await modService.getModBySha(profileId, selectedMod.sha);
+  const freshMod = await modService.getModById(profileId, selectedMod.id);
   if (freshMod) {
     setSelectedMod(freshMod);  // ✅ Updates with enriched data
   }
@@ -149,8 +149,8 @@ const handleSelectedModUpdate = useCallback(
 
 **5. `Modules/Mod/Services/ModEnrichmentService.cs`**
 - ✅ Added `IModCacheService` dependency
-- ✅ Fixed `CachePath` resolution: `_cacheService.GetCachePath(mod.SHA)`
-- ✅ Now handles both active (`{SHA}`) and disabled (`DISABLED-{SHA}`) cache directories
+- ✅ Fixed `CachePath` resolution: `_cacheService.GetCachePath(mod.Id)`
+- ✅ Now handles both active (`{ID}`) and disabled (`DISABLED-{ID}`) cache directories
 
 ## Event Flow
 
@@ -219,9 +219,9 @@ const handleSelectedModUpdate = useCallback(
 
 1. **Backend emits event** after successful operation:
 ```csharp
-public async Task<bool> DoSomethingAsync(string sha) {
+public async Task<bool> DoSomethingAsync(string id) {
     // Operation logic...
-    await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.SOMETHING_CHANGED, new { sha });
+    await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.SOMETHING_CHANGED, new { id });
     return true;
 }
 ```
@@ -260,7 +260,7 @@ After implementing this architecture:
 - [ ] Load mod → selectedMod refreshes with `isLoaded=true` ✅
 - [ ] Unload mod → selectedMod refreshes with `isLoaded=false` ✅
 - [ ] Rapid load/unload → Only one refresh (debounced) ✅
-- [ ] Disabled cache (`DISABLED-{SHA}`) → Cache folder opens correctly ✅
+- [ ] Disabled cache (`DISABLED-{ID}`) → Cache folder opens correctly ✅
 
 ## Related Documentation
 

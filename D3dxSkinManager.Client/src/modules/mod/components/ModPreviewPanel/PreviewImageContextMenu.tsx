@@ -29,7 +29,7 @@ interface PreviewImageContextMenuProps {
   position: { x: number; y: number };
   onClose: () => void;
   onImageIndexChange: (index: number) => void;
-  onUpdateMod: (sha: string, data: Partial<ModInfo>) => Promise<void>;
+  onUpdateMod: (id: string, data: Partial<ModInfo>) => Promise<void>;
 }
 
 export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = ({

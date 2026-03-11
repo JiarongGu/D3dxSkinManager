@@ -25,8 +25,8 @@ export function useMods() {
   const operations = {
     // Mod operations
     refreshMods: () => selectedProfileId && modOps.refreshMods(selectedProfileId),
-    updateMod: (sha: string, data: Partial<ModInfo>) =>
-      selectedProfileId && modOps.updateMod(selectedProfileId, sha, data),
+    updateMod: (id: string, data: Partial<ModInfo>) =>
+      selectedProfileId && modOps.updateMod(selectedProfileId, id, data),
     deleteMod: (id: string) => selectedProfileId && modOps.deleteMod(selectedProfileId, id),
 
     // Load operations
@@ -36,10 +36,10 @@ export function useMods() {
       selectedProfileId && modOps.unloadMod(selectedProfileId, id),
 
     // Category operations
-    updateModCategory: (sha: string, categoryId: string) =>
-      selectedProfileId && categoryOps.updateModCategory(selectedProfileId, sha, categoryId),
-    updateModsCategory: (shas: string[], categoryId: string) =>
-      selectedProfileId && categoryOps.batchUpdateCategories(selectedProfileId, shas, categoryId),
+    updateModCategory: (id: string, categoryId: string) =>
+      selectedProfileId && categoryOps.updateModCategory(selectedProfileId, id, categoryId),
+    updateModsCategory: (ids: string[], categoryId: string) =>
+      selectedProfileId && categoryOps.batchUpdateCategories(selectedProfileId, ids, categoryId),
 
     // Category operations
     loadCategoryTree: () =>

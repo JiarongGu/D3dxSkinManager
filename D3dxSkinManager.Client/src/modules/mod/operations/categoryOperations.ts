@@ -17,12 +17,12 @@ import i18n from '../../../shared/services/i18n';
  */
 export async function updateModCategory(
   profileId: string,
-  sha: string,
+  id: string,
   categoryId: string,
 ): Promise<boolean> {
   try {
     // Perform backend operation
-    await modService.updateCategory(profileId, sha, categoryId);
+    await modService.updateCategory(profileId, id, categoryId);
     notification.success(i18n.t('category.operations.updateSuccess'));
 
     // Backend fires MOD_LIST_UPDATED and CATEGORY_TREE_UPDATED events
@@ -39,14 +39,14 @@ export async function updateModCategory(
  */
 export async function batchUpdateCategories(
   profileId: string,
-  shas: string[],
+  ids: string[],
   categoryId: string
 ): Promise<boolean> {
   try {
     // Build updates object - all mods get the same category
     const updates: Record<string, string> = {};
-    shas.forEach(sha => {
-      updates[sha] = categoryId;
+    ids.forEach(id => {
+      updates[id] = categoryId;
     });
 
     // For batch operations, skip optimistic updates due to complexity

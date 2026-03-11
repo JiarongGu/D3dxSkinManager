@@ -34,11 +34,11 @@ interface ModListProps {
   loading: boolean;
   onLoad: (id: string) => void;
   onUnload: (id: string) => void;
-  onDelete: (sha: string, name: string) => void;
+  onDelete: (id: string, name: string) => void;
   onEdit?: (mod: ModInfo) => void;
   onRowClick?: (mod: ModInfo, event?: React.MouseEvent) => void;
   selectedMod?: ModInfo;
-  selectedModShas?: string[];
+  selectedModIds?: string[];
   onBeforeReload?: () => void;
   onAfterReload?: () => void;
 }
@@ -52,7 +52,7 @@ export const ModList: React.FC<ModListProps> = ({
   onEdit,
   onRowClick,
   selectedMod,
-  selectedModShas = [],
+  selectedModIds = [],
   onBeforeReload,
   onAfterReload,
 }) => {
@@ -135,7 +135,7 @@ export const ModList: React.FC<ModListProps> = ({
     }
 
     // Check if this is a batch deletion (multiple mods selected)
-    const isMultiSelect = selectedModShas.length > 1;
+    const isMultiSelect = selectedModIds.length > 1;
 
     if (isMultiSelect) {
       // Batch delete all selected mods using backend batch API
@@ -148,7 +148,7 @@ export const ModList: React.FC<ModListProps> = ({
       const profileId = selectedProfileId;
 
       try {
-        const result = await modService.batchDeleteMods(profileId, selectedModShas);
+        const result = await modService.batchDeleteMods(profileId, selectedModIds);
 
         if (result.successCount > 0) {
           notification.success(
@@ -163,7 +163,7 @@ export const ModList: React.FC<ModListProps> = ({
         }
       } catch (error: unknown) {
         notification.error(
-          t("mods.notifications.batchDeleteFailed", { count: selectedModShas.length })
+          t("mods.notifications.batchDeleteFailed", { count: selectedModIds.length })
         );
       }
     } else {
@@ -213,7 +213,7 @@ export const ModList: React.FC<ModListProps> = ({
   };
 
   const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => {
-    const isMultiSelect = selectedModShas.length > 1 && selectedModShas.includes(mod.id);
+    const isMultiSelect = selectedModIds.length > 1 && selectedModIds.includes(mod.id);
 
     // For orphaned mods, only show Open Cache Folder and Delete Cache
     if (mod.isOrphaned) {
@@ -249,17 +249,17 @@ export const ModList: React.FC<ModListProps> = ({
     if (isMultiSelect) {
       // Filter selected mods to only those with cache
       const selectedModsWithCache = mods.filter(m =>
-        selectedModShas.includes(m.id) && m.hasCache
+        selectedModIds.includes(m.id) && m.hasCache
       );
       const cacheCount = selectedModsWithCache.length;
 
       return [
         {
           key: "batch-edit",
-          label: t("contextMenu.batchEditMods", { count: selectedModShas.length }),
+          label: t("contextMenu.batchEditMods", { count: selectedModIds.length }),
           icon: <EditOutlined />,
           onClick: () => {
-            const selectedMods = mods.filter(m => selectedModShas.includes(m.id));
+            const selectedMods = mods.filter(m => selectedModIds.includes(m.id));
             openBatchEditScreen(selectedMods);
           },
         },
@@ -303,7 +303,7 @@ export const ModList: React.FC<ModListProps> = ({
         },
         {
           key: "batch-delete-mods",
-          label: t("contextMenu.deleteAllMods", { count: selectedModShas.length }),
+          label: t("contextMenu.deleteAllMods", { count: selectedModIds.length }),
           icon: <DeleteOutlined />,
           danger: true,
           onClick: () => {
@@ -312,7 +312,7 @@ export const ModList: React.FC<ModListProps> = ({
               visible: true,
               mod: {
                 ...mod,
-                name: t("mods.notifications.selectedMods", { count: selectedModShas.length }),
+                name: t("mods.notifications.selectedMods", { count: selectedModIds.length }),
               },
             });
           },
@@ -461,23 +461,23 @@ export const ModList: React.FC<ModListProps> = ({
         >
           {displayedMods.map((mod) => {
             const isPrimarySelection = selectedMod?.id === mod.id;
-            const isInMultiSelection = selectedModShas.includes(mod.id);
+            const isInMultiSelection = selectedModIds.includes(mod.id);
 
             return (
               <div
                 key={mod.id}
-                data-mod-sha={mod.id}
+                data-mod-id={mod.id}
                 draggable
                 onDragStart={(e) => {
                   // If this mod is part of multi-selection, drag all selected mods
-                  if (isInMultiSelection && selectedModShas.length > 1) {
+                  if (isInMultiSelection && selectedModIds.length > 1) {
                     e.dataTransfer.setData(
-                      "application/mod-shas",
-                      JSON.stringify(selectedModShas),
+                      "application/mod-ids",
+                      JSON.stringify(selectedModIds),
                     );
                   } else {
                     // Single mod drag
-                    e.dataTransfer.setData("application/mod-sha", mod.id);
+                    e.dataTransfer.setData("application/mod-id", mod.id);
                   }
                   e.dataTransfer.effectAllowed = "move";
                 }}
@@ -505,7 +505,7 @@ export const ModList: React.FC<ModListProps> = ({
                 <div className="mod-list-item-content">
                   <div className="mod-list-item-header">
                     <span className="mod-list-item-name">
-                      {mod.isOrphaned ? t('mods.list.unmanaged', { sha: mod.name }) : mod.name}
+                      {mod.isOrphaned ? t('mods.list.unmanaged', { id: mod.name }) : mod.name}
                     </span>
                     {mod.isLoading && (
                       <Tag color="warning" className="mod-list-item-loaded-tag">

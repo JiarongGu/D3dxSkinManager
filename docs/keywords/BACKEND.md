@@ -88,7 +88,7 @@
 
 - **ImageService** → `Modules/Core/Services/ImageService.cs:26`
   - GetThumbnailPathAsync → `:72-85`
-  - GetPreviewPathsAsync → `:87-107` (scans previews/{SHA}/ folder)
+  - GetPreviewPathsAsync → `:87-107` (scans previews/{ID}/ folder)
   - GenerateThumbnailAsync → `:110-167`
   - GeneratePreviewsAsync → `:169-246` (creates per-mod preview folders)
   - CacheImageAsync → `:249-277`
@@ -306,8 +306,8 @@ public class SomeService {
 
 - **ModCacheService** → `Modules/Mod/Services/ModCacheService.cs` (NEW - 408 lines)
   - **Purpose**: Cache directory management (no business logic, no events)
-  - EnableCacheAsync → Rename `DISABLED-{SHA}` → `{SHA}`
-  - DisableCacheAsync → Rename `{SHA}` → `DISABLED-{SHA}`
+  - EnableCacheAsync → Rename `DISABLED-{ID}` → `{ID}`
+  - DisableCacheAsync → Rename `{ID}` → `DISABLED-{ID}`
   - DeleteCacheAsync → Delete cache directory
   - ScanCacheAsync → Scan all cache directories
   - CleanCacheAsync → Clean orphaned/invalid caches
@@ -329,7 +329,7 @@ public class SomeService {
   - GetStatisticsAsync → Returns mod statistics (now calls ModEnrichmentService.PopulateStatusFlags)
   - SearchModsAsync → Search with filters
   - GetAllAsync → Get all mods for profile
-  - GetByIdAsync → Get mod by SHA
+  - GetByIdAsync → Get mod by ID
   - **GetActiveModsAsync** → Cache-first scanning of active mods in cache folder
     - Uses IMemoryCache for performance (profile-scoped cache key)
     - Scans cache folder for active mods (not DISABLED-)
@@ -345,7 +345,7 @@ public class SomeService {
   - UpdateMetadataAsync → Update mod metadata
   - UpdateCategoryAsync → Update mod category (no longer takes callbacks)
   - BatchUpdateCategoryAsync → Bulk category update for multi-select (NEW - 2026-03-05)
-    - Accepts array of mod SHAs
+    - Accepts array of mod IDs
     - Auto-unloads loaded mods before category change
     - Emits CATEGORY_UPDATED event after batch completion
   - **Merged**: ModManagementService functionality merged into this service
@@ -436,7 +436,7 @@ public class SomeService {
 #### Models
 
 - **ModInfo** → `Modules/Mods/Models/ModInfo.cs:5`
-  - Properties: SHA, ObjectName, Name, Author, Description, Type, Grading, Tags, IsLoaded, IsAvailable, ThumbnailPath, OriginalPath, WorkPath, CachePath, Category
+  - Properties: Id, ObjectName, Name, Author, Description, Type, Grading, Tags, IsLoaded, IsAvailable, ThumbnailPath, OriginalPath, WorkPath, CachePath, Category
 
 ---
 

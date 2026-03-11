@@ -67,9 +67,9 @@ public class ModLoggerPlugin : IPlugin
     private async Task OnModLoaded(EventMessage args)
     {
         var data = args.Payload as dynamic;
-        var sha = data?.Sha?.ToString() ?? "unknown";
+        var id = data?.Id?.ToString() ?? "unknown";
 
-        var message = $"[MOD_LOADED] SHA: {sha}";
+        var message = $"[MOD_LOADED] ID: {id}";
         _context?.Log(LogLevel.Info, $"[{Name}] {message}");
         await WriteLogAsync(message);
     }
@@ -77,9 +77,9 @@ public class ModLoggerPlugin : IPlugin
     private async Task OnModUnloaded(EventMessage args)
     {
         var data = args.Payload as dynamic;
-        var sha = data?.Sha?.ToString() ?? "unknown";
+        var id = data?.Id?.ToString() ?? "unknown";
 
-        var message = $"[MOD_UNLOADED] SHA: {sha}";
+        var message = $"[MOD_UNLOADED] ID: {id}";
         _context?.Log(LogLevel.Info, $"[{Name}] {message}");
         await WriteLogAsync(message);
     }
@@ -98,9 +98,9 @@ public class ModLoggerPlugin : IPlugin
     private async Task OnModDeleted(EventMessage args)
     {
         var data = args.Payload as dynamic;
-        var sha = data?.Sha?.ToString() ?? "unknown";
+        var id = data?.Id?.ToString() ?? "unknown";
 
-        var message = $"[MOD_DELETED] SHA: {sha}";
+        var message = $"[MOD_DELETED] ID: {id}";
         _context?.Log(LogLevel.Info, $"[{Name}] {message}");
         await WriteLogAsync(message);
     }

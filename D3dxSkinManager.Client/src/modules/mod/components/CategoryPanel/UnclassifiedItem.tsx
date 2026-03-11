@@ -10,7 +10,7 @@ export interface UnclassifiedItemProps {
   count: number;
   isSelected: boolean;
   onClick: () => void;
-  onModDrop?: (sha?: string) => void;
+  onModDrop?: (id?: string) => void;
 }
 
 export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
@@ -24,7 +24,7 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
   // Use the unified drag-and-drop hook
   const { containerRef } = useDragDrop<HTMLDivElement>(
     {
-      eventType: 'application/mod-sha',
+      eventType: 'application/mod-id',
       allow: 'node', // Allow dropping into the unclassified area
       nodeSelector: '.category-panel-unclassified-item', // Target the entire item
       onDrop: ({ data }) => {

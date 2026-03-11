@@ -99,9 +99,9 @@ public class WindowConfiguration {
 
 **Work Directory Modes:**
 - **Internal Mode**: Uses `{profile folder}/work` as work directory (default)
-  - Mods extracted to: `{profile folder}/work/Mods/{SHA}/`
+  - Mods extracted to: `{profile folder}/work/Mods/{ID}/`
 - **External Mode**: Uses custom directory path specified by user
-  - Mods extracted to: `{custom path}/Mods/{SHA}/`
+  - Mods extracted to: `{custom path}/Mods/{ID}/`
   - Useful for: game directories, separate SSDs, shared locations
 
 **Windows Configuration:**
@@ -206,7 +206,7 @@ Services operate within profile context:
 ```typescript
 // All mod operations use active profile
 await modService.getAllMods(selectedProfileId);
-await modService.loadMod(selectedProfileId, sha);
+await modService.loadMod(selectedProfileId, id);
 
 // Profile switch triggers reload
 useEffect(() => {

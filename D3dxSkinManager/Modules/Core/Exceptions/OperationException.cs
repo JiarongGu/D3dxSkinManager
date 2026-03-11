@@ -17,7 +17,7 @@ public class OperationException : Exception
 
     /// <summary>
     /// Optional parameters for error message interpolation
-    /// Example: { "name": "MyMod", "sha": "abc123..." }
+    /// Example: { "name": "MyMod", "id": "abc123..." }
     /// Frontend uses these with i18n: t('errors.MOD_DELETE_FAILED', { name: 'MyMod' })
     /// Serializes as "parameters" in JSON due to camelCase naming policy
     /// </summary>

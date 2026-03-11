@@ -25,13 +25,13 @@ describe('BridgeService Batch Unbundling', () => {
       {
         module: 'MOD',
         type: 'LOADED',
-        payload: { sha: '123' },
+        payload: { id: '123' },
         profileId: null,
       },
       {
         module: 'MOD',
         type: 'LOADED',
-        payload: { sha: '456' },
+        payload: { id: '456' },
         profileId: null,
       },
       {
@@ -58,12 +58,12 @@ describe('BridgeService Batch Unbundling', () => {
     expect(modHandler).toHaveBeenNthCalledWith(1, {
       module: 'MOD',
       type: 'LOADED',
-      payload: { sha: '123' },
+      payload: { id: '123' },
     });
     expect(modHandler).toHaveBeenNthCalledWith(2, {
       module: 'MOD',
       type: 'LOADED',
-      payload: { sha: '456' },
+      payload: { id: '456' },
     });
 
     expect(workflowHandler).toHaveBeenCalledTimes(1);
@@ -169,11 +169,11 @@ describe('BridgeService Batch Unbundling', () => {
 
     // Act - mixed batch
     const mixedBatch = [
-      { module: 'MOD', type: 'LOADED', payload: { sha: 'a' } },
+      { module: 'MOD', type: 'LOADED', payload: { id: 'a' } },
       { module: 'WORKFLOW', type: 'PROGRESS', payload: { workflowId: 'w1', progress: 10 } },
-      { module: 'MOD', type: 'DELETED', payload: { sha: 'b' } },
+      { module: 'MOD', type: 'DELETED', payload: { id: 'b' } },
       { module: 'WORKFLOW', type: 'PROGRESS', payload: { workflowId: 'w2', progress: 20 } },
-      { module: 'MOD', type: 'LOADED', payload: { sha: 'c' } },
+      { module: 'MOD', type: 'LOADED', payload: { id: 'c' } },
     ];
 
     mixedBatch.forEach((event) => {

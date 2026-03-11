@@ -151,7 +151,7 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         // Arrange
         var entity = new ModEntity
         {
-            Id = new string('A', 40), // SHA-1 max length
+            Id = new string('A', 40), // id-1 max length
             Category = new string('C', 500),
             Name = new string('N', 5000),
             Description = new string('D', 10000),
@@ -195,9 +195,9 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         {
             Id = "unicode-test",
             Category = "test",
-            Name = "测试模组 日本語 한국어 العربية",
+            Name = "测试模组 日本�?한국�?العربية",
             Description = "Emoji: 🎮🔥💯",
-            Author = "作者名前"
+            Author = "作者名�?
         };
 
         // Act
@@ -205,9 +205,9 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
 
         // Assert
         var result = await _repository.GetByIdAsync("unicode-test");
-        result!.Name.Should().Be("测试模组 日本語 한국어 العربية");
+        result!.Name.Should().Be("测试模组 日本�?한국�?العربية");
         result.Description.Should().Be("Emoji: 🎮🔥💯");
-        result.Author.Should().Be("作者名前");
+        result.Author.Should().Be("作者名�?);
     }
 
     #endregion

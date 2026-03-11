@@ -81,12 +81,12 @@ class ModService extends BaseModuleService {
     return this.sendArrayMessage<ModInfo>('GET_ALL', profileId);
   }
 
-  async loadMod(profileId: string, sha: string): Promise<boolean> {
-    return this.sendBooleanMessage('LOAD', profileId, { sha });
+  async loadMod(profileId: string, id: string): Promise<boolean> {
+    return this.sendBooleanMessage('LOAD', profileId, { id });
   }
 
-  async deleteMod(profileId: string, sha: string): Promise<boolean> {
-    return this.sendBooleanMessage('DELETE', profileId, { sha });
+  async deleteMod(profileId: string, id: string): Promise<boolean> {
+    return this.sendBooleanMessage('DELETE', profileId, { id });
   }
 }
 
@@ -111,9 +111,9 @@ const ModList = () => {
     }
   }, [selectedProfileId]);
 
-  const handleLoad = async (sha: string) => {
+  const handleLoad = async (id: string) => {
     if (selectedProfileId) {
-      await modService.loadMod(selectedProfileId, sha);
+      await modService.loadMod(selectedProfileId, id);
       // Refresh list
       const updated = await modService.getAllMods(selectedProfileId);
       setMods(updated);
@@ -153,9 +153,9 @@ class LaunchService extends BaseModuleService {
 
 ```typescript
 class ModService extends BaseModuleService {
-  async loadMod(profileId: string, sha: string): Promise<boolean> {
+  async loadMod(profileId: string, id: string): Promise<boolean> {
     try {
-      return await this.sendBooleanMessage('LOAD', profileId, { sha });
+      return await this.sendBooleanMessage('LOAD', profileId, { id });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to load mod';
       console.error('Load mod error:', error);

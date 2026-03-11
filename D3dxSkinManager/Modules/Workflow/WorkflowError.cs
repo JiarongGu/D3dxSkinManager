@@ -14,7 +14,7 @@ public class WorkflowError
 
     /// <summary>
     /// Optional parameters for error message interpolation
-    /// Example: { "name": "MyMod", "sha": "abc123..." }
+    /// Example: { "name": "MyMod", "id": "abc123..." }
     /// Frontend uses these with i18n: t('workflow.errors.WORKFLOW_DUPLICATE_MOD', { name: 'MyMod' })
     /// </summary>
     public Dictionary<string, string>? Parameters { get; set; }

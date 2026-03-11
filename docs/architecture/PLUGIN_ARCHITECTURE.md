@@ -157,8 +157,8 @@ public async Task InitAsync(IPluginContext context)
 
 private async Task OnModLoaded(EventMessage e)
 {
-    var sha = e.Payload?.GetProperty("Sha").GetString();
-    _logger.Info($"Mod loaded: {sha}");
+    var id = e.Payload?.GetProperty("Sha").GetString();
+    _logger.Info($"Mod loaded: {id}");
 }
 ```
 

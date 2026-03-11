@@ -22,7 +22,7 @@ describe('EventBus Batch Unbundling', () => {
     eventBus.emit({
       module: Module.MOD,
       type: ModEventType.LOADED,
-      payload: { sha: '123' },
+      payload: { id: '123' },
     });
 
     // Assert
@@ -30,7 +30,7 @@ describe('EventBus Batch Unbundling', () => {
     expect(handler).toHaveBeenCalledWith({
       module: Module.MOD,
       type: ModEventType.LOADED,
-      payload: { sha: '123' },
+      payload: { id: '123' },
     });
   });
 
@@ -46,7 +46,7 @@ describe('EventBus Batch Unbundling', () => {
     eventBus.emit({
       module: Module.MOD,
       type: ModEventType.LOADED,
-      payload: { sha: '456' },
+      payload: { id: '456' },
     });
 
     // Assert - both handlers should be called
@@ -66,7 +66,7 @@ describe('EventBus Batch Unbundling', () => {
     eventBus.emit({
       module: Module.MOD,
       type: ModEventType.LOADED,
-      payload: { sha: '789' },
+      payload: { id: '789' },
     });
 
     // Assert
@@ -83,7 +83,7 @@ describe('EventBus Batch Unbundling', () => {
     eventBus.emit({
       module: Module.MOD,
       type: ModEventType.LOADED,
-      payload: { sha: 'abc' },
+      payload: { id: 'abc' },
     });
 
     // Assert - handler called once
@@ -94,7 +94,7 @@ describe('EventBus Batch Unbundling', () => {
     eventBus.emit({
       module: Module.MOD,
       type: ModEventType.LOADED,
-      payload: { sha: 'def' },
+      payload: { id: 'def' },
     });
 
     // Assert - handler should not be called after cleanup
@@ -142,7 +142,7 @@ describe('EventBus Batch Unbundling', () => {
       eventBus.emit({
         module: Module.MOD,
         type: ModEventType.LOADED,
-        payload: { sha: 'error-test' },
+        payload: { id: 'error-test' },
       });
     }).not.toThrow();
 

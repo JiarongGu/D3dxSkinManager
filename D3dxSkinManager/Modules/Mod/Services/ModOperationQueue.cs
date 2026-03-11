@@ -6,7 +6,7 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 /// Manages per-mod and per-category operation queues to prevent concurrent operations
 ///
 /// Two levels of locking:
-/// 1. Per-mod locks (SHA-based) - prevents concurrent load/unload on same mod
+/// 1. Per-mod locks (ID-based) - prevents concurrent load/unload on same mod
 /// 2. Per-category locks - prevents concurrent load operations in same category
 ///    (needed because loading Mod B unloads Mod A if they share a category)
 /// </summary>
@@ -16,7 +16,7 @@ public interface IModOperationQueue
     /// Enqueue an operation for a specific mod
     /// Ensures only one operation at a time per mod ID
     /// </summary>
-    Task<T> EnqueueAsync<T>(string modSha, Func<Task<T>> operation);
+    Task<T> EnqueueAsync<T>(string modId, Func<Task<T>> operation);
 
     /// <summary>
     /// Enqueue a category-wide operation (e.g., load with category-based unload)
@@ -56,12 +56,12 @@ public class ModOperationQueue : IModOperationQueue
     public int ActiveCategoryLockCount => _categoryLocks.Count;
 
     /// <summary>
-    /// Enqueue operation for mod - serializes operations per SHA, allows parallel across SHAs
+    /// Enqueue operation for mod - serializes operations per ID, allows parallel across IDs
     /// </summary>
-    public async Task<T> EnqueueAsync<T>(string modSha, Func<Task<T>> operation)
+    public async Task<T> EnqueueAsync<T>(string modId, Func<Task<T>> operation)
     {
-        // Get or create semaphore for this mod (1 = only one operation at a time for this SHA)
-        var semaphore = _modLocks.GetOrAdd(modSha, _ => new SemaphoreSlim(1, 1));
+        // Get or create semaphore for this mod (1 = only one operation at a time for this ID)
+        var semaphore = _modLocks.GetOrAdd(modId, _ => new SemaphoreSlim(1, 1));
 
         await semaphore.WaitAsync().ConfigureAwait(false);
         try
@@ -76,7 +76,7 @@ public class ModOperationQueue : IModOperationQueue
             // Cleanup: Remove semaphore if no one is waiting (prevents memory leak)
             if (semaphore.CurrentCount == 1)
             {
-                _modLocks.TryRemove(modSha, out _);
+                _modLocks.TryRemove(modId, out _);
             }
         }
     }

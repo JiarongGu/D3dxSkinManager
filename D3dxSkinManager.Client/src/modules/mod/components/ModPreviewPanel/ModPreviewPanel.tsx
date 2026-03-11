@@ -85,9 +85,9 @@ export const ModPreviewPanel: React.FC = () => {
   };
 
   // Wrapper for updateMod that always returns a Promise
-  const handleUpdateMod = async (sha: string, data: Partial<ModInfo>): Promise<void> => {
+  const handleUpdateMod = async (id: string, data: Partial<ModInfo>): Promise<void> => {
     if (!selectedProfileId) return;
-    await modOps.updateMod(selectedProfileId, sha, data);
+    await modOps.updateMod(selectedProfileId, id, data);
   };
 
   // Context menu handlers
@@ -172,7 +172,7 @@ export const ModPreviewPanel: React.FC = () => {
               })}
               onClick={handleKeybindingToggle}
             >
-              <KeybindingPreview modSha={mod.id} />
+              <KeybindingPreview modId={mod.id} />
             </div>
           )}
         </div>
@@ -182,13 +182,13 @@ export const ModPreviewPanel: React.FC = () => {
       <ModInfoSection mod={mod} />
 
       {/* Mod ID Section - Fixed at Bottom */}
-      <div className="mod-preview-sha">
-        <div className="mod-preview-sha-content">
-          <Text type="secondary" className="mod-preview-sha-label">
+      <div className="mod-preview-id">
+        <div className="mod-preview-id-content">
+          <Text type="secondary" className="mod-preview-id-label">
             Mod ID:
           </Text>
           <Text
-            className="mod-preview-sha-value"
+            className="mod-preview-id-value"
             onClick={handleCopyId}
             title={t("mods.preview.clickCopyId")}
           >
@@ -200,7 +200,7 @@ export const ModPreviewPanel: React.FC = () => {
             icon={<CopyOutlined />}
             onClick={handleCopyId}
             title={t("mods.preview.copyIdTooltip")}
-            className="mod-preview-sha-button"
+            className="mod-preview-id-button"
           />
         </div>
       </div>

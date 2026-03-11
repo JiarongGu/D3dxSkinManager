@@ -31,9 +31,9 @@ public class ModFacade
     private readonly IModRepository _repository;  // Interface - mockable
     private readonly IProfileEventBus _eventBus;  // Interface - mockable
 
-    public async Task<Mod> GetModAsync(string sha)
+    public async Task<Mod> GetModAsync(string id)
     {
-        var mod = await _repository.GetByIdAsync(sha);
+        var mod = await _repository.GetByIdAsync(id);
         if (mod == null) throw new NotFoundException();
         return mod;
     }

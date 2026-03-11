@@ -57,7 +57,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     private readonly IWorkflowConcurrencyManager _concurrencyManager;
     private readonly ICategoryService _categoryService;
 
-    // Track cancellation tokens for ongoing operations (compression, SHA calculation)
+    // Track cancellation tokens for ongoing operations (compression, etc.)
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancellationTokens = new();
 
     public string WorkflowType => "MOD_IMPORT";
@@ -295,7 +295,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         _logger.Info($"Deleting workflow {workflowId}...");
 
-        // Cancel any ongoing operations (compression, SHA calculation)
+        // Cancel any ongoing operations (compression, etc.)
         if (_cancellationTokens.TryGetValue(workflowId, out var cts))
         {
             _logger.Info($"Cancelling ongoing operations for workflow {workflowId}");
@@ -827,7 +827,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         try
         {
             // Compress with real-time progress reporting
-            // Compression takes 0-90%, SHA calculation takes 90-100%
+            // Compression takes 0-100% (no SHA calculation needed with GUID-based IDs)
             var lastReportedProgress = 0;
             var lastEventTime = DateTime.MinValue;
             var eventThrottle = TimeSpan.FromMilliseconds(500); // Throttle events to max 2/sec (reduced from 10/sec)
@@ -890,7 +890,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
             _logger.Info($"Created temp archive: {tempPath}");
 
-            // Update progress to 90% (compression complete, starting SHA calculation)
+            // Update progress to 90% (compression complete)
             // Note: TempArchivePath was already set BEFORE compression started (line 823)
             // to prevent race conditions with progress callback updates
             context.Progress = 90;
@@ -1038,7 +1038,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         }
 
         // Update context
-        context.ImportedModSha = modInfo.Id;
+        context.ImportedModId = modInfo.Id;
         context.Step = ModImportWorkflowSteps.ImportMod;
         context.Progress = 100; // Import complete
 

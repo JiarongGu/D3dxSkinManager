@@ -5,9 +5,9 @@
 /// </summary>
 public enum CacheCategory
 {
-    Invalid,        // Cache with no matching SHA in database or index
-    RarelyUsed,     // Cache with SHA only in index (not actively loaded)
-    FrequentlyUsed  // Cache with SHA that is actively loaded
+    Invalid,        // Cache with no matching Id in database or index
+    RarelyUsed,     // Cache with Id only in index (not actively loaded)
+    FrequentlyUsed  // Cache with Id that is actively loaded
 }
 
 /// <summary>
@@ -16,7 +16,7 @@ public enum CacheCategory
 public class CacheItem
 {
     public string Path { get; set; } = string.Empty;
-    public string Sha { get; set; } = string.Empty;
+    public string Id { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
     public CacheCategory Category { get; set; }
     public string LastModified { get; set; } = string.Empty;

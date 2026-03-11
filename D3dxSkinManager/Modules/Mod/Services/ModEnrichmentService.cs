@@ -95,7 +95,7 @@ public class ModEnrichmentService : IModEnrichmentService
             mod.HasPreviewFolder = modsWithPreviews.Contains(mod.Id);
 
             // Populate file paths using proper path resolution
-            // GetCachePath handles both active ({SHA}) and disabled (DISABLED-{SHA}) cache directories
+            // GetCachePath handles both active ({ID}) and disabled (DISABLED-{ID}) cache directories
             if (mod.HasCache)
             {
                 mod.CachePath = _cacheService.GetCachePath(mod.Id);

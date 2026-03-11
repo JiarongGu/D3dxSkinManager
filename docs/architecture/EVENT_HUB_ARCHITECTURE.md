@@ -411,8 +411,8 @@ public class MyService
 
     private async Task OnModLoaded(EventMessage e)
     {
-        var sha = e.Payload?.GetProperty("Sha").GetString();
-        Console.WriteLine($"Mod loaded: {sha}");
+        var id = e.Payload?.GetProperty("Sha").GetString();
+        Console.WriteLine($"Mod loaded: {id}");
     }
 
     private async Task OnAnyModEvent(EventMessage e)
@@ -446,7 +446,7 @@ public class ModFacade
 {
     private readonly IEventBus _eventBus;
 
-    public async Task LoadModAsync(string sha, string profileId)
+    public async Task LoadModAsync(string id, string profileId)
     {
         // Load the mod...
 
@@ -454,12 +454,12 @@ public class ModFacade
         await _eventBus.EmitAsync(
             module: ModuleNames.MOD,
             type: ModEvents.LOADED,
-            payload: new { Sha = sha, ProfileId = profileId },
+            payload: new { Id = id, ProfileId = profileId },
             profileId: profileId  // Profile scope
         );
     }
 
-    public async Task DeleteModAsync(string sha, string profileId)
+    public async Task DeleteModAsync(string id, string profileId)
     {
         // Delete the mod...
 
@@ -467,7 +467,7 @@ public class ModFacade
         await _eventBus.EmitAsync(
             module: ModuleNames.MOD,
             type: ModEvents.DELETED,
-            payload: new { Sha = sha },
+            payload: new { Id = id },
             profileId: profileId  // Profile scope
         );
     }
@@ -660,7 +660,7 @@ using D3dxSkinManager.Modules.Mod;
 await eventBus.EmitAsync(
     ModuleNames.MOD,
     ModEvents.LOADED,
-    new { Sha = sha },
+    new { Id = id },
     profileId: profileId  // Explicitly set profile scope
 );
 
@@ -668,7 +668,7 @@ await eventBus.EmitAsync(
 await eventBus.EmitAsync(
     ModuleNames.MOD,
     ModEvents.LOADED,
-    new { Sha = sha }
+    new { Id = id }
     // profileId missing - event appears global
 );
 ```

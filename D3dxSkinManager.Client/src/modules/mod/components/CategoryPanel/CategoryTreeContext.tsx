@@ -106,8 +106,8 @@ interface CategoryTreeContextValue {
     dropType: 'node' | 'gap',
     gapSide?: 'top' | 'bottom'
   ) => Promise<void>;
-  handleModClassify: (modSha: string, nodeId: string) => Promise<void>;
-  handleBulkModClassify: (modShas: string[], nodeId: string) => Promise<void>;
+  handleModClassify: (modId: string, nodeId: string) => Promise<void>;
+  handleBulkModClassify: (modIds: string[], nodeId: string) => Promise<void>;
 
   // Tree handlers
   handleToggleExpand: (nodeId: string) => void;

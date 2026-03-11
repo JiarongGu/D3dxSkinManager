@@ -266,7 +266,7 @@ export const annotations = {
       level: 2 as TooltipLevel,
       title: 'Categorize this mod with tags (e.g., "HD", "NSFW", "Recolor")',
     },
-    sha: {
+    id: {
       level: 3 as TooltipLevel,
       title: "Mod ID - Cannot be edited (read-only)",
     },

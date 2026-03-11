@@ -203,23 +203,23 @@
   color: var(--color-text);
 }
 
-/* SHA Section - Fixed at Bottom */
-.mod-preview-sha {
+/* ID Section - Fixed at Bottom */
+.mod-preview-id {
   padding: 4px 16px;
 }
 
-.mod-preview-sha-content {
+.mod-preview-id-content {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.mod-preview-sha-label {
+.mod-preview-id-label {
   font-size: 11px;
   white-space: nowrap;
 }
 
-.mod-preview-sha-value {
+.mod-preview-id-value {
   flex: 1;
   font-size: 11px;
   font-family: monospace;
@@ -229,7 +229,7 @@
   color: var(--color-primary);
 }
 
-.mod-preview-sha-button {
+.mod-preview-id-button {
   flex-shrink: 0;
 }
 

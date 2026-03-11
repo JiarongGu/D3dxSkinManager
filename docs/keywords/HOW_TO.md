@@ -290,7 +290,7 @@ public class ModFacade : BaseFacade, IModFacade
 public interface IModRepository
 {
     Task<ModInfo[]> GetAllAsync();
-    Task<ModInfo?> GetByIdAsync(string sha);
+    Task<ModInfo?> GetByIdAsync(string id);
     Task InsertAsync(ModInfo mod);
 }
 ```
@@ -685,7 +685,7 @@ dotnet test --filter "FullyQualifiedName~GetAllModsAsync"
 
 **"Why are archives stored without extensions?"**
 - **Reason:** Matches Python version format
-- **Location:** `data/profiles/*/mods/{SHA}` (no extension)
+- **Location:** `data/profiles/*/mods/{ID}` (no extension)
 - **Detection:** SharpCompress auto-detects format from file header
 - **Update:** 2026-02-20
 - **Files:** `ModFileService.cs`, `MigrationStep5MigrateModArchives.cs`
@@ -827,8 +827,8 @@ gh pr create --title "PR Title" --body "Summary"
 | **Database schema?** | `Modules/Mods/Services/ModRepository.cs:49` |
 | **Data directory?** | `data/` (created at runtime) |
 | **Config files?** | `data/settings/`, `data/profiles/*/` |
-| **Mod archives?** | `data/profiles/*/mods/{SHA}` (no extension) |
-| **Extracted mods?** | `data/profiles/*/work/Mods/{SHA}/` |
+| **Mod archives?** | `data/profiles/*/mods/{ID}` (no extension) |
+| **Extracted mods?** | `data/profiles/*/work/Mods/{ID}/` |
 | **Tests?** | `D3dxSkinManager.Tests/` |
 | **Plugins?** | `Plugins/` (external), `Modules/Plugins/` (infrastructure) |
 

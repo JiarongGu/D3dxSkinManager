@@ -96,12 +96,12 @@ using D3dxSkinManager.Modules.Core.Exceptions;
 
 throw new OperationException(
     "MOD_DELETE_FAILED",
-    new Dictionary<string, string> { { "name", modName }, { "sha", sha } },
+    new Dictionary<string, string> { { "name", modName }, { "id", id } },
     "Failed to delete mod"  // Optional fallback message
 );
 
 // ✅ BaseFacade automatically handles OperationException
-// IPC response: { code: "MOD_DELETE_FAILED", parameters: { name: "MyMod", sha: "abc..." } }
+// IPC response: { code: "MOD_DELETE_FAILED", parameters: { name: "MyMod", id: "abc..." } }
 ```
 
 **Frontend: handleError() and translateErrorMessage()**
@@ -109,7 +109,7 @@ throw new OperationException(
 // ✅ For IPC errors (real-time operations)
 import { handleError } from '@/shared/utils/errorHandler';
 try {
-  await modService.deleteMod(profileId, sha);
+  await modService.deleteMod(profileId, id);
 } catch (error: unknown) {
   handleError(error);  // Parses error, shows i18n notification
 }
@@ -291,8 +291,8 @@ if (!data) return null;
 ```csharp
 // 1. Interface
 public interface IModLifecycleService {
-    Task<ModLoadResult> LoadAsync(string sha);
-    Task<bool> UnloadAsync(string sha);
+    Task<ModLoadResult> LoadAsync(string id);
+    Task<bool> UnloadAsync(string id);
 }
 
 // 2. Implementation with DI + Event Emission
@@ -316,20 +316,20 @@ public class ModLifecycleService : IModLifecycleService {
         _logger = logger;
     }
 
-    public async Task<ModLoadResult> LoadAsync(string sha) {
+    public async Task<ModLoadResult> LoadAsync(string id) {
         // Business logic: category conflict resolution
-        var mod = await _repository.GetByIdAsync(sha);
+        var mod = await _repository.GetByIdAsync(id);
 
         // Unload conflicting mods in same category
         await HandleCategoryConflicts(mod);
 
         // Coordinate Layer 1 services (pure operations)
-        var success = await _cacheService.EnableCacheAsync(sha)
-                   || await _archiveService.ExtractAsync(sha);
+        var success = await _cacheService.EnableCacheAsync(id)
+                   || await _archiveService.ExtractAsync(id);
 
         if (success) {
             // ✅ Service emits event after successful operation
-            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Sha = sha });
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { Id = id });
         }
 
         return new ModLoadResult { Success = success };
@@ -368,9 +368,9 @@ public class ModFacade {
     private readonly IModRepository _repository;
     private readonly IProfileEventBus _eventBus;
 
-    public async Task<bool> LoadModAsync(string sha) {
+    public async Task<bool> LoadModAsync(string id) {
         // ❌ Business logic in facade
-        var mod = await _repository.GetByIdAsync(sha);
+        var mod = await _repository.GetByIdAsync(id);
         if (mod.Category != null) {
             var conflicting = await _repository.GetByCategoryAsync(mod.Category);
             // Unload conflicting mods...
@@ -396,9 +396,9 @@ public class ModFacade : BaseFacade, IModFacade {
 
     // IPC handler method (private, called by IPC routing)
     private async Task<ModLoadResult> LoadModAsync(IpcRequest request) {
-        var sha = _payloadHelper.GetRequiredValue<string>(request.Payload, "sha");
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         // ✅ Just delegate - service handles everything
-        return await _lifecycleService.LoadAsync(sha);
+        return await _lifecycleService.LoadAsync(id);
     }
 }
 ```
@@ -455,9 +455,9 @@ public class ModFacade {
     private readonly IModFileService _fileService;
     private readonly IProfileEventBus _eventBus;  // ❌ NO!
 
-    public async Task<bool> LoadModAsync(string sha) {
-        await _fileService.LoadAsync(sha);
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { sha });  // ❌ NO!
+    public async Task<bool> LoadModAsync(string id) {
+        await _fileService.LoadAsync(id);
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { id });  // ❌ NO!
         return true;
     }
 }
@@ -466,9 +466,9 @@ public class ModFacade {
 public class ModFileService {
     private readonly IProfileEventBus _eventBus;  // ✅ YES!
 
-    public async Task<bool> LoadAsync(string sha) {
+    public async Task<bool> LoadAsync(string id) {
         // Business logic here...
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { sha });  // ✅ YES!
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADED, new { id });  // ✅ YES!
         return true;
     }
 }
@@ -477,8 +477,8 @@ public class ModFileService {
 public class ModFacade {
     private readonly IModFileService _fileService;  // NO EventBus!
 
-    public async Task<bool> LoadModAsync(string sha) {
-        return await _fileService.LoadAsync(sha);  // Just delegate
+    public async Task<bool> LoadModAsync(string id) {
+        return await _fileService.LoadAsync(id);  // Just delegate
     }
 }
 ```
@@ -561,14 +561,14 @@ useEffect(() => {
 await _eventBus.EmitAsync(
     ModuleNames.MOD,      // Module
     ModEvents.LOADED,     // Type (NOT "MOD_LOADED")
-    new { sha }
+    new { id }
 );
 
 // Frontend
 eventBus.subscribe(
   Module.MOD,
   ModEventType.LOADED,
-  (event) => logger.info(event.payload.sha)
+  (event) => logger.info(event.payload.id)
 );
 ```
 
@@ -598,8 +598,8 @@ import { memoizeDebounce } from '@/shared/utils/memoizeDebounce';
 
 // ❌ WRONG: Regular debounce loses parameters
 const handleEvent = useCallback(
-  debounce(async (sha: string) => {
-    await refreshMod(sha);  // Only last sha is processed!
+  debounce(async (id: string) => {
+    await refreshMod(id);  // Only last id is processed!
   }, 20),
   []
 );
@@ -609,10 +609,10 @@ const handleEvent = useCallback(
 // ✅ CORRECT: memoizeDebounce creates separate timer per parameter
 const handleEvent = useCallback(
   memoizeDebounce(
-    async (sha: string) => {
-      await refreshMod(sha);
+    async (id: string) => {
+      await refreshMod(id);
     },
-    (sha) => sha,  // Cache key resolver (required, second param)
+    ( id) => id,  // Cache key resolver (required, second param)
     20
   ),
   []
@@ -625,7 +625,7 @@ const handleEvent = useCallback(
 
 | Scenario | Use | Reason |
 |----------|-----|--------|
-| **Different entities** (different mod SHAs) | `memoizeDebounce` | Each entity needs independent timer |
+| **Different entities** (different mod IDs) | `memoizeDebounce` | Each entity needs independent timer |
 | **Same operation batching** (save panel sizes) | Regular `debounce` | Batch all changes into one save |
 | **Multiple params to same entity** (save tag color) | Regular `debounce` | Last value wins (desired behavior) |
 
@@ -634,12 +634,12 @@ const handleEvent = useCallback(
 // Per-mod refresh - each mod gets own timer
 const handleModLoadStateChange = useCallback(
   memoizeDebounce(
-    async (sha: string) => {
+    async (id: string) => {
       if (selectedProfileIdRef.current) {
-        await modOps.refreshMod(selectedProfileIdRef.current, sha);
+        await modOps.refreshMod(selectedProfileIdRef.current, id);
       }
     },
-    (sha) => sha,  // Cache key resolver (each SHA has independent timer)
+    ( id) => id,  // Cache key resolver (each ID has independent timer)
     20
   ),
   []
@@ -647,9 +647,9 @@ const handleModLoadStateChange = useCallback(
 
 // Event subscriptions
 eventBus.subscribe(Module.MOD, ModEventType.LOADED, (event) => {
-  const sha = event.payload?.sha;
-  if (sha) {
-    handleModLoadStateChange(sha);  // Won't lose parameters
+  const id = event.payload?.id;
+  if (id) {
+    handleModLoadStateChange(id);  // Won't lose parameters
   }
 });
 ```
@@ -1062,7 +1062,7 @@ cd <frontend> && npm run build       # Frontend
 - **Per-Resource Locking**: Use operation queue pattern (see ModOperationQueue) for file operations
 - **Retry Logic**: Implement exponential backoff for transient IOException (file locks)
 - **Non-Blocking UI**: Queue operations, return immediately, don't disable UI
-- Example: Mod load/unload uses semaphores per SHA to prevent concurrent operations on same mod
+- Example: Mod load/unload uses semaphores per ID to prevent concurrent operations on same mod
 
 ### 5. UI Consistency
 - Use BEM naming for component CSS
@@ -1092,7 +1092,7 @@ Spreadsheet-style batch metadata editor using AG Grid with VSCode-style find/rep
 **BatchEditGrid** (`BatchEditGrid.tsx`)
 - AG Grid with custom theming using `themeQuartz.withParams()`
 - Custom cell renderers for inline text highlighting
-- Uses `getRowId` with SHA to track mods through sorting
+- Uses `getRowId` with ID to track mods through sorting
 - Row height: 39px, Header height: 39px
 
 **FindReplacePanel** (`FindReplacePanel.tsx`)

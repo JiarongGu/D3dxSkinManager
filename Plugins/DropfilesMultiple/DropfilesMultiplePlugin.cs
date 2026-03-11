@@ -99,7 +99,7 @@ public class DropfilesMultiplePlugin : IMessageHandlerPlugin
 
             // TODO: Process preview files
             // - Copy preview images to preview directory
-            // - Link to corresponding mods by SHA
+            // - Link to corresponding mods by ID
 
             return MessageResponse.CreateSuccess(request.Id, new
             {

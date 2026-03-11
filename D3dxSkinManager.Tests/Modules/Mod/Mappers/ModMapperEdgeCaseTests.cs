@@ -133,7 +133,7 @@ public class ModMapperEdgeCaseTests
         var entity = new ModEntity
         {
             Id = "test",
-            Name = "测试模组 日本語 한국어 العربية",
+            Name = "测试模组 日本�?한국�?العربية",
             Category = "test"
         };
 
@@ -141,7 +141,7 @@ public class ModMapperEdgeCaseTests
         var domain = ModMapper.ToDomain(entity);
 
         // Assert
-        domain.Name.Should().Be("测试模组 日本語 한국어 العربية");
+        domain.Name.Should().Be("测试模组 日本�?한국�?العربية");
     }
 
     [Fact]
@@ -255,7 +255,7 @@ public class ModMapperEdgeCaseTests
         // Arrange
         var domain = new ModInfo
         {
-            Id = new string('A', 40), // SHA-1 length
+            Id = new string('A', 40), // id-1 length
             Name = new string('N', 5000),
             Description = new string('D', 10000),
             Author = new string('A', 1000),
@@ -464,7 +464,7 @@ public class ModMapperEdgeCaseTests
         var entities = Enumerable.Range(0, 10000)
             .Select(i => new ModEntity
             {
-                Id = $"sha{i}",
+                Id = $"id{i}",
                 Category = $"cat{i % 10}",
                 Name = $"Mod {i}"
             })

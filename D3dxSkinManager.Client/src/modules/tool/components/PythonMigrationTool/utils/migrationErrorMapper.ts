@@ -40,7 +40,7 @@ export const getMessageI18nKey = (messageCode?: string): string | null => {
 
 /**
  * Gets translated mod name for the error
- * If modName exists, use it. Otherwise, generate from modSha if available
+ * If modName exists, use it. Otherwise, generate from modId if available
  */
 export const getTranslatedModName = (
   error: MigrationError,
@@ -50,9 +50,9 @@ export const getTranslatedModName = (
     return error.modName;
   }
 
-  if (error.modSha) {
+  if (error.modId) {
     // Use translation with parameter
-    return t('migration.error.previewFor', { sha: error.modSha });
+    return t('migration.error.previewFor', { id: error.modId });
   }
 
   return t('migration.progress.generalErrors');

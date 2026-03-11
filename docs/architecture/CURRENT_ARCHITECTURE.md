@@ -228,9 +228,9 @@ Plugins can:
 
 **Loading a Mod:**
 ```
-User Click → modService.loadMod(sha)
+User Click → modService.loadMod(id)
     ↓
-{ module: 'MOD', type: 'LOAD', payload: { sha } }
+{ module: 'MOD', type: 'LOAD', payload: { id } }
     ↓
 IPC → AppFacade → ModFacade → ModService → ModRepository
     ↓

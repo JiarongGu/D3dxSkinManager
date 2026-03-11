@@ -261,7 +261,7 @@ public class ImageService : IImageService
     }
 
     /// <summary>
-    /// Scan cache directory for images and import them as previews with SHA-based deduplication
+    /// Scan cache directory for images and import them as previews with hash-based deduplication
     /// This prevents duplicate images from being added to the preview folder
     /// If the directory only contains a single subfolder, automatically descends into it
     /// Returns the count of new images imported
@@ -282,7 +282,7 @@ public class ImageService : IImageService
 
         var modPreviewFolder = _profilePaths.GetPreviewDirectoryPath(id);
 
-        // Get existing preview images and calculate their SHA hashes for deduplication
+        // Get existing preview images and calculate their hashes for deduplication
         var existingImageHashes = new HashSet<string>();
         if (Directory.Exists(modPreviewFolder))
         {
@@ -327,7 +327,7 @@ public class ImageService : IImageService
 
         int nextIndex = existingPreviewCount + 1;
 
-        // Import images that don't already exist (based on SHA hash)
+        // Import images that don't already exist (based on hash)
         foreach (var sourcePath in cacheImages)
         {
             try

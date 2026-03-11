@@ -88,35 +88,35 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
         // Process direct files: preview/ABC123.png -> previews/ABC123/preview1.png
         foreach (var sourceFile in directFiles)
         {
-            var sha = Path.GetFileNameWithoutExtension(sourceFile);
+            var id = Path.GetFileNameWithoutExtension(sourceFile);
             var ext = Path.GetExtension(sourceFile);
-            var destFile = Path.Combine(destDir, sha, $"preview1{ext}");
+            var destFile = Path.Combine(destDir, id, $"preview1{ext}");
 
-            if (await CopyPreviewFileAsync(sourceFile, destFile, sha, logPath, context))
+            if (await CopyPreviewFileAsync(sourceFile, destFile, id, logPath, context))
             {
                 copied++;
-                ReportPreviewProgress(progress, sha, copied, totalFiles);
+                ReportPreviewProgress(progress, id, copied, totalFiles);
             }
         }
 
         // Process subfolder files: preview/ABC123/preview1.png -> previews/ABC123/preview1.png
         foreach (var sourceFile in subfolderFiles)
         {
-            var sha = Path.GetFileName(Path.GetDirectoryName(sourceFile)) ?? string.Empty;
+            var id = Path.GetFileName(Path.GetDirectoryName(sourceFile)) ?? string.Empty;
             var fileName = Path.GetFileName(sourceFile);
-            var destFile = Path.Combine(destDir, sha, fileName);
+            var destFile = Path.Combine(destDir, id, fileName);
 
-            if (await CopyPreviewFileAsync(sourceFile, destFile, sha, logPath, context))
+            if (await CopyPreviewFileAsync(sourceFile, destFile, id, logPath, context))
             {
                 copied++;
-                ReportPreviewProgress(progress, sha, copied, totalFiles);
+                ReportPreviewProgress(progress, id, copied, totalFiles);
             }
         }
 
         return copied;
     }
 
-    private async Task<bool> CopyPreviewFileAsync(string sourceFile, string destFile, string sha, string logPath, MigrationContext context)
+    private async Task<bool> CopyPreviewFileAsync(string sourceFile, string destFile, string id, string logPath, MigrationContext context)
     {
         try
         {
@@ -130,29 +130,29 @@ public class MigrationStep6MigrateModPreviews : IMigrationStep
         }
         catch (Exception ex)
         {
-            await LogAsync(logPath, $"ERROR copying preview for {sha}: {ex.Message}").ConfigureAwait(false);
+            await LogAsync(logPath, $"ERROR copying preview for {id}: {ex.Message}").ConfigureAwait(false);
 
             // Add detailed error information
             context.Result.DetailedErrors.Add(new MigrationError
             {
                 Message = ex.Message,
                 MessageCode = MigrationErrorCodes.Messages.PREVIEW_COPY_FAILED,
-                ModSha = sha,
+                ModId = id,
                 StepCode = MigrationErrorCodes.Steps.MIGRATE_MOD_PREVIEWS,
                 CategoryCode = MigrationErrorCodes.Categories.PREVIEW_MIGRATION,
                 Timestamp = DateTime.UtcNow,
-                Parameters = new Dictionary<string, string> { { "sha", sha } }
+                Parameters = new Dictionary<string, string> { { "id", id } }
             });
         }
         return false;
     }
 
-    private void ReportPreviewProgress(IProgress<MigrationProgress>? progress, string sha, int copied, int total)
+    private void ReportPreviewProgress(IProgress<MigrationProgress>? progress, string id, int copied, int total)
     {
         progress?.Report(new MigrationProgress
         {
             Stage = MigrationStage.CopyingPreviews,
-            CurrentTask = $"Copying preview for {sha}...",
+            CurrentTask = $"Copying preview for {id}...",
             ProcessedItems = copied,
             TotalItems = total,
             PercentComplete = 60 + (20 * copied / Math.Max(1, total))

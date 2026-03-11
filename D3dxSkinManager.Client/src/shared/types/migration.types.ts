@@ -84,7 +84,7 @@ export interface MigrationError {
   message: string;
   messageCode?: string;
   modName?: string;
-  modSha?: string;
+  modId?: string;
   stepCode?: string;
   categoryCode?: string;
   timestamp: string;
