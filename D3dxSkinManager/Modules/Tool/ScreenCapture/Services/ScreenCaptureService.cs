@@ -171,14 +171,25 @@ public class ScreenCaptureService : IScreenCaptureService
                         {
                             _logger.Info($"[ScreenCaptureService] Overlay bounds changed: ({newX}, {newY}) {newWidth}x{newHeight}");
                             _logger.Info($"[ScreenCaptureService] Emitting event: {ModuleNames.TOOL}/{ToolEvents.CAPTURE_BOUNDS_CHANGED}");
-                            eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.CAPTURE_BOUNDS_CHANGED, new
+                            // Fire and forget - don't block the UI thread with .Wait()
+                            _ = Task.Run(async () =>
                             {
-                                x = newX,
-                                y = newY,
-                                width = newWidth,
-                                height = newHeight
-                            }).Wait();
-                            _logger.Info("[ScreenCaptureService] Event emitted successfully");
+                                try
+                                {
+                                    await eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.CAPTURE_BOUNDS_CHANGED, new
+                                    {
+                                        x = newX,
+                                        y = newY,
+                                        width = newWidth,
+                                        height = newHeight
+                                    }).ConfigureAwait(false);
+                                    _logger.Info("[ScreenCaptureService] Event emitted successfully");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.Error($"[ScreenCaptureService] Failed to emit bounds changed event: {ex.Message}");
+                                }
+                            });
                         });
                     };
 
@@ -244,8 +255,8 @@ public class ScreenCaptureService : IScreenCaptureService
                 Application.SetHighDpiMode(HighDpiMode.SystemAware);
                 _logger.Info("[ScreenCaptureService] Creating capture window...");
 
-                // Call async method synchronously on STA thread
-                var form = CreateCaptureWindowAsync().GetAwaiter().GetResult();
+                // Call async method - safe because SecondaryWindowService uses ConfigureAwait(false) consistently
+                var form = CreateCaptureWindowAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 
                 if (form == null)
                 {
@@ -297,7 +308,18 @@ public class ScreenCaptureService : IScreenCaptureService
                     if (IsBorderOverlayVisible)
                     {
                         _logger.Info("[ScreenCaptureService] Closing capture overlay with control panel");
-                        HideBorderOverlayAsync().GetAwaiter().GetResult();
+                        // Fire and forget - FormClosing is synchronous, don't block with GetAwaiter().GetResult()
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await HideBorderOverlayAsync().ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Error($"[ScreenCaptureService] Failed to close capture overlay async: {ex.Message}");
+                            }
+                        });
                     }
                 }
                 catch (Exception ex)

@@ -1,9 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Space, Tag, Progress, Button } from "antd";
 import { LoadingOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useModsStore } from "../../../mod/store/modsStore";
 import "./AppStatusBar.css";
+
+// Global app metadata injected by backend
+interface AppMetadata {
+  name: string;
+  version: string;
+}
+
+declare global {
+  interface Window {
+    __APP_METADATA__?: AppMetadata;
+  }
+}
 
 export type StatusType = "normal" | "warning" | "error";
 
@@ -26,6 +38,7 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
   const [statusType, setStatusType] = useState<StatusType>("normal");
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [progressVisible, setProgressVisible] = useState<boolean>(false);
+  const [appVersion, setAppVersion] = useState<string>("1.0.0");
 
   // Get mod statistics from store
   // Note: statistics contains GLOBAL counts (all mods across all categories)
@@ -34,6 +47,14 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
 
   const modsLoaded = statistics?.loadedMods ?? 0;
   const modsTotal = statistics?.totalMods ?? 0;
+
+  // Get app version from injected global variable
+  useEffect(() => {
+    const metadata = window.__APP_METADATA__;
+    if (metadata?.version) {
+      setAppVersion(metadata.version);
+    }
+  }, []);
 
   // Get CSS class for status message based on type
   const getStatusClass = (): string => {
@@ -104,7 +125,7 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
             {t("statusBar.modsLoaded", { count: modsLoaded, total: modsTotal })}
           </Tag>
 
-          <span className="app-status-bar-version">D3dxSkinManager v1.0.0</span>
+          <span className="app-status-bar-version">D3dxSkinManager v{appVersion}</span>
         </Space>
       </div>
     </div>

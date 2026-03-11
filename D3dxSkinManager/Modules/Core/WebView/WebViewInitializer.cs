@@ -103,6 +103,9 @@ public class WebViewInitializer
         // Register custom scheme handler
         RegisterCustomSchemeHandler();
 
+        // Inject application metadata (version, etc.)
+        InjectAppMetadata();
+
         Console.WriteLine("[WebView2] Initialization completed");
     }
 
@@ -411,6 +414,36 @@ public class WebViewInitializer
         var devUrl = "http://localhost:3000";
         Console.WriteLine($"[WebView2] Development mode - navigating to {devUrl}");
         _webView.CoreWebView2.Navigate(devUrl);
+    }
+
+    /// <summary>
+    /// Inject application metadata (version, name) as global JavaScript variables
+    /// </summary>
+    private void InjectAppMetadata()
+    {
+        var assembly = global::System.Reflection.Assembly.GetExecutingAssembly();
+        var version = assembly.GetName().Version;
+        var appName = assembly.GetName().Name;
+
+        // Use simple version (major.minor) from AssemblyVersion, e.g., "1.1"
+        // Avoid InformationalVersion as it may include git commit hash from build process
+        var versionString = version != null ? $"{version.Major}.{version.Minor}" : "1.0";
+
+        var metadataScript = $@"
+(function() {{
+    // Inject app metadata as global variable
+    window.__APP_METADATA__ = {{
+        name: '{appName}',
+        version: '{versionString}'
+    }};
+    console.log('[App] Metadata injected:', window.__APP_METADATA__);
+}})();
+";
+
+        // Add script to execute on every page navigation
+        _webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(metadataScript);
+
+        Console.WriteLine($"[WebView2] App metadata injected: {appName} v{versionString}");
     }
 
     private void NavigateToProduction()

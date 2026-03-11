@@ -747,7 +747,7 @@ public class ImageService : IImageService
             if (_fileHelper.FileExists(currentPath))
             {
                 _fileHelper.MoveFile(currentPath, newPath, overwrite: false);
-                _logger.Info($"Renumbered: {Path.GetFileName(currentPath)} �?{newFileName}", "ImageService");
+                _logger.Info($"Renumbered: {Path.GetFileName(currentPath)} -> {newFileName}", "ImageService");
 
                 // Invalidate both old and new paths in cache
                 pathsToInvalidate.Add(allPreviews[i]);

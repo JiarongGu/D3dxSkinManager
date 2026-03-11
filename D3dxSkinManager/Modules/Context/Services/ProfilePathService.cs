@@ -113,9 +113,11 @@ public class ProfilePathService : IProfilePathService
 
                 try
                 {
-                    // Synchronously load config on first access
-                    var config = _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId)
-                        .GetAwaiter().GetResult();
+                    // Use Task.Run to avoid blocking IPC thread during profile switching
+                    var config = Task.Run(async () =>
+                        await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId)
+                            .ConfigureAwait(false)
+                    ).GetAwaiter().GetResult();
 
                     string workDirectory;
                     if (config?.ModWork?.IsExternal() == true && !string.IsNullOrEmpty(config.ModWork.Directory))

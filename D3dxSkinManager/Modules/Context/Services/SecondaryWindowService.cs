@@ -253,9 +253,11 @@ public class SecondaryWindowService : ISecondaryWindowService
             {
                 var form = entry.Form;
                 // Need to invoke on the form's thread to close it
+                // Use BeginInvoke (non-blocking) instead of Invoke (blocking) to prevent deadlock
+                // during profile switching when called from IPC thread
                 if (form.InvokeRequired)
                 {
-                    form.Invoke(() => form.Close());
+                    form.BeginInvoke(() => form.Close());
                 }
                 else
                 {

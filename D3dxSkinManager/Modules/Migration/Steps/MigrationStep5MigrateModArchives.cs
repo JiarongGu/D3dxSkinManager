@@ -99,7 +99,7 @@ public class MigrationStep5MigrateModArchives : IMigrationStep
                     if (categoryInfo != null)
                     {
                         categoryId = categoryInfo.Id;
-                        _logger.Verbose($"Mapped '{modEntry.Object}' �?ID: {categoryId}", "Migration");
+                        _logger.Verbose($"Mapped '{modEntry.Object}' -> ID: {categoryId}", "Migration");
                     }
                     else
                     {

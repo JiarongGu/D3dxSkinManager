@@ -247,7 +247,7 @@ export async function reloadCurrentPreview(profileId: string): Promise<void> {
 
 /**
  * Load a mod in-game
- * Backend fires LOADED event �?ModProvider updates single mod optimistically + refreshes statistics
+ * Backend fires LOADED event -> ModProvider updates single mod optimistically + refreshes statistics
  */
 export async function loadMod(profileId: string, id: string): Promise<void> {
   try {
@@ -255,7 +255,7 @@ export async function loadMod(profileId: string, id: string): Promise<void> {
     await modService.loadMod(profileId, id);
     notification.success(i18n.t('mods.operations.loadSuccess'));
 
-    // Backend fires LOADED event �?ModProvider updates mod.isLoaded and refreshes statistics
+    // Backend fires LOADED event -> ModProvider updates mod.isLoaded and refreshes statistics
     // No full list refresh needed - optimistic update is instant and smooth
   } catch (error: unknown) {
     // Handle error with user-friendly messages
@@ -266,7 +266,7 @@ export async function loadMod(profileId: string, id: string): Promise<void> {
 
 /**
  * Unload a mod from game
- * Backend fires UNLOADED event �?ModProvider updates single mod optimistically + refreshes statistics
+ * Backend fires UNLOADED event -> ModProvider updates single mod optimistically + refreshes statistics
  */
 export async function unloadMod(profileId: string, id: string): Promise<void> {
   try {
@@ -274,7 +274,7 @@ export async function unloadMod(profileId: string, id: string): Promise<void> {
     await modService.unloadMod(profileId, id);
     notification.success(i18n.t('mods.operations.unloadSuccess'));
 
-    // Backend fires UNLOADED event �?ModProvider updates mod.isLoaded and refreshes statistics
+    // Backend fires UNLOADED event -> ModProvider updates mod.isLoaded and refreshes statistics
     // No full list refresh needed - optimistic update is instant and smooth
   } catch (error: unknown) {
     // Handle error with user-friendly messages

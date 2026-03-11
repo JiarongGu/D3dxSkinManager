@@ -263,7 +263,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
             <div className="batch-edit-toolbar-info">
               <Text type="secondary" style={{ fontSize: '12px' }}>
                 {t('mods.batchEdit.toolbar.modsCount', { count: editedMods.length })}
-                {hasChanges && ` �?${t('mods.batchEdit.toolbar.modified')}`}
+                {hasChanges && `${t('mods.batchEdit.toolbar.modified')}`}
               </Text>
             </div>
           </div>

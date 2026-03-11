@@ -146,8 +146,11 @@ public class ProfileServiceRouter : IDisposable
         var services = new ServiceCollection();
 
         // Get profile from global services
+        // Use Task.Run to avoid blocking IPC thread with async operation
         var profileService = _globalServices.GetRequiredService<IProfileService>();
-        var profile = profileService.GetProfileByIdAsync(profileId).GetAwaiter().GetResult();
+        var profile = Task.Run(async () =>
+            await profileService.GetProfileByIdAsync(profileId).ConfigureAwait(false)
+        ).GetAwaiter().GetResult();
 
         if (profile == null)
             throw new InvalidOperationException($"Profile not found: {profileId}");
@@ -181,8 +184,10 @@ public class ProfileServiceRouter : IDisposable
         {
             try
             {
-                // Use Task.Run to avoid async deadlock from GetAwaiter().GetResult()
-                migrationService.RunStartupMigrationsAsync().GetAwaiter().GetResult();
+                // Use Task.Run to avoid blocking IPC thread - offload async work to thread pool
+                Task.Run(async () =>
+                    await migrationService.RunStartupMigrationsAsync().ConfigureAwait(false)
+                ).GetAwaiter().GetResult();
                 _logger.Info($"Database migrations completed for profile: {profile.Name}", "ProfileServiceRouter");
             }
             catch (Exception ex)
