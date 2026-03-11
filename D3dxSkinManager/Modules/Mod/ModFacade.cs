@@ -91,7 +91,7 @@ public class ModFacade : BaseFacade, IModFacade
         return request.Type switch
         {
             "GET_ALL" => await GetAllModsAsync(),
-            "GET_BY_SHA" => await GetModByIdAsync(request),
+            "GET_BY_ID" => await GetModByIdAsync(request),
             "LOAD" => await LoadModAsync(request),
             "UNLOAD" => await UnloadModAsync(request),
             "GET_LOADED" => await GetLoadedModIdsAsync(),

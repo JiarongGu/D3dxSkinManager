@@ -1,4 +1,5 @@
 import { notification } from "../../../../shared/utils/notification";
+import { handleError } from "../../../../shared/utils/errorHandler";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Form, Input, Space } from "antd";
@@ -117,9 +118,19 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   const handleSave = async () => {
     if (!mod || !selectedProfileId) return;
 
+    // Validate form fields first
     try {
-      const values = await form.validateFields();
-      setSaving(true);
+      await form.validateFields();
+    } catch (validationError) {
+      // Validation failed - show field validation error
+      notification.error(t("mods.edit.checkRequiredFields"));
+      return;
+    }
+
+    // Form is valid, proceed with save operation
+    setSaving(true);
+    try {
+      const values = form.getFieldsValue();
 
       // Build modData, only including category if it actually changed
       const modData: Partial<ModInfo> = {
@@ -168,7 +179,8 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
       setTagColorsMap(new Map());
       closeEditDialog();
     } catch (error: unknown) {
-      notification.error(t("mods.edit.checkRequiredFields"));
+      // Operation error - use handleError for proper error display
+      handleError(error);
     } finally {
       setSaving(false);
     }

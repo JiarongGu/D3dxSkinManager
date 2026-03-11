@@ -17,7 +17,10 @@ export const BasicInfoSection: React.FC = () => {
       <Form.Item
         label={t('mods.edit.name')}
         name="name"
-        rules={[{ required: true, message: t('mods.edit.nameRequired') }]}
+        rules={[
+          { required: true, message: t('mods.edit.nameRequired') },
+          { whitespace: true, message: t('mods.edit.nameRequired') }
+        ]}
       >
         <Input placeholder={t('mods.edit.namePlaceholder')} />
       </Form.Item>

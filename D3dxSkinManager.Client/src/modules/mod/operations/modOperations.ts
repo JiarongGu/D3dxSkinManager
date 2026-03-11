@@ -71,7 +71,7 @@ export async function refreshMod(profileId: string, id: string): Promise<void> {
 
   try {
     // Fetch fresh enriched mod data from backend
-    const freshMod = await modService.getModBySha(profileId, id);
+    const freshMod = await modService.getModById(profileId, id);
     if (freshMod) {
       // Update the mod in the list with fresh data (and clear loading state)
       updateModLocal(id, { ...freshMod, isLoading: false });
@@ -95,7 +95,7 @@ export async function refreshSelectedMod(profileId: string): Promise<void> {
 
   try {
     // Fetch fresh enriched mod data from backend
-    const freshMod = await modService.getModBySha(profileId, selectedMod.id);
+    const freshMod = await modService.getModById(profileId, selectedMod.id);
     if (freshMod) {
       setSelectedMod(freshMod);
     } else {
