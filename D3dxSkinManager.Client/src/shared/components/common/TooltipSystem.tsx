@@ -336,13 +336,13 @@ export const annotations = {
 export const getAnnotationLevelLabel = (level: AnnotationLevel): string => {
   switch (level) {
     case "all":
-      return "All (ȫ��)";
+      return "All (全部)";
     case "more":
-      return "More (�϶�)";
+      return "More (较多)";
     case "less":
-      return "Less (����)";
+      return "Less (较少)";
     case "off":
-      return "Off (�ر�)";
+      return "Off (关闭)";
     default:
       return "All";
   }

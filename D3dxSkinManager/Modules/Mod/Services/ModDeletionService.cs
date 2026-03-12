@@ -137,14 +137,27 @@ public class ModDeletionService : IModDeletionService
         var cacheDeleted = await _cacheService.DeleteCacheAsync(mod.Id).ConfigureAwait(false);
         if (!cacheDeleted)
         {
-            throw new OperationException(
-                ModErrorCodes.DELETE_CACHE_FAILED,
-                new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
-                $"Failed to delete cache for mod {mod.Id}"
-            );
+            // Verify if cache still exists - if it does, deletion failed (not just "not found")
+            var cachePath = _cacheService.GetCachePath(mod.Id);
+            if (Directory.Exists(cachePath))
+            {
+                // Cache exists but deletion failed - this is a real error
+                throw new OperationException(
+                    ModErrorCodes.DELETE_CACHE_FAILED,
+                    new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
+                    $"Failed to delete cache for mod {mod.Id} - cache still exists at {cachePath}"
+                );
+            }
+            else
+            {
+                // Cache doesn't exist - it was deleted externally or between enrichment and deletion
+                _logger.Debug($"Cache not found or already deleted externally for mod: {mod.Id}", "ModDeletionService");
+            }
         }
-
-        _logger.Info($"Successfully deleted cache for mod: {mod.Id}", "ModDeletionService");
+        else
+        {
+            _logger.Info($"Successfully deleted cache for mod: {mod.Id}", "ModDeletionService");
+        }
     }
 
     /// <summary>
@@ -167,9 +180,20 @@ public class ModDeletionService : IModDeletionService
                 Directory.Delete(previewFolderPath, recursive: true);
                 _logger.Info($"Successfully deleted preview folder for mod: {mod.Id}", "ModDeletionService");
             }
+            else
+            {
+                _logger.Debug($"Preview folder already deleted or not found for mod: {mod.Id}", "ModDeletionService");
+            }
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            // Preview folder not found is normal - don't fail the deletion
+            _logger.Debug($"Preview folder not found for mod {mod.Id}: {ex.Message}", "ModDeletionService");
         }
         catch (Exception ex)
         {
+            // Only throw for unexpected errors (permissions, IO errors, etc.)
+            _logger.Error($"Error deleting preview folder for mod {mod.Id}: {ex.Message}", "ModDeletionService", ex);
             throw new OperationException(
                 ModErrorCodes.DELETE_PREVIEW_FAILED,
                 new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
@@ -197,14 +221,27 @@ public class ModDeletionService : IModDeletionService
         var archiveDeleted = await _archiveService.DeleteArchiveAsync(mod.Id).ConfigureAwait(false);
         if (!archiveDeleted)
         {
-            throw new OperationException(
-                ModErrorCodes.DELETE_ARCHIVE_FAILED,
-                new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
-                $"Failed to delete archive for mod {mod.Id}"
-            );
+            // Verify if archive still exists - if it does, deletion failed (not just "not found")
+            var archivePath = _profilePaths.GetModArchivePath(mod.Id, "");
+            if (File.Exists(archivePath))
+            {
+                // Archive exists but deletion failed - this is a real error
+                throw new OperationException(
+                    ModErrorCodes.DELETE_ARCHIVE_FAILED,
+                    new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
+                    $"Failed to delete archive for mod {mod.Id} - archive still exists at {archivePath}"
+                );
+            }
+            else
+            {
+                // Archive doesn't exist - it was deleted externally or imported as metadata-only
+                _logger.Debug($"Archive not found or already deleted externally for mod: {mod.Id}", "ModDeletionService");
+            }
         }
-
-        _logger.Info($"Successfully deleted archive for mod: {mod.Id}", "ModDeletionService");
+        else
+        {
+            _logger.Info($"Successfully deleted archive for mod: {mod.Id}", "ModDeletionService");
+        }
     }
 
     /// <summary>

@@ -73,12 +73,12 @@ public class ModCacheWatcher : IModCacheWatcher
                 _watcher.Deleted += OnCacheFolderDeleted;
                 _watcher.Renamed += OnCacheFolderRenamed;
 
-                _logger.Info($"�?ModCacheWatcher STARTED successfully watching: {cacheDir}", "ModCacheWatcher");
-                _logger.Info($"�?Watching for: DirectoryName changes (Deleted, Renamed)", "ModCacheWatcher");
+                _logger.Info($"✔ ModCacheWatcher STARTED successfully watching: {cacheDir}", "ModCacheWatcher");
+                _logger.Info($"👀 Watching for: DirectoryName changes (Deleted, Renamed)", "ModCacheWatcher");
             }
             catch (Exception ex)
             {
-                _logger.Error($"�?Failed to start ModCacheWatcher: {ex.Message}", "ModCacheWatcher", ex);
+                _logger.Error($"❌ Failed to start ModCacheWatcher: {ex.Message}", "ModCacheWatcher", ex);
                 _watcher?.Dispose();
                 _watcher = null;
             }

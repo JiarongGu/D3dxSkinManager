@@ -195,9 +195,9 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
         {
             Id = "unicode-test",
             Category = "test",
-            Name = "测试模组 日本�?한국�?العربية",
+            Name = "测试模组 日本語 한국어 العربية",
             Description = "Emoji: 🎮🔥💯",
-            Author = "作者名�?
+            Author = "作者名称"
         };
 
         // Act
@@ -205,9 +205,9 @@ public class ModRepositoryIntegrationTests : InMemoryDatabaseTestBase
 
         // Assert
         var result = await _repository.GetByIdAsync("unicode-test");
-        result!.Name.Should().Be("测试模组 日本�?한국�?العربية");
+        result!.Name.Should().Be("测试模组 日本語 한국어 العربية");
         result.Description.Should().Be("Emoji: 🎮🔥💯");
-        result.Author.Should().Be("作者名�?);
+        result.Author.Should().Be("作者名称");
     }
 
     #endregion

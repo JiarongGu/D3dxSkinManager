@@ -70,20 +70,37 @@ public class ModEnrichmentService : IModEnrichmentService
         var modsWithPreviews = new HashSet<string>();
         if (Directory.Exists(_profilePaths.PreviewsDirectory))
         {
-            foreach (var previewDir in Directory.GetDirectories(_profilePaths.PreviewsDirectory))
+            try
             {
-                var id = Path.GetFileName(previewDir);
-                if (string.IsNullOrEmpty(id))
-                    continue;
-
-                // Check if directory contains any preview image files
-                var hasPreviewFiles = Directory.GetFiles(previewDir, "preview*.*")
-                    .Any(f => Core.Constants.ImageConstants.IsImageExtension(Path.GetExtension(f)));
-
-                if (hasPreviewFiles)
+                foreach (var previewDir in Directory.GetDirectories(_profilePaths.PreviewsDirectory))
                 {
-                    modsWithPreviews.Add(id);
+                    var id = Path.GetFileName(previewDir);
+                    if (string.IsNullOrEmpty(id))
+                        continue;
+
+                    try
+                    {
+                        // Check if directory exists and contains any preview image files
+                        if (Directory.Exists(previewDir))
+                        {
+                            var hasPreviewFiles = Directory.GetFiles(previewDir, "preview*.*")
+                                .Any(f => Core.Constants.ImageConstants.IsImageExtension(Path.GetExtension(f)));
+
+                            if (hasPreviewFiles)
+                            {
+                                modsWithPreviews.Add(id);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Silently skip preview folder if inaccessible or deleted - don't fail enrichment
+                    }
                 }
+            }
+            catch
+            {
+                // Silently skip if previews directory is inaccessible - don't fail enrichment
             }
         }
 
