@@ -1,4 +1,5 @@
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using D3dxSkinManager.Modules.Tool.ScreenCapture.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
@@ -30,6 +31,31 @@ public class ScreenCaptureService : IScreenCaptureService
 
     // Throttle for bounds changed events (100ms)
     private readonly Throttle _boundsChangeThrottle = new Throttle(100);
+
+    // P/Invoke for better screen capture (handles GPU-rendered content better)
+    [DllImport("gdi32.dll")]
+    private static extern bool BitBlt(IntPtr hdcDest, int xDest, int yDest, int wDest, int hDest, IntPtr hdcSource, int xSrc, int ySrc, CopyPixelOperation rop);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int nWidth, int nHeight);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr SelectObject(IntPtr hdc, IntPtr hgdiobj);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteDC(IntPtr hdc);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteObject(IntPtr hObject);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetDC(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
     public bool IsBorderOverlayVisible
     {
@@ -65,34 +91,57 @@ public class ScreenCaptureService : IScreenCaptureService
 
             _logger.Info($"[ScreenCaptureService] Capturing {width}x{height} at ({x}, {y})");
 
-            using var bitmap = CaptureScreen(x, y, width, height);
-
-            var copiedToClipboard = false;
-            if (config.CopyToClipboard)
+            // Temporarily hide border overlay before capture to prevent it from being included in the screenshot
+            var borderWasVisible = IsBorderOverlayVisible;
+            if (borderWasVisible)
             {
-                copiedToClipboard = CopyToClipboard(bitmap);
+                _logger.Info("[ScreenCaptureService] Temporarily hiding border overlay for capture");
+                TemporarilyHideOverlay();
+
+                // Wait for the overlay to fully hide and screen to refresh (150ms is enough for most systems)
+                await Task.Delay(150);
             }
 
-            string? savedPath = null;
-            if (config.SaveToFile && !string.IsNullOrEmpty(config.OutputPath))
+            try
             {
-                SaveToFile(bitmap, config.OutputPath, ImageFormat.Png);
-                savedPath = config.OutputPath;
-            }
+                using var bitmap = CaptureScreen(x, y, width, height);
 
-            return new ScreenCaptureResult
-            {
-                Success = true,
-                CapturedArea = new ScreenCaptureArea
+                var copiedToClipboard = false;
+                if (config.CopyToClipboard)
                 {
-                    X = x,
-                    Y = y,
-                    Width = width,
-                    Height = height
-                },
-                CopiedToClipboard = copiedToClipboard,
-                SavedPath = savedPath
-            };
+                    copiedToClipboard = CopyToClipboard(bitmap);
+                }
+
+                string? savedPath = null;
+                if (config.SaveToFile && !string.IsNullOrEmpty(config.OutputPath))
+                {
+                    SaveToFile(bitmap, config.OutputPath, ImageFormat.Png);
+                    savedPath = config.OutputPath;
+                }
+
+                return new ScreenCaptureResult
+                {
+                    Success = true,
+                    CapturedArea = new ScreenCaptureArea
+                    {
+                        X = x,
+                        Y = y,
+                        Width = width,
+                        Height = height
+                    },
+                    CopiedToClipboard = copiedToClipboard,
+                    SavedPath = savedPath
+                };
+            }
+            finally
+            {
+                // Restore border overlay if it was visible before capture
+                if (borderWasVisible)
+                {
+                    _logger.Info("[ScreenCaptureService] Restoring border overlay after capture");
+                    RestoreOverlay();
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -232,6 +281,34 @@ public class ScreenCaptureService : IScreenCaptureService
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Temporarily hides the overlay without closing it (for screen capture)
+    /// </summary>
+    private void TemporarilyHideOverlay()
+    {
+        lock (_overlayLock)
+        {
+            if (_overlayForm != null && !_overlayForm.IsDisposed && _overlayForm.Visible)
+            {
+                _overlayForm.Invoke(() => _overlayForm.Hide());
+            }
+        }
+    }
+
+    /// <summary>
+    /// Restores the overlay visibility after temporary hide
+    /// </summary>
+    private void RestoreOverlay()
+    {
+        lock (_overlayLock)
+        {
+            if (_overlayForm != null && !_overlayForm.IsDisposed && !_overlayForm.Visible)
+            {
+                _overlayForm.Invoke(() => _overlayForm.Show());
+            }
+        }
+    }
+
     public void ToggleCaptureControlPanel(string profileId)
     {
         const string captureWindowName = "capture";
@@ -334,10 +411,57 @@ public class ScreenCaptureService : IScreenCaptureService
 
     private Bitmap CaptureScreen(int x, int y, int width, int height)
     {
-        var bitmap = new Bitmap(width, height);
-        using var graphics = Graphics.FromImage(bitmap);
-        graphics.CopyFromScreen(x, y, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
-        return bitmap;
+        // Use Windows GDI BitBlt directly for better GPU-rendered content capture
+        // This approach is more reliable than Graphics.CopyFromScreen for games and DirectX content
+
+        IntPtr screenDC = IntPtr.Zero;
+        IntPtr memoryDC = IntPtr.Zero;
+        IntPtr hBitmap = IntPtr.Zero;
+        IntPtr hOldBitmap = IntPtr.Zero;
+
+        try
+        {
+            // Get the device context of the entire screen
+            screenDC = GetDC(IntPtr.Zero);
+
+            // Create a memory DC compatible with the screen DC
+            memoryDC = CreateCompatibleDC(screenDC);
+
+            // Create a bitmap compatible with the screen DC
+            hBitmap = CreateCompatibleBitmap(screenDC, width, height);
+
+            // Select the bitmap into the memory DC
+            hOldBitmap = SelectObject(memoryDC, hBitmap);
+
+            // Copy the screen content to the memory DC using SRCCOPY
+            // SRCCOPY with BitBlt handles GPU content better than CopyFromScreen
+            BitBlt(memoryDC, 0, 0, width, height, screenDC, x, y, CopyPixelOperation.SourceCopy);
+
+            // Create a GDI+ Bitmap from the GDI bitmap
+            var bitmap = Image.FromHbitmap(hBitmap);
+
+            return bitmap;
+        }
+        finally
+        {
+            // Clean up resources
+            if (hOldBitmap != IntPtr.Zero)
+            {
+                SelectObject(memoryDC, hOldBitmap);
+            }
+            if (hBitmap != IntPtr.Zero)
+            {
+                DeleteObject(hBitmap);
+            }
+            if (memoryDC != IntPtr.Zero)
+            {
+                DeleteDC(memoryDC);
+            }
+            if (screenDC != IntPtr.Zero)
+            {
+                ReleaseDC(IntPtr.Zero, screenDC);
+            }
+        }
     }
 
     private bool CopyToClipboard(Bitmap bitmap)
