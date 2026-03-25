@@ -64,7 +64,17 @@ public class SystemFileService : ISystemFileService
         try
         {
             // Use /select to open explorer with the file selected
-            Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+            // Don't keep a reference to the process to prevent handle leaks in Windows 11
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{filePath}\"",
+                UseShellExecute = false,  // Use false to avoid creating wrapper process
+                CreateNoWindow = true
+            };
+
+            Process.Start(startInfo)?.Dispose();
+
             await Task.CompletedTask;
         }
         catch (Exception ex)
@@ -83,7 +93,20 @@ public class SystemFileService : ISystemFileService
 
         try
         {
-            Process.Start("explorer.exe", $"\"{directoryPath}\"");
+            // Open directory using shell handler instead of explorer.exe directly
+            // This prevents orphaned explorer.exe processes in Windows 11
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = directoryPath,
+                UseShellExecute = true,
+                Verb = "open"
+            };
+
+            using (Process.Start(startInfo))
+            {
+                // Process is started and disposed, Windows manages the shell handler
+            }
+
             await Task.CompletedTask;
         }
         catch (Exception ex)
