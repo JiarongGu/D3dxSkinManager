@@ -84,10 +84,11 @@ public class ScreenCaptureService : IScreenCaptureService
     {
         try
         {
-            var x = config.X ?? 0;
-            var y = config.Y ?? 0;
-            var width = config.Width ?? 800;
-            var height = config.Height ?? 600;
+            double dpiScale = DpiHelper.GetDpiScaleFactor();
+            var x = (int)Math.Round((config.X ?? 0) * dpiScale);
+            var y = (int)Math.Round((config.Y ?? 0) * dpiScale);
+            var width = (int)Math.Round((config.Width ?? 800) * dpiScale);
+            var height = (int)Math.Round((config.Height ?? 600) * dpiScale);
 
             _logger.Info($"[ScreenCaptureService] Capturing {width}x{height} at ({x}, {y})");
 
@@ -156,7 +157,15 @@ public class ScreenCaptureService : IScreenCaptureService
 
     public Task ShowBorderOverlayAsync(int x, int y, int width, int height, IProfileEventBus eventBus)
     {
-        _logger.Info($"[ScreenCaptureService] ShowBorderOverlayAsync called: ({x}, {y}) {width}x{height}");
+        // Incoming values are logical (CSS) pixels from the frontend — convert to physical pixels
+        // for ScreenCaptureOverlay, which sets Form.Bounds directly using Win32 physical screen coords.
+        double dpiScale = DpiHelper.GetDpiScaleFactor();
+        int physX = (int)Math.Round(x * dpiScale);
+        int physY = (int)Math.Round(y * dpiScale);
+        int physWidth = (int)Math.Round(width * dpiScale);
+        int physHeight = (int)Math.Round(height * dpiScale);
+
+        _logger.Info($"[ScreenCaptureService] ShowBorderOverlayAsync called: logical({x}, {y}) {width}x{height} -> physical({physX}, {physY}) {physWidth}x{physHeight}");
 
         lock (_overlayLock)
         {
@@ -164,7 +173,7 @@ public class ScreenCaptureService : IScreenCaptureService
             {
                 // Update existing overlay
                 _logger.Info("[ScreenCaptureService] Updating existing overlay bounds");
-                _overlayForm.Invoke(() => _overlayForm.UpdateBounds(x, y, width, height));
+                _overlayForm.Invoke(() => _overlayForm.UpdateBounds(physX, physY, physWidth, physHeight));
                 return Task.CompletedTask;
             }
 
@@ -175,9 +184,9 @@ public class ScreenCaptureService : IScreenCaptureService
             {
                 try
                 {
-                    _logger.Info($"[ScreenCaptureService] STA thread started, creating overlay at ({x}, {y}) size {width}x{height}");
+                    _logger.Info($"[ScreenCaptureService] STA thread started, creating overlay at ({physX}, {physY}) size {physWidth}x{physHeight}");
 
-                    var form = new ScreenCaptureOverlay(x, y, width, height);
+                    var form = new ScreenCaptureOverlay(physX, physY, physWidth, physHeight);
                     _logger.Info("[ScreenCaptureService] ScreenCaptureOverlayForm created");
 
                     // Hook into main form's FormClosed event to close overlay when main form closes
@@ -218,7 +227,14 @@ public class ScreenCaptureService : IScreenCaptureService
                     {
                         _boundsChangeThrottle.Execute(() =>
                         {
-                            _logger.Info($"[ScreenCaptureService] Overlay bounds changed: ({newX}, {newY}) {newWidth}x{newHeight}");
+                            // ScreenCaptureOverlay fires physical pixel coords — convert to logical for frontend
+                            double dpi = DpiHelper.GetDpiScaleFactor();
+                            int logX = (int)Math.Round(newX / dpi);
+                            int logY = (int)Math.Round(newY / dpi);
+                            int logWidth = (int)Math.Round(newWidth / dpi);
+                            int logHeight = (int)Math.Round(newHeight / dpi);
+
+                            _logger.Info($"[ScreenCaptureService] Overlay bounds changed: physical({newX}, {newY}) {newWidth}x{newHeight} -> logical({logX}, {logY}) {logWidth}x{logHeight}");
                             _logger.Info($"[ScreenCaptureService] Emitting event: {ModuleNames.TOOL}/{ToolEvents.CAPTURE_BOUNDS_CHANGED}");
                             // Fire and forget - don't block the UI thread with .Wait()
                             _ = Task.Run(async () =>
@@ -227,10 +243,10 @@ public class ScreenCaptureService : IScreenCaptureService
                                 {
                                     await eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.CAPTURE_BOUNDS_CHANGED, new
                                     {
-                                        x = newX,
-                                        y = newY,
-                                        width = newWidth,
-                                        height = newHeight
+                                        x = logX,
+                                        y = logY,
+                                        width = logWidth,
+                                        height = logHeight
                                     }).ConfigureAwait(false);
                                     _logger.Info("[ScreenCaptureService] Event emitted successfully");
                                 }

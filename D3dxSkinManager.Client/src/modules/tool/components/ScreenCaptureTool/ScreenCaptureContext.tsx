@@ -194,7 +194,7 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({
 
   // Handle profile change
   const handleProfileChange = useCallback(
-    (profileId: string | undefined) => {
+    async (profileId: string | undefined) => {
       resetProfile(profileId);
       if (!profileId || profileId === NEW_PROFILE_ID || !form) {
         // Switching to <New Profile> - keep current form values
@@ -208,9 +208,24 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({
           width: profile.width,
           height: profile.height,
         });
+
+        // Sync border overlay if currently visible
+        if (showingBorder && currentProfileIdRef.current) {
+          try {
+            await api.tool.showBorder(
+              currentProfileIdRef.current,
+              profile.x,
+              profile.y,
+              profile.width,
+              profile.height,
+            );
+          } catch {
+            // Silently fail - non-critical border update
+          }
+        }
       }
     },
-    [profiles, resetProfile, form],
+    [profiles, resetProfile, form, showingBorder, currentProfileIdRef],
   );
 
   // Handle save profile

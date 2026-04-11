@@ -1,6 +1,7 @@
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.System.Models;
 using D3dxSkinManager.Modules.System.Services;
 
@@ -356,15 +357,18 @@ public class SystemFacade : BaseFacade, ISystemFacade
 
     public Task<ScreenResolution> GetScreenResolutionAsync()
     {
-        // Get primary screen resolution
+        // Get primary screen resolution in logical (DPI-independent) pixels.
+        // Screen.Bounds returns physical pixels; divide by DPI scale so the frontend
+        // always works in logical pixel space (backend converts to physical when needed).
         var screen = global::System.Windows.Forms.Screen.PrimaryScreen;
+        double dpiScale = DpiHelper.GetDpiScaleFactor();
         var resolution = new ScreenResolution
         {
-            Width = screen!.Bounds.Width,
-            Height = screen.Bounds.Height
+            Width = (int)Math.Round(screen!.Bounds.Width / dpiScale),
+            Height = (int)Math.Round(screen.Bounds.Height / dpiScale)
         };
 
-        _logger.Debug($"[SystemFacade] Screen resolution: {resolution.Width}x{resolution.Height}");
+        _logger.Debug($"[SystemFacade] Screen resolution: physical {screen.Bounds.Width}x{screen.Bounds.Height} -> logical {resolution.Width}x{resolution.Height} (DPI scale {dpiScale})");
         return Task.FromResult(resolution);
     }
 }
