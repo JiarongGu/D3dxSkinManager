@@ -1,34 +1,31 @@
 # AI Assistant Guide
 
-**Version:** 4.0 (Lean Edition)
-**Last Updated:** 2026-04-11
-**Critical:** NEVER commit without explicit user approval!
+**Version:** 5.1
+**Last Updated:** 2026-04-12
+**Role:** Deep reference — load this when you need workflow patterns, architecture examples, or the full skills list. Mandatory rules and the skills quick-reference are in `CLAUDE.md` (auto-loaded every session) — you do not need to load this guide for routine tasks.
 
 ---
 
 ## 🎯 Quick Start
 
-### For New Features: Skills-First Workflow
+> **For routine tasks** — CLAUDE.md already has everything: skills table, doc-loader instruction, architecture rules. Load this guide only when you need workflow examples or the full skills reference.
 
+### Skills-First Workflow
 ```bash
-# 1. Generate code with skills (preferred)
-/backend-service ServiceName Module Dependencies Methods
-/error-with-i18n ERROR_CODE params "en msg" "cn msg"
-/ipc-service ServiceName Module Methods
-/react-component ComponentName type features
+# Step 1: load docs + discover the right skill
+/doc-loader "describe your task" backend|frontend|ipc|testing|architecture
 
-# 2. For unique logic: Check existing patterns via KEYWORDS_INDEX.md
-# 3. If unsure: Use Explore agent to find similar code
+# Step 2: run the suggested skill, e.g.
+/backend-service TextureValidationService Mod IFileHelper ValidateAsync
 ```
 
-### For Understanding Code: RAG-Driven
-
+### Understanding Existing Code
 ```typescript
-// Use Explore agent - loads relevant docs automatically
+// Explore agent loads relevant docs automatically
 Task(subagent_type: "Explore", description: "Understand mod loading",
      prompt: "How does mod loading work? Thoroughness: medium")
 
-// Or manually: Check KEYWORDS_INDEX.md → Load specific doc
+// Or: check KEYWORDS_INDEX.md → load specific doc
 ```
 
 ---
@@ -37,46 +34,39 @@ Task(subagent_type: "Explore", description: "Understand mod loading",
 
 ### Skills = Code Generation (18 available)
 
-**USE SKILLS FOR ALL REPETITIVE CODE**
+See [.claude/skills/README.md](../.claude/skills/README.md) for the complete reference.
+Quick-access table (for everyday use) is in `CLAUDE.md` section 4.
 
-See [.claude/skills/README.md](../.claude/skills/README.md) for complete list.
+**Code Generation:**
+`/backend-service` `/backend-facade` `/ipc-service` `/react-component`
+`/error-with-i18n` `/event-handler` `/ipc-message-pair` `/batch-operation`
+`/file-watcher` `/service-registration`
 
-**Code Generation** (12 skills):
-- `/backend-service` - Service + DI + events
-- `/backend-facade` - Thin IPC facade
-- `/ipc-service` - Frontend IPC
-- `/error-with-i18n` - Errors + i18n (en + cn)
-- `/react-component` - React + CSS
-- `/event-handler` - Event consolidation
-- `/service-registration` - DI registration
-- `/batch-operation` - SQL batch operations
-- `/file-watcher` - FileSystemWatcher
+**Discovery:**
+`/doc-loader` (loads docs + suggests skills) · `/pattern-finder` (finds existing patterns)
 
-**Doc Maintenance** (6 skills):
-- `/doc-monitor` - Health checks
-- `/doc-cleanup` - Remove redundancy
-- `/doc-optimize` - RAG optimization
+**Doc Maintenance:**
+`/doc-update-guide` · `/doc-update-reference` · `/doc-update-technical`
+`/doc-monitor` · `/doc-cleanup` · `/doc-optimize`
 
 ### RAG = Understanding (Load docs on-demand)
 
-**Start here**: [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) - Find anything quickly
+**Start here**: [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) — find anything quickly
 
 **Key Documents**:
-- [DESIGN_DECISIONS.md](core/DESIGN_DECISIONS.md) - Architecture constraints
-- [ADVANCED_PATTERNS.md](core/ADVANCED_PATTERNS.md) - Non-automatable patterns
-- [TROUBLESHOOTING.md](ai-assistant/TROUBLESHOOTING.md) - Common issues
+- [DESIGN_DECISIONS.md](core/DESIGN_DECISIONS.md) — architecture constraints
+- [ADVANCED_PATTERNS.md](core/ADVANCED_PATTERNS.md) — non-automatable patterns
+- [TROUBLESHOOTING.md](ai-assistant/TROUBLESHOOTING.md) — common issues
 
-**Don't load everything** - Use KEYWORDS_INDEX to find what you need.
+### Agents = Research + Planning
 
-### Agents = Automation (Research + Planning)
-
-**Explore Agent** - Understand existing code
+**Explore agent** — understand existing code:
 ```typescript
 Task(subagent_type: "Explore", description: "Find X pattern",
      prompt: "How is X implemented? Thoroughness: medium")
 ```
 
-**Plan Agent** - Plan new features
+**Plan agent** — plan a new feature:
 ```typescript
 Task(subagent_type: "Plan", description: "Plan Y feature",
      prompt: "Plan Y. Load DESIGN_DECISIONS.md. Create detailed plan.")
@@ -84,13 +74,11 @@ Task(subagent_type: "Plan", description: "Plan Y feature",
 
 ---
 
-## 🔥 Critical Rules (BREAK = MAJOR ISSUES)
+## 🏛️ Architecture Rules
 
-### 1. Git Commits
-- ✅ **ALWAYS** ask user before committing
-- ❌ **NEVER** commit without explicit "yes"
+> These rules are also enforced via `CLAUDE.md` (auto-loaded). Shown here as reference with code examples.
 
-### 2. Architecture Boundaries
+### Architecture Boundaries
 ```csharp
 // Backend: ALL heavy operations
 // Frontend: UI only, NO data processing
@@ -98,7 +86,7 @@ Task(subagent_type: "Plan", description: "Plan Y feature",
 // Services: Business logic + Event emission
 ```
 
-### 3. Error Handling (Unified Pattern)
+### Error Handling (Unified Pattern)
 ```csharp
 // Backend
 throw new OperationException("ERROR_CODE",
@@ -110,15 +98,15 @@ catch (error: unknown) { handleError(error); }
 // i18n: Add to BOTH en.json AND cn.json
 ```
 
-### 4. Module Boundaries
+### Module Boundaries
 - ❌ **NEVER** access other module's repositories
 - ✅ **ALWAYS** use module facades for cross-module calls
 
-### 5. Event Emission
-- ✅ Services emit events (inject IProfileEventBus)
-- ❌ Facades NEVER emit events (thin layer only)
+### Event Emission
+- ✅ Services emit events (inject `IProfileEventBus`)
+- ❌ Facades **never** emit events (thin delegation layer only)
 
-### 6. Data Conventions
+### Data Conventions
 ```typescript
 // ✅ undefined for missing data
 const [mod, setMod] = useState<ModInfo>();
@@ -234,22 +222,24 @@ export class ModService extends BaseModuleService {
 ## 🔄 Session Workflow
 
 ### Starting Session
-1. Git status (`git status`)
-2. Load this guide (AI_GUIDE.md)
-3. Ask user: "What to work on?"
-4. **Use skills** for code generation
-5. **Use agents** for research/planning
+> CLAUDE.md auto-loads — mandatory rules are already active. No manual setup needed.
+
+1. `git status` — check current branch and state
+2. Ask user: "What to work on?"
+3. **Use skills** for code generation, **agents** for research/planning
 
 ### During Development
 1. **Skills first** - Use skills for all repetitive patterns
 2. **Agents second** - Use Explore/Plan for understanding/planning
 3. **RAG last** - Load specific docs from KEYWORDS_INDEX only when needed
+4. **Tests always** - After every bug fix or feature: `/doc-loader "write tests for <what>" testing`
 
 ### Before Committing
-1. Build succeeds
-2. Tests pass
-3. **Ask user**: "Ready to commit?"
-4. Wait for explicit "yes"
+1. Write tests for changes (see [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md))
+2. Build succeeds (`dotnet build` + no TS errors)
+3. Tests pass (`dotnet test` + `npm test`)
+4. **Ask user**: "Ready to commit?"
+5. Wait for explicit "yes"
 
 ---
 
@@ -264,7 +254,7 @@ export class ModService extends BaseModuleService {
 | **Check architecture** | [DESIGN_DECISIONS.md](core/DESIGN_DECISIONS.md) | Architecture constraints |
 | **Complex patterns** | [ADVANCED_PATTERNS.md](core/ADVANCED_PATTERNS.md) | Non-automatable patterns |
 | **Debugging** | [TROUBLESHOOTING.md](ai-assistant/TROUBLESHOOTING.md) | Common issues |
-| **Testing** | [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md) | Testing patterns |
+| **Testing** | [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md) | Patterns + mandatory rules + pitfalls |
 
 ---
 
@@ -313,20 +303,9 @@ dotnet build <project>      # Backend only
 - ✅ **Plan agent** for planning features
 - ❌ **DON'T** skip planning phase
 
-### 4. Critical Discipline
-- ✅ **ALWAYS** ask before git commits
-- ✅ **NEVER** access other module's repositories
-- ✅ **ALWAYS** use unified error handling (OperationException)
+### 4. Mandatory Rules
+See `CLAUDE.md` (auto-loaded). Summary: git approval, architecture boundaries, testing after every change.
 
 ---
-
-**Remember**:
-- **Skills** = Code generation (use for all patterns)
-- **RAG** = Understanding (load docs on-demand)
-- **Agents** = Automation (research + planning)
 
 **Workflow**: Skills → Agents → RAG → Manual (in that order)
-
----
-
-**End of Guide** 🚀

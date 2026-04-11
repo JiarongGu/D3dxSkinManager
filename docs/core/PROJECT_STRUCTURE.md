@@ -400,7 +400,8 @@ docs/
 | **ai-assistant/** | AI assistants | Workflows, patterns, troubleshooting |
 | **core/** | Human developers + AI | Project fundamentals |
 | **features/** | All | Feature documentation |
-| **AI_GUIDE.md** | AI assistants | Navigation hub |
+| **CLAUDE.md** (root) | AI assistants | Mandatory rules — auto-loaded every session |
+| **AI_GUIDE.md** | AI assistants | Reference: skills, patterns, architecture examples |
 | **README.md** | Human developers | Getting started |
 | **KEYWORDS_INDEX.md** | AI assistants | O(1) file lookup |
 | **CHANGELOG.md** | All | What changed |
@@ -410,14 +411,14 @@ docs/
 ```
 AI Assistant starts session
     ↓
-Reads: AI_GUIDE.md
+CLAUDE.md auto-loads (mandatory rules: git, architecture, testing)
     ↓
-Identifies query type
-    ↓
-Routes to folder:
+User asks a question — assistant picks lookup strategy:
     ├─ "How to" → ai-assistant/WORKFLOWS.md
     ├─ "Where is" → KEYWORDS_INDEX.md
     ├─ "What is" → core/PROJECT_OVERVIEW.md
+    ├─ "Write tests" → /doc-loader "write tests for X" testing
+    ├─ "Pattern/skill" → AI_GUIDE.md (load on demand)
     └─ "Error" → ai-assistant/TROUBLESHOOTING.md
 ```
 

@@ -127,29 +127,32 @@ export class WorkflowService extends BaseModuleService {
   }
 
   /**
-   * Start multiple mod import workflows from a batch of files/folders
+   * Start multiple mod import workflows from a batch of files/folders.
+   * All IPC calls are fired in parallel so every workflow is created in a single
+   * round-trip burst.  This ensures the full list is populated before the user
+   * has a chance to "Select All" + "Cancel All", eliminating the race condition
+   * that existed when workflows were created one-by-one sequentially.
    * @param profileId - The profile ID
    * @param paths - Array of file/folder paths to import
    * @param defaultCategory - Optional category name to pre-fill (from selected category in UI)
-   * @returns Array of created workflows
+   * @returns Array of created workflows (failed ones are silently omitted)
    */
   async batchStartModImport(
     profileId: string,
     paths: string[],
     defaultCategory?: string
   ): Promise<WorkflowInfo[]> {
-    const workflows: WorkflowInfo[] = [];
-
-    for (const path of paths) {
-      try {
-        const workflow = await this.startModImport(profileId, path, defaultCategory);
-        workflows.push(workflow);
-      } catch (error: unknown) {
-                // Continue with other imports even if one fails
-      }
-    }
-
-    return workflows;
+    const results = await Promise.all(
+      paths.map(async (path) => {
+        try {
+          return await this.startModImport(profileId, path, defaultCategory);
+        } catch (error: unknown) {
+          // Continue with other imports even if one fails
+          return null;
+        }
+      })
+    );
+    return results.filter((w): w is WorkflowInfo => w !== null);
   }
 
   /**

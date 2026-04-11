@@ -1,9 +1,11 @@
 # D3dxSkinManager Skills System
 
-**Version:** 1.0
-**Last Updated:** 2026-04-11
+**Version:** 1.1
+**Last Updated:** 2026-04-12
 
 This directory contains Claude Code skills that enforce consistent code generation patterns across the D3dxSkinManager project.
+
+> **Quick access**: The most commonly used skills are listed in `CLAUDE.md` section 4 (auto-loaded every session). Load this file when you need full usage syntax, parameters, or examples for a specific skill.
 
 ## What Are Skills?
 

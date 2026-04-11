@@ -120,12 +120,14 @@ D3dxSkinManager.Client/
 ```
 docs/
 ├── README.md                           # Developer hub
-├── AI_GUIDE.md                         # AI hub
+├── AI_GUIDE.md                         # Reference: skills, patterns, architecture (load on demand)
 ├── CHANGELOG.md                        # Change log
 ├── KEYWORDS_INDEX.md                   # Quick lookup
 ├── ai-assistant/                       # AI guides
 ├── core/                               # Core docs
 └── features/                           # Feature docs
+
+CLAUDE.md                               # Mandatory rules (auto-loaded every session)
 ```
 
 ### Root

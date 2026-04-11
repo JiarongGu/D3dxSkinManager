@@ -1,0 +1,88 @@
+# CLAUDE.md — Mandatory Rules
+
+> Auto-loaded every session. Keep this file short — details belong in docs/.
+
+---
+
+## 1. Git Commits
+
+**NEVER commit without explicit user approval.**
+Always ask "Ready to commit?" and wait for a clear "yes".
+
+---
+
+## 2. Architecture (non-negotiable)
+
+```
+Backend  → ALL heavy operations, data processing, file I/O
+Frontend → UI only, NO data processing
+Facades  → Thin delegation only — no business logic, no events
+Services → Business logic + event emission
+```
+
+**Module boundaries** — never access another module's repository directly.
+Always call through that module's facade.
+
+**Error handling** — throw `OperationException("ERROR_CODE", params)`.
+Add message to BOTH `Languages/en.json` AND `Languages/cn.json`.
+
+**Events** — services emit events (inject `IProfileEventBus`).
+Facades never emit events.
+
+**Frontend data** — use `undefined` for absent data, never `null`.
+`null` is only for React render returns (`if (!data) return null`).
+
+---
+
+## 3. Testing (non-negotiable)
+
+**After every bug fix or new feature, write tests.**
+
+Before writing any test:
+```
+/doc-loader "write tests for <what you changed>" testing
+```
+
+Full rules, coverage matrix, pitfalls:
+→ [docs/ai-assistant/TESTING_GUIDE.md](docs/ai-assistant/TESTING_GUIDE.md)
+
+---
+
+## 4. Work Style
+
+**Skills → Agents → RAG → Manual** (in that order)
+
+### Step 1 — For any non-trivial task, run doc-loader first
+
+```
+/doc-loader "describe what you're doing" scope
+```
+
+Scope: `backend` | `frontend` | `ipc` | `testing` | `architecture`
+
+This loads the relevant patterns **and** tells you which skill to use next.
+
+### Step 2 — Use the right skill
+
+| What you're building | Skill to run |
+|----------------------|-------------|
+| New backend service | `/backend-service Name Module Deps Methods` |
+| New IPC facade | `/backend-facade Name Module Services` |
+| New frontend IPC service | `/ipc-service Name Module Methods` |
+| New React component | `/react-component Name type features` |
+| Add error + i18n | `/error-with-i18n CODE params "en msg" "cn msg"` |
+| Backend + frontend IPC pair | `/ipc-message-pair Module MessageType ...` |
+| Batch SQL operation | `/batch-operation Module Op EntityType Params` |
+| Register a service | `/service-registration Module Interface Impl Lifecycle` |
+| Find existing patterns | `/pattern-finder PatternType Module` |
+
+Full skill docs → [.claude/skills/README.md](.claude/skills/README.md)
+
+### Step 3 — For research or planning
+
+- **Explore agent** — understand existing code (`Thoroughness: medium`)
+- **Plan agent** — plan a feature (load `DESIGN_DECISIONS.md` in the prompt)
+
+### Step 4 — After finishing
+
+Write tests (section 3), build succeeds, ask before committing (section 1).

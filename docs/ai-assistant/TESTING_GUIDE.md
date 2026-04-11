@@ -648,6 +648,9 @@ public async Task SaveFile_ShouldCreateFile()
 
 ## When to Write Tests
 
+**Workflow:** Before writing any test, run `/doc-loader "write tests for <what you changed>" testing`
+to load relevant examples and confirm the patterns are up to date.
+
 ### ✅ ALWAYS Write Tests For:
 
 1. **New Services** - Any new backend service or frontend service
@@ -655,6 +658,19 @@ public async Task SaveFile_ShouldCreateFile()
 3. **Critical Bug Fixes** - Write test that reproduces bug, then fix
 4. **Data Persistence** - Anything that saves/loads data
 5. **IPC Communication** - Message handlers and routing
+6. **Concurrency / async bugs** - Race conditions and `CancellationToken` fixes are the hardest to re-discover manually; always add a test that exercises the specific timing path
+7. **Concurrency primitives** - Any change to `SemaphoreSlim`, `ConcurrentDictionary`, locks, or `Task.Run` fire-and-forget
+8. **Batch operations** - Fan-out / fan-in patterns (e.g. `Promise.all` vs sequential loop)
+
+### Minimum Coverage by Change Type
+
+| Change type | Minimum test |
+|-------------|-------------|
+| Bug fix | One regression test that would have *failed before* the fix |
+| New service / handler | Happy path + one error path |
+| New IPC endpoint | Request routing + one error case |
+| Concurrency / async fix | A test that exercises the race condition or cancellation path |
+| Batch operation change | Verify parallel vs sequential behaviour explicitly |
 
 ### ⚠️ CONSIDER Writing Tests For:
 
@@ -765,6 +781,53 @@ describe('settingsFileService', () => {
 
 ---
 
+## Common Pitfalls
+
+### Moq: Verify on Mutable Objects
+
+Moq's `Verify(x => x.Method(It.Is<T>(obj => obj.Prop == val)))` re-evaluates the lambda
+against the object's **current** state at verify time, not its state when the method was called.
+If the handler mutates the object after the call, the condition may match more (or fewer) times
+than expected.
+
+**Wrong** — all 5 calls appear to match because `workflow` ends up mutated to `WaitingForInput`:
+```csharp
+_mockRepository.Verify(
+    x => x.UpdateAsync(It.Is<WorkflowInfo>(w => w.Status == WorkflowStatus.WaitingForInput)),
+    Times.Once); // fails: reports 5 matches
+```
+
+**Correct** — capture immutable snapshots at call time via `Callback`:
+```csharp
+var captured = new List<(WorkflowStatus status, string contextJson)>();
+_mockRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>()))
+    .Callback<WorkflowInfo>(w => captured.Add((w.Status, w.Context ?? "")))  // string = immutable snapshot
+    .Returns(Task.CompletedTask);
+
+// Later in Assert:
+var waitingUpdates = captured.Where(x => x.status == WorkflowStatus.WaitingForInput).ToList();
+waitingUpdates.Should().HaveCount(1);
+```
+
+This works because `WorkflowStatus` is an enum (value type) and `string` is immutable — both are
+effectively copied at the time the callback runs.
+
+### FluentAssertions ThrowAsync and Cancelled Tasks
+
+`FluentActions.Awaiting(() => task).Should().ThrowAsync<OperationCanceledException>()` may not
+detect exceptions from tasks in `IsCanceled` state (vs `IsFaulted`). When `SemaphoreSlim.WaitAsync`
+is cancelled, the resulting task is `Canceled`, not `Faulted`.
+
+**Use try/catch instead**:
+```csharp
+var threw = false;
+try { await queuedTask; }
+catch (OperationCanceledException) { threw = true; }
+threw.Should().BeTrue("token cancellation must abort the queued wait");
+```
+
+---
+
 ## Summary
 
 **Remember:**
@@ -773,9 +836,10 @@ describe('settingsFileService', () => {
 3. **Run tests BEFORE committing** - `dotnet test && npm test`
 4. **Mock external dependencies** - Don't rely on real backend in frontend tests
 5. **Use proper async patterns** - await/async, waitFor()
+6. **Run `/doc-loader "write tests for X" testing` before writing tests** - loads current patterns
 
 **If you're not sure if something needs a test, ASK THE USER!**
 
 ---
 
-*Last updated: 2026-02-18*
+*Last updated: 2026-04-12*

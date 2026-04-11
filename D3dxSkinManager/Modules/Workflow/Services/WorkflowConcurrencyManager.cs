@@ -37,14 +37,15 @@ public class WorkflowConcurrencyManager : IWorkflowConcurrencyManager
 
     public int CurrentRunningCount => _runningWorkflows.Count;
 
-    public async Task<bool> TryAcquireSlotAsync(string workflowId)
+    public async Task<bool> TryAcquireSlotAsync(string workflowId, CancellationToken cancellationToken = default)
     {
-        // Try to acquire semaphore without blocking
+        // Try to acquire semaphore without blocking first
         if (!await _semaphore.WaitAsync(0))
         {
             _logger.Info($"Workflow {workflowId} queued - concurrency limit reached ({CurrentRunningCount}/{MaxConcurrentWorkflows})");
-            // Wait for available slot
-            await _semaphore.WaitAsync();
+            // Wait for an available slot, but respect cancellation so a cancelled workflow
+            // does not hold up a concurrency slot after CancelAsync fires.
+            await _semaphore.WaitAsync(cancellationToken);
         }
 
         _runningWorkflows.TryAdd(workflowId, true);

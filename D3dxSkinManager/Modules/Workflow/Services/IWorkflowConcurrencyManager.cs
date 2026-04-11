@@ -18,10 +18,11 @@ public interface IWorkflowConcurrencyManager
     int CurrentRunningCount { get; }
 
     /// <summary>
-    /// Try to acquire a slot for running a workflow
-    /// Returns true if acquired, false if at capacity
+    /// Try to acquire a slot for running a workflow.
+    /// If at capacity, waits until a slot is available or the token is cancelled.
+    /// Throws <see cref="OperationCanceledException"/> if the token is cancelled while waiting.
     /// </summary>
-    Task<bool> TryAcquireSlotAsync(string workflowId);
+    Task<bool> TryAcquireSlotAsync(string workflowId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Release a slot when workflow completes, fails, or is paused

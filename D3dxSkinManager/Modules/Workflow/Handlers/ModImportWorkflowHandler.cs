@@ -144,8 +144,15 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         {
             try
             {
-                // Acquire slot for execution (will wait if at capacity)
-                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id);
+                // Acquire slot for execution (will wait if at capacity).
+                // Pass the cancellation token so a delete/cancel request that arrives while
+                // this workflow is queued immediately unblocks the wait instead of letting
+                // the task proceed after acquiring a slot.
+                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, cts.Token);
+
+                // Guard against the non-blocking fast-path: if the slot was acquired
+                // instantly but the token was already cancelled, abort before touching the DB.
+                cts.Token.ThrowIfCancellationRequested();
 
                 // Update status to Processing
                 workflow.Status = WorkflowStatus.Processing;
@@ -229,8 +236,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         {
             try
             {
-                // Acquire slot for execution (will wait if at capacity)
-                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id);
+                // Acquire slot – cancellable so a queued workflow doesn't run after CancelAsync.
+                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, cts.Token);
+                cts.Token.ThrowIfCancellationRequested();
 
                 // Update status to Processing
                 workflow.Status = WorkflowStatus.Processing;
@@ -557,8 +565,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         {
             try
             {
-                // Acquire slot for execution (will wait if at capacity)
-                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id);
+                // Acquire slot – cancellable so a queued workflow doesn't run after CancelAsync.
+                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, cts.Token);
+                cts.Token.ThrowIfCancellationRequested();
 
                 // Update status to Processing
                 workflow.Status = WorkflowStatus.Processing;
@@ -857,15 +866,21 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                         // Update context in memory
                         context.Progress = scaledProgress;
 
-                        // Persist progress to database so users can see it when reopening the screen
-                        // Use UpdateContextAsync for better performance (only updates Context field, not entire workflow)
+                        // Persist progress to database so users can see it when reopening the screen.
+                        // Re-read from DB before writing so user edits made during compression
+                        // (e.g. Name, Category) are not overwritten by this stale in-memory context.
                         // Fire and forget - don't block compression callback
+                        var progressToSave = scaledProgress;
                         _ = Task.Run(async () =>
                         {
                             try
                             {
-                                var serializedContext = JsonHelper.Serialize(context);
-                                await _workflowRepository.UpdateContextAsync(workflow.Id, serializedContext);
+                                var dbWorkflow = await _workflowRepository.GetByIdAsync(workflow.Id);
+                                if (dbWorkflow == null) return;
+                                var dbContext = JsonHelper.Deserialize<ModImportWorkflowContext>(dbWorkflow.Context);
+                                if (dbContext == null) return;
+                                dbContext.Progress = progressToSave;
+                                await _workflowRepository.UpdateContextAsync(workflow.Id, JsonHelper.Serialize(dbContext));
                             }
                             catch (Exception ex)
                             {
@@ -890,31 +905,21 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
             _logger.Info($"Created temp archive: {tempPath}");
 
-            // Update progress to 90% (compression complete)
-            // Note: TempArchivePath was already set BEFORE compression started (line 823)
-            // to prevent race conditions with progress callback updates
-            context.Progress = 90;
-            workflow.Context = JsonHelper.Serialize(context);
-            await _workflowRepository.UpdateAsync(workflow);
-            await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.PROGRESS, new
-            {
-                WorkflowId = workflow.Id,
-                Progress = 90,
-                Step = context.Step
-            });
+            // Compression complete — re-read from DB so user edits made during compression
+            // (e.g. Name, Category) are preserved; only update system-owned fields.
+            var freshWorkflow = await _workflowRepository.GetByIdAsync(workflow.Id) ?? workflow;
+            var freshContext = JsonHelper.Deserialize<ModImportWorkflowContext>(freshWorkflow.Context) ?? context;
 
-            // Note: With GUID-based IDs, SHA-based duplicate detection is no longer used
-            // Each import gets a new unique ID regardless of content
-            // Future: Could implement duplicate detection based on file name or metadata if needed
             _logger.Info("Skipping duplicate detection (using GUID-based IDs)");
 
-        // Update context - compression done, wait for user confirmation
-        // Note: TempArchivePath was already set before compression started (line 823)
-        context.Progress = 100; // Compression complete, only confirmation step left
+            freshContext.Progress = 100;
+            freshWorkflow.Context = JsonHelper.Serialize(freshContext);
+            freshWorkflow.Status = WorkflowStatus.WaitingForInput;
+            await _workflowRepository.UpdateAsync(freshWorkflow);
 
-        workflow.Context = JsonHelper.Serialize(context);
-        workflow.Status = WorkflowStatus.WaitingForInput;
-        await _workflowRepository.UpdateAsync(workflow);
+            // Keep local references in sync for the events emitted below
+            workflow.Context = freshWorkflow.Context;
+            workflow.Status = freshWorkflow.Status;
 
         // Populate category name before emitting event
         await PopulateCategoryNameInContextAsync(workflow);
@@ -923,8 +928,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.PROGRESS, new
         {
             WorkflowId = workflow.Id,
-            Progress = context.Progress,
-            Step = context.Step
+            Progress = freshContext.Progress,
+            Step = freshContext.Step
         });
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 

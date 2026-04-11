@@ -88,7 +88,8 @@
 **Full Frontend Index:** [keywords/FRONTEND.md](keywords/FRONTEND.md)
 
 ### Essential Documentation
-- **AI_GUIDE.md** → `docs/AI_GUIDE.md` (start here for AI workflows)
+- **CLAUDE.md** → `CLAUDE.md` (mandatory rules — auto-loaded every session)
+- **AI_GUIDE.md** → `docs/AI_GUIDE.md` (reference: skills, patterns, architecture examples)
 - **ARCHITECTURE.md** → `docs/architecture/CURRENT_ARCHITECTURE.md` (system design)
 - **MIGRATION_ARCHITECTURE.md** → `docs/architecture/MIGRATION_ARCHITECTURE.md` (Python → React migration system)
 - **DATABASE_MIGRATION_ARCHITECTURE.md** → `docs/architecture/DATABASE_MIGRATION_ARCHITECTURE.md` (Fluent database migrations)
