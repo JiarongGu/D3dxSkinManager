@@ -52,7 +52,9 @@ Full rules, coverage matrix, pitfalls:
 
 **Skills → Agents → RAG → Manual** (in that order)
 
-### Step 1 — For any non-trivial task, run doc-loader first
+### MANDATORY GATE — Before ANY other action
+
+**NEVER** read files, run Glob/Grep, or launch Explore/Plan agents before completing this step.
 
 ```
 /doc-loader "describe what you're doing" scope
@@ -60,7 +62,7 @@ Full rules, coverage matrix, pitfalls:
 
 Scope: `backend` | `frontend` | `ipc` | `testing` | `architecture`
 
-This loads the relevant patterns **and** tells you which skill to use next.
+doc-loader loads `docs/AI_GUIDE.md` (skills + workflow) and `docs/KEYWORDS_INDEX.md` (routing hub) first, then scope-specific docs. It tells you which skill to use next.
 
 ### Step 2 — Use the right skill
 
@@ -78,7 +80,7 @@ This loads the relevant patterns **and** tells you which skill to use next.
 
 Full skill docs → [.claude/skills/README.md](.claude/skills/README.md)
 
-### Step 3 — For research or planning
+### Step 3 — Only after doc-loader + skills: research or planning
 
 - **Explore agent** — understand existing code (`Thoroughness: medium`)
 - **Plan agent** — plan a feature (load `DESIGN_DECISIONS.md` in the prompt)

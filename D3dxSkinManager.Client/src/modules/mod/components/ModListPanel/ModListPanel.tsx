@@ -227,6 +227,29 @@ export const ModListPanel: React.FC = () => {
     });
   }, [selectMod, filteredMods]);
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      if (filteredMods.length === 0) return;
+
+      e.preventDefault(); // prevent page scroll
+
+      const currentIndex = filteredMods.findIndex((m) => m.id === selectedMod?.id);
+      const nextIndex =
+        e.key === "ArrowUp"
+          ? Math.max(0, currentIndex - 1)
+          : Math.min(filteredMods.length - 1, currentIndex + 1);
+
+      if (nextIndex === currentIndex) return;
+
+      const nextMod = filteredMods[nextIndex];
+      setSelectedModIds([nextMod.id]);
+      setAnchorId(nextMod.id);
+      handleLoadedModClick(nextMod);
+    },
+    [filteredMods, selectedMod, handleLoadedModClick]
+  );
+
   // Show empty state only when in category mode without a selected category
   if (viewMode === 'category' && !selectedCategory) {
     return (
@@ -264,6 +287,8 @@ export const ModListPanel: React.FC = () => {
       <div
         className="mod-list-panel-content"
         ref={contentRef}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
       >
         <div className="mod-list-panel-drop-message" data-drop-message={t("mods.panel.dropToImport")} />
         <div className="mod-list-panel-content-scrollable" ref={scrollRef}>

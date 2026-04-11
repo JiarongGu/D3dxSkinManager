@@ -27,45 +27,46 @@ Intelligently load relevant documentation for a coding task without overloading 
 
 Based on your task description and scope, this skill:
 
-1. **Analyzes task keywords** to understand what you need
-2. **Selects relevant docs** from docs/ directory
-3. **Loads docs in priority order** (most relevant first)
-4. **Provides summary** of key patterns found
+1. **Always loads `docs/AI_GUIDE.md` first** — entry point for skills, workflow, and architecture
+2. **Always loads `docs/KEYWORDS_INDEX.md`** — routing hub to find code and docs fast
+3. **Selects additional docs** based on task keywords and scope
+4. **Provides summary** of key patterns and which skill to use next
 
-## Document Selection Logic
+## Loading Order (Always)
+
+**Step 1 — Mandatory entry point (every task):**
+1. `docs/AI_GUIDE.md` — skills table, workflow patterns, architecture rules
+2. `docs/KEYWORDS_INDEX.md` — routing hub: finds components, services, files fast
+
+**Step 2 — Scope-specific docs (based on scope argument):**
 
 ### Backend Tasks
 Keywords: service, repository, facade, database, migration, entity
 
 **Loads**:
 1. `docs/core/DESIGN_DECISIONS.md` - Architecture constraints
-2. `docs/ai-assistant/WORKFLOWS.md` - Backend patterns section
-3. `docs/keywords/BACKEND.md` - Backend reference (if exists)
-4. Relevant module architecture docs
+2. `docs/keywords/BACKEND.md` - Backend reference
 
 ### Frontend Tasks
 Keywords: component, react, hook, context, state, ui, css
 
 **Loads**:
-1. `docs/ai-assistant/REACT_CLOSURE_PATTERNS.md` - React best practices
-2. `docs/keywords/FRONTEND.md` - Frontend reference (if exists)
-3. `docs/ai-assistant/WORKFLOWS.md` - Frontend patterns section
+1. `docs/ai-assistant/REACT_CLOSURE_PATTERNS.md` - React best practices (closures, useStableRef)
+2. `docs/keywords/FRONTEND.md` - Frontend component/hook reference
 
 ### IPC Tasks
 Keywords: ipc, message, event, facade, communication
 
 **Loads**:
-1. `docs/ai-assistant/WORKFLOWS.md` - IPC integration section
-2. `docs/core/DESIGN_DECISIONS.md` - IPC architecture
-3. Both backend and frontend patterns
+1. `docs/core/DESIGN_DECISIONS.md` - IPC architecture constraints
+2. `docs/keywords/BACKEND.md` - Backend facade reference
+3. `docs/keywords/FRONTEND.md` - Frontend service reference
 
 ### Testing Tasks
 Keywords: test, mock, assert, verify, unit, integration
 
 **Loads**:
 1. `docs/ai-assistant/TESTING_GUIDE.md` - Complete testing guide
-2. `docs/ai-assistant/WORKFLOWS.md` - Testing section
-3. Relevant module testing examples
 
 ### Architecture Tasks
 Keywords: architecture, design, decision, pattern, structure
@@ -80,22 +81,21 @@ Keywords: error, bug, fix, issue, problem, not working
 
 **Loads**:
 1. `docs/ai-assistant/TROUBLESHOOTING.md` - Common issues
-2. Related pattern docs based on error context
 
 ## Task Keyword Mapping
 
-| Task Contains | Primary Doc | Secondary Docs |
-|---------------|-------------|----------------|
-| "service" | WORKFLOWS.md (Backend Service) | DESIGN_DECISIONS.md |
-| "component" | REACT_CLOSURE_PATTERNS.md | WORKFLOWS.md (Frontend) |
-| "ipc", "message" | WORKFLOWS.md (IPC) | DESIGN_DECISIONS.md |
-| "test" | TESTING_GUIDE.md | WORKFLOWS.md (Testing) |
-| "error", "i18n" | WORKFLOWS.md (Error Handling) | Languages/*.json |
-| "event" | WORKFLOWS.md (Events) | Event handler examples |
-| "cache" | WORKFLOWS.md (Caching) | IMemoryCache examples |
-| "database", "migration" | WORKFLOWS.md (Migration) | Migration files |
-| "facade" | WORKFLOWS.md (Facade) | DESIGN_DECISIONS.md |
-| "batch" | WORKFLOWS.md (Batch) | SQL patterns |
+| Task Contains | Additional Doc | Why |
+|---------------|----------------|-----|
+| "service" | `docs/core/DESIGN_DECISIONS.md` | Service architecture rules |
+| "component" | `docs/ai-assistant/REACT_CLOSURE_PATTERNS.md` | React hook patterns |
+| "ipc", "message" | `docs/core/DESIGN_DECISIONS.md` | IPC architecture |
+| "test" | `docs/ai-assistant/TESTING_GUIDE.md` | Testing patterns |
+| "error", "i18n" | `docs/core/DESIGN_DECISIONS.md` | Error handling rules |
+| "event" | `docs/core/DESIGN_DECISIONS.md` | Event emission rules |
+| "cache" | `docs/core/ADVANCED_PATTERNS.md` | Caching patterns |
+| "database", "migration" | `docs/architecture/DATABASE_MIGRATION_ARCHITECTURE.md` | Migration system |
+| "facade" | `docs/core/DESIGN_DECISIONS.md` | Facade rules |
+| "batch" | `docs/keywords/BACKEND.md` | Batch SQL patterns |
 
 ## Output Format
 
@@ -170,10 +170,13 @@ Based on this task, consider using:
 /doc-loader "create a texture validation service for the Mod module" backend
 ```
 
-Loads:
-- DESIGN_DECISIONS.md (service architecture)
-- WORKFLOWS.md (Backend Service pattern)
-- Mod module examples
+Always loads:
+- `docs/AI_GUIDE.md` (entry point — skills table, workflow)
+- `docs/KEYWORDS_INDEX.md` (routing hub)
+
+Then also loads:
+- `docs/core/DESIGN_DECISIONS.md` (service architecture rules)
+- `docs/keywords/BACKEND.md` (Mod module patterns)
 
 Suggests:
 - `/backend-service` skill
@@ -184,10 +187,13 @@ Suggests:
 /doc-loader "build a mod details panel component with AG Grid" frontend
 ```
 
-Loads:
-- REACT_CLOSURE_PATTERNS.md (hooks, closure patterns)
-- WORKFLOWS.md (React Component pattern)
-- AG Grid usage examples from Batch Edit feature
+Always loads:
+- `docs/AI_GUIDE.md` (entry point — skills table, workflow)
+- `docs/KEYWORDS_INDEX.md` (routing hub)
+
+Then also loads:
+- `docs/ai-assistant/REACT_CLOSURE_PATTERNS.md` (hooks, closure patterns)
+- `docs/keywords/FRONTEND.md` (component/hook reference)
 
 Suggests:
 - `/react-component` skill
@@ -197,10 +203,13 @@ Suggests:
 /doc-loader "add IPC endpoint for batch delete operation" ipc
 ```
 
-Loads:
-- WORKFLOWS.md (IPC Message Integration + Batch Operations)
-- DESIGN_DECISIONS.md (IPC architecture)
-- Existing batch operation examples
+Always loads:
+- `docs/AI_GUIDE.md` (entry point — skills table, workflow)
+- `docs/KEYWORDS_INDEX.md` (routing hub)
+
+Then also loads:
+- `docs/core/DESIGN_DECISIONS.md` (IPC architecture rules)
+- `docs/keywords/BACKEND.md` + `docs/keywords/FRONTEND.md`
 
 Suggests:
 - `/ipc-message-pair` skill
@@ -211,10 +220,12 @@ Suggests:
 /doc-loader "write tests for ModLifecycleService" testing
 ```
 
-Loads:
-- TESTING_GUIDE.md (complete guide)
-- WORKFLOWS.md (Testing patterns)
-- ModLifecycleService test examples (if exist)
+Always loads:
+- `docs/AI_GUIDE.md` (entry point — skills table, workflow)
+- `docs/KEYWORDS_INDEX.md` (routing hub)
+
+Then also loads:
+- `docs/ai-assistant/TESTING_GUIDE.md` (complete testing guide)
 
 Suggests:
 - Review InMemoryDatabaseTestBase pattern
@@ -253,6 +264,7 @@ Suggests:
 ## Evolution Note
 
 **Version History**:
+- v1.1 (2026-04-12): Always load AI_GUIDE.md + KEYWORDS_INDEX.md first; removed broken WORKFLOWS.md reference
 - v1.0 (2026-04-11): Initial RAG skill
 
 **How to update this skill**:
