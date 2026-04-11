@@ -1,6 +1,7 @@
 using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Core.Utilities;
 
 namespace D3dxSkinManager.Modules.Core.WebView;
 
@@ -73,6 +74,23 @@ public class DropZoneManager : IDisposable
 
     #region Overlay Management
 
+    /// <summary>
+    /// Converts CSS pixel bounds (logical, from JavaScript getBoundingClientRect) to
+    /// physical pixel bounds needed by Win32 PointToScreen/PointToClient and SetBounds.
+    /// PointToScreen is a raw Win32 ClientToScreen call that works in physical pixels.
+    /// CSS pixels are device-independent logical pixels; at 150% DPI each CSS pixel = 1.5 physical pixels.
+    /// </summary>
+    private static (int physX, int physY, int physWidth, int physHeight) ToPhysicalPixels(int cssX, int cssY, int cssWidth, int cssHeight)
+    {
+        double dpi = DpiHelper.GetDpiScaleFactor();
+        return (
+            (int)Math.Round(cssX * dpi),
+            (int)Math.Round(cssY * dpi),
+            (int)Math.Round(cssWidth * dpi),
+            (int)Math.Round(cssHeight * dpi)
+        );
+    }
+
     private void CreateOverlay(string zoneId, int x, int y, int width, int height)
     {
         if (_activeOverlays.ContainsKey(zoneId))
@@ -96,14 +114,16 @@ public class DropZoneManager : IDisposable
                 (id) => NotifyDragLeave(id)
             );
 
-            // Convert WebView coordinates to Form coordinates
-            var screenPos = _webView.PointToScreen(new Point(x, y));
+            // Convert CSS logical pixels → physical pixels → Form coordinates.
+            // PointToScreen/PointToClient are raw Win32 calls that work in physical pixels.
+            var (physX, physY, physWidth, physHeight) = ToPhysicalPixels(x, y, width, height);
+            var screenPos = _webView.PointToScreen(new Point(physX, physY));
             var formPos = _parentForm.PointToClient(screenPos);
 
-            _logger.Info($"Creating overlay {zoneId}: WebView({x},{y}) -> Screen({screenPos.X},{screenPos.Y}) -> Form({formPos.X},{formPos.Y}) Size({width}x{height})", "DropZone");
+            _logger.Info($"Creating overlay {zoneId}: CSS({x},{y} {width}x{height}) Phys({physX},{physY}) -> Screen({screenPos.X},{screenPos.Y}) -> Form({formPos.X},{formPos.Y}) PhysSize({physWidth}x{physHeight})", "DropZone");
 
             // Set bounds and add to parent form
-            overlay.SetBounds(formPos.X, formPos.Y, width, height);
+            overlay.SetBounds(formPos.X, formPos.Y, physWidth, physHeight);
             _parentForm.Controls.Add(overlay);
             overlay.BringToFront();
 
@@ -144,10 +164,11 @@ public class DropZoneManager : IDisposable
     {
         if (_activeOverlays.ContainsKey(zoneId))
         {
-            // Update existing overlay bounds
-            var screenPos = _webView.PointToScreen(new Point(x, y));
+            // Update existing overlay bounds — same CSS→physical conversion as CreateOverlay
+            var (physX, physY, physWidth, physHeight) = ToPhysicalPixels(x, y, width, height);
+            var screenPos = _webView.PointToScreen(new Point(physX, physY));
             var formPos = _parentForm.PointToClient(screenPos);
-            _activeOverlays[zoneId].UpdateBounds(formPos.X, formPos.Y, width, height);
+            _activeOverlays[zoneId].UpdateBounds(formPos.X, formPos.Y, physWidth, physHeight);
             _logger.Debug($"Zone updated: {zoneId}", "DropZone");
             return;
         }

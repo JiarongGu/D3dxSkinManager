@@ -37,12 +37,12 @@
   height: calc(100% - 48px - 40px); /* Total height - search bar - status bar */
   flex-shrink: 0;
   overflow: hidden; /* Don't scroll the parent, only the child */
-  outline: none; /* suppress browser focus ring; selection is shown on mod items */
 }
 
 .mod-list-panel-content-scrollable {
   height: 100%;
   overflow: auto; /* Scrollable child */
+  outline: none; /* suppress browser focus ring; selection is shown on mod items */
 }
 
 .mod-list-panel-status-bar-container {

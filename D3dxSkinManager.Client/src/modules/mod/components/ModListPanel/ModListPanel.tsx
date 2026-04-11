@@ -287,11 +287,9 @@ export const ModListPanel: React.FC = () => {
       <div
         className="mod-list-panel-content"
         ref={contentRef}
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
       >
         <div className="mod-list-panel-drop-message" data-drop-message={t("mods.panel.dropToImport")} />
-        <div className="mod-list-panel-content-scrollable" ref={scrollRef}>
+        <div className="mod-list-panel-content-scrollable" ref={scrollRef} tabIndex={0} onKeyDown={handleKeyDown}>
           {filteredMods.length > 0 ? (
             <ModList
               mods={filteredMods}
