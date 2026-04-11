@@ -39,7 +39,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
   const unclassifiedCount = useModsStore(s => s.unclassifiedCount);
 
   // Get operations
-  const { setcategorySearch, setExpandedKeys, selectCategory, setSearchQuery, loadAllMods, loadLoadedMods } = useMods();
+  const { setcategorySearch, setExpandedKeys, selectCategory, loadAllMods, loadLoadedMods } = useMods();
 
   // Is unclassified selected?
   const isUnclassifiedSelected = selectedNode?.id === CATEGORY_IDS.UNCLASSIFIED;
@@ -99,9 +99,6 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
 
   // Handle category selection
   const handleCategorySelect = useCallback((node: CategoryInfo | undefined) => {
-    // Clear search when category changes
-    setSearchQuery('');
-
     if (node) {
       void selectCategory(node.id);
     } else {
@@ -109,29 +106,26 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
       useModsStore.getState().setSelectedCategory(undefined);
       useModsStore.getState().setMods([]);
     }
-  }, [setSearchQuery, selectCategory]);
+  }, [selectCategory]);
 
   // Handle unclassified click
   const handleUnclassifiedClick = useCallback(() => {
-    setSearchQuery('');
     void selectCategory(CATEGORY_IDS.UNCLASSIFIED);
-  }, [setSearchQuery, selectCategory]);
+  }, [selectCategory]);
 
   // Handle show all mods
   const handleShowAllMods = useCallback(() => {
-    setSearchQuery('');
     if (loadAllMods) {
       void loadAllMods();
     }
-  }, [setSearchQuery, loadAllMods]);
+  }, [loadAllMods]);
 
   // Handle show loaded mods
   const handleShowLoadedMods = useCallback(() => {
-    setSearchQuery('');
     if (loadLoadedMods) {
       void loadLoadedMods();
     }
-  }, [setSearchQuery, loadLoadedMods]);
+  }, [loadLoadedMods]);
 
   return (
     <Sider

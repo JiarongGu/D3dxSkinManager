@@ -542,8 +542,7 @@ useEffect(() => {
 
 - [useDelayedLoading.ts](../../D3dxSkinManager.Client/src/shared/hooks/useDelayedLoading.ts) - Hook implementation
 - [useOptimisticUpdate.ts](../../D3dxSkinManager.Client/src/shared/hooks/useOptimisticUpdate.ts) - Alternative for complex verification
-- [2026-02-20-delayed-loading-refactoring.md](../changelogs/2026-02/2026-02-20-delayed-loading-refactoring.md) - Migration history
-- [GUIDELINES.md](GUIDELINES.md) - General coding guidelines
+- [AI_GUIDE.md](../AI_GUIDE.md) - Mandatory session rules and coding patterns
 
 ---
 

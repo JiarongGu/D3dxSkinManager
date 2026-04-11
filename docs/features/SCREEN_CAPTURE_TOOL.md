@@ -556,4 +556,3 @@ public void CloseWindow(string windowName)
 
 - [Profile Service Architecture](../architecture/PROFILE_SERVICE_ARCHITECTURE.md)
 - [Module Architecture](../architecture/MODULE_ARCHITECTURE.md)
-- [Workflows](../ai-assistant/WORKFLOWS.md)

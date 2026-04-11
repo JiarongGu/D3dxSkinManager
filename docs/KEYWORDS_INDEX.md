@@ -10,9 +10,7 @@
 
 **Purpose:** Fast routing to domain-specific indexes (< 500 lines each).
 
-**Last Updated:** 2026-02-20 (v4.0 - Routing System Implemented)
-
-**Management Guide:** [maintenance/KEYWORDS_INDEX_MANAGEMENT.md](maintenance/KEYWORDS_INDEX_MANAGEMENT.md)
+**Last Updated:** 2026-04-12
 
 ---
 
@@ -20,10 +18,10 @@
 
 | What You Need | Load This File |
 |---------------|----------------|
-| **Backend C# classes, services, modules** | [keywords/BACKEND.md](keywords/BACKEND.md) (~350 lines) |
-| **React components, hooks, services** | [keywords/FRONTEND.md](keywords/FRONTEND.md) (~550 lines) |
-| **Documentation files, guides** | [keywords/DOCUMENTATION.md](keywords/DOCUMENTATION.md) (~220 lines) |
-| **How-to tasks, common operations** | [keywords/HOW_TO.md](keywords/HOW_TO.md) (~370 lines) |
+| **Backend C# classes, services, modules** | [keywords/BACKEND.md](keywords/BACKEND.md) |
+| **React components, hooks, services** | [keywords/FRONTEND.md](keywords/FRONTEND.md) |
+| **Documentation files, guides** | [keywords/DOCUMENTATION.md](keywords/DOCUMENTATION.md) |
+| **How-to tasks, common operations** | [keywords/HOW_TO.md](keywords/HOW_TO.md) |
 
 ---
 
@@ -89,9 +87,9 @@
 
 ### Essential Documentation
 - **CLAUDE.md** → `CLAUDE.md` (mandatory rules — auto-loaded every session)
-- **AI_GUIDE.md** → `docs/AI_GUIDE.md` (reference: skills, patterns, architecture examples)
+- **AI_GUIDE.md** → `docs/AI_GUIDE.md` (⭐ entry point — mandatory rules, all 18 skills, session workflow)
 - **ARCHITECTURE.md** → `docs/architecture/CURRENT_ARCHITECTURE.md` (system design)
-- **MIGRATION_ARCHITECTURE.md** → `docs/architecture/MIGRATION_ARCHITECTURE.md` (Python → React migration system)
+- **WORKFLOW_ARCHITECTURE.md** → `docs/architecture/WORKFLOW_ARCHITECTURE.md` (workflow engine + migration step system)
 - **DATABASE_MIGRATION_ARCHITECTURE.md** → `docs/architecture/DATABASE_MIGRATION_ARCHITECTURE.md` (Fluent database migrations)
 
 ### Quick How-To

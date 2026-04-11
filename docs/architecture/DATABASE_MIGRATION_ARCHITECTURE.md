@@ -1,5 +1,7 @@
 # Fluent Database Migration Module
 
+**Last Updated:** 2026-03-12
+
 A fluent API for managing SQLite database schema migrations in the D3dxSkinManager application.
 
 ## Overview

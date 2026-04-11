@@ -2,6 +2,7 @@
 
 **Last Updated:** 2026-03-04
 **Status:** Current Implementation
+**Scope:** System overview and startup flow. For module boundaries → [DOMAIN_DESIGN.md](DOMAIN_DESIGN.md). For IPC routing → [APP_FACADE_REFACTORING.md](APP_FACADE_REFACTORING.md). For service registration → [SERVICE_REGISTRATION_ARCHITECTURE.md](SERVICE_REGISTRATION_ARCHITECTURE.md).
 
 ## Overview
 

@@ -1,5 +1,7 @@
 # Plugin System Documentation
 
+**Last Updated:** 2026-03-12
+
 The D3dxSkinManager plugin system allows extending functionality without modifying core code. Plugins can work on both backend (.NET) and frontend (React) sides.
 
 ## Table of Contents

@@ -545,7 +545,7 @@ public class SomeService {
 
 > **Key Update (2026-02-20):** Archives now stored WITHOUT extensions (matches Python format)
 > **Architecture:** Step-based migration system with 6 steps
-> **Documentation:** [architecture/MIGRATION_ARCHITECTURE.md](../architecture/MIGRATION_ARCHITECTURE.md)
+> **Documentation:** [architecture/WORKFLOW_ARCHITECTURE.md](../architecture/WORKFLOW_ARCHITECTURE.md)
 
 #### Facade
 

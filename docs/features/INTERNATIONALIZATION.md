@@ -1,5 +1,6 @@
 # Internationalization (i18n)
 
+**Last Updated:** 2026-02-23
 **Status:** Implemented
 **Languages:** English (en), Chinese (cn)
 **Coverage:** 507+ translation keys

@@ -846,8 +846,8 @@ If issue not found here:
 
 1. **Check recent changes:** See [CHANGELOG.md](../CHANGELOG.md)
 2. **Search code:** Use Grep tool or [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
-3. **Check guidelines:** See [GUIDELINES.md](GUIDELINES.md) for best practices
-4. **Read documentation:** See [core/](../core/) for architecture details
+3. **Check architecture:** See [AI_GUIDE.md](../AI_GUIDE.md) for architecture rules and patterns
+4. **Read documentation:** See [core/DESIGN_DECISIONS.md](../core/DESIGN_DECISIONS.md) for architecture constraints
 
 ### Updating This File
 

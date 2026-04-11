@@ -1,311 +1,217 @@
 # AI Assistant Guide
 
-**Version:** 5.1
+**Version:** 6.0
 **Last Updated:** 2026-04-12
-**Role:** Deep reference — load this when you need workflow patterns, architecture examples, or the full skills list. Mandatory rules and the skills quick-reference are in `CLAUDE.md` (auto-loaded every session) — you do not need to load this guide for routine tasks.
+**Role:** Primary entry point — loaded by `/doc-loader` at the start of every task. Contains all mandatory session rules, the complete skills reference, and workflow patterns needed for code generation.
 
 ---
 
-## 🎯 Quick Start
+## ⚠️ Mandatory Session Rules
 
-> **For routine tasks** — CLAUDE.md already has everything: skills table, doc-loader instruction, architecture rules. Load this guide only when you need workflow examples or the full skills reference.
+> Non-negotiable. Enforced by CLAUDE.md (auto-loaded); surfaced here so they are present every time this guide is loaded.
 
-### Skills-First Workflow
-```bash
-# Step 1: load docs + discover the right skill
-/doc-loader "describe your task" backend|frontend|ipc|testing|architecture
+### 1. Git Commits — Never Without Approval
 
-# Step 2: run the suggested skill, e.g.
-/backend-service TextureValidationService Mod IFileHelper ValidateAsync
+**NEVER** commit without explicit user approval. Always ask "Ready to commit?" and wait for a clear "yes".
+
+### 2. Architecture Boundaries
+
+```
+Backend  → ALL heavy operations, data processing, file I/O
+Frontend → UI only — NO data processing, NO business logic
+Facades  → Thin delegation only — no business logic, no events
+Services → Business logic + event emission
 ```
 
-### Understanding Existing Code
-```typescript
-// Explore agent loads relevant docs automatically
-Task(subagent_type: "Explore", description: "Understand mod loading",
-     prompt: "How does mod loading work? Thoroughness: medium")
+**Module boundaries** — never access another module's repository directly. Always call through that module's facade.
 
-// Or: check KEYWORDS_INDEX.md → load specific doc
-```
+### 3. Error Handling
 
----
-
-## 🚀 The System (Skills + RAG + Agents)
-
-### Skills = Code Generation (18 available)
-
-See [.claude/skills/README.md](../.claude/skills/README.md) for the complete reference.
-Quick-access table (for everyday use) is in `CLAUDE.md` section 4.
-
-**Code Generation:**
-`/backend-service` `/backend-facade` `/ipc-service` `/react-component`
-`/error-with-i18n` `/event-handler` `/ipc-message-pair` `/batch-operation`
-`/file-watcher` `/service-registration`
-
-**Discovery:**
-`/doc-loader` (loads docs + suggests skills) · `/pattern-finder` (finds existing patterns)
-
-**Doc Maintenance:**
-`/doc-update-guide` · `/doc-update-reference` · `/doc-update-technical`
-`/doc-monitor` · `/doc-cleanup` · `/doc-optimize`
-
-### RAG = Understanding (Load docs on-demand)
-
-**Start here**: [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) — find anything quickly
-
-**Key Documents**:
-- [DESIGN_DECISIONS.md](core/DESIGN_DECISIONS.md) — architecture constraints
-- [ADVANCED_PATTERNS.md](core/ADVANCED_PATTERNS.md) — non-automatable patterns
-- [TROUBLESHOOTING.md](ai-assistant/TROUBLESHOOTING.md) — common issues
-
-### Agents = Research + Planning
-
-**Explore agent** — understand existing code:
-```typescript
-Task(subagent_type: "Explore", description: "Find X pattern",
-     prompt: "How is X implemented? Thoroughness: medium")
-```
-
-**Plan agent** — plan a new feature:
-```typescript
-Task(subagent_type: "Plan", description: "Plan Y feature",
-     prompt: "Plan Y. Load DESIGN_DECISIONS.md. Create detailed plan.")
-```
-
----
-
-## 🏛️ Architecture Rules
-
-> These rules are also enforced via `CLAUDE.md` (auto-loaded). Shown here as reference with code examples.
-
-### Architecture Boundaries
 ```csharp
-// Backend: ALL heavy operations
-// Frontend: UI only, NO data processing
-// Facades: THIN delegation ONLY (no business logic, no events)
-// Services: Business logic + Event emission
-```
-
-### Error Handling (Unified Pattern)
-```csharp
-// Backend
+// Backend — always throw OperationException
 throw new OperationException("ERROR_CODE",
-    new Dictionary<string, string> { {"param", value} });
+    new Dictionary<string, string> { { "param", value } });
 
-// Frontend
+// Frontend — always use handleError
 catch (error: unknown) { handleError(error); }
-
-// i18n: Add to BOTH en.json AND cn.json
 ```
 
-### Module Boundaries
-- ❌ **NEVER** access other module's repositories
-- ✅ **ALWAYS** use module facades for cross-module calls
+Add message to **BOTH** `Languages/en.json` AND `Languages/cn.json`. Use `/error-with-i18n` skill — never add errors manually.
 
-### Event Emission
+### 4. Events — Services Only
+
 - ✅ Services emit events (inject `IProfileEventBus`)
-- ❌ Facades **never** emit events (thin delegation layer only)
+- ❌ Facades **never** emit events
 
-### Data Conventions
+### 5. Frontend Data Conventions
+
 ```typescript
-// ✅ undefined for missing data
+// ✅ undefined for absent/optional data
 const [mod, setMod] = useState<ModInfo>();
 
-// ✅ null ONLY for React render returns
+// ✅ null ONLY for React render short-circuit
 if (!data) return null;
+
+// ❌ Never use null for state
+const [mod, setMod] = useState<ModInfo | null>(null); // WRONG
 ```
+
+### 6. Testing — Required After Every Change
+
+After every bug fix or new feature, write tests. Before writing any test:
+
+```
+/doc-loader "write tests for <what you changed>" testing
+```
+
+Full guide: [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md)
 
 ---
 
-## 📋 Workflow Patterns
+## 🎯 Work Style — Skills → Agents → RAG → Manual
 
-### Pattern 1: New Backend Service
+**Follow this order strictly:**
 
-```bash
-# Generate complete service with skill
-/backend-service TextureValidationService Mod IFileHelper ValidateAsync
-
-# Result: Interface + Implementation + DI + Events + Registration
-# No manual coding needed for boilerplate
-```
-
-### Pattern 2: Add Error Handling
-
-```bash
-# Generates exception + i18n in both languages
-/error-with-i18n TEXTURE_INVALID fileName,formats \
-  "Invalid texture: {{fileName}}" \
-  "无效的纹理：{{fileName}}"
-
-# Result: OperationException code + en.json + cn.json updated
-```
-
-### Pattern 3: Understand Existing Code
-
-```typescript
-// Don't read docs manually - use Explore agent
-Task(subagent_type: "Explore",
-     description: "Understand category tree",
-     prompt: "How is category tree built? Find CategoryService. Thoroughness: medium")
-
-// Agent auto-loads relevant docs and code
-```
-
-### Pattern 4: Plan New Feature
-
-```typescript
-// Agent loads DESIGN_DECISIONS.md + creates plan
-Task(subagent_type: "Plan",
-     description: "Plan mod export",
-     prompt: "Plan mod export to zip. Load DESIGN_DECISIONS.md. Find compression code. Create detailed plan.")
-
-// Review plan BEFORE coding
-```
+| Step | Tool | When |
+|------|------|------|
+| 1. **Skills** | `/skill-name` | Task matches a skill (code gen, errors, IPC, components) |
+| 2. **Explore agent** | `subagent_type: "Explore"` | Understanding existing code (medium thoroughness) |
+| 3. **Plan agent** | `subagent_type: "Plan"` | Planning a new feature (load DESIGN_DECISIONS.md in prompt) |
+| 4. **RAG** | [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) | Loading specific docs on demand |
+| 5. **Manual** | Direct editing | Only for unique business logic with no pattern match |
 
 ---
 
-## 🏗️ Core Architecture (Minimal Reference)
+## 🔧 Skills — Complete Reference (18 Total)
 
-**For detailed patterns**: See [ADVANCED_PATTERNS.md](core/ADVANCED_PATTERNS.md)
+### Code Generation (10 skills)
+
+| Skill | Usage | Generates |
+|-------|-------|-----------|
+| `/backend-service` | `/backend-service Name Module Deps Methods` | C# service + interface + DI + events + registration |
+| `/backend-facade` | `/backend-facade Name Module Services` | Thin IPC facade (delegation only, no logic) |
+| `/ipc-service` | `/ipc-service Name Module Methods` | TypeScript IPC service + singleton export |
+| `/react-component` | `/react-component Name type features` | Component + BEM CSS + hooks |
+| `/error-with-i18n` | `/error-with-i18n CODE params "en msg" "cn msg"` | OperationException + en.json + cn.json |
+| `/event-handler` | `/event-handler Name Module SourceEvents Target` | C# event consolidation handler |
+| `/ipc-message-pair` | `/ipc-message-pair Module MessageType ...` | Backend handler + Frontend method (paired) |
+| `/batch-operation` | `/batch-operation Module Op EntityType Params` | SQL batch + Facade handler + Frontend method |
+| `/file-watcher` | `/file-watcher Name Module Path Filters Events` | FileSystemWatcher with lock safety + disposal |
+| `/service-registration` | `/service-registration Module Interface Impl Lifecycle` | DI registration in ServiceExtensions.cs |
+
+### Discovery & Documentation (8 skills)
+
+| Skill | Usage | What It Does |
+|-------|-------|--------------|
+| `/doc-loader` | `/doc-loader "task" scope` | Loads relevant docs + suggests next skill |
+| `/pattern-finder` | `/pattern-finder PatternType Module?` | Finds existing code patterns in codebase |
+| `/doc-update-guide` | `/doc-update-guide Name ChangeType Details` | Updates AI_GUIDE.md with versioning |
+| `/doc-update-reference` | `/doc-update-reference Name EntryType Details` | Updates REFERENCE.md + KEYWORDS_INDEX.md |
+| `/doc-update-technical` | `/doc-update-technical Name UpdateType Details` | Updates ADVANCED_PATTERNS.md / DESIGN_DECISIONS.md |
+| `/doc-monitor` | `/doc-monitor CheckType Scope` | Audits docs for broken links, redundancy |
+| `/doc-cleanup` | `/doc-cleanup Operation Target Details` | Removes redundant docs, archives deprecated content |
+| `/doc-optimize` | `/doc-optimize Name OptimizationType Details` | Splits oversized docs, condenses for RAG |
+
+Full skill docs with parameters and examples: [.claude/skills/README.md](../.claude/skills/README.md)
+
+---
+
+## 🏛️ Architecture Patterns (Quick Reference)
 
 ### Service Layer (Business Logic + Events)
+
 ```csharp
 public class ModService : IModService {
+    private readonly IModRepository _repository;
     private readonly IProfileEventBus _eventBus;  // Always inject
 
     public async Task<Result> DoSomethingAsync() {
-        // Business logic
+        var result = await _repository.GetAsync();
         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CHANGED, data);
+        return result;
     }
 }
 ```
 
-**Generate with**: `/backend-service ModService Mod IProfileEventBus DoSomethingAsync`
+Generate with: `/backend-service ModService Mod IModRepository,IProfileEventBus DoSomethingAsync`
 
-### Facade Layer (Thin IPC Only)
+### Facade Layer (IPC Delegation Only — No Logic)
+
 ```csharp
 public class ModFacade : BaseFacade {
     private readonly IModService _service;
 
-    private async Task<Result> HandleAsync(IpcRequest request) {
-        return await _service.DoSomethingAsync();  // Just delegate
+    private async Task<Result> HandleAsync(IpcRequest req) {
+        return await _service.DoSomethingAsync();  // Thin delegation only
     }
 }
 ```
 
-**Generate with**: `/backend-facade ModFacade Mod IModService`
+Generate with: `/backend-facade ModFacade Mod IModService`
 
-### Frontend IPC
+### Frontend IPC Service
+
 ```typescript
 export class ModService extends BaseModuleService {
   async doSomething(profileId: string): Promise<Result> {
     return this.sendMessage('DO_SOMETHING', profileId);
   }
 }
+export const modService = new ModService();
 ```
 
-**Generate with**: `/ipc-service ModService MOD doSomething`
+Generate with: `/ipc-service ModService MOD doSomething`
 
----
-
-## 🎨 UI Guidelines (Minimal)
+### UI Rules
 
 - **BEM naming**: `.component-name__element--modifier`
-- **Font sizes**: 12px or 14px only (never 13px or below 12px)
-- **Colors**: Use CSS variables (`var(--color-*)`)
-- **classnames**: Use `classNames()` library for conditionals
-
-**For details**: See [FRONTEND.md](keywords/FRONTEND.md) (load via KEYWORDS_INDEX when needed)
+- **Font sizes**: 12px or 14px only — never 13px, never below 12px
+- **Colors**: CSS variables only (`var(--color-*)`)
+- **Conditionals**: Use `classNames()` library
 
 ---
 
 ## 🔄 Session Workflow
 
-### Starting Session
-> CLAUDE.md auto-loads — mandatory rules are already active. No manual setup needed.
+### Starting a Task
 
-1. `git status` — check current branch and state
-2. Ask user: "What to work on?"
-3. **Use skills** for code generation, **agents** for research/planning
+1. `git status` — check branch and state
+2. `/doc-loader "describe what you're doing" scope` ← mandatory gate; loads this guide + scope-specific docs
+3. Use the skill suggested by doc-loader
 
 ### During Development
-1. **Skills first** - Use skills for all repetitive patterns
-2. **Agents second** - Use Explore/Plan for understanding/planning
-3. **RAG last** - Load specific docs from KEYWORDS_INDEX only when needed
-4. **Tests always** - After every bug fix or feature: `/doc-loader "write tests for <what>" testing`
+
+- **Skills first** — generate boilerplate with skills, never write it manually
+- **Architecture always** — backend does all work, frontend is pure UI
+- **Tests always** — write tests after every bug fix or feature
 
 ### Before Committing
-1. Write tests for changes (see [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md))
+
+1. Tests pass (`dotnet test` + `npm test`)
 2. Build succeeds (`dotnet build` + no TS errors)
-3. Tests pass (`dotnet test` + `npm test`)
-4. **Ask user**: "Ready to commit?"
-5. Wait for explicit "yes"
+3. Ask user: "Ready to commit?"
+4. Wait for explicit "yes"
 
 ---
 
 ## 📚 Documentation Map
 
-**Don't load everything** - Use this map to find what you need:
+**Load only what you need — use [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) to find anything fast.**
 
-| Need | Load This | Why |
-|------|-----------|-----|
-| **Generate code** | [.claude/skills/README.md](../.claude/skills/README.md) | 18 skills available |
-| **Find something** | [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) | Quick lookup |
-| **Check architecture** | [DESIGN_DECISIONS.md](core/DESIGN_DECISIONS.md) | Architecture constraints |
-| **Complex patterns** | [ADVANCED_PATTERNS.md](core/ADVANCED_PATTERNS.md) | Non-automatable patterns |
-| **Debugging** | [TROUBLESHOOTING.md](ai-assistant/TROUBLESHOOTING.md) | Common issues |
-| **Testing** | [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md) | Patterns + mandatory rules + pitfalls |
-
----
-
-## ⚡ Quick Command Reference
-
-### Git
-```bash
-git status           # Check first
-git add <files>      # Stage
-git commit -m "msg"  # Only after user approval
-```
-
-### Build
-```bash
-.\build-production.ps1      # Production build
-dotnet build <project>      # Backend only
-```
-
-### Common Tasks
-
-| Task | Command |
-|------|---------|
-| **Create service** | `/backend-service Name Module Deps Methods` |
-| **Add error** | `/error-with-i18n CODE params "en" "cn"` |
-| **Create IPC** | `/ipc-service Name Module Methods` |
-| **Create component** | `/react-component Name type features` |
-| **Understand code** | Explore agent (medium thoroughness) |
-| **Plan feature** | Plan agent → loads DESIGN_DECISIONS.md |
+| Need | Load This |
+|------|-----------|
+| Find code/files quickly | [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) |
+| Architecture constraints | [DESIGN_DECISIONS.md](core/DESIGN_DECISIONS.md) |
+| Non-automatable patterns | [ADVANCED_PATTERNS.md](core/ADVANCED_PATTERNS.md) |
+| Testing patterns + pitfalls | [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md) |
+| React hook/closure patterns | [REACT_CLOSURE_PATTERNS.md](ai-assistant/REACT_CLOSURE_PATTERNS.md) |
+| Debugging/common issues | [TROUBLESHOOTING.md](ai-assistant/TROUBLESHOOTING.md) |
+| All skills with full syntax | [.claude/skills/README.md](../.claude/skills/README.md) |
+| Backend C# classes/services | [keywords/BACKEND.md](keywords/BACKEND.md) |
+| React components/hooks | [keywords/FRONTEND.md](keywords/FRONTEND.md) |
+| How-to tasks | [keywords/HOW_TO.md](keywords/HOW_TO.md) |
+| Documentation catalog | [keywords/DOCUMENTATION.md](keywords/DOCUMENTATION.md) |
 
 ---
 
-## 🔍 Key Takeaways
-
-### 1. Skills-First Development
-- ✅ **PREFER** skills over manual coding (18 skills available)
-- ✅ **USE** `/skill-name` for all repetitive patterns
-- ❌ **DON'T** write boilerplate manually
-
-### 2. RAG-Driven Understanding
-- ✅ **START** with KEYWORDS_INDEX.md to find docs
-- ✅ **LOAD** specific docs on-demand (not everything)
-- ✅ **USE** Explore agent instead of manual doc reading
-
-### 3. Agent-Assisted Work
-- ✅ **Explore agent** for understanding code
-- ✅ **Plan agent** for planning features
-- ❌ **DON'T** skip planning phase
-
-### 4. Mandatory Rules
-See `CLAUDE.md` (auto-loaded). Summary: git approval, architecture boundaries, testing after every change.
-
----
-
-**Workflow**: Skills → Agents → RAG → Manual (in that order)
+**Workflow**: Skills → Agents → RAG → Manual. Every session. No exceptions.

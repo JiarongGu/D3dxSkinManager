@@ -3,6 +3,7 @@
 **Last Updated**: 2026-02-19
 **Status**: Active Design Document
 **Purpose**: Define clear boundaries between modules and service responsibilities
+**Scope:** Module boundaries and dependency rules. For system overview → [CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md). For stateless service pattern → [PROFILE_SERVICE_ARCHITECTURE.md](PROFILE_SERVICE_ARCHITECTURE.md).
 
 ---
 

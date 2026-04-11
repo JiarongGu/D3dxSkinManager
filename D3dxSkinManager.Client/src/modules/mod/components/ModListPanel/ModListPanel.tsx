@@ -334,7 +334,7 @@ export const ModListPanel: React.FC = () => {
       {/* Status Bar at Bottom - fixed container like UnclassifiedItem */}
       <div className="mod-list-panel-status-bar-container">
         <ModListStatusBar
-          mods={filteredMods}
+          mods={mods ?? []}
           onLoadedModClick={handleLoadedModClick}
           selectedModCount={selectedModIds.length}
         />

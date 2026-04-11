@@ -1,5 +1,7 @@
 # Service Registration Architecture
 
+**Last Updated:** 2026-02-23
+
 ## Overview
 
 Modular service registration with each module having its own `ServiceExtensions.cs` for clear separation of concerns.

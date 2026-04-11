@@ -14,7 +14,7 @@ Skills are reusable code generation templates that:
 - ✅ Generate complete, working code from simple commands
 - ✅ Evolve with your project (update patterns in one place)
 - ✅ Are version-controlled (everyone uses same patterns)
-- ✅ Work with documentation (skills reference docs/WORKFLOWS.md)
+- ✅ Work with documentation (skills reference docs/core/ADVANCED_PATTERNS.md and docs/core/DESIGN_DECISIONS.md)
 
 ## Available Skills (18 Total)
 
@@ -259,20 +259,21 @@ public ModService(IModRepository repository, IMemoryCache cache) { ... }
 Skills and docs work together:
 
 **Skills → Docs**:
-- Skills reference `docs/WORKFLOWS.md` for detailed patterns
+- Skills reference `docs/core/ADVANCED_PATTERNS.md` for complex non-automatable patterns
+- Skills reference `docs/core/DESIGN_DECISIONS.md` for architecture constraints
 - Skills include "Reference Examples" section pointing to existing code
 
 **Docs → Skills**:
-- `docs/AI_GUIDE.md` lists all available skills
-- `docs/WORKFLOWS.md` documents patterns that skills enforce
+- `docs/AI_GUIDE.md` lists all available skills (entry point, loaded every session)
+- `docs/core/ADVANCED_PATTERNS.md` documents patterns that skills enforce
 
 **Update Process**:
 ```
 1. Architecture decision made
    ↓
-2. Update docs/WORKFLOWS.md (document new pattern)
+2. Update docs/core/DESIGN_DECISIONS.md or ADVANCED_PATTERNS.md (document new pattern)
    ↓
-3. Update relevant skills (reference new WORKFLOWS pattern)
+3. Update relevant skills (reference the updated doc)
    ↓
 4. Update docs/AI_GUIDE.md (list updated skill versions)
    ↓
@@ -311,7 +312,7 @@ Skills and docs work together:
    - Pattern that has common mistakes
 
 2. **Document the Pattern**:
-   - Add to `docs/WORKFLOWS.md` first
+   - Add to `docs/core/ADVANCED_PATTERNS.md` (complex patterns) or `docs/core/DESIGN_DECISIONS.md` (architecture constraints)
    - Include examples from existing code
    - List all requirements and edge cases
 
@@ -466,9 +467,9 @@ Brief explanation of what this skill does.
 
 ## Related Documentation
 
-- **[docs/AI_GUIDE.md](../../docs/AI_GUIDE.md)** - Main AI assistant guide (references skills)
-- **[docs/WORKFLOWS.md](../../docs/ai-assistant/WORKFLOWS.md)** - Detailed implementation patterns
-- **[docs/DESIGN_DECISIONS.md](../../docs/core/DESIGN_DECISIONS.md)** - Architecture constraints
+- **[docs/AI_GUIDE.md](../../docs/AI_GUIDE.md)** - Entry point guide (mandatory rules, skills table, session workflow)
+- **[docs/core/ADVANCED_PATTERNS.md](../../docs/core/ADVANCED_PATTERNS.md)** - Complex non-automatable patterns that skills enforce
+- **[docs/core/DESIGN_DECISIONS.md](../../docs/core/DESIGN_DECISIONS.md)** - Architecture constraints
 - **[Claude Code Skills Docs](https://docs.claude.com/en/docs/claude-code/skills)** - Official documentation
 
 ## Contributing

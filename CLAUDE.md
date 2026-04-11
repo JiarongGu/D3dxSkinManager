@@ -52,9 +52,19 @@ Full rules, coverage matrix, pitfalls:
 
 **Skills → Agents → RAG → Manual** (in that order)
 
-### MANDATORY GATE — Before ANY other action
+### MANDATORY GATE — Before ANY code generation
 
-**NEVER** read files, run Glob/Grep, or launch Explore/Plan agents before completing this step.
+**NEVER** read files, run Glob/Grep, or launch Explore/Plan agents before completing both steps below.
+
+**Step 1 — Load the entry point (every session, every task):**
+
+```
+Read docs/AI_GUIDE.md
+```
+
+`docs/AI_GUIDE.md` is the authoritative entry point. It contains the full mandatory rules, the complete skills table (18 skills with usage syntax), architecture patterns, and session workflow. Load it before generating any code.
+
+**Step 2 — Load task-specific docs:**
 
 ```
 /doc-loader "describe what you're doing" scope
@@ -62,9 +72,9 @@ Full rules, coverage matrix, pitfalls:
 
 Scope: `backend` | `frontend` | `ipc` | `testing` | `architecture`
 
-doc-loader loads `docs/AI_GUIDE.md` (skills + workflow) and `docs/KEYWORDS_INDEX.md` (routing hub) first, then scope-specific docs. It tells you which skill to use next.
+doc-loader loads `docs/AI_GUIDE.md` + `docs/KEYWORDS_INDEX.md` + scope-specific docs and tells you which skill to use next. (If you already read AI_GUIDE.md in Step 1, doc-loader still adds the scope-specific docs.)
 
-### Step 2 — Use the right skill
+### Step 3 — Use the right skill
 
 | What you're building | Skill to run |
 |----------------------|-------------|
@@ -78,13 +88,13 @@ doc-loader loads `docs/AI_GUIDE.md` (skills + workflow) and `docs/KEYWORDS_INDEX
 | Register a service | `/service-registration Module Interface Impl Lifecycle` |
 | Find existing patterns | `/pattern-finder PatternType Module` |
 
-Full skill docs → [.claude/skills/README.md](.claude/skills/README.md)
+Full skill reference (with parameters and examples) → [docs/AI_GUIDE.md](docs/AI_GUIDE.md)
 
-### Step 3 — Only after doc-loader + skills: research or planning
+### Step 4 — Only after Steps 1–3: research or planning
 
 - **Explore agent** — understand existing code (`Thoroughness: medium`)
 - **Plan agent** — plan a feature (load `DESIGN_DECISIONS.md` in the prompt)
 
-### Step 4 — After finishing
+### Step 5 — After finishing
 
 Write tests (section 3), build succeeds, ask before committing (section 1).

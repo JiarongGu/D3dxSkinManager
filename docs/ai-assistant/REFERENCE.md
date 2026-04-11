@@ -4,7 +4,7 @@
 
 **Purpose:** Fast reference for common commands, paths, and settings.
 
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-04-12
 
 ---
 
@@ -91,10 +91,17 @@ powershell -ExecutionPolicy Bypass -File build-production.ps1
 
 ```
 D3dxSkinManager/
-├── Program.cs                          # Entry point
-├── Services/
-│   ├── IModService.cs                  # Mod service interface
-│   └── ModService.cs                   # Mod service implementation
+├── Program.cs                          # Entry point, DI setup, IPC handler
+├── Modules/                            # Feature modules (each has Services/, Facade, etc.)
+│   ├── Mods/                           # Mod management
+│   ├── Category/                       # Category tree
+│   ├── Profile/                        # Profile management
+│   ├── Settings/                       # App settings
+│   ├── Launch/                         # Game launch
+│   ├── Migration/                      # Python→React migration
+│   ├── Tools/                          # Utilities
+│   ├── Plugins/                        # Plugin infrastructure
+│   └── Core/                           # File I/O, image, logging
 └── D3dxSkinManager.csproj              # Project file
 ```
 
@@ -120,7 +127,7 @@ D3dxSkinManager.Client/
 ```
 docs/
 ├── README.md                           # Developer hub
-├── AI_GUIDE.md                         # Reference: skills, patterns, architecture (load on demand)
+├── AI_GUIDE.md                         # Mandatory entry point — loaded by /doc-loader every session
 ├── CHANGELOG.md                        # Change log
 ├── KEYWORDS_INDEX.md                   # Quick lookup
 ├── ai-assistant/                       # AI guides
@@ -394,7 +401,7 @@ git show commit-hash
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -603,4 +610,4 @@ code docs/KEYWORDS_INDEX.md  # For quick lookup
 
 *This reference is maintained by AI assistants. Add commands as you discover them!*
 
-*Last updated: 2026-02-17*
+*Last updated: 2026-04-12*

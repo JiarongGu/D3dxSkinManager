@@ -197,6 +197,5 @@ When migrating from old structure or importing from other tools:
 - **ConfigurationService**: Profile-specific settings (config.json)
 
 ## See Also
-- [Service Architecture](SERVICE_ARCHITECTURE.md)
 - [Profile System](../features/PROFILE_SYSTEM.md)
 - [Path Conventions](PATH_CONVENTIONS.md)

@@ -16,8 +16,8 @@
 ### Adding IMemoryCache Caching
 
 **"How do I add caching to expensive operations?"**
-- **Full Pattern:** `docs/ai-assistant/WORKFLOWS.md` (Example 4) ⭐⭐⭐
-- **Architecture:** `docs/AI_GUIDE.md` (Caching with IMemoryCache section)
+- **Full Pattern:** `docs/core/ADVANCED_PATTERNS.md` (IMemoryCache section) ⭐⭐⭐
+- **Architecture:** `docs/core/DESIGN_DECISIONS.md`
 - **Real Example:** ModQueryService.GetActiveModsAsync
 
 **Quick Pattern:**
@@ -54,7 +54,7 @@ public class YourService {
 ### Adding File Monitoring (FileSystemWatcher)
 
 **"How do I monitor directory changes and invalidate cache?"**
-- **Full Pattern:** `docs/ai-assistant/WORKFLOWS.md` (Adding FileSystemWatcher) ⭐⭐⭐
+- **Skill:** `/file-watcher Name Module Path Filters Events` ⭐⭐⭐
 - **Real Example:** ModCacheWatcher monitors cache/Mods folder
 
 **Quick Pattern:**
@@ -214,11 +214,11 @@ export const MyComponent = () => {
 ### Adding Services
 
 **"How do I add a new backend service?"**
-- **Documentation:** `docs/ai-assistant/WORKFLOWS.md#adding-services`
+- **Skill:** `/backend-service Name Module Deps Methods`
 - **Example:** `Modules/Mods/Services/ModManagementService.cs`
 - **DI Registration:** `Modules/Mods/ModsServiceExtensions.cs`
 - **Pattern:** Repository, Domain Service, or Infrastructure Service
-- **Reference:** `docs/core/ARCHITECTURE.md#service-layers`
+- **Reference:** `docs/architecture/CURRENT_ARCHITECTURE.md#service-layers`
 
 **Steps:**
 1. Create service class in `Modules/[Module]/Services/`
@@ -232,7 +232,7 @@ export const MyComponent = () => {
 ### Dependency Injection
 
 **"How do I use Dependency Injection?"**
-- **Documentation:** `docs/core/ARCHITECTURE.md#dependency-injection`
+- **Documentation:** `docs/architecture/CURRENT_ARCHITECTURE.md#dependency-injection`
 - **Example:** `D3dxSkinManager/Program.cs:24-38`
 - **DI Container:** Microsoft.Extensions.DependencyInjection
 - **Module Extensions:** Each module has `[Module]ServiceExtensions.cs`
@@ -253,7 +253,7 @@ public static IServiceCollection AddModsModule(this IServiceCollection services)
 ### Facade Pattern
 
 **"How do I use the Facade pattern?"**
-- **Documentation:** `docs/core/ARCHITECTURE.md#facade-pattern`
+- **Documentation:** `docs/architecture/CURRENT_ARCHITECTURE.md#facade-pattern`
 - **Example:** `Modules/Mods/ModFacade.cs:14`
 - **Base Class:** `Modules/Core/Facades/BaseFacade.cs`
 - **Purpose:** IPC entry point for module operations
@@ -281,7 +281,7 @@ public class ModFacade : BaseFacade, IModFacade
 ### Repository Pattern
 
 **"How do I use the Repository pattern?"**
-- **Documentation:** `docs/core/ARCHITECTURE.md#repository-pattern`
+- **Documentation:** `docs/architecture/CURRENT_ARCHITECTURE.md#repository-pattern`
 - **Example:** `Modules/Mods/Services/ModRepository.cs:32`
 - **Purpose:** Data access abstraction
 
@@ -300,7 +300,7 @@ public interface IModRepository
 ### Database Changes
 
 **"How do I update the database schema?"**
-- **Documentation:** `docs/ai-assistant/WORKFLOWS.md#database-changes`
+- **Documentation:** `docs/architecture/DATABASE_MIGRATION_ARCHITECTURE.md`
 - **Schema Location:** `Modules/Mods/Services/ModRepository.cs:49-78`
 - **Database:** SQLite
 - **Connection:** `data/profiles/*/mods.db`
@@ -316,7 +316,7 @@ public interface IModRepository
 ### IPC Messages
 
 **"How do I add a new IPC message type?"**
-- **Documentation:** `docs/ai-assistant/WORKFLOWS.md#ipc-messages`
+- **Skill:** `/ipc-message-pair Module MessageType ...`
 - **Backend Handler:** Facade classes in `Modules/*/[Module]Facade.cs`
 - **Frontend Types:** `src/shared/types/message.types.ts`
 - **Frontend Service:** `src/shared/services/bridgeService.ts`
@@ -334,7 +334,7 @@ public interface IModRepository
 ### Adding Components
 
 **"How do I add a React component?"**
-- **Documentation:** `docs/ai-assistant/WORKFLOWS.md#adding-components`
+- **Skill:** `/react-component Name type features`
 - **Location:** `src/components/` or `src/modules/[module]/components/`
 - **Pattern:** Functional components with hooks
 
@@ -350,7 +350,7 @@ public interface IModRepository
 ### Custom Hooks
 
 **"How do I create a custom hook?"**
-- **Documentation:** `docs/core/ARCHITECTURE.md#custom-hooks-pattern`
+- **Documentation:** `docs/architecture/CURRENT_ARCHITECTURE.md#custom-hooks-pattern`
 - **Example:** `src/hooks/useModData.ts:8`
 - **Location:** `src/hooks/` or `src/modules/[module]/hooks/`
 
@@ -666,7 +666,7 @@ dotnet test --filter "FullyQualifiedName~GetAllModsAsync"
 ### Understanding Migration
 
 **"How does migration work?"**
-- **Documentation:** `docs/architecture/MIGRATION_ARCHITECTURE.md`
+- **Documentation:** `docs/architecture/WORKFLOW_ARCHITECTURE.md`
 - **Service:** `Modules/Migration/Services/MigrationService.cs`
 - **Steps:** 6-step process
 - **Pattern:** Step-based architecture with `IMigrationStep`
@@ -697,7 +697,7 @@ dotnet test --filter "FullyQualifiedName~GetAllModsAsync"
 ### Adding to CHANGELOG
 
 **"How do I add to CHANGELOG?"**
-- **Documentation:** `docs/maintenance/CHANGELOG_MANAGEMENT.md`
+- **Guide:** See `docs/CHANGELOG.md` header for format rules
 - **Rule:** Main CHANGELOG.md < 200 lines
 - **Format:** Summary entries (3-5 lines)
 - **Detailed:** Create file in `changelogs/YYYY-MM/`
@@ -712,8 +712,7 @@ wc -l docs/CHANGELOG.md
 ### Updating KEYWORDS_INDEX
 
 **"How do I update KEYWORDS_INDEX?"**
-- **Documentation:** `docs/maintenance/KEYWORDS_INDEX_MANAGEMENT.md`
-- **Rule:** KEYWORDS_INDEX.md < 500 lines
+- **Rule:** KEYWORDS_INDEX.md < 500 lines — it is a routing hub only
 - **Format:** One-line entries: `Name → path (purpose)`
 - **Detailed:** Add to domain-specific file in `keywords/`
 
@@ -729,7 +728,6 @@ wc -l docs/KEYWORDS_INDEX.md
 ### Creating Feature Branch
 
 **"How do I create a feature branch?"**
-- **Documentation:** `docs/ai-assistant/WORKFLOWS.md#git-workflow`
 
 **Commands:**
 ```bash

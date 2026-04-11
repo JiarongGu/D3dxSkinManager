@@ -1,5 +1,7 @@
 # Logging Architecture
 
+**Last Updated:** 2026-03-12
+
 ## Overview
 
 Unified logging system with frontend-backend integration, daily rotation, and configurable levels.

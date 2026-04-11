@@ -2,6 +2,7 @@
 
 **Last Updated:** 2026-02-23
 **Purpose:** Critical architectural decisions and their rationale for AI code generation
+**Scope:** WHY — the rules and constraints. For HOW to implement patterns, see [ADVANCED_PATTERNS.md](ADVANCED_PATTERNS.md)
 
 ---
 

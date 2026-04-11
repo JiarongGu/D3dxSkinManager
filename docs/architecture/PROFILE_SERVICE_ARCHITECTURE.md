@@ -1,5 +1,8 @@
 # Stateless Service Architecture
 
+**Last Updated:** 2026-02-25
+**Scope:** Stateless request-per-profile service pattern. For module boundaries → [DOMAIN_DESIGN.md](DOMAIN_DESIGN.md). For system overview → [CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md).
+
 ## Overview
 
 D3dxSkinManager uses a **stateless API architecture** where each request contains all necessary context (including profile ID). There is no concept of an "active profile" - the system routes each request to the appropriate service provider based on whether ProfileContext is needed.

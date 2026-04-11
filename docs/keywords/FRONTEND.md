@@ -719,7 +719,6 @@ Selector files removed - use store hooks directly:
   - Returns: { containerRef } - Callback ref to attach to container element
   - Handler config: eventType, nodeSelector, allow ('node'|'gap'|'all'), onData, onDrop
   - Fixed: 2026-02-21 - Dragleave flickering, gap detection, React state management
-  - See: [changelogs/2026-02/2026-02-21-usedragdrop-hook-fixes.md](../changelogs/2026-02/2026-02-21-usedragdrop-hook-fixes.md)
 
 - **useDropZone** → `src/shared/hooks/useDropZone.ts`
   - OS-level file drop hook using WinForms overlay for real file paths

@@ -7,7 +7,7 @@ description: Use after adding a skill, feature, or workflow change to update AI_
 
 Update guide-type documentation files that explain how to use the system, how components work together, and provide workflows.
 
-**Purpose**: Guide documents (AI_GUIDE.md, CODE_GENERATION.md) require frequent updates when new skills, features, or patterns are added. This skill ensures consistent updates with proper versioning and changelog maintenance.
+**Purpose**: Guide documents (primarily AI_GUIDE.md) require frequent updates when new skills, features, or patterns are added. This skill ensures consistent updates with proper versioning and changelog maintenance.
 
 ## Arguments
 
@@ -16,20 +16,19 @@ Update guide-type documentation files that explain how to use the system, how co
 **Example**:
 ```
 /doc-update-guide AI_GUIDE new-skill "Added backend-validator skill for FluentValidation generation"
-/doc-update-guide CODE_GENERATION new-pattern "Added repository method generation pattern"
+/doc-update-guide AI_GUIDE new-pattern "Added repository method generation pattern"
 /doc-update-guide AI_GUIDE update-workflow "Updated service creation workflow to include cache invalidation"
 ```
 
 **Parameters**:
-- `DocumentName` - Guide document to update (AI_GUIDE, CODE_GENERATION)
+- `DocumentName` - Guide document to update (AI_GUIDE is the primary target)
 - `ChangeType` - Type of change (new-skill, new-pattern, update-workflow, new-feature, deprecation)
 - `Details` - Description of what's being added/changed/deprecated
 
 ## What This Skill Does
 
 1. **Identifies target document**:
-   - AI_GUIDE.md - Main assistant guide
-   - CODE_GENERATION.md - Code generation system guide
+   - AI_GUIDE.md - Primary guide (entry point loaded every session)
 
 2. **Updates version number**:
    - Increments minor version (e.g., v3.7 → v3.8)
@@ -52,7 +51,7 @@ Update guide-type documentation files that explain how to use the system, how co
 
 ## Target Documents
 
-### AI_GUIDE.md
+### AI_GUIDE.md (Primary Target)
 
 **Sections to Update**:
 
@@ -87,34 +86,6 @@ Update guide-type documentation files that explain how to use the system, how co
 - Need validation? → Use `/backend-validator`
 ```
 
-### CODE_GENERATION.md
-
-**Sections to Update**:
-
-1. **Version & Date** (top of file)
-
-2. **System Components** (when adding new skills):
-```markdown
-#### Validation Skills
-- **backend-validator** - FluentValidation class generation
-```
-
-3. **Decision Trees** (when adding patterns):
-```markdown
-graph TD
-    A[Need CRUD?] --> B[Repository]
-    B --> C[Need validation?]
-    C -->|Yes| D[/backend-validator]
-```
-
-4. **Integration Examples** (when adding workflows):
-```markdown
-Complete CRUD with validation:
-1. `/backend-service` → Service layer
-2. `/backend-validator` → Validation layer
-3. `/service-registration` → DI registration
-```
-
 ## Update Patterns
 
 ### Pattern 1: New Skill Added
@@ -123,9 +94,8 @@ Complete CRUD with validation:
 1. Increment version number
 2. Add changelog entry
 3. Add to skills table in AI_GUIDE.md
-4. Add to skills list in CODE_GENERATION.md
-5. Add usage example to relevant workflow
-6. Update decision tree if applicable
+4. Add usage example to relevant workflow
+5. Update decision tree if applicable
 
 **Example**:
 ```markdown
@@ -268,14 +238,6 @@ After updating, verify:
 - Workflows (step-by-step)
 - Decision trees (when to use what)
 - Best practices
-
-**CODE_GENERATION.md structure**:
-- Version at top
-- System overview
-- Component breakdown (docs + skills + agents)
-- Decision trees
-- Integration examples
-- Evolution process
 
 ## Evolution Note
 

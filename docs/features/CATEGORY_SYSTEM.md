@@ -211,7 +211,7 @@ interface ModInfo {
 
 - [DELAYED_LOADING_UX_PATTERN.md](DELAYED_LOADING_UX_PATTERN.md) - Loading pattern used
 - [architecture/DOMAIN_DESIGN.md](../architecture/DOMAIN_DESIGN.md) - Service architecture
-- [changelogs/2026-02/](../changelogs/2026-02/) - Implementation history
+- [CHANGELOG.md](../CHANGELOG.md) - Change history
 
 ---
 

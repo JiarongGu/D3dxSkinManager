@@ -66,8 +66,8 @@ Monitor documentation health by detecting redundancy, inconsistency, outdated co
 ## Redundancy Report
 
 ### High Redundancy (>50%)
-- `docs/ai-assistant/GUIDELINES.md` ↔ `docs/AI_GUIDE.md` (65% overlap)
-  - Recommendation: Consolidate or remove GUIDELINES.md
+- `docs/some-doc.md` ↔ `docs/AI_GUIDE.md` (65% overlap)
+  - Recommendation: Consolidate or remove some-doc.md
   - Overlapping sections: Skills usage, Workflow patterns
 
 ### Medium Redundancy (20-50%)
@@ -76,9 +76,9 @@ Monitor documentation health by detecting redundancy, inconsistency, outdated co
   - Overlapping: DI injection pattern
 
 ### Skills Coverage
-- 12 skills created
-- 85% of docs/ai-assistant/WORKFLOWS.md is now automated (GOOD - deprecated correctly)
+- 18 skills created
 - 0% of docs/core/ADVANCED_PATTERNS.md is automatable (GOOD - non-automatable patterns)
+- Skills table in AI_GUIDE.md matches actual skill folder count
 ```
 
 ### 2. Broken Links Check
@@ -94,11 +94,11 @@ Monitor documentation health by detecting redundancy, inconsistency, outdated co
 ## Broken Links Report
 
 ### Missing Files (CRITICAL)
-- `docs/AI_GUIDE.md:42` references `docs/ai-assistant/WORKFLOWS.md` (DELETED)
-  - Fix: Update reference to `.claude/skills/README.md`
+- `docs/some-doc.md:42` references `docs/deleted-file.md` (DELETED)
+  - Fix: Update reference or remove the link
 
 ### Invalid Skill References (HIGH)
-- `docs/CODE_GENERATION.md:105` references `/old-skill` (doesn't exist)
+- `docs/some-doc.md:105` references `/old-skill` (doesn't exist)
   - Fix: Update to `/new-skill` or remove
 
 ### Broken Internal Links (MEDIUM)
@@ -118,8 +118,8 @@ Monitor documentation health by detecting redundancy, inconsistency, outdated co
 ## Outdated Skills Report
 
 ### Skills Referencing Deleted Files (HIGH)
-- `.claude/skills/backend-service/SKILL.md` references `docs/ai-assistant/WORKFLOWS.md` (DELETED)
-  - Fix: Update to reference `docs/core/ADVANCED_PATTERNS.md`
+- `.claude/skills/some-skill/SKILL.md` references `docs/deleted-file.md` (DELETED)
+  - Fix: Update to reference `docs/core/ADVANCED_PATTERNS.md` or `docs/core/DESIGN_DECISIONS.md`
 
 ### Skills with Missing Examples (MEDIUM)
 - `.claude/skills/pattern-finder/SKILL.md` references `Modules/Old/Services/OldService.cs` (doesn't exist)
@@ -235,20 +235,20 @@ Runs all checks above and generates comprehensive report.
 ## CRITICAL Issues
 
 ### 1. Broken File Reference
-- **File**: `docs/AI_GUIDE.md:42`
-- **Issue**: References deleted file `docs/ai-assistant/WORKFLOWS.md`
-- **Fix**: Update to `.claude/skills/README.md`
-- **Command**: `/doc-update-guide AI_GUIDE update-reference "Replace WORKFLOWS.md with skills/README.md"`
+- **File**: `docs/some-doc.md:42`
+- **Issue**: References deleted file `docs/deleted-file.md`
+- **Fix**: Update to the correct existing file
+- **Command**: `/doc-update-guide some-doc update-reference "Replace deleted-file.md with correct-file.md"`
 
 ---
 
 ## HIGH Issues
 
 ### 1. High Redundancy Detected
-- **Files**: `docs/ai-assistant/GUIDELINES.md` ↔ `docs/AI_GUIDE.md`
+- **Files**: `docs/some-doc.md` ↔ `docs/AI_GUIDE.md`
 - **Redundancy**: 65%
-- **Fix**: Consolidate or delete GUIDELINES.md
-- **Command**: `/doc-cleanup GUIDELINES delete "Content moved to AI_GUIDE.md"`
+- **Fix**: Consolidate or delete some-doc.md
+- **Command**: `/doc-cleanup some-doc delete "Content moved to AI_GUIDE.md"`
 
 ---
 

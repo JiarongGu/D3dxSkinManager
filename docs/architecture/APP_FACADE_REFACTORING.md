@@ -2,6 +2,7 @@
 
 **Last Updated:** 2026-02-23
 **Status:** Current Implementation
+**Note:** Despite the filename, this describes the *current* IPC routing architecture — not a historical refactoring record.
 
 ## Overview
 

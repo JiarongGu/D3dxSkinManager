@@ -1,5 +1,7 @@
 # Profile-Aware Event System
 
+**Last Updated:** 2026-03-12
+
 ## Overview
 
 The EventBus now supports profile-scoped events, allowing services to emit and listen to events for specific profiles. This eliminates the need for profile-scoped services to manually attach `profileId` to every event.

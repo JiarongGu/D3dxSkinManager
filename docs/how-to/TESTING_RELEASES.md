@@ -1,5 +1,7 @@
 # Testing Releases Guide
 
+**Last Updated:** 2026-03-09
+
 This guide walks through testing the release system locally and on GitHub before creating official releases.
 
 ---

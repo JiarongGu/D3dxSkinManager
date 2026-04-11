@@ -962,5 +962,4 @@ public class EventBusTests
 ## Related Documentation
 
 - [PLUGIN_ARCHITECTURE.md](./PLUGIN_ARCHITECTURE.md) - Plugin system using EventBus
-- [MESSAGE_DISPATCHER_ARCHITECTURE.md](./MESSAGE_DISPATCHER_ARCHITECTURE.md) - Message routing
 - [MODULE_ARCHITECTURE.md](./MODULE_ARCHITECTURE.md) - Module events

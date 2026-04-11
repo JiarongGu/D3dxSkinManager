@@ -2,12 +2,13 @@
 
 **Version:** 1.0
 **Last Updated:** 2026-04-11
+**Scope:** HOW — complex implementation patterns requiring judgment. For rules and constraints (WHY), see [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md)
 
 This document contains advanced patterns that are **too complex or context-specific to automate with skills**. These require understanding, judgment, and adaptation to specific use cases.
 
 **Note**: For code generation patterns (services, components, IPC, etc.), use the **Skills System** instead:
 - See [.claude/skills/README.md](../../.claude/skills/README.md) for available skills
-- See [CODE_GENERATION.md](../CODE_GENERATION.md) for how to use them
+- See [docs/AI_GUIDE.md](../AI_GUIDE.md) for session workflow (doc-loader → skill → implement)
 
 ---
 
@@ -356,7 +357,7 @@ const throttledScroll = useCallback(
 - **Debounce**: Search, input validation, resize
 - **Throttle**: Scroll, mouse move, resize (when need continuous feedback)
 
-**See also**: [memoizeDebounce pattern](../ai-assistant/WORKFLOWS.md#debouncing-with-parameters) for per-parameter debouncing.
+**See also**: The memoizeDebounce pattern for per-parameter debouncing — search for `memoizeDebounce` in the codebase.
 
 ---
 

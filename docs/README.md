@@ -20,110 +20,85 @@
 
 ```
 docs/
-├── AI_GUIDE.md                    ⭐ START HERE (AI assistants)
-├── KEYWORDS_INDEX.md              ⭐ Component lookup
+├── AI_GUIDE.md                    ⭐ Entry point (AI assistants) — rules, skills, workflow
+├── KEYWORDS_INDEX.md              ⭐ Routing hub — find anything fast
 ├── CHANGELOG.md                   ⭐ Complete change history
 │
-├── ai-assistant/                  🤖 AI workflows & guidelines
-│   ├── GUIDELINES.md              Coding patterns & best practices
-│   ├── WORKFLOWS.md               Step-by-step procedures
-│   ├── TESTING_GUIDE.md           Testing requirements
-│   ├── TROUBLESHOOTING.md         Known issues & solutions
-│   ├── REACT_CLOSURE_PATTERNS.md  ⭐ useStableRef pattern guide
-│   ├── DOCUMENTATION_MAINTENANCE.md Documentation update guide
-│   └── REFERENCE.md               Quick command reference
+├── ai-assistant/                  🤖 AI-specific guides
+│   ├── REACT_CLOSURE_PATTERNS.md  ⭐ React hook patterns (closures, useStableRef)
+│   ├── REFERENCE.md               Quick command reference
+│   ├── TESTING_GUIDE.md           Testing requirements and patterns
+│   └── TROUBLESHOOTING.md         Known issues & solutions
 │
 ├── architecture/                  🏛️ System architecture & design
 │   ├── CURRENT_ARCHITECTURE.md    ⭐ Complete system architecture
-│   ├── MIGRATION_ARCHITECTURE.md  ⭐ NEW Migration system (2026-02-20)
-│   ├── MIGRATION_PARSER_ARCHITECTURE.md  Parser service details
 │   ├── DOMAIN_DESIGN.md           Domain boundaries & services
+│   ├── EVENT_HUB_ARCHITECTURE.md  IProfileEventBus patterns
 │   ├── FRONTEND_CONTEXT_ARCHITECTURE.md  React context system
-│   ├── PROFILE_SERVICE_ARCHITECTURE.md   Profile system
+│   ├── FRONTEND_SERVICE_ARCHITECTURE.md  Frontend IPC services
 │   ├── PATH_CONVENTIONS.md        Path handling patterns
+│   ├── WORKFLOW_ARCHITECTURE.md   Workflow engine design
 │   └── ...                        Other architecture docs
 │
 ├── core/                          🏗️ Project fundamentals
-│   ├── PROJECT_OVERVIEW.md        What & why of project
+│   ├── ADVANCED_PATTERNS.md       Complex non-automatable patterns
+│   ├── DESIGN_DECISIONS.md        Architecture constraints (authoritative)
 │   ├── DEVELOPMENT.md             Development setup
-│   ├── PROJECT_STRUCTURE.md       File organization
-│   └── MIGRATION_GUIDE.md         Migrating from Python
+│   ├── PROJECT_OVERVIEW.md        What & why of project
+│   └── PROJECT_STRUCTURE.md       File organization
 │
 ├── features/                      ✨ Feature documentation
-│   ├── INTERNATIONALIZATION.md    ⭐⭐ i18n system (EN/CN)
 │   ├── CATEGORY_SYSTEM.md         Category management
+│   ├── CACHE_MANAGEMENT.md        Caching patterns
 │   ├── DELAYED_LOADING_UX_PATTERN.md Loading UX pattern
+│   ├── INTERNATIONALIZATION.md    i18n system (EN/CN)
 │   ├── PLUGINS.md                 Plugin system
 │   ├── PROFILE_SYSTEM.md          Profile management
 │   ├── PROFILE_AWARE_EVENTS.md    Profile-scoped events
 │   └── THEME_SYSTEM.md            Theme system
 │
 ├── how-to/                        📖 Step-by-step guides
-│   └── ADD_I18N_TO_COMPONENT.md   ⭐ Adding translations
+│   ├── ADD_I18N_TO_COMPONENT.md   ⭐ Adding translations
+│   ├── BUILD_AND_DEPLOY.md        Build and deployment
+│   ├── GITHUB_RELEASE_GUIDE.md    Creating releases
+│   └── TESTING_RELEASES.md        QA a release build
 │
-├── keywords/                      🔍 Keyword routing system (v4.0)
-│   ├── BACKEND.md                 Backend classes & services
-│   ├── FRONTEND.md                Frontend components & hooks
-│   ├── DOCUMENTATION.md           Documentation files
-│   └── HOW_TO.md                  How-to guides
+├── keywords/                      🔍 Keyword routing (v4.0)
+│   ├── BACKEND.md                 C# classes, services, modules
+│   ├── DOCUMENTATION.md           Documentation catalog
+│   ├── FRONTEND.md                React components, hooks
+│   └── HOW_TO.md                  Task-based how-to index
 │
-├── migration/                     📦 Migration from Python version
-│   └── MIGRATION_DESIGN.md        Original design document
-│
-├── changelogs/                    📝 Detailed change logs
-│   └── YYYY-MM/                   Monthly changelog folders
-│       ├── YYYY-MM-DD-name.md     Detailed change descriptions
-│       └── monthly-archive.md     Archived month entries
-│
-├── maintenance/                   🔧 Maintenance procedures
-│   ├── README.md                  Maintenance overview
-│   ├── CHANGELOG_MANAGEMENT.md    ⭐ Changelog guidelines (< 200 lines rule)
-│   └── KEYWORDS_INDEX_MANAGEMENT.md Keywords index maintenance
-│
-└── archive/                       📁 Historical documentation
-    ├── 2026-02-19-migration-refactoring/  Migration refactoring session
-    ├── 2026-02-17-roadmap/                Original roadmap (archived)
-    ├── CONVERSION_COMPLETE_V2.md          V2 conversion complete
-    ├── ARCHITECTURE_OLD.md                ⭐ OLD - See CURRENT_ARCHITECTURE.md instead
-    └── ...                                Other archived docs
+└── changelogs/                    📝 Detailed change logs
+    └── 2026-03/                   Monthly folders
+        └── YYYY-MM-DD-name.md     Individual change entries
 ```
 
 ---
 
 ## 🎯 For AI Assistants
 
-**Critical Rules:** Read [AI_GUIDE.md](AI_GUIDE.md) first!
+**Critical Rules:** Read [AI_GUIDE.md](AI_GUIDE.md) first — it is the entry point and contains all mandatory session rules.
 
-1. Use [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) to find files (routing system v4.0)
-2. Read [ai-assistant/GUIDELINES.md](ai-assistant/GUIDELINES.md) before coding
-3. Update [CHANGELOG.md](CHANGELOG.md) after changes (keep < 200 lines!)
+1. Read `docs/AI_GUIDE.md` before any code generation (mandatory rules, skills, workflow)
+2. Use [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) to find files (routing system v4.0)
+3. Run `/doc-loader "task" scope` to load task-specific docs
 4. **Never commit without user approval**
-5. **ALL user-facing text must use i18n** - See [how-to/ADD_I18N_TO_COMPONENT.md](how-to/ADD_I18N_TO_COMPONENT.md)
-6. **ALL long operations must report progress** - See [features/OPERATION_NOTIFICATION_SYSTEM.md](features/OPERATION_NOTIFICATION_SYSTEM.md)
+5. **ALL user-facing text must use i18n** — See [how-to/ADD_I18N_TO_COMPONENT.md](how-to/ADD_I18N_TO_COMPONENT.md)
 
 ---
 
-## 📦 Migration System (Updated 2026-02-20)
+## 📦 Migration System
 
-**Architecture**: Step-based workflow with 6 distinct steps
-
-| Step | Purpose | Documentation |
-|------|---------|--------------|
-| Step 1 | Analyze Source | [MIGRATION_ARCHITECTURE.md](architecture/MIGRATION_ARCHITECTURE.md#step-1-analyze-source) |
-| Step 2 | Migrate Configuration | [MIGRATION_ARCHITECTURE.md](architecture/MIGRATION_ARCHITECTURE.md#step-2-migrate-configuration) |
-| Step 3 | Migrate Classifications | [MIGRATION_ARCHITECTURE.md](architecture/MIGRATION_ARCHITECTURE.md#step-3-migrate-classifications) |
-| Step 4 | Migrate Classification Thumbnails | [MIGRATION_ARCHITECTURE.md](architecture/MIGRATION_ARCHITECTURE.md#step-4-migrate-classification-thumbnails) |
-| Step 5 | Migrate Mod Archives | [MIGRATION_ARCHITECTURE.md](architecture/MIGRATION_ARCHITECTURE.md#step-5-migrate-mod-archives) |
-| Step 6 | Migrate Mod Previews | [MIGRATION_ARCHITECTURE.md](architecture/MIGRATION_ARCHITECTURE.md#step-6-migrate-mod-previews) |
+**Architecture**: Step-based workflow with 6 distinct steps (Python → .NET migration)
 
 **Key Features:**
 - ✅ Archives stored WITHOUT extensions (matches Python format)
 - ✅ SharpCompress auto-detects format (ZIP/7z/RAR)
-- ✅ Thin orchestrator pattern (205 lines, down from 991)
-- ✅ Each step is independently testable
+- ✅ Thin orchestrator pattern — each step is independently testable
 - ✅ Proper service layer usage
 
-**See**: [MIGRATION_ARCHITECTURE.md](architecture/MIGRATION_ARCHITECTURE.md) for complete details
+**See**: [architecture/WORKFLOW_ARCHITECTURE.md](architecture/WORKFLOW_ARCHITECTURE.md) for workflow engine details
 
 ---
 
@@ -140,26 +115,15 @@ docs/
 
 ---
 
-## 🆕 Recent Major Updates (2026-02-21)
+## 🆕 Recent Major Updates (2026-04-12)
 
-### Critical New Requirements
-1. **Internationalization (i18n)** - ALL user-facing text must use `t('key')` translations
-2. **Operation Notifications** - ALL long-running operations must use `IProgressReporter`
-3. **Vite Build System** - Frontend now uses Vite instead of Create React App
+### Documentation System Overhaul
+- **AI_GUIDE.md v6.0** — Now the mandatory entry point with all session rules built in
+- **doc-loader** — Always loads AI_GUIDE.md first; no longer depends on deleted WORKFLOWS.md
+- **CLAUDE.md** — Added explicit "Read AI_GUIDE.md" as Step 1 before code generation
+- Removed stale docs (WORKFLOWS.md, GUIDELINES.md references cleaned up throughout)
 
-### New Features
-- ⭐⭐⭐ Complete i18n system with flat JSON structure
-- ⭐⭐⭐ Real-time operation progress with push notifications
-- ⭐⭐⭐ Category-based mod loading with auto-unload
-- ⭐⭐⭐ Declarative drag & drop API (useDragDrop hook)
-- ⭐⭐ Delayed loading pattern (useDelayedLoading)
-
-### Documentation Cleanup
-- Routing system for keywords index (v4.0) - Faster lookups
-- CHANGELOG.md reduced from 463 to 101 lines
-- AI_GUIDE.md v1.3 with i18n and progress reporting requirements
-- Removed 3 obsolete files (47KB+ freed)
-- Comprehensive feature docs for new systems
+### See [CHANGELOG.md](CHANGELOG.md) for full change history
 
 ---
 

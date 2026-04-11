@@ -102,30 +102,35 @@ Keywords: error, bug, fix, issue, problem, not working
 ```markdown
 ## Documents Loaded for: "{Task}"
 
-### Primary Documents (High Priority)
-1. ✅ docs/core/DESIGN_DECISIONS.md
+### Primary Documents (Always Loaded)
+1. ✅ docs/AI_GUIDE.md
+   - Mandatory session rules (git, architecture, error handling, testing)
+   - Complete skills table (18 skills with usage syntax)
+   - Session workflow and architecture patterns
+
+2. ✅ docs/KEYWORDS_INDEX.md
+   - Routes to: [relevant keyword files]
+   - Quick lookup for: [task-relevant areas]
+
+### Scope-Specific Documents
+3. ✅ docs/core/DESIGN_DECISIONS.md
    - Relevant sections: [list sections found]
    - Key constraints: [list key rules]
 
-2. ✅ docs/ai-assistant/WORKFLOWS.md
-   - Relevant patterns: [list pattern names]
-   - Code examples: [reference line numbers]
-
-### Secondary Documents (Context)
-3. docs/keywords/BACKEND.md
+4. docs/keywords/BACKEND.md
    - Quick reference for [specific topics]
 
 ### Key Patterns Found
 
 **Pattern: Backend Service**
-- Location: WORKFLOWS.md:150-200
+- Skill: `/backend-service Name Module Deps Methods`
 - Requirements: DI + Events + Error Handling
-- Example: ModLifecycleService
+- Reference: AI_GUIDE.md → Architecture Patterns
 
 **Pattern: Error Handling**
-- Location: WORKFLOWS.md:400-450
+- Skill: `/error-with-i18n CODE params "en msg" "cn msg"`
 - Requirements: OperationException + i18n (en + cn)
-- Example: MOD_DELETE_FAILED
+- Reference: AI_GUIDE.md → Mandatory Session Rules
 
 ### Relevant Skills
 
@@ -136,8 +141,8 @@ Based on this task, consider using:
 
 ### Next Steps
 
-1. Review loaded patterns above
-2. Use suggested skills for code generation
+1. Use suggested skills for code generation
+2. Load scope-specific docs above for additional patterns
 3. Implement unique business logic manually
 ```
 

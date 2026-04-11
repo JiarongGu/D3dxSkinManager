@@ -1062,7 +1062,7 @@ Implemented double buffering, GPU acceleration enhancements, performance monitor
 ### Fixed - 2026-02-22 - Comprehensive Code Quality Improvements ⭐⭐⭐⭐
 Fixed Console.WriteLine usage (5 Infrastructure files → ILogger), NotImplementedException (2 files → graceful returns), frontend services (3 services → extend BaseModuleService).
 **Impact**: ✅ Consistent logging, no runtime exceptions, uniform service architecture
-**Details**: [changelogs/2026-02/2026-02-22-comprehensive-code-review.md](changelogs/2026-02/2026-02-22-comprehensive-code-review.md)
+**Details**: changelogs/2026-02/2026-02-22-comprehensive-code-review.md *(archived)*
 
 ### Refactored - 2026-02-22 - Frontend Architecture Improvements & Critical Fixes ⭐⭐⭐⭐⭐
 Major frontend refactoring based on comprehensive code review (152 files analyzed). Fixed critical architectural issues and anti-patterns.
@@ -1088,12 +1088,12 @@ Optimized CustomSchemeHandler with LRU cache (500 items), content type caching, 
 ### Migrated - 2026-02-22 - Photino.NET → WinForms + WebView2 ⭐⭐⭐⭐⭐
 Complete migration from Photino.NET to WinForms + WebView2 architecture. New composition layer, middleware pipeline with Lazy<T> caching, profile-scoped services, GPU acceleration.
 **Impact**: ✅ Better Windows integration, performance optimizations, standard WebView2 API
-**Details**: [docs/technical/winforms-webview2-migration.md](technical/winforms-webview2-migration.md)
+**Details**: docs/technical/winforms-webview2-migration.md *(archived)*
 
 ### Added - 2026-02-21 - Classification Management with SHA-256 Thumbnail Deduplication ⭐⭐⭐⭐⭐
 Complete "Add Classification" feature with thumbnail support, SHA-256 deduplication, IPC-based validation, and file lock detection. FileTransferService for reusable file copying.
 **Impact**: ✅ Create classifications with thumbnails, automatic deduplication, duplicate prevention, file lock error handling
-**Details**: [changelogs/2026-02/2026-02-21-classification-thumbnail-management.md](changelogs/2026-02/2026-02-21-classification-thumbnail-management.md)
+**Details**: changelogs/2026-02/2026-02-21-classification-thumbnail-management.md *(archived)*
 
 ### Added - 2026-02-21 - Complete Internationalization (i18n) System ⭐⭐⭐⭐⭐
 Implemented comprehensive bilingual support (English + Chinese) with react-i18next. 507 translation keys per language, 16 components internationalized, flat JSON structure.
@@ -1103,22 +1103,22 @@ Implemented comprehensive bilingual support (English + Chinese) with react-i18ne
 ### Added - 2026-02-21 - Category-Based Mod Loading with Error Handling ⭐⭐⭐⭐⭐
 Auto-unload conflicting mods, comprehensive error code system (backend + frontend), user-friendly error messages for all scenarios.
 **Impact**: ✅ No mod conflicts, clear error guidance
-**Details**: [changelogs/2026-02/2026-02-21-category-based-loading-error-handling.md](changelogs/2026-02/2026-02-21-category-based-loading-error-handling.md)
+**Details**: changelogs/2026-02/2026-02-21-category-based-loading-error-handling.md *(archived)*
 
 ### Added - 2026-02-21 - Operation Notification System ⭐⭐⭐⭐⭐
 Complete backend → frontend push notification system for real-time progress tracking (0-100%). Status bar integration + operation monitor screen (Ctrl+Shift+O).
 **Impact**: ✅ Real-time progress visibility, operation history (last 50)
-**Details**: [changelogs/2026-02/2026-02-21-operation-notification-system.md](changelogs/2026-02/2026-02-21-operation-notification-system.md), [features/OPERATION_NOTIFICATION_SYSTEM.md](features/OPERATION_NOTIFICATION_SYSTEM.md)
+**Details**: changelogs/2026-02/2026-02-21-operation-notification-system.md *(archived)*
 
 ### Refactored - 2026-02-21 - Declarative Drag & Drop API + Service Layer ⭐⭐⭐⭐⭐
 Completely refactored `useDragDrop` with clean declarative API. Auto data extraction, object parameters, ~75% less boilerplate. Added `classificationService` abstraction layer.
 **Impact**: ✅ Type-safe, cleaner code, consistent UX
-**Details**: [changelogs/2026-02/2026-02-21-drag-drop-api-improvements.md](changelogs/2026-02/2026-02-21-drag-drop-api-improvements.md)
+**Details**: changelogs/2026-02/2026-02-21-drag-drop-api-improvements.md *(archived)*
 
 ### Fixed - 2026-02-21 - Classification Tree "Drop Into" Easier to Trigger ⭐⭐⭐⭐
 Fixed difficult-to-trigger "drop into" mode. Implemented native DOM drag detection with 15% edges / 70% middle zones (was 25%/50%).
 **Impact**: ✅ Much easier to create child nodes
-**Details**: [changelogs/2026-02/2026-02-21-classification-tree-drag-drop-fix.md](changelogs/2026-02/2026-02-21-classification-tree-drag-drop-fix.md)
+**Details**: changelogs/2026-02/2026-02-21-classification-tree-drag-drop-fix.md *(archived)*
 
 ### Fixed - 2026-02-21 - Status Bar Mod Count Updates ⭐⭐⭐⭐
 Fixed status bar not updating on load/unload or category changes. Unified mod state by moving `ModsProvider` to app-level. Removed duplicate `useModData` hook.
@@ -1128,7 +1128,7 @@ Fixed status bar not updating on load/unload or category changes. Unified mod st
 ### Refactored - 2026-02-20 - Delayed Loading Pattern ⭐⭐⭐⭐
 Replaced complex `useOptimisticUpdate` verification with simpler `useDelayedLoading`. Eliminated UI flicker, reduced code by ~250 lines and bundle size by ~1KB.
 **Impact**: ✅ Clearer architecture, faster builds, no flicker
-**Details**: [changelogs/2026-02/2026-02-20-delayed-loading-refactoring.md](changelogs/2026-02/2026-02-20-delayed-loading-refactoring.md), [features/DELAYED_LOADING_UX_PATTERN.md](features/DELAYED_LOADING_UX_PATTERN.md)
+**Details**: changelogs/2026-02/2026-02-20-delayed-loading-refactoring.md *(archived)*, [features/DELAYED_LOADING_UX_PATTERN.md](features/DELAYED_LOADING_UX_PATTERN.md)
 
 ---
 
@@ -1136,7 +1136,7 @@ Replaced complex `useOptimisticUpdate` verification with simpler `useDelayedLoad
 
 **Summary**: 30+ changes including drag-drop system, image navigation, archive support, menu components, preview management, window state persistence, and migration fixes.
 
-**See Full Details**: [changelogs/2026-02/february-2026-complete.md](changelogs/2026-02/february-2026-complete.md)
+**See Full Details**: changelogs/2026-02/february-2026-complete.md *(archived)*
 
 **Highlights**:
 - ⭐⭐⭐⭐ Archive 7z Support & Optimistic Update Fixes
@@ -1172,9 +1172,9 @@ Replaced complex `useOptimisticUpdate` verification with simpler `useDelayedLoad
 
 ## Archive Navigation
 
-- **February 2026**: [changelogs/2026-02/february-2026-complete.md](changelogs/2026-02/february-2026-complete.md)
+- **February 2026**: changelogs/2026-02/february-2026-complete.md *(archived)*
 - **Detailed Changes**: See `changelogs/YYYY-MM/` folders
-- **Management Guide**: [maintenance/CHANGELOG_MANAGEMENT.md](maintenance/CHANGELOG_MANAGEMENT.md)
+- **Management Guide**: maintenance/CHANGELOG_MANAGEMENT.md *(archived)*
 
 ---
 

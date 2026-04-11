@@ -122,29 +122,30 @@ d3dxSkinManage-Rewrite/
 │
 ├── docs/                               # Documentation System
 │   ├── ai-assistant/                   # AI-specific guides
-│   │   ├── DOCUMENTATION_MAINTENANCE.md # How to maintain docs
-│   │   ├── GUIDELINES.md               # Coding patterns
+│   │   ├── REACT_CLOSURE_PATTERNS.md   # React hook patterns (closures, useStableRef)
 │   │   ├── REFERENCE.md                # Quick command reference
-│   │   ├── TROUBLESHOOTING.md          # Known issues
-│   │   └── WORKFLOWS.md                # Step-by-step procedures
+│   │   ├── TESTING_GUIDE.md            # Testing requirements and patterns
+│   │   └── TROUBLESHOOTING.md          # Known issues
 │   │
 │   ├── core/                           # Core documentation
-│   │   ├── ARCHITECTURE.md             # System architecture
+│   │   ├── ADVANCED_PATTERNS.md        # Complex non-automatable patterns
+│   │   ├── DESIGN_DECISIONS.md         # Architecture constraints (authoritative)
 │   │   ├── DEVELOPMENT.md              # Development guide
-│   │   ├── MIGRATION_GUIDE.md          # Python → .NET migration
-│   │   ├── ORIGINAL_COMPARISON.md      # Feature parity tracking
 │   │   ├── PROJECT_OVERVIEW.md         # High-level overview
 │   │   └── PROJECT_STRUCTURE.md        # This file
 │   │
-│   ├── features/                       # Feature documentation
-│   │   └── README.md                   # Feature index
+│   ├── features/                       # Feature documentation (10 files)
+│   ├── how-to/                         # How-to guides (4 files)
+│   ├── architecture/                   # Architecture docs (17 files)
+│   ├── keywords/                       # RAG routing files
+│   │   ├── BACKEND.md                  # C# classes, services
+│   │   ├── DOCUMENTATION.md            # Docs catalog
+│   │   ├── FRONTEND.md                 # React components, hooks
+│   │   └── HOW_TO.md                   # Task-based index
 │   │
-│   ├── maintenance/                    # Maintenance guides
-│   │   └── README.md                   # Maintenance index
-│   │
-│   ├── AI_GUIDE.md                     # AI assistant hub
+│   ├── AI_GUIDE.md                     # ⭐ Entry point — all rules, skills, workflow
 │   ├── CHANGELOG.md                    # Change history
-│   ├── KEYWORDS_INDEX.md               # Quick file lookup
+│   ├── KEYWORDS_INDEX.md               # Routing hub — find anything fast
 │   └── README.md                       # Documentation hub
 │
 ├── D3dxSkinManager.sln                 # Visual Studio solution file
@@ -366,44 +367,52 @@ modService.ts
 
 ```
 docs/
+├── AI_GUIDE.md                         # ⭐ Entry point — mandatory rules, skills, workflow
+├── KEYWORDS_INDEX.md                   # Routing hub — find anything fast
+├── CHANGELOG.md                        # Change history
+├── README.md                           # Documentation hub (human)
+│
 ├── ai-assistant/                       # AI-specific guides
-│   ├── DOCUMENTATION_MAINTENANCE.md    # How to update docs (critical!)
-│   ├── GUIDELINES.md                   # Coding best practices
+│   ├── REACT_CLOSURE_PATTERNS.md       # React hook patterns (closures, useStableRef)
 │   ├── REFERENCE.md                    # Quick command lookup
-│   ├── TROUBLESHOOTING.md              # Known issues + solutions
-│   └── WORKFLOWS.md                    # Step-by-step procedures
+│   ├── TESTING_GUIDE.md                # Testing requirements and patterns
+│   └── TROUBLESHOOTING.md              # Known issues + solutions
 │
 ├── core/                               # Fundamental documentation
-│   ├── ARCHITECTURE.md                 # System design
+│   ├── ADVANCED_PATTERNS.md            # Complex non-automatable patterns
+│   ├── DESIGN_DECISIONS.md             # Architecture constraints (authoritative)
 │   ├── DEVELOPMENT.md                  # Dev environment setup
-│   ├── MIGRATION_GUIDE.md              # Python → .NET guide
-│   ├── ORIGINAL_COMPARISON.md          # Feature parity tracking
 │   ├── PROJECT_OVERVIEW.md             # What/why of project
 │   └── PROJECT_STRUCTURE.md            # This file
 │
+├── architecture/                       # System architecture docs
+│   └── (17 files — load via KEYWORDS_INDEX)
+│
 ├── features/                           # Feature-specific docs
-│   └── README.md                       # Feature index
+│   └── (10 files — load via KEYWORDS_INDEX)
 │
-├── maintenance/                        # Maintenance guides
-│   └── README.md                       # Maintenance index
+├── how-to/                             # How-to guides
+│   └── (4 files — build, release, i18n, testing releases)
 │
-├── AI_GUIDE.md                         # Main AI assistant hub
-├── CHANGELOG.md                        # Change history
-├── KEYWORDS_INDEX.md                   # Quick file lookup (RAG critical)
-└── README.md                           # Documentation hub (human)
+└── keywords/                           # RAG routing files
+    ├── BACKEND.md                      # C# classes, services, modules
+    ├── DOCUMENTATION.md                # Documentation catalog
+    ├── FRONTEND.md                     # React components, hooks
+    └── HOW_TO.md                       # Task-based how-to index
 ```
 
 ### Documentation Audience
 
 | Folder/File | Primary Audience | Purpose |
 |-------------|-----------------|---------|
-| **ai-assistant/** | AI assistants | Workflows, patterns, troubleshooting |
-| **core/** | Human developers + AI | Project fundamentals |
-| **features/** | All | Feature documentation |
+| **AI_GUIDE.md** | AI assistants | **Entry point** — mandatory rules, all skills, session workflow |
+| **KEYWORDS_INDEX.md** | AI assistants | O(1) routing to code and docs |
 | **CLAUDE.md** (root) | AI assistants | Mandatory rules — auto-loaded every session |
-| **AI_GUIDE.md** | AI assistants | Reference: skills, patterns, architecture examples |
+| **ai-assistant/** | AI assistants | Patterns, testing, troubleshooting |
+| **core/** | AI + Human | Project fundamentals, architecture decisions |
+| **architecture/** | AI + Human | Detailed system design |
+| **features/** | All | Feature documentation |
 | **README.md** | Human developers | Getting started |
-| **KEYWORDS_INDEX.md** | AI assistants | O(1) file lookup |
 | **CHANGELOG.md** | All | What changed |
 
 ### Documentation Flow
@@ -413,13 +422,17 @@ AI Assistant starts session
     ↓
 CLAUDE.md auto-loads (mandatory rules: git, architecture, testing)
     ↓
-User asks a question — assistant picks lookup strategy:
-    ├─ "How to" → ai-assistant/WORKFLOWS.md
+Before any task: Read docs/AI_GUIDE.md (entry point)
+    ↓
+Run /doc-loader "task" scope (loads AI_GUIDE + scope-specific docs)
+    ↓
+Use suggested skill or look up via KEYWORDS_INDEX:
+    ├─ "How to" → keywords/HOW_TO.md
     ├─ "Where is" → KEYWORDS_INDEX.md
     ├─ "What is" → core/PROJECT_OVERVIEW.md
     ├─ "Write tests" → /doc-loader "write tests for X" testing
-    ├─ "Pattern/skill" → AI_GUIDE.md (load on demand)
-    └─ "Error" → ai-assistant/TROUBLESHOOTING.md
+    ├─ "Generate code" → skill (see AI_GUIDE.md skills table)
+    └─ "Error/bug" → ai-assistant/TROUBLESHOOTING.md
 ```
 
 ---
