@@ -56,6 +56,10 @@ export const ModListPanel: React.FC = () => {
   const [selectedModIds, setSelectedModIds] = useState<string[]>([]);
   const [anchorId, setAnchorId] = useState<string | undefined>(undefined);
 
+  // Minimum display count passed to ModList so it renders items that are
+  // not yet visible (e.g., scrolling to a loaded mod at index > 50)
+  const [minDisplayCount, setMinDisplayCount] = useState(0);
+
   // Enable drop zone for batch mod import
   // Allow dropping when there's a profile and either a category is selected or we're in all/loaded view
   useDropZone({
@@ -175,13 +179,22 @@ export const ModListPanel: React.FC = () => {
   );
 
   /**
-   * Clear multi-selection when category changes and reset scroll position
+   * Clear multi-selection when category changes and reset scroll position.
+   * Also reset minDisplayCount so lazy loading starts fresh.
    */
   React.useEffect(() => {
     setSelectedModIds([]);
     setAnchorId(undefined);
     resetScrollPosition();
+    setMinDisplayCount(0);
   }, [selectedCategory, resetScrollPosition]);
+
+  // Reset minDisplayCount when the filtered list length changes (search/category switch)
+  // so stale forced renders don't persist across different mod lists
+  const filteredModsLength = filteredMods.length;
+  React.useEffect(() => {
+    setMinDisplayCount(0);
+  }, [filteredModsLength]);
 
   const handleLoadedModClick = useCallback((mod: ModInfo) => {
     // Scroll to the loaded mod and select it
@@ -191,44 +204,28 @@ export const ModListPanel: React.FC = () => {
     const modIndex = filteredMods.findIndex(m => m.id === mod.id);
     if (modIndex === -1) return;
 
-    // Scroll the mod into view
-    // For lazy-loaded lists, we need to ensure the item is rendered first
-    if (contentRef.current) {
-      const modElement = contentRef.current.querySelector(
-        `[data-mod-id="${mod.id}"]`,
-      );
-
-      if (modElement) {
-        // Element is already rendered, scroll to it
-        modElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      } else {
-        // Element not rendered yet due to lazy loading
-        // Scroll to approximate position to trigger lazy loading
-        const listContainer = scrollRef.current;
-        if (listContainer) {
-          // Estimate item height (64px per item based on CSS)
-          const estimatedItemHeight = 64;
-          const estimatedScrollPosition = modIndex * estimatedItemHeight;
-
-          // Scroll to estimated position (this will trigger lazy loading)
-          listContainer.scrollTo({
-            top: estimatedScrollPosition,
-            behavior: "smooth"
-          });
-
-          // Wait for DOM to update after lazy loading, then scroll precisely
-          setTimeout(() => {
-            const modElement = contentRef.current?.querySelector(
-              `[data-mod-id="${mod.id}"]`,
-            );
-            if (modElement) {
-              modElement.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-          }, 300);
-        }
-      }
+    const existingElement = contentRef.current?.querySelector(`[data-mod-id="${mod.id}"]`);
+    if (existingElement) {
+      // Already rendered — scroll directly
+      existingElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
     }
-  }, [selectMod, filteredMods, scrollRef]);
+
+    // Item is beyond the current render window. Force ModList to render up to
+    // (and including) this index via the minDisplayCount prop. The bottom spacer
+    // in ModList ensures the scroll container already has the correct total height,
+    // so no position estimate is needed — just wait for the render then scroll.
+    setMinDisplayCount(modIndex + 1);
+
+    // Double rAF: first frame schedules after React flushes the state update,
+    // second frame fires after the browser has painted the new items.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const modEl = contentRef.current?.querySelector(`[data-mod-id="${mod.id}"]`);
+        modEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+  }, [selectMod, filteredMods]);
 
   // Show empty state only when in category mode without a selected category
   if (viewMode === 'category' && !selectedCategory) {
@@ -283,6 +280,7 @@ export const ModListPanel: React.FC = () => {
               selectedModIds={selectedModIds}
               onBeforeReload={saveScrollPosition}
               onAfterReload={restoreScrollPosition}
+              minDisplayCount={minDisplayCount}
             />
           ) : (
             <div className="mod-list-panel-content-empty-container">

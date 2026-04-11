@@ -140,11 +140,11 @@
   font-size: 16px !important;
 }
 
-.mod-list-scroll-trigger {
-  height: 20px;
-  margin: 10px 0;
-  text-align: center;
-  color: var(--color-text-secondary);
+.mod-list-bottom-spacer {
+  /* Height is set inline based on unrendered item count × ITEM_HEIGHT.
+     Acts as a placeholder so the scroll container has the correct total height
+     from the start, enabling accurate scrollTo() calls for items not yet rendered. */
+  flex-shrink: 0;
 }
 
 .mod-list-total-count {

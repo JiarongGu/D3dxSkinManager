@@ -29,6 +29,9 @@ import { BatchEditModsScreen } from "../BatchEditScreen";
 import { useMods } from "../../hooks/useMods";
 import "./ModList.css";
 
+// Estimated item height in pixels (used for bottom spacer to maintain correct scroll height)
+const ITEM_HEIGHT = 64;
+
 interface ModListProps {
   mods: ModInfo[];
   loading: boolean;
@@ -41,6 +44,8 @@ interface ModListProps {
   selectedModIds?: string[];
   onBeforeReload?: () => void;
   onAfterReload?: () => void;
+  /** Force a minimum number of items to render (used to scroll to items not yet in the DOM) */
+  minDisplayCount?: number;
 }
 
 export const ModList: React.FC<ModListProps> = ({
@@ -55,9 +60,14 @@ export const ModList: React.FC<ModListProps> = ({
   selectedModIds = [],
   onBeforeReload,
   onAfterReload,
+  minDisplayCount = 0,
 }) => {
   const { t } = useTranslation();
   const [displayCount, setDisplayCount] = useState(50);
+  // effectiveDisplayCount is the actual number of items to render:
+  // at least displayCount (from natural scroll), but bumped up when parent
+  // forces a specific item into view (e.g., scrolling to a loaded mod)
+  const effectiveDisplayCount = Math.max(displayCount, minDisplayCount);
   const observerTarget = useRef<HTMLDivElement>(null);
   const { selectedProfileId } = useProfile();
   const { openBatchEditScreen } = useMods();
@@ -72,18 +82,23 @@ export const ModList: React.FC<ModListProps> = ({
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const target = entries[0];
-      if (target.isIntersecting && displayCount < mods.length) {
-        setDisplayCount((prev) => Math.min(prev + 50, mods.length));
+      if (target.isIntersecting && effectiveDisplayCount < mods.length) {
+        // Load next batch starting from effectiveDisplayCount (not prev displayCount)
+        // so forced renders via minDisplayCount are accounted for
+        setDisplayCount(Math.min(effectiveDisplayCount + 50, mods.length));
       }
     },
-    [displayCount, mods.length],
+    [effectiveDisplayCount, mods.length],
   );
 
   React.useEffect(() => {
     const observer = new IntersectionObserver(handleObserver, {
       root: null,
       rootMargin: "100px",
-      threshold: 0.1,
+      // threshold: 0 fires as soon as any pixel of the spacer enters the viewport.
+      // A non-zero threshold (e.g. 0.1) would require 10% of the spacer to be
+      // visible — unusable for a tall placeholder that can be thousands of pixels.
+      threshold: 0,
     });
 
     const currentTarget = observerTarget.current;
@@ -114,7 +129,7 @@ export const ModList: React.FC<ModListProps> = ({
     }
   }, [loading, onBeforeReload, onAfterReload]);
 
-  const displayedMods = mods.slice(0, displayCount);
+  const displayedMods = mods.slice(0, effectiveDisplayCount);
 
   /**
    * Show delete mod confirmation dialog
@@ -598,14 +613,20 @@ export const ModList: React.FC<ModListProps> = ({
           })}
         </div>
       </div>
-      {/* Infinite scroll trigger */}
-      {displayCount < mods.length && (
-        <div ref={observerTarget} className="mod-list-scroll-trigger">
-          {t("mods.list.loadingMore")}
-        </div>
+      {/* Bottom spacer: represents unrendered items so the scroll container has
+          the correct total height. The intersection observer fires when the user
+          scrolls near it, triggering the next batch. Also allows scrollTo() from
+          the parent to land at the right position before items are rendered. */}
+      {effectiveDisplayCount < mods.length && (
+        <div
+          ref={observerTarget}
+          className="mod-list-bottom-spacer"
+          style={{ height: (mods.length - effectiveDisplayCount) * ITEM_HEIGHT }}
+          aria-hidden="true"
+        />
       )}
       {/* Show total count */}
-      {displayCount >= mods.length && mods.length > 50 && (
+      {effectiveDisplayCount >= mods.length && mods.length > 50 && (
         <div className="mod-list-total-count">
           {t("mods.list.showingAll", { count: mods.length })}
         </div>
