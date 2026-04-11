@@ -186,10 +186,13 @@ export const {ComponentName}: React.FC<{ComponentName}Props> = ({
 - May have toolbar/actions
 - BEM: `.panel-name`, `.panel-name__header`, `.panel-name__content`
 
-### Modal Component
-- Uses Ant Design Modal
-- Has visible state
-- onOk/onCancel handlers
+### Modal/Dialog Component
+- **NEVER** use raw `<Modal>` or `Modal.confirm()` — use shared dialog components:
+  - `ConfirmDialog` → destructive confirmations (delete, remove) — `import from 'shared/components/dialogs/ConfirmDialog'`
+  - `FormDialog` → input/creation (save, create, edit) — `import from 'shared/components/dialogs/FormDialog'`
+  - `InfoDialog` → read-only display (about, shortcuts) — `import from 'shared/components/dialogs/InfoDialog'`
+- Shared dialogs handle theming, centering, no-animation, close button, and delayed loading
+- Has visible state, onOk/onCancel handlers (async supported — loading is automatic)
 - BEM: `.modal-name`, `.modal-name__body`, `.modal-name__footer`
 
 ### List Component
@@ -316,6 +319,7 @@ className={classNames('component-name', {
 - ❌ Don't forget event cleanup (memory leaks)
 - ❌ Don't use class components
 - ❌ Don't use 13px fonts
+- ❌ Don't use raw `<Modal>` or `Modal.confirm()` — use ConfirmDialog/FormDialog/InfoDialog
 
 ## Reference Examples
 

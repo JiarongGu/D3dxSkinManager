@@ -20,4 +20,9 @@ public static class ModEvents
     public const string PREVIEW_DELETED = "PREVIEW_DELETED";
     public const string CACHE_CHANGED = "CACHE_CHANGED";
     public const string MOD_LIST_UPDATED = "MOD_LIST_UPDATED"; // Emitted when mod list state changes (for frontend refresh)
+
+    // Preset events
+    public const string PRESET_SAVED = "PRESET_SAVED";
+    public const string PRESET_DELETED = "PRESET_DELETED";
+    public const string PRESET_APPLIED = "PRESET_APPLIED";
 }

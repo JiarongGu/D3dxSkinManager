@@ -94,6 +94,27 @@ export interface BatchDeleteResult {
 }
 
 /**
+ * Mod preset info (saved snapshot of active mods)
+ */
+export interface ModPresetInfo {
+  id: string;
+  name: string;
+  modCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Result of applying a mod preset
+ */
+export interface ModPresetApplyResult {
+  presetName: string;
+  loadedCount: number;
+  failedCount: number;
+  failedModIds: string[];
+}
+
+/**
  * Mod keybinding information parsed from .ini files
  */
 export interface ModKeybinding {

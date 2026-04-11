@@ -3,6 +3,7 @@ import { Space, Tag, Progress, Button } from "antd";
 import { LoadingOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useModsStore } from "../../../mod/store/modsStore";
+import { ModPresetMenu } from "./ModPresetMenu";
 import "./AppStatusBar.css";
 
 // Global app metadata injected by backend
@@ -119,8 +120,10 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
           ) : null}
         </Space>
 
-        {/* Right side - Help, Mods, Version (all aligned to right) */}
+        {/* Right side - Presets, Mods, Version (all aligned to right) */}
         <Space size="large" style={{ marginLeft: "auto" }}>
+          <ModPresetMenu />
+
           <Tag color={modsLoaded > 0 ? "green" : "default"}>
             {t("statusBar.modsLoaded", { count: modsLoaded, total: modsTotal })}
           </Tag>

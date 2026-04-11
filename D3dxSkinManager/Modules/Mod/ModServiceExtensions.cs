@@ -38,6 +38,10 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<IModTagService, ModTagService>();
         services.TryAddSingleton<IModKeybindingService, ModKeybindingService>();
 
+        // Preset services
+        services.TryAddSingleton<IModPresetRepository, ModPresetRepository>();
+        services.TryAddSingleton<IModPresetService, ModPresetService>();
+
         // Register facade
         services.TryAddSingleton<IModFacade, ModFacade>();
 

@@ -44,6 +44,9 @@ export enum ModEventType {
   PREVIEW_DELETED = "PREVIEW_DELETED",
   CACHE_CHANGED = "CACHE_CHANGED",
   MOD_LIST_UPDATED = "MOD_LIST_UPDATED",
+  PRESET_SAVED = "PRESET_SAVED",
+  PRESET_DELETED = "PRESET_DELETED",
+  PRESET_APPLIED = "PRESET_APPLIED",
 }
 
 // Category event types
@@ -149,6 +152,9 @@ export interface EventPayloadMap {
       changeType: 'deleted' | 'renamed';
     };
     [ModEventType.MOD_LIST_UPDATED]: void;
+    [ModEventType.PRESET_SAVED]: { id: string; name: string };
+    [ModEventType.PRESET_DELETED]: { id: string };
+    [ModEventType.PRESET_APPLIED]: { id: string; name: string };
   };
 
   // Category events

@@ -532,6 +532,31 @@ Selector files removed - use store hooks directly:
 
 ## Dialog Components
 
+### Shared Dialog Primitives
+
+> **MANDATORY:** Always use these shared dialogs instead of raw Ant Design `<Modal>`.
+> They handle theming, centering, no-animation, close button styling, and delayed loading consistently.
+> Import from `shared/components/dialogs/`.
+
+- **ConfirmDialog** → `src/shared/components/dialogs/ConfirmDialog.tsx`
+  - Confirmation dialog with warning icon, OK/Cancel buttons
+  - Props: `visible`, `title`, `content`, `okText`, `cancelText`, `okType` (`'primary'|'danger'|'default'`), `icon`, `onOk` (async), `onCancel`
+  - Built-in `useDelayedLoading` (200ms) — no manual loading state needed
+  - Use `okType="danger"` for destructive confirmations (renders `CompactDangerButton`)
+  - Usage: mod deletion, category deletion, preset deletion, profile deletion
+
+- **FormDialog** → `src/shared/components/dialogs/FormDialog.tsx`
+  - Form dialog for input/creation workflows
+  - Props: `visible`, `title`, `children`, `okText`, `cancelText`, `onOk` (async, optional), `onCancel`, `width`, `footer`, `destroyOnHidden`
+  - Built-in `useDelayedLoading` (200ms) — no manual loading state needed
+  - If `onOk` is undefined, OK button is hidden (read-only form)
+  - Usage: profile create/edit, tag management, preset save, metadata entry
+
+- **InfoDialog** → `src/shared/components/dialogs/InfoDialog.tsx`
+  - Read-only info display (no action buttons by default)
+  - Props: `visible`, `title`, `children`, `onClose`, `width`, `footer`, `bodyStyle`
+  - Usage: keyboard shortcuts, about dialog
+
 ### Mod Dialogs
 
 - **ModEditDialog** → `src/modules/mods/components/ModEditDialog/`

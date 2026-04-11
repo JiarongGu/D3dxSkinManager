@@ -68,6 +68,14 @@ export interface ModIpcRequests {
   DELETE_TAG: { name: string };
   GET_TAG_USAGE_COUNT: { tag: string };
   SEARCH_TAGS: { searchTerm?: string };
+
+  // ============= Preset Operations =============
+  GET_PRESETS: Record<string, never>;
+  SAVE_PRESET: { name: string };
+  UPDATE_PRESET: { id: string; name: string };
+  DELETE_PRESET: { id: string };
+  APPLY_PRESET: { id: string };
+  UNLOAD_ALL_MODS: Record<string, never>;
 }
 
 /**

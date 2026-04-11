@@ -1,0 +1,49 @@
+.mod-preset-menu__trigger {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding: 0 4px;
+  height: auto;
+}
+
+.mod-preset-menu__trigger:hover {
+  color: var(--color-primary);
+}
+
+.mod-preset-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.mod-preset-menu__item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-preset-menu__item-count {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.mod-preset-menu__item-delete {
+  background: none;
+  border: 1px solid var(--color-border-base);
+  border-radius: 4px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.mod-preset-menu__item-delete:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}

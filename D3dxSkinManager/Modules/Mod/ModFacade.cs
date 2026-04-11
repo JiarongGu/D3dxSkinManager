@@ -45,6 +45,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModMetadataService _metadataService;
     private readonly IModTagService _tagService;
     private readonly IModKeybindingService _keybindingService;
+    private readonly IModPresetService _presetService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IImageService _imageService;
     private readonly IModCacheWatcher _cacheWatcher;
@@ -60,6 +61,7 @@ public class ModFacade : BaseFacade, IModFacade
         IModMetadataService metadataService,
         IModTagService tagService,
         IModKeybindingService keybindingService,
+        IModPresetService presetService,
         IPayloadHelper payloadHelper,
         IImageService imageService,
         IModCacheWatcher cacheWatcher,
@@ -75,6 +77,7 @@ public class ModFacade : BaseFacade, IModFacade
         _metadataService = metadataService;
         _tagService = tagService;
         _keybindingService = keybindingService;
+        _presetService = presetService;
         _payloadHelper = payloadHelper;
         _imageService = imageService;
         _cacheWatcher = cacheWatcher;
@@ -129,6 +132,14 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_TAG_USAGE_COUNT" => await GetTagUsageCountAsync(request),
             "SEARCH_TAGS" => await SearchTagsAsync(request),
             "GET_KEYBINDINGS" => await GetKeybindingsAsync(request),
+
+            // Preset operations
+            "GET_PRESETS" => await GetPresetsAsync(),
+            "SAVE_PRESET" => await SavePresetAsync(request),
+            "UPDATE_PRESET" => await UpdatePresetAsync(request),
+            "DELETE_PRESET" => await DeletePresetAsync(request),
+            "APPLY_PRESET" => await ApplyPresetAsync(request),
+            "UNLOAD_ALL_MODS" => await UnloadAllModsAsync(),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -666,5 +677,42 @@ public class ModFacade : BaseFacade, IModFacade
             throw new ArgumentException("Mod ID is required");
 
         return await GetKeybindingsAsync(id);
+    }
+
+    // ============= Preset Methods =============
+
+    private async Task<List<ModPresetInfo>> GetPresetsAsync()
+    {
+        return await _presetService.GetAllAsync().ConfigureAwait(false);
+    }
+
+    private async Task<ModPresetInfo> SavePresetAsync(IpcRequest request)
+    {
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        return await _presetService.SaveAsync(name).ConfigureAwait(false);
+    }
+
+    private async Task<ModPresetInfo> UpdatePresetAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        return await _presetService.UpdateAsync(id, name).ConfigureAwait(false);
+    }
+
+    private async Task<bool> DeletePresetAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await _presetService.DeleteAsync(id).ConfigureAwait(false);
+    }
+
+    private async Task<ModPresetApplyResult> ApplyPresetAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await _presetService.ApplyAsync(id).ConfigureAwait(false);
+    }
+
+    private async Task<bool> UnloadAllModsAsync()
+    {
+        return await _presetService.UnloadAllAsync().ConfigureAwait(false);
     }
 }

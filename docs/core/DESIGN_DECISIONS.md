@@ -291,25 +291,50 @@ const ModList: FC<Props> = ({ mods, onLoad }) => {
 
 ### 12. Modal Dialog Pattern
 
-**Decision:** Declarative rendering with DISABLED transitions
+**Decision:** Use shared dialog components, never raw `<Modal>` or imperative APIs
 
 **Why:**
-- Imperative APIs cause flashing
-- Instant display without animation delays
-- Better React lifecycle integration
+- Imperative APIs (Modal.confirm) cause flashing
+- Raw `<Modal>` requires repeating transition/centering/close-button boilerplate
+- Shared dialogs handle theming, delayed loading, and consistent UX
 
 **Pattern:**
 ```typescript
-// ✅ GOOD: Declarative with no transitions
-<Modal
-  open={visible}
-  transitionName=""       // Disable animation
-  maskTransitionName=""   // Disable mask animation
-  centered
->
+// ✅ GOOD: Use shared dialog components (from shared/components/dialogs/)
+import { ConfirmDialog } from 'shared/components/dialogs/ConfirmDialog';
+import { FormDialog } from 'shared/components/dialogs/FormDialog';
+import { InfoDialog } from 'shared/components/dialogs/InfoDialog';
 
-// ❌ BAD: Imperative
-Modal.confirm({ ... });  // Causes flashing
+// Destructive confirmation → ConfirmDialog with okType="danger"
+<ConfirmDialog
+  visible={visible}
+  title="Delete Item"
+  content="Are you sure?"
+  okType="danger"
+  onOk={handleDelete}   // async — loading state handled automatically
+  onCancel={handleClose}
+/>
+
+// Form/input dialog → FormDialog
+<FormDialog
+  visible={visible}
+  title="Create Item"
+  onOk={handleSave}     // async — loading state handled automatically
+  onCancel={handleClose}
+>
+  <Input value={name} onChange={...} />
+</FormDialog>
+
+// Read-only info → InfoDialog
+<InfoDialog visible={visible} title="About" onClose={handleClose}>
+  <p>Content here</p>
+</InfoDialog>
+
+// ❌ BAD: Raw Modal — missing theming, loading, close button styling
+<Modal open={visible} transitionName="" maskTransitionName="" centered>
+
+// ❌ BAD: Imperative — causes flashing
+Modal.confirm({ ... });
 ```
 
 ---

@@ -7,6 +7,8 @@ import {
   UpdateModMetadataRequest,
   ModStatistics,
   BatchDeleteResult,
+  ModPresetInfo,
+  ModPresetApplyResult,
 } from "../../types/mod.types";
 import type { ModIpcRequests } from "../../types/ipc/modIpcRequests";
 
@@ -19,6 +21,8 @@ export type {
   UpdateModMetadataRequest,
   ModStatistics,
   BatchDeleteResult,
+  ModPresetInfo,
+  ModPresetApplyResult,
 };
 export type { ModIpcRequests };
 
@@ -522,6 +526,79 @@ export class ModService extends BaseModuleService {
       "GET_KEYBINDINGS",
       profileId,
       { id },
+    );
+  }
+
+  // ============= Preset Operations =============
+
+  /**
+   * Get all saved mod presets
+   */
+  async getPresets(profileId: string): Promise<ModPresetInfo[]> {
+    return this.sendTypedArray<ModIpcRequests, ModPresetInfo>(
+      "GET_PRESETS",
+      profileId,
+    );
+  }
+
+  /**
+   * Save currently active mods as a new preset
+   */
+  async savePreset(profileId: string, name: string): Promise<ModPresetInfo> {
+    return this.sendTypedMessage<ModIpcRequests, ModPresetInfo>(
+      "SAVE_PRESET",
+      profileId,
+      { name },
+    );
+  }
+
+  /**
+   * Update a preset's name
+   */
+  async updatePreset(
+    profileId: string,
+    id: string,
+    name: string,
+  ): Promise<ModPresetInfo> {
+    return this.sendTypedMessage<ModIpcRequests, ModPresetInfo>(
+      "UPDATE_PRESET",
+      profileId,
+      { id, name },
+    );
+  }
+
+  /**
+   * Delete a preset
+   */
+  async deletePreset(profileId: string, id: string): Promise<boolean> {
+    return this.sendTypedBoolean<ModIpcRequests>(
+      "DELETE_PRESET",
+      profileId,
+      { id },
+    );
+  }
+
+  /**
+   * Apply a preset: unload current mods and load the preset's mods
+   */
+  async applyPreset(
+    profileId: string,
+    id: string,
+  ): Promise<ModPresetApplyResult> {
+    return this.sendTypedMessage<ModIpcRequests, ModPresetApplyResult>(
+      "APPLY_PRESET",
+      profileId,
+      { id },
+    );
+  }
+
+  /**
+   * Unload all currently loaded mods
+   */
+  async unloadAllMods(profileId: string): Promise<boolean> {
+    return this.sendTypedBoolean<ModIpcRequests>(
+      "UNLOAD_ALL_MODS",
+      profileId,
     );
   }
 }
