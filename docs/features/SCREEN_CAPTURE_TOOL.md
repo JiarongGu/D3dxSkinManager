@@ -165,7 +165,9 @@ Both control panel and overlay windows require STA threads:
 ```csharp
 var thread = new Thread(() =>
 {
-    Application.SetHighDpiMode(HighDpiMode.SystemAware);
+    // PerMonitorV2 enables proper DPI awareness for 4K monitors
+    // Windows automatically scales window dimensions based on monitor DPI
+    Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
     var form = _windowService.CreateCaptureWindowAsync(profileId).GetAwaiter().GetResult();
     Application.Run(form); // Blocks until window closes
 });
@@ -174,6 +176,32 @@ thread.SetApartmentState(ApartmentState.STA);
 thread.IsBackground = false; // Keep app alive
 thread.Start();
 ```
+
+### DPI Scaling Support
+
+**Window Dimensions:**
+- Base window size: 300x210 pixels (logical)
+- Saved in config as logical pixels (DPI-independent)
+- Converted to physical pixels based on current monitor DPI:
+  - 100% DPI → 300x210 physical pixels
+  - 150% DPI → 450x315 physical pixels
+  - 200% DPI → 600x420 physical pixels
+
+**Configuration Storage:**
+- All window positions/sizes stored as logical pixels in config.json
+- Automatically converted on load/save based on current DPI
+- Works seamlessly when moving between monitors with different DPI
+
+**Internal UI Elements:**
+- Border width, resize handles, and hit areas are manually DPI-scaled
+- Uses `DpiHelper.ScalePixels()` for consistent interaction across all DPIs
+- Base values (3px border, 10px hit area) scale proportionally
+
+**Benefits:**
+- DPI-independent configuration
+- Consistent visual size across different monitor types
+- Sharp rendering on high-DPI displays
+- Proper per-monitor DPI support (moving between monitors)
 
 ### WebView2 Threading
 

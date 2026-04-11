@@ -34,13 +34,37 @@ public class ProfileConfiguration
 
 /// <summary>
 /// Window position and size configuration for any secondary window
+/// All values are stored in logical pixels (DPI-independent)
+/// With HighDpiMode.PerMonitorV2, Windows automatically scales these for different DPI displays
 /// </summary>
 public class WindowConfiguration
 {
+    /// <summary>
+    /// X position in logical pixels (DPI-independent)
+    /// </summary>
     public int? X { get; set; }
+
+    /// <summary>
+    /// Y position in logical pixels (DPI-independent)
+    /// </summary>
     public int? Y { get; set; }
+
+    /// <summary>
+    /// Width in logical pixels (DPI-independent)
+    /// </summary>
     public int? Width { get; set; }
+
+    /// <summary>
+    /// Height in logical pixels (DPI-independent)
+    /// </summary>
     public int? Height { get; set; }
+
+    /// <summary>
+    /// DPI scale factor when this configuration was saved (for migration from old configs)
+    /// 1.0 = 100%, 1.5 = 150%, 2.0 = 200%, etc.
+    /// If null, assumes values are already in logical pixels
+    /// </summary>
+    public double? SavedDpiScale { get; set; }
 }
 
 /// <summary>

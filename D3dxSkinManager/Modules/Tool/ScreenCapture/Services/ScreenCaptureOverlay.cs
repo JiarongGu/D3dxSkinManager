@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
+using D3dxSkinManager.Modules.Core.Utilities;
 
 namespace D3dxSkinManager.Modules.Tool.ScreenCapture.Services;
 
@@ -12,8 +13,17 @@ public class ScreenCaptureOverlay : Form
     // Event fired when bounds change (move or resize)
     public event Action<int, int, int, int>? BoundsChanged;
 
-    private const int BORDER_WIDTH = 3;
-    private const int RESIZE_EDGE_SIZE = 10; // Hit area for edge detection
+    // Base dimensions designed for 2.5K resolution at 100% DPI
+    private const int BASE_BORDER_WIDTH = 3;
+    private const int BASE_RESIZE_EDGE_SIZE = 10; // Hit area for edge detection
+    private const int BASE_MIN_WIDTH = 50;
+    private const int BASE_MIN_HEIGHT = 50;
+
+    // DPI-scaled dimensions
+    private readonly int BORDER_WIDTH;
+    private readonly int RESIZE_EDGE_SIZE;
+    private readonly int MIN_WIDTH;
+    private readonly int MIN_HEIGHT;
 
     private bool _isDragging = false;
     private bool _isResizing = false;
@@ -49,6 +59,12 @@ public class ScreenCaptureOverlay : Form
 
     public ScreenCaptureOverlay(int x, int y, int width, int height)
     {
+        // Scale dimensions based on current DPI
+        BORDER_WIDTH = DpiHelper.ScalePixels(BASE_BORDER_WIDTH);
+        RESIZE_EDGE_SIZE = DpiHelper.ScalePixels(BASE_RESIZE_EDGE_SIZE);
+        MIN_WIDTH = DpiHelper.ScalePixels(BASE_MIN_WIDTH);
+        MIN_HEIGHT = DpiHelper.ScalePixels(BASE_MIN_HEIGHT);
+
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
         BackColor = Color.Magenta;
@@ -178,7 +194,7 @@ public class ScreenCaptureOverlay : Form
                     break;
             }
 
-            if (newBounds.Width > 50 && newBounds.Height > 50)
+            if (newBounds.Width > MIN_WIDTH && newBounds.Height > MIN_HEIGHT)
             {
                 var sizeChanged = newBounds.Width != Width || newBounds.Height != Height;
                 Bounds = newBounds;

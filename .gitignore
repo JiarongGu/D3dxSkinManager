@@ -48,5 +48,5 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
-.claude/
+.claude/settings.local.json
 D3dxSkinManager/wwwroot/

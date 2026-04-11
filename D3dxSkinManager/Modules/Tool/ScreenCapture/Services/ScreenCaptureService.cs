@@ -329,7 +329,7 @@ public class ScreenCaptureService : IScreenCaptureService
             try
             {
                 _logger.Info("[ScreenCaptureService] STA thread started");
-                Application.SetHighDpiMode(HighDpiMode.SystemAware);
+                Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
                 _logger.Info("[ScreenCaptureService] Creating capture window...");
 
                 // Call async method - safe because SecondaryWindowService uses ConfigureAwait(false) consistently
@@ -364,6 +364,10 @@ public class ScreenCaptureService : IScreenCaptureService
     {
         const string windowName = "capture";
         const string title = "Screen Capture";
+
+        // Window dimensions in logical pixels
+        // These are converted to physical pixels based on current DPI
+        // Example: 300x210 logical -> 450x315 @ 150% DPI, 600x420 @ 200% DPI
         const int defaultWidth = 300;
         const int defaultHeight = 210;
 

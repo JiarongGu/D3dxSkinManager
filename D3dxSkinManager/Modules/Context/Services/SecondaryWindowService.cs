@@ -7,6 +7,7 @@ using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Core.WebView;
 using D3dxSkinManager.Modules.Setting.Services;
+using D3dxSkinManager.Modules.Core.Utilities;
 using System.Collections.Concurrent;
 
 namespace D3dxSkinManager.Modules.Context.Services;
@@ -164,22 +165,25 @@ public class SecondaryWindowService : ISecondaryWindowService
                 {
                     _sessionManager.Remove(sessionId);
 
-                    // Save window position/size asynchronously (fire and forget with proper error handling)
-                    _ = Task.Run(async () =>
+                    // Save window position/size synchronously to avoid disposal issues
+                    // During app shutdown or profile switch, async saves may fail due to disposed services
+                    try
                     {
-                        try
-                        {
-                            await SaveWindowConfigurationAsync(
-                                windowEntry.WindowName,
-                                form.Location,
-                                form.Size
-                            ).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Error($"[SecondaryWindow] Error saving window configuration on close: {ex.Message}");
-                        }
-                    });
+                        SaveWindowConfigurationAsync(
+                            windowEntry.WindowName,
+                            form.Location,
+                            form.Size
+                        ).ConfigureAwait(false).GetAwaiter().GetResult();
+                    }
+                    catch (ObjectDisposedException ex)
+                    {
+                        // Services already disposed (app shutdown or profile switch) - this is OK
+                        _logger.Info($"[SecondaryWindow] Services disposed during window close (expected during shutdown): {ex.Message}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"[SecondaryWindow] Error saving window configuration on close: {ex.Message}");
+                    }
                 }
 
                 _logger.Info($"[SecondaryWindow] Window '{windowName}' closed: {sessionId}");
@@ -275,6 +279,7 @@ public class SecondaryWindowService : ISecondaryWindowService
 
     /// <summary>
     /// Load window configuration (position and size) from profile config
+    /// Config stores logical pixels (DPI-independent), we convert to physical pixels for Form
     /// </summary>
     private async Task<(Point Position, Size Size)> LoadWindowConfigurationAsync(
         string windowName,
@@ -285,32 +290,91 @@ public class SecondaryWindowService : ISecondaryWindowService
         try
         {
             var profileId = _profileContext.ProfileId;
-            _logger.Info($"[SecondaryWindow] Loading configuration for window '{windowName}'...");
+            double currentDpi = DpiHelper.GetDpiScaleFactor();
+            _logger.Info($"[SecondaryWindow] Loading configuration for window '{windowName}', current DPI: {currentDpi:F2}");
             var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
 
             if (config?.Windows != null && config.Windows.TryGetValue(windowName, out var windowConfig))
             {
                 _logger.Info($"[SecondaryWindow] Found saved configuration for '{windowName}'");
 
-                int width = windowConfig.Width ?? defaultWidth;
-                int height = windowConfig.Height ?? defaultHeight;
+                // Get saved values (in logical pixels or old physical pixels)
+                int savedWidth = windowConfig.Width ?? defaultWidth;
+                int savedHeight = windowConfig.Height ?? defaultHeight;
+
+                // Check if values were saved from OLD system (physical pixels)
+                // If SavedDpiScale exists, these are OLD physical pixels that need conversion
+                int logicalWidth, logicalHeight;
+                if (windowConfig.SavedDpiScale.HasValue)
+                {
+                    // Old config: physical pixels saved, convert to logical first
+                    double oldDpi = windowConfig.SavedDpiScale.Value;
+                    logicalWidth = (int)Math.Round(savedWidth / oldDpi);
+                    logicalHeight = (int)Math.Round(savedHeight / oldDpi);
+                    _logger.Info($"[SecondaryWindow] Migrated old config from DPI {oldDpi:F2}: {savedWidth}x{savedHeight} -> {logicalWidth}x{logicalHeight} logical");
+                }
+                else
+                {
+                    // New config: already logical pixels
+                    logicalWidth = savedWidth;
+                    logicalHeight = savedHeight;
+                    _logger.Info($"[SecondaryWindow] Loaded logical pixels: {logicalWidth}x{logicalHeight}");
+                }
+
+                // Enforce minimum sizes in logical pixels
+                logicalWidth = Math.Max(logicalWidth, 300);
+                logicalHeight = Math.Max(logicalHeight, 200);
+
+                // Convert FROM logical pixels TO physical pixels for the form
+                int physicalWidth = (int)Math.Round(logicalWidth * currentDpi);
+                int physicalHeight = (int)Math.Round(logicalHeight * currentDpi);
+                _logger.Info($"[SecondaryWindow] Physical size for form: {physicalWidth}x{physicalHeight}");
 
                 if (windowConfig.X != null && windowConfig.Y != null)
                 {
-                    int x = windowConfig.X.Value;
-                    int y = windowConfig.Y.Value;
-                    _logger.Info($"[SecondaryWindow] Saved config: ({x}, {y}) {width}x{height}");
+                    int savedX = windowConfig.X.Value;
+                    int savedY = windowConfig.Y.Value;
 
-                    // Validate position is on screen
-                    if (IsPositionValid(x, y, width, height, screen))
+                    int logicalX, logicalY;
+                    if (windowConfig.SavedDpiScale.HasValue)
                     {
-                        _logger.Info($"[SecondaryWindow] Configuration is valid, using saved values");
-                        return (new Point(x, y), new Size(width, height));
+                        // Old config: convert old physical to logical
+                        double oldDpi = windowConfig.SavedDpiScale.Value;
+                        logicalX = (int)Math.Round(savedX / oldDpi);
+                        logicalY = (int)Math.Round(savedY / oldDpi);
+                    }
+                    else
+                    {
+                        // New config: already logical
+                        logicalX = savedX;
+                        logicalY = savedY;
+                    }
+
+                    // Convert FROM logical TO physical for the form
+                    int physicalX = (int)Math.Round(logicalX * currentDpi);
+                    int physicalY = (int)Math.Round(logicalY * currentDpi);
+
+                    _logger.Info($"[SecondaryWindow] Logical position: ({logicalX}, {logicalY})");
+                    _logger.Info($"[SecondaryWindow] Physical position: ({physicalX}, {physicalY})");
+
+                    // Validate position is on screen (using physical pixels)
+                    if (IsPositionValid(physicalX, physicalY, physicalWidth, physicalHeight, screen))
+                    {
+                        _logger.Info($"[SecondaryWindow] Configuration is valid, using loaded values");
+                        return (new Point(physicalX, physicalY), new Size(physicalWidth, physicalHeight));
                     }
                     else
                     {
                         _logger.Info("[SecondaryWindow] Saved position is off-screen, using default");
                     }
+                }
+                else
+                {
+                    // No position saved, but we have valid size - use default position with loaded size
+                    int posX = screen.Right - physicalWidth - 20;
+                    int posY = screen.Bottom - physicalHeight - 20;
+                    _logger.Info($"[SecondaryWindow] Using default position with loaded size: ({posX}, {posY}) {physicalWidth}x{physicalHeight}");
+                    return (new Point(posX, posY), new Size(physicalWidth, physicalHeight));
                 }
             }
             else
@@ -324,16 +388,19 @@ public class SecondaryWindowService : ISecondaryWindowService
             _logger.Error($"[SecondaryWindow] Stack trace: {ex.StackTrace}");
         }
 
-        // Default to right-bottom corner with default size
-        _logger.Info($"[SecondaryWindow] Using default configuration for screen: {screen}");
-        int defaultX = screen.Right - defaultWidth - 20;
-        int defaultY = screen.Bottom - defaultHeight - 20;
-        _logger.Info($"[SecondaryWindow] Default: ({defaultX}, {defaultY}) {defaultWidth}x{defaultHeight}");
-        return (new Point(defaultX, defaultY), new Size(defaultWidth, defaultHeight));
+        // Default to right-bottom corner with default size (convert default logical to physical)
+        double dpi = DpiHelper.GetDpiScaleFactor();
+        int physicalDefaultWidth = (int)Math.Round(defaultWidth * dpi);
+        int physicalDefaultHeight = (int)Math.Round(defaultHeight * dpi);
+        int defaultX = screen.Right - physicalDefaultWidth - 20;
+        int defaultY = screen.Bottom - physicalDefaultHeight - 20;
+        _logger.Info($"[SecondaryWindow] Using default: ({defaultX}, {defaultY}) {physicalDefaultWidth}x{physicalDefaultHeight} (physical pixels)");
+        return (new Point(defaultX, defaultY), new Size(physicalDefaultWidth, physicalDefaultHeight));
     }
 
     /// <summary>
     /// Save window configuration (position and size) to profile config
+    /// Form.Location and Form.Size are in PHYSICAL pixels - we convert to logical (DPI-independent)
     /// </summary>
     private async Task SaveWindowConfigurationAsync(
         string windowName,
@@ -343,18 +410,29 @@ public class SecondaryWindowService : ISecondaryWindowService
         try
         {
             var profileId = _profileContext.ProfileId;
-            _logger.Info($"[SecondaryWindow] Saving configuration for '{windowName}': ({location.X}, {location.Y}) {size.Width}x{size.Height}");
+            double currentDpi = DpiHelper.GetDpiScaleFactor();
+
+            _logger.Info($"[SecondaryWindow] Saving configuration for '{windowName}'");
+            _logger.Info($"[SecondaryWindow] Physical pixels: ({location.X}, {location.Y}) {size.Width}x{size.Height}, DPI: {currentDpi:F2}");
+
+            // Convert FROM physical pixels TO logical pixels (DPI-independent)
+            int logicalX = (int)Math.Round(location.X / currentDpi);
+            int logicalY = (int)Math.Round(location.Y / currentDpi);
+            int logicalWidth = (int)Math.Round(size.Width / currentDpi);
+            int logicalHeight = (int)Math.Round(size.Height / currentDpi);
+
+            _logger.Info($"[SecondaryWindow] Logical pixels: ({logicalX}, {logicalY}) {logicalWidth}x{logicalHeight}");
 
             await _profileService.UpdateWindowConfigurationAsync(
                 profileId,
                 windowName,
-                location.X,
-                location.Y,
-                size.Width,
-                size.Height
+                logicalX,
+                logicalY,
+                logicalWidth,
+                logicalHeight
             ).ConfigureAwait(false);
 
-            _logger.Info($"[SecondaryWindow] Saved window '{windowName}' configuration");
+            _logger.Info($"[SecondaryWindow] Saved window '{windowName}' configuration as logical pixels");
         }
         catch (Exception ex)
         {
