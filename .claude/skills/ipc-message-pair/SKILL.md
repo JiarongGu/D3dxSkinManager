@@ -1,6 +1,6 @@
 ---
 name: ipc-message-pair
-description: Generate matching backend facade IPC handler and frontend service method together to ensure frontend/backend stay in sync
+description: Use when adding a new IPC command that needs both backend and frontend. Generates C# facade handler + TypeScript service method together to prevent sync mismatches.
 ---
 
 # IPC Message Pair Generator

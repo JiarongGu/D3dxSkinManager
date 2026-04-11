@@ -1,6 +1,6 @@
 ---
 name: doc-optimize
-description: Optimize documentation for RAG systems and LLM context windows by extracting large sections, condensing content, and improving structure
+description: Use when a doc file exceeds 30KB or loads too much context. Extracts large sections into focused files, condenses examples to links, and splits oversized guides.
 ---
 
 # Documentation Optimizer

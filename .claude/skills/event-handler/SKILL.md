@@ -1,6 +1,6 @@
 ---
 name: event-handler
-description: Generate C# event consolidation handler that subscribes to multiple events and emits a single consolidated event for frontend
+description: Use when wiring multiple backend events to a single frontend update. Generates C# event handler that consolidates several source events into one consolidated event.
 ---
 
 # Event Handler Generator

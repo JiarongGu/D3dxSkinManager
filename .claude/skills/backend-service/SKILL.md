@@ -1,6 +1,6 @@
 ---
 name: backend-service
-description: Generate complete C# backend service with interface, DI, event emission, and error handling following project patterns
+description: Use when creating a new C# service class. Generates service + interface + DI injection + IProfileEventBus event emission + OperationException error handling.
 ---
 
 # Backend Service Generator

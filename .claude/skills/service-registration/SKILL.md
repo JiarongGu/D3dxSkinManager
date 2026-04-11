@@ -1,6 +1,6 @@
 ---
 name: service-registration
-description: Add service registration to Module ServiceExtensions file with proper singleton/scoped lifecycle
+description: Use after creating any new C# service to register it in DI. Adds service + interface registration to the module's ServiceExtensions.cs file.
 ---
 
 # Service Registration Skill

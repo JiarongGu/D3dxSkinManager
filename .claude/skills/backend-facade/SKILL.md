@@ -1,6 +1,6 @@
 ---
 name: backend-facade
-description: Generate thin C# IPC facade that extends BaseFacade and delegates to services without business logic
+description: Use when adding a new module facade or wiring IPC endpoints to services. Generates thin C# facade that routes IPC requests to services without business logic.
 ---
 
 # Backend Facade Generator

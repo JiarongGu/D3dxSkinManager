@@ -1,6 +1,6 @@
 ---
 name: doc-update-reference
-description: Update reference documentation (REFERENCE.md, KEYWORDS_INDEX.md) with new file paths, constants, commands, or keywords
+description: Use after adding new files, constants, IPC messages, or skills to update REFERENCE.md and KEYWORDS_INDEX.md so they can be found via doc-loader.
 ---
 
 # Reference Documentation Updater

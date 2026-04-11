@@ -1,6 +1,6 @@
 ---
 name: doc-cleanup
-description: Clean up redundant documentation, remove outdated content, consolidate duplicates, and perform maintenance tasks
+description: Use to delete redundant docs, remove temporary files, or consolidate duplicate content. Always backs up before deleting and updates references in other docs.
 ---
 
 # Documentation Cleanup

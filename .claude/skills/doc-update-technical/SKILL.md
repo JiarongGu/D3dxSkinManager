@@ -1,6 +1,6 @@
 ---
 name: doc-update-technical
-description: Update technical documentation (ADVANCED_PATTERNS.md, DESIGN_DECISIONS.md) with new patterns, architectural decisions, or performance optimizations
+description: Use after discovering a non-obvious pattern or making an architecture decision. Documents it in ADVANCED_PATTERNS.md or DESIGN_DECISIONS.md for future sessions.
 ---
 
 # Technical Documentation Updater

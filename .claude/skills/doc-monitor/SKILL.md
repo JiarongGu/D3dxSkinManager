@@ -1,6 +1,6 @@
 ---
 name: doc-monitor
-description: Monitor documentation for consistency, redundancy, outdated content, and broken references across all docs
+description: Use to audit documentation health. Detects broken file references, redundant docs, stale skill listings, and inconsistent versions across the docs folder.
 ---
 
 # Documentation Monitor

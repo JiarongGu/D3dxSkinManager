@@ -1,6 +1,6 @@
 ---
 name: file-watcher
-description: Generate FileSystemWatcher service for monitoring directory changes and emitting events for cache invalidation
+description: Use when cache or data must refresh when files/folders change on disk. Generates FileSystemWatcher service with lock safety, fire-and-forget events, and proper disposal.
 ---
 
 # FileSystemWatcher Service Generator

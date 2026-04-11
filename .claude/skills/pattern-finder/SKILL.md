@@ -1,6 +1,6 @@
 ---
 name: pattern-finder
-description: Find existing code patterns and implementations in the codebase to use as reference or understand how features work
+description: Use FIRST before implementing any new feature, service, or component. Searches codebase for existing similar code patterns to reuse and follow.
 disable-model-invocation: false
 ---
 

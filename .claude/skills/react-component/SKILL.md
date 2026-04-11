@@ -1,6 +1,6 @@
 ---
 name: react-component
-description: Generate React TypeScript component with proper hooks, error handling, BEM CSS, and project conventions
+description: Use when creating a new React component, screen, panel, or dialog. Generates TypeScript component + BEM CSS + hooks with project conventions.
 ---
 
 # React Component Generator

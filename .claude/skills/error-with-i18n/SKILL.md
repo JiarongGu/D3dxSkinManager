@@ -1,6 +1,6 @@
 ---
 name: error-with-i18n
-description: Generate OperationException with error code and add i18n translations to both English and Chinese language files
+description: Use whenever adding a new error, throw, or exception. Generates OperationException code + adds translations to both en.json and cn.json. Never add errors manually.
 ---
 
 # Error with i18n Generator

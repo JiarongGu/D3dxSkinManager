@@ -1,6 +1,6 @@
 ---
 name: batch-operation
-description: Generate complete batch operation pattern with SQL IN clause, facade handler with result aggregation, and frontend service method
+description: Use when implementing bulk delete/update on multiple items by ID list. Generates parameterized SQL batch query + C# handler + TypeScript method as a complete set.
 ---
 
 # Batch Operation Generator

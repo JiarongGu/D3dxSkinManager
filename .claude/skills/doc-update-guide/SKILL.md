@@ -1,6 +1,6 @@
 ---
 name: doc-update-guide
-description: Update guide-type documentation (AI_GUIDE.md, CODE_GENERATION.md) with new features, patterns, or system changes
+description: Use after adding a skill, feature, or workflow change to update AI_GUIDE.md with the change, version bump, and changelog entry.
 ---
 
 # Guide Documentation Updater

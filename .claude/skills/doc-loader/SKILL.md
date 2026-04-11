@@ -1,6 +1,6 @@
 ---
 name: doc-loader
-description: Load relevant documentation based on current task using smart document selection
+description: Use at the start of any task to find and load the right project docs automatically. Analyzes task keywords to select relevant docs from KEYWORDS_INDEX.
 disable-model-invocation: false
 ---
 

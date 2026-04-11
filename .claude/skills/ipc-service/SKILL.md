@@ -1,6 +1,6 @@
 ---
 name: ipc-service
-description: Generate TypeScript frontend IPC service extending BaseModuleService with singleton export pattern
+description: Use when adding frontend TypeScript methods that call backend IPC endpoints. Generates typed IPC service class extending BaseModuleService with singleton export.
 ---
 
 # Frontend IPC Service Generator
