@@ -13,6 +13,8 @@ import {
 import { useDragDrop } from "../../../../shared/hooks/useDragDrop";
 import { logger } from "../../../../shared/utils/logger";
 import { useScrollPosition } from "../../../../shared/hooks/useScrollPosition";
+import { useModsStore } from "../../store/modsStore";
+import { CategoryGrid } from "./CategoryGrid";
 import { useTranslation } from "react-i18next";
 import type { MenuProps } from "antd";
 import classNames from "classnames";
@@ -435,6 +437,14 @@ const CategoryTreeInner: React.FC = () => {
 };
 
 /**
+ * Switches between tree and grid inner components based on view mode
+ */
+const CategoryViewContent: React.FC = () => {
+  const viewMode = useModsStore(s => s.categoryViewMode);
+  return viewMode === 'grid' ? <CategoryGrid /> : <CategoryTreeInner />;
+};
+
+/**
  * Category tree component displaying hierarchical character categories.
  *
  * This component uses a context provider to manage all state and logic internally.
@@ -443,7 +453,7 @@ const CategoryTreeInner: React.FC = () => {
 export const CategoryTree: React.FC<CategoryTreeProps> = (props) => {
   return (
     <CategoryTreeProvider {...props}>
-      <CategoryTreeInner />
+      <CategoryViewContent />
     </CategoryTreeProvider>
   );
 };

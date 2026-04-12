@@ -79,6 +79,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
             // Tab settings (per-profile)
             "UPDATE_MOD_PANEL_SIZE" => await UpdateModPanelSizeAsync(request),
+            "UPDATE_CATEGORY_VIEW_MODE" => await UpdateCategoryViewModeAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -364,5 +365,18 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
 
         return new { success = true, message = "Mod panel size updated", config };
+    }
+
+    private async Task<object> UpdateCategoryViewModeAsync(IpcRequest request)
+    {
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var viewMode = _payloadHelper.GetRequiredValue<string>(request.Payload, "viewMode");
+
+        await _profileService.UpdateCategoryViewModeAsync(profileId, viewMode).ConfigureAwait(false);
+
+        var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+        await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
+
+        return new { success = true, message = "Category view mode updated", config };
     }
 }

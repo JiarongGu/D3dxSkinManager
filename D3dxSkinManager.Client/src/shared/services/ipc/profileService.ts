@@ -32,6 +32,7 @@ export interface ModImportConfiguration {
 export interface TabSettings {
   mod: {
     panelSize: string; // Format: "categoryWidth modListWidth" (e.g., "25 40")
+    categoryViewMode?: string; // "tree" or "grid", default: "tree"
     lockedExpandedCategories?: string[]; // Category IDs that are locked expanded
   };
 }
@@ -175,6 +176,13 @@ export class ProfileService extends BaseModuleService {
    */
   async updateModPanelSize(profileId: string, panelSize: string): Promise<{ success: boolean; config?: ProfileConfiguration }> {
     return this.sendMessage('UPDATE_MOD_PANEL_SIZE', undefined, { profileId, panelSize });
+  }
+
+  /**
+   * Update category view mode in profile config
+   */
+  async updateCategoryViewMode(profileId: string, viewMode: string): Promise<{ success: boolean; config?: ProfileConfiguration }> {
+    return this.sendMessage('UPDATE_CATEGORY_VIEW_MODE', undefined, { profileId, viewMode });
   }
 
   /**

@@ -45,9 +45,11 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   const { selectedProfileId } = useProfile();
   const reset = useModsStore((state) => state.reset);
   const setPanelSizes = useModsStore((state) => state.setPanelSizes);
-  const [selectedProfileIdRef, setPanelSizesRef, resetRef] = useStableRef(
+  const setCategoryViewMode = useModsStore((state) => state.setCategoryViewMode);
+  const [selectedProfileIdRef, setPanelSizesRef, setCategoryViewModeRef, resetRef] = useStableRef(
     selectedProfileId,
     setPanelSizes,
+    setCategoryViewMode,
     reset,
   );
 
@@ -67,6 +69,12 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       const config = await profileService.getProfileConfiguration(
         selectedProfileIdRef.current,
       );
+      // Load category view mode
+      const categoryViewMode = config?.tabs?.mod?.categoryViewMode;
+      if (categoryViewMode === 'tree' || categoryViewMode === 'grid') {
+        setCategoryViewModeRef.current(categoryViewMode);
+      }
+
       const panelSize = config?.tabs?.mod?.panelSize;
 
       if (panelSize) {

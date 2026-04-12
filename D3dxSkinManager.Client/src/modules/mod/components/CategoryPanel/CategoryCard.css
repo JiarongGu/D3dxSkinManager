@@ -1,0 +1,183 @@
+/* Category Card - Thumbnail grid card */
+.category-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  user-select: none;
+  min-width: 0;
+  /* No transition on bg/border — selection must be instant */
+}
+
+.category-card:hover {
+  background-color: var(--color-bg-spotlight);
+}
+
+/* Instant press feedback — zero-delay scale */
+.category-card:active {
+  transform: scale(0.94);
+}
+
+/* Dragging state — show grab cursor and reduce opacity */
+.category-card[draggable="true"] {
+  cursor: grab;
+}
+
+.category-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Selected — solid border */
+.category-card--selected {
+  background-color: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  border-style: solid;
+}
+
+/* Light theme selection */
+[data-theme="light"] .category-card--selected {
+  background-color: #e6f7ff;
+  border-color: #1890ff;
+}
+
+/* ============================================================
+   Parent card — dotted border to distinguish from selected
+   ============================================================ */
+
+.category-card--parent {
+  border-color: var(--color-primary);
+  border-style: dotted;
+  background-color: var(--color-primary-bg);
+}
+
+.category-card--parent:hover {
+  background-color: var(--color-primary-bg-hover);
+}
+
+.category-card--parent .category-card__name {
+  font-weight: 500;
+}
+
+[data-theme="light"] .category-card--parent {
+  border-color: #91caff;
+  background-color: #f0f7ff;
+}
+
+[data-theme="light"] .category-card--parent:hover {
+  background-color: #e0efff;
+}
+
+/* Parent + selected = solid border (selected wins) */
+.category-card--parent.category-card--selected {
+  border-style: solid;
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-bg-hover);
+}
+
+[data-theme="light"] .category-card--parent.category-card--selected {
+  border-color: #1890ff;
+  background-color: #d6eaff;
+}
+
+/* ============================================================
+   Drop target — "move as child" overlay
+   ============================================================ */
+
+.category-card--drop-target {
+  position: relative;
+  border-color: var(--color-primary) !important;
+  border-style: solid !important;
+  box-shadow: 0 0 10px rgba(24, 144, 255, 0.4);
+}
+
+.category-card__drop-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background-color: rgba(24, 144, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-primary);
+  pointer-events: none;
+  text-align: center;
+  padding: 4px;
+}
+
+[data-theme="light"] .category-card__drop-overlay {
+  background-color: rgba(24, 144, 255, 0.15);
+}
+
+/* ============================================================
+   Card internals
+   ============================================================ */
+
+/* Thumbnail container */
+.category-card__thumbnail {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-text-hover);
+}
+
+.category-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Fallback icon when no thumbnail */
+.category-card__icon {
+  font-size: 22px;
+  color: var(--color-text-secondary);
+}
+
+/* Small folder badge overlay for parent categories that have a thumbnail */
+.category-card__folder-badge {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  font-size: 10px;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  padding: 1px 3px;
+  line-height: 1;
+}
+
+/* Category name */
+.category-card__name {
+  font-size: 12px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Mod count badge — bottom-right corner of thumbnail */
+.category-card__count {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 3px;
+  padding: 2px 4px;
+  min-width: 16px;
+  text-align: center;
+}

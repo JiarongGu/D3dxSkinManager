@@ -1,7 +1,7 @@
 ﻿import { notification } from '../../../../shared/utils/notification';
 import React, { useCallback } from 'react';
 import { Layout, Button, Tooltip } from 'antd';
-import { AppstoreOutlined, CheckCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, AppstoreOutlined, CheckCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { CategoryInfo, CATEGORY_IDS } from '../../../../shared/types/category.types';
 import { CategoryTree } from './CategoryTree';
 import { UnclassifiedItem } from './UnclassifiedItem';
@@ -10,7 +10,7 @@ import { useModCategoryUpdate } from './useModCategoryUpdate';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { useModsStore } from '../../store/modsStore';
 import { useMods } from '../../hooks/useMods';
-import { categoryService } from '../../../../shared/services/ipc';
+import { categoryService, profileService } from '../../../../shared/services/ipc';
 import { useTranslation } from 'react-i18next';
 import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
 import './CategoryPanel.css';
@@ -37,6 +37,10 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
   const searchQuery = useModsStore(s => s.categorySearch);
   const expandedKeys = useModsStore(s => s.expandedKeys);
   const unclassifiedCount = useModsStore(s => s.unclassifiedCount);
+
+  // Category view mode (tree/grid)
+  const categoryViewMode = useModsStore(s => s.categoryViewMode);
+  const setCategoryViewMode = useModsStore(s => s.setCategoryViewMode);
 
   // Get operations
   const { setcategorySearch, setExpandedKeys, selectCategory, loadAllMods, loadLoadedMods } = useMods();
@@ -127,6 +131,15 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
     }
   }, [loadLoadedMods]);
 
+  // Handle view mode toggle — update store and persist to profile config
+  const handleToggleViewMode = useCallback(() => {
+    const newMode = categoryViewMode === 'tree' ? 'grid' : 'tree';
+    setCategoryViewMode(newMode);
+    if (selectedProfileId) {
+      void profileService.updateCategoryViewMode(selectedProfileId, newMode);
+    }
+  }, [categoryViewMode, setCategoryViewMode, selectedProfileId]);
+
   return (
     <Sider
       width="100%"
@@ -161,6 +174,15 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
 
         {/* Right section - Action icon buttons */}
         <div className="category-panel-status-right">
+          <Tooltip title={t(categoryViewMode === 'tree' ? 'category.gridView' : 'category.treeView')} placement="top">
+            <Button
+              type="text"
+              size="small"
+              icon={categoryViewMode === 'tree' ? <AppstoreOutlined /> : <ApartmentOutlined />}
+              onClick={handleToggleViewMode}
+              className="category-panel-action-button"
+            />
+          </Tooltip>
           <Tooltip title={t('category.showAllMods')} placement="top">
             <Button
               type="text"

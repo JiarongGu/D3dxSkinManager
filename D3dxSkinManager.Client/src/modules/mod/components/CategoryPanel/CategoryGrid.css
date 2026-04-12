@@ -1,0 +1,167 @@
+/* Category Grid View */
+
+.category-grid-container {
+  user-select: none;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.category-grid-header {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.category-grid-search {
+  flex: 1;
+}
+
+.category-grid-content-wrapper {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.category-grid-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(1px);
+  z-index: 10;
+  pointer-events: all;
+  cursor: auto;
+}
+
+.category-grid-content-loading {
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.category-grid-scroll-container {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.category-grid-inner {
+  padding: 4px 6px 8px 6px;
+  min-height: 100%;
+}
+
+.category-grid-empty-container {
+  padding: 16px;
+  user-select: none;
+  height: 100%;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================
+   Card Grid Layout
+   ============================================================ */
+
+.category-grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 4px;
+  padding: 4px;
+}
+
+.category-grid-root-cards {
+  margin-bottom: 6px;
+}
+
+/* ============================================================
+   Group Box — layered containers for parent-child hierarchy
+   ============================================================ */
+
+.category-grid-group {
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 6px;
+  padding: 4px;
+  margin-bottom: 6px;
+  background-color: transparent;
+  position: relative;
+  transition: opacity 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.category-grid-group--nested {
+  margin: 4px 2px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-color: var(--color-border-secondary);
+}
+
+[data-theme="light"] .category-grid-group {
+  background-color: rgba(0, 0, 0, 0.01);
+}
+
+[data-theme="light"] .category-grid-group--nested {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.category-grid-group--nested .category-grid-group--nested {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="light"] .category-grid-group--nested .category-grid-group--nested {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* ============================================================
+   Drop Target — highlight group when hovering center (reparent)
+   ============================================================ */
+
+.category-grid-group--drop-target {
+  border-color: var(--color-primary);
+  border-width: 2px;
+  box-shadow: 0 0 12px rgba(24, 144, 255, 0.3);
+}
+
+/* ============================================================
+   Drop Placeholders — inline ghost elements at drop position
+
+   Card placeholder: same size as a grid cell, dashed border
+   Group placeholder: full-width dashed box between groups
+   ============================================================ */
+
+.category-grid-drop-placeholder {
+  border: 2px dashed var(--color-primary);
+  border-radius: 6px;
+  background-color: var(--color-primary-bg);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Card-sized placeholder — fills one grid cell like a real card */
+.category-grid-drop-placeholder--card {
+  aspect-ratio: 1;
+  min-height: 0;
+}
+
+/* Group-sized placeholder — full-width bar between groups */
+.category-grid-drop-placeholder--group {
+  height: 40px;
+  margin-bottom: 6px;
+}
+
+/* ============================================================
+   Mod drop highlight (via useDragDrop, kept for mod classify)
+   ============================================================ */
+
+.category-grid-inner .use-drag-drop-over-node {
+  box-shadow: 0 0 0 2px var(--color-primary);
+  border-radius: 6px;
+}

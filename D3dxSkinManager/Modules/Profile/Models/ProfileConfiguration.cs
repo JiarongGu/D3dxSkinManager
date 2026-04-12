@@ -89,6 +89,12 @@ public class ModTabSettings
     /// Default: "20 35" (CategoryPanel=20%, ModListPanel=35%, Preview=45%)
     /// </summary>
     public string PanelSize { get; set; } = "20 35";
+
+    /// <summary>
+    /// Category panel view mode: "tree" or "grid"
+    /// Default: "tree"
+    /// </summary>
+    public string CategoryViewMode { get; set; } = "tree";
 }
 
 /// <summary>

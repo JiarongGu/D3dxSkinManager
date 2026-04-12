@@ -20,6 +20,7 @@ import { CategoryInfo } from '../../../shared/types/category.types';
 // ============================================================================
 
 export type ModListViewMode = 'category' | 'unclassified' | 'all' | 'loaded';
+export type CategoryViewMode = 'tree' | 'grid';
 
 export interface ModsState {
   // Profile tracking for state preservation
@@ -41,6 +42,7 @@ export interface ModsState {
   selectedCategory: CategoryInfo | undefined;
   categorySearch: string;
   unclassifiedCount: number; // Count of mods without category assignment
+  categoryViewMode: CategoryViewMode; // Tree or grid view toggle
 
   // Preview Panel
   previewLoading: boolean; // Loading state for preview panel (images, metadata, etc.)
@@ -92,6 +94,7 @@ export interface ModsActions {
   setCategoryLoading: (loading: boolean) => void;
   setSelectedCategory: (node: CategoryInfo | undefined) => void;
   setUnclassifiedCount: (count: number) => void;
+  setCategoryViewMode: (mode: CategoryViewMode) => void;
 
   // Preview Panel Actions
   setPreviewLoading: (loading: boolean) => void;
@@ -138,6 +141,7 @@ interface ProfileUIState {
   lockedCategories: string[];
   searchQuery: string;
   viewMode: ModListViewMode;
+  categoryViewMode: CategoryViewMode;
   panelSizes?: {
     categoryWidth: number;
     modListWidth: number;
@@ -172,6 +176,7 @@ const initialState: ModsState = {
   selectedCategory: undefined,
   categorySearch: '',
   unclassifiedCount: 0,
+  categoryViewMode: 'tree',
 
   // Preview Panel
   previewLoading: false,
@@ -312,6 +317,11 @@ export const useModsStore = create<ModsStore>()(
           state.unclassifiedCount = count;
         }),
 
+      setCategoryViewMode: (mode) =>
+        set((state) => {
+          state.categoryViewMode = mode;
+        }),
+
       setcategorySearch: (search) =>
         set((state) => {
           state.categorySearch = search;
@@ -422,6 +432,7 @@ export const useModsStore = create<ModsStore>()(
               lockedCategories: current(state.lockedCategories),
               searchQuery: state.searchQuery,
               viewMode: state.viewMode,
+              categoryViewMode: state.categoryViewMode,
               panelSizes: state.panelSizes ? current(state.panelSizes) : undefined,
             });
           }
@@ -441,6 +452,7 @@ export const useModsStore = create<ModsStore>()(
             state.lockedCategories = cached.lockedCategories;
             state.searchQuery = cached.searchQuery;
             state.viewMode = cached.viewMode;
+            state.categoryViewMode = cached.categoryViewMode;
             state.panelSizes = cached.panelSizes;
           }
         }),

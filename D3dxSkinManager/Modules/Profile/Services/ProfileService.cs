@@ -24,6 +24,7 @@ public interface IProfileService
     Task<bool> UpdateProfileConfigurationAsync(ProfileConfiguration config);
     Task<bool> UpdateWindowConfigurationAsync(string profileId, string windowName, int x, int y, int width, int height);
     Task<bool> UpdateModPanelSizeAsync(string profileId, string panelSize);
+    Task<bool> UpdateCategoryViewModeAsync(string profileId, string viewMode);
 }
 
 public class ProfileService : IProfileService
@@ -410,6 +411,25 @@ public class ProfileService : IProfileService
         await _repository.SaveProfileConfigurationAsync(profileId, config).ConfigureAwait(false);
 
         _logger.Verbose($"Updated mod panel size for profile {profileId}: {panelSize}", "ProfileService");
+        return true;
+    }
+
+    public async Task<bool> UpdateCategoryViewModeAsync(string profileId, string viewMode)
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        var config = await _repository.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
+        if (config == null)
+        {
+            _logger.Warn($"Profile configuration not found for {profileId}, creating new", "ProfileService");
+            config = new ProfileConfiguration { ProfileId = profileId };
+        }
+
+        config.Tabs.Mod.CategoryViewMode = viewMode;
+
+        await _repository.SaveProfileConfigurationAsync(profileId, config).ConfigureAwait(false);
+
+        _logger.Verbose($"Updated category view mode for profile {profileId}: {viewMode}", "ProfileService");
         return true;
     }
 
