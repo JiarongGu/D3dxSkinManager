@@ -132,6 +132,8 @@
     "category.gridView": "Grid View",
     "category.treeView": "Tree View",
     "category.moveAsChild": "Move here",
+    "category.expand": "Expand",
+    "category.collapse": "Collapse",
     "contextMenu.batchEditMods": "Batch Edit ({{count}} mods)",
     "contextMenu.copyName": "Copy Name",
     "contextMenu.copyId": "Copy ID",

@@ -95,6 +95,12 @@ public class ModTabSettings
     /// Default: "tree"
     /// </summary>
     public string CategoryViewMode { get; set; } = "tree";
+
+    /// <summary>
+    /// Category IDs that are locked expanded (persist across sessions)
+    /// Default: empty list
+    /// </summary>
+    public List<string> LockedExpandedCategories { get; set; } = new List<string>();
 }
 
 /// <summary>

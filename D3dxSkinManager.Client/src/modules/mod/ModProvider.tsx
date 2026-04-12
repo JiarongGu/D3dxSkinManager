@@ -46,10 +46,12 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   const reset = useModsStore((state) => state.reset);
   const setPanelSizes = useModsStore((state) => state.setPanelSizes);
   const setCategoryViewMode = useModsStore((state) => state.setCategoryViewMode);
-  const [selectedProfileIdRef, setPanelSizesRef, setCategoryViewModeRef, resetRef] = useStableRef(
+  const setLockedCategories = useModsStore((state) => state.setLockedCategories);
+  const [selectedProfileIdRef, setPanelSizesRef, setCategoryViewModeRef, setLockedCategoriesRef, resetRef] = useStableRef(
     selectedProfileId,
     setPanelSizes,
     setCategoryViewMode,
+    setLockedCategories,
     reset,
   );
 
@@ -73,6 +75,12 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       const categoryViewMode = config?.tabs?.mod?.categoryViewMode;
       if (categoryViewMode === 'tree' || categoryViewMode === 'grid') {
         setCategoryViewModeRef.current(categoryViewMode);
+      }
+
+      // Load locked expanded categories
+      const lockedCategories = config?.tabs?.mod?.lockedExpandedCategories;
+      if (lockedCategories && Array.isArray(lockedCategories)) {
+        setLockedCategoriesRef.current(lockedCategories);
       }
 
       const panelSize = config?.tabs?.mod?.panelSize;
@@ -196,9 +204,27 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
     [],
   );
 
+  // Debounced save of locked categories to profile config
+  const saveLockedCategories = useCallback(
+    debounce((lockedCategories: string[]) => {
+      if (!selectedProfileIdRef.current) return;
+      void profileService.updateLockedCategories(selectedProfileIdRef.current, lockedCategories);
+    }, 500),
+    [],
+  );
+
   // Subscribe to backend events
   useEffect(() => {
     if (!selectedProfileIdRef.current) return;
+
+    // Watch lockedCategories changes and persist to profile config
+    let prevLockedCategories = useModsStore.getState().lockedCategories;
+    const unsubscribeLockedCategories = useModsStore.subscribe((state) => {
+      if (state.lockedCategories !== prevLockedCategories) {
+        prevLockedCategories = state.lockedCategories;
+        saveLockedCategories([...state.lockedCategories]);
+      }
+    });
 
     const unsubscribeProfileConfigChanged = eventBus.subscribe(
       Module.PROFILE,
@@ -320,7 +346,9 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       handleSelectedModUpdate.cancel();
       handleModLoadStateChange.cancel();
       debouncedStatsRefresh.cancel();
+      saveLockedCategories.cancel();
 
+      unsubscribeLockedCategories();
       unsubscribeProfileConfigChanged();
       unsubscribeModListUpdated();
       unsubscribeCategoryTreeUpdated();

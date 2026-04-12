@@ -80,6 +80,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
             // Tab settings (per-profile)
             "UPDATE_MOD_PANEL_SIZE" => await UpdateModPanelSizeAsync(request),
             "UPDATE_CATEGORY_VIEW_MODE" => await UpdateCategoryViewModeAsync(request),
+            "UPDATE_LOCKED_CATEGORIES" => await UpdateLockedCategoriesAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -378,5 +379,15 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
 
         return new { success = true, message = "Category view mode updated", config };
+    }
+
+    private async Task<object> UpdateLockedCategoriesAsync(IpcRequest request)
+    {
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var lockedCategories = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "lockedCategories");
+
+        await _profileService.UpdateLockedCategoriesAsync(profileId, lockedCategories).ConfigureAwait(false);
+
+        return new { success = true, message = "Locked categories updated" };
     }
 }

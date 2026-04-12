@@ -95,7 +95,7 @@
   margin-bottom: 6px;
   background-color: transparent;
   position: relative;
-  transition: opacity 0.15s, border-color 0.15s, box-shadow 0.15s;
+  animation: gridGroupExpand 0.12s ease-out;
 }
 
 .category-grid-group--nested {
@@ -164,4 +164,19 @@
 .category-grid-inner .use-drag-drop-over-node {
   box-shadow: 0 0 0 2px var(--color-primary);
   border-radius: 6px;
+}
+
+/* ============================================================
+   Expand animation — group box slides in when appearing
+   ============================================================ */
+
+@keyframes gridGroupExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -114,6 +114,11 @@ interface CategoryTreeContextValue {
   handleSelect: (selectedKeys: React.Key[], info: any) => void;
   handleRightClick: (info: { event: any; node: any }) => void;
   findNodeById: (id: string) => CategoryInfo | undefined;
+
+  // Lock handlers (for grid view)
+  lockedCategoriesSet: Set<string>;
+  handleLockExpanded: (nodeId: string) => void;
+  handleUnlockExpanded: (nodeId: string) => void;
 }
 
 const CategoryTreeContext = createContext<CategoryTreeContextValue | undefined>(undefined);
@@ -184,6 +189,13 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
       const newLockedKeys = lockedCategories.filter(k => !invalidLockedKeys.includes(k));
       useModsStore.getState().setLockedCategories(newLockedKeys);
     }
+
+    // Ensure all valid locked categories are expanded
+    const validLockedKeys = lockedCategories.filter(k => !invalidLockedKeys.includes(k));
+    const missingFromExpanded = validLockedKeys.filter(k => !expandedKeys.includes(k));
+    if (missingFromExpanded.length > 0) {
+      onExpandedKeysChange([...expandedKeys, ...missingFromExpanded]);
+    }
   }, [tree, lockedCategories, selectedProfileId]);
 
   // Lock/unlock expansion handlers
@@ -197,7 +209,11 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
 
   const handleUnlockExpanded = useCallback((nodeId: string) => {
     removeLockedCategory(nodeId);
-  }, [removeLockedCategory, lockedCategories, selectedProfileId]);
+    // Collapse the node when unlocked
+    if (expandedKeys.includes(nodeId)) {
+      onExpandedKeysChange(expandedKeys.filter(k => k !== nodeId));
+    }
+  }, [removeLockedCategory, expandedKeys, onExpandedKeysChange, lockedCategories, selectedProfileId]);
 
   // Use the operations hook for edit, delete, drag & drop
   const {
@@ -390,6 +406,11 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     handleSelect,
     handleRightClick,
     findNodeById: findNode,
+
+    // Lock handlers (for grid view)
+    lockedCategoriesSet,
+    handleLockExpanded,
+    handleUnlockExpanded,
   };
 
   return (

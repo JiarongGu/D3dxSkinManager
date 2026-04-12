@@ -111,6 +111,8 @@
     "category.gridView": "网格视图",
     "category.treeView": "树状视图",
     "category.moveAsChild": "移至此处",
+    "category.expand": "展开",
+    "category.collapse": "折叠",
     "contextMenu.batchEditMods": "批量编辑 ({{count}} 个模组)",
     "contextMenu.copyName": "复制名称",
     "contextMenu.copyId": "复制 ID",

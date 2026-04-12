@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Empty, Spin, Input, Button } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, FolderOpenOutlined, FolderOutlined } from '@ant-design/icons';
 import { CategoryInfo } from '../../../../shared/types/category.types';
 import { CategoryCard } from './CategoryCard';
 import { useCategoryTreeContext } from './CategoryTreeContext';
@@ -17,7 +17,7 @@ import './CategoryGrid.css';
 const { Search } = Input;
 
 // ============================================================
-// Types
+// Types & Helpers
 // ============================================================
 
 interface DropIndicator {
@@ -27,9 +27,40 @@ interface DropIndicator {
   insertAfterParent?: boolean;
 }
 
-// ============================================================
-// Helpers
-// ============================================================
+/** An ordered segment: a run of card-nodes or a single expanded group */
+type GridSegment =
+  | { type: 'cards'; nodes: CategoryInfo[] }
+  | { type: 'group'; node: CategoryInfo };
+
+/**
+ * Split an ordered list of nodes into segments that preserve the original order.
+ * Leaves and collapsed parents are batched into consecutive "cards" segments;
+ * expanded parents break out as individual "group" segments.
+ */
+const buildSegments = (
+  nodes: CategoryInfo[],
+  expandedKeys: React.Key[],
+): GridSegment[] => {
+  const segments: GridSegment[] = [];
+  let currentCards: CategoryInfo[] = [];
+
+  for (const node of nodes) {
+    const isExpandedParent = node.children.length > 0 && expandedKeys.includes(node.id);
+    if (isExpandedParent) {
+      if (currentCards.length > 0) {
+        segments.push({ type: 'cards', nodes: currentCards });
+        currentCards = [];
+      }
+      segments.push({ type: 'group', node });
+    } else {
+      currentCards.push(node);
+    }
+  }
+  if (currentCards.length > 0) {
+    segments.push({ type: 'cards', nodes: currentCards });
+  }
+  return segments;
+};
 
 const extractNodeId = (target: Element | null): string => {
   if (!target) return '';
@@ -99,10 +130,15 @@ interface CategoryGroupProps {
   depth: number;
   selectedId: string | undefined;
   dropIndicator: DropIndicator | undefined;
+  expandedKeys: React.Key[];
+  lockedCategoriesSet: Set<string>;
   onSelectCategory: (node: CategoryInfo) => void;
+  onDoubleClickCategory: (node: CategoryInfo) => void;
   onContextMenu: (e: React.MouseEvent, nodeId: string) => void;
   onCardDragStart: (e: React.DragEvent, nodeId: string) => void;
   onCardDragEnd: () => void;
+  onLockCategory: (nodeId: string) => void;
+  onUnlockCategory: (nodeId: string) => void;
 }
 
 const CategoryGroup: React.FC<CategoryGroupProps> = ({
@@ -110,13 +146,18 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   depth,
   selectedId,
   dropIndicator,
+  expandedKeys,
+  lockedCategoriesSet,
   onSelectCategory,
+  onDoubleClickCategory,
   onContextMenu,
   onCardDragStart,
   onCardDragEnd,
+  onLockCategory,
+  onUnlockCategory,
 }) => {
-  const leafChildren = category.children.filter(c => c.children.length === 0);
-  const parentChildren = category.children.filter(c => c.children.length > 0);
+  // Build child segments in original order
+  const childSegments = buildSegments(category.children, expandedKeys);
 
   // Group-level placeholders (before/after group box)
   const showPlaceholderBeforeGroup =
@@ -133,6 +174,36 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
     dropIndicator?.targetNodeId === category.id &&
     dropIndicator.insertAfterParent;
 
+  /** Render a card for a child node (leaf or collapsed parent) */
+  const renderChildCard = (child: CategoryInfo) => {
+    const hasChildren = child.children.length > 0;
+    const placeholderBefore =
+      dropIndicator?.targetNodeId === child.id && dropIndicator.position === 'before';
+    const placeholderAfter =
+      dropIndicator?.targetNodeId === child.id && dropIndicator.position === 'after';
+    const isChildDropTarget =
+      dropIndicator?.targetNodeId === child.id && dropIndicator.position === 'inside';
+    return (
+      <React.Fragment key={child.id}>
+        {placeholderBefore && <CardPlaceholder />}
+        <CategoryCard
+          category={child}
+          isSelected={selectedId === child.id}
+          isLocked={hasChildren ? lockedCategoriesSet.has(child.id) : undefined}
+          isDropTarget={isChildDropTarget}
+          onClick={() => onSelectCategory(child)}
+          onDoubleClick={hasChildren ? () => onDoubleClickCategory(child) : undefined}
+          onContextMenu={(e) => onContextMenu(e, child.id)}
+          onDragStart={onCardDragStart}
+          onDragEnd={onCardDragEnd}
+          onLockClick={hasChildren ? onLockCategory : undefined}
+          onUnlockClick={hasChildren ? onUnlockCategory : undefined}
+        />
+        {placeholderAfter && <CardPlaceholder />}
+      </React.Fragment>
+    );
+  };
+
   return (
     <>
       {showPlaceholderBeforeGroup && <GroupPlaceholder />}
@@ -144,56 +215,65 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
         })}
         data-group-id={category.id}
       >
-        <div className="category-grid-cards">
-          <CategoryCard
-            category={category}
-            isSelected={selectedId === category.id}
-            isParent
-            isDropTarget={dropIndicator?.targetNodeId === category.id && dropIndicator.position === 'inside'}
-            onClick={() => onSelectCategory(category)}
-            onContextMenu={(e) => onContextMenu(e, category.id)}
-            onDragStart={onCardDragStart}
-            onDragEnd={onCardDragEnd}
-          />
-          {showInsertAfterParent && <CardPlaceholder />}
-          {leafChildren.map(child => {
-            const placeholderBefore =
-              dropIndicator?.targetNodeId === child.id && dropIndicator.position === 'before';
-            const placeholderAfter =
-              dropIndicator?.targetNodeId === child.id && dropIndicator.position === 'after';
-            const isChildDropTarget =
-              dropIndicator?.targetNodeId === child.id && dropIndicator.position === 'inside';
-            return (
-              <React.Fragment key={child.id}>
-                {placeholderBefore && <CardPlaceholder />}
+        {/* First cards row always starts with the parent card */}
+        {(() => {
+          // Find leading card-nodes to place in the same grid as the parent card
+          const firstSegment = childSegments[0];
+          const leadingCards = firstSegment?.type === 'cards' ? firstSegment.nodes : [];
+          const startIdx = leadingCards.length > 0 ? 1 : 0; // skip first segment if consumed
+
+          return (
+            <>
+              <div className="category-grid-cards">
                 <CategoryCard
-                  category={child}
-                  isSelected={selectedId === child.id}
-                  isDropTarget={isChildDropTarget}
-                  onClick={() => onSelectCategory(child)}
-                  onContextMenu={(e) => onContextMenu(e, child.id)}
+                  category={category}
+                  isSelected={selectedId === category.id}
+                  isParent
+                  isLocked={lockedCategoriesSet.has(category.id)}
+                  isDropTarget={dropIndicator?.targetNodeId === category.id && dropIndicator.position === 'inside'}
+                  onClick={() => onSelectCategory(category)}
+                  onDoubleClick={() => onDoubleClickCategory(category)}
+                  onContextMenu={(e) => onContextMenu(e, category.id)}
                   onDragStart={onCardDragStart}
                   onDragEnd={onCardDragEnd}
+                  onLockClick={onLockCategory}
+                  onUnlockClick={onUnlockCategory}
                 />
-                {placeholderAfter && <CardPlaceholder />}
-              </React.Fragment>
-            );
-          })}
-        </div>
+                {showInsertAfterParent && <CardPlaceholder />}
+                {leadingCards.map(renderChildCard)}
+              </div>
 
-        {parentChildren.map(child => (
-          <CategoryGroup
-            key={child.id}
-            category={child}
-            depth={depth + 1}
-            selectedId={selectedId}
-            dropIndicator={dropIndicator}
-            onSelectCategory={onSelectCategory}
-            onContextMenu={onContextMenu}
-            onCardDragStart={onCardDragStart}
-            onCardDragEnd={onCardDragEnd}
-          />
-        ))}
+              {/* Remaining segments in order */}
+              {childSegments.slice(startIdx).map((seg, i) => {
+                if (seg.type === 'group') {
+                  return (
+                    <CategoryGroup
+                      key={seg.node.id}
+                      category={seg.node}
+                      depth={depth + 1}
+                      selectedId={selectedId}
+                      dropIndicator={dropIndicator}
+                      expandedKeys={expandedKeys}
+                      lockedCategoriesSet={lockedCategoriesSet}
+                      onSelectCategory={onSelectCategory}
+                      onDoubleClickCategory={onDoubleClickCategory}
+                      onContextMenu={onContextMenu}
+                      onCardDragStart={onCardDragStart}
+                      onCardDragEnd={onCardDragEnd}
+                      onLockCategory={onLockCategory}
+                      onUnlockCategory={onUnlockCategory}
+                    />
+                  );
+                }
+                return (
+                  <div key={`cards-${i}`} className="category-grid-cards">
+                    {seg.nodes.map(renderChildCard)}
+                  </div>
+                );
+              })}
+            </>
+          );
+        })()}
       </div>
       {showPlaceholderAfterGroup && <GroupPlaceholder />}
     </>
@@ -214,6 +294,7 @@ export const CategoryGrid: React.FC = () => {
     searchQuery,
     onSearchChange,
     onAddCategory,
+    expandedKeys,
     contextMenuNode,
     setContextMenuNode,
     contextMenuItems,
@@ -222,7 +303,11 @@ export const CategoryGrid: React.FC = () => {
     handleModClassify,
     handleBulkModClassify,
     handleNodeReorder,
+    lockedCategoriesSet,
+    handleLockExpanded,
+    handleUnlockExpanded,
     onSelect,
+    findNodeById,
   } = useCategoryTreeContext();
 
   const { scrollRef, saveScrollPosition, restoreScrollPosition } = useScrollPosition('category-grid');
@@ -249,12 +334,43 @@ export const CategoryGrid: React.FC = () => {
     setContextMenuPosition({ x: 0, y: 0 });
   }, [setContextMenuNode, setContextMenuPosition]);
 
+  // Grid-specific context menu: adds expand/collapse for parent nodes (uses lock logic)
+  const gridContextMenuItems = useMemo(() => {
+    if (!contextMenuNode || contextMenuNode === '') return contextMenuItems;
+
+    const node = findNodeById(contextMenuNode);
+    if (!node || node.children.length === 0) return contextMenuItems;
+
+    const isLocked = lockedCategoriesSet.has(node.id);
+    const expandCollapseItem = {
+      key: 'toggle-expand',
+      label: isLocked ? t('category.collapse') : t('category.expand'),
+      icon: isLocked ? <FolderOutlined /> : <FolderOpenOutlined />,
+      onClick: () => isLocked ? handleUnlockExpanded(node.id) : handleLockExpanded(node.id),
+    };
+
+    return [expandCollapseItem, { key: 'divider-expand', type: 'divider' as const }, ...(contextMenuItems || [])];
+  }, [contextMenuNode, contextMenuItems, lockedCategoriesSet, findNodeById, handleLockExpanded, handleUnlockExpanded, t]);
+
   const handleSelectCategory = useCallback(
     (node: CategoryInfo) => {
       useModsStore.getState().setSelectedCategory(node);
       onSelect(node);
     },
     [onSelect],
+  );
+
+  // Double-click: lock (expand) / unlock (collapse) parent nodes
+  const handleDoubleClickCategory = useCallback(
+    (node: CategoryInfo) => {
+      if (node.children.length === 0) return;
+      if (lockedCategoriesSet.has(node.id)) {
+        handleUnlockExpanded(node.id);
+      } else {
+        handleLockExpanded(node.id);
+      }
+    },
+    [lockedCategoriesSet, handleLockExpanded, handleUnlockExpanded],
   );
 
   // ---- Drag state ----
@@ -284,7 +400,6 @@ export const CategoryGrid: React.FC = () => {
     const cardTarget = (e.target as HTMLElement).closest('[data-node-id]') as HTMLElement | null;
 
     if (cardTarget) {
-      // Card-level detection: X-axis (left/center/right)
       const nodeId = cardTarget.getAttribute('data-node-id')!;
       if (nodeId === draggedNodeKeyRef.current) {
         setDropIndicator(undefined);
@@ -303,7 +418,6 @@ export const CategoryGrid: React.FC = () => {
         position = 'before';
       } else if (relativeX > 1 - edgeThreshold) {
         position = 'after';
-        // Parent card right edge = "insert before first child in this group"
         if (isParentCard) {
           insertAfterParent = true;
         }
@@ -316,14 +430,11 @@ export const CategoryGrid: React.FC = () => {
         return { targetNodeId: nodeId, position, insertAfterParent };
       });
     } else {
-      // Not over any card — check if near the top/bottom edge of a group box (for group reorder)
       const groupTarget = (e.target as HTMLElement).closest('[data-group-id]') as HTMLElement | null;
       if (groupTarget) {
         const groupId = groupTarget.getAttribute('data-group-id')!;
         if (groupId === draggedNodeKeyRef.current) return;
 
-        // Only trigger group reorder when cursor is near the very edge of the group box,
-        // not when hovering the interior gaps between cards
         const rect = groupTarget.getBoundingClientRect();
         const distFromTop = e.clientY - rect.top;
         const distFromBottom = rect.bottom - e.clientY;
@@ -340,7 +451,6 @@ export const CategoryGrid: React.FC = () => {
             return { targetNodeId: groupId, position: 'after' };
           });
         }
-        // Interior of group — keep last indicator, don't show group-level placeholder
       }
     }
   }, []);
@@ -431,7 +541,7 @@ export const CategoryGrid: React.FC = () => {
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
         <ContextMenu
-          items={convertMenuItems(contextMenuItems)}
+          items={convertMenuItems(gridContextMenuItems)}
           visible={contextMenuNode !== undefined}
           position={contextMenuPosition}
           onClose={handleContextMenuClose}
@@ -440,8 +550,37 @@ export const CategoryGrid: React.FC = () => {
     );
   }
 
-  const rootLeaves = filteredTree.filter(n => n.children.length === 0);
-  const rootParents = filteredTree.filter(n => n.children.length > 0);
+  const rootSegments = buildSegments(filteredTree, expandedKeys);
+
+  /** Render a root-level card (leaf or collapsed parent — no parent styling) */
+  const renderRootCard = (node: CategoryInfo) => {
+    const hasChildren = node.children.length > 0;
+    const placeholderBefore =
+      dropIndicator?.targetNodeId === node.id && dropIndicator.position === 'before';
+    const placeholderAfter =
+      dropIndicator?.targetNodeId === node.id && dropIndicator.position === 'after';
+    const isDropTarget =
+      dropIndicator?.targetNodeId === node.id && dropIndicator.position === 'inside';
+    return (
+      <React.Fragment key={node.id}>
+        {placeholderBefore && <CardPlaceholder />}
+        <CategoryCard
+          category={node}
+          isSelected={selectedNode?.id === node.id}
+          isLocked={hasChildren ? lockedCategoriesSet.has(node.id) : undefined}
+          isDropTarget={isDropTarget}
+          onClick={() => handleSelectCategory(node)}
+          onDoubleClick={hasChildren ? () => handleDoubleClickCategory(node) : undefined}
+          onContextMenu={(e) => handleContextMenu(e, node.id)}
+          onDragStart={handleCardDragStart}
+          onDragEnd={clearDragState}
+          onLockClick={handleLockExpanded}
+          onUnlockClick={handleUnlockExpanded}
+        />
+        {placeholderAfter && <CardPlaceholder />}
+      </React.Fragment>
+    );
+  };
 
   return (
     <div className="category-grid-container">
@@ -489,51 +628,37 @@ export const CategoryGrid: React.FC = () => {
           }}
         >
           <div className="category-grid-inner">
-            {rootLeaves.length > 0 && (
-              <div className="category-grid-cards category-grid-root-cards">
-                {rootLeaves.map(node => {
-                  const placeholderBefore =
-                    dropIndicator?.targetNodeId === node.id && dropIndicator.position === 'before';
-                  const placeholderAfter =
-                    dropIndicator?.targetNodeId === node.id && dropIndicator.position === 'after';
-                  const isDropTarget =
-                    dropIndicator?.targetNodeId === node.id && dropIndicator.position === 'inside';
-                  return (
-                    <React.Fragment key={node.id}>
-                      {placeholderBefore && <CardPlaceholder />}
-                      <CategoryCard
-                        category={node}
-                        isSelected={selectedNode?.id === node.id}
-                        isDropTarget={isDropTarget}
-                        onClick={() => handleSelectCategory(node)}
-                        onContextMenu={(e) => handleContextMenu(e, node.id)}
-                        onDragStart={handleCardDragStart}
-                        onDragEnd={clearDragState}
-                      />
-                      {placeholderAfter && <CardPlaceholder />}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            )}
-
-            {rootParents.map(node => (
-              <CategoryGroup
-                key={node.id}
-                category={node}
-                depth={0}
-                selectedId={selectedNode?.id}
-                dropIndicator={dropIndicator}
-                onSelectCategory={handleSelectCategory}
-                onContextMenu={handleContextMenu}
-                onCardDragStart={handleCardDragStart}
-                onCardDragEnd={clearDragState}
-              />
-            ))}
+            {rootSegments.map((seg, i) => {
+              if (seg.type === 'cards') {
+                return (
+                  <div key={`root-cards-${i}`} className="category-grid-cards category-grid-root-cards">
+                    {seg.nodes.map(renderRootCard)}
+                  </div>
+                );
+              }
+              return (
+                <CategoryGroup
+                  key={seg.node.id}
+                  category={seg.node}
+                  depth={0}
+                  selectedId={selectedNode?.id}
+                  dropIndicator={dropIndicator}
+                  expandedKeys={expandedKeys}
+                  lockedCategoriesSet={lockedCategoriesSet}
+                  onSelectCategory={handleSelectCategory}
+                  onDoubleClickCategory={handleDoubleClickCategory}
+                  onContextMenu={handleContextMenu}
+                  onCardDragStart={handleCardDragStart}
+                  onCardDragEnd={clearDragState}
+                  onLockCategory={handleLockExpanded}
+                  onUnlockCategory={handleUnlockExpanded}
+                />
+              );
+            })}
           </div>
 
           <ContextMenu
-            items={convertMenuItems(contextMenuItems)}
+            items={convertMenuItems(gridContextMenuItems)}
             visible={contextMenuNode !== undefined}
             position={contextMenuPosition}
             onClose={handleContextMenuClose}

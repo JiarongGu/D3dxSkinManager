@@ -186,6 +186,13 @@ export class ProfileService extends BaseModuleService {
   }
 
   /**
+   * Update locked expanded categories in profile config
+   */
+  async updateLockedCategories(profileId: string, lockedCategories: string[]): Promise<{ success: boolean }> {
+    return this.sendMessage('UPDATE_LOCKED_CATEGORIES', undefined, { profileId, lockedCategories });
+  }
+
+  /**
    * Format bytes to human-readable string
    */
   formatBytes(bytes: number): string {

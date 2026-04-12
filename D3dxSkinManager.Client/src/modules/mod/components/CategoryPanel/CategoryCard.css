@@ -182,3 +182,55 @@
   min-width: 16px;
   text-align: center;
 }
+
+/* ============================================================
+   Lock indicator — top-right corner of thumbnail (parent cards)
+   ============================================================ */
+
+.category-card__lock-container {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+
+.category-card__lock-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: opacity 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+/* Locked — always visible */
+.category-card__lock-indicator--locked {
+  color: #fff;
+  background-color: rgba(250, 173, 20, 0.7);
+  opacity: 0.9;
+}
+
+.category-card__lock-indicator--locked:hover {
+  opacity: 1;
+  background-color: rgba(250, 173, 20, 0.9);
+  transform: scale(1.15);
+}
+
+/* Unlocked — hidden until card hover */
+.category-card__lock-indicator--unlocked {
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.3);
+  opacity: 0;
+}
+
+.category-card:hover .category-card__lock-indicator--unlocked {
+  opacity: 0.6;
+}
+
+.category-card__lock-indicator--unlocked:hover {
+  opacity: 1 !important;
+  background-color: rgba(0, 0, 0, 0.5);
+  transform: scale(1.15);
+}
