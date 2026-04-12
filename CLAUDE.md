@@ -4,14 +4,16 @@
 
 ---
 
-## 0. Per-Task Gate
+## 0. Per-Task Gate (BLOCKING — do this before ANY code exploration)
 
-Before writing code for any task:
+For every coding task, your **first two actions** must be:
 
-1. **Check the skills table** in `docs/AI_GUIDE.md` — if a code-gen skill applies, use it
-2. **Find existing patterns** — grep the codebase for how similar code is already done
-3. **Never hand-write what a skill generates** (service, facade, IPC, component, error, registration)
+1. **Invoke `/doc-loader`** with the task description and scope — it routes you to the right docs and tells you which code-gen skill to use
+2. **Invoke `/pattern-finder`** with the pattern type — it gives you concrete Grep/Glob commands to find how similar code already exists
 
+Only after these complete: read code, explore, or write anything.
+
+**Never hand-write what a skill generates** (service, facade, IPC, component, error, registration).
 Skip this gate only when doing a direct continuation of the same task in the same scope.
 
 ---
@@ -72,10 +74,10 @@ Full rules → [docs/ai-assistant/TESTING_GUIDE.md](docs/ai-assistant/TESTING_GU
 
 Manual code is ONLY for unique business logic inside a skill-generated structure.
 
-### Discovery Tools (use when needed, not mandatory on every task)
+### Discovery Tools (mandatory first step — see Section 0)
 
-- `/doc-loader "task" scope` — routes to relevant docs
-- `/pattern-finder PatternType Module` — gives Glob/Grep commands for patterns
+- `/doc-loader "task" scope` — routes to relevant docs, suggests which code-gen skill to use
+- `/pattern-finder PatternType Module` — gives Glob/Grep commands for existing patterns
 
 ### After Finishing
 

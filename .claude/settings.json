@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[PRE-CODE] Check skills table in docs/AI_GUIDE.md. Grep for existing patterns. Never hand-write what a skill generates.'"
+            "command": "echo '[PRE-CODE] FIRST invoke /doc-loader then /pattern-finder BEFORE any code exploration. Never hand-write what a skill generates.'"
           }
         ]
       }
