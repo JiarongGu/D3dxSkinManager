@@ -10,13 +10,14 @@ import './ModPackageTool.css';
 interface ModPackageToolProps {
   visible: boolean;
   onClose: () => void;
+  initialCategoryId?: string;
 }
 
-export const ModPackageTool: React.FC<ModPackageToolProps> = ({ visible, onClose }) => {
+export const ModPackageTool: React.FC<ModPackageToolProps> = ({ visible, onClose, initialCategoryId }) => {
   const { t } = useTranslation();
 
   const content = (
-    <ModPackageProvider>
+    <ModPackageProvider initialCategoryId={initialCategoryId}>
       <ModPackageToolInner />
     </ModPackageProvider>
   );

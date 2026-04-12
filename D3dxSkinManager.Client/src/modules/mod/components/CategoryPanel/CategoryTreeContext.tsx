@@ -69,6 +69,7 @@ interface CategoryTreeProviderProps {
   expandedKeys: React.Key[];
   onExpandedKeysChange: (keys: React.Key[]) => void;
   onAddCategory?: (parentId?: string) => void;
+  onExportCategory?: (nodeId: string) => void;
 }
 
 /**
@@ -138,6 +139,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
   expandedKeys,
   onExpandedKeysChange,
   onAddCategory,
+  onExportCategory,
 }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
@@ -241,9 +243,10 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
       onAddCategory,
       onEditNode: handleEditNode,
       onDeleteNode: handleDeleteNode,
+      onExportCategory,
       t,
     });
-  }, [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode, t]);
+  }, [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode, onExportCategory, t]);
 
   // Toggle expansion for a folder node - optimized for performance
   const handleToggleExpand = useCallback(

@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { TFunction } from 'i18next';
 
@@ -8,6 +8,7 @@ interface CategoryContextMenuProps {
   onAddCategory?: (parentId?: string) => void;
   onEditNode: (nodeId: string) => void;
   onDeleteNode: (nodeId: string) => void;
+  onExportCategory?: (nodeId: string) => void;
   t: TFunction;
 }
 
@@ -20,6 +21,7 @@ export function getCategoryContextMenu({
   onAddCategory,
   onEditNode,
   onDeleteNode,
+  onExportCategory,
   t,
 }: CategoryContextMenuProps): MenuProps['items'] {
   const items: MenuProps['items'] = [];
@@ -50,7 +52,7 @@ export function getCategoryContextMenu({
     },
   });
 
-  // Add divider, "Edit", and "Delete" options only when right-clicking on a node
+  // Node-specific actions only when right-clicking on a node
   if (nodeId && nodeId !== '') {
     items.push({ key: 'divider-1', type: 'divider' });
 
@@ -60,6 +62,19 @@ export function getCategoryContextMenu({
       icon: <EditOutlined />,
       onClick: () => onEditNode(nodeId),
     });
+
+    items.push({
+      key: 'export',
+      label: t("category.tree.exportCategory"),
+      icon: <ExportOutlined />,
+      onClick: () => {
+        if (onExportCategory) {
+          onExportCategory(nodeId);
+        }
+      },
+    });
+
+    items.push({ key: 'divider-2', type: 'divider' });
 
     items.push({
       key: 'delete',

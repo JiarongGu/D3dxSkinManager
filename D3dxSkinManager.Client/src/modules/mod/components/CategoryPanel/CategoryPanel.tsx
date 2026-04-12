@@ -1,5 +1,5 @@
 ﻿import { notification } from '../../../../shared/utils/notification';
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Layout, Button, Tooltip } from 'antd';
 import { ApartmentOutlined, AppstoreOutlined, CheckCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { CategoryInfo, CATEGORY_IDS } from '../../../../shared/types/category.types';
@@ -13,6 +13,7 @@ import { useMods } from '../../hooks/useMods';
 import { categoryService, profileService } from '../../../../shared/services/ipc';
 import { useTranslation } from 'react-i18next';
 import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
+import { ModPackageTool } from '../../../tool/components/ModPackageTool/ModPackageTool';
 import './CategoryPanel.css';
 
 const { Sider } = Layout;
@@ -52,6 +53,13 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
   const { openCategoryScreen } = useCategoryScreen();
   const { updateModCategory } = useModCategoryUpdate();
   const { loading: delayedLoading, execute } = useDelayedLoading(200); // Show loading only if operation takes >100ms
+
+  // Export category state
+  const [exportCategoryId, setExportCategoryId] = useState<string>();
+
+  const handleExportCategory = useCallback((nodeId: string) => {
+    setExportCategoryId(nodeId);
+  }, []);
 
   const handleAddCategory = (parentId?: string) => {
     openCategoryScreen({
@@ -157,6 +165,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
           expandedKeys={expandedKeys}
           onExpandedKeysChange={setExpandedKeys}
           onAddCategory={handleAddCategory}
+          onExportCategory={handleExportCategory}
         />
       </div>
 
@@ -203,6 +212,12 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
           </Tooltip>
         </div>
       </div>
+      {/* Export Category - Opens ModPackageTool with pre-selected mods */}
+      <ModPackageTool
+        visible={exportCategoryId !== undefined}
+        onClose={() => setExportCategoryId(undefined)}
+        initialCategoryId={exportCategoryId}
+      />
     </Sider>
   );
 };

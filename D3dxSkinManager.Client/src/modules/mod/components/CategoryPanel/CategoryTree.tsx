@@ -139,6 +139,11 @@ export interface CategoryTreeProps {
    * Callback when creating new Category
    */
   onAddCategory?: (parentId?: string) => void;
+
+  /**
+   * Callback when exporting a category's mods
+   */
+  onExportCategory?: (nodeId: string) => void;
 }
 
 /**

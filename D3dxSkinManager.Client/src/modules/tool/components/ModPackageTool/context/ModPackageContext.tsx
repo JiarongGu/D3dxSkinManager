@@ -71,7 +71,7 @@ const defaultExportOpts: ExportOptions = {
   includePreviews: true,
 };
 
-export const ModPackageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCategoryId?: string }> = ({ children, initialCategoryId }) => {
   const { selectedProfileId } = useProfile();
 
   // Export state
@@ -112,12 +112,51 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ]);
       setMods(modsData);
       setCategories(categoriesData);
+
+      // Auto-select mods from the initial category (including child categories)
+      if (initialCategoryId) {
+        const collectCategoryIds = (nodes: CategoryInfo[], targetId: string): Set<string> => {
+          const ids = new Set<string>();
+          const findAndCollect = (nodes: CategoryInfo[], found: boolean): boolean => {
+            for (const node of nodes) {
+              if (node.id === targetId || found) {
+                ids.add(node.id);
+                // Collect all children recursively
+                const collectAll = (children: CategoryInfo[]) => {
+                  for (const child of children) {
+                    ids.add(child.id);
+                    collectAll(child.children);
+                  }
+                };
+                if (node.id === targetId) {
+                  collectAll(node.children);
+                  return true;
+                }
+              }
+              if (findAndCollect(node.children, false)) return true;
+            }
+            return false;
+          };
+          findAndCollect(nodes, false);
+          return ids;
+        };
+
+        const categoryIds = collectCategoryIds(categoriesData, initialCategoryId);
+        const matchingModIds = new Set(
+          modsData
+            .filter(mod => mod.category && categoryIds.has(mod.category))
+            .map(mod => mod.id)
+        );
+        if (matchingModIds.size > 0) {
+          setSelectedModIds(matchingModIds);
+        }
+      }
     } catch (error) {
       logger.error('[ModPackage] Failed to load mods/categories', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedProfileId]);
+  }, [selectedProfileId, initialCategoryId]);
 
   const startExport = useCallback(async () => {
     if (!selectedProfileId || !exportOpts.packageName) return;

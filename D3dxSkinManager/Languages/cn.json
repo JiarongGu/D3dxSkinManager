@@ -102,6 +102,7 @@
     "category.deleteError": "删除分类时出错",
     "category.tree.addSubCategory": "添加子分类",
     "category.tree.addRootCategory": "添加根分类",
+    "category.tree.exportCategory": "导出",
     "category.tree.moveNodeFailed": "移动分类节点失败",
     "category.update.modCategoryFailed": "更新模组分类失败",
     "category.update.modsCategoryFailed": "批量更新选中模组分类失败",

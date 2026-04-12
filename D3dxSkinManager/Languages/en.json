@@ -85,6 +85,7 @@
     "category.tree.searchPlaceholder": "Search Categories...",
     "category.tree.addSubCategory": "Add Sub-Category",
     "category.tree.addRootCategory": "Add Root-Category",
+    "category.tree.exportCategory": "Export",
     "category.tree.moveNodeFailed": "Failed to move Category node",
     "category.update.modCategoryFailed": "Failed to update mod category",
     "category.update.modsCategoryFailed": "Failed to update categories for selected mods",
