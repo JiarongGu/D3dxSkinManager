@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { InboxOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useDropZone } from '../../hooks/useDropZone';
 import './CompactUpload.css';
 
@@ -45,13 +46,15 @@ export interface CompactUploadProps {
 export const CompactUpload: React.FC<CompactUploadProps> = ({
   onSelect,
   onDrop,
-  title = 'Click or drag to select file',
+  title,
   subtitle,
   icon,
   size = 'medium',
   className = '',
   enabled = true
 }) => {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t('common.clickOrDragToSelect');
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
   // Use OS-level drop zone when onDrop is provided
@@ -85,7 +88,7 @@ export const CompactUpload: React.FC<CompactUploadProps> = ({
       <div className="compact-upload-icon">
         {icon || <InboxOutlined />}
       </div>
-      <div className="compact-upload-title">{title}</div>
+      <div className="compact-upload-title">{resolvedTitle}</div>
       {subtitle && <div className="compact-upload-subtitle">{subtitle}</div>}
     </div>
   );

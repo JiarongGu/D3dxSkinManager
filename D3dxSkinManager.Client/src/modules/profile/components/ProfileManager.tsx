@@ -436,7 +436,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
               onSelect={handleBrowseCreateThumbnail}
               onRemove={() => setCreateThumbnailPath(undefined)}
               buttonText={t("profiles.form.thumbnail.upload")}
-              alt="Profile thumbnail"
+              alt={t("common.profileThumbnail")}
             />
           </Form.Item>
         </Form>
@@ -509,7 +509,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                 setEditThumbnailRemoved(true); // Mark that user wants to remove thumbnail
               }}
               buttonText={t("profiles.form.thumbnail.change")}
-              alt="Profile thumbnail"
+              alt={t("common.profileThumbnail")}
             />
           </Form.Item>
         </Form>

@@ -7,6 +7,7 @@
 import React from 'react';
 import { Modal } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactSpace } from '../compact';
 import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import './FormDialog.css';
@@ -28,14 +29,17 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   visible,
   title,
   children,
-  okText = 'OK',
-  cancelText = 'Cancel',
+  okText,
+  cancelText,
   onOk,
   onCancel,
   width = 520,
   footer,
   destroyOnHidden = false,
 }) => {
+  const { t } = useTranslation();
+  const resolvedOkText = okText ?? t('common.ok');
+  const resolvedCancelText = cancelText ?? t('common.cancel');
   const { loading, execute, reset } = useDelayedLoading(200);
 
   // Reset loading state when dialog visibility changes
@@ -65,7 +69,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   const modalFooter = footer !== undefined ? footer : (
     <CompactSpace className="form-dialog-footer">
       <CompactButton.Danger onClick={onCancel}>
-        {cancelText}
+        {resolvedCancelText}
       </CompactButton.Danger>
       {onOk && (
         <CompactButton
@@ -73,7 +77,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
           loading={loading}
           onClick={handleOk}
         >
-          {okText}
+          {resolvedOkText}
         </CompactButton>
       )}
     </CompactSpace>

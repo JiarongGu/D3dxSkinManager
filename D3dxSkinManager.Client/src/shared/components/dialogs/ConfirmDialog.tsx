@@ -6,6 +6,7 @@
 import React from 'react';
 import { Modal } from 'antd';
 import { ExclamationCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactSpace, CompactDangerButton } from '../compact';
 import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import './ConfirmDialog.css';
@@ -26,13 +27,16 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   visible,
   title,
   content,
-  okText = 'OK',
-  cancelText = 'Cancel',
+  okText,
+  cancelText,
   okType = 'primary',
   icon = <ExclamationCircleOutlined className="confirm-dialog-icon" />,
   onOk,
   onCancel,
 }) => {
+  const { t } = useTranslation();
+  const resolvedOkText = okText ?? t('common.ok');
+  const resolvedCancelText = cancelText ?? t('common.cancel');
   const { loading, execute, reset } = useDelayedLoading(200);
 
   // Reset loading state when dialog visibility changes
@@ -78,14 +82,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       footer={
         <CompactSpace className="confirm-dialog-footer">
           <CompactButton onClick={onCancel}>
-            {cancelText}
+            {resolvedCancelText}
           </CompactButton>
           {okType === 'danger' ? (
             <CompactDangerButton
               loading={loading}
               onClick={handleOk}
             >
-              {okText}
+              {resolvedOkText}
             </CompactDangerButton>
           ) : (
             <CompactButton
@@ -93,7 +97,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               loading={loading}
               onClick={handleOk}
             >
-              {okText}
+              {resolvedOkText}
             </CompactButton>
           )}
         </CompactSpace>

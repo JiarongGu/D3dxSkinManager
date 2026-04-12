@@ -20,8 +20,8 @@ export const GameLaunchTab: React.FC = () => {
     <div style={{ padding: '24px' }}>
       <Title level={3}>{t('launch.game.title', 'Game Launch')}</Title>
       <Alert
-        message="Feature Under Development"
-        description="The game launch functionality is currently being redesigned. This feature will be reimplemented in a future update. Please check back later."
+        message={t('launch.game.underDevelopment')}
+        description={t('launch.game.underDevelopmentDesc')}
         type="info"
         showIcon
         style={{ marginTop: '16px' }}

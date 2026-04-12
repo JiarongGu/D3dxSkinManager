@@ -175,30 +175,27 @@ export const annotations = {
   modTable: {
     loadButton: {
       level: 1 as TooltipLevel,
-      title:
-        "Load this mod into the game. Loaded mods will be active when you start the game.",
+      titleKey: "tooltip.modTable.loadButton",
     },
     unloadButton: {
       level: 1 as TooltipLevel,
-      title:
-        "Unload this mod from the game. The mod will remain in your library.",
+      titleKey: "tooltip.modTable.unloadButton",
     },
     deleteButton: {
       level: 2 as TooltipLevel,
-      title:
-        "Permanently delete this mod from your library. This action cannot be undone.",
+      titleKey: "tooltip.modTable.deleteButton",
     },
     editButton: {
       level: 1 as TooltipLevel,
-      title: "Edit mod info (name, description, author, tags, grading)",
+      titleKey: "tooltip.modTable.editButton",
     },
     shaColumn: {
       level: 3 as TooltipLevel,
-      title: "Mod ID - Unique identifier for this mod",
+      titleKey: "tooltip.modTable.shaColumn",
     },
     gradingColumn: {
       level: 2 as TooltipLevel,
-      title: "Your rating of this mod (0-5 stars)",
+      titleKey: "tooltip.modTable.gradingColumn",
     },
   },
 
@@ -206,12 +203,11 @@ export const annotations = {
   search: {
     modSearch: {
       level: 1 as TooltipLevel,
-      title:
-        'Search mods by name, author, or tags. Use "!" prefix to exclude terms (e.g., "!NSFW")',
+      titleKey: "tooltip.search.modSearch",
     },
     categorySearch: {
       level: 1 as TooltipLevel,
-      title: "Filter Categories by name",
+      titleKey: "tooltip.search.categorySearch",
     },
   },
 
@@ -219,24 +215,23 @@ export const annotations = {
   importWindow: {
     taskId: {
       level: 2 as TooltipLevel,
-      title: "Unique task identifier. Tasks are processed in order.",
+      titleKey: "tooltip.importWindow.taskId",
     },
     editTask: {
       level: 1 as TooltipLevel,
-      title: "Edit import properties for this task",
+      titleKey: "tooltip.importWindow.editTask",
     },
     removeTask: {
       level: 1 as TooltipLevel,
-      title: "Remove this task from the import queue",
+      titleKey: "tooltip.importWindow.removeTask",
     },
     batchEdit: {
       level: 2 as TooltipLevel,
-      title: "Edit common properties for all selected tasks",
+      titleKey: "tooltip.importWindow.batchEdit",
     },
     confirmImport: {
       level: 1 as TooltipLevel,
-      title:
-        "Start importing all pending tasks. Requires Name and Category for each task.",
+      titleKey: "tooltip.importWindow.confirmImport",
     },
   },
 
@@ -244,31 +239,31 @@ export const annotations = {
   modEdit: {
     name: {
       level: 1 as TooltipLevel,
-      title: "Display name for this mod",
+      titleKey: "tooltip.modEdit.name",
     },
     category: {
       level: 2 as TooltipLevel,
-      title: 'Category or character name (e.g., "Character", "Weapon", "UI")',
+      titleKey: "tooltip.modEdit.category",
     },
     description: {
       level: 1 as TooltipLevel,
-      title: "Description of what this mod changes (max 500 characters)",
+      titleKey: "tooltip.modEdit.description",
     },
     author: {
       level: 1 as TooltipLevel,
-      title: "Mod creator's name",
+      titleKey: "tooltip.modEdit.author",
     },
     grading: {
       level: 2 as TooltipLevel,
-      title: "Rate this mod's quality (0-5 stars)",
+      titleKey: "tooltip.modEdit.grading",
     },
     tags: {
       level: 2 as TooltipLevel,
-      title: 'Categorize this mod with tags (e.g., "HD", "NSFW", "Recolor")',
+      titleKey: "tooltip.modEdit.tags",
     },
     id: {
       level: 3 as TooltipLevel,
-      title: "Mod ID - Cannot be edited (read-only)",
+      titleKey: "tooltip.modEdit.id",
     },
   },
 
@@ -276,16 +271,15 @@ export const annotations = {
   settings: {
     annotationLevel: {
       level: 1 as TooltipLevel,
-      title:
-        "Control tooltip detail level: All (show everything), More (detailed), Less (basic only), Off (disabled)",
+      titleKey: "tooltip.settings.annotationLevel",
     },
     theme: {
       level: 1 as TooltipLevel,
-      title: "Choose application color theme",
+      titleKey: "tooltip.settings.theme",
     },
     language: {
       level: 1 as TooltipLevel,
-      title: "Select interface language",
+      titleKey: "tooltip.settings.language",
     },
   },
 
@@ -293,27 +287,27 @@ export const annotations = {
   contextMenu: {
     loadMod: {
       level: 1 as TooltipLevel,
-      title: "Load this mod into the game",
+      titleKey: "tooltip.contextMenu.loadMod",
     },
     unloadMod: {
       level: 1 as TooltipLevel,
-      title: "Unload this mod from the game",
+      titleKey: "tooltip.contextMenu.unloadMod",
     },
     copyModName: {
       level: 2 as TooltipLevel,
-      title: "Copy mod name to clipboard",
+      titleKey: "tooltip.contextMenu.copyModName",
     },
     copySha: {
       level: 3 as TooltipLevel,
-      title: "Copy Mod ID to clipboard",
+      titleKey: "tooltip.contextMenu.copySha",
     },
     viewFiles: {
       level: 2 as TooltipLevel,
-      title: "Open mod files in file explorer",
+      titleKey: "tooltip.contextMenu.viewFiles",
     },
     exportMod: {
       level: 2 as TooltipLevel,
-      title: "Export this mod as a ZIP file",
+      titleKey: "tooltip.contextMenu.exportMod",
     },
   },
 
@@ -321,49 +315,31 @@ export const annotations = {
   statusBar: {
     helpButton: {
       level: 1 as TooltipLevel,
-      title: "Open help documentation",
+      titleKey: "statusBar.help",
     },
     modsCount: {
       level: 1 as TooltipLevel,
-      title: "Number of loaded mods / Total mods",
+      titleKey: "tooltip.statusBar.modsCount",
     },
   },
 };
 
 /**
- * Helper function to get annotation level label
+ * Translation keys for annotation level labels
  */
-export const getAnnotationLevelLabel = (level: AnnotationLevel): string => {
-  switch (level) {
-    case "all":
-      return "All (全部)";
-    case "more":
-      return "More (较多)";
-    case "less":
-      return "Less (较少)";
-    case "off":
-      return "Off (关闭)";
-    default:
-      return "All";
-  }
+export const annotationLevelLabelKeys: Record<AnnotationLevel, string> = {
+  all: "settings.global.annotationLevel.all",
+  more: "settings.global.annotationLevel.more",
+  less: "settings.global.annotationLevel.less",
+  off: "settings.global.annotationLevel.off",
 };
 
 /**
- * Helper function to get annotation level description
+ * Translation keys for annotation level descriptions
  */
-export const getAnnotationLevelDescription = (
-  level: AnnotationLevel,
-): string => {
-  switch (level) {
-    case "all":
-      return "Show all tooltips including expert-level details";
-    case "more":
-      return "Show detailed tooltips for most features";
-    case "less":
-      return "Show only basic tooltips";
-    case "off":
-      return "Disable all tooltips";
-    default:
-      return "";
-  }
+export const annotationLevelDescKeys: Record<AnnotationLevel, string> = {
+  all: "settings.global.annotationLevel.allDesc",
+  more: "settings.global.annotationLevel.moreDesc",
+  less: "settings.global.annotationLevel.lessDesc",
+  off: "settings.global.annotationLevel.offDesc",
 };

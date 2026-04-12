@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Layout } from "antd";
 import { AppHeader } from "./modules/core/components/layout/AppHeader";
 import { AppStatusBar } from "./modules/core/components/layout/AppStatusBar";
@@ -31,6 +32,7 @@ const { Content } = Layout;
  * Uses ProfileContext to access selected profile
  */
 const AppContent: React.FC = () => {
+  const { t } = useTranslation();
   const [selectedTab, setSelectedTab] = useState("mods");
   const [shortcutsDialogVisible, setShortcutsDialogVisible] = useState(false);
 
@@ -72,14 +74,14 @@ const AppContent: React.FC = () => {
       ...SHORTCUTS.CANCEL,
       key: "?",
       shiftKey: true,
-      description: "Show keyboard shortcuts",
+      description: t('shortcuts.showShortcuts'),
       callback: () => setShortcutsDialogVisible(true),
     });
 
     keyboardManager.register("help-alt", {
       key: "/",
       ctrlKey: true,
-      description: "Show keyboard shortcuts",
+      description: t('shortcuts.showShortcuts'),
       callback: () => setShortcutsDialogVisible(true),
     });
 

@@ -41,11 +41,13 @@ export const CompactThumbnailUpload: React.FC<CompactThumbnailUploadProps> = ({
   thumbnailUrl,
   onSelect,
   onRemove,
-  buttonText = 'Change Thumbnail',
-  alt = 'Thumbnail',
+  buttonText,
+  alt,
   className = '',
 }) => {
   const { t } = useTranslation();
+  const resolvedButtonText = buttonText ?? t('common.changeThumbnail');
+  const resolvedAlt = alt ?? t('common.thumbnail');
   const [imageError, setImageError] = useState(false);
   const containerClassName = `compact-thumbnail-upload ${className}`.trim();
 
@@ -62,7 +64,7 @@ export const CompactThumbnailUpload: React.FC<CompactThumbnailUploadProps> = ({
           {!imageError ? (
             <img
               src={thumbnailUrl}
-              alt={alt}
+              alt={resolvedAlt}
               className="compact-thumbnail-image"
               onError={() => {
                 setImageError(true);
@@ -87,7 +89,7 @@ export const CompactThumbnailUpload: React.FC<CompactThumbnailUploadProps> = ({
       {/* Upload button card (right side) */}
       <div className="compact-thumbnail-upload-card" onClick={onSelect}>
         <PictureOutlined className="compact-thumbnail-upload-icon" />
-        <div className="compact-thumbnail-upload-text">{buttonText}</div>
+        <div className="compact-thumbnail-upload-text">{resolvedButtonText}</div>
       </div>
     </div>
   );
