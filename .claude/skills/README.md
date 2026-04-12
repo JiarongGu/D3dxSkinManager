@@ -16,7 +16,7 @@ Skills are reusable code generation templates that:
 - ✅ Are version-controlled (everyone uses same patterns)
 - ✅ Work with documentation (skills reference docs/core/ADVANCED_PATTERNS.md and docs/core/DESIGN_DECISIONS.md)
 
-## Available Skills (18 Total)
+## Available Skills (19 Total)
 
 ### 📦 Core Code Generation (6 skills)
 
@@ -45,7 +45,7 @@ Skills are reusable code generation templates that:
 | **doc-loader** | `/doc-loader "task description" scope` | Loads relevant documentation based on task |
 | **pattern-finder** | `/pattern-finder PatternType Module?` | Finds existing code patterns in codebase |
 
-### 📝 Documentation Maintenance (6 skills)
+### 📝 Documentation Maintenance (7 skills)
 
 | Skill | Usage | What It Does |
 |-------|-------|--------------|
@@ -55,6 +55,7 @@ Skills are reusable code generation templates that:
 | **doc-monitor** | `/doc-monitor CheckType Scope` | Monitors docs for redundancy, broken links, consistency issues |
 | **doc-cleanup** | `/doc-cleanup Operation Target Details` | Cleans up redundant docs, removes old markers, archives deprecated content |
 | **doc-optimize** | `/doc-optimize DocumentName OptimizationType Details` | Optimizes docs for RAG systems (extract sections, condense, split files) |
+| **post-feature** | `/post-feature` | Audits changes after feature work, suggests doc/skill updates |
 
 ## Quick Start
 

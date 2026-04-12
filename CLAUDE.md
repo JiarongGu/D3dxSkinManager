@@ -98,3 +98,9 @@ Full skill reference (with parameters and examples) → [docs/AI_GUIDE.md](docs/
 ### Step 5 — After finishing
 
 Write tests (section 3), build succeeds, ask before committing (section 1).
+
+### Step 6 — Evolve the system
+
+After any non-trivial feature, run `/post-feature` to audit what changed and update docs/skills.
+This keeps the documentation system current so future sessions benefit from what was built.
+Skip only for trivial fixes (typo, single-line CSS, config-only changes).

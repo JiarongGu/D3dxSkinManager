@@ -1,6 +1,6 @@
 # AI Assistant Guide
 
-**Version:** 6.0
+**Version:** 6.1
 **Last Updated:** 2026-04-12
 **Role:** Primary entry point — loaded by `/doc-loader` at the start of every task. Contains all mandatory session rules, the complete skills reference, and workflow patterns needed for code generation.
 
@@ -82,7 +82,7 @@ Full guide: [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md)
 
 ---
 
-## 🔧 Skills — Complete Reference (18 Total)
+## 🔧 Skills — Complete Reference (19 Total)
 
 ### Code Generation (10 skills)
 
@@ -99,7 +99,7 @@ Full guide: [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md)
 | `/file-watcher` | `/file-watcher Name Module Path Filters Events` | FileSystemWatcher with lock safety + disposal |
 | `/service-registration` | `/service-registration Module Interface Impl Lifecycle` | DI registration in ServiceExtensions.cs |
 
-### Discovery & Documentation (8 skills)
+### Discovery & Documentation (9 skills)
 
 | Skill | Usage | What It Does |
 |-------|-------|--------------|
@@ -110,6 +110,7 @@ Full guide: [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md)
 | `/doc-update-technical` | `/doc-update-technical Name UpdateType Details` | Updates ADVANCED_PATTERNS.md / DESIGN_DECISIONS.md |
 | `/doc-monitor` | `/doc-monitor CheckType Scope` | Audits docs for broken links, redundancy |
 | `/doc-cleanup` | `/doc-cleanup Operation Target Details` | Removes redundant docs, archives deprecated content |
+| `/post-feature` | `/post-feature` | Audits changes, suggests doc/skill updates |
 | `/doc-optimize` | `/doc-optimize Name OptimizationType Details` | Splits oversized docs, condenses for RAG |
 
 Full skill docs with parameters and examples: [.claude/skills/README.md](../.claude/skills/README.md)
@@ -191,6 +192,11 @@ Generate with: `/ipc-service ModService MOD doSomething`
 2. Build succeeds (`dotnet build` + no TS errors)
 3. Ask user: "Ready to commit?"
 4. Wait for explicit "yes"
+
+### After Committing — Evolve the System
+
+Run `/post-feature` after any non-trivial feature to audit changes and update docs/skills.
+This keeps future sessions informed about new IPC endpoints, store state, patterns, and components.
 
 ---
 
