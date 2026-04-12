@@ -9,6 +9,9 @@
   border: 1px solid transparent;
   user-select: none;
   min-width: 0;
+  max-width: 72px;
+  width: 100%;
+  justify-self: center;
   /* No transition on bg/border — selection must be instant */
 }
 
