@@ -197,7 +197,9 @@ export const ModListPanel: React.FC = () => {
   }, [filteredModsLength]);
 
   const handleLoadedModClick = useCallback((mod: ModInfo) => {
-    // Scroll to the loaded mod and select it
+    // Clear multi-selection and select only the loaded mod
+    setSelectedModIds([mod.id]);
+    setAnchorId(mod.id);
     selectMod(mod);
 
     // Find the mod's index in the filtered list
