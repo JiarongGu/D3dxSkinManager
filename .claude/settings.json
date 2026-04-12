@@ -18,11 +18,16 @@
       "Skill(keybindings-help)",
       "Skill(keybindings-help:*)",
       "Skill(claude-api)",
-      "Skill(claude-api:*)"
+      "Skill(claude-api:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(dotnet build:*)",
+      "Edit(/.claude/skills/skill-loader/**)"
     ],
     "additionalDirectories": [
       "d:\\Development\\D3dxSkinManager\\.claude",
-      "d:\\Development\\D3dxSkinManager\\.claude\\rules"
+      "d:\\Development\\D3dxSkinManager\\.claude\\rules",
+      "d:\\Development\\D3dxSkinManager\\.claude\\skills"
     ]
   },
   "hooks": {
@@ -31,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[PRE-RESPONSE] Scan available skills — invoke ANY that match user request (caveman, etc). For coding tasks: 1) /doc-loader + /pattern-finder FIRST 2) Read routed docs 3) State + invoke code-gen skill. Never hand-write what a skill generates.'"
+            "command": "echo '[PRE-RESPONSE] Scan available skills — invoke ANY that match user request (caveman, etc). For coding tasks: 1) /doc-loader + /skill-loader + /pattern-finder in parallel 2) Read routed docs 3) Invoke skills from skill-loader INVOKE list 4) Print match summary. Never hand-write what a skill generates.'"
           }
         ]
       }

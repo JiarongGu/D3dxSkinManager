@@ -8,13 +8,14 @@
 
 Follow the full 5-step protocol in `.claude/rules/skills-workflow.md`. Summary:
 
-1. **Invoke ALL skills** from the system-reminder list via `Skill()` in parallel (first tool calls)
-2. **Read EVERY doc** that doc-loader routes to — not just AI_GUIDE.md. Confirm in response text.
-3. **Run ALL search commands** from pattern-finder
-4. **Print a skill checklist** — list EVERY available skill with match/no-match (must be visible in response)
-5. **Only then** explore code or write anything
+1. **Invoke 4 core skills** in parallel: `/doc-loader`, `/skill-loader`, `/pattern-finder`, `/caveman`
+2. **Invoke code-gen skills** that `skill-loader` returns in its INVOKE list
+3. **Read EVERY doc** that doc-loader routes to — not just AI_GUIDE.md. Confirm in response text.
+4. **Run ALL search commands** from pattern-finder
+5. **Print skill match summary** (INVOKE/SKIP from skill-loader — must be visible in response)
+6. **Only then** explore code or write anything
 
-**If you skip steps 2–4 you WILL generate non-conforming code.**
+**If you skip steps 3–5 you WILL generate non-conforming code.**
 Never hand-write what a skill generates (service, facade, IPC, component, error, registration).
 Skip this gate only when doing a direct continuation of the same task in the same scope.
 
@@ -78,7 +79,8 @@ Manual code is ONLY for unique business logic inside a skill-generated structure
 
 ### Discovery Tools (mandatory first step — see Section 0)
 
-- `/doc-loader "task" scope` — routes to relevant docs + identifies which code-gen skills to invoke
+- `/doc-loader "task" scope` — routes to relevant docs by scope keyword
+- `/skill-loader "task"` — routes to relevant code-gen skills (replaces "invoke ALL")
 - `/pattern-finder PatternType Module` — gives Glob/Grep commands for existing patterns
 
 ### After Finishing

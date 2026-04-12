@@ -9,6 +9,7 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mod.Services;
+using System.Text.Json;
 
 namespace D3dxSkinManager.Modules.Tool;
 
@@ -33,6 +34,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     private readonly IScreenCaptureProfileRepository _captureProfileRepository;
     private readonly IScreenCaptureService _screenCaptureService;
     private readonly IModPackageService _modPackageService;
+    private readonly IFileCleanupService _fileCleanupService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IProfileEventBus _eventBus;
 
@@ -42,6 +44,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         IScreenCaptureProfileRepository captureProfileRepository,
         IScreenCaptureService screenCaptureService,
         IModPackageService modPackageService,
+        IFileCleanupService fileCleanupService,
         IPayloadHelper payloadHelper,
         IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
@@ -51,6 +54,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         _captureProfileRepository = captureProfileRepository ?? throw new ArgumentNullException(nameof(captureProfileRepository));
         _screenCaptureService = screenCaptureService ?? throw new ArgumentNullException(nameof(screenCaptureService));
         _modPackageService = modPackageService ?? throw new ArgumentNullException(nameof(modPackageService));
+        _fileCleanupService = fileCleanupService ?? throw new ArgumentNullException(nameof(fileCleanupService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
@@ -87,6 +91,11 @@ public class ToolFacade : BaseFacade, IToolFacade
             "MOD_PACKAGE_EXPORT" => await ExportModPackageAsync(request),
             "MOD_PACKAGE_ANALYZE" => await AnalyzeModPackageAsync(request),
             "MOD_PACKAGE_IMPORT" => await ImportModPackageAsync(request),
+
+            // File Cleanup
+            "SCAN_ORPHANS" => await ScanOrphansAsync(request),
+            "SCAN_ALL_ORPHANS" => await _fileCleanupService.ScanAllOrphansAsync(),
+            "CLEAN_ORPHANS" => await CleanOrphansAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -328,5 +337,40 @@ public class ToolFacade : BaseFacade, IToolFacade
         };
 
         return await _modPackageService.ImportAsync(config).ConfigureAwait(false);
+    }
+
+    // ===== File Cleanup =====
+
+    private async Task<OrphanScanResult> ScanOrphansAsync(IpcRequest request)
+    {
+        var categoryString = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
+        if (!Enum.TryParse<OrphanCategory>(categoryString, true, out var category))
+        {
+            throw new ArgumentException($"Invalid orphan category: {categoryString}");
+        }
+        return await _fileCleanupService.ScanOrphansAsync(category).ConfigureAwait(false);
+    }
+
+    private async Task<CleanupResult> CleanOrphansAsync(IpcRequest request)
+    {
+        var categoryString = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
+        if (!Enum.TryParse<OrphanCategory>(categoryString, true, out var category))
+        {
+            throw new ArgumentException($"Invalid orphan category: {categoryString}");
+        }
+
+        var pathsElement = _payloadHelper.GetRequiredValue<JsonElement>(request.Payload, "paths");
+        var paths = new List<string>();
+        if (pathsElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in pathsElement.EnumerateArray())
+            {
+                var path = item.GetString();
+                if (!string.IsNullOrEmpty(path))
+                    paths.Add(path);
+            }
+        }
+
+        return await _fileCleanupService.CleanOrphansAsync(category, paths).ConfigureAwait(false);
     }
 }

@@ -1,28 +1,23 @@
-# Skills Workflow — Strict Execution Protocol
+# Skills Workflow — Lean Execution Protocol
 
 This is a 5-step SEQUENTIAL protocol. Each step MUST complete before the next begins. Skipping or reordering steps produces non-conforming code.
 
 ---
 
-## Step 1: Invoke ALL skills (FIRST tool calls of every task)
+## Step 1: Invoke CORE skills (FIRST tool calls of every task)
 
-> **CRITICAL — THIS IS THE #1 FAILURE MODE. READ CAREFULLY.**
->
-> You WILL be tempted to invoke only "relevant" skills (e.g., just `doc-loader` + `pattern-finder`). **DO NOT DO THIS.** Invoke EVERY skill. No exceptions. No judgment calls about relevance. The word "ALL" means ALL.
+Invoke these **4 core skills** via `Skill()` in one parallel batch — before ANY code exploration, Agent spawning, Grep, Glob, or Read:
 
-Invoke EVERY skill from the system-reminder's available skills list via `Skill()` tool — **all in one parallel batch** before ANY code exploration, Agent spawning, Grep, Glob, or Read.
+| Core Skill | Arguments | Purpose |
+|------------|-----------|---------|
+| `/doc-loader` | `"task description" scope` | Routes to relevant docs |
+| `/skill-loader` | `"task description"` | Routes to relevant code-gen skills |
+| `/pattern-finder` | `PatternType Module` | Finds existing code patterns |
+| `/caveman` | Token-optimized communication |
 
-**How to determine which skills to invoke:**
-1. Read the system-reminder's "available skills" section at the start of the conversation
-2. Exclude ONLY runtime-only skills that don't load templates (`loop`, `schedule`)
-3. Count the remaining skills — you should have 20+ Skill() calls
-4. Invoke ALL of them via `Skill()` tool calls in one parallel batch
+**Then immediately invoke every skill that `skill-loader` returns in its INVOKE list.** These are the code-gen templates that must be in context before writing code.
 
-**Self-check before proceeding:** Count your `Skill()` calls. If you have fewer than 20, you skipped skills. Go back and add them.
-
-Pass task-appropriate arguments to discovery skills (`doc-loader`, `pattern-finder`). Other skills need no arguments unless the task warrants them.
-
-**Why:** Loading all skills upfront in one batch ensures templates are in context before any code is written. This prevents non-conforming code and eliminates extra round trips.
+**Why lean instead of all:** Loading all 20+ skills wastes ~30-50K tokens on templates that don't apply. The skill-loader routes to only what's needed — same safety, much less context bloat.
 
 ---
 
@@ -43,17 +38,9 @@ pattern-finder outputs Glob/Grep commands. **Run ALL of them.** These show exist
 
 ---
 
-## Step 4: List ALL skills with match/no-match (BLOCKING — must be visible in response)
+## Step 4: Print skill match summary (BLOCKING — must be visible in response)
 
-Print a checklist of EVERY available skill from the system-reminder. For each:
-- State the skill name
-- State match or no-match
-- If match: state what it will generate
-
-Example:
-> - `/backend-service` — no match (not creating a new service)
-> - `/react-component` — no match (modifying existing component)
-> - `/error-with-i18n` — MATCH (new error for export validation)
+Print the INVOKE / SKIP lists from skill-loader's output. This serves as a visible checklist confirming which templates were loaded.
 
 **This list must appear in your response text.** If it's missing, you skipped this step.
 
@@ -68,16 +55,23 @@ Only after steps 1–4 are complete may you:
 
 ---
 
-## Common failure modes (things the model actually does wrong)
+## Common failure modes
 
-1. **🚨 #1 FAILURE: Only invokes doc-loader + pattern-finder, not all skills** — Step 1 requires ALL skills (20+) in one parallel batch. "I'll only invoke the relevant ones" is WRONG. Invoke ALL of them. Every. Single. One.
+1. **Skips skill-loader and only invokes doc-loader** — Step 1 requires all 4 core skills. skill-loader determines which code-gen skills to load.
 2. **Calls doc-loader but doesn't read the docs it routes to** — Step 2 exists to prevent this
 3. **Reads AI_GUIDE.md but skips scope-specific docs** (FRONTEND.md, BACKEND.md, etc.) — Read ALL listed docs
-4. **Never lists skills or states match/no-match** — Step 4 requires visible output
-5. **Jumps straight to Grep/Read after invoking skills** — Steps 2–4 must happen first
+4. **Never prints skill match summary** — Step 4 requires visible output
+5. **Jumps straight to Grep/Read after invoking core skills** — Steps 2–4 must happen first
 6. **Mentions a skill name in text but doesn't call the Skill tool** — "Invoke" means `Skill()` tool call, not text
 7. **Uses global memory for project rules** — Workflow corrections go in `.claude/rules/`, NEVER in `~/.claude/projects/*/memory/`
+8. **Ignores skill-loader INVOKE list** — If skill-loader says INVOKE, you MUST call `Skill()` for those skills
 
 ## Skill matching beyond coding tasks
 
 On every user message, scan available skills. If any skill's trigger matches the request (e.g., `/caveman` for "be brief"), invoke it IMMEDIATELY before any other response. This applies to communication, audit, and discovery skills equally.
+
+## When to skip this gate
+
+- Direct continuation of the same task in the same scope (templates already in context)
+- Pure conversation (questions, explanations, no code changes)
+- Quick config/doc edits where no code-gen skill could apply

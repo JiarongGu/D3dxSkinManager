@@ -33,6 +33,9 @@ public static class ToolServiceExtensions
         // Register mod package service
         services.TryAddSingleton<IModPackageService, ModPackageService>();
 
+        // Register file cleanup service
+        services.TryAddSingleton<IFileCleanupService, FileCleanupService>();
+
         // Register facade
         services.TryAddSingleton<IToolFacade, ToolFacade>();
         services.TryAddSingleton<ToolFacade>();

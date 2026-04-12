@@ -10,7 +10,7 @@ description: Load the right project docs for a task. Routes by scope keyword to 
 
 ## Action
 
-Read the docs listed for the matching scope, then INVOKE every matching code-gen skill from the Skill Routing Table below.
+Read the docs listed for the matching scope. Skill routing is handled by `/skill-loader` (a separate core skill).
 
 ## Routing Table
 
@@ -45,26 +45,3 @@ Read the docs listed for the matching scope, then INVOKE every matching code-gen
 ### Rules Check (MANDATORY — do this after reading docs)
 
 Scan `.claude/rules/*.md` filenames. If ANY rule file name matches the task (e.g., `context-menu-extension.md` for a context menu task), **read it** — rules contain wiring chains and implementation patterns discovered in previous sessions. These override generic skill templates when they exist.
-
-## After Loading — Skill Routing (MANDATORY)
-
-After reading docs, **INVOKE** every code-gen skill that matches the task using the table below. Do NOT just suggest — call the Skill tool for each match so the template is loaded into context before writing any code.
-
-### Skill Routing Table
-
-| Task involves | INVOKE this skill |
-|---------------|-------------------|
-| New C# service class | `/backend-service` |
-| New IPC facade or facade handler | `/backend-facade` |
-| New frontend IPC service/method | `/ipc-service` |
-| New React component, panel, dialog, screen | `/react-component` |
-| New error/exception/throw | `/error-with-i18n` |
-| Both backend handler + frontend method for one IPC call | `/ipc-message-pair` |
-| Batch SQL delete/update by ID list | `/batch-operation` |
-| New DI service registration | `/service-registration` |
-| New event consolidation handler | `/event-handler` |
-| New FileSystemWatcher | `/file-watcher` |
-
-**Multiple matches are common** — a feature that adds a backend service + IPC endpoint + frontend component needs `/backend-service`, `/ipc-message-pair`, and `/react-component` all invoked.
-
-If no code-gen skill matches (pure refactor, config change, doc edit), state "No code-gen skills apply" and proceed.

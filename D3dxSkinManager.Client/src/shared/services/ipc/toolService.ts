@@ -12,6 +12,11 @@ import type {
   ImportConfig,
   ImportResult,
 } from '../../types/modPackage.types';
+import type {
+  OrphanCategory,
+  OrphanScanResult,
+  CleanupResult,
+} from '../../types/cleanup.types';
 
 /**
  * Service for tool operations (screen capture, etc.)
@@ -101,6 +106,32 @@ export class ToolService extends BaseModuleService {
 
   async importModPackage(profileId: string, config: ImportConfig): Promise<ImportResult> {
     return this.sendMessage<ImportResult>('MOD_PACKAGE_IMPORT', profileId, config);
+  }
+
+  // ===== File Cleanup =====
+
+  /**
+   * Scan for orphaned items in a specific category
+   * Backend: ToolFacade.ScanOrphansAsync
+   */
+  async scanOrphans(profileId: string, category: OrphanCategory): Promise<OrphanScanResult> {
+    return this.sendMessage<OrphanScanResult>('SCAN_ORPHANS', profileId, { category });
+  }
+
+  /**
+   * Scan all orphan categories at once
+   * Backend: ToolFacade → FileCleanupService.ScanAllOrphansAsync
+   */
+  async scanAllOrphans(profileId: string): Promise<OrphanScanResult[]> {
+    return this.sendArrayMessage<OrphanScanResult>('SCAN_ALL_ORPHANS', profileId);
+  }
+
+  /**
+   * Delete specified orphaned items
+   * Backend: ToolFacade.CleanOrphansAsync
+   */
+  async cleanOrphans(profileId: string, category: OrphanCategory, paths: string[]): Promise<CleanupResult> {
+    return this.sendMessage<CleanupResult>('CLEAN_ORPHANS', profileId, { category, paths });
   }
 }
 

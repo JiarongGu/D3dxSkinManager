@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { Row, Col, Space } from 'antd';
 import {
   CheckCircleOutlined,
+  ClearOutlined,
   ImportOutlined,
   TagsOutlined,
   ToolOutlined,
@@ -13,6 +14,7 @@ import { StartupValidationTool } from './StartupValidationTool';
 import { TagManagementTool } from './TagManagementTool/TagManagementTool';
 import { PythonMigrationTool } from './PythonMigrationTool/PythonMigrationTool';
 import { ModPackageTool } from './ModPackageTool/ModPackageTool';
+import { FileCleanupTool } from './FileCleanupTool/FileCleanupTool';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { CompactCard } from '../../../shared/components/compact';
 import { api } from '../../../shared/services/ipc';
@@ -43,6 +45,7 @@ export const ToolsView: React.FC = () => {
   const { selectedProfileId } = useProfile();
   const [showMigrationTool, setShowMigrationTool] = React.useState(false);
   const [showModPackageTool, setShowModPackageTool] = React.useState(false);
+  const [showFileCleanupTool, setShowFileCleanupTool] = React.useState(false);
 
   // ModsProvider already handles migration completion events
   // No need to manually refresh here
@@ -63,6 +66,13 @@ export const ToolsView: React.FC = () => {
       title: t('tools.modPackage.title'),
       description: t('tools.modPackage.description'),
       icon: <SwapOutlined />,
+      content: null, // Special case - handled separately
+    },
+    {
+      key: 'file-cleanup',
+      title: t('tools.fileCleanup.title'),
+      description: t('tools.fileCleanup.description'),
+      icon: <ClearOutlined />,
       content: null, // Special case - handled separately
     },
     {
@@ -92,6 +102,12 @@ export const ToolsView: React.FC = () => {
     // Special handling for Mod Package - open wizard directly
     if (tool.key === 'mod-package') {
       setShowModPackageTool(true);
+      return;
+    }
+
+    // Special handling for File Cleanup - open tool directly
+    if (tool.key === 'file-cleanup') {
+      setShowFileCleanupTool(true);
       return;
     }
 
@@ -164,6 +180,12 @@ export const ToolsView: React.FC = () => {
       <ModPackageTool
         visible={showModPackageTool}
         onClose={() => setShowModPackageTool(false)}
+      />
+
+      {/* File Cleanup Tool - Opens in SlideInScreen */}
+      <FileCleanupTool
+        visible={showFileCleanupTool}
+        onClose={() => setShowFileCleanupTool(false)}
       />
 
       {/* Python Migration Tool - Opens in SlideInScreen */}

@@ -1,0 +1,151 @@
+import React, { useState, useCallback, useEffect } from 'react';
+import { Tabs, Spin } from 'antd';
+import { useTranslation } from 'react-i18next';
+import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
+import { useProfile } from '../../../../shared/context/ProfileContext';
+import { api } from '../../../../shared/services/ipc';
+import { handleError } from '../../../../shared/utils/errorHandler';
+import type { OrphanScanResult } from '../../../../shared/types/cleanup.types';
+import { CleanupTab } from './components/CleanupTab';
+import './FileCleanupTool.css';
+
+interface FileCleanupToolProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+export const FileCleanupTool: React.FC<FileCleanupToolProps> = ({ visible, onClose }) => {
+  const { t } = useTranslation();
+
+  const content = <FileCleanupToolInner />;
+
+  useSlideInScreen({
+    visible,
+    title: t('tools.fileCleanup.title'),
+    content,
+    width: '85%',
+    onClose,
+  });
+
+  return null;
+};
+
+const FileCleanupToolInner: React.FC = () => {
+  const { t } = useTranslation();
+  const { selectedProfileId } = useProfile();
+  const [scanResults, setScanResults] = useState<OrphanScanResult[]>([]);
+  const [scanning, setScanning] = useState(false);
+
+  const scanAll = useCallback(async () => {
+    if (!selectedProfileId) return;
+
+    try {
+      setScanning(true);
+      const results = await api.tool.scanAllOrphans(selectedProfileId);
+      setScanResults(results);
+    } catch (error: unknown) {
+      handleError(error);
+    } finally {
+      setScanning(false);
+    }
+  }, [selectedProfileId]);
+
+  useEffect(() => {
+    void scanAll();
+  }, [scanAll]);
+
+  const getResultForCategory = (category: string): OrphanScanResult | undefined => {
+    return scanResults.find(r => r.category === category);
+  };
+
+  const handleCleaned = useCallback(() => {
+    void scanAll();
+  }, [scanAll]);
+
+  const items = [
+    {
+      key: 'thumbnails',
+      label: (
+        <TabLabel
+          text={t('tools.fileCleanup.tabs.thumbnails')}
+          count={getResultForCategory('Thumbnail')?.totalCount}
+        />
+      ),
+      children: (
+        <CleanupTab
+          category="Thumbnail"
+          scanResult={getResultForCategory('Thumbnail')}
+          scanning={scanning}
+          onCleaned={handleCleaned}
+          emptyMessage={t('tools.fileCleanup.noOrphanedThumbnails')}
+          description={t('tools.fileCleanup.thumbnailsDescription')}
+        />
+      ),
+    },
+    {
+      key: 'temp',
+      label: (
+        <TabLabel
+          text={t('tools.fileCleanup.tabs.tempFiles')}
+          count={getResultForCategory('TempFile')?.totalCount}
+        />
+      ),
+      children: (
+        <CleanupTab
+          category="TempFile"
+          scanResult={getResultForCategory('TempFile')}
+          scanning={scanning}
+          onCleaned={handleCleaned}
+          emptyMessage={t('tools.fileCleanup.noTempFiles')}
+          description={t('tools.fileCleanup.tempFilesDescription')}
+        />
+      ),
+    },
+    {
+      key: 'modcache',
+      label: (
+        <TabLabel
+          text={t('tools.fileCleanup.tabs.modFiles')}
+          count={getResultForCategory('ModCache')?.totalCount}
+        />
+      ),
+      children: (
+        <CleanupTab
+          category="ModCache"
+          scanResult={getResultForCategory('ModCache')}
+          scanning={scanning}
+          onCleaned={handleCleaned}
+          emptyMessage={t('tools.fileCleanup.noOrphanedModFiles')}
+          description={t('tools.fileCleanup.modFilesDescription')}
+        />
+      ),
+    },
+  ];
+
+  if (scanning && scanResults.length === 0) {
+    return (
+      <div className="file-cleanup__loading">
+        <Spin />
+      </div>
+    );
+  }
+
+  return (
+    <div className="file-cleanup">
+      <Tabs
+        items={items}
+        tabPlacement="start"
+        className="file-cleanup__tabs"
+      />
+    </div>
+  );
+};
+
+const TabLabel: React.FC<{ text: string; count?: number }> = ({ text, count }) => (
+  <span className="file-cleanup__tab-label">
+    {text}
+    {count !== undefined && count > 0 && (
+      <span className="file-cleanup__tab-badge">{count}</span>
+    )}
+  </span>
+);
