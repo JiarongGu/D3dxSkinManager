@@ -46,6 +46,7 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
             "UPDATE_CATEGORY" => await UpdateCategoryAsync(request),
             "DELETE_CATEGORY" => await DeleteCategoryAsync(request),
             "MOVE_CATEGORY" => await MoveCategoryAsync(request),
+            "BATCH_MOVE_CATEGORIES" => await BatchMoveCategoriesAsync(request),
             "CHECK_CATEGORY_EXISTS" => await CheckCategoryExistsAsync(request),
             "CHECK_CATEGORY_NAME_EXISTS" => await CheckCategoryNameExistsAsync(request),
             _ => throw new InvalidOperationException($"Unknown request type: {request.Type}")
@@ -147,6 +148,22 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
         ).ConfigureAwait(false);
 
         // Note: CategoryService.UpdateParentAsync already calls InvalidateTreeCache() which emits CATEGORY_TREE_UPDATED
+
+        return success;
+    }
+
+    /// <summary>
+    /// Move multiple categories to a new parent (batch operation)
+    /// </summary>
+    private async Task<bool> BatchMoveCategoriesAsync(IpcRequest request)
+    {
+        var categoryIds = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "categoryIds");
+        var newParentId = _payloadHelper.GetOptionalValue<string>(request.Payload, "newParentId");
+
+        var success = await _categoryService.BatchUpdateParentAsync(
+            categoryIds,
+            newParentId
+        ).ConfigureAwait(false);
 
         return success;
     }

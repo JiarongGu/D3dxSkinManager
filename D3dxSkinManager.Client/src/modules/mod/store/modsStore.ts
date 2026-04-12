@@ -43,6 +43,7 @@ export interface ModsState {
   categorySearch: string;
   unclassifiedCount: number; // Count of mods without category assignment
   categoryViewMode: CategoryViewMode; // Tree or grid view toggle
+  selectedCategoryIds: string[]; // Multi-selected category IDs (grid view)
 
   // Preview Panel
   previewLoading: boolean; // Loading state for preview panel (images, metadata, etc.)
@@ -95,6 +96,7 @@ export interface ModsActions {
   setSelectedCategory: (node: CategoryInfo | undefined) => void;
   setUnclassifiedCount: (count: number) => void;
   setCategoryViewMode: (mode: CategoryViewMode) => void;
+  setSelectedCategoryIds: (ids: string[]) => void;
 
   // Preview Panel Actions
   setPreviewLoading: (loading: boolean) => void;
@@ -177,6 +179,7 @@ const initialState: ModsState = {
   categorySearch: '',
   unclassifiedCount: 0,
   categoryViewMode: 'tree',
+  selectedCategoryIds: [],
 
   // Preview Panel
   previewLoading: false,
@@ -320,6 +323,11 @@ export const useModsStore = create<ModsStore>()(
       setCategoryViewMode: (mode) =>
         set((state) => {
           state.categoryViewMode = mode;
+        }),
+
+      setSelectedCategoryIds: (ids) =>
+        set((state) => {
+          state.selectedCategoryIds = ids;
         }),
 
       setcategorySearch: (search) =>

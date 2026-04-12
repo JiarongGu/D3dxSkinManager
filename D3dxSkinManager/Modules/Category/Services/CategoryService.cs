@@ -33,6 +33,8 @@ public interface ICategoryService
     void InvalidateTreeCache();
 
     Task<string?> GetCategoryNameAsync(string categoryId);
+
+    Task<bool> BatchUpdateParentAsync(List<string> categoryIds, string? newParentId);
 }
 
 /// <summary>
@@ -200,6 +202,57 @@ public class CategoryService : ICategoryService
             }
 
             // Invalidate cache
+            InvalidateTreeCache();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Move multiple categories to a new parent (batch operation).
+    /// Categories are appended as children in the order provided.
+    /// </summary>
+    public async Task<bool> BatchUpdateParentAsync(List<string> categoryIds, string? newParentId)
+    {
+        try
+        {
+            // Get existing children to determine starting position
+            var siblings = await _repository.GetChildrenAsync(newParentId).ConfigureAwait(false);
+            var existingSiblingIds = new HashSet<string>(siblings.Select(s => s.Id));
+
+            // Move each category to the new parent
+            foreach (var categoryId in categoryIds)
+            {
+                var moved = await _repository.MoveCategoryAsync(categoryId, newParentId).ConfigureAwait(false);
+                if (!moved) return false;
+            }
+
+            // Reorder: existing siblings keep their order, moved categories are appended
+            var updates = new List<(string categoryId, int priority)>();
+            int priority = (siblings.Count + categoryIds.Count) * 100;
+
+            // Existing siblings first (excluding moved ones)
+            foreach (var sibling in siblings)
+            {
+                if (!categoryIds.Contains(sibling.Id))
+                {
+                    updates.Add((sibling.Id, priority));
+                    priority -= 100;
+                }
+            }
+
+            // Moved categories appended at the end
+            foreach (var categoryId in categoryIds)
+            {
+                updates.Add((categoryId, priority));
+                priority -= 100;
+            }
+
+            await _repository.ReorderSiblingsAsync(updates).ConfigureAwait(false);
+
             InvalidateTreeCache();
             return true;
         }

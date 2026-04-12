@@ -106,6 +106,7 @@ interface CategoryTreeContextValue {
     dropType: 'node' | 'gap',
     gapSide?: 'top' | 'bottom'
   ) => Promise<void>;
+  handleBatchMoveToParent: (categoryIds: string[], targetParentId: string) => Promise<void>;
   handleModClassify: (modId: string, nodeId: string) => Promise<void>;
   handleBulkModClassify: (modIds: string[], nodeId: string) => Promise<void>;
 
@@ -220,6 +221,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     handleEditNode,
     handleDeleteNode,
     handleNodeReorder,
+    handleBatchMoveToParent,
     handleModClassify,
     handleBulkModClassify,
     deleteConfirmation,
@@ -398,6 +400,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     handleEditNode,
     handleDeleteNode,
     handleNodeReorder,
+    handleBatchMoveToParent,
     handleModClassify,
     handleBulkModClassify,
 

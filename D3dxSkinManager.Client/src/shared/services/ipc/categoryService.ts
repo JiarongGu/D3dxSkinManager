@@ -150,6 +150,20 @@ export class CategoryService extends BaseModuleService {
   }
 
   /**
+   * Move multiple categories to a new parent (batch operation)
+   */
+  async batchMoveCategories(
+    profileId: string,
+    categoryIds: string[],
+    newParentId: string | undefined,
+  ): Promise<boolean> {
+    return this.sendMessage<boolean>("BATCH_MOVE_CATEGORIES", profileId, {
+      categoryIds,
+      newParentId,
+    });
+  }
+
+  /**
    * Update a Category category's name, description, and thumbnail
    */
   async updateCategory(

@@ -9,10 +9,11 @@ import './CategoryCard.css';
 interface CategoryCardProps {
   category: CategoryInfo;
   isSelected: boolean;
+  isMultiSelected?: boolean;
   isParent?: boolean;
   isLocked?: boolean;
   isDropTarget?: boolean;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   onDoubleClick?: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onDragStart?: (e: React.DragEvent, nodeId: string) => void;
@@ -24,6 +25,7 @@ interface CategoryCardProps {
 export const CategoryCard: React.FC<CategoryCardProps> = ({
   category,
   isSelected,
+  isMultiSelected,
   isParent,
   isLocked,
   isDropTarget,
@@ -43,7 +45,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
     <div
       data-node-id={category.id}
       className={classNames('category-card', {
-        'category-card--selected': isSelected,
+        'category-card--selected': isSelected || isMultiSelected,
         'category-card--parent': isParent,
         'category-card--drop-target': isDropTarget,
       })}

@@ -129,10 +129,11 @@ interface CategoryGroupProps {
   category: CategoryInfo;
   depth: number;
   selectedId: string | undefined;
+  selectedCategoryIds: Set<string>;
   dropIndicator: DropIndicator | undefined;
   expandedKeys: React.Key[];
   lockedCategoriesSet: Set<string>;
-  onSelectCategory: (node: CategoryInfo) => void;
+  onSelectCategory: (node: CategoryInfo, e: React.MouseEvent) => void;
   onDoubleClickCategory: (node: CategoryInfo) => void;
   onContextMenu: (e: React.MouseEvent, nodeId: string) => void;
   onCardDragStart: (e: React.DragEvent, nodeId: string) => void;
@@ -145,6 +146,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   category,
   depth,
   selectedId,
+  selectedCategoryIds,
   dropIndicator,
   expandedKeys,
   lockedCategoriesSet,
@@ -189,9 +191,10 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
         <CategoryCard
           category={child}
           isSelected={selectedId === child.id}
+          isMultiSelected={selectedCategoryIds.has(child.id)}
           isLocked={hasChildren ? lockedCategoriesSet.has(child.id) : undefined}
           isDropTarget={isChildDropTarget}
-          onClick={() => onSelectCategory(child)}
+          onClick={(e) => onSelectCategory(child, e)}
           onDoubleClick={hasChildren ? () => onDoubleClickCategory(child) : undefined}
           onContextMenu={(e) => onContextMenu(e, child.id)}
           onDragStart={onCardDragStart}
@@ -228,10 +231,11 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                 <CategoryCard
                   category={category}
                   isSelected={selectedId === category.id}
+                  isMultiSelected={selectedCategoryIds.has(category.id)}
                   isParent
                   isLocked={lockedCategoriesSet.has(category.id)}
                   isDropTarget={dropIndicator?.targetNodeId === category.id && dropIndicator.position === 'inside'}
-                  onClick={() => onSelectCategory(category)}
+                  onClick={(e) => onSelectCategory(category, e)}
                   onDoubleClick={() => onDoubleClickCategory(category)}
                   onContextMenu={(e) => onContextMenu(e, category.id)}
                   onDragStart={onCardDragStart}
@@ -252,6 +256,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                       category={seg.node}
                       depth={depth + 1}
                       selectedId={selectedId}
+                      selectedCategoryIds={selectedCategoryIds}
                       dropIndicator={dropIndicator}
                       expandedKeys={expandedKeys}
                       lockedCategoriesSet={lockedCategoriesSet}
@@ -284,6 +289,18 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
 // CategoryGrid
 // ============================================================
 
+/** Flatten a tree into a flat list preserving visual order */
+const flattenTree = (nodes: CategoryInfo[]): CategoryInfo[] => {
+  const result: CategoryInfo[] = [];
+  for (const node of nodes) {
+    result.push(node);
+    if (node.children.length > 0) {
+      result.push(...flattenTree(node.children));
+    }
+  }
+  return result;
+};
+
 export const CategoryGrid: React.FC = () => {
   const { t } = useTranslation();
   const {
@@ -303,12 +320,21 @@ export const CategoryGrid: React.FC = () => {
     handleModClassify,
     handleBulkModClassify,
     handleNodeReorder,
+    handleBatchMoveToParent,
     lockedCategoriesSet,
     handleLockExpanded,
     handleUnlockExpanded,
     onSelect,
     findNodeById,
   } = useCategoryTreeContext();
+
+  // Multi-select state
+  const selectedCategoryIds = useModsStore(s => s.selectedCategoryIds);
+  const selectedCategoryIdsSet = useMemo(() => new Set(selectedCategoryIds), [selectedCategoryIds]);
+  const anchorIdRef = React.useRef<string | undefined>(undefined);
+
+  // Flat list of visible nodes for shift+click range selection
+  const flatNodes = useMemo(() => flattenTree(filteredTree), [filteredTree]);
 
   const { scrollRef, saveScrollPosition, restoreScrollPosition } = useScrollPosition('category-grid');
 
@@ -353,11 +379,48 @@ export const CategoryGrid: React.FC = () => {
   }, [contextMenuNode, contextMenuItems, lockedCategoriesSet, findNodeById, handleLockExpanded, handleUnlockExpanded, t]);
 
   const handleSelectCategory = useCallback(
-    (node: CategoryInfo) => {
-      useModsStore.getState().setSelectedCategory(node);
+    (node: CategoryInfo, e: React.MouseEvent) => {
+      const store = useModsStore.getState();
+
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl+click: toggle this item in multi-selection
+        let current = store.selectedCategoryIds;
+        // Bootstrap: if no multi-selection yet, seed with current single-selected item
+        if (current.length === 0 && store.selectedCategory) {
+          current = [store.selectedCategory.id];
+        }
+        const isAlreadySelected = current.includes(node.id);
+        if (isAlreadySelected) {
+          store.setSelectedCategoryIds(current.filter(id => id !== node.id));
+        } else {
+          store.setSelectedCategoryIds([...current, node.id]);
+        }
+        anchorIdRef.current = node.id;
+      } else if (e.shiftKey) {
+        // Shift+click: range select from anchor to this node
+        // Fall back to current single-selected item if no anchor yet
+        const anchorId = anchorIdRef.current || store.selectedCategory?.id;
+        if (anchorId) {
+          const anchorIdx = flatNodes.findIndex(n => n.id === anchorId);
+          const targetIdx = flatNodes.findIndex(n => n.id === node.id);
+          if (anchorIdx !== -1 && targetIdx !== -1) {
+            const start = Math.min(anchorIdx, targetIdx);
+            const end = Math.max(anchorIdx, targetIdx);
+            const rangeIds = flatNodes.slice(start, end + 1).map(n => n.id);
+            store.setSelectedCategoryIds(rangeIds);
+          }
+        }
+      } else {
+        // Plain click: single select, clear multi-selection
+        store.setSelectedCategoryIds([]);
+        anchorIdRef.current = node.id;
+      }
+
+      // Always set the primary selected category (loads mods in the list)
+      store.setSelectedCategory(node);
       onSelect(node);
     },
-    [onSelect],
+    [onSelect, flatNodes],
   );
 
   // Double-click: lock (expand) / unlock (collapse) parent nodes
@@ -375,6 +438,7 @@ export const CategoryGrid: React.FC = () => {
 
   // ---- Drag state ----
   const draggedNodeKeyRef = React.useRef<string>(undefined);
+  const draggedNodeKeysRef = React.useRef<string[]>([]);
   const dropIndicatorRef = React.useRef<DropIndicator | undefined>(undefined);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator>();
 
@@ -383,11 +447,23 @@ export const CategoryGrid: React.FC = () => {
   }, [dropIndicator]);
 
   const handleCardDragStart = useCallback((_e: React.DragEvent, nodeId: string) => {
+    const store = useModsStore.getState();
+    const multiSelected = store.selectedCategoryIds;
+
     draggedNodeKeyRef.current = nodeId;
+
+    if (multiSelected.length > 1 && multiSelected.includes(nodeId)) {
+      // Dragging from within a multi-selection: drag all selected
+      draggedNodeKeysRef.current = multiSelected;
+    } else {
+      // Dragging a single (non-multi-selected) card
+      draggedNodeKeysRef.current = [nodeId];
+    }
   }, []);
 
   const clearDragState = useCallback(() => {
     draggedNodeKeyRef.current = undefined;
+    draggedNodeKeysRef.current = [];
     setDropIndicator(undefined);
     dropIndicatorRef.current = undefined;
   }, []);
@@ -401,11 +477,13 @@ export const CategoryGrid: React.FC = () => {
 
     if (cardTarget) {
       const nodeId = cardTarget.getAttribute('data-node-id')!;
-      if (nodeId === draggedNodeKeyRef.current) {
+      // Skip indicator when hovering over any of the dragged nodes
+      if (draggedNodeKeysRef.current.includes(nodeId)) {
         setDropIndicator(undefined);
         return;
       }
 
+      const isMultiDrag = draggedNodeKeysRef.current.length > 1;
       const rect = cardTarget.getBoundingClientRect();
       const relativeX = (e.clientX - rect.left) / rect.width;
       const edgeThreshold = 0.3;
@@ -414,7 +492,10 @@ export const CategoryGrid: React.FC = () => {
       let position: 'before' | 'after' | 'inside';
       let insertAfterParent = false;
 
-      if (relativeX < edgeThreshold) {
+      if (isMultiDrag) {
+        // Multi-drag: only allow "inside" (move as children) — no reorder
+        position = 'inside';
+      } else if (relativeX < edgeThreshold) {
         position = 'before';
       } else if (relativeX > 1 - edgeThreshold) {
         position = 'after';
@@ -433,7 +514,9 @@ export const CategoryGrid: React.FC = () => {
       const groupTarget = (e.target as HTMLElement).closest('[data-group-id]') as HTMLElement | null;
       if (groupTarget) {
         const groupId = groupTarget.getAttribute('data-group-id')!;
-        if (groupId === draggedNodeKeyRef.current) return;
+        if (draggedNodeKeysRef.current.includes(groupId)) return;
+        // Multi-drag: skip group edge zones (only card "inside" drops allowed)
+        if (draggedNodeKeysRef.current.length > 1) return;
 
         const rect = groupTarget.getBoundingClientRect();
         const distFromTop = e.clientY - rect.top;
@@ -474,25 +557,39 @@ export const CategoryGrid: React.FC = () => {
       return;
     }
 
-    const type = indicator.position === 'inside' ? 'node' as const : 'gap' as const;
-    const gapPosition = indicator.position === 'before' ? 'top' as const : 'bottom' as const;
+    const dragKeys = draggedNodeKeysRef.current;
+    const isMultiDrag = dragKeys.length > 1;
 
-    logger.debug('[GridDrop] Reorder:', {
-      drag: draggedNodeKeyRef.current,
-      drop: indicator.targetNodeId,
-      type,
-      gapPosition: type === 'gap' ? gapPosition : undefined,
-    });
+    if (isMultiDrag && indicator.position === 'inside') {
+      // Multi-drag into a parent: batch move
+      logger.debug('[GridDrop] Batch move:', {
+        dragIds: dragKeys,
+        targetParent: indicator.targetNodeId,
+      });
+      handleBatchMoveToParent(dragKeys, indicator.targetNodeId);
+      useModsStore.getState().setSelectedCategoryIds([]);
+    } else {
+      // Single drag (reorder or move into parent)
+      const type = indicator.position === 'inside' ? 'node' as const : 'gap' as const;
+      const gapPosition = indicator.position === 'before' ? 'top' as const : 'bottom' as const;
 
-    handleNodeReorder(
-      draggedNodeKeyRef.current,
-      indicator.targetNodeId,
-      type,
-      type === 'gap' ? gapPosition : undefined,
-    );
+      logger.debug('[GridDrop] Reorder:', {
+        drag: draggedNodeKeyRef.current,
+        drop: indicator.targetNodeId,
+        type,
+        gapPosition: type === 'gap' ? gapPosition : undefined,
+      });
+
+      handleNodeReorder(
+        draggedNodeKeyRef.current,
+        indicator.targetNodeId,
+        type,
+        type === 'gap' ? gapPosition : undefined,
+      );
+    }
 
     clearDragState();
-  }, [handleNodeReorder, clearDragState]);
+  }, [handleNodeReorder, handleBatchMoveToParent, clearDragState]);
 
   // ---- useDragDrop: mod drops only ----
   const { containerRef: gridContainerRef } = useDragDrop<HTMLDivElement>(
@@ -567,9 +664,10 @@ export const CategoryGrid: React.FC = () => {
         <CategoryCard
           category={node}
           isSelected={selectedNode?.id === node.id}
+          isMultiSelected={selectedCategoryIdsSet.has(node.id)}
           isLocked={hasChildren ? lockedCategoriesSet.has(node.id) : undefined}
           isDropTarget={isDropTarget}
-          onClick={() => handleSelectCategory(node)}
+          onClick={(e) => handleSelectCategory(node, e)}
           onDoubleClick={hasChildren ? () => handleDoubleClickCategory(node) : undefined}
           onContextMenu={(e) => handleContextMenu(e, node.id)}
           onDragStart={handleCardDragStart}
@@ -619,6 +717,13 @@ export const CategoryGrid: React.FC = () => {
           onDragOver={handleGridDragOver}
           onDragLeave={handleGridDragLeave}
           onDrop={handleGridDrop}
+          onClick={(e) => {
+            // Click on empty space: clear multi-selection
+            const target = e.target as HTMLElement;
+            if (!target.closest('[data-node-id]')) {
+              useModsStore.getState().setSelectedCategoryIds([]);
+            }
+          }}
           onContextMenu={(e) => {
             const target = e.target as HTMLElement;
             if (!target.closest('[data-node-id]')) {
@@ -642,6 +747,7 @@ export const CategoryGrid: React.FC = () => {
                   category={seg.node}
                   depth={0}
                   selectedId={selectedNode?.id}
+                  selectedCategoryIds={selectedCategoryIdsSet}
                   dropIndicator={dropIndicator}
                   expandedKeys={expandedKeys}
                   lockedCategoriesSet={lockedCategoriesSet}

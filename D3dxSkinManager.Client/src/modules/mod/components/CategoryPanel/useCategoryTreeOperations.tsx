@@ -301,6 +301,30 @@ export function useCategoryTreeOperations({
     [updateModCategory]
   );
 
+  // Batch move categories into a parent (multi-select drag-drop)
+  const handleBatchMoveToParent = useCallback(
+    async (categoryIds: string[], targetParentId: string) => {
+      if (!selectedProfileIdRef.current) return;
+      if (categoryIds.length === 0) return;
+
+      try {
+        // Expand target if not already expanded
+        if (!expandedKeys.includes(targetParentId)) {
+          onExpandedKeysChange([...expandedKeys, targetParentId]);
+        }
+
+        await categoryService.batchMoveCategories(
+          selectedProfileIdRef.current,
+          categoryIds,
+          targetParentId,
+        );
+      } catch (error: unknown) {
+        notification.error(t('category.tree.moveNodeFailed'));
+      }
+    },
+    [expandedKeys, onExpandedKeysChange],
+  );
+
   // Bulk mod classification handler - takes array of mod IDs and category node ID
   const handleBulkModClassify = useCallback(
     async (modIds: string[], nodeId: string) => {
@@ -347,6 +371,7 @@ export function useCategoryTreeOperations({
     handleEditNode,
     handleDeleteNode,
     handleNodeReorder,
+    handleBatchMoveToParent,
     handleModClassify,
     handleBulkModClassify,
     // Expose delete confirmation state and handlers for the component to use
