@@ -554,6 +554,53 @@ Group-level reordering (moving the group itself) is handled by separate edge zon
 
 ---
 
+## CSS Grid for Forced Panel Ratios (NEW)
+
+When using flexbox two-panel layouts, child content (Ant Design inputs, selects) can enforce minimum intrinsic widths that break intended ratios. **CSS Grid with explicit column percentages** solves this:
+
+```css
+.panels {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  overflow: hidden;
+}
+
+.panel {
+  overflow: hidden;
+  min-width: 0; /* Allow shrinking below content width */
+}
+```
+
+**Why not flexbox?** Even `flex: 6 1 0` with `min-width: 0` fails when nested Ant Design components (Select, Search) set internal min-widths. Grid enforces column widths absolutely.
+
+**Used in**: `ModPackageTool.css` — Export/Import two-panel transfer layout.
+
+---
+
+## Folder-Based Export Format (NEW)
+
+For exporting mod collections as user-editable folders (not zip archives):
+
+```
+ExportName/
+├── manifest.json           # Package metadata + mod mappings
+├── mods/
+│   ├── Human Readable Name.7z  # Archive renamed from mod ID
+│   └── Duplicate Name (2).7z   # Auto-deduplication
+└── previews/
+    └── Human Readable Name/    # Preview images
+```
+
+**Key patterns**:
+- `SanitizeFileName()` — replace illegal chars, trim dots/spaces, limit length
+- `GetUniqueFileName()` — append " (2)", " (3)" for duplicates
+- `manifest.json` maps human-readable file names back to mod IDs for import matching
+- Categories stored in manifest for auto-creation on import
+
+**Used in**: `ModPackageService.cs`
+
+---
+
 ## 📖 Related Documentation
 
 - **Code Generation**: [.claude/skills/README.md](../../.claude/skills/README.md) - Skills for automatable patterns

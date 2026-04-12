@@ -760,6 +760,13 @@ Located in `Plugins/` directory (external to backend):
 - **StartupValidationService** → `Modules/Tools/Services/StartupValidationService.cs`
   - Application startup validation
 
+- **ModPackageService** → `Modules/Tool/ModPackage/Services/ModPackageService.cs` (NEW)
+  - Mod export/import as folder collections with manifest.json
+  - IPC: `MOD_PACKAGE_EXPORT`, `MOD_PACKAGE_ANALYZE`, `MOD_PACKAGE_IMPORT`
+  - Event: `MOD_PACKAGE_PROGRESS`
+  - Error: `EXPORT_FOLDER_NOT_EMPTY`
+  - Models: `Modules/Tool/ModPackage/Models/ModPackageModels.cs`
+
 ---
 
 ### Workflow Module

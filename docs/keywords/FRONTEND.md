@@ -538,9 +538,18 @@ Selector files removed - use store hooks directly:
 
 ### Tools Components
 
-- **ToolsView** → `src/components/tools/ToolsView.tsx:19`
+- **ToolsView** → `src/modules/tool/components/ToolsView.tsx`
   - Tools tab with cache management, tag management, and utilities
   - Features: Clear caches, cache browser, tag editor, mod order management
+
+- **ModPackageTool** → `src/modules/tool/components/ModPackageTool/ModPackageTool.tsx` (NEW)
+  - Import/Export tool with vertical tab layout (Export | Import)
+  - **ExportTab** → Two-panel transfer selector (available/selected) with search + category filter
+  - **ImportTab** → Two-panel layout (mod list/detail preview) with status/category filters
+  - **ModPackageContext** → Wizard state management (export options, import analysis, progress)
+  - Types: `src/shared/types/modPackage.types.ts`
+  - IPC: `toolService.exportModPackage()`, `analyzeModPackage()`, `importModPackage()`
+  - Event: `ToolsEventType.MOD_PACKAGE_PROGRESS`
 
 ### Plugins Components
 
