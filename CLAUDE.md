@@ -4,6 +4,34 @@
 
 ---
 
+## ⛔ SECTION 0 — PER-TASK GATE (read this on EVERY user message)
+
+**This section applies to EVERY user message that involves code — not just the first one.**
+**Mid-session tasks get skipped the most. Do NOT skip this section mid-session.**
+
+Before responding to ANY task involving code (read, write, debug, plan, review):
+
+| # | Action | Command |
+|---|--------|---------|
+| 1 | **Load docs** | `Read docs/AI_GUIDE.md` then `/doc-loader "task description" scope` |
+| 2 | **Find patterns** | `/pattern-finder PatternType Module` |
+| 3 | **Use skills** | Check skills table — never hand-write what a skill generates |
+
+**When you may skip Steps 1-2** (all three must be true):
+- This message is a **direct continuation** of the previous task (not a new task)
+- You loaded docs **for this exact task** earlier in this session
+- The scope hasn't changed (e.g., still frontend, not switching to backend)
+
+**When you MUST re-run Steps 1-2:**
+- User asks about a **different feature, module, or bug** than the current task
+- User switches scope (frontend ↔ backend ↔ testing)
+- You are **unsure** whether it's the same task — re-run to be safe
+
+**If you skip this gate, your code will use wrong patterns, miss DI registration,
+miss i18n, miss event emission, or miss BEM conventions. This has happened repeatedly.**
+
+---
+
 ## 1. Git Commits
 
 **NEVER commit without explicit user approval.**
@@ -52,19 +80,17 @@ Full rules, coverage matrix, pitfalls:
 
 **Skills → Agents → RAG → Manual** (in that order)
 
-### MANDATORY GATE — Before ANY code generation
+### Full Workflow Steps (Section 0 is the quick-check; this is the detailed reference)
 
-**NEVER** read files, run Glob/Grep, or launch Explore/Plan agents before completing both steps below.
-
-**Step 1 — Load the entry point (every session, every task):**
+**Step 1 — Load docs** (enforced by Section 0):
 
 ```
 Read docs/AI_GUIDE.md
 ```
 
-`docs/AI_GUIDE.md` is the authoritative entry point. It contains the full mandatory rules, the complete skills table (18 skills with usage syntax), architecture patterns, and session workflow. Load it before generating any code.
+`docs/AI_GUIDE.md` is the authoritative entry point. It contains the full mandatory rules, the complete skills table (19 skills with usage syntax), architecture patterns, and session workflow. Load it before generating any code.
 
-**Step 2 — Load task-specific docs:**
+**Step 2 — Load task-specific docs** (enforced by Section 0):
 
 ```
 /doc-loader "describe what you're doing" scope
@@ -74,7 +100,7 @@ Scope: `backend` | `frontend` | `ipc` | `testing` | `architecture`
 
 doc-loader loads `docs/AI_GUIDE.md` + `docs/KEYWORDS_INDEX.md` + scope-specific docs and tells you which skill to use next. (If you already read AI_GUIDE.md in Step 1, doc-loader still adds the scope-specific docs.)
 
-### Step 3 — ALWAYS run `/pattern-finder` before writing code
+**Step 3 — Find patterns** (enforced by Section 0):
 
 ```
 /pattern-finder PatternType Module
@@ -83,7 +109,7 @@ doc-loader loads `docs/AI_GUIDE.md` + `docs/KEYWORDS_INDEX.md` + scope-specific 
 This finds existing patterns in the codebase to follow. **Do not skip this.**
 Even for bug fixes — the fix should match existing patterns, not invent new ones.
 
-### Step 4 — BLOCKING: Use code generation skills (not manual writing)
+**Step 4 — BLOCKING: Use code generation skills (not manual writing)**
 
 **NEVER manually write code that a skill can generate. This is a BLOCKING requirement.**
 
@@ -112,16 +138,16 @@ check the skills table first.
 
 Full skill reference (with parameters and examples) → [docs/AI_GUIDE.md](docs/AI_GUIDE.md)
 
-### Step 5 — Only after Steps 1–4: research or planning
+**Step 5 — Only after Steps 1–4: research or planning**
 
 - **Explore agent** — understand existing code (`Thoroughness: medium`)
 - **Plan agent** — plan a feature (load `DESIGN_DECISIONS.md` in the prompt)
 
-### Step 6 — After finishing
+**Step 6 — After finishing**
 
 Write tests (section 3), build succeeds, ask before committing (section 1).
 
-### Step 7 — MANDATORY: Evolve the system (before committing)
+**Step 7 — MANDATORY: Evolve the system (before committing)**
 
 **DO NOT ask "Ready to commit?" until Step 7 is done.**
 

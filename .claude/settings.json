@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[DOCS GATE] Before generating ANY code: (1) Read docs/AI_GUIDE.md (2) /doc-loader \"task\" scope (3) /pattern-finder. See CLAUDE.md Section 0 for skip criteria. Do NOT skip mid-session.'"
+          }
+        ]
+      }
+    ]
+  }
+}
