@@ -439,6 +439,10 @@ Selector files removed - use store hooks directly:
     - Bulk mod drag-drop for multi-selection (2026-03-05)
     - Auto-unloads loaded mods before category change
   - **CategoryContextMenu.tsx** - Right-click context menu
+    - `getCategoryContextMenu()` generates MenuProps items from callbacks
+    - Groups: Add (sub/root) | Edit, Export | Delete (danger, separated)
+    - Export opens ModPackageTool with `initialCategoryId` pre-selection
+    - Extension point: add callback prop → wire in CategoryTreeContext → pass from CategoryPanel
   - **UnclassifiedItem.tsx** - Unclassified mods indicator (drag-and-drop support added 2026-02-20)
   - **CategoryScreen.tsx** - Add/edit category slide-in screen
     - Thumbnail file picker with preview
@@ -544,12 +548,15 @@ Selector files removed - use store hooks directly:
 
 - **ModPackageTool** → `src/modules/tool/components/ModPackageTool/ModPackageTool.tsx` (NEW)
   - Import/Export tool with vertical tab layout (Export | Import)
+  - Props: `visible`, `onClose`, `initialCategoryId?` (pre-selects mods from category + children)
   - **ExportTab** → Two-panel transfer selector (available/selected) with search + category filter
   - **ImportTab** → Two-panel layout (mod list/detail preview) with status/category filters
   - **ModPackageContext** → Wizard state management (export options, import analysis, progress)
+    - `initialCategoryId` → auto-selects all mods in category and sub-categories after load
   - Types: `src/shared/types/modPackage.types.ts`
   - IPC: `toolService.exportModPackage()`, `analyzeModPackage()`, `importModPackage()`
   - Event: `ToolsEventType.MOD_PACKAGE_PROGRESS`
+  - Cross-module usage: CategoryPanel renders ModPackageTool for category export
 
 ### Plugins Components
 
