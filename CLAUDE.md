@@ -74,7 +74,20 @@ Scope: `backend` | `frontend` | `ipc` | `testing` | `architecture`
 
 doc-loader loads `docs/AI_GUIDE.md` + `docs/KEYWORDS_INDEX.md` + scope-specific docs and tells you which skill to use next. (If you already read AI_GUIDE.md in Step 1, doc-loader still adds the scope-specific docs.)
 
-### Step 3 — Use the right skill
+### Step 3 — ALWAYS run `/pattern-finder` before writing code
+
+```
+/pattern-finder PatternType Module
+```
+
+This finds existing patterns in the codebase to follow. **Do not skip this.**
+Even for bug fixes — the fix should match existing patterns, not invent new ones.
+
+### Step 4 — Use code generation skills (not manual writing)
+
+**If a skill exists for the task, USE IT.** Do not manually write code that a skill generates.
+Skills encode project conventions (DI, events, error handling, BEM CSS, IPC typing).
+Manual code misses these conventions and creates inconsistency.
 
 | What you're building | Skill to run |
 |----------------------|-------------|
@@ -86,21 +99,35 @@ doc-loader loads `docs/AI_GUIDE.md` + `docs/KEYWORDS_INDEX.md` + scope-specific 
 | Backend + frontend IPC pair | `/ipc-message-pair Module MessageType ...` |
 | Batch SQL operation | `/batch-operation Module Op EntityType Params` |
 | Register a service | `/service-registration Module Interface Impl Lifecycle` |
-| Find existing patterns | `/pattern-finder PatternType Module` |
+
+**Manual code is ONLY for:** unique business logic inside a skill-generated structure,
+or one-off fixes where no skill applies. If you're writing boilerplate by hand, stop and
+check the skills table.
 
 Full skill reference (with parameters and examples) → [docs/AI_GUIDE.md](docs/AI_GUIDE.md)
 
-### Step 4 — Only after Steps 1–3: research or planning
+### Step 5 — Only after Steps 1–4: research or planning
 
 - **Explore agent** — understand existing code (`Thoroughness: medium`)
 - **Plan agent** — plan a feature (load `DESIGN_DECISIONS.md` in the prompt)
 
-### Step 5 — After finishing
+### Step 6 — After finishing
 
 Write tests (section 3), build succeeds, ask before committing (section 1).
 
-### Step 6 — Evolve the system
+### Step 7 — MANDATORY: Evolve the system (before committing)
 
-After any non-trivial feature, run `/post-feature` to audit what changed and update docs/skills.
-This keeps the documentation system current so future sessions benefit from what was built.
-Skip only for trivial fixes (typo, single-line CSS, config-only changes).
+**DO NOT ask "Ready to commit?" until Step 7 is done.**
+
+After any non-trivial feature or bug fix, run `/post-feature` to audit what changed.
+This detects new components, IPC messages, store state, patterns, and triggers the right
+`/doc-update-*` skills so future sessions have accurate internal knowledge.
+
+**What counts as non-trivial:** New component, new hook, new IPC endpoint, new store field,
+new drag-drop/interaction pattern, new CSS pattern, architecture decision, multi-file change.
+
+**Skip ONLY for:** Single-line typo fix, CSS color tweak, config-only change.
+
+If you skip Step 7, the docs/skills system drifts and future sessions lose context,
+leading to duplicated work and re-discovered patterns. This is a persistent problem —
+treat Step 7 with the same weight as testing.

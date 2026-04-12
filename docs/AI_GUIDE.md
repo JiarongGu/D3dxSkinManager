@@ -1,6 +1,6 @@
 # AI Assistant Guide
 
-**Version:** 6.1
+**Version:** 6.3
 **Last Updated:** 2026-04-12
 **Role:** Primary entry point — loaded by `/doc-loader` at the start of every task. Contains all mandatory session rules, the complete skills reference, and workflow patterns needed for code generation.
 
@@ -70,15 +70,21 @@ Full guide: [TESTING_GUIDE.md](ai-assistant/TESTING_GUIDE.md)
 
 ## 🎯 Work Style — Skills → Agents → RAG → Manual
 
-**Follow this order strictly:**
+**Follow this order strictly. Skills are not optional — they encode project conventions.**
 
 | Step | Tool | When |
 |------|------|------|
+| 0. **Pattern finder** | `/pattern-finder` | **ALWAYS first** — find existing patterns before writing any code |
 | 1. **Skills** | `/skill-name` | Task matches a skill (code gen, errors, IPC, components) |
 | 2. **Explore agent** | `subagent_type: "Explore"` | Understanding existing code (medium thoroughness) |
 | 3. **Plan agent** | `subagent_type: "Plan"` | Planning a new feature (load DESIGN_DECISIONS.md in prompt) |
 | 4. **RAG** | [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) | Loading specific docs on demand |
-| 5. **Manual** | Direct editing | Only for unique business logic with no pattern match |
+| 5. **Manual** | Direct editing | **ONLY** for unique business logic inside skill-generated structures |
+
+**Manual code is a last resort, not the default.** If you're writing a new service, component,
+IPC endpoint, error, or event handler by hand — stop and check the skills table. Skills
+generate correct DI registration, event emission, BEM CSS, IPC typing, and i18n automatically.
+Manual code misses these conventions.
 
 ---
 
@@ -182,7 +188,9 @@ Generate with: `/ipc-service ModService MOD doSomething`
 
 ### During Development
 
-- **Skills first** — generate boilerplate with skills, never write it manually
+- **`/pattern-finder` first** — find how existing code does it before writing anything
+- **Skills for structure** — generate services, components, IPC, errors with skills, never manually
+- **Manual for logic only** — unique business logic inside skill-generated structures
 - **Architecture always** — backend does all work, frontend is pure UI
 - **Tests always** — write tests after every bug fix or feature
 
@@ -190,13 +198,11 @@ Generate with: `/ipc-service ModService MOD doSomething`
 
 1. Tests pass (`dotnet test` + `npm test`)
 2. Build succeeds (`dotnet build` + no TS errors)
-3. Ask user: "Ready to commit?"
-4. Wait for explicit "yes"
+3. **Run `/post-feature`** — audit changes, update docs/skills (MANDATORY for non-trivial work)
+4. Ask user: "Ready to commit?"
+5. Wait for explicit "yes"
 
-### After Committing — Evolve the System
-
-Run `/post-feature` after any non-trivial feature to audit changes and update docs/skills.
-This keeps future sessions informed about new IPC endpoints, store state, patterns, and components.
+**DO NOT skip step 3.** Without it, docs drift and future sessions lose context about new components, patterns, IPC endpoints, and store state. This is a persistent problem — treat `/post-feature` with the same weight as testing.
 
 ---
 

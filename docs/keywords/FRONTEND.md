@@ -3,7 +3,7 @@
 > **Purpose:** React components, hooks, services, and TypeScript types
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-02-21
+**Last Updated:** 2026-04-12
 
 ---
 
@@ -102,6 +102,7 @@ interface ModsState {
   // UI State
   expandedKeys: React.Key[];                // Expanded tree nodes (preserved during reset)
   lockedCategories: string[];               // Locked expanded categories (NEW: persisted)
+  selectedCategoryIds: string[];            // Multi-selected category IDs for grid view (2026-04-12)
 
   // Preview State
   previewPaths: string[];                   // Preview image paths (NEW)
@@ -401,7 +402,7 @@ Selector files removed - use store hooks directly:
 > **Location:** `src/modules/mods/components/[PanelName]/`
 
 - **CategoryPanel** → `src/modules/mod/components/CategoryPanel/`
-  - Left panel for category tree and unclassified mods
+  - Left panel for category tree/grid and unclassified mods
   - **CategoryPanel.tsx** - Main panel component
   - **CategoryTree.tsx** - Hierarchical tree component with **lock expanded feature**
     - **Lock Expanded**: Lock icon (🔒) on locked categories, unlock icon (🔓) on hover
@@ -410,9 +411,28 @@ Selector files removed - use store hooks directly:
     - Auto-validates on tree updates (removes invalid locks)
     - **Multi-Select Support**: Accepts bulk mod drops (application/mod-ids MIME type)
     - Added: 2026-03-05 (multi-select), 2026-03-07 (lock expanded)
-  - **CategoryTreeContext.tsx** - Tree operations context
+  - **CategoryGrid.tsx** - **Thumbnail grid view** with drag-and-drop (Added: 2026-04-12)
+    - Grid layout using `auto-fill, minmax(72px, 1fr)` for responsive card sizing
+    - **Drag-drop detection**: Dynamic edge thresholds based on card type
+      - Parent/folder cards (`data-has-children`): 15% edge → 70% center "drop into"
+      - Leaf cards: 30% edge → 40% center "drop into"
+      - Parent cards in groups: entire surface = "drop into" (no edge zones)
+      - Group edge zones: top/bottom 10px of group box for before/after reorder
+    - **Move indicator**: Thin vertical line on card edges (CSS `::before`/`::after`), no layout shift
+    - **Drop-into overlay**: Blue overlay with "Move as Child" text on card center
+    - **Multi-select**: Ctrl+Click toggle, Shift+Click range select, multi-drag batch move
+    - **Segments**: Cards batched into grids; expanded parents break out as group boxes
+    - GroupPlaceholder for between-group positioning (full-width dashed box)
+  - **CategoryCard.tsx** - Individual category card (Added: 2026-04-12)
+    - Props: `isDropTarget`, `moveIndicator` ('before'|'after'), `isParent`, `isLocked`
+    - `data-node-id` for drag target identification
+    - `data-has-children` attribute for dynamic threshold detection in grid drag handler
+    - Thumbnail image with lazy loading, folder badge, mod count badge, lock indicator
+  - **CategoryTreeContext.tsx** - Tree operations context (shared by tree and grid views)
   - **useCategoryTreeOperations.tsx** - Tree manipulation hook
     - shouldRefreshModsForNodeUpdate() - Smart refresh logic (2026-02-23)
+    - handleNodeReorder() - Reorder (gap) vs reparent (node) based on drop type
+    - handleBatchMoveToParent() - Multi-select batch move into parent (2026-04-12)
     - Bulk category update handler for multi-select (2026-03-05)
   - **useModCategoryUpdate.ts** - Custom hook for mod category updates via drag-and-drop
     - Single mod drag-drop (2026-02-20)
@@ -428,7 +448,7 @@ Selector files removed - use store hooks directly:
     - Updated: 2026-02-21 (thumbnail support, validation)
   - **TreeNodeConverter.tsx** - Converts CategoryNode to Ant Design DataNode
     - Renders lock icons for locked categories (2026-03-07)
-  - Features: Hierarchical categories, search with count indicators, context menu operations, drag-and-drop category updates, **lock expanded state**, **bulk category updates**
+  - Features: Hierarchical categories, search with count indicators, context menu operations, drag-and-drop category updates, **lock expanded state**, **bulk category updates**, **grid view with thumbnail cards** (2026-04-12)
   - Refactored: 2026-02-20 - Extracted into panel folder, added drag-and-drop support
 
 - **ModListPanel** → `src/modules/mod/components/ModListPanel/`

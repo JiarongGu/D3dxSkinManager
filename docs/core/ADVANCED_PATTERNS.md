@@ -1,7 +1,7 @@
 # Advanced Patterns
 
-**Version:** 1.0
-**Last Updated:** 2026-04-11
+**Version:** 1.1
+**Last Updated:** 2026-04-12
 **Scope:** HOW — complex implementation patterns requiring judgment. For rules and constraints (WHY), see [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md)
 
 This document contains advanced patterns that are **too complex or context-specific to automate with skills**. These require understanding, judgment, and adaptation to specific use cases.
@@ -18,6 +18,7 @@ This document contains advanced patterns that are **too complex or context-speci
 - [Database Migrations](#database-migrations)
 - [Performance Optimization](#performance-optimization)
 - [Advanced Event Patterns](#advanced-event-patterns)
+- [Grid Drag-and-Drop Pattern](#grid-drag-and-drop-pattern)
 
 ---
 
@@ -461,6 +462,95 @@ const handleEvent = useCallback(
 **When to use**:
 - Different entities (different mod IDs): `memoizeDebounce`
 - Same operation batching (save settings): Regular `debounce`
+
+---
+
+## Grid Drag-and-Drop Pattern
+
+### Problem: Placeholder Layout Shift
+
+In CSS grid views, inserting a placeholder element (ghost card) during drag causes all subsequent cards to shift position. This makes the target card move under the cursor, creating oscillation between "move" and "drop into" states.
+
+### Solution: Line Indicators + Dynamic Thresholds
+
+**Reference implementation**: `CategoryGrid.tsx` → `handleGridDragOver`
+
+#### 1. Line Indicators (No Layout Shift)
+
+Instead of inserting placeholder elements into the grid, render indicators as CSS pseudo-elements on the target card:
+
+```css
+/* Thin vertical line on left edge = "insert before" */
+.card--move-before::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -3px;           /* center in the grid gap */
+  width: 2px;
+  background-color: var(--color-primary);
+  pointer-events: none;
+}
+
+/* Thin vertical line on right edge = "insert after" */
+.card--move-after::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  right: -3px;
+  width: 2px;
+  background-color: var(--color-primary);
+  pointer-events: none;
+}
+```
+
+**Why**: The line is absolutely positioned on the existing card — zero grid cells added/removed, no layout reflow.
+
+#### 2. Dynamic Edge Thresholds
+
+Use `data-has-children` attribute on cards so the drag handler can vary the detection zone:
+
+```tsx
+// In the card component:
+<div data-node-id={id} data-has-children={hasChildren || undefined}>
+
+// In the drag handler:
+const hasChildren = cardTarget.hasAttribute('data-has-children');
+const edgeThreshold = hasChildren ? 0.15 : 0.3;
+```
+
+| Card Type | Edge Zone | Center Zone | Rationale |
+|---|---|---|---|
+| Parent/folder (has children) | 15% each side | 70% center = "drop into" | Primary intent is drop-into |
+| Leaf (no children) | 30% each side | 40% center = "drop into" | Primary intent is reorder |
+
+#### 3. Parent Cards in Groups: No Edge Zones
+
+Parent cards that are group headers (`.category-card--parent`) always resolve to `position = 'inside'`. This prevents accidentally moving a child outside the group when the cursor is still inside the group box.
+
+```tsx
+if (isMultiDrag || isParentCard) {
+  position = 'inside';  // Always "drop into"
+} else if (relativeX < edgeThreshold) {
+  position = 'before';
+} else if (relativeX > 1 - edgeThreshold) {
+  position = 'after';
+} else {
+  position = 'inside';
+}
+```
+
+Group-level reordering (moving the group itself) is handled by separate edge zones on the group container (top/bottom 10px of the group box border).
+
+#### 4. Visual Feedback Summary
+
+| Drop Action | Visual | CSS |
+|---|---|---|
+| **Reorder (before)** | Thin blue line on left edge | `::before` pseudo-element |
+| **Reorder (after)** | Thin blue line on right edge | `::after` pseudo-element |
+| **Drop into (reparent)** | Blue overlay + "Move as Child" text | `.card--drop-target` + overlay div |
+| **Group before/after** | Full-width dashed placeholder | Separate `GroupPlaceholder` component |
+
+**When to use this pattern**: Any CSS grid where items can be both reordered AND nested (parent-child relationships). The key insight is separating "move" (line indicator, no reflow) from "drop into" (overlay on card).
 
 ---
 
