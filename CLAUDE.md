@@ -6,14 +6,16 @@
 
 ## 0. Per-Task Gate (BLOCKING — do this before ANY code exploration)
 
-For every coding task, your **first two actions** must be:
+Follow the full 5-step protocol in `.claude/rules/skills-workflow.md`. Summary:
 
-1. **Invoke `/doc-loader`** with the task description and scope — it routes you to the right docs and tells you which code-gen skill to use
-2. **Invoke `/pattern-finder`** with the pattern type — it gives you concrete Grep/Glob commands to find how similar code already exists
+1. **Invoke ALL skills** from the system-reminder list via `Skill()` in parallel (first tool calls)
+2. **Read EVERY doc** that doc-loader routes to — not just AI_GUIDE.md. Confirm in response text.
+3. **Run ALL search commands** from pattern-finder
+4. **Print a skill checklist** — list EVERY available skill with match/no-match (must be visible in response)
+5. **Only then** explore code or write anything
 
-Only after these complete: read code, explore, or write anything.
-
-**Never hand-write what a skill generates** (service, facade, IPC, component, error, registration).
+**If you skip steps 2–4 you WILL generate non-conforming code.**
+Never hand-write what a skill generates (service, facade, IPC, component, error, registration).
 Skip this gate only when doing a direct continuation of the same task in the same scope.
 
 ---
@@ -76,7 +78,7 @@ Manual code is ONLY for unique business logic inside a skill-generated structure
 
 ### Discovery Tools (mandatory first step — see Section 0)
 
-- `/doc-loader "task" scope` — routes to relevant docs, suggests which code-gen skill to use
+- `/doc-loader "task" scope` — routes to relevant docs + identifies which code-gen skills to invoke
 - `/pattern-finder PatternType Module` — gives Glob/Grep commands for existing patterns
 
 ### After Finishing
@@ -85,3 +87,13 @@ Manual code is ONLY for unique business logic inside a skill-generated structure
 2. Build succeeds
 3. Run `/post-feature` for non-trivial changes (new IPC, component, store field, multi-file)
 4. Ask user: "Ready to commit?"
+
+---
+
+## 5. Rules & Memory
+
+- **Project rules** → `.claude/rules/*.md` (repo-committed, shared across sessions and users)
+- **Global memory** → `~/.claude/projects/*/memory/` (personal/user-specific only)
+
+Save workflow feedback, conventions, and corrections to `.claude/rules/`, NOT global memory.
+Global memory is reserved for user-specific preferences (role, communication style).

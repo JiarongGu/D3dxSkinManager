@@ -11,7 +11,18 @@
       "Edit(/.claude/skills/doc-update-guide/**)",
       "Edit(/.claude/skills/doc-update-reference/**)",
       "Edit(/.claude/skills/doc-update-technical/**)",
-      "Edit(/.claude/skills/post-feature/**)"
+      "Edit(/.claude/skills/post-feature/**)",
+      "Edit(/.claude/skills/caveman/**)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Skill(keybindings-help)",
+      "Skill(keybindings-help:*)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)"
+    ],
+    "additionalDirectories": [
+      "d:\\Development\\D3dxSkinManager\\.claude",
+      "d:\\Development\\D3dxSkinManager\\.claude\\rules"
     ]
   },
   "hooks": {
@@ -20,7 +31,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[PRE-CODE] FIRST invoke /doc-loader then /pattern-finder BEFORE any code exploration. Never hand-write what a skill generates.'"
+            "command": "echo '[PRE-RESPONSE] Scan available skills — invoke ANY that match user request (caveman, etc). For coding tasks: 1) /doc-loader + /pattern-finder FIRST 2) Read routed docs 3) State + invoke code-gen skill. Never hand-write what a skill generates.'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[SKILL-CHECK] Did you state and invoke the code-gen skill for this change? Hand-write only unique business logic inside skill-generated structures. (CLAUDE.md §0.3)'"
           }
         ]
       }
