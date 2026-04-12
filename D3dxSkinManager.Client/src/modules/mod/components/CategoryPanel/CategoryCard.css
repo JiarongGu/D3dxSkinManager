@@ -86,6 +86,41 @@
 }
 
 /* ============================================================
+   Move indicator — thin vertical line on card edge (reorder)
+   ============================================================ */
+
+.category-card--move-before,
+.category-card--move-after {
+  position: relative;
+}
+
+.category-card--move-before::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 2px;
+  background-color: var(--color-primary);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.category-card--move-after::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -3px;
+  width: 2px;
+  background-color: var(--color-primary);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ============================================================
    Drop target — "move as child" overlay
    ============================================================ */
 

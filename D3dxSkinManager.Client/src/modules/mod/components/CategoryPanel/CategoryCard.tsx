@@ -13,6 +13,7 @@ interface CategoryCardProps {
   isParent?: boolean;
   isLocked?: boolean;
   isDropTarget?: boolean;
+  moveIndicator?: 'before' | 'after';
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick?: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -29,6 +30,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
   isParent,
   isLocked,
   isDropTarget,
+  moveIndicator,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -44,10 +46,13 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
   return (
     <div
       data-node-id={category.id}
+      data-has-children={hasChildren || undefined}
       className={classNames('category-card', {
         'category-card--selected': isSelected || isMultiSelected,
         'category-card--parent': isParent,
         'category-card--drop-target': isDropTarget,
+        'category-card--move-before': moveIndicator === 'before',
+        'category-card--move-after': moveIndicator === 'after',
       })}
       draggable
       onClick={onClick}

@@ -131,10 +131,7 @@
 }
 
 /* ============================================================
-   Drop Placeholders — inline ghost elements at drop position
-
-   Card placeholder: same size as a grid cell, dashed border
-   Group placeholder: full-width dashed box between groups
+   Drop Placeholders — group-level separator between groups
    ============================================================ */
 
 .category-grid-drop-placeholder {
@@ -143,12 +140,6 @@
   background-color: var(--color-primary-bg);
   opacity: 0.6;
   pointer-events: none;
-}
-
-/* Card-sized placeholder — fills one grid cell like a real card */
-.category-grid-drop-placeholder--card {
-  aspect-ratio: 1;
-  min-height: 0;
 }
 
 /* Group-sized placeholder — full-width bar between groups */
