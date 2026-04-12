@@ -53,20 +53,3 @@
   color: var(--color-text);
 }
 
-.category-panel-unclassified-item-badge {
-  margin-left: 4px;
-}
-
-.category-panel-unclassified-item-badge .ant-badge-count {
-  background-color: var(--color-primary);
-  color: #fff;
-  font-size: 12px;
-  height: 18px;
-  line-height: 16px;
-  padding: 0 5px;
-  border-radius: 9px;
-  /* Disable animations for static badge */
-  animation: none !important;
-  transition: none !important;
-  transform: none !important;
-}

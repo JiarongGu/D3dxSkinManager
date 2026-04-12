@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
-import { Badge } from 'antd';
 import { AppstoreOutlined } from '@ant-design/icons';
+import { CountBadge } from '../../../../shared/components/common';
 import { useDragDrop } from '../../../../shared/hooks/useDragDrop';
 import './UnclassifiedItem.css';
 
@@ -53,11 +53,7 @@ export const UnclassifiedItem: React.FC<UnclassifiedItemProps> = ({
         <AppstoreOutlined className="category-panel-unclassified-item-icon" />
         <span className="category-panel-unclassified-item-text">{t('category.unclassified')}</span>
       </div>
-      <Badge
-        count={count}
-        showZero
-        className="category-panel-unclassified-item-badge"
-      />
+      <CountBadge count={count} showZero />
     </div>
   );
 };

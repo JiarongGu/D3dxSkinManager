@@ -1,0 +1,14 @@
+.count-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: normal;
+  height: 18px;
+  line-height: 18px;
+  padding: 0 5px;
+  min-width: 18px;
+  text-align: center;
+  border-radius: 9px;
+  color: #fff;
+  background-color: var(--color-primary);
+  box-sizing: border-box;
+}

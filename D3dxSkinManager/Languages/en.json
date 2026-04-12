@@ -286,6 +286,7 @@
     "mods.panel.dropToImport": "Drop files or folders here to import mods",
     "mods.panel.statusBar.modsSelected": "{{count}} Mods selected",
     "mods.panel.statusBar.noActiveMod": "No active mod",
+    "mods.panel.statusBar.multipleActiveMods": "{{count}} Active Mods",
     "mods.preview.addFromFile": "Add from File...",
     "mods.preview.clickCopyId": "Click to copy full ID",
     "mods.preview.clickFullScreen": "Click to view full screen",

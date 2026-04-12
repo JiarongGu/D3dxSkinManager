@@ -25,3 +25,6 @@ export type { CloseButtonProps } from './CloseButton';
 
 export { DataTable } from './DataTable';
 export type { DataTableProps, ColumnsType, ColumnType } from './DataTable';
+
+export { CountBadge } from './CountBadge';
+export type { CountBadgeProps } from './CountBadge';

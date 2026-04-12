@@ -1,8 +1,14 @@
+/* Wrapper for positioning the dropdown above the bar */
+.mod-list-status-bar-wrapper {
+  position: relative;
+}
+
 /* Match UnclassifiedItem styling with gradient background */
 .mod-list-status-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 0 12px;
   cursor: default;
   transition: background 0.2s;
@@ -20,11 +26,16 @@
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.10));
 }
 
+.mod-list-status-bar-expanded {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.10));
+}
+
 .mod-list-status-bar-content {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -57,6 +68,68 @@
   color: var(--color-text-secondary);
 }
 
+/* ---- Dropdown (pops up above the bar) ---- */
+.mod-list-status-bar-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-elevated);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.mod-list-status-bar-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.mod-list-status-bar-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.mod-list-status-bar-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mod-list-status-bar-dropdown-item-icon {
+  font-size: 14px;
+  color: var(--color-success);
+  flex-shrink: 0;
+}
+
+.mod-list-status-bar-dropdown-item-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.mod-list-status-bar-dropdown-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-list-status-bar-dropdown-item-category {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Light theme specific styles */
 [data-theme="light"] .mod-list-status-bar {
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.04));
@@ -66,7 +139,19 @@
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.08));
 }
 
+[data-theme="light"] .mod-list-status-bar-expanded {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.08));
+}
+
 [data-theme="light"] .mod-list-status-bar-icon-active {
+  color: #52c41a;
+}
+
+[data-theme="light"] .mod-list-status-bar-dropdown-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .mod-list-status-bar-dropdown-item-icon {
   color: #52c41a;
 }
 
@@ -77,4 +162,12 @@
 
 [data-theme="dark"] .mod-list-status-bar-clickable:hover {
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.12));
+}
+
+[data-theme="dark"] .mod-list-status-bar-expanded {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.12));
+}
+
+[data-theme="dark"] .mod-list-status-bar-dropdown {
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
 }

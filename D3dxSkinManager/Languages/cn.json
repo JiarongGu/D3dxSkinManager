@@ -265,6 +265,7 @@
     "mods.panel.dropToImport": "拖放文件或文件夹到此处以导入模组",
     "mods.panel.statusBar.modsSelected": "已选择 {{count}} 个模组",
     "mods.panel.statusBar.noActiveMod": "无激活模组",
+    "mods.panel.statusBar.multipleActiveMods": "{{count}} 个激活模组",
     "mods.preview.addFromFile": "从文件添加...",
     "mods.preview.clickCopyId": "点击复制完整 ID",
     "mods.preview.clickFullScreen": "点击查看全屏",
