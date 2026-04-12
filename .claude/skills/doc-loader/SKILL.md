@@ -38,6 +38,13 @@ Read the docs listed for the matching scope, then INVOKE every matching code-gen
 | database, migration | `docs/architecture/DATABASE_MIGRATION_ARCHITECTURE.md` |
 | test | `docs/ai-assistant/TESTING_GUIDE.md` |
 | batch | `docs/keywords/BACKEND.md` |
+| menu, context menu, right-click | `docs/keywords/FRONTEND.md` |
+| export, import, package | `docs/keywords/FRONTEND.md` |
+| drag, drop, reorder | `docs/ai-assistant/REACT_CLOSURE_PATTERNS.md`, `docs/keywords/FRONTEND.md` |
+
+### Rules Check (MANDATORY — do this after reading docs)
+
+Scan `.claude/rules/*.md` filenames. If ANY rule file name matches the task (e.g., `context-menu-extension.md` for a context menu task), **read it** — rules contain wiring chains and implementation patterns discovered in previous sessions. These override generic skill templates when they exist.
 
 ## After Loading — Skill Routing (MANDATORY)
 

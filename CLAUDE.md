@@ -86,7 +86,8 @@ Manual code is ONLY for unique business logic inside a skill-generated structure
 1. Write tests (section 3)
 2. Build succeeds
 3. Run `/post-feature` for non-trivial changes (new IPC, component, store field, multi-file)
-4. Ask user: "Ready to commit?"
+4. **Evolve the system** — if you discovered a multi-file wiring chain (3+ files edited in sequence), create `.claude/rules/{pattern}.md` so the next session doesn't re-discover it. Update `docs/keywords/FRONTEND.md` or `BACKEND.md` with new extension points.
+5. Ask user: "Ready to commit?"
 
 ---
 

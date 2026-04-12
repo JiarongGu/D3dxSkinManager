@@ -46,3 +46,13 @@ Run the Glob/Grep commands for the pattern type below. Show top 2-3 results with
 | `events` | `EmitAsync\|eventBus\.subscribe\|IProfileEventBus` |
 
 When `Module` is provided, replace `{Module}` in paths. When omitted, use `*` wildcard.
+
+### Rules Patterns (check AFTER code search)
+
+After running code searches above, also scan `.claude/rules/*.md` for matching patterns:
+
+```
+Glob: .claude/rules/*.md
+```
+
+Rules files contain **wiring chains** — multi-file implementation sequences discovered in previous sessions (e.g., `context-menu-extension.md` describes the 4-file chain for adding category menu items). If a rule matches your task, **follow the rule over generic skill templates** — rules are battle-tested from real implementations.

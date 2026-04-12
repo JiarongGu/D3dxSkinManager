@@ -25,13 +25,30 @@ Run `git diff` (staged + unstaged) and scan for:
 | New i18n keys | New entries in `Languages/en.json` or `Languages/cn.json` |
 | New hooks | New `use*.ts` files |
 
-### 2. Report
+### 2. Detect New Reusable Patterns
 
-List what was detected and which doc-update skill to run for each:
+Check if the feature introduced a **multi-file wiring chain** — a sequence of 3+ files that must be edited together in a specific order. Signs:
+
+- Prop/callback threaded through 3+ files (e.g., component → context → panel)
+- Cross-module rendering (one module imports a component from another)
+- New extension point (a place where future features will follow the same pattern)
+
+If detected → **create `.claude/rules/{pattern-name}.md`** with:
+- The exact file chain and what to change in each
+- Any grouping/ordering conventions
+- Cross-module wiring notes
+
+**This is how the system evolves.** Next session gets the rule auto-loaded and skips the discovery phase.
+
+### 3. Report
+
+List what was detected and which updates to run:
 - New IPC/constants/paths → `/doc-update-reference`
 - New workflows/skills → `/doc-update-guide`
 - Non-obvious patterns/decisions → `/doc-update-technical`
+- New wiring chain → `.claude/rules/{name}.md` (created in step 2)
+- Updated extension points → update `docs/keywords/FRONTEND.md` or `BACKEND.md`
 
-### 3. Execute
+### 4. Execute
 
 Ask user: "Want me to run the suggested doc updates?" Execute only if confirmed.
