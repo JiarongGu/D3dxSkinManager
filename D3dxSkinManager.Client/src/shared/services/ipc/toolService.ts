@@ -5,6 +5,13 @@ import type {
   ScreenCaptureResult,
   SaveScreenCaptureProfileRequest,
 } from '../../types/capture.types';
+import type {
+  ExportConfig,
+  ExportResult,
+  PackageAnalysis,
+  ImportConfig,
+  ImportResult,
+} from '../../types/modPackage.types';
 
 /**
  * Service for tool operations (screen capture, etc.)
@@ -80,6 +87,20 @@ export class ToolService extends BaseModuleService {
    */
   async toggleControlPanel(profileId: string): Promise<void> {
     return this.sendMessage<void>('SCREEN_CAPTURE_TOGGLE_CONTROL_PANEL', profileId, undefined);
+  }
+
+  // ===== Mod Package Export/Import =====
+
+  async exportModPackage(profileId: string, config: Omit<ExportConfig, 'outputPath'> & { outputPath: string }): Promise<ExportResult> {
+    return this.sendMessage<ExportResult>('MOD_PACKAGE_EXPORT', profileId, config);
+  }
+
+  async analyzeModPackage(profileId: string, packagePath: string): Promise<PackageAnalysis> {
+    return this.sendMessage<PackageAnalysis>('MOD_PACKAGE_ANALYZE', profileId, { packagePath });
+  }
+
+  async importModPackage(profileId: string, config: ImportConfig): Promise<ImportResult> {
+    return this.sendMessage<ImportResult>('MOD_PACKAGE_IMPORT', profileId, config);
   }
 }
 

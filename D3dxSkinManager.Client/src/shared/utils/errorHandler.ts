@@ -112,9 +112,16 @@ export function handleError(error: unknown): OperationError {
 
       // Get i18n message
       const i18nKey = getErrorI18nKey(code);
-      const userMessage = i18n.exists(i18nKey)
-        ? i18n.t(i18nKey, parameters || {})
-        : errorWithDetails.message || 'An error occurred';
+      let userMessage: string;
+      if (i18n.exists(i18nKey)) {
+        userMessage = i18n.t(i18nKey, parameters || {});
+      } else {
+        // Fallback: format code + parameters as readable text instead of showing raw JSON
+        const paramStr = parameters
+          ? Object.entries(parameters).map(([k, v]) => `${k}: ${v}`).join(', ')
+          : '';
+        userMessage = paramStr ? `${code} (${paramStr})` : code;
+      }
 
       // Show user-friendly message
       notification.error(userMessage, 5); // Show for 5 seconds
@@ -123,11 +130,28 @@ export function handleError(error: unknown): OperationError {
     }
   }
 
-  // Fallback for unknown errors
-  const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-  notification.error(errorMessage, 3);
+  // Fallback: try to parse error message as structured JSON
+  const rawMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+  const parsed = parseError(rawMessage);
 
-  return new OperationError(ErrorCodes.UNKNOWN_ERROR, errorMessage);
+  if (parsed.code !== 'UNKNOWN_ERROR') {
+    const i18nKey = getErrorI18nKey(parsed.code);
+    let userMessage: string;
+    if (i18n.exists(i18nKey)) {
+      userMessage = i18n.t(i18nKey, parsed.parameters || {});
+    } else {
+      const paramStr = Object.entries(parsed.parameters)
+        .filter(([k]) => k !== 'message')
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(', ');
+      userMessage = paramStr ? `${parsed.code} (${paramStr})` : parsed.code;
+    }
+    notification.error(userMessage, 5);
+    return new OperationError(parsed.code, userMessage, parsed.parameters);
+  }
+
+  notification.error(rawMessage, 3);
+  return new OperationError(ErrorCodes.UNKNOWN_ERROR, rawMessage);
 }
 
 /**

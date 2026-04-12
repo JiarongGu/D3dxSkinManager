@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using D3dxSkinManager.Modules.Tool.ScreenCapture.Services;
+using D3dxSkinManager.Modules.Tool.ModPackage.Services;
 using D3dxSkinManager.Modules.Tool.Services;
 using D3dxSkinManager.Modules.Context.Services;
 
@@ -28,6 +29,9 @@ public static class ToolServiceExtensions
         // Register screen capture services
         services.TryAddSingleton<IScreenCaptureProfileRepository, ScreenCaptureProfileRepository>();
         services.TryAddSingleton<IScreenCaptureService, ScreenCaptureService>();
+
+        // Register mod package service
+        services.TryAddSingleton<IModPackageService, ModPackageService>();
 
         // Register facade
         services.TryAddSingleton<IToolFacade, ToolFacade>();

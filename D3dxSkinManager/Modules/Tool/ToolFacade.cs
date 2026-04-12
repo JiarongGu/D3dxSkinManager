@@ -1,5 +1,7 @@
 using D3dxSkinManager.Modules.Tool.ScreenCapture.Models;
 using D3dxSkinManager.Modules.Tool.ScreenCapture.Services;
+using D3dxSkinManager.Modules.Tool.ModPackage.Models;
+using D3dxSkinManager.Modules.Tool.ModPackage.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Tool.Services;
 using D3dxSkinManager.Modules.Core;
@@ -30,6 +32,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     private readonly IStartupValidationService _validationService;
     private readonly IScreenCaptureProfileRepository _captureProfileRepository;
     private readonly IScreenCaptureService _screenCaptureService;
+    private readonly IModPackageService _modPackageService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IProfileEventBus _eventBus;
 
@@ -38,6 +41,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         IStartupValidationService validationService,
         IScreenCaptureProfileRepository captureProfileRepository,
         IScreenCaptureService screenCaptureService,
+        IModPackageService modPackageService,
         IPayloadHelper payloadHelper,
         IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
@@ -46,6 +50,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
         _captureProfileRepository = captureProfileRepository ?? throw new ArgumentNullException(nameof(captureProfileRepository));
         _screenCaptureService = screenCaptureService ?? throw new ArgumentNullException(nameof(screenCaptureService));
+        _modPackageService = modPackageService ?? throw new ArgumentNullException(nameof(modPackageService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
@@ -77,6 +82,11 @@ public class ToolFacade : BaseFacade, IToolFacade
 
             // Screen Capture - Control Panel
             "SCREEN_CAPTURE_TOGGLE_CONTROL_PANEL" => Task.FromResult(ToggleCaptureControlPanel(request)),
+
+            // Mod Package - Export/Import
+            "MOD_PACKAGE_EXPORT" => await ExportModPackageAsync(request),
+            "MOD_PACKAGE_ANALYZE" => await AnalyzeModPackageAsync(request),
+            "MOD_PACKAGE_IMPORT" => await ImportModPackageAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -281,5 +291,42 @@ public class ToolFacade : BaseFacade, IToolFacade
         var profileId = request.ProfileId ?? throw new InvalidOperationException("ProfileId is required");
         ToggleCaptureControlPanel(profileId);
         return null;
+    }
+
+    // ===== Mod Package - Export/Import =====
+
+    private async Task<object?> ExportModPackageAsync(IpcRequest request)
+    {
+        var config = new ExportConfig
+        {
+            PackageName = _payloadHelper.GetRequiredValue<string>(request.Payload, "packageName"),
+            PackageDescription = _payloadHelper.GetOptionalValue<string>(request.Payload, "packageDescription") ?? "",
+            OutputPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "outputPath"),
+            ModIds = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "modIds"),
+            IncludeArchives = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "includeArchives") ?? true,
+            IncludePreviews = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "includePreviews") ?? true,
+        };
+
+        return await _modPackageService.ExportAsync(config).ConfigureAwait(false);
+    }
+
+    private async Task<object?> AnalyzeModPackageAsync(IpcRequest request)
+    {
+        var packagePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "packagePath");
+        return await _modPackageService.AnalyzePackageAsync(packagePath).ConfigureAwait(false);
+    }
+
+    private async Task<object?> ImportModPackageAsync(IpcRequest request)
+    {
+        var config = new ImportConfig
+        {
+            PackagePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "packagePath"),
+            SelectedModIds = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "selectedModIds"),
+            UpdateExisting = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "updateExisting") ?? true,
+            ImportPreviews = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "importPreviews") ?? true,
+            CreateMissingCategories = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "createMissingCategories") ?? true,
+        };
+
+        return await _modPackageService.ImportAsync(config).ConfigureAwait(false);
     }
 }

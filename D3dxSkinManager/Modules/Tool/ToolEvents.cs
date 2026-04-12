@@ -17,4 +17,7 @@ public static class ToolEvents
 
     // Screen capture overlay events
     public const string CAPTURE_BOUNDS_CHANGED = "CAPTURE_BOUNDS_CHANGED";
+
+    // Mod package events
+    public const string MOD_PACKAGE_PROGRESS = "MOD_PACKAGE_PROGRESS";
 }

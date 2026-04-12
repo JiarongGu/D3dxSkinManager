@@ -6,6 +6,7 @@
 import type { MigrationProgress, MigrationResult } from "../types/migration.types";
 import type { WorkflowInfo } from "../../modules/workflow/types/workflow.types";
 import type { ModInfo } from "../types/mod.types";
+import type { PackageProgress } from "../types/modPackage.types";
 
 // Module names matching backend ModuleNames
 export enum Module {
@@ -99,6 +100,7 @@ export enum ToolsEventType {
   CACHE_CLEANED = "CACHE_CLEANED",
   CACHE_ITEM_DELETED = "CACHE_ITEM_DELETED",
   CAPTURE_BOUNDS_CHANGED = "CAPTURE_BOUNDS_CHANGED",
+  MOD_PACKAGE_PROGRESS = "MOD_PACKAGE_PROGRESS",
 }
 
 // NOTE: Plugin events are NOT currently used in backend - reserved for future cross-plugin communication
@@ -212,6 +214,7 @@ export interface EventPayloadMap {
     [ToolsEventType.CACHE_CLEANED]: unknown;
     [ToolsEventType.CACHE_ITEM_DELETED]: { key: string };
     [ToolsEventType.CAPTURE_BOUNDS_CHANGED]: { x: number; y: number; width: number; height: number };
+    [ToolsEventType.MOD_PACKAGE_PROGRESS]: PackageProgress;
   };
 
   // Plugins events (not currently used)

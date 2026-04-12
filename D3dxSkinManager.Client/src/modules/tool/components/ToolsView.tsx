@@ -6,11 +6,13 @@ import {
   TagsOutlined,
   ToolOutlined,
   CameraOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { StartupValidationTool } from './StartupValidationTool';
 import { TagManagementTool } from './TagManagementTool/TagManagementTool';
 import { PythonMigrationTool } from './PythonMigrationTool/PythonMigrationTool';
+import { ModPackageTool } from './ModPackageTool/ModPackageTool';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { CompactCard } from '../../../shared/components/compact';
 import { api } from '../../../shared/services/ipc';
@@ -40,6 +42,7 @@ export const ToolsView: React.FC = () => {
   const { openScreen } = useSlideInScreenContext();
   const { selectedProfileId } = useProfile();
   const [showMigrationTool, setShowMigrationTool] = React.useState(false);
+  const [showModPackageTool, setShowModPackageTool] = React.useState(false);
 
   // ModsProvider already handles migration completion events
   // No need to manually refresh here
@@ -54,6 +57,13 @@ export const ToolsView: React.FC = () => {
       description: t('tools.screenCapture.description'),
       icon: <CameraOutlined />,
       content: null, // Special case - opens WinForm control panel
+    },
+    {
+      key: 'mod-package',
+      title: t('tools.modPackage.title'),
+      description: t('tools.modPackage.description'),
+      icon: <SwapOutlined />,
+      content: null, // Special case - handled separately
     },
     {
       key: 'python-migration',
@@ -79,6 +89,12 @@ export const ToolsView: React.FC = () => {
   ];
 
   const handleToolClick = (tool: ToolCardData) => {
+    // Special handling for Mod Package - open wizard directly
+    if (tool.key === 'mod-package') {
+      setShowModPackageTool(true);
+      return;
+    }
+
     // Special handling for Python Migration - open wizard directly
     if (tool.key === 'python-migration') {
       setShowMigrationTool(true);
@@ -143,6 +159,12 @@ export const ToolsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Mod Package Tool - Opens in SlideInScreen */}
+      <ModPackageTool
+        visible={showModPackageTool}
+        onClose={() => setShowModPackageTool(false)}
+      />
 
       {/* Python Migration Tool - Opens in SlideInScreen */}
       <PythonMigrationTool
