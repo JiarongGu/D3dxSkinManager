@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-04-13 - File dialog crash on right-click (image files)
+**Summary**: Right-clicking image files in any file dialog (Open/Save/Folder) crashed the app with STATUS_STACK_BUFFER_OVERRUN (0xc0000409).
+
+**Root cause**: .NET 8+ enables CET (Hardware-enforced Stack Protection) by default. Windows shell extensions for image thumbnails/context menus aren't CET-compatible — they trigger shadow stack violations when loaded in file dialogs.
+
+**Fix**:
+- Added `<CetCompat>false</CetCompat>` to D3dxSkinManager.csproj — disables CET so shell extensions work
+- Removed `AutoUpgradeEnabled = false` from all file dialogs — modern Vista+ dialog now safe to use
+
+**Files changed**: D3dxSkinManager.csproj, SystemFileDialogService.cs
+
 ### Changed - 2026-03-09 - Unified Error Handling with OperationException ⭐⭐⭐
 **Summary**: Replaced ModException and WorkflowException with single OperationException using Code + Parameters pattern for consistent error handling across the entire stack.
 

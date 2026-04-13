@@ -5,6 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
+    <!-- Disable CET (Hardware-enforced Stack Protection) to prevent
+         STATUS_STACK_BUFFER_OVERRUN crash when shell extensions (image
+         thumbnail providers) load in file dialogs. These older DLLs
+         aren't CET-compatible and trigger shadow stack violations. -->
+    <CetCompat>false</CetCompat>
     <UseWPF>false</UseWPF>
     <!-- Application Icon -->
     <ApplicationIcon>favicon.ico</ApplicationIcon>

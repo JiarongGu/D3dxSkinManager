@@ -86,7 +86,7 @@ public class SystemFileDialogService : ISystemFileDialogService
                 Title = options?.Title ?? "Select File",
                 InitialDirectory = initialPath,
                 RestoreDirectory = false, // We handle this manually for better control
-                AutoUpgradeEnabled = false, // CRITICAL: Prevents crash when right-clicking in dialog (fixes STATUS_STACK_BUFFER_OVERRUN)
+
                 // Use configurable options or defaults for file selection
                 CheckFileExists = options?.CheckFileExists ?? true,  // Default: true for file dialogs
                 CheckPathExists = options?.CheckPathExists ?? true,  // Default: true
@@ -179,7 +179,7 @@ public class SystemFileDialogService : ISystemFileDialogService
                     Title = options.Title ?? "Select Folder or File",
                     InitialDirectory = initialPath,
                     RestoreDirectory = false,
-                    AutoUpgradeEnabled = false, // CRITICAL: Prevents crash when right-clicking in dialog (fixes STATUS_STACK_BUFFER_OVERRUN)
+    
                     CheckFileExists = false,  // Allow non-file selections
                     CheckPathExists = true,   // But path must exist
                     ValidateNames = false,    // Allow folder paths
@@ -322,7 +322,7 @@ public class SystemFileDialogService : ISystemFileDialogService
                 Title = options?.Title ?? "Save File",
                 InitialDirectory = initialPath,
                 RestoreDirectory = false, // We handle this manually for better control
-                AutoUpgradeEnabled = false, // CRITICAL: Prevents crash when right-clicking in dialog (fixes STATUS_STACK_BUFFER_OVERRUN)
+
                 CheckPathExists = true,
                 OverwritePrompt = true
             };

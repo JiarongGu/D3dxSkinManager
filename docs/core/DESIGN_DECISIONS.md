@@ -479,6 +479,29 @@ _progressReporter.CompleteOperation(opId, result);
 
 ---
 
+### 21. CET Compatibility (NEW - 2026-04-13)
+
+**Decision:** CET (Hardware-enforced Stack Protection) is disabled via `<CetCompat>false</CetCompat>` in the csproj
+
+**Why:**
+- .NET 8+ enables CET by default on x64
+- Windows shell extensions (image thumbnail providers, context menu handlers) loaded by file dialogs are older DLLs that aren't CET-compatible
+- When these extensions load, they trigger a shadow stack violation → `STATUS_STACK_BUFFER_OVERRUN` (0xc0000409) → process crash
+- Only happens when right-clicking image files in file dialogs (triggers thumbnail/context menu shell extensions)
+
+**What didn't work:**
+- `AutoUpgradeEnabled = false` (old-style dialog) — still loads shell extensions
+- `Application.OleRequired()` on STA thread — OLE init doesn't prevent CET violation
+- Same-thread owner form — same process, same CET policy
+- Subprocess without WebView2 — same exe, same CET policy
+- COM `IFileOpenDialog` directly — same shell extension DLLs, same CET issue
+
+**What works:** `<CetCompat>false</CetCompat>` disables CET for the process so shell extensions don't trigger shadow stack violations.
+
+**Security trade-off:** CET protects against return-oriented programming (ROP) attacks. Acceptable for a desktop app that doesn't process untrusted network input.
+
+---
+
 ## Quick Decision Matrix
 
 | Scenario | Decision | Rationale |
@@ -495,9 +518,10 @@ _progressReporter.CompleteOperation(opId, result);
 | Styles | CSS classes preferred | Reusability |
 | Long operations | Progress reporting | UX feedback |
 | Database paths | Relative paths | Portability |
+| **CET / file dialogs** | **`<CetCompat>false</CetCompat>`** | **Shell extensions crash with CET enabled** |
 
 ---
 
 **Remember:** These aren't preferences - they're architectural constraints. Violating them causes bugs.
 
-**Updated:** 2026-03-07 - Added service layer architecture and event consolidation patterns
+**Updated:** 2026-04-13 - Added CET compatibility decision for file dialog shell extension crash fix
