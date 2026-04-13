@@ -212,9 +212,22 @@ export const HelpWindow: React.FC = () => {
       <div>
         <Title level={4}>Search & Filtering</Title>
         <Paragraph>
-          Use the search bar to filter mods by name, author, or tags.
+          Use the search bar to filter mods by name, author, ID, or tags.
           Prefix searches with <Tag>!</Tag> for negation (e.g., <Tag>!NSFW</Tag>).
+          You can also search by mod ID for precise matching.
         </Paragraph>
+      </div>
+
+      <div>
+        <Title level={4}>Batch Edit</Title>
+        <Paragraph>
+          Select multiple mods and use Batch Edit to modify metadata in bulk:
+        </Paragraph>
+        <ul className="help-window-list">
+          <li><strong>Grid Editing:</strong> Edit name, author, tags, grading, category across multiple mods at once</li>
+          <li><strong>Find & Replace:</strong> Search and replace text across mod names, authors, or descriptions</li>
+          <li>Supports regex, case-sensitive, and column-specific search</li>
+        </ul>
       </div>
 
       <div>
@@ -293,6 +306,15 @@ export const HelpWindow: React.FC = () => {
         <Paragraph>
           Click any category to view all mods in that category and its subcategories.
           Parent nodes automatically show all descendant mods, making it easy to see everything at a glance.
+        </Paragraph>
+      </div>
+
+      <div>
+        <Title level={4}>Grid View</Title>
+        <Paragraph>
+          Switch between tree view and grid view in the category panel. Grid view shows categories
+          as thumbnail cards, making it easy to browse visually. Locked categories stay expanded
+          when switching between views.
         </Paragraph>
       </div>
 
@@ -531,16 +553,57 @@ export const HelpWindow: React.FC = () => {
       />
 
       <div>
-        <Title level={4}>Python Migration Tool</Title>
+        <Title level={4}>Mod Analyzer</Title>
         <Paragraph>
-          Import legacy Python-based mod manager configurations. This tool:
+          Comprehensive mod health analysis tool. Access from <Tag>Tools</Tag> or right-click a category.
         </Paragraph>
         <ul className="help-window-list">
-          <li>Parses old Python config files</li>
-          <li>Migrates mod metadata and organization</li>
-          <li>Preserves tags and categories</li>
-          <li>Handles large mod collections efficiently</li>
+          <li><strong>Health Check:</strong> Detect broken mods (missing .ini, empty directories, parse errors)</li>
+          <li><strong>Duplicate Detection:</strong> Find identical mods and texture variants by content hashing</li>
+          <li><strong>Conflict Finder:</strong> Identify loaded mods targeting the same hash (runtime conflicts)</li>
+          <li><strong>Pause/Resume/Cancel:</strong> Full scan control — pause mid-scan, resume later, cancel anytime</li>
+          <li><strong>History:</strong> Review past analysis sessions with full results</li>
         </ul>
+      </div>
+
+      <div>
+        <Title level={4}>File Cleanup</Title>
+        <Paragraph>
+          Scan for orphaned files that waste disk space:
+        </Paragraph>
+        <ul className="help-window-list">
+          <li><strong>Orphaned Cache:</strong> Cache files for deleted mods</li>
+          <li><strong>Orphaned Previews:</strong> Preview images for deleted mods</li>
+          <li><strong>Temp Files:</strong> Leftover temporary extraction files</li>
+          <li><strong>Orphaned Thumbnails:</strong> Thumbnail cache for deleted previews</li>
+        </ul>
+      </div>
+
+      <div>
+        <Title level={4}>Mod Package Export/Import</Title>
+        <Paragraph>
+          Share mods between profiles or users with portable mod packages:
+        </Paragraph>
+        <ul className="help-window-list">
+          <li><strong>Export:</strong> Package selected mods with archives, previews, and metadata</li>
+          <li><strong>Import:</strong> Import packages with category mapping and conflict resolution</li>
+        </ul>
+      </div>
+
+      <div>
+        <Title level={4}>Screen Capture</Title>
+        <Paragraph>
+          Capture screenshots for mod previews with configurable regions and profiles.
+          Save capture profiles for consistent framing across multiple screenshots.
+        </Paragraph>
+      </div>
+
+      <div>
+        <Title level={4}>Python Migration Tool</Title>
+        <Paragraph>
+          Import legacy Python-based mod manager configurations. Migrates mod metadata,
+          categories, and tags from old Python config files.
+        </Paragraph>
       </div>
 
       <div>
@@ -552,28 +615,11 @@ export const HelpWindow: React.FC = () => {
       </div>
 
       <div>
-        <Title level={4}>Cache Management</Title>
-        <Paragraph>
-          Manage cached files and thumbnails:
-        </Paragraph>
-        <ul className="help-window-list">
-          <li><strong>Scan Cache:</strong> Verify cache integrity</li>
-          <li><strong>Clear Cache:</strong> Remove temporary files</li>
-          <li><strong>Rebuild Thumbnails:</strong> Regenerate preview images</li>
-        </ul>
-      </div>
-
-      <div>
         <Title level={4}>Startup Validation</Title>
         <Paragraph>
-          Validates configuration on startup:
+          Validates configuration on startup — checks game paths, D3DMigoto installation,
+          database integrity, and reports any configuration issues.
         </Paragraph>
-        <ul className="help-window-list">
-          <li>Checks game paths exist</li>
-          <li>Verifies D3DMigoto installation</li>
-          <li>Validates database integrity</li>
-          <li>Reports configuration issues</li>
-        </ul>
       </div>
 
       <div>
@@ -683,8 +729,8 @@ export const HelpWindow: React.FC = () => {
       <div>
         <Title level={4}>Version Information</Title>
         <Space>
-          <Tag color="blue">Version 2.0.0</Tag>
-          <Tag>Build: 2026-02-17</Tag>
+          <Tag color="blue">Version 1.9</Tag>
+          <Tag>Build: 2026-04-13</Tag>
         </Space>
       </div>
 
@@ -709,9 +755,11 @@ export const HelpWindow: React.FC = () => {
           <li>Plugin architecture supporting multiple games and mod formats</li>
           <li>Real-time search with negation and advanced filtering</li>
           <li>Batch operations and workflow-based import queue</li>
+          <li>Mod health analyzer with duplicate detection and conflict finder</li>
+          <li>File cleanup, mod packaging, and screen capture tools</li>
           <li>Annotation system for content ratings and filtering</li>
           <li>Keyboard shortcuts for power users</li>
-          <li>Mod warehouse with tag management and color coding</li>
+          <li>Tag management with color coding</li>
         </ul>
       </div>
 

@@ -16,6 +16,7 @@ import {
   ContextMenuItem,
 } from "../../../../shared/components/menu/ContextMenu";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
+import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import { notification } from "../../../../shared/utils/notification";
 import { modService, systemService } from "../../../../shared/services/ipc";
 import { ModInfo } from "../../../../shared/types/mod.types";
@@ -114,12 +115,9 @@ export const PreviewImageContextMenu: React.FC<PreviewImageContextMenuProps> = (
     const currentImagePath = allImagePaths[currentImageIndex];
 
     try {
-      // Convert relative path to absolute for clipboard
-      const absolutePath =
-        await systemService.getAbsolutePath(currentImagePath);
-      await navigator.clipboard.writeText(absolutePath);
-      notification.success(t("mods.preview.pathCopied"));
-    } catch (error: unknown) {
+      const absolutePath = await systemService.getAbsolutePath(currentImagePath);
+      await copyToClipboard(absolutePath, t("mods.preview.pathCopied"));
+    } catch {
       notification.error(t("mods.preview.pathCopyFailed"));
     }
     onClose();

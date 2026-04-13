@@ -1,4 +1,4 @@
-import { notification } from "../../../../shared/utils/notification";
+import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import React, { useState } from "react";
 import { Typography, Button, Empty, Spin } from "antd";
 import { useTranslation } from "react-i18next";
@@ -75,8 +75,7 @@ export const ModPreviewPanel: React.FC = () => {
 
   const handleCopyId = () => {
     if (!mod) return;
-    navigator.clipboard.writeText(mod.id);
-    notification.success(t("mods.notifications.idCopied"));
+    void copyToClipboard(mod.id, t("mods.notifications.idCopied"));
   };
 
   const handleImageClick = (imageSrc: string) => {

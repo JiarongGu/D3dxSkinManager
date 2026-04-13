@@ -208,10 +208,10 @@ Selector files removed - use store hooks directly:
   - Default language handling and fallbacks
   - Created: 2026-02-21
 
-- **I18nInitializer** → `src/i18n/I18nInitializer.tsx`
-  - Initializes i18next on app startup
-  - Loads language from backend settings
-  - Wraps app with I18nextProvider
+- **i18n Service** → `src/shared/services/i18n.ts`
+  - i18next initialization and configuration
+  - Loads translations from backend via IPC
+  - Language switching support
   - Created: 2026-02-21
 
 - **Language Types** → `src/shared/types/language.types.ts`
@@ -397,9 +397,6 @@ Selector files removed - use store hooks directly:
 ## Module Components
 
 ### Mods Module
-
-- **ModsView** → `src/modules/mod/components/ModsView.tsx`
-  - Main mods management view
 
 - **ModHierarchicalView** → `src/modules/mod/components/ModHierarchicalView.tsx`
   - Three-panel hierarchical layout (Classification → Mod List → Preview)
@@ -953,6 +950,12 @@ Selector files removed - use store hooks directly:
   - isErrorCode(error, errorCode) → Check if error matches specific code
   - ERROR_MESSAGES mapping for all error codes
   - Created: 2026-02-21
+
+- **clipboardHelper** → `src/shared/utils/clipboardHelper.ts`
+  - copyToClipboard(text, successMessage) → Copy text + show notification
+  - Shared utility — replaces inline navigator.clipboard.writeText + notification pattern
+  - Used in: ModPreviewPanel, ModList, FindingsView (CopyIdButton), PreviewImageContextMenu
+  - Created: 2026-04-13
 
 - **formatBytes** → `src/shared/utils/formatBytes.ts`
   - formatBytes(bytes) → Human-readable byte string (e.g. "1.5 MB")

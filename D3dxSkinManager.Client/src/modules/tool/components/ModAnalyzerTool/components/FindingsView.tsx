@@ -16,7 +16,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactInput } from '../../../../../shared/components/compact';
 import { HealthStatusIcon } from '../../../../../shared/components/common/HealthStatusIcon';
-import { notification } from '../../../../../shared/utils/notification';
+import { copyToClipboard } from '../../../../../shared/utils/clipboardHelper';
 import { formatBytes } from '../../../../../shared/utils/formatBytes';
 import type {
   FullAnalysisReport,
@@ -223,7 +223,7 @@ const CopyIdButton: React.FC<{ modId: string }> = ({ modId }) => {
     <Tooltip title={modId}>
       <CopyOutlined
         className="mod-analyzer__copy-id"
-        onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(modId); notification.success(t('mods.notifications.idCopied')); }}
+        onClick={e => { e.stopPropagation(); void copyToClipboard(modId, t('mods.notifications.idCopied')); }}
       />
     </Tooltip>
   );

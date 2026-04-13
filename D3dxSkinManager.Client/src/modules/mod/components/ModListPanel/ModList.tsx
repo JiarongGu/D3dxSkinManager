@@ -1,3 +1,4 @@
+import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useRef, useCallback } from "react";
 import classNames from "classnames";
@@ -372,19 +373,13 @@ export const ModList: React.FC<ModListProps> = ({
       key: "copy-id",
       label: t("contextMenu.copyId"),
       icon: <CopyOutlined />,
-      onClick: () => {
-        navigator.clipboard.writeText(mod.id);
-        notification.success(t("mods.notifications.idCopied"));
-      },
+      onClick: () => { void copyToClipboard(mod.id, t("mods.notifications.idCopied")); },
     },
     {
       key: "copy-name",
       label: t("contextMenu.copyName"),
       icon: <CopyOutlined />,
-      onClick: () => {
-        navigator.clipboard.writeText(mod.name);
-        notification.success(t("mods.notifications.nameCopied"));
-      },
+      onClick: () => { void copyToClipboard(mod.name, t("mods.notifications.nameCopied")); },
     },
     { type: "divider" as const },
 

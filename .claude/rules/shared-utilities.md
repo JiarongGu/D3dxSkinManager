@@ -7,6 +7,7 @@ Before writing ANY utility function (formatBytes, formatDate, clipboard copy, et
 | Utility | Location | Use case |
 |---------|----------|----------|
 | `formatBytes` | `shared/utils/formatBytes.ts` | Human-readable file sizes |
+| `copyToClipboard` | `shared/utils/clipboardHelper.ts` | Copy text + show notification |
 | `handleError` | `shared/utils/errorHandler.ts` | Error handling + user messages |
 | `notification` | `shared/utils/notification.ts` | Toast notifications |
 | `imageUrlHelper` | `shared/utils/imageUrlHelper.ts` | File paths to `app://` URLs |
@@ -22,3 +23,4 @@ Before writing ANY utility function (formatBytes, formatDate, clipboard copy, et
 ## Past incidents
 
 - **2026-04-13**: `formatBytes` was duplicated in 7 files across the codebase. Extracted to shared utility and removed all copies including dead-code methods on profileService and migrationService.
+- **2026-04-13**: `navigator.clipboard.writeText + notification.success` pattern was duplicated in 5 files. Extracted to `copyToClipboard` shared utility.
