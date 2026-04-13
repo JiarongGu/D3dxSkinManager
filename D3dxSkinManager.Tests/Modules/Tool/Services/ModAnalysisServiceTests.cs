@@ -5,6 +5,7 @@ using Xunit;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Services;
@@ -22,6 +23,7 @@ public class ModAnalysisServiceTests : IDisposable
     private readonly Mock<IModEnrichmentService> _mockEnrichmentService;
     private readonly Mock<IModArchiveService> _mockArchiveService;
     private readonly Mock<IModAnalysisRepository> _mockAnalysisRepository;
+    private readonly Mock<ICategoryService> _mockCategoryService;
     private readonly Mock<IProfileEventBus> _mockEventBus;
     private readonly Mock<ILogHelper> _mockLogger;
     private readonly ModAnalysisService _service;
@@ -34,6 +36,7 @@ public class ModAnalysisServiceTests : IDisposable
         _mockEnrichmentService = new Mock<IModEnrichmentService>();
         _mockArchiveService = new Mock<IModArchiveService>();
         _mockAnalysisRepository = new Mock<IModAnalysisRepository>();
+        _mockCategoryService = new Mock<ICategoryService>();
         _mockEventBus = new Mock<IProfileEventBus>();
         _mockLogger = new Mock<ILogHelper>();
 
@@ -55,6 +58,7 @@ public class ModAnalysisServiceTests : IDisposable
             _mockEnrichmentService.Object,
             _mockArchiveService.Object,
             _mockAnalysisRepository.Object,
+            _mockCategoryService.Object,
             _mockEventBus.Object,
             _mockLogger.Object);
     }
@@ -345,5 +349,170 @@ public class ModAnalysisServiceTests : IDisposable
         // Assert
         report.Should().NotBeNull();
         _mockAnalysisRepository.Verify(r => r.UpdateSessionAsync(It.Is<AnalysisSessionEntity>(s => s.Status == "cancelled")), Times.Once);
+    }
+
+    // ===== Category Descendant Scanning =====
+
+    [Fact]
+    public async Task StartAnalysisAsync_WithCategoryId_ShouldIncludeDescendantCategories()
+    {
+        // Arrange — parent category "cat-parent" has child "cat-child"
+        // Mods in both categories should be included in the scan
+        var parentId = "cat-parent";
+        var childId = "cat-child";
+
+        _mockCategoryService
+            .Setup(c => c.GetAllDescendantIdsAsync(parentId))
+            .ReturnsAsync(new List<string> { parentId, childId });
+        _mockCategoryService
+            .Setup(c => c.GetCategoryNameAsync(parentId))
+            .ReturnsAsync("Parent Category");
+
+        var modEntities = new List<ModEntity>
+        {
+            new() { Id = "mod-in-parent", Name = "ModParent", Category = parentId },
+            new() { Id = "mod-in-child", Name = "ModChild", Category = childId },
+            new() { Id = "mod-other", Name = "ModOther", Category = "cat-unrelated" },
+        };
+        var enrichedMods = modEntities.Select(e => new ModInfo
+        {
+            Id = e.Id, Name = e.Name, Category = e.Category,
+            HasCache = false, IsAvailable = false
+        }).ToList();
+
+        _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(modEntities);
+        _mockEnrichmentService
+            .Setup(e => e.EnrichAllAsync(It.IsAny<List<ModInfo>>()))
+            .ReturnsAsync(enrichedMods);
+
+        // Capture the created session and wire up report-building mocks
+        AnalysisSessionEntity? capturedSession = null;
+        _mockAnalysisRepository
+            .Setup(r => r.CreateSessionAsync(It.IsAny<AnalysisSessionEntity>()))
+            .Callback<AnalysisSessionEntity>(s => capturedSession = s)
+            .ReturnsAsync((AnalysisSessionEntity s) => s.Id);
+        _mockAnalysisRepository
+            .Setup(r => r.GetSessionAsync(It.IsAny<string>()))
+            .ReturnsAsync((string id) => capturedSession?.Id == id ? capturedSession : null);
+        _mockAnalysisRepository
+            .Setup(r => r.GetFindingsBySessionAsync(It.IsAny<string>()))
+            .ReturnsAsync(new List<AnalysisFindingEntity>());
+
+        // Act
+        var report = await _service.StartAnalysisAsync(parentId);
+
+        // Assert — session should include mods from both parent and child categories (2 mods, not 1)
+        _mockAnalysisRepository.Verify(r => r.CreateSessionAsync(
+            It.Is<AnalysisSessionEntity>(s =>
+                s.CategoryId == parentId &&
+                s.CategoryName == "Parent Category" &&
+                s.TotalMods == 2)), Times.Once);
+    }
+
+    [Fact]
+    public async Task StartAnalysisAsync_WithoutCategoryId_ShouldIncludeAllMods()
+    {
+        // Arrange — no category filter, should include all mods
+        var modEntities = new List<ModEntity>
+        {
+            new() { Id = "mod-1", Name = "Mod1", Category = "cat-a" },
+            new() { Id = "mod-2", Name = "Mod2", Category = "cat-b" },
+        };
+        var enrichedMods = modEntities.Select(e => new ModInfo
+        {
+            Id = e.Id, Name = e.Name, Category = e.Category,
+            HasCache = false, IsAvailable = false
+        }).ToList();
+
+        _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(modEntities);
+        _mockEnrichmentService
+            .Setup(e => e.EnrichAllAsync(It.IsAny<List<ModInfo>>()))
+            .ReturnsAsync(enrichedMods);
+
+        // Capture the created session and wire up report-building mocks
+        AnalysisSessionEntity? capturedSession = null;
+        _mockAnalysisRepository
+            .Setup(r => r.CreateSessionAsync(It.IsAny<AnalysisSessionEntity>()))
+            .Callback<AnalysisSessionEntity>(s => capturedSession = s)
+            .ReturnsAsync((AnalysisSessionEntity s) => s.Id);
+        _mockAnalysisRepository
+            .Setup(r => r.GetSessionAsync(It.IsAny<string>()))
+            .ReturnsAsync((string id) => capturedSession?.Id == id ? capturedSession : null);
+        _mockAnalysisRepository
+            .Setup(r => r.GetFindingsBySessionAsync(It.IsAny<string>()))
+            .ReturnsAsync(new List<AnalysisFindingEntity>());
+
+        // Act
+        var report = await _service.StartAnalysisAsync(null);
+
+        // Assert — should include all mods, no category filtering
+        _mockAnalysisRepository.Verify(r => r.CreateSessionAsync(
+            It.Is<AnalysisSessionEntity>(s =>
+                s.CategoryId == null &&
+                s.TotalMods == 2)), Times.Once);
+
+        // Should NOT call GetAllDescendantIdsAsync when no category filter
+        _mockCategoryService.Verify(c => c.GetAllDescendantIdsAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task StartAnalysisAsync_WithCategoryId_ShouldDetectDuplicatesAcrossChildCategories()
+    {
+        // Arrange — two mods in different child categories with same buffer hash
+        // Should be detected as duplicates when scanning parent category
+        var parentId = "cat-parent";
+        var child1Id = "cat-child1";
+        var child2Id = "cat-child2";
+
+        _mockCategoryService
+            .Setup(c => c.GetAllDescendantIdsAsync(parentId))
+            .ReturnsAsync(new List<string> { parentId, child1Id, child2Id });
+        _mockCategoryService
+            .Setup(c => c.GetCategoryNameAsync(parentId))
+            .ReturnsAsync("Parent");
+
+        // Session and findings for report building
+        var session = new AnalysisSessionEntity
+        {
+            Id = "cross-cat-session", CategoryId = parentId, Status = "completed",
+            TotalMods = 2, StartedAt = "2026-04-13T10:00:00Z"
+        };
+        var findings = new List<AnalysisFindingEntity>
+        {
+            new()
+            {
+                SessionId = "cross-cat-session", ModId = "mod-child1",
+                BufferHash = "SAME_HASH", TextureHash = "SAME_TEX",
+                TargetHashes = "[\"hash1\"]", HealthStatus = "healthy",
+                HealthIssues = "[]", PluginDependencies = "[]",
+            },
+            new()
+            {
+                SessionId = "cross-cat-session", ModId = "mod-child2",
+                BufferHash = "SAME_HASH", TextureHash = "SAME_TEX",
+                TargetHashes = "[\"hash1\"]", HealthStatus = "healthy",
+                HealthIssues = "[]", PluginDependencies = "[]",
+            },
+        };
+
+        var enrichedMods = new List<ModInfo>
+        {
+            new() { Id = "mod-child1", Name = "Child1Mod", Category = child1Id, CategoryName = "Child 1" },
+            new() { Id = "mod-child2", Name = "Child2Mod", Category = child2Id, CategoryName = "Child 2" },
+        };
+
+        _mockAnalysisRepository.Setup(r => r.GetSessionAsync("cross-cat-session")).ReturnsAsync(session);
+        _mockAnalysisRepository.Setup(r => r.GetFindingsBySessionAsync("cross-cat-session")).ReturnsAsync(findings);
+        _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ModEntity>());
+        _mockEnrichmentService.Setup(e => e.EnrichAllAsync(It.IsAny<List<ModInfo>>())).ReturnsAsync(enrichedMods);
+
+        // Act
+        var report = await _service.GetSessionReportAsync("cross-cat-session");
+
+        // Assert — duplicates across child categories should be detected
+        report.DuplicateGroups.Should().HaveCount(1);
+        report.DuplicateGroups[0].Type.Should().Be(DuplicateType.Identical);
+        report.DuplicateGroups[0].Mods.Should().HaveCount(2);
+        report.IdenticalCount.Should().Be(1);
     }
 }

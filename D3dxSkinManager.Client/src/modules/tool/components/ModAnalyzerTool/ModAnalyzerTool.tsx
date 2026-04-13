@@ -220,6 +220,25 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
     } catch (error: unknown) { handleError(error); }
   }, [selectedProfileId]);
 
+  const editModName = useCallback(async (modId: string, newName: string) => {
+    if (!selectedProfileId) return;
+    try {
+      await api.mod.updateMetadata(selectedProfileId, modId, { name: newName });
+      // Optimistically update mod name in report
+      setReport(prev => {
+        if (!prev) return prev;
+        const updateName = <T extends { modId: string; modName: string }>(m: T): T =>
+          m.modId === modId ? { ...m, modName: newName } : m;
+        return {
+          ...prev,
+          results: prev.results.map(updateName),
+          duplicateGroups: prev.duplicateGroups.map(g => ({ ...g, mods: g.mods.map(updateName) })),
+          conflicts: prev.conflicts.map(c => ({ ...c, mods: c.mods.map(updateName) })),
+        };
+      });
+    } catch (error: unknown) { handleError(error); }
+  }, [selectedProfileId]);
+
   const deleteDuplicateMod = useCallback(async (modId: string) => {
     if (!selectedProfileId) return;
     try {
@@ -270,6 +289,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
           onRescan={() => { void doStartScan(report?.categoryId ?? selectedCategoryId); }}
           onViewHistory={() => setViewMode('history')}
           onDeleteMod={deleteDuplicateMod}
+          onEditModName={editModName}
         />
       )}
       {viewMode === 'history' && (

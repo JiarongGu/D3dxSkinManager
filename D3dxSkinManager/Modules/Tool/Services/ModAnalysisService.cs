@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Tool.Models;
@@ -32,6 +33,7 @@ public class ModAnalysisService : IModAnalysisService
     private readonly IModEnrichmentService _enrichmentService;
     private readonly IModArchiveService _archiveService;
     private readonly IModAnalysisRepository _analysisRepository;
+    private readonly ICategoryService _categoryService;
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
 
@@ -62,6 +64,7 @@ public class ModAnalysisService : IModAnalysisService
         IModEnrichmentService enrichmentService,
         IModArchiveService archiveService,
         IModAnalysisRepository analysisRepository,
+        ICategoryService categoryService,
         IProfileEventBus eventBus,
         ILogHelper logger)
     {
@@ -70,6 +73,7 @@ public class ModAnalysisService : IModAnalysisService
         _enrichmentService = enrichmentService;
         _archiveService = archiveService;
         _analysisRepository = analysisRepository;
+        _categoryService = categoryService;
         _eventBus = eventBus;
         _logger = logger;
     }
@@ -119,10 +123,14 @@ public class ModAnalysisService : IModAnalysisService
 
         try
         {
-            // Get all mods for this session's scope
+            // Get all mods for this session's scope — include selected category + all descendants
             var enrichedMods = await GetAllEnrichedModsAsync().ConfigureAwait(false);
             if (!string.IsNullOrEmpty(session.CategoryId))
-                enrichedMods = enrichedMods.Where(m => m.Category == session.CategoryId).ToList();
+            {
+                var categoryIds = await _categoryService.GetAllDescendantIdsAsync(session.CategoryId).ConfigureAwait(false);
+                var categoryIdSet = new HashSet<string>(categoryIds, StringComparer.OrdinalIgnoreCase);
+                enrichedMods = enrichedMods.Where(m => categoryIdSet.Contains(m.Category)).ToList();
+            }
 
             // Skip already-analyzed mods and collect existing counts
             var existingFindings = await _analysisRepository.GetFindingsBySessionAsync(sessionId).ConfigureAwait(false);
@@ -240,12 +248,18 @@ public class ModAnalysisService : IModAnalysisService
         _cancelRequested = false;
         _resumeSignal.Set();
 
-        // Create session
+        // Create session — include selected category + all descendants
         var enrichedMods = await GetAllEnrichedModsAsync().ConfigureAwait(false);
         if (!string.IsNullOrEmpty(categoryId))
-            enrichedMods = enrichedMods.Where(m => m.Category == categoryId).ToList();
+        {
+            var categoryIds = await _categoryService.GetAllDescendantIdsAsync(categoryId).ConfigureAwait(false);
+            var categoryIdSet = new HashSet<string>(categoryIds, StringComparer.OrdinalIgnoreCase);
+            enrichedMods = enrichedMods.Where(m => categoryIdSet.Contains(m.Category)).ToList();
+        }
 
-        string? categoryName = enrichedMods.FirstOrDefault()?.CategoryName;
+        string? categoryName = !string.IsNullOrEmpty(categoryId)
+            ? await _categoryService.GetCategoryNameAsync(categoryId).ConfigureAwait(false)
+            : null;
         var session = new AnalysisSessionEntity
         {
             Id = Guid.NewGuid().ToString("N"),

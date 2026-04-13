@@ -621,6 +621,8 @@
     "tools.modAnalyzer.identical": "Identical",
     "tools.modAnalyzer.exactClone": "Exact Clone",
     "tools.modAnalyzer.deleteDuplicate": "Delete this mod",
+    "tools.modAnalyzer.editModName": "Edit mod name",
+    "tools.modAnalyzer.editModNameTitle": "Edit Mod Name",
     "tools.modAnalyzer.textureVariant": "Texture Variant",
     "tools.modAnalyzer.scanFeedWaiting": "Findings will appear here as mods are analyzed...",
     "tools.modAnalyzer.loadedMods": "Loaded Mods",

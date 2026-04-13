@@ -488,6 +488,7 @@
 }
 
 .mod-analyzer__mod-preview-actions .mod-analyzer__copy-id,
+.mod-analyzer__mod-preview-actions .mod-analyzer__mod-edit,
 .mod-analyzer__mod-preview-actions .mod-analyzer__mod-delete {
   display: flex;
   align-items: center;
@@ -502,7 +503,8 @@
   margin: 0;
 }
 
-.mod-analyzer__mod-preview-actions .mod-analyzer__copy-id:hover {
+.mod-analyzer__mod-preview-actions .mod-analyzer__copy-id:hover,
+.mod-analyzer__mod-preview-actions .mod-analyzer__mod-edit:hover {
   background: rgba(0, 0, 0, 0.8);
   color: var(--color-primary);
 }

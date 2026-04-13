@@ -35,6 +35,8 @@ public interface ICategoryService
     Task<string?> GetCategoryNameAsync(string categoryId);
 
     Task<bool> BatchUpdateParentAsync(List<string> categoryIds, string? newParentId);
+
+    Task<List<string>> GetAllDescendantIdsAsync(string categoryId);
 }
 
 /// <summary>
@@ -623,5 +625,13 @@ public class CategoryService : ICategoryService
 
         // Return name if found
         return categoryMap?.TryGetValue(categoryId, out var name) == true ? name : null;
+    }
+
+    /// <summary>
+    /// Get all descendant category IDs recursively (includes the given categoryId itself)
+    /// </summary>
+    public async Task<List<string>> GetAllDescendantIdsAsync(string categoryId)
+    {
+        return await _repository.GetAllDescendantIdsAsync(categoryId).ConfigureAwait(false);
     }
 }
