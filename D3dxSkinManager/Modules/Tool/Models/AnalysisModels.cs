@@ -82,6 +82,12 @@ public class DuplicateGroup
     public string GroupLabel { get; set; } = string.Empty;
     public List<string> SharedHashes { get; set; } = new();
     public List<ModAnalysisResult> Mods { get; set; } = new();
+
+    /// <summary>
+    /// True when all mods in the group target the exact same set of TextureOverride hashes.
+    /// Combined with Identical type, this means the mods are exact clones.
+    /// </summary>
+    public bool AllHashesMatch { get; set; }
 }
 
 public class ModConflict
@@ -169,6 +175,10 @@ public class AnalysisProgress
     public int Total { get; set; }
     public string CurrentModName { get; set; } = string.Empty;
     public AnalysisStatus Status { get; set; }
+
+    /// <summary>Last analyzed mod's health status (healthy/warning/error), null before first result</summary>
+    public string? LastModName { get; set; }
+    public string? LastHealthStatus { get; set; }
 
     // Live counts updated during scan
     public int HealthyCount { get; set; }

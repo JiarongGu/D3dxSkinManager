@@ -46,6 +46,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(initialCategoryId);
   const [sessions, setSessions] = useState<AnalysisSessionSummary[]>([]);
+  const [initialFeed, setInitialFeed] = useState<Array<{ name: string; status: string }>>();
 
   // Load categories
   useEffect(() => {
@@ -70,14 +71,25 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
   const historyRefreshedRef = useRef(false);
 
   // Subscribe to events — detect in-progress scans even if we didn't start them
+  // Shared logic: resume a running session (load partial results + switch to scan view)
+  const resumeRunningSession = useCallback(async (sessionId: string) => {
+    if (!selectedProfileId) return;
+    try {
+      const r = await api.tool.getAnalysisReport(selectedProfileId, sessionId);
+      setInitialFeed(r.results.map(m => ({ name: m.modName, status: m.healthStatus })));
+    } catch { /* ignore — live events will take over */ }
+    setScanning(true);
+    setViewMode('scan');
+  }, [selectedProfileId]);
+
   useEffect(() => {
     const unsubProgress = eventBus.subscribe(Module.TOOL, ToolsEventType.MOD_ANALYSIS_PROGRESS, (e) => {
       const payload = e.payload;
       if (!payload) return;
       setProgress(payload);
       if (payload.status === 'running' && !scanningRef.current) {
-        setScanning(true);
-        setViewMode('scan');
+        // Detected an in-progress scan we didn't start — resume it with existing results
+        void resumeRunningSession(payload.sessionId);
       }
       // Refresh history once per scan so HistoryView shows the new running session
       if (payload.status === 'running' && !historyRefreshedRef.current) {
@@ -92,6 +104,9 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
       ));
     });
     const unsubComplete = eventBus.subscribe(Module.TOOL, ToolsEventType.MOD_ANALYSIS_COMPLETE, (e) => {
+      // Ignore if report is still running (e.g., another scan was already in progress)
+      if (e.payload?.status === 'running') return;
+
       setReport(e.payload);
       setScanning(false);
       setProgress(undefined);
@@ -102,7 +117,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
       void loadHistory();
     });
     return () => { unsubProgress(); unsubComplete(); };
-  }, [loadHistory, scanningRef, viewModeRef]);
+  }, [loadHistory, scanningRef, viewModeRef, resumeRunningSession]);
 
   const doStartScan = useCallback(async (categoryId?: string) => {
     if (!selectedProfileId || scanning) return; // Single scan guard
@@ -110,6 +125,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
       setScanning(true);
       setReport(undefined);
       setProgress(undefined);
+      setInitialFeed(undefined);
       setViewMode('scan');
       historyRefreshedRef.current = false;
       await api.tool.startAnalysis(selectedProfileId, categoryId);
@@ -141,9 +157,8 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
 
   const viewSession = useCallback(async (sessionId: string, sessionStatus?: string) => {
     if (!selectedProfileId) return;
-    // Running session → go to scan view where progress events are live
     if (sessionStatus === 'running') {
-      setViewMode('scan');
+      void resumeRunningSession(sessionId);
       return;
     }
     try {
@@ -151,7 +166,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
       setReport(r);
       setViewMode('findings');
     } catch (error: unknown) { handleError(error); }
-  }, [selectedProfileId]);
+  }, [selectedProfileId, resumeRunningSession]);
 
   const deleteSession = useCallback(async (sessionId: string) => {
     if (!selectedProfileId) return;
@@ -175,12 +190,36 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
     } catch (error: unknown) { handleError(error); }
   }, [selectedProfileId]);
 
+  const deleteDuplicateMod = useCallback(async (modId: string) => {
+    if (!selectedProfileId) return;
+    try {
+      await api.mod.deleteMod(selectedProfileId, modId);
+      // Optimistically remove mod from report
+      setReport(prev => {
+        if (!prev) return prev;
+        const newResults = prev.results.filter(r => r.modId !== modId);
+        const newGroups = prev.duplicateGroups
+          .map(g => ({ ...g, mods: g.mods.filter(m => m.modId !== modId) }))
+          .filter(g => g.mods.length > 1); // Dissolve single-mod groups
+        return {
+          ...prev,
+          results: newResults,
+          duplicateGroups: newGroups,
+          identicalCount: newGroups.filter(g => g.type === 'identical').length,
+          textureVariantCount: newGroups.filter(g => g.type === 'textureVariant').length,
+        };
+      });
+    } catch (error: unknown) { handleError(error); }
+  }, [selectedProfileId]);
+
   return (
     <div className="mod-analyzer">
       {viewMode === 'scan' && (
         <ScanView
           progress={progress}
           scanning={scanning}
+          loading={!!initialCategoryId && !scanning && !report}
+          initialFeed={initialFeed}
           categories={categories}
           selectedCategoryId={selectedCategoryId}
           onCategoryChange={setSelectedCategoryId}
@@ -197,6 +236,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
           onNewScan={() => setViewMode('scan')}
           onRescan={startScan}
           onViewHistory={() => setViewMode('history')}
+          onDeleteMod={deleteDuplicateMod}
         />
       )}
       {viewMode === 'history' && (

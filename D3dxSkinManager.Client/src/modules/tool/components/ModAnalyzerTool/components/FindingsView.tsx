@@ -12,6 +12,7 @@ import {
   PlayCircleOutlined,
   CheckCircleOutlined,
   HistoryOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactInput } from '../../../../../shared/components/compact';
@@ -30,18 +31,19 @@ interface FindingsViewProps {
   onNewScan: () => void;
   onRescan: () => void;
   onViewHistory: () => void;
+  onDeleteMod?: (modId: string) => void;
 }
 
 type FindingCategory = 'all' | 'broken' | 'stale' | 'duplicates' | 'conflicts' | 'healthy';
 
-export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory }) => {
+export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod }) => {
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
   const [category, setCategory] = useState<FindingCategory>('all');
 
   const brokenMods = useMemo(() => report.results.filter(r => r.healthStatus === 'error'), [report]);
   const staleMods = useMemo(() => report.results.filter(r =>
-    r.issues.some(i => i.type === 'staleHash' || i.type === 'missingPlugin')
+    r.issues.some(i => i.type === 'staleHash')
   ), [report]);
   const healthyMods = useMemo(() => report.results.filter(r => r.healthStatus === 'healthy'), [report]);
 
@@ -137,7 +139,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
               items={filteredContent.duplicates.map((g, i) => ({
                 key: i,
                 label: <DuplicateHeader group={g} />,
-                children: <DuplicateDetail group={g} />,
+                children: <DuplicateDetail group={g} onDeleteMod={onDeleteMod} />,
               }))}
             />
           </FindingSection>
@@ -263,9 +265,12 @@ const ModRow: React.FC<{ mod: ModAnalysisResult }> = ({ mod }) => {
 
 const DuplicateHeader: React.FC<{ group: DuplicateGroup }> = ({ group }) => {
   const { t } = useTranslation();
+  const isExactClone = group.type === 'identical' && group.allHashesMatch;
   const typeIcon = group.type === 'identical' ? <CopyOutlined /> : <BgColorsOutlined />;
-  const typeColor = group.type === 'identical' ? 'red' : 'orange';
-  const typeLabel = group.type === 'identical' ? t('tools.modAnalyzer.identical') : t('tools.modAnalyzer.textureVariant');
+  const typeColor = isExactClone ? 'red' : group.type === 'identical' ? 'volcano' : 'orange';
+  const typeLabel = isExactClone
+    ? t('tools.modAnalyzer.exactClone')
+    : group.type === 'identical' ? t('tools.modAnalyzer.identical') : t('tools.modAnalyzer.textureVariant');
 
   return (
     <div className="mod-analyzer__group-header">
@@ -278,30 +283,43 @@ const DuplicateHeader: React.FC<{ group: DuplicateGroup }> = ({ group }) => {
   );
 };
 
-const DuplicateDetail: React.FC<{ group: DuplicateGroup }> = ({ group }) => (
-  <div className="mod-analyzer__mod-cards">
-    {group.mods.map(mod => (
-      <div key={mod.modId} className="mod-analyzer__mod-card">
-        <div className={`mod-analyzer__mod-preview ${!mod.previewPath ? 'mod-analyzer__mod-preview--empty' : ''}`}>
-          {mod.previewPath ? (
-            <img src={`app://${encodeURIComponent(mod.previewPath)}`} alt={mod.modName} className="mod-analyzer__mod-preview-img" />
-          ) : (
-            <BgColorsOutlined />
-          )}
-          <CopyIdButton modId={mod.modId} />
-        </div>
-        <div className="mod-analyzer__mod-info">
-          <div className="mod-analyzer__mod-name" title={mod.modName}>{mod.modName}</div>
-          <div className="mod-analyzer__mod-meta">
-            {mod.isLoaded && <Tag color="green" className="mod-analyzer__mod-tag">Loaded</Tag>}
-            <Tag className="mod-analyzer__mod-tag">{formatBytes(mod.bufferSizeBytes)} buf</Tag>
-            <Tag className="mod-analyzer__mod-tag">{formatBytes(mod.textureSizeBytes)} tex</Tag>
+const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: string) => void }> = ({ group, onDeleteMod }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="mod-analyzer__mod-cards">
+      {group.mods.map(mod => (
+        <div key={mod.modId} className="mod-analyzer__mod-card">
+          <div className={`mod-analyzer__mod-preview ${!mod.previewPath ? 'mod-analyzer__mod-preview--empty' : ''}`}>
+            {mod.previewPath ? (
+              <img src={`app://${encodeURIComponent(mod.previewPath)}`} alt={mod.modName} className="mod-analyzer__mod-preview-img" />
+            ) : (
+              <BgColorsOutlined />
+            )}
+            <div className="mod-analyzer__mod-preview-actions">
+              <CopyIdButton modId={mod.modId} />
+              {onDeleteMod && (
+                <Tooltip title={t('tools.modAnalyzer.deleteDuplicate')}>
+                  <DeleteOutlined
+                    className="mod-analyzer__mod-delete"
+                    onClick={e => { e.stopPropagation(); onDeleteMod(mod.modId); }}
+                  />
+                </Tooltip>
+              )}
+            </div>
+          </div>
+          <div className="mod-analyzer__mod-info">
+            <div className="mod-analyzer__mod-name" title={mod.modName}>{mod.modName}</div>
+            <div className="mod-analyzer__mod-meta">
+              {mod.isLoaded && <Tag color="green" className="mod-analyzer__mod-tag">Loaded</Tag>}
+              <Tag className="mod-analyzer__mod-tag">{formatBytes(mod.bufferSizeBytes)} buf</Tag>
+              <Tag className="mod-analyzer__mod-tag">{formatBytes(mod.textureSizeBytes)} tex</Tag>
+            </div>
           </div>
         </div>
-      </div>
-    ))}
-  </div>
-);
+      ))}
+    </div>
+  );
+};
 
 const ConflictRow: React.FC<{ conflict: ModConflict }> = ({ conflict }) => {
   const { t } = useTranslation();

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Progress } from 'antd';
 import {
   PlayCircleOutlined,
@@ -16,9 +16,16 @@ import { CategorySelect } from '../../../../../shared/components/CategorySelect'
 import type { AnalysisProgress } from '../../../../../shared/types/analysis.types';
 import type { CategoryInfo } from '../../../../../shared/types/category.types';
 
+interface FeedEntry {
+  name: string;
+  status: string;
+}
+
 interface ScanViewProps {
   progress?: AnalysisProgress;
   scanning: boolean;
+  loading?: boolean;
+  initialFeed?: FeedEntry[];
   categories: CategoryInfo[];
   selectedCategoryId?: string;
   onCategoryChange: (id?: string) => void;
@@ -29,13 +36,48 @@ interface ScanViewProps {
 }
 
 export const ScanView: React.FC<ScanViewProps> = ({
-  progress, scanning, categories, selectedCategoryId, onCategoryChange, onStart, onPause, onViewHistory, sessionCount,
+  progress, scanning, loading, initialFeed, categories, selectedCategoryId, onCategoryChange, onStart, onPause, onViewHistory, sessionCount,
 }) => {
   const { t } = useTranslation();
   const percent = progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
-  // Not scanning → start screen
-  if (!scanning) {
+  // Accumulate live findings feed (seeded from initialFeed when resuming a running session)
+  const [feed, setFeed] = useState<FeedEntry[]>([]);
+  const feedEndRef = useRef<HTMLDivElement>(null);
+  const lastEntryRef = useRef<string | undefined>(undefined);
+
+  // Seed feed from initial data (when navigating from history to a running session)
+  useEffect(() => {
+    if (initialFeed && initialFeed.length > 0) {
+      setFeed(initialFeed);
+    }
+  }, [initialFeed]);
+
+  useEffect(() => {
+    if (progress?.lastModName && progress.lastHealthStatus) {
+      const key = `${progress.lastModName}:${progress.current}`;
+      if (key !== lastEntryRef.current) {
+        lastEntryRef.current = key;
+        setFeed(prev => [...prev, { name: progress.lastModName!, status: progress.lastHealthStatus! }]);
+      }
+    }
+  }, [progress]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [feed.length]);
+
+  // Reset feed and dedup key when scan stops
+  useEffect(() => {
+    if (!scanning) {
+      setFeed([]);
+      lastEntryRef.current = undefined;
+    }
+  }, [scanning]);
+
+  // Not scanning and not loading → start screen
+  if (!scanning && !loading) {
     return (
       <div className="mod-analyzer__scan-start">
         <div className="mod-analyzer__hero">
@@ -112,7 +154,22 @@ export const ScanView: React.FC<ScanViewProps> = ({
         )}
       </div>
       <div className="mod-analyzer__scan-feed">
-        <div className="mod-analyzer__scan-feed-empty">{t('tools.modAnalyzer.scanFeedWaiting')}</div>
+        {!progress ? (
+          <div className="mod-analyzer__scan-feed-empty">
+            <LoadingOutlined style={{ fontSize: 20, marginBottom: 8 }} />
+            <span>{t('tools.modAnalyzer.preparing')}</span>
+          </div>
+        ) : feed.length === 0 ? (
+          <div className="mod-analyzer__scan-feed-empty">{t('tools.modAnalyzer.scanFeedWaiting')}</div>
+        ) : (
+          feed.map((entry, i) => (
+            <div key={i} className="mod-analyzer__scan-feed-item">
+              <FeedIcon status={entry.status} />
+              <span className="mod-analyzer__scan-feed-name">{entry.name}</span>
+            </div>
+          ))
+        )}
+        <div ref={feedEndRef} />
       </div>
     </div>
   );
@@ -125,6 +182,12 @@ const StatPill: React.FC<{ icon: React.ReactNode; color: string; value: number; 
     <span className="mod-analyzer__stat-pill-label">{label}</span>
   </div>
 );
+
+const FeedIcon: React.FC<{ status: string }> = ({ status }) => {
+  if (status === 'error') return <CloseCircleOutlined style={{ color: 'var(--color-error)', fontSize: 12 }} />;
+  if (status === 'warning') return <WarningOutlined style={{ color: 'var(--color-warning)', fontSize: 12 }} />;
+  return <CheckCircleOutlined style={{ color: 'var(--color-success)', fontSize: 12 }} />;
+};
 
 const FeatureTag: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
   <span className="mod-analyzer__feature-tag">

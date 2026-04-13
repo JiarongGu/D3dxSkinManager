@@ -37,6 +37,7 @@ export interface DuplicateGroup {
   groupLabel: string;
   sharedHashes: string[];
   mods: ModAnalysisResult[];
+  allHashesMatch: boolean;
 }
 
 export interface ModConflict {
@@ -96,4 +97,6 @@ export interface AnalysisProgress {
   healthyCount: number;
   warningCount: number;
   errorCount: number;
+  lastModName?: string;
+  lastHealthStatus?: string;
 }

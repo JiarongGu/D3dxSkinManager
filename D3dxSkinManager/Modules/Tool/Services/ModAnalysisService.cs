@@ -168,17 +168,18 @@ public class ModAnalysisService : IModAnalysisService
         int total = mods.Count;
         int processed = 0;
         int healthyCount = 0, warningCount = 0, errorCount = 0;
+        string? lastModName = null;
+        string? lastHealthStatus = null;
 
         foreach (var mod in mods)
         {
             if (_pauseRequested)
             {
-                await EmitProgress(session.Id, "paused", processed, total, mod.Name, AnalysisStatus.Paused, healthyCount, warningCount, errorCount).ConfigureAwait(false);
+                await EmitProgress(session.Id, "paused", processed, total, mod.Name, AnalysisStatus.Paused, healthyCount, warningCount, errorCount, lastModName, lastHealthStatus).ConfigureAwait(false);
                 return;
             }
 
             processed++;
-            await EmitProgress(session.Id, "analyzing", processed, total, mod.Name, AnalysisStatus.Running, healthyCount, warningCount, errorCount).ConfigureAwait(false);
 
             string? modDir = null;
             bool needsCleanup = false;
@@ -199,7 +200,9 @@ public class ModAnalysisService : IModAnalysisService
                     var finding = await AnalyzeModAsync(session.Id, mod.Id, modDir).ConfigureAwait(false);
                     await _analysisRepository.InsertFindingAsync(finding).ConfigureAwait(false);
 
-                    // Track live counts
+                    lastModName = mod.Name;
+                    lastHealthStatus = finding.HealthStatus;
+
                     switch (finding.HealthStatus)
                     {
                         case "healthy": healthyCount++; break;
@@ -215,6 +218,8 @@ public class ModAnalysisService : IModAnalysisService
                         SessionId = session.Id, ModId = mod.Id, HealthStatus = "error",
                         HealthIssues = JsonSerializer.Serialize(new[] { new { Type = "InvalidIniSyntax", Severity = "Error", Message = ex.Message } }),
                     }).ConfigureAwait(false);
+                    lastModName = mod.Name;
+                    lastHealthStatus = "error";
                     errorCount++;
                 }
                 finally
@@ -222,9 +227,12 @@ public class ModAnalysisService : IModAnalysisService
                     if (needsCleanup) CleanupTempDir(modDir);
                 }
             }
+
+            // Emit after each mod so frontend gets live results
+            await EmitProgress(session.Id, "analyzing", processed, total, mod.Name, AnalysisStatus.Running, healthyCount, warningCount, errorCount, lastModName, lastHealthStatus).ConfigureAwait(false);
         }
 
-        await EmitProgress(session.Id, "complete", total, total, "", AnalysisStatus.Completed, healthyCount, warningCount, errorCount).ConfigureAwait(false);
+        await EmitProgress(session.Id, "complete", total, total, "", AnalysisStatus.Completed, healthyCount, warningCount, errorCount, lastModName, lastHealthStatus).ConfigureAwait(false);
     }
 
     private async Task<AnalysisFindingEntity> AnalyzeModAsync(string sessionId, string modId, string modDir)
@@ -381,7 +389,24 @@ public class ModAnalysisService : IModAnalysisService
             var mods = group.GroupBy(m => m.ModId).Select(g => g.First()).ToList();
             var textureGroups = mods.GroupBy(m => m.TextureHash).ToList();
             var type = textureGroups.Count == 1 ? DuplicateType.Identical : DuplicateType.TextureVariant;
-            report.DuplicateGroups.Add(new DuplicateGroup { Type = type, GroupLabel = mods.First().CategoryName, SharedHashes = mods.First().TargetHashes, Mods = mods });
+
+            // Check if all mods target the exact same TextureOverride hashes
+            var allHashesMatch = false;
+            if (type == DuplicateType.Identical && mods.Count > 1)
+            {
+                var firstHashes = string.Join(",", mods[0].TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase));
+                allHashesMatch = mods.Skip(1).All(m =>
+                    string.Join(",", m.TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase)) == firstHashes);
+            }
+
+            report.DuplicateGroups.Add(new DuplicateGroup
+            {
+                Type = type,
+                GroupLabel = mods.First().CategoryName,
+                SharedHashes = mods.First().TargetHashes,
+                Mods = mods,
+                AllHashesMatch = allHashesMatch
+            });
             if (type == DuplicateType.Identical) report.IdenticalCount++; else report.TextureVariantCount++;
         }
     }
@@ -447,13 +472,14 @@ public class ModAnalysisService : IModAnalysisService
 
     private static void CleanupTempDir(string path) { try { if (Directory.Exists(path)) Directory.Delete(path, true); } catch { } }
 
-    private async Task EmitProgress(string sessionId, string stage, int current, int total, string modName, AnalysisStatus status, int healthyCount = 0, int warningCount = 0, int errorCount = 0)
+    private async Task EmitProgress(string sessionId, string stage, int current, int total, string modName, AnalysisStatus status, int healthyCount = 0, int warningCount = 0, int errorCount = 0, string? lastModName = null, string? lastHealthStatus = null)
     {
         await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_ANALYSIS_PROGRESS, new AnalysisProgress
         {
             SessionId = sessionId, Stage = stage, Current = current, Total = total,
             CurrentModName = modName, Status = status,
-            HealthyCount = healthyCount, WarningCount = warningCount, ErrorCount = errorCount
+            HealthyCount = healthyCount, WarningCount = warningCount, ErrorCount = errorCount,
+            LastModName = lastModName, LastHealthStatus = lastHealthStatus
         }).ConfigureAwait(false);
     }
 

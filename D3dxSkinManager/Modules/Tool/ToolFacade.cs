@@ -397,7 +397,11 @@ public class ToolFacade : BaseFacade, IToolFacade
             try
             {
                 var report = await _modAnalysisService.StartAnalysisAsync(categoryId).ConfigureAwait(false);
-                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_ANALYSIS_COMPLETE, report).ConfigureAwait(false);
+                // Only emit COMPLETE for finished sessions (not if another scan was already running)
+                if (report.Status != AnalysisStatus.Running)
+                {
+                    await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_ANALYSIS_COMPLETE, report).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {

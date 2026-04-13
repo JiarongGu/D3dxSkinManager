@@ -4,6 +4,7 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Category.Models;
+using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 
 namespace D3dxSkinManager.Modules.Tool.Services;
@@ -37,17 +38,20 @@ public class FileCleanupService : IFileCleanupService
     private readonly IProfilePathService _profilePaths;
     private readonly IModRepository _repository;
     private readonly ICategoryService _categoryService;
+    private readonly IProfileService _profileService;
     private readonly ILogHelper _logger;
 
     public FileCleanupService(
         IProfilePathService profilePaths,
         IModRepository repository,
         ICategoryService categoryService,
+        IProfileService profileService,
         ILogHelper logger)
     {
         _profilePaths = profilePaths;
         _repository = repository;
         _categoryService = categoryService;
+        _profileService = profileService;
         _logger = logger;
     }
 
@@ -127,8 +131,8 @@ public class FileCleanupService : IFileCleanupService
     }
 
     /// <summary>
-    /// Scan thumbnails directory for files not referenced by any category.
-    /// Thumbnails are used by categories (filename is content hash, not mod ID).
+    /// Scan thumbnails directory for files not referenced by any category or as profile image.
+    /// Thumbnails are used by categories and profile images (filename is content hash, not mod ID).
     /// </summary>
     private async Task<OrphanScanResult> ScanOrphanedThumbnailsAsync()
     {
@@ -140,6 +144,15 @@ public class FileCleanupService : IFileCleanupService
 
         var categories = await _categoryService.GetCategoryTreeAsync().ConfigureAwait(false);
         var referencedFiles = CollectReferencedThumbnailFiles(categories);
+
+        // Also exclude the active profile's thumbnail (stored in same directory)
+        var activeProfile = await _profileService.GetActiveProfileAsync().ConfigureAwait(false);
+        if (activeProfile?.Thumbnail != null)
+        {
+            var profileThumbnailFileName = Path.GetFileName(activeProfile.Thumbnail);
+            if (!string.IsNullOrEmpty(profileThumbnailFileName))
+                referencedFiles.Add(profileThumbnailFileName);
+        }
 
         var files = Directory.GetFiles(thumbnailsDir, "*", SearchOption.AllDirectories);
         foreach (var file in files)
