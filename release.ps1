@@ -102,31 +102,77 @@ function Get-BumpedVersion {
     return "$major.$minor"
 }
 
-# Helper function to extract release notes from CHANGELOG.md
+# Helper function to generate release notes from git log
 function Get-ReleaseNotes {
     param([string]$Version)
 
-    $changelogPath = "CHANGELOG.md"  # Root changelog for user-facing releases
-    if (-not (Test-Path $changelogPath)) {
-        Write-Warning "CHANGELOG.md not found at $changelogPath"
-        return "No release notes available."
+    $currentTag = "v$Version"
+
+    # Find previous tag
+    $allTags = git tag --sort=-version:refname | Where-Object { $_ -match '^v\d' }
+    $previousTag = $null
+    foreach ($t in $allTags) {
+        if ($t -ne $currentTag) {
+            $previousTag = $t
+            break
+        }
     }
 
-    $content = Get-Content $changelogPath -Raw
-
-    # Extract Unreleased section (for new releases)
-    if ($content -match '(?s)## \[Unreleased\](.*?)(?=##\s|\z)') {
-        return $matches[1].Trim()
+    # Get commits between previous tag and HEAD
+    if ($previousTag) {
+        Write-Host "  Generating notes: $previousTag..$currentTag" -ForegroundColor Gray
+        $commits = git log "$previousTag..HEAD" --pretty=format:"%s" --no-merges
+    } else {
+        Write-Host "  No previous tag found — using recent 50 commits" -ForegroundColor Gray
+        $commits = git log -50 --pretty=format:"%s" --no-merges
     }
 
-    # Fallback: try to extract specific version section
-    if ($content -match "(?s)## \[$Version\](.*?)(?=##\s|\z)") {
-        return $matches[1].Trim()
+    # Categorize by conventional commit prefix
+    $features = @()
+    $fixes = @()
+    $other = @()
+
+    foreach ($msg in $commits) {
+        if ($msg -match '^feat:\s*(.+)') {
+            $features += $matches[1].Trim()
+        } elseif ($msg -match '^fix:\s*(.+)') {
+            $fixes += $matches[1].Trim()
+        } elseif ($msg -match '^(chore|docs|refactor|style|perf|test|ci):\s*') {
+            # Skip non-user-facing commits
+        } else {
+            $other += $msg
+        }
     }
 
-    # Last resort: extract first release section
-    $lines = Get-Content $changelogPath | Select-Object -First 100
-    return ($lines -join "`n")
+    # Build markdown
+    $notes = @()
+
+    if ($features.Count -gt 0) {
+        $notes += "### New Features"
+        $notes += ""
+        foreach ($f in $features) { $notes += "- $f" }
+        $notes += ""
+    }
+
+    if ($fixes.Count -gt 0) {
+        $notes += "### Bug Fixes"
+        $notes += ""
+        foreach ($f in $fixes) { $notes += "- $f" }
+        $notes += ""
+    }
+
+    if ($other.Count -gt 0) {
+        $notes += "### Other Changes"
+        $notes += ""
+        foreach ($f in $other) { $notes += "- $f" }
+        $notes += ""
+    }
+
+    if ($notes.Count -eq 0) {
+        return "No notable changes in this release."
+    }
+
+    return ($notes -join "`n")
 }
 
 # ========================================

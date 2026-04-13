@@ -86,6 +86,12 @@ Full rules → [docs/ai-assistant/TESTING_GUIDE.md](docs/ai-assistant/TESTING_GU
 
 Manual code is ONLY for unique business logic inside a skill-generated structure.
 
+### Release/CI Skills
+
+| Task | Skill |
+|------|-------|
+| Release notes | `/release-notes [from-tag] [to-ref]` |
+
 ### Discovery Tools (mandatory first step — see Section 0)
 
 - `/doc-loader "task" scope` — routes to relevant docs by scope keyword

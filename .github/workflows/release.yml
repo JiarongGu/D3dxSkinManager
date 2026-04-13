@@ -216,37 +216,95 @@ jobs:
           Compress-Archive -Path "$releaseDir\*" -DestinationPath "release\D3dxSkinManager-v${{ steps.version.outputs.version }}-win-x64.zip" -Force
 
       # ========================================
-      # Step 11: Extract release notes from CHANGELOG
+      # Step 11: Generate release notes from git log
       # ========================================
-      - name: Extract release notes
+      - name: Generate release notes
         id: release_notes
         shell: pwsh
         run: |
-          $changelogPath = "CHANGELOG.md"  # Root changelog for user-facing releases
-          $releaseNotes = ""
+          $currentTag = "${{ steps.version.outputs.tag }}"
 
-          if (Test-Path $changelogPath) {
-            $content = Get-Content $changelogPath -Raw
-
-            # Extract Unreleased section
-            if ($content -match '(?s)## \[Unreleased\](.*?)(?=##\s|\z)') {
-              $releaseNotes = $matches[1].Trim()
-            } else {
-              # Fallback: try to extract the first release section (e.g., [1.0.0])
-              if ($content -match '(?s)## \[\d+\.\d+\.\d+\](.*?)(?=##\s|\z)') {
-                $releaseNotes = $matches[1].Trim()
-              } else {
-                # Last resort: extract first 100 lines
-                $lines = Get-Content $changelogPath | Select-Object -First 100
-                $releaseNotes = ($lines -join "`n")
-              }
+          # Find previous tag
+          $allTags = git tag --sort=-version:refname | Where-Object { $_ -match '^v\d' }
+          $previousTag = $null
+          foreach ($t in $allTags) {
+            if ($t -ne $currentTag) {
+              $previousTag = $t
+              break
             }
-          } else {
-            $releaseNotes = "No changelog available."
           }
 
-          # Save to file for GitHub release
+          # Get commits between previous tag and HEAD (or all commits if no previous tag)
+          if ($previousTag) {
+            Write-Host "Generating notes: $previousTag..$currentTag"
+            $commits = git log "$previousTag..HEAD" --pretty=format:"%s" --no-merges
+          } else {
+            Write-Host "No previous tag found — using all commits"
+            $commits = git log --pretty=format:"%s" --no-merges
+          }
+
+          # Categorize commits by conventional commit prefix
+          $features = @()
+          $fixes = @()
+          $other = @()
+
+          foreach ($msg in $commits) {
+            if ($msg -match '^feat:\s*(.+)') {
+              $features += $matches[1].Trim()
+            } elseif ($msg -match '^fix:\s*(.+)') {
+              $fixes += $matches[1].Trim()
+            } elseif ($msg -match '^(chore|docs|refactor|style|perf|test|ci):\s*') {
+              # Skip non-user-facing commits
+            } else {
+              $other += $msg
+            }
+          }
+
+          # Build release notes markdown
+          $notes = @()
+
+          if ($features.Count -gt 0) {
+            $notes += "### New Features"
+            $notes += ""
+            foreach ($f in $features) { $notes += "- $f" }
+            $notes += ""
+          }
+
+          if ($fixes.Count -gt 0) {
+            $notes += "### Bug Fixes"
+            $notes += ""
+            foreach ($f in $fixes) { $notes += "- $f" }
+            $notes += ""
+          }
+
+          if ($other.Count -gt 0) {
+            $notes += "### Other Changes"
+            $notes += ""
+            foreach ($f in $other) { $notes += "- $f" }
+            $notes += ""
+          }
+
+          if ($notes.Count -eq 0) {
+            $notes += "No notable changes in this release."
+          }
+
+          # Add install instructions
+          $notes += "---"
+          $notes += ""
+          $notes += "### Installation"
+          $notes += ""
+          $notes += "1. Download ``D3dxSkinManager-$currentTag-win-x64.zip``"
+          $notes += "2. Extract to a folder"
+          $notes += "3. Run ``D3dxSkinManager Launcher.exe``"
+          $notes += "4. The launcher will automatically install .NET 10 runtime if needed"
+          $notes += ""
+          $notes += "**Requirements**: Windows 10/11 (x64)"
+
+          $releaseNotes = $notes -join "`n"
           $releaseNotes | Out-File -FilePath "release-notes.md" -Encoding UTF8
+
+          Write-Host "Release notes generated:"
+          Write-Host $releaseNotes
 
       # ========================================
       # Step 12: Create git tag (if requested)

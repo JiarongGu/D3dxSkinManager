@@ -24,6 +24,12 @@
 | `/file-watcher` | `Name Module Path Filters Events` | FileSystemWatcher + disposal |
 | `/service-registration` | `Module Interface Impl Lifecycle` | DI registration in ServiceExtensions.cs |
 
+### Release/CI (1 skill)
+
+| Skill | Usage | What It Does |
+|-------|-------|--------------|
+| `/release-notes` | `[from-tag] [to-ref]` | Auto-generates release notes from git log |
+
 ### Discovery & Documentation (9 skills)
 
 | Skill | Usage | What It Does |

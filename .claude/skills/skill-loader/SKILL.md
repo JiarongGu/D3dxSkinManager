@@ -37,6 +37,12 @@ Reads the task description and returns ONLY the skills that match, with invocati
 | New event consolidation, event storm reduction | `/event-handler` |
 | New FileSystemWatcher, file change monitoring | `/file-watcher` |
 
+## Routing Table — Release/CI Skills
+
+| Trigger (any match = INVOKE) | Skill |
+|------------------------------|-------|
+| Release notes, changelog, release preparation | `/release-notes` |
+
 ## Routing Table — Doc/Audit Skills
 
 | Trigger | Skill |
