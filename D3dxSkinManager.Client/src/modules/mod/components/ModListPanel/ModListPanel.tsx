@@ -104,6 +104,7 @@ export const ModListPanel: React.FC = () => {
       const searchLower = searchQuery.toLowerCase();
       result = result.filter(
         (mod: ModInfo) =>
+          mod.id.toLowerCase().includes(searchLower) ||
           mod.name.toLowerCase().includes(searchLower) ||
           (mod.author && mod.author.toLowerCase().includes(searchLower)) ||
           (mod.tags &&
