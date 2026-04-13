@@ -4,12 +4,14 @@ import {
   DeleteOutlined,
   ReloadOutlined,
   FolderOutlined,
+  FolderOpenOutlined,
   FileOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../../shared/context/ProfileContext';
 import { api } from '../../../../../shared/services/ipc';
+import { systemService } from '../../../../../shared/services/ipc';
 import { handleError } from '../../../../../shared/utils/errorHandler';
 import type { OrphanCategory, OrphanScanResult, OrphanedItem } from '../../../../../shared/types/cleanup.types';
 
@@ -184,7 +186,21 @@ const CleanupItem: React.FC<{
   selected: boolean;
   onToggle: () => void;
 }> = ({ item, selected, onToggle }) => {
+  const { t } = useTranslation();
   const isDirectory = !item.name.includes('.');
+
+  const handleOpenInExplorer = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      if (isDirectory) {
+        await systemService.openDirectory(item.path);
+      } else {
+        await systemService.openFileInExplorer(item.path);
+      }
+    } catch {
+      // Silently ignore — file/folder may have been deleted
+    }
+  };
 
   return (
     <div className="file-cleanup__item" onClick={onToggle}>
@@ -199,6 +215,15 @@ const CleanupItem: React.FC<{
         <Tag>{formatBytes(item.sizeBytes)}</Tag>
       </span>
       <span className="file-cleanup__item-date">{item.lastModified}</span>
+      <Tooltip title={t('tools.fileCleanup.openInExplorer')}>
+        <Button
+          type="text"
+          size="small"
+          icon={<FolderOpenOutlined />}
+          onClick={handleOpenInExplorer}
+          className="file-cleanup__item-open"
+        />
+      </Tooltip>
     </div>
   );
 };

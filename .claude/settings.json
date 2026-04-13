@@ -22,7 +22,8 @@
       "Bash(npx tsc:*)",
       "Bash(npx vite:*)",
       "Bash(dotnet build:*)",
-      "Bash(xargs head:*)"
+      "Bash(xargs head:*)",
+      "Edit(/.claude/skills/release-notes/**)"
     ],
     "additionalDirectories": [
       ".claude",

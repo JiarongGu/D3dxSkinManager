@@ -244,3 +244,14 @@
   color: var(--color-text-tertiary);
   white-space: nowrap;
 }
+
+.file-cleanup__item-open {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+  color: var(--color-text-tertiary);
+}
+
+.file-cleanup__item:hover .file-cleanup__item-open {
+  opacity: 1;
+}
