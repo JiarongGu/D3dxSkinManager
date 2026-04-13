@@ -6,6 +6,7 @@ namespace D3dxSkinManager.Modules.Tool.Models;
 public enum OrphanCategory
 {
     Thumbnail,
+    Preview,
     TempFile,
     ModCache
 }

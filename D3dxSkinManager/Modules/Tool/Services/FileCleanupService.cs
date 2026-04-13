@@ -55,7 +55,7 @@ public class FileCleanupService : IFileCleanupService
     {
         var results = new List<OrphanScanResult>();
 
-        foreach (var category in new[] { OrphanCategory.Thumbnail, OrphanCategory.TempFile, OrphanCategory.ModCache })
+        foreach (var category in new[] { OrphanCategory.Thumbnail, OrphanCategory.Preview, OrphanCategory.TempFile, OrphanCategory.ModCache })
         {
             var result = await ScanOrphansAsync(category).ConfigureAwait(false);
             results.Add(result);
@@ -69,6 +69,7 @@ public class FileCleanupService : IFileCleanupService
         return category switch
         {
             OrphanCategory.Thumbnail => await ScanOrphanedThumbnailsAsync().ConfigureAwait(false),
+            OrphanCategory.Preview => await ScanOrphanedPreviewsAsync().ConfigureAwait(false),
             OrphanCategory.TempFile => ScanOrphanedTempFiles(),
             OrphanCategory.ModCache => await ScanOrphanedModCachesAsync().ConfigureAwait(false),
             _ => new OrphanScanResult { Category = category }
@@ -111,10 +112,14 @@ public class FileCleanupService : IFileCleanupService
             }
         }
 
-        // Clean up empty sub-directories left after file deletion (thumbnails may have sub-folders)
+        // Clean up empty sub-directories left after file deletion
         if (category == OrphanCategory.Thumbnail)
         {
             CleanEmptyDirectories(_profilePaths.ThumbnailsDirectory);
+        }
+        else if (category == OrphanCategory.Preview)
+        {
+            CleanEmptyDirectories(_profilePaths.PreviewsDirectory);
         }
 
         _logger.Info($"Cleanup complete: {result.DeletedCount} deleted, {result.FailedCount} failed, {FormatBytes(result.FreedBytes)} freed", "FileCleanupService");
@@ -122,8 +127,7 @@ public class FileCleanupService : IFileCleanupService
     }
 
     /// <summary>
-    /// Scan thumbnails directory for files not referenced by any category,
-    /// and previews directory for folders whose mod ID doesn't exist in the database.
+    /// Scan thumbnails directory for files not referenced by any category.
     /// Thumbnails are used by categories (filename is content hash, not mod ID).
     /// </summary>
     private async Task<OrphanScanResult> ScanOrphanedThumbnailsAsync()
@@ -131,57 +135,67 @@ public class FileCleanupService : IFileCleanupService
         var result = new OrphanScanResult { Category = OrphanCategory.Thumbnail };
         var thumbnailsDir = _profilePaths.ThumbnailsDirectory;
 
-        // Scan thumbnails: check against category references (not mod IDs)
-        if (Directory.Exists(thumbnailsDir))
-        {
-            var categories = await _categoryService.GetCategoryTreeAsync().ConfigureAwait(false);
-            var referencedFiles = CollectReferencedThumbnailFiles(categories);
+        if (!Directory.Exists(thumbnailsDir))
+            return result;
 
-            var files = Directory.GetFiles(thumbnailsDir, "*", SearchOption.AllDirectories);
-            foreach (var file in files)
+        var categories = await _categoryService.GetCategoryTreeAsync().ConfigureAwait(false);
+        var referencedFiles = CollectReferencedThumbnailFiles(categories);
+
+        var files = Directory.GetFiles(thumbnailsDir, "*", SearchOption.AllDirectories);
+        foreach (var file in files)
+        {
+            var fileName = Path.GetFileName(file);
+            if (!referencedFiles.Contains(fileName))
             {
-                var fileName = Path.GetFileName(file);
-                if (!referencedFiles.Contains(fileName))
+                var info = new FileInfo(file);
+                result.Items.Add(new OrphanedItem
                 {
-                    var info = new FileInfo(file);
-                    result.Items.Add(new OrphanedItem
-                    {
-                        Path = file,
-                        Name = fileName,
-                        SizeBytes = info.Length,
-                        LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                        Category = OrphanCategory.Thumbnail
-                    });
-                }
+                    Path = file,
+                    Name = fileName,
+                    SizeBytes = info.Length,
+                    LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Category = OrphanCategory.Thumbnail
+                });
             }
         }
 
-        // Scan previews: check against mod IDs (previews are per-mod)
+        _logger.Info($"Found {result.TotalCount} orphaned thumbnail items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
+        return result;
+    }
+
+    /// <summary>
+    /// Scan previews directory for folders whose mod ID doesn't exist in the database.
+    /// Preview folders are named by mod ID.
+    /// </summary>
+    private async Task<OrphanScanResult> ScanOrphanedPreviewsAsync()
+    {
+        var result = new OrphanScanResult { Category = OrphanCategory.Preview };
         var previewsDir = _profilePaths.PreviewsDirectory;
-        if (Directory.Exists(previewsDir))
-        {
-            var entities = await _repository.GetAllAsync().ConfigureAwait(false);
-            var knownModIds = entities.Select(e => e.Id).ToHashSet();
 
-            var previewDirs = Directory.GetDirectories(previewsDir);
-            foreach (var dir in previewDirs)
+        if (!Directory.Exists(previewsDir))
+            return result;
+
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+        var knownModIds = entities.Select(e => e.Id).ToHashSet();
+
+        var previewDirs = Directory.GetDirectories(previewsDir);
+        foreach (var dir in previewDirs)
+        {
+            var dirName = Path.GetFileName(dir);
+            if (!knownModIds.Contains(dirName))
             {
-                var dirName = Path.GetFileName(dir);
-                if (!knownModIds.Contains(dirName))
+                result.Items.Add(new OrphanedItem
                 {
-                    result.Items.Add(new OrphanedItem
-                    {
-                        Path = dir,
-                        Name = dirName,
-                        SizeBytes = FileUtilities.GetDirectorySize(dir),
-                        LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
-                        Category = OrphanCategory.Thumbnail
-                    });
-                }
+                    Path = dir,
+                    Name = dirName,
+                    SizeBytes = FileUtilities.GetDirectorySize(dir),
+                    LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
+                    Category = OrphanCategory.Preview
+                });
             }
         }
 
-        _logger.Info($"Found {result.TotalCount} orphaned thumbnail/preview items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
+        _logger.Info($"Found {result.TotalCount} orphaned preview items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
         return result;
     }
 

@@ -83,6 +83,25 @@ const FileCleanupToolInner: React.FC = () => {
       ),
     },
     {
+      key: 'previews',
+      label: (
+        <TabLabel
+          text={t('tools.fileCleanup.tabs.previews')}
+          count={getResultForCategory('preview')?.totalCount}
+        />
+      ),
+      children: (
+        <CleanupTab
+          category="preview"
+          scanResult={getResultForCategory('preview')}
+          scanning={scanning}
+          onCleaned={handleCleaned}
+          emptyMessage={t('tools.fileCleanup.noOrphanedPreviews')}
+          description={t('tools.fileCleanup.previewsDescription')}
+        />
+      ),
+    },
+    {
       key: 'temp',
       label: (
         <TabLabel
