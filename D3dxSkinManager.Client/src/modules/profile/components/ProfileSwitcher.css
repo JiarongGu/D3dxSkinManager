@@ -52,7 +52,7 @@
 /* Profile Name */
 .profile-switcher-name {
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -60,14 +60,14 @@
 
 .profile-switcher-placeholder {
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
 /* Mod Count Badge */
 .profile-switcher-badge {
   background-color: #52c41a;
-  font-size: 10px;
+  font-size: 12px;
   height: 18px;
   line-height: 18px;
   padding: 0 6px;

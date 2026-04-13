@@ -398,10 +398,10 @@ Selector files removed - use store hooks directly:
 
 ### Mods Module
 
-- **ModsView** → `src/modules/mods/components/ModsView.tsx`
+- **ModsView** → `src/modules/mod/components/ModsView.tsx`
   - Main mods management view
 
-- **ModHierarchicalView** → `src/modules/mods/components/ModHierarchicalView.tsx`
+- **ModHierarchicalView** → `src/modules/mod/components/ModHierarchicalView.tsx`
   - Three-panel hierarchical layout (Classification → Mod List → Preview)
   - Main orchestrator component with state management and business logic
   - Integrates: ClassificationPanel, ModListPanel, ModPreviewPanel
@@ -412,7 +412,7 @@ Selector files removed - use store hooks directly:
 #### Panel Components (3-Panel Architecture)
 
 > **Architecture:** ModHierarchicalView uses 3 independent panel folders for better organization
-> **Location:** `src/modules/mods/components/[PanelName]/`
+> **Location:** `src/modules/mod/components/[PanelName]/`
 
 - **CategoryPanel** → `src/modules/mod/components/CategoryPanel/`
   - Left panel for category tree/grid and unclassified mods
@@ -490,7 +490,7 @@ Selector files removed - use store hooks directly:
   - Displays filtered mods based on category/object selection
   - Refactored: 2026-02-20 - Extracted into panel folder
 
-- **ModPreviewPanel** → `src/modules/mods/components/ModPreviewPanel/`
+- **ModPreviewPanel** → `src/modules/mod/components/ModPreviewPanel/`
   - Right panel for selected mod preview
   - **ModPreviewPanel.tsx** - Main panel with mod details
   - **ModPreviewContext.tsx** - Preview state management
@@ -502,7 +502,7 @@ Selector files removed - use store hooks directly:
 
 #### Supporting Components
 
-- **ModActionButtons** → `src/modules/mods/components/ModActionButtons.tsx`
+- **ModActionButtons** → `src/modules/mod/components/ModActionButtons.tsx`
   - Load/Unload/Delete action buttons
   - Props: mod, onLoad, onUnload, onDelete
   - Used by ModList component
@@ -628,7 +628,7 @@ Selector files removed - use store hooks directly:
 
 ### Mod Dialogs
 
-- **ModEditDialog** → `src/modules/mods/components/ModEditDialog/`
+- **ModEditDialog** → `src/modules/mod/components/ModEditDialog/`
   - Single mod editing dialog with modular section components
   - Main file: `index.tsx` (orchestrator)
   - **BasicInfoSection** → `BasicInfoSection.tsx` - Name and description fields
@@ -643,7 +643,7 @@ Selector files removed - use store hooks directly:
   - Moved to mods module: 2026-02-18
   - Refactored into smaller components: 2026-02-18
 
-- **ModTagSelectorDialog** → `src/modules/mods/components/ModEditDialog/ModTagSelectorDialog.tsx`
+- **ModTagSelectorDialog** → `src/modules/mod/components/ModEditDialog/ModTagSelectorDialog.tsx`
   - Tag selector dialog for mod editing workflow
   - Used by ModEditDialog's TagsSection and BatchEditDialog
   - Props: visible, availableTags, selectedTags, onConfirm, onCancel
@@ -652,7 +652,7 @@ Selector files removed - use store hooks directly:
   - Created: 2026-02-18
   - Renamed from TagSelectorDialog and moved to ModEditDialog folder: 2026-02-18
 
-- **BatchEditDialog** → `src/modules/mods/components/BatchEditDialog/`
+- **BatchEditDialog** → `src/modules/mod/components/BatchEditDialog/`
   - Batch editing dialog for multiple mods
   - Main file: `index.tsx`
   - **FieldRow** → `FieldRow.tsx` - Reusable checkbox + field row component
@@ -666,7 +666,7 @@ Selector files removed - use store hooks directly:
 
 ### Import Dialogs
 
-- **ImportTagSelectorDialog** → `src/modules/mods/components/import/ImportTagSelectorDialog.tsx`
+- **ImportTagSelectorDialog** → `src/modules/mod/components/import/ImportTagSelectorDialog.tsx`
   - Tag selector dialog for import workflow
   - Used by import workflow (AddModUnit, BatchEditUnit)
   - Props: visible, availableTags, selectedTags, onConfirm, onCancel

@@ -20,19 +20,19 @@
 }
 
 .migration-step-container .ant-form-item-label > label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .migration-step-container .ant-input,
 .migration-step-container .ant-select-selector {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* Compact checkbox and radio groups */
 .migration-step-container .ant-checkbox-wrapper,
 .migration-step-container .ant-radio-wrapper {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* Compact radio group - horizontal layout */

@@ -40,7 +40,7 @@
 }
 
 .mod-preview-category {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .mod-preview-category-icon {
@@ -194,11 +194,11 @@
 }
 
 .mod-preview-info-value {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .mod-preview-description {
-  font-size: 13px;
+  font-size: 12px;
   margin-bottom: 0;
   color: var(--color-text);
 }
@@ -215,13 +215,13 @@
 }
 
 .mod-preview-id-label {
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .mod-preview-id-value {
   flex: 1;
-  font-size: 11px;
+  font-size: 12px;
   font-family: monospace;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -266,7 +266,7 @@
 
 /* Mod Tags */
 .mod-preview-mod-tag {
-  font-size: 11px;
+  font-size: 12px;
   margin: 0;
 }
 

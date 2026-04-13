@@ -1,7 +1,7 @@
 /* CompactSelect - Consistent select sizing and styling */
 
 .compact-select-small .ant-select-selector {
-  font-size: 13px !important;
+  font-size: 12px !important;
   height: 24px !important;
   min-height: 24px !important;
 }
@@ -23,7 +23,7 @@
 }
 
 .compact-select-large .ant-select-selector {
-  font-size: 15px !important;
+  font-size: 14px !important;
   height: 40px !important;
   min-height: 40px !important;
 }

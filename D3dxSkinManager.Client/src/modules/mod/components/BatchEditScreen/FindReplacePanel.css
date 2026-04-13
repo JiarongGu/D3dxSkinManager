@@ -47,13 +47,13 @@
 
 .find-replace-input {
   flex: 1;
-  font-size: 13px;
+  font-size: 12px;
   min-height: 26px;
   background: var(--color-bg-container) !important;
 }
 
 .find-replace-input input {
-  font-size: 13px !important;
+  font-size: 12px !important;
   line-height: 26px;
   background: transparent !important;
   border: none !important;
@@ -139,7 +139,7 @@
 }
 
 .find-replace-column-select .ant-select-arrow {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .find-replace-button {
@@ -171,13 +171,13 @@
 }
 
 .find-replace-error {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-error);
   padding: 0 6px 2px 6px;
 }
 
 .find-replace-hint {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-text-secondary);
   padding: 0 6px 2px 6px;
   line-height: 1.3;
@@ -187,5 +187,5 @@
   background: var(--color-fill-quaternary);
   padding: 1px 3px;
   font-family: monospace;
-  font-size: 10px;
+  font-size: 12px;
 }

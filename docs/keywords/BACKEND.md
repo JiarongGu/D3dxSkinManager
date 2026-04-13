@@ -252,7 +252,7 @@ public class SomeService {
 
 #### Facade
 
-- **ModFacade** → `Modules/Mods/ModFacade.cs:14`
+- **ModFacade** → `Modules/Mod/ModFacade.cs:14`
   - Constructor (DI) → `:69-88`
   - RouteMessageAsync → `:93-124` (IPC message routing)
   - GetAllModsAsync → `:128-132`
@@ -399,7 +399,7 @@ public class SomeService {
   - Created: 2026-03-05
   - Moved: 2026-03-06 (from Mod module to Core module - reusable infrastructure)
 
-- **ModRepository** → `Modules/Mods/Services/ModRepository.cs:32`
+- **ModRepository** → `Modules/Mod/Services/ModRepository.cs:32`
   - Constructor → `:37-42`
   - InitializeDatabaseAsync → `:45-80`
   - GetAllAsync → `:83-105`
@@ -415,7 +415,7 @@ public class SomeService {
   - GetAllTagsAsync → `:312-329`
   - SetLoadedStateAsync → `:332-347`
 
-- **ClassificationService** → `Modules/Mods/Services/ClassificationService.cs:22`
+- **ClassificationService** → `Modules/Mod/Services/ClassificationService.cs:22`
   - ClassifyModAsync → `:29-65`
   - LoadRulesAsync → `:68-90`
   - GetRules → `:93`
@@ -430,12 +430,12 @@ public class SomeService {
   - CleanupThumbnailIfUnusedAsync - deletes unused thumbnails with file lock detection
   - Updated: 2026-02-21 (thumbnail management, validation, file lock detection)
 
-- **ClassificationRepository** → `Modules/Mods/Services/ClassificationRepository.cs`
+- **ClassificationRepository** → `Modules/Mod/Services/ClassificationRepository.cs`
   - Database access for classifications
 
 #### Models
 
-- **ModInfo** → `Modules/Mods/Models/ModInfo.cs:5`
+- **ModInfo** → `Modules/Mod/Models/ModInfo.cs:5`
   - Properties: Id, ObjectName, Name, Author, Description, Type, Grading, Tags, IsLoaded, IsAvailable, ThumbnailPath, OriginalPath, WorkPath, CachePath, Category
 
 ---
@@ -646,28 +646,28 @@ public class SomeService {
 
 #### Facade
 
-- **ProfileFacade** → `Modules/Profiles/ProfileFacade.cs`
+- **ProfileFacade** → `Modules/Profile/ProfileFacade.cs`
   - IPC entry point for profile operations
 
 #### Services
 
-- **ProfileService** → `Modules/Profiles/Services/ProfileService.cs`
+- **ProfileService** → `Modules/Profile/Services/ProfileService.cs`
   - Profile CRUD operations
   - Profile switching and management
 
-- **ProfilePathService** → `Modules/Profiles/Services/ProfilePathService.cs`
+- **ProfilePathService** → `Modules/Profile/Services/ProfilePathService.cs`
   - Profile-specific path resolution
   - Per-profile data directory management
 
-- **ProfileServiceProvider** → `Modules/Profiles/Services/ProfileServiceProvider.cs`
+- **ProfileServiceProvider** → `Modules/Profile/Services/ProfileServiceProvider.cs`
   - Service provider for profile-scoped services
 
-- **ProfileServerService** → `Modules/Profiles/ProfileServerService.cs`
+- **ProfileServerService** → `Modules/Profile/ProfileServerService.cs`
   - Profile server coordination
 
 #### Models
 
-- **Profile** → `Modules/Profiles/Models/Profile.cs`
+- **Profile** → `Modules/Profile/Models/Profile.cs`
   - Profile data model
 
 ---
@@ -746,18 +746,18 @@ Located in `Plugins/` directory (external to backend):
 
 #### Facade
 
-- **ToolsFacade** → `Modules/Tools/ToolsFacade.cs`
+- **ToolFacade** → `Modules/Tool/ToolFacade.cs`
   - IPC entry point for utility operations
 
 #### Services
 
-- **ConfigurationService** → `Modules/Tools/Services/ConfigurationService.cs`
+- **ConfigurationService** → `Modules/Tool/Services/ConfigurationService.cs`
   - Configuration management utilities
 
-- **ModAutoDetectionService** → `Modules/Tools/Services/ModAutoDetectionService.cs`
+- **ModAutoDetectionService** → `Modules/Tool/Services/ModAutoDetectionService.cs`
   - Automatic mod detection
 
-- **StartupValidationService** → `Modules/Tools/Services/StartupValidationService.cs`
+- **StartupValidationService** → `Modules/Tool/Services/StartupValidationService.cs`
   - Application startup validation
 
 - **ModPackageService** → `Modules/Tool/ModPackage/Services/ModPackageService.cs` (NEW)
@@ -840,8 +840,8 @@ Located in `Plugins/` directory (external to backend):
 
 ## Database
 
-- **SQLite Connection** → `Modules/Mods/Services/ModRepository.cs:37`
-- **Mods Table Schema** → `Modules/Mods/Services/ModRepository.cs:49-78`
+- **SQLite Connection** → `Modules/Mod/Services/ModRepository.cs:37`
+- **Mods Table Schema** → `Modules/Mod/Services/ModRepository.cs:49-78`
 
 ---
 

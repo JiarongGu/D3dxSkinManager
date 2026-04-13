@@ -2,7 +2,7 @@
 
 .compact-input-small,
 .compact-textarea-small {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .compact-input-medium,
@@ -12,7 +12,7 @@
 
 .compact-input-large,
 .compact-textarea-large {
-  font-size: 15px;
+  font-size: 14px;
 }
 
 /* Ensure consistent heights */
@@ -39,7 +39,7 @@
 
 .compact-textarea-small.ant-input {
   padding: 2px 8px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .compact-textarea-medium.ant-input {
@@ -49,5 +49,5 @@
 
 .compact-textarea-large.ant-input {
   padding: 6px 11px;
-  font-size: 15px;
+  font-size: 14px;
 }

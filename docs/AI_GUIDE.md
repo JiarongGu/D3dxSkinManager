@@ -1,6 +1,6 @@
 # AI Assistant Guide
 
-**Version:** 7.0
+**Version:** 7.1
 **Last Updated:** 2026-04-13
 
 > Mandatory rules are in CLAUDE.md (auto-loaded). This file contains only unique reference content: the skills table, architecture quick-patterns, and documentation map.
@@ -30,12 +30,14 @@
 |-------|-------|--------------|
 | `/release-notes` | `[from-tag] [to-ref]` | Auto-generates release notes from git log |
 
-### Discovery & Documentation (9 skills)
+### Discovery & Documentation (11 skills)
 
 | Skill | Usage | What It Does |
 |-------|-------|--------------|
+| `/skill-loader` | `"task description"` | Routes to relevant code-gen skills |
 | `/doc-loader` | `"task" scope` | Routes to relevant docs by scope |
 | `/pattern-finder` | `PatternType Module?` | Gives Glob/Grep commands for pattern |
+| `/caveman` | `[lite\|full\|ultra]` | Token-optimized terse communication |
 | `/post-feature` | (no args) | Audits git diff, suggests doc updates |
 | `/doc-update-guide` | `ChangeType Details` | Updates this file with versioning |
 | `/doc-update-reference` | `EntryType Details` | Updates KEYWORDS_INDEX.md |

@@ -35,12 +35,12 @@
 /* Compact mode */
 .data-table-compact .ant-table-thead > tr > th {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .data-table-compact .ant-table-tbody > tr > td {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* No hover effect */
@@ -91,7 +91,7 @@
   .data-table .ant-table-thead > tr > th,
   .data-table .ant-table-tbody > tr > td {
     padding: 8px 12px;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .data-table-compact .ant-table-thead > tr > th,
