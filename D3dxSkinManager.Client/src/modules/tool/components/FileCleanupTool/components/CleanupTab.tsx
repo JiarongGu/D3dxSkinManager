@@ -13,6 +13,7 @@ import { useProfile } from '../../../../../shared/context/ProfileContext';
 import { api } from '../../../../../shared/services/ipc';
 import { systemService } from '../../../../../shared/services/ipc';
 import { handleError } from '../../../../../shared/utils/errorHandler';
+import { formatBytes } from '../../../../../shared/utils/formatBytes';
 import type { OrphanCategory, OrphanScanResult, OrphanedItem } from '../../../../../shared/types/cleanup.types';
 
 interface CleanupTabProps {
@@ -228,9 +229,3 @@ const CleanupItem: React.FC<{
   );
 };
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}

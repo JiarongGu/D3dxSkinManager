@@ -4,7 +4,6 @@ import {
   SearchOutlined,
   CloseCircleOutlined,
   WarningOutlined,
-  InfoCircleOutlined,
   CopyOutlined,
   BgColorsOutlined,
   ThunderboltOutlined,
@@ -16,13 +15,14 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactInput } from '../../../../../shared/components/compact';
+import { HealthStatusIcon } from '../../../../../shared/components/common/HealthStatusIcon';
 import { notification } from '../../../../../shared/utils/notification';
+import { formatBytes } from '../../../../../shared/utils/formatBytes';
 import type {
   FullAnalysisReport,
   ModAnalysisResult,
   DuplicateGroup,
   ModConflict,
-  HealthIssueSeverity,
 } from '../../../../../shared/types/analysis.types';
 
 interface FindingsViewProps {
@@ -231,24 +231,25 @@ const CopyIdButton: React.FC<{ modId: string }> = ({ modId }) => {
 
 const ModRow: React.FC<{ mod: ModAnalysisResult }> = ({ mod }) => {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <div className="mod-analyzer__mod-row">
       <div className="mod-analyzer__mod-row-main" onClick={() => mod.issues.length > 0 && setExpanded(!expanded)}>
-        <StatusIcon status={mod.healthStatus} />
+        <HealthStatusIcon status={mod.healthStatus} />
         <span className="mod-analyzer__mod-row-name">{mod.modName}</span>
         <Tag>{mod.categoryName || 'Unclassified'}</Tag>
-        {mod.isLoaded && <Tag color="green">Loaded</Tag>}
+        {mod.isLoaded && <Tag color="green">{t('tools.modAnalyzer.loaded')}</Tag>}
         {mod.pluginDependencies.length > 0 && <Tag color="purple">{mod.pluginDependencies.join(', ')}</Tag>}
         {mod.issues.length > 0 && <Tag color="error">{mod.issues.length}</Tag>}
-        <span className="mod-analyzer__mod-row-meta">{mod.textureOverrideCount} overrides</span>
+        <span className="mod-analyzer__mod-row-meta">{mod.textureOverrideCount} {t('tools.modAnalyzer.overrides')}</span>
         <CopyIdButton modId={mod.modId} />
       </div>
       {expanded && mod.issues.length > 0 && (
         <div className="mod-analyzer__mod-row-issues">
           {mod.issues.map((issue, idx) => (
             <div key={idx} className="mod-analyzer__issue-row">
-              <SeverityIcon severity={issue.severity} />
+              <HealthStatusIcon status={issue.severity} />
               <span>{issue.message}</span>
               {issue.filePath && (
                 <Tooltip title={issue.filePath}>
@@ -350,22 +351,4 @@ const ConflictRow: React.FC<{ conflict: ModConflict }> = ({ conflict }) => {
   );
 };
 
-const StatusIcon: React.FC<{ status: string }> = ({ status }) => {
-  if (status === 'error') return <CloseCircleOutlined style={{ color: 'var(--color-error)' }} />;
-  if (status === 'warning') return <WarningOutlined style={{ color: 'var(--color-warning)' }} />;
-  return <CheckCircleOutlined style={{ color: 'var(--color-success)' }} />;
-};
 
-const SeverityIcon: React.FC<{ severity: HealthIssueSeverity }> = ({ severity }) => {
-  if (severity === 'error') return <CloseCircleOutlined style={{ color: 'var(--color-error)' }} />;
-  if (severity === 'warning') return <WarningOutlined style={{ color: 'var(--color-warning)' }} />;
-  return <InfoCircleOutlined style={{ color: 'var(--color-primary)' }} />;
-};
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}

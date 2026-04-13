@@ -271,6 +271,11 @@ Selector files removed - use store hooks directly:
   - Load status indicator (loaded/unloaded)
   - Props: isLoaded
 
+- **HealthStatusIcon** → `src/shared/components/common/HealthStatusIcon.tsx`
+  - Health/severity status icon (error=red, warning=orange, info=blue, healthy=green)
+  - Props: `status` (string), `size?` (number, default 12)
+  - Used in: ModAnalyzerTool (ScanView feed, FindingsView mod rows + issue rows)
+
 - **ModThumbnail** → `src/components/common/ModThumbnail.tsx:8`
   - Thumbnail image with fallback icon
   - Props: thumbnailPath, alt
@@ -948,6 +953,11 @@ Selector files removed - use store hooks directly:
   - isErrorCode(error, errorCode) → Check if error matches specific code
   - ERROR_MESSAGES mapping for all error codes
   - Created: 2026-02-21
+
+- **formatBytes** → `src/shared/utils/formatBytes.ts`
+  - formatBytes(bytes) → Human-readable byte string (e.g. "1.5 MB")
+  - Shared utility — replaces duplicated formatBytes in FindingsView, CleanupTab, ExportTab, ProgressStep
+  - Created: 2026-04-13
 
 - **imageUrlHelper** → `src/shared/utils/imageUrlHelper.ts`
   - toAppUrl(path) → Converts file paths to `app://` scheme URLs for custom scheme handler

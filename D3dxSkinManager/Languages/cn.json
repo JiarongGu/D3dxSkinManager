@@ -624,6 +624,7 @@
     "tools.modAnalyzer.textureVariant": "贴图变体",
     "tools.modAnalyzer.scanFeedWaiting": "分析过程中发现的问题将显示在此处...",
     "tools.modAnalyzer.loadedMods": "个已加载模组",
+    "tools.modAnalyzer.loaded": "已加载",
     "tools.modAnalyzer.conflicts": "个冲突",
     "tools.modAnalyzer.affectedMods": "个受影响模组",
     "tools.modAnalyzer.filterAll": "全部",

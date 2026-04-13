@@ -23,7 +23,10 @@
       "Bash(npx vite:*)",
       "Bash(dotnet build:*)",
       "Bash(xargs head:*)",
-      "Edit(/.claude/skills/release-notes/**)"
+      "Edit(/.claude/skills/release-notes/**)",
+      "Bash(npx react-scripts:*)",
+      "Bash(dotnet test:*)",
+      "Bash(npm ls:*)"
     ],
     "additionalDirectories": [
       ".claude",

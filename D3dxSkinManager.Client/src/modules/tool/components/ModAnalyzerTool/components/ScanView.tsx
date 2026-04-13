@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { CompactButton } from '../../../../../shared/components/compact';
 import { CategorySelect } from '../../../../../shared/components/CategorySelect';
+import { HealthStatusIcon } from '../../../../../shared/components/common/HealthStatusIcon';
 import type { AnalysisProgress } from '../../../../../shared/types/analysis.types';
 import type { CategoryInfo } from '../../../../../shared/types/category.types';
 
@@ -188,7 +189,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
         ) : (
           feed.map((entry, i) => (
             <div key={i} className="mod-analyzer__scan-feed-item">
-              <FeedIcon status={entry.status} />
+              <HealthStatusIcon status={entry.status} />
               <span className="mod-analyzer__scan-feed-name">{entry.name}</span>
             </div>
           ))
@@ -206,12 +207,6 @@ const StatPill: React.FC<{ icon: React.ReactNode; color: string; value: number; 
     <span className="mod-analyzer__stat-pill-label">{label}</span>
   </div>
 );
-
-const FeedIcon: React.FC<{ status: string }> = ({ status }) => {
-  if (status === 'error') return <CloseCircleOutlined style={{ color: 'var(--color-error)', fontSize: 12 }} />;
-  if (status === 'warning') return <WarningOutlined style={{ color: 'var(--color-warning)', fontSize: 12 }} />;
-  return <CheckCircleOutlined style={{ color: 'var(--color-success)', fontSize: 12 }} />;
-};
 
 const FeatureTag: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
   <span className="mod-analyzer__feature-tag">
