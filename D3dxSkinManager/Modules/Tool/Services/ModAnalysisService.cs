@@ -6,13 +6,14 @@ using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Category.Services;
+using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 
 namespace D3dxSkinManager.Modules.Tool.Services;
 
-public interface IModAnalysisService
+public interface IModAnalysisService : IDisposable
 {
     bool IsPaused { get; }
     Task<FullAnalysisReport> StartAnalysisAsync(string? categoryId = null);
@@ -24,6 +25,7 @@ public interface IModAnalysisService
     Task<List<AnalysisSessionSummary>> GetSessionHistoryAsync();
     Task DeleteSessionAsync(string sessionId);
     Task ClearAllSessionsAsync();
+    Task RemoveModFromAnalysisAsync(string modId);
 }
 
 public class ModAnalysisService : IModAnalysisService
@@ -36,6 +38,7 @@ public class ModAnalysisService : IModAnalysisService
     private readonly ICategoryService _categoryService;
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
+    private readonly string? _modDeletedHandlerId;
 
     private volatile bool _pauseRequested;
     private volatile bool _cancelRequested;
@@ -76,6 +79,45 @@ public class ModAnalysisService : IModAnalysisService
         _categoryService = categoryService;
         _eventBus = eventBus;
         _logger = logger;
+
+        // Subscribe to mod deletion events to keep analysis findings in sync
+        _modDeletedHandlerId = _eventBus.Subscribe(
+            ModuleNames.MOD,
+            ModEvents.DELETED,
+            async (msg) =>
+            {
+                try
+                {
+                    var modId = ExtractModId(msg.Payload);
+                    if (!string.IsNullOrEmpty(modId))
+                        await RemoveModFromAnalysisAsync(modId).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"[ModAnalysis] Failed to clean up findings for deleted mod: {ex.Message}");
+                }
+            }
+        );
+    }
+
+    public void Dispose()
+    {
+        if (_modDeletedHandlerId != null)
+            _eventBus.Unsubscribe(_modDeletedHandlerId);
+    }
+
+    private static string? ExtractModId(object? payload)
+    {
+        if (payload == null) return null;
+        // Payload is anonymous type { Id = "..." } serialized as JsonElement or dynamic
+        if (payload is JsonElement je)
+        {
+            if (je.TryGetProperty("Id", out var idProp) || je.TryGetProperty("id", out idProp))
+                return idProp.GetString();
+        }
+        // Try via reflection for anonymous types
+        var idProperty = payload.GetType().GetProperty("Id") ?? payload.GetType().GetProperty("id");
+        return idProperty?.GetValue(payload)?.ToString();
     }
 
     public void PauseAnalysis()
@@ -431,7 +473,7 @@ public class ModAnalysisService : IModAnalysisService
                 var iniDir = Path.GetDirectoryName(iniFile)!;
                 foreach (var refFile in structure.BufferFiles.Concat(structure.TextureFiles))
                 {
-                    if (!File.Exists(Path.Combine(iniDir, refFile)) && !File.Exists(Path.Combine(modDir, refFile)))
+                    if (!FileExistsInTree(modDir, iniDir, refFile))
                         issues.Add(new ModHealthIssue { Type = HealthIssueType.MissingResource, Severity = HealthIssueSeverity.Warning, Message = $"Missing: {refFile}" });
                 }
             }
@@ -454,12 +496,17 @@ public class ModAnalysisService : IModAnalysisService
 
         string healthStatus = issues.Any(i => i.Severity == HealthIssueSeverity.Error) ? "error" : issues.Any(i => i.Severity == HealthIssueSeverity.Warning) ? "warning" : "healthy";
 
+        var bufferFileHashes = await ComputePerFileHashesAsync(bufferFiles).ConfigureAwait(false);
+        var textureFileHashes = await ComputePerFileHashesAsync(textureFiles).ConfigureAwait(false);
+
         return new AnalysisFindingEntity
         {
             SessionId = sessionId, ModId = modId,
             TargetHashes = JsonSerializer.Serialize(allTargetHashes.ToList()),
             BufferHash = await ComputeCombinedHashAsync(bufferFiles).ConfigureAwait(false),
             TextureHash = await ComputeCombinedHashAsync(textureFiles).ConfigureAwait(false),
+            BufferFileHashes = JsonSerializer.Serialize(bufferFileHashes),
+            TextureFileHashes = JsonSerializer.Serialize(textureFileHashes),
             HealthStatus = healthStatus,
             HealthIssues = JsonSerializer.Serialize(issues),
             PluginDependencies = JsonSerializer.Serialize(allPluginRefs.ToList()),
@@ -515,6 +562,8 @@ public class ModAnalysisService : IModAnalysisService
                 IniFileCount = f.IniFileCount, ResourceFileCount = f.ResourceFileCount,
                 TextureOverrideCount = f.TextureOverrideCount,
                 TargetHashes = targetHashes, BufferHash = f.BufferHash, TextureHash = f.TextureHash,
+                BufferFileHashes = DeserializeList(f.BufferFileHashes),
+                TextureFileHashes = DeserializeList(f.TextureFileHashes),
                 BufferSizeBytes = f.BufferSizeBytes, TextureSizeBytes = f.TextureSizeBytes,
                 PluginDependencies = DeserializeList(f.PluginDependencies), PreviewPath = previewPath
             });
@@ -544,32 +593,106 @@ public class ModAnalysisService : IModAnalysisService
 
     private static void GroupDuplicates(List<ModAnalysisResult> results, FullAnalysisReport report)
     {
-        var bufferGroups = results.Where(r => !string.IsNullOrEmpty(r.BufferHash)).GroupBy(r => r.BufferHash).Where(g => g.Select(m => m.ModId).Distinct().Count() > 1);
-        foreach (var group in bufferGroups)
+        // Phase 1: Exact buffer hash match (fast path — catches identical buffer sets)
+        var exactGroups = results.Where(r => !string.IsNullOrEmpty(r.BufferHash))
+            .GroupBy(r => r.BufferHash)
+            .Where(g => g.Select(m => m.ModId).Distinct().Count() > 1);
+
+        var groupedModIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in exactGroups)
         {
             var mods = group.GroupBy(m => m.ModId).Select(g => g.First()).ToList();
-            var textureGroups = mods.GroupBy(m => m.TextureHash).ToList();
-            var type = textureGroups.Count == 1 ? DuplicateType.Identical : DuplicateType.TextureVariant;
+            AddDuplicateGroup(mods, report);
+            foreach (var m in mods) groupedModIds.Add(m.ModId);
+        }
 
-            // Check if all mods target the exact same TextureOverride hashes
-            var allHashesMatch = false;
-            if (type == DuplicateType.Identical && mods.Count > 1)
+        // Phase 2: Per-file hash overlap (catches merged mods — one contains another's buffers)
+        var ungroupedWithHashes = results
+            .Where(r => !groupedModIds.Contains(r.ModId) && r.BufferFileHashes.Count > 0)
+            .GroupBy(r => r.ModId).Select(g => g.First()).ToList();
+
+        // Build inverted index: file hash → mod IDs
+        var fileHashToMods = new Dictionary<string, List<ModAnalysisResult>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var mod in ungroupedWithHashes)
+            foreach (var fh in mod.BufferFileHashes)
             {
-                var firstHashes = string.Join(",", mods[0].TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase));
-                allHashesMatch = mods.Skip(1).All(m =>
-                    string.Join(",", m.TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase)) == firstHashes);
+                if (!fileHashToMods.TryGetValue(fh, out var list)) { list = []; fileHashToMods[fh] = list; }
+                list.Add(mod);
             }
 
-            report.DuplicateGroups.Add(new DuplicateGroup
+        // Find mod pairs with significant buffer file overlap
+        var overlapGroups = new List<HashSet<string>>();
+        var checkedPairs = new HashSet<string>();
+
+        foreach (var mod in ungroupedWithHashes)
+        {
+            if (groupedModIds.Contains(mod.ModId)) continue;
+            var modHashSet = new HashSet<string>(mod.BufferFileHashes, StringComparer.OrdinalIgnoreCase);
+
+            // Find candidate mods that share at least one buffer file hash
+            var candidates = mod.BufferFileHashes
+                .Where(fileHashToMods.ContainsKey)
+                .SelectMany(fh => fileHashToMods[fh])
+                .Where(c => c.ModId != mod.ModId && !groupedModIds.Contains(c.ModId))
+                .GroupBy(c => c.ModId).Select(g => g.First());
+
+            foreach (var candidate in candidates)
             {
-                Type = type,
-                GroupLabel = mods.First().CategoryName,
-                SharedHashes = mods.First().TargetHashes,
-                Mods = mods,
-                AllHashesMatch = allHashesMatch
-            });
-            if (type == DuplicateType.Identical) report.IdenticalCount++; else report.TextureVariantCount++;
+                var pairKey = string.Compare(mod.ModId, candidate.ModId, StringComparison.OrdinalIgnoreCase) < 0
+                    ? $"{mod.ModId}|{candidate.ModId}" : $"{candidate.ModId}|{mod.ModId}";
+                if (!checkedPairs.Add(pairKey)) continue;
+
+                var candidateHashSet = new HashSet<string>(candidate.BufferFileHashes, StringComparer.OrdinalIgnoreCase);
+                int sharedCount = modHashSet.Count(h => candidateHashSet.Contains(h));
+                int smallerSet = Math.Min(modHashSet.Count, candidateHashSet.Count);
+
+                // One mod's buffer files are a subset of the other (or ≥80% overlap with smaller set)
+                if (smallerSet > 0 && (double)sharedCount / smallerSet >= 0.8)
+                {
+                    // Merge into existing overlap group or create new one
+                    var existingGroup = overlapGroups.FirstOrDefault(g => g.Contains(mod.ModId) || g.Contains(candidate.ModId));
+                    if (existingGroup != null) { existingGroup.Add(mod.ModId); existingGroup.Add(candidate.ModId); }
+                    else overlapGroups.Add(new HashSet<string>(StringComparer.OrdinalIgnoreCase) { mod.ModId, candidate.ModId });
+                }
+            }
         }
+
+        // Convert overlap groups to DuplicateGroups
+        var resultLookup = results.GroupBy(r => r.ModId).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        foreach (var group in overlapGroups)
+        {
+            var mods = group.Where(resultLookup.ContainsKey).Select(id => resultLookup[id]).ToList();
+            if (mods.Count > 1)
+            {
+                AddDuplicateGroup(mods, report);
+                foreach (var m in mods) groupedModIds.Add(m.ModId);
+            }
+        }
+    }
+
+    private static void AddDuplicateGroup(List<ModAnalysisResult> mods, FullAnalysisReport report)
+    {
+        var textureGroups = mods.GroupBy(m => m.TextureHash).ToList();
+        var type = textureGroups.Count == 1 ? DuplicateType.Identical : DuplicateType.TextureVariant;
+
+        var allHashesMatch = false;
+        if (type == DuplicateType.Identical && mods.Count > 1)
+        {
+            var firstHashes = string.Join(",", mods[0].TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase));
+            allHashesMatch = mods.Skip(1).All(m =>
+                string.Join(",", m.TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase)) == firstHashes);
+        }
+
+        report.DuplicateGroups.Add(new DuplicateGroup
+        {
+            Type = type,
+            GroupLabel = mods.First().CategoryName,
+            SharedHashes = mods.First().TargetHashes,
+            Mods = mods,
+            AllHashesMatch = allHashesMatch
+        });
+        if (type == DuplicateType.Identical) report.IdenticalCount++; else report.TextureVariantCount++;
     }
 
     private static void BuildConflicts(List<ModAnalysisResult> loadedMods, FullAnalysisReport report)
@@ -609,6 +732,36 @@ public class ModAnalysisService : IModAnalysisService
                     structure.PluginReferences.Add(pattern.Trim('\\').Split('\\')[0]);
         }
         return structure;
+    }
+
+    // ===== Mod Deletion Sync (Issue 2) =====
+
+    /// <summary>
+    /// Remove a deleted mod from all analysis sessions and update session counts.
+    /// Rebuilds the full report per session so duplicate/conflict counts stay accurate.
+    /// When a duplicate group dissolves to 1 mod, that mod is no longer a duplicate.
+    /// </summary>
+    public async Task RemoveModFromAnalysisAsync(string modId)
+    {
+        var sessions = await _analysisRepository.GetAllSessionsAsync().ConfigureAwait(false);
+        await _analysisRepository.DeleteFindingsByModIdAsync(modId).ConfigureAwait(false);
+
+        foreach (var session in sessions)
+        {
+            if (session.Status != "completed" && session.Status != "cancelled") continue;
+
+            // Rebuild report to get accurate duplicate/conflict counts
+            var report = await BuildReportFromSessionAsync(session.Id).ConfigureAwait(false);
+            session.TotalMods = Math.Max(session.TotalMods - 1, 0);
+            session.AnalyzedCount = report.AnalyzedCount;
+            session.HealthyCount = report.HealthyCount;
+            session.WarningCount = report.WarningCount;
+            session.ErrorCount = report.ErrorCount;
+            session.IdenticalCount = report.IdenticalCount;
+            session.TextureVariantCount = report.TextureVariantCount;
+            session.ConflictCount = report.ConflictCount;
+            await _analysisRepository.UpdateSessionAsync(session).ConfigureAwait(false);
+        }
     }
 
     // ===== Helpers =====
@@ -657,6 +810,48 @@ public class ModAnalysisService : IModAnalysisService
     {
         var a = Path.Combine(cacheModsDir, modId); if (Directory.Exists(a)) return a;
         var d = Path.Combine(cacheModsDir, $"DISABLED-{modId}"); return Directory.Exists(d) ? d : null;
+    }
+
+    /// <summary>
+    /// Hash each file individually. Returns sorted list of hashes for set comparison.
+    /// </summary>
+    private static async Task<List<string>> ComputePerFileHashesAsync(List<string> filePaths)
+    {
+        if (filePaths.Count == 0) return [];
+        var hashes = new List<string>(filePaths.Count);
+        using var sha256 = SHA256.Create();
+        foreach (var p in filePaths)
+        {
+            try
+            {
+                var bytes = await File.ReadAllBytesAsync(p).ConfigureAwait(false);
+                var hash = sha256.ComputeHash(bytes);
+                hashes.Add(BitConverter.ToString(hash).Replace("-", "").ToUpperInvariant());
+            }
+            catch { }
+        }
+        hashes.Sort(StringComparer.OrdinalIgnoreCase);
+        return hashes;
+    }
+
+    /// <summary>
+    /// Check if a referenced file exists anywhere in the mod directory tree.
+    /// Checks: iniDir/refFile, modDir/refFile, then searches all subdirectories by filename.
+    /// </summary>
+    private static bool FileExistsInTree(string modDir, string iniDir, string refFile)
+    {
+        // Direct path checks (fast path)
+        if (File.Exists(Path.Combine(iniDir, refFile))) return true;
+        if (File.Exists(Path.Combine(modDir, refFile))) return true;
+
+        // Fallback: search by filename in all subdirectories
+        var fileName = Path.GetFileName(refFile);
+        try
+        {
+            var found = Directory.GetFiles(modDir, fileName, SearchOption.AllDirectories);
+            return found.Length > 0;
+        }
+        catch { return false; }
     }
 
     private static List<string> DeserializeList(string json) { try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; } catch { return []; } }

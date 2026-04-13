@@ -48,6 +48,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
   const [sessions, setSessions] = useState<AnalysisSessionSummary[]>([]);
   const [initialFeed, setInitialFeed] = useState<Array<{ name: string; status: string }>>();
   const [cancelling, setCancelling] = useState(false);
+  const [deletingModId, setDeletingModId] = useState<string>();
 
   // Load categories
   useEffect(() => {
@@ -240,26 +241,39 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
   }, [selectedProfileId]);
 
   const deleteDuplicateMod = useCallback(async (modId: string) => {
-    if (!selectedProfileId) return;
+    if (!selectedProfileId || deletingModId) return;
+    setDeletingModId(modId);
     try {
       await api.mod.deleteMod(selectedProfileId, modId);
-      // Optimistically remove mod from report
+      // Optimistically remove mod from report and update all counts
       setReport(prev => {
         if (!prev) return prev;
         const newResults = prev.results.filter(r => r.modId !== modId);
         const newGroups = prev.duplicateGroups
           .map(g => ({ ...g, mods: g.mods.filter(m => m.modId !== modId) }))
           .filter(g => g.mods.length > 1); // Dissolve single-mod groups
+        const newConflicts = prev.conflicts
+          .map(c => ({ ...c, mods: c.mods.filter(m => m.modId !== modId) }))
+          .filter(c => c.mods.length > 1);
         return {
           ...prev,
+          totalMods: Math.max(prev.totalMods - 1, 0),
+          analyzedCount: newResults.length,
           results: newResults,
           duplicateGroups: newGroups,
           identicalCount: newGroups.filter(g => g.type === 'identical').length,
           textureVariantCount: newGroups.filter(g => g.type === 'textureVariant').length,
+          conflicts: newConflicts,
+          conflictCount: newConflicts.length,
+          affectedModCount: new Set(newConflicts.flatMap(c => c.mods.map(m => m.modId))).size,
+          healthyCount: newResults.filter(r => r.healthStatus === 'healthy').length,
+          warningCount: newResults.filter(r => r.healthStatus === 'warning').length,
+          errorCount: newResults.filter(r => r.healthStatus === 'error').length,
         };
       });
     } catch (error: unknown) { handleError(error); }
-  }, [selectedProfileId]);
+    finally { setDeletingModId(undefined); }
+  }, [selectedProfileId, deletingModId]);
 
   return (
     <div className="mod-analyzer">
@@ -289,6 +303,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
           onRescan={() => { void doStartScan(report?.categoryId ?? selectedCategoryId); }}
           onViewHistory={() => setViewMode('history')}
           onDeleteMod={deleteDuplicateMod}
+          deletingModId={deletingModId}
           onEditModName={editModName}
         />
       )}

@@ -13,6 +13,7 @@ import {
   HistoryOutlined,
   DeleteOutlined,
   EditOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactInput } from '../../../../../shared/components/compact';
@@ -34,12 +35,13 @@ interface FindingsViewProps {
   onRescan: () => void;
   onViewHistory: () => void;
   onDeleteMod?: (modId: string) => void;
+  deletingModId?: string;
   onEditModName?: (modId: string, newName: string) => void;
 }
 
 type FindingCategory = 'all' | 'broken' | 'stale' | 'duplicates' | 'conflicts' | 'healthy';
 
-export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, onEditModName }) => {
+export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, deletingModId, onEditModName }) => {
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
   const [category, setCategory] = useState<FindingCategory>('all');
@@ -144,7 +146,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
               items={filteredContent.duplicates.map((g, i) => ({
                 key: i,
                 label: <DuplicateHeader group={g} />,
-                children: <DuplicateDetail group={g} onDeleteMod={onDeleteMod} onStartEdit={(modId, name) => { setEditingMod({ modId, currentName: name }); setEditName(name); }} />,
+                children: <DuplicateDetail group={g} onDeleteMod={onDeleteMod} deletingModId={deletingModId} onStartEdit={(modId, name) => { setEditingMod({ modId, currentName: name }); setEditName(name); }} />,
               }))}
             />
           </FindingSection>
@@ -314,11 +316,13 @@ const DuplicateHeader: React.FC<{ group: DuplicateGroup }> = ({ group }) => {
   );
 };
 
-const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: string) => void; onStartEdit?: (modId: string, currentName: string) => void }> = ({ group, onDeleteMod, onStartEdit }) => {
+const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: string) => void; deletingModId?: string; onStartEdit?: (modId: string, currentName: string) => void }> = ({ group, onDeleteMod, deletingModId, onStartEdit }) => {
   const { t } = useTranslation();
   return (
     <div className="mod-analyzer__mod-cards">
-      {group.mods.map(mod => (
+      {group.mods.map(mod => {
+        const isDeleting = deletingModId === mod.modId;
+        return (
         <div key={mod.modId} className="mod-analyzer__mod-card">
           <div className={`mod-analyzer__mod-preview ${!mod.previewPath ? 'mod-analyzer__mod-preview--empty' : ''}`}>
             {mod.previewPath ? (
@@ -326,25 +330,33 @@ const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: s
             ) : (
               <BgColorsOutlined />
             )}
-            <div className="mod-analyzer__mod-preview-actions">
-              <CopyIdButton modId={mod.modId} />
-              {onStartEdit && (
-                <Tooltip title={t('tools.modAnalyzer.editModName')}>
-                  <EditOutlined
-                    className="mod-analyzer__mod-edit"
-                    onClick={e => { e.stopPropagation(); onStartEdit(mod.modId, mod.modName); }}
-                  />
-                </Tooltip>
-              )}
-              {onDeleteMod && (
-                <Tooltip title={t('tools.modAnalyzer.deleteDuplicate')}>
-                  <DeleteOutlined
-                    className="mod-analyzer__mod-delete"
-                    onClick={e => { e.stopPropagation(); onDeleteMod(mod.modId); }}
-                  />
-                </Tooltip>
-              )}
-            </div>
+            {isDeleting && (
+              <div className="mod-analyzer__mod-preview-overlay">
+                <LoadingOutlined style={{ fontSize: 24 }} spin />
+                <span>{t('tools.modAnalyzer.deleting')}</span>
+              </div>
+            )}
+            {!isDeleting && (
+              <div className="mod-analyzer__mod-preview-actions">
+                <CopyIdButton modId={mod.modId} />
+                {onStartEdit && (
+                  <Tooltip title={t('tools.modAnalyzer.editModName')}>
+                    <EditOutlined
+                      className="mod-analyzer__mod-edit"
+                      onClick={e => { e.stopPropagation(); if (!deletingModId) onStartEdit(mod.modId, mod.modName); }}
+                    />
+                  </Tooltip>
+                )}
+                {onDeleteMod && (
+                  <Tooltip title={t('tools.modAnalyzer.deleteDuplicate')}>
+                    <DeleteOutlined
+                      className="mod-analyzer__mod-delete"
+                      onClick={e => { e.stopPropagation(); if (!deletingModId) onDeleteMod(mod.modId); }}
+                    />
+                  </Tooltip>
+                )}
+              </div>
+            )}
           </div>
           <div className="mod-analyzer__mod-info">
             <div className="mod-analyzer__mod-name" title={mod.modName}>{mod.modName}</div>
@@ -355,7 +367,8 @@ const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: s
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

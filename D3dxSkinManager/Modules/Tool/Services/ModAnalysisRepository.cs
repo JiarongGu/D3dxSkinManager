@@ -40,6 +40,8 @@ public class AnalysisFindingEntity
     public int TextureOverrideCount { get; set; }
     public long BufferSizeBytes { get; set; }
     public long TextureSizeBytes { get; set; }
+    public string BufferFileHashes { get; set; } = "[]";
+    public string TextureFileHashes { get; set; } = "[]";
 }
 
 // ===== Repository =====
@@ -58,6 +60,7 @@ public interface IModAnalysisRepository
     Task InsertFindingAsync(AnalysisFindingEntity finding);
     Task<List<AnalysisFindingEntity>> GetFindingsBySessionAsync(string sessionId);
     Task<int> GetFindingCountBySessionAsync(string sessionId);
+    Task DeleteFindingsByModIdAsync(string modId);
 }
 
 public class ModAnalysisRepository : IModAnalysisRepository
@@ -136,10 +139,10 @@ public class ModAnalysisRepository : IModAnalysisRepository
         await conn.ExecuteAsync(@"
             INSERT INTO AnalysisFindings (SessionId, ModId, TargetHashes, BufferHash, TextureHash,
                 HealthStatus, HealthIssues, PluginDependencies, IniFileCount, ResourceFileCount,
-                TextureOverrideCount, BufferSizeBytes, TextureSizeBytes)
+                TextureOverrideCount, BufferSizeBytes, TextureSizeBytes, BufferFileHashes, TextureFileHashes)
             VALUES (@SessionId, @ModId, @TargetHashes, @BufferHash, @TextureHash,
                 @HealthStatus, @HealthIssues, @PluginDependencies, @IniFileCount, @ResourceFileCount,
-                @TextureOverrideCount, @BufferSizeBytes, @TextureSizeBytes)", finding);
+                @TextureOverrideCount, @BufferSizeBytes, @TextureSizeBytes, @BufferFileHashes, @TextureFileHashes)", finding);
     }
 
     public async Task<List<AnalysisFindingEntity>> GetFindingsBySessionAsync(string sessionId)
@@ -155,5 +158,11 @@ public class ModAnalysisRepository : IModAnalysisRepository
         await using var conn = new SqliteConnection(_connectionString);
         return await conn.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM AnalysisFindings WHERE SessionId = @sessionId", new { sessionId });
+    }
+
+    public async Task DeleteFindingsByModIdAsync(string modId)
+    {
+        await using var conn = new SqliteConnection(_connectionString);
+        await conn.ExecuteAsync("DELETE FROM AnalysisFindings WHERE ModId = @modId", new { modId });
     }
 }

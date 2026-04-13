@@ -52,6 +52,8 @@ public class ModAnalysisResult
     public List<string> TargetHashes { get; set; } = new();
     public string BufferHash { get; set; } = string.Empty;
     public string TextureHash { get; set; } = string.Empty;
+    public List<string> BufferFileHashes { get; set; } = new();
+    public List<string> TextureFileHashes { get; set; } = new();
     public long BufferSizeBytes { get; set; }
     public long TextureSizeBytes { get; set; }
 

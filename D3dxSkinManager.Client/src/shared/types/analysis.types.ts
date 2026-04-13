@@ -26,6 +26,8 @@ export interface ModAnalysisResult {
   targetHashes: string[];
   bufferHash: string;
   textureHash: string;
+  bufferFileHashes: string[];
+  textureFileHashes: string[];
   bufferSizeBytes: number;
   textureSizeBytes: number;
   pluginDependencies: string[];
