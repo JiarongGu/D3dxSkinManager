@@ -604,6 +604,7 @@
     "tools.modAnalyzer.resume": "继续",
     "tools.modAnalyzer.rescan": "重新扫描",
     "tools.modAnalyzer.pause": "暂停",
+    "tools.modAnalyzer.cancel": "取消",
     "tools.modAnalyzer.modsAnalyzed": "个模组已分析",
     "tools.modAnalyzer.withIssues": "有问题",
     "tools.modAnalyzer.warnings": "个警告",

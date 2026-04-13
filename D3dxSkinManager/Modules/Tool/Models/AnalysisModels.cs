@@ -17,7 +17,7 @@ public enum HealthIssueType
 
 public enum DuplicateType { Identical, TextureVariant }
 
-public enum AnalysisStatus { Idle, Running, Paused, Completed }
+public enum AnalysisStatus { Idle, Running, Paused, Completed, Cancelled }
 
 // ===== Per-Mod Results =====
 
@@ -138,6 +138,7 @@ public class FullAnalysisReport
 {
     // Session info
     public string SessionId { get; set; } = string.Empty;
+    public string? CategoryId { get; set; }
     public AnalysisStatus Status { get; set; }
     public int TotalMods { get; set; }
     public int AnalyzedCount { get; set; }

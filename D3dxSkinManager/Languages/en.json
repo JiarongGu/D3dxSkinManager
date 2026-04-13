@@ -604,6 +604,7 @@
     "tools.modAnalyzer.resume": "Resume",
     "tools.modAnalyzer.rescan": "Rescan",
     "tools.modAnalyzer.pause": "Pause",
+    "tools.modAnalyzer.cancel": "Cancel",
     "tools.modAnalyzer.modsAnalyzed": "mods analyzed",
     "tools.modAnalyzer.withIssues": "with issues",
     "tools.modAnalyzer.warnings": "warnings",

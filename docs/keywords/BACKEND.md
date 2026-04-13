@@ -768,11 +768,15 @@ Located in `Plugins/` directory (external to backend):
   - Models: `Modules/Tool/ModPackage/Models/ModPackageModels.cs`
 
 - **ModAnalysisService** → `Modules/Tool/Services/ModAnalysisService.cs`
-  - Mod health analysis, duplicate detection, hash conflict finder
+  - Mod health analysis, duplicate detection (with exact clone detection via `AllHashesMatch`), hash conflict finder
   - Two-phase: per-mod analysis (INI parsing, hash fingerprinting) → report building (grouping, conflict detection)
-  - Fire-and-forget via `Task.Run` in facade — emits progress events during scan
-  - IPC: `ANALYSIS_START`, `ANALYSIS_PAUSE`, `ANALYSIS_GET_REPORT`, `ANALYSIS_GET_HISTORY`, `ANALYSIS_DELETE_SESSION`, `ANALYSIS_CLEAR_ALL`
+  - Pause/Resume/Cancel state machine: pause blocks loop via `ManualResetEventSlim`, resume unblocks, cancel signals exit
+  - `ResumeSessionAsync` handles stale sessions (app restart) — continues from where it left off, skips analyzed mods
+  - Stale "running" sessions (no active task) reported as "paused" in history and reports
+  - Fire-and-forget via `Task.Run` in facade — emits progress events during scan (includes `LastModName`/`LastHealthStatus` for live feed)
+  - IPC: `ANALYSIS_START`, `ANALYSIS_PAUSE`, `ANALYSIS_RESUME`, `ANALYSIS_CANCEL`, `ANALYSIS_GET_REPORT`, `ANALYSIS_GET_HISTORY`, `ANALYSIS_DELETE_SESSION`, `ANALYSIS_CLEAR_ALL`
   - Events: `MOD_ANALYSIS_PROGRESS`, `MOD_ANALYSIS_COMPLETE`
+  - Status enum: `idle`, `running`, `paused`, `completed`, `cancelled`
   - Models: `Modules/Tool/Models/AnalysisModels.cs`
   - Repository: `Modules/Tool/Services/ModAnalysisRepository.cs` (SQLite via Fluent Migrator)
   - Migration: `Modules/Fluent/Migrations/202604130001_CreateModAnalysisTable.cs`

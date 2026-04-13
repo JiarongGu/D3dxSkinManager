@@ -145,6 +145,14 @@ export class ToolService extends BaseModuleService {
     return this.sendMessage<void>('ANALYSIS_PAUSE', profileId);
   }
 
+  async resumeAnalysis(profileId: string, sessionId?: string): Promise<void> {
+    return this.sendMessage<void>('ANALYSIS_RESUME', profileId, sessionId ? { sessionId } : undefined);
+  }
+
+  async cancelAnalysis(profileId: string): Promise<void> {
+    return this.sendMessage<void>('ANALYSIS_CANCEL', profileId);
+  }
+
   async getAnalysisReport(profileId: string, sessionId: string): Promise<FullAnalysisReport> {
     return this.sendMessage<FullAnalysisReport>('ANALYSIS_GET_REPORT', profileId, { sessionId });
   }

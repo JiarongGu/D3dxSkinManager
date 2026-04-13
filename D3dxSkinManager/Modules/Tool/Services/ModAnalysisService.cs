@@ -13,8 +13,12 @@ namespace D3dxSkinManager.Modules.Tool.Services;
 
 public interface IModAnalysisService
 {
+    bool IsPaused { get; }
     Task<FullAnalysisReport> StartAnalysisAsync(string? categoryId = null);
     void PauseAnalysis();
+    void ResumeAnalysis();
+    Task<FullAnalysisReport> ResumeSessionAsync(string sessionId);
+    Task<FullAnalysisReport?> CancelAnalysisAsync();
     Task<FullAnalysisReport> GetSessionReportAsync(string sessionId);
     Task<List<AnalysisSessionSummary>> GetSessionHistoryAsync();
     Task DeleteSessionAsync(string sessionId);
@@ -32,8 +36,11 @@ public class ModAnalysisService : IModAnalysisService
     private readonly ILogHelper _logger;
 
     private volatile bool _pauseRequested;
+    private volatile bool _cancelRequested;
     private volatile bool _isRunning;
+    public bool IsPaused => _isRunning && _pauseRequested;
     private string? _currentSessionId;
+    private readonly ManualResetEventSlim _resumeSignal = new(true); // starts signaled (not paused)
 
     private static readonly string[] BufferExtensions = [".buf", ".ib"];
     private static readonly string[] TextureExtensions = [".dds", ".png", ".jpg", ".jpeg", ".tga", ".bmp"];
@@ -69,7 +76,119 @@ public class ModAnalysisService : IModAnalysisService
 
     public void PauseAnalysis()
     {
-        if (_isRunning) _pauseRequested = true;
+        if (_isRunning && !_pauseRequested)
+        {
+            _pauseRequested = true;
+            _resumeSignal.Reset(); // Block the analysis loop
+        }
+    }
+
+    public void ResumeAnalysis()
+    {
+        if (_isRunning && _pauseRequested)
+        {
+            _pauseRequested = false;
+            _resumeSignal.Set(); // Unblock the analysis loop
+        }
+    }
+
+    /// <summary>
+    /// Resume a stale "running" session that has no active background task.
+    /// Continues analysis from where it left off (skips already-analyzed mods).
+    /// </summary>
+    public async Task<FullAnalysisReport> ResumeSessionAsync(string sessionId)
+    {
+        if (_isRunning)
+        {
+            // Already running — just unpause if needed
+            ResumeAnalysis();
+            if (_currentSessionId != null)
+                return await GetSessionReportAsync(_currentSessionId).ConfigureAwait(false);
+            return new FullAnalysisReport { Status = AnalysisStatus.Running };
+        }
+
+        var session = await _analysisRepository.GetSessionAsync(sessionId).ConfigureAwait(false);
+        if (session == null || session.Status != "running")
+            return await BuildReportFromSessionAsync(sessionId).ConfigureAwait(false);
+
+        _isRunning = true;
+        _pauseRequested = false;
+        _cancelRequested = false;
+        _resumeSignal.Set();
+        _currentSessionId = session.Id;
+
+        try
+        {
+            // Get all mods for this session's scope
+            var enrichedMods = await GetAllEnrichedModsAsync().ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(session.CategoryId))
+                enrichedMods = enrichedMods.Where(m => m.Category == session.CategoryId).ToList();
+
+            // Skip already-analyzed mods and collect existing counts
+            var existingFindings = await _analysisRepository.GetFindingsBySessionAsync(sessionId).ConfigureAwait(false);
+            var analyzedModIds = existingFindings.Select(f => f.ModId).ToHashSet();
+            var remainingMods = enrichedMods.Where(m => !analyzedModIds.Contains(m.Id)).ToList();
+
+            int initHealthy = existingFindings.Count(f => f.HealthStatus == "healthy");
+            int initWarning = existingFindings.Count(f => f.HealthStatus == "warning");
+            int initError = existingFindings.Count(f => f.HealthStatus == "error");
+
+            _logger.Info($"[ModAnalysis] Resuming session {sessionId}: {analyzedModIds.Count} done, {remainingMods.Count} remaining", "ModAnalysis");
+
+            await RunPerModAnalysisAsync(session, remainingMods, analyzedModIds.Count, initHealthy, initWarning, initError).ConfigureAwait(false);
+            var report = await BuildReportFromSessionAsync(session.Id).ConfigureAwait(false);
+
+            // Set final status explicitly (DB still says "running" at this point)
+            report.Status = _cancelRequested ? AnalysisStatus.Cancelled : AnalysisStatus.Completed;
+
+            // Update session with final counts
+            session.Status = _cancelRequested ? "cancelled" : "completed";
+            session.AnalyzedCount = report.AnalyzedCount;
+            session.HealthyCount = report.HealthyCount;
+            session.WarningCount = report.WarningCount;
+            session.ErrorCount = report.ErrorCount;
+            session.IdenticalCount = report.IdenticalCount;
+            session.TextureVariantCount = report.TextureVariantCount;
+            session.ConflictCount = report.ConflictCount;
+            session.CompletedAt = DateTime.UtcNow.ToString("o");
+            await _analysisRepository.UpdateSessionAsync(session).ConfigureAwait(false);
+
+            return report;
+        }
+        finally
+        {
+            _isRunning = false;
+            _currentSessionId = null;
+        }
+    }
+
+    /// <summary>
+    /// Cancel analysis. Returns a report for stale session cancels (no active task),
+    /// or null for active cancels (COMPLETE event emitted by the running task).
+    /// </summary>
+    public async Task<FullAnalysisReport?> CancelAnalysisAsync()
+    {
+        if (_isRunning)
+        {
+            // Active task — signal it to stop. The Task.Run will emit COMPLETE when it exits.
+            _cancelRequested = true;
+            _pauseRequested = false;
+            _resumeSignal.Set(); // Unblock if paused so loop can exit
+            await Task.Delay(100).ConfigureAwait(false);
+            return null;
+        }
+
+        // No active task — cancel stale "running" sessions directly in DB and return report
+        var sessions = await _analysisRepository.GetAllSessionsAsync().ConfigureAwait(false);
+        FullAnalysisReport? report = null;
+        foreach (var s in sessions.Where(s => s.Status == "running"))
+        {
+            s.Status = "cancelled";
+            s.CompletedAt = DateTime.UtcNow.ToString("o");
+            await _analysisRepository.UpdateSessionAsync(s).ConfigureAwait(false);
+            report ??= await BuildReportFromSessionAsync(s.Id).ConfigureAwait(false);
+        }
+        return report;
     }
 
     // ===== Session Management =====
@@ -77,13 +196,21 @@ public class ModAnalysisService : IModAnalysisService
     public async Task<List<AnalysisSessionSummary>> GetSessionHistoryAsync()
     {
         var sessions = await _analysisRepository.GetAllSessionsAsync().ConfigureAwait(false);
-        return sessions.Select(s => new AnalysisSessionSummary
+        return sessions.Select(s =>
         {
-            Id = s.Id, CategoryId = s.CategoryId, CategoryName = s.CategoryName,
-            Status = s.Status, TotalMods = s.TotalMods, AnalyzedCount = s.AnalyzedCount,
-            HealthyCount = s.HealthyCount, WarningCount = s.WarningCount, ErrorCount = s.ErrorCount,
-            IdenticalCount = s.IdenticalCount, TextureVariantCount = s.TextureVariantCount,
-            ConflictCount = s.ConflictCount, StartedAt = s.StartedAt, CompletedAt = s.CompletedAt
+            // Stale "running" sessions (no active task, or actively paused) → show as "paused"
+            var status = s.Status;
+            if (status == "running" && (!_isRunning || (s.Id == _currentSessionId && IsPaused)))
+                status = "paused";
+
+            return new AnalysisSessionSummary
+            {
+                Id = s.Id, CategoryId = s.CategoryId, CategoryName = s.CategoryName,
+                Status = status, TotalMods = s.TotalMods, AnalyzedCount = s.AnalyzedCount,
+                HealthyCount = s.HealthyCount, WarningCount = s.WarningCount, ErrorCount = s.ErrorCount,
+                IdenticalCount = s.IdenticalCount, TextureVariantCount = s.TextureVariantCount,
+                ConflictCount = s.ConflictCount, StartedAt = s.StartedAt, CompletedAt = s.CompletedAt
+            };
         }).ToList();
     }
 
@@ -110,6 +237,8 @@ public class ModAnalysisService : IModAnalysisService
 
         _isRunning = true;
         _pauseRequested = false;
+        _cancelRequested = false;
+        _resumeSignal.Set();
 
         // Create session
         var enrichedMods = await GetAllEnrichedModsAsync().ConfigureAwait(false);
@@ -134,8 +263,11 @@ public class ModAnalysisService : IModAnalysisService
             await RunPerModAnalysisAsync(session, enrichedMods).ConfigureAwait(false);
             var report = await BuildReportFromSessionAsync(session.Id).ConfigureAwait(false);
 
+            // Set final status explicitly (DB still says "running" at this point)
+            report.Status = _cancelRequested ? AnalysisStatus.Cancelled : AnalysisStatus.Completed;
+
             // Update session with final counts
-            session.Status = _pauseRequested ? "paused" : "completed";
+            session.Status = _cancelRequested ? "cancelled" : "completed";
             session.AnalyzedCount = report.AnalyzedCount;
             session.HealthyCount = report.HealthyCount;
             session.WarningCount = report.WarningCount;
@@ -143,7 +275,7 @@ public class ModAnalysisService : IModAnalysisService
             session.IdenticalCount = report.IdenticalCount;
             session.TextureVariantCount = report.TextureVariantCount;
             session.ConflictCount = report.ConflictCount;
-            session.CompletedAt = _pauseRequested ? null : DateTime.UtcNow.ToString("o");
+            session.CompletedAt = DateTime.UtcNow.ToString("o");
             await _analysisRepository.UpdateSessionAsync(session).ConfigureAwait(false);
 
             return report;
@@ -157,26 +289,40 @@ public class ModAnalysisService : IModAnalysisService
 
     public async Task<FullAnalysisReport> GetSessionReportAsync(string sessionId)
     {
-        return await BuildReportFromSessionAsync(sessionId).ConfigureAwait(false);
+        var report = await BuildReportFromSessionAsync(sessionId).ConfigureAwait(false);
+        // If DB says "running" but no active task → treat as paused (stale session)
+        if (report.Status == AnalysisStatus.Running)
+        {
+            if (!_isRunning || (sessionId == _currentSessionId && IsPaused))
+                report.Status = AnalysisStatus.Paused;
+        }
+        return report;
     }
 
     // ===== Phase 1: Per-Mod Analysis =====
 
-    private async Task RunPerModAnalysisAsync(AnalysisSessionEntity session, List<Mod.Models.ModInfo> mods)
+    private async Task RunPerModAnalysisAsync(AnalysisSessionEntity session, List<Mod.Models.ModInfo> mods, int processedOffset = 0, int initialHealthy = 0, int initialWarning = 0, int initialError = 0)
     {
         var cacheModsDir = _profilePaths.CacheModsDirectory;
-        int total = mods.Count;
-        int processed = 0;
-        int healthyCount = 0, warningCount = 0, errorCount = 0;
+        int total = session.TotalMods; // Use session total (not remaining mods count)
+        int processed = processedOffset;
+        int healthyCount = initialHealthy, warningCount = initialWarning, errorCount = initialError;
         string? lastModName = null;
         string? lastHealthStatus = null;
 
         foreach (var mod in mods)
         {
+            // Cancel check — exit loop immediately
+            if (_cancelRequested) return;
+
+            // Pause check — emit paused status and wait for resume/cancel
             if (_pauseRequested)
             {
                 await EmitProgress(session.Id, "paused", processed, total, mod.Name, AnalysisStatus.Paused, healthyCount, warningCount, errorCount, lastModName, lastHealthStatus).ConfigureAwait(false);
-                return;
+                _resumeSignal.Wait(); // Block until ResumeAnalysis() or CancelAnalysis()
+                if (_cancelRequested) return;
+                // Resumed — emit running status
+                await EmitProgress(session.Id, "analyzing", processed, total, mod.Name, AnalysisStatus.Running, healthyCount, warningCount, errorCount, lastModName, lastHealthStatus).ConfigureAwait(false);
             }
 
             processed++;
@@ -323,10 +469,11 @@ public class ModAnalysisService : IModAnalysisService
         var report = new FullAnalysisReport
         {
             SessionId = sessionId,
+            CategoryId = session?.CategoryId,
             TotalMods = session?.TotalMods ?? 0,
             AnalyzedCount = findings.Count,
             SkippedCount = (session?.TotalMods ?? 0) - findings.Count,
-            Status = session?.Status switch { "paused" => AnalysisStatus.Paused, "completed" => AnalysisStatus.Completed, "running" => AnalysisStatus.Running, _ => AnalysisStatus.Idle }
+            Status = session?.Status switch { "paused" => AnalysisStatus.Paused, "completed" => AnalysisStatus.Completed, "cancelled" => AnalysisStatus.Cancelled, "running" => AnalysisStatus.Running, _ => AnalysisStatus.Idle }
         };
 
         var allResults = new List<ModAnalysisResult>();

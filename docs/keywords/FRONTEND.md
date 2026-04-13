@@ -567,13 +567,22 @@ Selector files removed - use store hooks directly:
   - Cross-module usage: CategoryPanel renders ModPackageTool for category export
 
 - **ModAnalyzerTool** → `src/modules/tool/components/ModAnalyzerTool/ModAnalyzerTool.tsx`
-  - Mod health analysis, duplicate detection, hash conflict finder
+  - Mod health analysis, duplicate detection (exact clone via `allHashesMatch`), hash conflict finder
   - Props: `visible`, `onClose`, `initialCategoryId?` (auto-starts scan for category)
-  - **ScanView** → Hero landing + live progress with stat pills
+  - View routing: running/paused → ScanView, completed/cancelled → FindingsView
+  - **ScanView** → Hero landing + live progress with stat pills + live feed (per-mod results streamed via `lastModName`/`lastHealthStatus`)
+    - Pause/Resume/Cancel buttons (context-sensitive: running shows pause+cancel, paused shows resume+cancel)
+    - `cancelling` loading state on cancel button during async cancel
+    - `loading` prop for context menu auto-start (preparing state before first progress event)
+    - `initialFeed` prop to seed feed when resuming a session from history
   - **FindingsView** → Filter chips (broken/stale/duplicates/conflicts/healthy) + search + expandable mod rows
-  - **HistoryView** → Session cards with live progress counts, view/delete actions
+    - Duplicate cards with delete button (bottom-right overlay on preview hover)
+    - Exact Clone badge for identical mods with matching target hashes
+    - Rescan uses report's `categoryId` (not dropdown selection)
+  - **HistoryView** → Session cards with live progress counts, view/delete actions, cancelled status icon
+  - State machine: `resumeRunningSession(sessionId)` — shared logic for entering scan view for any running/paused session (loads partial report, seeds feed, sets synthetic progress)
   - Types: `src/shared/types/analysis.types.ts` (enums are camelCase — `JsonStringEnumConverter(CamelCase)`)
-  - IPC: `toolService.startAnalysis()`, `pauseAnalysis()`, `getAnalysisReport()`, `getAnalysisHistory()`, `deleteAnalysisSession()`, `clearAllAnalysis()`
+  - IPC: `toolService.startAnalysis()`, `pauseAnalysis()`, `resumeAnalysis()`, `cancelAnalysis()`, `getAnalysisReport()`, `getAnalysisHistory()`, `deleteAnalysisSession()`, `clearAllAnalysis()`
   - Events: `ToolsEventType.MOD_ANALYSIS_PROGRESS`, `MOD_ANALYSIS_COMPLETE`
   - Cross-module usage: CategoryPanel renders ModAnalyzerTool for category analysis via context menu
 

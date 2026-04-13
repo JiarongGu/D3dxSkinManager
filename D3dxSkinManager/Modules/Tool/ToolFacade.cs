@@ -103,6 +103,8 @@ public class ToolFacade : BaseFacade, IToolFacade
             // Mod Analysis
             "ANALYSIS_START" => StartAnalysisAsync(request),
             "ANALYSIS_PAUSE" => PauseAnalysis(),
+            "ANALYSIS_RESUME" => ResumeAnalysisAsync(request),
+            "ANALYSIS_CANCEL" => await CancelAnalysisAsync(),
             "ANALYSIS_GET_REPORT" => await GetAnalysisReportAsync(request),
             "ANALYSIS_GET_HISTORY" => await _modAnalysisService.GetSessionHistoryAsync(),
             "ANALYSIS_DELETE_SESSION" => await DeleteAnalysisSessionAsync(request),
@@ -415,6 +417,52 @@ public class ToolFacade : BaseFacade, IToolFacade
     private object? PauseAnalysis()
     {
         _modAnalysisService.PauseAnalysis();
+        return null;
+    }
+
+    private object? ResumeAnalysisAsync(IpcRequest request)
+    {
+        // Try in-memory resume first (active paused task)
+        if (_modAnalysisService.IsPaused)
+        {
+            _modAnalysisService.ResumeAnalysis();
+            return null;
+        }
+
+        // Stale session — restart from where it left off in background
+        var sessionId = _payloadHelper.GetOptionalValue<string>(request.Payload, "sessionId");
+        if (string.IsNullOrEmpty(sessionId)) return null;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var report = await _modAnalysisService.ResumeSessionAsync(sessionId).ConfigureAwait(false);
+                if (report.Status != AnalysisStatus.Running)
+                {
+                    await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_ANALYSIS_COMPLETE, report).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[ToolFacade] Resume analysis failed: {ex.Message}", "ToolFacade", ex);
+            }
+        });
+
+        return null;
+    }
+
+    private async Task<object?> CancelAnalysisAsync()
+    {
+        var report = await _modAnalysisService.CancelAnalysisAsync().ConfigureAwait(false);
+
+        // For stale cancels (no active task), emit COMPLETE so frontend transitions to findings.
+        // Active cancels emit COMPLETE naturally when their Task.Run exits.
+        if (report != null)
+        {
+            await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_ANALYSIS_COMPLETE, report).ConfigureAwait(false);
+        }
+
         return null;
     }
 

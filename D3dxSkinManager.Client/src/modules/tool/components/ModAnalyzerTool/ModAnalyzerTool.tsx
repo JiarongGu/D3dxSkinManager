@@ -47,6 +47,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(initialCategoryId);
   const [sessions, setSessions] = useState<AnalysisSessionSummary[]>([]);
   const [initialFeed, setInitialFeed] = useState<Array<{ name: string; status: string }>>();
+  const [cancelling, setCancelling] = useState(false);
 
   // Load categories
   useEffect(() => {
@@ -77,6 +78,18 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
     try {
       const r = await api.tool.getAnalysisReport(selectedProfileId, sessionId);
       setInitialFeed(r.results.map(m => ({ name: m.modName, status: m.healthStatus })));
+      // Construct synthetic progress so ScanView renders stats/buttons correctly
+      setProgress({
+        sessionId,
+        stage: r.status === 'paused' ? 'paused' : 'analyzing',
+        current: r.analyzedCount,
+        total: r.totalMods,
+        currentModName: '',
+        status: r.status === 'paused' ? 'paused' : 'running',
+        healthyCount: r.healthyCount,
+        warningCount: r.warningCount,
+        errorCount: r.errorCount,
+      });
     } catch { /* ignore — live events will take over */ }
     setScanning(true);
     setViewMode('scan');
@@ -110,6 +123,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
       setReport(e.payload);
       setScanning(false);
       setProgress(undefined);
+      setCancelling(false);
       // Only auto-navigate from scan view — don't pull user away from history
       if (viewModeRef.current === 'scan') {
         setViewMode('findings');
@@ -150,17 +164,33 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
     if (!selectedProfileId) return;
     try { await api.tool.pauseAnalysis(selectedProfileId); }
     catch (error: unknown) { handleError(error); }
-    setScanning(false);
-    setProgress(undefined);
-    void loadHistory();
-  }, [selectedProfileId, loadHistory]);
+    // Don't clear scanning state — progress event with 'paused' status will update UI
+  }, [selectedProfileId]);
+
+  const resumeScan = useCallback(async () => {
+    if (!selectedProfileId) return;
+    // Optimistically switch to running state so UI updates immediately
+    setProgress(prev => prev ? { ...prev, status: 'running', stage: 'analyzing' } : prev);
+    try { await api.tool.resumeAnalysis(selectedProfileId, progress?.sessionId); }
+    catch (error: unknown) { handleError(error); }
+  }, [selectedProfileId, progress?.sessionId]);
+
+  const cancelScan = useCallback(async () => {
+    if (!selectedProfileId) return;
+    setCancelling(true);
+    try { await api.tool.cancelAnalysis(selectedProfileId); }
+    catch (error: unknown) { handleError(error); setCancelling(false); }
+    // COMPLETE event will fire with cancelled report → switches to findings and clears cancelling
+  }, [selectedProfileId]);
 
   const viewSession = useCallback(async (sessionId: string, sessionStatus?: string) => {
     if (!selectedProfileId) return;
-    if (sessionStatus === 'running') {
+    // Running/paused → processing screen
+    if (sessionStatus === 'running' || sessionStatus === 'paused') {
       void resumeRunningSession(sessionId);
       return;
     }
+    // Completed/cancelled → findings screen
     try {
       const r = await api.tool.getAnalysisReport(selectedProfileId, sessionId);
       setReport(r);
@@ -218,6 +248,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
         <ScanView
           progress={progress}
           scanning={scanning}
+          cancelling={cancelling}
           loading={!!initialCategoryId && !scanning && !report}
           initialFeed={initialFeed}
           categories={categories}
@@ -225,6 +256,8 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
           onCategoryChange={setSelectedCategoryId}
           onStart={startScan}
           onPause={pauseScan}
+          onResume={resumeScan}
+          onCancel={cancelScan}
           onViewHistory={() => setViewMode('history')}
           sessionCount={sessions.length}
         />
@@ -234,7 +267,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
           report={report}
           scanning={scanning}
           onNewScan={() => setViewMode('scan')}
-          onRescan={startScan}
+          onRescan={() => { void doStartScan(report?.categoryId ?? selectedCategoryId); }}
           onViewHistory={() => setViewMode('history')}
           onDeleteMod={deleteDuplicateMod}
         />

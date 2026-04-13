@@ -9,6 +9,7 @@ import {
   CheckCircleOutlined,
   HistoryOutlined,
   LoadingOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton } from '../../../../../shared/components/compact';
@@ -24,6 +25,7 @@ interface FeedEntry {
 interface ScanViewProps {
   progress?: AnalysisProgress;
   scanning: boolean;
+  cancelling?: boolean;
   loading?: boolean;
   initialFeed?: FeedEntry[];
   categories: CategoryInfo[];
@@ -31,12 +33,14 @@ interface ScanViewProps {
   onCategoryChange: (id?: string) => void;
   onStart: () => void;
   onPause: () => void;
+  onResume: () => void;
+  onCancel: () => void;
   onViewHistory: () => void;
   sessionCount: number;
 }
 
 export const ScanView: React.FC<ScanViewProps> = ({
-  progress, scanning, loading, initialFeed, categories, selectedCategoryId, onCategoryChange, onStart, onPause, onViewHistory, sessionCount,
+  progress, scanning, cancelling, loading, initialFeed, categories, selectedCategoryId, onCategoryChange, onStart, onPause, onResume, onCancel, onViewHistory, sessionCount,
 }) => {
   const { t } = useTranslation();
   const percent = progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
@@ -112,34 +116,54 @@ export const ScanView: React.FC<ScanViewProps> = ({
   }
 
   // Active scanning
+  const isPaused = progress?.status === 'paused';
+
   return (
     <div className="mod-analyzer__scan-active">
       <div className="mod-analyzer__scan-top">
         <div className="mod-analyzer__scan-top-header">
           <div className="mod-analyzer__scan-top-left">
-            {progress ? (
-              <RadarChartOutlined className="mod-analyzer__scan-top-icon" spin />
-            ) : (
+            {!progress ? (
               <LoadingOutlined className="mod-analyzer__scan-top-icon" />
+            ) : isPaused ? (
+              <PauseCircleOutlined className="mod-analyzer__scan-top-icon" style={{ color: 'var(--color-warning)' }} />
+            ) : (
+              <RadarChartOutlined className="mod-analyzer__scan-top-icon" spin />
             )}
             <span className="mod-analyzer__scan-top-title">
-              {progress ? t('tools.modAnalyzer.scanRunning') : t('tools.modAnalyzer.preparing')}
+              {!progress ? t('tools.modAnalyzer.preparing') : isPaused ? t('tools.modAnalyzer.scanPaused') : t('tools.modAnalyzer.scanRunning')}
             </span>
           </div>
           <div className="mod-analyzer__scan-top-actions">
             <CompactButton icon={<HistoryOutlined />} onClick={onViewHistory}>
               {t('tools.modAnalyzer.history')}
             </CompactButton>
-            <CompactButton icon={<PauseCircleOutlined />} onClick={onPause} disabled={!progress}>
-              {t('tools.modAnalyzer.pause')}
-            </CompactButton>
+            {isPaused ? (
+              <>
+                <CompactButton type="primary" icon={<PlayCircleOutlined />} onClick={onResume} disabled={cancelling}>
+                  {t('tools.modAnalyzer.resume')}
+                </CompactButton>
+                <CompactButton danger icon={<StopOutlined />} onClick={onCancel} loading={cancelling}>
+                  {t('tools.modAnalyzer.cancel')}
+                </CompactButton>
+              </>
+            ) : (
+              <>
+                <CompactButton icon={<PauseCircleOutlined />} onClick={onPause} disabled={!progress || cancelling}>
+                  {t('tools.modAnalyzer.pause')}
+                </CompactButton>
+                <CompactButton danger icon={<StopOutlined />} onClick={onCancel} disabled={!progress} loading={cancelling}>
+                  {t('tools.modAnalyzer.cancel')}
+                </CompactButton>
+              </>
+            )}
           </div>
         </div>
         {progress && progress.total > 0 && (
           <>
             <div className="mod-analyzer__scan-progress-row">
               <span className="mod-analyzer__scan-progress-count">{progress.current} / {progress.total}</span>
-              <Progress percent={percent} showInfo={false} strokeColor="var(--color-primary)" size={{ height: 6 }} className="mod-analyzer__scan-progress-bar" />
+              <Progress percent={percent} showInfo={false} strokeColor={isPaused ? 'var(--color-warning)' : 'var(--color-primary)'} size={{ height: 6 }} className="mod-analyzer__scan-progress-bar" />
               <span className="mod-analyzer__scan-progress-pct">{percent}%</span>
             </div>
             {progress.currentModName && <div className="mod-analyzer__scan-current-mod">{progress.currentModName}</div>}

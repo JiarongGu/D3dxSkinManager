@@ -8,6 +8,7 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   PauseCircleOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactCard } from '../../../../../shared/components/compact';
@@ -82,7 +83,9 @@ const SessionCard: React.FC<{
   const { t } = useTranslation();
   const dateStr = new Date(session.startedAt).toLocaleString();
   const isCompleted = session.status === 'completed';
+  const isCancelled = session.status === 'cancelled';
   const isPaused = session.status === 'paused';
+  const isRunning = session.status === 'running';
 
   return (
     <CompactCard hoverable className="mod-analyzer__session-card" onClick={onView}>
@@ -91,10 +94,14 @@ const SessionCard: React.FC<{
           <div className="mod-analyzer__session-card-info">
             {isCompleted ? (
               <CheckCircleOutlined style={{ color: 'var(--color-success)' }} />
+            ) : isCancelled ? (
+              <StopOutlined style={{ color: 'var(--color-text-tertiary)' }} />
             ) : isPaused ? (
               <PauseCircleOutlined style={{ color: 'var(--color-warning)' }} />
-            ) : (
+            ) : isRunning ? (
               <ClockCircleOutlined style={{ color: 'var(--color-primary)' }} />
+            ) : (
+              <ClockCircleOutlined style={{ color: 'var(--color-text-tertiary)' }} />
             )}
             <span className="mod-analyzer__session-card-date">{dateStr}</span>
             {session.categoryName && <Tag>{session.categoryName}</Tag>}

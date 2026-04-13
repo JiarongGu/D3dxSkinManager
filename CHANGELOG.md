@@ -11,7 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- Add new changes here for the next release -->
+### Added
+- Mod analyzer: pause/resume/cancel controls with full state machine (active pause, stale session resume, cancel with partial results)
+- Mod analyzer: live scan feed showing per-mod results as they are analyzed
+- Mod analyzer: "Exact Clone" detection for identical mods sharing all target hashes
+- Mod analyzer: delete button on duplicate mod cards to resolve duplicates in-place
+- Mod analyzer: loading/preparing state when opening from category context menu
+
+### Fixed
+- File cleanup: profile image thumbnails no longer flagged as orphans
+- Mod analyzer: stale "running" sessions (e.g., after app restart) now show as paused with resume/cancel options
+- Mod analyzer: removed missingPlugin from stale filter (downgraded to Info severity)
+- Mod analyzer: rescan now uses the current session's category instead of dropdown selection
 
 ---
 

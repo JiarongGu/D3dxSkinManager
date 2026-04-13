@@ -614,7 +614,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px;
+  height: 100%;
 }
 
 /* ===== History View ===== */

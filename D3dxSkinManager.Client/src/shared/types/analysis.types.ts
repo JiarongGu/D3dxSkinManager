@@ -2,7 +2,7 @@
 export type HealthIssueSeverity = 'error' | 'warning' | 'info';
 export type HealthIssueType = 'noIniFile' | 'emptyMod' | 'missingResource' | 'invalidIniSyntax' | 'emptyIniFile' | 'staleHash' | 'missingPlugin';
 export type DuplicateType = 'identical' | 'textureVariant';
-export type AnalysisStatus = 'idle' | 'running' | 'paused' | 'completed';
+export type AnalysisStatus = 'idle' | 'running' | 'paused' | 'completed' | 'cancelled';
 
 export interface ModHealthIssue {
   type: HealthIssueType;
@@ -53,6 +53,7 @@ export interface HashFrequency {
 
 export interface FullAnalysisReport {
   sessionId: string;
+  categoryId?: string;
   status: AnalysisStatus;
   totalMods: number;
   analyzedCount: number;
