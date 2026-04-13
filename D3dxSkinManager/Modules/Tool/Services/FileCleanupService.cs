@@ -111,6 +111,12 @@ public class FileCleanupService : IFileCleanupService
             }
         }
 
+        // Clean up empty sub-directories left after file deletion (thumbnails may have sub-folders)
+        if (category == OrphanCategory.Thumbnail)
+        {
+            CleanEmptyDirectories(_profilePaths.ThumbnailsDirectory);
+        }
+
         _logger.Info($"Cleanup complete: {result.DeletedCount} deleted, {result.FailedCount} failed, {FormatBytes(result.FreedBytes)} freed", "FileCleanupService");
         return result;
     }
@@ -131,7 +137,7 @@ public class FileCleanupService : IFileCleanupService
             var categories = await _categoryService.GetCategoryTreeAsync().ConfigureAwait(false);
             var referencedFiles = CollectReferencedThumbnailFiles(categories);
 
-            var files = Directory.GetFiles(thumbnailsDir);
+            var files = Directory.GetFiles(thumbnailsDir, "*", SearchOption.AllDirectories);
             foreach (var file in files)
             {
                 var fileName = Path.GetFileName(file);
@@ -290,6 +296,33 @@ public class FileCleanupService : IFileCleanupService
 
         _logger.Info($"Found {result.TotalCount} orphaned mod cache items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
         return result;
+    }
+
+    /// <summary>
+    /// Recursively delete empty sub-directories (bottom-up). Skips the root directory itself.
+    /// </summary>
+    private void CleanEmptyDirectories(string rootDir)
+    {
+        if (!Directory.Exists(rootDir))
+            return;
+
+        foreach (var dir in Directory.GetDirectories(rootDir, "*", SearchOption.AllDirectories)
+                     .OrderByDescending(d => d.Length)) // deepest first
+        {
+            try
+            {
+                if (Directory.Exists(dir) &&
+                    !Directory.EnumerateFileSystemEntries(dir).Any())
+                {
+                    Directory.Delete(dir);
+                    _logger.Verbose($"Deleted empty directory: {dir}", "FileCleanupService");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"Failed to delete empty directory {dir}: {ex.Message}", "FileCleanupService");
+            }
+        }
     }
 
     private static string FormatBytes(long bytes)
