@@ -120,3 +120,32 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* Search help icon */
+.mod-list-panel-search-help-icon {
+  color: var(--color-text-quaternary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: color 0.2s;
+}
+
+.mod-list-panel-search-help-icon:hover {
+  color: var(--color-text-secondary);
+}
+
+/* Search help popover content */
+.mod-search-help__table {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.mod-search-help__table td {
+  padding: 3px 8px;
+}
+
+.mod-search-help__syntax {
+  font-family: monospace;
+  color: var(--color-primary);
+  white-space: nowrap;
+  font-weight: 500;
+}

@@ -14,6 +14,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   LoadingOutlined,
+  AimOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactInput } from '../../../../../shared/components/compact';
@@ -37,11 +38,12 @@ interface FindingsViewProps {
   onDeleteMod?: (modId: string) => void;
   deletingModId?: string;
   onEditModName?: (modId: string, newName: string) => void;
+  onLocateMods?: (modIds: string[]) => void;
 }
 
 type FindingCategory = 'all' | 'broken' | 'stale' | 'duplicates' | 'conflicts' | 'healthy';
 
-export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, deletingModId, onEditModName }) => {
+export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, deletingModId, onEditModName, onLocateMods }) => {
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
   const [category, setCategory] = useState<FindingCategory>('all');
@@ -119,7 +121,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.brokenMods')}
             count={filteredContent.broken.length}
           >
-            {filteredContent.broken.map(mod => <ModRow key={mod.modId} mod={mod} />)}
+            {filteredContent.broken.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} />)}
           </FindingSection>
         )}
 
@@ -130,7 +132,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.staleHashOrPlugin')}
             count={filteredContent.stale.length}
           >
-            {filteredContent.stale.map(mod => <ModRow key={mod.modId} mod={mod} />)}
+            {filteredContent.stale.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} />)}
           </FindingSection>
         )}
 
@@ -145,7 +147,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
               className="mod-analyzer__groups"
               items={filteredContent.duplicates.map((g, i) => ({
                 key: i,
-                label: <DuplicateHeader group={g} />,
+                label: <DuplicateHeader group={g} onLocate={onLocateMods} />,
                 children: <DuplicateDetail group={g} onDeleteMod={onDeleteMod} deletingModId={deletingModId} onStartEdit={(modId, name) => { setEditingMod({ modId, currentName: name }); setEditName(name); }} />,
               }))}
             />
@@ -159,7 +161,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.hashConflicts')}
             count={filteredContent.conflicts.length}
           >
-            {filteredContent.conflicts.map((c, i) => <ConflictRow key={i} conflict={c} />)}
+            {filteredContent.conflicts.map((c, i) => <ConflictRow key={i} conflict={c} onLocate={onLocateMods} />)}
           </FindingSection>
         )}
 
@@ -170,7 +172,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.healthyMods')}
             count={filteredContent.healthy.length}
           >
-            {filteredContent.healthy.map(mod => <ModRow key={mod.modId} mod={mod} />)}
+            {filteredContent.healthy.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} />)}
           </FindingSection>
         )}
 
@@ -261,7 +263,7 @@ const CopyIdButton: React.FC<{ modId: string }> = ({ modId }) => {
   );
 };
 
-const ModRow: React.FC<{ mod: ModAnalysisResult }> = ({ mod }) => {
+const ModRow: React.FC<{ mod: ModAnalysisResult; onLocate?: (modIds: string[]) => void }> = ({ mod, onLocate }) => {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
 
@@ -276,6 +278,14 @@ const ModRow: React.FC<{ mod: ModAnalysisResult }> = ({ mod }) => {
         {mod.issues.length > 0 && <Tag color="error">{mod.issues.length}</Tag>}
         <span className="mod-analyzer__mod-row-meta">{mod.textureOverrideCount} {t('tools.modAnalyzer.overrides')}</span>
         <CopyIdButton modId={mod.modId} />
+        {onLocate && (
+          <Tooltip title={t('tools.modAnalyzer.locateInModPanel')}>
+            <AimOutlined
+              className="mod-analyzer__locate-btn"
+              onClick={e => { e.stopPropagation(); onLocate([mod.modId]); }}
+            />
+          </Tooltip>
+        )}
       </div>
       {expanded && mod.issues.length > 0 && (
         <div className="mod-analyzer__mod-row-issues">
@@ -296,7 +306,7 @@ const ModRow: React.FC<{ mod: ModAnalysisResult }> = ({ mod }) => {
   );
 };
 
-const DuplicateHeader: React.FC<{ group: DuplicateGroup }> = ({ group }) => {
+const DuplicateHeader: React.FC<{ group: DuplicateGroup; onLocate?: (modIds: string[]) => void }> = ({ group, onLocate }) => {
   const { t } = useTranslation();
   const isExactClone = group.type === 'identical' && group.allHashesMatch;
   const typeIcon = group.type === 'identical' ? <CopyOutlined /> : <BgColorsOutlined />;
@@ -312,6 +322,14 @@ const DuplicateHeader: React.FC<{ group: DuplicateGroup }> = ({ group }) => {
       <span className="mod-analyzer__group-count">{group.mods.length} {t('tools.modAnalyzer.mods')}</span>
       {group.sharedHashes.slice(0, 2).map(h => <Tag key={h} className="mod-analyzer__hash-tag">{h}</Tag>)}
       {group.sharedHashes.length > 2 && <Tag>+{group.sharedHashes.length - 2}</Tag>}
+      {onLocate && (
+        <Tooltip title={t('tools.modAnalyzer.locateGroupInModPanel')}>
+          <AimOutlined
+            className="mod-analyzer__locate-btn"
+            onClick={e => { e.stopPropagation(); onLocate(group.mods.map(m => m.modId)); }}
+          />
+        </Tooltip>
+      )}
     </div>
   );
 };
@@ -373,7 +391,7 @@ const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: s
   );
 };
 
-const ConflictRow: React.FC<{ conflict: ModConflict }> = ({ conflict }) => {
+const ConflictRow: React.FC<{ conflict: ModConflict; onLocate?: (modIds: string[]) => void }> = ({ conflict, onLocate }) => {
   const { t } = useTranslation();
   return (
     <div className="mod-analyzer__conflict-item">
@@ -381,6 +399,14 @@ const ConflictRow: React.FC<{ conflict: ModConflict }> = ({ conflict }) => {
         <ThunderboltOutlined style={{ color: 'var(--color-error)' }} />
         <code className="mod-analyzer__hash-code">{conflict.hash}</code>
         <Tag color="error">{conflict.mods.length} {t('tools.modAnalyzer.mods')}</Tag>
+        {onLocate && (
+          <Tooltip title={t('tools.modAnalyzer.locateGroupInModPanel')}>
+            <AimOutlined
+              className="mod-analyzer__locate-btn"
+              onClick={e => { e.stopPropagation(); onLocate(conflict.mods.map(m => m.modId)); }}
+            />
+          </Tooltip>
+        )}
       </div>
       <div className="mod-analyzer__conflict-mods">
         {conflict.mods.map(mod => (

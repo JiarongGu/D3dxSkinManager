@@ -6,6 +6,7 @@ import { api } from '../../../../shared/services/ipc';
 import { eventBus, Module, ToolsEventType } from '../../../../shared/services/eventBus';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
+import { navigateToModSearch } from '../../../../shared/hooks/useAppNavigation';
 import type { FullAnalysisReport, AnalysisProgress, AnalysisSessionSummary } from '../../../../shared/types/analysis.types';
 import type { CategoryInfo } from '../../../../shared/types/category.types';
 import { ScanView } from './components/ScanView';
@@ -21,7 +22,7 @@ interface ModAnalyzerToolProps {
 
 export const ModAnalyzerTool: React.FC<ModAnalyzerToolProps> = ({ visible, onClose, initialCategoryId }) => {
   const { t } = useTranslation();
-  const content = <ModAnalyzerToolInner initialCategoryId={initialCategoryId} />;
+  const content = <ModAnalyzerToolInner initialCategoryId={initialCategoryId} onClose={onClose} />;
 
   useSlideInScreen({
     visible,
@@ -36,7 +37,7 @@ export const ModAnalyzerTool: React.FC<ModAnalyzerToolProps> = ({ visible, onClo
 
 type ViewMode = 'scan' | 'findings' | 'history';
 
-const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initialCategoryId }) => {
+const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () => void }> = ({ initialCategoryId, onClose }) => {
   const { selectedProfileId } = useProfile();
 
   const [viewMode, setViewMode] = useState<ViewMode>('scan');
@@ -275,6 +276,12 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
     finally { setDeletingModId(undefined); }
   }, [selectedProfileId, deletingModId]);
 
+  const locateMods = useCallback(async (modIds: string[]) => {
+    if (!selectedProfileId) return;
+    await navigateToModSearch(selectedProfileId, modIds, report?.categoryId);
+    onClose();
+  }, [selectedProfileId, onClose, report?.categoryId]);
+
   return (
     <div className="mod-analyzer">
       {viewMode === 'scan' && (
@@ -305,6 +312,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string }> = ({ initia
           onDeleteMod={deleteDuplicateMod}
           deletingModId={deletingModId}
           onEditModName={editModName}
+          onLocateMods={locateMods}
         />
       )}
       {viewMode === 'history' && (

@@ -12,6 +12,8 @@ Before writing ANY utility function (formatBytes, formatDate, clipboard copy, et
 | `notification` | `shared/utils/notification.ts` | Toast notifications |
 | `imageUrlHelper` | `shared/utils/imageUrlHelper.ts` | File paths to `app://` URLs |
 | `memoizeDebounce` | `shared/utils/memoizeDebounce.ts` | Debounced memoization |
+| `parseSearchQuery` / `matchesSearchQuery` | `shared/utils/searchQueryParser.ts` | Search query parsing with AND/OR/NOT/field/exact operators |
+| `navigateToTab` / `navigateToModSearch` | `shared/hooks/useAppNavigation.ts` | Cross-module tab navigation + mod search with category |
 
 ## Rules
 

@@ -357,6 +357,18 @@
   color: var(--color-primary);
 }
 
+.mod-analyzer__locate-btn {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.mod-analyzer__locate-btn:hover {
+  color: var(--color-primary);
+}
+
 .mod-analyzer__mod-row-meta {
   font-size: 12px;
   color: var(--color-text-tertiary);

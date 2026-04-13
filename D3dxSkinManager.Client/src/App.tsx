@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "antd";
+import { registerNavigateToTab } from "./shared/hooks/useAppNavigation";
 import { AppHeader } from "./modules/core/components/layout/AppHeader";
 import { AppStatusBar } from "./modules/core/components/layout/AppStatusBar";
 import { ModHierarchicalView } from "./modules/mod/components/ModHierarchicalView";
@@ -66,6 +67,9 @@ const AppContent: React.FC = () => {
       });
     }
   };
+
+  // Register tab navigation so tools/screens can switch tabs
+  useEffect(() => registerNavigateToTab(handleTabChange), [handleTabChange]);
 
   // Initialize keyboard shortcuts
   useEffect(() => {

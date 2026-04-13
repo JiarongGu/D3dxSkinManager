@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { Layout, Empty, Input, Button, Spin } from "antd";
-import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
+import { Layout, Empty, Input, Button, Spin, Popover } from "antd";
+import { SearchOutlined, PlusOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 
 import { ModInfo } from "../../../../shared/types/mod.types";
@@ -13,6 +13,7 @@ import { useScrollPosition } from "../../../../shared/hooks/useScrollPosition";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { workflowService } from "../../../../shared/services/ipc";
 import { handleError } from "../../../../shared/utils/errorHandler";
+import { parseSearchQuery, matchesSearchQuery, SearchableRecord, SearchField } from "../../../../shared/utils/searchQueryParser";
 import "./ModListPanel.css";
 
 const { Sider } = Layout;
@@ -94,28 +95,35 @@ export const ModListPanel: React.FC = () => {
     className: 'mod-list-panel-drop-active'
   });
 
+  // Build localized field prefixes from i18n (e.g. 标签: → tag, 作者: → author)
+  const localizedPrefixes = useMemo(() => ({
+    [`${t('mods.search.syntaxTag').split(':')[0]}:`]: 'tag' as SearchField,
+    [`${t('mods.search.syntaxAuthor').split(':')[0]}:`]: 'author' as SearchField,
+    [`${t('mods.search.syntaxName').split(':')[0]}:`]: 'name' as SearchField,
+  }), [t]);
+
+  // Parse search query once (memoized)
+  const parsedQuery = useMemo(() => parseSearchQuery(searchQuery, localizedPrefixes), [searchQuery, localizedPrefixes]);
+
   // Compute filtered mods based on search and Category
   const filteredMods = useMemo(() => {
     // Always use Category-filtered mods (empty array if no category selected)
-    let result: ModInfo[] = mods || [];
+    const result: ModInfo[] = mods || [];
 
-    // Apply mod search filter
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      result = result.filter(
-        (mod: ModInfo) =>
-          mod.id.toLowerCase().includes(searchLower) ||
-          mod.name.toLowerCase().includes(searchLower) ||
-          (mod.author && mod.author.toLowerCase().includes(searchLower)) ||
-          (mod.tags &&
-            mod.tags.some((tag: string) =>
-              tag.toLowerCase().includes(searchLower),
-            )),
-      );
-    }
+    // Apply mod search filter using query parser
+    if (parsedQuery.isEmpty) return result;
 
-    return result;
-  }, [ mods, searchQuery]);
+    return result.filter((mod: ModInfo) => {
+      const record: SearchableRecord = {
+        id: mod.id,
+        name: mod.name,
+        author: mod.author || undefined,
+        tags: mod.tags,
+        extra: mod.categoryName ? [mod.categoryName] : undefined,
+      };
+      return matchesSearchQuery(parsedQuery, record);
+    });
+  }, [mods, parsedQuery]);
 
   /**
    * Handle mod selection with multi-select support
@@ -278,6 +286,30 @@ export const ModListPanel: React.FC = () => {
           onChange={(e) => setSearchQuery(e.target.value)}
           allowClear
           prefix={<SearchOutlined />}
+          suffix={
+            <Popover
+              content={
+                <div className="mod-search-help">
+                  <table className="mod-search-help__table">
+                    <tbody>
+                      <tr><td className="mod-search-help__syntax">hair skin</td><td>{t("mods.search.helpAnd")}</td></tr>
+                      <tr><td className="mod-search-help__syntax">hair | skin</td><td>{t("mods.search.helpOr")}</td></tr>
+                      <tr><td className="mod-search-help__syntax">-nsfw</td><td>{t("mods.search.helpNot")}</td></tr>
+                      <tr><td className="mod-search-help__syntax">"blue hair"</td><td>{t("mods.search.helpExact")}</td></tr>
+                      <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxTag")}</td><td>{t("mods.search.helpFieldTag")}</td></tr>
+                      <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxAuthor")}</td><td>{t("mods.search.helpFieldAuthor")}</td></tr>
+                      <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxName")}</td><td>{t("mods.search.helpFieldName")}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              }
+              title={t("mods.search.helpTitle")}
+              trigger="click"
+              placement="bottomRight"
+            >
+              <QuestionCircleOutlined className="mod-list-panel-search-help-icon" />
+            </Popover>
+          }
         />
         <Button
           type="default"
