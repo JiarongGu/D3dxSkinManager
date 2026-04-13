@@ -14,7 +14,7 @@ public interface IScreenCaptureService
     Task<ScreenCaptureResult> CaptureAsync(ScreenCaptureConfig config);
     Task ShowBorderOverlayAsync(int x, int y, int width, int height, IProfileEventBus eventBus);
     Task HideBorderOverlayAsync();
-    void ToggleCaptureControlPanel(string profileId);
+    Task ToggleCaptureControlPanelAsync(string profileId);
     bool IsBorderOverlayVisible { get; }
 }
 
@@ -325,9 +325,12 @@ public class ScreenCaptureService : IScreenCaptureService
         }
     }
 
-    public void ToggleCaptureControlPanel(string profileId)
+    public async Task ToggleCaptureControlPanelAsync(string profileId)
     {
         const string captureWindowName = "capture";
+        const string title = "Screen Capture";
+        const int defaultWidth = 300;
+        const int defaultHeight = 210;
 
         // Check if capture window already exists (service is scoped to current profile)
         if (_windowService.HasWindow(captureWindowName))
@@ -339,25 +342,62 @@ public class ScreenCaptureService : IScreenCaptureService
 
         _logger.Info($"[ScreenCaptureService] Launching capture control panel for profile {profileId}");
 
-        // Must run on STA thread for WinForms/WebView2
+        // Pre-load window configuration on the current (non-STA) thread.
+        // This performs async DB/settings calls that need thread pool threads.
+        // By doing this BEFORE the STA thread starts, we avoid blocking the STA thread
+        // with .GetAwaiter().GetResult() which can hang when the thread pool is busy
+        // (e.g., during heavy background tasks like mod analysis).
+        var windowConfig = await _windowService.PreloadWindowConfigAsync(
+            captureWindowName, defaultWidth, defaultHeight).ConfigureAwait(false);
+
+        _logger.Info("[ScreenCaptureService] Window config pre-loaded, starting STA thread");
+
+        // STA thread creates all WinForms controls synchronously — no async, no thread pool dependency
         var thread = new Thread(() =>
         {
             try
             {
                 _logger.Info("[ScreenCaptureService] STA thread started");
                 Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
-                _logger.Info("[ScreenCaptureService] Creating capture window...");
 
-                // Call async method - safe because SecondaryWindowService uses ConfigureAwait(false) consistently
-                var form = CreateCaptureWindowAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+                var form = _windowService.CreateSecondaryWindow(
+                    captureWindowName, title, defaultWidth, defaultHeight,
+                    "capture.html", windowConfig);
 
                 if (form == null)
                 {
-                    _logger.Error("[ScreenCaptureService] CreateCaptureWindowAsync returned null");
+                    _logger.Error("[ScreenCaptureService] CreateSecondaryWindow returned null");
                     return;
                 }
+
+                // Capture-specific: Close the capture overlay when control panel closes
+                form.FormClosing += (s, e) =>
+                {
+                    try
+                    {
+                        if (IsBorderOverlayVisible)
+                        {
+                            _logger.Info("[ScreenCaptureService] Closing capture overlay with control panel");
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    await HideBorderOverlayAsync().ConfigureAwait(false);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.Error($"[ScreenCaptureService] Failed to close capture overlay async: {ex.Message}");
+                                }
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"[ScreenCaptureService] Failed to close capture overlay: {ex.Message}");
+                    }
+                };
+
                 _logger.Info("[ScreenCaptureService] Showing form and starting message loop...");
-                // Application.Run(form) shows the form AND runs the message loop
                 Application.Run(form);
                 _logger.Info("[ScreenCaptureService] Message loop exited (window closed)");
             }
@@ -371,62 +411,6 @@ public class ScreenCaptureService : IScreenCaptureService
         thread.IsBackground = false;
         thread.Start();
         _logger.Info("[ScreenCaptureService] STA thread launched");
-    }
-
-    /// <summary>
-    /// Create capture-specific window with overlay cleanup behavior
-    /// </summary>
-    private async Task<Form?> CreateCaptureWindowAsync()
-    {
-        const string windowName = "capture";
-        const string title = "Screen Capture";
-
-        // Window dimensions in logical pixels
-        // These are converted to physical pixels based on current DPI
-        // Example: 300x210 logical -> 450x315 @ 150% DPI, 600x420 @ 200% DPI
-        const int defaultWidth = 300;
-        const int defaultHeight = 210;
-
-        var form = await _windowService.CreateSecondaryWindowAsync(
-            windowName,
-            title,
-            defaultWidth,
-            defaultHeight,
-            "capture.html"
-        ).ConfigureAwait(false);
-
-        if (form != null)
-        {
-            // Capture-specific: Close the capture overlay when control panel closes
-            form.FormClosing += (s, e) =>
-            {
-                try
-                {
-                    if (IsBorderOverlayVisible)
-                    {
-                        _logger.Info("[ScreenCaptureService] Closing capture overlay with control panel");
-                        // Fire and forget - FormClosing is synchronous, don't block with GetAwaiter().GetResult()
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                await HideBorderOverlayAsync().ConfigureAwait(false);
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.Error($"[ScreenCaptureService] Failed to close capture overlay async: {ex.Message}");
-                            }
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error($"[ScreenCaptureService] Failed to close capture overlay: {ex.Message}");
-                }
-            };
-        }
-
-        return form;
     }
 
     private Bitmap CaptureScreen(int x, int y, int width, int height)

@@ -88,7 +88,7 @@ public class ToolFacade : BaseFacade, IToolFacade
             "SCREEN_CAPTURE_HIDE_BORDER" => await HideBorderOverlayAsync(request),
 
             // Screen Capture - Control Panel
-            "SCREEN_CAPTURE_TOGGLE_CONTROL_PANEL" => Task.FromResult(ToggleCaptureControlPanel(request)),
+            "SCREEN_CAPTURE_TOGGLE_CONTROL_PANEL" => await ToggleCaptureControlPanelAsync(request),
 
             // Mod Package - Export/Import
             "MOD_PACKAGE_EXPORT" => await ExportModPackageAsync(request),
@@ -301,15 +301,15 @@ public class ToolFacade : BaseFacade, IToolFacade
         return null;
     }
 
-    public void ToggleCaptureControlPanel(string profileId)
+    public async Task ToggleCaptureControlPanelAsync(string profileId)
     {
-        _screenCaptureService.ToggleCaptureControlPanel(profileId);
+        await _screenCaptureService.ToggleCaptureControlPanelAsync(profileId).ConfigureAwait(false);
     }
 
-    private object? ToggleCaptureControlPanel(IpcRequest request)
+    private async Task<object?> ToggleCaptureControlPanelAsync(IpcRequest request)
     {
         var profileId = request.ProfileId ?? throw new InvalidOperationException("ProfileId is required");
-        ToggleCaptureControlPanel(profileId);
+        await ToggleCaptureControlPanelAsync(profileId).ConfigureAwait(false);
         return null;
     }
 

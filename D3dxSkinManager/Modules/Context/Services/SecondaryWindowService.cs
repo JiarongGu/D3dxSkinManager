@@ -16,9 +16,17 @@ namespace D3dxSkinManager.Modules.Context.Services;
 /// Service for creating and managing secondary WebView2 windows
 /// Note: This service is scoped to ProfileContext - profileId comes from IProfileContext
 /// </summary>
+/// <summary>
+/// Pre-loaded window configuration for synchronous form creation on STA threads.
+/// Load via PreloadWindowConfigAsync, then pass to CreateSecondaryWindow.
+/// </summary>
+public record WindowPreloadConfig(Point Position, Size Size, bool IsDarkTheme);
+
 public interface ISecondaryWindowService : IDisposable
 {
     Task<Form?> CreateSecondaryWindowAsync(string windowName, string title, int defaultWidth, int defaultHeight, string htmlPage);
+    Task<WindowPreloadConfig> PreloadWindowConfigAsync(string windowName, int defaultWidth, int defaultHeight);
+    Form? CreateSecondaryWindow(string windowName, string title, int defaultWidth, int defaultHeight, string htmlPage, WindowPreloadConfig config);
     void CloseAllWindows();
     bool HasWindow(string windowName);
     void CloseWindow(string windowName);
@@ -232,6 +240,155 @@ public class SecondaryWindowService : ISecondaryWindowService
         catch (Exception ex)
         {
             _logger.Error($"[SecondaryWindow] Failed to create '{windowName}' window: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Pre-load window configuration (position, size, theme) on a non-STA thread.
+    /// Call this BEFORE starting an STA thread, then pass the result to CreateSecondaryWindow.
+    /// This avoids blocking the STA thread with async DB/settings calls that need thread pool threads.
+    /// </summary>
+    public async Task<WindowPreloadConfig> PreloadWindowConfigAsync(string windowName, int defaultWidth, int defaultHeight)
+    {
+        var screen = Screen.PrimaryScreen!.WorkingArea;
+        var (position, size) = await LoadWindowConfigurationAsync(windowName, defaultWidth, defaultHeight, screen).ConfigureAwait(false);
+
+        bool isDarkTheme = true;
+        try
+        {
+            var settingService = _serviceProvider.GetRequiredService<IGlobalSettingService>();
+            var settings = await settingService.GetSettingsAsync().ConfigureAwait(false);
+            isDarkTheme = settings.Theme == "dark";
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[SecondaryWindow] Failed to load theme during preload, using dark default: {ex.Message}");
+        }
+
+        return new WindowPreloadConfig(position, size, isDarkTheme);
+    }
+
+    /// <summary>
+    /// Create a secondary window SYNCHRONOUSLY using pre-loaded configuration.
+    /// Must be called on an STA thread — all WinForms controls are created on the calling thread.
+    /// No async operations, no thread pool dependencies, no risk of thread starvation.
+    /// </summary>
+    public Form? CreateSecondaryWindow(
+        string windowName,
+        string title,
+        int defaultWidth,
+        int defaultHeight,
+        string htmlPage,
+        WindowPreloadConfig config)
+    {
+        try
+        {
+            var profileId = _profileContext.ProfileId;
+            _logger.Info($"[SecondaryWindow] Creating '{windowName}' window (sync) for profile {profileId}");
+
+            var sessionId = $"{windowName}_{++_windowCounter}";
+
+            // All control creation on STA thread — no async, no ConfigureAwait(false)
+            var form = new Form
+            {
+                Text = title,
+                Size = new Size(defaultWidth, defaultHeight),
+                StartPosition = FormStartPosition.Manual,
+                FormBorderStyle = FormBorderStyle.FixedToolWindow,
+                MaximizeBox = false,
+                MinimizeBox = true,
+                TopMost = true,
+                ShowInTaskbar = true,
+                Icon = null
+            };
+
+            form.Location = config.Position;
+            form.Size = config.Size;
+
+            var webView = new WebView2
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(26, 26, 26)
+            };
+            form.Controls.Add(webView);
+
+            var splashScreenPanel = new SplashScreenPanel(config.IsDarkTheme);
+            splashScreenPanel.UpdateStatus("Initializing...");
+            form.Controls.Add(splashScreenPanel);
+            splashScreenPanel.BringToFront();
+
+            var session = _sessionManager.Create(sessionId, () =>
+            {
+                return new WebViewSession(
+                    sessionId,
+                    webView,
+                    _logger,
+                    _serviceProvider,
+                    _schemeHandler,
+                    form,
+                    splashScreenPanel
+                );
+            });
+
+            form.FormClosing += (s, e) =>
+            {
+                if (_openWindows.TryRemove(windowName, out var windowEntry))
+                {
+                    _sessionManager.Remove(sessionId);
+                    try
+                    {
+                        SaveWindowConfigurationAsync(
+                            windowEntry.WindowName,
+                            form.Location,
+                            form.Size
+                        ).ConfigureAwait(false).GetAwaiter().GetResult();
+                    }
+                    catch (ObjectDisposedException ex)
+                    {
+                        _logger.Info($"[SecondaryWindow] Services disposed during window close (expected during shutdown): {ex.Message}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"[SecondaryWindow] Error saving window configuration on close: {ex.Message}");
+                    }
+                }
+                _logger.Info($"[SecondaryWindow] Window '{windowName}' closed: {sessionId}");
+            };
+
+            form.Load += (s, e) =>
+            {
+                form.BeginInvoke(async () =>
+                {
+                    try
+                    {
+                        await session.StartAsync();
+                        var url = _appEnvironment.IsDevelopment
+                            ? $"http://localhost:3000/{htmlPage}"
+                            : $"https://app.local/{htmlPage}";
+                        webView.CoreWebView2.Navigate(url);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"[SecondaryWindow] Failed to start session: {ex.Message}");
+                    }
+                });
+            };
+
+            var entry = new WindowEntry(form, session, windowName);
+            if (!_openWindows.TryAdd(windowName, entry))
+            {
+                _logger.Warn($"[SecondaryWindow] Window '{windowName}' already exists, closing old one");
+                CloseWindow(windowName);
+                _openWindows.TryAdd(windowName, entry);
+            }
+
+            _logger.Info($"[SecondaryWindow] Window '{windowName}' created (sync): {sessionId}");
+            return form;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"[SecondaryWindow] Failed to create '{windowName}' window (sync): {ex.Message}");
             return null;
         }
     }

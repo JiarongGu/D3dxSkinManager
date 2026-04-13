@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[PRE-RESPONSE] Scan available skills — invoke ANY that match user request (caveman, etc). For coding tasks: 1) /doc-loader + /skill-loader + /pattern-finder in parallel 2) Read routed docs 3) Invoke skills from skill-loader INVOKE list 4) Print match summary. Never hand-write what a skill generates.'"
+            "command": "echo '[GATE] Coding task? FIRST tool calls MUST be all 4 core skills in parallel:\\n  1. Skill(skill-loader, args=\"task description\")\\n  2. Skill(doc-loader, args=\"task description scope\")\\n  3. Skill(pattern-finder, args=\"PatternType Module\")\\n  4. Skill(caveman)\\nThen: read routed docs → invoke INVOKE list → print match summary → only THEN explore code.\\nSkipping ANY skill = non-conforming code. Zero exceptions for \"I already know\" or \"simple fix\".'"
           }
         ]
       }

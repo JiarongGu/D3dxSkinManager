@@ -2,6 +2,8 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mod.Services;
+using D3dxSkinManager.Modules.Category.Services;
+using D3dxSkinManager.Modules.Category.Models;
 using D3dxSkinManager.Modules.Tool.Models;
 
 namespace D3dxSkinManager.Modules.Tool.Services;
@@ -34,15 +36,18 @@ public class FileCleanupService : IFileCleanupService
 {
     private readonly IProfilePathService _profilePaths;
     private readonly IModRepository _repository;
+    private readonly ICategoryService _categoryService;
     private readonly ILogHelper _logger;
 
     public FileCleanupService(
         IProfilePathService profilePaths,
         IModRepository repository,
+        ICategoryService categoryService,
         ILogHelper logger)
     {
         _profilePaths = profilePaths;
         _repository = repository;
+        _categoryService = categoryService;
         _logger = logger;
     }
 
@@ -111,46 +116,52 @@ public class FileCleanupService : IFileCleanupService
     }
 
     /// <summary>
-    /// Scan thumbnails directory for files whose mod ID doesn't exist in the database
+    /// Scan thumbnails directory for files not referenced by any category,
+    /// and previews directory for folders whose mod ID doesn't exist in the database.
+    /// Thumbnails are used by categories (filename is content hash, not mod ID).
     /// </summary>
     private async Task<OrphanScanResult> ScanOrphanedThumbnailsAsync()
     {
         var result = new OrphanScanResult { Category = OrphanCategory.Thumbnail };
         var thumbnailsDir = _profilePaths.ThumbnailsDirectory;
 
-        if (!Directory.Exists(thumbnailsDir))
-            return result;
-
-        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
-        var knownIds = entities.Select(e => e.Id).ToHashSet();
-
-        var files = Directory.GetFiles(thumbnailsDir);
-        foreach (var file in files)
+        // Scan thumbnails: check against category references (not mod IDs)
+        if (Directory.Exists(thumbnailsDir))
         {
-            var fileName = Path.GetFileNameWithoutExtension(file);
-            if (!knownIds.Contains(fileName))
+            var categories = await _categoryService.GetCategoryTreeAsync().ConfigureAwait(false);
+            var referencedFiles = CollectReferencedThumbnailFiles(categories);
+
+            var files = Directory.GetFiles(thumbnailsDir);
+            foreach (var file in files)
             {
-                var info = new FileInfo(file);
-                result.Items.Add(new OrphanedItem
+                var fileName = Path.GetFileName(file);
+                if (!referencedFiles.Contains(fileName))
                 {
-                    Path = file,
-                    Name = Path.GetFileName(file),
-                    SizeBytes = info.Length,
-                    LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                    Category = OrphanCategory.Thumbnail
-                });
+                    var info = new FileInfo(file);
+                    result.Items.Add(new OrphanedItem
+                    {
+                        Path = file,
+                        Name = fileName,
+                        SizeBytes = info.Length,
+                        LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                        Category = OrphanCategory.Thumbnail
+                    });
+                }
             }
         }
 
-        // Also scan previews directory for orphaned mod preview folders
+        // Scan previews: check against mod IDs (previews are per-mod)
         var previewsDir = _profilePaths.PreviewsDirectory;
         if (Directory.Exists(previewsDir))
         {
+            var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+            var knownModIds = entities.Select(e => e.Id).ToHashSet();
+
             var previewDirs = Directory.GetDirectories(previewsDir);
             foreach (var dir in previewDirs)
             {
                 var dirName = Path.GetFileName(dir);
-                if (!knownIds.Contains(dirName))
+                if (!knownModIds.Contains(dirName))
                 {
                     result.Items.Add(new OrphanedItem
                     {
@@ -166,6 +177,32 @@ public class FileCleanupService : IFileCleanupService
 
         _logger.Info($"Found {result.TotalCount} orphaned thumbnail/preview items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
         return result;
+    }
+
+    /// <summary>
+    /// Flatten category tree and collect all referenced thumbnail filenames.
+    /// Category.Thumbnail is a relative path like "thumbnails/abc123.png" — extract just the filename.
+    /// </summary>
+    private static HashSet<string> CollectReferencedThumbnailFiles(List<CategoryInfo> categories)
+    {
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CollectThumbnailsRecursive(categories, files);
+        return files;
+    }
+
+    private static void CollectThumbnailsRecursive(List<CategoryInfo> categories, HashSet<string> files)
+    {
+        foreach (var category in categories)
+        {
+            if (!string.IsNullOrEmpty(category.Thumbnail))
+            {
+                var fileName = Path.GetFileName(category.Thumbnail);
+                if (!string.IsNullOrEmpty(fileName))
+                    files.Add(fileName);
+            }
+            if (category.Children.Count > 0)
+                CollectThumbnailsRecursive(category.Children, files);
+        }
     }
 
     /// <summary>

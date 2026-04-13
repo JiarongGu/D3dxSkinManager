@@ -19,7 +19,9 @@ Follow the full 5-step protocol in `.claude/rules/skills-workflow.md`. Summary:
 Never hand-write what a skill generates (service, facade, IPC, component, error, registration).
 Skip this gate only when doing a direct continuation of the same task in the same scope.
 
-**RE-INVOKE on scope change:** If a follow-up request changes module, creates a new component/service, or touches a different tool — re-run `/skill-loader` even mid-conversation. The cost of re-invoking is tiny vs. the cost of hand-writing buggy code.
+**All 4 core skills are ATOMIC — invoke all or none.** Never invoke skill-loader alone and skip doc-loader/pattern-finder/caveman. "Simple fix" is not a valid skip reason.
+
+**RE-INVOKE on scope change:** If a follow-up request changes module, creates a new component/service, or touches a different tool — re-run **all 4 core skills** even mid-conversation. The cost of re-invoking is tiny vs. the cost of hand-writing buggy code.
 
 ---
 
