@@ -14,6 +14,7 @@ import { categoryService, profileService } from '../../../../shared/services/ipc
 import { useTranslation } from 'react-i18next';
 import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
 import { ModPackageTool } from '../../../tool/components/ModPackageTool/ModPackageTool';
+import { ModAnalyzerTool } from '../../../tool/components/ModAnalyzerTool/ModAnalyzerTool';
 import './CategoryPanel.css';
 
 const { Sider } = Layout;
@@ -56,9 +57,15 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
 
   // Export category state
   const [exportCategoryId, setExportCategoryId] = useState<string>();
+  // Analyze category state
+  const [analyzeCategoryId, setAnalyzeCategoryId] = useState<string>();
 
   const handleExportCategory = useCallback((nodeId: string) => {
     setExportCategoryId(nodeId);
+  }, []);
+
+  const handleAnalyzeCategory = useCallback((nodeId: string) => {
+    setAnalyzeCategoryId(nodeId);
   }, []);
 
   const handleAddCategory = (parentId?: string) => {
@@ -166,6 +173,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
           onExpandedKeysChange={setExpandedKeys}
           onAddCategory={handleAddCategory}
           onExportCategory={handleExportCategory}
+          onAnalyzeCategory={handleAnalyzeCategory}
         />
       </div>
 
@@ -217,6 +225,12 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
         visible={exportCategoryId !== undefined}
         onClose={() => setExportCategoryId(undefined)}
         initialCategoryId={exportCategoryId}
+      />
+      {/* Analyze Category - Opens ModAnalyzerTool with category pre-selected */}
+      <ModAnalyzerTool
+        visible={analyzeCategoryId !== undefined}
+        onClose={() => setAnalyzeCategoryId(undefined)}
+        initialCategoryId={analyzeCategoryId}
       />
     </Sider>
   );

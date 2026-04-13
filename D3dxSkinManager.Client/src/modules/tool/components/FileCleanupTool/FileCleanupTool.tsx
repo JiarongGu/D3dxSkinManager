@@ -68,13 +68,13 @@ const FileCleanupToolInner: React.FC = () => {
       label: (
         <TabLabel
           text={t('tools.fileCleanup.tabs.thumbnails')}
-          count={getResultForCategory('Thumbnail')?.totalCount}
+          count={getResultForCategory('thumbnail')?.totalCount}
         />
       ),
       children: (
         <CleanupTab
-          category="Thumbnail"
-          scanResult={getResultForCategory('Thumbnail')}
+          category="thumbnail"
+          scanResult={getResultForCategory('thumbnail')}
           scanning={scanning}
           onCleaned={handleCleaned}
           emptyMessage={t('tools.fileCleanup.noOrphanedThumbnails')}
@@ -87,13 +87,13 @@ const FileCleanupToolInner: React.FC = () => {
       label: (
         <TabLabel
           text={t('tools.fileCleanup.tabs.tempFiles')}
-          count={getResultForCategory('TempFile')?.totalCount}
+          count={getResultForCategory('tempFile')?.totalCount}
         />
       ),
       children: (
         <CleanupTab
-          category="TempFile"
-          scanResult={getResultForCategory('TempFile')}
+          category="tempFile"
+          scanResult={getResultForCategory('tempFile')}
           scanning={scanning}
           onCleaned={handleCleaned}
           emptyMessage={t('tools.fileCleanup.noTempFiles')}
@@ -106,13 +106,13 @@ const FileCleanupToolInner: React.FC = () => {
       label: (
         <TabLabel
           text={t('tools.fileCleanup.tabs.modFiles')}
-          count={getResultForCategory('ModCache')?.totalCount}
+          count={getResultForCategory('modCache')?.totalCount}
         />
       ),
       children: (
         <CleanupTab
-          category="ModCache"
-          scanResult={getResultForCategory('ModCache')}
+          category="modCache"
+          scanResult={getResultForCategory('modCache')}
           scanning={scanning}
           onCleaned={handleCleaned}
           emptyMessage={t('tools.fileCleanup.noOrphanedModFiles')}
@@ -143,9 +143,9 @@ const FileCleanupToolInner: React.FC = () => {
 
 const TabLabel: React.FC<{ text: string; count?: number }> = ({ text, count }) => (
   <span className="file-cleanup__tab-label">
-    {text}
+    <span>{text}</span>
     {count !== undefined && count > 0 && (
-      <span className="file-cleanup__tab-badge">{count}</span>
+      <span className="file-cleanup__tab-count">{count}</span>
     )}
   </span>
 );

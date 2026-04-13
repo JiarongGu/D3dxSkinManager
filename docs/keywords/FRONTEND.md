@@ -3,7 +3,7 @@
 > **Purpose:** React components, hooks, services, and TypeScript types
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-04-12
+**Last Updated:** 2026-04-13
 
 ---
 
@@ -357,6 +357,14 @@ Selector files removed - use store hooks directly:
 
 **Reorganization:** 2026-02-18 - Moved from `common/` to `compact/` folder + added index.ts
 
+### Shared Domain Components
+
+- **CategorySelect** → `src/shared/components/CategorySelect.tsx`
+  - Flat category dropdown with breadcrumb labels (`Parent > Child`)
+  - Uses CompactSelect, includes "All Categories" option
+  - Props: `categories`, `value?`, `onChange`, `placeholder?`, `size?`, `style?`
+  - Used in: ModAnalyzerTool (ScanView), ModPackageTool (ExportTab uses same pattern inline)
+
 ### Slide-In Screens
 
 - **SlideInScreen** → `src/shared/components/common/SlideInScreen.tsx`
@@ -557,6 +565,17 @@ Selector files removed - use store hooks directly:
   - IPC: `toolService.exportModPackage()`, `analyzeModPackage()`, `importModPackage()`
   - Event: `ToolsEventType.MOD_PACKAGE_PROGRESS`
   - Cross-module usage: CategoryPanel renders ModPackageTool for category export
+
+- **ModAnalyzerTool** → `src/modules/tool/components/ModAnalyzerTool/ModAnalyzerTool.tsx`
+  - Mod health analysis, duplicate detection, hash conflict finder
+  - Props: `visible`, `onClose`, `initialCategoryId?` (auto-starts scan for category)
+  - **ScanView** → Hero landing + live progress with stat pills
+  - **FindingsView** → Filter chips (broken/stale/duplicates/conflicts/healthy) + search + expandable mod rows
+  - **HistoryView** → Session cards with live progress counts, view/delete actions
+  - Types: `src/shared/types/analysis.types.ts` (enums are camelCase — `JsonStringEnumConverter(CamelCase)`)
+  - IPC: `toolService.startAnalysis()`, `pauseAnalysis()`, `getAnalysisReport()`, `getAnalysisHistory()`, `deleteAnalysisSession()`, `clearAllAnalysis()`
+  - Events: `ToolsEventType.MOD_ANALYSIS_PROGRESS`, `MOD_ANALYSIS_COMPLETE`
+  - Cross-module usage: CategoryPanel renders ModAnalyzerTool for category analysis via context menu
 
 ### Plugins Components
 

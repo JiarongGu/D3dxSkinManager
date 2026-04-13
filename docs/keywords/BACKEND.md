@@ -4,7 +4,7 @@
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
 **Framework:** net10.0-windows
-**Last Updated:** 2026-03-02
+**Last Updated:** 2026-04-13
 
 ---
 
@@ -766,6 +766,17 @@ Located in `Plugins/` directory (external to backend):
   - Event: `MOD_PACKAGE_PROGRESS`
   - Error: `EXPORT_FOLDER_NOT_EMPTY`
   - Models: `Modules/Tool/ModPackage/Models/ModPackageModels.cs`
+
+- **ModAnalysisService** → `Modules/Tool/Services/ModAnalysisService.cs`
+  - Mod health analysis, duplicate detection, hash conflict finder
+  - Two-phase: per-mod analysis (INI parsing, hash fingerprinting) → report building (grouping, conflict detection)
+  - Fire-and-forget via `Task.Run` in facade — emits progress events during scan
+  - IPC: `ANALYSIS_START`, `ANALYSIS_PAUSE`, `ANALYSIS_GET_REPORT`, `ANALYSIS_GET_HISTORY`, `ANALYSIS_DELETE_SESSION`, `ANALYSIS_CLEAR_ALL`
+  - Events: `MOD_ANALYSIS_PROGRESS`, `MOD_ANALYSIS_COMPLETE`
+  - Models: `Modules/Tool/Models/AnalysisModels.cs`
+  - Repository: `Modules/Tool/Services/ModAnalysisRepository.cs` (SQLite via Fluent Migrator)
+  - Migration: `Modules/Fluent/Migrations/202604130001_CreateModAnalysisTable.cs`
+  - NOTE: Enum serialization uses `JsonStringEnumConverter(CamelCase)` — frontend types must use camelCase (`'running'` not `'Running'`)
 
 ---
 

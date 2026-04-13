@@ -35,6 +35,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     private readonly IScreenCaptureService _screenCaptureService;
     private readonly IModPackageService _modPackageService;
     private readonly IFileCleanupService _fileCleanupService;
+    private readonly IModAnalysisService _modAnalysisService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IProfileEventBus _eventBus;
 
@@ -45,6 +46,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         IScreenCaptureService screenCaptureService,
         IModPackageService modPackageService,
         IFileCleanupService fileCleanupService,
+        IModAnalysisService modAnalysisService,
         IPayloadHelper payloadHelper,
         IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
@@ -55,6 +57,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         _screenCaptureService = screenCaptureService ?? throw new ArgumentNullException(nameof(screenCaptureService));
         _modPackageService = modPackageService ?? throw new ArgumentNullException(nameof(modPackageService));
         _fileCleanupService = fileCleanupService ?? throw new ArgumentNullException(nameof(fileCleanupService));
+        _modAnalysisService = modAnalysisService ?? throw new ArgumentNullException(nameof(modAnalysisService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
@@ -96,6 +99,14 @@ public class ToolFacade : BaseFacade, IToolFacade
             "SCAN_ORPHANS" => await ScanOrphansAsync(request),
             "SCAN_ALL_ORPHANS" => await _fileCleanupService.ScanAllOrphansAsync(),
             "CLEAN_ORPHANS" => await CleanOrphansAsync(request),
+
+            // Mod Analysis
+            "ANALYSIS_START" => StartAnalysisAsync(request),
+            "ANALYSIS_PAUSE" => PauseAnalysis(),
+            "ANALYSIS_GET_REPORT" => await GetAnalysisReportAsync(request),
+            "ANALYSIS_GET_HISTORY" => await _modAnalysisService.GetSessionHistoryAsync(),
+            "ANALYSIS_DELETE_SESSION" => await DeleteAnalysisSessionAsync(request),
+            "ANALYSIS_CLEAR_ALL" => await ClearAnalysisAsync(),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -372,5 +383,53 @@ public class ToolFacade : BaseFacade, IToolFacade
         }
 
         return await _fileCleanupService.CleanOrphansAsync(category, paths).ConfigureAwait(false);
+    }
+
+    // ===== Mod Analysis =====
+
+    private object? StartAnalysisAsync(IpcRequest request)
+    {
+        var categoryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "categoryId");
+
+        // Fire-and-forget: start in background, emit completion event when done
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var report = await _modAnalysisService.StartAnalysisAsync(categoryId).ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_ANALYSIS_COMPLETE, report).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[ToolFacade] Analysis failed: {ex.Message}", "ToolFacade", ex);
+            }
+        });
+
+        return null;
+    }
+
+    private object? PauseAnalysis()
+    {
+        _modAnalysisService.PauseAnalysis();
+        return null;
+    }
+
+    private async Task<object?> GetAnalysisReportAsync(IpcRequest request)
+    {
+        var sessionId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sessionId");
+        return await _modAnalysisService.GetSessionReportAsync(sessionId).ConfigureAwait(false);
+    }
+
+    private async Task<object?> DeleteAnalysisSessionAsync(IpcRequest request)
+    {
+        var sessionId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sessionId");
+        await _modAnalysisService.DeleteSessionAsync(sessionId).ConfigureAwait(false);
+        return null;
+    }
+
+    private async Task<object?> ClearAnalysisAsync()
+    {
+        await _modAnalysisService.ClearAllSessionsAsync().ConfigureAwait(false);
+        return null;
     }
 }

@@ -17,6 +17,7 @@ import type {
   OrphanScanResult,
   CleanupResult,
 } from '../../types/cleanup.types';
+import type { FullAnalysisReport, AnalysisSessionSummary } from '../../types/analysis.types';
 
 /**
  * Service for tool operations (screen capture, etc.)
@@ -132,6 +133,32 @@ export class ToolService extends BaseModuleService {
    */
   async cleanOrphans(profileId: string, category: OrphanCategory, paths: string[]): Promise<CleanupResult> {
     return this.sendMessage<CleanupResult>('CLEAN_ORPHANS', profileId, { category, paths });
+  }
+
+  // ===== Mod Analysis =====
+
+  async startAnalysis(profileId: string, categoryId?: string): Promise<void> {
+    return this.sendMessage<void>('ANALYSIS_START', profileId, { categoryId });
+  }
+
+  async pauseAnalysis(profileId: string): Promise<void> {
+    return this.sendMessage<void>('ANALYSIS_PAUSE', profileId);
+  }
+
+  async getAnalysisReport(profileId: string, sessionId: string): Promise<FullAnalysisReport> {
+    return this.sendMessage<FullAnalysisReport>('ANALYSIS_GET_REPORT', profileId, { sessionId });
+  }
+
+  async getAnalysisHistory(profileId: string): Promise<AnalysisSessionSummary[]> {
+    return this.sendArrayMessage<AnalysisSessionSummary>('ANALYSIS_GET_HISTORY', profileId);
+  }
+
+  async deleteAnalysisSession(profileId: string, sessionId: string): Promise<void> {
+    return this.sendMessage<void>('ANALYSIS_DELETE_SESSION', profileId, { sessionId });
+  }
+
+  async clearAllAnalysis(profileId: string): Promise<void> {
+    return this.sendMessage<void>('ANALYSIS_CLEAR_ALL', profileId);
   }
 }
 

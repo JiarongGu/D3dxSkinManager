@@ -20,4 +20,8 @@ public static class ToolEvents
 
     // Mod package events
     public const string MOD_PACKAGE_PROGRESS = "MOD_PACKAGE_PROGRESS";
+
+    // Mod analysis events
+    public const string MOD_ANALYSIS_PROGRESS = "MOD_ANALYSIS_PROGRESS";
+    public const string MOD_ANALYSIS_COMPLETE = "MOD_ANALYSIS_COMPLETE";
 }

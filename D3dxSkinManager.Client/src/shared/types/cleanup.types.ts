@@ -1,4 +1,5 @@
-export type OrphanCategory = 'Thumbnail' | 'TempFile' | 'ModCache';
+// NOTE: Enums are camelCase because IpcHandler serializes with JsonStringEnumConverter(CamelCase)
+export type OrphanCategory = 'thumbnail' | 'tempFile' | 'modCache';
 
 export interface OrphanedItem {
   path: string;

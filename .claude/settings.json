@@ -5,6 +5,7 @@
       "Bash(xargs grep:*)",
       "Edit(/.claude/skills/doc-loader/**)",
       "Edit(/.claude/skills/pattern-finder/**)",
+      "Edit(/.claude/skills/skill-loader/**)",
       "Edit(/.claude/skills/doc-monitor/**)",
       "Edit(/.claude/skills/doc-cleanup/**)",
       "Edit(/.claude/skills/doc-optimize/**)",
@@ -12,7 +13,6 @@
       "Edit(/.claude/skills/doc-update-reference/**)",
       "Edit(/.claude/skills/doc-update-technical/**)",
       "Edit(/.claude/skills/post-feature/**)",
-      "Edit(/.claude/skills/caveman/**)",
       "Skill(update-config)",
       "Skill(update-config:*)",
       "Skill(keybindings-help)",
@@ -22,12 +22,12 @@
       "Bash(npx tsc:*)",
       "Bash(npx vite:*)",
       "Bash(dotnet build:*)",
-      "Edit(/.claude/skills/skill-loader/**)"
+      "Bash(xargs head:*)"
     ],
     "additionalDirectories": [
-      "d:\\Development\\D3dxSkinManager\\.claude",
-      "d:\\Development\\D3dxSkinManager\\.claude\\rules",
-      "d:\\Development\\D3dxSkinManager\\.claude\\skills"
+      ".claude",
+      ".claud/rules",
+      ".claude/skills"
     ]
   },
   "hooks": {

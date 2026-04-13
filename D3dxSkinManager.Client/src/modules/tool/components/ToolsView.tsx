@@ -8,6 +8,7 @@ import {
   ToolOutlined,
   CameraOutlined,
   SwapOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { StartupValidationTool } from './StartupValidationTool';
@@ -15,6 +16,7 @@ import { TagManagementTool } from './TagManagementTool/TagManagementTool';
 import { PythonMigrationTool } from './PythonMigrationTool/PythonMigrationTool';
 import { ModPackageTool } from './ModPackageTool/ModPackageTool';
 import { FileCleanupTool } from './FileCleanupTool/FileCleanupTool';
+import { ModAnalyzerTool } from './ModAnalyzerTool/ModAnalyzerTool';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { CompactCard } from '../../../shared/components/compact';
 import { api } from '../../../shared/services/ipc';
@@ -46,6 +48,7 @@ export const ToolsView: React.FC = () => {
   const [showMigrationTool, setShowMigrationTool] = React.useState(false);
   const [showModPackageTool, setShowModPackageTool] = React.useState(false);
   const [showFileCleanupTool, setShowFileCleanupTool] = React.useState(false);
+  const [showModAnalyzerTool, setShowModAnalyzerTool] = React.useState(false);
 
   // ModsProvider already handles migration completion events
   // No need to manually refresh here
@@ -95,10 +98,23 @@ export const ToolsView: React.FC = () => {
       description: t('tools.startupValidation.description'),
       icon: <CheckCircleOutlined />,
       content: <StartupValidationTool />,
-    }
+    },
+    {
+      key: 'mod-analyzer',
+      title: t('tools.modAnalyzer.title'),
+      description: t('tools.modAnalyzer.description'),
+      icon: <ExperimentOutlined />,
+      content: null, // Special case - handled separately
+    },
   ];
 
   const handleToolClick = (tool: ToolCardData) => {
+    // Special handling for Mod Analyzer - open tool directly
+    if (tool.key === 'mod-analyzer') {
+      setShowModAnalyzerTool(true);
+      return;
+    }
+
     // Special handling for Mod Package - open wizard directly
     if (tool.key === 'mod-package') {
       setShowModPackageTool(true);
@@ -175,6 +191,12 @@ export const ToolsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Mod Analyzer Tool - Opens in SlideInScreen */}
+      <ModAnalyzerTool
+        visible={showModAnalyzerTool}
+        onClose={() => setShowModAnalyzerTool(false)}
+      />
 
       {/* Mod Package Tool - Opens in SlideInScreen */}
       <ModPackageTool

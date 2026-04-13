@@ -98,3 +98,15 @@ This is normal. Not every task needs generated scaffolding.
 - The SKIP list is printed for transparency but no tool calls are made
 - Doc/audit skills (`post-feature`, `doc-update-*`) are typically deferred to "after implementation"
 - Communication skills (`caveman`) only match when explicitly requested
+
+## Mandatory Rules Check (ALWAYS — even when no skills match)
+
+After outputting INVOKE/SKIP, **always remind to check `.claude/rules/*.md`** for rules that match the task scope. Critical rules that apply to most frontend/backend work:
+
+| Rule File | When It Applies |
+|---|---|
+| `enum-serialization.md` | ANY new TypeScript type that maps to a C# enum — enums must be camelCase |
+| `ui-design-rules.md` | ANY CSS or UI component work — font sizes (12/14px only), pattern reuse, Ant Design gotchas |
+| `context-menu-extension.md` | Adding context menu items to category tree |
+
+These rules contain hard-won fixes from past sessions. Ignoring them causes repeated bugs.

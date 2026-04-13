@@ -19,6 +19,8 @@ Follow the full 5-step protocol in `.claude/rules/skills-workflow.md`. Summary:
 Never hand-write what a skill generates (service, facade, IPC, component, error, registration).
 Skip this gate only when doing a direct continuation of the same task in the same scope.
 
+**RE-INVOKE on scope change:** If a follow-up request changes module, creates a new component/service, or touches a different tool — re-run `/skill-loader` even mid-conversation. The cost of re-invoking is tiny vs. the cost of hand-writing buggy code.
+
 ---
 
 ## 1. Git Commits
@@ -48,6 +50,11 @@ Facades never emit events.
 
 **Frontend data** — use `undefined` for absent data, never `null`.
 `null` is only for React render returns (`if (!data) return null`).
+
+**Enum serialization** — C# enums serialize as **camelCase strings** via `JsonStringEnumConverter(CamelCase)`.
+TypeScript enum types MUST use camelCase: `'running'` not `'Running'`. See `.claude/rules/enum-serialization.md`.
+
+**Font sizes** — 12px or 14px ONLY. No 13px. No exceptions.
 
 ---
 

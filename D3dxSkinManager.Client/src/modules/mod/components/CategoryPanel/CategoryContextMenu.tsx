@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined } from '@ant-design/icons';
+import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, RadarChartOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { TFunction } from 'i18next';
 
@@ -9,6 +9,7 @@ interface CategoryContextMenuProps {
   onEditNode: (nodeId: string) => void;
   onDeleteNode: (nodeId: string) => void;
   onExportCategory?: (nodeId: string) => void;
+  onAnalyzeCategory?: (nodeId: string) => void;
   t: TFunction;
 }
 
@@ -22,6 +23,7 @@ export function getCategoryContextMenu({
   onEditNode,
   onDeleteNode,
   onExportCategory,
+  onAnalyzeCategory,
   t,
 }: CategoryContextMenuProps): MenuProps['items'] {
   const items: MenuProps['items'] = [];
@@ -70,6 +72,17 @@ export function getCategoryContextMenu({
       onClick: () => {
         if (onExportCategory) {
           onExportCategory(nodeId);
+        }
+      },
+    });
+
+    items.push({
+      key: 'analyze',
+      label: t("category.tree.analyzeCategory"),
+      icon: <RadarChartOutlined />,
+      onClick: () => {
+        if (onAnalyzeCategory) {
+          onAnalyzeCategory(nodeId);
         }
       },
     });

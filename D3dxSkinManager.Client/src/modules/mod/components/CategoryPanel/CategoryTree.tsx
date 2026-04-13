@@ -144,6 +144,11 @@ export interface CategoryTreeProps {
    * Callback when exporting a category's mods
    */
   onExportCategory?: (nodeId: string) => void;
+
+  /**
+   * Callback when analyzing a category's mods (background)
+   */
+  onAnalyzeCategory?: (nodeId: string) => void;
 }
 
 /**

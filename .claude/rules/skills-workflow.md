@@ -65,6 +65,9 @@ Only after steps 1–4 are complete may you:
 6. **Mentions a skill name in text but doesn't call the Skill tool** — "Invoke" means `Skill()` tool call, not text
 7. **Uses global memory for project rules** — Workflow corrections go in `.claude/rules/`, NEVER in `~/.claude/projects/*/memory/`
 8. **Ignores skill-loader INVOKE list** — If skill-loader says INVOKE, you MUST call `Skill()` for those skills
+9. **Skips skills on follow-up requests within the same session** — When the user asks for a NEW sub-task (e.g., "now fix the cleanup tool"), re-invoke skills if the scope changed. "Direct continuation" means the SAME files/scope, not just the same conversation.
+10. **Hand-writes code that a skill generates** — If `/react-component`, `/ipc-service`, `/error-with-i18n`, etc. match the task, use them. Common violation: building new shared components, IPC methods, or error handling by hand instead of invoking the relevant skill.
+11. **Ignores `.claude/rules/*.md` during implementation** — Rules contain hard-won patterns from past sessions (enum serialization, UI design rules, wiring chains). They override generic knowledge. ALWAYS scan rule filenames against the current task.
 
 ## Skill matching beyond coding tasks
 
@@ -72,6 +75,20 @@ On every user message, scan available skills. If any skill's trigger matches the
 
 ## When to skip this gate
 
-- Direct continuation of the same task in the same scope (templates already in context)
+- **ONLY skip** when ALL of these are true:
+  1. Same files/scope as the previous request (not just same conversation)
+  2. Templates from the previous skill-loader are still relevant
+  3. No new component, service, or IPC method is being created
+
 - Pure conversation (questions, explanations, no code changes)
-- Quick config/doc edits where no code-gen skill could apply
+- Single-line CSS/config tweaks with no new patterns
+
+## When to RE-INVOKE (even mid-conversation)
+
+**If the user's follow-up changes scope, RE-INVOKE skill-loader.** Examples:
+- "now fix the cleanup tool" — different module, re-invoke
+- "create a shared component" — new component, `/react-component` skill applies
+- "add i18n keys" — `/error-with-i18n` skill may apply
+- "polish the UI" — `/pattern-finder` needed to find existing patterns first
+
+**The cost of invoking skill-loader is ~2K tokens. The cost of hand-writing what a skill generates is bugs + multiple correction iterations.**
