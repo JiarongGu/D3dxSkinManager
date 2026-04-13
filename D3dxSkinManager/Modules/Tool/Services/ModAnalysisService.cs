@@ -278,7 +278,7 @@ public class ModAnalysisService : IModAnalysisService
         foreach (var plugin in allPluginRefs)
         {
             if (!Directory.Exists(Path.Combine(tdMigotoDir, plugin)) && !Directory.Exists(Path.Combine(_profilePaths.CacheModsDirectory, plugin)))
-                issues.Add(new ModHealthIssue { Type = HealthIssueType.MissingPlugin, Severity = HealthIssueSeverity.Warning, Message = $"Plugin not found: {plugin}" });
+                issues.Add(new ModHealthIssue { Type = HealthIssueType.MissingPlugin, Severity = HealthIssueSeverity.Info, Message = $"Plugin not found: {plugin}" });
         }
 
         var bufferFiles = allFiles.Where(f => BufferExtensions.Contains(Path.GetExtension(f).ToLowerInvariant())).OrderBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase).ToList();
@@ -375,10 +375,10 @@ public class ModAnalysisService : IModAnalysisService
 
     private static void GroupDuplicates(List<ModAnalysisResult> results, FullAnalysisReport report)
     {
-        var bufferGroups = results.Where(r => !string.IsNullOrEmpty(r.BufferHash)).GroupBy(r => r.BufferHash).Where(g => g.Count() > 1);
+        var bufferGroups = results.Where(r => !string.IsNullOrEmpty(r.BufferHash)).GroupBy(r => r.BufferHash).Where(g => g.Select(m => m.ModId).Distinct().Count() > 1);
         foreach (var group in bufferGroups)
         {
-            var mods = group.ToList();
+            var mods = group.GroupBy(m => m.ModId).Select(g => g.First()).ToList();
             var textureGroups = mods.GroupBy(m => m.TextureHash).ToList();
             var type = textureGroups.Count == 1 ? DuplicateType.Identical : DuplicateType.TextureVariant;
             report.DuplicateGroups.Add(new DuplicateGroup { Type = type, GroupLabel = mods.First().CategoryName, SharedHashes = mods.First().TargetHashes, Mods = mods });

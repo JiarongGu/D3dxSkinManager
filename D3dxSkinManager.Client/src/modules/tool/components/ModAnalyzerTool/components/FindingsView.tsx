@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactInput } from '../../../../../shared/components/compact';
+import { notification } from '../../../../../shared/utils/notification';
 import type {
   FullAnalysisReport,
   ModAnalysisResult,
@@ -214,6 +215,18 @@ const FindingSection: React.FC<{ icon: React.ReactNode; title: string; count: nu
   </div>
 );
 
+const CopyIdButton: React.FC<{ modId: string }> = ({ modId }) => {
+  const { t } = useTranslation();
+  return (
+    <Tooltip title={modId}>
+      <CopyOutlined
+        className="mod-analyzer__copy-id"
+        onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(modId); notification.success(t('mods.notifications.idCopied')); }}
+      />
+    </Tooltip>
+  );
+};
+
 const ModRow: React.FC<{ mod: ModAnalysisResult }> = ({ mod }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -227,6 +240,7 @@ const ModRow: React.FC<{ mod: ModAnalysisResult }> = ({ mod }) => {
         {mod.pluginDependencies.length > 0 && <Tag color="purple">{mod.pluginDependencies.join(', ')}</Tag>}
         {mod.issues.length > 0 && <Tag color="error">{mod.issues.length}</Tag>}
         <span className="mod-analyzer__mod-row-meta">{mod.textureOverrideCount} overrides</span>
+        <CopyIdButton modId={mod.modId} />
       </div>
       {expanded && mod.issues.length > 0 && (
         <div className="mod-analyzer__mod-row-issues">
@@ -268,13 +282,14 @@ const DuplicateDetail: React.FC<{ group: DuplicateGroup }> = ({ group }) => (
   <div className="mod-analyzer__mod-cards">
     {group.mods.map(mod => (
       <div key={mod.modId} className="mod-analyzer__mod-card">
-        {mod.previewPath ? (
-          <div className="mod-analyzer__mod-preview">
+        <div className={`mod-analyzer__mod-preview ${!mod.previewPath ? 'mod-analyzer__mod-preview--empty' : ''}`}>
+          {mod.previewPath ? (
             <img src={`app://${encodeURIComponent(mod.previewPath)}`} alt={mod.modName} className="mod-analyzer__mod-preview-img" />
-          </div>
-        ) : (
-          <div className="mod-analyzer__mod-preview mod-analyzer__mod-preview--empty"><BgColorsOutlined /></div>
-        )}
+          ) : (
+            <BgColorsOutlined />
+          )}
+          <CopyIdButton modId={mod.modId} />
+        </div>
         <div className="mod-analyzer__mod-info">
           <div className="mod-analyzer__mod-name" title={mod.modName}>{mod.modName}</div>
           <div className="mod-analyzer__mod-meta">
@@ -307,6 +322,7 @@ const ConflictRow: React.FC<{ conflict: ModConflict }> = ({ conflict }) => {
             )}
             <div className="mod-analyzer__conflict-mod-info">
               <span className="mod-analyzer__conflict-mod-name">{mod.modName}</span>
+              <CopyIdButton modId={mod.modId} />
               <Tag>{mod.categoryName || 'Unclassified'}</Tag>
             </div>
           </div>

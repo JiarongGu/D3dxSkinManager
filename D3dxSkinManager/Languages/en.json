@@ -621,7 +621,7 @@
     "tools.modAnalyzer.textureVariant": "Texture Variant",
     "tools.modAnalyzer.scanFeedWaiting": "Findings will appear here as mods are analyzed...",
     "tools.modAnalyzer.loadedMods": "loaded mods",
-    "tools.modAnalyzer.conflicts": "conflicts",
+    "tools.modAnalyzer.conflicts": "Conflicts",
     "tools.modAnalyzer.affectedMods": "affected mods",
     "tools.modAnalyzer.filterAll": "All",
     "tools.modAnalyzer.filterIssues": "Issues Only",
