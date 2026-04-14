@@ -1,19 +1,7 @@
 .app-status-bar {
   background: var(--color-bg-spotlight);
   border-top: 1px solid var(--color-border-base);
-}
-
-.app-status-bar-progress {
-  cursor: pointer;
-}
-
-.app-status-bar-progress-default {
-  cursor: default;
-}
-
-.app-status-bar-progress-bar {
-  margin-bottom: 0;
-  line-height: 2px;
+  position: relative;
 }
 
 .app-status-bar-main {
@@ -24,51 +12,134 @@
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-}
-
-.app-status-bar-status-icon-connected {
-  color: var(--color-success);
-}
-
-.app-status-bar-status-icon-connecting {
-  color: var(--color-primary);
-}
-
-.app-status-bar-status-icon-disconnected {
-  color: var(--color-error);
-}
-
-.app-status-bar-operation-text {
-  color: var(--color-text-secondary);
-  font-weight: 500;
-}
-
-.app-status-bar-operation-tag {
-  margin-left: 4px;
-}
-
-.app-status-bar-status-message {
-  font-weight: 500;
-}
-
-.app-status-bar-status-message-error {
-  color: var(--color-error);
-}
-
-.app-status-bar-status-message-warning {
-  color: var(--color-warning);
-}
-
-.app-status-bar-status-message-normal {
-  color: var(--color-text-secondary);
-}
-
-.app-status-bar-help-button {
-  padding: 0;
-  height: auto;
-  font-size: 12px;
+  gap: 16px;
 }
 
 .app-status-bar-version {
   color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.app-status-bar-version:hover {
+  color: var(--color-text-secondary);
+}
+
+/* ===== Progress bar container (always visible) ===== */
+
+.app-status-bar-task-area {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: default;
+  flex: 1;
+  height: 100%;
+}
+
+.app-status-bar-progress-track {
+  width: 80px;
+  height: 6px;
+  background: var(--color-border-secondary);
+  border-radius: 1px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Determinate fill */
+.app-status-bar-progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
+
+/* Indeterminate shimmer */
+.app-status-bar-progress-indeterminate {
+  height: 100%;
+  width: 40%;
+  background: var(--color-primary);
+  border-radius: 1px;
+  animation: progress-slide 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(150%); }
+  100% { transform: translateX(250%); }
+}
+
+/* ===== Task panel (popover overlay) ===== */
+
+.app-status-bar-task-popover {
+  left: 0 !important;
+  bottom: calc(100% + 1px) !important;
+  top: auto !important;
+}
+
+.app-status-bar-task-popover .ant-popover-container {
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  border-radius: 0 4px 0 0;
+}
+
+.app-status-bar-task-popover .ant-popover-inner {
+  border-radius: 0 4px 0 0;
+  padding: 12px;
+}
+
+/* ===== Task panel (content) ===== */
+
+.app-status-bar-task-panel {
+  width: 300px;
+}
+
+.app-status-bar-task-panel-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  margin-bottom: 8px;
+}
+
+.app-status-bar-task-panel-empty {
+  font-size: 12px;
+  color: var(--color-text-quaternary);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.app-status-bar-task-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-status-bar-task-panel-divider {
+  height: 1px;
+  background: var(--color-border-secondary);
+}
+
+.app-status-bar-task-panel-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.app-status-bar-task-panel-icon {
+  color: var(--color-primary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.app-status-bar-task-panel-label {
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.app-status-bar-task-panel-progress {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
 }

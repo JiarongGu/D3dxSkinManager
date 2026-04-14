@@ -94,6 +94,17 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Update mod archive from cache folder (re-compress cache back to archive)
+   */
+  async updateArchiveFromCache(profileId: string, id: string): Promise<boolean> {
+    return this.sendTypedBoolean<ModIpcRequests>(
+      "UPDATE_ARCHIVE_FROM_CACHE",
+      profileId,
+      { id },
+    );
+  }
+
+  /**
    * Batch delete mods permanently (cache, preview, archive, database)
    */
   async batchDeleteMods(

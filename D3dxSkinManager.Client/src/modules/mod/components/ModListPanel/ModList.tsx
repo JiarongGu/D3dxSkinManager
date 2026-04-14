@@ -11,6 +11,7 @@ import {
   FolderOpenOutlined,
   ClearOutlined,
   CopyOutlined,
+  SyncOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { systemService } from "../../../../shared/services/ipc";
@@ -25,6 +26,7 @@ import {
   useContextMenu,
 } from "../../../../shared/components/menu";
 import { refreshMods } from "../../operations/modOperations";
+import { useTaskStore } from "../../../../shared/store/taskStore";
 import { useTranslation } from "react-i18next";
 import { BatchEditModsScreen } from "../BatchEditScreen";
 import { useMods } from "../../hooks/useMods";
@@ -78,6 +80,7 @@ export const ModList: React.FC<ModListProps> = ({
     visible: boolean;
     mod?: ModInfo;
   }>({ visible: false });
+  const [updatingArchiveModId, setUpdatingArchiveModId] = useState<string>();
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(
@@ -225,6 +228,32 @@ export const ModList: React.FC<ModListProps> = ({
       notification.error(
         `${t("mods.notifications.deleteCacheFailed")}: ${errorMessage}`,
       );
+    }
+  };
+
+  /**
+   * Update archive from cache folder (re-compress cache back to archive)
+   * Shows per-mod loading indicator during compression
+   */
+  const handleUpdateArchive = async (mod: ModInfo) => {
+    if (!selectedProfileId || updatingArchiveModId) return;
+
+    const taskId = `update-archive-${mod.id}`;
+    setUpdatingArchiveModId(mod.id);
+    useTaskStore.getState().addTask({
+      id: taskId,
+      label: t("mods.notifications.updatingArchive", { name: mod.name }),
+    });
+    try {
+      await modService.updateArchiveFromCache(selectedProfileId, mod.id);
+      notification.success(
+        t("mods.notifications.archiveUpdated", { name: mod.name }),
+      );
+    } catch (error: unknown) {
+      notification.error(t("mods.notifications.archiveUpdateFailed"));
+    } finally {
+      setUpdatingArchiveModId(undefined);
+      useTaskStore.getState().removeTask(taskId);
     }
   };
 
@@ -433,6 +462,17 @@ export const ModList: React.FC<ModListProps> = ({
           }
         }
       },
+    },
+    {
+      key: "update-archive",
+      label: updatingArchiveModId === mod.id
+        ? t("contextMenu.updateArchive") + "..."
+        : t("contextMenu.updateArchive"),
+      icon: updatingArchiveModId === mod.id
+        ? <SyncOutlined spin />
+        : <SyncOutlined />,
+      disabled: !mod?.hasCache || !!updatingArchiveModId,
+      onClick: () => handleUpdateArchive(mod),
     },
     { type: "divider" as const },
 

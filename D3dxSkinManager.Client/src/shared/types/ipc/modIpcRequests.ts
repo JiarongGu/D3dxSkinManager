@@ -33,6 +33,7 @@ export interface ModIpcRequests {
   UNLOAD: { id: string };
   DELETE: { id: string };
   DELETE_CACHE: { id: string };
+  UPDATE_ARCHIVE_FROM_CACHE: { id: string };
   GET_PREVIEW_PATHS: { id: string };
   CHECK_FILE_PATHS: { id: string };
   GET_KEYBINDINGS: { id: string };

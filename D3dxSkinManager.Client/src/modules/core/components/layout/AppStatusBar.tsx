@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { Space, Tag, Progress, Button } from "antd";
-import { LoadingOutlined, QuestionCircleOutlined } from "@ant-design/icons";
+import React, { useEffect, useRef, useState } from "react";
+import { Space, Tag, Popover } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useModsStore } from "../../../mod/store/modsStore";
+import { useTaskStore } from "../../../../shared/store/taskStore";
 import { ModPresetMenu } from "./ModPresetMenu";
 import "./AppStatusBar.css";
 
@@ -18,38 +19,26 @@ declare global {
   }
 }
 
-export type StatusType = "normal" | "warning" | "error";
-
 interface AppStatusBarProps {
-  operationName?: string; // Current operation name
-  activeOperationCount?: number; // Number of active operations
   onHelpClick?: () => void;
-  onProgressClick?: () => void; // Click handler for progress bar (opens operation monitor)
 }
 
-export const AppStatusBar: React.FC<AppStatusBarProps> = ({
-  operationName,
-  activeOperationCount = 0,
-  onHelpClick,
-  onProgressClick,
-}) => {
+export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
   const { t } = useTranslation();
+  const [appVersion, setAppVersion] = useState("1.0.0");
+  const barRef = useRef<HTMLDivElement>(null);
 
-  const [statusMessage, setStatusMessage] = useState<string>("");
-  const [statusType, setStatusType] = useState<StatusType>("normal");
-  const [progressPercent, setProgressPercent] = useState<number>(0);
-  const [progressVisible, setProgressVisible] = useState<boolean>(false);
-  const [appVersion, setAppVersion] = useState<string>("1.0.0");
-
-  // Get mod statistics from store
-  // Note: statistics contains GLOBAL counts (all mods across all categories)
-  // state.mods/categoryFilteredMods only contain currently filtered mods
+  // Mod statistics
   const statistics = useModsStore((state) => state.statistics);
-
   const modsLoaded = statistics?.loadedMods ?? 0;
   const modsTotal = statistics?.totalMods ?? 0;
 
-  // Get app version from injected global variable
+  // Background tasks — bar reflects the latest added task
+  const tasks = useTaskStore((s) => s.tasks);
+  const taskCount = tasks.length;
+  const latestTask = taskCount > 0 ? tasks[taskCount - 1] : undefined;
+  const latestProgress = latestTask?.progress;
+
   useEffect(() => {
     const metadata = window.__APP_METADATA__;
     if (metadata?.version) {
@@ -57,70 +46,63 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
     }
   }, []);
 
-  // Get CSS class for status message based on type
-  const getStatusClass = (): string => {
-    return `app-status-bar-status-message app-status-bar-status-message-${statusType}`;
-  };
-
-  return (
-    <div className="app-status-bar">
-      {/* Progress bar - shown when progressVisible is true */}
-      {progressVisible && (
-        <div
-          onClick={onProgressClick}
-          className={
-            onProgressClick
-              ? "app-status-bar-progress"
-              : "app-status-bar-progress-default"
-          }
-          title={operationName || t("dialogs.operationMonitor.noOperations")}
-        >
-          <Progress
-            percent={progressPercent}
-            size="small"
-            showInfo={false}
-            status={progressPercent === 100 ? "success" : "active"}
-            className="app-status-bar-progress-bar"
-          />
+  const taskPanel = (
+    <div className="app-status-bar-task-panel">
+      <div className="app-status-bar-task-panel-header">
+        {t("statusBar.taskPanel.title")}
+      </div>
+      {taskCount === 0 ? (
+        <div className="app-status-bar-task-panel-empty">
+          {t("statusBar.taskPanel.noTasks")}
+        </div>
+      ) : (
+        <div className="app-status-bar-task-panel-list">
+          {tasks.map((task, idx) => (
+            <React.Fragment key={task.id}>
+              {idx > 0 && <div className="app-status-bar-task-panel-divider" />}
+              <div className="app-status-bar-task-panel-item">
+                <LoadingOutlined spin className="app-status-bar-task-panel-icon" />
+                <span className="app-status-bar-task-panel-label">{task.label}</span>
+                {task.progress !== undefined && (
+                  <span className="app-status-bar-task-panel-progress">{task.progress}%</span>
+                )}
+              </div>
+            </React.Fragment>
+          ))}
         </div>
       )}
+    </div>
+  );
 
-      {/* Main status bar */}
+  return (
+    <div className="app-status-bar" ref={barRef}>
       <div className="app-status-bar-main">
-        {/* Left side - Status Message */}
-        <Space size="large">
-          {/* Help link */}
-          {onHelpClick && (
-            <Button
-              type="link"
-              size="small"
-              icon={<QuestionCircleOutlined />}
-              onClick={onHelpClick}
-              className="app-status-bar-help-button"
-            >
-              {t("statusBar.help")}
-            </Button>
-          )}
+        {/* Left: Task area — hover triggers panel above entire footer */}
+        <Popover
+          content={taskPanel}
+          trigger="hover"
+          placement="top"
+          arrow={false}
+          overlayClassName="app-status-bar-task-popover"
+          getPopupContainer={() => barRef.current || document.body}
+        >
+          <div className="app-status-bar-task-area">
+            <div className="app-status-bar-progress-track">
+              {taskCount > 0 ? (
+                latestProgress !== undefined ? (
+                  <div
+                    className="app-status-bar-progress-fill"
+                    style={{ width: `${latestProgress}%` }}
+                  />
+                ) : (
+                  <div className="app-status-bar-progress-indeterminate" />
+                )
+              ) : null}
+            </div>
+          </div>
+        </Popover>
 
-          {/* Operation name or status message */}
-          {operationName && activeOperationCount > 0 ? (
-            <Space size="small">
-              <LoadingOutlined className="app-status-bar-status-icon-connecting" />
-              <span className="app-status-bar-operation-text">
-                {operationName}
-              </span>
-              {activeOperationCount > 1 && (
-                <Tag color="blue" className="app-status-bar-operation-tag">
-                  +{activeOperationCount - 1} more
-                </Tag>
-              )}
-            </Space>
-          ) : statusMessage ? (
-            <span className={getStatusClass()}>{statusMessage}</span>
-          ) : null}
-        </Space>
-
-        {/* Right side - Presets, Mods, Version (all aligned to right) */}
+        {/* Right side */}
         <Space size="large" style={{ marginLeft: "auto" }}>
           <ModPresetMenu />
 
@@ -128,7 +110,12 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({
             {t("statusBar.modsLoaded", { count: modsLoaded, total: modsTotal })}
           </Tag>
 
-          <span className="app-status-bar-version">D3dxSkinManager v{appVersion}</span>
+          <span
+            className="app-status-bar-version"
+            onClick={onHelpClick}
+          >
+            D3dxSkinManager v{appVersion}
+          </span>
         </Space>
       </div>
     </div>

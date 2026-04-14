@@ -14,6 +14,8 @@ Before writing ANY utility function (formatBytes, formatDate, clipboard copy, et
 | `memoizeDebounce` | `shared/utils/memoizeDebounce.ts` | Debounced memoization |
 | `parseSearchQuery` / `matchesSearchQuery` | `shared/utils/searchQueryParser.ts` | Search query parsing with AND/OR/NOT/field/exact operators |
 | `navigateToTab` / `navigateToModSearch` | `shared/hooks/useAppNavigation.ts` | Cross-module tab navigation + mod search with category |
+| `useTaskStore` | `shared/store/taskStore.ts` | Global background task tracking (addTask/updateTask/removeTask) |
+| `initTaskEventBridge` | `shared/store/taskEventBridge.ts` | Backend progress events → taskStore (analysis, package) |
 
 ## Rules
 

@@ -26,6 +26,7 @@ public interface IModArchiveService
     Task<ArchiveExtractionResult> ExtractAsync(string id, string targetDirectory);
     Task<bool> DeleteArchiveAsync(string id);
     Task<string> CopyArchiveAsync(string sourcePath, string id);
+    Task<bool> CompressCacheToArchiveAsync(string id, string cacheDirectory);
     bool ArchiveExists(string id);
     string GetArchivePath(string id);
 }
@@ -185,6 +186,50 @@ public class ModArchiveService : IModArchiveService
 
         _logger.Info($"Copied archive to: {targetPath}", "ModArchiveService");
         return targetPath;
+    }
+
+    /// <summary>
+    /// Compress cache directory back into the mod archive, replacing the existing archive.
+    /// Uses atomic file operation planner with temp file for safe replacement.
+    /// </summary>
+    public async Task<bool> CompressCacheToArchiveAsync(string id, string cacheDirectory)
+    {
+        try
+        {
+            if (!Directory.Exists(cacheDirectory))
+            {
+                _logger.Warn($"Cache directory not found for archive update: {cacheDirectory}", "ModArchiveService");
+                return false;
+            }
+
+            var archivePath = GetArchivePath(id);
+
+            var compressOp = new FileSystemOperation
+            {
+                OperationType = FileSystemOperationType.CompressArchive,
+                SourcePath = cacheDirectory,
+                TargetPath = archivePath,
+                Overwrite = true
+            };
+
+            var result = await _operationPlanner.SubmitOperationAsync(compressOp).ConfigureAwait(false);
+
+            if (result.Success)
+            {
+                _logger.Info($"Updated archive from cache: {id}", "ModArchiveService");
+                return true;
+            }
+            else
+            {
+                _logger.Error($"Failed to update archive from cache: {result.ErrorMessage}", "ModArchiveService", result.Exception);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error updating archive from cache {id}: {ex.Message}", "ModArchiveService", ex);
+            return false;
+        }
     }
 
     /// <summary>

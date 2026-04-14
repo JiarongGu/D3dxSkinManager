@@ -326,6 +326,7 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
             FileSystemOperationType.DeleteDirectory => await ExecuteDeleteDirectoryAsync(operation).ConfigureAwait(false),
             FileSystemOperationType.DeleteFile => await ExecuteDeleteFileAsync(operation).ConfigureAwait(false),
             FileSystemOperationType.ExtractArchive => await ExecuteExtractArchiveAsync(operation).ConfigureAwait(false),
+            FileSystemOperationType.CompressArchive => await ExecuteCompressArchiveAsync(operation).ConfigureAwait(false),
             _ => FileSystemOperationResult.Fail($"Unknown operation type: {operation.OperationType}")
         };
     }
@@ -479,6 +480,51 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
             {
                 _logger.Error($"Archive extraction failed for {operation.SourcePath}", "FileOperationPlanner");
                 return FileSystemOperationResult.Fail("Failed to extract archive");
+            }
+        }, operation).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Execute a directory compression to archive operation
+    /// </summary>
+    private async Task<FileSystemOperationResult> ExecuteCompressArchiveAsync(FileSystemOperation operation)
+    {
+        if (string.IsNullOrEmpty(operation.SourcePath) || string.IsNullOrEmpty(operation.TargetPath))
+        {
+            return FileSystemOperationResult.Fail("Source directory and target archive path are required for compress operation");
+        }
+
+        return await RetryOperationAsync(async () =>
+        {
+            if (!Directory.Exists(operation.SourcePath))
+            {
+                return FileSystemOperationResult.Fail($"Source directory does not exist: {operation.SourcePath}");
+            }
+
+            // Compress to a temp file first, then move to target (atomic replace)
+            var tempPath = operation.TargetPath + ".tmp";
+            try
+            {
+                await _archiveHelper.CompressFolderAsync(operation.SourcePath, tempPath).ConfigureAwait(false);
+
+                // Replace old archive with new one
+                if (File.Exists(operation.TargetPath))
+                {
+                    File.Delete(operation.TargetPath);
+                }
+                File.Move(tempPath, operation.TargetPath);
+
+                _logger.Info($"Compressed directory {operation.SourcePath} to {operation.TargetPath}", "FileOperationPlanner");
+                return FileSystemOperationResult.Ok();
+            }
+            catch
+            {
+                // Clean up temp file on failure
+                if (File.Exists(tempPath))
+                {
+                    try { File.Delete(tempPath); } catch { /* best effort */ }
+                }
+                throw;
             }
         }, operation).ConfigureAwait(false);
     }

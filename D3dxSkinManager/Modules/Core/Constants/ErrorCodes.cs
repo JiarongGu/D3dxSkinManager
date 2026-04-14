@@ -12,6 +12,8 @@ public static class ErrorCodes
     public const string MOD_NOT_FOUND = "MOD_NOT_FOUND";
     public const string MOD_EXTRACTION_FAILED = "MOD_EXTRACTION_FAILED";
     public const string MOD_CATEGORY_CONFLICT = "MOD_CATEGORY_CONFLICT";
+    public const string MOD_ARCHIVE_UPDATE_FAILED = "MOD_ARCHIVE_UPDATE_FAILED";
+    public const string MOD_NO_CACHE = "MOD_NO_CACHE";
 
     // File Operation Errors (FILE_*)
     public const string FILE_IN_USE = "FILE_IN_USE";

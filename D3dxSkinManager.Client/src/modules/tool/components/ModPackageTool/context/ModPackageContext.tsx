@@ -12,6 +12,7 @@ import { eventBus, Module, ToolsEventType } from '../../../../../shared/services
 import { useProfile } from '../../../../../shared/context/ProfileContext';
 import logger from '../../../../../shared/utils/logger';
 import { handleError } from '../../../../../shared/utils/errorHandler';
+import { useTaskStore } from '../../../../../shared/store/taskStore';
 
 export type OperationStatus = 'idle' | 'running' | 'done';
 
@@ -168,9 +169,11 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCa
     });
     if (!dialogResult.success || !dialogResult.filePath) return;
 
+    const PACKAGE_TASK_ID = 'mod-package';
     try {
       setExportStatus('running');
       setProgress(undefined);
+      useTaskStore.getState().addTask({ id: PACKAGE_TASK_ID, label: 'Exporting mod package...' });
 
       const result = await api.tool.exportModPackage(selectedProfileId, {
         packageName: exportOpts.packageName,
@@ -186,14 +189,18 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCa
     } catch (error: unknown) {
       handleError(error);
       setExportStatus('idle');
+    } finally {
+      useTaskStore.getState().removeTask(PACKAGE_TASK_ID);
     }
   }, [selectedProfileId, exportOpts, selectedModIds]);
 
   const startImport = useCallback(async (options: { updateExisting: boolean; importPreviews: boolean; createCategories: boolean }) => {
     if (!selectedProfileId || selectedImportIds.size === 0) return;
+    const PACKAGE_TASK_ID = 'mod-package';
     try {
       setImportStatus('running');
       setProgress(undefined);
+      useTaskStore.getState().addTask({ id: PACKAGE_TASK_ID, label: 'Importing mod package...' });
 
       const result = await api.tool.importModPackage(selectedProfileId, {
         packagePath,
@@ -208,6 +215,8 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCa
     } catch (error: unknown) {
       handleError(error);
       setImportStatus('idle');
+    } finally {
+      useTaskStore.getState().removeTask(PACKAGE_TASK_ID);
     }
   }, [selectedProfileId, selectedImportIds, packagePath]);
 

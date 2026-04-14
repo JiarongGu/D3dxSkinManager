@@ -1,6 +1,7 @@
 ﻿using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Mappers;
@@ -46,6 +47,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModTagService _tagService;
     private readonly IModKeybindingService _keybindingService;
     private readonly IModPresetService _presetService;
+    private readonly IModArchiveService _archiveService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IImageService _imageService;
     private readonly IModCacheWatcher _cacheWatcher;
@@ -62,6 +64,7 @@ public class ModFacade : BaseFacade, IModFacade
         IModTagService tagService,
         IModKeybindingService keybindingService,
         IModPresetService presetService,
+        IModArchiveService archiveService,
         IPayloadHelper payloadHelper,
         IImageService imageService,
         IModCacheWatcher cacheWatcher,
@@ -78,6 +81,7 @@ public class ModFacade : BaseFacade, IModFacade
         _tagService = tagService;
         _keybindingService = keybindingService;
         _presetService = presetService;
+        _archiveService = archiveService;
         _payloadHelper = payloadHelper;
         _imageService = imageService;
         _cacheWatcher = cacheWatcher;
@@ -102,6 +106,7 @@ public class ModFacade : BaseFacade, IModFacade
             "IMPORT" => await ImportModAsync(request),
             "DELETE" => await DeleteModAsync(request),
             "DELETE_CACHE" => await DeleteCacheAsync(request),
+            "UPDATE_ARCHIVE_FROM_CACHE" => await UpdateArchiveFromCacheAsync(request),
             "BATCH_DELETE" => await BatchDeleteModsAsync(request),
             "BATCH_DELETE_CACHES" => await BatchDeleteCachesAsync(request),
             "GET_AUTHORS" => await GetAuthorsAsync(),
@@ -391,6 +396,30 @@ public class ModFacade : BaseFacade, IModFacade
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         return await DeleteCacheAsync(id).ConfigureAwait(false);
+    }
+
+    private async Task<bool> UpdateArchiveFromCacheAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+
+        // Get cache path — check both active and disabled cache
+        var cachePath = _cacheService.GetCachePath(id);
+        if (string.IsNullOrEmpty(cachePath))
+        {
+            throw new OperationException(
+                Core.Constants.ErrorCodes.MOD_NO_CACHE,
+                new Dictionary<string, string> { { "id", id } });
+        }
+
+        var success = await _archiveService.CompressCacheToArchiveAsync(id, cachePath).ConfigureAwait(false);
+        if (!success)
+        {
+            throw new OperationException(
+                Core.Constants.ErrorCodes.MOD_ARCHIVE_UPDATE_FAILED,
+                new Dictionary<string, string> { { "id", id } });
+        }
+
+        return true;
     }
 
     private async Task<BatchDeleteResult> BatchDeleteModsAsync(IpcRequest request)

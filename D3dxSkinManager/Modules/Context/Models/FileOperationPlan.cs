@@ -29,7 +29,12 @@ public enum FileSystemOperationType
     /// <summary>
     /// Extract an archive to a directory
     /// </summary>
-    ExtractArchive
+    ExtractArchive,
+
+    /// <summary>
+    /// Compress a directory into an archive file
+    /// </summary>
+    CompressArchive
 }
 
 /// <summary>
