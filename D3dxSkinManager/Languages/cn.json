@@ -213,6 +213,7 @@
     "mods.list.loadMod": "加载模组",
     "mods.list.loading": "加载中",
     "mods.list.loaded": "已加载",
+    "mods.list.busy": "处理中",
     "mods.list.loadingMore": "加载更多...",
     "mods.list.more": "更多",
     "mods.list.unmanaged": "未托管 [{{id}}]",

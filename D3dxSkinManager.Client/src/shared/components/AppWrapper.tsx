@@ -1,5 +1,9 @@
+import { enableMapSet } from "immer";
 import { App, ConfigProvider, theme } from "antd";
 import { useEffect } from "react";
+
+// Enable Immer Set/Map support before any store is created
+enableMapSet();
 
 import { ProfileProvider, useProfile } from "../context/ProfileContext";
 import { SettingsProvider } from "../context/SettingsProvider";

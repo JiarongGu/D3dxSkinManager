@@ -11,6 +11,7 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
 import { api, modService } from '../../../shared/services/ipc';
 import i18n from '../../../shared/services/i18n';
+import logger from '../../../shared/utils/logger';
 
 /**
  * Refresh mods from backend
@@ -77,7 +78,7 @@ export async function refreshMod(profileId: string, id: string): Promise<void> {
       updateModLocal(id, { ...freshMod, isLoading: false });
     }
   } catch (error) {
-    console.error('Failed to refresh mod:', error);
+    logger.error('Failed to refresh mod:', error);
   }
 }
 
@@ -104,7 +105,7 @@ export async function refreshSelectedMod(profileId: string): Promise<void> {
     }
   } catch (error) {
     // Mod not found or error fetching, clear selection
-    console.error('Failed to refresh selected mod:', error);
+    logger.error('Failed to refresh selected mod:', error);
     setSelectedMod(undefined);
   }
 }
@@ -152,24 +153,21 @@ export async function updateMod(
  * Uses delayed loading (200ms) to avoid flicker for fast deletes
  */
 export async function deleteMod(profileId: string, id: string): Promise<void> {
-  const { removeMod, setModLoading } = useModsStore.getState();
+  const { removeMod, addBusyMod, removeBusyMod } = useModsStore.getState();
 
+  addBusyMod(id);
   try {
-    await executeWithDelayedLoading(
-      async () => {
-        await modService.deleteMod(profileId, id);
+    // Optimistically remove from list for instant feedback
+    removeMod(id);
 
-        // Remove from local state
-        removeMod(id);
-
-        notification.success(i18n.t('mods.operations.deleteSuccess'));
-      },
-      setModLoading,
-      200
-    );
+    await modService.deleteMod(profileId, id);
+    notification.success(i18n.t('mods.operations.deleteSuccess'));
   } catch (error: unknown) {
+    // Re-fetch on failure (mod wasn't actually deleted)
+    await refreshMods(profileId);
     handleError(error);
-    throw error;
+  } finally {
+    removeBusyMod(id);
   }
 }
 
@@ -181,7 +179,7 @@ export async function loadStatistics(profileId: string): Promise<void> {
     const statistics = await api.mod.getStatistics(profileId);
     useModsStore.getState().setStatistics(statistics);
   } catch (error: unknown) {
-    console.error('Failed to load mod statistics:', error);
+    logger.error('Failed to load mod statistics:', error);
   }
 }
 
@@ -193,7 +191,7 @@ export async function loadTags(profileId: string): Promise<void> {
     const tags = await modService.getTags(profileId);
     useModsStore.getState().setAvailableTags(tags);
   } catch (error: unknown) {
-    console.error('Failed to load tags:', error);
+    logger.error('Failed to load tags:', error);
   }
 }
 
@@ -224,7 +222,7 @@ export async function loadPreviewPaths(profileId: string, id: string): Promise<v
     );
   } catch (error: unknown) {
     // Clear previews on error
-    console.error('Failed to load preview paths:', error);
+    logger.error('Failed to load preview paths:', error);
     setPreviewPaths([]);
     bustPreviewCache();
   }
@@ -250,17 +248,16 @@ export async function reloadCurrentPreview(profileId: string): Promise<void> {
  * Backend fires LOADED event -> ModProvider updates single mod optimistically + refreshes statistics
  */
 export async function loadMod(profileId: string, id: string): Promise<void> {
+  const { addBusyMod, removeBusyMod } = useModsStore.getState();
+
+  addBusyMod(id);
   try {
-    // Perform backend operation - returns affected mod IDs
     await modService.loadMod(profileId, id);
     notification.success(i18n.t('mods.operations.loadSuccess'));
-
-    // Backend fires LOADED event -> ModProvider updates mod.isLoaded and refreshes statistics
-    // No full list refresh needed - optimistic update is instant and smooth
   } catch (error: unknown) {
-    // Handle error with user-friendly messages
     handleError(error);
-    throw error;
+  } finally {
+    removeBusyMod(id);
   }
 }
 
@@ -269,17 +266,16 @@ export async function loadMod(profileId: string, id: string): Promise<void> {
  * Backend fires UNLOADED event -> ModProvider updates single mod optimistically + refreshes statistics
  */
 export async function unloadMod(profileId: string, id: string): Promise<void> {
+  const { addBusyMod, removeBusyMod } = useModsStore.getState();
+
+  addBusyMod(id);
   try {
-    // Perform backend operation
     await modService.unloadMod(profileId, id);
     notification.success(i18n.t('mods.operations.unloadSuccess'));
-
-    // Backend fires UNLOADED event -> ModProvider updates mod.isLoaded and refreshes statistics
-    // No full list refresh needed - optimistic update is instant and smooth
   } catch (error: unknown) {
-    // Handle error with user-friendly messages
     handleError(error);
-    throw error;
+  } finally {
+    removeBusyMod(id);
   }
 }
 

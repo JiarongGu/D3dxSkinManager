@@ -38,6 +38,9 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<IModTagService, ModTagService>();
         services.TryAddSingleton<IModKeybindingService, ModKeybindingService>();
 
+        // Operation queue (per-mod + per-category locking)
+        services.TryAddSingleton<IModOperationQueue, ModOperationQueue>();
+
         // Preset services
         services.TryAddSingleton<IModPresetRepository, ModPresetRepository>();
         services.TryAddSingleton<IModPresetService, ModPresetService>();

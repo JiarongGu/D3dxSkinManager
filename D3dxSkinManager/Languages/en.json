@@ -234,6 +234,7 @@
     "mods.list.loadMod": "Load mod",
     "mods.list.loading": "LOADING",
     "mods.list.loaded": "LOADED",
+    "mods.list.busy": "BUSY",
     "mods.list.loadingMore": "Loading more...",
     "mods.list.more": "more",
     "mods.list.unmanaged": "Unmanaged [{{id}}]",

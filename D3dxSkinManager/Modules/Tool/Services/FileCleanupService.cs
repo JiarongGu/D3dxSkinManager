@@ -1,3 +1,4 @@
+using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Context.Services;
@@ -239,41 +240,70 @@ public class FileCleanupService : IFileCleanupService
     }
 
     /// <summary>
-    /// Scan temp directory for leftover files from workflows/imports
+    /// Scan for leftover temp files across all known temp locations:
+    /// 1. Profile temp directory ({ProfilePath}/temp/) — .mic workflow files
+    /// 2. System temp directory — .auc archive update compress files
+    /// 3. Preview directories — _temp_reorder files from interrupted reorder ops
+    /// See TempFileConstants for all temp file patterns.
     /// </summary>
     private OrphanScanResult ScanOrphanedTempFiles()
     {
         var result = new OrphanScanResult { Category = OrphanCategory.TempFile };
+
+        // 1. Profile temp directory (workflow .mic files and other temp data)
         var tempDir = _profilePaths.TempDirectory;
-
-        if (!Directory.Exists(tempDir))
-            return result;
-
-        // Scan files
-        foreach (var file in Directory.GetFiles(tempDir, "*", SearchOption.TopDirectoryOnly))
+        if (Directory.Exists(tempDir))
         {
-            var info = new FileInfo(file);
-            result.Items.Add(new OrphanedItem
+            foreach (var file in Directory.GetFiles(tempDir, "*", SearchOption.TopDirectoryOnly))
             {
-                Path = file,
-                Name = info.Name,
-                SizeBytes = info.Length,
-                LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                Category = OrphanCategory.TempFile
-            });
+                var info = new FileInfo(file);
+                result.Items.Add(new OrphanedItem
+                {
+                    Path = file,
+                    Name = info.Name,
+                    SizeBytes = info.Length,
+                    LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Category = OrphanCategory.TempFile
+                });
+            }
+
+            foreach (var dir in Directory.GetDirectories(tempDir))
+            {
+                result.Items.Add(new OrphanedItem
+                {
+                    Path = dir,
+                    Name = Path.GetFileName(dir),
+                    SizeBytes = FileUtilities.GetDirectorySize(dir),
+                    LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
+                    Category = OrphanCategory.TempFile
+                });
+            }
         }
 
-        // Scan subdirectories
-        foreach (var dir in Directory.GetDirectories(tempDir))
+        // 2. Preview directories — _temp_reorder files from interrupted reorder operations
+        // Note: .auc files (archive update) are in profile temp dir, already scanned above
+        var previewsDir = _profilePaths.PreviewsDirectory;
+        if (Directory.Exists(previewsDir))
         {
-            result.Items.Add(new OrphanedItem
+            try
             {
-                Path = dir,
-                Name = Path.GetFileName(dir),
-                SizeBytes = FileUtilities.GetDirectorySize(dir),
-                LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
-                Category = OrphanCategory.TempFile
-            });
+                foreach (var file in Directory.GetFiles(previewsDir, $"{TempFileConstants.PREVIEW_REORDER_PREFIX}*", SearchOption.AllDirectories))
+                {
+                    var info = new FileInfo(file);
+                    result.Items.Add(new OrphanedItem
+                    {
+                        Path = file,
+                        Name = info.Name,
+                        SizeBytes = info.Length,
+                        LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                        Category = OrphanCategory.TempFile
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"Failed to scan previews for temp reorder files: {ex.Message}", "FileCleanupService");
+            }
         }
 
         _logger.Info($"Found {result.TotalCount} temp items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");

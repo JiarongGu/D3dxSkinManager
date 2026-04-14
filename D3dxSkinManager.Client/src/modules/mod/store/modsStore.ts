@@ -71,6 +71,9 @@ export interface ModsState {
   // Batch Edit Screen
   batchEditScreenVisible: boolean;
   modsToEdit: ModInfo[];
+
+  // Per-mod busy tracking (prevents concurrent operations on same mod)
+  busyModIds: Set<string>;
 }
 
 // ============================================================================
@@ -125,6 +128,11 @@ export interface ModsActions {
   // Batch Edit Screen Actions
   openBatchEditScreen: (mods: ModInfo[]) => void;
   closeBatchEditScreen: () => void;
+
+  // Per-mod busy tracking
+  addBusyMod: (id: string) => void;
+  removeBusyMod: (id: string) => void;
+  isModBusy: (id: string) => boolean;
 
   // Global Actions
   reset: (newProfileId?: string) => void;
@@ -203,6 +211,9 @@ const initialState: ModsState = {
   // Batch Edit Screen
   batchEditScreenVisible: false,
   modsToEdit: [],
+
+  // Per-mod busy tracking
+  busyModIds: new Set<string>(),
 };
 
 // ============================================================================
@@ -423,6 +434,22 @@ export const useModsStore = create<ModsStore>()(
           state.batchEditScreenVisible = false;
           state.modsToEdit = [];
         }),
+
+      // ============================================================
+      // Per-mod Busy Tracking
+      // ============================================================
+
+      addBusyMod: (id) =>
+        set((state) => {
+          state.busyModIds.add(id);
+        }),
+
+      removeBusyMod: (id) =>
+        set((state) => {
+          state.busyModIds.delete(id);
+        }),
+
+      isModBusy: (id) => get().busyModIds.has(id),
 
       // ============================================================
       // Global Actions

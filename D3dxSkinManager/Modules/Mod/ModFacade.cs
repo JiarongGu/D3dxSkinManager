@@ -48,6 +48,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModKeybindingService _keybindingService;
     private readonly IModPresetService _presetService;
     private readonly IModArchiveService _archiveService;
+    private readonly IModOperationQueue _operationQueue;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IImageService _imageService;
     private readonly IModCacheWatcher _cacheWatcher;
@@ -65,6 +66,7 @@ public class ModFacade : BaseFacade, IModFacade
         IModKeybindingService keybindingService,
         IModPresetService presetService,
         IModArchiveService archiveService,
+        IModOperationQueue operationQueue,
         IPayloadHelper payloadHelper,
         IImageService imageService,
         IModCacheWatcher cacheWatcher,
@@ -82,6 +84,7 @@ public class ModFacade : BaseFacade, IModFacade
         _keybindingService = keybindingService;
         _presetService = presetService;
         _archiveService = archiveService;
+        _operationQueue = operationQueue;
         _payloadHelper = payloadHelper;
         _imageService = imageService;
         _cacheWatcher = cacheWatcher;
@@ -212,8 +215,8 @@ public class ModFacade : BaseFacade, IModFacade
 
     public async Task<bool> DeleteModAsync(string id)
     {
-        // Delete from database using metadata service
-        return await _metadataService.DeleteAsync(id).ConfigureAwait(false);
+        // Full deletion: cache → preview → archive → database
+        return await _deletionService.DeleteAsync(id).ConfigureAwait(false);
     }
 
     public async Task<bool> DeleteCacheAsync(string id)
@@ -371,13 +374,13 @@ public class ModFacade : BaseFacade, IModFacade
     private async Task<Models.ModLoadResult> LoadModAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        return await LoadModAsync(id).ConfigureAwait(false);
+        return await _operationQueue.EnqueueAsync(id, () => LoadModAsync(id)).ConfigureAwait(false);
     }
 
     private async Task<bool> UnloadModAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        return await UnloadModAsync(id).ConfigureAwait(false);
+        return await _operationQueue.EnqueueAsync(id, () => UnloadModAsync(id)).ConfigureAwait(false);
     }
 
     private async Task<ModInfo?> ImportModAsync(IpcRequest request)
@@ -389,37 +392,39 @@ public class ModFacade : BaseFacade, IModFacade
     private async Task<bool> DeleteModAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        return await DeleteModAsync(id).ConfigureAwait(false);
+        return await _operationQueue.EnqueueAsync(id, () => DeleteModAsync(id)).ConfigureAwait(false);
     }
 
     private async Task<bool> DeleteCacheAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        return await DeleteCacheAsync(id).ConfigureAwait(false);
+        return await _operationQueue.EnqueueAsync(id, () => DeleteCacheAsync(id)).ConfigureAwait(false);
     }
 
     private async Task<bool> UpdateArchiveFromCacheAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-
-        // Get cache path — check both active and disabled cache
-        var cachePath = _cacheService.GetCachePath(id);
-        if (string.IsNullOrEmpty(cachePath))
+        return await _operationQueue.EnqueueAsync(id, async () =>
         {
-            throw new OperationException(
-                Core.Constants.ErrorCodes.MOD_NO_CACHE,
-                new Dictionary<string, string> { { "id", id } });
-        }
+            // Get cache path — check both active and disabled cache
+            var cachePath = _cacheService.GetCachePath(id);
+            if (string.IsNullOrEmpty(cachePath))
+            {
+                throw new OperationException(
+                    Core.Constants.ErrorCodes.MOD_NO_CACHE,
+                    new Dictionary<string, string> { { "id", id } });
+            }
 
-        var success = await _archiveService.CompressCacheToArchiveAsync(id, cachePath).ConfigureAwait(false);
-        if (!success)
-        {
-            throw new OperationException(
-                Core.Constants.ErrorCodes.MOD_ARCHIVE_UPDATE_FAILED,
-                new Dictionary<string, string> { { "id", id } });
-        }
+            var success = await _archiveService.CompressCacheToArchiveAsync(id, cachePath).ConfigureAwait(false);
+            if (!success)
+            {
+                throw new OperationException(
+                    Core.Constants.ErrorCodes.MOD_ARCHIVE_UPDATE_FAILED,
+                    new Dictionary<string, string> { { "id", id } });
+            }
 
-        return true;
+            return true;
+        }).ConfigureAwait(false);
     }
 
     private async Task<BatchDeleteResult> BatchDeleteModsAsync(IpcRequest request)

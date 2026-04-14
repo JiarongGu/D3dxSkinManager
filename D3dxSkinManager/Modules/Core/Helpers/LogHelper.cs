@@ -258,7 +258,9 @@ public class LogHelper : ILogHelper, IDisposable
     {
         if (_disposed) return;
 
-        if (level >= LogLevel.Info)
+        // Write to file if level meets the configured minimum
+        // (console output is already filtered by the caller)
+        if (level >= MinimumLevel)
         {
             var logFile = Path.Combine(_logsBaseDirectory, $"{DateTime.UtcNow:yyyy-MM-dd}.log");
             _logQueue.Enqueue((logFile, logEntry));

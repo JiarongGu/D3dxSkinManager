@@ -64,6 +64,11 @@ public class FileSystemOperation
     public string? TargetPath { get; set; }
 
     /// <summary>
+    /// Intermediate temp path (for compress operations that need atomic replace)
+    /// </summary>
+    public string? TempPath { get; set; }
+
+    /// <summary>
     /// Whether to overwrite existing files/directories
     /// </summary>
     public bool Overwrite { get; set; } = true;

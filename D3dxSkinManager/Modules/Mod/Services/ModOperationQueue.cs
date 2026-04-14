@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -38,12 +39,19 @@ public interface IModOperationQueue
 
 public class ModOperationQueue : IModOperationQueue
 {
+    private readonly ILogHelper _logger;
+
     // Per-mod semaphores: Only one operation per mod ID at a time
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _modLocks = new();
 
     // Per-category semaphores: Only one load operation per category at a time
     // Prevents race: Load B trying to unload A while A is still loading
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _categoryLocks = new();
+
+    public ModOperationQueue(ILogHelper logger)
+    {
+        _logger = logger;
+    }
 
     /// <summary>
     /// Gets the number of active per-mod locks (for testing memory leak prevention)
@@ -63,10 +71,16 @@ public class ModOperationQueue : IModOperationQueue
         // Get or create semaphore for this mod (1 = only one operation at a time for this ID)
         var semaphore = _modLocks.GetOrAdd(modId, _ => new SemaphoreSlim(1, 1));
 
+        var queued = semaphore.CurrentCount == 0;
+        if (queued)
+        {
+            _logger.Info($"Operation queued for mod {modId} (waiting for lock)", "ModOperationQueue");
+        }
+
         await semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
-            // Execute operation with exclusive access to this mod
+            _logger.Verbose($"Executing operation for mod {modId}", "ModOperationQueue");
             return await operation().ConfigureAwait(false);
         }
         finally
@@ -99,10 +113,15 @@ public class ModOperationQueue : IModOperationQueue
         // Get or create semaphore for this category
         var semaphore = _categoryLocks.GetOrAdd(normalizedCategory, _ => new SemaphoreSlim(1, 1));
 
+        var queued = semaphore.CurrentCount == 0;
+        if (queued)
+        {
+            _logger.Info($"Category operation queued for '{normalizedCategory}' (waiting for lock)", "ModOperationQueue");
+        }
+
         await semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
-            // Execute operation with exclusive access to this category
             return await operation().ConfigureAwait(false);
         }
         finally

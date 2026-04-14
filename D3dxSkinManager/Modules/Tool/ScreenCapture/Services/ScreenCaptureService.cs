@@ -289,7 +289,7 @@ public class ScreenCaptureService : IScreenCaptureService
             if (_overlayForm != null && !_overlayForm.IsDisposed)
             {
                 _logger.Info("[ScreenCaptureService] Closing overlay");
-                _overlayForm.Invoke(_overlayForm.Close);
+                _overlayForm.BeginInvoke(_overlayForm.Close);
                 _overlayForm = null;
             }
         }

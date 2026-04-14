@@ -26,6 +26,7 @@ import {
   useContextMenu,
 } from "../../../../shared/components/menu";
 import { refreshMods } from "../../operations/modOperations";
+import { useModsStore } from "../../store/modsStore";
 import { useTaskStore } from "../../../../shared/store/taskStore";
 import { useTranslation } from "react-i18next";
 import { BatchEditModsScreen } from "../BatchEditScreen";
@@ -80,7 +81,7 @@ export const ModList: React.FC<ModListProps> = ({
     visible: boolean;
     mod?: ModInfo;
   }>({ visible: false });
-  const [updatingArchiveModId, setUpdatingArchiveModId] = useState<string>();
+  const busyModIds = useModsStore((s) => s.busyModIds);
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(
@@ -236,10 +237,11 @@ export const ModList: React.FC<ModListProps> = ({
    * Shows per-mod loading indicator during compression
    */
   const handleUpdateArchive = async (mod: ModInfo) => {
-    if (!selectedProfileId || updatingArchiveModId) return;
+    if (!selectedProfileId || busyModIds.has(mod.id)) return;
 
     const taskId = `update-archive-${mod.id}`;
-    setUpdatingArchiveModId(mod.id);
+    const { addBusyMod, removeBusyMod } = useModsStore.getState();
+    addBusyMod(mod.id);
     useTaskStore.getState().addTask({
       id: taskId,
       label: t("mods.notifications.updatingArchive", { name: mod.name }),
@@ -252,7 +254,7 @@ export const ModList: React.FC<ModListProps> = ({
     } catch (error: unknown) {
       notification.error(t("mods.notifications.archiveUpdateFailed"));
     } finally {
-      setUpdatingArchiveModId(undefined);
+      removeBusyMod(mod.id);
       useTaskStore.getState().removeTask(taskId);
     }
   };
@@ -465,13 +467,9 @@ export const ModList: React.FC<ModListProps> = ({
     },
     {
       key: "update-archive",
-      label: updatingArchiveModId === mod.id
-        ? t("contextMenu.updateArchive") + "..."
-        : t("contextMenu.updateArchive"),
-      icon: updatingArchiveModId === mod.id
-        ? <SyncOutlined spin />
-        : <SyncOutlined />,
-      disabled: !mod?.hasCache || !!updatingArchiveModId,
+      label: t("contextMenu.updateArchive"),
+      icon: busyModIds.has(mod.id) ? <SyncOutlined spin /> : <SyncOutlined />,
+      disabled: !mod?.hasCache || busyModIds.has(mod.id),
       onClick: () => handleUpdateArchive(mod),
     },
     { type: "divider" as const },
@@ -512,6 +510,7 @@ export const ModList: React.FC<ModListProps> = ({
           {displayedMods.map((mod) => {
             const isPrimarySelection = selectedMod?.id === mod.id;
             const isInMultiSelection = selectedModIds.includes(mod.id);
+            const isBusy = busyModIds.has(mod.id);
 
             return (
               <div
@@ -557,12 +556,17 @@ export const ModList: React.FC<ModListProps> = ({
                     <span className="mod-list-item-name">
                       {mod.isOrphaned ? t('mods.list.unmanaged', { id: mod.name }) : mod.name}
                     </span>
+                    {isBusy && !mod.isLoading && (
+                      <Tag color="processing" className="mod-list-item-loaded-tag">
+                        {t("mods.list.busy")}
+                      </Tag>
+                    )}
                     {mod.isLoading && (
                       <Tag color="warning" className="mod-list-item-loaded-tag">
                         {t("mods.list.loading")}
                       </Tag>
                     )}
-                    {mod.isLoaded && !mod.isLoading && (
+                    {mod.isLoaded && !mod.isLoading && !isBusy && (
                       <Tag color="success" className="mod-list-item-loaded-tag">
                         {t("mods.list.loaded")}
                       </Tag>

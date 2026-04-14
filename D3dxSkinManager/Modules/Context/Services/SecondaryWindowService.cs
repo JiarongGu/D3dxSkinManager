@@ -173,19 +173,22 @@ public class SecondaryWindowService : ISecondaryWindowService
                 {
                     _sessionManager.Remove(sessionId);
 
-                    // Save window position/size synchronously to avoid disposal issues
-                    // During app shutdown or profile switch, async saves may fail due to disposed services
+                    // Save window position/size with timeout to prevent deadlock during shutdown
+                    // Thread pool may be exhausted by background tasks — don't block indefinitely
                     try
                     {
-                        SaveWindowConfigurationAsync(
+                        var saveTask = Task.Run(() => SaveWindowConfigurationAsync(
                             windowEntry.WindowName,
                             form.Location,
                             form.Size
-                        ).ConfigureAwait(false).GetAwaiter().GetResult();
+                        ));
+                        if (!saveTask.Wait(TimeSpan.FromSeconds(3)))
+                        {
+                            _logger.Warn("[SecondaryWindow] Timed out saving window config on close — skipping");
+                        }
                     }
                     catch (ObjectDisposedException ex)
                     {
-                        // Services already disposed (app shutdown or profile switch) - this is OK
                         _logger.Info($"[SecondaryWindow] Services disposed during window close (expected during shutdown): {ex.Message}");
                     }
                     catch (Exception ex)
@@ -338,11 +341,15 @@ public class SecondaryWindowService : ISecondaryWindowService
                     _sessionManager.Remove(sessionId);
                     try
                     {
-                        SaveWindowConfigurationAsync(
+                        var saveTask = Task.Run(() => SaveWindowConfigurationAsync(
                             windowEntry.WindowName,
                             form.Location,
                             form.Size
-                        ).ConfigureAwait(false).GetAwaiter().GetResult();
+                        ));
+                        if (!saveTask.Wait(TimeSpan.FromSeconds(3)))
+                        {
+                            _logger.Warn("[SecondaryWindow] Timed out saving window config on close — skipping");
+                        }
                     }
                     catch (ObjectDisposedException ex)
                     {

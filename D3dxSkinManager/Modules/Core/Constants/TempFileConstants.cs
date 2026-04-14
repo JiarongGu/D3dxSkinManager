@@ -2,8 +2,23 @@ namespace D3dxSkinManager.Modules.Core.Constants;
 
 /// <summary>
 /// Constants for temporary file naming patterns used across the application.
-/// All temp files/folders in {ProfilePath}/temp/ use short extensions for cleaner naming.
-/// Each module handles its own cleanup logic based on business requirements.
+///
+/// Temp file inventory (all scanned by FileCleanupService):
+///
+/// | Extension/Pattern   | Location                              | Created by                    | Cleanup                       |
+/// |---------------------|---------------------------------------|-------------------------------|-------------------------------|
+/// | .mic                | {ProfilePath}/temp/{workflowId}.mic   | ModImportWorkflowHandler      | Workflow cancel/complete       |
+/// | .auc                | {ProfilePath}/temp/{modId}.auc        | ModArchiveService             | Finally block / cleanup tool  |
+/// | _temp_reorder{ext}  | {ProfilePath}/previews/{id}/          | ImageService                  | Reorder complete / cleanup    |
+/// | .tmp                | Adjacent to target file               | SettingFileService (atomic)   | File.Move (immediate)         |
+///
+/// RULE: NEVER use Path.GetTempPath() / system temp folder.
+/// Always use {ProfilePath}/temp/ — same drive as data, managed by FileCleanupService.
+///
+/// When adding a new temp file pattern:
+/// 1. Add constant + helper here
+/// 2. Add scan pattern in FileCleanupService.ScanOrphanedTempFiles()
+/// 3. Update this table
 /// </summary>
 public static class TempFileConstants
 {
@@ -27,6 +42,28 @@ public static class TempFileConstants
     /// Note: This is in previews dir, not temp dir (legacy pattern)
     /// </summary>
     public const string PREVIEW_REORDER_PREFIX = "_temp_reorder";
+
+    /// <summary>
+    /// Extension for archive update (compress cache to archive) temp files.
+    /// Format: "{modId}.auc" (7z file with .auc extension)
+    /// Location: {ProfilePath}/temp/{modId}.auc
+    /// Used by: ModArchiveService → FileOperationPlanner (CompressArchive operation)
+    /// Cleanup: Finally block in planner / FileCleanupService
+    /// </summary>
+    public const string ARCHIVE_UPDATE_COMPRESS_EXT = ".auc";
+
+    /// <summary>
+    /// Create an archive update compress temp file name.
+    /// Caller combines with profile temp directory to get full path.
+    /// </summary>
+    public static string GetArchiveUpdateTempName(string modId) =>
+        $"{modId}{ARCHIVE_UPDATE_COMPRESS_EXT}";
+
+    /// <summary>
+    /// Check if a name matches the archive update compress temp pattern (.auc extension).
+    /// </summary>
+    public static bool IsArchiveUpdateCompressTemp(string name) =>
+        name.EndsWith(ARCHIVE_UPDATE_COMPRESS_EXT, StringComparison.Ordinal);
 
     // ==================== Atomic Write Suffix ====================
 

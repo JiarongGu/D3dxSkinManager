@@ -1,4 +1,5 @@
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Models;
@@ -203,12 +204,15 @@ public class ModArchiveService : IModArchiveService
             }
 
             var archivePath = GetArchivePath(id);
+            // Temp file in profile temp directory (same drive as archive, consistent with .mic pattern)
+            var tempPath = Path.Combine(_profilePaths.TempDirectory, TempFileConstants.GetArchiveUpdateTempName(id));
 
             var compressOp = new FileSystemOperation
             {
                 OperationType = FileSystemOperationType.CompressArchive,
                 SourcePath = cacheDirectory,
                 TargetPath = archivePath,
+                TempPath = tempPath,
                 Overwrite = true
             };
 

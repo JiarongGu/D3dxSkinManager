@@ -501,13 +501,15 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
                 return FileSystemOperationResult.Fail($"Source directory does not exist: {operation.SourcePath}");
             }
 
-            // Compress to a temp file first, then move to target (atomic replace)
-            var tempPath = operation.TargetPath + ".tmp";
+            // Compress to temp file, then move to target (atomic replace)
+            // Temp path provided by caller (profile temp dir, same drive as target)
+            var tempPath = operation.TempPath
+                ?? Path.Combine(Path.GetDirectoryName(operation.TargetPath)!, $"{Guid.NewGuid():N}.tmp");
             try
             {
                 await _archiveHelper.CompressFolderAsync(operation.SourcePath, tempPath).ConfigureAwait(false);
 
-                // Replace old archive with new one
+                // Replace old archive atomically (same drive guaranteed by caller)
                 if (File.Exists(operation.TargetPath))
                 {
                     File.Delete(operation.TargetPath);

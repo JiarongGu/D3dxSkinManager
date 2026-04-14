@@ -238,12 +238,34 @@ function getAllValues(record: SearchableRecord): string[] {
 
 /**
  * Check if a single term matches a record.
+ * ID field always uses exact match (IDs are long hashes, substring would give false positives).
  */
 function termMatches(term: SearchTerm, record: SearchableRecord): boolean {
-  const values = term.field
-    ? getFieldValues(record, term.field)
-    : getAllValues(record);
+  // ID-specific search: always exact match
+  if (term.field === 'id') {
+    const match = record.id.toLowerCase() === term.text;
+    return term.negated ? !match : match;
+  }
 
+  // Unqualified search: check all fields, but ID uses exact match
+  if (!term.field) {
+    const idMatch = record.id.toLowerCase() === term.text;
+    const otherValues: string[] = [record.name];
+    if (record.author) otherValues.push(record.author);
+    if (record.tags) otherValues.push(...record.tags);
+    if (record.extra) otherValues.push(...record.extra);
+
+    const otherMatch = otherValues.some((val) => {
+      const lower = val.toLowerCase();
+      return term.exact ? lower === term.text : lower.includes(term.text);
+    });
+
+    const match = idMatch || otherMatch;
+    return term.negated ? !match : match;
+  }
+
+  // Field-specific search (non-ID): normal matching
+  const values = getFieldValues(record, term.field);
   const match = values.some((val) => {
     const lower = val.toLowerCase();
     return term.exact ? lower === term.text : lower.includes(term.text);
