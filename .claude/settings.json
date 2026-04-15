@@ -38,7 +38,9 @@
       "Bash(ls node_modules/react-scripts)",
       "Bash(ls node_modules/@swc)",
       "Bash(grep -r \"CachePath\\\\|archivePath\\\\|ArchivePath\" D3dxSkinManager/Modules/Mod/Services/*.cs)",
-      "Bash(grep -E \"\\\\.cs$\")"
+      "Bash(grep -E \"\\\\.cs$\")",
+      "Bash(grep -E \"\\\\.\\(cs|sql\\)$\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
     ],
     "additionalDirectories": [
       ".claude",

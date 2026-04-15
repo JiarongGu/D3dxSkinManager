@@ -40,6 +40,9 @@ public static class ToolServiceExtensions
         services.TryAddSingleton<IModAnalysisRepository, ModAnalysisRepository>();
         services.TryAddSingleton<IModAnalysisService, ModAnalysisService>();
 
+        // Register mod ID migration service
+        services.TryAddSingleton<IModIdMigrationService, ModIdMigrationService>();
+
         // Register facade
         services.TryAddSingleton<IToolFacade, ToolFacade>();
         services.TryAddSingleton<ToolFacade>();

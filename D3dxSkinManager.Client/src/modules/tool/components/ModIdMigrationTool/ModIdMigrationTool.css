@@ -1,0 +1,74 @@
+.mod-id-migration {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mod-id-migration__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px;
+}
+
+.mod-id-migration__description {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.mod-id-migration__summary {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mod-id-migration__divider {
+  color: var(--color-text-tertiary);
+}
+
+.mod-id-migration__all-good {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  border-radius: var(--border-radius-base);
+}
+
+.mod-id-migration__all-good-icon {
+  font-size: 18px;
+}
+
+.mod-id-migration__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  background: var(--color-bg-elevated);
+  border-radius: var(--border-radius-base);
+}
+
+.mod-id-migration__progress-text {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.mod-id-migration__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mod-id-migration__table {
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--border-radius-base);
+}
+
+.mod-id-migration__id {
+  font-size: 12px;
+  font-family: monospace;
+  word-break: break-all;
+}

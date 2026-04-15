@@ -24,4 +24,9 @@ public static class ToolEvents
     // Mod analysis events
     public const string MOD_ANALYSIS_PROGRESS = "MOD_ANALYSIS_PROGRESS";
     public const string MOD_ANALYSIS_COMPLETE = "MOD_ANALYSIS_COMPLETE";
+
+    // Mod ID migration events
+    public const string MOD_ID_MIGRATION_SCAN_COMPLETE = "MOD_ID_MIGRATION_SCAN_COMPLETE";
+    public const string MOD_ID_MIGRATION_PROGRESS = "MOD_ID_MIGRATION_PROGRESS";
+    public const string MOD_ID_MIGRATION_COMPLETE = "MOD_ID_MIGRATION_COMPLETE";
 }

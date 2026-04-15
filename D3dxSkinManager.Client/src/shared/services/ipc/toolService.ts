@@ -168,6 +168,26 @@ export class ToolService extends BaseModuleService {
   async clearAllAnalysis(profileId: string): Promise<void> {
     return this.sendMessage<void>('ANALYSIS_CLEAR_ALL', profileId);
   }
+
+  // ===== Mod ID Migration (fire-and-forget — results via events) =====
+
+  /**
+   * Scan for mods with non-GUID IDs that need migration.
+   * Fire-and-forget: result arrives via MOD_ID_MIGRATION_SCAN_COMPLETE event.
+   * Backend: ToolFacade.StartModIdMigrationScan → ModIdMigrationService.ScanAsync
+   */
+  async scanModIdMigration(profileId: string): Promise<void> {
+    return this.sendMessage<void>('MOD_ID_MIGRATION_SCAN', profileId);
+  }
+
+  /**
+   * Execute mod ID migration (rename files, update database).
+   * Fire-and-forget: progress via MOD_ID_MIGRATION_PROGRESS, result via MOD_ID_MIGRATION_COMPLETE.
+   * Backend: ToolFacade.StartModIdMigrationExecute → ModIdMigrationService.MigrateAsync
+   */
+  async executeModIdMigration(profileId: string): Promise<void> {
+    return this.sendMessage<void>('MOD_ID_MIGRATION_EXECUTE', profileId);
+  }
 }
 
 // Export singleton instance

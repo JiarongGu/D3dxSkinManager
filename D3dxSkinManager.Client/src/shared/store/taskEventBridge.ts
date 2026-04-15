@@ -14,6 +14,7 @@ import { useTaskStore } from './taskStore';
 
 const ANALYSIS_TASK_ID = 'mod-analysis';
 const PACKAGE_TASK_ID = 'mod-package';
+const MOD_ID_MIGRATION_TASK_ID = 'mod-id-migration';
 
 export function initTaskEventBridge(): () => void {
   const unsubAnalysisProgress = eventBus.subscribe(
@@ -61,9 +62,36 @@ export function initTaskEventBridge(): () => void {
     },
   );
 
+  const unsubMigrationProgress = eventBus.subscribe(
+    Module.TOOL,
+    ToolsEventType.MOD_ID_MIGRATION_PROGRESS,
+    (e) => {
+      if (!e.payload) return;
+
+      const store = useTaskStore.getState();
+      const pct = e.payload.total > 0
+        ? Math.round((e.payload.current / e.payload.total) * 100)
+        : undefined;
+
+      if (store.tasks.some((t) => t.id === MOD_ID_MIGRATION_TASK_ID)) {
+        store.updateTask(MOD_ID_MIGRATION_TASK_ID, { progress: pct });
+      }
+    },
+  );
+
+  const unsubMigrationComplete = eventBus.subscribe(
+    Module.TOOL,
+    ToolsEventType.MOD_ID_MIGRATION_COMPLETE,
+    () => {
+      useTaskStore.getState().removeTask(MOD_ID_MIGRATION_TASK_ID);
+    },
+  );
+
   return () => {
     unsubAnalysisProgress();
     unsubAnalysisComplete();
     unsubPackageProgress();
+    unsubMigrationProgress();
+    unsubMigrationComplete();
   };
 }

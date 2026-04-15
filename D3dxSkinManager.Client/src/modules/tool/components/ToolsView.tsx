@@ -8,6 +8,7 @@ import {
   ToolOutlined,
   CameraOutlined,
   SwapOutlined,
+  SyncOutlined,
   ExperimentOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +18,7 @@ import { PythonMigrationTool } from './PythonMigrationTool/PythonMigrationTool';
 import { ModPackageTool } from './ModPackageTool/ModPackageTool';
 import { FileCleanupTool } from './FileCleanupTool/FileCleanupTool';
 import { ModAnalyzerTool } from './ModAnalyzerTool/ModAnalyzerTool';
+import { ModIdMigrationTool } from './ModIdMigrationTool/ModIdMigrationTool';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { CompactCard } from '../../../shared/components/compact';
 import { api } from '../../../shared/services/ipc';
@@ -49,6 +51,7 @@ export const ToolsView: React.FC = () => {
   const [showModPackageTool, setShowModPackageTool] = React.useState(false);
   const [showFileCleanupTool, setShowFileCleanupTool] = React.useState(false);
   const [showModAnalyzerTool, setShowModAnalyzerTool] = React.useState(false);
+  const [showModIdMigrationTool, setShowModIdMigrationTool] = React.useState(false);
 
   // ModsProvider already handles migration completion events
   // No need to manually refresh here
@@ -106,9 +109,22 @@ export const ToolsView: React.FC = () => {
       icon: <ExperimentOutlined />,
       content: null, // Special case - handled separately
     },
+    {
+      key: 'mod-id-migration',
+      title: t('tools.modIdMigration.title'),
+      description: t('tools.modIdMigration.cardDescription'),
+      icon: <SyncOutlined />,
+      content: null, // Special case - handled separately
+    },
   ];
 
   const handleToolClick = (tool: ToolCardData) => {
+    // Special handling for Mod ID Migration - open tool directly
+    if (tool.key === 'mod-id-migration') {
+      setShowModIdMigrationTool(true);
+      return;
+    }
+
     // Special handling for Mod Analyzer - open tool directly
     if (tool.key === 'mod-analyzer') {
       setShowModAnalyzerTool(true);
@@ -208,6 +224,13 @@ export const ToolsView: React.FC = () => {
       <FileCleanupTool
         visible={showFileCleanupTool}
         onClose={() => setShowFileCleanupTool(false)}
+      />
+
+      {/* Mod ID Migration Tool - Opens in SlideInScreen */}
+      <ModIdMigrationTool
+        visible={showModIdMigrationTool}
+        onClose={() => setShowModIdMigrationTool(false)}
+        onMigrationComplete={handleModsChanged}
       />
 
       {/* Python Migration Tool - Opens in SlideInScreen */}
