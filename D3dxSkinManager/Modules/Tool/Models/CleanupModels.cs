@@ -8,7 +8,9 @@ public enum OrphanCategory
     Thumbnail,
     Preview,
     TempFile,
-    ModCache
+    ModCache,
+    OrphanedArchive,
+    MissingArchive
 }
 
 /// <summary>

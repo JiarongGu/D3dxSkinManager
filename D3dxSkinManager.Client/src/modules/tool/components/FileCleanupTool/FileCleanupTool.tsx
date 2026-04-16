@@ -143,6 +143,44 @@ const FileCleanupToolInner: React.FC = () => {
         />
       ),
     },
+    {
+      key: 'orphanedArchive',
+      label: (
+        <TabLabel
+          text={t('tools.fileCleanup.tabs.orphanedArchives')}
+          count={getResultForCategory('orphanedArchive')?.totalCount}
+        />
+      ),
+      children: (
+        <CleanupTab
+          category="orphanedArchive"
+          scanResult={getResultForCategory('orphanedArchive')}
+          scanning={scanning}
+          onCleaned={handleCleaned}
+          emptyMessage={t('tools.fileCleanup.noOrphanedArchives')}
+          description={t('tools.fileCleanup.orphanedArchivesDescription')}
+        />
+      ),
+    },
+    {
+      key: 'missingArchive',
+      label: (
+        <TabLabel
+          text={t('tools.fileCleanup.tabs.missingArchives')}
+          count={getResultForCategory('missingArchive')?.totalCount}
+        />
+      ),
+      children: (
+        <CleanupTab
+          category="missingArchive"
+          scanResult={getResultForCategory('missingArchive')}
+          scanning={scanning}
+          onCleaned={handleCleaned}
+          emptyMessage={t('tools.fileCleanup.noMissingArchives')}
+          description={t('tools.fileCleanup.missingArchivesDescription')}
+        />
+      ),
+    },
   ];
 
   if (scanning && scanResults.length === 0) {

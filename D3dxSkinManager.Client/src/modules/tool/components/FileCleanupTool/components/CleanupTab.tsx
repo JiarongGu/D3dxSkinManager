@@ -172,6 +172,7 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
             <CleanupItem
               key={item.path}
               item={item}
+              category={category}
               selected={selectedPaths.has(item.path)}
               onToggle={() => toggleItem(item.path)}
             />
@@ -184,11 +185,14 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
 
 const CleanupItem: React.FC<{
   item: OrphanedItem;
+  category: OrphanCategory;
   selected: boolean;
   onToggle: () => void;
-}> = ({ item, selected, onToggle }) => {
+}> = ({ item, category, selected, onToggle }) => {
   const { t } = useTranslation();
   const isDirectory = !item.name.includes('.');
+  // MissingArchive items store mod ID in path — no file to open
+  const canOpenInExplorer = category !== 'missingArchive';
 
   const handleOpenInExplorer = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -212,19 +216,23 @@ const CleanupItem: React.FC<{
       <Tooltip title={item.path} placement="topLeft">
         <span className="file-cleanup__item-name">{item.name}</span>
       </Tooltip>
-      <span className="file-cleanup__item-size">
-        <Tag>{formatBytes(item.sizeBytes)}</Tag>
-      </span>
+      {item.sizeBytes > 0 && (
+        <span className="file-cleanup__item-size">
+          <Tag>{formatBytes(item.sizeBytes)}</Tag>
+        </span>
+      )}
       <span className="file-cleanup__item-date">{item.lastModified}</span>
-      <Tooltip title={t('tools.fileCleanup.openInExplorer')}>
-        <Button
-          type="text"
-          size="small"
-          icon={<FolderOpenOutlined />}
-          onClick={handleOpenInExplorer}
-          className="file-cleanup__item-open"
-        />
-      </Tooltip>
+      {canOpenInExplorer && (
+        <Tooltip title={t('tools.fileCleanup.openInExplorer')}>
+          <Button
+            type="text"
+            size="small"
+            icon={<FolderOpenOutlined />}
+            onClick={handleOpenInExplorer}
+            className="file-cleanup__item-open"
+          />
+        </Tooltip>
+      )}
     </div>
   );
 };

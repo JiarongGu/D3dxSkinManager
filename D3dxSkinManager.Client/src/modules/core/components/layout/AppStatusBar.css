@@ -31,8 +31,8 @@
   align-items: center;
   gap: 6px;
   cursor: default;
-  flex: 1;
   height: 100%;
+  padding: 0 4px;
 }
 
 .app-status-bar-progress-track {

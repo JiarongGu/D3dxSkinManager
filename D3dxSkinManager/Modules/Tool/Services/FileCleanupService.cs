@@ -60,7 +60,11 @@ public class FileCleanupService : IFileCleanupService
     {
         var results = new List<OrphanScanResult>();
 
-        foreach (var category in new[] { OrphanCategory.Thumbnail, OrphanCategory.Preview, OrphanCategory.TempFile, OrphanCategory.ModCache })
+        foreach (var category in new[]
+        {
+            OrphanCategory.Thumbnail, OrphanCategory.Preview, OrphanCategory.TempFile,
+            OrphanCategory.ModCache, OrphanCategory.OrphanedArchive, OrphanCategory.MissingArchive
+        })
         {
             var result = await ScanOrphansAsync(category).ConfigureAwait(false);
             results.Add(result);
@@ -77,6 +81,8 @@ public class FileCleanupService : IFileCleanupService
             OrphanCategory.Preview => await ScanOrphanedPreviewsAsync().ConfigureAwait(false),
             OrphanCategory.TempFile => ScanOrphanedTempFiles(),
             OrphanCategory.ModCache => await ScanOrphanedModCachesAsync().ConfigureAwait(false),
+            OrphanCategory.OrphanedArchive => await ScanOrphanedArchivesAsync().ConfigureAwait(false),
+            OrphanCategory.MissingArchive => await ScanMissingArchivesAsync().ConfigureAwait(false),
             _ => new OrphanScanResult { Category = category }
         };
     }
@@ -90,6 +96,38 @@ public class FileCleanupService : IFileCleanupService
 
         _logger.Info($"Cleaning {paths.Count} orphaned {category} items", "FileCleanupService");
 
+        // MissingArchive: "paths" are mod IDs — delete from database
+        if (category == OrphanCategory.MissingArchive)
+        {
+            foreach (var modId in paths)
+            {
+                try
+                {
+                    var deleted = await _repository.DeleteAsync(modId).ConfigureAwait(false);
+                    if (deleted)
+                    {
+                        result.DeletedCount++;
+                        _logger.Info($"Deleted missing-archive mod from database: {modId}", "FileCleanupService");
+                    }
+                    else
+                    {
+                        result.FailedCount++;
+                        result.Errors.Add($"{modId}: not found in database");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"Failed to delete mod {modId} from database: {ex.Message}", "FileCleanupService");
+                    result.FailedCount++;
+                    result.Errors.Add($"{modId}: {ex.Message}");
+                }
+            }
+
+            _logger.Info($"MissingArchive cleanup: {result.DeletedCount} deleted, {result.FailedCount} failed", "FileCleanupService");
+            return result;
+        }
+
+        // All other categories: delete files/directories at given paths
         foreach (var path in paths)
         {
             try
@@ -352,6 +390,84 @@ public class FileCleanupService : IFileCleanupService
         }
 
         _logger.Info($"Found {result.TotalCount} orphaned mod cache items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
+        return result;
+    }
+
+    /// <summary>
+    /// Scan mods directory for archive files whose ID doesn't match any mod in the database.
+    /// Archives are stored as files named by mod ID (no extension or with extension).
+    /// </summary>
+    private async Task<OrphanScanResult> ScanOrphanedArchivesAsync()
+    {
+        var result = new OrphanScanResult { Category = OrphanCategory.OrphanedArchive };
+        var modsDir = _profilePaths.ModsDirectory;
+
+        if (!Directory.Exists(modsDir))
+            return result;
+
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+        var knownIds = entities.Select(e => e.Id).ToHashSet();
+
+        foreach (var file in Directory.GetFiles(modsDir))
+        {
+            var fileName = Path.GetFileNameWithoutExtension(file);
+            // Archive files are named by mod ID (with or without extension)
+            if (!knownIds.Contains(fileName))
+            {
+                var info = new FileInfo(file);
+                result.Items.Add(new OrphanedItem
+                {
+                    Path = file,
+                    Name = Path.GetFileName(file),
+                    SizeBytes = info.Length,
+                    LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Category = OrphanCategory.OrphanedArchive
+                });
+            }
+        }
+
+        _logger.Info($"Found {result.TotalCount} orphaned archive files ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
+        return result;
+    }
+
+    /// <summary>
+    /// Scan database for mods that have no corresponding archive file on disk.
+    /// These are "ghost" entries — mods that can't be loaded because their archive is missing.
+    /// </summary>
+    private async Task<OrphanScanResult> ScanMissingArchivesAsync()
+    {
+        var result = new OrphanScanResult { Category = OrphanCategory.MissingArchive };
+        var modsDir = _profilePaths.ModsDirectory;
+
+        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
+
+        // Build set of mod IDs that have archive files on disk
+        var archiveIds = new HashSet<string>();
+        if (Directory.Exists(modsDir))
+        {
+            foreach (var file in Directory.GetFiles(modsDir))
+            {
+                archiveIds.Add(Path.GetFileNameWithoutExtension(file));
+            }
+        }
+
+        foreach (var entity in entities)
+        {
+            if (!archiveIds.Contains(entity.Id))
+            {
+                result.Items.Add(new OrphanedItem
+                {
+                    // Path stores mod ID — used by CleanOrphansAsync to delete from database
+                    Path = entity.Id,
+                    Name = !string.IsNullOrEmpty(entity.Name) ? entity.Name : entity.Id,
+                    SizeBytes = 0,
+                    LastModified = string.Empty,
+                    Category = OrphanCategory.MissingArchive
+                });
+            }
+        }
+
+        _logger.Info($"Found {result.TotalCount} mods with missing archives", "FileCleanupService");
         return result;
     }
 

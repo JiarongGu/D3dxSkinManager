@@ -485,7 +485,10 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
     }
 
     /// <summary>
-    /// Execute a directory compression to archive operation
+    /// Execute a directory compression to archive operation.
+    /// Uses a two-phase approach: compress once, then retry only the file replacement.
+    /// This avoids re-running expensive compression when only the final move/delete fails
+    /// due to transient file locks.
     /// </summary>
     private async Task<FileSystemOperationResult> ExecuteCompressArchiveAsync(FileSystemOperation operation)
     {
@@ -494,41 +497,99 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
             return FileSystemOperationResult.Fail("Source directory and target archive path are required for compress operation");
         }
 
-        return await RetryOperationAsync(async () =>
+        if (!Directory.Exists(operation.SourcePath))
         {
-            if (!Directory.Exists(operation.SourcePath))
+            return FileSystemOperationResult.Fail($"Source directory does not exist: {operation.SourcePath}");
+        }
+
+        var tempPath = operation.TempPath
+            ?? Path.Combine(Path.GetDirectoryName(operation.TargetPath)!, $"{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            // Phase 1: Compress cache to temp file
+            // Clean up stale temp from a previous failed attempt
+            if (File.Exists(tempPath))
             {
-                return FileSystemOperationResult.Fail($"Source directory does not exist: {operation.SourcePath}");
+                _logger.Warn($"Stale temp file found, deleting: {tempPath}", "FileOperationPlanner");
+                File.Delete(tempPath);
             }
 
-            // Compress to temp file, then move to target (atomic replace)
-            // Temp path provided by caller (profile temp dir, same drive as target)
-            var tempPath = operation.TempPath
-                ?? Path.Combine(Path.GetDirectoryName(operation.TargetPath)!, $"{Guid.NewGuid():N}.tmp");
             try
             {
                 await _archiveHelper.CompressFolderAsync(operation.SourcePath, tempPath).ConfigureAwait(false);
-
-                // Replace old archive atomically (same drive guaranteed by caller)
-                if (File.Exists(operation.TargetPath))
-                {
-                    File.Delete(operation.TargetPath);
-                }
-                File.Move(tempPath, operation.TargetPath);
-
-                _logger.Info($"Compressed directory {operation.SourcePath} to {operation.TargetPath}", "FileOperationPlanner");
-                return FileSystemOperationResult.Ok();
             }
-            catch
+            catch (InvalidOperationException ex) when (ex.InnerException is IOException ioEx)
             {
-                // Clean up temp file on failure
-                if (File.Exists(tempPath))
-                {
-                    try { File.Delete(tempPath); } catch { /* best effort */ }
-                }
-                throw;
+                // CompressFolderAsync wraps IOException in InvalidOperationException —
+                // unwrap so we can report the actual IO error
+                _logger.Error($"IO error during compression: {ioEx.Message}", "FileOperationPlanner", ioEx);
+                return FileSystemOperationResult.Fail(
+                    $"Compression failed due to file access error: {ioEx.Message}",
+                    ioEx);
             }
-        }, operation).ConfigureAwait(false);
+
+            // Verify compressed file was created
+            if (!File.Exists(tempPath))
+            {
+                return FileSystemOperationResult.Fail("Compression completed but output file was not created");
+            }
+
+            // Phase 2: Replace old archive — retry only this step for transient file locks
+            await ReplaceFileWithRetryAsync(tempPath, operation.TargetPath).ConfigureAwait(false);
+
+            _logger.Info($"Compressed directory {operation.SourcePath} to {operation.TargetPath}", "FileOperationPlanner");
+            return FileSystemOperationResult.Ok();
+        }
+        catch (IOException ioEx)
+        {
+            if (File.Exists(tempPath))
+            {
+                try { File.Delete(tempPath); } catch { /* best effort */ }
+            }
+
+            _logger.Error($"IO error during compress archive: {ioEx.Message}", "FileOperationPlanner", ioEx);
+            return FileSystemOperationResult.Fail(
+                $"File operation failed after {MAX_RETRY_ATTEMPTS} attempts. The archive may be in use by another process.",
+                ioEx);
+        }
+        catch (Exception ex)
+        {
+            if (File.Exists(tempPath))
+            {
+                try { File.Delete(tempPath); } catch { /* best effort */ }
+            }
+
+            _logger.Error($"Unexpected error during compress archive: {ex.Message}", "FileOperationPlanner", ex);
+            return FileSystemOperationResult.Fail($"An unexpected error occurred: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Replace target file with source file, retrying on transient IOException.
+    /// Keeps compression result intact — only retries the delete+move step.
+    /// </summary>
+    private async Task ReplaceFileWithRetryAsync(string sourcePath, string targetPath)
+    {
+        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++)
+        {
+            try
+            {
+                if (File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                }
+                File.Move(sourcePath, targetPath);
+                return;
+            }
+            catch (IOException) when (attempt < MAX_RETRY_ATTEMPTS)
+            {
+                var delayMs = RETRY_DELAY_MS * attempt;
+                _logger.Warn($"Retry {attempt}/{MAX_RETRY_ATTEMPTS} for file replacement after {delayMs}ms", "FileOperationPlanner");
+                await Task.Delay(delayMs).ConfigureAwait(false);
+            }
+            // Last attempt IOException propagates to caller
+        }
     }
 
     /// <summary>
