@@ -38,3 +38,10 @@ Before building a new UI pattern, **search for existing implementations**:
 | Count badges | `CountBadge` in `shared/components/common/` |
 
 **Never build a new TreeSelect for categories** — use the shared `CategorySelect` component (flat dropdown with breadcrumb labels).
+
+## Context Menus — no ellipsis
+
+**Never put `…` or `...` in context-menu item labels** (mod list, category tree, preview, fix submenu).
+User preference, applied 2026-06-18. Menu items read as plain actions ("Replace Content from File",
+"Manage fix tools", "Fix all in category"). Ellipsis is fine elsewhere (input placeholders, loading
+text, toolbar buttons), just not in right-click menus.

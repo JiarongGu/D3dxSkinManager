@@ -323,7 +323,7 @@ export const ModList: React.FC<ModListProps> = ({
     }
     for (const tf of fixTools) {
       if (tf.entries.length === 0) {
-        children.push({ key: `fix-${tf.id}`, label: `${tf.name} — ${t("tools.modFix.selectEntry")}`, disabled: true });
+        children.push({ key: `fix-${tf.id}`, label: `${tf.name} — ${t("tools.modFix.setEntryFirst")}`, disabled: true });
       } else if (tf.entries.length === 1) {
         const e = tf.entries[0];
         children.push({ key: `fix-${tf.id}`, label: tf.name, icon: <ThunderboltOutlined />, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, modIds) });
@@ -350,7 +350,7 @@ export const ModList: React.FC<ModListProps> = ({
     const items: NonNullable<MenuProps["items"]> = [];
     for (const tf of fixTools) {
       if (tf.entries.length === 0) {
-        items.push({ key: tf.id, label: `${tf.name} — ${t("tools.modFix.selectEntry")}`, disabled: true });
+        items.push({ key: tf.id, label: `${tf.name} — ${t("tools.modFix.setEntryFirst")}`, disabled: true });
       } else if (tf.entries.length === 1) {
         const e = tf.entries[0];
         items.push({ key: tf.id, label: tf.name, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, selectedModIds) });

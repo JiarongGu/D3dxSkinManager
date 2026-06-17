@@ -109,7 +109,7 @@ export function getCategoryContextMenu({
     const fixChildren: NonNullable<MenuProps['items']> = [];
     for (const tf of fixTools ?? []) {
       if (tf.entries.length === 0) {
-        fixChildren.push({ key: `catfix-${tf.id}`, label: `${tf.name} — ${t('tools.modFix.selectEntry')}`, disabled: true });
+        fixChildren.push({ key: `catfix-${tf.id}`, label: `${tf.name} — ${t('tools.modFix.setEntryFirst')}`, disabled: true });
       } else if (tf.entries.length === 1) {
         const e = tf.entries[0];
         fixChildren.push({ key: `catfix-${tf.id}`, label: tf.name, onClick: () => onRunCategoryFix?.(nodeId, e.path, tf.recompressDefault) });
