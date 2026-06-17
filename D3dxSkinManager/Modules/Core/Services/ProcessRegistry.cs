@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -19,8 +20,9 @@ namespace D3dxSkinManager.Modules.Core.Services;
 /// </summary>
 public interface IProcessRegistry
 {
-    /// <summary>Register + start a process. Returns its id (pass to Report/Complete/Fail/GetToken).</summary>
-    string Start(ProcessType type, string title, bool cancellable = false, int? progress = null);
+    /// <summary>Register + start a process. Returns its id (pass to Report/Complete/Fail/GetToken).
+    /// Set <paramref name="resumable"/> if the op checkpoints itself and can resume after a crash.</summary>
+    string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false);
 
     /// <summary>Update progress (0–100, or null for indeterminate) and/or the detail line.</summary>
     void Report(string id, int? progress = null, string? detail = null);
@@ -51,17 +53,21 @@ public class ProcessRegistry : IProcessRegistry
 
     private readonly IEventBus _eventBus;
     private readonly ILogHelper _logger;
+    private readonly string _stateFile;
     private readonly object _lock = new();
     private readonly Dictionary<string, ProcessInfo> _processes = new();
     private readonly Dictionary<string, CancellationTokenSource> _cts = new();
+    private static readonly JsonSerializerOptions PersistOptions = new() { WriteIndented = false };
 
-    public ProcessRegistry(IEventBus eventBus, ILogHelper logger)
+    public ProcessRegistry(IEventBus eventBus, ILogHelper logger, IGlobalPathService pathService)
     {
         _eventBus = eventBus;
         _logger = logger;
+        _stateFile = Path.Combine(pathService.BaseDataPath, "process-state.json");
+        LoadPersisted();
     }
 
-    public string Start(ProcessType type, string title, bool cancellable = false, int? progress = null)
+    public string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false)
     {
         var info = new ProcessInfo
         {
@@ -70,6 +76,7 @@ public class ProcessRegistry : IProcessRegistry
             Title = title,
             Progress = progress,
             Cancellable = cancellable,
+            Resumable = resumable,
         };
         lock (_lock)
         {
@@ -77,6 +84,7 @@ public class ProcessRegistry : IProcessRegistry
             if (cancellable) _cts[info.Id] = new CancellationTokenSource();
         }
         _logger.Verbose($"Process started: {type}/{title} ({info.Id})", "ProcessRegistry");
+        Persist();
         EmitSnapshot();
         return info.Id;
     }
@@ -131,6 +139,7 @@ public class ProcessRegistry : IProcessRegistry
                 DisposeCts(id);
             }
         }
+        Persist();
         EmitSnapshot();
     }
 
@@ -149,6 +158,7 @@ public class ProcessRegistry : IProcessRegistry
         }
         if (status == ProcessStatus.Failed)
             _logger.Warn($"Process failed: {id} — {error}", "ProcessRegistry");
+        Persist();
         EmitSnapshot();
     }
 
@@ -182,5 +192,56 @@ public class ProcessRegistry : IProcessRegistry
         // Fire-and-forget: payload is the full snapshot, so a later emit simply supersedes an earlier
         // one (last-write-wins) — no ordering hazard. IpcHandler batches these every 50ms.
         _ = _eventBus.EmitAsync(ModuleNames.SYSTEM, SystemEvents.PROCESS_LIST_UPDATED, new { processes = snapshot });
+    }
+
+    // Persist the snapshot to an app-level file (best effort). Written on lifecycle transitions
+    // (Start/Finish/Clear) — not on every Report — so a crash leaves the last known state on disk.
+    private void Persist()
+    {
+        List<ProcessInfo> snapshot;
+        lock (_lock) { snapshot = Snapshot(); }
+        try
+        {
+            var dir = Path.GetDirectoryName(_stateFile);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(_stateFile, JsonSerializer.Serialize(snapshot, PersistOptions));
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Failed to persist process state: {ex.Message}", "ProcessRegistry");
+        }
+    }
+
+    // On startup: load the persisted snapshot. Any process still Running/Queued was interrupted by an
+    // app exit/crash → mark Interrupted so it's visible (with its last progress) instead of lost or
+    // stuck "running". Resumable ops can then be continued from their own checkpoint.
+    private void LoadPersisted()
+    {
+        try
+        {
+            if (!File.Exists(_stateFile)) return;
+            var saved = JsonSerializer.Deserialize<List<ProcessInfo>>(File.ReadAllText(_stateFile), PersistOptions);
+            if (saved == null || saved.Count == 0) return;
+
+            lock (_lock)
+            {
+                foreach (var p in saved)
+                {
+                    if (p.Status == ProcessStatus.Running || p.Status == ProcessStatus.Queued)
+                    {
+                        p.Status = ProcessStatus.Interrupted;
+                        p.FinishedAt ??= DateTime.UtcNow;
+                    }
+                    _processes[p.Id] = p;
+                }
+                PruneHistory();
+            }
+            _logger.Info($"Restored {saved.Count} process(es) from previous session", "ProcessRegistry");
+            Persist();
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Failed to load persisted process state: {ex.Message}", "ProcessRegistry");
+        }
     }
 }

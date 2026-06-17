@@ -12,6 +12,8 @@ public enum ProcessStatus
     Completed,
     Failed,
     Cancelled,
+    /// <summary>Was Running when the app exited/crashed — detected on next startup from persisted state.</summary>
+    Interrupted,
 }
 
 /// <summary>
@@ -58,6 +60,13 @@ public class ProcessInfo
 
     /// <summary>Whether this process exposes a working cancel.</summary>
     public bool Cancellable { get; set; }
+
+    /// <summary>
+    /// Whether this process can be resumed from where it left off if interrupted by a crash. The op
+    /// opts in (it must checkpoint its own progress + provide a resume entrypoint). Most ops are not
+    /// resumable; mod analysis is (it persists + resumes sessions).
+    /// </summary>
+    public bool Resumable { get; set; }
 
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? FinishedAt { get; set; }

@@ -20,13 +20,18 @@ public class ProcessRegistryTests
 {
     private readonly Mock<IEventBus> _eventBus = new();
     private readonly ProcessRegistry _registry;
+    private readonly string _dataDir;
 
     public ProcessRegistryTests()
     {
         _eventBus
             .Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<string?>()))
             .Returns(Task.CompletedTask);
-        _registry = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>());
+        // Isolate persistence to a fresh temp dir so tests don't load/clobber real state.
+        _dataDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "d3dx-proc-test-" + System.Guid.NewGuid().ToString("N"));
+        var paths = new Mock<IGlobalPathService>();
+        paths.Setup(p => p.BaseDataPath).Returns(_dataDir);
+        _registry = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>(), paths.Object);
     }
 
     [Fact]
@@ -147,5 +152,35 @@ public class ProcessRegistryTests
         }
 
         _registry.GetAll().Count.Should().Be(50, "finished history is bounded");
+    }
+
+    [Fact]
+    public void InterruptedProcess_IsRestoredAsInterrupted_OnRestart()
+    {
+        // A process left Running (app "crashes" before Complete) is persisted as Running...
+        var id = _registry.Start(ProcessType.Migration, "long op");
+
+        // ...and a fresh registry reading the same state dir (app restart) marks it Interrupted.
+        var paths = new Mock<IGlobalPathService>();
+        paths.Setup(p => p.BaseDataPath).Returns(_dataDir);
+        var restarted = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>(), paths.Object);
+
+        var restored = restarted.GetAll().FirstOrDefault(p => p.Id == id);
+        restored.Should().NotBeNull();
+        restored!.Status.Should().Be(ProcessStatus.Interrupted);
+        restored.FinishedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void CompletedProcess_StaysCompleted_OnRestart()
+    {
+        var id = _registry.Start(ProcessType.Package, "export");
+        _registry.Complete(id);
+
+        var paths = new Mock<IGlobalPathService>();
+        paths.Setup(p => p.BaseDataPath).Returns(_dataDir);
+        var restarted = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>(), paths.Object);
+
+        restarted.GetAll().First(p => p.Id == id).Status.Should().Be(ProcessStatus.Completed);
     }
 }

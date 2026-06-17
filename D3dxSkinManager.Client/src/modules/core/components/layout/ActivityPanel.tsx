@@ -6,6 +6,7 @@ import {
   CloseCircleOutlined,
   StopOutlined,
   ClockCircleOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProcessStore, ProcessInfo, ProcessStatus } from '../../../../shared/store/processStore';
@@ -23,6 +24,7 @@ const STATUS_META: Record<ProcessStatus, { color: string; icon: React.ReactNode;
   completed: { color: 'success', icon: <CheckCircleOutlined />, key: 'activity.status.completed' },
   failed: { color: 'error', icon: <CloseCircleOutlined />, key: 'activity.status.failed' },
   cancelled: { color: 'default', icon: <StopOutlined />, key: 'activity.status.cancelled' },
+  interrupted: { color: 'warning', icon: <ExclamationCircleOutlined />, key: 'activity.status.interrupted' },
 };
 
 function elapsed(p: ProcessInfo): string {
@@ -37,7 +39,10 @@ function elapsed(p: ProcessInfo): string {
 const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
   const { t } = useTranslation();
   const meta = STATUS_META[p.status];
-  const progressStatus = p.status === 'failed' ? 'exception' : p.status === 'completed' ? 'success' : 'active';
+  const progressStatus = p.status === 'failed' ? 'exception'
+    : p.status === 'completed' ? 'success'
+    : p.status === 'interrupted' ? 'normal'
+    : 'active';
 
   return (
     <div className="activity-panel__row">
@@ -57,10 +62,11 @@ const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
         )}
       </div>
 
-      {p.status === 'running' && (
-        // Indeterminate (no progress yet) → a full active bar with no % label as a "working" indicator.
+      {(p.status === 'running' || p.status === 'interrupted') && (
+        // Running: indeterminate (no progress yet) shows a full active bar as a "working" indicator.
+        // Interrupted: the bar stops at the last reported progress so you can see how far it got.
         <Progress
-          percent={p.progress ?? 100}
+          percent={p.status === 'interrupted' ? (p.progress ?? 0) : (p.progress ?? 100)}
           status={progressStatus}
           showInfo={p.progress !== undefined}
           size="small"

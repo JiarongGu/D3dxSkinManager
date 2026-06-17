@@ -9,7 +9,7 @@ import { create } from 'zustand';
 
 // NOTE: enums are camelCase because IpcHandler serializes C# enums with
 // JsonStringEnumConverter(CamelCase). See .claude/rules/enum-serialization.md.
-export type ProcessStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type ProcessStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
 
 export type ProcessType =
   | 'modLoad'
@@ -36,6 +36,7 @@ export interface ProcessInfo {
   progress?: number;
   error?: string;
   cancellable: boolean;
+  resumable: boolean;
   startedAt: string;
   finishedAt?: string;
 }

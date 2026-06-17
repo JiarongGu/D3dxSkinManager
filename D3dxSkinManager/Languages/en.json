@@ -466,6 +466,7 @@
     "activity.status.completed": "Completed",
     "activity.status.failed": "Failed",
     "activity.status.cancelled": "Cancelled",
+    "activity.status.interrupted": "Interrupted",
     "activity.actions.cancel": "Cancel",
     "activity.actions.clearCompleted": "Clear completed",
     "statusBar.presets": "Presets",
