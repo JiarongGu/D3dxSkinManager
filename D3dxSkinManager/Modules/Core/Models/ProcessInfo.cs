@@ -68,6 +68,12 @@ public class ProcessInfo
     /// </summary>
     public bool Resumable { get; set; }
 
+    /// <summary>
+    /// Opaque op-specific token the resume handler uses to continue (e.g. an analysis session id).
+    /// Persisted with the process so it survives a crash. Only meaningful when Resumable.
+    /// </summary>
+    public string? ResumePayload { get; set; }
+
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? FinishedAt { get; set; }
 }

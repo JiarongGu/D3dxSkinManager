@@ -468,6 +468,7 @@
     "activity.status.cancelled": "Cancelled",
     "activity.status.interrupted": "Interrupted",
     "activity.actions.cancel": "Cancel",
+    "activity.actions.resume": "Resume",
     "activity.actions.clearCompleted": "Clear completed",
     "statusBar.presets": "Presets",
     "statusBar.presets.save": "Save Preset",

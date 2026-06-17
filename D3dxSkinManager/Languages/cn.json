@@ -447,6 +447,7 @@
     "activity.status.cancelled": "已取消",
     "activity.status.interrupted": "已中断",
     "activity.actions.cancel": "取消",
+    "activity.actions.resume": "继续",
     "activity.actions.clearCompleted": "清除已完成",
     "statusBar.presets": "预设",
     "statusBar.presets.save": "保存预设",

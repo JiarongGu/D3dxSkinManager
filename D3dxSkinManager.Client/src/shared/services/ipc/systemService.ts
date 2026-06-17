@@ -140,6 +140,10 @@ export class SystemService extends BaseModuleService {
     await this.sendMessage('CANCEL_PROCESS', undefined, { id });
   }
 
+  async resumeProcess(id: string): Promise<void> {
+    await this.sendMessage('RESUME_PROCESS', undefined, { id });
+  }
+
   async clearCompletedProcesses(): Promise<void> {
     await this.sendMessage('CLEAR_COMPLETED_PROCESSES');
   }

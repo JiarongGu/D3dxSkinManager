@@ -101,6 +101,7 @@ public class SystemFacade : BaseFacade, ISystemFacade
             // Long-running process registry (Activity panel / status bar)
             "GET_PROCESSES" => GetProcessesHandler(),
             "CANCEL_PROCESS" => CancelProcessHandler(request),
+            "RESUME_PROCESS" => ResumeProcessHandler(request),
             "CLEAR_COMPLETED_PROCESSES" => ClearCompletedProcessesHandler(),
 
             // Frontend logging
@@ -341,6 +342,13 @@ public class SystemFacade : BaseFacade, ISystemFacade
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         _processRegistry.Cancel(id);
+        return new { success = true };
+    }
+
+    private object ResumeProcessHandler(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        _processRegistry.RequestResume(id);
         return new { success = true };
     }
 

@@ -172,6 +172,24 @@ public class ProcessRegistryTests
     }
 
     [Fact]
+    public void RequestResume_OfInterruptedResumable_EmitsEvent_AndDropsEntry()
+    {
+        var id = _registry.Start(ProcessType.Migration, "migrating", resumable: true);
+
+        // Restart → the running+resumable process becomes Interrupted.
+        var paths = new Mock<IGlobalPathService>();
+        paths.Setup(p => p.BaseDataPath).Returns(_dataDir);
+        var restarted = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>(), paths.Object);
+
+        restarted.RequestResume(id);
+
+        restarted.GetAll().Any(p => p.Id == id).Should().BeFalse("the resumed op registers a fresh process");
+        _eventBus.Verify(
+            x => x.EmitAsync(ModuleNames.SYSTEM, SystemEvents.PROCESS_RESUME_REQUESTED, It.IsAny<object>(), It.IsAny<string?>()),
+            Times.AtLeastOnce);
+    }
+
+    [Fact]
     public void CompletedProcess_StaysCompleted_OnRestart()
     {
         var id = _registry.Start(ProcessType.Package, "export");

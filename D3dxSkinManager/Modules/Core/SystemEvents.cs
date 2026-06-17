@@ -17,4 +17,8 @@ public static class SystemEvents
     // Unified long-running process monitoring (ProcessRegistry → status bar / Activity panel).
     // Consolidated snapshot of all tracked processes; emitted on any add/update/complete/fail/cancel.
     public const string PROCESS_LIST_UPDATED = "PROCESS_LIST_UPDATED";
+
+    // Raised when the user asks to resume an interrupted+resumable process. The owning op module
+    // subscribes (filtering by process type) and continues from its persisted checkpoint.
+    public const string PROCESS_RESUME_REQUESTED = "PROCESS_RESUME_REQUESTED";
 }

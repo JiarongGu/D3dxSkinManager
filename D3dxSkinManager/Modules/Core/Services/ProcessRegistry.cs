@@ -21,8 +21,13 @@ namespace D3dxSkinManager.Modules.Core.Services;
 public interface IProcessRegistry
 {
     /// <summary>Register + start a process. Returns its id (pass to Report/Complete/Fail/GetToken).
-    /// Set <paramref name="resumable"/> if the op checkpoints itself and can resume after a crash.</summary>
-    string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false);
+    /// Set <paramref name="resumable"/> if the op checkpoints itself and can resume after a crash;
+    /// <paramref name="resumePayload"/> is the op-specific token the resume handler needs.</summary>
+    string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false, string? resumePayload = null);
+
+    /// <summary>Request resuming an interrupted+resumable process — emits PROCESS_RESUME_REQUESTED for
+    /// the owning op to continue from its checkpoint, and drops the interrupted entry.</summary>
+    void RequestResume(string id);
 
     /// <summary>Update progress (0–100, or null for indeterminate) and/or the detail line.</summary>
     void Report(string id, int? progress = null, string? detail = null);
@@ -67,7 +72,7 @@ public class ProcessRegistry : IProcessRegistry
         LoadPersisted();
     }
 
-    public string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false)
+    public string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false, string? resumePayload = null)
     {
         var info = new ProcessInfo
         {
@@ -77,6 +82,7 @@ public class ProcessRegistry : IProcessRegistry
             Progress = progress,
             Cancellable = cancellable,
             Resumable = resumable,
+            ResumePayload = resumePayload,
         };
         lock (_lock)
         {
@@ -111,6 +117,24 @@ public class ProcessRegistry : IProcessRegistry
             if (_cts.TryGetValue(id, out var cts)) { try { cts.Cancel(); } catch { /* already disposed */ } }
         }
         Finish(id, ProcessStatus.Cancelled, null);
+    }
+
+    public void RequestResume(string id)
+    {
+        ProcessInfo? p;
+        lock (_lock)
+        {
+            if (!_processes.TryGetValue(id, out p)) return;
+            if (p.Status != ProcessStatus.Interrupted || !p.Resumable) return;
+            _processes.Remove(id); // the resumed op registers a fresh process when it restarts
+            DisposeCts(id);
+        }
+        _logger.Info($"Resume requested for {p.Type} ({id})", "ProcessRegistry");
+        // Owning op module (filtering by type) picks this up and continues from its checkpoint.
+        _ = _eventBus.EmitAsync(ModuleNames.SYSTEM, SystemEvents.PROCESS_RESUME_REQUESTED,
+            new { id, type = p.Type, resumePayload = p.ResumePayload });
+        Persist();
+        EmitSnapshot();
     }
 
     public CancellationToken GetToken(string id)

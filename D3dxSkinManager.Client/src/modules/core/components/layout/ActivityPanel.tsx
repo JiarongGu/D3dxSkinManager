@@ -60,6 +60,15 @@ const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
             {t('activity.actions.cancel')}
           </Button>
         )}
+        {p.status === 'interrupted' && p.resumable && (
+          <Button
+            size="small"
+            type="link"
+            onClick={() => void systemService.resumeProcess(p.id)}
+          >
+            {t('activity.actions.resume')}
+          </Button>
+        )}
       </div>
 
       {(p.status === 'running' || p.status === 'interrupted') && (
