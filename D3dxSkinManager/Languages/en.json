@@ -248,6 +248,7 @@
     "mods.list.more": "more",
     "mods.list.unmanaged": "Unmanaged [{{id}}]",
     "mods.list.searchPlaceholder": "Search mods...",
+    "mods.list.showingCount": "Showing {{shown}} of {{total}}",
     "mods.search.helpTitle": "Search Syntax",
     "mods.search.helpAnd": "AND — both must match",
     "mods.search.helpOr": "OR — either matches",

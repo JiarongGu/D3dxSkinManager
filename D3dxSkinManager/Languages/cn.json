@@ -227,6 +227,7 @@
     "mods.list.more": "更多",
     "mods.list.unmanaged": "未托管 [{{id}}]",
     "mods.list.searchPlaceholder": "搜索模组...",
+    "mods.list.showingCount": "显示 {{shown}} / {{total}}",
     "mods.search.helpTitle": "搜索语法",
     "mods.search.helpAnd": "且 — 两者都须匹配",
     "mods.search.helpOr": "或 — 任一匹配即可",

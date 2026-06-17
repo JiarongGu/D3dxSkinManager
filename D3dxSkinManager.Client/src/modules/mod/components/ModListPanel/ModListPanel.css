@@ -149,3 +149,25 @@
   white-space: nowrap;
   font-weight: 500;
 }
+
+/* Active-filter status row (under the search bar) */
+.mod-list-panel-filter-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.mod-list-panel-filter-status__count {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.mod-list-panel-filter-status__chip {
+  margin: 0;
+  font-size: 12px;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

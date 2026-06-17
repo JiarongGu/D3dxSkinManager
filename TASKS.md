@@ -117,8 +117,8 @@ Cross-cutting polish to make management effortless. Prioritized; each is small-t
 - **Bulk-action toolbar for the mod list** ✅ — appears above the list when 2+ mods selected: count,
   Edit, Fix ▾ (per-tool/entry), Delete, Clear. Reuses the batch handlers + the #13 selection pruning.
   *Future:* add Load/Unload-selected once batch load semantics are defined (category-exclusive).
-- **Active-filter chips** — when a search/category filter is on, show removable chips + a "Clear
-  filters" affordance, and a "showing N of M" count, so users know why mods are hidden.
+- **Active-filter chips** ✅ — search-active status row under the search bar: "Showing N of M" + a
+  removable chip that clears the search. *Future:* per-token chips + a category chip.
 - **Fix Tools first-run guidance** — empty-state card explaining what a fix tool is + an "Add" CTA;
   support **drag-drop** a file/folder onto the manager to import; allow rename + description per tool.
 - **Loaded/conflict clarity on mod cards** — clearer loaded vs disabled vs orphaned styling; a

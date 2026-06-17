@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { Layout, Empty, Input, Button, Spin, Popover } from "antd";
+import { Layout, Empty, Input, Button, Spin, Popover, Tag } from "antd";
 import { SearchOutlined, PlusOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 
@@ -329,6 +329,18 @@ export const ModListPanel: React.FC = () => {
           onClick={() => openImportWorkflowScreen()}
         />
       </div>
+
+      {/* Active-filter status — shows why mods are hidden + a one-click clear */}
+      {!parsedQuery.isEmpty && (
+        <div className="mod-list-panel-filter-status">
+          <span className="mod-list-panel-filter-status__count">
+            {t("mods.list.showingCount", { shown: filteredMods.length, total: (mods || []).length })}
+          </span>
+          <Tag closable onClose={() => setSearchQuery("")} className="mod-list-panel-filter-status__chip">
+            {searchQuery}
+          </Tag>
+        </div>
+      )}
 
       {/* Mod List or Empty State */}
       <div
