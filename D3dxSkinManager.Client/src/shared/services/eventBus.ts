@@ -113,6 +113,7 @@ export enum ToolsEventType {
   MOD_ID_MIGRATION_COMPLETE = "MOD_ID_MIGRATION_COMPLETE",
   MOD_FIX_PROGRESS = "MOD_FIX_PROGRESS",
   MOD_FIX_COMPLETE = "MOD_FIX_COMPLETE",
+  FIX_TOOLS_CHANGED = "FIX_TOOLS_CHANGED",
 }
 
 // NOTE: Plugin events are NOT currently used in backend - reserved for future cross-plugin communication
@@ -234,6 +235,7 @@ export interface EventPayloadMap {
     [ToolsEventType.MOD_ID_MIGRATION_COMPLETE]: ModIdMigrationResult;
     [ToolsEventType.MOD_FIX_PROGRESS]: ModFixProgress;
     [ToolsEventType.MOD_FIX_COMPLETE]: ModFixResult;
+    [ToolsEventType.FIX_TOOLS_CHANGED]: unknown;
   };
 
   // Plugins events (not currently used)

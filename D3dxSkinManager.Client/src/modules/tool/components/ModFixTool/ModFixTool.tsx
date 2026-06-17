@@ -58,6 +58,11 @@ const ModFixManagerInner: React.FC = () => {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Live refresh when the fixtools/ folder changes on disk (watcher).
+  useEffect(() => {
+    return eventBus.subscribe(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void load(); });
+  }, [load]);
+
   // Bulk-run feedback.
   useEffect(() => {
     const unsubP = eventBus.subscribe(Module.TOOL, ToolsEventType.MOD_FIX_PROGRESS, (e) => {

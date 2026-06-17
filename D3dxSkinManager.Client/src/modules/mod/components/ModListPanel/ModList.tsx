@@ -21,6 +21,7 @@ import { systemService } from "../../../../shared/services/ipc";
 import { modService } from "../../../../shared/services/ipc";
 import { toolService } from "../../../../shared/services/ipc";
 import type { ModFixTool as FixToolEntry } from "../../../../shared/types/modFix.types";
+import { eventBus, Module, ToolsEventType } from "../../../../shared/services/eventBus";
 import { GradingTag } from "../GradingTag";
 import { TagChip } from "../../../../shared/components/TagChip";
 import { useProfile } from "../../../../shared/context/ProfileContext";
@@ -100,6 +101,11 @@ export const ModList: React.FC<ModListProps> = ({
     }
   }, [selectedProfileId]);
   React.useEffect(() => { void loadFixTools(); }, [loadFixTools]);
+  // Live refresh the submenu when the fixtools/ folder changes on disk (watcher).
+  React.useEffect(
+    () => eventBus.subscribe(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void loadFixTools(); }),
+    [loadFixTools],
+  );
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(

@@ -33,4 +33,7 @@ public static class ToolEvents
     // Mod fix (hash-fix script runner) events
     public const string MOD_FIX_PROGRESS = "MOD_FIX_PROGRESS";
     public const string MOD_FIX_COMPLETE = "MOD_FIX_COMPLETE";
+
+    // Fix-tool library changed on disk (watcher) — UI should re-scan
+    public const string FIX_TOOLS_CHANGED = "FIX_TOOLS_CHANGED";
 }

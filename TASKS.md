@@ -16,6 +16,10 @@
   E2E-verified (import 2-exe folder → set both → run). A fix runs with cwd = the mod folder, so it
   fixes everything in that dir. *Future:* a "fix the whole Mods folder in one pass" mode.
 
+- **Fix-tool library — live folder watcher** ✅ — `FixToolsWatcher` (FileSystemWatcher on `fixtools/`,
+  started in the profile-scoped `ToolFacade`) emits `FIX_TOOLS_CHANGED`; the manager + mod "Fix"
+  submenu re-scan automatically when a tool is dropped in / removed on disk. E2E-verified.
+
 - **Fix-tool library (Phase 0)** ✅ — per-profile collection at `{profile}/fixtools/`, **folder-derived**
   (each subfolder = one tool; name = folder name, entry auto-detected exe→bat/cmd→py). Drop a folder in
   → it auto-appears with default info; delete it → it's gone (no registry to drift). Import copies a

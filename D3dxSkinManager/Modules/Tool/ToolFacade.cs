@@ -40,6 +40,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     private readonly IModIdMigrationService _modIdMigrationService;
     private readonly IModFixService _modFixService;
     private readonly IModFixToolService _modFixToolService;
+    private readonly IFixToolsWatcher _fixToolsWatcher;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IProfileEventBus _eventBus;
 
@@ -54,6 +55,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         IModIdMigrationService modIdMigrationService,
         IModFixService modFixService,
         IModFixToolService modFixToolService,
+        IFixToolsWatcher fixToolsWatcher,
         IPayloadHelper payloadHelper,
         IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
@@ -68,7 +70,9 @@ public class ToolFacade : BaseFacade, IToolFacade
         _modIdMigrationService = modIdMigrationService ?? throw new ArgumentNullException(nameof(modIdMigrationService));
         _modFixService = modFixService ?? throw new ArgumentNullException(nameof(modFixService));
         _modFixToolService = modFixToolService ?? throw new ArgumentNullException(nameof(modFixToolService));
+        _fixToolsWatcher = fixToolsWatcher ?? throw new ArgumentNullException(nameof(fixToolsWatcher));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
+        _fixToolsWatcher.StartWatching();
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
 
