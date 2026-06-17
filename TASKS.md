@@ -133,6 +133,12 @@ Cross-cutting polish to make management effortless. Prioritized; each is small-t
   menus; reserve "…" strictly for entries that open a dialog (done for fixes).
 - **Profile switcher affordance** — quicker profile switch (the app is per-game); show game + mod count.
 
+### Reliability
+- **Per-panel error boundaries** ✅ — `ErrorBoundary` gained a compact self-resetting mode; the
+  Category / Mods / Preview panels are each wrapped, so one panel crashing shows a localized
+  "… failed to render — Try again" instead of blanking the whole app (also contains #11 if preview-side).
+  *Next:* wrap each Tool screen too; defensive `Array.isArray` guards on components consuming IPC arrays.
+
 ### Hygiene (ongoing, per ui-design-rules.md)
 - Audit font sizes (12/14px only), hardcoded colors → CSS vars, and `danger`-button icon alignment.
 - First-run onboarding: profile/game setup + link to install the matching Model Importer (XXMI/EFMI/…).

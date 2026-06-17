@@ -10,6 +10,7 @@ import { useModsStore } from "../store/modsStore";
 import { useMods } from "../hooks/useMods";
 import { useResizablePanels } from "../hooks/useResizablePanels";
 import { useSlideInScreen } from "../../../shared/hooks/useSlideInScreen";
+import { ErrorBoundary } from "../../../shared/components/ErrorBoundary";
 import { ModImportWorkflowScreen } from "../../workflow/components";
 import { useTranslation } from "react-i18next";
 import "./ModHierarchicalView.css";
@@ -76,7 +77,9 @@ export const ModHierarchicalView: React.FC = () => {
       <div ref={containerRef} className="mod-hierarchical-view-container">
         {/* Category Tree - fully self-contained, no props needed */}
         <div style={{ width: `${sizes.categoryWidth}%` }}>
-          <CategoryPanel />
+          <ErrorBoundary compact label={t("mods.section.categories")}>
+            <CategoryPanel />
+          </ErrorBoundary>
         </div>
 
         {/* Resize handle between category and mod list */}
@@ -87,7 +90,9 @@ export const ModHierarchicalView: React.FC = () => {
 
         {/* Mods List - subscribes to its own state inside */}
         <div style={{ width: `${sizes.modListWidth}%` }}>
-          <ModListPanel />
+          <ErrorBoundary compact label={t("mods.section.mods")}>
+            <ModListPanel />
+          </ErrorBoundary>
         </div>
 
         {/* Resize handle between mod list and preview */}
@@ -101,7 +106,9 @@ export const ModHierarchicalView: React.FC = () => {
           style={{ width: `${sizes.previewWidth}%` }}
           className="mod-hierarchical-view-preview"
         >
-          <ModPreviewPanel />
+          <ErrorBoundary compact label={t("mods.section.preview")}>
+            <ModPreviewPanel />
+          </ErrorBoundary>
         </div>
       </div>
 
