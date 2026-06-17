@@ -133,6 +133,11 @@ Cross-cutting polish to make management effortless. Prioritized; each is small-t
   menus; reserve "…" strictly for entries that open a dialog (done for fixes).
 - **Profile switcher affordance** — quicker profile switch (the app is per-game); show game + mod count.
 
+### Category right-click menu
+- **Unload all in category** ✅ + **Fix all in category** ✅ (submenu of fix tools → runs against every
+  mod in the category). Wired via the `context-menu-extension.md` 4-file chain + CategoryPanel handlers.
+  *Future:* recurse into subcategories; Collapse/expand subtree; set color/icon.
+
 ### Reliability
 - **Per-panel error boundaries** ✅ — `ErrorBoundary` gained a compact self-resetting mode; the
   Category / Mods / Preview panels are each wrapped, so one panel crashing shows a localized

@@ -1,5 +1,5 @@
 ﻿import { notification } from '../../../../shared/utils/notification';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Layout, Button, Tooltip } from 'antd';
 import { ApartmentOutlined, AppstoreOutlined, CheckCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { CategoryInfo, CATEGORY_IDS } from '../../../../shared/types/category.types';
@@ -10,7 +10,9 @@ import { useModCategoryUpdate } from './useModCategoryUpdate';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { useModsStore } from '../../store/modsStore';
 import { useMods } from '../../hooks/useMods';
-import { categoryService, profileService } from '../../../../shared/services/ipc';
+import { categoryService, profileService, toolService, modService } from '../../../../shared/services/ipc';
+import { eventBus, Module, ToolsEventType } from '../../../../shared/services/eventBus';
+import type { ModFixTool } from '../../../../shared/types/modFix.types';
 import { useTranslation } from 'react-i18next';
 import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
 import { ModPackageTool } from '../../../tool/components/ModPackageTool/ModPackageTool';
@@ -67,6 +69,45 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
   const handleAnalyzeCategory = useCallback((nodeId: string) => {
     setAnalyzeCategoryId(nodeId);
   }, []);
+
+  // Fix-tool library (for the "Fix all in category" submenu) — kept in sync via the watcher event.
+  const [fixTools, setFixTools] = useState<ModFixTool[]>([]);
+  const loadFixTools = useCallback(async () => {
+    if (!selectedProfileId) { setFixTools([]); return; }
+    try { setFixTools(await toolService.getFixTools(selectedProfileId)); } catch { setFixTools([]); }
+  }, [selectedProfileId]);
+  useEffect(() => { void loadFixTools(); }, [loadFixTools]);
+  useEffect(() => eventBus.subscribe(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void loadFixTools(); }), [loadFixTools]);
+
+  // Run a fix tool against every mod in a category.
+  const handleRunCategoryFix = useCallback(async (nodeId: string, entryPath: string, recompress: boolean) => {
+    if (!selectedProfileId) return;
+    try {
+      const mods = await modService.getModsByCategory(selectedProfileId, nodeId);
+      const ids = mods.map((m) => m.id);
+      if (ids.length === 0) { notification.info(t('category.tree.noModsInCategory')); return; }
+      await toolService.runModFix(selectedProfileId, { scriptPath: entryPath, modIds: ids, recompress });
+      notification.info(t('mods.notifications.fixStarted', { name: t('category.tree.fixCategory') }));
+    } catch {
+      notification.error(t('tools.modFix.fixPartialFail', { failed: 0 }));
+    }
+  }, [selectedProfileId, t]);
+
+  // Unload every loaded mod in a category.
+  const handleUnloadCategory = useCallback(async (nodeId: string) => {
+    if (!selectedProfileId) return;
+    try {
+      const mods = await modService.getModsByCategory(selectedProfileId, nodeId);
+      const loaded = mods.filter((m) => m.isLoaded);
+      if (loaded.length === 0) { notification.info(t('category.tree.noLoadedInCategory')); return; }
+      for (const m of loaded) {
+        await modService.unloadMod(selectedProfileId, m.id);
+      }
+      notification.success(t('category.tree.unloadedCategory', { count: loaded.length }));
+    } catch {
+      notification.error(t('mods.notifications.unloadFailed'));
+    }
+  }, [selectedProfileId, t]);
 
   const handleAddCategory = (parentId?: string) => {
     openCategoryScreen({
@@ -174,6 +215,9 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
           onAddCategory={handleAddCategory}
           onExportCategory={handleExportCategory}
           onAnalyzeCategory={handleAnalyzeCategory}
+          fixTools={fixTools}
+          onRunCategoryFix={handleRunCategoryFix}
+          onUnloadCategory={handleUnloadCategory}
         />
       </div>
 

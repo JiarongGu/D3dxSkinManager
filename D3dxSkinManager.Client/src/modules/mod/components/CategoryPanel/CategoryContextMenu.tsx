@@ -1,7 +1,8 @@
 ﻿import React from 'react';
-import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, RadarChartOutlined } from '@ant-design/icons';
+import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, RadarChartOutlined, ThunderboltOutlined, PoweroffOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { TFunction } from 'i18next';
+import type { ModFixTool } from '../../../../shared/types/modFix.types';
 
 interface CategoryContextMenuProps {
   nodeId: string | undefined;
@@ -10,6 +11,10 @@ interface CategoryContextMenuProps {
   onDeleteNode: (nodeId: string) => void;
   onExportCategory?: (nodeId: string) => void;
   onAnalyzeCategory?: (nodeId: string) => void;
+  /** Registered fix tools — used to build the "Fix all in category" submenu. */
+  fixTools?: ModFixTool[];
+  onRunCategoryFix?: (nodeId: string, entryPath: string, recompress: boolean) => void;
+  onUnloadCategory?: (nodeId: string) => void;
   t: TFunction;
 }
 
@@ -24,6 +29,9 @@ export function getCategoryContextMenu({
   onDeleteNode,
   onExportCategory,
   onAnalyzeCategory,
+  fixTools,
+  onRunCategoryFix,
+  onUnloadCategory,
   t,
 }: CategoryContextMenuProps): MenuProps['items'] {
   const items: MenuProps['items'] = [];
@@ -85,6 +93,40 @@ export function getCategoryContextMenu({
           onAnalyzeCategory(nodeId);
         }
       },
+    });
+
+    items.push({ key: 'divider-fix', type: 'divider' });
+
+    // Unload every loaded mod in this category in one go.
+    items.push({
+      key: 'unload-category',
+      label: t("category.tree.unloadCategory"),
+      icon: <PoweroffOutlined />,
+      onClick: () => onUnloadCategory?.(nodeId),
+    });
+
+    // "Fix all in category" → submenu of fix tools (flattened to "Toolset — entry" for multi-entry).
+    const fixChildren: NonNullable<MenuProps['items']> = [];
+    for (const tf of fixTools ?? []) {
+      if (tf.entries.length === 0) {
+        fixChildren.push({ key: `catfix-${tf.id}`, label: `${tf.name} — ${t('tools.modFix.selectEntry')}`, disabled: true });
+      } else if (tf.entries.length === 1) {
+        const e = tf.entries[0];
+        fixChildren.push({ key: `catfix-${tf.id}`, label: tf.name, onClick: () => onRunCategoryFix?.(nodeId, e.path, tf.recompressDefault) });
+      } else {
+        for (const e of tf.entries) {
+          fixChildren.push({ key: `catfix-${tf.id}-${e.name}`, label: `${tf.name} — ${e.name}`, onClick: () => onRunCategoryFix?.(nodeId, e.path, tf.recompressDefault) });
+        }
+      }
+    }
+    if (fixChildren.length === 0) {
+      fixChildren.push({ key: 'catfix-none', label: t('contextMenu.noFixTools'), disabled: true });
+    }
+    items.push({
+      key: 'fix-category',
+      label: t("category.tree.fixCategory"),
+      icon: <ThunderboltOutlined />,
+      children: fixChildren,
     });
 
     items.push({ key: 'divider-2', type: 'divider' });

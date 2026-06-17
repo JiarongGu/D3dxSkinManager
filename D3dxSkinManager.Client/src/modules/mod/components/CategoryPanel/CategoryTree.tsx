@@ -149,6 +149,15 @@ export interface CategoryTreeProps {
    * Callback when analyzing a category's mods (background)
    */
   onAnalyzeCategory?: (nodeId: string) => void;
+
+  /** Registered fix tools — drives the "Fix all in category" submenu. */
+  fixTools?: import('../../../../shared/types/modFix.types').ModFixTool[];
+
+  /** Run a fix tool entry against all mods in the category. */
+  onRunCategoryFix?: (nodeId: string, entryPath: string, recompress: boolean) => void;
+
+  /** Unload all loaded mods in the category. */
+  onUnloadCategory?: (nodeId: string) => void;
 }
 
 /**

@@ -71,6 +71,9 @@ interface CategoryTreeProviderProps {
   onAddCategory?: (parentId?: string) => void;
   onExportCategory?: (nodeId: string) => void;
   onAnalyzeCategory?: (nodeId: string) => void;
+  fixTools?: import('../../../../shared/types/modFix.types').ModFixTool[];
+  onRunCategoryFix?: (nodeId: string, entryPath: string, recompress: boolean) => void;
+  onUnloadCategory?: (nodeId: string) => void;
 }
 
 /**
@@ -142,6 +145,9 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
   onAddCategory,
   onExportCategory,
   onAnalyzeCategory,
+  fixTools,
+  onRunCategoryFix,
+  onUnloadCategory,
 }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
@@ -247,9 +253,12 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
       onDeleteNode: handleDeleteNode,
       onExportCategory,
       onAnalyzeCategory,
+      fixTools,
+      onRunCategoryFix,
+      onUnloadCategory,
       t,
     });
-  }, [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode, onExportCategory, onAnalyzeCategory, t]);
+  }, [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode, onExportCategory, onAnalyzeCategory, fixTools, onRunCategoryFix, onUnloadCategory, t]);
 
   // Toggle expansion for a folder node - optimized for performance
   const handleToggleExpand = useCallback(
