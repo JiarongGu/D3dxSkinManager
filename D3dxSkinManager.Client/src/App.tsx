@@ -24,6 +24,7 @@ import { KeyboardShortcutsDialog } from "./modules/core/components/dialogs/Keybo
 import { HelpWindow } from "./modules/help";
 import { ModProvider } from "./modules/mod";
 import { AppWrapper } from "./shared/components/AppWrapper";
+import { ErrorBoundary } from "./shared/components/ErrorBoundary";
 
 import "./App.css";
 
@@ -110,11 +111,12 @@ const AppContent: React.FC = () => {
         {/* Main Content Area - Scrollable */}
         <Layout className="app-content-layout">
           <Content className="app-content">
-            {selectedTab === "mods" && <ModHierarchicalView />}
+            {/* Each tab wrapped in its own boundary so a crash in one tab degrades locally, not app-wide. */}
+            {selectedTab === "mods" && <ErrorBoundary compact label="Mods"><ModHierarchicalView /></ErrorBoundary>}
             {/* {selectedTab === "launch" && <LaunchView />} //TODO: disabled for now until its implemented*/}
-            {selectedTab === "tools" && <ToolsView />}
-            {selectedTab === "plugins" && <PluginsView />}
-            {selectedTab === "settings" && <SettingsView />}
+            {selectedTab === "tools" && <ErrorBoundary compact label="Tools"><ToolsView /></ErrorBoundary>}
+            {selectedTab === "plugins" && <ErrorBoundary compact label="Plugins"><PluginsView /></ErrorBoundary>}
+            {selectedTab === "settings" && <ErrorBoundary compact label="Settings"><SettingsView /></ErrorBoundary>}
           </Content>
         </Layout>
 

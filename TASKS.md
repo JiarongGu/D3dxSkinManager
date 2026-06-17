@@ -142,7 +142,9 @@ Cross-cutting polish to make management effortless. Prioritized; each is small-t
 - **Per-panel error boundaries** ✅ — `ErrorBoundary` gained a compact self-resetting mode; the
   Category / Mods / Preview panels are each wrapped, so one panel crashing shows a localized
   "… failed to render — Try again" instead of blanking the whole app (also contains #11 if preview-side).
-  *Next:* wrap each Tool screen too; defensive `Array.isArray` guards on components consuming IPC arrays.
+  Each top-level tab (Mods/Tools/Plugins/Settings) is also boundary-wrapped, so a crash in any tab
+  degrades locally instead of app-wide. *Next:* defensive `Array.isArray` guards on components
+  consuming IPC arrays.
 
 ### Hygiene (ongoing, per ui-design-rules.md)
 - Audit font sizes (12/14px only), hardcoded colors → CSS vars, and `danger`-button icon alignment.
