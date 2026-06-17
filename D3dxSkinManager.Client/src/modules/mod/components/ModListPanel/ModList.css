@@ -153,3 +153,22 @@
   color: var(--color-text-secondary);
   font-size: 12px;
 }
+
+/* Bulk-action bar — shown above the list when 2+ mods are selected */
+.mod-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border-base);
+}
+.mod-bulk-bar__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.mod-bulk-bar__clear {
+  margin-left: auto;
+  font-size: 12px;
+}

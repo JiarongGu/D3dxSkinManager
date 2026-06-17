@@ -114,9 +114,9 @@ leaving the app.
 Cross-cutting polish to make management effortless. Prioritized; each is small-to-medium.
 
 ### High value
-- **Bulk-action toolbar for the mod list** — selection currently only acts via right-click. Add a thin
-  toolbar that appears when ≥1 mod is selected: count, Load/Unload, Fix ▾, Edit, Delete, Clear. Makes
-  multi-select discoverable (pairs with the #13 fix).
+- **Bulk-action toolbar for the mod list** ✅ — appears above the list when 2+ mods selected: count,
+  Edit, Fix ▾ (per-tool/entry), Delete, Clear. Reuses the batch handlers + the #13 selection pruning.
+  *Future:* add Load/Unload-selected once batch load semantics are defined (category-exclusive).
 - **Active-filter chips** — when a search/category filter is on, show removable chips + a "Clear
   filters" affordance, and a "showing N of M" count, so users know why mods are hidden.
 - **Fix Tools first-run guidance** — empty-state card explaining what a fix tool is + an "Add" CTA;

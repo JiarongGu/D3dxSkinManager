@@ -348,6 +348,7 @@ export const ModListPanel: React.FC = () => {
               onRowClick={handleModClick}
               selectedMod={selectedMod}
               selectedModIds={selectedModIds}
+              onClearSelection={() => setSelectedModIds([])}
               onBeforeReload={saveScrollPosition}
               onAfterReload={restoreScrollPosition}
               minDisplayCount={minDisplayCount}

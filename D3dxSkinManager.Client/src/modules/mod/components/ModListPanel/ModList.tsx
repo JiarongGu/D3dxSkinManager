@@ -2,7 +2,8 @@ import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useRef, useCallback } from "react";
 import classNames from "classnames";
-import { Tag, Button, Space, Spin } from "antd";
+import { Tag, Button, Space, Spin, Dropdown } from "antd";
+import type { MenuProps } from "antd";
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -15,6 +16,7 @@ import {
   ThunderboltOutlined,
   ImportOutlined,
   SettingOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { systemService } from "../../../../shared/services/ipc";
@@ -52,6 +54,7 @@ interface ModListProps {
   onRowClick?: (mod: ModInfo, event?: React.MouseEvent) => void;
   selectedMod?: ModInfo;
   selectedModIds?: string[];
+  onClearSelection?: () => void;
   onBeforeReload?: () => void;
   onAfterReload?: () => void;
   /** Force a minimum number of items to render (used to scroll to items not yet in the DOM) */
@@ -68,6 +71,7 @@ export const ModList: React.FC<ModListProps> = ({
   onRowClick,
   selectedMod,
   selectedModIds = [],
+  onClearSelection,
   onBeforeReload,
   onAfterReload,
   minDisplayCount = 0,
@@ -339,6 +343,55 @@ export const ModList: React.FC<ModListProps> = ({
     return { key: "run-fix", label: t("contextMenu.runFix"), icon: <ThunderboltOutlined />, children };
   };
 
+  // ===== Bulk-action bar (shown when 2+ mods selected) — reuses the per-mod batch handlers =====
+  const selectedMods = () => mods.filter((m) => selectedModIds.includes(m.id));
+
+  const bulkFixMenuItems = (): MenuProps["items"] => {
+    const items: NonNullable<MenuProps["items"]> = [];
+    for (const tf of fixTools) {
+      if (tf.entries.length === 0) {
+        items.push({ key: tf.id, label: `${tf.name} — ${t("tools.modFix.selectEntry")}`, disabled: true });
+      } else if (tf.entries.length === 1) {
+        const e = tf.entries[0];
+        items.push({ key: tf.id, label: tf.name, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, selectedModIds) });
+      } else {
+        for (const e of tf.entries) {
+          items.push({ key: `${tf.id}-${e.name}`, label: `${tf.name} — ${e.name}`, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, selectedModIds) });
+        }
+      }
+    }
+    if (items.length === 0) items.push({ key: "none", label: t("contextMenu.noFixTools"), disabled: true });
+    items.push({ type: "divider" });
+    items.push({ key: "manage", label: t("contextMenu.manageFixTools"), onClick: () => setShowFixManager(true) });
+    return items;
+  };
+
+  const openBulkDelete = () => {
+    const base = selectedMods()[0];
+    if (!base) return;
+    setDeleteConfirm({ visible: true, mod: { ...base, name: t("mods.notifications.selectedMods", { count: selectedModIds.length }) } });
+  };
+
+  const bulkBar = selectedModIds.length >= 2 && (
+    <div className="mod-bulk-bar">
+      <span className="mod-bulk-bar__count">{t("mods.bulkBar.selected", { count: selectedModIds.length })}</span>
+      <Space size={6}>
+        <Button size="small" icon={<EditOutlined />} onClick={() => openBatchEditScreen(selectedMods())}>
+          {t("mods.bulkBar.edit")}
+        </Button>
+        <Dropdown trigger={["click"]} menu={{ items: bulkFixMenuItems() }}>
+          <Button size="small" icon={<ThunderboltOutlined />}>{t("contextMenu.runFix")}</Button>
+        </Dropdown>
+        <Button size="small" icon={<DeleteOutlined style={{ color: "var(--color-error)" }} />} onClick={openBulkDelete}>
+          {t("mods.bulkBar.delete")}
+        </Button>
+      </Space>
+      <Button size="small" type="text" className="mod-bulk-bar__clear" icon={<CloseOutlined />} onClick={() => onClearSelection?.()}>
+        {t("mods.bulkBar.clear")}
+      </Button>
+    </div>
+  );
+
   const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => {
     const isMultiSelect = selectedModIds.length > 1 && selectedModIds.includes(mod.id);
 
@@ -582,6 +635,8 @@ export const ModList: React.FC<ModListProps> = ({
 
   return (
     <>
+      {/* Bulk-action bar — appears when multiple mods are selected */}
+      {bulkBar}
       {/* Overlay spinner that doesn't replace content */}
       {loading && (
         <div className="mod-list-loading-overlay">
