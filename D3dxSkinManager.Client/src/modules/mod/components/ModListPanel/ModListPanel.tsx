@@ -205,6 +205,18 @@ export const ModListPanel: React.FC = () => {
     setMinDisplayCount(0);
   }, [filteredModsLength]);
 
+  // #13: keep the selection in sync with what's visible. When a search/category filter hides mods,
+  // drop those ids from the selection so bulk actions (apply/load/edit/delete/fix) never act on mods
+  // the user can no longer see.
+  React.useEffect(() => {
+    setSelectedModIds((prev) => {
+      if (prev.length === 0) return prev;
+      const visible = new Set(filteredMods.map((m) => m.id));
+      const pruned = prev.filter((id) => visible.has(id));
+      return pruned.length === prev.length ? prev : pruned;
+    });
+  }, [filteredMods]);
+
   const handleLoadedModClick = useCallback((mod: ModInfo) => {
     // Clear multi-selection and select only the loaded mod
     setSelectedModIds([mod.id]);

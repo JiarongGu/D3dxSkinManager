@@ -54,6 +54,13 @@
 
 ## Backlog — reviewed for current relevance
 
+> **#13 selected-mod-applied-with-filter** ✅ — fixed: `ModListPanel` prunes the selection to the
+> visible (filtered) set, so bulk apply/load/edit/delete/fix never act on hidden mods.
+> **#11 thumbnail right-click crash** — needs a live repro/stack; the preview context menu is guarded,
+> so the crash is likely elsewhere (import-dialog thumbnail picker?). Capture the `[ErrorBoundary]`
+> console output when it happens and I'll pinpoint it.
+
+
 | # | Item | Status after review | Notes |
 |---|------|---------------------|-------|
 | 3 | key binding modification | **Partly done** | `ModKeybindingService` already *parses* keybindings from `.ini`. Missing: *write-back* (edit toggle/cycle keys) + UI. Generalize: edit any mod `.ini` setting, not just keys. |
@@ -99,3 +106,33 @@ leaving the app.
 
 ### Phase 4 — App self-update (#12)
 - GitHub-release auto-update with a configurable channel and opt-out.
+
+---
+
+## UX / UI improvement plan (proactive)
+
+Cross-cutting polish to make management effortless. Prioritized; each is small-to-medium.
+
+### High value
+- **Bulk-action toolbar for the mod list** — selection currently only acts via right-click. Add a thin
+  toolbar that appears when ≥1 mod is selected: count, Load/Unload, Fix ▾, Edit, Delete, Clear. Makes
+  multi-select discoverable (pairs with the #13 fix).
+- **Active-filter chips** — when a search/category filter is on, show removable chips + a "Clear
+  filters" affordance, and a "showing N of M" count, so users know why mods are hidden.
+- **Fix Tools first-run guidance** — empty-state card explaining what a fix tool is + an "Add" CTA;
+  support **drag-drop** a file/folder onto the manager to import; allow rename + description per tool.
+- **Loaded/conflict clarity on mod cards** — clearer loaded vs disabled vs orphaned styling; a
+  per-category "one active" indicator; surface category conflicts inline.
+
+### Medium
+- **Activity panel polish** — group running vs history, sticky "Clear completed", per-process detail
+  line (ties into the load-status detail already added), and a compact running-count in the status bar.
+- **Launch button** (depends on Phase 1) — prominent per-profile "Launch game" with the configured
+  target; show last-launched + running state.
+- **Consistent context menus** — shared grouping/iconography across mod-list, category, and preview
+  menus; reserve "…" strictly for entries that open a dialog (done for fixes).
+- **Profile switcher affordance** — quicker profile switch (the app is per-game); show game + mod count.
+
+### Hygiene (ongoing, per ui-design-rules.md)
+- Audit font sizes (12/14px only), hardcoded colors → CSS vars, and `danger`-button icon alignment.
+- First-run onboarding: profile/game setup + link to install the matching Model Importer (XXMI/EFMI/…).
