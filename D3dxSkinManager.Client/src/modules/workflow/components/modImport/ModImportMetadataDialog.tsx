@@ -127,13 +127,13 @@ export const ModImportMetadataDialog: React.FC<ModImportMetadataDialogProps> = (
           <Form.Item
             name="category"
             label={t("common.category")}
-            tooltip={t('mods.edit.categoryTooltip') || 'Leave empty for Unclassified'}
+            tooltip={t('mods.edit.categoryTooltip')}
             className="mod-import-metadata-dialog-col"
           >
             <CompactSelect
               showSearch
               allowClear
-              placeholder={t('mods.edit.categoryPlaceholder') || 'Select or type category name'}
+              placeholder={t('mods.edit.categoryPlaceholder')}
               options={categoryOptions}
               loading={loadingCategories}
               filterOption={(input, option) =>

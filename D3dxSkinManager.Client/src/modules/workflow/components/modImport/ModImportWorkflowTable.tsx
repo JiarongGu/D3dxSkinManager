@@ -110,7 +110,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         context?.name ||
         context?.folderName ||
         context?.folderPath?.split("\\").pop() ||
-        "Unknown";
+        t("workflow.modImport.unknownName");
 
       // Get status text based on current status and step
       let statusText = "";
@@ -145,10 +145,10 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
           statusText = t("workflow.status.cancelled");
           break;
         case WorkflowStatus.Deleting:
-          statusText = "Deleting...";
+          statusText = t("workflow.status.deleting");
           break;
         default:
-          statusText = `Unknown (${workflow.status})`;
+          statusText = t("workflow.status.unknown", { status: workflow.status });
           break;
       }
 

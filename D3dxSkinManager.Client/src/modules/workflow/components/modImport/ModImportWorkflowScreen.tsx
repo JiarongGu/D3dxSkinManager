@@ -194,8 +194,8 @@ export const ModImportWorkflowScreen: React.FC = () => {
         rememberPathKey: 'mod-import',
         allowFileSelection: true,
         filters: [
-          { name: 'Archive Files', extensions: ['zip', '7z', 'rar', 'tar', 'gz', 'bz2'] },
-          { name: 'All Files', extensions: ['*'] }
+          { name: t('mods.import.filters.archiveFiles'), extensions: ['zip', '7z', 'rar', 'tar', 'gz', 'bz2'] },
+          { name: t('mods.import.filters.allFiles'), extensions: ['*'] }
         ]
       });
 
@@ -381,10 +381,10 @@ export const ModImportWorkflowScreen: React.FC = () => {
           <div className="mod-import-workflow-screen-loading">
             <LoadingOutlined spin style={{ fontSize: 32, color: '#1890ff' }} />
             <div className="mod-import-workflow-screen-loading-text">
-              Preparing import workflows...
+              {t('mods.import.loading.preparing')}
             </div>
             <div className="mod-import-workflow-screen-loading-hint">
-              Your files are being analyzed. Workflows will appear here as they are created.
+              {t('mods.import.loading.hint')}
             </div>
           </div>
         ) : (
