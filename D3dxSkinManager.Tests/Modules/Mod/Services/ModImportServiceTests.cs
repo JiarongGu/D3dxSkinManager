@@ -25,6 +25,7 @@ public class ModImportServiceTests
     private readonly Mock<IImageService> _mockImageService;
     private readonly Mock<IModRepository> _mockRepository;
     private readonly Mock<IModArchiveService> _mockArchiveService;
+    private readonly Mock<IModCacheService> _mockCacheService;
     private readonly Mock<IModMetadataService> _mockMetadataService;
     private readonly Mock<IPathValidator> _mockPathValidator;
     private readonly Mock<ILogHelper> _mockLogger;
@@ -37,6 +38,7 @@ public class ModImportServiceTests
         _mockImageService = new Mock<IImageService>();
         _mockRepository = new Mock<IModRepository>();
         _mockArchiveService = new Mock<IModArchiveService>();
+        _mockCacheService = new Mock<IModCacheService>();
         _mockMetadataService = new Mock<IModMetadataService>();
         _mockPathValidator = new Mock<IPathValidator>();
         _mockLogger = new Mock<ILogHelper>();
@@ -47,6 +49,7 @@ public class ModImportServiceTests
             _mockImageService.Object,
             _mockRepository.Object,
             _mockArchiveService.Object,
+            _mockCacheService.Object,
             _mockMetadataService.Object,
             _mockPathValidator.Object,
             _mockLogger.Object,
@@ -69,6 +72,46 @@ public class ModImportServiceTests
         _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(It.IsAny<string>())).ReturnsAsync(0);
         _mockMetadataService.Setup(x => x.CreateAsync(It.IsAny<CreateModRequest>())).ReturnsAsync(expectedMod);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
+    }
+
+    #endregion
+
+    #region UpdateModAsync Tests (#14)
+
+    [Fact]
+    public async Task UpdateModAsync_ModNotFound_Throws()
+    {
+        var filePath = "C:\\test\\new.7z";
+        _mockPathValidator.Setup(x => x.ValidateFileExists(filePath));
+        _mockRepository.Setup(x => x.GetByIdAsync("missing")).ReturnsAsync((ModEntity?)null);
+
+        var act = () => _service.UpdateModAsync("missing", filePath);
+        (await act.Should().ThrowAsync<D3dxSkinManager.Modules.Core.Exceptions.OperationException>())
+            .Which.Code.Should().Be("MOD_NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task UpdateModAsync_Existing_ReplacesArchive_InvalidatesCache_EmitsImported()
+    {
+        var id = "EXISTINGMOD";
+        var filePath = "C:\\test\\updated.7z";
+        var entity = new ModEntity { Id = id, Category = "cat", Name = "Existing", Type = "7z" };
+
+        _mockPathValidator.Setup(x => x.ValidateFileExists(filePath));
+        _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
+        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, id)).ReturnsAsync("mods/EXISTINGMOD");
+        _mockCacheService.Setup(x => x.DeleteCacheAsync(id)).ReturnsAsync(true);
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(id)).ReturnsAsync(0);
+        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
+
+        var result = await _service.UpdateModAsync(id, filePath);
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(id);
+        result.Name.Should().Be("Existing"); // metadata preserved
+        _mockArchiveService.Verify(x => x.CopyArchiveAsync(filePath, id), Times.Once);
+        _mockCacheService.Verify(x => x.DeleteCacheAsync(id), Times.Once);
+        _mockEventBus.Verify(x => x.EmitAsync("MOD", "IMPORTED", It.IsAny<object>()), Times.Once);
     }
 
     #endregion

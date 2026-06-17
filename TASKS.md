@@ -10,6 +10,17 @@
 
 ## Done
 
+- **#14 Mod update (replace content, same id)** ✅ — `ModImportService.UpdateModAsync` overwrites the
+  compressed archive in place, keeps all metadata, and invalidates the cache (new content extracts on
+  next load via #9). IPC `MOD/UPDATE_MOD` (per-mod queue-locked), `modService.updateMod`, mod
+  context-menu "Replace Content from File…". 2 tests. E2E-verified against the real backend.
+
+- **#9 Stale-cache invalidation on load** ✅ — `ModLifecycleService.LoadAsync` now re-enables a disabled
+  cache only when it's still fresh; if the archive is newer (e.g. a hash-fix / mod-update recompressed
+  it), the stale cache is discarded (planner-routed) and re-extracted. Directly de-risks #6/#14.
+  Also added load-status detail ("Enabling cache" / "Extracting archive" / "Refreshing stale cache"),
+  partially covering **#16**. 2 new lifecycle tests.
+
 - **#6 Patch / hash fixing tool** ✅ (`ModFixService` + `ModFixTool`)
   - Runs a user-supplied fix script (`.py` / `.exe` / `.bat` / `.cmd`) against **a single mod, a
     selection, or all mods**. Script runs with cwd = the mod's content folder (the convention these
@@ -28,13 +39,13 @@
 | 3 | key binding modification | **Partly done** | `ModKeybindingService` already *parses* keybindings from `.ini`. Missing: *write-back* (edit toggle/cycle keys) + UI. Generalize: edit any mod `.ini` setting, not just keys. |
 | 4 | launch integration with XXMI | **Open** | No launch config on `Profile` yet. Add per-profile launch target (path + args) seeded by detecting XXMI Launcher / a Model Importer instance. |
 | 5 | launch integration with 3DMigoto | **Open** | Same launch-config mechanism as #4, target = raw 3DMigoto loader. Share one configurable "launcher" abstraction (list of named launch targets), not two hard-coded paths. |
-| 9 | loading an active mod must invalidate its cache | **Open (correctness)** | `LoadInternalAsync` calls `EnableCacheAsync` (re-uses the disabled cache). If the archive changed (e.g. after a fix / mod update), the cache is stale. Fix: re-extract when archive is newer than cache. Tied to #6 and #14. |
+| 9 | loading an active mod must invalidate its cache | **Done** ✅ | `LoadInternalAsync` now re-extracts when the archive is newer than the disabled cache (`IsDisabledCacheStale`); stale cache discarded via the planner. |
 | 10 | temp cleanup | **Largely done** | `OrphanCategory.TempFile` + FileCleanupTool already scan/clean temp orphans. Possible follow-up: opt-in auto-clean on exit (configurable). |
 | 11 | thumbnail right-click crash | **Open (bug)** | Repro: right-click on thumbnail selection in preview panel. Needs investigation in `ModPreviewPanel` / `PreviewImageCarousel`. |
 | 12 | auto-update from GitHub release | **Open** | App self-update: check latest GitHub release, download installer, prompt. Configurable channel/repo + opt-out. |
 | 13 | selected mod should not be applied with active filter | **Open (bug)** | When a filter is active, apply/load should act on the explicit selection, not the filtered-out set. Investigate apply/preset path. |
-| 14 | mod update (replace mod with same id) | **Open** | Re-import a new archive over an existing mod ID (keep metadata/category, swap content + invalidate cache). Shares cache-invalidation logic with #9. |
-| 16 | "preparing" mod load status detail | **Partly done** | `LoadInternalAsync` registers a ProcessRegistry process + emits `LOADING`, but with no sub-step detail. Add `Report(detail)` for "extracting archive", "enabling cache", file counts. Small add on the process-monitoring work. |
+| 14 | mod update (replace mod with same id) | **Done** ✅ | `UPDATE_MOD` overwrites the archive + invalidates cache, keeping metadata. Context-menu "Replace Content from File…". |
+| 16 | "preparing" mod load status detail | **Mostly done** | Load now reports sub-step detail ("Enabling cache" / "Extracting archive" / "Refreshing stale cache") via ProcessRegistry. Remaining: per-file counts during extraction (optional). |
 
 ---
 

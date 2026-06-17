@@ -107,6 +107,7 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_LOADED" => await GetLoadedModIdsAsync(),
             "GET_ACTIVE_MODS" => await GetActiveModsAsync(),
             "IMPORT" => await ImportModAsync(request),
+            "UPDATE_MOD" => await UpdateModFromFileAsync(request),
             "DELETE" => await DeleteModAsync(request),
             "DELETE_CACHE" => await DeleteCacheAsync(request),
             "UPDATE_ARCHIVE_FROM_CACHE" => await UpdateArchiveFromCacheAsync(request),
@@ -387,6 +388,14 @@ public class ModFacade : BaseFacade, IModFacade
     {
         var filePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
         return await ImportModAsync(filePath).ConfigureAwait(false);
+    }
+
+    private async Task<ModInfo?> UpdateModFromFileAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var filePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
+        // Per-mod lock: serialize against load/unload/delete/fix on the same mod.
+        return await _operationQueue.EnqueueAsync(id, () => _importService.UpdateModAsync(id, filePath)).ConfigureAwait(false);
     }
 
     private async Task<bool> DeleteModAsync(IpcRequest request)

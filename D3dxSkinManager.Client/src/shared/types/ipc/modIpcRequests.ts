@@ -40,6 +40,7 @@ export interface ModIpcRequests {
 
   // ============= Import/Export Operations =============
   IMPORT: { filePath: string };
+  UPDATE_MOD: { id: string; filePath: string };
   EXPORT: { id: string; targetPath: string };
 
   // ============= Batch Operations =============

@@ -13,6 +13,7 @@ import {
   CopyOutlined,
   SyncOutlined,
   ThunderboltOutlined,
+  ImportOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { systemService } from "../../../../shared/services/ipc";
@@ -255,6 +256,29 @@ export const ModList: React.FC<ModListProps> = ({
     }
   };
 
+  // #14: replace an existing mod's content with a new archive/file (same id, metadata kept).
+  const handleUpdateMod = async (mod: ModInfo) => {
+    if (!selectedProfileId || busyModIds.has(mod.id)) return;
+    const res = await systemService.openFileDialog({
+      title: t("contextMenu.updateMod"),
+      filters: [{ name: t("mods.modArchiveFilter"), extensions: ["7z", "zip", "rar"] }],
+      rememberPathKey: "modUpdateSource",
+    });
+    if (!res.success || !res.filePath) return;
+
+    const { addBusyMod, removeBusyMod } = useModsStore.getState();
+    addBusyMod(mod.id);
+    try {
+      await modService.updateMod(selectedProfileId, mod.id, res.filePath);
+      notification.success(t("mods.notifications.modUpdated", { name: mod.name }));
+      await refreshMods(selectedProfileId);
+    } catch (error: unknown) {
+      notification.error(t("mods.notifications.modUpdateFailed"));
+    } finally {
+      removeBusyMod(mod.id);
+    }
+  };
+
   const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => {
     const isMultiSelect = selectedModIds.length > 1 && selectedModIds.includes(mod.id);
 
@@ -479,6 +503,12 @@ export const ModList: React.FC<ModListProps> = ({
       label: t("contextMenu.runFix"),
       icon: <ThunderboltOutlined />,
       onClick: () => setFixToolModIds([mod.id]),
+    },
+    {
+      key: "update-mod",
+      label: t("contextMenu.updateMod"),
+      icon: <ImportOutlined />,
+      onClick: () => handleUpdateMod(mod),
     },
     { type: "divider" as const },
 

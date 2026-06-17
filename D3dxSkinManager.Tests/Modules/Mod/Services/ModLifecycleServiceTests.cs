@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -77,6 +78,80 @@ public class ModLifecycleServiceTests
 
         _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(id)).ReturnsAsync(0);
         _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
+    }
+
+    #endregion
+
+    #region Cache staleness (#9)
+
+    [Fact]
+    public async Task LoadAsync_DisabledCacheStale_ArchiveNewer_ReExtractsInsteadOfEnabling()
+    {
+        var id = "STALEMOD1";
+        var modsDir = Path.Combine(Path.GetTempPath(), "d3dx-stale-" + Guid.NewGuid().ToString("N"), "Mods");
+        Directory.CreateDirectory(modsDir);
+        var disabled = Path.Combine(modsDir, $"DISABLED-{id}");
+        Directory.CreateDirectory(disabled);
+        var archive = Path.Combine(modsDir, "..", id);
+        File.WriteAllText(archive, "archive");
+        // Archive modified AFTER the disabled cache → stale.
+        Directory.SetLastWriteTimeUtc(disabled, DateTime.UtcNow.AddHours(-1));
+        File.SetLastWriteTimeUtc(archive, DateTime.UtcNow);
+
+        try
+        {
+            _mockProfilePaths.Setup(x => x.CacheModsDirectory).Returns(modsDir);
+            _mockArchiveService.Setup(x => x.GetArchivePath(id)).Returns(archive);
+            var entity = new ModEntity { Id = id, Category = "", Name = "Stale" };
+            _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
+            _mockRepository.Setup(x => x.GetByCategoryAsync(It.IsAny<string>())).ReturnsAsync(new List<ModEntity>());
+            _mockCacheService.Setup(x => x.DeleteCacheAsync(id)).ReturnsAsync(true);
+            _mockArchiveService.Setup(x => x.ExtractAsync(id, It.IsAny<string>()))
+                .ReturnsAsync(new ArchiveExtractionResult { Success = true, FileCount = 1 });
+            _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(id)).ReturnsAsync(0);
+            _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
+
+            await _service.LoadAsync(id);
+
+            _mockCacheService.Verify(x => x.DeleteCacheAsync(id), Times.Once);
+            _mockCacheService.Verify(x => x.EnableCacheAsync(id), Times.Never);
+            _mockArchiveService.Verify(x => x.ExtractAsync(id, It.IsAny<string>()), Times.Once);
+        }
+        finally { try { Directory.Delete(Path.GetDirectoryName(modsDir)!, true); } catch { } }
+    }
+
+    [Fact]
+    public async Task LoadAsync_DisabledCacheFresh_EnablesCache_NoReExtract()
+    {
+        var id = "FRESHMOD1";
+        var modsDir = Path.Combine(Path.GetTempPath(), "d3dx-fresh-" + Guid.NewGuid().ToString("N"), "Mods");
+        Directory.CreateDirectory(modsDir);
+        var disabled = Path.Combine(modsDir, $"DISABLED-{id}");
+        Directory.CreateDirectory(disabled);
+        var archive = Path.Combine(modsDir, "..", id);
+        File.WriteAllText(archive, "archive");
+        // Archive OLDER than the disabled cache → fresh.
+        File.SetLastWriteTimeUtc(archive, DateTime.UtcNow.AddHours(-1));
+        Directory.SetLastWriteTimeUtc(disabled, DateTime.UtcNow);
+
+        try
+        {
+            _mockProfilePaths.Setup(x => x.CacheModsDirectory).Returns(modsDir);
+            _mockArchiveService.Setup(x => x.GetArchivePath(id)).Returns(archive);
+            var entity = new ModEntity { Id = id, Category = "", Name = "Fresh" };
+            _mockRepository.Setup(x => x.GetByIdAsync(id)).ReturnsAsync(entity);
+            _mockRepository.Setup(x => x.GetByCategoryAsync(It.IsAny<string>())).ReturnsAsync(new List<ModEntity>());
+            _mockCacheService.Setup(x => x.EnableCacheAsync(id)).ReturnsAsync(true);
+            _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(id)).ReturnsAsync(0);
+            _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
+
+            await _service.LoadAsync(id);
+
+            _mockCacheService.Verify(x => x.EnableCacheAsync(id), Times.Once);
+            _mockCacheService.Verify(x => x.DeleteCacheAsync(id), Times.Never);
+            _mockArchiveService.Verify(x => x.ExtractAsync(id, It.IsAny<string>()), Times.Never);
+        }
+        finally { try { Directory.Delete(Path.GetDirectoryName(modsDir)!, true); } catch { } }
     }
 
     #endregion

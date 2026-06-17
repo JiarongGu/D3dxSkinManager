@@ -158,9 +158,23 @@ public class ModLifecycleService : IModLifecycleService
                 _logger.Info($"Loading unclassified mod '{modName}' - skipping category-based unloading (unclassified mods can be co-loaded)", "ModLifecycleService");
             }
 
-            // Load the requested mod
-            // Try to enable cache first (if mod was previously unloaded), otherwise extract archive
-            var cacheEnabled = await _cacheService.EnableCacheAsync(id).ConfigureAwait(false);
+            // Load the requested mod.
+            // Fast path: re-enable the disabled cache (rename) IF it's still fresh. A disabled cache
+            // goes stale when the archive is updated after the cache was made (e.g. a hash-fix or
+            // mod-update recompressed the archive) — enabling it then would deploy OLD content. So if
+            // the archive is newer than the disabled cache, discard the cache and re-extract. (#9)
+            var cacheEnabled = false;
+            if (IsDisabledCacheStale(id))
+            {
+                _logger.Info($"Disabled cache for '{modName}' is stale (archive is newer) — re-extracting", "ModLifecycleService");
+                _processRegistry.Report(procId, null, "Refreshing stale cache");
+                await _cacheService.DeleteCacheAsync(id).ConfigureAwait(false);
+            }
+            else
+            {
+                _processRegistry.Report(procId, null, "Enabling cache");
+                cacheEnabled = await _cacheService.EnableCacheAsync(id).ConfigureAwait(false);
+            }
 
             if (cacheEnabled)
             {
@@ -170,8 +184,9 @@ public class ModLifecycleService : IModLifecycleService
             {
                 // Emit LOADING event before extraction (decompression takes time)
                 await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADING, new { Id = id }).ConfigureAwait(false);
+                _processRegistry.Report(procId, null, "Extracting archive");
 
-                // No cache exists, extract from archive
+                // No (usable) cache, extract from archive
                 var cacheDir = Path.Combine(_profilePaths.CacheModsDirectory, id);
                 var extractResult = await _archiveService.ExtractAsync(id, cacheDir).ConfigureAwait(false);
 
@@ -323,6 +338,30 @@ public class ModLifecycleService : IModLifecycleService
     /// Populates IsLoaded flag for mods by checking if cache directory exists
     /// Lightweight version that only checks IsLoaded
     /// </summary>
+    /// <summary>
+    /// A disabled cache (DISABLED-{id}) is stale when the mod archive was modified after the cache was
+    /// created — e.g. a hash-fix or mod-update recompressed the archive while the mod was unloaded.
+    /// Re-enabling such a cache would deploy outdated content, so the caller re-extracts instead. (#9)
+    /// Returns false when there's no disabled cache or no archive to compare against (nothing to invalidate).
+    /// </summary>
+    private bool IsDisabledCacheStale(string id)
+    {
+        var disabledCacheDir = Path.Combine(_profilePaths.CacheModsDirectory, $"DISABLED-{id}");
+        if (!Directory.Exists(disabledCacheDir)) return false;
+
+        try
+        {
+            var archivePath = _archiveService.GetArchivePath(id);
+            if (!File.Exists(archivePath)) return false;
+            return File.GetLastWriteTimeUtc(archivePath) > Directory.GetLastWriteTimeUtc(disabledCacheDir);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Failed to check cache staleness for {id}: {ex.Message}", "ModLifecycleService");
+            return false; // on doubt, keep the cache (existing behavior)
+        }
+    }
+
     private void PopulateIsLoadedFlags(List<ModInfo> mods)
     {
         if (!Directory.Exists(_profilePaths.CacheModsDirectory))

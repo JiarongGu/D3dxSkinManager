@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Core.Exceptions;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -14,6 +15,13 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 public interface IModImportService
 {
     Task<ModInfo?> ImportAsync(string filePath);
+
+    /// <summary>
+    /// Replace an EXISTING mod's content with a new archive/file, keeping the same id and all metadata
+    /// (name/category/tags/previews). Caches are invalidated so the next load extracts the new content.
+    /// </summary>
+    Task<ModInfo?> UpdateModAsync(string id, string filePath);
+
     Task<int> ScanAndImportPreviewsFromFolderAsync(string id, string folderPath);
 }
 
@@ -27,6 +35,7 @@ public class ModImportService : IModImportService
     private readonly IImageService _imageService;
     private readonly IModRepository _repository;
     private readonly IModArchiveService _archiveService;
+    private readonly IModCacheService _cacheService;
     private readonly IModMetadataService _metadataService;
     private readonly IPathValidator _pathValidator;
     private readonly ILogHelper _logger;
@@ -37,6 +46,7 @@ public class ModImportService : IModImportService
         IImageService imageService,
         IModRepository repository,
         IModArchiveService archiveService,
+        IModCacheService cacheService,
         IModMetadataService metadataService,
         IPathValidator pathValidator,
         ILogHelper logger,
@@ -46,6 +56,7 @@ public class ModImportService : IModImportService
         _imageService = imageService;
         _repository = repository;
         _archiveService = archiveService;
+        _cacheService = cacheService;
         _metadataService = metadataService;
         _pathValidator = pathValidator;
         _logger = logger;
@@ -119,6 +130,44 @@ public class ModImportService : IModImportService
             _logger.Info($"Import failed: {ex.Message}", "ModImportService");
             throw;
         }
+    }
+
+    /// <summary>
+    /// Replace an existing mod's archive with new content, keeping the same id + metadata. (#14)
+    /// Mods are stored compressed and only extracted on load, so updating = overwrite the archive +
+    /// invalidate the cache; the new content is extracted on the next load (see #9 staleness check).
+    /// </summary>
+    public async Task<ModInfo?> UpdateModAsync(string id, string filePath)
+    {
+        _pathValidator.ValidateFileExists(filePath);
+
+        var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
+        if (entity == null)
+        {
+            throw new OperationException(
+                ErrorCodes.MOD_NOT_FOUND,
+                new Dictionary<string, string> { { "id", id } },
+                $"Mod not found: {id}");
+        }
+
+        _logger.Info($"Updating mod '{entity.Name}' ({id}) from: {filePath}", "ModImportService");
+
+        // 1. Overwrite the compressed archive in place (planner-serialized, Overwrite=true).
+        await _archiveService.CopyArchiveAsync(filePath, id).ConfigureAwait(false);
+
+        // 2. Invalidate caches (active + disabled) so the next load extracts the new content.
+        await _cacheService.DeleteCacheAsync(id).ConfigureAwait(false);
+
+        var mod = ModMapper.ToDomain(entity);
+
+        // Refresh previews from the new content's cache locations (best-effort).
+        try { await _imageService.TryAutoImportPreviewsFromCacheAsync(id).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.Info($"Preview re-scan after update failed: {ex.Message}", "ModImportService"); }
+
+        // Emit IMPORTED so the frontend refreshes the mod list (now unloaded + new content).
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.IMPORTED, mod).ConfigureAwait(false);
+        _logger.Info($"Update complete: {entity.Name} ({id})", "ModImportService");
+        return mod;
     }
 
     /// <summary>

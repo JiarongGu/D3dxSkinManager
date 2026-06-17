@@ -78,6 +78,17 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Replace an existing mod's content with a new archive/file (same id, metadata kept).
+   * Backend invalidates the cache so the new content extracts on next load. (#14)
+   */
+  async updateMod(profileId: string, id: string, filePath: string): Promise<ModInfo> {
+    return this.sendTypedMessage<ModIpcRequests, ModInfo>("UPDATE_MOD", profileId, {
+      id,
+      filePath,
+    });
+  }
+
+  /**
    * Delete a mod permanently
    */
   async deleteMod(profileId: string, id: string): Promise<boolean> {
