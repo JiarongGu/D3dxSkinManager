@@ -41,33 +41,49 @@ public class FileCleanupService : IFileCleanupService
     private readonly ICategoryService _categoryService;
     private readonly IProfileService _profileService;
     private readonly ILogHelper _logger;
+    private readonly Core.Services.IProcessRegistry _processRegistry;
 
     public FileCleanupService(
         IProfilePathService profilePaths,
         IModRepository repository,
         ICategoryService categoryService,
         IProfileService profileService,
-        ILogHelper logger)
+        ILogHelper logger,
+        Core.Services.IProcessRegistry processRegistry)
     {
         _profilePaths = profilePaths;
         _repository = repository;
         _categoryService = categoryService;
         _profileService = profileService;
         _logger = logger;
+        _processRegistry = processRegistry;
     }
 
     public async Task<List<OrphanScanResult>> ScanAllOrphansAsync()
     {
         var results = new List<OrphanScanResult>();
 
-        foreach (var category in new[]
+        var categories = new[]
         {
             OrphanCategory.Thumbnail, OrphanCategory.Preview, OrphanCategory.TempFile,
             OrphanCategory.ModCache, OrphanCategory.OrphanedArchive, OrphanCategory.MissingArchive
-        })
+        };
+        var procId = _processRegistry.Start(Core.Models.ProcessType.FileScan, "Scanning for orphaned files");
+        try
         {
-            var result = await ScanOrphansAsync(category).ConfigureAwait(false);
-            results.Add(result);
+            var done = 0;
+            foreach (var category in categories)
+            {
+                var result = await ScanOrphansAsync(category).ConfigureAwait(false);
+                results.Add(result);
+                _processRegistry.Report(procId, (int)(++done * 100.0 / categories.Length));
+            }
+            _processRegistry.Complete(procId);
+        }
+        catch (Exception ex)
+        {
+            _processRegistry.Fail(procId, ex.Message);
+            throw;
         }
 
         return results;

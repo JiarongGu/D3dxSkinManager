@@ -32,6 +32,9 @@ export default defineConfig({
     port: 3517,
     strictPort: true,
     open: false,
+    // Allow the dev server to read the sibling backend Languages/*.json so the DEV fake-bridge can
+    // serve real translations in pure-UI (plain-Chrome) mode. '..' = the repo root (parent of Client).
+    fs: { allow: ['..'] },
   },
   build: {
     outDir: 'build',

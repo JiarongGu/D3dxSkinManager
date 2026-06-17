@@ -212,6 +212,19 @@ class BridgeService {
         // renders for component/design verification instead of hard-failing. Prod still errors.
         if (import.meta.env.DEV) {
           this.messageHandlers.delete(id);
+          // Serve REAL translations so the UI isn't full of raw i18n keys in pure-UI mode: load the
+          // sibling backend Languages/*.json on demand (allowed via vite server.fs.allow).
+          if (module === 'SETTING' && type === 'GET_LANGUAGE') {
+            const code = (payload as { languageCode?: string } | undefined)?.languageCode === 'cn' ? 'cn' : 'en';
+            const load = code === 'cn'
+              ? import('../../../../D3dxSkinManager/Languages/cn.json')
+              : import('../../../../D3dxSkinManager/Languages/en.json');
+            // The JSON file IS a LanguageSettings ({ code, name, translations }) — return it as-is.
+            load
+              .then((m) => resolve({ success: true, language: (m as { default: unknown }).default } as T))
+              .catch(() => resolve(getDevMockResponse(module, type) as T));
+            return;
+          }
           resolve(getDevMockResponse(module, type) as T);
           return;
         }
