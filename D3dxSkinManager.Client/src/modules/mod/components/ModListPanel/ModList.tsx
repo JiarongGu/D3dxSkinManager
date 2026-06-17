@@ -12,6 +12,7 @@ import {
   ClearOutlined,
   CopyOutlined,
   SyncOutlined,
+  ThunderboltOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { systemService } from "../../../../shared/services/ipc";
@@ -29,6 +30,7 @@ import { refreshMods } from "../../operations/modOperations";
 import { useModsStore } from "../../store/modsStore";
 import { useTranslation } from "react-i18next";
 import { BatchEditModsScreen } from "../BatchEditScreen";
+import { ModFixTool } from "../../../tool/components/ModFixTool/ModFixTool";
 import { useMods } from "../../hooks/useMods";
 import "./ModList.css";
 
@@ -81,6 +83,7 @@ export const ModList: React.FC<ModListProps> = ({
     mod?: ModInfo;
   }>({ visible: false });
   const busyModIds = useModsStore((s) => s.busyModIds);
+  const [fixToolModIds, setFixToolModIds] = useState<string[]>();
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(
@@ -303,6 +306,12 @@ export const ModList: React.FC<ModListProps> = ({
             openBatchEditScreen(selectedMods);
           },
         },
+        {
+          key: "batch-run-fix",
+          label: t("contextMenu.runFixSelected", { count: selectedModIds.length }),
+          icon: <ThunderboltOutlined />,
+          onClick: () => setFixToolModIds([...selectedModIds]),
+        },
         { type: "divider" as const },
         {
           key: "batch-delete-caches",
@@ -464,6 +473,12 @@ export const ModList: React.FC<ModListProps> = ({
       icon: busyModIds.has(mod.id) ? <SyncOutlined spin /> : <SyncOutlined />,
       disabled: !mod?.hasCache || busyModIds.has(mod.id),
       onClick: () => handleUpdateArchive(mod),
+    },
+    {
+      key: "run-fix",
+      label: t("contextMenu.runFix"),
+      icon: <ThunderboltOutlined />,
+      onClick: () => setFixToolModIds([mod.id]),
     },
     { type: "divider" as const },
 
@@ -690,6 +705,12 @@ export const ModList: React.FC<ModListProps> = ({
       />
       {/* Batch Edit Screen */}
       <BatchEditModsScreen />
+      {/* Mod Fix Tool - opened from context menu against the selected mod(s) */}
+      <ModFixTool
+        visible={!!fixToolModIds}
+        initialModIds={fixToolModIds}
+        onClose={() => setFixToolModIds(undefined)}
+      />
     </>
   );
 };

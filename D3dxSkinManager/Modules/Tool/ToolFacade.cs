@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Tool.ModPackage.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Tool.Services;
 using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Models;
@@ -37,6 +38,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     private readonly IFileCleanupService _fileCleanupService;
     private readonly IModAnalysisService _modAnalysisService;
     private readonly IModIdMigrationService _modIdMigrationService;
+    private readonly IModFixService _modFixService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IProfileEventBus _eventBus;
 
@@ -49,6 +51,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         IFileCleanupService fileCleanupService,
         IModAnalysisService modAnalysisService,
         IModIdMigrationService modIdMigrationService,
+        IModFixService modFixService,
         IPayloadHelper payloadHelper,
         IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
@@ -61,6 +64,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         _fileCleanupService = fileCleanupService ?? throw new ArgumentNullException(nameof(fileCleanupService));
         _modAnalysisService = modAnalysisService ?? throw new ArgumentNullException(nameof(modAnalysisService));
         _modIdMigrationService = modIdMigrationService ?? throw new ArgumentNullException(nameof(modIdMigrationService));
+        _modFixService = modFixService ?? throw new ArgumentNullException(nameof(modFixService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
@@ -106,6 +110,9 @@ public class ToolFacade : BaseFacade, IToolFacade
             // Mod ID Migration (fire-and-forget — results via events)
             "MOD_ID_MIGRATION_SCAN" => StartModIdMigrationScan(),
             "MOD_ID_MIGRATION_EXECUTE" => StartModIdMigrationExecute(),
+
+            // Mod fix script runner (fire-and-forget — progress + result via events)
+            "RUN_MOD_FIX" => StartModFix(request),
 
             // Mod Analysis
             "ANALYSIS_START" => StartAnalysisAsync(request),
@@ -432,6 +439,43 @@ public class ToolFacade : BaseFacade, IToolFacade
             catch (Exception ex)
             {
                 _logger.Error($"[ToolFacade] Mod ID migration failed: {ex.Message}", "ToolFacade", ex);
+            }
+        });
+
+        return null;
+    }
+
+    // ===== Mod Fix (hash-fix script runner) =====
+
+    private object? StartModFix(IpcRequest request)
+    {
+        var fixRequest = new ModFixRequest
+        {
+            ScriptPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "scriptPath"),
+            ModIds = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "modIds") ?? new List<string>(),
+            RecompressAfter = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "recompress") ?? true,
+        };
+
+        // Fire-and-forget: run in background, push progress + a final result event when done.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await _modFixService.RunFixAsync(fixRequest).ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_FIX_COMPLETE, result).ConfigureAwait(false);
+            }
+            catch (OperationException ex)
+            {
+                // Surface a structured (i18n) failure to the UI via the completion event.
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_FIX_COMPLETE,
+                    new ModFixResult { Total = 0, Failed = 1, Results = { new ModFixItemResult { Success = false, Error = ex.Code } } }).ConfigureAwait(false);
+                _logger.Warn($"[ToolFacade] Mod fix failed: {ex.Code}");
+            }
+            catch (Exception ex)
+            {
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_FIX_COMPLETE,
+                    new ModFixResult { Total = 0, Failed = 1, Results = { new ModFixItemResult { Success = false, Error = ex.Message } } }).ConfigureAwait(false);
+                _logger.Error($"[ToolFacade] Mod fix failed: {ex.Message}", "ToolFacade", ex);
             }
         });
 

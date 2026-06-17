@@ -43,6 +43,10 @@ public static class ToolServiceExtensions
         // Register mod ID migration service
         services.TryAddSingleton<IModIdMigrationService, ModIdMigrationService>();
 
+        // Register mod fix (hash-fix script runner) service + its seeded tunables
+        services.TryAddSingleton<ModFixOptions>();
+        services.TryAddSingleton<IModFixService, ModFixService>();
+
         // Register facade
         services.TryAddSingleton<IToolFacade, ToolFacade>();
         services.TryAddSingleton<ToolFacade>();

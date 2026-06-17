@@ -24,6 +24,7 @@ export type ProcessType =
   | 'archiveUpdate'
   | 'fileScan'
   | 'download'
+  | 'modFix'
   | 'other';
 
 export interface ProcessInfo {

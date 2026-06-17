@@ -10,6 +10,7 @@ import {
   SwapOutlined,
   SyncOutlined,
   ExperimentOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { StartupValidationTool } from './StartupValidationTool';
@@ -19,6 +20,7 @@ import { ModPackageTool } from './ModPackageTool/ModPackageTool';
 import { FileCleanupTool } from './FileCleanupTool/FileCleanupTool';
 import { ModAnalyzerTool } from './ModAnalyzerTool/ModAnalyzerTool';
 import { ModIdMigrationTool } from './ModIdMigrationTool/ModIdMigrationTool';
+import { ModFixTool } from './ModFixTool/ModFixTool';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { CompactCard } from '../../../shared/components/compact';
 import { api } from '../../../shared/services/ipc';
@@ -52,6 +54,7 @@ export const ToolsView: React.FC = () => {
   const [showFileCleanupTool, setShowFileCleanupTool] = React.useState(false);
   const [showModAnalyzerTool, setShowModAnalyzerTool] = React.useState(false);
   const [showModIdMigrationTool, setShowModIdMigrationTool] = React.useState(false);
+  const [showModFixTool, setShowModFixTool] = React.useState(false);
 
   // ModsProvider already handles migration completion events
   // No need to manually refresh here
@@ -116,12 +119,25 @@ export const ToolsView: React.FC = () => {
       icon: <SyncOutlined />,
       content: null, // Special case - handled separately
     },
+    {
+      key: 'mod-fix',
+      title: t('tools.modFix.title'),
+      description: t('tools.modFix.cardDescription'),
+      icon: <ThunderboltOutlined />,
+      content: null, // Special case - handled separately
+    },
   ];
 
   const handleToolClick = (tool: ToolCardData) => {
     // Special handling for Mod ID Migration - open tool directly
     if (tool.key === 'mod-id-migration') {
       setShowModIdMigrationTool(true);
+      return;
+    }
+
+    // Special handling for Mod Fix - open tool directly
+    if (tool.key === 'mod-fix') {
+      setShowModFixTool(true);
       return;
     }
 
@@ -231,6 +247,13 @@ export const ToolsView: React.FC = () => {
         visible={showModIdMigrationTool}
         onClose={() => setShowModIdMigrationTool(false)}
         onMigrationComplete={handleModsChanged}
+      />
+
+      {/* Mod Fix Tool - Opens in SlideInScreen */}
+      <ModFixTool
+        visible={showModFixTool}
+        onClose={() => setShowModFixTool(false)}
+        onFixComplete={handleModsChanged}
       />
 
       {/* Python Migration Tool - Opens in SlideInScreen */}

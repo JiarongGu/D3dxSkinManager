@@ -1,0 +1,64 @@
+.mod-fix {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px;
+}
+
+.mod-fix__description {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.mod-fix__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mod-fix__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.mod-fix__hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.mod-fix__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mod-fix__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mod-fix__progress-text {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.mod-fix__summary {
+  margin-top: 4px;
+}
+
+.mod-fix__output {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.mod-fix__output-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+}
+
+.mod-fix__table {
+  margin-top: 8px;
+}

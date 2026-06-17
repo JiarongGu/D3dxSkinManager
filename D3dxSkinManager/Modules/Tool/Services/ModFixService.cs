@@ -1,0 +1,373 @@
+using System.Diagnostics;
+using D3dxSkinManager.Modules.Core.Event;
+using D3dxSkinManager.Modules.Core.Exceptions;
+using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Mod.Models;
+using D3dxSkinManager.Modules.Mod.Services;
+using D3dxSkinManager.Modules.Tool.Models;
+
+namespace D3dxSkinManager.Modules.Tool.Services;
+
+/// <summary>
+/// Tunable knobs for the mod-fix runner. Seeded with sensible defaults instead of hard-coding values
+/// in the service, so they can later be surfaced as editable (per-profile/global) settings. Nothing
+/// here is game-specific — the runner works for any 3DMigoto/XXMI-style manager.
+/// </summary>
+public class ModFixOptions
+{
+    /// <summary>Interpreters tried (in order) to run a .py fix script. First one that responds wins.</summary>
+    public List<string> PythonCandidates { get; set; } = new() { "py", "python", "python3" };
+
+    /// <summary>Script extensions the runner accepts (lower-case, leading dot).</summary>
+    public List<string> SupportedExtensions { get; set; } = new() { ".py", ".exe", ".bat", ".cmd" };
+
+    /// <summary>Per-mod execution timeout. A script exceeding this is killed and the mod marked failed.</summary>
+    public TimeSpan PerModTimeout { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// How many newlines to feed to the script's stdin before closing it. Many community fix scripts
+    /// end with an interactive "Press Enter to continue" prompt; auto-feeding lets them run unattended.
+    /// </summary>
+    public int StdinAutoConfirmLines { get; set; } = 5;
+
+    /// <summary>Max characters of captured output kept per mod (tail) for transport to the UI.</summary>
+    public int MaxOutputChars { get; set; } = 4000;
+}
+
+/// <summary>
+/// Runs a user-supplied "fix" script (typically a 3DMigoto hash-fix .py/.exe) against one or all mods.
+/// The script executes with its working directory set to the mod's content folder — the convention these
+/// scripts expect. Successful runs are re-compressed back into the mod archive so the fix persists.
+/// </summary>
+public interface IModFixService
+{
+    Task<ModFixResult> RunFixAsync(ModFixRequest request, CancellationToken cancellationToken = default);
+}
+
+public class ModFixService : IModFixService
+{
+    private readonly IProfilePathService _profilePaths;
+    private readonly IModQueryService _query;
+    private readonly IModArchiveService _archive;
+    private readonly IModOperationQueue _operationQueue;
+    private readonly IProfileEventBus _eventBus;
+    private readonly ILogHelper _logger;
+    private readonly IProcessRegistry _processRegistry;
+    private readonly ModFixOptions _options;
+
+    public ModFixService(
+        IProfilePathService profilePaths,
+        IModQueryService query,
+        IModArchiveService archive,
+        IModOperationQueue operationQueue,
+        IProfileEventBus eventBus,
+        ILogHelper logger,
+        IProcessRegistry processRegistry,
+        ModFixOptions? options = null)
+    {
+        _profilePaths = profilePaths;
+        _query = query;
+        _archive = archive;
+        _operationQueue = operationQueue;
+        _eventBus = eventBus;
+        _logger = logger;
+        _processRegistry = processRegistry;
+        _options = options ?? new ModFixOptions();
+    }
+
+    public async Task<ModFixResult> RunFixAsync(ModFixRequest request, CancellationToken cancellationToken = default)
+    {
+        // 1. Validate the script up-front so the user gets an immediate, clear error.
+        if (string.IsNullOrWhiteSpace(request.ScriptPath) || !File.Exists(request.ScriptPath))
+        {
+            throw new OperationException("FIX_SCRIPT_NOT_FOUND", "path", request.ScriptPath ?? "");
+        }
+
+        var ext = Path.GetExtension(request.ScriptPath).ToLowerInvariant();
+        if (!_options.SupportedExtensions.Contains(ext))
+        {
+            throw new OperationException("FIX_SCRIPT_UNSUPPORTED", "ext", ext);
+        }
+
+        // 2. Resolve python interpreter once (only if needed) — fail fast before starting the run.
+        string? pythonPath = null;
+        if (ext == ".py")
+        {
+            pythonPath = ResolvePythonInterpreter();
+            if (pythonPath == null)
+            {
+                throw new OperationException("FIX_PYTHON_NOT_FOUND");
+            }
+        }
+
+        // 3. Resolve the target mod set (id → display name).
+        var allMods = await _query.FilterAsync().ConfigureAwait(false);
+        var nameById = allMods.ToDictionary(m => m.Id, m => m.Name);
+
+        List<(string id, string name)> targets;
+        if (request.ModIds is { Count: > 0 })
+        {
+            targets = request.ModIds
+                .Distinct()
+                .Select(id => (id, nameById.TryGetValue(id, out var n) ? n : id))
+                .ToList();
+        }
+        else
+        {
+            targets = allMods.Select(m => (m.Id, m.Name)).ToList();
+        }
+
+        if (targets.Count == 0)
+        {
+            throw new OperationException("FIX_NO_MODS");
+        }
+
+        var scriptName = Path.GetFileName(request.ScriptPath);
+        var result = new ModFixResult { Total = targets.Count };
+
+        var procId = _processRegistry.Start(
+            ProcessType.ModFix,
+            targets.Count == 1 ? $"Fixing mod: {targets[0].name}" : $"Fixing {targets.Count} mods ({scriptName})",
+            cancellable: true);
+
+        // Combine the caller's token with the registry's cancel token (Activity-panel Cancel).
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _processRegistry.GetToken(procId));
+        var ct = linked.Token;
+
+        try
+        {
+            for (var i = 0; i < targets.Count; i++)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    result.Cancelled = true;
+                    break;
+                }
+
+                var (id, name) = targets[i];
+
+                _processRegistry.Report(procId, (int)((i) * 100.0 / targets.Count), $"{name}");
+                await _eventBus.EmitAsync(
+                    ModuleNames.TOOL,
+                    ToolEvents.MOD_FIX_PROGRESS,
+                    new { current = i + 1, total = targets.Count, modId = id, modName = name }).ConfigureAwait(false);
+
+                // Serialize per-mod so a concurrent load/unload/delete can't race the script's file I/O.
+                var itemResult = await _operationQueue.EnqueueAsync(id, () =>
+                    RunOneAsync(id, name, request, ext, pythonPath, ct)).ConfigureAwait(false);
+
+                result.Results.Add(itemResult);
+                if (itemResult.Skipped) result.Skipped++;
+                else if (itemResult.Success) result.Succeeded++;
+                else result.Failed++;
+            }
+
+            _processRegistry.Report(procId, 100);
+            _processRegistry.Complete(procId);
+            _logger.Info($"[ModFix] Run complete: {result.Succeeded} fixed, {result.Failed} failed, {result.Skipped} skipped, cancelled={result.Cancelled}");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _processRegistry.Fail(procId, ex.Message);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Fix a single mod: stage its content (live cache in-place, or extract a non-loaded mod to a temp
+    /// dir), run the script there, and re-compress into the archive on success.
+    /// </summary>
+    private async Task<ModFixItemResult> RunOneAsync(
+        string id, string name, ModFixRequest request, string ext, string? pythonPath, CancellationToken ct)
+    {
+        var item = new ModFixItemResult { ModId = id, ModName = name };
+
+        var activeCache = Path.Combine(_profilePaths.CacheModsDirectory, id);
+        var inPlace = Directory.Exists(activeCache);
+
+        string workDir;
+        var isTemp = false;
+        if (inPlace)
+        {
+            // Loaded/extracted: fix the live folder so the change is visible immediately too.
+            workDir = activeCache;
+        }
+        else
+        {
+            // Not extracted: stage the archive into a temp dir, fix, recompress, discard the temp.
+            workDir = Path.Combine(Path.GetTempPath(), $"d3dx-fix-{id}-{Guid.NewGuid():N}");
+            var extraction = await _archive.ExtractAsync(id, workDir).ConfigureAwait(false);
+            if (!extraction.Success)
+            {
+                item.Skipped = true;
+                item.Error = "No content to fix (archive missing or empty).";
+                _logger.Warn($"[ModFix] Skipped '{name}' ({id}): extraction failed");
+                TryDeleteDir(workDir);
+                return item;
+            }
+            isTemp = true;
+        }
+
+        try
+        {
+            var (exitCode, output) = await ExecuteScriptAsync(request.ScriptPath, ext, pythonPath, workDir, ct).ConfigureAwait(false);
+            item.ExitCode = exitCode;
+            item.Output = Tail(output);
+            item.Success = exitCode == 0;
+
+            if (!item.Success)
+            {
+                item.Error = $"Fix script exited with code {exitCode}.";
+                _logger.Warn($"[ModFix] '{name}' ({id}) fix exited {exitCode}");
+                return item;
+            }
+
+            _logger.Info($"[ModFix] '{name}' ({id}) fixed (exit 0)");
+
+            // Persist the mutated content back into the archive so it survives the next reload.
+            if (request.RecompressAfter)
+            {
+                var compressed = await _archive.CompressCacheToArchiveAsync(id, workDir).ConfigureAwait(false);
+                if (!compressed)
+                    _logger.Warn($"[ModFix] '{name}' ({id}) fixed but archive update failed");
+            }
+
+            return item;
+        }
+        catch (OperationCanceledException)
+        {
+            item.Skipped = true;
+            item.Error = "Cancelled.";
+            return item;
+        }
+        catch (Exception ex)
+        {
+            item.Success = false;
+            item.Error = ex.Message;
+            _logger.Error($"[ModFix] '{name}' ({id}) failed: {ex.Message}");
+            return item;
+        }
+        finally
+        {
+            if (isTemp) TryDeleteDir(workDir);
+        }
+    }
+
+    /// <summary>Launch the script with cwd=workDir, auto-confirm stdin prompts, capture output, enforce timeout.</summary>
+    private async Task<(int exitCode, string output)> ExecuteScriptAsync(
+        string scriptPath, string ext, string? pythonPath, string workDir, CancellationToken ct)
+    {
+        var psi = new ProcessStartInfo
+        {
+            WorkingDirectory = workDir,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        switch (ext)
+        {
+            case ".py":
+                psi.FileName = pythonPath!;
+                psi.ArgumentList.Add(scriptPath);
+                break;
+            case ".bat":
+            case ".cmd":
+                psi.FileName = "cmd.exe";
+                psi.ArgumentList.Add("/c");
+                psi.ArgumentList.Add(scriptPath);
+                break;
+            default: // .exe
+                psi.FileName = scriptPath;
+                break;
+        }
+
+        using var proc = new Process { StartInfo = psi };
+        proc.Start();
+
+        // Read both streams concurrently to avoid pipe-buffer deadlock.
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+
+        // Auto-confirm interactive "Press Enter" prompts, then close stdin.
+        try
+        {
+            for (var i = 0; i < _options.StdinAutoConfirmLines; i++)
+                await proc.StandardInput.WriteLineAsync().ConfigureAwait(false);
+            proc.StandardInput.Close();
+        }
+        catch { /* script may not read stdin */ }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(_options.PerModTimeout);
+
+        try
+        {
+            await proc.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+            if (ct.IsCancellationRequested) throw; // user cancel — propagate
+            // otherwise it was a timeout
+            var partial = (await SafeAwait(stdoutTask)) + (await SafeAwait(stderrTask));
+            return (-1, partial + $"\n[fix timed out after {_options.PerModTimeout.TotalMinutes:0} min]");
+        }
+
+        var output = (await SafeAwait(stdoutTask)) + (await SafeAwait(stderrTask));
+        return (proc.ExitCode, output);
+    }
+
+    private static async Task<string> SafeAwait(Task<string> t)
+    {
+        try { return await t.ConfigureAwait(false); } catch { return ""; }
+    }
+
+    /// <summary>Find the first working Python interpreter from the seeded candidate list (probes `--version`).</summary>
+    private string? ResolvePythonInterpreter()
+    {
+        foreach (var candidate in _options.PythonCandidates)
+        {
+            try
+            {
+                using var p = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = candidate,
+                        Arguments = "--version",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                    }
+                };
+                p.Start();
+                if (p.WaitForExit(3000) && p.ExitCode == 0)
+                    return candidate;
+                try { if (!p.HasExited) p.Kill(); } catch { }
+            }
+            catch { /* not on PATH — try next */ }
+        }
+        return null;
+    }
+
+    private string Tail(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return string.Empty;
+        s = s.Trim();
+        return s.Length <= _options.MaxOutputChars ? s : "…" + s[^_options.MaxOutputChars..];
+    }
+
+    private void TryDeleteDir(string dir)
+    {
+        try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+        catch (Exception ex) { _logger.Warn($"[ModFix] Failed to delete temp dir {dir}: {ex.Message}"); }
+    }
+}

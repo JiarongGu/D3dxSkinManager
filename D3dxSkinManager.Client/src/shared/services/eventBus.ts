@@ -9,6 +9,7 @@ import type { ModInfo } from "../types/mod.types";
 import type { PackageProgress } from "../types/modPackage.types";
 import type { AnalysisProgress, FullAnalysisReport } from "../types/analysis.types";
 import type { ModIdMigrationScanResult, ModIdMigrationProgress, ModIdMigrationResult } from "../types/modIdMigration.types";
+import type { ModFixProgress, ModFixResult } from "../types/modFix.types";
 
 // Module names matching backend ModuleNames
 export enum Module {
@@ -110,6 +111,8 @@ export enum ToolsEventType {
   MOD_ID_MIGRATION_SCAN_COMPLETE = "MOD_ID_MIGRATION_SCAN_COMPLETE",
   MOD_ID_MIGRATION_PROGRESS = "MOD_ID_MIGRATION_PROGRESS",
   MOD_ID_MIGRATION_COMPLETE = "MOD_ID_MIGRATION_COMPLETE",
+  MOD_FIX_PROGRESS = "MOD_FIX_PROGRESS",
+  MOD_FIX_COMPLETE = "MOD_FIX_COMPLETE",
 }
 
 // NOTE: Plugin events are NOT currently used in backend - reserved for future cross-plugin communication
@@ -229,6 +232,8 @@ export interface EventPayloadMap {
     [ToolsEventType.MOD_ID_MIGRATION_SCAN_COMPLETE]: ModIdMigrationScanResult;
     [ToolsEventType.MOD_ID_MIGRATION_PROGRESS]: ModIdMigrationProgress;
     [ToolsEventType.MOD_ID_MIGRATION_COMPLETE]: ModIdMigrationResult;
+    [ToolsEventType.MOD_FIX_PROGRESS]: ModFixProgress;
+    [ToolsEventType.MOD_FIX_COMPLETE]: ModFixResult;
   };
 
   // Plugins events (not currently used)

@@ -34,6 +34,7 @@ public enum ProcessType
     ArchiveUpdate,
     FileScan,
     Download,
+    ModFix,
     Other,
 }
 

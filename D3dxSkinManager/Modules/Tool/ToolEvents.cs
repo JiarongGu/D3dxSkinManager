@@ -29,4 +29,8 @@ public static class ToolEvents
     public const string MOD_ID_MIGRATION_SCAN_COMPLETE = "MOD_ID_MIGRATION_SCAN_COMPLETE";
     public const string MOD_ID_MIGRATION_PROGRESS = "MOD_ID_MIGRATION_PROGRESS";
     public const string MOD_ID_MIGRATION_COMPLETE = "MOD_ID_MIGRATION_COMPLETE";
+
+    // Mod fix (hash-fix script runner) events
+    public const string MOD_FIX_PROGRESS = "MOD_FIX_PROGRESS";
+    public const string MOD_FIX_COMPLETE = "MOD_FIX_COMPLETE";
 }

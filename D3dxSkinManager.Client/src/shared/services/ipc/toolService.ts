@@ -188,6 +188,21 @@ export class ToolService extends BaseModuleService {
   async executeModIdMigration(profileId: string): Promise<void> {
     return this.sendMessage<void>('MOD_ID_MIGRATION_EXECUTE', profileId);
   }
+
+  // ===== Mod Fix (hash-fix script runner — fire-and-forget) =====
+
+  /**
+   * Run a fix script (.py/.exe/.bat/.cmd) against one or all mods.
+   * Empty/omitted modIds = run against ALL mods. Fire-and-forget: progress via MOD_FIX_PROGRESS,
+   * final result via MOD_FIX_COMPLETE; the run also appears in the Activity panel (ProcessRegistry).
+   * Backend: ToolFacade.StartModFix → ModFixService.RunFixAsync
+   */
+  async runModFix(
+    profileId: string,
+    request: { scriptPath: string; modIds?: string[]; recompress?: boolean },
+  ): Promise<void> {
+    return this.sendMessage<void>('RUN_MOD_FIX', profileId, request);
+  }
 }
 
 // Export singleton instance
