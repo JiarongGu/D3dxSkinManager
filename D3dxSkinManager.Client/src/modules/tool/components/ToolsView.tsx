@@ -253,7 +253,6 @@ export const ToolsView: React.FC = () => {
       <ModFixTool
         visible={showModFixTool}
         onClose={() => setShowModFixTool(false)}
-        onFixComplete={handleModsChanged}
       />
 
       {/* Python Migration Tool - Opens in SlideInScreen */}

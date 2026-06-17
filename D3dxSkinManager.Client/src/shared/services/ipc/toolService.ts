@@ -18,6 +18,7 @@ import type {
   CleanupResult,
 } from '../../types/cleanup.types';
 import type { FullAnalysisReport, AnalysisSessionSummary } from '../../types/analysis.types';
+import type { ModFixTool } from '../../types/modFix.types';
 
 /**
  * Service for tool operations (screen capture, etc.)
@@ -202,6 +203,29 @@ export class ToolService extends BaseModuleService {
     request: { scriptPath: string; modIds?: string[]; recompress?: boolean },
   ): Promise<void> {
     return this.sendMessage<void>('RUN_MOD_FIX', profileId, request);
+  }
+
+  // ===== Fix-tool library (per-profile collection of named fix tools) =====
+
+  async getFixTools(profileId: string): Promise<ModFixTool[]> {
+    return this.sendArrayMessage<ModFixTool>('FIX_TOOLS_GET', profileId);
+  }
+
+  /** Import a fix tool by copying a file or folder into the profile's fix-tool library. */
+  async importFixTool(
+    profileId: string,
+    request: { name: string; sourcePath: string; isFolder: boolean; entryFile?: string; description?: string },
+  ): Promise<ModFixTool> {
+    return this.sendMessage<ModFixTool>('FIX_TOOLS_IMPORT', profileId, request);
+  }
+
+  async deleteFixTool(profileId: string, id: string): Promise<void> {
+    return this.sendMessage<void>('FIX_TOOLS_DELETE', profileId, { id });
+  }
+
+  /** Choose which file inside a folder tool is the runnable entry (when auto-detection was ambiguous). */
+  async setFixToolEntry(profileId: string, id: string, entry: string): Promise<void> {
+    return this.sendMessage<void>('FIX_TOOLS_SET_ENTRY', profileId, { id, entry });
   }
 }
 

@@ -11,6 +11,8 @@ export interface ContextMenuItem {
   visible?: boolean;
   onClick?: () => void;
   type?: 'divider';
+  /** Nested items — renders this row as a submenu parent with a hover flyout. */
+  children?: ContextMenuItem[];
 }
 
 export interface ContextMenuProps {
@@ -50,6 +52,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   const [menuPosition, setMenuPosition] = useState({ x: position.x, y: position.y });
   const [isReady, setIsReady] = useState(false);
   const [expandFromBottom, setExpandFromBottom] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
 
   // Calculate position when menu becomes visible
   useEffect(() => {
@@ -145,10 +148,56 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   const handleItemClick = (item: ContextMenuItem) => {
     if (item.disabled) return;
+    // Parent rows (with children) only toggle their flyout; they don't act/close.
+    if (item.children && item.children.length > 0) return;
     if (item.onClick) {
       item.onClick();
     }
     onClose();
+  };
+
+  const renderRow = (item: ContextMenuItem, index: number) => {
+    if (item.type === 'divider') {
+      return <div key={item.key || `divider-${index}`} className="context-menu-divider" />;
+    }
+
+    const hasChildren = !!item.children && item.children.length > 0;
+    const key = item.key || `item-${index}`;
+
+    if (hasChildren) {
+      const childItems = item.children!.filter((c) => c.visible !== false);
+      return (
+        <div
+          key={key}
+          className="context-menu-submenu"
+          style={{ position: 'relative' }}
+          onMouseEnter={() => setOpenSubmenu(key)}
+          onMouseLeave={() => setOpenSubmenu((k) => (k === key ? null : k))}
+        >
+          <div className={classNames('context-menu-item', { disabled: item.disabled, danger: item.danger })}>
+            {item.icon && <span className="context-menu-item-icon">{item.icon}</span>}
+            <span className="context-menu-item-label">{item.label}</span>
+            <span className="context-menu-submenu-caret">›</span>
+          </div>
+          {openSubmenu === key && childItems.length > 0 && (
+            <div className="context-menu context-menu-flyout" style={{ position: 'absolute', left: '100%', top: 0, zIndex: 10000 }}>
+              {childItems.map((child, ci) => renderRow(child, ci))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={key}
+        className={classNames('context-menu-item', { disabled: item.disabled, danger: item.danger })}
+        onClick={() => handleItemClick(item)}
+      >
+        {item.icon && <span className="context-menu-item-icon">{item.icon}</span>}
+        <span className="context-menu-item-label">{item.label}</span>
+      </div>
+    );
   };
 
   return (
@@ -166,25 +215,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         opacity: isReady ? 1 : 0,
       }}
     >
-      {visibleItems.map((item, index) => {
-        if (item.type === 'divider') {
-          return <div key={item.key || `divider-${index}`} className="context-menu-divider" />;
-        }
-
-        return (
-          <div
-            key={item.key || `item-${index}`}
-            className={classNames('context-menu-item', {
-              disabled: item.disabled,
-              danger: item.danger
-            })}
-            onClick={() => handleItemClick(item)}
-          >
-            {item.icon && <span className="context-menu-item-icon">{item.icon}</span>}
-            <span className="context-menu-item-label">{item.label}</span>
-          </div>
-        );
-      })}
+      {visibleItems.map((item, index) => renderRow(item, index))}
     </div>
   );
 };

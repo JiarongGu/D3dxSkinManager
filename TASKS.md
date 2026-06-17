@@ -10,6 +10,16 @@
 
 ## Done
 
+- **Fix-tool library (Phase 0)** ✅ — per-profile collection at `{profile}/fixtools/`, **folder-derived**
+  (each subfolder = one tool; name = folder name, entry auto-detected exe→bat/cmd→py). Drop a folder in
+  → it auto-appears with default info; delete it → it's gone (no registry to drift). Import copies a
+  file/folder into the collection. IPC `FIX_TOOLS_GET/IMPORT/DELETE`; Fix Tools manager screen
+  (add folder/file, delete, run-on-all); mod right-click **"Fix" submenu** lists tools to run directly
+  (replaces the old "Run Fix Script…" dialog; `…` reserved for real dialogs like "Manage fix tools…").
+  ContextMenu gained submenu support. 5 tests + e2e (import→list→delete) on the real backend.
+  *Remaining:* live FileSystemWatcher push so the list refreshes without reopening (entries are already
+  folder-derived, so "new/gone" is reflected on every read).
+
 - **#14 Mod update (replace content, same id)** ✅ — `ModImportService.UpdateModAsync` overwrites the
   compressed archive in place, keeps all metadata, and invalidates the cache (new content extracts on
   next load via #9). IPC `MOD/UPDATE_MOD` (per-mod queue-locked), `modService.updateMod`, mod

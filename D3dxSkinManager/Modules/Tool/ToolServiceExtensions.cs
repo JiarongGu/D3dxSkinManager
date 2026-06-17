@@ -47,6 +47,9 @@ public static class ToolServiceExtensions
         services.TryAddSingleton<ModFixOptions>();
         services.TryAddSingleton<IModFixService, ModFixService>();
 
+        // Register the per-profile fix-tool library
+        services.TryAddSingleton<IModFixToolService, ModFixToolService>();
+
         // Register facade
         services.TryAddSingleton<IToolFacade, ToolFacade>();
         services.TryAddSingleton<ToolFacade>();

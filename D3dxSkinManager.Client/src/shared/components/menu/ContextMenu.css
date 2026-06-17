@@ -10,8 +10,22 @@
   border-radius: var(--border-radius-base);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   padding: 4px 0;
-  overflow: hidden;
+  /* visible (not hidden) so submenu flyouts can escape the parent box */
+  overflow: visible;
   transition: opacity 0.1s ease;
+}
+
+/* Submenu parent row: push caret to the right edge */
+.context-menu-submenu-caret {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+/* Submenu flyout panel reuses .context-menu look; nudge to overlap the parent border */
+.context-menu-flyout {
+  margin-left: -2px;
 }
 
 /* Menu Item */

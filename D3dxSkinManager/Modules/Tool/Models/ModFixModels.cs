@@ -1,6 +1,34 @@
 namespace D3dxSkinManager.Modules.Tool.Models;
 
 /// <summary>
+/// A registered fix tool in the per-profile fix-tool library. Each tool is a FOLDER under
+/// {profile}/fixtools/{Id} (a fix can be multiple files — a script plus its deps, or an exe plus
+/// DLLs); <see cref="EntryFile"/> is the runnable entry inside that folder. Persisted in fixtools.json.
+/// </summary>
+public class ModFixTool
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Name { get; set; } = string.Empty;
+    /// <summary>Runnable entry, relative to the tool's folder (e.g. "fix.exe"). Empty = unresolved.</summary>
+    public string EntryFile { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool RecompressDefault { get; set; } = true;
+    public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Candidate runnable files (relative paths) inside the tool — offered to the user to choose the
+    /// single entry when it can't be auto-resolved (zero or several executables). Empty once resolved.
+    /// </summary>
+    public List<string> Candidates { get; set; } = new();
+
+    /// <summary>
+    /// Absolute path to the resolved entry, or null when unresolved (user must pick from Candidates
+    /// before this tool can run). Computed on read, not persisted.
+    /// </summary>
+    public string? EntryPath { get; set; }
+}
+
+/// <summary>
 /// Request to run a mod-fixing script (e.g. a 3DMigoto hash-fix script) against one or more mods.
 /// A "fix" is a modder-distributed .py / .exe / .bat that rewrites the mod's .ini hashes (and other
 /// assets) so it keeps rendering after a game update. The script is executed with its working

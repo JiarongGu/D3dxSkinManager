@@ -4,6 +4,21 @@
  * (typically 3DMigoto .ini hashes) so it keeps working after a game update.
  */
 
+/** A registered fix tool in the per-profile library (mirrors backend Tool/Models/ModFixModels.ModFixTool). */
+export interface ModFixTool {
+  id: string;
+  name: string;
+  /** Runnable entry relative to the tool folder. */
+  entryFile: string;
+  description?: string;
+  recompressDefault: boolean;
+  addedAt: string;
+  /** Candidate runnable files (relative) to choose the single entry from when it's unresolved. */
+  candidates: string[];
+  /** Absolute path to the resolved entry, or undefined when unresolved (user must pick a candidate). */
+  entryPath?: string;
+}
+
 export interface ModFixRequest {
   scriptPath: string;
   /** Empty/omitted = run against ALL mods. */

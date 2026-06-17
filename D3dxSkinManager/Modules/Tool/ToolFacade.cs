@@ -39,6 +39,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     private readonly IModAnalysisService _modAnalysisService;
     private readonly IModIdMigrationService _modIdMigrationService;
     private readonly IModFixService _modFixService;
+    private readonly IModFixToolService _modFixToolService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IProfileEventBus _eventBus;
 
@@ -52,6 +53,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         IModAnalysisService modAnalysisService,
         IModIdMigrationService modIdMigrationService,
         IModFixService modFixService,
+        IModFixToolService modFixToolService,
         IPayloadHelper payloadHelper,
         IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
@@ -65,6 +67,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         _modAnalysisService = modAnalysisService ?? throw new ArgumentNullException(nameof(modAnalysisService));
         _modIdMigrationService = modIdMigrationService ?? throw new ArgumentNullException(nameof(modIdMigrationService));
         _modFixService = modFixService ?? throw new ArgumentNullException(nameof(modFixService));
+        _modFixToolService = modFixToolService ?? throw new ArgumentNullException(nameof(modFixToolService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
@@ -113,6 +116,12 @@ public class ToolFacade : BaseFacade, IToolFacade
 
             // Mod fix script runner (fire-and-forget — progress + result via events)
             "RUN_MOD_FIX" => StartModFix(request),
+
+            // Per-profile fix-tool library (collection of named fix tools)
+            "FIX_TOOLS_GET" => await _modFixToolService.GetAllAsync(),
+            "FIX_TOOLS_IMPORT" => await ImportFixToolAsync(request),
+            "FIX_TOOLS_DELETE" => await DeleteFixToolAsync(request),
+            "FIX_TOOLS_SET_ENTRY" => await SetFixToolEntryAsync(request),
 
             // Mod Analysis
             "ANALYSIS_START" => StartAnalysisAsync(request),
@@ -479,6 +488,31 @@ public class ToolFacade : BaseFacade, IToolFacade
             }
         });
 
+        return null;
+    }
+
+    private async Task<object?> ImportFixToolAsync(IpcRequest request)
+    {
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        var sourcePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourcePath");
+        var isFolder = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "isFolder") ?? false;
+        var entryFile = _payloadHelper.GetOptionalValue<string>(request.Payload, "entryFile");
+        var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
+        return await _modFixToolService.ImportAsync(name, sourcePath, isFolder, entryFile, description).ConfigureAwait(false);
+    }
+
+    private async Task<object?> DeleteFixToolAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        await _modFixToolService.DeleteAsync(id).ConfigureAwait(false);
+        return null;
+    }
+
+    private async Task<object?> SetFixToolEntryAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var entry = _payloadHelper.GetRequiredValue<string>(request.Payload, "entry");
+        await _modFixToolService.SetEntryAsync(id, entry).ConfigureAwait(false);
         return null;
     }
 

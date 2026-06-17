@@ -30,6 +30,9 @@ public interface IProfilePathService
     string PluginsDirectory { get; }
     string TdMigotoDirectory { get; }
     string TempDirectory { get; }
+
+    /// <summary>Per-profile fix-tool library: each tool is a subfolder ({fixtools}/{toolId}).</summary>
+    string FixToolsDirectory { get; }
     string ProfileDatabasePath { get; }
     string ConfigPath { get; }
     string GetModArchivePath(string id, string extension = ".7z");
@@ -161,6 +164,8 @@ public class ProfilePathService : IProfilePathService
     public string TdMigotoDirectory => Path.Combine(ProfilePath, "3dmigoto");
 
     public string TempDirectory => Path.Combine(ProfilePath, "temp");
+
+    public string FixToolsDirectory => Path.Combine(ProfilePath, "fixtools");
 
     // File paths using constants
     public string ProfileDatabasePath => Path.Combine(ProfilePath, ProfileDatabaseFileName);

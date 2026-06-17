@@ -14,10 +14,13 @@ import {
   SyncOutlined,
   ThunderboltOutlined,
   ImportOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { systemService } from "../../../../shared/services/ipc";
 import { modService } from "../../../../shared/services/ipc";
+import { toolService } from "../../../../shared/services/ipc";
+import type { ModFixTool as FixToolEntry } from "../../../../shared/types/modFix.types";
 import { GradingTag } from "../GradingTag";
 import { TagChip } from "../../../../shared/components/TagChip";
 import { useProfile } from "../../../../shared/context/ProfileContext";
@@ -84,7 +87,19 @@ export const ModList: React.FC<ModListProps> = ({
     mod?: ModInfo;
   }>({ visible: false });
   const busyModIds = useModsStore((s) => s.busyModIds);
-  const [fixToolModIds, setFixToolModIds] = useState<string[]>();
+  const [showFixManager, setShowFixManager] = useState(false);
+  const [fixTools, setFixTools] = useState<FixToolEntry[]>([]);
+
+  // Load the per-profile fix-tool library so the right-click "Fix" submenu can list them.
+  const loadFixTools = useCallback(async () => {
+    if (!selectedProfileId) return;
+    try {
+      setFixTools(await toolService.getFixTools(selectedProfileId));
+    } catch {
+      setFixTools([]);
+    }
+  }, [selectedProfileId]);
+  React.useEffect(() => { void loadFixTools(); }, [loadFixTools]);
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(
@@ -279,6 +294,41 @@ export const ModList: React.FC<ModListProps> = ({
     }
   };
 
+  // Run a registered fix tool against the given mods (the right-click submenu entries call this).
+  const runFixTool = async (tool: FixToolEntry, modIds: string[]) => {
+    if (!selectedProfileId || !tool.entryPath) return;
+    try {
+      await toolService.runModFix(selectedProfileId, {
+        scriptPath: tool.entryPath,
+        modIds,
+        recompress: tool.recompressDefault,
+      });
+      notification.info(t("mods.notifications.fixStarted", { name: tool.name }));
+    } catch (error: unknown) {
+      notification.error(t("tools.modFix.fixPartialFail", { failed: modIds.length }));
+    }
+  };
+
+  // "Fix" submenu: one entry per registered fix tool + Manage. Replaces a "…" dialog entry.
+  const buildFixSubmenu = (modIds: string[]): ContextMenuItem => {
+    const children: ContextMenuItem[] = fixTools.length > 0
+      ? fixTools.map((tf) => ({
+          key: `fix-${tf.id}`,
+          label: tf.name,
+          icon: <ThunderboltOutlined />,
+          onClick: () => void runFixTool(tf, modIds),
+        }))
+      : [{ key: "fix-none", label: t("contextMenu.noFixTools"), disabled: true }];
+    children.push({ type: "divider" as const });
+    children.push({
+      key: "fix-manage",
+      label: t("contextMenu.manageFixTools"),
+      icon: <SettingOutlined />,
+      onClick: () => setShowFixManager(true),
+    });
+    return { key: "run-fix", label: t("contextMenu.runFix"), icon: <ThunderboltOutlined />, children };
+  };
+
   const getContextMenuItems = (mod: ModInfo): ContextMenuItem[] => {
     const isMultiSelect = selectedModIds.length > 1 && selectedModIds.includes(mod.id);
 
@@ -330,12 +380,7 @@ export const ModList: React.FC<ModListProps> = ({
             openBatchEditScreen(selectedMods);
           },
         },
-        {
-          key: "batch-run-fix",
-          label: t("contextMenu.runFixSelected", { count: selectedModIds.length }),
-          icon: <ThunderboltOutlined />,
-          onClick: () => setFixToolModIds([...selectedModIds]),
-        },
+        { ...buildFixSubmenu([...selectedModIds]), key: "batch-run-fix", label: t("contextMenu.runFixSelected", { count: selectedModIds.length }) },
         { type: "divider" as const },
         {
           key: "batch-delete-caches",
@@ -498,12 +543,7 @@ export const ModList: React.FC<ModListProps> = ({
       disabled: !mod?.hasCache || busyModIds.has(mod.id),
       onClick: () => handleUpdateArchive(mod),
     },
-    {
-      key: "run-fix",
-      label: t("contextMenu.runFix"),
-      icon: <ThunderboltOutlined />,
-      onClick: () => setFixToolModIds([mod.id]),
-    },
+    buildFixSubmenu([mod.id]),
     {
       key: "update-mod",
       label: t("contextMenu.updateMod"),
@@ -735,11 +775,10 @@ export const ModList: React.FC<ModListProps> = ({
       />
       {/* Batch Edit Screen */}
       <BatchEditModsScreen />
-      {/* Mod Fix Tool - opened from context menu against the selected mod(s) */}
+      {/* Fix Tools manager — add/remove fix tools; opened from the right-click "Manage" entry */}
       <ModFixTool
-        visible={!!fixToolModIds}
-        initialModIds={fixToolModIds}
-        onClose={() => setFixToolModIds(undefined)}
+        visible={showFixManager}
+        onClose={() => { setShowFixManager(false); void loadFixTools(); }}
       />
     </>
   );
