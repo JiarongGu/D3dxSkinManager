@@ -223,9 +223,9 @@ export class ToolService extends BaseModuleService {
     return this.sendMessage<void>('FIX_TOOLS_DELETE', profileId, { id });
   }
 
-  /** Choose which file inside a folder tool is the runnable entry (when auto-detection was ambiguous). */
-  async setFixToolEntry(profileId: string, id: string, entry: string): Promise<void> {
-    return this.sendMessage<void>('FIX_TOOLS_SET_ENTRY', profileId, { id, entry });
+  /** Choose which file(s) inside a folder tool are its runnable entries (empty = revert to auto). */
+  async setFixToolEntries(profileId: string, id: string, entries: string[]): Promise<void> {
+    return this.sendMessage<void>('FIX_TOOLS_SET_ENTRIES', profileId, { id, entries });
   }
 }
 

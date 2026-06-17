@@ -4,19 +4,23 @@
  * (typically 3DMigoto .ini hashes) so it keeps working after a game update.
  */
 
-/** A registered fix tool in the per-profile library (mirrors backend Tool/Models/ModFixModels.ModFixTool). */
+/** One runnable entry of a fix tool: relative name + absolute path. */
+export interface ModFixEntry {
+  name: string;
+  path: string;
+}
+
+/** A registered fix tool ("toolset") in the per-profile library (mirrors backend ModFixTool). */
 export interface ModFixTool {
   id: string;
   name: string;
-  /** Runnable entry relative to the tool folder. */
-  entryFile: string;
   description?: string;
   recompressDefault: boolean;
   addedAt: string;
-  /** Candidate runnable files (relative) to choose the single entry from when it's unresolved. */
+  /** Runnable entries to launch. Empty = unresolved (pick from candidates). A toolset may have several. */
+  entries: ModFixEntry[];
+  /** Candidate runnable files (relative) to choose entries from. */
   candidates: string[];
-  /** Absolute path to the resolved entry, or undefined when unresolved (user must pick a candidate). */
-  entryPath?: string;
 }
 
 export interface ModFixRequest {

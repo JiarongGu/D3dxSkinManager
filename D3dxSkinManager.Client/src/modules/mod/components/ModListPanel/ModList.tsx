@@ -294,31 +294,35 @@ export const ModList: React.FC<ModListProps> = ({
     }
   };
 
-  // Run a registered fix tool against the given mods (the right-click submenu entries call this).
-  const runFixTool = async (tool: FixToolEntry, modIds: string[]) => {
-    if (!selectedProfileId || !tool.entryPath) return;
+  // Run one fix-tool entry against the given mods (the right-click submenu items call this).
+  const runFixEntry = async (toolName: string, entryPath: string, recompress: boolean, modIds: string[]) => {
+    if (!selectedProfileId) return;
     try {
-      await toolService.runModFix(selectedProfileId, {
-        scriptPath: tool.entryPath,
-        modIds,
-        recompress: tool.recompressDefault,
-      });
-      notification.info(t("mods.notifications.fixStarted", { name: tool.name }));
+      await toolService.runModFix(selectedProfileId, { scriptPath: entryPath, modIds, recompress });
+      notification.info(t("mods.notifications.fixStarted", { name: toolName }));
     } catch (error: unknown) {
       notification.error(t("tools.modFix.fixPartialFail", { failed: modIds.length }));
     }
   };
 
-  // "Fix" submenu: one entry per registered fix tool + Manage. Replaces a "…" dialog entry.
+  // "Fix" submenu: each toolset's entries flattened ("Toolset — entry" when it has several) + Manage.
   const buildFixSubmenu = (modIds: string[]): ContextMenuItem => {
-    const children: ContextMenuItem[] = fixTools.length > 0
-      ? fixTools.map((tf) => ({
-          key: `fix-${tf.id}`,
-          label: tf.name,
-          icon: <ThunderboltOutlined />,
-          onClick: () => void runFixTool(tf, modIds),
-        }))
-      : [{ key: "fix-none", label: t("contextMenu.noFixTools"), disabled: true }];
+    const children: ContextMenuItem[] = [];
+    if (fixTools.length === 0) {
+      children.push({ key: "fix-none", label: t("contextMenu.noFixTools"), disabled: true });
+    }
+    for (const tf of fixTools) {
+      if (tf.entries.length === 0) {
+        children.push({ key: `fix-${tf.id}`, label: `${tf.name} — ${t("tools.modFix.selectEntry")}`, disabled: true });
+      } else if (tf.entries.length === 1) {
+        const e = tf.entries[0];
+        children.push({ key: `fix-${tf.id}`, label: tf.name, icon: <ThunderboltOutlined />, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, modIds) });
+      } else {
+        for (const e of tf.entries) {
+          children.push({ key: `fix-${tf.id}-${e.name}`, label: `${tf.name} — ${e.name}`, icon: <ThunderboltOutlined />, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, modIds) });
+        }
+      }
+    }
     children.push({ type: "divider" as const });
     children.push({
       key: "fix-manage",

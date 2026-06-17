@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,8 +14,9 @@ using D3dxSkinManager.Modules.Tool.Services;
 namespace D3dxSkinManager.Tests.Modules.Tool.Services;
 
 /// <summary>
-/// Tests for the per-profile fix-tool library: importing a single file or a multi-file folder into the
-/// managed collection, entry auto-detection, listing (with resolved EntryPath), and deletion.
+/// Tests for the per-profile fix-tool library: top-level scan (loose executables + folders), entry
+/// auto-resolution (lone exe over helper .py), unresolved + candidates, MULTIPLE entries per toolset
+/// via SetEntries, and deletion.
 /// </summary>
 public class ModFixToolServiceTests : IDisposable
 {
@@ -29,107 +31,82 @@ public class ModFixToolServiceTests : IDisposable
         _service = new ModFixToolService(paths.Object, Mock.Of<ILogHelper>());
     }
 
-    private string MakeFile(string ext)
+    private static string MakeFile(string ext)
     {
         var p = Path.Combine(Path.GetTempPath(), $"src-{Guid.NewGuid():N}{ext}");
         File.WriteAllText(p, "echo");
         return p;
     }
 
+    private static string MakeFolderWith(params string[] fileNames)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "srcfolder-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        foreach (var f in fileNames) File.WriteAllText(Path.Combine(dir, f), "x");
+        return dir;
+    }
+
     [Fact]
-    public async Task Import_SingleFile_CopiesIntoLibrary_AndSetsEntry()
+    public async Task Import_SingleFile_CopiesIntoLibrary_AndResolvesEntry()
     {
         var src = MakeFile(".exe");
         try
         {
             var tool = await _service.ImportAsync("My Fix", src, isFolder: false);
-
-            tool.Name.Should().Be("My Fix");
-            tool.EntryFile.Should().Be(Path.GetFileName(src));
-            File.Exists(tool.EntryPath!).Should().BeTrue("the file is copied into the tool folder");
-            tool.EntryPath!.Should().StartWith(Path.Combine(_fixDir, tool.Id));
+            tool.Entries.Should().ContainSingle();
+            tool.Entries[0].Name.Should().Be(Path.GetFileName(src));
+            File.Exists(tool.Entries[0].Path).Should().BeTrue("the file is copied into the tool folder");
         }
         finally { File.Delete(src); }
     }
 
     [Fact]
-    public async Task Import_Folder_AutoDetectsEntry_PrefersExe()
+    public async Task Import_Folder_OneExe_PlusHelperPy_PicksExe()
     {
-        var srcDir = Path.Combine(Path.GetTempPath(), "srcfolder-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(srcDir);
-        File.WriteAllText(Path.Combine(srcDir, "helper.py"), "x");
-        File.WriteAllText(Path.Combine(srcDir, "run.exe"), "x");
+        var src = MakeFolderWith("helper.py", "run.exe");
         try
         {
-            var tool = await _service.ImportAsync("Folder Fix", srcDir, isFolder: true);
-            tool.EntryFile.Should().Be("run.exe", "exe is preferred over py");
-            File.Exists(Path.Combine(_fixDir, tool.Id, "helper.py")).Should().BeTrue("all files copied");
+            var tool = await _service.ImportAsync("Exe Plus Helper", src, isFolder: true);
+            tool.Entries.Should().ContainSingle().Which.Name.Should().Be("run.exe");
         }
-        finally { Directory.Delete(srcDir, true); }
+        finally { Directory.Delete(src, true); }
     }
 
     [Fact]
     public async Task Import_Folder_NoRunnable_ImportsUnresolved()
     {
-        var srcDir = Path.Combine(Path.GetTempPath(), "srcfolder-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(srcDir);
-        File.WriteAllText(Path.Combine(srcDir, "readme.txt"), "x");
+        var src = MakeFolderWith("readme.txt");
         try
         {
-            var tool = await _service.ImportAsync("No Entry", srcDir, isFolder: true);
-            tool.EntryFile.Should().BeEmpty("no runnable → entry left unresolved");
-            tool.EntryPath.Should().BeNull();
+            var tool = await _service.ImportAsync("No Entry", src, isFolder: true);
+            tool.Entries.Should().BeEmpty("no runnable → unresolved");
+            tool.Candidates.Should().BeEmpty();
         }
-        finally { Directory.Delete(srcDir, true); }
+        finally { Directory.Delete(src, true); }
     }
 
     [Fact]
-    public async Task Import_Folder_MultipleExe_Unresolved_ThenSetEntryResolves()
+    public async Task Import_Folder_MultipleExe_Unresolved_ThenSetEntriesResolvesMultiple()
     {
-        var srcDir = Path.Combine(Path.GetTempPath(), "srcfolder-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(srcDir);
-        File.WriteAllText(Path.Combine(srcDir, "a.exe"), "x");
-        File.WriteAllText(Path.Combine(srcDir, "b.exe"), "x");
+        var src = MakeFolderWith("a.exe", "b.exe", "c.exe");
         try
         {
-            var tool = await _service.ImportAsync("Two Exe", srcDir, isFolder: true);
-            tool.EntryPath.Should().BeNull("two exes → ambiguous, user must pick");
-            tool.Candidates.Should().BeEquivalentTo(new[] { "a.exe", "b.exe" });
+            var tool = await _service.ImportAsync("Many Exe", src, isFolder: true);
+            tool.Entries.Should().BeEmpty("several exes → ambiguous, user must pick");
+            tool.Candidates.Should().BeEquivalentTo(new[] { "a.exe", "b.exe", "c.exe" });
 
-            await _service.SetEntryAsync(tool.Id, "b.exe");
-            var entry = await _service.GetEntryPathAsync(tool.Id);
-            entry.Should().EndWith("b.exe");
-            (await _service.GetAllAsync()).Single(t => t.Id == tool.Id).EntryFile.Should().Be("b.exe");
+            // A toolset can expose MULTIPLE entries.
+            await _service.SetEntriesAsync(tool.Id, new List<string> { "a.exe", "c.exe" });
+
+            var refreshed = (await _service.GetAllAsync()).Single(t => t.Id == tool.Id);
+            refreshed.Entries.Select(e => e.Name).Should().BeEquivalentTo(new[] { "a.exe", "c.exe" });
+            refreshed.Entries.Should().OnlyContain(e => File.Exists(e.Path));
+
+            // Clearing reverts to auto-resolution (still ambiguous → none).
+            await _service.SetEntriesAsync(tool.Id, new List<string>());
+            (await _service.GetAllAsync()).Single(t => t.Id == tool.Id).Entries.Should().BeEmpty();
         }
-        finally { Directory.Delete(srcDir, true); }
-    }
-
-    [Fact]
-    public async Task Import_Folder_OneExe_PlusHelperPy_PicksExe()
-    {
-        var srcDir = Path.Combine(Path.GetTempPath(), "srcfolder-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(srcDir);
-        File.WriteAllText(Path.Combine(srcDir, "helper.py"), "x");
-        File.WriteAllText(Path.Combine(srcDir, "run.exe"), "x");
-        try
-        {
-            var tool = await _service.ImportAsync("Exe Plus Helper", srcDir, isFolder: true);
-            tool.EntryFile.Should().Be("run.exe", "the lone exe wins over helper .py files");
-        }
-        finally { Directory.Delete(srcDir, true); }
-    }
-
-    [Fact]
-    public async Task GetAll_LooseTopLevelExe_IsASingleFileTool()
-    {
-        Directory.CreateDirectory(_fixDir);
-        File.WriteAllText(Path.Combine(_fixDir, "loosefix.bat"), "x");
-
-        var all = await _service.GetAllAsync();
-        var loose = all.Single(t => t.Id == "loosefix.bat");
-        loose.EntryFile.Should().Be("loosefix.bat");
-        loose.EntryPath.Should().NotBeNull();
-        loose.Candidates.Should().BeEmpty("a loose executable has nothing to choose");
+        finally { Directory.Delete(src, true); }
     }
 
     [Fact]
@@ -145,23 +122,19 @@ public class ModFixToolServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAll_ReturnsImported_WithEntryPath_AndDeleteRemoves()
+    public async Task GetAll_LooseTopLevelExe_IsAToolWithItselfAsEntry_AndDeleteRemoves()
     {
-        var src = MakeFile(".py");
-        try
-        {
-            var tool = await _service.ImportAsync("Fix A", src, isFolder: false);
+        Directory.CreateDirectory(_fixDir);
+        File.WriteAllText(Path.Combine(_fixDir, "loosefix.bat"), "x");
 
-            var all = await _service.GetAllAsync();
-            all.Should().ContainSingle();
-            all[0].EntryPath.Should().NotBeNullOrEmpty();
-            File.Exists(all[0].EntryPath!).Should().BeTrue();
+        var all = await _service.GetAllAsync();
+        var loose = all.Single(t => t.Id == "loosefix.bat");
+        loose.Entries.Should().ContainSingle().Which.Name.Should().Be("loosefix.bat");
+        loose.Candidates.Should().BeEmpty("a loose executable has nothing to choose");
 
-            await _service.DeleteAsync(tool.Id);
-            (await _service.GetAllAsync()).Should().BeEmpty();
-            Directory.Exists(Path.Combine(_fixDir, tool.Id)).Should().BeFalse("tool folder deleted");
-        }
-        finally { File.Delete(src); }
+        await _service.DeleteAsync("loosefix.bat");
+        (await _service.GetAllAsync()).Should().BeEmpty();
+        File.Exists(Path.Combine(_fixDir, "loosefix.bat")).Should().BeFalse();
     }
 
     public void Dispose()

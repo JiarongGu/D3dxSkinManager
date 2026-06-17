@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Button, Space, Tag, Table, Progress, Input, Empty, Popconfirm, Tooltip, Select } from 'antd';
+import { Button, Space, Tag, Table, Progress, Input, Empty, Popconfirm, Tooltip, Select, Dropdown } from 'antd';
 import {
   CheckCircleOutlined, WarningOutlined, ThunderboltOutlined, FolderOpenOutlined,
-  FileAddOutlined, DeleteOutlined, MinusCircleOutlined,
+  FileAddOutlined, DeleteOutlined, MinusCircleOutlined, DownOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
@@ -109,23 +109,24 @@ const ModFixManagerInner: React.FC = () => {
     }
   }, [selectedProfileId, load]);
 
-  const setEntry = useCallback(async (tool: FixTool, entry: string) => {
+  const setEntries = useCallback(async (tool: FixTool, entries: string[]) => {
     if (!selectedProfileId) return;
     try {
-      await api.tool.setFixToolEntry(selectedProfileId, tool.id, entry);
+      await api.tool.setFixToolEntries(selectedProfileId, tool.id, entries);
       await load();
     } catch (error) {
       handleError(error);
     }
   }, [selectedProfileId, load]);
 
-  const runAll = useCallback(async (tool: FixTool) => {
-    if (!selectedProfileId || !tool.entryPath) return;
+  // Run one entry of a toolset against all mods.
+  const runEntry = useCallback(async (tool: FixTool, entryPath: string) => {
+    if (!selectedProfileId) return;
     try {
       setRunning(true);
       setResult(undefined);
       setProgress(undefined);
-      await api.tool.runModFix(selectedProfileId, { scriptPath: tool.entryPath, modIds: [], recompress: tool.recompressDefault });
+      await api.tool.runModFix(selectedProfileId, { scriptPath: entryPath, modIds: [], recompress: tool.recompressDefault });
     } catch (error) {
       setRunning(false);
       handleError(error);
@@ -136,41 +137,53 @@ const ModFixManagerInner: React.FC = () => {
     { title: t('tools.modFix.columns.name'), dataIndex: 'name', key: 'name', ellipsis: true },
     {
       title: t('tools.modFix.columns.entry'),
-      key: 'entryFile',
-      ellipsis: true,
+      key: 'entries',
       render: (_: unknown, tool: FixTool) =>
-        tool.entryPath ? (
-          <code className="mod-fix__output">{tool.entryFile}</code>
+        tool.candidates.length === 0 ? (
+          // Loose single-file tool — nothing to choose.
+          <code className="mod-fix__output">{tool.entries[0]?.name}</code>
         ) : (
-          // Ambiguous/zero executables → let the user pick which file to run.
-          <Select<string>
+          // Folder tool — pick one or MORE entries to expose.
+          <Select<string[]>
+            mode="multiple"
             size="small"
             placeholder={t('tools.modFix.selectEntry')}
-            style={{ minWidth: 200 }}
-            value={undefined}
+            style={{ minWidth: 240 }}
+            value={tool.entries.map((e) => e.name)}
             options={tool.candidates.map((c) => ({ label: c, value: c }))}
-            onChange={(v) => { if (v) void setEntry(tool, v); }}
+            onChange={(v) => void setEntries(tool, v)}
             notFoundContent={t('tools.modFix.noCandidates')}
-            status="warning"
+            status={tool.entries.length === 0 ? 'warning' : undefined}
           />
         ),
     },
     {
       title: '',
       key: 'actions',
-      width: 170,
+      width: 200,
       render: (_: unknown, tool: FixTool) => (
         <Space size={4}>
-          <Tooltip title={tool.entryPath ? '' : t('tools.modFix.setEntryFirst')}>
-            <Button
-              size="small"
-              icon={<ThunderboltOutlined />}
-              onClick={() => runAll(tool)}
-              disabled={running || !tool.entryPath}
+          {tool.entries.length <= 1 ? (
+            <Tooltip title={tool.entries.length === 0 ? t('tools.modFix.setEntryFirst') : ''}>
+              <Button
+                size="small"
+                icon={<ThunderboltOutlined />}
+                onClick={() => tool.entries[0] && runEntry(tool, tool.entries[0].path)}
+                disabled={running || tool.entries.length === 0}
+              >
+                {t('tools.modFix.runAll')}
+              </Button>
+            </Tooltip>
+          ) : (
+            <Dropdown
+              disabled={running}
+              menu={{ items: tool.entries.map((e) => ({ key: e.path, label: e.name, onClick: () => runEntry(tool, e.path) })) }}
             >
-              {t('tools.modFix.runAll')}
-            </Button>
-          </Tooltip>
+              <Button size="small" icon={<ThunderboltOutlined />}>
+                {t('tools.modFix.runAll')} <DownOutlined />
+              </Button>
+            </Dropdown>
+          )}
           <Popconfirm title={t('tools.modFix.deleteConfirm')} onConfirm={() => remove(tool)} okText={t('common.delete')} cancelText={t('common.cancel')}>
             <Button size="small" type="text" icon={<DeleteOutlined style={{ color: 'var(--color-error)' }} />} />
           </Popconfirm>

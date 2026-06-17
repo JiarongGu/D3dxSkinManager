@@ -1,31 +1,33 @@
 namespace D3dxSkinManager.Modules.Tool.Models;
 
+/// <summary>One runnable entry of a fix tool: its relative name and resolved absolute path.</summary>
+public class ModFixEntry
+{
+    /// <summary>Relative path inside the tool folder (e.g. "fix.exe", "scripts/fix.py").</summary>
+    public string Name { get; set; } = string.Empty;
+    /// <summary>Absolute path used by the runner.</summary>
+    public string Path { get; set; } = string.Empty;
+}
+
 /// <summary>
-/// A registered fix tool in the per-profile fix-tool library. Each tool is a FOLDER under
-/// {profile}/fixtools/{Id} (a fix can be multiple files — a script plus its deps, or an exe plus
-/// DLLs); <see cref="EntryFile"/> is the runnable entry inside that folder. Persisted in fixtools.json.
+/// A registered fix tool ("toolset") in the per-profile fix-tool library. Each tool is a top-level
+/// entry under {profile}/fixtools/: a loose executable, or a FOLDER (a fix can be multiple files). A
+/// toolset can expose MULTIPLE runnable entries (<see cref="Entries"/>); when none are explicitly
+/// chosen, a lone executable is auto-resolved, otherwise the user picks from <see cref="Candidates"/>.
 /// </summary>
 public class ModFixTool
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = string.Empty;
-    /// <summary>Runnable entry, relative to the tool's folder (e.g. "fix.exe"). Empty = unresolved.</summary>
-    public string EntryFile { get; set; } = string.Empty;
     public string? Description { get; set; }
     public bool RecompressDefault { get; set; } = true;
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// Candidate runnable files (relative paths) inside the tool — offered to the user to choose the
-    /// single entry when it can't be auto-resolved (zero or several executables). Empty once resolved.
-    /// </summary>
-    public List<string> Candidates { get; set; } = new();
+    /// <summary>The runnable entries the user can launch. Empty = unresolved (pick from Candidates).</summary>
+    public List<ModFixEntry> Entries { get; set; } = new();
 
-    /// <summary>
-    /// Absolute path to the resolved entry, or null when unresolved (user must pick from Candidates
-    /// before this tool can run). Computed on read, not persisted.
-    /// </summary>
-    public string? EntryPath { get; set; }
+    /// <summary>All runnable files (relative) inside the tool — the pool to choose entries from.</summary>
+    public List<string> Candidates { get; set; } = new();
 }
 
 /// <summary>

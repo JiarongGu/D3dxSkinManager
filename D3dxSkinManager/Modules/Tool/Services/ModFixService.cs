@@ -198,8 +198,8 @@ public class ModFixService : IModFixService
         }
         else
         {
-            // Not extracted: stage the archive into a temp dir, fix, recompress, discard the temp.
-            workDir = Path.Combine(Path.GetTempPath(), $"d3dx-fix-{id}-{Guid.NewGuid():N}");
+            // Not extracted: stage the archive into the profile's own temp dir, fix, recompress, discard.
+            workDir = Path.Combine(_profilePaths.TempDirectory, $"fix-{id}-{Guid.NewGuid():N}");
             var extraction = await _archive.ExtractAsync(id, workDir).ConfigureAwait(false);
             if (!extraction.Success)
             {

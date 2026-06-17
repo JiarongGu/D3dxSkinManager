@@ -7,27 +7,27 @@ namespace D3dxSkinManager.Modules.Tool.Services;
 
 /// <summary>
 /// Per-profile fix-tool library. The {profile}/fixtools/ FOLDER is the source of truth: each top-level
-/// entry is one fix tool — either a loose executable (.exe/.bat/.cmd/.py) or a subfolder. Listing scans
-/// the folder, so dropping a tool in makes it appear (with default info) and deleting it removes it; no
-/// separate registry to drift. For a folder tool with exactly one executable inside, that entry is used
-/// automatically; with zero or several, the entry is left unresolved until the user picks one (the
-/// choice is saved as a marker file inside the folder, keeping it folder-authoritative). Game-agnostic.
+/// entry is one fix tool ("toolset") — either a loose executable (.exe/.bat/.cmd/.py) or a subfolder.
+/// Listing scans the folder, so dropping a tool in makes it appear (default info) and deleting it
+/// removes it; no separate registry to drift. A toolset can expose MULTIPLE runnable entries; with a
+/// single lone executable the entry auto-resolves, otherwise the user picks (the choice persists as a
+/// marker file inside the folder, keeping it folder-authoritative). Game-agnostic.
 /// </summary>
 public interface IModFixToolService
 {
     Task<List<ModFixTool>> GetAllAsync();
 
     /// <summary>Import a fix tool by copying a source file OR folder into a new fixtools/{name} folder.</summary>
-    Task<ModFixTool> ImportAsync(string name, string sourcePath, bool isFolder, string? entryFileName = null, string? description = null);
+    Task<ModFixTool> ImportAsync(string name, string sourcePath, bool isFolder, string? description = null);
 
     /// <summary>Delete a fix tool (id = its top-level name) — removes the folder or the loose file.</summary>
     Task DeleteAsync(string id);
 
-    /// <summary>Set/override which file inside a folder tool is the runnable entry (persists a marker).</summary>
-    Task SetEntryAsync(string id, string relativeEntry);
-
-    /// <summary>Resolve a tool's absolute entry path (for the runner). Throws if unresolved/missing.</summary>
-    Task<string> GetEntryPathAsync(string id);
+    /// <summary>
+    /// Set which files inside a folder tool are its runnable entries (persists a marker). Pass an empty
+    /// list to clear the choice and fall back to auto-resolution.
+    /// </summary>
+    Task SetEntriesAsync(string id, List<string> relativeEntries);
 }
 
 public class ModFixToolService : IModFixToolService
@@ -36,7 +36,7 @@ public class ModFixToolService : IModFixToolService
     private readonly ILogHelper _logger;
     // Entry auto-detection preference: self-contained exe first, then batch, then python.
     private static readonly string[] EntryExtPriority = { ".exe", ".bat", ".cmd", ".py" };
-    // Marker file (inside a folder tool) recording the user's chosen entry; kept out of candidate lists.
+    // Marker file (inside a folder tool) recording the user's chosen entries (one relative path per line).
     private const string EntryMarker = ".fixentry";
 
     public ModFixToolService(IProfilePathService profilePaths, ILogHelper logger)
@@ -51,7 +51,7 @@ public class ModFixToolService : IModFixToolService
         var tools = new List<ModFixTool>();
         if (!Directory.Exists(root)) return Task.FromResult(tools);
 
-        // Top-level loose executables — each is a single-file tool (entry = the file itself).
+        // Top-level loose executables — each is a tool with itself as the only entry.
         foreach (var file in Directory.GetFiles(root))
         {
             if (!IsRunnable(file)) continue;
@@ -60,24 +60,24 @@ public class ModFixToolService : IModFixToolService
             {
                 Id = fileName,
                 Name = Path.GetFileNameWithoutExtension(fileName),
-                EntryFile = fileName,
-                EntryPath = file,
+                Entries = new List<ModFixEntry> { new() { Name = fileName, Path = file } },
                 RecompressDefault = true,
             });
         }
 
-        // Top-level folders — each is a (possibly multi-file) tool; resolve or defer the entry.
+        // Top-level folders — resolve (or defer) one or more entries.
         foreach (var dir in Directory.GetDirectories(root))
         {
             var name = Path.GetFileName(dir);
             var candidates = RunnableCandidates(dir);
-            var entry = ResolveEntry(dir, candidates);
+            var entries = ResolveEntries(dir, candidates)
+                .Select(rel => new ModFixEntry { Name = rel, Path = Path.Combine(dir, rel) })
+                .ToList();
             tools.Add(new ModFixTool
             {
                 Id = name,
                 Name = name,
-                EntryFile = entry ?? string.Empty,
-                EntryPath = entry != null ? Path.Combine(dir, entry) : null,
+                Entries = entries,
                 Candidates = candidates,
                 RecompressDefault = true,
             });
@@ -87,7 +87,7 @@ public class ModFixToolService : IModFixToolService
         return Task.FromResult(tools);
     }
 
-    public Task<ModFixTool> ImportAsync(string name, string sourcePath, bool isFolder, string? entryFileName = null, string? description = null)
+    public Task<ModFixTool> ImportAsync(string name, string sourcePath, bool isFolder, string? description = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new OperationException("FIX_TOOL_NAME_REQUIRED");
@@ -100,9 +100,6 @@ public class ModFixToolService : IModFixToolService
             if (!Directory.Exists(sourcePath))
                 throw new OperationException("FIX_TOOL_SOURCE_NOT_FOUND", "path", sourcePath);
             CopyDirectory(sourcePath, toolDir);
-            // Entry is resolved lazily on read (single exe → auto; else user picks). Honor an explicit choice.
-            if (!string.IsNullOrEmpty(entryFileName))
-                WriteMarker(toolDir, entryFileName);
         }
         else
         {
@@ -117,13 +114,14 @@ public class ModFixToolService : IModFixToolService
         _logger.Info($"[ModFixTool] Imported fix tool '{folderName}'", "ModFixToolService");
 
         var candidates = RunnableCandidates(toolDir);
-        var entry = ResolveEntry(toolDir, candidates);
+        var entries = ResolveEntries(toolDir, candidates)
+            .Select(rel => new ModFixEntry { Name = rel, Path = Path.Combine(toolDir, rel) })
+            .ToList();
         return Task.FromResult(new ModFixTool
         {
             Id = folderName,
             Name = folderName,
-            EntryFile = entry ?? string.Empty,
-            EntryPath = entry != null ? Path.Combine(toolDir, entry) : null,
+            Entries = entries,
             Candidates = candidates,
             RecompressDefault = true,
             Description = description,
@@ -142,27 +140,29 @@ public class ModFixToolService : IModFixToolService
         return Task.CompletedTask;
     }
 
-    public Task SetEntryAsync(string id, string relativeEntry)
+    public Task SetEntriesAsync(string id, List<string> relativeEntries)
     {
         var toolDir = Path.Combine(_profilePaths.FixToolsDirectory, id);
         if (!Directory.Exists(toolDir))
             throw new OperationException("FIX_TOOL_NOT_FOUND", "id", id);
-        if (!File.Exists(Path.Combine(toolDir, relativeEntry)))
-            throw new OperationException("FIX_TOOL_NO_ENTRY");
-        WriteMarker(toolDir, relativeEntry);
-        return Task.CompletedTask;
-    }
 
-    public Task<string> GetEntryPathAsync(string id)
-    {
-        var path = Path.Combine(_profilePaths.FixToolsDirectory, id);
-        if (File.Exists(path) && IsRunnable(path)) return Task.FromResult(path); // loose single-file tool
-        if (Directory.Exists(path))
+        var markerPath = Path.Combine(toolDir, EntryMarker);
+        var valid = (relativeEntries ?? new List<string>())
+            .Select(e => e?.Trim() ?? string.Empty)
+            .Where(e => e.Length > 0 && File.Exists(Path.Combine(toolDir, e)))
+            .Distinct()
+            .ToList();
+
+        if (valid.Count == 0)
         {
-            var entry = ResolveEntry(path, RunnableCandidates(path));
-            if (entry != null) return Task.FromResult(Path.Combine(path, entry));
+            // Clear the choice → fall back to auto-resolution.
+            try { if (File.Exists(markerPath)) File.Delete(markerPath); } catch { }
         }
-        throw new OperationException("FIX_TOOL_NO_ENTRY");
+        else
+        {
+            File.WriteAllLines(markerPath, valid);
+        }
+        return Task.CompletedTask;
     }
 
     // ---- helpers ----
@@ -179,32 +179,31 @@ public class ModFixToolService : IModFixToolService
             .ToList();
 
     /// <summary>
-    /// Resolve a folder tool's entry: an explicit marker choice wins; else a single runnable is used;
-    /// else null (unresolved — the user must pick from candidates).
+    /// Resolve a folder tool's entries: explicit marker choices win (one per line); else, if a single
+    /// executable can be auto-detected (lone exe beats helper .py), use it; else none (user must pick).
     /// </summary>
-    private static string? ResolveEntry(string toolDir, List<string> candidates)
+    private static List<string> ResolveEntries(string toolDir, List<string> candidates)
     {
         var markerPath = Path.Combine(toolDir, EntryMarker);
         if (File.Exists(markerPath))
         {
-            var chosen = File.ReadAllText(markerPath).Trim();
-            if (!string.IsNullOrEmpty(chosen) && File.Exists(Path.Combine(toolDir, chosen)))
-                return chosen;
+            var chosen = File.ReadAllLines(markerPath)
+                .Select(l => l.Trim())
+                .Where(l => l.Length > 0 && File.Exists(Path.Combine(toolDir, l)))
+                .Distinct()
+                .ToList();
+            if (chosen.Count > 0) return chosen;
         }
-        // Tier-based: take the highest-priority extension that's present (exe → bat/cmd → py). If exactly
-        // one file of that tier exists, it's the entry (a lone .exe wins over helper .py files); if
-        // several, it's ambiguous → leave unresolved for the user to pick.
+
+        // Auto: take the highest-priority extension present; use it only if exactly one such file.
         foreach (var ext in EntryExtPriority)
         {
             var ofExt = candidates.Where(c => string.Equals(Path.GetExtension(c), ext, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (ofExt.Count == 1) return ofExt[0];
-            if (ofExt.Count > 1) return null;
+            if (ofExt.Count == 1) return ofExt;
+            if (ofExt.Count > 1) return new List<string>();
         }
-        return null;
+        return new List<string>();
     }
-
-    private static void WriteMarker(string toolDir, string relativeEntry)
-        => File.WriteAllText(Path.Combine(toolDir, EntryMarker), relativeEntry.Trim());
 
     private static string Sanitize(string name)
     {

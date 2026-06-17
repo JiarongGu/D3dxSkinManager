@@ -10,6 +10,12 @@
 
 ## Done
 
+- **Fix-tool library — multiple entries** ✅ — a toolset can expose several runnable entries
+  (`SetEntries`, marker stores one per line); lone-exe auto-resolves, ambiguous → user multi-selects.
+  Mod "Fix" submenu flattens to "Toolset — entry"; manager shows a multi-select + per-entry run.
+  E2E-verified (import 2-exe folder → set both → run). A fix runs with cwd = the mod folder, so it
+  fixes everything in that dir. *Future:* a "fix the whole Mods folder in one pass" mode.
+
 - **Fix-tool library (Phase 0)** ✅ — per-profile collection at `{profile}/fixtools/`, **folder-derived**
   (each subfolder = one tool; name = folder name, entry auto-detected exe→bat/cmd→py). Drop a folder in
   → it auto-appears with default info; delete it → it's gone (no registry to drift). Import copies a

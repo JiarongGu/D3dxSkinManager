@@ -121,7 +121,7 @@ public class ToolFacade : BaseFacade, IToolFacade
             "FIX_TOOLS_GET" => await _modFixToolService.GetAllAsync(),
             "FIX_TOOLS_IMPORT" => await ImportFixToolAsync(request),
             "FIX_TOOLS_DELETE" => await DeleteFixToolAsync(request),
-            "FIX_TOOLS_SET_ENTRY" => await SetFixToolEntryAsync(request),
+            "FIX_TOOLS_SET_ENTRIES" => await SetFixToolEntriesAsync(request),
 
             // Mod Analysis
             "ANALYSIS_START" => StartAnalysisAsync(request),
@@ -496,9 +496,8 @@ public class ToolFacade : BaseFacade, IToolFacade
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
         var sourcePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourcePath");
         var isFolder = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "isFolder") ?? false;
-        var entryFile = _payloadHelper.GetOptionalValue<string>(request.Payload, "entryFile");
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
-        return await _modFixToolService.ImportAsync(name, sourcePath, isFolder, entryFile, description).ConfigureAwait(false);
+        return await _modFixToolService.ImportAsync(name, sourcePath, isFolder, description).ConfigureAwait(false);
     }
 
     private async Task<object?> DeleteFixToolAsync(IpcRequest request)
@@ -508,11 +507,11 @@ public class ToolFacade : BaseFacade, IToolFacade
         return null;
     }
 
-    private async Task<object?> SetFixToolEntryAsync(IpcRequest request)
+    private async Task<object?> SetFixToolEntriesAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        var entry = _payloadHelper.GetRequiredValue<string>(request.Payload, "entry");
-        await _modFixToolService.SetEntryAsync(id, entry).ConfigureAwait(false);
+        var entries = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "entries") ?? new List<string>();
+        await _modFixToolService.SetEntriesAsync(id, entries).ConfigureAwait(false);
         return null;
     }
 
