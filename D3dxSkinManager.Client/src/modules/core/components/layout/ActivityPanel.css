@@ -73,3 +73,16 @@
   margin-inline-start: auto;
   font-variant-numeric: tabular-nums;
 }
+
+/* Section header (Running / History) */
+.activity-panel__section {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-tertiary);
+  padding: 8px 2px 4px;
+}
+.activity-panel__section:first-child {
+  padding-top: 0;
+}

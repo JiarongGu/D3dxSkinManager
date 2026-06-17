@@ -96,6 +96,9 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ open, onClose }) =
   const { t } = useTranslation();
   const processes = useProcessStore((s) => s.processes);
   const hasFinished = processes.some((p) => p.status !== 'running');
+  // Group active (running/queued) vs finished history; backend already orders running-first.
+  const active = processes.filter((p) => p.status === 'running' || p.status === 'queued');
+  const history = processes.filter((p) => p.status !== 'running' && p.status !== 'queued');
 
   return (
     <Drawer
@@ -117,9 +120,18 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ open, onClose }) =
         <Empty description={t('activity.empty')} />
       ) : (
         <div className="activity-panel__list">
-          {processes.map((p) => (
-            <ActivityRow key={p.id} p={p} />
-          ))}
+          {active.length > 0 && (
+            <>
+              <div className="activity-panel__section">{t('activity.sectionRunning', { count: active.length })}</div>
+              {active.map((p) => <ActivityRow key={p.id} p={p} />)}
+            </>
+          )}
+          {history.length > 0 && (
+            <>
+              <div className="activity-panel__section">{t('activity.sectionHistory')}</div>
+              {history.map((p) => <ActivityRow key={p.id} p={p} />)}
+            </>
+          )}
         </div>
       )}
     </Drawer>

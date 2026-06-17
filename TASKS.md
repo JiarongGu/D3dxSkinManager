@@ -126,8 +126,8 @@ Cross-cutting polish to make management effortless. Prioritized; each is small-t
   per-category "one active" indicator; surface category conflicts inline.
 
 ### Medium
-- **Activity panel polish** — group running vs history, sticky "Clear completed", per-process detail
-  line (ties into the load-status detail already added), and a compact running-count in the status bar.
+- **Activity panel polish** ✅ — grouped into Running / History sections; running-count chip added to
+  the status-bar task area. (Clear-completed + per-process detail were already present.)
 - **Launch button** (depends on Phase 1) — prominent per-profile "Launch game" with the configured
   target; show last-launched + running state.
 - **Consistent context menus** — shared grouping/iconography across mod-list, category, and preview

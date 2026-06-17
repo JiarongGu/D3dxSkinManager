@@ -462,6 +462,8 @@
     "statusBar.tasks.scanningFiles": "正在扫描孤立文件...",
     "statusBar.tasks.migratingModIds": "正在迁移模组ID...",
     "activity.title": "活动",
+    "activity.sectionRunning": "运行中（{{count}}）",
+    "activity.sectionHistory": "历史",
     "activity.empty": "暂无后台活动",
     "activity.status.queued": "排队中",
     "activity.status.running": "进行中",

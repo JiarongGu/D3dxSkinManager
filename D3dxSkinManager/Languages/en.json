@@ -483,6 +483,8 @@
     "statusBar.tasks.scanningFiles": "Scanning for orphaned files...",
     "statusBar.tasks.migratingModIds": "Migrating mod IDs...",
     "activity.title": "Activity",
+    "activity.sectionRunning": "Running ({{count}})",
+    "activity.sectionHistory": "History",
     "activity.empty": "No background activity",
     "activity.status.queued": "Queued",
     "activity.status.running": "Running",

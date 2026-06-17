@@ -113,6 +113,11 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
             onClick={() => setActivityOpen(true)}
             title={t("activity.title")}
           >
+            {taskCount > 0 && (
+              <span className="app-status-bar-task-count">
+                <LoadingOutlined spin /> {taskCount}
+              </span>
+            )}
             <div className="app-status-bar-progress-track">
               {taskCount > 0 ? (
                 latestProgress !== undefined ? (
