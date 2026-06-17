@@ -2,6 +2,8 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Exceptions;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Mod;
@@ -49,6 +51,7 @@ public class ModCacheService : IModCacheService
     private readonly IProfileContext _profileContext;
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
+    private readonly IProcessRegistry _processRegistry;
     private const string DISABLED_PREFIX = "DISABLED-";
 
     public ModCacheService(
@@ -58,7 +61,8 @@ public class ModCacheService : IModCacheService
         IProfileRepository profileRepository,
         IProfileContext profileContext,
         ILogHelper logger,
-        IProfileEventBus eventBus)
+        IProfileEventBus eventBus,
+        IProcessRegistry processRegistry)
     {
         _profilePaths = profilePaths;
         _operationPlanner = operationPlanner;
@@ -67,6 +71,7 @@ public class ModCacheService : IModCacheService
         _profileContext = profileContext;
         _logger = logger;
         _eventBus = eventBus;
+        _processRegistry = processRegistry;
     }
 
     /// <summary>
@@ -407,36 +412,49 @@ public class ModCacheService : IModCacheService
         var itemsToDelete = cacheItems.Where(item => item.Category == category).ToList();
 
         int deletedCount = 0;
-
-        foreach (var item in itemsToDelete)
+        var procId = _processRegistry.Start(ProcessType.Cleanup, $"Cleaning {category} caches");
+        try
         {
-            try
+            var total = itemsToDelete.Count;
+            var processed = 0;
+            foreach (var item in itemsToDelete)
             {
-                // Route through FileOperationPlanner so this delete is serialized with every
-                // other mod cache file operation (load/unload/extract/CleanupOldDisabledCaches).
-                // A raw Directory.Delete here runs concurrently with the planner worker and can
-                // collide with an in-flight move/extract on the same DISABLED-{id} directory.
-                var deleteOp = new FileSystemOperation
+                try
                 {
-                    OperationType = FileSystemOperationType.DeleteDirectory,
-                    SourcePath = item.Path
-                };
+                    // Route through FileOperationPlanner so this delete is serialized with every
+                    // other mod cache file operation (load/unload/extract/CleanupOldDisabledCaches).
+                    // A raw Directory.Delete here runs concurrently with the planner worker and can
+                    // collide with an in-flight move/extract on the same DISABLED-{id} directory.
+                    var deleteOp = new FileSystemOperation
+                    {
+                        OperationType = FileSystemOperationType.DeleteDirectory,
+                        SourcePath = item.Path
+                    };
 
-                var result = await _operationPlanner.SubmitOperationAsync(deleteOp).ConfigureAwait(false);
-                if (result.Success)
-                {
-                    deletedCount++;
-                    _logger.Info($"Deleted cache: {item.Path}", "ModCacheService");
+                    var result = await _operationPlanner.SubmitOperationAsync(deleteOp).ConfigureAwait(false);
+                    if (result.Success)
+                    {
+                        deletedCount++;
+                        _logger.Info($"Deleted cache: {item.Path}", "ModCacheService");
+                    }
+                    else
+                    {
+                        _logger.Error($"Failed to delete cache {item.Path}: {result.ErrorMessage}", "ModCacheService", result.Exception);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    _logger.Error($"Failed to delete cache {item.Path}: {result.ErrorMessage}", "ModCacheService", result.Exception);
+                    _logger.Error($"Error deleting cache {item.Path}: {ex.Message}", "ModCacheService", ex);
                 }
+                processed++;
+                _processRegistry.Report(procId, total > 0 ? (int)(processed * 100.0 / total) : null);
             }
-            catch (Exception ex)
-            {
-                _logger.Error($"Error deleting cache {item.Path}: {ex.Message}", "ModCacheService", ex);
-            }
+            _processRegistry.Complete(procId);
+        }
+        catch (Exception ex)
+        {
+            _processRegistry.Fail(procId, ex.Message);
+            throw;
         }
 
         if (deletedCount > 0)

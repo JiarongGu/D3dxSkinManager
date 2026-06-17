@@ -1,0 +1,75 @@
+.activity-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.activity-panel__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-elevated);
+}
+
+.activity-panel__row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-panel__icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.activity-panel__icon--running { color: var(--color-primary); }
+.activity-panel__icon--completed { color: var(--color-success); }
+.activity-panel__icon--failed { color: var(--color-error); }
+.activity-panel__icon--cancelled,
+.activity-panel__icon--queued { color: var(--color-text-secondary); }
+
+.activity-panel__title {
+  font-size: 14px;
+  color: var(--color-text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-panel__status-tag {
+  flex-shrink: 0;
+  margin-inline-end: 0;
+}
+
+.activity-panel__row-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.activity-panel__detail {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-panel__error {
+  flex: 1;
+  color: var(--color-error);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-panel__elapsed {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+}

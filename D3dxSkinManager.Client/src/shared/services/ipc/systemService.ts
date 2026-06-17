@@ -1,4 +1,5 @@
 import { BaseModuleService } from '../baseModuleService';
+import { ProcessInfo } from '../../store/processStore';
 
 export interface FileDialogOptions {
   title?: string;
@@ -127,5 +128,19 @@ export class SystemService extends BaseModuleService {
 
   async getScreenResolution(): Promise<ScreenResolution> {
     return this.sendMessage<ScreenResolution>('GET_SCREEN_RESOLUTION');
+  }
+
+  // Long-running process registry (Activity panel / status bar)
+
+  async getProcesses(): Promise<{ processes: ProcessInfo[] }> {
+    return this.sendMessage<{ processes: ProcessInfo[] }>('GET_PROCESSES');
+  }
+
+  async cancelProcess(id: string): Promise<void> {
+    await this.sendMessage('CANCEL_PROCESS', undefined, { id });
+  }
+
+  async clearCompletedProcesses(): Promise<void> {
+    await this.sendMessage('CLEAR_COMPLETED_PROCESSES');
   }
 }

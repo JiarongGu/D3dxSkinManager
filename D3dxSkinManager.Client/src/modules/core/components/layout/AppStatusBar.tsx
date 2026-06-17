@@ -3,8 +3,9 @@ import { Space, Tag, Popover } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useModsStore } from "../../../mod/store/modsStore";
-import { useTaskStore } from "../../../../shared/store/taskStore";
+import { useProcessStore } from "../../../../shared/store/processStore";
 import { ModPresetMenu } from "./ModPresetMenu";
+import { ActivityPanel } from "./ActivityPanel";
 import "./AppStatusBar.css";
 
 // Global app metadata injected by backend
@@ -26,6 +27,7 @@ interface AppStatusBarProps {
 export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
   const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState("1.0.0");
+  const [activityOpen, setActivityOpen] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
 
   // Mod statistics
@@ -33,10 +35,13 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
   const modsLoaded = statistics?.loadedMods ?? 0;
   const modsTotal = statistics?.totalMods ?? 0;
 
-  // Background tasks — bar reflects the latest added task
-  const tasks = useTaskStore((s) => s.tasks);
-  const taskCount = tasks.length;
-  const latestTask = taskCount > 0 ? tasks[taskCount - 1] : undefined;
+  // Long-running processes (authoritative backend ProcessRegistry, mirrored in processStore).
+  // The bar reflects RUNNING processes; the full list (incl. history) lives in the Activity panel.
+  // The legacy frontend taskStore is abandoned — producers emit to the backend registry instead.
+  const processes = useProcessStore((s) => s.processes);
+  const running = processes.filter((p) => p.status === "running");
+  const taskCount = running.length;
+  const latestTask = taskCount > 0 ? running[taskCount - 1] : undefined;
   const latestProgress = latestTask?.progress;
 
   useEffect(() => {
@@ -57,12 +62,12 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
         </div>
       ) : (
         <div className="app-status-bar-task-panel-list">
-          {tasks.map((task, idx) => (
+          {running.map((task, idx) => (
             <React.Fragment key={task.id}>
               {idx > 0 && <div className="app-status-bar-task-panel-divider" />}
               <div className="app-status-bar-task-panel-item">
                 <LoadingOutlined spin className="app-status-bar-task-panel-icon" />
-                <span className="app-status-bar-task-panel-label">{task.label}</span>
+                <span className="app-status-bar-task-panel-label">{task.title}</span>
                 {task.progress !== undefined && (
                   <span className="app-status-bar-task-panel-progress">{task.progress}%</span>
                 )}
@@ -86,7 +91,11 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
           overlayClassName="app-status-bar-task-popover"
           getPopupContainer={() => barRef.current || document.body}
         >
-          <div className="app-status-bar-task-area">
+          <div
+            className="app-status-bar-task-area"
+            onClick={() => setActivityOpen(true)}
+            title={t("activity.title")}
+          >
             <div className="app-status-bar-progress-track">
               {taskCount > 0 ? (
                 latestProgress !== undefined ? (
@@ -118,6 +127,8 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
           </span>
         </Space>
       </div>
+
+      <ActivityPanel open={activityOpen} onClose={() => setActivityOpen(false)} />
     </div>
   );
 };

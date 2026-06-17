@@ -46,7 +46,8 @@ public class ModMetadataServiceTests
             _mockDeletionService.Object,
             _mockQueryService.Object,
             _mockLogger.Object,
-            _mockEventBus.Object
+            _mockEventBus.Object,
+            Mock.Of<D3dxSkinManager.Modules.Core.Services.IProcessRegistry>()
         );
     }
 

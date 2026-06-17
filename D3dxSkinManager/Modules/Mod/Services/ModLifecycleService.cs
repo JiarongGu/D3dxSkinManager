@@ -2,6 +2,8 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Exceptions;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Mappers;
@@ -38,6 +40,7 @@ public class ModLifecycleService : IModLifecycleService
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
     private readonly IModOperationQueue _operationQueue;
+    private readonly IProcessRegistry _processRegistry;
 
     public ModLifecycleService(
         IModRepository repository,
@@ -47,7 +50,8 @@ public class ModLifecycleService : IModLifecycleService
         IProfilePathService profilePaths,
         ILogHelper logger,
         IProfileEventBus eventBus,
-        IModOperationQueue operationQueue)
+        IModOperationQueue operationQueue,
+        IProcessRegistry processRegistry)
     {
         _repository = repository;
         _archiveService = archiveService;
@@ -57,6 +61,7 @@ public class ModLifecycleService : IModLifecycleService
         _logger = logger;
         _eventBus = eventBus;
         _operationQueue = operationQueue;
+        _processRegistry = processRegistry;
     }
 
     /// <summary>
@@ -103,6 +108,10 @@ public class ModLifecycleService : IModLifecycleService
         // Track unloaded mods for efficient frontend updates
         var unloadedModIds = new List<string>();
         var modName = mod.Name ?? $"Mod {id.Substring(0, 8)}";
+
+        // Track this load as a process so it shows in the status bar / Activity panel (extraction of a
+        // large archive can take a while). Abandoned legacy taskStore is replaced by this registry.
+        var procId = _processRegistry.Start(ProcessType.ModLoad, $"Loading mod: {modName}");
 
         try
         {
@@ -230,6 +239,8 @@ public class ModLifecycleService : IModLifecycleService
                 }
             });
 
+            _processRegistry.Complete(procId);
+
             return new ModLoadResult
             {
                 LoadedModId = id,
@@ -237,14 +248,16 @@ public class ModLifecycleService : IModLifecycleService
                 Success = true
             };
         }
-        catch (OperationException)
+        catch (OperationException ex)
         {
             // Re-throw OperationException as-is for proper error handling
+            _processRegistry.Fail(procId, ex.Message);
             throw;
         }
         catch (Exception ex)
         {
             _logger.Error($"Error loading mod {id}: {ex.Message}", "ModLifecycleService", ex);
+            _processRegistry.Fail(procId, ex.Message);
             throw new OperationException(
                 ErrorCodes.UNKNOWN_ERROR,
                 new Dictionary<string, string> { { "id", id }, { "name", modName } },

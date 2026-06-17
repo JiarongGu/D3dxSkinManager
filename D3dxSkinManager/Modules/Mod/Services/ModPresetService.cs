@@ -2,6 +2,8 @@ using System.Text.Json;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Exceptions;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Mod.Models;
@@ -32,19 +34,22 @@ public class ModPresetService : IModPresetService
     private readonly IModLifecycleService _lifecycleService;
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
+    private readonly IProcessRegistry _processRegistry;
 
     public ModPresetService(
         IModPresetRepository presetRepository,
         IModRepository modRepository,
         IModLifecycleService lifecycleService,
         IProfileEventBus eventBus,
-        ILogHelper logger)
+        ILogHelper logger,
+        IProcessRegistry processRegistry)
     {
         _presetRepository = presetRepository;
         _modRepository = modRepository;
         _lifecycleService = lifecycleService;
         _eventBus = eventBus;
         _logger = logger;
+        _processRegistry = processRegistry;
     }
 
     /// <summary>
@@ -140,61 +145,77 @@ public class ModPresetService : IModPresetService
 
         var targetModIds = JsonSerializer.Deserialize<List<string>>(entity.ModIds) ?? new List<string>();
 
-        // Step 1: Unload all currently loaded mods
-        var currentlyLoaded = await _modRepository.GetLoadedIdsAsync().ConfigureAwait(false);
-        var unloadedCount = 0;
-        foreach (var modId in currentlyLoaded)
+        // Track the whole preset apply as one process (the headline progress); the individual
+        // load/unload steps register their own short-lived processes too.
+        var procId = _processRegistry.Start(ProcessType.PresetApply, $"Applying preset: {entity.Name}");
+        try
         {
-            // Don't unload mods that are already in the target set
-            if (targetModIds.Contains(modId))
-                continue;
+            // Step 1: Unload all currently loaded mods
+            var currentlyLoaded = await _modRepository.GetLoadedIdsAsync().ConfigureAwait(false);
+            var unloadedCount = 0;
+            foreach (var modId in currentlyLoaded)
+            {
+                // Don't unload mods that are already in the target set
+                if (targetModIds.Contains(modId))
+                    continue;
 
-            try
-            {
-                await _lifecycleService.UnloadAsync(modId).ConfigureAwait(false);
-                unloadedCount++;
+                try
+                {
+                    await _lifecycleService.UnloadAsync(modId).ConfigureAwait(false);
+                    unloadedCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"Failed to unload mod {modId} during preset apply: {ex.Message}", "ModPresetService");
+                }
             }
-            catch (Exception ex)
+
+            // Step 2: Load mods from preset
+            var loadedCount = 0;
+            var failedIds = new List<string>();
+            var total = targetModIds.Count;
+            foreach (var modId in targetModIds)
             {
-                _logger.Warn($"Failed to unload mod {modId} during preset apply: {ex.Message}", "ModPresetService");
+                // Skip mods that are already loaded
+                if (currentlyLoaded.Contains(modId))
+                {
+                    loadedCount++;
+                }
+                else
+                {
+                    try
+                    {
+                        await _lifecycleService.LoadAsync(modId).ConfigureAwait(false);
+                        loadedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warn($"Failed to load mod {modId} during preset apply: {ex.Message}", "ModPresetService");
+                        failedIds.Add(modId);
+                    }
+                }
+                _processRegistry.Report(procId, total > 0 ? (int)((loadedCount + failedIds.Count) * 100.0 / total) : null);
             }
+
+            _logger.Info($"Applied preset '{entity.Name}': {loadedCount} loaded, {failedIds.Count} failed, {unloadedCount} unloaded", "ModPresetService");
+
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PRESET_APPLIED, new { id = entity.Id, name = entity.Name }).ConfigureAwait(false);
+
+            _processRegistry.Complete(procId);
+
+            return new ModPresetApplyResult
+            {
+                PresetName = entity.Name,
+                LoadedCount = loadedCount,
+                FailedCount = failedIds.Count,
+                FailedModIds = failedIds
+            };
         }
-
-        // Step 2: Load mods from preset
-        var loadedCount = 0;
-        var failedIds = new List<string>();
-        foreach (var modId in targetModIds)
+        catch (Exception ex)
         {
-            // Skip mods that are already loaded
-            if (currentlyLoaded.Contains(modId))
-            {
-                loadedCount++;
-                continue;
-            }
-
-            try
-            {
-                await _lifecycleService.LoadAsync(modId).ConfigureAwait(false);
-                loadedCount++;
-            }
-            catch (Exception ex)
-            {
-                _logger.Warn($"Failed to load mod {modId} during preset apply: {ex.Message}", "ModPresetService");
-                failedIds.Add(modId);
-            }
+            _processRegistry.Fail(procId, ex.Message);
+            throw;
         }
-
-        _logger.Info($"Applied preset '{entity.Name}': {loadedCount} loaded, {failedIds.Count} failed, {unloadedCount} unloaded", "ModPresetService");
-
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PRESET_APPLIED, new { id = entity.Id, name = entity.Name }).ConfigureAwait(false);
-
-        return new ModPresetApplyResult
-        {
-            PresetName = entity.Name,
-            LoadedCount = loadedCount,
-            FailedCount = failedIds.Count,
-            FailedModIds = failedIds
-        };
     }
 
     /// <summary>
@@ -204,16 +225,30 @@ public class ModPresetService : IModPresetService
     {
         var currentlyLoaded = await _modRepository.GetLoadedIdsAsync().ConfigureAwait(false);
 
-        foreach (var modId in currentlyLoaded)
+        var procId = _processRegistry.Start(ProcessType.PresetApply, "Unloading all mods");
+        try
         {
-            try
+            var total = currentlyLoaded.Count;
+            var done = 0;
+            foreach (var modId in currentlyLoaded)
             {
-                await _lifecycleService.UnloadAsync(modId).ConfigureAwait(false);
+                try
+                {
+                    await _lifecycleService.UnloadAsync(modId).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"Failed to unload mod {modId}: {ex.Message}", "ModPresetService");
+                }
+                done++;
+                _processRegistry.Report(procId, total > 0 ? (int)(done * 100.0 / total) : null);
             }
-            catch (Exception ex)
-            {
-                _logger.Warn($"Failed to unload mod {modId}: {ex.Message}", "ModPresetService");
-            }
+            _processRegistry.Complete(procId);
+        }
+        catch (Exception ex)
+        {
+            _processRegistry.Fail(procId, ex.Message);
+            throw;
         }
 
         _logger.Info($"Unloaded all {currentlyLoaded.Count} mods", "ModPresetService");

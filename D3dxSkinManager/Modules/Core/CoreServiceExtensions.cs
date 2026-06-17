@@ -67,6 +67,10 @@ public static class CoreServiceExtensions
         AddSingleton<IEventBus, EventBus>(services);
         AddSingleton<IEventEmitter, EventEmitter>(services);
 
+        // Authoritative registry of long-running processes (status bar + Activity panel).
+        // App-level singleton; emits consolidated PROCESS_LIST_UPDATED via the global event bus.
+        AddSingleton<IProcessRegistry, ProcessRegistry>(services);
+
         // Message dispatcher (singleton shared across all sessions)
         // - Routes IPC messages from WebView to module facades via middleware pipeline
         // - Allows plugins/services to send messages programmatically via IMessageDispatcher

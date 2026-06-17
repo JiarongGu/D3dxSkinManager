@@ -1,6 +1,8 @@
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Models;
 
@@ -42,15 +44,18 @@ public class ModArchiveService : IModArchiveService
     private readonly IProfilePathService _profilePaths;
     private readonly IFileOperationPlanner _operationPlanner;
     private readonly ILogHelper _logger;
+    private readonly IProcessRegistry _processRegistry;
 
     public ModArchiveService(
         IProfilePathService profilePaths,
         IFileOperationPlanner operationPlanner,
-        ILogHelper logger)
+        ILogHelper logger,
+        IProcessRegistry processRegistry)
     {
         _profilePaths = profilePaths;
         _operationPlanner = operationPlanner;
         _logger = logger;
+        _processRegistry = processRegistry;
     }
 
     /// <summary>
@@ -195,11 +200,14 @@ public class ModArchiveService : IModArchiveService
     /// </summary>
     public async Task<bool> CompressCacheToArchiveAsync(string id, string cacheDirectory)
     {
+        // Compression can take a while (large mod) — show it in the status bar / Activity panel.
+        var procId = _processRegistry.Start(ProcessType.ArchiveUpdate, $"Updating archive: {id}");
         try
         {
             if (!Directory.Exists(cacheDirectory))
             {
                 _logger.Warn($"Cache directory not found for archive update: {cacheDirectory}", "ModArchiveService");
+                _processRegistry.Fail(procId, "Cache directory not found");
                 return false;
             }
 
@@ -221,16 +229,19 @@ public class ModArchiveService : IModArchiveService
             if (result.Success)
             {
                 _logger.Info($"Updated archive from cache: {id}", "ModArchiveService");
+                _processRegistry.Complete(procId);
                 return true;
             }
             else
             {
                 _logger.Error($"Failed to update archive from cache: {result.ErrorMessage}", "ModArchiveService", result.Exception);
+                _processRegistry.Fail(procId, result.ErrorMessage ?? "Archive update failed");
                 return false;
             }
         }
         catch (Exception ex)
         {
+            _processRegistry.Fail(procId, ex.Message);
             _logger.Error($"Error updating archive from cache {id}: {ex.Message}", "ModArchiveService", ex);
             return false;
         }

@@ -61,7 +61,8 @@ public class ModCacheServiceTests : IDisposable
             _mockProfileRepository.Object,
             _mockProfileContext.Object,
             _mockLogger.Object,
-            _mockEventBus.Object);
+            _mockEventBus.Object,
+            Mock.Of<D3dxSkinManager.Modules.Core.Services.IProcessRegistry>());
     }
 
     [Fact]

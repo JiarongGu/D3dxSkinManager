@@ -13,4 +13,8 @@ public static class SystemEvents
 
     // Core system events
     public const string LOG_LEVEL_CHANGED = "LOG_LEVEL_CHANGED";
+
+    // Unified long-running process monitoring (ProcessRegistry → status bar / Activity panel).
+    // Consolidated snapshot of all tracked processes; emitted on any add/update/complete/fail/cancel.
+    public const string PROCESS_LIST_UPDATED = "PROCESS_LIST_UPDATED";
 }

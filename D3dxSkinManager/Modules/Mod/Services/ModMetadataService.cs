@@ -59,6 +59,7 @@ public class ModMetadataService : IModMetadataService
     private readonly IModQueryService _queryService;
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
+    private readonly Core.Services.IProcessRegistry _processRegistry;
 
     public ModMetadataService(
         IModRepository repository,
@@ -67,7 +68,8 @@ public class ModMetadataService : IModMetadataService
         IModDeletionService deletionService,
         IModQueryService queryService,
         ILogHelper logger,
-        IProfileEventBus eventBus)
+        IProfileEventBus eventBus,
+        Core.Services.IProcessRegistry processRegistry)
     {
         _repository = repository;
         _enrichmentService = enrichmentService;
@@ -76,6 +78,7 @@ public class ModMetadataService : IModMetadataService
         _queryService = queryService;
         _logger = logger;
         _eventBus = eventBus;
+        _processRegistry = processRegistry;
     }
 
     #region Create/Delete Operations
@@ -307,6 +310,9 @@ public class ModMetadataService : IModMetadataService
         int updatedCount = 0;
         _logger.Info($"Batch updating category for {updates.Count} mods with individual categories", "ModMetadataService");
 
+        var procId = _processRegistry.Start(Core.Models.ProcessType.BatchUpdate, $"Updating category for {updates.Count} mods");
+        var total = updates.Count;
+        var processed = 0;
         foreach (var (id, category) in updates)
         {
             try
@@ -341,9 +347,12 @@ public class ModMetadataService : IModMetadataService
             {
                 _logger.Error($"Error updating category for mod {id}: {ex.Message}", "ModMetadataService", ex);
             }
+            processed++;
+            _processRegistry.Report(procId, total > 0 ? (int)(processed * 100.0 / total) : null);
         }
 
         _logger.Info($"Successfully updated category for {updatedCount} out of {updates.Count} mods", "ModMetadataService");
+        _processRegistry.Complete(procId);
 
         // Emit single CATEGORY_UPDATED event for batch operation
         if (updatedCount > 0)

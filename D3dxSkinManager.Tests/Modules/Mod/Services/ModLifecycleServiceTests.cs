@@ -53,7 +53,8 @@ public class ModLifecycleServiceTests
             _mockProfilePaths.Object,
             _mockLogger.Object,
             _mockEventBus.Object,
-            new ModOperationQueue(_mockLogger.Object)
+            new ModOperationQueue(_mockLogger.Object),
+            Mock.Of<D3dxSkinManager.Modules.Core.Services.IProcessRegistry>()
         );
     }
 

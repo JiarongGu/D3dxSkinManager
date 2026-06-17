@@ -96,8 +96,22 @@ or that are event-driven:
 pages WebFetch can't get (anti-bot / SPA). Self-contained `devtools/research/`; auto-installs Chromium
 (~280MB) on first use. Ground decisions in sources, not guesses.
 
+## Pure-UI testing in plain Chrome (no desktop app, no backend)
+
+The frontend is pure React served by Vite, so for **component / layout / styling / i18n** work you can
+skip the desktop app entirely: run the dev server and open `http://localhost:3517` in a normal Chrome
+tab via the `claude-in-chrome` MCP tools (`tabs_context_mcp` → `tabs_create_mcp` → `navigate` →
+`javascript_tool` / `computer` screenshot). No WebView2 bridge there, so IPC is inert — drive the UI
+with the **DEV-only `window` affordances** instead of the backend:
+- `window.__processStore.getState().setProcesses([...])` — populate the Activity panel / status bar
+  with mock processes (exposed by `processBridge` under `import.meta.env.DEV`).
+- `window.__d3dx` — the IPC/event interceptor (`call`, `recentIpc`, `recentEvents`).
+
+Add a `window.__<store>` DEV exposure for any store you want to drive this way. This is the fast loop
+for visual design; it does NOT exercise IPC/native — use the desktop tools below for those.
+
 ## When to use what
-- Pure component / CSS / layout work → fastest in isolation; no backend needed.
+- Pure component / CSS / layout / i18n → **plain Chrome + Vite (3517) + `window.__*` mocks** (above). Fastest.
 - Anything touching IPC / WebView2 / real profile+mod data / file operations → the real app via the tools above.
 - After a **backend** change: `app rebuild` (kill first — the running exe locks the DLL). After a
   **frontend** change: `cdp reload` (Vite HMR). Editing files while verifying can HMR-corrupt a session —

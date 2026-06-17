@@ -1,6 +1,7 @@
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.System.Models;
 using D3dxSkinManager.Modules.System.Services;
@@ -52,6 +53,7 @@ public class SystemFacade : BaseFacade, ISystemFacade
     private readonly IPathHelper _pathHelper;
     private readonly IPayloadHelper _payloadHelper;
     private readonly ISystemSettingsService _systemSettingsService;
+    private readonly IProcessRegistry _processRegistry;
 
     public SystemFacade(
         IPathHelper pathHelper,
@@ -60,6 +62,7 @@ public class SystemFacade : BaseFacade, ISystemFacade
         ISystemProcessService processService,
         ISystemSettingsService systemSettingsService,
         ISystemFileService fileSystemService,
+        IProcessRegistry processRegistry,
         ILogHelper logger) : base(logger)
     {
         _fileSystemService = fileSystemService ?? throw new ArgumentNullException(nameof(fileSystemService));
@@ -68,6 +71,7 @@ public class SystemFacade : BaseFacade, ISystemFacade
         _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _systemSettingsService = systemSettingsService ?? throw new ArgumentNullException(nameof(systemSettingsService));
+        _processRegistry = processRegistry ?? throw new ArgumentNullException(nameof(processRegistry));
     }
 
     protected override async Task<object?> RouteMessageAsync(IpcRequest request)
@@ -93,6 +97,11 @@ public class SystemFacade : BaseFacade, ISystemFacade
 
             // Screen info
             "GET_SCREEN_RESOLUTION" => await GetScreenResolutionAsync(),
+
+            // Long-running process registry (Activity panel / status bar)
+            "GET_PROCESSES" => GetProcessesHandler(),
+            "CANCEL_PROCESS" => CancelProcessHandler(request),
+            "CLEAR_COMPLETED_PROCESSES" => ClearCompletedProcessesHandler(),
 
             // Frontend logging
             "LOG_FROM_FRONTEND" => LogFromFrontendHandler(request),
@@ -317,6 +326,28 @@ public class SystemFacade : BaseFacade, ISystemFacade
         await ResetSystemSettingsAsync().ConfigureAwait(false);
         var settings = await GetSystemSettingsAsync().ConfigureAwait(false);
         return new { success = true, message = "System settings reset to defaults", settings };
+    }
+
+    // ============================================
+    // Process Registry Handlers (Activity panel / status bar)
+    // ============================================
+
+    private object GetProcessesHandler()
+    {
+        return new { processes = _processRegistry.GetAll() };
+    }
+
+    private object CancelProcessHandler(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        _processRegistry.Cancel(id);
+        return new { success = true };
+    }
+
+    private object ClearCompletedProcessesHandler()
+    {
+        _processRegistry.ClearCompleted();
+        return new { success = true };
     }
 
     // ============================================

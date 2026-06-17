@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Layout } from "antd";
 import { registerNavigateToTab } from "./shared/hooks/useAppNavigation";
 import { initTaskEventBridge } from "./shared/store/taskEventBridge";
+import { initProcessBridge } from "./shared/store/processBridge";
 import { AppHeader } from "./modules/core/components/layout/AppHeader";
 import { AppStatusBar } from "./modules/core/components/layout/AppStatusBar";
 import { ModHierarchicalView } from "./modules/mod/components/ModHierarchicalView";
@@ -74,6 +75,9 @@ const AppContent: React.FC = () => {
 
   // Global bridge: backend progress events → task status bar
   useEffect(() => initTaskEventBridge(), []);
+
+  // Global bridge: backend ProcessRegistry snapshot → process store (status bar + Activity panel)
+  useEffect(() => initProcessBridge(), []);
 
   // Initialize keyboard shortcuts
   useEffect(() => {
