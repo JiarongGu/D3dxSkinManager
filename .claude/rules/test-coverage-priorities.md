@@ -27,6 +27,11 @@ Current state as of 2026-04-13. Update this when new tests are added.
 - Category module (service, repository, events, mapper) — excellent coverage
 - Mod module (repository, import, lifecycle, metadata, operation queue)
 - Tool module (ModAnalysisService — grouping, conflicts, state machine)
+- **File-operation concurrency** (added 2026-06-17): `FileOperationPlannerConcurrencyTests` +
+  `InMemoryFileSystem` fake prove serialization under parallel mixed ops, transient-lock retry,
+  compress-once-under-lock, and persistent-lock → in-use error. `ModLifecycleServiceTests` prove
+  same-category loads serialize / different categories parallelize. `ModOperationQueueTests` cover
+  the ref-counted lock-handle cleanup race.
 
 ## Test infrastructure notes
 

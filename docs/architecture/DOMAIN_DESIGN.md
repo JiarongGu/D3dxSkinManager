@@ -159,7 +159,7 @@ private async Task CopyDirectoryRecursiveAsync(string sourceDir, string destDir)
 - `PathHelper` - Path resolution (absolute ↔ relative conversion)
 - `PathValidator` - Path validation
 - `ProcessService` - External process execution
-- `FileSystemService` - File system operations
+- `IFileSystem` / `SystemFileSystem` - Raw file system seam used by FileOperationPlanner (testable via in-memory fake)
 - `FileDialogService` - File/folder selection dialogs
 - `ImageServerService` - Image serving for preview
 

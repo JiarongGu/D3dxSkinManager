@@ -1,4 +1,5 @@
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Services;
@@ -27,7 +28,7 @@ public class FileOperationPlannerTests
     public async Task SubmitOperationAsync_SingleOperation_ExecutesSuccessfully()
     {
         // Arrange
-        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, _mockLogger.Object);
+        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, new SystemFileSystem(), _mockLogger.Object);
 
         var operation = new FileSystemOperation
         {
@@ -51,7 +52,7 @@ public class FileOperationPlannerTests
     public async Task SubmitOperationAsync_MultipleOperations_ExecutesSequentially()
     {
         // Arrange
-        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, _mockLogger.Object);
+        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, new SystemFileSystem(), _mockLogger.Object);
         var executionOrder = new List<string>();
         var lockObj = new object();
 
@@ -104,7 +105,7 @@ public class FileOperationPlannerTests
     public async Task SubmitOperationAsync_RapidSubmission_AllProcessed()
     {
         // Arrange
-        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, _mockLogger.Object);
+        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, new SystemFileSystem(), _mockLogger.Object);
         var operations = new List<Task<FileSystemOperationResult>>();
 
         // Rapidly submit 10 operations
@@ -144,7 +145,7 @@ public class FileOperationPlannerTests
     public async Task GetPendingOperationCount_ReflectsQueueState()
     {
         // Arrange
-        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, _mockLogger.Object);
+        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, new SystemFileSystem(), _mockLogger.Object);
 
         // Initially should be 0
         Assert.Equal(0, planner.GetPendingOperationCount());
@@ -157,7 +158,7 @@ public class FileOperationPlannerTests
     public async Task SubmitOperationAsync_AfterFirstBatch_ContinuesProcessing()
     {
         // Arrange
-        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, _mockLogger.Object);
+        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, new SystemFileSystem(), _mockLogger.Object);
 
         // Submit first batch
         var firstBatch = new List<Task<FileSystemOperationResult>>();
@@ -204,7 +205,7 @@ public class FileOperationPlannerTests
     public async Task Dispose_StopsBackgroundWorker()
     {
         // Arrange
-        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, _mockLogger.Object);
+        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, new SystemFileSystem(), _mockLogger.Object);
 
         // Submit an operation to ensure worker is active
         var op = new FileSystemOperation
@@ -234,7 +235,7 @@ public class FileOperationPlannerTests
     public async Task SubmitOperationAsync_DuplicateOperations_SecondIsSkipped()
     {
         // Arrange
-        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, _mockLogger.Object);
+        var planner = new FileOperationPlanner(_mockArchiveHelper.Object, new SystemFileSystem(), _mockLogger.Object);
 
         var op1 = new FileSystemOperation
         {

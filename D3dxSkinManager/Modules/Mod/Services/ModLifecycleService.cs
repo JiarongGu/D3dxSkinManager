@@ -37,6 +37,7 @@ public class ModLifecycleService : IModLifecycleService
     private readonly IProfilePathService _profilePaths;
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
+    private readonly IModOperationQueue _operationQueue;
 
     public ModLifecycleService(
         IModRepository repository,
@@ -45,7 +46,8 @@ public class ModLifecycleService : IModLifecycleService
         IImageService imageService,
         IProfilePathService profilePaths,
         ILogHelper logger,
-        IProfileEventBus eventBus)
+        IProfileEventBus eventBus,
+        IModOperationQueue operationQueue)
     {
         _repository = repository;
         _archiveService = archiveService;
@@ -54,6 +56,7 @@ public class ModLifecycleService : IModLifecycleService
         _profilePaths = profilePaths;
         _logger = logger;
         _eventBus = eventBus;
+        _operationQueue = operationQueue;
     }
 
     /// <summary>
@@ -64,13 +67,19 @@ public class ModLifecycleService : IModLifecycleService
     /// Detects and updates archive type if needed
     /// Emits LOADED and UNLOADED events for affected mods
     ///
-    /// CONCURRENCY: Uses atomic file operation planner via cache/archive services - no locks needed
+    /// CONCURRENCY: Serialized per category via IModOperationQueue so two concurrent loads of
+    /// different mods in the SAME category cannot both run the read->unload-others->enable-self
+    /// sequence and both end up loaded. Unclassified mods (null/empty category) run without a
+    /// category lock (co-load allowed). Raw file ops are additionally serialized by the planner.
+    /// This lock lives here (not only in ModFacade) so EVERY entry point — facade, preset,
+    /// metadata — is covered. Lock order is always mod-lock (facade) -> category-lock (here),
+    /// so no deadlock.
     /// RETRY: Planner handles automatic retries for transient IOException
     /// </summary>
     /// <param name="id">Mod ID</param>
     public async Task<ModLoadResult> LoadAsync(string id)
     {
-        // Get mod information for category checking
+        // Get mod information for category checking (read before taking the category lock)
         var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
         if (entity == null)
         {
@@ -84,6 +93,13 @@ public class ModLifecycleService : IModLifecycleService
         // Convert to domain model
         var mod = ModMapper.ToDomain(entity);
 
+        return await _operationQueue
+            .EnqueueCategoryOperationAsync(mod.Category, () => LoadInternalAsync(id, mod))
+            .ConfigureAwait(false);
+    }
+
+    private async Task<ModLoadResult> LoadInternalAsync(string id, ModInfo mod)
+    {
         // Track unloaded mods for efficient frontend updates
         var unloadedModIds = new List<string>();
         var modName = mod.Name ?? $"Mod {id.Substring(0, 8)}";
@@ -247,10 +263,18 @@ public class ModLifecycleService : IModLifecycleService
     /// </summary>
     public async Task<bool> UnloadAsync(string id)
     {
-        // Get mod info to retrieve category before unloading
+        // Get mod info to retrieve category before unloading (read before taking the category lock)
         var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
         var modCategory = entity != null ? ModMapper.ToDomain(entity).Category : null;
 
+        // Serialize per category alongside loads (a load unloads same-category mods)
+        return await _operationQueue
+            .EnqueueCategoryOperationAsync(modCategory, () => UnloadInternalAsync(id, modCategory))
+            .ConfigureAwait(false);
+    }
+
+    private async Task<bool> UnloadInternalAsync(string id, string? modCategory)
+    {
         var success = await _cacheService.DisableCacheAsync(id).ConfigureAwait(false);
 
         if (success)

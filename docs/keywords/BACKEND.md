@@ -99,14 +99,18 @@
   - GetThumbnailAsDataUriAsync → `:396-400`
   - GetPreviewsAsDataUriAsync → `:402-414`
 
+- **IFileSystem / SystemFileSystem** → `Modules/Core/Services/FileSystem.cs`
+  - Thin Layer-1 seam over raw `Directory.*`/`File.*` ops used by FileOperationPlanner
+  - Exists so the file-operation pipeline can be driven by an in-memory fake in tests
+    (`D3dxSkinManager.Tests/TestHelpers/InMemoryFileSystem.cs`) that simulates latency + transient
+    IOException locks and records peak concurrent mutations
+  - Created: 2026-06-17
+
 - **GlobalPathService** → `Modules/Core/Services/GlobalPathService.cs`
   - Global path resolution for application directories
 
 - **LogHelper** → `Modules/Core/Services/LogHelper.cs`
   - Centralized logging infrastructure
-
-- **FileSystemService** → `Modules/Core/Services/FileSystemService.cs`
-  - File system abstraction layer
 
 - **ProcessService** → `Modules/Core/Services/ProcessService.cs`
   - Process management and execution
@@ -396,6 +400,7 @@ public class SomeService {
   - **Background Worker**: Processes plans atomically in a dedicated thread
   - **Usage**: SubmitOperationAsync() → returns Task that completes when operation finishes
   - **Benefits**: No deadlocks, batches operations during slow extractions, prevents file conflicts
+  - **SERIALIZATION RULE**: ALL raw `Directory.*`/`File.*` mutations on mod archive/cache/preview paths MUST go through the planner. Raw calls race the planner worker and corrupt in-flight ops. See `.claude/rules/filesystem-operation-serialization.md`. (`CleanCacheAsync` bypassed this until 2026-06-17.)
   - Created: 2026-03-05
   - Moved: 2026-03-06 (from Mod module to Core module - reusable infrastructure)
 

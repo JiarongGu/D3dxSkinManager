@@ -41,12 +41,25 @@ public class ModOperationQueue : IModOperationQueue
 {
     private readonly ILogHelper _logger;
 
-    // Per-mod semaphores: Only one operation per mod ID at a time
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _modLocks = new();
+    // Per-mod locks: Only one operation per mod ID at a time
+    private readonly ConcurrentDictionary<string, LockHandle> _modLocks = new();
 
-    // Per-category semaphores: Only one load operation per category at a time
+    // Per-category locks: Only one load operation per category at a time
     // Prevents race: Load B trying to unload A while A is still loading
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _categoryLocks = new();
+    private readonly ConcurrentDictionary<string, LockHandle> _categoryLocks = new();
+
+    // Serializes the acquire/release bookkeeping (refcount + dictionary membership) so a handle
+    // can never be removed from the dictionary while another thread still holds a reference to it.
+    private readonly object _bookkeepingLock = new();
+
+    /// <summary>
+    /// A reference-counted lock entry. RefCount is guarded by <see cref="_bookkeepingLock"/>.
+    /// </summary>
+    private sealed class LockHandle
+    {
+        public readonly SemaphoreSlim Semaphore = new(1, 1);
+        public int RefCount;
+    }
 
     public ModOperationQueue(ILogHelper logger)
     {
@@ -66,72 +79,73 @@ public class ModOperationQueue : IModOperationQueue
     /// <summary>
     /// Enqueue operation for mod - serializes operations per ID, allows parallel across IDs
     /// </summary>
-    public async Task<T> EnqueueAsync<T>(string modId, Func<Task<T>> operation)
-    {
-        // Get or create semaphore for this mod (1 = only one operation at a time for this ID)
-        var semaphore = _modLocks.GetOrAdd(modId, _ => new SemaphoreSlim(1, 1));
-
-        var queued = semaphore.CurrentCount == 0;
-        if (queued)
-        {
-            _logger.Info($"Operation queued for mod {modId} (waiting for lock)", "ModOperationQueue");
-        }
-
-        await semaphore.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            _logger.Verbose($"Executing operation for mod {modId}", "ModOperationQueue");
-            return await operation().ConfigureAwait(false);
-        }
-        finally
-        {
-            semaphore.Release();
-
-            // Cleanup: Remove semaphore if no one is waiting (prevents memory leak)
-            if (semaphore.CurrentCount == 1)
-            {
-                _modLocks.TryRemove(modId, out _);
-            }
-        }
-    }
+    public Task<T> EnqueueAsync<T>(string modId, Func<Task<T>> operation)
+        => RunWithLockAsync(_modLocks, modId, operation, "mod");
 
     /// <summary>
     /// Enqueue category-wide operation - serializes operations per category
     /// Prevents race condition: Load Mod B trying to unload Mod A (same category) while A is loading
     /// </summary>
-    public async Task<T> EnqueueCategoryOperationAsync<T>(string? category, Func<Task<T>> operation)
+    public Task<T> EnqueueCategoryOperationAsync<T>(string? category, Func<Task<T>> operation)
     {
         // Unclassified mods (null/empty category) don't need category lock
         if (string.IsNullOrWhiteSpace(category))
         {
-            return await operation().ConfigureAwait(false);
+            return operation();
         }
 
         // Normalize category for consistent locking
         var normalizedCategory = category.Trim().ToLowerInvariant();
+        return RunWithLockAsync(_categoryLocks, normalizedCategory, operation, "category");
+    }
 
-        // Get or create semaphore for this category
-        var semaphore = _categoryLocks.GetOrAdd(normalizedCategory, _ => new SemaphoreSlim(1, 1));
-
-        var queued = semaphore.CurrentCount == 0;
-        if (queued)
+    /// <summary>
+    /// Acquire a reference-counted lock for <paramref name="key"/>, run the operation, then release.
+    ///
+    /// The refcount is incremented under <see cref="_bookkeepingLock"/> BEFORE the handle can be
+    /// observed by anyone else, and the entry is only removed from the dictionary when the refcount
+    /// hits zero under the same lock. This closes the classic check-then-remove race where two
+    /// threads could otherwise end up with different semaphore instances for the same key and run
+    /// concurrently.
+    /// </summary>
+    private async Task<T> RunWithLockAsync<T>(
+        ConcurrentDictionary<string, LockHandle> locks,
+        string key,
+        Func<Task<T>> operation,
+        string scope)
+    {
+        LockHandle handle;
+        lock (_bookkeepingLock)
         {
-            _logger.Info($"Category operation queued for '{normalizedCategory}' (waiting for lock)", "ModOperationQueue");
+            handle = locks.GetOrAdd(key, _ => new LockHandle());
+            handle.RefCount++;
         }
 
-        await semaphore.WaitAsync().ConfigureAwait(false);
+        if (handle.Semaphore.CurrentCount == 0)
+        {
+            _logger.Info($"Operation queued for {scope} '{key}' (waiting for lock)", "ModOperationQueue");
+        }
+
+        await handle.Semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
+            _logger.Verbose($"Executing operation for {scope} '{key}'", "ModOperationQueue");
             return await operation().ConfigureAwait(false);
         }
         finally
         {
-            semaphore.Release();
+            handle.Semaphore.Release();
 
-            // Cleanup: Remove semaphore if no one is waiting (prevents memory leak)
-            if (semaphore.CurrentCount == 1)
+            lock (_bookkeepingLock)
             {
-                _categoryLocks.TryRemove(normalizedCategory, out _);
+                handle.RefCount--;
+                if (handle.RefCount == 0)
+                {
+                    // Safe to remove: no other thread holds a reference (they would have
+                    // incremented RefCount under this same lock before obtaining the handle).
+                    locks.TryRemove(key, out _);
+                    handle.Semaphore.Dispose();
+                }
             }
         }
     }

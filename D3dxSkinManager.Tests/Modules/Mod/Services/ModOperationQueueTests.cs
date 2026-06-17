@@ -1,4 +1,7 @@
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Mod.Services;
+using FluentAssertions;
+using Moq;
 using Xunit;
 
 namespace D3dxSkinManager.Tests.Modules.Mod.Services;
@@ -21,7 +24,7 @@ public class ModOperationQueueTests
 
     public ModOperationQueueTests()
     {
-        _queue = new ModOperationQueue();
+        _queue = new ModOperationQueue(Mock.Of<ILogHelper>());
     }
 
     #region Per-Mod Lock Tests
@@ -437,7 +440,7 @@ public class ModOperationQueueTests
     public async Task EnqueueAsync_CleansUpSemaphoresAfterOperations()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var operations = new List<Task>();
 
         // Act - Create 50 operations with different ids
@@ -465,7 +468,7 @@ public class ModOperationQueueTests
     public async Task EnqueueCategoryOperationAsync_CleansUpSemaphoresAfterOperations()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var operations = new List<Task>();
 
         // Act - Create 50 operations with different categories
@@ -493,7 +496,7 @@ public class ModOperationQueueTests
     public async Task EnqueueAsync_ReusingSameSHA_MaintainsLockWhileActive()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var id = "test-id-001";
 
         // Act - Start an operation but don't await it yet
@@ -557,6 +560,61 @@ public class ModOperationQueueTests
 
         // Assert - Return value is propagated correctly
         Assert.Equal(expectedValue, result);
+    }
+
+    #endregion
+
+    #region Semaphore cleanup race (fix #3)
+
+    [Fact]
+    public async Task EnqueueAsync_HighChurnSameKey_NeverRunsConcurrently()
+    {
+        // This stresses the lock-handle cleanup path: with high churn the refcount repeatedly hits
+        // zero and the entry is removed/recreated. The old check-then-remove (if CurrentCount==1
+        // TryRemove) could hand two threads different semaphores for the same key, letting both run
+        // at once. The ref-counted handle must prevent that.
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
+        const string id = "hot-mod";
+        var inside = 0;
+        var violations = 0;
+
+        async Task<bool> CriticalSection()
+        {
+            if (Interlocked.Increment(ref inside) != 1)
+                Interlocked.Increment(ref violations);
+            await Task.Delay(1);
+            Interlocked.Decrement(ref inside);
+            return true;
+        }
+
+        // Launch in waves so the handle is torn down and rebuilt between bursts.
+        for (int wave = 0; wave < 20; wave++)
+        {
+            var tasks = Enumerable.Range(0, 25)
+                .Select(_ => queue.EnqueueAsync(id, CriticalSection))
+                .ToArray();
+            await Task.WhenAll(tasks);
+        }
+
+        violations.Should().Be(0, "operations on the same key must never run concurrently");
+        queue.ActiveModLockCount.Should().Be(0, "lock handles must be cleaned up when idle");
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_InterleavedKeys_CleansUpAllHandles()
+    {
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
+
+        var tasks = Enumerable.Range(0, 200)
+            .Select(i => queue.EnqueueAsync($"mod-{i % 10}", async () =>
+            {
+                await Task.Delay(1);
+                return true;
+            }))
+            .ToArray();
+        await Task.WhenAll(tasks);
+
+        queue.ActiveModLockCount.Should().Be(0, "no handle should leak after all operations finish");
     }
 
     #endregion

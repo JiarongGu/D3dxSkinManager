@@ -98,7 +98,7 @@ services.AddToolsServices(dataPath);
 
 ### Core Module
 - **FileService**: File operations (read, write, copy, delete)
-- **FileSystemService**: OS file system operations
+- **IFileSystem / SystemFileSystem**: Raw file system seam used by FileOperationPlanner (testable via in-memory fake)
 - **ProcessService**: Process launching
 - **FileDialogService**: File/folder picker dialogs
 - **PathHelper**: Path resolution and conversion

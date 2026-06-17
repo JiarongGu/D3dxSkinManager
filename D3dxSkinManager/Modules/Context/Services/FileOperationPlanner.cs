@@ -1,5 +1,6 @@
 using D3dxSkinManager.Modules.Context.Models;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Modules.Context.Services;
 
@@ -20,12 +21,6 @@ public interface IFileOperationPlanner
     /// Get the number of pending operations in the queue
     /// </summary>
     int GetPendingOperationCount();
-
-    /// <summary>
-    /// Check if there's a pending operation that matches the criteria
-    /// Useful to avoid queueing duplicate operations
-    /// </summary>
-    bool HasPendingOperation(FileSystemOperationType operationType, string? sourcePath = null, string? targetPath = null);
 }
 
 /// <summary>
@@ -47,6 +42,7 @@ public interface IFileOperationPlanner
 public class FileOperationPlanner : IFileOperationPlanner, IDisposable
 {
     private readonly IArchiveHelper _archiveHelper;
+    private readonly IFileSystem _fileSystem;
     private readonly ILogHelper _logger;
 
     // Two plans: one processing, one queued
@@ -80,9 +76,11 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
 
     public FileOperationPlanner(
         IArchiveHelper archiveHelper,
+        IFileSystem fileSystem,
         ILogHelper logger)
     {
         _archiveHelper = archiveHelper;
+        _fileSystem = fileSystem;
         _logger = logger;
 
         // Start background worker with exception handling
@@ -170,29 +168,6 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
                 count += _processingPlan.Count;
             }
             return count;
-        }
-    }
-
-    /// <summary>
-    /// Check if there's a pending operation that matches the criteria
-    /// Useful to avoid queueing duplicate operations
-    /// </summary>
-    public bool HasPendingOperation(FileSystemOperationType operationType, string? sourcePath = null, string? targetPath = null)
-    {
-        lock (_planLock)
-        {
-            // Check both queued and processing plans
-            var allPendingOps = new List<PendingOperation>();
-            allPendingOps.AddRange(_queuedPlan);
-            if (_processingPlan != null)
-            {
-                allPendingOps.AddRange(_processingPlan);
-            }
-
-            return allPendingOps.Any(p =>
-                p.Operation.OperationType == operationType &&
-                (sourcePath == null || string.Equals(p.Operation.SourcePath, sourcePath, StringComparison.OrdinalIgnoreCase)) &&
-                (targetPath == null || string.Equals(p.Operation.TargetPath, targetPath, StringComparison.OrdinalIgnoreCase)));
         }
     }
 
@@ -344,9 +319,9 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
         return await RetryOperationAsync(async () =>
         {
             // Idempotent check: if source doesn't exist but target does, operation already completed
-            if (!Directory.Exists(operation.SourcePath))
+            if (!_fileSystem.DirectoryExists(operation.SourcePath))
             {
-                if (Directory.Exists(operation.TargetPath))
+                if (_fileSystem.DirectoryExists(operation.TargetPath))
                 {
                     _logger.Verbose($"Move already completed (target exists): {operation.TargetPath}", "FileOperationPlanner");
                     return FileSystemOperationResult.Ok();
@@ -355,13 +330,13 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
             }
 
             // If overwrite is enabled and target exists, delete it first
-            if (operation.Overwrite && Directory.Exists(operation.TargetPath))
+            if (operation.Overwrite && _fileSystem.DirectoryExists(operation.TargetPath))
             {
-                Directory.Delete(operation.TargetPath, true);
+                _fileSystem.DeleteDirectory(operation.TargetPath, true);
                 await Task.Delay(100).ConfigureAwait(false); // Brief delay after delete
             }
 
-            Directory.Move(operation.SourcePath, operation.TargetPath);
+            _fileSystem.MoveDirectory(operation.SourcePath, operation.TargetPath);
             _logger.Verbose($"Moved directory from {operation.SourcePath} to {operation.TargetPath}", "FileOperationPlanner");
             return FileSystemOperationResult.Ok();
         }, operation).ConfigureAwait(false);
@@ -379,12 +354,12 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
 
         return await RetryOperationAsync(async () =>
         {
-            if (!File.Exists(operation.SourcePath))
+            if (!_fileSystem.FileExists(operation.SourcePath))
             {
                 return FileSystemOperationResult.Fail($"Source file does not exist: {operation.SourcePath}");
             }
 
-            await Task.Run(() => File.Copy(operation.SourcePath, operation.TargetPath, operation.Overwrite)).ConfigureAwait(false);
+            await Task.Run(() => _fileSystem.CopyFile(operation.SourcePath, operation.TargetPath, operation.Overwrite)).ConfigureAwait(false);
             _logger.Verbose($"Copied file from {operation.SourcePath} to {operation.TargetPath}", "FileOperationPlanner");
             return FileSystemOperationResult.Ok();
         }, operation).ConfigureAwait(false);
@@ -402,13 +377,13 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
 
         return await RetryOperationAsync(async () =>
         {
-            if (!Directory.Exists(operation.SourcePath))
+            if (!_fileSystem.DirectoryExists(operation.SourcePath))
             {
                 _logger.Verbose($"Directory already deleted or does not exist: {operation.SourcePath}", "FileOperationPlanner");
                 return FileSystemOperationResult.Ok(); // Not an error if already deleted
             }
 
-            await Task.Run(() => Directory.Delete(operation.SourcePath, true)).ConfigureAwait(false);
+            await Task.Run(() => _fileSystem.DeleteDirectory(operation.SourcePath, true)).ConfigureAwait(false);
             _logger.Verbose($"Deleted directory: {operation.SourcePath}", "FileOperationPlanner");
             return FileSystemOperationResult.Ok();
         }, operation).ConfigureAwait(false);
@@ -426,13 +401,13 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
 
         return await RetryOperationAsync(async () =>
         {
-            if (!File.Exists(operation.SourcePath))
+            if (!_fileSystem.FileExists(operation.SourcePath))
             {
                 _logger.Verbose($"File already deleted or does not exist: {operation.SourcePath}", "FileOperationPlanner");
                 return FileSystemOperationResult.Ok(); // Not an error if already deleted
             }
 
-            await Task.Run(() => File.Delete(operation.SourcePath)).ConfigureAwait(false);
+            await Task.Run(() => _fileSystem.DeleteFile(operation.SourcePath)).ConfigureAwait(false);
             _logger.Verbose($"Deleted file: {operation.SourcePath}", "FileOperationPlanner");
             return FileSystemOperationResult.Ok();
         }, operation).ConfigureAwait(false);
@@ -450,15 +425,15 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
 
         return await RetryOperationAsync(async () =>
         {
-            if (!File.Exists(operation.SourcePath))
+            if (!_fileSystem.FileExists(operation.SourcePath))
             {
                 return FileSystemOperationResult.Fail($"Archive file does not exist: {operation.SourcePath}");
             }
 
             // Clear target directory if it exists and overwrite is enabled
-            if (operation.Overwrite && Directory.Exists(operation.TargetPath))
+            if (operation.Overwrite && _fileSystem.DirectoryExists(operation.TargetPath))
             {
-                Directory.Delete(operation.TargetPath, true);
+                _fileSystem.DeleteDirectory(operation.TargetPath, true);
                 await Task.Delay(100).ConfigureAwait(false); // Brief delay after delete
             }
 
@@ -497,7 +472,7 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
             return FileSystemOperationResult.Fail("Source directory and target archive path are required for compress operation");
         }
 
-        if (!Directory.Exists(operation.SourcePath))
+        if (!_fileSystem.DirectoryExists(operation.SourcePath))
         {
             return FileSystemOperationResult.Fail($"Source directory does not exist: {operation.SourcePath}");
         }
@@ -509,10 +484,10 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
         {
             // Phase 1: Compress cache to temp file
             // Clean up stale temp from a previous failed attempt
-            if (File.Exists(tempPath))
+            if (_fileSystem.FileExists(tempPath))
             {
                 _logger.Warn($"Stale temp file found, deleting: {tempPath}", "FileOperationPlanner");
-                File.Delete(tempPath);
+                _fileSystem.DeleteFile(tempPath);
             }
 
             try
@@ -530,7 +505,7 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
             }
 
             // Verify compressed file was created
-            if (!File.Exists(tempPath))
+            if (!_fileSystem.FileExists(tempPath))
             {
                 return FileSystemOperationResult.Fail("Compression completed but output file was not created");
             }
@@ -543,9 +518,9 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
         }
         catch (IOException ioEx)
         {
-            if (File.Exists(tempPath))
+            if (_fileSystem.FileExists(tempPath))
             {
-                try { File.Delete(tempPath); } catch { /* best effort */ }
+                try { _fileSystem.DeleteFile(tempPath); } catch { /* best effort */ }
             }
 
             _logger.Error($"IO error during compress archive: {ioEx.Message}", "FileOperationPlanner", ioEx);
@@ -555,9 +530,9 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
         }
         catch (Exception ex)
         {
-            if (File.Exists(tempPath))
+            if (_fileSystem.FileExists(tempPath))
             {
-                try { File.Delete(tempPath); } catch { /* best effort */ }
+                try { _fileSystem.DeleteFile(tempPath); } catch { /* best effort */ }
             }
 
             _logger.Error($"Unexpected error during compress archive: {ex.Message}", "FileOperationPlanner", ex);
@@ -575,11 +550,11 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
         {
             try
             {
-                if (File.Exists(targetPath))
+                if (_fileSystem.FileExists(targetPath))
                 {
-                    File.Delete(targetPath);
+                    _fileSystem.DeleteFile(targetPath);
                 }
-                File.Move(sourcePath, targetPath);
+                _fileSystem.MoveFile(sourcePath, targetPath);
                 return;
             }
             catch (IOException) when (attempt < MAX_RETRY_ATTEMPTS)

@@ -35,6 +35,9 @@ public static class CoreServiceExtensions
         AddSingleton<IArchiveHelper, ArchiveHelper>(services);
         AddSingleton<IImageHelper, ImageHelper>(services);
 
+        // File system seam — lets the file-operation pipeline run against an in-memory fake in tests
+        AddSingleton<IFileSystem, SystemFileSystem>(services);
+
         // Global path service for application-level paths
         AddSingleton<IGlobalPathService, GlobalPathService>(services);
 

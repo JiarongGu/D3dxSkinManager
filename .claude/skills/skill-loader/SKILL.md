@@ -37,6 +37,20 @@ Reads the task description and returns ONLY the skills that match, with invocati
 | New event consolidation, event storm reduction | `/event-handler` |
 | New FileSystemWatcher, file change monitoring | `/file-watcher` |
 
+## Routing Table — Review / Concurrency Tasks (no code-gen, route to rules)
+
+Some tasks generate no scaffolding but still have a mandatory reading list. When the task is a
+**review, audit, or concurrency/file-system question**, no INVOKE skills apply — instead point at
+the rule that holds the hard-won patterns:
+
+| Trigger (any match) | No INVOKE skill — read this rule instead |
+|---------------------|-------------------------------------------|
+| file system conflict, race condition, concurrency, locking, deadlock, parallel ops | `.claude/rules/filesystem-operation-serialization.md` |
+| raw `Directory.*` / `File.*` mutation on mod data, planner, operation queue | `.claude/rules/filesystem-operation-serialization.md` |
+| background operation, status bar, long-running task | `.claude/rules/background-task-tracking.md` |
+
+Output these as a **"Rules to READ"** list alongside the (often empty) INVOKE list.
+
 ## Routing Table — Release/CI Skills
 
 | Trigger (any match = INVOKE) | Skill |
@@ -114,5 +128,6 @@ After outputting INVOKE/SKIP, **always remind to check `.claude/rules/*.md`** fo
 | `enum-serialization.md` | ANY new TypeScript type that maps to a C# enum — enums must be camelCase |
 | `ui-design-rules.md` | ANY CSS or UI component work — font sizes (12/14px only), pattern reuse, Ant Design gotchas |
 | `context-menu-extension.md` | Adding context menu items to category tree |
+| `filesystem-operation-serialization.md` | ANY mod cache/archive/preview file operation, concurrency review, race-condition hunt, or new path that calls `Directory.*`/`File.*` |
 
 These rules contain hard-won fixes from past sessions. Ignoring them causes repeated bugs.

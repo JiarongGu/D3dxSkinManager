@@ -412,17 +412,40 @@ public class ModCacheService : IModCacheService
         {
             try
             {
-                if (Directory.Exists(item.Path))
+                // Route through FileOperationPlanner so this delete is serialized with every
+                // other mod cache file operation (load/unload/extract/CleanupOldDisabledCaches).
+                // A raw Directory.Delete here runs concurrently with the planner worker and can
+                // collide with an in-flight move/extract on the same DISABLED-{id} directory.
+                var deleteOp = new FileSystemOperation
                 {
-                    Directory.Delete(item.Path, recursive: true);
+                    OperationType = FileSystemOperationType.DeleteDirectory,
+                    SourcePath = item.Path
+                };
+
+                var result = await _operationPlanner.SubmitOperationAsync(deleteOp).ConfigureAwait(false);
+                if (result.Success)
+                {
                     deletedCount++;
                     _logger.Info($"Deleted cache: {item.Path}", "ModCacheService");
+                }
+                else
+                {
+                    _logger.Error($"Failed to delete cache {item.Path}: {result.ErrorMessage}", "ModCacheService", result.Exception);
                 }
             }
             catch (Exception ex)
             {
                 _logger.Error($"Error deleting cache {item.Path}: {ex.Message}", "ModCacheService", ex);
             }
+        }
+
+        if (deletedCount > 0)
+        {
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.CACHE_CHANGED, new
+            {
+                BatchOperation = true,
+                ChangeType = "cleaned"
+            }).ConfigureAwait(false);
         }
 
         return deletedCount;

@@ -43,6 +43,8 @@ public class ModLifecycleServiceTests
         // Setup default path
         _mockProfilePaths.Setup(x => x.CacheModsDirectory).Returns("C:\\test\\cache\\Mods");
 
+        // Real queue (with mocked logger) — the category lock is transparent for single-threaded
+        // tests and just runs the operation inline.
         _service = new ModLifecycleService(
             _mockRepository.Object,
             _mockArchiveService.Object,
@@ -50,7 +52,8 @@ public class ModLifecycleServiceTests
             _mockImageService.Object,
             _mockProfilePaths.Object,
             _mockLogger.Object,
-            _mockEventBus.Object
+            _mockEventBus.Object,
+            new ModOperationQueue(_mockLogger.Object)
         );
     }
 
@@ -559,6 +562,87 @@ public class ModLifecycleServiceTests
         // Assert - Should still attempt to disable cache even if mod doesn't exist in DB
         result.Should().BeTrue();
         _mockCacheService.Verify(x => x.DisableCacheAsync(id), Times.Once);
+    }
+
+    #endregion
+
+    #region Concurrency - category serialization (fix #1/#2)
+
+    private void SetupConcurrencyProbe(out Func<int> peak)
+    {
+        var gate = new object();
+        int active = 0, observedPeak = 0;
+        peak = () => { lock (gate) { return observedPeak; } };
+
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(It.IsAny<string>())).ReturnsAsync(0);
+        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
+
+        // EnableCacheAsync stands in for the critical section; it records how many loads are
+        // inside it at once so the test can prove the category lock serialized them.
+        _mockCacheService.Setup(x => x.EnableCacheAsync(It.IsAny<string>()))
+            .Returns(async () =>
+            {
+                lock (gate) { active++; if (active > observedPeak) observedPeak = active; }
+                await Task.Delay(40);
+                lock (gate) { active--; }
+                return true;
+            });
+    }
+
+    [Fact]
+    public async Task LoadAsync_SameCategoryDifferentMods_AreSerialized()
+    {
+        // Arrange: two different mods in the SAME category
+        var idA = "mod-aaaaaaaa";
+        var idB = "mod-bbbbbbbb";
+        _mockRepository.Setup(x => x.GetByIdAsync(idA)).ReturnsAsync(new ModEntity { Id = idA, Category = "shared", Name = "A", Type = "7z", Grading = "G" });
+        _mockRepository.Setup(x => x.GetByIdAsync(idB)).ReturnsAsync(new ModEntity { Id = idB, Category = "shared", Name = "B", Type = "7z", Grading = "G" });
+        _mockRepository.Setup(x => x.GetByCategoryAsync("shared")).ReturnsAsync(new List<ModEntity>());
+        SetupConcurrencyProbe(out var peak);
+
+        // Act: load both mods (same category) concurrently
+        await Task.WhenAll(_service.LoadAsync(idA), _service.LoadAsync(idB));
+
+        // Assert: never both inside the critical section — the category lock serialized them
+        peak().Should().Be(1, "loads of different mods in the same category must be serialized");
+    }
+
+    [Fact]
+    public async Task LoadAsync_DifferentCategories_RunInParallel()
+    {
+        // Arrange: two mods in DIFFERENT categories
+        var idA = "mod-aaaaaaaa";
+        var idB = "mod-bbbbbbbb";
+        _mockRepository.Setup(x => x.GetByIdAsync(idA)).ReturnsAsync(new ModEntity { Id = idA, Category = "cat-A", Name = "A", Type = "7z", Grading = "G" });
+        _mockRepository.Setup(x => x.GetByIdAsync(idB)).ReturnsAsync(new ModEntity { Id = idB, Category = "cat-B", Name = "B", Type = "7z", Grading = "G" });
+        _mockRepository.Setup(x => x.GetByCategoryAsync(It.IsAny<string>())).ReturnsAsync(new List<ModEntity>());
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(It.IsAny<string>())).ReturnsAsync(0);
+        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>())).Returns(Task.CompletedTask);
+
+        // Deterministic: each load signals on entry and blocks until BOTH are inside the critical
+        // section. If the two genuinely run in parallel, both arrive and the barrier completes. If
+        // a regression serialized them, the first would block here, the barrier never completes,
+        // and the bounded wait lets the test fail (peak == 1) instead of hanging.
+        var entered = 0;
+        var bothInside = new TaskCompletionSource();
+        var gate = new object();
+        var peak = 0;
+        _mockCacheService.Setup(x => x.EnableCacheAsync(It.IsAny<string>()))
+            .Returns(async () =>
+            {
+                int current;
+                lock (gate) { current = ++entered; if (current > peak) peak = current; }
+                if (current == 2) bothInside.TrySetResult();
+                await Task.WhenAny(bothInside.Task, Task.Delay(3000));
+                lock (gate) { entered--; }
+                return true;
+            });
+
+        // Act
+        await Task.WhenAll(_service.LoadAsync(idA), _service.LoadAsync(idB));
+
+        // Assert: independent categories were both inside the critical section at once
+        peak.Should().Be(2, "different categories are independent and may load in parallel");
     }
 
     #endregion

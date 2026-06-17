@@ -1,11 +1,13 @@
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Mod.Services;
+using Moq;
 using Xunit;
 
 namespace D3dxSkinManager.Tests.Modules.Mod;
 
 /// <summary>
 /// Unit tests for mod loading concurrency and deadlock prevention
-/// Tests the specific scenario: Load Mod A â†?Load Mod B (same category) while A is still loading
+/// Tests the specific scenario: Load Mod A ï¿½?Load Mod B (same category) while A is still loading
 ///
 /// IMPORTANT: These are pure unit tests with NO external dependencies:
 /// - No file system operations
@@ -20,7 +22,7 @@ public class ModLoadConcurrencyTests
     public async Task LoadTwoModsInSameCategory_Sequential_NoDeadlock()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var category = "CharacterSkins";
         var loadOrder = new List<string>();
 
@@ -54,7 +56,7 @@ public class ModLoadConcurrencyTests
     public async Task LoadTwoModsInSameCategory_Concurrent_NoDeadlock()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var category = "CharacterSkins";
         var loadOrder = new List<string>();
         var lockObj = new object();
@@ -92,7 +94,7 @@ public class ModLoadConcurrencyTests
     public async Task LoadModWithCategoryLock_UnloadAnotherMod_NoDeadlock()
     {
         // Arrange - This simulates the exact deadlock scenario
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var category = "CharacterSkins";
         var operations = new List<string>();
         var lockObj = new object();
@@ -127,7 +129,7 @@ public class ModLoadConcurrencyTests
     public async Task LoadModA_ThenLoadModB_SameCategory_WithUnload_NoDeadlock()
     {
         // Arrange - Realistic scenario with UnloadWithoutLockAsync pattern
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var category = "CharacterSkins";
         var operations = new List<string>();
         var lockObj = new object();
@@ -185,7 +187,7 @@ public class ModLoadConcurrencyTests
     public async Task MultipleModsLoadingInDifferentCategories_Parallel_NoDeadlock()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var tasks = new List<Task<bool>>();
         var completedCount = 0;
 
@@ -224,7 +226,7 @@ public class ModLoadConcurrencyTests
     public async Task MultipleModsLoadingInSameCategory_Sequential_NoDeadlock()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var category = "CharacterSkins";
         var tasks = new List<Task<bool>>();
         var executionOrder = new List<int>();
@@ -254,7 +256,7 @@ public class ModLoadConcurrencyTests
     public async Task UnclassifiedMods_LoadInParallel_NoDeadlock()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var tasks = new List<Task<bool>>();
         var startTimes = new List<DateTime>();
         var lockObj = new object();
@@ -285,7 +287,7 @@ public class ModLoadConcurrencyTests
     public async Task RapidLoadUnload_SameMod_NoDeadlock()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var id = "test-mod-id";
         var operations = new List<string>();
         var lockObj = new object();
@@ -316,7 +318,7 @@ public class ModLoadConcurrencyTests
     public async Task StressTest_RealWorldScenario_NoDeadlock()
     {
         // Arrange
-        var queue = new ModOperationQueue();
+        var queue = new ModOperationQueue(Mock.Of<ILogHelper>());
         var categories = new[] { "CharacterSkins", "WeaponSkins", "Effects", null };
         var ids = Enumerable.Range(0, 20).Select(i => $"mod-{i:00}").ToArray();
         var tasks = new List<Task>();
