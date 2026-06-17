@@ -296,9 +296,10 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
 
   // Filter tree based on search query
   const filteredTree = useMemo(() => {
-    if (!searchQuery) return tree;
+    const safeTree = Array.isArray(tree) ? tree : [];
+    if (!searchQuery) return safeTree;
     const searchLower = searchQuery.toLowerCase();
-    return filterTreeNodes(tree, searchLower);
+    return filterTreeNodes(safeTree, searchLower);
   }, [tree, searchQuery]);
 
   // Handler for clicking lock icon to unlock

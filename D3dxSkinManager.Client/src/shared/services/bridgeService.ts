@@ -39,6 +39,27 @@ function isWebViewAvailable(): boolean {
   return !!window.chrome?.webview?.postMessage;
 }
 
+/**
+ * DEV-only canned IPC responses for "pure-UI" mode: running the React app in a plain Chrome tab
+ * (Vite dev server) where there is NO WebView2 bridge. Returns just enough bootstrap data for the
+ * app shell (settings + a fake profile + empty lists) to render so components/layouts can be verified
+ * in the browser without the desktop backend. See .claude/rules/desktop-app-testing.md.
+ * Never used when WebView2 is present, and stripped from production builds.
+ */
+function getDevMockResponse(module: string, type: string): unknown {
+  const key = `${module}:${type}`;
+  const mocks: Record<string, unknown> = {
+    'SETTING:GET_GLOBAL': { theme: 'dark', annotationLevel: 'standard', logLevel: 'info', language: 'en', window: {} },
+    'PROFILE:GET_ALL': { profiles: [{ id: 'dev', profileId: 'dev', name: 'Dev Profile', description: 'pure-UI preview' }], activeProfileId: 'dev' },
+    'PROFILE:GET_ACTIVE': { id: 'dev', profileId: 'dev', name: 'Dev Profile' },
+    'PROFILE:GET_CONFIG': {},
+    'MOD:GET_STATISTICS': { totalMods: 0, loadedMods: 0, availableMods: 0, totalCategories: 0, totalAuthors: 0 },
+  };
+  if (key in mocks) return mocks[key];
+  // Permissive default: list-style reads expect an array, everything else an object.
+  return /GET_ALL|GET_TREE|GET_ACTIVE_MODS|GET_LOADED|GET_TAGS|GET_AUTHORS|GET_PRESETS|LIST|SEARCH/.test(type) ? [] : {};
+}
+
 // Generate unique ID for this WebView instance (for multi-window support in future)
 // Created at module level so it persists across hot-reloads during development
 const webViewId = uuidv4();
@@ -186,7 +207,15 @@ class BridgeService {
 
       // Send message to .NET
       if (!isWebViewAvailable()) {
+        // DEV pure-UI mode (plain Chrome, no WebView2): resolve with canned data so the React shell
+        // renders for component/design verification instead of hard-failing. Prod still errors.
+        if (import.meta.env.DEV) {
+          this.messageHandlers.delete(id);
+          resolve(getDevMockResponse(module, type) as T);
+          return;
+        }
         const error = new Error("WebView2 not available - application must run in desktop mode");
+        this.messageHandlers.delete(id);
         reject(error);
         return;
       }

@@ -38,7 +38,7 @@ export const ModPresetMenu: React.FC = () => {
     if (!selectedProfileId) return;
     try {
       const result = await modService.getPresets(selectedProfileId);
-      setPresets(result);
+      setPresets(Array.isArray(result) ? result : []);
     } catch (error: unknown) {
       handleError(error);
     }
