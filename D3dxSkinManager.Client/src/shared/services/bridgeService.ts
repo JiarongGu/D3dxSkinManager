@@ -54,6 +54,7 @@ function getDevMockResponse(module: string, type: string): unknown {
     'PROFILE:GET_ACTIVE': { id: 'dev', profileId: 'dev', name: 'Dev Profile' },
     'PROFILE:GET_CONFIG': {},
     'MOD:GET_STATISTICS': { totalMods: 0, loadedMods: 0, availableMods: 0, totalCategories: 0, totalAuthors: 0 },
+    'MOD:GET_UNCLASSIFIED_COUNT': 0,
   };
   if (key in mocks) return mocks[key];
   // Permissive default: list-style reads expect an array, everything else an object.

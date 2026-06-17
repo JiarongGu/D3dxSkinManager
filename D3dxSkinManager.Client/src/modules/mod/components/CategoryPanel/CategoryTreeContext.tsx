@@ -159,8 +159,8 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
 
   // Validate locked categories when tree changes
   React.useEffect(() => {
-    // Skip validation if tree is empty (transition state during profile switching)
-    if (tree.length === 0) {
+    // Skip validation if tree is empty / not yet an array (transition state during profile switching)
+    if (!Array.isArray(tree) || tree.length === 0) {
       return;
     }
 

@@ -12,11 +12,14 @@ export const CountBadge: React.FC<CountBadgeProps> = ({
   showZero = false,
   className,
 }) => {
-  if (count === 0 && !showZero) return null;
+  // Guard against a non-numeric count (e.g. an unresolved/odd payload) — rendering a non-primitive
+  // as a React child throws "Objects are not valid as a React child" and blanks the tree.
+  const value = typeof count === 'number' && Number.isFinite(count) ? count : 0;
+  if (value === 0 && !showZero) return null;
 
   return (
     <span className={className ? `count-badge ${className}` : 'count-badge'}>
-      {count}
+      {value}
     </span>
   );
 };

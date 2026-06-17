@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import reportWebVitals from './reportWebVitals';
 
 // Dev-only: install the IPC/event interceptor (window.__d3dx) for the devtools test harness
@@ -16,7 +17,9 @@ const root = ReactDOM.createRoot(
 
 root.render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );
 
