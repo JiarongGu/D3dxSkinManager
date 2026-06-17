@@ -110,6 +110,17 @@ with the **DEV-only `window` affordances** instead of the backend:
 Add a `window.__<store>` DEV exposure for any store you want to drive this way. This is the fast loop
 for visual design; it does NOT exercise IPC/native — use the desktop tools below for those.
 
+**How it works / caveats:**
+- `bridgeService` has a DEV fake-bridge: with no WebView2 it resolves IPC with canned bootstrap data
+  (settings + a fake profile + empty lists) so the shell renders instead of the "must run in desktop
+  mode" gate. Components that assume preloaded array data can still throw on the empty mocks — the
+  top-level `ErrorBoundary` shows the error + component stack (read it via `read_console_messages` for
+  `[ErrorBoundary]`, or screenshot), so fixing those is fast. Guard such components with `Array.isArray`.
+- **i18n shows raw keys** in pure-UI mode (the language file isn't loaded over the inert bridge) — fine
+  for layout/styling/structure verification; use the desktop app to verify translated copy.
+- Flow that works today: `tabs_context_mcp` → `tabs_create_mcp` → `navigate` 3517 → wait → inject via
+  `window.__processStore` → click `.app-status-bar-task-area` → `screenshot`.
+
 ## When to use what
 - Pure component / CSS / layout / i18n → **plain Chrome + Vite (3517) + `window.__*` mocks** (above). Fastest.
 - Anything touching IPC / WebView2 / real profile+mod data / file operations → the real app via the tools above.
