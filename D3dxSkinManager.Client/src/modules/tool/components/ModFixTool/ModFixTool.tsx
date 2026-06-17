@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button, Space, Tag, Table, Progress, Input, Empty, Popconfirm, Tooltip, Select, Dropdown } from 'antd';
 import {
   CheckCircleOutlined, WarningOutlined, ThunderboltOutlined, FolderOpenOutlined,
@@ -7,6 +7,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
+import { useDropZone } from '../../../../shared/hooks/useDropZone';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { api } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
@@ -104,6 +105,31 @@ const ModFixManagerInner: React.FC = () => {
     }
   }, [selectedProfileId, newName, t, load]);
 
+  // Drag-drop import: drop file(s)/folder(s) anywhere on the manager to add them as fix tools.
+  const dropRef = useRef<HTMLDivElement>(null);
+  const handleDrop = useCallback(async (files: string[]) => {
+    if (!selectedProfileId || files.length === 0) return;
+    setBusy(true);
+    try {
+      for (const p of files) {
+        const base = p.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || 'Fix';
+        const name = base.replace(/\.[^.]+$/, '') || base;
+        await api.tool.importFixTool(selectedProfileId, { name, sourcePath: p, isFolder: false });
+      }
+      notification.success(
+        files.length === 1
+          ? t('tools.modFix.added', { name: files[0].replace(/[/\\]+$/, '').split(/[/\\]/).pop() })
+          : t('tools.modFix.addedMultiple', { count: files.length }),
+      );
+      await load();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setBusy(false);
+    }
+  }, [selectedProfileId, t, load]);
+  useDropZone({ targetRef: dropRef, onDrop: handleDrop });
+
   const remove = useCallback(async (tool: FixTool) => {
     if (!selectedProfileId) return;
     try {
@@ -198,7 +224,7 @@ const ModFixManagerInner: React.FC = () => {
   ];
 
   return (
-    <div className="mod-fix">
+    <div className="mod-fix" ref={dropRef}>
       <div className="mod-fix__description">{t('tools.modFix.description')}</div>
 
       {/* Add a fix tool */}

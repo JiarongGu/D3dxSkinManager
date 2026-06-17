@@ -119,8 +119,9 @@ Cross-cutting polish to make management effortless. Prioritized; each is small-t
   *Future:* add Load/Unload-selected once batch load semantics are defined (category-exclusive).
 - **Active-filter chips** ✅ — search-active status row under the search bar: "Showing N of M" + a
   removable chip that clears the search. *Future:* per-token chips + a category chip.
-- **Fix Tools first-run guidance** — empty-state card explaining what a fix tool is + an "Add" CTA;
-  support **drag-drop** a file/folder onto the manager to import; allow rename + description per tool.
+- **Fix Tools drag-drop import** ✅ — drop file(s)/folder(s) anywhere on the manager to add them as
+  fix tools (reuses `useDropZone` native OS-path drop; backend auto-detects file vs folder). Empty-state
+  card already present. *Future:* rename + description per tool.
 - **Loaded/conflict clarity on mod cards** — clearer loaded vs disabled vs orphaned styling; a
   per-category "one active" indicator; surface category conflicts inline.
 

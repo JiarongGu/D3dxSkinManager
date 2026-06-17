@@ -95,20 +95,23 @@ public class ModFixToolService : IModFixToolService
         var folderName = UniqueFolderName(Sanitize(name));
         var toolDir = Path.Combine(_profilePaths.FixToolsDirectory, folderName);
 
-        if (isFolder)
+        // Detect file vs folder from the path itself (the `isFolder` arg is only a hint — a dropped
+        // path doesn't say which, and the file picker/folder picker both yield a valid path).
+        _ = isFolder;
+        if (Directory.Exists(sourcePath))
         {
-            if (!Directory.Exists(sourcePath))
-                throw new OperationException("FIX_TOOL_SOURCE_NOT_FOUND", "path", sourcePath);
             CopyDirectory(sourcePath, toolDir);
         }
-        else
+        else if (File.Exists(sourcePath))
         {
-            if (!File.Exists(sourcePath))
-                throw new OperationException("FIX_TOOL_SOURCE_NOT_FOUND", "path", sourcePath);
             if (!IsRunnable(sourcePath))
                 throw new OperationException("FIX_TOOL_NO_ENTRY");
             Directory.CreateDirectory(toolDir);
             File.Copy(sourcePath, Path.Combine(toolDir, Path.GetFileName(sourcePath)), overwrite: true);
+        }
+        else
+        {
+            throw new OperationException("FIX_TOOL_SOURCE_NOT_FOUND", "path", sourcePath);
         }
 
         _logger.Info($"[ModFixTool] Imported fix tool '{folderName}'", "ModFixToolService");
