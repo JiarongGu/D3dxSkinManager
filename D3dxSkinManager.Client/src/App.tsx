@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "antd";
 import { registerNavigateToTab } from "./shared/hooks/useAppNavigation";
-import { initTaskEventBridge } from "./shared/store/taskEventBridge";
 import { initProcessBridge } from "./shared/store/processBridge";
 import { AppHeader } from "./modules/core/components/layout/AppHeader";
 import { AppStatusBar } from "./modules/core/components/layout/AppStatusBar";
@@ -72,9 +71,6 @@ const AppContent: React.FC = () => {
 
   // Register tab navigation so tools/screens can switch tabs
   useEffect(() => registerNavigateToTab(handleTabChange), [handleTabChange]);
-
-  // Global bridge: backend progress events → task status bar
-  useEffect(() => initTaskEventBridge(), []);
 
   // Global bridge: backend ProcessRegistry snapshot → process store (status bar + Activity panel)
   useEffect(() => initProcessBridge(), []);

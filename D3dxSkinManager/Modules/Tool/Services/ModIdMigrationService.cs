@@ -35,15 +35,18 @@ public class ModIdMigrationService : IModIdMigrationService
     private readonly IProfilePathService _profilePaths;
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
+    private readonly Core.Services.IProcessRegistry _processRegistry;
 
     public ModIdMigrationService(
         IProfilePathService profilePaths,
         IProfileEventBus eventBus,
-        ILogHelper logger)
+        ILogHelper logger,
+        Core.Services.IProcessRegistry processRegistry)
     {
         _profilePaths = profilePaths;
         _eventBus = eventBus;
         _logger = logger;
+        _processRegistry = processRegistry;
 
         var path = profilePaths.ProfileDatabasePath;
         _connectionString = path.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase)
@@ -86,6 +89,9 @@ public class ModIdMigrationService : IModIdMigrationService
     {
         _logger.Info("[ModIdMigration] Starting migration");
 
+        var procId = _processRegistry.Start(Core.Models.ProcessType.Migration, "Migrating mod IDs");
+        try
+        {
         var scanResult = await ScanAsync();
         var result = new ModIdMigrationResult
         {
@@ -95,6 +101,7 @@ public class ModIdMigrationService : IModIdMigrationService
         if (scanResult.ModsNeedingMigration == 0)
         {
             _logger.Info("[ModIdMigration] No mods need migration");
+            _processRegistry.Complete(procId);
             return result;
         }
 
@@ -134,6 +141,7 @@ public class ModIdMigrationService : IModIdMigrationService
                 ModuleNames.TOOL,
                 ToolEvents.MOD_ID_MIGRATION_PROGRESS,
                 new { current = i + 1, total = scanResult.Items.Count, modName = item.ModName });
+            _processRegistry.Report(procId, scanResult.Items.Count > 0 ? (int)((i + 1) * 100.0 / scanResult.Items.Count) : null);
         }
 
         // Update mod presets that reference migrated IDs
@@ -144,7 +152,14 @@ public class ModIdMigrationService : IModIdMigrationService
 
         _logger.Info($"[ModIdMigration] Migration complete: {result.Succeeded} succeeded, {result.Failed} failed");
 
+        _processRegistry.Complete(procId);
         return result;
+        }
+        catch (Exception ex)
+        {
+            _processRegistry.Fail(procId, ex.Message);
+            throw;
+        }
     }
 
     private async Task MigrateModAsync(ModIdMigrationItem item)

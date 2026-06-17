@@ -5,7 +5,6 @@ import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { api } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
-import { useTaskStore } from '../../../../shared/store/taskStore';
 import type { OrphanScanResult } from '../../../../shared/types/cleanup.types';
 import { CleanupTab } from './components/CleanupTab';
 import './FileCleanupTool.css';
@@ -40,19 +39,16 @@ const FileCleanupToolInner: React.FC = () => {
   const scanAll = useCallback(async () => {
     if (!selectedProfileId) return;
 
-    const taskId = 'file-cleanup-scan';
     try {
       setScanning(true);
-      useTaskStore.getState().addTask({ id: taskId, label: t('statusBar.tasks.scanningFiles') });
       const results = await api.tool.scanAllOrphans(selectedProfileId);
       setScanResults(results);
     } catch (error: unknown) {
       handleError(error);
     } finally {
       setScanning(false);
-      useTaskStore.getState().removeTask(taskId);
     }
-  }, [selectedProfileId, t]);
+  }, [selectedProfileId]);
 
   useEffect(() => {
     void scanAll();

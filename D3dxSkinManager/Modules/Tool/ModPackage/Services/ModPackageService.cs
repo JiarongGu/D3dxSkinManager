@@ -38,6 +38,7 @@ public class ModPackageService : IModPackageService
     private readonly IProfilePathService _profilePaths;
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
+    private readonly Core.Services.IProcessRegistry _processRegistry;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -59,7 +60,8 @@ public class ModPackageService : IModPackageService
         ICategoryService categoryService,
         IProfilePathService profilePaths,
         IProfileEventBus eventBus,
-        ILogHelper logger)
+        ILogHelper logger,
+        Core.Services.IProcessRegistry processRegistry)
     {
         _modRepository = modRepository;
         _archiveService = archiveService;
@@ -69,6 +71,7 @@ public class ModPackageService : IModPackageService
         _profilePaths = profilePaths;
         _eventBus = eventBus;
         _logger = logger;
+        _processRegistry = processRegistry;
     }
 
     // ===== Export =====
@@ -76,6 +79,7 @@ public class ModPackageService : IModPackageService
     public async Task<ExportResult> ExportAsync(ExportConfig config)
     {
         var result = new ExportResult { OutputPath = config.OutputPath };
+        var procId = _processRegistry.Start(Core.Models.ProcessType.Package, "Exporting mod package");
 
         try
         {
@@ -229,8 +233,9 @@ public class ModPackageService : IModPackageService
 
             _logger.Info($"Export complete: {result.ExportedCount} mods to {packageDir}", "ModPackageService");
         }
-        catch (OperationException)
+        catch (OperationException ex)
         {
+            _processRegistry.Fail(procId, ex.Message);
             throw;
         }
         catch (Exception ex)
@@ -239,6 +244,8 @@ public class ModPackageService : IModPackageService
             _logger.Error($"Export failed: {ex.Message}", "ModPackageService", ex);
         }
 
+        if (result.Success) _processRegistry.Complete(procId);
+        else _processRegistry.Fail(procId, string.Join("; ", result.Errors));
         return result;
     }
 
@@ -353,6 +360,7 @@ public class ModPackageService : IModPackageService
     public async Task<ImportResult> ImportAsync(ImportConfig config)
     {
         var result = new ImportResult();
+        var procId = _processRegistry.Start(Core.Models.ProcessType.Package, "Importing mod package");
 
         try
         {
@@ -363,6 +371,7 @@ public class ModPackageService : IModPackageService
             if (manifest == null)
             {
                 result.Errors.Add("Failed to parse manifest.json");
+                _processRegistry.Fail(procId, "Failed to parse manifest.json");
                 return result;
             }
 
@@ -425,8 +434,10 @@ public class ModPackageService : IModPackageService
         {
             result.Errors.Add($"Import failed: {ex.Message}");
             _logger.Error($"Import failed: {ex.Message}", "ModPackageService", ex);
+            _processRegistry.Fail(procId, ex.Message);
         }
 
+        _processRegistry.Complete(procId); // no-op if already failed (idempotent Finish)
         return result;
     }
 

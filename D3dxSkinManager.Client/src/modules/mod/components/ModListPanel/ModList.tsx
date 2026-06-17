@@ -27,7 +27,6 @@ import {
 } from "../../../../shared/components/menu";
 import { refreshMods } from "../../operations/modOperations";
 import { useModsStore } from "../../store/modsStore";
-import { useTaskStore } from "../../../../shared/store/taskStore";
 import { useTranslation } from "react-i18next";
 import { BatchEditModsScreen } from "../BatchEditScreen";
 import { useMods } from "../../hooks/useMods";
@@ -239,13 +238,8 @@ export const ModList: React.FC<ModListProps> = ({
   const handleUpdateArchive = async (mod: ModInfo) => {
     if (!selectedProfileId || busyModIds.has(mod.id)) return;
 
-    const taskId = `update-archive-${mod.id}`;
     const { addBusyMod, removeBusyMod } = useModsStore.getState();
     addBusyMod(mod.id);
-    useTaskStore.getState().addTask({
-      id: taskId,
-      label: t("mods.notifications.updatingArchive", { name: mod.name }),
-    });
     try {
       await modService.updateArchiveFromCache(selectedProfileId, mod.id);
       notification.success(
@@ -255,7 +249,6 @@ export const ModList: React.FC<ModListProps> = ({
       notification.error(t("mods.notifications.archiveUpdateFailed"));
     } finally {
       removeBusyMod(mod.id);
-      useTaskStore.getState().removeTask(taskId);
     }
   };
 

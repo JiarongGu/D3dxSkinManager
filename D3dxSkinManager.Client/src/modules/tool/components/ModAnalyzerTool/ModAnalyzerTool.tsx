@@ -7,7 +7,6 @@ import { eventBus, Module, ToolsEventType } from '../../../../shared/services/ev
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
 import { navigateToModSearch } from '../../../../shared/hooks/useAppNavigation';
-import { useTaskStore } from '../../../../shared/store/taskStore';
 import type { FullAnalysisReport, AnalysisProgress, AnalysisSessionSummary } from '../../../../shared/types/analysis.types';
 import type { CategoryInfo } from '../../../../shared/types/category.types';
 import { ScanView } from './components/ScanView';
@@ -102,13 +101,6 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
         warningCount: r.warningCount,
         errorCount: r.errorCount,
       });
-      // Register task for status bar (mid-flight detection)
-      const catName = r.categoryId ? findCategoryName(categories, r.categoryId) : undefined;
-      const label = catName
-        ? t('statusBar.tasks.analyzingCategory', { name: catName })
-        : t('statusBar.tasks.analyzingAllMods');
-      const pct = r.totalMods > 0 ? Math.round((r.analyzedCount / r.totalMods) * 100) : 0;
-      useTaskStore.getState().addTask({ id: 'mod-analysis', label, progress: pct });
     } catch { /* ignore — live events will take over */ }
     setScanning(true);
     setViewMode('scan');
@@ -156,17 +148,10 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
       setInitialFeed(undefined);
       setViewMode('scan');
       historyRefreshedRef.current = false;
-      // Register task with category name for status bar display
-      const categoryName = categoryId ? findCategoryName(categories, categoryId) : undefined;
-      const label = categoryName
-        ? t('statusBar.tasks.analyzingCategory', { name: categoryName })
-        : t('statusBar.tasks.analyzingAllMods');
-      useTaskStore.getState().addTask({ id: 'mod-analysis', label, progress: 0 });
       await api.tool.startAnalysis(selectedProfileId, categoryId);
     } catch (error: unknown) {
       handleError(error);
       setScanning(false);
-      useTaskStore.getState().removeTask('mod-analysis');
     }
   }, [selectedProfileId, scanning, categories, t]);
 
@@ -263,9 +248,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
 
   const deleteDuplicateMod = useCallback(async (modId: string) => {
     if (!selectedProfileId || deletingModId) return;
-    const taskId = `delete-mod-${modId}`;
     setDeletingModId(modId);
-    useTaskStore.getState().addTask({ id: taskId, label: t('statusBar.tasks.deletingMod') });
     try {
       await api.mod.deleteMod(selectedProfileId, modId);
       // Optimistically remove mod from report and update all counts
@@ -295,7 +278,7 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
         };
       });
     } catch (error: unknown) { handleError(error); }
-    finally { setDeletingModId(undefined); useTaskStore.getState().removeTask(taskId); }
+    finally { setDeletingModId(undefined); }
   }, [selectedProfileId, deletingModId, t]);
 
   const locateMods = useCallback(async (modIds: string[]) => {

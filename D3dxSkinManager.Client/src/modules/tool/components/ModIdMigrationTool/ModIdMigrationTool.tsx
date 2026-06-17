@@ -7,7 +7,6 @@ import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { api } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
-import { useTaskStore } from '../../../../shared/store/taskStore';
 import { notification } from '../../../../shared/utils/notification';
 import { eventBus, Module, ToolsEventType } from '../../../../shared/services/eventBus';
 import type {
@@ -133,10 +132,6 @@ const ModIdMigrationToolInner: React.FC<InnerProps> = ({ onMigrationComplete }) 
 
     try {
       setMigrating(true);
-      useTaskStore.getState().addTask({
-        id: 'mod-id-migration',
-        label: t('statusBar.tasks.migratingModIds'),
-      });
       await api.tool.executeModIdMigration(selectedProfileId);
       // Progress via MOD_ID_MIGRATION_PROGRESS, result via MOD_ID_MIGRATION_COMPLETE
     } catch (error: unknown) {
