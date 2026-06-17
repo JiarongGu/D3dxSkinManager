@@ -67,6 +67,20 @@ public class WebViewInitializer
                                              "--enable-lazy-image-loading " +
                                              "--enable-features=ScriptStreaming";
 
+        // DEV ONLY: because the app sets AdditionalBrowserArguments above, WebView2 IGNORES the
+        // WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS env var. The devtools toolkit (devtools/dev.mjs app …)
+        // sets that env to "--remote-debugging-port=9223" so CDP can attach; append it here in dev mode
+        // so the test tooling (devtools/dev.mjs check/cdp/review) can drive the real app. Never in prod.
+        if (IsDevelopmentMode())
+        {
+            var extraArgs = Environment.GetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS");
+            if (!string.IsNullOrWhiteSpace(extraArgs))
+            {
+                options.AdditionalBrowserArguments += " " + extraArgs.Trim();
+                Console.WriteLine($"[WebView2] DEV: appended browser args from env: {extraArgs.Trim()}");
+            }
+        }
+
         // Create WebView2 environment with performance options
         var environment = await CoreWebView2Environment.CreateAsync(
             browserExecutableFolder: null,
@@ -411,7 +425,9 @@ public class WebViewInitializer
 
     private void NavigateToDevelopment()
     {
-        var devUrl = "http://localhost:3000";
+        // Unique dev port (matches D3dxSkinManager.Client/vite.config.ts server.port). NOT 3000 — avoids
+        // colliding with other local WebView2/React dev servers (e.g. SiblingApp). Keep all in sync.
+        var devUrl = "http://localhost:3517";
         Console.WriteLine($"[WebView2] Development mode - navigating to {devUrl}");
         _webView.CoreWebView2.Navigate(devUrl);
     }

@@ -25,7 +25,12 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    // Unique dev port (NOT the common 3000) so this app's dev server doesn't collide with other
+    // local WebView2/React apps (e.g. SiblingApp, also on 3000). The backend navigates to this exact port
+    // in dev mode (WebViewInitializer / SecondaryWindowService) — keep all three in sync.
+    // strictPort: fail loudly instead of drifting to 3518+ (which the hardcoded nav wouldn't find).
+    port: 3517,
+    strictPort: true,
     open: false,
   },
   build: {

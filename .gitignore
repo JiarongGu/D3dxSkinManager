@@ -16,6 +16,12 @@ obj/
 node_modules/
 frontend/build/
 npm-debug.log*
+
+# devtools toolkit (scratch — captures + app launch logs; tool bin/obj covered by .NET rules above)
+devtools/screenshots/
+devtools/.cdp-port
+app-dev-stdout.txt
+app-dev-stderr.txt
 yarn-debug.log*
 yarn-error.log*
 

@@ -214,7 +214,7 @@ public class SecondaryWindowService : ISecondaryWindowService
                         _logger.Info($"[SecondaryWindow] Session started, navigating to {htmlPage}...");
 
                         var url = _appEnvironment.IsDevelopment
-                            ? $"http://localhost:3000/{htmlPage}"
+                            ? $"http://localhost:3517/{htmlPage}"
                             : $"https://app.local/{htmlPage}";
 
                         _logger.Info($"[SecondaryWindow] Navigation URL: {url} (dev mode: {_appEnvironment.IsDevelopment})");
@@ -371,7 +371,7 @@ public class SecondaryWindowService : ISecondaryWindowService
                     {
                         await session.StartAsync();
                         var url = _appEnvironment.IsDevelopment
-                            ? $"http://localhost:3000/{htmlPage}"
+                            ? $"http://localhost:3517/{htmlPage}"
                             : $"https://app.local/{htmlPage}";
                         webView.CoreWebView2.Navigate(url);
                     }

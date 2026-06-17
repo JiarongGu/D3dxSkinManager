@@ -4,6 +4,12 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Dev-only: install the IPC/event interceptor (window.__d3dx) for the devtools test harness
+// (devtools/dev.mjs cdp ipc|events|iplog). Tree-shaken out of production builds.
+if (import.meta.env.DEV) {
+  void import('./shared/services/devInterceptor').then((m) => m.installDevInterceptor());
+}
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
