@@ -9,6 +9,7 @@ namespace D3dxSkinManager.Modules.Core.Constants;
 /// |---------------------|---------------------------------------|-------------------------------|-------------------------------|
 /// | .mic                | {ProfilePath}/temp/{workflowId}.mic   | ModImportWorkflowHandler      | Workflow cancel/complete       |
 /// | .auc                | {ProfilePath}/temp/{modId}.auc        | ModArchiveService             | Finally block / cleanup tool  |
+/// | fix-{id}-{guid}/    | {ProfilePath}/temp/fix-…/             | ModFixService (fix staging)   | Finally block / cleanup tool  |
 /// | _temp_reorder{ext}  | {ProfilePath}/previews/{id}/          | ImageService                  | Reorder complete / cleanup    |
 /// | .tmp                | Adjacent to target file               | SettingFileService (atomic)   | File.Move (immediate)         |
 ///
