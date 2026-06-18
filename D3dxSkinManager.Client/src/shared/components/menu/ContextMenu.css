@@ -12,7 +12,8 @@
   padding: 4px 0;
   /* visible (not hidden) so submenu flyouts can escape the parent box */
   overflow: visible;
-  transition: opacity 0.1s ease;
+  /* NOTE: no `transition: opacity` here — the expand keyframe (expandTopDown/BottomUp) already animates
+     opacity 0→1. Having both made opacity animate twice at once → a visible blink on open. */
 }
 
 /* Submenu parent row: push caret to the right edge */
