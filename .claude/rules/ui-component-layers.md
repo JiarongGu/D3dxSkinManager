@@ -22,6 +22,10 @@ or `useModsStore`, it's actually L3 — split it: a dumb L1/L2 view + an L3 wrap
   - `CompactField` (added 2026-06-18): standardized labeled-field row — `label` + optional
     `description`/`hint` + control via children. Use it for ALL config/tooling form rows instead of
     hand-rolling `*__label` + control + `*__hint`. Adopted by GameLaunchTab + ModFixTool.
+  - `CompactIconButton` (added 2026-06-18): standardized borderless square icon-action button with a
+    semantic `tone` (default/success/danger/primary). Use it for ALL inline icon actions
+    (edit/confirm/cancel/etc.) instead of re-styling an antd `<Button type="text">` per component.
+    Adopted by KeybindingPreview; migrate other ad-hoc icon buttons to it as you touch them.
   - `StatusTag` (added 2026-06-18): semantic status tag — `tone` (success/error/warning/processing/
     neutral/info) → consistent color + default icon (`icon={null}` suppresses, e.g. dense count pills).
     Use it for ALL status pills (process status, fix results, mod/health states). Adopted by

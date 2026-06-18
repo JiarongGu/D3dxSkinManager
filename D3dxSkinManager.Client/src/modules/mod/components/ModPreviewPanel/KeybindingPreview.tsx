@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ModKeybinding } from '../../../../shared/types/mod.types';
 import { modService } from '../../../../shared/services/ipc';
 import { useProfile } from '../../../../shared/context/ProfileContext';
-import { CompactButton } from '../../../../shared/components/compact';
+import { CompactIconButton } from '../../../../shared/components/compact';
 import { notification } from '../../../../shared/utils/notification';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import './KeybindingPreview.css';
@@ -174,20 +174,16 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
               <div className="keybinding-actions">
                 {editing ? (
                   <>
-                    <CompactButton
-                      size="small"
-                      type="text"
-                      className="keybinding-edit-btn keybinding-edit-btn--confirm"
+                    <CompactIconButton
+                      tone="success"
                       icon={<CheckOutlined />}
                       loading={saving}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => saveEdit(binding.key)}
                       title={t('common.save')}
                     />
-                    <CompactButton
-                      size="small"
-                      type="text"
-                      className="keybinding-edit-btn keybinding-edit-btn--cancel"
+                    <CompactIconButton
+                      tone="danger"
                       icon={<CloseOutlined />}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={cancelEdit}
@@ -196,7 +192,7 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                   </>
                 ) : (
                   <Tooltip title={t('mods.keybindings.rebind')}>
-                    <CompactButton size="small" type="text" className="keybinding-edit-btn" icon={<EditOutlined />} onClick={() => startEdit(binding)} />
+                    <CompactIconButton icon={<EditOutlined />} onClick={() => startEdit(binding)} />
                   </Tooltip>
                 )}
               </div>

@@ -40,6 +40,10 @@ export type { CompactSectionProps } from './CompactSection';
 export { CompactField } from './CompactField';
 export type { CompactFieldProps } from './CompactField';
 
+// Icon button (standardized borderless tone-aware icon action)
+export { CompactIconButton } from './CompactIconButton';
+export type { CompactIconButtonProps, IconButtonTone } from './CompactIconButton';
+
 // Input components
 export { CompactInput, CompactTextArea, CompactPassword } from './CompactInput';
 export type { CompactInputProps, CompactTextAreaProps, CompactPasswordProps, CompactInputSize } from './CompactInput';
