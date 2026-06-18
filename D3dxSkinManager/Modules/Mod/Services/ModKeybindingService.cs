@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Exceptions;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -13,15 +14,101 @@ public interface IModKeybindingService
     /// Parse keybindings from all .ini files in mod's work directory
     /// </summary>
     Task<List<ModKeybinding>> ParseKeybindingsAsync(string modId);
+
+    /// <summary>
+    /// Rebind a key in the mod's .ini files: every <c>[Key*]</c> section whose <c>key = oldKey</c> is
+    /// rewritten to <c>key = newKey</c> (line-level edit, comments/order preserved), then the cache is
+    /// recompressed back into the archive so the change persists. Returns the number of lines changed.
+    /// </summary>
+    Task<int> UpdateKeybindingAsync(string modId, string oldKey, string newKey);
 }
 
 public class ModKeybindingService : IModKeybindingService
 {
     private readonly IProfilePathService _profilePathService;
+    private readonly IModArchiveService _archiveService;
+    private readonly IModOperationQueue _operationQueue;
 
-    public ModKeybindingService(IProfilePathService profilePathService)
+    public ModKeybindingService(
+        IProfilePathService profilePathService,
+        IModArchiveService archiveService,
+        IModOperationQueue operationQueue)
     {
         _profilePathService = profilePathService;
+        _archiveService = archiveService;
+        _operationQueue = operationQueue;
+    }
+
+    /// <summary>Resolve the extracted cache dir for a mod (active {id} or disabled DISABLED-{id}), or null.</summary>
+    private string? ResolveCacheDir(string modId)
+    {
+        var cacheModsPath = _profilePathService.CacheModsDirectory;
+        var active = Path.Combine(cacheModsPath, modId);
+        if (Directory.Exists(active)) return active;
+        var disabled = Path.Combine(cacheModsPath, $"DISABLED-{modId}");
+        return Directory.Exists(disabled) ? disabled : null;
+    }
+
+    public Task<int> UpdateKeybindingAsync(string modId, string oldKey, string newKey)
+    {
+        if (string.IsNullOrWhiteSpace(oldKey) || string.IsNullOrWhiteSpace(newKey))
+            throw new ArgumentException("oldKey and newKey are required");
+
+        // Per-mod lock so the edit + recompress can't race a load/unload/fix on the same mod.
+        return _operationQueue.EnqueueAsync(modId, async () =>
+        {
+            var cacheDir = ResolveCacheDir(modId);
+            if (cacheDir == null)
+            {
+                throw new OperationException("MOD_NOT_EXTRACTED", "id", modId);
+            }
+
+            var changed = 0;
+            var oldVal = oldKey.Trim();
+            var newVal = newKey.Trim();
+
+            foreach (var iniFile in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories))
+            {
+                var lines = await File.ReadAllLinesAsync(iniFile).ConfigureAwait(false);
+                var inKeySection = false;
+                var fileChanged = false;
+
+                for (var i = 0; i < lines.Length; i++)
+                {
+                    var trimmed = lines[i].Trim();
+                    if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                    {
+                        inKeySection = trimmed.Trim('[', ']').StartsWith("Key", StringComparison.OrdinalIgnoreCase);
+                        continue;
+                    }
+                    if (!inKeySection || trimmed.StartsWith(";")) continue;
+
+                    // Match a `key = <value>` assignment (case-insensitive name, value compared trimmed).
+                    var m = Regex.Match(lines[i], @"^(\s*key\s*=\s*)(.+?)(\s*)$", RegexOptions.IgnoreCase);
+                    if (m.Success && string.Equals(m.Groups[2].Value.Trim(), oldVal, StringComparison.OrdinalIgnoreCase))
+                    {
+                        lines[i] = m.Groups[1].Value + newVal;
+                        fileChanged = true;
+                        changed++;
+                    }
+                }
+
+                if (fileChanged)
+                {
+                    // Cache .ini edit is safe under the per-mod lock (no concurrent op on this mod).
+                    await File.WriteAllLinesAsync(iniFile, lines).ConfigureAwait(false);
+                }
+            }
+
+            if (changed == 0)
+            {
+                throw new OperationException("KEYBINDING_NOT_FOUND", "key", oldVal);
+            }
+
+            // Persist: recompress the cache back into the archive (source of truth).
+            await _archiveService.CompressCacheToArchiveAsync(modId, cacheDir).ConfigureAwait(false);
+            return changed;
+        });
     }
 
     public async Task<List<ModKeybinding>> ParseKeybindingsAsync(string modId)

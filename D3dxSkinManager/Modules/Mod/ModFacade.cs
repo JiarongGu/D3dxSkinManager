@@ -141,6 +141,7 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_TAG_USAGE_COUNT" => await GetTagUsageCountAsync(request),
             "SEARCH_TAGS" => await SearchTagsAsync(request),
             "GET_KEYBINDINGS" => await GetKeybindingsAsync(request),
+            "UPDATE_KEYBINDING" => await UpdateKeybindingAsync(request),
 
             // Preset operations
             "GET_PRESETS" => await GetPresetsAsync(),
@@ -720,6 +721,15 @@ public class ModFacade : BaseFacade, IModFacade
             throw new ArgumentException("Mod ID is required");
 
         return await GetKeybindingsAsync(id);
+    }
+
+    private async Task<object> UpdateKeybindingAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var oldKey = _payloadHelper.GetRequiredValue<string>(request.Payload, "oldKey");
+        var newKey = _payloadHelper.GetRequiredValue<string>(request.Payload, "newKey");
+        var changed = await _keybindingService.UpdateKeybindingAsync(id, oldKey, newKey).ConfigureAwait(false);
+        return new { changed };
     }
 
     // ============= Preset Methods =============

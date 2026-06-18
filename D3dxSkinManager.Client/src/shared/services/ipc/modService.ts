@@ -551,6 +551,19 @@ export class ModService extends BaseModuleService {
     );
   }
 
+  /**
+   * Rebind a key: every [Key*] section using oldKey is rewritten to newKey, then the mod is
+   * recompressed so the change persists. Returns how many lines changed.
+   */
+  async updateKeybinding(
+    profileId: string,
+    id: string,
+    oldKey: string,
+    newKey: string,
+  ): Promise<{ changed: number }> {
+    return this.sendMessage<{ changed: number }>("UPDATE_KEYBINDING", profileId, { id, oldKey, newKey });
+  }
+
   // ============= Preset Operations =============
 
   /**

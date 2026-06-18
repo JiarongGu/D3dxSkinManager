@@ -84,6 +84,13 @@
   text-align: left;
 }
 
+.keybinding-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
 .keybinding-description-text {
   font-size: 12px;
   color: var(--text-color);
