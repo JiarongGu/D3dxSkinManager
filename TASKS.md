@@ -1,154 +1,123 @@
 # D3dxSkinManager — Tasks & Roadmap
 
 > Scope: a **game-agnostic** mod manager for 3DMigoto / XXMI-style games (ZZZ/ZZMI, Endfield/EFMI,
-> Genshin/GIMI, Star Rail/SRMI, Wuthering Waves/WWMI, Honkai/HIMI, and any future importer that
-> follows the same `Mods/` + `.ini` hash-override convention). Nothing is hard-coded to one game.
-> Design principle: **everything customizable** — where a "wished" default exists, seed it as editable
-> config, don't bake it into code.
+> Genshin/GIMI, Star Rail/SRMI, Wuthering Waves/WWMI, Honkai/HIMI, and any future importer following the
+> same `Mods/` + `.ini` hash-override convention). Nothing is hard-coded to one game.
+> Design principle: **everything customizable** — seed a wished default as editable config, don't bake it in.
+>
+> **North star:** make managing mods effortless — organize, fix, edit, deploy and launch without leaving
+> the app. The app is the **compressed mod library + organize + fix + edit + deploy**; **XXMI is the
+> runtime** (injects 3DMigoto, launches the game). We complement XXMI, never reimplement it.
+
+Last consolidated: 2026-06-18.
 
 ---
 
-## Done
+## How the pieces actually fit (current architecture — read before planning)
 
-- **Fix-tool library — multiple entries** ✅ — a toolset can expose several runnable entries
-  (`SetEntries`, marker stores one per line); lone-exe auto-resolves, ambiguous → user multi-selects.
-  Mod "Fix" submenu flattens to "Toolset — entry"; manager shows a multi-select + per-entry run.
-  E2E-verified (import 2-exe folder → set both → run). A fix runs with cwd = the mod folder, so it
-  fixes everything in that dir. *Future:* a "fix the whole Mods folder in one pass" mode.
-
-- **Fix-tool library — live folder watcher** ✅ — `FixToolsWatcher` (FileSystemWatcher on `fixtools/`,
-  started in the profile-scoped `ToolFacade`) emits `FIX_TOOLS_CHANGED`; the manager + mod "Fix"
-  submenu re-scan automatically when a tool is dropped in / removed on disk. E2E-verified.
-
-- **Fix-tool library (Phase 0)** ✅ — per-profile collection at `{profile}/fixtools/`, **folder-derived**
-  (each subfolder = one tool; name = folder name, entry auto-detected exe→bat/cmd→py). Drop a folder in
-  → it auto-appears with default info; delete it → it's gone (no registry to drift). Import copies a
-  file/folder into the collection. IPC `FIX_TOOLS_GET/IMPORT/DELETE`; Fix Tools manager screen
-  (add folder/file, delete, run-on-all); mod right-click **"Fix" submenu** lists tools to run directly
-  (replaces the old "Run Fix Script…" dialog; `…` reserved for real dialogs like "Manage fix tools…").
-  ContextMenu gained submenu support. 5 tests + e2e (import→list→delete) on the real backend.
-  *Remaining:* live FileSystemWatcher push so the list refreshes without reopening (entries are already
-  folder-derived, so "new/gone" is reflected on every read).
-
-- **#14 Mod update (replace content, same id)** ✅ — `ModImportService.UpdateModAsync` overwrites the
-  compressed archive in place, keeps all metadata, and invalidates the cache (new content extracts on
-  next load via #9). IPC `MOD/UPDATE_MOD` (per-mod queue-locked), `modService.updateMod`, mod
-  context-menu "Replace Content from File…". 2 tests. E2E-verified against the real backend.
-
-- **#9 Stale-cache invalidation on load** ✅ — `ModLifecycleService.LoadAsync` now re-enables a disabled
-  cache only when it's still fresh; if the archive is newer (e.g. a hash-fix / mod-update recompressed
-  it), the stale cache is discarded (planner-routed) and re-extracted. Directly de-risks #6/#14.
-  Also added load-status detail ("Enabling cache" / "Extracting archive" / "Refreshing stale cache"),
-  partially covering **#16**. 2 new lifecycle tests.
-
-- **#6 Patch / hash fixing tool** ✅ (`ModFixService` + `ModFixTool`)
-  - Runs a user-supplied fix script (`.py` / `.exe` / `.bat` / `.cmd`) against **a single mod, a
-    selection, or all mods**. Script runs with cwd = the mod's content folder (the convention these
-    scripts expect); changes are re-compressed back into the archive so they persist across reload.
-  - Per-mod serialization via `ModOperationQueue`; ProcessRegistry-tracked + cancellable (Activity panel).
-  - Tunables (Python interpreter candidates, timeout, supported extensions, stdin auto-confirm) live in
-    a seeded `ModFixOptions` — **next step: surface these as editable settings** (see Phase 1).
-  - Entry points: Tools card (all mods) + mod context menu (single / selected).
+- **Work dir / deploy.** `ModWork.Mode` ∈ `internal | external | xxmi`. Mods are stored **compressed** in
+  the profile; the active **cache** (`CacheModsDirectory = WorkDirectory/Mods`) is what the importer reads.
+  In `xxmi` mode the work dir IS the XXMI importer's folder, so the cache = `<importer>/Mods` (deploy
+  target). See `.claude/rules/xxmi-integration.md`.
+- **Launch is NOT a tab.** Picking an XXMI importer in **Settings → Mod Work** (`XxmiImporterPicker`) sets
+  BOTH the deploy dir and the launcher path in one click; the status-bar **`LaunchButton`** runs it
+  (`--nogui --xxmi <IMPORTER>`). The old Launch tab / GameLaunchTab / D3DMigotoTab were removed.
+- **Archive writes are serialized + fast.** All mod-data FS mutations go through `IFileOperationPlanner`;
+  read-modify-write flows through `IModOperationQueue` (per-mod / per-category). Small edits use the
+  **single-file archive patch** (`UpdateFileInArchiveAsync`, ~17× faster than a full recompress). See
+  `.claude/rules/filesystem-operation-serialization.md`.
+- **`.ini` is the mod's brain.** 3DMigoto drives everything from `.ini` (sections + command lists).
+  Authoritative reference: `leotorrez.github.io/modding/docs/*` (scrape via `devtools/dev.mjs research`,
+  it's a JS SPA). Interface notes + the mod-merge/namespace contract live in
+  `.claude/rules/3dmigoto-ini-interface.md`.
 
 ---
 
-## Backlog — reviewed for current relevance
+## Recently shipped (this stretch)
 
-> **#13 selected-mod-applied-with-filter** ✅ — fixed: `ModListPanel` prunes the selection to the
-> visible (filtered) set, so bulk apply/load/edit/delete/fix never act on hidden mods.
-> **#11 thumbnail right-click crash** — needs a live repro/stack; the preview context menu is guarded,
-> so the crash is likely elsewhere (import-dialog thumbnail picker?). Capture the `[ErrorBoundary]`
-> console output when it happens and I'll pinpoint it.
-
-
-| # | Item | Status after review | Notes |
-|---|------|---------------------|-------|
-| 3 | key binding modification | **Partly done** | `ModKeybindingService` already *parses* keybindings from `.ini`. Missing: *write-back* (edit toggle/cycle keys) + UI. Generalize: edit any mod `.ini` setting, not just keys. |
-| 4 | launch integration with XXMI | **Done** ✅ | Per-profile launch config (path+args) in `ProfileConfiguration.Launch`, configured in the **Launch tab** (GameLaunchTab — hero + target config); status-bar quick-launch button routes there when unset. Point it at the XXMI launcher. *Future:* multiple named targets + auto-detect. |
-| 5 | launch integration with 3DMigoto | **Done (MVP)** ✅ | Same launch config — point it at the 3DMigoto loader. (One generic launch command; named multi-targets are the future enhancement.) |
-| 9 | loading an active mod must invalidate its cache | **Done** ✅ | `LoadInternalAsync` now re-extracts when the archive is newer than the disabled cache (`IsDisabledCacheStale`); stale cache discarded via the planner. |
-| 10 | temp cleanup | **Largely done** | `OrphanCategory.TempFile` + FileCleanupTool already scan/clean temp orphans. Possible follow-up: opt-in auto-clean on exit (configurable). |
-| 11 | thumbnail right-click crash | **Open (bug)** | Repro: right-click on thumbnail selection in preview panel. Needs investigation in `ModPreviewPanel` / `PreviewImageCarousel`. |
-| 12 | auto-update from GitHub release | **Open** | App self-update: check latest GitHub release, download installer, prompt. Configurable channel/repo + opt-out. |
-| 13 | selected mod should not be applied with active filter | **Open (bug)** | When a filter is active, apply/load should act on the explicit selection, not the filtered-out set. Investigate apply/preset path. |
-| 14 | mod update (replace mod with same id) | **Done** ✅ | `UPDATE_MOD` overwrites the archive + invalidates cache, keeping metadata. Context-menu "Replace Content from File…". |
-| 16 | "preparing" mod load status detail | **Mostly done** | Load now reports sub-step detail ("Enabling cache" / "Extracting archive" / "Refreshing stale cache") via ProcessRegistry. Remaining: per-file counts during extraction (optional). |
-
----
-
-## Roadmap toward the north star
-
-**North star:** *make managing mods effortless* — discover, download, organize, fix, and launch without
-leaving the app.
-
-### Phase 0 — Fix-tool hardening (extends #6)
-- Surface `ModFixOptions` as editable settings (global + per-profile override): Python path, timeout,
-  extensions, auto-confirm. Seed detected Python path.
-- Optional: per-profile **fix-tool registry** (save frequently-used fix scripts with a name) — bridges
-  to "download fix tools per profile".
-
-### Phase 1 — Launch & live workflow (#4, #5, #16, #9, #14)
-- One configurable **launch-target** abstraction (named targets: XXMI / 3DMigoto / custom exe + args),
-  auto-seeded by detection. Launch button in the status bar / per profile.
-- Cache-correctness pass: invalidate/re-extract stale caches on load (#9) and enable in-place mod
-  update keeping the same ID (#14). Granular load status detail (#16).
-
-### Phase 2 — Authoring & polish (#3, #11, #13, #10)
-- Mod `.ini` editor (keybindings + general settings) writing back to the cache + recompress (#3).
-- Bug sweep: thumbnail right-click crash (#11), filtered-selection apply (#13), opt-in temp auto-clean (#10).
-
-### Phase 3 — Remote mod library (new — the big lever)
-- **Mod library / browser** backed by remote sources (e.g. GameBanana-style sites), with fetch +
-  download + one-click import into a profile.
-- Powerful scraping via a **background WebView2** (headless-ish, in-process) to handle JS-rendered
-  pages and per-site adapters — sources are configurable/pluggable, never hard-coded to one site.
-- Reuse the ProcessRegistry for download/import progress and the Activity panel.
-
-### Phase 4 — App self-update (#12)
-- GitHub-release auto-update with a configurable channel and opt-out.
+- **XXMI integration in Settings** ✅ — 3-value work mode (internal/external/xxmi); importer list
+  **discovered from disk** (scan the XXMI root for importer markers, enriched by config); one pick sets
+  deploy dir + launcher path. Launch via status-bar button. Launch tab removed.
+- **Per-profile fix-tool settings** ✅ — `ModFixService` reads `config.FixTools` at run time (python path
+  +Detect, timeout, extensions, auto-confirm); `FixToolSettingsCard` with per-section save/reset.
+- **Single-file archive patch** ✅ — `UpdateFileInArchive` planner op + `ArchiveHelper` append-replace
+  (proven not-duplicate). ~143ms vs ~2.5s. Foundation for fast `.ini`/keybinding/fix writes.
+- **Keybinding editor** ✅ — chord capture (combo + `no_` defaults, recording indicator), rebind written
+  back via the fast patch. `CompactIconButton` atom (tone-border hover).
+- **General config (`.ini`) editor** ✅ — `ModIniService` parses every `.ini` → sections → entries,
+  classifies editable (`[Key*]`/`[Constants]`) vs read-only (hash/override/resource/shader/command);
+  parses `namespace`; one-value write-back via the fast patch with a **server-side read-only guard**.
+  UI = slide-in, left tab per file (equal-height independent scroll), friendly labels, `type`→Mode select,
+  advanced collapsed. Opened from mod right-click **"Edit config"**. 8 tests.
+- **Fix-tool diff-based persistence** ✅ — after a fix runs, patch only the changed/added files; full
+  recompress only on a deletion or when changed bytes ≥50% of the mod. Most fixes touch tiny `.ini`, so
+  the fast path is the norm. 8 tests.
+- **Settings UX / atomic design** ✅ — per-section save/reset; `CompactField`, `StatusTag`,
+  `CompactIconButton` atoms; rows aligned (see `.claude/rules/ui-component-layers.md`).
 
 ---
 
-## UX / UI improvement plan (proactive)
+## Next up (prioritized, grounded)
 
-Cross-cutting polish to make management effortless. Prioritized; each is small-to-medium.
+### 1. Mod-merge (the big `.ini` lever — now grounded, buildable)
+Combine several mods of one slot into a single mod that **cycles between them with one key**. Grounded
+from the namespace contract (`.claude/rules/3dmigoto-ini-interface.md`):
+- Assign each source mod a **unique `namespace`** (creator\char\mod) so hashes/keys/resources can't collide.
+- Emit a **master `.ini`**: `namespace = Merge\Master`, `[Constants] $swapvar`, `[KeySwap] type=cycle
+  $swapvar = 0,1,2…`, each source's overrides gated by `if $swapvar == N` and referenced via
+  `\namespace\…`. No hash/resource rewriting needed — the namespace isolates them.
+- Reuses the config-editor parse layer + the planner/queue/single-file-patch infra. Backend service +
+  IPC + a "Merge mods" UI (pick mods → name → produces a new merged mod in the library).
 
-### High value
-- **Bulk-action toolbar for the mod list** ✅ — appears above the list when 2+ mods selected: count,
-  Edit, Fix ▾ (per-tool/entry), Delete, Clear. Reuses the batch handlers + the #13 selection pruning.
-  *Future:* add Load/Unload-selected once batch load semantics are defined (category-exclusive).
-- **Active-filter chips** ✅ — search-active status row under the search bar: "Showing N of M" + a
-  removable chip that clears the search. *Future:* per-token chips + a category chip.
-- **Fix Tools drag-drop import** ✅ — drop file(s)/folder(s) anywhere on the manager to add them as
-  fix tools (reuses `useDropZone` native OS-path drop; backend auto-detects file vs folder). Empty-state
-  card already present. *Future:* rename + description per tool.
-- **Loaded/conflict clarity on mod cards** — clearer loaded vs disabled vs orphaned styling; a
-  per-category "one active" indicator; surface category conflicts inline.
+### 2. #4 First-run onboarding + mod-card clarity
+- First-run: pick/create profile → point at the XXMI install (reuse `XxmiImporterPicker`) → ready.
+- Mod cards: clearer loaded vs disabled vs orphaned; per-category "one active" indicator; inline conflicts.
 
-### Medium
-- **Activity panel polish** ✅ — grouped into Running / History sections; running-count chip added to
-  the status-bar task area. (Clear-completed + per-process detail were already present.)
-- **Launch button** (depends on Phase 1) — prominent per-profile "Launch game" with the configured
-  target; show last-launched + running state.
-- **Consistent context menus** — shared grouping/iconography across mod-list, category, and preview
-  menus; reserve "…" strictly for entries that open a dialog (done for fixes).
-- **Profile switcher affordance** — quicker profile switch (the app is per-game); show game + mod count.
+### 3. Config-editor growth (extend the `.ini` editor)
+- Expose more `[Key]` options the docs confirm: `back` (reverse-cycle key), `wrap`, `smart`,
+  `delay`/`transition*`, **multiple `key=` lines**, Xbox `XB_*`, combos. (Editor + keybinding capture.)
+- Per-toggle grouping that ties a `[Key]`'s cycle list to the `$var` it drives (cross-section view).
 
-### Category right-click menu
-- **Unload all in category** ✅ + **Fix all in category** ✅ (submenu of fix tools → runs against every
-  mod in the category). Wired via the `context-menu-extension.md` 4-file chain + CategoryPanel handlers.
-  Plus **Expand / Collapse subtree** ✅ (recursively expand/collapse a node's descendants, respecting
-  locked nodes). *Future:* set color/icon — deferred, needs a `Category.color` field added full-stack
-  (model + repo + IPC + picker), not present today.
+### 4. #3 Remote mod library (the big reach)
+- Browse/fetch/download from remote sources (GameBanana-style) → one-click import into a profile.
+- Background WebView2 + per-site adapters (configurable, never hard-coded). Reuse ProcessRegistry +
+  Activity panel for download/import progress.
 
-### Reliability
-- **Per-panel error boundaries** ✅ — `ErrorBoundary` gained a compact self-resetting mode; the
-  Category / Mods / Preview panels are each wrapped, so one panel crashing shows a localized
-  "… failed to render — Try again" instead of blanking the whole app (also contains #11 if preview-side).
-  Each top-level tab (Mods/Tools/Plugins/Settings) is also boundary-wrapped, so a crash in any tab
-  degrades locally instead of app-wide. *Next:* defensive `Array.isArray` guards on components
-  consuming IPC arrays.
+### 5. #12 App self-update
+- Check latest GitHub release → download → prompt. Configurable channel + opt-out.
 
-### Hygiene (ongoing, per ui-design-rules.md)
-- Audit font sizes (12/14px only), hardcoded colors → CSS vars, and `danger`-button icon alignment.
-- First-run onboarding: profile/game setup + link to install the matching Model Importer (XXMI/EFMI/…).
+---
+
+## Parked / dropped (with reasons)
+
+- **In-game on-screen toggle UI / menu — DROPPED.** No stock 3DMigoto primitive: `command-list`/`present`/
+  `custom-shader` have no text/font/notification; `CustomShader` is raw DX11. Would require shipping a font
+  texture + text-render shader — out of scope for generate-from-`.ini`. (Mods just cycle keys; the only
+  built-in readout is 3DMigoto's debug overlay in `d3dx.ini`.)
+- **3DMigoto plugin-DLL interface — parked (low priority).** Not in the INI docs; lives in `bo3b/3Dmigoto`
+  source. XXMI bundles its own DLL, so we don't need it.
+- **Own 3DMigoto launcher (replicate XXMI inject) — parked.** `D3DMigotoService` exists but inject is
+  XXMI's job; we lean on XXMI.
+- **Set category color/icon — deferred.** Needs a `Category.color` field full-stack (model+repo+IPC+picker).
+
+---
+
+## Open bugs / backlog
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| 11 | thumbnail right-click crash | **Open (needs repro)** | Preview context menu is guarded + panels have error boundaries → crash likely the import-dialog thumbnail picker. Capture `[ErrorBoundary]` console output to pinpoint. |
+| 10 | temp cleanup | **Largely done** | FileCleanupTool scans/cleans temp orphans. Follow-up: opt-in auto-clean on exit (configurable). |
+| 16 | mod-load status detail | **Mostly done** | Reports "Enabling cache / Extracting / Refreshing stale cache". Optional: per-file extraction counts. |
+
+> Done & verified earlier (kept for history): #6 fix tool, #9 stale-cache invalidation, #13 filtered-selection,
+> #14 mod update (replace content), #3 keybinding+config editor, #4/#5 launch via XXMI. Fix-tool library
+> (folder-derived, watcher, multi-entry). See git history for detail.
+
+---
+
+## Cross-cutting hygiene (ongoing)
+- Font sizes 12/14px only; CSS vars not hex; atomic design (L1/L2/L3 — `ui-component-layers.md`).
+- Defensive `Array.isArray` guards on components consuming IPC arrays (pure-UI crash class).
+- Frontend test runner is NOT wired (see `test-coverage-priorities.md`) — gate is `tsc` + `npm run build`
+  + native `shot`. Wiring jest/vitest is a real reliability task.
