@@ -30,6 +30,22 @@ public class ProfileConfiguration
     /// Mod import configuration (compression settings, etc.)
     /// </summary>
     public ModImportConfiguration ModImport { get; set; } = new ModImportConfiguration();
+
+    /// <summary>
+    /// Game launch configuration (path to the game / XXMI launcher / 3DMigoto loader + args).
+    /// </summary>
+    public LaunchConfiguration Launch { get; set; } = new LaunchConfiguration();
+}
+
+/// <summary>
+/// Per-profile game launch configuration. <see cref="Path"/> is the executable/launcher to run
+/// (e.g. an XXMI Launcher, a 3DMigoto loader, or the game exe); <see cref="Args"/> are optional
+/// command-line arguments. Empty Path = not configured.
+/// </summary>
+public class LaunchConfiguration
+{
+    public string Path { get; set; } = string.Empty;
+    public string Args { get; set; } = string.Empty;
 }
 
 /// <summary>

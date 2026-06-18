@@ -41,11 +41,17 @@ export interface TabSettings {
  * Profile Configuration Model (stored in {profileId}/config.json)
  * Note: Windows and Tabs come from other update events
  */
+export interface LaunchConfiguration {
+  path: string;
+  args: string;
+}
+
 export interface ProfileConfiguration {
   profileId: string;
   modWork: ModWorkConfiguration;
   modImport: ModImportConfiguration;
   tabs: TabSettings;
+  launch?: LaunchConfiguration;
   windows?: Record<string, any>; // Updated via other events
 }
 
@@ -159,6 +165,8 @@ export class ProfileService extends BaseModuleService {
     cleanupMaxCaches?: number;
     compressionType?: ModImportConfiguration['compressionType'];
     compressionMode?: ModImportConfiguration['compressionMode'];
+    launchPath?: string;
+    launchArgs?: string;
   }): Promise<boolean> {
     return this.sendBooleanMessage('UPDATE_CONFIG', undefined, {
       profileId: params.profileId,
@@ -168,6 +176,8 @@ export class ProfileService extends BaseModuleService {
       cleanupMaxCaches: params.cleanupMaxCaches,
       compressionType: params.compressionType,
       compressionMode: params.compressionMode,
+      launchPath: params.launchPath,
+      launchArgs: params.launchArgs,
     });
   }
 

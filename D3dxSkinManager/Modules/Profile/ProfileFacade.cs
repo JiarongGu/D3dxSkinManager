@@ -295,6 +295,10 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         var compressionType = _payloadHelper.GetOptionalValue<string>(request.Payload, "compressionType");
         var compressionMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "compressionMode");
 
+        // Game launch configuration
+        var launchPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "launchPath");
+        var launchArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "launchArgs");
+
         // Load existing configuration to preserve fields like Windows and Tabs
         var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
         if (config == null)
@@ -335,6 +339,13 @@ public class ProfileFacade : BaseFacade, IProfileFacade
             {
                 config.ModImport.CompressionMode = compressionMode;
             }
+        }
+
+        // Handle game launch configuration
+        if (launchPath != null || launchArgs != null)
+        {
+            config.Launch.Path = launchPath ?? config.Launch.Path;
+            config.Launch.Args = launchArgs ?? config.Launch.Args;
         }
 
         return await UpdateProfileConfigAsync(config).ConfigureAwait(false);

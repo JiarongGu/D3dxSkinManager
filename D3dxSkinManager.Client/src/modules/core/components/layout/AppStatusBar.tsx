@@ -9,6 +9,7 @@ import { eventBus, Module, SystemEventType } from "../../../../shared/services/e
 import { api } from "../../../../shared/services/ipc";
 import { ModPresetMenu } from "./ModPresetMenu";
 import { ActivityPanel } from "./ActivityPanel";
+import { LaunchButton } from "./LaunchButton";
 import "./AppStatusBar.css";
 
 // Global app metadata injected by backend
@@ -135,6 +136,7 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
 
         {/* Right side */}
         <Space size="large" style={{ marginLeft: "auto" }}>
+          <LaunchButton />
           <ModPresetMenu />
 
           <Tag color={modsLoaded > 0 ? "green" : "default"}>
