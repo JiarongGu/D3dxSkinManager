@@ -58,12 +58,39 @@ A merge is one mod whose master `.ini` starts with **`namespace = MergeName\Mast
 So **mod-merge = re-namespace each mod + emit a master with a `$swapvar` + `[KeySwap]` cycling them**.
 This is the model to implement (game-agnostic — every importer's 3DMigoto supports `namespace`).
 
-## Still flagged (needs more research — wiki scrape was JS-blocked)
-- **Generate in-game toggle UI / on-screen menu**: not found in the sampled mods (they cycle via keys, no
-  text overlay). 3DMigoto/importers have a text-draw/`[Present]` overlay + a mod-menu; map it from the
-  3Dmigoto wiki (fetch was blocked — retry via a working fetch or the repo source) before generating it.
-- **DLL plugin interface**: XXMI bundles its 3DMigoto DLL; the `[Loader] loader=XXMI Launcher.exe` hook is
-  in `xxmi-integration.md`. The plugin-DLL API itself is not yet mapped.
+### Namespace contract (GROUNDED 2026-06-18 — leotorrez INI docs `/modding/docs/namespace`)
+- `namespace = a\b\c` MUST be the **first line** of the `.ini`. Default namespace = the mod's folder path.
+- Cross-file refs use `[type]\[namespace]\[name]`: `$\ns\var`, `run = CommandList\ns\name`,
+  `vb0 = Resource\ns\Texture`. So a merger just: assign each source mod a **unique** namespace
+  (creator\char\mod to avoid collisions) + write the master that drives `$\ns\$swapvar` / runs each
+  `CommandList\ns\…` gated by the swap var. No hash/resource renaming needed — the namespace isolates them.
+- **Mod-merge is buildable now** with the config-editor parse layer; it's the next big `.ini` feature.
+
+### Key section — full option set (GROUNDED — `/modding/docs/key`)
+Beyond the `key`/`type`/`$var` the editor exposes today, a `[Key*]` supports: `type` = (default load) /
+`hold` / `toggle` / `cycle`; `back =` (a 2nd key that cycles **backward**); `wrap =` (cycle wrap, default
+true); `smart =` (cycle resync, default true); `delay`/`transition`/`transition_type`/`release_delay`/
+`release_transition`/`release_transition_type` (ms easing); **multiple `key =` lines** in one section
+(keyboard + controller share state); Xbox buttons `XB_*` (and `XB2_*` per-pad); combos via spaces with
+`NO_<mod>` / `NO_MODIFIERS` exclusions. `run = CommandList…` for advanced logic. The config editor should
+grow toward exposing `back`/`wrap`/`smart`/transitions + multi-key as it matures.
+
+## Still flagged
+- **Generate in-game toggle UI / on-screen menu — NO stock primitive (GROUNDED 2026-06-18).** The INI
+  docs (`command-list`, `present`, `custom-shader`) have NO text/font/notification/overlay command;
+  `CustomShader` is raw DX11 (topology/cull/blend/ps/vs/cs). On-screen text would require shipping a font
+  texture + a custom text-render shader — far beyond a generate-from-`.ini` feature. **De-prioritised.**
+  (Mods convey state by cycling keys; the only built-in readout is 3DMigoto's own debug/hunting overlay,
+  configured in `d3dx.ini`, not the mod.)
+- **DLL plugin interface**: still unmapped; not in the INI docs. Lives in `bo3b/3Dmigoto` source
+  (`deepwiki.com/bo3b/3Dmigoto`). Low priority — XXMI bundles its own DLL (see `xxmi-integration.md`).
+
+## Authoritative INI reference (scrapeable — use for future grounding)
+`leotorrez.github.io/modding/docs/*` is the maintained 3DMigoto/XXMI INI reference. Pages: `namespace`,
+`command-list`, `present`, `constants`, `key`, `override`, `texture-override`, `shader-override`,
+`shader-regex`, `custom-shader`, `resource`, `draw-calls`, `operators`, `flags`, `system-values`,
+`fuzzy-matching`, `3dm-statics`. It's a JS/VitePress SPA → use `node devtools/dev.mjs research scrape <url>`
+(puppeteer), NOT WebFetch.
 
 ## Where this lives in our code
 - Parse today: `Modules/Mod/Services/ModKeybindingService.cs` (`ParseKeybindingsAsync`, `[Key*]` only).
