@@ -26,6 +26,7 @@ public interface IModAnalysisService : IDisposable
     Task DeleteSessionAsync(string sessionId);
     Task ClearAllSessionsAsync();
     Task RemoveModFromAnalysisAsync(string modId);
+    Task<List<ModHealthSummary>> GetLatestHealthAsync();
 }
 
 public class ModAnalysisService : IModAnalysisService
@@ -762,6 +763,35 @@ public class ModAnalysisService : IModAnalysisService
             session.ConflictCount = report.ConflictCount;
             await _analysisRepository.UpdateSessionAsync(session).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Latest per-mod health from the most recent scan, for the mod-list "last scan" badge.
+    /// Returns only non-healthy mods (error/warning) — the list shows no badge for healthy/unscanned.
+    /// </summary>
+    public async Task<List<ModHealthSummary>> GetLatestHealthAsync()
+    {
+        var findings = await _analysisRepository.GetLatestFindingPerModAsync().ConfigureAwait(false);
+        return findings
+            .Where(f => f.HealthStatus == "error" || f.HealthStatus == "warning")
+            .Select(f => new ModHealthSummary
+            {
+                ModId = f.ModId,
+                HealthStatus = f.HealthStatus,
+                IssueCount = CountJsonArray(f.HealthIssues),
+            })
+            .ToList();
+    }
+
+    /// <summary>Count elements in a JSON array string (HealthIssues), robust to bad/empty JSON.</summary>
+    private static int CountJsonArray(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement.GetArrayLength() : 0;
+        }
+        catch { return 0; }
     }
 
     // ===== Helpers =====

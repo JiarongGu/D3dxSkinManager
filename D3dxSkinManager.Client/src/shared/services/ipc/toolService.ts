@@ -17,7 +17,7 @@ import type {
   OrphanScanResult,
   CleanupResult,
 } from '../../types/cleanup.types';
-import type { FullAnalysisReport, AnalysisSessionSummary } from '../../types/analysis.types';
+import type { FullAnalysisReport, AnalysisSessionSummary, ModHealthSummary } from '../../types/analysis.types';
 import type { ModFixTool } from '../../types/modFix.types';
 
 /**
@@ -160,6 +160,11 @@ export class ToolService extends BaseModuleService {
 
   async getAnalysisHistory(profileId: string): Promise<AnalysisSessionSummary[]> {
     return this.sendArrayMessage<AnalysisSessionSummary>('ANALYSIS_GET_HISTORY', profileId);
+  }
+
+  /** Latest per-mod health (warning/error only) from the most recent scan — for the mod-list badge. */
+  async getLatestHealth(profileId: string): Promise<ModHealthSummary[]> {
+    return this.sendArrayMessage<ModHealthSummary>('ANALYSIS_GET_LATEST_HEALTH', profileId);
   }
 
   async deleteAnalysisSession(profileId: string, sessionId: string): Promise<void> {

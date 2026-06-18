@@ -9,7 +9,7 @@ import { CATEGORY_IDS } from '../../../shared/types/category.types';
 import { notification } from '../../../shared/utils/notification';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { executeWithDelayedLoading } from '../../../shared/utils/delayedLoading';
-import { api, modService } from '../../../shared/services/ipc';
+import { api, modService, toolService } from '../../../shared/services/ipc';
 import i18n from '../../../shared/services/i18n';
 import logger from '../../../shared/utils/logger';
 
@@ -193,6 +193,20 @@ export async function refreshActiveMods(profileId: string): Promise<void> {
     useModsStore.getState().setActiveMods(active);
   } catch (error: unknown) {
     logger.error('Failed to load active mods:', error);
+  }
+}
+
+/**
+ * Load the latest per-mod health (warning/error only) from the most recent scan into the store.
+ * Drives the mod-list "last scan" health badge. Point-in-time (not live) — refreshed after analysis.
+ */
+export async function refreshModHealth(profileId: string): Promise<void> {
+  try {
+    const summaries = await toolService.getLatestHealth(profileId);
+    const map = Object.fromEntries(summaries.map((s) => [s.modId, s]));
+    useModsStore.getState().setModHealth(map);
+  } catch (error: unknown) {
+    logger.error('Failed to load mod health:', error);
   }
 }
 

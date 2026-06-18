@@ -13,6 +13,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current } from 'immer';
 import { ModInfo, ModStatistics } from '../../../shared/types/mod.types';
+import type { ModHealthSummary } from '../../../shared/types/analysis.types';
 import { CategoryInfo } from '../../../shared/types/category.types';
 
 // ============================================================================
@@ -31,6 +32,7 @@ export interface ModsState {
   selectedMods: ModInfo[];
   mods: ModInfo[] | undefined; // Current mods list (filtered by view mode)
   activeMods: ModInfo[]; // All currently loaded/active mods (any category) — drives the per-category active indicator
+  modHealth: Record<string, ModHealthSummary>; // modId → last-scan health (warning/error only) — drives the mod-list "last scan" badge
   modLoading: boolean; // Loading state for mod list operations (update, delete, refresh)
   viewMode: ModListViewMode; // Current view mode for mod list
 
@@ -87,6 +89,7 @@ export interface ModsActions {
   setSelectedMods: (mods: ModInfo[]) => void;
   setMods: (mods: ModInfo[] | undefined) => void;
   setActiveMods: (mods: ModInfo[]) => void;
+  setModHealth: (map: Record<string, ModHealthSummary>) => void;
   setModLoading: (loading: boolean) => void;
   setViewMode: (mode: ModListViewMode) => void;
   updateModLocal: (id: string, data: Partial<ModInfo>) => void;
@@ -177,6 +180,7 @@ const initialState: ModsState = {
   selectedMods: [],
   mods: undefined,
   activeMods: [],
+  modHealth: {},
   modLoading: false,
   viewMode: 'category', // Default to category view
 
@@ -249,6 +253,11 @@ export const useModsStore = create<ModsStore>()(
       setActiveMods: (mods) =>
         set((state) => {
           state.activeMods = mods;
+        }),
+
+      setModHealth: (map) =>
+        set((state) => {
+          state.modHealth = map;
         }),
 
       setModLoading: (loading) =>

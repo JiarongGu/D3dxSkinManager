@@ -61,6 +61,12 @@ public interface IModAnalysisRepository
     Task<List<AnalysisFindingEntity>> GetFindingsBySessionAsync(string sessionId);
     Task<int> GetFindingCountBySessionAsync(string sessionId);
     Task DeleteFindingsByModIdAsync(string modId);
+
+    /// <summary>
+    /// The most recent finding for every mod (across all sessions), so the mod list can show a
+    /// "last scan" health badge. One row per ModId, taken from the newest session that analyzed it.
+    /// </summary>
+    Task<List<AnalysisFindingEntity>> GetLatestFindingPerModAsync();
 }
 
 public class ModAnalysisRepository : IModAnalysisRepository
@@ -164,5 +170,20 @@ public class ModAnalysisRepository : IModAnalysisRepository
     {
         await using var conn = new SqliteConnection(_connectionString);
         await conn.ExecuteAsync("DELETE FROM AnalysisFindings WHERE ModId = @modId", new { modId });
+    }
+
+    public async Task<List<AnalysisFindingEntity>> GetLatestFindingPerModAsync()
+    {
+        await using var conn = new SqliteConnection(_connectionString);
+        // Pick, per ModId, the finding from the session with the newest StartedAt. ROW_NUMBER keeps one
+        // row per mod (SQLite supports window functions). Cheap enough for a per-profile findings table.
+        var results = await conn.QueryAsync<AnalysisFindingEntity>(@"
+            SELECT f.* FROM (
+                SELECT f.*, ROW_NUMBER() OVER (PARTITION BY f.ModId ORDER BY s.StartedAt DESC) AS rn
+                FROM AnalysisFindings f
+                JOIN AnalysisSessions s ON s.Id = f.SessionId
+            ) f
+            WHERE f.rn = 1");
+        return results.ToList();
     }
 }

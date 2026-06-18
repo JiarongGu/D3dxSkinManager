@@ -135,6 +135,7 @@ public class ToolFacade : BaseFacade, IToolFacade
             "ANALYSIS_CANCEL" => await CancelAnalysisAsync(),
             "ANALYSIS_GET_REPORT" => await GetAnalysisReportAsync(request),
             "ANALYSIS_GET_HISTORY" => await _modAnalysisService.GetSessionHistoryAsync(),
+            "ANALYSIS_GET_LATEST_HEALTH" => await _modAnalysisService.GetLatestHealthAsync(),
             "ANALYSIS_DELETE_SESSION" => await DeleteAnalysisSessionAsync(request),
             "ANALYSIS_CLEAR_ALL" => await ClearAnalysisAsync(),
 

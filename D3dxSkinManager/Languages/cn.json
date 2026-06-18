@@ -2,6 +2,7 @@
   "code": "cn",
   "name": "中文",
   "translations": {
+    "mods.list.healthHint": "上次扫描：{{count}} 个问题 —— 打开分析器查看或修复。",
     "modIni.field.wrap": "循环回绕",
     "modIni.field.smart": "智能重新同步",
     "mods.list.unavailable": "不可用",

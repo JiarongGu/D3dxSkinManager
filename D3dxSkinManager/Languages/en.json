@@ -2,6 +2,7 @@
   "code": "en",
   "name": "English",
   "translations": {
+    "mods.list.healthHint": "Last scan: {{count}} issue(s) — open the Analyzer to review or fix.",
     "modIni.field.wrap": "Cycle wrap-around",
     "modIni.field.smart": "Smart resync",
     "mods.list.unavailable": "UNAVAILABLE",

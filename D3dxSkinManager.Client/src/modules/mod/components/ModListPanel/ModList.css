@@ -126,6 +126,12 @@
   font-weight: 500;
 }
 
+/* Last-scan health icon (from the analyzer) — sits inline with the name/status tags. */
+.mod-list-item-health {
+  display: inline-flex;
+  align-items: center;
+}
+
 .mod-list-item-loaded-tag {
   margin: 0;
   font-size: 12px;

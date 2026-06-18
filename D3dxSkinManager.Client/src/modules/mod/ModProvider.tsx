@@ -8,6 +8,7 @@ import {
   ModEventType,
   CategoryEventType,
   ProfileEventType,
+  ToolsEventType,
   Module,
 } from "../../shared/services/eventBus";
 import { profileService } from "../../shared/services/ipc";
@@ -341,6 +342,17 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       },
     );
 
+    // Analysis finished → refresh the mod-list "last scan" health badges.
+    const unsubscribeAnalysisComplete = eventBus.subscribe(
+      Module.TOOL,
+      ToolsEventType.MOD_ANALYSIS_COMPLETE,
+      () => {
+        if (selectedProfileIdRef.current) {
+          void modOps.refreshModHealth(selectedProfileIdRef.current);
+        }
+      },
+    );
+
     return () => {
       handleModListUpdate.cancel();
       handleCategoryTreeUpdate.cancel();
@@ -361,6 +373,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       unsubscribeModUnloaded();
       unsubscribeMetadataUpdated();
       unsubscribeCacheChanged();
+      unsubscribeAnalysisComplete();
     };
   }, []);
 
@@ -382,6 +395,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       void modOps.loadStatistics(selectedProfileId);
       void modOps.loadTags(selectedProfileId);
       void modOps.refreshActiveMods(selectedProfileId);
+      void modOps.refreshModHealth(selectedProfileId);
       // Explicitly refresh mods to reload selected category (e.g., UNCLASSIFIED)
       // This ensures that if a category was selected before reset, its mods are refreshed
       void modOps.refreshMods(selectedProfileId);

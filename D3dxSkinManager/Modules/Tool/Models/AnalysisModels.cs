@@ -131,6 +131,19 @@ public class AnalysisSessionSummary
     public string? CompletedAt { get; set; }
 }
 
+// ===== Latest per-mod health (for the mod-list "last scan" badge) =====
+
+/// <summary>
+/// Compact health summary for one mod from its most recent analysis — drives the mod-list badge.
+/// Point-in-time (reflects the mod as last scanned), not a live guarantee.
+/// </summary>
+public class ModHealthSummary
+{
+    public string ModId { get; set; } = string.Empty;
+    public string HealthStatus { get; set; } = "unknown"; // healthy | warning | error
+    public int IssueCount { get; set; }
+}
+
 // ===== Full Analysis Report =====
 
 /// <summary>

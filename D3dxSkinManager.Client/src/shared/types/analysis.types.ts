@@ -90,6 +90,13 @@ export interface AnalysisSessionSummary {
   completedAt?: string;
 }
 
+/** Compact per-mod health from the most recent scan — drives the mod-list "last scan" badge. */
+export interface ModHealthSummary {
+  modId: string;
+  healthStatus: string; // 'healthy' | 'warning' | 'error' (only warning/error are returned)
+  issueCount: number;
+}
+
 export interface AnalysisProgress {
   sessionId: string;
   stage: string;
