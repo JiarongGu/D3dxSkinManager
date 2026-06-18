@@ -128,7 +128,8 @@ export const FixToolSettingsCard: React.FC = () => {
           value={timeoutMinutes}
           onChange={(v) => setTimeoutMinutes(v ?? 5)}
           style={{ width: "120px" }}
-          addonAfter={t("settings.profile.fixTools.timeout.minutes")}
+          // antd v6 deprecated InputNumber `addonAfter`; `suffix` shows the unit inside the field.
+          suffix={t("settings.profile.fixTools.timeout.minutes")}
         />
       </CompactField>
 
