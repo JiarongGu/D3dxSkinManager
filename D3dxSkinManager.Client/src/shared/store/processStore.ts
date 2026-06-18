@@ -51,8 +51,3 @@ export const useProcessStore = create<ProcessState>((set) => ({
   processes: [],
   setProcesses: (processes) => set({ processes }),
 }));
-
-/** Convenience selectors. */
-export const selectRunning = (s: ProcessState) => s.processes.filter((p) => p.status === 'running');
-export const selectFinished = (s: ProcessState) =>
-  s.processes.filter((p) => p.status !== 'running');

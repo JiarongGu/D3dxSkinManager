@@ -7,21 +7,6 @@
  */
 
 /**
- * Example file paths (technical syntax, doesn't need translation)
- */
-export const PATH_PLACEHOLDERS = {
-  GAME_EXE: 'C:\\Program Files\\Game\\game.exe',
-  CUSTOM_PROGRAM: 'C:\\Programs\\CustomTool\\tool.exe',
-} as const;
-
-/**
- * Command-line argument examples (technical syntax)
- */
-export const LAUNCH_ARG_EXAMPLES = {
-  COMMON_ARGS: '-windowed -dx11',
-} as const;
-
-/**
  * Screen resolution presets (technical specifications)
  */
 export const SCREEN_RESOLUTIONS = {
@@ -37,12 +22,4 @@ export const SCREEN_RESOLUTIONS = {
 export const RESOLUTION_DEFAULTS = {
   WIDTH: '1920',
   HEIGHT: '1080',
-} as const;
-
-/**
- * Module/Framework Names (proper nouns, brand names)
- */
-export const MODULE_NAMES = {
-  UNITY: 'Unity',
-  MIGOTO: '3DMigoto',
 } as const;
