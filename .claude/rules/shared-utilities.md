@@ -13,6 +13,8 @@ Before writing ANY utility function (formatBytes, formatDate, clipboard copy, et
 | `imageUrlHelper` | `shared/utils/imageUrlHelper.ts` | File paths to `app://` URLs |
 | `memoizeDebounce` | `shared/utils/memoizeDebounce.ts` | Debounced memoization |
 | `parseSearchQuery` / `matchesSearchQuery` | `shared/utils/searchQueryParser.ts` | Search query parsing with AND/OR/NOT/field/exact operators |
+| `keyChord` (`buildRaw`/`buildDisplay`/`rawToDisplay`/`baseFromKey`) | `shared/utils/keyChord.ts` | 3DMigoto key-chord capture + raw↔friendly display (used by `KeybindingPreview` + `KeyCaptureInput`) |
+| `KeyCaptureInput` | `shared/components/common/KeyCaptureInput.tsx` | Focus + press a key → captures a 3DMigoto hotkey chord; emits raw value. Reuse for any hotkey field |
 | `navigateToTab` / `navigateToModSearch` | `shared/hooks/useAppNavigation.ts` | Cross-module tab navigation + mod search with category |
 | `useTaskStore` | `shared/store/taskStore.ts` | Global background task tracking (addTask/updateTask/removeTask) |
 | `initTaskEventBridge` | `shared/store/taskEventBridge.ts` | Backend progress events → taskStore (analysis, package) |

@@ -93,10 +93,9 @@ branching on `$swapvar`; see `.claude/rules/3dmigoto-ini-interface.md`):
   the mods store (refreshed by ModProvider on load/unload/profile), grouped by category id.
 
 ### 3. Config-editor growth (extend the `.ini` editor)
-- ✅ `wrap` (cycle wrap-around) + `smart` (smart resync) now render as a **Switch** (genuine [Key]
-  booleans, default true); `back`/`delay` already have friendly labels (plain inputs).
-- Still: `back` as a key-capture (reuse the keybinding chord capture), `transition*` as ms number
-  fields, **multiple `key=` lines**, Xbox `XB_*`, combos.
+- ✅ `wrap`/`smart` render as a **Switch**; `key`/`back` rows use a **visual chord-capture**
+  (`KeyCaptureInput`, shared with the keybinding editor via `shared/utils/keyChord.ts`).
+- Still: `transition*` as ms number fields, **multiple `key=` lines**, Xbox `XB_*`, controller combos.
 - Per-toggle grouping that ties a `[Key]`'s cycle list to the `$var` it drives (cross-section view).
 
 ### 4. #3 Remote mod library (the big reach)
