@@ -15,19 +15,8 @@ export const LaunchView: React.FC = () => {
   return (
     <div className="launch-view">
       <div className="launch-view-content">
-        <Tabs defaultActiveKey="3dmigoto" size="large">
-          <TabPane
-            tab={
-              <span>
-                <RocketOutlined />
-                {MODULE_NAMES.MIGOTO}
-              </span>
-            }
-            key="3dmigoto"
-          >
-            <D3DMigotoTab />
-          </TabPane>
-
+        {/* Game/XXMI launch is the primary, recommended path; raw 3DMigoto deploy is legacy/advanced. */}
+        <Tabs defaultActiveKey="game" size="large">
           <TabPane
             tab={
               <span>
@@ -38,6 +27,18 @@ export const LaunchView: React.FC = () => {
             key="game"
           >
             <GameLaunchTab />
+          </TabPane>
+
+          <TabPane
+            tab={
+              <span>
+                <RocketOutlined />
+                {t('launch.tabs.migotoLegacy', { name: MODULE_NAMES.MIGOTO })}
+              </span>
+            }
+            key="3dmigoto"
+          >
+            <D3DMigotoTab />
           </TabPane>
         </Tabs>
       </div>
