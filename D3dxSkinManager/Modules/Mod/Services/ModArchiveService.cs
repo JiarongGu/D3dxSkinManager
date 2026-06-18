@@ -30,6 +30,13 @@ public interface IModArchiveService
     Task<bool> DeleteArchiveAsync(string id);
     Task<string> CopyArchiveAsync(string sourcePath, string id);
     Task<bool> CompressCacheToArchiveAsync(string id, string cacheDirectory);
+
+    /// <summary>
+    /// Fast path: replace a single file inside the mod's archive (no full recompress).
+    /// <paramref name="entryPath"/> is the path inside the archive (relative, e.g. "sub/mod.ini").
+    /// </summary>
+    Task<bool> UpdateFileInArchiveAsync(string id, string sourceFilePath, string entryPath);
+
     bool ArchiveExists(string id);
     string GetArchivePath(string id);
 }
@@ -245,6 +252,38 @@ public class ModArchiveService : IModArchiveService
             _logger.Error($"Error updating archive from cache {id}: {ex.Message}", "ModArchiveService", ex);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Fast single-file archive update (append mode) — used for small edits like a keybinding change
+    /// instead of recompressing the whole cache. Planner-serialized like all archive mutations.
+    /// </summary>
+    public async Task<bool> UpdateFileInArchiveAsync(string id, string sourceFilePath, string entryPath)
+    {
+        var archivePath = GetArchivePath(id);
+        if (!File.Exists(archivePath))
+        {
+            _logger.Warn($"Archive not found for single-file update: {id}", "ModArchiveService");
+            return false;
+        }
+
+        var op = new FileSystemOperation
+        {
+            OperationType = FileSystemOperationType.UpdateFileInArchive,
+            SourcePath = sourceFilePath,
+            TargetPath = archivePath,
+            ArchiveEntryPath = entryPath,
+            Overwrite = true,
+        };
+
+        var result = await _operationPlanner.SubmitOperationAsync(op).ConfigureAwait(false);
+        if (result.Success)
+        {
+            _logger.Info($"Updated archive entry '{entryPath}' for mod {id}", "ModArchiveService");
+            return true;
+        }
+        _logger.Error($"Failed to update archive entry for {id}: {result.ErrorMessage}", "ModArchiveService", result.Exception);
+        return false;
     }
 
     /// <summary>

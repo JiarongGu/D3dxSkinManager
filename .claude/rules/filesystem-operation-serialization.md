@@ -25,6 +25,13 @@ Submit a `FileSystemOperation` to the planner instead. Read-only calls (`Directo
 Compliant services: `ModArchiveService`, `ModCacheService` (`EnableCacheAsync`, `DisableCacheAsync`,
 `DeleteCacheAsync`, `CleanupOldDisabledCachesAsync`, `CleanCacheAsync`).
 
+**Fast single-file archive patch** (`FileSystemOperationType.UpdateFileInArchive` →
+`ModArchiveService.UpdateFileInArchiveAsync`): for small edits (a keybinding/`.ini` change) patch just
+the one entry via SharpSevenZip append (`CompressionMode.Append`, forward-slash entry path) instead of
+a full `CompressCacheToArchiveAsync` recompress — ~17× faster (143ms vs ~2.5s). Append REPLACES the
+matching entry (proven not-duplicate by `ArchiveHelperUpdateTests`). Still planner-serialized + per-mod
+queue-locked. Used by `ModKeybindingService.UpdateKeybindingAsync`.
+
 ## Layer 2 — `IModOperationQueue` (logical serialization)
 
 `Modules/Mod/Services/ModOperationQueue.cs` serializes higher-level read-modify-write flows:

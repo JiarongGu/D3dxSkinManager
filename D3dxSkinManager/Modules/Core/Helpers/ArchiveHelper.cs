@@ -45,6 +45,13 @@ public interface IArchiveHelper
     ExtractionResult ExtractArchive(string archivePath, string targetDirectory);
     Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.SevenZip, CompressionLevel compressionLevel = CompressionLevel.High, Action<int>? progressCallback = null, CancellationToken cancellationToken = default);
     Task<ArchiveValidationResult> ValidateArchiveAsync(string archivePath);
+
+    /// <summary>
+    /// Update (replace/add) a SINGLE file inside an existing archive without recompressing the whole
+    /// archive. <paramref name="entryPath"/> is the path inside the archive (relative, e.g. "sub/mod.ini").
+    /// Much faster than re-compressing the full folder for a small edit.
+    /// </summary>
+    Task UpdateFileInArchiveAsync(string archivePath, string sourceFilePath, string entryPath);
 }
 
 /// <summary>
@@ -426,5 +433,43 @@ public class ArchiveHelper : IArchiveHelper
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Replace/add a single entry in an existing 7z archive via append mode — only the one file is
+    /// (re)compressed; the rest of the archive's streams are copied. The entry key must match the
+    /// existing in-archive path (forward slashes) so it replaces rather than duplicates.
+    /// </summary>
+    public async Task UpdateFileInArchiveAsync(string archivePath, string sourceFilePath, string entryPath)
+    {
+        if (!File.Exists(archivePath)) throw new FileNotFoundException($"Archive not found: {archivePath}");
+        if (!File.Exists(sourceFilePath)) throw new FileNotFoundException($"Source file not found: {sourceFilePath}");
+
+        var normalizedEntry = entryPath.Replace('\\', '/').TrimStart('/');
+
+        await Task.Run(() =>
+        {
+            InitializeSevenZip();
+            var compressor = new SharpSevenZipCompressor
+            {
+                ArchiveFormat = OutArchiveFormat.SevenZip,
+                CompressionMode = CompressionMode.Append, // update the existing archive in place
+                CompressionLevel = CompressionLevel.High,
+                PreserveDirectoryRoot = false,
+            };
+            try
+            {
+                // key = path inside the archive, value = file on disk. Append replaces the matching entry.
+                compressor.CompressFileDictionary(
+                    new Dictionary<string, string> { { normalizedEntry, sourceFilePath } },
+                    archivePath);
+                _logger.Info($"Updated archive entry '{normalizedEntry}' in {Path.GetFileName(archivePath)}", "ArchiveHelper");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Single-file archive update failed: {ex.Message}", "ArchiveHelper", ex);
+                throw new InvalidOperationException($"Failed to update file in archive: {ex.Message}", ex);
+            }
+        }).ConfigureAwait(false);
     }
 }

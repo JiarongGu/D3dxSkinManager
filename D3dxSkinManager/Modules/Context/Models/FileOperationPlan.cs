@@ -34,7 +34,13 @@ public enum FileSystemOperationType
     /// <summary>
     /// Compress a directory into an archive file
     /// </summary>
-    CompressArchive
+    CompressArchive,
+
+    /// <summary>
+    /// Update (replace/add) a single file entry inside an existing archive without recompressing
+    /// the whole archive. Fast for small edits (e.g. a keybinding .ini change).
+    /// </summary>
+    UpdateFileInArchive
 }
 
 /// <summary>
@@ -72,6 +78,13 @@ public class FileSystemOperation
     /// Whether to overwrite existing files/directories
     /// </summary>
     public bool Overwrite { get; set; } = true;
+
+    /// <summary>
+    /// In-archive entry path for <see cref="FileSystemOperationType.UpdateFileInArchive"/>
+    /// (relative, forward-slash, e.g. "sub/mod.ini"). SourcePath = the new file on disk;
+    /// TargetPath = the archive.
+    /// </summary>
+    public string? ArchiveEntryPath { get; set; }
 
     /// <summary>
     /// Timestamp when this operation was submitted

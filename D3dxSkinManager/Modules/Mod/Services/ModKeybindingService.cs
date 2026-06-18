@@ -66,6 +66,7 @@ public class ModKeybindingService : IModKeybindingService
             var changed = 0;
             var oldVal = oldKey.Trim();
             var newVal = newKey.Trim();
+            var changedFiles = new List<string>();
 
             foreach (var iniFile in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories))
             {
@@ -97,6 +98,7 @@ public class ModKeybindingService : IModKeybindingService
                 {
                     // Cache .ini edit is safe under the per-mod lock (no concurrent op on this mod).
                     await File.WriteAllLinesAsync(iniFile, lines).ConfigureAwait(false);
+                    changedFiles.Add(iniFile);
                 }
             }
 
@@ -105,8 +107,12 @@ public class ModKeybindingService : IModKeybindingService
                 throw new OperationException("KEYBINDING_NOT_FOUND", "key", oldVal);
             }
 
-            // Persist: recompress the cache back into the archive (source of truth).
-            await _archiveService.CompressCacheToArchiveAsync(modId, cacheDir).ConfigureAwait(false);
+            // Persist FAST: patch only the changed .ini(s) inside the archive (no full recompress).
+            foreach (var file in changedFiles)
+            {
+                var entryPath = Path.GetRelativePath(cacheDir, file).Replace('\\', '/');
+                await _archiveService.UpdateFileInArchiveAsync(modId, file, entryPath).ConfigureAwait(false);
+            }
             return changed;
         });
     }

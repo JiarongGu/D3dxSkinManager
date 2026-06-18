@@ -302,6 +302,7 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
             FileSystemOperationType.DeleteFile => await ExecuteDeleteFileAsync(operation).ConfigureAwait(false),
             FileSystemOperationType.ExtractArchive => await ExecuteExtractArchiveAsync(operation).ConfigureAwait(false),
             FileSystemOperationType.CompressArchive => await ExecuteCompressArchiveAsync(operation).ConfigureAwait(false),
+            FileSystemOperationType.UpdateFileInArchive => await ExecuteUpdateFileInArchiveAsync(operation).ConfigureAwait(false),
             _ => FileSystemOperationResult.Fail($"Unknown operation type: {operation.OperationType}")
         };
     }
@@ -537,6 +538,36 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
 
             _logger.Error($"Unexpected error during compress archive: {ex.Message}", "FileOperationPlanner", ex);
             return FileSystemOperationResult.Fail($"An unexpected error occurred: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Update a single entry inside an existing archive (append mode) — fast path for small edits.
+    /// </summary>
+    private async Task<FileSystemOperationResult> ExecuteUpdateFileInArchiveAsync(FileSystemOperation operation)
+    {
+        if (string.IsNullOrEmpty(operation.SourcePath) || string.IsNullOrEmpty(operation.TargetPath) || string.IsNullOrEmpty(operation.ArchiveEntryPath))
+        {
+            return FileSystemOperationResult.Fail("Source file, archive path, and entry path are required for update-file-in-archive");
+        }
+        if (!_fileSystem.FileExists(operation.SourcePath))
+        {
+            return FileSystemOperationResult.Fail($"Source file does not exist: {operation.SourcePath}");
+        }
+        if (!_fileSystem.FileExists(operation.TargetPath))
+        {
+            return FileSystemOperationResult.Fail($"Archive does not exist: {operation.TargetPath}");
+        }
+        try
+        {
+            await _archiveHelper.UpdateFileInArchiveAsync(operation.TargetPath, operation.SourcePath, operation.ArchiveEntryPath).ConfigureAwait(false);
+            _logger.Info($"Updated entry '{operation.ArchiveEntryPath}' in archive {operation.TargetPath}", "FileOperationPlanner");
+            return FileSystemOperationResult.Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to update file in archive: {ex.Message}", "FileOperationPlanner", ex);
+            return FileSystemOperationResult.Fail($"Failed to update file in archive: {ex.Message}", ex);
         }
     }
 

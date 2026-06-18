@@ -28,7 +28,7 @@ public class ModKeybindingServiceTests : IDisposable
         _cacheRoot = Path.Combine(Path.GetTempPath(), "d3dx-kb-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_cacheRoot);
         _paths.Setup(p => p.CacheModsDirectory).Returns(_cacheRoot);
-        _archive.Setup(a => a.CompressCacheToArchiveAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
+        _archive.Setup(a => a.UpdateFileInArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
         _service = new ModKeybindingService(_paths.Object, _archive.Object, _queue);
     }
 
@@ -60,7 +60,7 @@ hash = 64a6b06d
 ";
 
     [Fact]
-    public async Task UpdateKeybinding_RewritesKeyLine_AndRecompresses()
+    public async Task UpdateKeybinding_RewritesKeyLine_AndPatchesArchiveEntry()
     {
         var file = WriteModIni("MODA", Sample);
 
@@ -72,7 +72,9 @@ hash = 64a6b06d
         text.Should().NotContain("key = 0");
         // Untouched: the hash override line must remain.
         text.Should().Contain("hash = 64a6b06d");
-        _archive.Verify(a => a.CompressCacheToArchiveAsync("MODA", It.IsAny<string>()), Times.Once);
+        // Fast path: only the changed .ini is patched into the archive (forward-slash entry path), no full recompress.
+        _archive.Verify(a => a.UpdateFileInArchiveAsync("MODA", file, "mod.ini"), Times.Once);
+        _archive.Verify(a => a.CompressCacheToArchiveAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
