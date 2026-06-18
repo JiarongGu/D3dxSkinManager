@@ -227,6 +227,12 @@ export class ToolService extends BaseModuleService {
   async setFixToolEntries(profileId: string, id: string, entries: string[]): Promise<void> {
     return this.sendMessage<void>('FIX_TOOLS_SET_ENTRIES', profileId, { id, entries });
   }
+
+  /** Probe for an installed Python interpreter (py/python/python3); returns the command or undefined. */
+  async detectPython(profileId: string): Promise<string | undefined> {
+    const res = await this.sendMessage<{ python?: string }>('FIX_TOOLS_DETECT_PYTHON', profileId);
+    return res?.python ?? undefined;
+  }
 }
 
 // Export singleton instance

@@ -47,12 +47,20 @@ export interface LaunchConfiguration {
   args: string;
 }
 
+export interface ModFixConfiguration {
+  pythonPath: string;
+  timeoutMinutes: number;
+  supportedExtensions: string[];
+  autoConfirm: boolean;
+}
+
 export interface ProfileConfiguration {
   profileId: string;
   modWork: ModWorkConfiguration;
   modImport: ModImportConfiguration;
   tabs: TabSettings;
   launch?: LaunchConfiguration;
+  fixTools?: ModFixConfiguration;
   windows?: Record<string, any>; // Updated via other events
 }
 
@@ -168,6 +176,10 @@ export class ProfileService extends BaseModuleService {
     compressionMode?: ModImportConfiguration['compressionMode'];
     launchPath?: string;
     launchArgs?: string;
+    fixToolsPythonPath?: string;
+    fixToolsTimeoutMinutes?: number;
+    fixToolsExtensions?: string[];
+    fixToolsAutoConfirm?: boolean;
   }): Promise<boolean> {
     return this.sendBooleanMessage('UPDATE_CONFIG', undefined, {
       profileId: params.profileId,
@@ -179,6 +191,10 @@ export class ProfileService extends BaseModuleService {
       compressionMode: params.compressionMode,
       launchPath: params.launchPath,
       launchArgs: params.launchArgs,
+      fixToolsPythonPath: params.fixToolsPythonPath,
+      fixToolsTimeoutMinutes: params.fixToolsTimeoutMinutes,
+      fixToolsExtensions: params.fixToolsExtensions,
+      fixToolsAutoConfirm: params.fixToolsAutoConfirm,
     });
   }
 

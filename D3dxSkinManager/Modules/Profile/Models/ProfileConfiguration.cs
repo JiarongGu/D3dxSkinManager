@@ -35,6 +35,37 @@ public class ProfileConfiguration
     /// Game launch configuration (path to the game / XXMI launcher / 3DMigoto loader + args).
     /// </summary>
     public LaunchConfiguration Launch { get; set; } = new LaunchConfiguration();
+
+    /// <summary>
+    /// Fix-tool runner settings (Python interpreter, timeout, accepted extensions, auto-confirm).
+    /// Editable per profile; seeds sensible defaults.
+    /// </summary>
+    public ModFixConfiguration FixTools { get; set; } = new ModFixConfiguration();
+}
+
+/// <summary>
+/// Per-profile fix-tool runner configuration — the editable surface of the runner's defaults
+/// (was a hard-coded <c>ModFixOptions</c>). Game-agnostic.
+/// </summary>
+public class ModFixConfiguration
+{
+    /// <summary>
+    /// Explicit Python interpreter (path or command) to run .py fix scripts. Empty = auto-detect
+    /// from the default candidates (py / python / python3).
+    /// </summary>
+    public string PythonPath { get; set; } = string.Empty;
+
+    /// <summary>Per-mod fix execution timeout, in minutes (script exceeding this is killed). Default 5.</summary>
+    public int TimeoutMinutes { get; set; } = 5;
+
+    /// <summary>Script extensions the runner accepts (lower-case, leading dot).</summary>
+    public List<string> SupportedExtensions { get; set; } = new() { ".py", ".exe", ".bat", ".cmd" };
+
+    /// <summary>
+    /// Auto-feed newlines to a script's stdin so interactive "Press Enter to continue" prompts run
+    /// unattended. Default true.
+    /// </summary>
+    public bool AutoConfirm { get; set; } = true;
 }
 
 /// <summary>

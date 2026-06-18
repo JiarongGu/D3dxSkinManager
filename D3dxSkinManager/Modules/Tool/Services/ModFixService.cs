@@ -1,12 +1,15 @@
 using System.Diagnostics;
+using System.Linq;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Services;
+using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 
 namespace D3dxSkinManager.Modules.Tool.Services;
@@ -45,6 +48,9 @@ public class ModFixOptions
 public interface IModFixService
 {
     Task<ModFixResult> RunFixAsync(ModFixRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Probe the default candidates (py/python/python3) and return the first that responds, or null.</summary>
+    string? DetectPython();
 }
 
 public class ModFixService : IModFixService
@@ -56,7 +62,10 @@ public class ModFixService : IModFixService
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
     private readonly IProcessRegistry _processRegistry;
-    private readonly ModFixOptions _options;
+    private readonly IProfileContext _profileContext;
+    private readonly IProfileRepository _profileRepository;
+    // Effective runner options. Defaults until a run refreshes them from the profile config (RunFixAsync).
+    private ModFixOptions _options;
 
     public ModFixService(
         IProfilePathService profilePaths,
@@ -66,6 +75,8 @@ public class ModFixService : IModFixService
         IProfileEventBus eventBus,
         ILogHelper logger,
         IProcessRegistry processRegistry,
+        IProfileContext profileContext,
+        IProfileRepository profileRepository,
         ModFixOptions? options = null)
     {
         _profilePaths = profilePaths;
@@ -75,11 +86,49 @@ public class ModFixService : IModFixService
         _eventBus = eventBus;
         _logger = logger;
         _processRegistry = processRegistry;
+        _profileContext = profileContext;
+        _profileRepository = profileRepository;
         _options = options ?? new ModFixOptions();
+    }
+
+    public string? DetectPython() => ResolvePythonInterpreter(new ModFixOptions().PythonCandidates);
+
+    /// <summary>Build effective runner options from the profile's FixTools config (falls back to defaults).</summary>
+    private async Task<ModFixOptions> BuildEffectiveOptionsAsync()
+    {
+        var options = new ModFixOptions();
+        try
+        {
+            var config = await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
+            var fix = config?.FixTools;
+            if (fix != null)
+            {
+                // Explicit interpreter (if set) is tried first, then the defaults as fallback.
+                if (!string.IsNullOrWhiteSpace(fix.PythonPath))
+                    options.PythonCandidates = new List<string> { fix.PythonPath }.Concat(options.PythonCandidates).ToList();
+                if (fix.SupportedExtensions is { Count: > 0 })
+                    options.SupportedExtensions = fix.SupportedExtensions
+                        .Select(e => e.Trim().ToLowerInvariant())
+                        .Where(e => e.Length > 0)
+                        .Select(e => e.StartsWith('.') ? e : "." + e)
+                        .ToList();
+                options.PerModTimeout = TimeSpan.FromMinutes(Math.Max(1, fix.TimeoutMinutes));
+                options.StdinAutoConfirmLines = fix.AutoConfirm ? 5 : 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[ModFix] Failed to load FixTools config, using defaults: {ex.Message}");
+        }
+        return options;
     }
 
     public async Task<ModFixResult> RunFixAsync(ModFixRequest request, CancellationToken cancellationToken = default)
     {
+        // Refresh effective options from the profile config at the start of each run (UI triggers one
+        // fix operation at a time, so this single-assignment is safe).
+        _options = await BuildEffectiveOptionsAsync().ConfigureAwait(false);
+
         // 1. Validate the script up-front so the user gets an immediate, clear error.
         if (string.IsNullOrWhiteSpace(request.ScriptPath) || !File.Exists(request.ScriptPath))
         {
@@ -330,9 +379,9 @@ public class ModFixService : IModFixService
     }
 
     /// <summary>Find the first working Python interpreter from the seeded candidate list (probes `--version`).</summary>
-    private string? ResolvePythonInterpreter()
+    private string? ResolvePythonInterpreter(List<string>? candidates = null)
     {
-        foreach (var candidate in _options.PythonCandidates)
+        foreach (var candidate in candidates ?? _options.PythonCandidates)
         {
             try
             {

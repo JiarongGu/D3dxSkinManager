@@ -126,6 +126,7 @@ public class ToolFacade : BaseFacade, IToolFacade
             "FIX_TOOLS_IMPORT" => await ImportFixToolAsync(request),
             "FIX_TOOLS_DELETE" => await DeleteFixToolAsync(request),
             "FIX_TOOLS_SET_ENTRIES" => await SetFixToolEntriesAsync(request),
+            "FIX_TOOLS_DETECT_PYTHON" => new { python = _modFixService.DetectPython() },
 
             // Mod Analysis
             "ANALYSIS_START" => StartAnalysisAsync(request),

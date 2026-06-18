@@ -17,6 +17,7 @@ import { notification } from "../../../shared/utils/notification";
 import { ModImportConfiguration, ModWorkConfiguration, profileService, systemService } from "../../../shared/services/ipc";
 import { logger } from "../../../shared/utils/logger";
 import { XxmiImporterPicker } from "./XxmiImporterPicker";
+import { FixToolSettingsCard } from "./FixToolSettingsCard";
 
 const { Option } = Select;
 
@@ -339,6 +340,8 @@ export const ProfileSettingsTab: React.FC = () => {
           </Col>
         </Row>
       </CompactCard>
+
+      <FixToolSettingsCard />
 
       <Form.Item style={{ marginTop: "16px" }}>
         <Space style={{ width: "100%", justifyContent: "flex-end" }}>

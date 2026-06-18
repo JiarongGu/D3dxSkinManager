@@ -299,6 +299,12 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         var launchPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "launchPath");
         var launchArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "launchArgs");
 
+        // Fix-tool runner configuration
+        var fixToolsPythonPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "fixToolsPythonPath");
+        var fixToolsTimeoutMinutes = _payloadHelper.GetOptionalValue<int?>(request.Payload, "fixToolsTimeoutMinutes");
+        var fixToolsExtensions = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "fixToolsExtensions");
+        var fixToolsAutoConfirm = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "fixToolsAutoConfirm");
+
         // Load existing configuration to preserve fields like Windows and Tabs
         var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
         if (config == null)
@@ -347,6 +353,20 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         {
             config.Launch.Path = launchPath ?? config.Launch.Path;
             config.Launch.Args = launchArgs ?? config.Launch.Args;
+        }
+
+        // Handle fix-tool runner configuration
+        if (fixToolsPythonPath != null || fixToolsTimeoutMinutes.HasValue ||
+            fixToolsExtensions != null || fixToolsAutoConfirm.HasValue)
+        {
+            config.FixTools.PythonPath = fixToolsPythonPath ?? config.FixTools.PythonPath;
+            config.FixTools.TimeoutMinutes = fixToolsTimeoutMinutes.HasValue
+                ? Math.Max(1, Math.Min(120, fixToolsTimeoutMinutes.Value))
+                : config.FixTools.TimeoutMinutes;
+            config.FixTools.SupportedExtensions = fixToolsExtensions != null && fixToolsExtensions.Count > 0
+                ? fixToolsExtensions
+                : config.FixTools.SupportedExtensions;
+            config.FixTools.AutoConfirm = fixToolsAutoConfirm ?? config.FixTools.AutoConfirm;
         }
 
         return await UpdateProfileConfigAsync(config).ConfigureAwait(false);
