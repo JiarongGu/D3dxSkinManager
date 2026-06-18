@@ -105,7 +105,8 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ open, onClose }) =
     <Drawer
       title={t('activity.title')}
       placement="right"
-      width={420}
+      // antd v6 deprecated the `width` prop — set the panel width via the semantic `styles.wrapper`.
+      styles={{ wrapper: { width: 420 } }}
       open={open}
       onClose={onClose}
       className="activity-panel"
