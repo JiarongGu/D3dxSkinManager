@@ -1,0 +1,77 @@
+/* First-run onboarding wizard — content lives inside the shared FormDialog (no-blink baked in). */
+
+.onboarding-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.onboarding-wizard__steps {
+  margin-bottom: 4px;
+}
+
+.onboarding-wizard__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 180px;
+}
+
+.onboarding-wizard__heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-base);
+}
+
+.onboarding-wizard__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.onboarding-wizard__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.onboarding-wizard__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-wizard__list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-base);
+}
+
+.onboarding-wizard__list-icon {
+  color: var(--color-primary);
+  font-size: 14px;
+}
+
+.onboarding-wizard__bound {
+  margin-top: 4px;
+}
+
+/* Footer: Back on the left, Skip + primary on the right */
+.onboarding-wizard__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboarding-wizard__footer-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

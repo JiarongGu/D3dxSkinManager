@@ -74,7 +74,12 @@ branching on `$swapvar`; see `.claude/rules/3dmigoto-ini-interface.md`):
   credit/transparency special-cases + source ShaderOverride/CustomShader sections are dropped.
 
 ### 2. #4 First-run onboarding + mod-card clarity
-- First-run: pick/create profile → point at the XXMI install (reuse `XxmiImporterPicker`) → ready.
+- **First-run onboarding ✅** — `OnboardingWizard` (`modules/core/components/onboarding/`), a 3-step
+  FormDialog (welcome → mod location via reused `XxmiImporterPicker` → ready). Every step skippable;
+  shown once, completion remembered in `localStorage` (`d3dx.onboarding.completed.v1`). Picking an XXMI
+  importer applies `workMode:xxmi` + launcher exactly like Settings (`handleSelectXxmiImporter`). Wired in
+  `App.tsx` (opens on first run; DEV reopen via `window.__openOnboarding`). EN+CN verified in the real app.
+- **Remaining: mod-card clarity** — clearer loaded vs disabled vs orphaned styling on mod list items.
 - Per-category active indicator ✅ — a small white-ringed green dot on the category card thumbnail + tree
   node when it (or a collapsed descendant) has a loaded mod; tooltip names the mod. `activeMods` lives in
   the mods store (refreshed by ModProvider on load/unload/profile), grouped by category id.

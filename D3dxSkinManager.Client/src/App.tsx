@@ -25,6 +25,10 @@ import { HelpWindow } from "./modules/help";
 import { ModProvider } from "./modules/mod";
 import { AppWrapper } from "./shared/components/AppWrapper";
 import { ErrorBoundary } from "./shared/components/ErrorBoundary";
+import {
+  OnboardingWizard,
+  ONBOARDING_DONE_KEY,
+} from "./modules/core/components/onboarding/OnboardingWizard";
 
 import "./App.css";
 
@@ -38,6 +42,7 @@ const AppContent: React.FC = () => {
   const { t } = useTranslation();
   const [selectedTab, setSelectedTab] = useState("mods");
   const [shortcutsDialogVisible, setShortcutsDialogVisible] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Get slide-in screen controls
   const { openScreen, closeScreen, closeAllScreens, screens } =
@@ -75,6 +80,24 @@ const AppContent: React.FC = () => {
 
   // Global bridge: backend ProcessRegistry snapshot → process store (status bar + Activity panel)
   useEffect(() => initProcessBridge(), []);
+
+  // First run: AppContent only mounts once a profile is ready (AppLoader gate), so a missing localStorage
+  // flag here means a brand-new install → show the onboarding wizard once.
+  useEffect(() => {
+    let isFirstRun = false;
+    try {
+      isFirstRun = !localStorage.getItem(ONBOARDING_DONE_KEY);
+    } catch {
+      // localStorage unavailable — skip onboarding rather than risk a loop.
+    }
+    if (isFirstRun) setShowOnboarding(true);
+
+    // DEV: re-open the wizard for pure-UI testing (see desktop-app-testing.md).
+    if (import.meta.env.DEV) {
+      (window as unknown as { __openOnboarding?: () => void }).__openOnboarding = () =>
+        setShowOnboarding(true);
+    }
+  }, []);
 
   // Initialize keyboard shortcuts
   useEffect(() => {
@@ -132,6 +155,9 @@ const AppContent: React.FC = () => {
 
       {/* Slide-in Screen Manager */}
       <SlideInScreenManager />
+
+      {/* First-run onboarding (shown once; reopenable in DEV via window.__openOnboarding) */}
+      <OnboardingWizard open={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </AnnotationProvider>
   );
 };
