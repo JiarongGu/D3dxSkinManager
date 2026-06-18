@@ -33,12 +33,15 @@
 }
 .compact-icon-btn.ant-btn .ant-btn-loading-icon { display: none; }
 
-/* Hover = a tone-coloured border only. Icon colour and background never change.
-   !important so antd's own text-button hover can't override the border colour. */
-.compact-icon-btn.ant-btn:hover { border-color: var(--color-text-secondary) !important; }
-.compact-icon-btn--success.ant-btn { color: var(--color-success); }
+/* Hover = a tone-coloured border only. Background unchanged; icon colour PINNED to the tone (same as
+   base) with !important so antd's own text-button hover can't change it. */
+.compact-icon-btn.ant-btn:hover { border-color: var(--color-text-secondary) !important; color: var(--color-text-secondary) !important; }
+.compact-icon-btn--success.ant-btn,
+.compact-icon-btn--success.ant-btn:hover { color: var(--color-success) !important; }
 .compact-icon-btn--success.ant-btn:hover { border-color: var(--color-success) !important; }
-.compact-icon-btn--danger.ant-btn { color: var(--color-error); }
+.compact-icon-btn--danger.ant-btn,
+.compact-icon-btn--danger.ant-btn:hover { color: var(--color-error) !important; }
 .compact-icon-btn--danger.ant-btn:hover { border-color: var(--color-error) !important; }
-.compact-icon-btn--primary.ant-btn { color: var(--color-primary); }
+.compact-icon-btn--primary.ant-btn,
+.compact-icon-btn--primary.ant-btn:hover { color: var(--color-primary) !important; }
 .compact-icon-btn--primary.ant-btn:hover { border-color: var(--color-primary) !important; }
