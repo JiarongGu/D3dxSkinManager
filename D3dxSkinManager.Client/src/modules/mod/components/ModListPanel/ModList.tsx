@@ -879,7 +879,6 @@ export const ModList: React.FC<ModListProps> = ({
         visible={!!mergeDialogMods}
         mods={mergeDialogMods ?? []}
         onClose={() => setMergeDialogMods(undefined)}
-        onMerged={() => { if (selectedProfileId) void refreshMods(selectedProfileId); }}
       />
     </>
   );

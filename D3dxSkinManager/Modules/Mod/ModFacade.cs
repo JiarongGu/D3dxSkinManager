@@ -769,14 +769,26 @@ public class ModFacade : BaseFacade, IModFacade
         return new { line };
     }
 
-    /// <summary>IPC: MERGE_MODS — combine several mods into a new cycle-merged mod (GIMI-style).</summary>
-    private async Task<ModInfo?> MergeModsAsync(IpcRequest request)
+    /// <summary>
+    /// IPC: MERGE_MODS — combine several mods into a new cycle-merged mod (GIMI-style). Fire-and-forget:
+    /// merging extracts/copies/compresses (slow), so it runs in the background and reports via the
+    /// ProcessRegistry (Activity panel) — the IPC returns immediately so the UI is never blocked. The
+    /// created mod appears via the IMPORTED → MOD_LIST_UPDATED event when done.
+    /// </summary>
+    private Task<object?> MergeModsAsync(IpcRequest request)
     {
         var ids = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "ids");
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
         var key = _payloadHelper.GetRequiredValue<string>(request.Payload, "key");
         var activeOnly = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "activeOnly") ?? true;
-        return await _mergeService.MergeAsync(ids, name, key, activeOnly).ConfigureAwait(false);
+
+        _ = Task.Run(async () =>
+        {
+            try { await _mergeService.MergeAsync(ids, name, key, activeOnly).ConfigureAwait(false); }
+            catch (Exception ex) { _logger.Error($"[ModFacade] Merge failed: {ex.Message}", ModuleName, ex); }
+        });
+
+        return Task.FromResult<object?>(new { started = true });
     }
 
     // ============= Preset Methods =============

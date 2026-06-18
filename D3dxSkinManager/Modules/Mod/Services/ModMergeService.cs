@@ -66,6 +66,7 @@ public class ModMergeService : IModMergeService
             {
                 ct.ThrowIfCancellationRequested();
                 var id = modIds[group];
+                _processRegistry.Report(procId, (int)(group * 70.0 / modIds.Count), $"Staging {group + 1}/{modIds.Count}");
 
                 // Resolve the source's files: prefer its active cache, else extract its archive.
                 var srcDir = await ResolveSourceFilesAsync(id, staging, group).ConfigureAwait(false);
@@ -102,8 +103,10 @@ public class ModMergeService : IModMergeService
 
             // Compress to a temp archive named after the mod (ImportAsync derives the name from it), then
             // import it as a brand-new mod (own GUID, originals untouched).
+            _processRegistry.Report(procId, 75, "Compressing");
             var archivePath = Path.Combine(staging, $"{safeName}.7z");
             await _archiveHelper.CompressFolderAsync(content, archivePath, cancellationToken: ct).ConfigureAwait(false);
+            _processRegistry.Report(procId, 90, "Importing");
             var mod = await _import.ImportAsync(archivePath).ConfigureAwait(false);
 
             _processRegistry.Complete(procId);

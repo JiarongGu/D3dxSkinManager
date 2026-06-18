@@ -182,7 +182,7 @@
     "mods.merge.activeOnly": "Active character only",
     "mods.merge.activeOnlyHint": "Only cycle when this character is on screen (recommended).",
     "mods.merge.action": "Merge",
-    "mods.merge.done": "Merged mod created: {{name}}",
+    "mods.merge.started": "Merging \"{{name}}\" in the background — see the Activity panel; the mod appears when it's done.",
     "contextMenu.noFixTools": "No fix tools yet",
     "contextMenu.manageFixTools": "Manage fix tools",
     "contextMenu.updateMod": "Replace Content from File",

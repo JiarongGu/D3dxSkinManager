@@ -3,6 +3,34 @@
 When adding a background operation that takes >1s, register it with the **backend** `ProcessRegistry`
 so it shows in the status bar + the download-manager-style **Activity panel**.
 
+## RULE: long ops are FIRE-AND-FORGET — never block the IPC (it times out + freezes the UX)
+
+The frontend bridge **times out** a pending IPC (`bridgeService` → "Request timeout"). So a slow op
+(merge, fix-run, migration, package, analysis, anything that extracts/copies/compresses/scans) **must
+NOT be `await`ed inside its facade handler** — that blocks the caller until timeout and **blocks the
+user from using the app**. Instead the handler **kicks off the work in the background and returns
+immediately**; progress + result flow through the **ProcessRegistry → events**, and the user keeps
+working. Pattern (mirrors `ToolFacade` fix-runner / migration, `ModFacade.MergeModsAsync`):
+
+```csharp
+private Task<object?> StartLongOpAsync(IpcRequest request)
+{
+    var args = /* parse + validate synchronously so bad input errors right away */;
+    _ = Task.Run(async () =>      // fire-and-forget — DO NOT await in the handler
+    {
+        try { await _service.DoItAsync(args); }   // the service Starts/Reports/Completes/Fails on the registry
+        catch (Exception ex) { _logger.Error($"... {ex.Message}", ModuleName, ex); } // swallow: avoid unobserved-task crash
+    });
+    return Task.FromResult<object?>(new { started = true });   // immediate ack
+}
+```
+
+Frontend: the trigger calls the IPC, shows a "started in background — see Activity" toast, and
+**closes/returns immediately** (no awaiting the result). The created/changed data arrives via the normal
+event (`MOD_LIST_UPDATED`, etc.) which the providers already refresh on. The service reports progress via
+`_processRegistry.Report(procId, percent, stage)` so the Activity panel shows stages, and `Fail` surfaces
+errors there. **Never** make a long op a synchronous request/response.
+
 ## Architecture (backend-authoritative)
 
 ```
@@ -49,6 +77,7 @@ try {
 | batch category update | `ModMetadataService.BatchUpdateCategoryAsync` |
 | mod-id migration | `ModIdMigrationService.MigrateAsync` |
 | package export/import | `ModPackageService` |
+| mod-merge (fire-and-forget) | `ModMergeService.MergeAsync` (IPC `MERGE_MODS` returns immediately) |
 
 NOT yet on the registry (own in-screen progress only): mod **analysis** (complex pause/resume state
 machine — natural first candidate for durable/resumable jobs) and **file-cleanup scan**.

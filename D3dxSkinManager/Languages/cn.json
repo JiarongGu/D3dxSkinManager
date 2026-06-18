@@ -161,7 +161,7 @@
     "mods.merge.activeOnly": "仅当前角色",
     "mods.merge.activeOnlyHint": "仅在该角色出现在画面中时才循环切换（推荐）。",
     "mods.merge.action": "合并",
-    "mods.merge.done": "已创建合并模组：{{name}}",
+    "mods.merge.started": "正在后台合并 “{{name}}” —— 详见活动面板, 完成后模组会自动出现。",
     "contextMenu.noFixTools": "暂无修复工具",
     "contextMenu.manageFixTools": "管理修复工具",
     "contextMenu.updateMod": "从文件替换内容",

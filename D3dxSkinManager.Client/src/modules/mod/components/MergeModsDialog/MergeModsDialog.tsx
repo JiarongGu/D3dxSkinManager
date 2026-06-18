@@ -16,7 +16,6 @@ interface MergeModsDialogProps {
   visible: boolean;
   mods: ModInfo[];        // the mods to merge (initial swap order)
   onClose: () => void;
-  onMerged?: () => void;  // called after a successful merge (e.g. refresh the list)
 }
 
 /**
@@ -24,7 +23,7 @@ interface MergeModsDialogProps {
  * (GIMI-style). The order is the swap order (top = the variant shown first). Originals are left
  * untouched; a brand-new merged mod is created.
  */
-export const MergeModsDialog: React.FC<MergeModsDialogProps> = ({ visible, mods, onClose, onMerged }) => {
+export const MergeModsDialog: React.FC<MergeModsDialogProps> = ({ visible, mods, onClose }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
 
@@ -58,15 +57,16 @@ export const MergeModsDialog: React.FC<MergeModsDialogProps> = ({ visible, mods,
     if (!selectedProfileId || !canMerge) return;
     setBusy(true);
     try {
-      const merged = await modService.mergeMods(
+      // Fire-and-forget — the merge runs in the background (tracked in the Activity panel) so the user
+      // keeps working; the new mod appears when it finishes. Just start it + close.
+      await modService.mergeMods(
         selectedProfileId,
         ordered.map((m) => m.id),
         name.trim(),
         key.trim(),
         activeOnly,
       );
-      notification.success(t('mods.merge.done', { name: merged?.name ?? name.trim() }));
-      onMerged?.();
+      notification.success(t('mods.merge.started', { name: name.trim() }));
       onClose();
     } catch (error) {
       handleError(error);

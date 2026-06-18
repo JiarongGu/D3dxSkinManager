@@ -575,8 +575,10 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Merge several mods (order = swap order, index 0 starts active) into a new cycle-merged mod named
-   * `name`, cycled by `key`. Originals untouched. Backend: ModFacade.MergeModsAsync
+   * Start merging several mods (order = swap order, index 0 starts active) into a new cycle-merged mod.
+   * Fire-and-forget: merging is slow (extract/copy/compress), so the backend runs it in the background
+   * and reports via the ProcessRegistry (Activity panel); this returns immediately so the UI isn't
+   * blocked. The new mod appears via the MOD_LIST_UPDATED event when done. Backend: ModFacade.MergeModsAsync
    */
   async mergeMods(
     profileId: string,
@@ -584,8 +586,8 @@ export class ModService extends BaseModuleService {
     name: string,
     key: string,
     activeOnly = true,
-  ): Promise<ModInfo | undefined> {
-    return this.sendOptionalMessage<ModInfo>("MERGE_MODS", profileId, { ids, name, key, activeOnly });
+  ): Promise<void> {
+    await this.sendMessage<{ started: boolean }>("MERGE_MODS", profileId, { ids, name, key, activeOnly });
   }
 
   // ============= .ini Editor Operations =============
