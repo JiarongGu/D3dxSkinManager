@@ -10,6 +10,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   FolderOpenOutlined,
+  FileTextOutlined,
   ClearOutlined,
   CopyOutlined,
   SyncOutlined,
@@ -39,6 +40,7 @@ import { useModsStore } from "../../store/modsStore";
 import { useTranslation } from "react-i18next";
 import { BatchEditModsScreen } from "../BatchEditScreen";
 import { ModFixTool } from "../../../tool/components/ModFixTool/ModFixTool";
+import { ModIniEditor } from "../ModIniEditor/ModIniEditor";
 import { useMods } from "../../hooks/useMods";
 import "./ModList.css";
 
@@ -94,6 +96,7 @@ export const ModList: React.FC<ModListProps> = ({
   }>({ visible: false });
   const busyModIds = useModsStore((s) => s.busyModIds);
   const [showFixManager, setShowFixManager] = useState(false);
+  const [iniEditorMod, setIniEditorMod] = useState<ModInfo>();
   const [fixTools, setFixTools] = useState<FixToolEntry[]>([]);
 
   // Load the per-profile fix-tool library so the right-click "Fix" submenu can list them.
@@ -532,6 +535,13 @@ export const ModList: React.FC<ModListProps> = ({
         }
       },
     },
+    {
+      key: "edit-ini",
+      label: t("contextMenu.editIni"),
+      icon: <FileTextOutlined />,
+      disabled: !mod?.hasCache,
+      onClick: () => setIniEditorMod(mod),
+    },
     { type: "divider" as const },
 
     // Group 2: Copy Operations
@@ -839,6 +849,12 @@ export const ModList: React.FC<ModListProps> = ({
       <ModFixTool
         visible={showFixManager}
         onClose={() => { setShowFixManager(false); void loadFixTools(); }}
+      />
+      {/* General .ini editor — opened from the right-click "Edit .ini files" entry (extracted mods only) */}
+      <ModIniEditor
+        visible={!!iniEditorMod}
+        mod={iniEditorMod}
+        onClose={() => setIniEditorMod(undefined)}
       />
     </>
   );

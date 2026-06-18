@@ -11,6 +11,7 @@ import {
   ModPresetApplyResult,
 } from "../../types/mod.types";
 import type { ModIpcRequests } from "../../types/ipc/modIpcRequests";
+import type { ModIniFile } from "../../types/modIni.types";
 
 // Re-export types for backwards compatibility
 export type {
@@ -562,6 +563,36 @@ export class ModService extends BaseModuleService {
     newKey: string,
   ): Promise<{ changed: number }> {
     return this.sendMessage<{ changed: number }>("UPDATE_KEYBINDING", profileId, { id, oldKey, newKey });
+  }
+
+  // ============= .ini Editor Operations =============
+
+  /**
+   * Parse the mod's extracted .ini files into the editable model (sections + classified entries).
+   * Returns empty if the mod isn't extracted. Backend: ModFacade.GetIniFilesAsync.
+   */
+  async getModIniFiles(profileId: string, id: string): Promise<ModIniFile[]> {
+    return this.sendTypedArray<ModIpcRequests, ModIniFile>("GET_INI_FILES", profileId, { id });
+  }
+
+  /**
+   * Change one .ini entry's value (file + line index), preserving key/indent/comment. Backend
+   * re-validates the line is editable and patches just that .ini into the archive (fast, no full
+   * recompress). Returns the rewritten line. Backend: ModFacade.UpdateIniEntryAsync.
+   */
+  async updateModIniEntry(
+    profileId: string,
+    id: string,
+    relativePath: string,
+    lineIndex: number,
+    newValue: string,
+  ): Promise<{ line: string }> {
+    return this.sendMessage<{ line: string }>("UPDATE_INI_ENTRY", profileId, {
+      id,
+      relativePath,
+      lineIndex,
+      newValue,
+    });
   }
 
   // ============= Preset Operations =============

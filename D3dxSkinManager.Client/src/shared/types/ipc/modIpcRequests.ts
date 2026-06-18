@@ -37,6 +37,8 @@ export interface ModIpcRequests {
   GET_PREVIEW_PATHS: { id: string };
   CHECK_FILE_PATHS: { id: string };
   GET_KEYBINDINGS: { id: string };
+  GET_INI_FILES: { id: string };
+  UPDATE_INI_ENTRY: { id: string; relativePath: string; lineIndex: number; newValue: string };
 
   // ============= Import/Export Operations =============
   IMPORT: { filePath: string };

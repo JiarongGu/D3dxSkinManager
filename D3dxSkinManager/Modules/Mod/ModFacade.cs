@@ -46,6 +46,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModMetadataService _metadataService;
     private readonly IModTagService _tagService;
     private readonly IModKeybindingService _keybindingService;
+    private readonly IModIniService _iniService;
     private readonly IModPresetService _presetService;
     private readonly IModArchiveService _archiveService;
     private readonly IModOperationQueue _operationQueue;
@@ -64,6 +65,7 @@ public class ModFacade : BaseFacade, IModFacade
         IModMetadataService metadataService,
         IModTagService tagService,
         IModKeybindingService keybindingService,
+        IModIniService iniService,
         IModPresetService presetService,
         IModArchiveService archiveService,
         IModOperationQueue operationQueue,
@@ -82,6 +84,7 @@ public class ModFacade : BaseFacade, IModFacade
         _metadataService = metadataService;
         _tagService = tagService;
         _keybindingService = keybindingService;
+        _iniService = iniService;
         _presetService = presetService;
         _archiveService = archiveService;
         _operationQueue = operationQueue;
@@ -142,6 +145,8 @@ public class ModFacade : BaseFacade, IModFacade
             "SEARCH_TAGS" => await SearchTagsAsync(request),
             "GET_KEYBINDINGS" => await GetKeybindingsAsync(request),
             "UPDATE_KEYBINDING" => await UpdateKeybindingAsync(request),
+            "GET_INI_FILES" => await GetIniFilesAsync(request),
+            "UPDATE_INI_ENTRY" => await UpdateIniEntryAsync(request),
 
             // Preset operations
             "GET_PRESETS" => await GetPresetsAsync(),
@@ -730,6 +735,24 @@ public class ModFacade : BaseFacade, IModFacade
         var newKey = _payloadHelper.GetRequiredValue<string>(request.Payload, "newKey");
         var changed = await _keybindingService.UpdateKeybindingAsync(id, oldKey, newKey).ConfigureAwait(false);
         return new { changed };
+    }
+
+    /// <summary>IPC: GET_INI_FILES — parse the mod's extracted .ini files into the editable model.</summary>
+    private async Task<List<ModIniFile>> GetIniFilesAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await _iniService.GetIniFilesAsync(id).ConfigureAwait(false);
+    }
+
+    /// <summary>IPC: UPDATE_INI_ENTRY — change one entry's value and patch just that .ini into the archive.</summary>
+    private async Task<object> UpdateIniEntryAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var relativePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "relativePath");
+        var lineIndex = _payloadHelper.GetRequiredValue<int>(request.Payload, "lineIndex");
+        var newValue = _payloadHelper.GetRequiredValue<string>(request.Payload, "newValue");
+        var line = await _iniService.UpdateEntryAsync(id, relativePath, lineIndex, newValue).ConfigureAwait(false);
+        return new { line };
     }
 
     // ============= Preset Methods =============
