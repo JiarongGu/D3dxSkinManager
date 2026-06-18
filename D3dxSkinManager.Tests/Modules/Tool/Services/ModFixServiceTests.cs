@@ -103,26 +103,99 @@ public class ModFixServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RunFix_AllMods_Success_RunsScriptInPlace_AndRecompresses()
+    public async Task RunFix_Success_SmallChangeVsBigTexture_PatchesIndividually_NoFullRecompress()
     {
-        // One mod with an existing (extracted) cache folder → fix runs in-place, then recompresses.
+        // A big (unchanged) texture + a tiny .ini the fix writes → changed bytes are well under 50% of
+        // the mod, so only that .ini is patched into the archive (fast path), not a full recompress.
         var mod = new ModInfo { Id = "MOD1", Name = "Test Mod" };
-        Directory.CreateDirectory(Path.Combine(_cacheRoot, mod.Id));
+        var cacheDir = Path.Combine(_cacheRoot, mod.Id);
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllBytes(Path.Combine(cacheDir, "texture.buf"), new byte[8192]); // bulk, untouched
         _query.Setup(q => q.FilterAsync(null, null, null, null, null)).ReturnsAsync(new List<ModInfo> { mod });
-        _archive.Setup(a => a.CompressCacheToArchiveAsync(mod.Id, It.IsAny<string>())).ReturnsAsync(true);
+        _archive.Setup(a => a.UpdateFileInArchiveAsync(mod.Id, It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
 
-        var script = WriteTempScript(".bat", "@echo fixed\r\n@exit /b 0");
+        var script = WriteTempScript(".bat", "@echo fixed>result.ini\r\n@exit /b 0");
         try
         {
             var svc = CreateService();
             var result = await svc.RunFixAsync(new ModFixRequest { ScriptPath = script, RecompressAfter = true });
 
-            result.Total.Should().Be(1);
             result.Succeeded.Should().Be(1);
-            result.Failed.Should().Be(0);
             result.Results[0].ExitCode.Should().Be(0);
-            _archive.Verify(a => a.CompressCacheToArchiveAsync(mod.Id, It.IsAny<string>()), Times.Once);
+            _archive.Verify(a => a.UpdateFileInArchiveAsync(mod.Id, It.IsAny<string>(), "result.ini"), Times.Once);
+            _archive.Verify(a => a.CompressCacheToArchiveAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
             _registry.Verify(r => r.Complete("proc-1"), Times.Once);
+        }
+        finally { File.Delete(script); }
+    }
+
+    [Fact]
+    public async Task RunFix_Success_BigChangeFraction_FallsBackToFullRecompress()
+    {
+        // The fix rewrites the mod's only/bulk file → changed bytes >= 50% of the mod → full recompress.
+        var mod = new ModInfo { Id = "MODBIG", Name = "Big Mod" };
+        var cacheDir = Path.Combine(_cacheRoot, mod.Id);
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllBytes(Path.Combine(cacheDir, "model.buf"), new byte[4096]);
+        _query.Setup(q => q.FilterAsync(null, null, null, null, null)).ReturnsAsync(new List<ModInfo> { mod });
+        _archive.Setup(a => a.CompressCacheToArchiveAsync(mod.Id, It.IsAny<string>())).ReturnsAsync(true);
+
+        var script = WriteTempScript(".bat", "@echo rewritten>model.buf\r\n@exit /b 0");
+        try
+        {
+            var svc = CreateService();
+            var result = await svc.RunFixAsync(new ModFixRequest { ScriptPath = script, RecompressAfter = true });
+
+            result.Succeeded.Should().Be(1);
+            _archive.Verify(a => a.CompressCacheToArchiveAsync(mod.Id, It.IsAny<string>()), Times.Once);
+            _archive.Verify(a => a.UpdateFileInArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
+        finally { File.Delete(script); }
+    }
+
+    [Fact]
+    public async Task RunFix_Success_FileDeleted_FallsBackToFullRecompress()
+    {
+        // A fix that removes a file can't be appended away → full recompress.
+        var mod = new ModInfo { Id = "MODDEL", Name = "Del Mod" };
+        var cacheDir = Path.Combine(_cacheRoot, mod.Id);
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllText(Path.Combine(cacheDir, "stale.ini"), "remove me");
+        _query.Setup(q => q.FilterAsync(null, null, null, null, null)).ReturnsAsync(new List<ModInfo> { mod });
+        _archive.Setup(a => a.CompressCacheToArchiveAsync(mod.Id, It.IsAny<string>())).ReturnsAsync(true);
+
+        var script = WriteTempScript(".bat", "@del stale.ini\r\n@exit /b 0");
+        try
+        {
+            var svc = CreateService();
+            var result = await svc.RunFixAsync(new ModFixRequest { ScriptPath = script, RecompressAfter = true });
+
+            result.Succeeded.Should().Be(1);
+            _archive.Verify(a => a.CompressCacheToArchiveAsync(mod.Id, It.IsAny<string>()), Times.Once);
+            _archive.Verify(a => a.UpdateFileInArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
+        finally { File.Delete(script); }
+    }
+
+    [Fact]
+    public async Task RunFix_Success_NoFileChange_LeavesArchiveUntouched()
+    {
+        // A fix that changes nothing on disk → neither a patch nor a recompress.
+        var mod = new ModInfo { Id = "MODNOOP", Name = "Noop Mod" };
+        var cacheDir = Path.Combine(_cacheRoot, mod.Id);
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllText(Path.Combine(cacheDir, "keep.ini"), "unchanged");
+        _query.Setup(q => q.FilterAsync(null, null, null, null, null)).ReturnsAsync(new List<ModInfo> { mod });
+
+        var script = WriteTempScript(".bat", "@exit /b 0");
+        try
+        {
+            var svc = CreateService();
+            var result = await svc.RunFixAsync(new ModFixRequest { ScriptPath = script, RecompressAfter = true });
+
+            result.Succeeded.Should().Be(1);
+            _archive.Verify(a => a.CompressCacheToArchiveAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            _archive.Verify(a => a.UpdateFileInArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
         finally { File.Delete(script); }
     }

@@ -30,7 +30,15 @@ Compliant services: `ModArchiveService`, `ModCacheService` (`EnableCacheAsync`, 
 the one entry via SharpSevenZip append (`CompressionMode.Append`, forward-slash entry path) instead of
 a full `CompressCacheToArchiveAsync` recompress — ~17× faster (143ms vs ~2.5s). Append REPLACES the
 matching entry (proven not-duplicate by `ArchiveHelperUpdateTests`). Still planner-serialized + per-mod
-queue-locked. Used by `ModKeybindingService.UpdateKeybindingAsync`.
+queue-locked. Used by `ModKeybindingService.UpdateKeybindingAsync`, the general config editor
+`ModIniService.UpdateEntryAsync`, and **`ModFixService`** (after a fix tool runs).
+
+**Fix-tool persistence is diff-based** (`ModFixService.PersistFixAsync`): snapshot the work dir
+(relpath ⇒ length+mtime) before the script, diff after, and patch ONLY the changed/added files via
+`UpdateFileInArchiveAsync`. Full `CompressCacheToArchiveAsync` is the fallback only when a file was
+**deleted** (append can't remove entries) or the changed bytes are **≥50% of the mod**
+(`FullRecompressByteFraction`) — most fix tools only rewrite small `.ini` and leave the bulk textures
+untouched, so the fast path is the norm. A no-op fix (no file changed) leaves the archive untouched.
 
 ## Layer 2 — `IModOperationQueue` (logical serialization)
 

@@ -261,6 +261,10 @@ public class ModFixService : IModFixService
             isTemp = true;
         }
 
+        // Snapshot the content before the fix so we can persist only what actually changed (most fix
+        // tools rewrite a few .ini and leave the big textures untouched).
+        var before = SnapshotDir(workDir);
+
         try
         {
             var (exitCode, output) = await ExecuteScriptAsync(request.ScriptPath, ext, pythonPath, workDir, ct).ConfigureAwait(false);
@@ -280,9 +284,7 @@ public class ModFixService : IModFixService
             // Persist the mutated content back into the archive so it survives the next reload.
             if (request.RecompressAfter)
             {
-                var compressed = await _archive.CompressCacheToArchiveAsync(id, workDir).ConfigureAwait(false);
-                if (!compressed)
-                    _logger.Warn($"[ModFix] '{name}' ({id}) fixed but archive update failed");
+                await PersistFixAsync(id, name, workDir, before).ConfigureAwait(false);
             }
 
             return item;
@@ -304,6 +306,79 @@ public class ModFixService : IModFixService
         {
             if (isTemp) TryDeleteDir(workDir);
         }
+    }
+
+    /// <summary>
+    /// If the changed files are at least this fraction of the mod's total bytes, a full recompress is
+    /// worth it; below it, patching the few changed files individually is the big win (textures are the
+    /// bulk and a fix usually only rewrites small .ini, so changed bytes stay well under this).
+    /// </summary>
+    private const double FullRecompressByteFraction = 0.5;
+
+    /// <summary>Snapshot every file under <paramref name="dir"/> → forward-slash relpath ⇒ (length, lastWriteUtc).</summary>
+    private static Dictionary<string, (long Length, DateTime WriteUtc)> SnapshotDir(string dir)
+    {
+        var map = new Dictionary<string, (long, DateTime)>(StringComparer.OrdinalIgnoreCase);
+        if (!Directory.Exists(dir)) return map;
+        foreach (var path in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+        {
+            var info = new FileInfo(path);
+            var rel = Path.GetRelativePath(dir, path).Replace('\\', '/');
+            map[rel] = (info.Length, info.LastWriteTimeUtc);
+        }
+        return map;
+    }
+
+    /// <summary>
+    /// Persist a successful fix back into the archive the cheap way: patch only the files the script
+    /// changed/added via the fast single-file path. Fall back to a full recompress only when a file was
+    /// deleted (append can't remove entries) or too many files changed. A no-op fix touches nothing.
+    /// </summary>
+    private async Task PersistFixAsync(
+        string id, string name, string workDir, Dictionary<string, (long Length, DateTime WriteUtc)> before)
+    {
+        var after = SnapshotDir(workDir);
+        var deleted = before.Keys.Where(k => !after.ContainsKey(k)).ToList();
+        var changed = after
+            .Where(kv => !before.TryGetValue(kv.Key, out var b) || b.Length != kv.Value.Length || b.WriteUtc != kv.Value.WriteUtc)
+            .Select(kv => kv.Key)
+            .ToList();
+
+        if (changed.Count == 0 && deleted.Count == 0)
+        {
+            _logger.Info($"[ModFix] '{name}' ({id}) changed no files — archive left untouched");
+            return;
+        }
+
+        // Deletions (append can't remove entries) or a large changed-byte fraction → full recompress.
+        var totalBytes = after.Values.Sum(v => v.Length);
+        var changedBytes = changed.Sum(rel => after[rel].Length);
+        var bigChange = totalBytes > 0 && changedBytes >= totalBytes * FullRecompressByteFraction;
+        if (deleted.Count > 0 || bigChange)
+        {
+            var reason = deleted.Count > 0
+                ? $"{deleted.Count} file(s) deleted"
+                : $"{changedBytes}/{totalBytes} bytes changed (>= {FullRecompressByteFraction:P0})";
+            _logger.Info($"[ModFix] '{name}' ({id}) full recompress ({reason})");
+            if (!await _archive.CompressCacheToArchiveAsync(id, workDir).ConfigureAwait(false))
+                _logger.Warn($"[ModFix] '{name}' ({id}) fixed but archive recompress failed");
+            return;
+        }
+
+        // Fast path: patch just the changed/added files individually.
+        foreach (var rel in changed)
+        {
+            var full = Path.Combine(workDir, rel.Replace('/', Path.DirectorySeparatorChar));
+            if (!await _archive.UpdateFileInArchiveAsync(id, full, rel).ConfigureAwait(false))
+            {
+                // A single-file patch failed — fall back to a full recompress to stay consistent.
+                _logger.Warn($"[ModFix] '{name}' ({id}) single-file patch failed for '{rel}', falling back to full recompress");
+                if (!await _archive.CompressCacheToArchiveAsync(id, workDir).ConfigureAwait(false))
+                    _logger.Warn($"[ModFix] '{name}' ({id}) fixed but archive recompress failed");
+                return;
+            }
+        }
+        _logger.Info($"[ModFix] '{name}' ({id}) patched {changed.Count} file(s) individually (no full recompress)");
     }
 
     /// <summary>Launch the script with cwd=workDir, auto-confirm stdin prompts, capture output, enforce timeout.</summary>
