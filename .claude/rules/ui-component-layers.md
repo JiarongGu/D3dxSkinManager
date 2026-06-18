@@ -1,0 +1,45 @@
+# UI Component Layers (atomic design: L1 / L2 / L3)
+
+Standardize UI into three layers by **what a component is allowed to depend on**. The layer is defined
+by dependencies, not by size. This keeps visuals reusable, testable, and consistent.
+
+## The three layers
+
+| Layer | Name | May import | MUST NOT import | Lives in |
+|-------|------|-----------|-----------------|----------|
+| **L1** | Atom — pure visual | antd, icons, `classNames`, CSS, design tokens; text via **props** | services/ipc, stores (zustand), `useProfile`, event bus, business logic | `shared/components/compact/`, `shared/components/common/` |
+| **L2** | Molecule — composition + presentational logic | L1 atoms, antd, hooks for **local** UI state, data passed via **props** | services/ipc, stores, event bus | `shared/components/dialogs/`, `menu/`, `notification/`, `common/` (DataTable, SlideInScreen) |
+| **L3** | Connected — business logic | L1 + L2, services/ipc, stores, contexts, event bus, i18n data | — (top of the chain) | `shared/components/` (connected, e.g. CategorySelect) and **module** `components/` |
+
+**Golden rule:** data and side-effects flow *down* as props/callbacks. L1/L2 are dumb; only L3 talks to
+the backend (`services/ipc`), stores, or the event bus. If a "pure" component reaches for `modService`
+or `useModsStore`, it's actually L3 — split it: a dumb L1/L2 view + an L3 wrapper that feeds it.
+
+## Current classification (audit 2026-06-18)
+
+- **L1 atoms:** `compact/Compact{Button,Input,Select,Switch,Text,Card,Alert,Divider,Space,Section}`,
+  `common/{CloseButton,StatusIcon,HealthStatusIcon,CountBadge}`, `TagChip`.
+- **L2 molecules:** `dialogs/{ConfirmDialog,FormDialog,InfoDialog}`, `menu/ContextMenu`,
+  `notification/CustomNotification`, `common/{DataTable,SlideInScreen}`, `compact/Compact{Upload,ThumbnailUpload}`.
+- **L3 connected (shared):** `CategorySelect` (loads categories via IPC).
+- **L3 connected (module):** panels/screens under `modules/*/components/` (ModListPanel, CategoryPanel,
+  GameLaunchTab, ModFixTool, LaunchButton, ActivityPanel, …) — these own IPC/store/event wiring.
+
+## Rules for the agent
+
+1. **Reuse before creating.** Need a button/input/tag/badge/card? Use the `compact/` atom or a `common/`
+   atom. Never hand-roll a styled `<button>`/`<div>` that duplicates an atom. (See `shared-utilities.md`.)
+2. **New atom (L1):** pure props, no IPC/store, in `compact/` (or `common/` for non-form visuals). Must be
+   usable in pure-UI Chrome with no backend.
+3. **New connected piece (L3):** keep the visual part as an L1/L2 component and add a thin L3 wrapper that
+   fetches/dispatches — don't bake IPC into the view.
+4. **Tokens only** (per `ui-design-rules.md`): 12/14px fonts, `var(--color-*)`, BEM classes. Atoms own the
+   visual tokens so consumers don't restyle.
+5. **Migration is incremental** — do not mass-move files (breaks ~30 imports). When you touch a component,
+   move it toward the right layer and update this table.
+
+## Why
+Without this, business logic leaks into visuals (the documented pure-UI crash class: components that
+`.map` IPC data and blow up with no backend), styling drifts, and the same control is re-implemented
+five ways. Layering makes L1/L2 trivially reusable + verifiable in plain Chrome, and concentrates
+backend coupling in L3 where the error boundaries already live.
