@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 namespace D3dxSkinManager.Modules.Mod.Services;
 
 /// <summary>
-/// Namespace-based mod-merge engine (v2). Unlike the GIMI hash-dedup port (<see cref="MergeIniBuilder"/>,
-/// v1, which rebuilds everything and drops each source's keybinds), this keeps each source `.ini`
+/// Namespace-based mod-merge engine. Unlike the GIMI hash-dedup approach (which rebuilds everything and
+/// drops each source's keybinds), this keeps each source `.ini`
 /// INTACT under its own 3DMigoto <c>namespace</c> — so every variant's <c>[Key*]</c> shortcuts,
 /// <c>[Constants]</c> vars and resources are preserved as separate, collision-free sets. The only edit
 /// to a source is: prepend its <c>namespace</c> and gate each <c>[TextureOverride*]</c>/<c>[ShaderOverride*]</c>

@@ -6,7 +6,8 @@ import { ModInfo } from '../../../../shared/types/mod.types';
 import { CategoryCard } from './CategoryCard';
 import { groupModsByCategory, activeModsForNode } from './TreeNodeConverter';
 import { useCategoryTreeContext } from './CategoryTreeContext';
-import { ContextMenu, ContextMenuItem } from '../../../../shared/components/menu/ContextMenu';
+import { ContextMenu } from '../../../../shared/components/menu/ContextMenu';
+import { convertMenuItems } from '../../../../shared/components/menu/convertMenuItems';
 import { useDragDrop } from '../../../../shared/hooks/useDragDrop';
 import { useScrollPosition } from '../../../../shared/hooks/useScrollPosition';
 import { useModsStore } from '../../store/modsStore';
@@ -82,35 +83,6 @@ const extractNodeId = (target: Element | null): string => {
   return '';
 };
 
-const convertMenuItems = (items: MenuProps['items']): ContextMenuItem[] => {
-  if (!items) return [];
-  return items
-    .filter((item): item is NonNullable<typeof item> => item != null)
-    .map((item) => {
-      if ('type' in item && item.type === 'divider') {
-        return { type: 'divider' as const };
-      }
-      const menuItem = item as {
-        key?: string | number;
-        label?: React.ReactNode;
-        icon?: React.ReactNode;
-        danger?: boolean;
-        disabled?: boolean;
-        onClick?: () => void;
-        children?: MenuProps['items'];
-      };
-      return {
-        key: String(menuItem.key || ''),
-        label: menuItem.label,
-        icon: menuItem.icon,
-        danger: menuItem.danger,
-        disabled: menuItem.disabled,
-        onClick: menuItem.onClick,
-        // Preserve submenus (e.g. "Fix all in category" → the fix-tool list).
-        children: menuItem.children ? convertMenuItems(menuItem.children) : undefined,
-      };
-    });
-};
 
 // ============================================================
 // Drop Placeholder

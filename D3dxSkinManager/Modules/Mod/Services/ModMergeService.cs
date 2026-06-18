@@ -11,7 +11,7 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 /// <summary>
 /// Combines several mods of one slot into a single new mod that cycles between them with one key
 /// (GIMI-style). Non-destructive: the source mods are left untouched in the library; a brand-new mod
-/// archive is produced + imported. The merged <c>.ini</c> is built by <see cref="MergeIniBuilder"/>.
+/// archive is produced + imported. The merged <c>.ini</c> is built by <see cref="NamespaceMergeBuilder"/>.
 /// </summary>
 public interface IModMergeService
 {
@@ -64,7 +64,7 @@ public class ModMergeService : IModMergeService
         {
             // Namespace-based merge (v2): keep each source .ini intact under its own namespace + gate its
             // overrides by the master's swapvar, so every variant's keybinds/vars/resources are preserved
-            // as separate sets. (v1 MergeIniBuilder hash-dedup is the fallback; see 3dmigoto-ini-interface.md.)
+            // as separate sets. See .claude/rules/3dmigoto-ini-interface.md (namespace merge).
             var nsBase = NamespaceToken(safeName);
             var masterNs = $"{nsBase}\\Master";
             var iniCount = 0;
