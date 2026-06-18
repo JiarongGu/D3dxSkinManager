@@ -1,6 +1,7 @@
 import React from 'react';
 import { FolderOutlined, FileOutlined, LockFilled, UnlockOutlined } from '@ant-design/icons';
 import { CategoryInfo } from '../../../../shared/types/category.types';
+import { ModInfo } from '../../../../shared/types/mod.types';
 import { toAppUrl } from '../../../../shared/utils/imageUrlHelper';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
@@ -8,6 +9,8 @@ import './CategoryCard.css';
 
 interface CategoryCardProps {
   category: CategoryInfo;
+  /** Currently loaded/active mods in this category (drives the active indicator). */
+  activeMods?: ModInfo[];
   isSelected: boolean;
   isMultiSelected?: boolean;
   isParent?: boolean;
@@ -25,6 +28,7 @@ interface CategoryCardProps {
 
 export const CategoryCard: React.FC<CategoryCardProps> = ({
   category,
+  activeMods,
   isSelected,
   isMultiSelected,
   isParent,
@@ -42,6 +46,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
   const { t } = useTranslation();
   const hasChildren = category.children.length > 0;
   const hasThumbnail = !!category.thumbnail;
+  const isActive = !!activeMods && activeMods.length > 0;
 
   return (
     <div
@@ -87,6 +92,12 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
         )}
         {category.modCount !== undefined && category.modCount > 0 && (
           <span className="category-card__count">{category.modCount}</span>
+        )}
+        {isActive && (
+          <span
+            className="category-card__active-badge"
+            title={t('category.activeMod', { name: activeMods!.map((m) => m.name).join(', ') })}
+          />
         )}
         {hasChildren && (
           <span className="category-card__lock-container">

@@ -2,7 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Empty, Spin, Input, Button } from 'antd';
 import { PlusOutlined, FolderOpenOutlined, FolderOutlined } from '@ant-design/icons';
 import { CategoryInfo } from '../../../../shared/types/category.types';
+import { ModInfo } from '../../../../shared/types/mod.types';
 import { CategoryCard } from './CategoryCard';
+import { groupModsByCategory, activeModsForNode } from './TreeNodeConverter';
 import { useCategoryTreeContext } from './CategoryTreeContext';
 import { ContextMenu, ContextMenuItem } from '../../../../shared/components/menu/ContextMenu';
 import { useDragDrop } from '../../../../shared/hooks/useDragDrop';
@@ -127,6 +129,7 @@ interface CategoryGroupProps {
   dropIndicator: DropIndicator | undefined;
   expandedKeys: React.Key[];
   lockedCategoriesSet: Set<string>;
+  activeByCategory: Map<string, ModInfo[]>;
   onSelectCategory: (node: CategoryInfo, e: React.MouseEvent) => void;
   onDoubleClickCategory: (node: CategoryInfo) => void;
   onContextMenu: (e: React.MouseEvent, nodeId: string) => void;
@@ -144,6 +147,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   dropIndicator,
   expandedKeys,
   lockedCategoriesSet,
+  activeByCategory,
   onSelectCategory,
   onDoubleClickCategory,
   onContextMenu,
@@ -176,6 +180,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
       <CategoryCard
         key={child.id}
         category={child}
+        activeMods={activeModsForNode(child, activeByCategory, expandedKeys)}
         isSelected={selectedId === child.id}
         isMultiSelected={selectedCategoryIds.has(child.id)}
         isLocked={hasChildren ? lockedCategoriesSet.has(child.id) : undefined}
@@ -215,6 +220,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
               <div className="category-grid-cards">
                 <CategoryCard
                   category={category}
+                  activeMods={activeModsForNode(category, activeByCategory, expandedKeys)}
                   isSelected={selectedId === category.id}
                   isMultiSelected={selectedCategoryIds.has(category.id)}
                   isParent
@@ -244,6 +250,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                       dropIndicator={dropIndicator}
                       expandedKeys={expandedKeys}
                       lockedCategoriesSet={lockedCategoriesSet}
+                      activeByCategory={activeByCategory}
                       onSelectCategory={onSelectCategory}
                       onDoubleClickCategory={onDoubleClickCategory}
                       onContextMenu={onContextMenu}
@@ -315,6 +322,10 @@ export const CategoryGrid: React.FC = () => {
   // Multi-select state
   const selectedCategoryIds = useModsStore(s => s.selectedCategoryIds);
   const selectedCategoryIdsSet = useMemo(() => new Set(selectedCategoryIds), [selectedCategoryIds]);
+
+  // Active/loaded mods grouped by category id → drives the per-category active indicator.
+  const activeMods = useModsStore(s => s.activeMods);
+  const activeByCategory = useMemo(() => groupModsByCategory(activeMods), [activeMods]);
   const anchorIdRef = React.useRef<string | undefined>(undefined);
 
   // Flat list of visible nodes for shift+click range selection
@@ -645,6 +656,7 @@ export const CategoryGrid: React.FC = () => {
       <CategoryCard
         key={node.id}
         category={node}
+        activeMods={activeModsForNode(node, activeByCategory, expandedKeys)}
         isSelected={selectedNode?.id === node.id}
         isMultiSelected={selectedCategoryIdsSet.has(node.id)}
         isLocked={hasChildren ? lockedCategoriesSet.has(node.id) : undefined}
@@ -732,6 +744,7 @@ export const CategoryGrid: React.FC = () => {
                   dropIndicator={dropIndicator}
                   expandedKeys={expandedKeys}
                   lockedCategoriesSet={lockedCategoriesSet}
+                  activeByCategory={activeByCategory}
                   onSelectCategory={handleSelectCategory}
                   onDoubleClickCategory={handleDoubleClickCategory}
                   onContextMenu={handleContextMenu}

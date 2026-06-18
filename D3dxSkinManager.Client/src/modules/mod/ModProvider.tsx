@@ -156,6 +156,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       if (!selectedProfileIdRef.current) return;
       void modOps.refreshMods(selectedProfileIdRef.current);
       void modOps.loadStatistics(selectedProfileIdRef.current);
+      void modOps.refreshActiveMods(selectedProfileIdRef.current);
     }, 20),
     [],
   );
@@ -380,6 +381,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       void categoryOps.loadUnclassifiedCount(selectedProfileId);
       void modOps.loadStatistics(selectedProfileId);
       void modOps.loadTags(selectedProfileId);
+      void modOps.refreshActiveMods(selectedProfileId);
       // Explicitly refresh mods to reload selected category (e.g., UNCLASSIFIED)
       // This ensures that if a category was selected before reset, its mods are refreshed
       void modOps.refreshMods(selectedProfileId);

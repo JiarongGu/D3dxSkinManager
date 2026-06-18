@@ -5,7 +5,7 @@ import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 
 import { CategoryInfo } from '../../../../shared/types/category.types';
-import { convertToDataNode } from './TreeNodeConverter';
+import { convertToDataNode, groupModsByCategory } from './TreeNodeConverter';
 import { getCategoryContextMenu } from './CategoryContextMenu';
 import { useCategoryTreeOperations } from './useCategoryTreeOperations';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
@@ -159,6 +159,8 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
   const addLockedCategory = useModsStore(s => s.addLockedCategory);
   const removeLockedCategory = useModsStore(s => s.removeLockedCategory);
   const lockedCategoriesSet = useMemo(() => new Set(lockedCategories), [lockedCategories]);
+  const activeMods = useModsStore(s => s.activeMods);
+  const activeByCategory = useMemo(() => groupModsByCategory(activeMods), [activeMods]);
 
   // Store frequently changing values in stable refs to avoid closure issues
   const [treeRef, expandedKeysRef, selectedNodeRef] = useStableRef(tree, expandedKeys, selectedNode);
@@ -359,8 +361,8 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
 
   // Convert to Ant Design tree format - direct tree nodes without root wrapper
   const treeData = useMemo((): DataNode[] => {
-    return filteredTree.map((node) => convertToDataNode(node, expandedKeys, lockedCategoriesSet, handleLockIconClick, handleUnlockIconClick));
-  }, [filteredTree, expandedKeys, lockedCategoriesSet, handleLockIconClick, handleUnlockIconClick]);
+    return filteredTree.map((node) => convertToDataNode(node, expandedKeys, lockedCategoriesSet, handleLockIconClick, handleUnlockIconClick, activeByCategory));
+  }, [filteredTree, expandedKeys, lockedCategoriesSet, handleLockIconClick, handleUnlockIconClick, activeByCategory]);
 
   const handleSelect = useCallback(
     (selectedKeys: React.Key[], info: any) => {

@@ -71,7 +71,10 @@ from the namespace contract (`.claude/rules/3dmigoto-ini-interface.md`):
 
 ### 2. #4 First-run onboarding + mod-card clarity
 - First-run: pick/create profile → point at the XXMI install (reuse `XxmiImporterPicker`) → ready.
-- Mod cards: clearer loaded vs disabled vs orphaned; per-category "one active" indicator; inline conflicts.
+- Per-category active indicator ✅ — a small white-ringed green dot on the category card thumbnail + tree
+  node when it (or a collapsed descendant) has a loaded mod; tooltip names the mod. `activeMods` lives in
+  the mods store (refreshed by ModProvider on load/unload/profile), grouped by category id.
+- Still: clearer loaded vs disabled vs orphaned mod cards; inline category conflicts.
 
 ### 3. Config-editor growth (extend the `.ini` editor)
 - Expose more `[Key]` options the docs confirm: `back` (reverse-cycle key), `wrap`, `smart`,
@@ -106,7 +109,7 @@ from the namespace contract (`.claude/rules/3dmigoto-ini-interface.md`):
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 11 | thumbnail right-click crash | **Open (needs repro)** | Preview context menu is guarded + panels have error boundaries → crash likely the import-dialog thumbnail picker. Capture `[ErrorBoundary]` console output to pinpoint. |
+| 11 | thumbnail right-click crash | **Deferred (no repro)** | Set aside per user 2026-06-18 — preview menu is guarded + panels have error boundaries, no live repro. Re-add if it recurs (capture `[ErrorBoundary]` console output to pinpoint). |
 | 10 | temp cleanup | **Largely done** | FileCleanupTool scans/cleans temp orphans. Follow-up: opt-in auto-clean on exit (configurable). |
 | 16 | mod-load status detail | **Mostly done** | Reports "Enabling cache / Extracting / Refreshing stale cache". Optional: per-file extraction counts. |
 

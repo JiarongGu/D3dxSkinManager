@@ -160,6 +160,7 @@
     "category.gridView": "Grid View",
     "category.treeView": "Tree View",
     "category.moveAsChild": "Move here",
+    "category.activeMod": "Active: {{name}}",
     "category.expand": "Expand",
     "category.collapse": "Collapse",
     "contextMenu.batchEditMods": "Batch Edit ({{count}} mods)",

@@ -107,3 +107,18 @@
 [data-theme="dark"] .category-tree-node-lock-indicator.unlocked:hover {
   background-color: rgba(255, 255, 255, 0.08);
 }
+
+/* Active/loaded indicator on a tree node — a small green dot (category, or a collapsed descendant,
+   has a loaded mod). Name(s) shown via the dot's title tooltip. */
+.category-tree-node-active-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-success);
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 2px rgba(82, 196, 26, 0.8);
+}
+[data-theme="dark"] .category-tree-node-active-dot {
+  border-color: rgba(255, 255, 255, 0.85);
+}

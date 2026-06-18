@@ -272,3 +272,18 @@
   background-color: rgba(0, 0, 0, 0.5);
   transform: scale(1.15);
 }
+
+/* Active/loaded indicator — a small green dot in the thumbnail's top-left corner (a category is
+   "active" when it, or a collapsed descendant, has a loaded mod). Ring keeps it visible on any art. */
+.category-card__active-badge {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background-color: var(--color-success);
+  border: 1.5px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  z-index: 2;
+}

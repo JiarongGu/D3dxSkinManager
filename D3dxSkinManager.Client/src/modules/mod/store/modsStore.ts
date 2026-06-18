@@ -30,6 +30,7 @@ export interface ModsState {
   selectedMod: ModInfo | undefined;
   selectedMods: ModInfo[];
   mods: ModInfo[] | undefined; // Current mods list (filtered by view mode)
+  activeMods: ModInfo[]; // All currently loaded/active mods (any category) — drives the per-category active indicator
   modLoading: boolean; // Loading state for mod list operations (update, delete, refresh)
   viewMode: ModListViewMode; // Current view mode for mod list
 
@@ -85,6 +86,7 @@ export interface ModsActions {
   setSelectedMod: (mod: ModInfo | undefined) => void;
   setSelectedMods: (mods: ModInfo[]) => void;
   setMods: (mods: ModInfo[] | undefined) => void;
+  setActiveMods: (mods: ModInfo[]) => void;
   setModLoading: (loading: boolean) => void;
   setViewMode: (mode: ModListViewMode) => void;
   updateModLocal: (id: string, data: Partial<ModInfo>) => void;
@@ -174,6 +176,7 @@ const initialState: ModsState = {
   selectedMod: undefined,
   selectedMods: [],
   mods: undefined,
+  activeMods: [],
   modLoading: false,
   viewMode: 'category', // Default to category view
 
@@ -241,6 +244,11 @@ export const useModsStore = create<ModsStore>()(
       setMods: (mods) =>
         set((state) => {
           state.mods = mods;
+        }),
+
+      setActiveMods: (mods) =>
+        set((state) => {
+          state.activeMods = mods;
         }),
 
       setModLoading: (loading) =>

@@ -184,6 +184,19 @@ export async function loadStatistics(profileId: string): Promise<void> {
 }
 
 /**
+ * Load all currently loaded/active mods (any category) into the store. Drives the per-category
+ * "active mod" indicator on the category cards / tree nodes.
+ */
+export async function refreshActiveMods(profileId: string): Promise<void> {
+  try {
+    const active = await modService.getActiveMods(profileId);
+    useModsStore.getState().setActiveMods(active);
+  } catch (error: unknown) {
+    logger.error('Failed to load active mods:', error);
+  }
+}
+
+/**
  * Load available tags for autocomplete
  */
 export async function loadTags(profileId: string): Promise<void> {
