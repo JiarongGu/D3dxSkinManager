@@ -83,6 +83,29 @@ source via a **command list branching on `$swapvar`**. Port this faithfully (gam
 its own subfolder so `filename` paths stay valid), run the above to emit `merged.ini`, compress to a NEW
 mod archive + register it (originals untouched in the library). Needs real two-same-character mods to
 verify the in-game swap. This is the model — port `genshin_merge_mods.py` section-for-section.
+**Shipped as `MergeIniBuilder` + `ModMergeService` (v1).**
+
+### Mod-merge v2 — NAMESPACE-based (PREFERRED; preserves each variant's keybinds; design 2026-06-19)
+The GIMI-port (v1) **rebuilds** everything and **drops each source's `[Key*]`/`[Constants]`** → a merged
+mod loses per-variant shortcuts. The user wants merged variants to **keep their own keybinds as separate
+sets** until the user unifies them. **Namespaces give this for free** — they isolate every name (sections,
+`$vars`, resources, keys) per mod, so nothing collides and each source's content stays intact. Design:
+1. **Per source:** prepend `namespace = <MergeName>\mod<N>` as the **first line** of each source `.ini`
+   (or rely on folder-path default). Keep the source `.ini` otherwise **intact** — its `[Key*]`,
+   `[Constants] $vars`, `[TextureOverride*]`, `[Resource*]` are now all under that namespace, collision-free.
+   So every variant's shortcuts/toggles still work independently (the "different sets" the user asked for).
+2. **Gate which variant renders:** inject `if $\<MergeName>\Master\swapvar == N … endif` around each
+   source's `[TextureOverride*]` draw/override (cross-namespace var read — same `$\ns\var` syntax the
+   namespace doc shows, e.g. `$\global\tracking\isSwimming`). This is the ONLY edit to a source — no
+   var/resource/section renaming (the namespace already disambiguates).
+3. **Master `.ini`** (`namespace = <MergeName>\Master`): `[Constants] global persist $swapvar` +
+   `[KeySwap] type=cycle $swapvar=0,1,…` (+ `$active`/`[Present]` as v1).
+4. **Unify-keys later:** since each variant's keys are separate namespaced `[Key*]`, a future "unify
+   shortcuts" step can rewrite them to share one key — until then they coexist.
+**Trade-off:** v2 is far less rewriting (prepend namespace + inject one gate) and preserves keybinds/vars;
+v1 hash-dedups (smaller output, no per-variant keys). **STILL NEEDS:** a real two-same-character in-game
+test to confirm the cross-namespace `if $\Master\swapvar` gating renders only the active variant (the one
+unverified assumption). Confirm against a real namespaced merged mod before shipping v2.
 
 ### Namespace contract (GROUNDED 2026-06-18 — leotorrez INI docs `/modding/docs/namespace`)
 - `namespace = a\b\c` MUST be the **first line** of the `.ini`. Default namespace = the mod's folder path.
