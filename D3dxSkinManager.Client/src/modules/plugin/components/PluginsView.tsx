@@ -166,6 +166,8 @@ export const PluginsView: React.FC = () => {
       <Modal
         title={selectedPlugin?.name}
         open={showDetails}
+        transitionName=""
+        maskTransitionName=""
         onCancel={() => setShowDetails(false)}
         footer={[
           <Button key="close" onClick={() => setShowDetails(false)}>

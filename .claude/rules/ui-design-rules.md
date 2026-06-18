@@ -25,6 +25,14 @@ Ant Design's `danger` prop on `<Button>` uses a different internal rendering pat
 
 Don't use `<Empty>` for hero/landing screens. It adds unwanted default styling and semantics. Build custom hero layouts with plain divs + BEM classes.
 
+### `Modal` blinks on open — always disable the transitions
+
+Every antd `<Modal>` MUST set **`transitionName="" maskTransitionName=""`**. The default zoom/fade
+animation **blinks** in this app (re-render on open + dev StrictMode double-mount fight the animation).
+The shared dialogs (`ConfirmDialog`/`FormDialog`/`InfoDialog`) already do this; new/ad-hoc Modals
+(MergeModsDialog, UnityArgsDialog, PluginsView) were missing it and blinked. Fixed 2026-06-19 — keep it
+on every Modal. (Better: build dialogs on the shared `dialogs/` components, which bake this in.)
+
 ## Pattern Reuse (CHECK FIRST)
 
 Before building a new UI pattern, **search for existing implementations**:

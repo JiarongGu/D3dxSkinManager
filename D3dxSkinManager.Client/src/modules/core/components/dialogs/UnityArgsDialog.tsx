@@ -138,6 +138,8 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
         </Space>
       }
       open={visible}
+      transitionName=""
+      maskTransitionName=""
       onCancel={onCancel}
       width={600}
       footer={[
@@ -264,10 +266,10 @@ export const UnityArgsDialog: React.FC<UnityArgsDialogProps> = ({
         <div className="unity-args-info-box">
           <strong>{t('unityArgs.commonResolutions')}</strong>
           <div className="unity-args-info-resolutions">
-            â€?{SCREEN_RESOLUTIONS.FULL_HD.label}<br />
-            â€?{SCREEN_RESOLUTIONS['2K'].label}<br />
-            â€?{SCREEN_RESOLUTIONS['4K'].label}<br />
-            â€?{SCREEN_RESOLUTIONS.HD.label}<br />
+            ï¿½?{SCREEN_RESOLUTIONS.FULL_HD.label}<br />
+            ï¿½?{SCREEN_RESOLUTIONS['2K'].label}<br />
+            ï¿½?{SCREEN_RESOLUTIONS['4K'].label}<br />
+            ï¿½?{SCREEN_RESOLUTIONS.HD.label}<br />
           </div>
         </div>
       </Form>

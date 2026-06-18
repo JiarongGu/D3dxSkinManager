@@ -78,6 +78,9 @@ export const MergeModsDialog: React.FC<MergeModsDialogProps> = ({ visible, mods,
   return (
     <Modal
       open={visible}
+      // No open/close animation — matches the shared dialogs; the default antd zoom/fade blinks here.
+      transitionName=""
+      maskTransitionName=""
       title={t('mods.merge.title')}
       onCancel={busy ? undefined : onClose}
       onOk={() => void handleMerge()}
