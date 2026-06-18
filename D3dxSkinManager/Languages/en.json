@@ -423,7 +423,7 @@
     "mods.keybindings.toggleTooltip": "Toggle keybinding preview",
     "mods.keybindings.noKeybindings": "No keybindings found for this mod",
     "mods.keybindings.rebind": "Rebind key",
-    "mods.keybindings.pressKey": "Press a key",
+    "mods.keybindings.pressKey": "Press a key or combo",
     "mods.keybindings.rebound": "Keybinding updated and saved to the mod.",
     "plugins.loadFailed": "Failed to load plugins",
     "plugins.noProfileSelected": "No profile selected. Please select a profile to view plugins.",

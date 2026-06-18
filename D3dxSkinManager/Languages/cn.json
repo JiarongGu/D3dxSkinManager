@@ -402,7 +402,7 @@
     "mods.keybindings.toggleTooltip": "切换快捷键预览",
     "mods.keybindings.noKeybindings": "此模组未找到快捷键",
     "mods.keybindings.rebind": "重新绑定按键",
-    "mods.keybindings.pressKey": "按下一个键",
+    "mods.keybindings.pressKey": "按下按键或组合键",
     "mods.keybindings.rebound": "按键绑定已更新并保存到模组。",
     "plugins.loadFailed": "加载插件失败",
     "plugins.noProfileSelected": "未选择配置。请选择配置以查看插件。",

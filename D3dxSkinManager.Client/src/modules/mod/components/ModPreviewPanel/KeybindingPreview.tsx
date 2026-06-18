@@ -16,18 +16,30 @@ export interface KeybindingPreviewProps {
   modId: string;
 }
 
-/** Map a browser keydown to a 3DMigoto `key =` value (single key; combos can be typed manually). */
+const VK_MAP: Record<string, string> = {
+  ArrowUp: 'VK_UP', ArrowDown: 'VK_DOWN', ArrowLeft: 'VK_LEFT', ArrowRight: 'VK_RIGHT',
+  ' ': 'VK_SPACE', Enter: 'VK_RETURN', Tab: 'VK_TAB', Backspace: 'VK_BACK',
+  Delete: 'VK_DELETE', Insert: 'VK_INSERT', Home: 'VK_HOME', End: 'VK_END',
+  PageUp: 'VK_PRIOR', PageDown: 'VK_NEXT',
+};
+
+/**
+ * Map a browser keydown to a 3DMigoto `key =` value, including modifier combos.
+ * e.g. Ctrl+Shift+J → "ctrl shift j", F5 → "VK_F5". Returns null while only modifiers are held.
+ */
 function eventToMigotoKey(e: React.KeyboardEvent): string | null {
   const k = e.key;
-  if (/^[a-zA-Z0-9]$/.test(k)) return k.toLowerCase();
-  if (/^F([1-9]|1[0-2])$/.test(k)) return 'VK_' + k.toUpperCase();
-  const map: Record<string, string> = {
-    ArrowUp: 'VK_UP', ArrowDown: 'VK_DOWN', ArrowLeft: 'VK_LEFT', ArrowRight: 'VK_RIGHT',
-    ' ': 'VK_SPACE', Enter: 'VK_RETURN', Tab: 'VK_TAB', Backspace: 'VK_BACK',
-    Delete: 'VK_DELETE', Insert: 'VK_INSERT', Home: 'VK_HOME', End: 'VK_END',
-    PageUp: 'VK_PRIOR', PageDown: 'VK_NEXT',
-  };
-  return map[k] ?? null;
+  if (k === 'Control' || k === 'Alt' || k === 'Shift' || k === 'Meta') return null; // wait for the real key
+  let base: string | null = null;
+  if (/^[a-zA-Z0-9]$/.test(k)) base = k.toLowerCase();
+  else if (/^F([1-9]|1[0-2])$/.test(k)) base = 'VK_' + k.toUpperCase();
+  else base = VK_MAP[k] ?? null;
+  if (!base) return null;
+  const mods: string[] = [];
+  if (e.ctrlKey) mods.push('ctrl');
+  if (e.altKey) mods.push('alt');
+  if (e.shiftKey) mods.push('shift');
+  return [...mods, base].join(' ');
 }
 
 export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) => {
@@ -90,7 +102,8 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
   }
 
   return (
-    <div className="keybinding-preview">
+    // Stop clicks (rebind button, inputs) from bubbling to the overlay backdrop's close handler.
+    <div className="keybinding-preview" onClick={(e) => e.stopPropagation()}>
       <div className="keybinding-list">
         {keybindings.map((binding, index) => {
           const editing = editingKey === binding.key;
@@ -100,17 +113,16 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                 {editing ? (
                   <Input
                     autoFocus
+                    readOnly
                     size="small"
                     value={draftKey}
                     placeholder={t('mods.keybindings.pressKey')}
-                    onChange={(e) => setDraftKey(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Escape') { cancelEdit(); return; }
-                      if (e.key === 'Enter') { void saveEdit(binding.key); return; }
+                      // Pure key/combo capture — every press sets the binding (confirm via the buttons).
                       const mapped = eventToMigotoKey(e);
                       if (mapped) { e.preventDefault(); setDraftKey(mapped); }
                     }}
-                    style={{ width: 120 }}
+                    style={{ width: 140 }}
                   />
                 ) : (
                   <kbd className="keybinding-kbd">{binding.keyDisplay}</kbd>
@@ -123,8 +135,21 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
               <div className="keybinding-actions">
                 {editing ? (
                   <>
-                    <CompactButton size="small" type="text" icon={<CheckOutlined />} loading={saving} onClick={() => saveEdit(binding.key)} />
-                    <CompactButton size="small" type="text" icon={<CloseOutlined />} onClick={cancelEdit} />
+                    <CompactButton
+                      size="small"
+                      type="text"
+                      icon={<CheckOutlined style={{ color: 'var(--color-success)' }} />}
+                      loading={saving}
+                      onClick={() => saveEdit(binding.key)}
+                      title={t('common.save')}
+                    />
+                    <CompactButton
+                      size="small"
+                      type="text"
+                      icon={<CloseOutlined style={{ color: 'var(--color-error)' }} />}
+                      onClick={cancelEdit}
+                      title={t('common.cancel')}
+                    />
                   </>
                 ) : (
                   <Tooltip title={t('mods.keybindings.rebind')}>
