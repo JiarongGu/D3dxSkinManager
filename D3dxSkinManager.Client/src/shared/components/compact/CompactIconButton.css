@@ -7,7 +7,7 @@
   transition: background-color 0.15s, color 0.15s;
 }
 .compact-icon-btn.ant-btn:hover {
-  background: var(--color-fill-tertiary, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--color-text-base) 9%, transparent);
   color: var(--color-text-base);
 }
 

@@ -95,6 +95,9 @@
    monospace, fills the key column). Recording = accent border. */
 .keybinding-capture.ant-input {
   width: 100%;
+  height: 29px;            /* match the .keybinding-kbd chip exactly */
+  padding: 4px 8px;
+  line-height: 1;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 12px;
   font-weight: 500;

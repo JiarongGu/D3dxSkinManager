@@ -396,17 +396,18 @@ body {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.03);
 }
 
-/* Light theme - More obvious hover effect for icon buttons and text buttons (except header tabs) */
-[data-theme="light"] .ant-btn-text:not(:disabled):not(.ant-btn-disabled):not(.app-header-tab):hover,
-[data-theme="light"] .ant-btn-icon-only:not(:disabled):not(.ant-btn-disabled):not(.app-header-tab):hover {
+/* Light theme - More obvious hover effect for icon buttons and text buttons (except header tabs).
+   .compact-icon-btn opts out — that atom owns its own tone-aware hover (CompactIconButton.css). */
+[data-theme="light"] .ant-btn-text:not(:disabled):not(.ant-btn-disabled):not(.app-header-tab):not(.compact-icon-btn):hover,
+[data-theme="light"] .ant-btn-icon-only:not(:disabled):not(.ant-btn-disabled):not(.app-header-tab):not(.compact-icon-btn):hover {
   background: var(--color-primary-bg);
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
 /* Dark theme - Keep subtle hover effect */
-[data-theme="dark"] .ant-btn-text:not(:disabled):not(.ant-btn-disabled):hover,
-[data-theme="dark"] .ant-btn-icon-only:not(:disabled):not(.ant-btn-disabled):hover {
+[data-theme="dark"] .ant-btn-text:not(:disabled):not(.ant-btn-disabled):not(.compact-icon-btn):hover,
+[data-theme="dark"] .ant-btn-icon-only:not(:disabled):not(.ant-btn-disabled):not(.compact-icon-btn):hover {
   background: var(--color-bg-spotlight);
 }
 
