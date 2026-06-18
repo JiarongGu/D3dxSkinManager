@@ -11,6 +11,7 @@ import {
   DeleteOutlined,
   FolderOpenOutlined,
   FileTextOutlined,
+  MergeCellsOutlined,
   ClearOutlined,
   CopyOutlined,
   SyncOutlined,
@@ -41,6 +42,7 @@ import { useTranslation } from "react-i18next";
 import { BatchEditModsScreen } from "../BatchEditScreen";
 import { ModFixTool } from "../../../tool/components/ModFixTool/ModFixTool";
 import { ModIniEditor } from "../ModIniEditor/ModIniEditor";
+import { MergeModsDialog } from "../MergeModsDialog/MergeModsDialog";
 import { useMods } from "../../hooks/useMods";
 import "./ModList.css";
 
@@ -97,6 +99,7 @@ export const ModList: React.FC<ModListProps> = ({
   const busyModIds = useModsStore((s) => s.busyModIds);
   const [showFixManager, setShowFixManager] = useState(false);
   const [iniEditorMod, setIniEditorMod] = useState<ModInfo>();
+  const [mergeDialogMods, setMergeDialogMods] = useState<ModInfo[]>();
 
   // DEV-only: open the config editor directly (bypasses the context menu) for fast UI iteration in
   // Chrome / CDP. Stripped from production builds.
@@ -457,6 +460,12 @@ export const ModList: React.FC<ModListProps> = ({
           },
         },
         { ...buildFixSubmenu([...selectedModIds]), key: "batch-run-fix", label: t("contextMenu.runFixSelected", { count: selectedModIds.length }) },
+        {
+          key: "batch-merge",
+          label: t("contextMenu.mergeSelected", { count: selectedModIds.length }),
+          icon: <MergeCellsOutlined />,
+          onClick: () => setMergeDialogMods(mods.filter((m) => selectedModIds.includes(m.id))),
+        },
         { type: "divider" as const },
         {
           key: "batch-delete-caches",
@@ -864,6 +873,13 @@ export const ModList: React.FC<ModListProps> = ({
         visible={!!iniEditorMod}
         mod={iniEditorMod}
         onClose={() => setIniEditorMod(undefined)}
+      />
+      {/* Mod-merge — combine the selected mods into a new cycle-merged mod */}
+      <MergeModsDialog
+        visible={!!mergeDialogMods}
+        mods={mergeDialogMods ?? []}
+        onClose={() => setMergeDialogMods(undefined)}
+        onMerged={() => { if (selectedProfileId) void refreshMods(selectedProfileId); }}
       />
     </>
   );
