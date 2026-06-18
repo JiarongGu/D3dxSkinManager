@@ -104,6 +104,8 @@
     "category.tree.addRootCategory": "添加根分类",
     "category.tree.exportCategory": "导出",
     "category.tree.analyzeCategory": "分析",
+    "category.tree.expandSubtree": "展开子树",
+    "category.tree.collapseSubtree": "折叠子树",
     "category.tree.fixCategory": "修复该分类全部模组",
     "category.tree.unloadCategory": "卸载该分类全部模组",
     "category.tree.noModsInCategory": "该分类没有模组",

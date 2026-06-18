@@ -137,7 +137,9 @@ Cross-cutting polish to make management effortless. Prioritized; each is small-t
 ### Category right-click menu
 - **Unload all in category** ✅ + **Fix all in category** ✅ (submenu of fix tools → runs against every
   mod in the category). Wired via the `context-menu-extension.md` 4-file chain + CategoryPanel handlers.
-  *Future:* recurse into subcategories; Collapse/expand subtree; set color/icon.
+  Plus **Expand / Collapse subtree** ✅ (recursively expand/collapse a node's descendants, respecting
+  locked nodes). *Future:* set color/icon — deferred, needs a `Category.color` field added full-stack
+  (model + repo + IPC + picker), not present today.
 
 ### Reliability
 - **Per-panel error boundaries** ✅ — `ErrorBoundary` gained a compact self-resetting mode; the

@@ -244,6 +244,38 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     onExpandedKeysChange,
   });
 
+  // Expand a node and ALL its descendant folders (context-menu "Expand subtree").
+  const handleExpandSubtree = useCallback((nodeId: string) => {
+    const node = findNodeById(treeRef.current, nodeId);
+    if (!node) return;
+    const keysToAdd = new Set<React.Key>([nodeId]);
+    const stack = [node];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      current.children.forEach((child) => {
+        if (child.children.length > 0) { keysToAdd.add(child.id); stack.push(child); }
+      });
+    }
+    onExpandedKeysChange([...new Set([...expandedKeysRef.current, ...keysToAdd])]);
+  }, [onExpandedKeysChange]);
+
+  // Collapse a node and ALL its descendants (context-menu "Collapse subtree"), respecting locks.
+  const handleCollapseSubtree = useCallback((nodeId: string) => {
+    if (lockedCategoriesSet.has(nodeId)) return;
+    const node = findNodeById(treeRef.current, nodeId);
+    if (!node) return;
+    const keysToRemove = new Set<React.Key>([nodeId]);
+    const stack = [node];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      current.children.forEach((child) => {
+        if (!lockedCategoriesSet.has(child.id)) keysToRemove.add(child.id);
+        if (child.children.length > 0) stack.push(child);
+      });
+    }
+    onExpandedKeysChange(expandedKeysRef.current.filter((k) => !keysToRemove.has(k)));
+  }, [lockedCategoriesSet, onExpandedKeysChange]);
+
   // Get context menu items
   const contextMenuItems = useMemo(() => {
     return getCategoryContextMenu({
@@ -256,9 +288,11 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
       fixTools,
       onRunCategoryFix,
       onUnloadCategory,
+      onExpandSubtree: handleExpandSubtree,
+      onCollapseSubtree: handleCollapseSubtree,
       t,
     });
-  }, [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode, onExportCategory, onAnalyzeCategory, fixTools, onRunCategoryFix, onUnloadCategory, t]);
+  }, [contextMenuNode, onAddCategory, handleEditNode, handleDeleteNode, onExportCategory, onAnalyzeCategory, fixTools, onRunCategoryFix, onUnloadCategory, handleExpandSubtree, handleCollapseSubtree, t]);
 
   // Toggle expansion for a folder node - optimized for performance
   const handleToggleExpand = useCallback(

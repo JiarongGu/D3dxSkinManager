@@ -87,6 +87,8 @@
     "category.tree.addRootCategory": "Add Root-Category",
     "category.tree.exportCategory": "Export",
     "category.tree.analyzeCategory": "Analyze",
+    "category.tree.expandSubtree": "Expand subtree",
+    "category.tree.collapseSubtree": "Collapse subtree",
     "category.tree.fixCategory": "Fix all in category",
     "category.tree.unloadCategory": "Unload all in category",
     "category.tree.noModsInCategory": "No mods in this category",
