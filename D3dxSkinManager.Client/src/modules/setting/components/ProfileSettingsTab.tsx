@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Form, Space, InputNumber, Select, Row, Col, Segmented } from "antd";
 import { ThunderboltOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import {
@@ -6,18 +6,18 @@ import {
   CompactButton,
   CompactInput,
   CompactSelect,
-  CompactDangerButton,
   CompactSwitch,
 } from "../../../shared/components/compact";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "../../../shared/context/ProfileContext";
 import { useSettingsStore } from "../store/settingsStore";
-import * as settingsOps from "../operations/settingsOperations";
+import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
 import { ModImportConfiguration, ModWorkConfiguration, profileService, systemService } from "../../../shared/services/ipc";
 import { logger } from "../../../shared/utils/logger";
 import { XxmiImporterPicker } from "./XxmiImporterPicker";
 import { FixToolSettingsCard } from "./FixToolSettingsCard";
+import { SettingsSectionActions } from "./SettingsSectionActions";
 
 const { Option } = Select;
 
@@ -34,7 +34,8 @@ export const ProfileSettingsTab: React.FC = () => {
     cleanupMaxCaches,
     compressionType,
     compressionMode,
-    profileConfigChanged,
+    initialProfileConfig,
+    initialModImportConfig,
     setWorkMode,
     setWorkDirectory,
     setCleanupEnabled,
@@ -42,8 +43,21 @@ export const ProfileSettingsTab: React.FC = () => {
     setCompressionType,
     setCompressionMode,
     setInitialProfileConfig,
-    resetProfileConfig,
+    setInitialModImportConfig,
   } = useSettingsStore();
+
+  const [savingWork, setSavingWork] = useState(false);
+  const [savingImport, setSavingImport] = useState(false);
+
+  // Per-section dirty (each card saves/resets independently).
+  const workDirty =
+    workMode !== initialProfileConfig.mode ||
+    workDirectory !== initialProfileConfig.directory ||
+    cleanupEnabled !== initialProfileConfig.cleanupEnabled ||
+    cleanupMaxCaches !== initialProfileConfig.cleanupMaxCaches;
+  const importDirty =
+    compressionType !== initialModImportConfig.compressionType ||
+    compressionMode !== initialModImportConfig.compressionMode;
 
   // Sync form fields with store state whenever they change
   useEffect(() => {
@@ -151,40 +165,63 @@ export const ProfileSettingsTab: React.FC = () => {
     setCompressionMode(value);
   };
 
-  const handleSaveProfileConfig = async () => {
-    if (!selectedProfileId) {
-      notification.error(t("errors.noProfileSelected"));
+  // --- Mod Work section save/reset ---
+  const handleSaveWork = async () => {
+    if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
+    const usesCustomDir = workMode !== "internal";
+    if (usesCustomDir && !workDirectory.trim()) {
+      notification.error(t("settings.notifications.workDirectoryInvalid"));
       return;
     }
-
-    await settingsOps.saveProfileConfig(
-      selectedProfileId,
-      workMode,
-      workDirectory,
-      cleanupEnabled,
-      cleanupMaxCaches,
-      compressionType,
-      compressionMode,
-      t,
-    );
+    setSavingWork(true);
+    try {
+      await profileService.updateProfileConfig({
+        profileId: selectedProfileId,
+        workMode,
+        workDirectory: usesCustomDir ? workDirectory : undefined,
+        cleanupEnabled,
+        cleanupMaxCaches: Math.max(1, Math.min(100, cleanupMaxCaches)),
+      });
+      setInitialProfileConfig({ mode: workMode, directory: workDirectory, cleanupEnabled, cleanupMaxCaches });
+      notification.success(t("settings.notifications.profileConfigSaved"));
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setSavingWork(false);
+    }
   };
 
-  const handleResetProfileConfig = () => {
-    resetProfileConfig();
-    const {
-      workMode: mode,
-      workDirectory: dir,
-      cleanupEnabled: cleanup,
-      cleanupMaxCaches: max,
-      compressionType: compType,
-      compressionMode: compMode,
-    } = useSettingsStore.getState();
-    form.setFieldValue("workMode", mode);
-    form.setFieldValue("workDirectory", dir);
-    form.setFieldValue("cleanupEnabled", cleanup);
-    form.setFieldValue("cleanupMaxCaches", max);
-    form.setFieldValue("compressionType", compType);
-    form.setFieldValue("compressionMode", compMode);
+  const handleResetWork = () => {
+    setWorkMode(initialProfileConfig.mode);
+    setWorkDirectory(initialProfileConfig.directory);
+    setCleanupEnabled(initialProfileConfig.cleanupEnabled);
+    setCleanupMaxCaches(initialProfileConfig.cleanupMaxCaches);
+    form.setFieldValue("workMode", initialProfileConfig.mode);
+    form.setFieldValue("workDirectory", initialProfileConfig.directory);
+    form.setFieldValue("cleanupEnabled", initialProfileConfig.cleanupEnabled);
+    form.setFieldValue("cleanupMaxCaches", initialProfileConfig.cleanupMaxCaches);
+  };
+
+  // --- Mod Import section save/reset ---
+  const handleSaveImport = async () => {
+    if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
+    setSavingImport(true);
+    try {
+      await profileService.updateProfileConfig({ profileId: selectedProfileId, compressionType, compressionMode });
+      setInitialModImportConfig({ compressionType, compressionMode });
+      notification.success(t("settings.notifications.profileConfigSaved"));
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setSavingImport(false);
+    }
+  };
+
+  const handleResetImport = () => {
+    setCompressionType(initialModImportConfig.compressionType);
+    setCompressionMode(initialModImportConfig.compressionMode);
+    form.setFieldValue("compressionType", initialModImportConfig.compressionType);
+    form.setFieldValue("compressionMode", initialModImportConfig.compressionMode);
   };
 
   return (
@@ -205,6 +242,14 @@ export const ProfileSettingsTab: React.FC = () => {
           <>
             <ThunderboltOutlined /> {t("settings.profile.modWork.title")}
           </>
+        }
+        extra={
+          <SettingsSectionActions
+            dirty={workDirty}
+            saving={savingWork}
+            onSave={handleSaveWork}
+            onReset={handleResetWork}
+          />
         }
       >
         <div className={"settings-view-profile-form-grid"}>
@@ -302,6 +347,14 @@ export const ProfileSettingsTab: React.FC = () => {
             <ThunderboltOutlined /> {t("settings.profile.modImport.title")}
           </>
         }
+        extra={
+          <SettingsSectionActions
+            dirty={importDirty}
+            saving={savingImport}
+            onSave={handleSaveImport}
+            onReset={handleResetImport}
+          />
+        }
       >
         <Row gutter={16}>
           <Col span={12}>
@@ -342,24 +395,6 @@ export const ProfileSettingsTab: React.FC = () => {
       </CompactCard>
 
       <FixToolSettingsCard />
-
-      <Form.Item className="settings-view-actions" style={{ marginBottom: 0 }}>
-        <Space style={{ width: "100%", justifyContent: "flex-end" }}>
-          <CompactDangerButton
-            onClick={handleResetProfileConfig}
-            disabled={!profileConfigChanged}
-          >
-            {t("settings.profile.discard")}
-          </CompactDangerButton>
-          <CompactButton
-            type="primary"
-            onClick={handleSaveProfileConfig}
-            disabled={!profileConfigChanged}
-          >
-            {t("common.saveChanges")}
-          </CompactButton>
-        </Space>
-      </Form.Item>
     </Form>
   );
 };

@@ -3,25 +3,7 @@
 .settings-view-container {
   height: 100%;
   overflow: auto;
-  /* No bottom padding so the sticky action footer sits flush at the bottom edge. */
-  padding: 24px 24px 0;
-}
-
-/* Sticky save/discard footer — stays reachable on long settings pages. Bleeds to the
-   container edges and pins to the bottom of the scroll area. */
-.settings-view-actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  margin: 16px -24px 0;
-  padding: 12px 24px;
-  background: var(--color-card-bg);
-  border-top: 1px solid var(--color-border-secondary);
-}
-
-/* Beat the wrapper's `.ant-form-item { margin-bottom: 8px !important }` so the footer sits flush. */
-.settings-view-content-wrapper .ant-form-item.settings-view-actions {
-  margin-bottom: 0 !important;
+  padding: 24px;
 }
 
 .settings-view-content-wrapper {

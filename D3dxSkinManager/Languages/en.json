@@ -525,6 +525,7 @@
     "settings.profile.fixTools.autoConfirm.label": "Auto-confirm prompts",
     "settings.profile.fixTools.autoConfirm.hint": "Feed Enter to scripts that end with an interactive prompt, so fixes run unattended.",
     "settings.profile.fixTools.saved": "Fix tool settings saved.",
+    "settings.section.reset": "Reset",
     "settings.profile.discard": "Discard",
     "settings.profile.title": "Profile Settings",
     "settings.tabs.profile": "Profile Settings",

@@ -504,6 +504,7 @@
     "settings.profile.fixTools.autoConfirm.label": "自动确认提示",
     "settings.profile.fixTools.autoConfirm.hint": "向以交互提示结尾的脚本自动输入回车，使修复可无人值守运行。",
     "settings.profile.fixTools.saved": "修复工具设置已保存。",
+    "settings.section.reset": "重置",
     "settings.profile.discard": "放弃",
     "settings.profile.title": "配置设置",
     "settings.tabs.profile": "配置设置",

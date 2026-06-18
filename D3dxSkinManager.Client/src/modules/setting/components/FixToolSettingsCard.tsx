@@ -13,6 +13,7 @@ import { useProfile } from "../../../shared/context/ProfileContext";
 import { profileService, toolService } from "../../../shared/services/ipc";
 import { notification } from "../../../shared/utils/notification";
 import { handleError } from "../../../shared/utils/errorHandler";
+import { SettingsSectionActions } from "./SettingsSectionActions";
 
 const DEFAULT_EXTENSIONS = ".py, .exe, .bat, .cmd";
 
@@ -58,6 +59,14 @@ export const FixToolSettingsCard: React.FC = () => {
     autoConfirm !== saved.autoConfirm
   );
 
+  const reset = useCallback(() => {
+    if (!saved) return;
+    setPythonPath(saved.pythonPath);
+    setTimeoutMinutes(saved.timeoutMinutes);
+    setExtensions(saved.extensions);
+    setAutoConfirm(saved.autoConfirm);
+  }, [saved]);
+
   const detect = useCallback(async () => {
     if (!selectedProfileId) return;
     setDetecting(true);
@@ -97,6 +106,7 @@ export const FixToolSettingsCard: React.FC = () => {
     <CompactCard
       style={{ marginTop: "16px" }}
       title={<><ThunderboltOutlined /> {t("settings.profile.fixTools.title")}</>}
+      extra={<SettingsSectionActions dirty={dirty} saving={saving} onSave={save} onReset={reset} />}
     >
       <CompactField label={t("settings.profile.fixTools.python.label")} description={t("settings.profile.fixTools.python.hint")}>
         <Space.Compact style={{ width: "100%" }}>
@@ -134,12 +144,6 @@ export const FixToolSettingsCard: React.FC = () => {
           unCheckedChildren={t("common.disable")}
         />
       </CompactField>
-
-      <div style={{ marginTop: 8 }}>
-        <CompactButton type="primary" loading={saving} disabled={!dirty || !selectedProfileId} onClick={save}>
-          {t("common.save")}
-        </CompactButton>
-      </div>
     </CompactCard>
   );
 };

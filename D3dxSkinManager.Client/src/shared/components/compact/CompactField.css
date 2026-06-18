@@ -32,6 +32,12 @@
   flex-direction: column;
 }
 
+/* Inputs/selects fill the row (the column stretches children), but toggles must keep their natural
+   width — otherwise a Switch becomes a full-row bar. */
+.compact-field__control > .ant-switch {
+  align-self: flex-start;
+}
+
 .compact-field__description {
   font-size: 12px;
   color: var(--color-text-tertiary);
