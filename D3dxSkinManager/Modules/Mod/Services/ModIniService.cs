@@ -93,6 +93,8 @@ public class ModIniService : IModIniService
         if (cacheDir == null) return files;
 
         foreach (var iniPath in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories)
+                     // Skip disabled .ini (e.g. a merged mod's DISABLED*.ini sources) — inactive in-game.
+                     .Where(p => !Path.GetFileName(p).Contains("disabled", StringComparison.OrdinalIgnoreCase))
                      .OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
         {
             var lines = await File.ReadAllLinesAsync(iniPath).ConfigureAwait(false);

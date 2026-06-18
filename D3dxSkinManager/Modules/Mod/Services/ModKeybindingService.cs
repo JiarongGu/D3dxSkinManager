@@ -77,6 +77,13 @@ public class ModKeybindingService : IModKeybindingService
         return obj.ToJsonString();
     }
 
+    /// <summary>
+    /// A disabled .ini (name contains "disabled", e.g. a merged mod's DISABLED0.ini) is inactive in-game,
+    /// so its keybindings must be ignored. Matches GIMI's collect_ini convention.
+    /// </summary>
+    private static bool IsDisabledIni(string path) =>
+        Path.GetFileName(path).Contains("disabled", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Resolve the extracted cache dir for a mod (active {id} or disabled DISABLED-{id}), or null.</summary>
     private string? ResolveCacheDir(string modId)
     {
@@ -106,7 +113,7 @@ public class ModKeybindingService : IModKeybindingService
             var newVal = newKey.Trim();
             var changedFiles = new List<string>();
 
-            foreach (var iniFile in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories))
+            foreach (var iniFile in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories).Where(p => !IsDisabledIni(p)))
             {
                 var lines = await File.ReadAllLinesAsync(iniFile).ConfigureAwait(false);
                 var inKeySection = false;
@@ -202,7 +209,8 @@ public class ModKeybindingService : IModKeybindingService
             }
 
             // Find all .ini files in mod directory and subdirectories
-            var iniFiles = Directory.GetFiles(modWorkDir, "*.ini", SearchOption.AllDirectories);
+            // Skip disabled .ini (e.g. a merged mod's DISABLED*.ini source files) — they're inactive in-game.
+            var iniFiles = Directory.GetFiles(modWorkDir, "*.ini", SearchOption.AllDirectories).Where(p => !IsDisabledIni(p)).ToArray();
 
             foreach (var iniFile in iniFiles)
             {
