@@ -423,6 +423,7 @@
     "mods.keybindings.toggleTooltip": "切换快捷键预览",
     "mods.keybindings.noKeybindings": "此模组未找到快捷键",
     "mods.keybindings.rebind": "重新绑定按键",
+    "mods.keybindings.reorder": "拖动以重新排序",
     "mods.keybindings.pressKey": "按下按键或组合键",
     "mods.keybindings.rebound": "按键绑定已更新并保存到模组。",
     "plugins.loadFailed": "加载插件失败",

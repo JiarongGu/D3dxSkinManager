@@ -145,6 +145,7 @@ public class ModFacade : BaseFacade, IModFacade
             "SEARCH_TAGS" => await SearchTagsAsync(request),
             "GET_KEYBINDINGS" => await GetKeybindingsAsync(request),
             "UPDATE_KEYBINDING" => await UpdateKeybindingAsync(request),
+            "REORDER_KEYBINDINGS" => await ReorderKeybindingsAsync(request),
             "GET_INI_FILES" => await GetIniFilesAsync(request),
             "UPDATE_INI_ENTRY" => await UpdateIniEntryAsync(request),
 
@@ -735,6 +736,15 @@ public class ModFacade : BaseFacade, IModFacade
         var newKey = _payloadHelper.GetRequiredValue<string>(request.Payload, "newKey");
         var changed = await _keybindingService.UpdateKeybindingAsync(id, oldKey, newKey).ConfigureAwait(false);
         return new { changed };
+    }
+
+    /// <summary>IPC: REORDER_KEYBINDINGS — permute the [Key*] section blocks to match the given key order.</summary>
+    private async Task<object> ReorderKeybindingsAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var keys = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "keys");
+        await _keybindingService.ReorderKeybindingsAsync(id, keys).ConfigureAwait(false);
+        return new { ok = true };
     }
 
     /// <summary>IPC: GET_INI_FILES — parse the mod's extracted .ini files into the editable model.</summary>

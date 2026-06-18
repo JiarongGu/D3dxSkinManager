@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Text.Json.Nodes;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
@@ -21,22 +22,59 @@ public interface IModKeybindingService
     /// recompressed back into the archive so the change persists. Returns the number of lines changed.
     /// </summary>
     Task<int> UpdateKeybindingAsync(string modId, string oldKey, string newKey);
+
+    /// <summary>
+    /// Persist the display order of keybindings as <paramref name="orderedKeys"/> (the <c>key =</c>
+    /// values in the desired order) in the mod's <c>Metadata</c> JSON. Stored as metadata — not by
+    /// reordering .ini sections — because a single mod's keybindings can span MULTIPLE .ini files, so a
+    /// global order can't be expressed by per-file section order. <see cref="ParseKeybindingsAsync"/>
+    /// applies this saved order. Functionally inert for 3DMigoto; purely organisational.
+    /// </summary>
+    Task ReorderKeybindingsAsync(string modId, List<string> orderedKeys);
 }
 
 public class ModKeybindingService : IModKeybindingService
 {
+    private const string OrderMetadataKey = "keybindingOrder";
+
     private readonly IProfilePathService _profilePathService;
     private readonly IModArchiveService _archiveService;
     private readonly IModOperationQueue _operationQueue;
+    private readonly IModRepository _repository;
 
     public ModKeybindingService(
         IProfilePathService profilePathService,
         IModArchiveService archiveService,
-        IModOperationQueue operationQueue)
+        IModOperationQueue operationQueue,
+        IModRepository repository)
     {
         _profilePathService = profilePathService;
         _archiveService = archiveService;
         _operationQueue = operationQueue;
+        _repository = repository;
+    }
+
+    /// <summary>Read the saved keybinding order from a mod's Metadata JSON (empty if none/invalid).</summary>
+    private static List<string> ReadOrder(string? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata)) return new();
+        try
+        {
+            if (JsonNode.Parse(metadata) is JsonObject obj && obj[OrderMetadataKey] is JsonArray arr)
+                return arr.Where(x => x != null).Select(x => x!.GetValue<string>()).ToList();
+        }
+        catch { /* malformed metadata — ignore */ }
+        return new();
+    }
+
+    /// <summary>Write the keybinding order into a Metadata JSON string, preserving other fields.</summary>
+    private static string WriteOrder(string? metadata, List<string> order)
+    {
+        JsonObject obj;
+        try { obj = JsonNode.Parse(string.IsNullOrWhiteSpace(metadata) ? "{}" : metadata) as JsonObject ?? new JsonObject(); }
+        catch { obj = new JsonObject(); }
+        obj[OrderMetadataKey] = new JsonArray(order.Select(s => JsonValue.Create(s)).ToArray<JsonNode?>());
+        return obj.ToJsonString();
     }
 
     /// <summary>Resolve the extracted cache dir for a mod (active {id} or disabled DISABLED-{id}), or null.</summary>
@@ -117,6 +155,30 @@ public class ModKeybindingService : IModKeybindingService
         });
     }
 
+    public async Task ReorderKeybindingsAsync(string modId, List<string> orderedKeys)
+    {
+        if (orderedKeys == null || orderedKeys.Count == 0) return;
+
+        // Persist the order in the mod's Metadata JSON (works across multiple .ini files, unlike .ini
+        // section order). ParseKeybindingsAsync applies it.
+        var entity = await _repository.GetByIdAsync(modId).ConfigureAwait(false);
+        if (entity == null) throw new OperationException("MOD_NOT_FOUND", "id", modId);
+        entity.Metadata = WriteOrder(entity.Metadata, orderedKeys);
+        await _repository.UpdateAsync(entity).ConfigureAwait(false);
+    }
+
+    /// <summary>Apply the saved display order (from Metadata) to a merged keybinding list (stable; unknown keys keep place).</summary>
+    private static List<ModKeybinding> ApplySavedOrder(List<ModKeybinding> keybindings, List<string> order)
+    {
+        if (order.Count == 0) return keybindings;
+        var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < order.Count; i++)
+            if (!rank.ContainsKey(order[i].Trim())) rank[order[i].Trim()] = i;
+        return keybindings
+            .OrderBy(k => rank.TryGetValue(k.Key.Trim(), out var r) ? r : int.MaxValue)
+            .ToList();
+    }
+
     public async Task<List<ModKeybinding>> ParseKeybindingsAsync(string modId)
     {
         var keybindings = new List<ModKeybinding>();
@@ -148,11 +210,11 @@ public class ModKeybindingService : IModKeybindingService
                 keybindings.AddRange(fileKeybindings);
             }
 
-            // Merge duplicate keys
+            // Merge duplicate keys (preserves first-seen file order), then apply the user's saved display
+            // order from Metadata (ReorderKeybindingsAsync). Keys not in the saved order keep their place.
             keybindings = MergeDuplicateKeys(keybindings);
-
-            // Sort keybindings in a logical order
-            keybindings = SortKeybindings(keybindings);
+            var entity = await _repository.GetByIdAsync(modId).ConfigureAwait(false);
+            keybindings = ApplySavedOrder(keybindings, ReadOrder(entity?.Metadata));
         }
         catch (Exception ex)
         {
@@ -168,6 +230,9 @@ public class ModKeybindingService : IModKeybindingService
     /// </summary>
     private List<ModKeybinding> MergeDuplicateKeys(List<ModKeybinding> keybindings)
     {
+        // Order-stable: a result list preserves first-seen (file/section) order; the dict is only a
+        // lookup. This order IS the display order (no re-sort), so manual reorder is honoured.
+        var result = new List<ModKeybinding>();
         var mergedDict = new Dictionary<string, ModKeybinding>();
 
         foreach (var binding in keybindings)
@@ -204,74 +269,13 @@ public class ModKeybindingService : IModKeybindingService
             }
             else
             {
-                // Add new entry
+                // Add new entry (record order on first sight).
                 mergedDict[key] = binding;
+                result.Add(binding);
             }
         }
 
-        return mergedDict.Values.ToList();
-    }
-
-    /// <summary>
-    /// Sort keybindings in a logical order for display
-    /// Priority: Numbers (0-9) → Letters (A-Z) → Function keys (F1-F12) → Arrow keys → Special keys
-    /// </summary>
-    private List<ModKeybinding> SortKeybindings(List<ModKeybinding> keybindings)
-    {
-        return keybindings.OrderBy(k => GetKeySortPriority(k.Key))
-                         .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
-                         .ToList();
-    }
-
-    /// <summary>
-    /// Get sort priority for a key (lower number = higher priority)
-    /// </summary>
-    private int GetKeySortPriority(string key)
-    {
-        var keyUpper = key.ToUpper();
-
-        // Priority 1: Number keys (0-9)
-        if (keyUpper.Length == 1 && char.IsDigit(keyUpper[0]))
-            return 1;
-
-        // Priority 2: Letter keys (A-Z)
-        if (keyUpper.Length == 1 && char.IsLetter(keyUpper[0]))
-            return 2;
-
-        // Priority 3: Numpad keys
-        if (keyUpper.StartsWith("VK_NUMPAD") || keyUpper.Contains("NUMPAD"))
-            return 3;
-
-        // Priority 4: Function keys (F1-F12)
-        if (keyUpper.StartsWith("VK_F") || (keyUpper.StartsWith("F") && keyUpper.Length <= 3))
-            return 4;
-
-        // Priority 5: Arrow keys
-        if (keyUpper.Contains("UP") || keyUpper.Contains("DOWN") ||
-            keyUpper.Contains("LEFT") || keyUpper.Contains("RIGHT"))
-            return 5;
-
-        // Priority 6: Common modifier/special keys
-        if (keyUpper.Contains("SHIFT") || keyUpper.Contains("CTRL") || keyUpper.Contains("CONTROL") ||
-            keyUpper.Contains("ALT") || keyUpper.Contains("SPACE") || keyUpper.Contains("TAB") ||
-            keyUpper.Contains("ENTER") || keyUpper.Contains("RETURN") || keyUpper.Contains("ESC"))
-            return 6;
-
-        // Priority 7: Navigation keys
-        if (keyUpper.Contains("HOME") || keyUpper.Contains("END") ||
-            keyUpper.Contains("PRIOR") || keyUpper.Contains("NEXT") || keyUpper.Contains("PAGE"))
-            return 7;
-
-        // Priority 8: Edit keys
-        if (keyUpper.Contains("INSERT") || keyUpper.Contains("DELETE") || keyUpper.Contains("BACK"))
-            return 8;
-
-        // Priority 9: Special characters and symbols
-        if (keyUpper.Length == 1 && !char.IsLetterOrDigit(keyUpper[0]))
-            return 9;
-
-        // Priority 10: Everything else
-        return 10;
+        return result;
     }
 
     private async Task<List<ModKeybinding>> ParseIniFileAsync(string filePath)

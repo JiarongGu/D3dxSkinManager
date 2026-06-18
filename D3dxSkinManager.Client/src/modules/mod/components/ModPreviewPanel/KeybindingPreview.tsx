@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Empty, Spin, Typography, Input, Tooltip } from 'antd';
-import { EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { EditOutlined, CheckOutlined, CloseOutlined, HolderOutlined } from '@ant-design/icons';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { ModKeybinding } from '../../../../shared/types/mod.types';
@@ -68,6 +68,8 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
   const [draftDisplay, setDraftDisplay] = useState('');               // friendly text shown in the field
   const [recording, setRecording] = useState(false);                  // field focused, listening for keys
   const [saving, setSaving] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null); // insertion slot (0..length)
   const draftRaw = useRef('');                  // the 3DMigoto value to save (with no_ defaults)
   const held = useRef<Set<string>>(new Set());  // currently-pressed key codes (for "until all released")
 
@@ -127,6 +129,39 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
     }
   }, [selectedProfileId, modId, t, load]);
 
+  // Persist a new order by sending the keys top-to-bottom; backend permutes the [Key*] blocks.
+  const persistOrder = useCallback(async (items: ModKeybinding[]) => {
+    if (!selectedProfileId) return;
+    try {
+      await modService.reorderKeybindings(selectedProfileId, modId, items.map((b) => b.key));
+    } catch (error) {
+      handleError(error);
+      void load(); // revert to the on-disk order on failure
+    }
+  }, [selectedProfileId, modId, load]);
+
+  const handleDrop = () => {
+    const from = dragIndex;
+    const insertAt = dropIndex;
+    setDragIndex(null);
+    setDropIndex(null);
+    if (from === null || insertAt === null) return;
+    const idx = from < insertAt ? insertAt - 1 : insertAt; // account for removal of the dragged item
+    if (idx === from) return;
+    const items = [...keybindings];
+    const [moved] = items.splice(from, 1);
+    items.splice(idx, 0, moved);
+    setKeybindings(items); // optimistic
+    void persistOrder(items);
+  };
+
+  // Which slot the dragged row will land in: before this row, or after it (bottom half).
+  const onRowDragOver = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const r = e.currentTarget.getBoundingClientRect();
+    setDropIndex(e.clientY > r.top + r.height / 2 ? index + 1 : index);
+  };
+
   if (loading) {
     return <div className="keybinding-preview-loading"><Spin size="small" /></div>;
   }
@@ -146,7 +181,25 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
         {keybindings.map((binding, index) => {
           const editing = editingKey === binding.key;
           return (
-            <div key={index} className="keybinding-item">
+            <React.Fragment key={binding.key}>
+              {dropIndex === index && dragIndex !== null && <div className="keybinding-drop-line" />}
+              <div
+                className={classNames('keybinding-item', { 'keybinding-item--dragging': dragIndex === index })}
+                draggable={!editing}
+                onDragStart={(e) => {
+                  // setData is required for HTML5 DnD to actually initiate the drag (else dragover/drop
+                  // never fire); mirrors the category card drag.
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', String(index));
+                  setDragIndex(index);
+                }}
+                onDragOver={onRowDragOver(index)}
+                onDrop={(e) => { e.preventDefault(); handleDrop(); }}
+                onDragEnd={() => { setDragIndex(null); setDropIndex(null); }}
+              >
+              <span className="keybinding-drag-handle" title={t('mods.keybindings.reorder')}>
+                <HolderOutlined />
+              </span>
               <div className="keybinding-key">
                 {editing ? (
                   <Input
@@ -194,9 +247,11 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                   </Tooltip>
                 )}
               </div>
-            </div>
+              </div>
+            </React.Fragment>
           );
         })}
+        {dropIndex === keybindings.length && dragIndex !== null && <div className="keybinding-drop-line" />}
       </div>
     </div>
   );

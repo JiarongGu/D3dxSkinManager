@@ -19,6 +19,7 @@ public class ModKeybindingServiceTests : IDisposable
 {
     private readonly Mock<IProfilePathService> _paths = new();
     private readonly Mock<IModArchiveService> _archive = new();
+    private readonly Mock<IModRepository> _repo = new();
     private readonly IModOperationQueue _queue = new ModOperationQueue(Mock.Of<ILogHelper>());
     private readonly string _cacheRoot;
     private readonly ModKeybindingService _service;
@@ -29,7 +30,7 @@ public class ModKeybindingServiceTests : IDisposable
         Directory.CreateDirectory(_cacheRoot);
         _paths.Setup(p => p.CacheModsDirectory).Returns(_cacheRoot);
         _archive.Setup(a => a.UpdateFileInArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
-        _service = new ModKeybindingService(_paths.Object, _archive.Object, _queue);
+        _service = new ModKeybindingService(_paths.Object, _archive.Object, _queue, _repo.Object);
     }
 
     public void Dispose()
@@ -104,5 +105,48 @@ hash = 64a6b06d
         WriteModIni("MODC", Sample);
         var act = () => _service.UpdateKeybindingAsync("MODC", "Z", "5");
         (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("KEYBINDING_NOT_FOUND");
+    }
+
+    private const string TwoKeys = @"[KeySwap0]
+key = 0
+type = cycle
+
+[KeySwap1]
+key = 9
+type = cycle
+";
+
+    [Fact]
+    public async Task Reorder_SavesOrderToMetadata()
+    {
+        var entity = new D3dxSkinManager.Modules.Mod.Entities.ModEntity { Id = "MODR" };
+        _repo.Setup(r => r.GetByIdAsync("MODR")).ReturnsAsync(entity);
+        _repo.Setup(r => r.UpdateAsync(It.IsAny<D3dxSkinManager.Modules.Mod.Entities.ModEntity>())).ReturnsAsync(true);
+
+        await _service.ReorderKeybindingsAsync("MODR", new System.Collections.Generic.List<string> { "9", "0" });
+
+        // Order persisted into the mod's Metadata JSON (not the .ini).
+        entity.Metadata.Should().Contain("keybindingOrder").And.Contain("\"9\"").And.Contain("\"0\"");
+        entity.Metadata!.IndexOf("\"9\"", StringComparison.Ordinal)
+            .Should().BeLessThan(entity.Metadata!.IndexOf("\"0\"", StringComparison.Ordinal));
+        _repo.Verify(r => r.UpdateAsync(entity), Times.Once);
+        // .ini is NOT touched (works across files via metadata instead).
+        _archive.Verify(a => a.UpdateFileInArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Parse_AppliesSavedOrderFromMetadata()
+    {
+        WriteModIni("MODR2", TwoKeys); // file order: 0, 9
+        _repo.Setup(r => r.GetByIdAsync("MODR2")).ReturnsAsync(new D3dxSkinManager.Modules.Mod.Entities.ModEntity
+        {
+            Id = "MODR2",
+            Metadata = "{\"keybindingOrder\":[\"9\",\"0\"]}",
+        });
+
+        var result = await _service.ParseKeybindingsAsync("MODR2");
+
+        // Saved order wins over file order → "9" first.
+        result.Select(k => k.Key).Should().ContainInOrder("9", "0");
     }
 }

@@ -130,3 +130,28 @@
   padding: 24px;
   min-height: 120px;
 }
+
+/* Drag-to-reorder */
+.keybinding-drag-handle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-tertiary, var(--color-text-secondary));
+  cursor: grab;
+  font-size: 12px;
+}
+.keybinding-drag-handle:active {
+  cursor: grabbing;
+}
+.keybinding-item--dragging {
+  opacity: 0.5;
+}
+
+/* Drop position indicator — a line showing where the dragged keybinding will land. */
+.keybinding-drop-line {
+  height: 2px;
+  margin: 1px 0;
+  background-color: var(--color-primary);
+  border-radius: 1px;
+  box-shadow: 0 0 4px var(--color-primary);
+}

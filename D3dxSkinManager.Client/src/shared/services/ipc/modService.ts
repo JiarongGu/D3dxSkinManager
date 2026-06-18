@@ -565,6 +565,15 @@ export class ModService extends BaseModuleService {
     return this.sendMessage<{ changed: number }>("UPDATE_KEYBINDING", profileId, { id, oldKey, newKey });
   }
 
+  /**
+   * Reorder keybindings to match `keys` (the key= values in the desired order). Permutes the [Key*]
+   * section blocks in the mod's .ini(s) and patches via the fast single-file path.
+   * Backend: ModFacade.ReorderKeybindingsAsync
+   */
+  async reorderKeybindings(profileId: string, id: string, keys: string[]): Promise<{ ok: boolean }> {
+    return this.sendMessage<{ ok: boolean }>("REORDER_KEYBINDINGS", profileId, { id, keys });
+  }
+
   // ============= .ini Editor Operations =============
 
   /**

@@ -23,6 +23,13 @@ Comments start `;` (e.g. `;MARK:Key----`). Namespacing is per-file (the filename
 - **Edit:** `[Key*]` (rebind `key`, change `type`, edit cycle values / condition) and `[Constants]`
   default values. These are the safe, user-meaningful knobs. Generalize to "edit any `key = value` line"
   but **gate the override/hash sections** behind an "advanced" view — editing a `hash` breaks the mod.
+- **Keybinding reorder = MOD METADATA, not .ini order.** A mod's keybindings can span MULTIPLE `.ini`
+  files, so a global display order can't be expressed by per-file `[Key*]` section order (the display is
+  grouped by file). `ReorderKeybindingsAsync` saves the order as `keybindingOrder` in the mod's
+  `ModEntity.Metadata` JSON (the migration-free extension field); `ParseKeybindingsAsync` applies it
+  (stable; unknown keys keep place) and **no longer force-sorts** by key priority. The keybinding list is
+  drag-reorderable (`KeybindingPreview`, HTML5 DnD — `dataTransfer.setData` IS required to start the drag
+  — with a drop-line indicator). IPC `REORDER_KEYBINDINGS`.
 - **Write-back: DONE.** `ModKeybindingService.UpdateKeybindingAsync` (rebind `[Key*]` key) and the
   general **`ModIniService`** (config editor) both do line-level edits + persist via the **fast
   single-file archive patch** (`UpdateFileInArchiveAsync`, NOT a full recompress — see

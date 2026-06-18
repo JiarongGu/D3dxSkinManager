@@ -444,6 +444,7 @@
     "mods.keybindings.toggleTooltip": "Toggle keybinding preview",
     "mods.keybindings.noKeybindings": "No keybindings found for this mod",
     "mods.keybindings.rebind": "Rebind key",
+    "mods.keybindings.reorder": "Drag to reorder",
     "mods.keybindings.pressKey": "Press a key or combo",
     "mods.keybindings.rebound": "Keybinding updated and saved to the mod.",
     "plugins.loadFailed": "Failed to load plugins",
