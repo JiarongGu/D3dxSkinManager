@@ -9,7 +9,6 @@ import { ModHierarchicalView } from "./modules/mod/components/ModHierarchicalVie
 import { SettingsView } from "./modules/setting/components/SettingsView";
 import { ToolsView } from "./modules/tool/components/ToolsView";
 import { PluginsView } from "./modules/plugin/components/PluginsView";
-import { LaunchView } from "./modules/launch/components/LaunchView";
 import { AnnotationProvider } from "./shared/components/common/TooltipSystem";
 import {
   SlideInScreenProvider,
@@ -114,7 +113,6 @@ const AppContent: React.FC = () => {
           <Content className="app-content">
             {/* Each tab wrapped in its own boundary so a crash in one tab degrades locally, not app-wide. */}
             {selectedTab === "mods" && <ErrorBoundary compact label="Mods"><ModHierarchicalView /></ErrorBoundary>}
-            {selectedTab === "launch" && <ErrorBoundary compact label="Launch"><LaunchView /></ErrorBoundary>}
             {selectedTab === "tools" && <ErrorBoundary compact label="Tools"><ToolsView /></ErrorBoundary>}
             {selectedTab === "plugins" && <ErrorBoundary compact label="Plugins"><PluginsView /></ErrorBoundary>}
             {selectedTab === "settings" && <ErrorBoundary compact label="Settings"><SettingsView /></ErrorBoundary>}

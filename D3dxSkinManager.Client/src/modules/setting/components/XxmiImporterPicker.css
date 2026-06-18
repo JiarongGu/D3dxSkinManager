@@ -1,0 +1,15 @@
+.xxmi-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xxmi-picker__target {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  word-break: break-all;
+}
+
+.xxmi-picker__target code {
+  color: var(--color-text-secondary);
+}

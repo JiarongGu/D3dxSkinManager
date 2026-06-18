@@ -6,7 +6,6 @@ import {
   ToolOutlined,
   ApiOutlined,
   SettingOutlined,
-  RocketOutlined,
 } from "@ant-design/icons";
 import { ProfileSwitcher } from "../../../profile/components/ProfileSwitcher";
 import { ProfileManager } from "../../../profile/components/ProfileManager";
@@ -36,7 +35,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const tabs: TabItem[] = [
     { key: "mods", icon: <AppstoreOutlined />, label: t("header.tabs.mods") },
-    { key: "launch", icon: <RocketOutlined />, label: t("header.tabs.launch") },
     { key: "tools", icon: <ToolOutlined />, label: t("header.tabs.tools") },
     { key: "plugins", icon: <ApiOutlined />, label: t("header.tabs.plugins") },
     {

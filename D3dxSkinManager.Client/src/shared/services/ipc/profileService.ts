@@ -11,7 +11,8 @@ import {
  * Mod Work Configuration Model (work directory with flattened cache cleanup)
  */
 export interface ModWorkConfiguration {
-  mode: 'internal' | 'external';
+  // internal = app-managed work folder; external = custom folder; xxmi = an XXMI importer folder.
+  mode: 'internal' | 'external' | 'xxmi';
   directory?: string;
   cleanupEnabled: boolean;
   cleanupMaxCaches: number;

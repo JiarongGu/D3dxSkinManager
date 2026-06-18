@@ -26,6 +26,9 @@ public static class LaunchServiceExtensions
         services.TryAddSingleton<ISystemProcessService, SystemProcessService>();
         services.TryAddSingleton<I3DMigotoService, D3DMigotoService>();
 
+        // Register XXMI detect service
+        services.TryAddSingleton<IXxmiService, XxmiService>();
+
         // Register facade
         services.TryAddSingleton<ILaunchFacade, LaunchFacade>();
         services.TryAddSingleton<LaunchFacade>();

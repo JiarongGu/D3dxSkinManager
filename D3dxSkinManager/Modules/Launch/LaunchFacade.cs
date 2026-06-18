@@ -23,6 +23,9 @@ public interface ILaunchFacade : IModuleFacade
     // Game methods
     Task<bool> LaunchGameAsync(string? customArgs = null);
     Task<bool> LaunchCustomProgramAsync(string programPath, string? arguments = null);
+
+    // XXMI methods
+    Task<XxmiDetectResult> DetectXxmiAsync(string folderPath);
 }
 
 /// <summary>
@@ -35,18 +38,21 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
     protected override string ModuleName => "LaunchFacade";
 
     private readonly I3DMigotoService _d3dMigotoService;
+    private readonly IXxmiService _xxmiService;
     private readonly ISystemProcessService _processService;
     private readonly IProfileService _profileService;
     private readonly IPayloadHelper _payloadHelper;
 
     public LaunchFacade(
         I3DMigotoService d3dMigotoService,
+        IXxmiService xxmiService,
         ISystemProcessService processService,
         IProfileService profileService,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
         _d3dMigotoService = d3dMigotoService ?? throw new ArgumentNullException(nameof(d3dMigotoService));
+        _xxmiService = xxmiService ?? throw new ArgumentNullException(nameof(xxmiService));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _profileService = profileService ?? throw new ArgumentNullException(nameof(profileService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
@@ -65,6 +71,9 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
             // Game messages
             "LAUNCH_GAME" => await LaunchGameAsync(request),
             "LAUNCH_CUSTOM" => await LaunchCustomProgramAsync(request),
+
+            // XXMI messages
+            "LAUNCH_XXMI_DETECT" => await DetectXxmiAsync(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -111,6 +120,12 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
         return true;
     }
 
+    // XXMI methods
+    public async Task<XxmiDetectResult> DetectXxmiAsync(string folderPath)
+    {
+        return await _xxmiService.DetectAsync(folderPath).ConfigureAwait(false);
+    }
+
     // Private helper methods for message handling
     private async Task<DeploymentResult> DeployVersionAsync(IpcRequest request)
     {
@@ -129,5 +144,11 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
         var programPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "executablePath");
         var arguments = _payloadHelper.GetOptionalValue<string>(request.Payload, "arguments");
         return await LaunchCustomProgramAsync(programPath, arguments).ConfigureAwait(false);
+    }
+
+    private async Task<XxmiDetectResult> DetectXxmiAsync(IpcRequest request)
+    {
+        var folderPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "folderPath");
+        return await DetectXxmiAsync(folderPath).ConfigureAwait(false);
     }
 }

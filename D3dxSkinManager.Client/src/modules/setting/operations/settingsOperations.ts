@@ -172,8 +172,9 @@ export async function saveProfileConfig(
     return false;
   }
 
-  // Validate external directory if external mode
-  if (workMode === "external") {
+  // Both external (custom) and xxmi store a custom directory — validate it.
+  const usesCustomDir = workMode === "external" || workMode === "xxmi";
+  if (usesCustomDir) {
     const isValid = validateDirectoryPath(workDirectory);
     if (!isValid) {
       notification.error(t("settings.notifications.workDirectoryInvalid"));
@@ -190,7 +191,7 @@ export async function saveProfileConfig(
     await profileService.updateProfileConfig({
       profileId,
       workMode,
-      workDirectory: workMode === "external" ? workDirectory : undefined,
+      workDirectory: usesCustomDir ? workDirectory : undefined,
       cleanupEnabled,
       cleanupMaxCaches: clampedMaxCaches,
       compressionType,

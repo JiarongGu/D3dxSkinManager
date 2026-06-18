@@ -313,13 +313,14 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         if (workMode != null || workDirectory != null || cleanupEnabled.HasValue || cleanupMaxCaches.HasValue)
         {
             var normalizedMode = (workMode ?? config.ModWork.Mode ?? "internal").ToLowerInvariant();
+            var usesCustomDir = normalizedMode == "external" || normalizedMode == "xxmi";
 
             config.ModWork = new ModWorkConfiguration
             {
                 // Normalize mode to lowercase for storage
                 Mode = normalizedMode,
-                // Only store directory for external mode
-                Directory = normalizedMode == "external" ? (workDirectory ?? config.ModWork.Directory) : null,
+                // Store directory for external + xxmi modes (both use a custom work dir)
+                Directory = usesCustomDir ? (workDirectory ?? config.ModWork.Directory) : null,
                 // Update or preserve cleanup settings
                 CleanupEnabled = cleanupEnabled ?? config.ModWork.CleanupEnabled,
                 CleanupMaxCaches = cleanupMaxCaches.HasValue

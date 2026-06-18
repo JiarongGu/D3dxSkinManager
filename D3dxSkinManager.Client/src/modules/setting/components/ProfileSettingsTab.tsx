@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Form, Space, InputNumber, Select, Row, Col } from "antd";
+import { Form, Space, InputNumber, Select, Row, Col, Segmented } from "antd";
 import { ThunderboltOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import {
   CompactCard,
@@ -14,8 +14,9 @@ import { useProfile } from "../../../shared/context/ProfileContext";
 import { useSettingsStore } from "../store/settingsStore";
 import * as settingsOps from "../operations/settingsOperations";
 import { notification } from "../../../shared/utils/notification";
-import { ModImportConfiguration, ModWorkConfiguration, systemService } from "../../../shared/services/ipc";
+import { ModImportConfiguration, ModWorkConfiguration, profileService, systemService } from "../../../shared/services/ipc";
 import { logger } from "../../../shared/utils/logger";
+import { XxmiImporterPicker } from "./XxmiImporterPicker";
 
 const { Option } = Select;
 
@@ -39,6 +40,7 @@ export const ProfileSettingsTab: React.FC = () => {
     setCleanupMaxCaches,
     setCompressionType,
     setCompressionMode,
+    setInitialProfileConfig,
     resetProfileConfig,
   } = useSettingsStore();
 
@@ -62,8 +64,43 @@ export const ProfileSettingsTab: React.FC = () => {
     compressionMode,
   ]);
 
-  const handleWorkModeChange = (value: ModWorkConfiguration['mode']) => {
-    setWorkMode(value);
+  // Mod location is ONE choice persisted as the work mode itself: internal (app-managed), external
+  // (manual custom folder), or xxmi (an XXMI importer folder). The segmented selector drives workMode
+  // directly — no derivation; the saved mode IS the source.
+  const handleWorkModeChange = (mode: ModWorkConfiguration['mode']) => {
+    setWorkMode(mode);
+    form.setFieldValue("workMode", mode);
+    // 'external' keeps the current directory for manual editing; 'xxmi' sets it when an importer is picked.
+  };
+
+  // One-click XXMI bind: picking an importer sets BOTH the work directory (its folder) and the launch
+  // target (the XXMI Launcher exe) in a single immediate save (mode = "xxmi"), then resets the baseline
+  // so the form isn't left dirty. Later Saves don't touch launchPath (backend only overwrites when given).
+  const handleSelectXxmiImporter = async (importerDir: string, _modsDir: string, launcherExe?: string) => {
+    if (!selectedProfileId) {
+      notification.error(t("errors.noProfileSelected"));
+      return;
+    }
+    try {
+      await profileService.updateProfileConfig({
+        profileId: selectedProfileId,
+        workMode: "xxmi",
+        workDirectory: importerDir,
+        ...(launcherExe ? { launchPath: launcherExe } : {}),
+      });
+      setInitialProfileConfig({
+        mode: "xxmi",
+        directory: importerDir,
+        cleanupEnabled,
+        cleanupMaxCaches,
+      });
+      form.setFieldValue("workMode", "xxmi");
+      form.setFieldValue("workDirectory", importerDir);
+      notification.success(t("settings.profile.modWork.xxmi.applied"));
+    } catch (error: unknown) {
+      notification.error(t("settings.notifications.profileConfigSaveFailed"));
+      logger.error("[ProfileSettingsTab] Failed to apply XXMI importer:", error);
+    }
   };
 
   const handleBrowseWorkDirectory = async () => {
@@ -171,47 +208,48 @@ export const ProfileSettingsTab: React.FC = () => {
       >
         <div className={"settings-view-profile-form-grid"}>
           <Form.Item
-            label={t("settings.profile.modWork.directory.label")}
-            tooltip={t("settings.profile.modWork.directory.tooltip")}
+            label={t("settings.profile.modWork.location.label")}
+            tooltip={t("settings.profile.modWork.location.tooltip")}
           >
-            <Space.Compact style={{ width: "100%" }}>
-              <CompactSelect
-                value={workMode}
-                onChange={handleWorkModeChange}
-                style={{ width: "140px" }}
-              >
-                <Option value="internal">
-                  {t("settings.profile.modWork.mode.internal")}
-                </Option>
-                <Option value="external">
-                  {t("settings.profile.modWork.mode.external")}
-                </Option>
-              </CompactSelect>
-              <CompactInput
-                value={
-                  workMode === "internal" ? internalWorkPath : workDirectory
-                }
-                disabled={workMode === "internal"}
-                onChange={
-                  workMode === "external"
-                    ? handleWorkDirectoryChange
-                    : undefined
-                }
-                placeholder={
-                  workMode === "external"
-                    ? t("settings.profile.modWork.directory.placeholder")
-                    : ""
-                }
-              />
-              {workMode === "external" && (
-                <CompactButton
-                  icon={<FolderOpenOutlined />}
-                  onClick={handleBrowseWorkDirectory}
-                >
-                  {t("common.browse")}
-                </CompactButton>
+            <Segmented
+              value={workMode}
+              onChange={(v) => handleWorkModeChange(v as ModWorkConfiguration['mode'])}
+              options={[
+                { label: t("settings.profile.modWork.location.internal"), value: "internal" },
+                { label: t("settings.profile.modWork.location.xxmi"), value: "xxmi" },
+                { label: t("settings.profile.modWork.location.custom"), value: "external" },
+              ]}
+            />
+
+            <div style={{ marginTop: 8 }}>
+              {workMode === "internal" && (
+                <CompactInput value={internalWorkPath} disabled readOnly />
               )}
-            </Space.Compact>
+
+              {workMode === "xxmi" && (
+                <XxmiImporterPicker
+                  profileId={selectedProfileId ?? undefined}
+                  currentDirectory={workDirectory || undefined}
+                  onSelect={handleSelectXxmiImporter}
+                />
+              )}
+
+              {workMode === "external" && (
+                <Space.Compact style={{ width: "100%" }}>
+                  <CompactInput
+                    value={workDirectory}
+                    onChange={handleWorkDirectoryChange}
+                    placeholder={t("settings.profile.modWork.directory.placeholder")}
+                  />
+                  <CompactButton
+                    icon={<FolderOpenOutlined />}
+                    onClick={handleBrowseWorkDirectory}
+                  >
+                    {t("common.browse")}
+                  </CompactButton>
+                </Space.Compact>
+              )}
+            </div>
           </Form.Item>
 
           <Form.Item

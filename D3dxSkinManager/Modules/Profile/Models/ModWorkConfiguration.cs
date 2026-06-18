@@ -8,9 +8,12 @@ namespace D3dxSkinManager.Modules.Profiles.Models;
 public class ModWorkConfiguration
 {
     /// <summary>
-    /// Storage mode: "internal" or "external"
+    /// Storage mode: "internal", "external", or "xxmi"
     /// internal: Uses {profile folder}\work
-    /// external: Uses custom work directory path
+    /// external: Uses a custom work directory path (manual)
+    /// xxmi: Uses an XXMI importer folder as the work dir (same as external for path resolution, but a
+    ///       distinct first-class type so the UI/launcher know it's an XXMI install). Both external and
+    ///       xxmi store the path in <see cref="Directory"/>.
     /// </summary>
     public string Mode { get; set; } = "internal";
 
@@ -42,11 +45,13 @@ public class ModWorkConfiguration
     public string? InternalDirectory { get; set; }
 
     /// <summary>
-    /// Check if the work directory mode is external (case-insensitive)
+    /// Check if the work directory uses a custom <see cref="Directory"/> (case-insensitive).
+    /// True for both "external" (manual) and "xxmi" (an XXMI importer folder).
     /// </summary>
-    /// <returns>True if external mode is enabled</returns>
+    /// <returns>True if a custom work directory path is used</returns>
     public bool IsExternal()
     {
-        return "external".Equals(Mode, StringComparison.OrdinalIgnoreCase);
+        return "external".Equals(Mode, StringComparison.OrdinalIgnoreCase)
+            || "xxmi".Equals(Mode, StringComparison.OrdinalIgnoreCase);
     }
 }

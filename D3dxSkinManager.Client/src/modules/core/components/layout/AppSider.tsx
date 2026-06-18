@@ -5,7 +5,6 @@ import {
   ToolOutlined,
   ApiOutlined,
   SettingOutlined,
-  RocketOutlined,
 } from "@ant-design/icons";
 import "./AppSider.css";
 
@@ -32,12 +31,6 @@ export const AppSider: React.FC<AppSiderProps> = ({
             icon: <AppstoreOutlined />,
             label: "Mods",
             onClick: () => onTabChange("mods"),
-          },
-          {
-            key: "launch",
-            icon: <RocketOutlined />,
-            label: "Launch",
-            onClick: () => onTabChange("launch"),
           },
           {
             key: "tools",
