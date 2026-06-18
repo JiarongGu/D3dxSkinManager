@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, RadarChartOutlined, ThunderboltOutlined, PoweroffOutlined, NodeExpandOutlined, NodeCollapseOutlined } from '@ant-design/icons';
+import { FolderAddOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, RadarChartOutlined, ThunderboltOutlined, PoweroffOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { TFunction } from 'i18next';
 import type { ModFixTool } from '../../../../shared/types/modFix.types';
@@ -15,8 +15,6 @@ interface CategoryContextMenuProps {
   fixTools?: ModFixTool[];
   onRunCategoryFix?: (nodeId: string, entryPath: string, recompress: boolean) => void;
   onUnloadCategory?: (nodeId: string) => void;
-  onExpandSubtree?: (nodeId: string) => void;
-  onCollapseSubtree?: (nodeId: string) => void;
   t: TFunction;
 }
 
@@ -34,8 +32,6 @@ export function getCategoryContextMenu({
   fixTools,
   onRunCategoryFix,
   onUnloadCategory,
-  onExpandSubtree,
-  onCollapseSubtree,
   t,
 }: CategoryContextMenuProps): MenuProps['items'] {
   const items: MenuProps['items'] = [];
@@ -97,19 +93,6 @@ export function getCategoryContextMenu({
           onAnalyzeCategory(nodeId);
         }
       },
-    });
-
-    items.push({
-      key: 'expand-subtree',
-      label: t('category.tree.expandSubtree'),
-      icon: <NodeExpandOutlined />,
-      onClick: () => onExpandSubtree?.(nodeId),
-    });
-    items.push({
-      key: 'collapse-subtree',
-      label: t('category.tree.collapseSubtree'),
-      icon: <NodeCollapseOutlined />,
-      onClick: () => onCollapseSubtree?.(nodeId),
     });
 
     items.push({ key: 'divider-fix', type: 'divider' });

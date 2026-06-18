@@ -79,14 +79,17 @@ const convertMenuItems = (items: MenuProps["items"]): ContextMenuItem[] => {
         danger?: boolean;
         disabled?: boolean;
         onClick?: () => void;
+        children?: MenuProps["items"];
       };
       return {
         key: String(menuItem.key || ""),
-        label: String(menuItem.label || ""),
+        label: menuItem.label,
         icon: menuItem.icon,
         danger: menuItem.danger,
         disabled: menuItem.disabled,
         onClick: menuItem.onClick,
+        // Preserve submenus (e.g. "Fix all in category" → the fix-tool list).
+        children: menuItem.children ? convertMenuItems(menuItem.children) : undefined,
       };
     });
 };
