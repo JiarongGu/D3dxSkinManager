@@ -23,10 +23,20 @@ Comments start `;` (e.g. `;MARK:Key----`). Namespacing is per-file (the filename
 - **Edit:** `[Key*]` (rebind `key`, change `type`, edit cycle values / condition) and `[Constants]`
   default values. These are the safe, user-meaningful knobs. Generalize to "edit any `key = value` line"
   but **gate the override/hash sections** behind an "advanced" view — editing a `hash` breaks the mod.
-- **Write-back:** our `ModKeybindingService` currently only PARSES `[Key*]` (key/type/$var). #3 adds
-  write-back: rewrite the specific line in the cached `.ini`, then **recompress into the archive** (same
-  pattern as `ModFixService`/`ModImportService.UpdateModAsync` — stage in `_profilePaths.TempDirectory`,
-  recompress, replace via planner). Preserve comments/order (line-level edit, not a full re-serialize).
+- **Write-back: DONE.** `ModKeybindingService.UpdateKeybindingAsync` (rebind `[Key*]` key) and the
+  general **`ModIniService`** (config editor) both do line-level edits + persist via the **fast
+  single-file archive patch** (`UpdateFileInArchiveAsync`, NOT a full recompress — see
+  `filesystem-operation-serialization.md`). Comments/order/indentation preserved (regex line rewrite).
+- **General config editor (`ModIniService`, IPC `GET_INI_FILES` / `UPDATE_INI_ENTRY`, UI
+  `ModIniEditor`):** parses every `.ini` → sections → `key=value` entries, each classified
+  **editable** (`[Key*]` + `[Constants]` tunables) vs **read-only** (`advancedSection` = any
+  `*Override`/`Resource`/`Shader*`/`CommandList*`/`Present`/etc., or `command` = a `run=`/draw line).
+  `UpdateEntryAsync` **re-classifies server-side and refuses locked lines** (`INI_ENTRY_READONLY`) —
+  the UI gate is not trusted; it also path-contains the target under the cache dir. Parses the
+  `namespace = X` directive per file. UI = slide-in, left tab per file (own scroll, equal height to
+  the editor pane), friendly labels, `type`→cycle/hold/toggle Select, advanced plumbing collapsed.
+  **A `$var` default is NOT a boolean** — its value cycles through the values its `[Key*]` defines, so
+  render it as a plain field, never an on/off Switch. Tests: `ModIniServiceTests` (8).
 
 ## Command lists + control flow (verified from real ZZMI mod `.ini`s, 2026-06-18)
 Sections like `[Present]`, `[Constants]`, `[TextureOverride*]`, `[CommandList*]`, `[CustomShader*]` run

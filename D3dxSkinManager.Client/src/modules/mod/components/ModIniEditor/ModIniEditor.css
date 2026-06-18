@@ -1,5 +1,11 @@
+/* Fill the slide-in body; the hint is fixed and the Tabs fill the rest. The file rail (left nav) and
+   the editor content (right) are the SAME height and each scrolls INDEPENDENTLY. */
 .mod-ini-editor {
-  padding: 4px 2px 24px;
+  padding: 4px 2px 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .mod-ini-editor__center {
@@ -10,19 +16,47 @@
 }
 
 .mod-ini-editor__hint {
+  flex: none;
   font-size: 12px;
   color: var(--color-text-secondary);
   margin: 0 0 12px;
 }
 
-/* Left vertical tab per file. Cap width so long (CJK) file names don't blow out the rail. */
-.mod-ini-editor__tabs .ant-tabs-nav {
+/* Tabs fill remaining height; min-height:0 lets the inner panes own their scroll instead of growing. */
+.mod-ini-editor__tabs {
+  flex: 1;
+  min-height: 0;
+}
+.mod-ini-editor__tabs.ant-tabs {
+  height: 100%;
+}
+
+/* Left file rail: capped width, its OWN vertical scrollbar (no antd scroll-buttons), full height. */
+.mod-ini-editor__tabs > .ant-tabs-nav {
   max-width: 240px;
   min-width: 150px;
+  align-self: stretch;
+}
+.mod-ini-editor__tabs > .ant-tabs-nav .ant-tabs-nav-wrap {
+  overflow-y: auto !important;
+}
+.mod-ini-editor__tabs > .ant-tabs-nav .ant-tabs-nav-list {
+  transform: none !important;
+}
+.mod-ini-editor__tabs > .ant-tabs-nav .ant-tabs-nav-operations {
+  display: none !important;
 }
 .mod-ini-editor__tabs .ant-tabs-tab {
   padding: 6px 12px !important;
 }
+
+/* Right editor: its OWN vertical scrollbar, full height. */
+.mod-ini-editor__tabs > .ant-tabs-content-holder {
+  overflow-y: auto;
+  height: 100%;
+  padding: 0 4px 24px 4px;
+}
+
 .mod-ini-editor__tab {
   display: flex;
   flex-direction: column;
@@ -37,6 +71,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* Technical-only files (no settings to tune) are de-emphasised so the user gravitates to editable ones. */
+.mod-ini-editor__tab--technical .mod-ini-editor__tab-name {
+  opacity: 0.6;
 }
 .mod-ini-editor__tab-ns {
   font-size: 12px;
@@ -81,15 +119,22 @@
   margin-top: 8px;
 }
 
+/* Tunable sections are grouped as a subtle card so each toggle/variable block reads as one unit. */
 .ini-section {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+}
+.ini-section:not(.ini-section--advanced) {
+  border: 1px solid var(--color-border, rgba(128, 128, 128, 0.18));
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--color-fill-quaternary, rgba(128, 128, 128, 0.04));
 }
 
 .ini-section__header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .ini-section__name {
@@ -110,14 +155,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 3px 0 3px 12px;
+  padding: 4px 0;
 }
 
 .ini-row__key {
-  flex: 0 0 38%;
+  flex: 0 0 40%;
   font-size: 12px;
   color: var(--color-text);
-  font-family: var(--font-mono, monospace);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -126,6 +170,10 @@
 .ini-row__input {
   flex: 1 1 auto;
   font-size: 12px;
+}
+
+.ini-row__bool {
+  flex: 1 1 auto;
 }
 
 .ini-row__actions {

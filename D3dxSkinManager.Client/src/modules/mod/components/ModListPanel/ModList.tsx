@@ -97,6 +97,15 @@ export const ModList: React.FC<ModListProps> = ({
   const busyModIds = useModsStore((s) => s.busyModIds);
   const [showFixManager, setShowFixManager] = useState(false);
   const [iniEditorMod, setIniEditorMod] = useState<ModInfo>();
+
+  // DEV-only: open the config editor directly (bypasses the context menu) for fast UI iteration in
+  // Chrome / CDP. Stripped from production builds.
+  React.useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { __openIniEditor?: (id: string, name?: string) => void }).__openIniEditor =
+      (id, name = 'Config') => setIniEditorMod({ id, name, hasCache: true } as ModInfo);
+    return () => { delete (window as unknown as { __openIniEditor?: unknown }).__openIniEditor; };
+  }, []);
   const [fixTools, setFixTools] = useState<FixToolEntry[]>([]);
 
   // Load the per-profile fix-tool library so the right-click "Fix" submenu can list them.

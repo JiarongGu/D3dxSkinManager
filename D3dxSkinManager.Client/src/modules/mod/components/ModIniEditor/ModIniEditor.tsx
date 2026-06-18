@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Collapse, Empty, Tooltip, Input, Spin, Tabs, Tag } from 'antd';
+import { Collapse, Empty, Tooltip, Input, Spin, Tabs, Select } from 'antd';
 import {
   LockOutlined, CheckOutlined, CloseOutlined, SettingOutlined, ApartmentOutlined,
 } from '@ant-design/icons';
@@ -130,28 +130,37 @@ const ModIniEditorInner: React.FC<{ mod: ModInfo }> = ({ mod }) => {
     );
   }
 
+  // Land on the first file that actually has something to tune (skip technical-only files like
+  // a pure-TextureOverride .ini), so the user sees editable settings immediately.
+  const hasTunable = (f: ModIniFile) => f.sections.some((s) => !s.advanced);
+  const defaultTab = (files.find(hasTunable) ?? files[0]).relativePath;
+
   return (
     <div className="mod-ini-editor">
       <p className="mod-ini-editor__hint">{t('modIni.hint')}</p>
       <Tabs
         tabPosition="left"
+        defaultActiveKey={defaultTab}
         className="mod-ini-editor__tabs"
-        items={files.map((file) => ({
-          key: file.relativePath,
-          label: (
-            <Tooltip title={file.relativePath} placement="right">
-              <span className="mod-ini-editor__tab">
-                <span className="mod-ini-editor__tab-name">{file.fileName}</span>
-                {file.namespace && (
-                  <span className="mod-ini-editor__tab-ns">
-                    <ApartmentOutlined /> {file.namespace}
-                  </span>
-                )}
-              </span>
-            </Tooltip>
-          ),
-          children: <IniFileBody file={file} onSave={saveEntry} />,
-        }))}
+        items={files.map((file) => {
+          const tunable = hasTunable(file);
+          return {
+            key: file.relativePath,
+            label: (
+              <Tooltip title={file.relativePath} placement="right">
+                <span className={`mod-ini-editor__tab${tunable ? '' : ' mod-ini-editor__tab--technical'}`}>
+                  <span className="mod-ini-editor__tab-name">{file.fileName}</span>
+                  {file.namespace && (
+                    <span className="mod-ini-editor__tab-ns">
+                      <ApartmentOutlined /> {file.namespace}
+                    </span>
+                  )}
+                </span>
+              </Tooltip>
+            ),
+            children: <IniFileBody file={file} onSave={saveEntry} />,
+          };
+        })}
       />
     </div>
   );
@@ -212,7 +221,7 @@ const IniSection: React.FC<{
 }> = ({ file, section, onSave }) => {
   const { t } = useTranslation();
   return (
-    <div className="ini-section">
+    <div className={`ini-section${section.advanced ? ' ini-section--advanced' : ''}`}>
       <div className="ini-section__header">
         <span className="ini-section__name">{section.advanced ? `[${section.name}]` : friendlySection(section.name, t)}</span>
         {section.advanced && <StatusTag tone="neutral" label={t('modIni.readOnly')} />}
@@ -229,6 +238,8 @@ const IniSection: React.FC<{
   );
 };
 
+const TYPE_OPTIONS = ['cycle', 'hold', 'toggle'];
+
 const IniRow: React.FC<{
   entry: ModIniEntry;
   advanced: boolean;
@@ -241,12 +252,18 @@ const IniRow: React.FC<{
   const dirty = draft !== entry.value;
   // Advanced rows keep the raw key; tunable rows get a friendly label (raw key in tooltip).
   const label = advanced ? entry.key : friendlyKey(entry.key, t);
+  const keyLower = entry.key.trim().toLowerCase();
 
-  const commit = async () => {
-    if (!dirty || saving) return;
+  // Friendly control: the toggle Mode (type=cycle/hold/toggle) → a Select. Variable defaults are NOT
+  // booleans — a $var's value cycles through the values its key defines (0,1,2,3…), so it stays a
+  // plain input rather than a misleading on/off switch.
+  const isMode = !advanced && keyLower === 'type';
+
+  const commitValue = async (value: string) => {
+    if (saving) return;
     setSaving(true);
     try {
-      await onSave(draft);
+      await onSave(value);
     } catch (error) {
       handleError(error);
       setDraft(entry.value);
@@ -267,18 +284,41 @@ const IniRow: React.FC<{
     );
   }
 
+  const labelEl = (
+    <Tooltip title={entry.key !== label ? entry.key : undefined} placement="topLeft">
+      <span className="ini-row__key">{label}</span>
+    </Tooltip>
+  );
+
+  if (isMode) {
+    const options = Array.from(new Set([entry.value, ...TYPE_OPTIONS])).map((v) => ({ value: v, label: v }));
+    return (
+      <div className="ini-row">
+        {labelEl}
+        <Select
+          className="ini-row__input"
+          size="small"
+          value={entry.value}
+          disabled={saving}
+          loading={saving}
+          options={options}
+          onChange={(v) => void commitValue(v)}
+        />
+        <span className="ini-row__actions" />
+      </div>
+    );
+  }
+
   return (
     <div className="ini-row">
-      <Tooltip title={entry.key !== label ? entry.key : undefined} placement="topLeft">
-        <span className="ini-row__key">{label}</span>
-      </Tooltip>
+      {labelEl}
       <Input
         className="ini-row__input"
         size="small"
         value={draft}
         disabled={saving}
         onChange={(e) => setDraft(e.target.value)}
-        onPressEnter={() => void commit()}
+        onPressEnter={() => void commitValue(draft)}
       />
       <span className="ini-row__actions">
         {dirty && (
@@ -288,7 +328,7 @@ const IniRow: React.FC<{
               icon={<CheckOutlined />}
               loading={saving}
               title={t('common.save')}
-              onClick={() => void commit()}
+              onClick={() => void commitValue(draft)}
             />
             <CompactIconButton
               tone="danger"
