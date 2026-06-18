@@ -54,6 +54,10 @@ Last consolidated: 2026-06-18.
   the fast path is the norm. 8 tests.
 - **Settings UX / atomic design** ✅ — per-section save/reset; `CompactField`, `StatusTag`,
   `CompactIconButton` atoms; rows aligned (see `.claude/rules/ui-component-layers.md`).
+- **Mod health on the card** ✅ — last-scan health (warning/error + issue count) shows as a 12px badge
+  on the mod row (tooltip "Last scan: N issues"). Backend `ANALYSIS_GET_LATEST_HEALTH` → `modHealth`
+  map in the store, refreshed on init + `MOD_ANALYSIS_COMPLETE`. Point-in-time by design. This is the
+  reachable slice of #7 (surface existing detection); see `.claude/rules/mod-list-derived-data.md`.
 
 ---
 
