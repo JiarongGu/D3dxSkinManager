@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Form, Space, InputNumber, Select, Row, Col, Segmented } from "antd";
+import React, { useState } from "react";
+import { Space, InputNumber, Select, Segmented } from "antd";
 import { ThunderboltOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import {
   CompactCard,
@@ -7,6 +7,7 @@ import {
   CompactInput,
   CompactSelect,
   CompactSwitch,
+  CompactField,
 } from "../../../shared/components/compact";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "../../../shared/context/ProfileContext";
@@ -21,8 +22,12 @@ import { SettingsSectionActions } from "./SettingsSectionActions";
 
 const { Option } = Select;
 
+/**
+ * Per-profile settings. Every row uses the CompactField L1 atom (label + optional description + control)
+ * for a single, consistent form style across sections; controls are store-controlled (no antd Form).
+ * Each card owns its Save/Reset (SettingsSectionActions) gated on its own dirty state.
+ */
 export const ProfileSettingsTab: React.FC = () => {
-  const [form] = Form.useForm();
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
 
@@ -59,43 +64,13 @@ export const ProfileSettingsTab: React.FC = () => {
     compressionType !== initialModImportConfig.compressionType ||
     compressionMode !== initialModImportConfig.compressionMode;
 
-  // Sync form fields with store state whenever they change
-  useEffect(() => {
-    form.setFieldsValue({
-      workMode: workMode,
-      workDirectory: workDirectory,
-      cleanupEnabled: cleanupEnabled,
-      cleanupMaxCaches: cleanupMaxCaches,
-      compressionType: compressionType,
-      compressionMode: compressionMode,
-    });
-  }, [
-    form,
-    workMode,
-    workDirectory,
-    cleanupEnabled,
-    cleanupMaxCaches,
-    compressionType,
-    compressionMode,
-  ]);
+  // Mod location is persisted as the work mode itself (internal / external / xxmi); the segmented
+  // selector drives workMode directly.
+  const handleWorkModeChange = (mode: ModWorkConfiguration['mode']) => setWorkMode(mode);
 
-  // Mod location is ONE choice persisted as the work mode itself: internal (app-managed), external
-  // (manual custom folder), or xxmi (an XXMI importer folder). The segmented selector drives workMode
-  // directly — no derivation; the saved mode IS the source.
-  const handleWorkModeChange = (mode: ModWorkConfiguration['mode']) => {
-    setWorkMode(mode);
-    form.setFieldValue("workMode", mode);
-    // 'external' keeps the current directory for manual editing; 'xxmi' sets it when an importer is picked.
-  };
-
-  // One-click XXMI bind: picking an importer sets BOTH the work directory (its folder) and the launch
-  // target (the XXMI Launcher exe) in a single immediate save (mode = "xxmi"), then resets the baseline
-  // so the form isn't left dirty. Later Saves don't touch launchPath (backend only overwrites when given).
+  // One-click XXMI bind: sets work dir (importer folder) + launcher in one save, then resets baseline.
   const handleSelectXxmiImporter = async (importerDir: string, _modsDir: string, launcherExe?: string) => {
-    if (!selectedProfileId) {
-      notification.error(t("errors.noProfileSelected"));
-      return;
-    }
+    if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
     try {
       await profileService.updateProfileConfig({
         profileId: selectedProfileId,
@@ -103,14 +78,7 @@ export const ProfileSettingsTab: React.FC = () => {
         workDirectory: importerDir,
         ...(launcherExe ? { launchPath: launcherExe } : {}),
       });
-      setInitialProfileConfig({
-        mode: "xxmi",
-        directory: importerDir,
-        cleanupEnabled,
-        cleanupMaxCaches,
-      });
-      form.setFieldValue("workMode", "xxmi");
-      form.setFieldValue("workDirectory", importerDir);
+      setInitialProfileConfig({ mode: "xxmi", directory: importerDir, cleanupEnabled, cleanupMaxCaches });
       notification.success(t("settings.profile.modWork.xxmi.applied"));
     } catch (error: unknown) {
       notification.error(t("settings.notifications.profileConfigSaveFailed"));
@@ -119,50 +87,17 @@ export const ProfileSettingsTab: React.FC = () => {
   };
 
   const handleBrowseWorkDirectory = async () => {
-    if (!selectedProfileId) {
-      notification.error(t("errors.noProfileSelected"));
-      return;
-    }
-
+    if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
     try {
       const result = await systemService.openFolderDialog({
         title: t("settings.profile.modWork.directory.dialogTitle"),
         rememberPathKey: "mod-work",
       });
-
-      if (result.success && result.filePath) {
-        setWorkDirectory(result.filePath);
-        form.setFieldValue("workDirectory", result.filePath);
-      }
+      if (result.success && result.filePath) setWorkDirectory(result.filePath);
     } catch (error: unknown) {
       notification.error(t("settings.notifications.workDirectoryFailed"));
       logger.error("[ProfileSettingsTab] Failed to browse work directory:", error);
     }
-  };
-
-  const handleWorkDirectoryChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const newPath = e.target.value;
-    setWorkDirectory(newPath);
-  };
-
-  const handleCleanupToggle = (checked: boolean) => {
-    setCleanupEnabled(checked);
-  };
-
-  const handleCleanupMaxCachesChange = (value: number | null) => {
-    if (value !== null) {
-      setCleanupMaxCaches(value);
-    }
-  };
-
-  const handleCompressionTypeChange = (value: ModImportConfiguration['compressionType']) => {
-    setCompressionType(value);
-  };
-
-  const handleCompressionModeChange = (value: ModImportConfiguration['compressionMode']) => {
-    setCompressionMode(value);
   };
 
   // --- Mod Work section save/reset ---
@@ -196,10 +131,6 @@ export const ProfileSettingsTab: React.FC = () => {
     setWorkDirectory(initialProfileConfig.directory);
     setCleanupEnabled(initialProfileConfig.cleanupEnabled);
     setCleanupMaxCaches(initialProfileConfig.cleanupMaxCaches);
-    form.setFieldValue("workMode", initialProfileConfig.mode);
-    form.setFieldValue("workDirectory", initialProfileConfig.directory);
-    form.setFieldValue("cleanupEnabled", initialProfileConfig.cleanupEnabled);
-    form.setFieldValue("cleanupMaxCaches", initialProfileConfig.cleanupMaxCaches);
   };
 
   // --- Mod Import section save/reset ---
@@ -220,42 +151,18 @@ export const ProfileSettingsTab: React.FC = () => {
   const handleResetImport = () => {
     setCompressionType(initialModImportConfig.compressionType);
     setCompressionMode(initialModImportConfig.compressionMode);
-    form.setFieldValue("compressionType", initialModImportConfig.compressionType);
-    form.setFieldValue("compressionMode", initialModImportConfig.compressionMode);
   };
 
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      initialValues={{
-        workMode: workMode,
-        workDirectory: workDirectory,
-        cleanupEnabled: cleanupEnabled,
-        cleanupMaxCaches: cleanupMaxCaches,
-        compressionType: compressionType,
-        compressionMode: compressionMode,
-      }}
-    >
+    <div className="settings-view-profile">
       <CompactCard
-        title={
-          <>
-            <ThunderboltOutlined /> {t("settings.profile.modWork.title")}
-          </>
-        }
-        extra={
-          <SettingsSectionActions
-            dirty={workDirty}
-            saving={savingWork}
-            onSave={handleSaveWork}
-            onReset={handleResetWork}
-          />
-        }
+        title={<><ThunderboltOutlined /> {t("settings.profile.modWork.title")}</>}
+        extra={<SettingsSectionActions dirty={workDirty} saving={savingWork} onSave={handleSaveWork} onReset={handleResetWork} />}
       >
-        <div className={"settings-view-profile-form-grid"}>
-          <Form.Item
+        <div className="settings-view-profile-form-grid">
+          <CompactField
             label={t("settings.profile.modWork.location.label")}
-            tooltip={t("settings.profile.modWork.location.tooltip")}
+            description={t("settings.profile.modWork.location.tooltip")}
           >
             <Segmented
               value={workMode}
@@ -266,12 +173,10 @@ export const ProfileSettingsTab: React.FC = () => {
                 { label: t("settings.profile.modWork.location.custom"), value: "external" },
               ]}
             />
-
             <div style={{ marginTop: 8 }}>
               {workMode === "internal" && (
                 <CompactInput value={internalWorkPath} disabled readOnly />
               )}
-
               {workMode === "xxmi" && (
                 <XxmiImporterPicker
                   profileId={selectedProfileId ?? undefined}
@@ -279,122 +184,76 @@ export const ProfileSettingsTab: React.FC = () => {
                   onSelect={handleSelectXxmiImporter}
                 />
               )}
-
               {workMode === "external" && (
                 <Space.Compact style={{ width: "100%" }}>
                   <CompactInput
                     value={workDirectory}
-                    onChange={handleWorkDirectoryChange}
+                    onChange={(e) => setWorkDirectory(e.target.value)}
                     placeholder={t("settings.profile.modWork.directory.placeholder")}
                   />
-                  <CompactButton
-                    icon={<FolderOpenOutlined />}
-                    onClick={handleBrowseWorkDirectory}
-                  >
+                  <CompactButton icon={<FolderOpenOutlined />} onClick={handleBrowseWorkDirectory}>
                     {t("common.browse")}
                   </CompactButton>
                 </Space.Compact>
               )}
             </div>
-          </Form.Item>
+          </CompactField>
 
-          <Form.Item
+          <CompactField
             label={t("settings.profile.modWork.cleanup.title")}
-            tooltip={t("settings.profile.modWork.cleanup.tooltip")}
+            description={t("settings.profile.modWork.cleanup.hint")}
           >
-            <Space style={{ alignItems: "center" }}>
-              <Form.Item
-                name="cleanupEnabled"
-                valuePropName="checked"
-                style={{ marginBottom: 0 }}
-                noStyle
-              >
-                <CompactSwitch
-                  checkedChildren={t("common.enable")}
-                  unCheckedChildren={t("common.disable")}
-                  onChange={handleCleanupToggle}
-                />
-              </Form.Item>
+            <Space align="center">
+              <CompactSwitch
+                checked={cleanupEnabled}
+                onChange={setCleanupEnabled}
+                checkedChildren={t("common.enable")}
+                unCheckedChildren={t("common.disable")}
+              />
               <span>{t("settings.profile.modWork.cleanup.maxCaches")}</span>
-              <Form.Item
-                name="cleanupMaxCaches"
-                style={{ marginBottom: 0 }}
-                noStyle
-              >
-                <InputNumber
-                  min={1}
-                  max={100}
-                  value={cleanupMaxCaches}
-                  onChange={handleCleanupMaxCachesChange}
-                  disabled={!cleanupEnabled}
-                  style={{ width: "80px" }}
-                />
-              </Form.Item>
-              <span
-                style={{ color: "var(--text-secondary)", fontSize: "12px" }}
-              >
-                {t("settings.profile.modWork.cleanup.hint")}
-              </span>
+              <InputNumber
+                min={1}
+                max={100}
+                value={cleanupMaxCaches}
+                onChange={(v) => v !== null && setCleanupMaxCaches(v)}
+                disabled={!cleanupEnabled}
+                style={{ width: "80px" }}
+              />
             </Space>
-          </Form.Item>
+          </CompactField>
         </div>
       </CompactCard>
 
       <CompactCard
         style={{ marginTop: "16px" }}
-        title={
-          <>
-            <ThunderboltOutlined /> {t("settings.profile.modImport.title")}
-          </>
-        }
-        extra={
-          <SettingsSectionActions
-            dirty={importDirty}
-            saving={savingImport}
-            onSave={handleSaveImport}
-            onReset={handleResetImport}
-          />
-        }
+        title={<><ThunderboltOutlined /> {t("settings.profile.modImport.title")}</>}
+        extra={<SettingsSectionActions dirty={importDirty} saving={savingImport} onSave={handleSaveImport} onReset={handleResetImport} />}
       >
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              label={t("settings.profile.modImport.compressionType.label")}
-              tooltip={t("settings.profile.modImport.compressionType.tooltip")}
-            >
-              <Form.Item name="compressionType" style={{ marginBottom: 0 }} noStyle>
-                <CompactSelect
-                  value={compressionType}
-                  onChange={handleCompressionTypeChange}
-                >
-                  <Option value="7z">{t("settings.profile.modImport.compressionType.7z")}</Option>
-                  <Option value="zip">{t("settings.profile.modImport.compressionType.zip")}</Option>
-                  <Option value="rar">{t("settings.profile.modImport.compressionType.rar")}</Option>
-                </CompactSelect>
-              </Form.Item>
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              label={t("settings.profile.modImport.compressionMode.label")}
-              tooltip={t("settings.profile.modImport.compressionMode.tooltip")}
-            >
-              <Form.Item name="compressionMode" style={{ marginBottom: 0 }} noStyle>
-                <CompactSelect
-                  value={compressionMode}
-                  onChange={handleCompressionModeChange}
-                >
-                  <Option value="fast">{t("settings.profile.modImport.compressionMode.fast")}</Option>
-                  <Option value="high">{t("settings.profile.modImport.compressionMode.high")}</Option>
-                  <Option value="ultra">{t("settings.profile.modImport.compressionMode.ultra")}</Option>
-                </CompactSelect>
-              </Form.Item>
-            </Form.Item>
-          </Col>
-        </Row>
+        <div className="settings-view-form-grid">
+          <CompactField
+            label={t("settings.profile.modImport.compressionType.label")}
+            description={t("settings.profile.modImport.compressionType.tooltip")}
+          >
+            <CompactSelect value={compressionType} onChange={setCompressionType}>
+              <Option value="7z">{t("settings.profile.modImport.compressionType.7z")}</Option>
+              <Option value="zip">{t("settings.profile.modImport.compressionType.zip")}</Option>
+              <Option value="rar">{t("settings.profile.modImport.compressionType.rar")}</Option>
+            </CompactSelect>
+          </CompactField>
+          <CompactField
+            label={t("settings.profile.modImport.compressionMode.label")}
+            description={t("settings.profile.modImport.compressionMode.tooltip")}
+          >
+            <CompactSelect value={compressionMode} onChange={setCompressionMode}>
+              <Option value="fast">{t("settings.profile.modImport.compressionMode.fast")}</Option>
+              <Option value="high">{t("settings.profile.modImport.compressionMode.high")}</Option>
+              <Option value="ultra">{t("settings.profile.modImport.compressionMode.ultra")}</Option>
+            </CompactSelect>
+          </CompactField>
+        </div>
       </CompactCard>
 
       <FixToolSettingsCard />
-    </Form>
+    </div>
   );
 };
