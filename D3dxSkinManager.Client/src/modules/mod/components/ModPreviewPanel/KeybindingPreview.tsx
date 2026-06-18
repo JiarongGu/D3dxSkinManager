@@ -156,12 +156,10 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                     className={classNames('keybinding-capture', { 'keybinding-capture--recording': recording })}
                     value={draftDisplay}
                     placeholder={t('mods.keybindings.pressKey')}
-                    prefix={recording ? <span className="keybinding-rec-dot" /> : undefined}
                     onFocus={() => { setRecording(true); held.current.clear(); }}
                     onBlur={() => setRecording(false)}
                     onKeyDown={onCaptureKeyDown}
                     onKeyUp={onCaptureKeyUp}
-                    style={{ width: 150 }}
                   />
                 ) : (
                   <kbd className="keybinding-kbd">{binding.keyDisplay}</kbd>
