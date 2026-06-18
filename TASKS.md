@@ -64,7 +64,7 @@
 | # | Item | Status after review | Notes |
 |---|------|---------------------|-------|
 | 3 | key binding modification | **Partly done** | `ModKeybindingService` already *parses* keybindings from `.ini`. Missing: *write-back* (edit toggle/cycle keys) + UI. Generalize: edit any mod `.ini` setting, not just keys. |
-| 4 | launch integration with XXMI | **Done (MVP)** ✅ | Per-profile launch config (path+args) in `ProfileConfiguration.Launch` + status-bar Launch button; point it at the XXMI launcher. *Future:* multiple named targets + auto-detect. |
+| 4 | launch integration with XXMI | **Done** ✅ | Per-profile launch config (path+args) in `ProfileConfiguration.Launch`, configured in the **Launch tab** (GameLaunchTab — hero + target config); status-bar quick-launch button routes there when unset. Point it at the XXMI launcher. *Future:* multiple named targets + auto-detect. |
 | 5 | launch integration with 3DMigoto | **Done (MVP)** ✅ | Same launch config — point it at the 3DMigoto loader. (One generic launch command; named multi-targets are the future enhancement.) |
 | 9 | loading an active mod must invalidate its cache | **Done** ✅ | `LoadInternalAsync` now re-extracts when the archive is newer than the disabled cache (`IsDisabledCacheStale`); stale cache discarded via the planner. |
 | 10 | temp cleanup | **Largely done** | `OrphanCategory.TempFile` + FileCleanupTool already scan/clean temp orphans. Possible follow-up: opt-in auto-clean on exit (configurable). |
