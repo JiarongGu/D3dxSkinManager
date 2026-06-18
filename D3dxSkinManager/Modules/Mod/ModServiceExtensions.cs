@@ -38,6 +38,7 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<IModTagService, ModTagService>();
         services.TryAddSingleton<IModKeybindingService, ModKeybindingService>();
         services.TryAddSingleton<IModIniService, ModIniService>(); // General .ini editor (parse + classify + single-line write-back)
+        services.TryAddSingleton<IModMergeService, ModMergeService>(); // Mod-merge (GIMI-style cycle merge into a new mod)
 
         // Operation queue (per-mod + per-category locking)
         services.TryAddSingleton<IModOperationQueue, ModOperationQueue>();

@@ -47,6 +47,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModTagService _tagService;
     private readonly IModKeybindingService _keybindingService;
     private readonly IModIniService _iniService;
+    private readonly IModMergeService _mergeService;
     private readonly IModPresetService _presetService;
     private readonly IModArchiveService _archiveService;
     private readonly IModOperationQueue _operationQueue;
@@ -66,6 +67,7 @@ public class ModFacade : BaseFacade, IModFacade
         IModTagService tagService,
         IModKeybindingService keybindingService,
         IModIniService iniService,
+        IModMergeService mergeService,
         IModPresetService presetService,
         IModArchiveService archiveService,
         IModOperationQueue operationQueue,
@@ -85,6 +87,7 @@ public class ModFacade : BaseFacade, IModFacade
         _tagService = tagService;
         _keybindingService = keybindingService;
         _iniService = iniService;
+        _mergeService = mergeService;
         _presetService = presetService;
         _archiveService = archiveService;
         _operationQueue = operationQueue;
@@ -148,6 +151,7 @@ public class ModFacade : BaseFacade, IModFacade
             "REORDER_KEYBINDINGS" => await ReorderKeybindingsAsync(request),
             "GET_INI_FILES" => await GetIniFilesAsync(request),
             "UPDATE_INI_ENTRY" => await UpdateIniEntryAsync(request),
+            "MERGE_MODS" => await MergeModsAsync(request),
 
             // Preset operations
             "GET_PRESETS" => await GetPresetsAsync(),
@@ -763,6 +767,16 @@ public class ModFacade : BaseFacade, IModFacade
         var newValue = _payloadHelper.GetRequiredValue<string>(request.Payload, "newValue");
         var line = await _iniService.UpdateEntryAsync(id, relativePath, lineIndex, newValue).ConfigureAwait(false);
         return new { line };
+    }
+
+    /// <summary>IPC: MERGE_MODS — combine several mods into a new cycle-merged mod (GIMI-style).</summary>
+    private async Task<ModInfo?> MergeModsAsync(IpcRequest request)
+    {
+        var ids = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "ids");
+        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
+        var key = _payloadHelper.GetRequiredValue<string>(request.Payload, "key");
+        var activeOnly = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "activeOnly") ?? true;
+        return await _mergeService.MergeAsync(ids, name, key, activeOnly).ConfigureAwait(false);
     }
 
     // ============= Preset Methods =============

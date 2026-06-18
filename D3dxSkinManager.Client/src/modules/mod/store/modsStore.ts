@@ -501,3 +501,9 @@ export const useModsStore = create<ModsStore>()(
         }),
     }))
 );
+
+// DEV-only: expose the mods store so category/mod flows can be driven/inspected from Chrome/CDP
+// (rules: desktop-app-testing). Stripped from production builds.
+if (import.meta.env.DEV) {
+  (window as unknown as { __modsStore?: unknown }).__modsStore = useModsStore;
+}

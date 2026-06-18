@@ -574,6 +574,20 @@ export class ModService extends BaseModuleService {
     return this.sendMessage<{ ok: boolean }>("REORDER_KEYBINDINGS", profileId, { id, keys });
   }
 
+  /**
+   * Merge several mods (order = swap order, index 0 starts active) into a new cycle-merged mod named
+   * `name`, cycled by `key`. Originals untouched. Backend: ModFacade.MergeModsAsync
+   */
+  async mergeMods(
+    profileId: string,
+    ids: string[],
+    name: string,
+    key: string,
+    activeOnly = true,
+  ): Promise<ModInfo | undefined> {
+    return this.sendOptionalMessage<ModInfo>("MERGE_MODS", profileId, { ids, name, key, activeOnly });
+  }
+
   // ============= .ini Editor Operations =============
 
   /**

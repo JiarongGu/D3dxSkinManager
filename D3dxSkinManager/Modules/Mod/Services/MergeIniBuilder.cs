@@ -9,8 +9,14 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 /// </summary>
 public sealed class MergeSourceIni
 {
+    /// <summary>Source mod index (0 = the variant the merged mod starts on). Drives $swapvar + the .{group} suffix.</summary>
     public int Group { get; init; }
     public string IniText { get; init; } = string.Empty;
+    /// <summary>
+    /// Forward-slashed path (relative to the merged .ini) that this source's files are staged under, so
+    /// the merged mod's <c>[Resource] filename</c> values resolve. E.g. <c>"0/"</c> or <c>"0/sub/"</c>.
+    /// </summary>
+    public string PathPrefix { get; init; } = string.Empty;
 }
 
 /// <summary>
@@ -35,6 +41,7 @@ public static class MergeIniBuilder
         public string? Hash;
         public string? MatchFirstIndex;
         public bool IsResource;                        // has filename/type
+        public string PathPrefix = string.Empty;       // staged location for this source's files
         // Ordered command/property/conditional lines, EXCLUDING meta (header/name/hash/match_first_index).
         public readonly List<(string Key, string Val)> Lines = new();
     }
@@ -47,11 +54,13 @@ public static class MergeIniBuilder
         foreach (var src in sources)
             foreach (var raw in SplitSections(src.IniText))
             {
-                var sec = ParseSection(raw, src.Group);
+                var sec = ParseSection(raw, src.Group, src.PathPrefix);
                 if (sec != null) sections.Add(sec);
             }
 
-        var groupCount = sources.Count;
+        // Number of distinct source mods (= swap variants). NOT sources.Count, which counts .ini files
+        // (a mod can have several), so the $swapvar cycle would otherwise get phantom extra values.
+        var groupCount = sources.Count == 0 ? 0 : sources.Max(s => s.Group) + 1;
         var constants = new StringBuilder();
         constants.Append("; Constants ---------------------------\n\n");
         constants.Append("[Constants]\n").Append("global persist $swapvar = 0\n");
@@ -100,7 +109,12 @@ public static class MergeIniBuilder
             else if (sec.IsResource)
             {
                 resources.Append($"[{sec.Header}{sec.Name}.{sec.Group}]\n");
-                foreach (var (k, v) in sec.Lines) resources.Append($"{k} = {v}\n");
+                foreach (var (k, v) in sec.Lines)
+                {
+                    // The file lives under this source's staged path; everything else passes through.
+                    var outVal = k.Equals("filename", StringComparison.OrdinalIgnoreCase) ? sec.PathPrefix + v : v;
+                    resources.Append($"{k} = {outVal}\n");
+                }
                 resources.Append('\n');
             }
         }
@@ -171,9 +185,9 @@ public static class MergeIniBuilder
             yield return "[" + parts[i];
     }
 
-    private static Section? ParseSection(string sectionText, int group)
+    private static Section? ParseSection(string sectionText, int group, string pathPrefix)
     {
-        var sec = new Section { Group = group };
+        var sec = new Section { Group = group, PathPrefix = pathPrefix };
         var headerSet = false;
         foreach (var rawLine in sectionText.Split('\n'))
         {
