@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Input, Space } from 'antd';
+import { Button, Input, Space, Select } from 'antd';
 import { PlayCircleOutlined, FolderOpenOutlined, CheckCircleFilled, RocketOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../shared/context/ProfileContext';
@@ -110,6 +110,17 @@ export const GameLaunchTab: React.FC = () => {
           <Input value={path} placeholder={t('launch.pathPlaceholder')} onChange={(e) => setPath(e.target.value)} />
           <Button icon={<FolderOpenOutlined />} onClick={browse}>{t('launch.browse')}</Button>
         </Space.Compact>
+
+        {/* XXMI quick-fill: pick the Model Importer and we build the headless launch args. */}
+        <label className="launch-game__label">{t('launch.view.importerLabel')}</label>
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder={t('launch.view.importerPlaceholder')}
+          options={['GIMI', 'SRMI', 'WWMI', 'ZZMI', 'HIMI', 'EFMI'].map((i) => ({ label: i, value: i }))}
+          onChange={(v) => setArgs(v ? `--nogui --xxmi ${v}` : '')}
+        />
+        <div className="launch-game__hint">{t('launch.view.importerHint')}</div>
 
         <label className="launch-game__label">{t('launch.view.argsLabel')}</label>
         <Input value={args} placeholder={t('launch.argsPlaceholder')} onChange={(e) => setArgs(e.target.value)} />
