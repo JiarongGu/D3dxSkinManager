@@ -30,6 +30,7 @@ public class ModDeletionServiceTests : IDisposable
     private readonly Mock<IModEnrichmentService> _mockEnrichment = new();
     private readonly Mock<IProfilePathService> _mockProfilePaths = new();
     private readonly Mock<IFileOperationPlanner> _mockPlanner = new();
+    private readonly Mock<IModOperationQueue> _mockQueue = new();
     private readonly Mock<ILogHelper> _mockLogger = new();
     private readonly Mock<IProfileEventBus> _mockEventBus = new();
     private readonly ModDeletionService _service;
@@ -58,6 +59,11 @@ public class ModDeletionServiceTests : IDisposable
                 }
             });
 
+        // By default the queue just runs the operation inline (and records the locked mod id).
+        _mockQueue
+            .Setup(q => q.EnqueueAsync(It.IsAny<string>(), It.IsAny<Func<Task<bool>>>()))
+            .Returns<string, Func<Task<bool>>>((id, op) => { _queuedIds.Add(id); return op(); });
+
         _service = new ModDeletionService(
             _mockRepository.Object,
             _mockCache.Object,
@@ -65,9 +71,12 @@ public class ModDeletionServiceTests : IDisposable
             _mockEnrichment.Object,
             _mockProfilePaths.Object,
             _mockPlanner.Object,
+            _mockQueue.Object,
             _mockLogger.Object,
             _mockEventBus.Object);
     }
+
+    private readonly List<string> _queuedIds = new();
 
     [Fact]
     public async Task DeleteAsync_DeletesPreviewFolderViaPlanner_NotRawFileSystem()
@@ -92,6 +101,27 @@ public class ModDeletionServiceTests : IDisposable
         submitted.Should().NotBeNull();
         submitted!.OperationType.Should().Be(FileSystemOperationType.DeleteDirectory);
         submitted.SourcePath.Should().Be(_previewDir);
+    }
+
+    [Fact]
+    public async Task BatchDeleteAsync_SerializesEachDeletionThroughThePerModQueue()
+    {
+        // Arrange: three mods, all deletable
+        var ids = new List<string> { "a", "b", "c" };
+        _mockRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>()))
+            .ReturnsAsync((string id) => new ModEntity { Id = id, Name = id, Type = "7z", Grading = "G" });
+        _mockRepository.Setup(x => x.DeleteAsync(It.IsAny<string>())).ReturnsAsync(true);
+        _mockPlanner
+            .Setup(x => x.SubmitOperationAsync(It.IsAny<FileSystemOperation>()))
+            .ReturnsAsync(FileSystemOperationResult.Ok());
+
+        // Act
+        var result = await _service.BatchDeleteAsync(ids);
+
+        // Assert: every id was deleted under its own per-mod queue lock
+        result.SuccessCount.Should().Be(3);
+        result.FailedCount.Should().Be(0);
+        _queuedIds.Should().BeEquivalentTo(ids);
     }
 
     public void Dispose()

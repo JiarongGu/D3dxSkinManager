@@ -32,6 +32,7 @@ public class ModDeletionService : IModDeletionService
     private readonly IModEnrichmentService _enrichmentService;
     private readonly IProfilePathService _profilePaths;
     private readonly IFileOperationPlanner _operationPlanner;
+    private readonly IModOperationQueue _operationQueue;
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
 
@@ -42,6 +43,7 @@ public class ModDeletionService : IModDeletionService
         IModEnrichmentService enrichmentService,
         IProfilePathService profilePaths,
         IFileOperationPlanner operationPlanner,
+        IModOperationQueue operationQueue,
         ILogHelper logger,
         IProfileEventBus eventBus)
     {
@@ -51,6 +53,7 @@ public class ModDeletionService : IModDeletionService
         _enrichmentService = enrichmentService;
         _profilePaths = profilePaths;
         _operationPlanner = operationPlanner;
+        _operationQueue = operationQueue;
         _logger = logger;
         _eventBus = eventBus;
     }
@@ -293,7 +296,10 @@ public class ModDeletionService : IModDeletionService
         {
             try
             {
-                var success = await DeleteAsync(id).ConfigureAwait(false);
+                // Per-mod lock so a batch delete of mod X serializes against a concurrent load/unload/
+                // fix/single-delete of X (the facade queues the single-delete path the same way).
+                // DeleteAsync itself does NOT enqueue, so this never double-locks the same key.
+                var success = await _operationQueue.EnqueueAsync(id, () => DeleteAsync(id)).ConfigureAwait(false);
                 if (success)
                 {
                     result.SuccessCount++;
