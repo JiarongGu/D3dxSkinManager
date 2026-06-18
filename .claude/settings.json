@@ -1,6 +1,8 @@
 {
   "permissions": {
     "allow": [
+      "PowerShell",
+      "PowerShell(:*)",
       "Bash(grep -E \"\\\\.\\(ts|tsx|cs\\)$\")",
       "Bash(xargs grep:*)",
       "Edit(/.claude/skills/doc-loader/**)",

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -61,7 +62,12 @@ public class ModMergeService : IModMergeService
         var procId = _processRegistry.Start(ProcessType.ModImport, $"Merging {modIds.Count} mods → {safeName}");
         try
         {
-            var sources = new List<MergeSourceIni>();
+            // Namespace-based merge (v2): keep each source .ini intact under its own namespace + gate its
+            // overrides by the master's swapvar, so every variant's keybinds/vars/resources are preserved
+            // as separate sets. (v1 MergeIniBuilder hash-dedup is the fallback; see 3dmigoto-ini-interface.md.)
+            var nsBase = NamespaceToken(safeName);
+            var masterNs = $"{nsBase}\\Master";
+            var iniCount = 0;
             for (var group = 0; group < modIds.Count; group++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -72,34 +78,30 @@ public class ModMergeService : IModMergeService
                 var srcDir = await ResolveSourceFilesAsync(id, staging, group).ConfigureAwait(false);
                 if (srcDir == null) throw new OperationException("MOD_MERGE_SOURCE_MISSING", "id", id);
 
-                // Copy the source's files into content/{group}/ (preserving layout) so the merged
-                // archive carries every variant's resources.
+                // Copy the source's files into content/{group}/ (preserving layout + resources).
                 var groupDir = Path.Combine(content, group.ToString());
                 CopyDirectory(srcDir, groupDir);
 
-                // Collect each .ini (skip already-disabled), then disable it in the copy so only the
-                // merged .ini is active in-game.
+                // Transform each active .ini in place: namespace it + gate its overrides by swapvar. The
+                // .ini stays ENABLED — the namespace isolates it; the master coordinates which renders.
+                var srcNs = $"{nsBase}\\mod{group}";
                 var inis = Directory.GetFiles(groupDir, "*.ini", SearchOption.AllDirectories)
                     .Where(p => !Path.GetFileName(p).Contains("disabled", StringComparison.OrdinalIgnoreCase))
                     .ToList();
                 foreach (var iniPath in inis)
                 {
                     var text = await File.ReadAllTextAsync(iniPath, ct).ConfigureAwait(false);
-                    // PathPrefix = the .ini's dir relative to content/, forward-slashed, trailing slash.
-                    var relDir = Path.GetRelativePath(content, Path.GetDirectoryName(iniPath)!).Replace('\\', '/');
-                    var prefix = relDir == "." ? string.Empty : relDir + "/";
-                    sources.Add(new MergeSourceIni { Group = group, IniText = text, PathPrefix = prefix });
-
-                    var disabled = Path.Combine(Path.GetDirectoryName(iniPath)!, "DISABLED" + Path.GetFileName(iniPath));
-                    File.Move(iniPath, disabled, overwrite: true);
+                    var transformed = NamespaceMergeBuilder.TransformSource(text, srcNs, masterNs, group);
+                    await File.WriteAllTextAsync(iniPath, transformed, ct).ConfigureAwait(false);
+                    iniCount++;
                 }
             }
 
-            if (sources.Count == 0) throw new OperationException("MOD_MERGE_NO_INI");
+            if (iniCount == 0) throw new OperationException("MOD_MERGE_NO_INI");
 
-            // Build + write the merged master .ini at the content root.
-            var mergedIni = MergeIniBuilder.Build(sources, key.Trim(), activeOnly);
-            await File.WriteAllTextAsync(Path.Combine(content, "merged.ini"), mergedIni, ct).ConfigureAwait(false);
+            // Write the master .ini at the content root (sorted first alphabetically so it loads early).
+            var master = NamespaceMergeBuilder.BuildMaster(masterNs, key.Trim(), modIds.Count, activeOnly);
+            await File.WriteAllTextAsync(Path.Combine(content, "!merge_master.ini"), master, ct).ConfigureAwait(false);
 
             // Compress to a temp archive named after the mod (ImportAsync derives the name from it), then
             // import it as a brand-new mod (own GUID, originals untouched).
@@ -110,7 +112,7 @@ public class ModMergeService : IModMergeService
             var mod = await _import.ImportAsync(archivePath).ConfigureAwait(false);
 
             _processRegistry.Complete(procId);
-            _logger.Info($"[ModMerge] Created '{safeName}' from {modIds.Count} mods ({sources.Count} .ini)");
+            _logger.Info($"[ModMerge] Created '{safeName}' (namespace merge) from {modIds.Count} mods ({iniCount} .ini)");
             return mod;
         }
         catch (Exception ex)
@@ -144,6 +146,13 @@ public class ModMergeService : IModMergeService
             Directory.CreateDirectory(dir.Replace(source, dest));
         foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
             File.Copy(file, file.Replace(source, dest), overwrite: true);
+    }
+
+    /// <summary>A namespace-safe token (alphanumeric + underscore) — no spaces/backslashes which are namespace separators.</summary>
+    private static string NamespaceToken(string name)
+    {
+        var token = Regex.Replace(name, "[^A-Za-z0-9_]+", "_").Trim('_');
+        return token.Length == 0 ? "Merge" : token;
     }
 
     private static string SanitizeFileName(string name)
