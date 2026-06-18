@@ -4,7 +4,6 @@ import { PlayCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { profileService, systemService } from '../../../../shared/services/ipc';
-import { navigateToTab } from '../../../../shared/hooks/useAppNavigation';
 import { notification } from '../../../../shared/utils/notification';
 
 /**
@@ -31,7 +30,7 @@ export const LaunchButton: React.FC = () => {
   useEffect(() => { void loadConfig(); }, [loadConfig]);
 
   const onClick = useCallback(async () => {
-    if (!path) { navigateToTab('launch'); return; }
+    if (!path) return;
     try {
       await systemService.launchProcess(path, args || undefined);
       notification.info(t('launch.launching'));
@@ -40,17 +39,13 @@ export const LaunchButton: React.FC = () => {
     }
   }, [path, args, t]);
 
-  if (!selectedProfileId) return null;
+  // Status bar = status + quick actions only. Show a quick-launch ONLY when a target is configured;
+  // first-time setup lives in the Launch tab (not a status-bar call-to-action).
+  if (!selectedProfileId || !path) return null;
 
   return (
-    <Button
-      type={path ? 'primary' : 'default'}
-      size="small"
-      icon={<PlayCircleOutlined />}
-      onClick={onClick}
-      title={path ? path : t('launch.setup')}
-    >
-      {path ? t('launch.launch') : t('launch.setup')}
+    <Button type="primary" size="small" icon={<PlayCircleOutlined />} onClick={onClick} title={path}>
+      {t('launch.launch')}
     </Button>
   );
 };
