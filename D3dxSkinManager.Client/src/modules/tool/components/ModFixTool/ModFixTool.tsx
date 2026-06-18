@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button, Space, Tag, Table, Progress, Input, Empty, Popconfirm, Tooltip, Select, Dropdown } from 'antd';
 import {
-  CheckCircleOutlined, WarningOutlined, ThunderboltOutlined, FolderOpenOutlined,
-  FileAddOutlined, DeleteOutlined, MinusCircleOutlined, DownOutlined,
+  ThunderboltOutlined, FolderOpenOutlined,
+  FileAddOutlined, DeleteOutlined, DownOutlined,
 } from '@ant-design/icons';
+import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
@@ -286,9 +287,9 @@ const ResultTable: React.FC<{ items: ModFixItemResult[] }> = ({ items }) => {
       key: 'status',
       width: 120,
       render: (_: unknown, r: ModFixItemResult) =>
-        r.skipped ? <Tag icon={<MinusCircleOutlined />}>{t('tools.modFix.statusSkipped')}</Tag>
-          : r.success ? <Tag icon={<CheckCircleOutlined />} color="success">{t('tools.modFix.statusOk')}</Tag>
-          : <Tag icon={<WarningOutlined />} color="error">{t('tools.modFix.statusFailed')}</Tag>,
+        r.skipped ? <StatusTag tone="neutral" label={t('tools.modFix.statusSkipped')} />
+          : r.success ? <StatusTag tone="success" label={t('tools.modFix.statusOk')} />
+          : <StatusTag tone="error" label={t('tools.modFix.statusFailed')} />,
     },
     {
       title: t('tools.modFix.columns.output'),

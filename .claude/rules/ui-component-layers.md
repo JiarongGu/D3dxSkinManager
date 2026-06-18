@@ -18,7 +18,11 @@ or `useModsStore`, it's actually L3 — split it: a dumb L1/L2 view + an L3 wrap
 ## Current classification (audit 2026-06-18)
 
 - **L1 atoms:** `compact/Compact{Button,Input,Select,Switch,Text,Card,Alert,Divider,Space,Section}`,
-  `common/{CloseButton,StatusIcon,HealthStatusIcon,CountBadge}`, `TagChip`.
+  `common/{CloseButton,StatusIcon,HealthStatusIcon,CountBadge,StatusTag}`, `TagChip`.
+  - `StatusTag` (added 2026-06-18): semantic status tag — `tone` (success/error/warning/processing/
+    neutral/info) → consistent color + default icon. Use it for ALL status pills (process status, fix
+    results, mod/health states). Adopted by ActivityPanel + ModFixTool; migrate other inline status
+    `<Tag>`s to it as you touch them.
 - **L2 molecules:** `dialogs/{ConfirmDialog,FormDialog,InfoDialog}`, `menu/ContextMenu`,
   `notification/CustomNotification`, `common/{DataTable,SlideInScreen}`, `compact/Compact{Upload,ThumbnailUpload}`.
 - **L3 connected (shared):** `CategorySelect` (loads categories via IPC).

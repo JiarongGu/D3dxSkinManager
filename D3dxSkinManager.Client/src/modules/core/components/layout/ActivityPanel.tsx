@@ -1,5 +1,5 @@
 import React from 'react';
-import { Drawer, Progress, Tag, Button, Empty } from 'antd';
+import { Drawer, Progress, Button, Empty } from 'antd';
 import {
   LoadingOutlined,
   CheckCircleOutlined,
@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProcessStore, ProcessInfo, ProcessStatus } from '../../../../shared/store/processStore';
+import { StatusTag, StatusTone } from '../../../../shared/components/common/StatusTag';
 import { systemService } from '../../../../shared/services/ipc';
 import './ActivityPanel.css';
 
@@ -18,13 +19,13 @@ interface ActivityPanelProps {
   onClose: () => void;
 }
 
-const STATUS_META: Record<ProcessStatus, { color: string; icon: React.ReactNode; key: string }> = {
-  queued: { color: 'default', icon: <ClockCircleOutlined />, key: 'activity.status.queued' },
-  running: { color: 'processing', icon: <LoadingOutlined spin />, key: 'activity.status.running' },
-  completed: { color: 'success', icon: <CheckCircleOutlined />, key: 'activity.status.completed' },
-  failed: { color: 'error', icon: <CloseCircleOutlined />, key: 'activity.status.failed' },
-  cancelled: { color: 'default', icon: <StopOutlined />, key: 'activity.status.cancelled' },
-  interrupted: { color: 'warning', icon: <ExclamationCircleOutlined />, key: 'activity.status.interrupted' },
+const STATUS_META: Record<ProcessStatus, { tone: StatusTone; icon: React.ReactNode; key: string }> = {
+  queued: { tone: 'neutral', icon: <ClockCircleOutlined />, key: 'activity.status.queued' },
+  running: { tone: 'processing', icon: <LoadingOutlined spin />, key: 'activity.status.running' },
+  completed: { tone: 'success', icon: <CheckCircleOutlined />, key: 'activity.status.completed' },
+  failed: { tone: 'error', icon: <CloseCircleOutlined />, key: 'activity.status.failed' },
+  cancelled: { tone: 'neutral', icon: <StopOutlined />, key: 'activity.status.cancelled' },
+  interrupted: { tone: 'warning', icon: <ExclamationCircleOutlined />, key: 'activity.status.interrupted' },
 };
 
 function elapsed(p: ProcessInfo): string {
@@ -49,7 +50,7 @@ const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
       <div className="activity-panel__row-head">
         <span className={`activity-panel__icon activity-panel__icon--${p.status}`}>{meta.icon}</span>
         <span className="activity-panel__title" title={p.title}>{p.title}</span>
-        <Tag color={meta.color} className="activity-panel__status-tag">{t(meta.key)}</Tag>
+        <StatusTag tone={meta.tone} label={t(meta.key)} icon={null} className="activity-panel__status-tag" />
         {p.status === 'running' && p.cancellable && (
           <Button
             size="small"
