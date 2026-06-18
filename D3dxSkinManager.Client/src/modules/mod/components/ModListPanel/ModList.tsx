@@ -2,7 +2,7 @@ import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useRef, useCallback } from "react";
 import classNames from "classnames";
-import { Tag, Button, Space, Spin, Dropdown } from "antd";
+import { Tag, Button, Space, Spin, Dropdown, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import {
   PlayCircleOutlined,
@@ -683,6 +683,9 @@ export const ModList: React.FC<ModListProps> = ({
             const isPrimarySelection = selectedMod?.id === mod.id;
             const isInMultiSelection = selectedModIds.includes(mod.id);
             const isBusy = busyModIds.has(mod.id);
+            // Broken state: the source archive is gone, so the mod can't be loaded (orphaned cache-only
+            // mods get their own treatment below).
+            const isUnavailable = !mod.isAvailable && !mod.isOrphaned && !mod.isLoaded;
 
             return (
               <div
@@ -706,6 +709,9 @@ export const ModList: React.FC<ModListProps> = ({
                   "mod-list-item-selected": isPrimarySelection,
                   "mod-list-item-multi-selected":
                     isInMultiSelection && !isPrimarySelection,
+                  "mod-list-item--loaded": mod.isLoaded,
+                  "mod-list-item--unavailable": isUnavailable,
+                  "mod-list-item--orphaned": mod.isOrphaned,
                 })}
                 onClick={(e) => {
                   onRowClick?.(mod, e);
@@ -736,6 +742,13 @@ export const ModList: React.FC<ModListProps> = ({
                     )}
                     {mod.isLoaded && !mod.isLoading && !isBusy && (
                       <StatusTag tone="success" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.loaded")} />
+                    )}
+                    {isUnavailable && !isBusy && (
+                      <Tooltip title={t("mods.list.unavailableHint")}>
+                        <span>
+                          <StatusTag tone="error" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.unavailable")} />
+                        </span>
+                      </Tooltip>
                     )}
                   </div>
                   <Space size={[8, 4]} wrap className="mod-list-item-tags">

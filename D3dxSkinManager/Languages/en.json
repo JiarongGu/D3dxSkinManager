@@ -2,6 +2,8 @@
   "code": "en",
   "name": "English",
   "translations": {
+    "mods.list.unavailable": "UNAVAILABLE",
+    "mods.list.unavailableHint": "Source archive is missing — this mod can't be loaded until you replace its content.",
     "common.skip": "Skip",
     "common.finish": "Finish",
     "onboarding.title": "Welcome to D3dx Skin Manager",

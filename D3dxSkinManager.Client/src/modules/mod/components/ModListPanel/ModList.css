@@ -70,6 +70,43 @@
   background: var(--color-primary-bg-hover);
 }
 
+/* ===== State clarity (loaded / unavailable / orphaned) =====
+   Each state gets a scannable left-border accent + a faint row tint. Selection always wins:
+   the :not() guards drop the state tint when a row is selected so the primary highlight stays clear,
+   while the selection's own primary border-left overrides the state accent. */
+
+/* Loaded — deployed/active. */
+.mod-list-item--loaded {
+  border-left-color: var(--color-success);
+}
+.mod-list-item--loaded:not(.mod-list-item-selected):not(.mod-list-item-multi-selected) {
+  background: var(--color-success-bg);
+}
+
+/* Unavailable — source archive missing, can't load. */
+.mod-list-item--unavailable {
+  border-left-color: var(--color-error);
+}
+.mod-list-item--unavailable:not(.mod-list-item-selected):not(.mod-list-item-multi-selected) {
+  background: var(--color-error-bg);
+}
+.mod-list-item--unavailable .mod-list-item-name {
+  color: var(--color-text-secondary);
+}
+
+/* Orphaned — cache exists but the mod isn't in the library (unmanaged). Dimmed + dashed accent. */
+.mod-list-item--orphaned {
+  border-left-style: dashed;
+  border-left-color: var(--color-warning);
+}
+.mod-list-item--orphaned:not(.mod-list-item-selected):not(.mod-list-item-multi-selected) {
+  opacity: 0.7;
+}
+.mod-list-item--orphaned .mod-list-item-name {
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
 .mod-list-item-content {
   flex: 1;
   min-width: 0;

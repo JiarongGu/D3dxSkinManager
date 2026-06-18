@@ -2,6 +2,8 @@
   "code": "cn",
   "name": "中文",
   "translations": {
+    "mods.list.unavailable": "不可用",
+    "mods.list.unavailableHint": "源压缩包缺失——在替换其内容前无法加载此模组。",
     "common.skip": "跳过",
     "common.finish": "完成",
     "onboarding.title": "欢迎使用 D3dx Skin Manager",
