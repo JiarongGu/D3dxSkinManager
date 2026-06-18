@@ -64,8 +64,8 @@
 | # | Item | Status after review | Notes |
 |---|------|---------------------|-------|
 | 3 | key binding modification | **Partly done** | `ModKeybindingService` already *parses* keybindings from `.ini`. Missing: *write-back* (edit toggle/cycle keys) + UI. Generalize: edit any mod `.ini` setting, not just keys. |
-| 4 | launch integration with XXMI | **Open** | No launch config on `Profile` yet. Add per-profile launch target (path + args) seeded by detecting XXMI Launcher / a Model Importer instance. |
-| 5 | launch integration with 3DMigoto | **Open** | Same launch-config mechanism as #4, target = raw 3DMigoto loader. Share one configurable "launcher" abstraction (list of named launch targets), not two hard-coded paths. |
+| 4 | launch integration with XXMI | **Done (MVP)** ✅ | Per-profile launch config (path+args) in `ProfileConfiguration.Launch` + status-bar Launch button; point it at the XXMI launcher. *Future:* multiple named targets + auto-detect. |
+| 5 | launch integration with 3DMigoto | **Done (MVP)** ✅ | Same launch config — point it at the 3DMigoto loader. (One generic launch command; named multi-targets are the future enhancement.) |
 | 9 | loading an active mod must invalidate its cache | **Done** ✅ | `LoadInternalAsync` now re-extracts when the archive is newer than the disabled cache (`IsDisabledCacheStale`); stale cache discarded via the planner. |
 | 10 | temp cleanup | **Largely done** | `OrphanCategory.TempFile` + FileCleanupTool already scan/clean temp orphans. Possible follow-up: opt-in auto-clean on exit (configurable). |
 | 11 | thumbnail right-click crash | **Open (bug)** | Repro: right-click on thumbnail selection in preview panel. Needs investigation in `ModPreviewPanel` / `PreviewImageCarousel`. |
