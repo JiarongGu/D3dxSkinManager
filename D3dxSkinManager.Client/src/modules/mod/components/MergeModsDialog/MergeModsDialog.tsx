@@ -88,7 +88,7 @@ export const MergeModsDialog: React.FC<MergeModsDialogProps> = ({ visible, mods,
       okButtonProps={{ disabled: !canMerge, loading: busy }}
       cancelButtonProps={{ disabled: busy }}
       width={460}
-      destroyOnClose
+      destroyOnHidden
     >
       <p className="merge-dialog__hint">{t('mods.merge.hint')}</p>
 
