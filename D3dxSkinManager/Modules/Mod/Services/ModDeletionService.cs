@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Context.Models;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -30,6 +31,7 @@ public class ModDeletionService : IModDeletionService
     private readonly IModArchiveService _archiveService;
     private readonly IModEnrichmentService _enrichmentService;
     private readonly IProfilePathService _profilePaths;
+    private readonly IFileOperationPlanner _operationPlanner;
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
 
@@ -39,6 +41,7 @@ public class ModDeletionService : IModDeletionService
         IModArchiveService archiveService,
         IModEnrichmentService enrichmentService,
         IProfilePathService profilePaths,
+        IFileOperationPlanner operationPlanner,
         ILogHelper logger,
         IProfileEventBus eventBus)
     {
@@ -47,6 +50,7 @@ public class ModDeletionService : IModDeletionService
         _archiveService = archiveService;
         _enrichmentService = enrichmentService;
         _profilePaths = profilePaths;
+        _operationPlanner = operationPlanner;
         _logger = logger;
         _eventBus = eventBus;
     }
@@ -172,38 +176,44 @@ public class ModDeletionService : IModDeletionService
         }
 
         _logger.Info($"Step 2/4: Deleting preview folder for mod: {mod.Id}", "ModDeletionService");
-        try
+
+        var previewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.Id);
+        if (!Directory.Exists(previewFolderPath))
         {
-            var previewFolderPath = _profilePaths.GetPreviewDirectoryPath(mod.Id);
-            if (Directory.Exists(previewFolderPath))
-            {
-                Directory.Delete(previewFolderPath, recursive: true);
-                _logger.Info($"Successfully deleted preview folder for mod: {mod.Id}", "ModDeletionService");
-            }
-            else
-            {
-                _logger.Debug($"Preview folder already deleted or not found for mod: {mod.Id}", "ModDeletionService");
-            }
-        }
-        catch (DirectoryNotFoundException ex)
-        {
-            // Preview folder not found is normal - don't fail the deletion
-            _logger.Debug($"Preview folder not found for mod {mod.Id}: {ex.Message}", "ModDeletionService");
-        }
-        catch (Exception ex)
-        {
-            // Only throw for unexpected errors (permissions, IO errors, etc.)
-            _logger.Error($"Error deleting preview folder for mod {mod.Id}: {ex.Message}", "ModDeletionService", ex);
-            throw new OperationException(
-                ModErrorCodes.DELETE_PREVIEW_FAILED,
-                new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
-                $"Failed to delete preview folder for mod {mod.Id}: {ex.Message}",
-                ex
-            );
+            _logger.Debug($"Preview folder already deleted or not found for mod: {mod.Id}", "ModDeletionService");
+            return;
         }
 
-        // Avoid compiler warning about async method without await
-        await Task.CompletedTask;
+        // Route through the planner (like cache/archive deletion) so the preview directory — a protected
+        // mod-data path — is serialized with every other FS op and never raced. A raw Directory.Delete
+        // here ran concurrently with the planner worker. See filesystem-operation-serialization.md.
+        var deleteOp = new FileSystemOperation
+        {
+            OperationType = FileSystemOperationType.DeleteDirectory,
+            SourcePath = previewFolderPath
+        };
+        var result = await _operationPlanner.SubmitOperationAsync(deleteOp).ConfigureAwait(false);
+
+        if (result.Success)
+        {
+            _logger.Info($"Successfully deleted preview folder for mod: {mod.Id}", "ModDeletionService");
+            return;
+        }
+
+        // Deletion failed but the folder is gone (deleted externally/in-flight) — treat as success.
+        if (!Directory.Exists(previewFolderPath))
+        {
+            _logger.Debug($"Preview folder not found after delete for mod {mod.Id} — already gone", "ModDeletionService");
+            return;
+        }
+
+        _logger.Error($"Error deleting preview folder for mod {mod.Id}: {result.ErrorMessage}", "ModDeletionService", result.Exception);
+        throw new OperationException(
+            ModErrorCodes.DELETE_PREVIEW_FAILED,
+            new Dictionary<string, string> { { "id", mod.Id }, { "name", mod.Name } },
+            $"Failed to delete preview folder for mod {mod.Id}: {result.ErrorMessage}",
+            result.Exception
+        );
     }
 
     /// <summary>
