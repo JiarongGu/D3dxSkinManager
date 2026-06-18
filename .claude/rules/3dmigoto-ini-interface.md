@@ -55,15 +55,34 @@ an ordered **command list**. Commands seen in the wild:
 - **Comments: `;` OR the fullwidth `；`** — a parser MUST treat both as comments (real mods mix them,
   e.g. `；drawindexed = …`). Don't choke on non-ASCII; files are UTF-8 with CJK names/“credit” spam lines.
 
-## Mod-merge — the GIMI/XXMI merger pattern (verified from a real `*_Merged/Master*.ini`)
-A merge is one mod whose master `.ini` starts with **`namespace = MergeName\Master`** and:
-- `[Constants]`: `global persist $swapvarZ = 0` (the variant selector) + `global $active`.
-- `[KeySwap]`: `key = …`, `type = cycle`, `$swapvarZ = 0,1,2` (cycles through merged variants).
-- each merged source's `[TextureOverride*]` is gated (`$active = 1` / `if $swapvarZ == N`) and lives under
-  its own namespace; cross-refs use `\namespace\Section`. The merger (GIMI's script) re-namespaces every
-  mod so hashes/keys/resources don't collide, then a single key cycles between them.
-So **mod-merge = re-namespace each mod + emit a master with a `$swapvar` + `[KeySwap]` cycling them**.
-This is the model to implement (game-agnostic — every importer's 3DMigoto supports `namespace`).
+## Mod-merge — the EXACT GIMI algorithm (GROUNDED 2026-06-18 from `SilentNightSound/GI-Model-Importer` `Tools/genshin_merge_mods.py`)
+**It does NOT use namespaces.** It builds ONE merged `.ini` that hash-dedups overrides and gates each
+source via a **command list branching on `$swapvar`**. Port this faithfully (game-agnostic):
+
+1. **Collect** every source mod's `.ini` (skip paths containing `disabled`). Each source = an ordered
+   **group index** `0..N-1` (index 0 = the default the mod starts on). Parse each `.ini` into sections;
+   a section = `{ header (TextureOverride|ShaderOverride|Resource|Constants|Present|CommandList|
+   CustomShader), name, ordered key=val lines, conditionals (`x == y`), `endif` }`.
+2. **`[Constants]`**: `global persist $swapvar = 0` + `global $active` + `global $creditinfo = 0`.
+3. **`[KeySwap]`**: (`condition = $active == 1` when active-only) `key = <k>`, `type = cycle`,
+   `$swapvar = 0,1,…,N-1`. **`[Present]`**: `post $active = 0` (active resets each frame).
+4. **Overrides** — ONE `[TextureOverride<name>]` per UNIQUE `(hash, match_first_index)` across ALL mods
+   (dedup): `hash = …` (+ `match_first_index`), `run = CommandList<name>`. On a `Position`-named override
+   add `$active = 1` (so the key only swaps the on-screen character). Same hash seen again ⇒ just append
+   that section's data to the hash's command-list group (don't emit another override).
+5. **Command lists** — for each hash, `[CommandList<name>]` with `if $swapvar == <group0>` … `else if
+   $swapvar == <group1>` … `endif`; each branch = that source's commands (vb/ib/ps/draw/…). **Resource
+   refs + vb/ib/ps/vs/th binds are suffixed `.{group}`** (e.g. `vb0 = Resource…X.0`) so groups don't
+   collide. Nested `if/endif` from the source are preserved (tab depth tracked).
+6. **Resources** — each source's `[Resource*]` re-emitted as `[Resource<name>.{group}]` with `filename`
+   pointing at the original file (optionally sha1-dedup identical files when compressing).
+7. Final `.ini` order: Constants, Shader, Overrides, CommandLists, Resources. Originals get disabled
+   (renamed `DISABLED*.ini`) so only the merged one is active.
+
+**Implementation note for THIS app:** stage each selected mod's cache into one merge folder (keep each in
+its own subfolder so `filename` paths stay valid), run the above to emit `merged.ini`, compress to a NEW
+mod archive + register it (originals untouched in the library). Needs real two-same-character mods to
+verify the in-game swap. This is the model — port `genshin_merge_mods.py` section-for-section.
 
 ### Namespace contract (GROUNDED 2026-06-18 — leotorrez INI docs `/modding/docs/namespace`)
 - `namespace = a\b\c` MUST be the **first line** of the `.ini`. Default namespace = the mod's folder path.
