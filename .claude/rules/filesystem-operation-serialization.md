@@ -64,6 +64,10 @@ category lock never waits on a mod lock, so no deadlock.
 | `ModPresetService` / `ModMetadataService` calling lifecycle directly | bypassed the facade queue | FIXED 2026-06-17 — covered transitively by the lifecycle-level category lock |
 | `ModOperationQueue` semaphore cleanup (`if CurrentCount==1 TryRemove`) | check-then-remove race → two threads get different semaphores for the same key | FIXED 2026-06-17 — ref-counted `LockHandle` removed only at refcount 0 under a bookkeeping lock |
 | `ModLifecycleService` fire-and-forget `CleanupOldDisabledCachesAsync` (`Task.Run`) | runs outside any lock; planner keeps it raw-FS safe but it is logically unsynchronized | LOW — acceptable |
+| `ModDeletionService.DeletePreviewFolderAsync` | raw `Directory.Delete` on the preview dir while cache/archive deletion used the planner | FIXED 2026-06-19 — submits a `DeleteDirectory` op (test: `ModDeletionServiceTests`) |
+| `ModDeletionService.BatchDeleteAsync` | per-id loop called `DeleteAsync` WITHOUT the per-mod queue lock (single-delete path was queued at the facade) → batch could race a concurrent load/unload/fix of the same mod | FIXED 2026-06-19 — wraps each delete in `IModOperationQueue.EnqueueAsync` (`DeleteAsync` stays non-enqueuing → no double-lock) (test: `ModDeletionServiceTests`) |
+| `ModIdMigrationService` raw `Directory.Move`/`File.Move` on archive/cache/preview | renames mod IDs (hash→GUID) outside the planner | REVIEWED 2026-06-19 — LOW/acceptable: one-shot user-initiated bulk op, not concurrent with normal modding, has its own `renamedFiles` rollback. Route through the planner only if it ever runs alongside live ops. |
+| `ImageService` raw preview-image ops (CreateDirectory/Copy/Delete/Move, set-thumbnail reorder) | preview-folder mutations outside the planner | REVIEWED 2026-06-19 — LOW/acceptable: small, low-contention, user-driven image ops on `previews/{id}` (separate from the hot cache/archive paths); set-thumbnail reorder has its own restore-on-failure. |
 
 ## External-process locks (the game / 3DMigoto holding files)
 
