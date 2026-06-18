@@ -343,7 +343,7 @@ export const ProfileSettingsTab: React.FC = () => {
 
       <FixToolSettingsCard />
 
-      <Form.Item style={{ marginTop: "16px" }}>
+      <Form.Item className="settings-view-actions" style={{ marginBottom: 0 }}>
         <Space style={{ width: "100%", justifyContent: "flex-end" }}>
           <CompactDangerButton
             onClick={handleResetProfileConfig}
