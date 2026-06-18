@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Empty, Spin, Typography, Input, Tooltip } from 'antd';
 import { EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { ModKeybinding } from '../../../../shared/types/mod.types';
 import { modService } from '../../../../shared/services/ipc';
@@ -22,24 +23,39 @@ const VK_MAP: Record<string, string> = {
   Delete: 'VK_DELETE', Insert: 'VK_INSERT', Home: 'VK_HOME', End: 'VK_END',
   PageUp: 'VK_PRIOR', PageDown: 'VK_NEXT',
 };
+const VK_DISPLAY: Record<string, string> = {
+  VK_UP: '↑', VK_DOWN: '↓', VK_LEFT: '←', VK_RIGHT: '→', VK_SPACE: 'Space', VK_RETURN: 'Enter',
+  VK_TAB: 'Tab', VK_BACK: 'Backspace', VK_DELETE: 'Del', VK_INSERT: 'Ins', VK_HOME: 'Home',
+  VK_END: 'End', VK_PRIOR: 'PgUp', VK_NEXT: 'PgDn',
+};
+
+interface Chord { base: string; ctrl: boolean; shift: boolean; alt: boolean; }
+
+/** The non-modifier base key for a 3DMigoto binding, or null while only modifiers are held. */
+function baseFromKey(key: string): string | null {
+  if (key === 'Control' || key === 'Alt' || key === 'Shift' || key === 'Meta') return null;
+  if (/^[a-zA-Z0-9]$/.test(key)) return key.toLowerCase();
+  if (/^F([1-9]|1[0-2])$/.test(key)) return 'VK_' + key.toUpperCase();
+  return VK_MAP[key] ?? null;
+}
 
 /**
- * Map a browser keydown to a 3DMigoto `key =` value, including modifier combos.
- * e.g. Ctrl+Shift+J → "ctrl shift j", F5 → "VK_F5". Returns null while only modifiers are held.
+ * Raw 3DMigoto value. Unheld modifiers default to `no_ctrl`/`no_shift`/`no_alt` so a plain key won't
+ * also fire when another binding's modifiers are held (precise, non-overlapping). e.g. "j" →
+ * "no_ctrl no_shift no_alt j"; Ctrl+J → "ctrl no_shift no_alt j".
  */
-function eventToMigotoKey(e: React.KeyboardEvent): string | null {
-  const k = e.key;
-  if (k === 'Control' || k === 'Alt' || k === 'Shift' || k === 'Meta') return null; // wait for the real key
-  let base: string | null = null;
-  if (/^[a-zA-Z0-9]$/.test(k)) base = k.toLowerCase();
-  else if (/^F([1-9]|1[0-2])$/.test(k)) base = 'VK_' + k.toUpperCase();
-  else base = VK_MAP[k] ?? null;
-  if (!base) return null;
-  const mods: string[] = [];
-  if (e.ctrlKey) mods.push('ctrl');
-  if (e.altKey) mods.push('alt');
-  if (e.shiftKey) mods.push('shift');
-  return [...mods, base].join(' ');
+function buildRaw(c: Chord): string {
+  return [c.ctrl ? 'ctrl' : 'no_ctrl', c.shift ? 'shift' : 'no_shift', c.alt ? 'alt' : 'no_alt', c.base].join(' ');
+}
+
+/** Friendly display of the captured chord (active modifiers only). e.g. "Ctrl + J", "F5". */
+function buildDisplay(c: Chord): string {
+  const parts: string[] = [];
+  if (c.ctrl) parts.push('Ctrl');
+  if (c.shift) parts.push('Shift');
+  if (c.alt) parts.push('Alt');
+  parts.push(c.base.startsWith('VK_') ? (VK_DISPLAY[c.base] ?? c.base.replace('VK_', '')) : c.base.toUpperCase());
+  return parts.join(' + ');
 }
 
 export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) => {
@@ -49,8 +65,11 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
   const [keybindings, setKeybindings] = useState<ModKeybinding[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null); // the binding.key being edited
-  const [draftKey, setDraftKey] = useState('');
+  const [draftDisplay, setDraftDisplay] = useState('');               // friendly text shown in the field
+  const [recording, setRecording] = useState(false);                  // field focused, listening for keys
   const [saving, setSaving] = useState(false);
+  const draftRaw = useRef('');                  // the 3DMigoto value to save (with no_ defaults)
+  const held = useRef<Set<string>>(new Set());  // currently-pressed key codes (for "until all released")
 
   const load = useCallback(async () => {
     if (!selectedProfileId || !modId) return;
@@ -68,13 +87,32 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
 
   const startEdit = (binding: ModKeybinding) => {
     setEditingKey(binding.key);
-    setDraftKey(binding.key);
+    draftRaw.current = binding.key;
+    setDraftDisplay(binding.keyDisplay || binding.key);
+    held.current.clear();
   };
 
-  const cancelEdit = () => { setEditingKey(null); setDraftKey(''); };
+  const cancelEdit = () => { setEditingKey(null); setDraftDisplay(''); draftRaw.current = ''; setRecording(false); held.current.clear(); };
+
+  // Capture a chord: accumulate held keys; the latest non-modifier press + its modifier flags is the
+  // binding. Value updates live as the chord builds; releasing all keys just locks it in.
+  const onCaptureKeyDown = (e: React.KeyboardEvent) => {
+    e.preventDefault();
+    held.current.add(e.code);
+    const base = baseFromKey(e.key);
+    if (!base) return; // only a modifier so far — keep waiting
+    const chord: Chord = { base, ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey };
+    draftRaw.current = buildRaw(chord);
+    setDraftDisplay(buildDisplay(chord));
+  };
+  const onCaptureKeyUp = (e: React.KeyboardEvent) => {
+    e.preventDefault();
+    held.current.delete(e.code);
+    // value is already set on keydown; once all keys are released the chord is final (no-op here).
+  };
 
   const saveEdit = useCallback(async (oldKey: string) => {
-    const newKey = draftKey.trim();
+    const newKey = draftRaw.current.trim();
     if (!selectedProfileId || !newKey || newKey === oldKey) { cancelEdit(); return; }
     setSaving(true);
     try {
@@ -87,7 +125,7 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
     } finally {
       setSaving(false);
     }
-  }, [selectedProfileId, modId, draftKey, t, load]);
+  }, [selectedProfileId, modId, t, load]);
 
   if (loading) {
     return <div className="keybinding-preview-loading"><Spin size="small" /></div>;
@@ -115,14 +153,15 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                     autoFocus
                     readOnly
                     size="small"
-                    value={draftKey}
+                    className={classNames('keybinding-capture', { 'keybinding-capture--recording': recording })}
+                    value={draftDisplay}
                     placeholder={t('mods.keybindings.pressKey')}
-                    onKeyDown={(e) => {
-                      // Pure key/combo capture — every press sets the binding (confirm via the buttons).
-                      const mapped = eventToMigotoKey(e);
-                      if (mapped) { e.preventDefault(); setDraftKey(mapped); }
-                    }}
-                    style={{ width: 140 }}
+                    prefix={recording ? <span className="keybinding-rec-dot" /> : undefined}
+                    onFocus={() => { setRecording(true); held.current.clear(); }}
+                    onBlur={() => setRecording(false)}
+                    onKeyDown={onCaptureKeyDown}
+                    onKeyUp={onCaptureKeyUp}
+                    style={{ width: 150 }}
                   />
                 ) : (
                   <kbd className="keybinding-kbd">{binding.keyDisplay}</kbd>
@@ -138,22 +177,26 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                     <CompactButton
                       size="small"
                       type="text"
-                      icon={<CheckOutlined style={{ color: 'var(--color-success)' }} />}
+                      className="keybinding-edit-btn keybinding-edit-btn--confirm"
+                      icon={<CheckOutlined />}
                       loading={saving}
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => saveEdit(binding.key)}
                       title={t('common.save')}
                     />
                     <CompactButton
                       size="small"
                       type="text"
-                      icon={<CloseOutlined style={{ color: 'var(--color-error)' }} />}
+                      className="keybinding-edit-btn keybinding-edit-btn--cancel"
+                      icon={<CloseOutlined />}
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={cancelEdit}
                       title={t('common.cancel')}
                     />
                   </>
                 ) : (
                   <Tooltip title={t('mods.keybindings.rebind')}>
-                    <CompactButton size="small" type="text" icon={<EditOutlined />} onClick={() => startEdit(binding)} />
+                    <CompactButton size="small" type="text" className="keybinding-edit-btn" icon={<EditOutlined />} onClick={() => startEdit(binding)} />
                   </Tooltip>
                 )}
               </div>
