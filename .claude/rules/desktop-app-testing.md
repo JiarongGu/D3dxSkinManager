@@ -121,6 +121,16 @@ for visual design; it does NOT exercise IPC/native — use the desktop tools bel
 - Flow that works today: `tabs_context_mcp` → `tabs_create_mcp` → `navigate` 3517 → wait → inject via
   `window.__processStore` → click `.app-status-bar-task-area` → `screenshot`.
 
+## The game is NOT required for most testing
+Mod **management** + 3DMigoto **file** work — load/unload, fix, keybind rebind, deploy into the Mods
+folder, package import/export, analysis, merge — are DB + filesystem operations on the importer's
+`Mods/` folder. They are **fully e2e-testable without launching the game**, and since the game isn't
+running, loading/deploying/modifying mods for a test is **non-destructive** (no live injection to
+disrupt). So drive these freely: `cdp ipc MOD LOAD …`, rebind, fix, then verify via `GET_*` round-trips
++ native `input`/`shot`. Many flows gate UI on `mod.hasCache` — **load the mod first** (user's rule:
+"load the mod, then you can see the keybindings"). Reserve "needs the game" ONLY for actual in-game
+injection / rendering / on-screen-toggle behaviour — the user verifies that separately.
+
 ## When to use what
 - Pure component / CSS / layout / i18n → **plain Chrome + Vite (3517) + `window.__*` mocks** (above). Fastest.
 - Anything touching IPC / WebView2 / real profile+mod data / file operations → the real app via the tools above.
