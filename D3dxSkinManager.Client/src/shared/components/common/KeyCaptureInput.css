@@ -1,0 +1,16 @@
+/* Hotkey capture field — focus + press a key to bind. */
+.key-capture-input {
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.key-capture-input input {
+  cursor: pointer;
+  text-align: center;
+}
+
+/* Recording: highlight the field so it's clear it's listening for a key. */
+.key-capture-input--recording {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-bg);
+}

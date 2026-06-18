@@ -9,53 +9,13 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 import { CompactIconButton } from '../../../../shared/components/compact';
 import { notification } from '../../../../shared/utils/notification';
 import { handleError } from '../../../../shared/utils/errorHandler';
+import { Chord, baseFromKey, buildRaw, buildDisplay } from '../../../../shared/utils/keyChord';
 import './KeybindingPreview.css';
 
 const { Text } = Typography;
 
 export interface KeybindingPreviewProps {
   modId: string;
-}
-
-const VK_MAP: Record<string, string> = {
-  ArrowUp: 'VK_UP', ArrowDown: 'VK_DOWN', ArrowLeft: 'VK_LEFT', ArrowRight: 'VK_RIGHT',
-  ' ': 'VK_SPACE', Enter: 'VK_RETURN', Tab: 'VK_TAB', Backspace: 'VK_BACK',
-  Delete: 'VK_DELETE', Insert: 'VK_INSERT', Home: 'VK_HOME', End: 'VK_END',
-  PageUp: 'VK_PRIOR', PageDown: 'VK_NEXT',
-};
-const VK_DISPLAY: Record<string, string> = {
-  VK_UP: '↑', VK_DOWN: '↓', VK_LEFT: '←', VK_RIGHT: '→', VK_SPACE: 'Space', VK_RETURN: 'Enter',
-  VK_TAB: 'Tab', VK_BACK: 'Backspace', VK_DELETE: 'Del', VK_INSERT: 'Ins', VK_HOME: 'Home',
-  VK_END: 'End', VK_PRIOR: 'PgUp', VK_NEXT: 'PgDn',
-};
-
-interface Chord { base: string; ctrl: boolean; shift: boolean; alt: boolean; }
-
-/** The non-modifier base key for a 3DMigoto binding, or null while only modifiers are held. */
-function baseFromKey(key: string): string | null {
-  if (key === 'Control' || key === 'Alt' || key === 'Shift' || key === 'Meta') return null;
-  if (/^[a-zA-Z0-9]$/.test(key)) return key.toLowerCase();
-  if (/^F([1-9]|1[0-2])$/.test(key)) return 'VK_' + key.toUpperCase();
-  return VK_MAP[key] ?? null;
-}
-
-/**
- * Raw 3DMigoto value. Unheld modifiers default to `no_ctrl`/`no_shift`/`no_alt` so a plain key won't
- * also fire when another binding's modifiers are held (precise, non-overlapping). e.g. "j" →
- * "no_ctrl no_shift no_alt j"; Ctrl+J → "ctrl no_shift no_alt j".
- */
-function buildRaw(c: Chord): string {
-  return [c.ctrl ? 'ctrl' : 'no_ctrl', c.shift ? 'shift' : 'no_shift', c.alt ? 'alt' : 'no_alt', c.base].join(' ');
-}
-
-/** Friendly display of the captured chord (active modifiers only). e.g. "Ctrl + J", "F5". */
-function buildDisplay(c: Chord): string {
-  const parts: string[] = [];
-  if (c.ctrl) parts.push('Ctrl');
-  if (c.shift) parts.push('Shift');
-  if (c.alt) parts.push('Alt');
-  parts.push(c.base.startsWith('VK_') ? (VK_DISPLAY[c.base] ?? c.base.replace('VK_', '')) : c.base.toUpperCase());
-  return parts.join(' + ');
 }
 
 export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) => {

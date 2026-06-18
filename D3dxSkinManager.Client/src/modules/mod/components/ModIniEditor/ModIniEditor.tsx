@@ -11,6 +11,7 @@ import { handleError } from '../../../../shared/utils/errorHandler';
 import { notification } from '../../../../shared/utils/notification';
 import { CompactIconButton } from '../../../../shared/components/compact';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
+import { KeyCaptureInput } from '../../../../shared/components/common/KeyCaptureInput';
 import type { ModInfo } from '../../../../shared/types/mod.types';
 import type { ModIniFile, ModIniSection, ModIniEntry } from '../../../../shared/types/modIni.types';
 import './ModIniEditor.css';
@@ -263,6 +264,8 @@ const IniRow: React.FC<{
   // Genuine [Key] booleans (default true): cycle wrap-around + smart resync. Render as a Switch —
   // unlike a $var default (which cycles through its key's value list), these are truly on/off.
   const isBoolean = !advanced && (keyLower === 'wrap' || keyLower === 'smart');
+  // Hotkey rows: capture a chord visually instead of typing raw VK text. (key = main, back = reverse-cycle)
+  const isHotkey = !advanced && (keyLower === 'key' || keyLower === 'back');
 
   const commitValue = async (value: string) => {
     if (saving) return;
@@ -324,6 +327,23 @@ const IniRow: React.FC<{
           <Switch size="small" checked={on} loading={saving} disabled={saving} onChange={(v) => void commitValue(v ? 'true' : 'false')} />
         </span>
         <span className="ini-row__actions" />
+      </div>
+    );
+  }
+
+  if (isHotkey) {
+    return (
+      <div className="ini-row">
+        {labelEl}
+        <KeyCaptureInput className="ini-row__input" value={draft} disabled={saving} onChange={setDraft} />
+        <span className="ini-row__actions">
+          {dirty && (
+            <>
+              <CompactIconButton tone="success" icon={<CheckOutlined />} loading={saving} title={t('common.save')} onClick={() => void commitValue(draft)} />
+              <CompactIconButton tone="danger" icon={<CloseOutlined />} disabled={saving} title={t('common.cancel')} onClick={() => setDraft(entry.value)} />
+            </>
+          )}
+        </span>
       </div>
     );
   }
