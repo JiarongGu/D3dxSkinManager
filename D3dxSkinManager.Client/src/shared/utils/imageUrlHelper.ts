@@ -47,12 +47,3 @@ export function toAppUrl(path: string | undefined, cacheTimestamp?: number): str
 
   return baseUrl;
 }
-
-/**
- * Converts an array of file paths to app:// scheme URLs
- * @param paths - Array of file paths
- * @returns Array of app:// scheme URLs
- */
-export function toAppUrls(paths: (string | undefined)[]): (string | undefined)[] {
-  return paths.map(toAppUrl);
-}

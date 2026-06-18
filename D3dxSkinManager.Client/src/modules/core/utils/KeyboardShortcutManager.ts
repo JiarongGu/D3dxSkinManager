@@ -134,18 +134,6 @@ export class KeyboardShortcutManager {
 export const keyboardManager = new KeyboardShortcutManager();
 
 /**
- * React hook for using keyboard shortcuts
- */
-export const useKeyboardShortcut = (
-  id: string,
-  config: ShortcutConfig,
-  deps: any[] = []
-): void => {
-  // This will be implemented in the component that uses it
-  // using useEffect
-};
-
-/**
  * Predefined shortcut configurations
  */
 export const SHORTCUTS = {

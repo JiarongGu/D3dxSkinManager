@@ -155,17 +155,6 @@ export function handleError(error: unknown): OperationError {
 }
 
 /**
- * Get user-friendly error message for an error code
- * @param errorCode Error code
- * @param fallbackMessage Fallback message if no translation exists
- * @returns Translated error message or fallback
- */
-export function getErrorMessage(errorCode: string, fallbackMessage?: string): string {
-  const i18nKey = getErrorI18nKey(errorCode);
-  return i18n.exists(i18nKey) ? i18n.t(i18nKey) : (fallbackMessage || 'An error occurred');
-}
-
-/**
  * Translate a structured error message (from workflow errorMessage field, etc.)
  * Parses JSON error string and returns translated message with parameters
  *
@@ -190,20 +179,4 @@ export function translateErrorMessage(
   }
 
   return parsed.fallbackMessage;
-}
-
-/**
- * Check if an error is a specific error code
- */
-export function isErrorCode(error: unknown, errorCode: string): boolean {
-  if (error instanceof OperationError) {
-    return error.code === errorCode;
-  }
-
-  if (error instanceof Error) {
-    const errorWithDetails = error as Error & { errorDetails?: ErrorDetails };
-    return errorWithDetails.errorDetails?.code === errorCode;
-  }
-
-  return false;
 }
