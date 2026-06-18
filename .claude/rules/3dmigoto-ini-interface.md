@@ -28,25 +28,32 @@ Comments start `;` (e.g. `;MARK:Key----`). Namespacing is per-file (the filename
   pattern as `ModFixService`/`ModImportService.UpdateModAsync` — stage in `_profilePaths.TempDirectory`,
   recompress, replace via planner). Preserve comments/order (line-level edit, not a full re-serialize).
 
-## Mod-merge (future — why the interface matters)
-Merging mod A+B = concatenate their sections into one mod under **distinct namespaces** so hashes/keys/
-resources don't collide: 3DMigoto supports `namespace` + `\ns\Section` references. A merge tool would:
-parse both, detect key/hash collisions, re-namespace, remap `$var`/`Resource`/`CommandList` references,
-and write a combined `.ini`. The `[Key*]`/`[Constants]`/`[Resource*]` graph above is what it rewires.
+## Command lists + control flow (verified from real ZZMI mod `.ini`s, 2026-06-18)
+Sections like `[Present]`, `[Constants]`, `[TextureOverride*]`, `[CommandList*]`, `[CustomShader*]` run
+an ordered **command list**. Commands seen in the wild:
+- `run = CommandListSkinTexture` / `run = CustomShaderTransparency1` — call a named list/shader.
+- **control flow**: `if $swapkey0 == 1` / `elif …` / `else` / `endif` (drives variants by `$var`).
+- `$var = a,b,c` (cycle list) or `$var = 1` (assign); `draw = <count>,<off>`; `drawindexed = <i>,<c>,<o>`.
+- resource binds: `vb0 = Resource…`, `ps-t0 = …`, `handling = skip`.
+- **Comments: `;` OR the fullwidth `；`** — a parser MUST treat both as comments (real mods mix them,
+  e.g. `；drawindexed = …`). Don't choke on non-ASCII; files are UTF-8 with CJK names/“credit” spam lines.
 
-## Advanced phase (after research) — flagged capabilities
-- **Generate in-game toggle UI** (user-requested): some mods draw on-screen toggle hints/menus via
-  3DMigoto's overlay (`[Present]` + `draw_text`/notification, or importer command-list helpers). We want
-  to *generate* these for a mod's keybindings. Needs the overlay/command-list interface mapped first.
-- **General `.ini` editor**: edit arbitrary section `key=value`, with hash/override/resource sections
-  gated read-only; respects namespacing.
-- **Edit `[Key*]` `type`/`condition`/cycle values** (the easy editor only rebinds `key=` so far).
+## Mod-merge — the GIMI/XXMI merger pattern (verified from a real `*_Merged/Master*.ini`)
+A merge is one mod whose master `.ini` starts with **`namespace = MergeName\Master`** and:
+- `[Constants]`: `global persist $swapvarZ = 0` (the variant selector) + `global $active`.
+- `[KeySwap]`: `key = …`, `type = cycle`, `$swapvarZ = 0,1,2` (cycles through merged variants).
+- each merged source's `[TextureOverride*]` is gated (`$active = 1` / `if $swapvarZ == N`) and lives under
+  its own namespace; cross-refs use `\namespace\Section`. The merger (GIMI's script) re-namespaces every
+  mod so hashes/keys/resources don't collide, then a single key cycles between them.
+So **mod-merge = re-namespace each mod + emit a master with a `$swapvar` + `[KeySwap]` cycling them**.
+This is the model to implement (game-agnostic — every importer's 3DMigoto supports `namespace`).
 
-## Plugins interface (NOT yet researched — flagged)
-The user noted 3DMigoto's **plugin interface** matters (could extend merge/other logic). 3DMigoto has a
-plugin/command-list/`run = CommandList\…` mechanism + DLL plugins, and XXMI bundles its own DLL. We have
-NOT yet mapped this from source/docs — do that (read 3Dmigoto repo + XXMI's DLL package) before building
-merge or plugin-aware features. Don't assume; verify like the XXMI/ini work.
+## Still flagged (needs more research — wiki scrape was JS-blocked)
+- **Generate in-game toggle UI / on-screen menu**: not found in the sampled mods (they cycle via keys, no
+  text overlay). 3DMigoto/importers have a text-draw/`[Present]` overlay + a mod-menu; map it from the
+  3Dmigoto wiki (fetch was blocked — retry via a working fetch or the repo source) before generating it.
+- **DLL plugin interface**: XXMI bundles its 3DMigoto DLL; the `[Loader] loader=XXMI Launcher.exe` hook is
+  in `xxmi-integration.md`. The plugin-DLL API itself is not yet mapped.
 
 ## Where this lives in our code
 - Parse today: `Modules/Mod/Services/ModKeybindingService.cs` (`ParseKeybindingsAsync`, `[Key*]` only).
