@@ -1,36 +1,44 @@
-/* Lock border / box-shadow / transition across ALL states so neither antd's base button styles nor
-   the global theme-colors icon-button hover can leak through (boxy grey bg, long `all` transition,
-   drop shadow). The atom fully owns its look. */
+/* The atom fully owns its look so neither antd's base button nor the global theme-colors icon-button
+   hover can leak through (boxy grey bg / long transition / drop shadow / colour change).
+   A 1px transparent border is always present (border-box) so the hover border adds no layout shift. */
 .compact-icon-btn.ant-btn,
 .compact-icon-btn.ant-btn:hover,
 .compact-icon-btn.ant-btn:focus,
 .compact-icon-btn.ant-btn:active {
   padding: 0;
-  border: none !important;
+  background: transparent !important;          /* never change the background */
   box-shadow: none !important;
+  border: 1px solid transparent !important;    /* reserve space; coloured only on hover */
   border-radius: 6px;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: border-color 0.12s ease;
 }
+
+/* Center the glyph deterministically so every tone aligns regardless of the icon or antd's
+   (zero-width) loading-icon span. */
 .compact-icon-btn.ant-btn {
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
   color: var(--color-text-secondary);
 }
-/* Hover changes ONLY the background (a subtle tint). The icon colour never changes on hover. */
-.compact-icon-btn.ant-btn:hover {
-  background: color-mix(in srgb, var(--color-text-base) 10%, transparent);
+.compact-icon-btn.ant-btn > span,
+.compact-icon-btn.ant-btn .ant-btn-icon,
+.compact-icon-btn.ant-btn .anticon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
+.compact-icon-btn.ant-btn .ant-btn-loading-icon { display: none; }
 
+/* Hover = a tone-coloured border only. Icon colour and background never change.
+   !important so antd's own text-button hover can't override the border colour. */
+.compact-icon-btn.ant-btn:hover { border-color: var(--color-text-secondary) !important; }
 .compact-icon-btn--success.ant-btn { color: var(--color-success); }
-.compact-icon-btn--success.ant-btn:hover {
-  background: color-mix(in srgb, var(--color-success) 16%, transparent);
-}
-
+.compact-icon-btn--success.ant-btn:hover { border-color: var(--color-success) !important; }
 .compact-icon-btn--danger.ant-btn { color: var(--color-error); }
-.compact-icon-btn--danger.ant-btn:hover {
-  background: color-mix(in srgb, var(--color-error) 16%, transparent);
-}
-
+.compact-icon-btn--danger.ant-btn:hover { border-color: var(--color-error) !important; }
 .compact-icon-btn--primary.ant-btn { color: var(--color-primary); }
-.compact-icon-btn--primary.ant-btn:hover {
-  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
-}
+.compact-icon-btn--primary.ant-btn:hover { border-color: var(--color-primary) !important; }
