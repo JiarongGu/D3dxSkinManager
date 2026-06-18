@@ -59,15 +59,19 @@ Last consolidated: 2026-06-18.
 
 ## Next up (prioritized, grounded)
 
-### 1. Mod-merge (the big `.ini` lever — now grounded, buildable)
-Combine several mods of one slot into a single mod that **cycles between them with one key**. Grounded
-from the namespace contract (`.claude/rules/3dmigoto-ini-interface.md`):
-- Assign each source mod a **unique `namespace`** (creator\char\mod) so hashes/keys/resources can't collide.
-- Emit a **master `.ini`**: `namespace = Merge\Master`, `[Constants] $swapvar`, `[KeySwap] type=cycle
-  $swapvar = 0,1,2…`, each source's overrides gated by `if $swapvar == N` and referenced via
-  `\namespace\…`. No hash/resource rewriting needed — the namespace isolates them.
-- Reuses the config-editor parse layer + the planner/queue/single-file-patch infra. Backend service +
-  IPC + a "Merge mods" UI (pick mods → name → produces a new merged mod in the library).
+### 1. Mod-merge ✅ SHIPPED (pending in-game validation)
+Combine several mods of one slot into a single mod that **cycles between them with one key**. Built as a
+faithful port of GIMI's `genshin_merge_mods.py` (NOT namespace-based — hash-dedup + `[CommandList]`
+branching on `$swapvar`; see `.claude/rules/3dmigoto-ini-interface.md`):
+- `MergeIniBuilder` (pure, 5 structural tests) — dedup overrides by `(hash, match_first_index)`, branch
+  command lists on `$swapvar`, suffix binds/resource refs by `.{group}`, emit `[Constants] $swapvar` +
+  `[KeySwap]` cycle + `[Present]`.
+- `ModMergeService` — stage each source's cache, run the engine, disable source `.ini`s in the copy,
+  compress → import as a NEW mod (own GUID, originals untouched). IPC `MERGE_MODS`.
+- `MergeModsDialog` — multi-select right-click "Merge N Mods" → reorder + name + cycle key → creates it.
+- Verified file-level e2e (new mod with valid merged `.ini`). **Remaining: in-game swap validation with
+  two real same-character mods (user-side; game not available to the agent).** Known MVP gaps: reflection/
+  credit/transparency special-cases + source ShaderOverride/CustomShader sections are dropped.
 
 ### 2. #4 First-run onboarding + mod-card clarity
 - First-run: pick/create profile → point at the XXMI install (reuse `XxmiImporterPicker`) → ready.
