@@ -79,11 +79,14 @@ branching on `$swapvar`; see `.claude/rules/3dmigoto-ini-interface.md`):
   shown once, completion remembered in `localStorage` (`d3dx.onboarding.completed.v1`). Picking an XXMI
   importer applies `workMode:xxmi` + launcher exactly like Settings (`handleSelectXxmiImporter`). Wired in
   `App.tsx` (opens on first run; DEV reopen via `window.__openOnboarding`). EN+CN verified in the real app.
-- **Remaining: mod-card clarity** — clearer loaded vs disabled vs orphaned styling on mod list items.
+- **Mod-card clarity ✅** — each mod row carries a scannable left-border accent + faint tint:
+  green=loaded, red=unavailable (source archive missing, +UNAVAILABLE tag w/ tooltip), dashed amber +
+  dimmed/italic=orphaned (unmanaged cache). Selection always wins via `:not()` guards. The list stays
+  text-dense on purpose — a category can hold **hundreds** of mods and thumbnails aren't always present,
+  so a grid was deliberately NOT chosen.
 - Per-category active indicator ✅ — a small white-ringed green dot on the category card thumbnail + tree
   node when it (or a collapsed descendant) has a loaded mod; tooltip names the mod. `activeMods` lives in
   the mods store (refreshed by ModProvider on load/unload/profile), grouped by category id.
-- Still: clearer loaded vs disabled vs orphaned mod cards; inline category conflicts.
 
 ### 3. Config-editor growth (extend the `.ini` editor)
 - Expose more `[Key]` options the docs confirm: `back` (reverse-cycle key), `wrap`, `smart`,
@@ -97,6 +100,31 @@ branching on `$swapvar`; see `.claude/rules/3dmigoto-ini-interface.md`):
 
 ### 5. #12 App self-update
 - Check latest GitHub release → download → prompt. Configurable channel + opt-out.
+
+### 6. Robustness of the file-based lifecycle (ongoing — "robustness IS the UX")
+A file-based system with many interaction cycles (import → extract/cache → load/unload → fix → edit →
+recompress → merge → delete) must never strand or corrupt mod state on a failure. Hardening pass:
+- ✅ Preview-folder deletion now routes through `IFileOperationPlanner` (was a raw `Directory.Delete`
+  that raced the planner) — `ModDeletionService`, regression-tested.
+- ✅ Batch delete now serializes each deletion under the per-mod `IModOperationQueue` lock (was an
+  unguarded loop that could race a concurrent load/unload/fix of the same mod) — regression-tested.
+- Next audits: import partial-failure cleanup (extract OK → compress fails → orphaned cache/archive?),
+  merge staging cleanup on failure, and an audit pass that no mod archive/cache/preview path is mutated
+  with raw `Directory.*`/`File.*` outside the planner. See `filesystem-operation-serialization.md`.
+
+### 7. Mod-modification assistance (user wish 2026-06-19 — "really hard", future/research)
+"Help modify the mod: re-color, model update, detect hash change, apply mod to a different character."
+Honest feasibility (game-agnostic, grounded in the 3DMigoto `.ini` model):
+- **Detect hash change / needs-refix** — *reachable.* After a game update a mod's `TextureOverride`
+  hashes stop matching. We already run fix tools + analysis; surface a "may need re-fix" flag by
+  comparing against known-good hash sets / re-running the fix detect step. Best near-term candidate.
+- **Re-color** — *partial.* Could expose the mod's texture files (DDS) for external editing or basic
+  recolor via image ops, but real recoloring is per-texture artist work; no reliable generic automation.
+- **Apply mod to a different character** — *hard.* This is hash-retargeting/porting (remap one
+  character's hashes/buffers to another). Community does it manually per-mod; not reliably automatable.
+- **Model update** — *very hard.* Mesh/vertex-buffer surgery = full modding work, out of scope.
+> Verdict: pursue **hash-change detection / needs-refix flag** first (leverages existing fix+analysis);
+> treat recolor/retarget/model as long-horizon research, not committed scope.
 
 ---
 
