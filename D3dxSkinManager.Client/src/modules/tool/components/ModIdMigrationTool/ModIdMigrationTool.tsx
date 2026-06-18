@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button, Space, Spin, Tag, Table, Progress } from 'antd';
-import { CheckCircleOutlined, WarningOutlined, SyncOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
+import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
@@ -218,13 +219,9 @@ const ModIdMigrationToolInner: React.FC<InnerProps> = ({ onMigrationComplete }) 
         <>
           <div className="mod-id-migration__summary">
             <Space size="middle">
-              <Tag color="green">
-                {t('tools.modIdMigration.succeeded')}: {migrationResult.succeeded}
-              </Tag>
+              <StatusTag tone="success" label={`${t('tools.modIdMigration.succeeded')}: ${migrationResult.succeeded}`} />
               {migrationResult.failed > 0 && (
-                <Tag color="red">
-                  {t('tools.modIdMigration.failed')}: {migrationResult.failed}
-                </Tag>
+                <StatusTag tone="error" label={`${t('tools.modIdMigration.failed')}: ${migrationResult.failed}`} />
               )}
             </Space>
           </div>
@@ -323,13 +320,9 @@ const ResultTable: React.FC<{ items: ModIdMigrationItemResult[] }> = ({ items })
       width: 120,
       render: (_: unknown, record: ModIdMigrationItemResult) =>
         record.success ? (
-          <Tag icon={<CheckCircleOutlined />} color="success">
-            {t('tools.modIdMigration.success')}
-          </Tag>
+          <StatusTag tone="success" label={t('tools.modIdMigration.success')} />
         ) : (
-          <Tag icon={<WarningOutlined />} color="error" title={record.error}>
-            {t('tools.modIdMigration.error')}
-          </Tag>
+          <StatusTag tone="error" title={record.error} label={t('tools.modIdMigration.error')} />
         ),
     },
   ];

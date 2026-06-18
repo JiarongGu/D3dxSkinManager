@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactCard } from '../../../../../shared/components/compact';
+import { StatusTag } from '../../../../../shared/components/common/StatusTag';
 import { ConfirmDialog } from '../../../../../shared/components/dialogs/ConfirmDialog';
 import type { AnalysisSessionSummary } from '../../../../../shared/types/analysis.types';
 
@@ -114,12 +115,12 @@ const SessionCard: React.FC<{
         </div>
         <div className="mod-analyzer__session-card-stats">
           <span>{session.analyzedCount}/{session.totalMods} {t('tools.modAnalyzer.mods')}</span>
-          {session.errorCount > 0 && <Tag color="error">{session.errorCount} {t('tools.modAnalyzer.broken')}</Tag>}
-          {session.warningCount > 0 && <Tag color="warning">{session.warningCount} {t('tools.modAnalyzer.warnings')}</Tag>}
-          {session.identicalCount > 0 && <Tag color="red">{session.identicalCount} {t('tools.modAnalyzer.identical')}</Tag>}
-          {session.textureVariantCount > 0 && <Tag color="orange">{session.textureVariantCount} {t('tools.modAnalyzer.textureVariant')}</Tag>}
-          {session.conflictCount > 0 && <Tag color="error">{session.conflictCount} {t('tools.modAnalyzer.conflicts')}</Tag>}
-          {session.healthyCount > 0 && <Tag color="success">{session.healthyCount} {t('tools.modAnalyzer.healthy')}</Tag>}
+          {session.errorCount > 0 && <StatusTag tone="error" icon={null} label={`${session.errorCount} ${t('tools.modAnalyzer.broken')}`} />}
+          {session.warningCount > 0 && <StatusTag tone="warning" icon={null} label={`${session.warningCount} ${t('tools.modAnalyzer.warnings')}`} />}
+          {session.identicalCount > 0 && <StatusTag tone="error" icon={null} label={`${session.identicalCount} ${t('tools.modAnalyzer.identical')}`} />}
+          {session.textureVariantCount > 0 && <StatusTag tone="warning" icon={null} label={`${session.textureVariantCount} ${t('tools.modAnalyzer.textureVariant')}`} />}
+          {session.conflictCount > 0 && <StatusTag tone="error" icon={null} label={`${session.conflictCount} ${t('tools.modAnalyzer.conflicts')}`} />}
+          {session.healthyCount > 0 && <StatusTag tone="success" icon={null} label={`${session.healthyCount} ${t('tools.modAnalyzer.healthy')}`} />}
         </div>
       </div>
     </CompactCard>

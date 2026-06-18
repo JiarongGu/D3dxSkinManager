@@ -5,11 +5,12 @@
  */
 
 import React, { useState, useCallback, useMemo } from "react";
-import { Progress, Tag, Space, Tooltip, Descriptions, Empty } from "antd";
+import { Progress, Space, Tooltip, Descriptions, Empty } from "antd";
 import {
   DataTable,
   ColumnsType,
 } from "../../../../shared/components/common/DataTable";
+import { StatusTag, StatusTone } from "../../../../shared/components/common/StatusTag";
 import {
   FolderOutlined,
   CheckCircleOutlined,
@@ -266,26 +267,24 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
   /**
    * Get status tag color
    */
-  const getStatusColor = (status: WorkflowStatus): string => {
+  const getStatusTone = (status: WorkflowStatus): StatusTone => {
     switch (status) {
       case WorkflowStatus.Pending:
-        return "blue";
+        return "info";
       case WorkflowStatus.Processing:
         return "processing";
       case WorkflowStatus.WaitingForInput:
         return "warning";
-      case WorkflowStatus.Paused:
-        return "default";
       case WorkflowStatus.Completed:
         return "success";
       case WorkflowStatus.Failed:
         return "error";
-      case WorkflowStatus.Cancelled:
-        return "default";
       case WorkflowStatus.Deleting:
-        return "orange";
+        return "warning";
+      case WorkflowStatus.Paused:
+      case WorkflowStatus.Cancelled:
       default:
-        return "default";
+        return "neutral";
     }
   };
 
@@ -428,7 +427,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       },
       showSorterTooltip: false,
       render: (statusText: string, row: WorkflowTableRow) => {
-        const tag = <Tag color={getStatusColor(row.workflow.status)}>{statusText}</Tag>;
+        const tag = <StatusTag tone={getStatusTone(row.workflow.status)} label={statusText} />;
 
         // Show error message in tooltip for failed workflows
         if (row.workflow.status === WorkflowStatus.Failed && row.workflow.errorMessage) {
@@ -558,7 +557,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         );
       },
     },
-  ], [t, handleEditMetadata, handleConfirm, handlePauseWorkflow, handleResumeWorkflow, handleDeleteWorkflow, getStatusColor]);
+  ], [t, handleEditMetadata, handleConfirm, handlePauseWorkflow, handleResumeWorkflow, handleDeleteWorkflow, getStatusTone]);
 
   const rowSelection = useMemo(() => ({
     selectedRowKeys,

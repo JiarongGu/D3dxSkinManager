@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Button, Space, Tag, Table, Progress, Input, Empty, Popconfirm, Tooltip, Select, Dropdown } from 'antd';
+import { Button, Space, Table, Progress, Input, Empty, Popconfirm, Tooltip, Select, Dropdown } from 'antd';
 import {
   ThunderboltOutlined, FolderOpenOutlined,
   FileAddOutlined, DeleteOutlined, DownOutlined,
 } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
+import { CompactField } from '../../../../shared/components/compact';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
@@ -229,8 +230,7 @@ const ModFixManagerInner: React.FC = () => {
       <div className="mod-fix__description">{t('tools.modFix.description')}</div>
 
       {/* Add a fix tool */}
-      <div className="mod-fix__field">
-        <label className="mod-fix__label">{t('tools.modFix.addTool')}</label>
+      <CompactField label={t('tools.modFix.addTool')} description={t('tools.modFix.addHint')}>
         <Space.Compact style={{ width: '100%' }}>
           <Input
             value={newName}
@@ -245,8 +245,7 @@ const ModFixManagerInner: React.FC = () => {
             {t('tools.modFix.addFile')}
           </Button>
         </Space.Compact>
-        <div className="mod-fix__hint">{t('tools.modFix.addHint')}</div>
-      </div>
+      </CompactField>
 
       {/* Library */}
       {tools.length === 0 ? (
@@ -266,9 +265,9 @@ const ModFixManagerInner: React.FC = () => {
         <>
           <div className="mod-fix__summary">
             <Space size="middle">
-              <Tag color="green">{t('tools.modFix.succeeded')}: {result.succeeded}</Tag>
-              {result.failed > 0 && <Tag color="red">{t('tools.modFix.failed')}: {result.failed}</Tag>}
-              {result.skipped > 0 && <Tag>{t('tools.modFix.skipped')}: {result.skipped}</Tag>}
+              <StatusTag tone="success" label={`${t('tools.modFix.succeeded')}: ${result.succeeded}`} />
+              {result.failed > 0 && <StatusTag tone="error" label={`${t('tools.modFix.failed')}: ${result.failed}`} />}
+              {result.skipped > 0 && <StatusTag tone="neutral" label={`${t('tools.modFix.skipped')}: ${result.skipped}`} />}
             </Space>
           </div>
           <ResultTable items={result.results} />

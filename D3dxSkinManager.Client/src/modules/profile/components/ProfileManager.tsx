@@ -16,9 +16,9 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  CheckCircleOutlined,
   SwapOutlined,
 } from "@ant-design/icons";
+import { StatusTag } from "../../../shared/components/common/StatusTag";
 import classNames from "classnames";
 import { useTranslation } from "react-i18next";
 import {
@@ -297,9 +297,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                           {profile.name}
                         </span>
                         {profile.id === activeProfileId && (
-                          <Tag color="success" icon={<CheckCircleOutlined />}>
-                            {t("profiles.badge.active")}
-                          </Tag>
+                          <StatusTag tone="success" label={t("profiles.badge.active")} />
                         )}
                         {profile.gameName && (
                           <Tag color="blue">{profile.gameName}</Tag>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Space, Tag, Popover } from "antd";
+import { Space, Popover } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import { StatusTag } from "../../../../shared/components/common/StatusTag";
 import { useTranslation } from "react-i18next";
 import { useModsStore } from "../../../mod/store/modsStore";
 import { useProcessStore } from "../../../../shared/store/processStore";
@@ -139,9 +140,11 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
           <LaunchButton />
           <ModPresetMenu />
 
-          <Tag color={modsLoaded > 0 ? "green" : "default"}>
-            {t("statusBar.modsLoaded", { count: modsLoaded, total: modsTotal })}
-          </Tag>
+          <StatusTag
+            tone={modsLoaded > 0 ? "success" : "neutral"}
+            icon={null}
+            label={t("statusBar.modsLoaded", { count: modsLoaded, total: modsTotal })}
+          />
 
           <span
             className="app-status-bar-version"

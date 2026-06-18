@@ -3,6 +3,7 @@ import { Input, Checkbox, Tag, Select, Progress, Row, Col, List, Empty, Descript
 import { FolderOpenOutlined, InboxOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactSpace, CompactCard, CompactAlert, CompactDivider } from '../../../../../shared/components/compact';
+import { StatusTag, StatusTone } from '../../../../../shared/components/common/StatusTag';
 import { toAppUrl } from '../../../../../shared/utils/imageUrlHelper';
 import { useModPackage } from '../context/ModPackageContext';
 import { useProfile } from '../../../../../shared/context/ProfileContext';
@@ -12,7 +13,7 @@ import type { AnalyzedModEntry } from '../../../../../shared/types/modPackage.ty
 
 const { Search } = Input;
 
-const statusColors: Record<string, string> = { new: 'green', update: 'orange' };
+const statusTones: Record<string, StatusTone> = { new: 'success', update: 'warning' };
 const statusKeys: Record<string, string> = {
   new: 'tools.modPackage.import.new',
   update: 'tools.modPackage.import.update',
@@ -346,7 +347,7 @@ export const ImportTab: React.FC = () => {
                     {mod.categoryPath && <span>{mod.categoryPath}</span>}
                   </span>
                 </div>
-                <Tag color={statusColors[mod.status]}>{t(statusKeys[mod.status])}</Tag>
+                <StatusTag tone={statusTones[mod.status]} icon={null} label={t(statusKeys[mod.status])} />
               </div>
             ))}
           </div>
@@ -394,7 +395,7 @@ const ModDetailView: React.FC<{ mod: AnalyzedModEntry }> = ({ mod }) => {
     <div className="mod-transfer__detail">
       <div className="mod-transfer__detail-header">
         <span className="mod-transfer__detail-name">{mod.name}</span>
-        <Tag color={statusColors[mod.status]}>{t(statusKeys[mod.status])}</Tag>
+        <StatusTag tone={statusTones[mod.status]} label={t(statusKeys[mod.status])} />
       </div>
 
       <Descriptions column={1} size="small" className="mod-transfer__detail-desc">

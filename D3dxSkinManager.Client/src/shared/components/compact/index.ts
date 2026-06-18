@@ -36,6 +36,10 @@ export type { CompactAlertProps } from './CompactAlert';
 export { CompactSection } from './CompactSection';
 export type { CompactSectionProps } from './CompactSection';
 
+// Field component (labeled-field row for config/tooling screens)
+export { CompactField } from './CompactField';
+export type { CompactFieldProps } from './CompactField';
+
 // Input components
 export { CompactInput, CompactTextArea, CompactPassword } from './CompactInput';
 export type { CompactInputProps, CompactTextAreaProps, CompactPasswordProps, CompactInputSize } from './CompactInput';

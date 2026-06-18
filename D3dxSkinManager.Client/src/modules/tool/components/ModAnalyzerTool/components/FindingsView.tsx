@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactInput } from '../../../../../shared/components/compact';
 import { FormDialog } from '../../../../../shared/components/dialogs/FormDialog';
 import { HealthStatusIcon } from '../../../../../shared/components/common/HealthStatusIcon';
+import { StatusTag } from '../../../../../shared/components/common/StatusTag';
 import { copyToClipboard } from '../../../../../shared/utils/clipboardHelper';
 import { formatBytes } from '../../../../../shared/utils/formatBytes';
 import type {
@@ -273,9 +274,9 @@ const ModRow: React.FC<{ mod: ModAnalysisResult; onLocate?: (modIds: string[]) =
         <HealthStatusIcon status={mod.healthStatus} />
         <span className="mod-analyzer__mod-row-name">{mod.modName}</span>
         <Tag>{mod.categoryName || 'Unclassified'}</Tag>
-        {mod.isLoaded && <Tag color="green">{t('tools.modAnalyzer.loaded')}</Tag>}
+        {mod.isLoaded && <StatusTag tone="success" label={t('tools.modAnalyzer.loaded')} />}
         {mod.pluginDependencies.length > 0 && <Tag color="purple">{mod.pluginDependencies.join(', ')}</Tag>}
-        {mod.issues.length > 0 && <Tag color="error">{mod.issues.length}</Tag>}
+        {mod.issues.length > 0 && <StatusTag tone="error" icon={null} label={mod.issues.length} />}
         <span className="mod-analyzer__mod-row-meta">{mod.textureOverrideCount} {t('tools.modAnalyzer.overrides')}</span>
         <CopyIdButton modId={mod.modId} />
         {onLocate && (
@@ -379,7 +380,7 @@ const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: s
           <div className="mod-analyzer__mod-info">
             <div className="mod-analyzer__mod-name" title={mod.modName}>{mod.modName}</div>
             <div className="mod-analyzer__mod-meta">
-              {mod.isLoaded && <Tag color="green" className="mod-analyzer__mod-tag">Loaded</Tag>}
+              {mod.isLoaded && <StatusTag tone="success" icon={null} className="mod-analyzer__mod-tag" label={t('tools.modAnalyzer.loaded')} />}
               <Tag className="mod-analyzer__mod-tag">{formatBytes(mod.bufferSizeBytes)} buf</Tag>
               <Tag className="mod-analyzer__mod-tag">{formatBytes(mod.textureSizeBytes)} tex</Tag>
             </div>
@@ -398,7 +399,7 @@ const ConflictRow: React.FC<{ conflict: ModConflict; onLocate?: (modIds: string[
       <div className="mod-analyzer__conflict-header">
         <ThunderboltOutlined style={{ color: 'var(--color-error)' }} />
         <code className="mod-analyzer__hash-code">{conflict.hash}</code>
-        <Tag color="error">{conflict.mods.length} {t('tools.modAnalyzer.mods')}</Tag>
+        <StatusTag tone="error" icon={null} label={`${conflict.mods.length} ${t('tools.modAnalyzer.mods')}`} />
         {onLocate && (
           <Tooltip title={t('tools.modAnalyzer.locateGroupInModPanel')}>
             <AimOutlined

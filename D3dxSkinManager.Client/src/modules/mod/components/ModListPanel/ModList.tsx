@@ -25,6 +25,7 @@ import { toolService } from "../../../../shared/services/ipc";
 import type { ModFixTool as FixToolEntry } from "../../../../shared/types/modFix.types";
 import { eventBus, Module, ToolsEventType } from "../../../../shared/services/eventBus";
 import { GradingTag } from "../GradingTag";
+import { StatusTag } from "../../../../shared/components/common/StatusTag";
 import { TagChip } from "../../../../shared/components/TagChip";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
@@ -700,19 +701,13 @@ export const ModList: React.FC<ModListProps> = ({
                       {mod.isOrphaned ? t('mods.list.unmanaged', { id: mod.name }) : mod.name}
                     </span>
                     {isBusy && !mod.isLoading && (
-                      <Tag color="processing" className="mod-list-item-loaded-tag">
-                        {t("mods.list.busy")}
-                      </Tag>
+                      <StatusTag tone="processing" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.busy")} />
                     )}
                     {mod.isLoading && (
-                      <Tag color="warning" className="mod-list-item-loaded-tag">
-                        {t("mods.list.loading")}
-                      </Tag>
+                      <StatusTag tone="warning" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.loading")} />
                     )}
                     {mod.isLoaded && !mod.isLoading && !isBusy && (
-                      <Tag color="success" className="mod-list-item-loaded-tag">
-                        {t("mods.list.loaded")}
-                      </Tag>
+                      <StatusTag tone="success" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.loaded")} />
                     )}
                   </div>
                   <Space size={[8, 4]} wrap className="mod-list-item-tags">
