@@ -53,6 +53,14 @@
 
 ## Testing Infrastructure
 
+> **Test scratch & fixtures NEVER go in `%TEMP%` / OS temp.** Any throwaway you create to drive a test
+> — a dummy fix-tool `.bat`, a file/folder to import, a sample archive — lives under `devtools/`
+> (git-ignored) and is deleted afterward. Likewise, **any artifact created inside the running app**
+> during an e2e test (a merged mod, an imported fix tool, a test mod) must be **deleted after the test**
+> so the user's library is left untouched. (xUnit fixtures using `Path.GetTempPath()` are the one
+> exception — they're isolated + cleaned in `Dispose`.) See `.claude/rules/scripts-live-in-repo.md`
+> and `.claude/rules/use-project-paths.md`.
+
 ### Backend (.NET 10 + xUnit)
 
 **Location:** `D3dxSkinManager.Tests/`
