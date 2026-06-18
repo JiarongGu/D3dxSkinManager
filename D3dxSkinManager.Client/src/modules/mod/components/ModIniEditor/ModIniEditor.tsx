@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Collapse, Empty, Tooltip, Input, Spin, Tabs, Select } from 'antd';
+import { Collapse, Empty, Tooltip, Input, Spin, Tabs, Select, Switch } from 'antd';
 import {
   LockOutlined, CheckOutlined, CloseOutlined, SettingOutlined, ApartmentOutlined,
 } from '@ant-design/icons';
@@ -42,6 +42,8 @@ function friendlyKey(key: string, t: (k: string) => string): string {
     condition: t('modIni.field.condition'),
     back: t('modIni.field.back'),
     delay: t('modIni.field.delay'),
+    wrap: t('modIni.field.wrap'),
+    smart: t('modIni.field.smart'),
   };
   if (known[lower]) return known[lower];
   // Strip 3DMigoto variable qualifiers and the $ sigil, then humanize what's left.
@@ -258,6 +260,9 @@ const IniRow: React.FC<{
   // booleans — a $var's value cycles through the values its key defines (0,1,2,3…), so it stays a
   // plain input rather than a misleading on/off switch.
   const isMode = !advanced && keyLower === 'type';
+  // Genuine [Key] booleans (default true): cycle wrap-around + smart resync. Render as a Switch —
+  // unlike a $var default (which cycles through its key's value list), these are truly on/off.
+  const isBoolean = !advanced && (keyLower === 'wrap' || keyLower === 'smart');
 
   const commitValue = async (value: string) => {
     if (saving) return;
@@ -304,6 +309,20 @@ const IniRow: React.FC<{
           options={options}
           onChange={(v) => void commitValue(v)}
         />
+        <span className="ini-row__actions" />
+      </div>
+    );
+  }
+
+  if (isBoolean) {
+    // Default is "true" when unset/non-false (3DMigoto default for wrap/smart).
+    const on = entry.value.trim().toLowerCase() !== 'false';
+    return (
+      <div className="ini-row">
+        {labelEl}
+        <span className="ini-row__input">
+          <Switch size="small" checked={on} loading={saving} disabled={saving} onChange={(v) => void commitValue(v ? 'true' : 'false')} />
+        </span>
         <span className="ini-row__actions" />
       </div>
     );

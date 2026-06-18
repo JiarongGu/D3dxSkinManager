@@ -2,6 +2,8 @@
   "code": "en",
   "name": "English",
   "translations": {
+    "modIni.field.wrap": "Cycle wrap-around",
+    "modIni.field.smart": "Smart resync",
     "mods.list.unavailable": "UNAVAILABLE",
     "mods.list.unavailableHint": "Source archive is missing — this mod can't be loaded until you replace its content.",
     "common.skip": "Skip",
