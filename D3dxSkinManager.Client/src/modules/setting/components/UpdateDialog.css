@@ -103,6 +103,19 @@
   text-align: center;
 }
 
+.update-dialog__restart-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--border-radius-base);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  font-size: 12px;
+}
+
 .update-dialog__release-name {
   font-size: 14px;
   font-weight: 600;

@@ -32,6 +32,7 @@ public interface ISystemFacade : IModuleFacade
     // App Self-Update
     Task<UpdateInfo> CheckForUpdateAsync();
     Task OpenUrlAsync(string url);
+    Task<UpdateState> GetUpdateStateAsync();
 
     // System Settings
     Task<SystemSettings> GetSystemSettingsAsync();
@@ -95,6 +96,8 @@ public class SystemFacade : BaseFacade, ISystemFacade
             // App self-update
             "CHECK_FOR_UPDATE" => await CheckForUpdateHandlerAsync(request),
             "OPEN_URL" => await OpenUrlHandlerAsync(request),
+            "DOWNLOAD_UPDATE" => DownloadUpdateHandler(request),
+            "GET_UPDATE_STATE" => await GetUpdateStateHandlerAsync(request),
 
             // File dialogs
             "OPEN_FILE_DIALOG" => await OpenFileDialogAsync(request),
@@ -201,6 +204,11 @@ public class SystemFacade : BaseFacade, ISystemFacade
         await _updateService.OpenUrlAsync(url).ConfigureAwait(false);
     }
 
+    public async Task<UpdateState> GetUpdateStateAsync()
+    {
+        return await _updateService.GetUpdateStateAsync().ConfigureAwait(false);
+    }
+
     public async Task<SystemSettings> GetSystemSettingsAsync()
     {
         return await _systemSettingsService.GetSettingsAsync().ConfigureAwait(false);
@@ -274,6 +282,31 @@ public class SystemFacade : BaseFacade, ISystemFacade
         var url = _payloadHelper.GetRequiredValue<string>(request.Payload, "url");
         await OpenUrlAsync(url).ConfigureAwait(false);
         return new { success = true };
+    }
+
+    /// <summary>
+    /// IPC handler that kicks off the update download in the background and returns immediately.
+    /// IPC Message: DOWNLOAD_UPDATE. Progress flows through the ProcessRegistry (Activity panel);
+    /// completion is observable via GET_UPDATE_STATE. Fire-and-forget — never awaited (see
+    /// background-task-tracking.md: awaiting a long op blocks/times out the IPC).
+    /// </summary>
+    private object DownloadUpdateHandler(IpcRequest request)
+    {
+        _ = Task.Run(async () =>
+        {
+            try { await _updateService.DownloadUpdateAsync().ConfigureAwait(false); }
+            catch (Exception ex) { _logger.Error($"Update download failed: {ex.Message}", "SystemFacade", ex); }
+        });
+        return new { started = true };
+    }
+
+    /// <summary>
+    /// IPC handler reporting whether a downloaded update is staged + waiting.
+    /// IPC Message: GET_UPDATE_STATE — returns UpdateState.
+    /// </summary>
+    private async Task<UpdateState> GetUpdateStateHandlerAsync(IpcRequest request)
+    {
+        return await GetUpdateStateAsync().ConfigureAwait(false);
     }
 
     private async Task<object> OpenFileDialogAsync(IpcRequest request)

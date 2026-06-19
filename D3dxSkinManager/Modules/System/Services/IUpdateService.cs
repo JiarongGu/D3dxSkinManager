@@ -16,4 +16,13 @@ public interface IUpdateService
     /// Open an http/https URL in the user's default browser (e.g. the release download page).
     /// </summary>
     Task OpenUrlAsync(string url);
+
+    /// <summary>
+    /// Download + stage the latest release so the launcher applies it on the next startup.
+    /// Long-running; report progress via the ProcessRegistry.
+    /// </summary>
+    Task DownloadUpdateAsync();
+
+    /// <summary>Whether a downloaded update is staged and waiting to be applied on the next startup.</summary>
+    Task<UpdateState> GetUpdateStateAsync();
 }

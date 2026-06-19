@@ -39,3 +39,12 @@ public class UpdateInfo
     /// <summary>Total bytes to download for the update (added + updated files). Valid when HasManifest.</summary>
     public long DownloadSize { get; set; }
 }
+
+/// <summary>
+/// Whether a downloaded update is staged and waiting to be applied by the launcher on next startup.
+/// </summary>
+public class UpdateState
+{
+    public bool Pending { get; set; }
+    public string PendingVersion { get; set; } = string.Empty;
+}

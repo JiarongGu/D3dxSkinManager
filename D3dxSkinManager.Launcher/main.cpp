@@ -1,8 +1,8 @@
 // D3dxSkinManager Launcher
 // Native C++ bootstrapper that:
-// 1. Checks for .NET 10 runtime and installs if missing
-// 2. Checks for application updates
-// 3. Loads the main application DLL
+// 1. Applies a pending app update the app downloaded + staged (before the app starts)
+// 2. Checks for .NET 10 runtime and installs if missing
+// 3. Loads the main application
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -40,12 +40,9 @@ int WINAPI wWinMain(
     std::wstring launcherDir = GetLauncherDirectory();
     std::wstring mainExePath = launcherDir + L"\\" + MAIN_EXE;
 
-    // Step 1: Check for updates (before loading the main app)
-    if (!CheckForUpdates(launcherDir))
-    {
-        // Update check failed or user cancelled
-        // Continue anyway - not critical
-    }
+    // Step 1: Apply a pending update the app already downloaded + staged (before loading the main app).
+    // No-op if nothing is staged; the launcher never checks GitHub itself (the app does that).
+    ApplyPendingUpdate(launcherDir);
 
     // Step 2: Verify .NET 10 runtime is installed
     if (!IsDotNetRuntimeInstalled())

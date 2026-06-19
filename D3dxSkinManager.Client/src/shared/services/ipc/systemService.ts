@@ -51,6 +51,12 @@ export interface UpdateInfo {
   downloadSize: number;
 }
 
+/** Whether a downloaded update is staged and waiting to be applied on the next startup. */
+export interface UpdateState {
+  pending: boolean;
+  pendingVersion: string;
+}
+
 /**
  * System service for file operations, dialogs, and system settings
  * Handles all system-level operations and configuration
@@ -132,6 +138,23 @@ export class SystemService extends BaseModuleService {
    */
   async openUrl(url: string): Promise<void> {
     await this.sendMessage('OPEN_URL', undefined, { url });
+  }
+
+  /**
+   * Start downloading + staging the update in the background (applied by the launcher on next start).
+   * Returns immediately; watch progress in the Activity panel, completion via getUpdateState().
+   * Backend: SystemFacade.DownloadUpdateHandler
+   */
+  async downloadUpdate(): Promise<{ started: boolean }> {
+    return this.sendMessage<{ started: boolean }>('DOWNLOAD_UPDATE');
+  }
+
+  /**
+   * Whether a downloaded update is staged and waiting to be applied on the next startup.
+   * Backend: SystemFacade.GetUpdateStateAsync
+   */
+  async getUpdateState(): Promise<UpdateState> {
+    return this.sendMessage<UpdateState>('GET_UPDATE_STATE');
   }
 
   // System Settings Operations

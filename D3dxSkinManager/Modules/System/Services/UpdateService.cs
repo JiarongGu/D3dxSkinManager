@@ -1,17 +1,23 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Reflection;
 using System.Text.Json;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.System.Models;
 
 namespace D3dxSkinManager.Modules.System.Services;
 
 /// <summary>
-/// Checks the GitHub Releases API for a newer app version and opens the release page.
-/// Read-only network call; emits no events. The "self-replace a running exe" step is deliberately
-/// NOT done here — that is the dangerous part. Instead the UI offers a "Download" action that opens
-/// the release page in the browser.
+/// App self-update: checks GitHub releases, and (on user request) downloads + stages the update
+/// package next to the install. The actual file swap is applied by the C++ launcher on the next
+/// startup (a running exe can't replace itself) — this service only stages it. Two-phase flow:
+///   1. CheckForUpdateAsync — version + changeset (for the update screen).
+///   2. DownloadUpdateAsync — download the release zip, extract to {install}/.update/staged, write
+///      {install}/.update/ready.json. The launcher applies it next launch (see updater.cpp).
+/// GetUpdateStateAsync reports whether a downloaded update is waiting to be applied.
 /// </summary>
 public class UpdateService : IUpdateService
 {
@@ -19,19 +25,33 @@ public class UpdateService : IUpdateService
     private const string LatestReleaseApiUrl =
         "https://api.github.com/repos/JiarongGu/D3dxSkinManager/releases/latest";
 
+    // Stable "latest release asset" redirect (no API call needed for the zip download).
+    private const string LatestDownloadBase =
+        "https://github.com/JiarongGu/D3dxSkinManager/releases/latest/download/";
+
     // Static HttpClient (intended to be long-lived / reused — avoids socket exhaustion).
     private static readonly HttpClient Http = CreateHttpClient();
 
     private readonly ILogHelper _logger;
+    private readonly IProcessRegistry _processRegistry;
 
-    public UpdateService(ILogHelper logger)
+    public UpdateService(ILogHelper logger, IProcessRegistry processRegistry)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _processRegistry = processRegistry ?? throw new ArgumentNullException(nameof(processRegistry));
     }
+
+    // Update staging lives next to the install (same dir the launcher reads). The launcher applies
+    // {StagingRoot}/staged over the install and clears StagingRoot on the next startup.
+    private static string StagingRoot => Path.Combine(AppContext.BaseDirectory, ".update");
+    private static string StagedDir => Path.Combine(StagingRoot, "staged");
+    private static string ReadyMarkerPath => Path.Combine(StagingRoot, "ready.json");
 
     private static HttpClient CreateHttpClient()
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        // No total timeout: a download can take longer than the default 100s; per-read is handled by
+        // the stream copy. (The check call is small and fast regardless.)
+        var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
         // GitHub rejects requests with no User-Agent (HTTP 403).
         client.DefaultRequestHeaders.UserAgent.ParseAdd("D3dxSkinManager-UpdateCheck");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
@@ -103,6 +123,102 @@ public class UpdateService : IUpdateService
         // UseShellExecute opens the URL in the default browser.
         Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Download the latest release zip and stage it under {install}/.update/staged, then write
+    /// ready.json. The launcher applies it on the next startup. Long-running — the caller (facade)
+    /// kicks this off fire-and-forget; progress flows through the ProcessRegistry (Activity panel).
+    /// </summary>
+    public async Task DownloadUpdateAsync()
+    {
+        var procId = _processRegistry.Start(ProcessType.Download, "Downloading update");
+        try
+        {
+            var info = await CheckForUpdateAsync().ConfigureAwait(false);
+            if (!info.UpdateAvailable || string.IsNullOrWhiteSpace(info.LatestVersion))
+            {
+                _processRegistry.Complete(procId); // nothing to download
+                return;
+            }
+
+            // Fresh staging dir.
+            if (Directory.Exists(StagingRoot)) Directory.Delete(StagingRoot, recursive: true);
+            Directory.CreateDirectory(StagingRoot);
+
+            var zipName = $"D3dxSkinManager-v{info.LatestVersion}-win-x64.zip";
+            var zipUrl = LatestDownloadBase + zipName;
+            var zipPath = Path.Combine(StagingRoot, "update.zip");
+
+            _logger.Info($"Downloading update {info.LatestVersion} from {zipUrl}", "UpdateService");
+            await DownloadToFileAsync(zipUrl, zipPath, procId).ConfigureAwait(false);
+
+            _processRegistry.Report(procId, 92, "Extracting");
+            if (Directory.Exists(StagedDir)) Directory.Delete(StagedDir, recursive: true);
+            ZipFile.ExtractToDirectory(zipPath, StagedDir, overwriteFiles: true);
+            File.Delete(zipPath);
+
+            // Mark ready — the launcher reads this on next startup.
+            await File.WriteAllTextAsync(
+                ReadyMarkerPath,
+                JsonSerializer.Serialize(new { version = info.LatestVersion })).ConfigureAwait(false);
+
+            _processRegistry.Report(procId, 100, "Ready to install on restart");
+            _processRegistry.Complete(procId);
+            _logger.Info($"Update {info.LatestVersion} staged; will apply on next launch.", "UpdateService");
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Update download failed: {ex.Message}", "UpdateService");
+            _processRegistry.Fail(procId, ex.Message);
+            try { if (Directory.Exists(StagingRoot)) Directory.Delete(StagingRoot, recursive: true); }
+            catch { /* best-effort cleanup */ }
+        }
+    }
+
+    /// <summary>Whether a downloaded update is staged and waiting to be applied on the next startup.</summary>
+    public async Task<UpdateState> GetUpdateStateAsync()
+    {
+        if (!File.Exists(ReadyMarkerPath))
+        {
+            return new UpdateState { Pending = false };
+        }
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(ReadyMarkerPath).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            var version = GetString(doc.RootElement, "version");
+            return new UpdateState { Pending = true, PendingVersion = version };
+        }
+        catch
+        {
+            return new UpdateState { Pending = true }; // marker exists but unreadable — still pending
+        }
+    }
+
+    /// <summary>Stream a URL to a file, reporting 0–90% download progress on the process.</summary>
+    private async Task DownloadToFileAsync(string url, string destPath, string procId)
+    {
+        using var resp = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+
+        var total = resp.Content.Headers.ContentLength ?? -1L;
+        await using var src = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        await using var dst = File.Create(destPath);
+
+        var buffer = new byte[81920];
+        long readTotal = 0;
+        int n;
+        while ((n = await src.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+        {
+            await dst.WriteAsync(buffer.AsMemory(0, n)).ConfigureAwait(false);
+            readTotal += n;
+            if (total > 0)
+            {
+                _processRegistry.Report(procId, (int)(readTotal * 90 / total));
+            }
+        }
     }
 
     /// <summary>

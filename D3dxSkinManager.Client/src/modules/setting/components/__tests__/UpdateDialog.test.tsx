@@ -3,17 +3,16 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { UpdateInfo } from '../../../../shared/services/ipc';
 
-// i18n: echo keys (with the version param appended where relevant so assertions stay meaningful).
+// i18n: echo keys.
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-// antd Spin → simple marker.
 vi.mock('antd', () => ({
   Spin: () => <div data-testid="spin" />,
 }));
 
-// FormDialog stub: render title + children + footer when visible (footer holds the action buttons).
+// FormDialog stub: render title + children + footer when visible.
 vi.mock('../../../../shared/components/dialogs/FormDialog', () => ({
   FormDialog: ({ visible, title, children, footer }: any) =>
     visible ? (
@@ -31,16 +30,19 @@ vi.mock('../../../../shared/components/compact', () => ({
 }));
 
 const checkForUpdate = vi.fn();
-const openUrl = vi.fn();
+const downloadUpdate = vi.fn();
+const getUpdateState = vi.fn();
 vi.mock('../../../../shared/services/ipc', () => ({
   systemService: {
-    checkForUpdate: (...args: any[]) => checkForUpdate(...args),
-    openUrl: (...args: any[]) => openUrl(...args),
+    checkForUpdate: (...a: any[]) => checkForUpdate(...a),
+    downloadUpdate: (...a: any[]) => downloadUpdate(...a),
+    getUpdateState: (...a: any[]) => getUpdateState(...a),
   },
 }));
 
 vi.mock('../../../../shared/utils/errorHandler', () => ({ handleError: vi.fn() }));
 vi.mock('../../../../shared/utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
+vi.mock('../../../../shared/utils/formatBytes', () => ({ formatBytes: (n: number) => `${n}B` }));
 
 import { UpdateDialog } from '../UpdateDialog';
 
@@ -60,7 +62,9 @@ const baseInfo: UpdateInfo = {
 describe('UpdateDialog', () => {
   beforeEach(() => {
     checkForUpdate.mockReset();
-    openUrl.mockReset();
+    downloadUpdate.mockReset();
+    getUpdateState.mockReset();
+    getUpdateState.mockResolvedValue({ pending: false, pendingVersion: '' });
   });
 
   it('runs the check on open and shows the up-to-date state', async () => {
@@ -69,19 +73,36 @@ describe('UpdateDialog', () => {
 
     await waitFor(() => expect(checkForUpdate).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('update.upToDate.title')).toBeInTheDocument();
-    expect(screen.getByText('update.close')).toBeInTheDocument();
   });
 
-  it('shows the available state and opens the release URL on download', async () => {
+  it('shows the available state with a Download action', async () => {
     checkForUpdate.mockResolvedValue(baseInfo);
-    const onClose = vi.fn();
-    render(<UpdateDialog open onClose={onClose} />);
+    render(<UpdateDialog open onClose={() => {}} />);
 
     expect(await screen.findByText('update.available.title')).toBeInTheDocument();
+    expect(screen.getByText('update.download')).toBeInTheDocument();
+  });
 
+  it('downloads + stages on Download and flips to the ready state', async () => {
+    checkForUpdate.mockResolvedValue(baseInfo);
+    downloadUpdate.mockResolvedValue({ started: true });
+    render(<UpdateDialog open onClose={() => {}} />);
+
+    await screen.findByText('update.download');
+    // After download starts, the next getUpdateState poll reports a staged update.
+    getUpdateState.mockResolvedValue({ pending: true, pendingVersion: '2.5' });
     await userEvent.click(screen.getByText('update.download'));
-    expect(openUrl).toHaveBeenCalledWith('https://example.com/r/v2.5');
-    await waitFor(() => expect(onClose).toHaveBeenCalled());
+
+    expect(downloadUpdate).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('update.ready.title', {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+
+  it('shows the ready state directly when an update is already staged', async () => {
+    getUpdateState.mockResolvedValue({ pending: true, pendingVersion: '2.5' });
+    render(<UpdateDialog open onClose={() => {}} />);
+
+    expect(await screen.findByText('update.ready.title')).toBeInTheDocument();
+    expect(checkForUpdate).not.toHaveBeenCalled();
   });
 
   it('skips the network check when prefetched info is supplied', async () => {
