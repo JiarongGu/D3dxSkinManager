@@ -55,10 +55,6 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     private readonly IGlobalPathService _globalPathService;
     private readonly ILogHelper _logger;
     private readonly PathCache _pathCache;
-    private readonly IImageHelper _imageHelper;
-    // Thumbnails are displayed small; serving them downscaled (cached) avoids decoding multi-MB full-res
-    // art for every category card at startup. 256px stays crisp at any DPI for the card size.
-    private const int ThumbnailMaxDimension = 256;
 
     // Cache for content types - static since extensions don't change
     private static readonly ConcurrentDictionary<string, string> _contentTypeCache = new();
@@ -73,12 +69,11 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     private const int SchemePrefixLength = 6; // Length of "app://"
     private const string CacheKeyPrefix = "NormalizedPath_";
 
-    public CustomSchemeHandler(IGlobalPathService globalPathService, ILogHelper logger, PathCache pathCache, IImageHelper imageHelper)
+    public CustomSchemeHandler(IGlobalPathService globalPathService, ILogHelper logger, PathCache pathCache)
     {
         _globalPathService = globalPathService;
         _logger = logger;
         _pathCache = pathCache;
-        _imageHelper = imageHelper;
     }
 
     /// <summary>
@@ -143,20 +138,6 @@ public class CustomSchemeHandler : ICustomSchemeHandler
             // Get cached content type
             contentType = GetCachedContentType(absolutePath);
 
-            // Thumbnails (category/profile) are full-resolution art on disk but rendered tiny — serve a
-            // cached downscaled copy so the WebView decodes ~tens of KB instead of multi-MB per card.
-            // Handles existing libraries too (no migration). Falls back to the source on any failure.
-            if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) && IsThumbnailPath(absolutePath))
-            {
-                var cacheDir = Path.Combine(_globalPathService.BaseDataPath, "cache", "thumbs");
-                var downscaled = _imageHelper.GetOrCreateDownscaled(absolutePath, ThumbnailMaxDimension, cacheDir);
-                if (!string.IsNullOrEmpty(downscaled) && File.Exists(downscaled))
-                {
-                    absolutePath = downscaled;
-                    contentType = "image/png";
-                }
-            }
-
             _logger.Verbose($"Serving: {absolutePath} ({contentType})", "CustomScheme");
 
             // For non-images, read into memory to avoid file handle leaks
@@ -172,10 +153,6 @@ public class CustomSchemeHandler : ICustomSchemeHandler
             return new MemoryStream(errorBytes);
         }
     }
-
-    /// <summary>True if the path lives in a thumbnails directory (category/profile thumbnails).</summary>
-    private static bool IsThumbnailPath(string path)
-        => path.Replace('\\', '/').Contains("/thumbnails/", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets content type with caching to avoid repeated lookups
