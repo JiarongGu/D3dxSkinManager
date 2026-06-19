@@ -78,9 +78,9 @@ try {
 | mod-id migration | `ModIdMigrationService.MigrateAsync` |
 | package export/import | `ModPackageService` |
 | mod-merge (fire-and-forget) | `ModMergeService.MergeAsync` (IPC `MERGE_MODS` returns immediately) |
+| mod analysis (status bar + Activity) | `ModAnalysisService` — `Start`/`Report`(per-mod %)/`Complete`/`Fail`. **Resumable**: `resumePayload` = sessionId; the `AppStatusBar` resume dispatcher re-invokes `resumeAnalysis(profileId, sessionId)` on `PROCESS_RESUME_REQUESTED` (type `analysis`). |
 
-NOT yet on the registry (own in-screen progress only): mod **analysis** (complex pause/resume state
-machine — natural first candidate for durable/resumable jobs) and **file-cleanup scan**.
+NOT yet on the registry (own in-screen progress only): **file-cleanup scan**.
 
 ## IPC + frontend
 - IPC: `SystemFacade` `GET_PROCESSES` / `CANCEL_PROCESS` / `CLEAR_COMPLETED_PROCESSES`;

@@ -4,6 +4,8 @@ using System.Text.RegularExpressions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Mod;
@@ -38,8 +40,11 @@ public class ModAnalysisService : IModAnalysisService
     private readonly IModAnalysisRepository _analysisRepository;
     private readonly ICategoryService _categoryService;
     private readonly IProfileEventBus _eventBus;
+    private readonly IProcessRegistry _processRegistry;
     private readonly ILogHelper _logger;
     private readonly string? _modDeletedHandlerId;
+    // The ProcessRegistry entry for the active scan (status bar + Activity panel). Null when idle.
+    private string? _currentProcId;
 
     private volatile bool _pauseRequested;
     private volatile bool _cancelRequested;
@@ -70,6 +75,7 @@ public class ModAnalysisService : IModAnalysisService
         IModAnalysisRepository analysisRepository,
         ICategoryService categoryService,
         IProfileEventBus eventBus,
+        IProcessRegistry processRegistry,
         ILogHelper logger)
     {
         _profilePaths = profilePaths;
@@ -79,6 +85,7 @@ public class ModAnalysisService : IModAnalysisService
         _analysisRepository = analysisRepository;
         _categoryService = categoryService;
         _eventBus = eventBus;
+        _processRegistry = processRegistry;
         _logger = logger;
 
         // Subscribe to mod deletion events to keep analysis findings in sync
@@ -164,6 +171,10 @@ public class ModAnalysisService : IModAnalysisService
         _resumeSignal.Set();
         _currentSessionId = session.Id;
 
+        var resumeTitle = string.IsNullOrEmpty(session.CategoryName) ? "Analyzing mods" : $"Analyzing: {session.CategoryName}";
+        _currentProcId = _processRegistry.Start(ProcessType.Analysis, resumeTitle, progress: 0,
+            resumable: true, resumePayload: session.Id);
+
         try
         {
             // Get all mods for this session's scope — include selected category + all descendants
@@ -204,12 +215,24 @@ public class ModAnalysisService : IModAnalysisService
             session.CompletedAt = DateTime.UtcNow.ToString("o");
             await _analysisRepository.UpdateSessionAsync(session).ConfigureAwait(false);
 
+            if (_currentProcId != null)
+            {
+                if (_cancelRequested) _processRegistry.Cancel(_currentProcId);
+                else _processRegistry.Complete(_currentProcId);
+            }
+
             return report;
+        }
+        catch (Exception ex)
+        {
+            if (_currentProcId != null) _processRegistry.Fail(_currentProcId, ex.Message);
+            throw;
         }
         finally
         {
             _isRunning = false;
             _currentSessionId = null;
+            _currentProcId = null;
         }
     }
 
@@ -315,6 +338,11 @@ public class ModAnalysisService : IModAnalysisService
         await _analysisRepository.CreateSessionAsync(session).ConfigureAwait(false);
         _currentSessionId = session.Id;
 
+        // Track in the status bar + Activity panel (resumable: the session can be resumed after a crash).
+        var scanTitle = string.IsNullOrEmpty(categoryName) ? "Analyzing mods" : $"Analyzing: {categoryName}";
+        _currentProcId = _processRegistry.Start(ProcessType.Analysis, scanTitle, progress: 0,
+            resumable: true, resumePayload: session.Id);
+
         try
         {
             await RunPerModAnalysisAsync(session, enrichedMods).ConfigureAwait(false);
@@ -335,12 +363,24 @@ public class ModAnalysisService : IModAnalysisService
             session.CompletedAt = DateTime.UtcNow.ToString("o");
             await _analysisRepository.UpdateSessionAsync(session).ConfigureAwait(false);
 
+            if (_currentProcId != null)
+            {
+                if (_cancelRequested) _processRegistry.Cancel(_currentProcId);
+                else _processRegistry.Complete(_currentProcId);
+            }
+
             return report;
+        }
+        catch (Exception ex)
+        {
+            if (_currentProcId != null) _processRegistry.Fail(_currentProcId, ex.Message);
+            throw;
         }
         finally
         {
             _isRunning = false;
             _currentSessionId = null;
+            _currentProcId = null;
         }
     }
 
@@ -818,6 +858,14 @@ public class ModAnalysisService : IModAnalysisService
 
     private async Task EmitProgress(string sessionId, string stage, int current, int total, string modName, AnalysisStatus status, int healthyCount = 0, int warningCount = 0, int errorCount = 0, string? lastModName = null, string? lastHealthStatus = null)
     {
+        // Mirror progress to the status bar / Activity panel.
+        if (_currentProcId != null)
+        {
+            var percent = total > 0 ? (int)((long)current * 100 / total) : (int?)null;
+            var detail = stage == "paused" ? "Paused" : (string.IsNullOrEmpty(modName) ? null : modName);
+            _processRegistry.Report(_currentProcId, percent, detail);
+        }
+
         await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_ANALYSIS_PROGRESS, new AnalysisProgress
         {
             SessionId = sessionId, Stage = stage, Current = current, Total = total,

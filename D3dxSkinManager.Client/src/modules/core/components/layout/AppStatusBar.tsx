@@ -83,10 +83,13 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
   const selectedProfile = useProfile().selectedProfile;
   useEffect(() => {
     return eventBus.subscribe(Module.SYSTEM, SystemEventType.PROCESS_RESUME_REQUESTED, (e) => {
-      const type = (e.payload as { type?: string } | undefined)?.type;
+      const payload = e.payload as { type?: string; resumePayload?: string } | undefined;
+      const type = payload?.type;
       const profileId = selectedProfile?.id;
       if (!profileId) return;
       if (type === "migration") void api.tool.executeModIdMigration(profileId);
+      // analysis: resumePayload is the interrupted session id (ModAnalysisService registers it resumable).
+      if (type === "analysis") void api.tool.resumeAnalysis(profileId, payload?.resumePayload);
       // add other resumable op types here as they opt in (set Resumable on the backend)
     });
   }, [selectedProfile?.id]);

@@ -60,6 +60,7 @@ public class ModAnalysisServiceTests : IDisposable
             _mockAnalysisRepository.Object,
             _mockCategoryService.Object,
             _mockEventBus.Object,
+            new Mock<D3dxSkinManager.Modules.Core.Services.IProcessRegistry>().Object,
             _mockLogger.Object);
     }
 
