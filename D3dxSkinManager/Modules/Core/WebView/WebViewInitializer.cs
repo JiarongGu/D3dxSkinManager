@@ -301,103 +301,99 @@ public class WebViewInitializer
         // Register filter for virtual host (embedded web resources)
         _webView.CoreWebView2.AddWebResourceRequestedFilter("https://app.local/*", CoreWebView2WebResourceContext.All);
 
-        // Handle web resource requests
+        // Handle web resource requests.
+        // IMPORTANT: serve OFF the UI thread via a deferral. WebResourceRequested fires on the UI thread;
+        // handling it synchronously serializes every resource (all JS/CSS chunks + every thumbnail) and
+        // blocks painting — which is why local serving felt slower than a real (concurrent) web server.
+        // We grab a deferral, do the file read / image decode on the thread pool (so requests run in
+        // parallel), then create the CoreWebView2 response back on the UI thread and complete.
         _webView.CoreWebView2.WebResourceRequested += (sender, args) =>
         {
-            try
+            var uri = args.Request.Uri;
+            bool isApp = uri.StartsWith("app://", StringComparison.OrdinalIgnoreCase);
+            bool isLocal = uri.StartsWith("https://app.local/", StringComparison.OrdinalIgnoreCase);
+            if (!isApp && !isLocal) return; // not ours — let WebView2 handle it
+
+            var deferral = args.GetDeferral();
+            _ = Task.Run(() =>
             {
-                var uri = args.Request.Uri;
-                Console.WriteLine($"[WebView2] 🔍 Resource requested: {uri}");
-
-                // Handle app:// scheme (dynamic file resources like thumbnails)
-                if (uri.StartsWith("app://", StringComparison.OrdinalIgnoreCase))
+                byte[] data;
+                int status = 200;
+                string reason = "OK";
+                string headers;
+                try
                 {
-                    // Get file stream from custom scheme handler
-                    var stream = _schemeHandler.HandleRequest(uri, out var contentType);
-
-                    // Cache thumbnails/previews so WebView2 doesn't re-read + re-decode every image on
-                    // each launch (the cause of slow thumbnail loading at startup). Thumbnails rarely
-                    // change; when they do, callers cache-bust with a ?t=<mtime> query (toAppUrl), which
-                    // is a distinct URL and bypasses this cache. 1-day TTL bounds any staleness.
-                    var headers = $"Content-Type: {contentType}\n" +
-                                  "Cache-Control: public, max-age=86400";
-
-                    var response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                        stream,
-                        200,
-                        "OK",
-                        headers);
-
-                    args.Response = response;
-                }
-                // Handle virtual host (embedded web resources)
-                else if (uri.StartsWith("https://app.local/", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Extract virtual path from URI
-                    // https://app.local/index.html -> wwwroot/index.html
-                    // https://app.local/assets/index.js -> wwwroot/assets/index.js
-                    var path = uri.Substring("https://app.local/".Length);
-
-                    // Strip query parameters if present (e.g., capture.html?profileId=xxx -> capture.html)
-                    var queryIndex = path.IndexOf('?');
-                    if (queryIndex >= 0)
+                    if (isApp)
                     {
-                        path = path.Substring(0, queryIndex);
-                    }
-
-                    var virtualPath = "wwwroot/" + path;
-
-                    var stream = _resourceProvider.GetResourceStream(virtualPath);
-
-                    if (stream != null)
-                    {
-                        var contentType = GetContentType(virtualPath);
-
-                        // Add aggressive caching headers to speed up resource loading
-                        var headers = $"Content-Type: {contentType}\n" +
-                                     "Cache-Control: public, max-age=31536000, immutable\n" +
-                                     "Access-Control-Allow-Origin: *";
-
-                        var response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                            stream,
-                            200,
-                            "OK",
-                            headers);
-
-                        args.Response = response;
+                        // Dynamic file resources (thumbnails/previews). HandleRequest also serves a cached
+                        // downscaled copy for thumbnails. Cache 1 day; callers cache-bust via ?t=<mtime>.
+                        var stream = _schemeHandler.HandleRequest(uri, out var contentType);
+                        data = ReadAllBytes(stream);
+                        headers = $"Content-Type: {contentType}\nCache-Control: public, max-age=86400";
                     }
                     else
                     {
-                        // Resource not found
-                        Console.WriteLine($"[WebView2] ✗ NOT FOUND: {virtualPath}");
-                        var errorStream = new MemoryStream(global::System.Text.Encoding.UTF8.GetBytes($"Embedded resource not found: {virtualPath}"));
-                        var errorResponse = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                            errorStream,
-                            404,
-                            "Not Found",
-                            "Content-Type: text/plain");
+                        var path = uri.Substring("https://app.local/".Length);
+                        var queryIndex = path.IndexOf('?');
+                        if (queryIndex >= 0) path = path.Substring(0, queryIndex);
+                        var virtualPath = "wwwroot/" + path;
 
-                        args.Response = errorResponse;
+                        var stream = _resourceProvider.GetResourceStream(virtualPath);
+                        if (stream != null)
+                        {
+                            data = ReadAllBytes(stream);
+                            headers = $"Content-Type: {GetContentType(virtualPath)}\n" +
+                                      "Cache-Control: public, max-age=31536000, immutable\n" +
+                                      "Access-Control-Allow-Origin: *";
+                        }
+                        else
+                        {
+                            data = global::System.Text.Encoding.UTF8.GetBytes($"Embedded resource not found: {virtualPath}");
+                            status = 404; reason = "Not Found"; headers = "Content-Type: text/plain";
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WebView2] Error handling custom scheme: {ex.Message}");
+                catch (Exception ex)
+                {
+                    data = global::System.Text.Encoding.UTF8.GetBytes($"Error: {ex.Message}");
+                    status = 404; reason = "Not Found"; headers = "Content-Type: text/plain";
+                }
 
-                // Return 404 error
-                var errorStream = new MemoryStream(global::System.Text.Encoding.UTF8.GetBytes("Resource not found"));
-                var errorResponse = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                    errorStream,
-                    404,
-                    "Not Found",
-                    "Content-Type: text/plain");
-
-                args.Response = errorResponse;
-            }
+                // CoreWebView2 is UI-thread affine — create the response there, then complete the deferral.
+                void Build()
+                {
+                    try
+                    {
+                        args.Response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
+                            new MemoryStream(data, writable: false), status, reason, headers);
+                    }
+                    catch { /* webview may be tearing down */ }
+                    finally { deferral.Complete(); }
+                }
+                try
+                {
+                    if (_webView.IsHandleCreated && _webView.InvokeRequired)
+                        _webView.BeginInvoke((Action)Build);
+                    else
+                        Build();
+                }
+                catch { try { deferral.Complete(); } catch { /* ignore */ } }
+            });
         };
 
         Console.WriteLine("[WebView2] Custom scheme handlers registered (app://, https://app.local/)");
+    }
+
+    /// <summary>Read a stream fully into a byte[] (disposes the stream). MemoryStream fast-paths to its buffer copy.</summary>
+    private static byte[] ReadAllBytes(Stream stream)
+    {
+        using (stream)
+        {
+            if (stream is MemoryStream ms) return ms.ToArray();
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+            return buffer.ToArray();
+        }
     }
 
     private static string GetContentType(string path)
