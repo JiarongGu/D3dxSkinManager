@@ -32,10 +32,18 @@ public static class NamespaceMergeBuilder
     /// <paramref name="sourceNamespace"/>, and gate every hash-bearing <c>[TextureOverride*]</c>/
     /// <c>[ShaderOverride*]</c> on <c>$\{masterNamespace}\swapvar == {group}</c>.
     /// </summary>
-    public static string TransformSource(string iniText, string sourceNamespace, string masterNamespace, int group)
+    public static string TransformSource(string iniText, string sourceNamespace, string masterNamespace, int group, bool activeOnly = true)
     {
         var sb = new StringBuilder();
         sb.Append($"namespace = {sourceNamespace}\n\n");
+
+        // A `global` var declared in a namespace is addressed cross-namespace as $\global\<ns>\<var>
+        // (per the 3DMigoto namespace docs, e.g. $\global\tracking\isSwimming). The master declares
+        // `global persist $swapvar` / `global $active` in {masterNamespace}, so gates/writes from the
+        // source namespaces MUST use the \global\ prefix — without it the read doesn't resolve and the
+        // gate never fires (both variants render).
+        var swapVar = $"$\\global\\{masterNamespace}\\swapvar";
+        var activeVar = $"$\\global\\{masterNamespace}\\active";
 
         foreach (var section in SplitSections(iniText))
         {
@@ -77,8 +85,11 @@ public static class NamespaceMergeBuilder
 
             foreach (var d in decls) sb.Append(d).Append('\n');
             sb.Append("allow_duplicate_hash = true\n");
-            sb.Append($"if $\\{masterNamespace}\\swapvar == {group}\n");
-            foreach (var c in cmds) sb.Append(c).Append('\n');
+            sb.Append($"if {swapVar} == {group}\n");
+            // When the active variant's hash renders, flag the character on-screen so the cycle key
+            // (gated by `condition = $active == 1`) only fires for this character, not globally.
+            if (activeOnly) sb.Append($"  {activeVar} = 1\n");
+            foreach (var c in cmds) sb.Append("  ").Append(c.TrimStart()).Append('\n');
             sb.Append("endif\n");
         }
 

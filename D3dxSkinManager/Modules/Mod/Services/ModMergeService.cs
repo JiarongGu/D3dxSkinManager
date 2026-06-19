@@ -98,7 +98,7 @@ public class ModMergeService : IModMergeService
                 foreach (var iniPath in inis)
                 {
                     var text = await File.ReadAllTextAsync(iniPath, ct).ConfigureAwait(false);
-                    var transformed = NamespaceMergeBuilder.TransformSource(text, srcNs, masterNs, group);
+                    var transformed = NamespaceMergeBuilder.TransformSource(text, srcNs, masterNs, group, activeOnly);
                     await File.WriteAllTextAsync(iniPath, transformed, ct).ConfigureAwait(false);
                     iniCount++;
                 }

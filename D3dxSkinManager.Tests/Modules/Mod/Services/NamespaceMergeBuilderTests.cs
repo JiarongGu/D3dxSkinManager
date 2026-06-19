@@ -44,12 +44,16 @@ drawindexed = auto
 
         ini.Should().Contain("[TextureOverrideBody]");
         ini.Should().Contain("allow_duplicate_hash = true");
-        ini.Should().Contain("if $\\Merge\\Master\\swapvar == 1");
+        // Cross-namespace read of the master's GLOBAL swapvar uses the \global\ prefix (otherwise the
+        // gate never resolves and both variants render).
+        ini.Should().Contain("if $\\global\\Merge\\Master\\swapvar == 1");
         ini.Should().Contain("endif");
+        // Active variant flags itself on-screen so the cycle key only fires for this character.
+        ini.Should().Contain("$\\global\\Merge\\Master\\active = 1");
 
         // hash is a bind-time declaration → before the gate; the draw commands → inside it.
         var hashAt = ini.IndexOf("hash = abcd1234", StringComparison.Ordinal);
-        var ifAt = ini.IndexOf("if $\\Merge\\Master\\swapvar == 1", StringComparison.Ordinal);
+        var ifAt = ini.IndexOf("if $\\global\\Merge\\Master\\swapvar == 1", StringComparison.Ordinal);
         var drawAt = ini.IndexOf("drawindexed = auto", StringComparison.Ordinal);
         var endifAt = ini.IndexOf("endif", StringComparison.Ordinal);
         hashAt.Should().BeLessThan(ifAt);
