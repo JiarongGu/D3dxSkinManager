@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash",
       "PowerShell",
       "PowerShell(:*)",
       "Bash(grep -E \"\\\\.\\(ts|tsx|cs\\)$\")",
