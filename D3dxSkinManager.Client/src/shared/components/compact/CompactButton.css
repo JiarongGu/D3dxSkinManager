@@ -13,6 +13,10 @@
   align-items: center !important;
   justify-content: center !important;
   box-sizing: border-box !important;
+  /* Normalize inline alignment so adjacent buttons of different variants line up. antd's `danger`
+     (.ant-btn-dangerous) variant has a slightly different baseline, which otherwise makes an icon-only
+     danger button sit higher than the primary button next to it (e.g. analyzer history view+delete). */
+  vertical-align: middle !important;
 }
 
 /* Disabled state - Dark theme uses consistent gray appearance for all button variants */
