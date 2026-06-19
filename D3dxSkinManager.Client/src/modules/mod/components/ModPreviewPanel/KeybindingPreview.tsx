@@ -115,11 +115,21 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
     void persistOrder(items);
   };
 
-  // Which slot the dragged row will land in: before this row, or after it (bottom half).
-  const onRowDragOver = (index: number) => (e: React.DragEvent) => {
+  // Drop target is the WHOLE list (not each row), so dropping in the gaps/padding between rows still
+  // works — find the insertion slot from the cursor's Y vs each row's midpoint.
+  const onListDragOver = (e: React.DragEvent) => {
+    if (dragIndex === null) return;
     e.preventDefault();
-    const r = e.currentTarget.getBoundingClientRect();
-    setDropIndex(e.clientY > r.top + r.height / 2 ? index + 1 : index);
+    e.dataTransfer.dropEffect = 'move';
+    const rows = Array.from(
+      e.currentTarget.querySelectorAll<HTMLElement>('.keybinding-item'),
+    );
+    let slot = rows.length; // past the last row → append
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i].getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) { slot = i; break; }
+    }
+    setDropIndex(slot);
   };
 
   if (loading) {
@@ -137,7 +147,11 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
   return (
     // Stop clicks (rebind button, inputs) from bubbling to the overlay backdrop's close handler.
     <div className="keybinding-preview" onClick={(e) => e.stopPropagation()}>
-      <div className="keybinding-list">
+      <div
+        className="keybinding-list"
+        onDragOver={onListDragOver}
+        onDrop={(e) => { e.preventDefault(); handleDrop(); }}
+      >
         {keybindings.map((binding, index) => {
           const editing = editingKey === binding.key;
           return (
@@ -153,8 +167,6 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                   e.dataTransfer.setData('text/plain', String(index));
                   setDragIndex(index);
                 }}
-                onDragOver={onRowDragOver(index)}
-                onDrop={(e) => { e.preventDefault(); handleDrop(); }}
                 onDragEnd={() => { setDragIndex(null); setDropIndex(null); }}
               >
               <span className="keybinding-drag-handle" title={t('mods.keybindings.reorder')}>
