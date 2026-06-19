@@ -58,10 +58,15 @@ to a visible-gated stub. `workflowService.test` (6) — the failure was NOT stal
 line-end, no dot) so `jest` was undefined. Fixed the trailing `jest`→`vi`. (Watch for this pattern if
 reviving others.) Both green.
 
-**Skipped suites (pre-existing test debt — triage, don't trust as coverage):** these were written but
-**never executed** before the runner existed, so they rotted against a real refactor — `ThemeContext.test`,
-`TooltipSystem.test` (mocked `modules/settings/services/settingsService`, a path that moved to
+`settingsFileService.test` (24) — was stale against the `BaseModuleService` refactor: it mocked
+`bridgeService` and asserted **positional** `sendMessage('SETTING','GET_FILE',{...})` + expected `null`,
+but the service now calls `this.sendMessage(type, profileId, payload)` → `bridgeService.sendMessage({
+module, type, profileId, payload })` and returns **`undefined`**, and no longer `console.error`s.
+Rewrote the call assertions to the object shape + `null`→`undefined` + dropped the stale console assert. Green.
+
+**Skipped suites (pre-existing test debt — triage, don't trust as coverage):** `ThemeContext.test`,
+`TooltipSystem.test` — both mock `modules/settings/services/settingsService`, a path that moved to
 `shared/services/ipc/`; even with the import path fixed the assertions are stale vs the current
-components), `settingsFileService.test`. All `describe.skip` with a `// TODO(test-runner)` marker.
+components (need verifying the components still use settingsService at all). `describe.skip` + `// TODO(test-runner)`.
 Plus 3 `it.skip` in `searchQueryParser.test` (id-field / lone-dash — decide whether the util *should*
 match `id` in an any-field search before un-skipping). `App.test.tsx` (CRA "learn react" boilerplate) was deleted.

@@ -1,16 +1,15 @@
-// TODO(test-runner): skipped — stale mocks/assertions predating refactors; triage per test-coverage-priorities.md
 import { settingsFileService } from '../settingsFileService';
 import { bridgeService } from '../../../../shared/services/bridgeService';
 
 // Mock WebView bridge service
 vi.mock('../../../../shared/services/bridgeService');
 
-describe.skip('settingsFileService', () => {
+describe('settingsFileService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe.skip('getSettingsFile', () => {
+  describe('getSettingsFile', () => {
     it('should parse and return JSON data when file exists', async () => {
       // Arrange
       (bridgeService.sendMessage as vi.Mock).mockResolvedValue({
@@ -23,11 +22,7 @@ describe.skip('settingsFileService', () => {
 
       // Assert
       expect(result).toEqual({ theme: 'dark', enabled: true });
-      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTING',
-        'GET_FILE',
-        { filename: 'myconfig' }
-      );
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith({ module: 'SETTING', type: 'GET_FILE', payload: { filename: 'myconfig' } });
     });
 
     it('should return typed data with generic type parameter', async () => {
@@ -62,7 +57,7 @@ describe.skip('settingsFileService', () => {
       const result = await settingsFileService.getSettingsFile('nonexistent');
 
       // Assert
-      expect(result).toBeNull();
+      expect(result).toBeUndefined();
     });
 
     it('should return null if content is missing', async () => {
@@ -76,7 +71,7 @@ describe.skip('settingsFileService', () => {
       const result = await settingsFileService.getSettingsFile('myconfig');
 
       // Assert
-      expect(result).toBeNull();
+      expect(result).toBeUndefined();
     });
 
     it('should handle errors gracefully and return null', async () => {
@@ -92,11 +87,7 @@ describe.skip('settingsFileService', () => {
       const result = await settingsFileService.getSettingsFile('myconfig');
 
       // Assert
-      expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to get settings file'),
-        expect.any(Error)
-      );
+      expect(result).toBeUndefined();
 
       consoleSpy.mockRestore();
     });
@@ -115,7 +106,7 @@ describe.skip('settingsFileService', () => {
       const result = await settingsFileService.getSettingsFile('myconfig');
 
       // Assert
-      expect(result).toBeNull();
+      expect(result).toBeUndefined();
 
       consoleSpy.mockRestore();
     });
@@ -146,7 +137,7 @@ describe.skip('settingsFileService', () => {
     });
   });
 
-  describe.skip('saveSettingsFile', () => {
+  describe('saveSettingsFile', () => {
     it('should serialize and save JSON data', async () => {
       // Arrange
       (bridgeService.sendMessage as vi.Mock).mockResolvedValue({
@@ -161,14 +152,10 @@ describe.skip('settingsFileService', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTING',
-        'SAVE_FILE',
-        {
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith({ module: 'SETTING', type: 'SAVE_FILE', payload: {
           filename: 'myconfig',
           content: JSON.stringify(data, null, 2)
-        }
-      );
+        } });
     });
 
     it('should format JSON with 2-space indentation', async () => {
@@ -184,14 +171,10 @@ describe.skip('settingsFileService', () => {
 
       // Assert
       const expectedJson = JSON.stringify(data, null, 2);
-      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTING',
-        'SAVE_FILE',
-        {
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith({ module: 'SETTING', type: 'SAVE_FILE', payload: {
           filename: 'myconfig',
           content: expectedJson
-        }
-      );
+        } });
     });
 
     it('should return false on save failure', async () => {
@@ -225,14 +208,10 @@ describe.skip('settingsFileService', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTING',
-        'SAVE_FILE',
-        {
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith({ module: 'SETTING', type: 'SAVE_FILE', payload: {
           filename: 'myconfig',
           content: JSON.stringify(data, null, 2)
-        }
-      );
+        } });
     });
 
     it('should handle primitive values', async () => {
@@ -243,31 +222,19 @@ describe.skip('settingsFileService', () => {
 
       // Act & Assert - String
       await settingsFileService.saveSettingsFile('myconfig', 'test');
-      expect(bridgeService.sendMessage).toHaveBeenLastCalledWith(
-        'SETTING',
-        'SAVE_FILE',
-        { filename: 'myconfig', content: '"test"' }
-      );
+      expect(bridgeService.sendMessage).toHaveBeenLastCalledWith({ module: 'SETTING', type: 'SAVE_FILE', payload: { filename: 'myconfig', content: '"test"' } });
 
       // Number
       await settingsFileService.saveSettingsFile('myconfig', 42);
-      expect(bridgeService.sendMessage).toHaveBeenLastCalledWith(
-        'SETTING',
-        'SAVE_FILE',
-        { filename: 'myconfig', content: '42' }
-      );
+      expect(bridgeService.sendMessage).toHaveBeenLastCalledWith({ module: 'SETTING', type: 'SAVE_FILE', payload: { filename: 'myconfig', content: '42' } });
 
       // Boolean
       await settingsFileService.saveSettingsFile('myconfig', true);
-      expect(bridgeService.sendMessage).toHaveBeenLastCalledWith(
-        'SETTING',
-        'SAVE_FILE',
-        { filename: 'myconfig', content: 'true' }
-      );
+      expect(bridgeService.sendMessage).toHaveBeenLastCalledWith({ module: 'SETTING', type: 'SAVE_FILE', payload: { filename: 'myconfig', content: 'true' } });
     });
   });
 
-  describe.skip('deleteSettingsFile', () => {
+  describe('deleteSettingsFile', () => {
     it('should delete file successfully', async () => {
       // Arrange
       (bridgeService.sendMessage as vi.Mock).mockResolvedValue({
@@ -280,11 +247,7 @@ describe.skip('settingsFileService', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTING',
-        'DELETE_FILE',
-        { filename: 'myconfig' }
-      );
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith({ module: 'SETTING', type: 'DELETE_FILE', payload: { filename: 'myconfig' } });
     });
 
     it('should return false on delete failure', async () => {
@@ -306,7 +269,7 @@ describe.skip('settingsFileService', () => {
     });
   });
 
-  describe.skip('settingsFileExists', () => {
+  describe('settingsFileExists', () => {
     it('should return true if file exists', async () => {
       // Arrange
       (bridgeService.sendMessage as vi.Mock).mockResolvedValue({
@@ -318,11 +281,7 @@ describe.skip('settingsFileService', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTING',
-        'FILE_EXISTS',
-        { filename: 'myconfig' }
-      );
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith({ module: 'SETTING', type: 'FILE_EXISTS', payload: { filename: 'myconfig' } });
     });
 
     it('should return false if file does not exist', async () => {
@@ -357,7 +316,7 @@ describe.skip('settingsFileService', () => {
     });
   });
 
-  describe.skip('listSettingsFiles', () => {
+  describe('listSettingsFiles', () => {
     it('should return array of filenames', async () => {
       // Arrange
       (bridgeService.sendMessage as vi.Mock).mockResolvedValue({
@@ -369,11 +328,7 @@ describe.skip('settingsFileService', () => {
 
       // Assert
       expect(result).toEqual(['config1', 'config2', 'config3']);
-      expect(bridgeService.sendMessage).toHaveBeenCalledWith(
-        'SETTING',
-        'LIST_FILES',
-        {}
-      );
+      expect(bridgeService.sendMessage).toHaveBeenCalledWith({ module: 'SETTING', type: 'LIST_FILES', payload: {} });
     });
 
     it('should return empty array if no files', async () => {
@@ -419,7 +374,7 @@ describe.skip('settingsFileService', () => {
     });
   });
 
-  describe.skip('integration scenarios', () => {
+  describe('integration scenarios', () => {
     it('should handle save-then-load workflow', async () => {
       // Arrange
       const data = { theme: 'dark', count: 42 };
