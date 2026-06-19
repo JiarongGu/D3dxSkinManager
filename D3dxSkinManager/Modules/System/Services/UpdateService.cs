@@ -30,26 +30,22 @@ public class UpdateService : IUpdateService
     private const string LatestDownloadBase =
         "https://github.com/JiarongGu/D3dxSkinManager/releases/latest/download/";
 
-    private readonly HttpClient _http;
+    // GitHub API wants this Accept header; the User-Agent is set by the DownloadService.
+    private static readonly IReadOnlyDictionary<string, string> GitHubHeaders =
+        new Dictionary<string, string> { { "Accept", "application/vnd.github+json" } };
+
     private readonly ILogHelper _logger;
     private readonly IProcessRegistry _processRegistry;
     private readonly IAppEnvironment _appEnvironment;
+    private readonly IDownloadService _downloadService;
 
-    // DI constructor. The built-in container can't resolve HttpMessageHandler, so it selects this
-    // (fewer params) and the service builds a real HttpClient.
-    public UpdateService(ILogHelper logger, IProcessRegistry processRegistry, IAppEnvironment appEnvironment)
-        : this(logger, processRegistry, appEnvironment, null)
-    {
-    }
-
-    // Test constructor: inject a stubbed HttpMessageHandler to fake GitHub responses.
     public UpdateService(ILogHelper logger, IProcessRegistry processRegistry, IAppEnvironment appEnvironment,
-        HttpMessageHandler? handler)
+        IDownloadService downloadService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _processRegistry = processRegistry ?? throw new ArgumentNullException(nameof(processRegistry));
         _appEnvironment = appEnvironment ?? throw new ArgumentNullException(nameof(appEnvironment));
-        _http = CreateHttpClient(handler);
+        _downloadService = downloadService ?? throw new ArgumentNullException(nameof(downloadService));
     }
 
     // The install dir (where the exe + manifest.json live; the dir the launcher manages).
@@ -60,19 +56,6 @@ public class UpdateService : IUpdateService
     private string StagedDir => Path.Combine(StagingRoot, "staged");
     private string ReadyMarkerPath => Path.Combine(StagingRoot, "ready.json");
 
-    private static HttpClient CreateHttpClient(HttpMessageHandler? handler)
-    {
-        // No total timeout: a download can take longer than the default 100s; per-read is handled by
-        // the stream copy. (The check call is small and fast regardless.)
-        var client = handler != null
-            ? new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan }
-            : new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
-        // GitHub rejects requests with no User-Agent (HTTP 403).
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("D3dxSkinManager-UpdateCheck");
-        client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
-        return client;
-    }
-
     public async Task<UpdateInfo> CheckForUpdateAsync()
     {
         var currentVersion = GetCurrentVersion();
@@ -81,7 +64,7 @@ public class UpdateService : IUpdateService
         {
             _logger.Info($"Checking for update (current {currentVersion})...", "UpdateService");
 
-            var json = await _http.GetStringAsync(LatestReleaseApiUrl).ConfigureAwait(false);
+            var json = await _downloadService.GetStringAsync(LatestReleaseApiUrl, GitHubHeaders).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -166,7 +149,14 @@ public class UpdateService : IUpdateService
             var zipPath = Path.Combine(StagingRoot, "update.zip");
 
             _logger.Info($"Downloading update {info.LatestVersion} from {zipUrl}", "UpdateService");
-            await DownloadToFileAsync(zipUrl, zipPath, procId).ConfigureAwait(false);
+            // Reuse the shared DownloadService; map its 0–100% to the registry's 0–90% (extract/verify
+            // take the last 10%). The zip itself has no published hash — staged files are verified post-extract.
+            var progress = new Progress<DownloadProgress>(p =>
+            {
+                if (p.Percent.HasValue) _processRegistry.Report(procId, p.Percent.Value * 90 / 100);
+            });
+            await _downloadService.DownloadAsync(
+                new DownloadRequest { Url = zipUrl, DestinationPath = zipPath }, progress).ConfigureAwait(false);
 
             _processRegistry.Report(procId, 92, "Extracting");
             if (Directory.Exists(StagedDir)) Directory.Delete(StagedDir, recursive: true);
@@ -278,30 +268,6 @@ public class UpdateService : IUpdateService
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    /// <summary>Stream a URL to a file, reporting 0–90% download progress on the process.</summary>
-    private async Task DownloadToFileAsync(string url, string destPath, string procId)
-    {
-        using var resp = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-        resp.EnsureSuccessStatusCode();
-
-        var total = resp.Content.Headers.ContentLength ?? -1L;
-        await using var src = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false);
-        await using var dst = File.Create(destPath);
-
-        var buffer = new byte[81920];
-        long readTotal = 0;
-        int n;
-        while ((n = await src.ReadAsync(buffer).ConfigureAwait(false)) > 0)
-        {
-            await dst.WriteAsync(buffer.AsMemory(0, n)).ConfigureAwait(false);
-            readTotal += n;
-            if (total > 0)
-            {
-                _processRegistry.Report(procId, (int)(readTotal * 90 / total));
-            }
-        }
-    }
-
     /// <summary>
     /// Download the release's <c>manifest.json</c> asset and diff it against the locally-installed
     /// manifest (next to the running exe). Attaches the changed-file count + download size to
@@ -320,7 +286,7 @@ public class UpdateService : IUpdateService
 
             var jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-            var remoteJson = await _http.GetStringAsync(manifestUrl).ConfigureAwait(false);
+            var remoteJson = await _downloadService.GetStringAsync(manifestUrl).ConfigureAwait(false);
             var remote = JsonSerializer.Deserialize<UpdateManifest>(remoteJson, jsonOpts);
             var local = JsonSerializer.Deserialize<UpdateManifest>(
                 await File.ReadAllTextAsync(localPath).ConfigureAwait(false), jsonOpts);

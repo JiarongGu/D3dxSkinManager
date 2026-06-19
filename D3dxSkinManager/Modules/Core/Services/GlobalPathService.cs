@@ -16,6 +16,10 @@ public interface IGlobalPathService
     string FrontendIndexPath { get; }
     string LogsDirectory { get; }
 
+    /// <summary>Managed area for files fetched over HTTP (update packages, future plugin/asset downloads).
+    /// Centralized so they can be listed + cleaned in one place (see IDownloadService.CleanupAsync).</summary>
+    string DownloadsDirectory { get; }
+
     void EnsureDirectoriesExist();
     string GetProfileDirectoryPath(string profileId);
     string GetProfileConfigPath(string profileId);
@@ -50,6 +54,8 @@ public class GlobalPathService : IGlobalPathService
 
     public string LogsDirectory => Path.Combine(BaseDataPath, "logs");
 
+    public string DownloadsDirectory => Path.Combine(BaseDataPath, "downloads");
+
     /// <summary>
     /// Ensure all standard global directories exist
     /// Creates directories if they don't exist
@@ -62,6 +68,7 @@ public class GlobalPathService : IGlobalPathService
         Directory.CreateDirectory(ProfilesDirectory);
         Directory.CreateDirectory(GlobalSettingsDirectory);
         Directory.CreateDirectory(LogsDirectory);
+        Directory.CreateDirectory(DownloadsDirectory);
     }
 
     // Helper method implementations

@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Net;
-using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -20,9 +18,9 @@ using D3dxSkinManager.Modules.System.Services;
 namespace D3dxSkinManager.Tests.Modules.SystemModule.Services;
 
 /// <summary>
-/// Tests for UpdateService's file-side logic: staged-update state (ready.json) and sha256 verification
-/// of staged files against the staged manifest. The network paths (check/download) are integration-only
-/// (static HttpClient) and not covered here. BaseDirectory is mocked to a temp install dir.
+/// Tests for UpdateService: staged-update state (ready.json), sha256 verification of staged files, and
+/// the check/download flow with a fake IDownloadService (so the GitHub round-trip is exercised without
+/// real network). BaseDirectory is mocked to a temp install dir.
 /// </summary>
 public class UpdateServiceTests : IDisposable
 {
@@ -40,7 +38,8 @@ public class UpdateServiceTests : IDisposable
         _service = new UpdateService(
             new Mock<ILogHelper>().Object,
             new Mock<IProcessRegistry>().Object,
-            appEnv.Object);
+            appEnv.Object,
+            new Mock<IDownloadService>().Object);
     }
 
     // ---- GetUpdateStateAsync ------------------------------------------------
@@ -168,10 +167,10 @@ public class UpdateServiceTests : IDisposable
     {
         var appEnv = new Mock<IAppEnvironment>();
         appEnv.Setup(e => e.BaseDirectory).Returns(_installDir);
-        var handler = new StubHandler(releasesJson, zip);
+        var download = new FakeDownloadService(releasesJson, zip);
         return new TestableUpdateService(
             new Mock<ILogHelper>().Object, new Mock<IProcessRegistry>().Object,
-            appEnv.Object, handler, currentVersion);
+            appEnv.Object, download, currentVersion);
     }
 
     private static string ReleasesJson(string tag) =>
@@ -214,39 +213,43 @@ public class UpdateServiceTests : IDisposable
         return ms.ToArray();
     }
 
-    /// <summary>Routes GitHub URLs to canned responses: the releases API JSON + the release zip bytes.</summary>
-    private sealed class StubHandler : HttpMessageHandler
+    /// <summary>Fake IDownloadService: returns canned releases JSON for GetString, writes the zip bytes to disk for Download.</summary>
+    private sealed class FakeDownloadService : IDownloadService
     {
         private readonly string _releasesJson;
         private readonly byte[]? _zip;
-        public StubHandler(string releasesJson, byte[]? zip) { _releasesJson = releasesJson; _zip = zip; }
+        public FakeDownloadService(string releasesJson, byte[]? zip) { _releasesJson = releasesJson; _zip = zip; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        public Task<string> GetStringAsync(string url, IReadOnlyDictionary<string, string>? headers = null,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(url.EndsWith("/releases/latest") ? _releasesJson : "{}");
+
+        public async Task<DownloadResult> DownloadAsync(DownloadRequest request,
+            IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
         {
-            var url = request.RequestUri!.ToString();
-            if (url.EndsWith("/releases/latest"))
-            {
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(_releasesJson, Encoding.UTF8, "application/json"),
-                });
-            }
-            if (url.Contains("/releases/latest/download/") && url.EndsWith(".zip") && _zip != null)
-            {
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new ByteArrayContent(_zip),
-                });
-            }
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            if (_zip == null) throw new InvalidOperationException("no zip configured");
+            var dir = Path.GetDirectoryName(request.DestinationPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            await File.WriteAllBytesAsync(request.DestinationPath, _zip, cancellationToken);
+            progress?.Report(new DownloadProgress { BytesReceived = _zip.Length, TotalBytes = _zip.Length, Percent = 100 });
+            var sha = Convert.ToHexString(SHA256.HashData(_zip)).ToLowerInvariant();
+            return new DownloadResult { FilePath = request.DestinationPath, Bytes = _zip.Length, Sha256 = sha };
         }
+
+        // Managed-area members unused by UpdateService — no-op stubs.
+        public string ManagedDirectory => string.Empty;
+        public Task<DownloadResult> DownloadToManagedAsync(string url, string fileName,
+            IProgress<DownloadProgress>? progress = null, string? expectedSha256 = null,
+            CancellationToken cancellationToken = default) => throw new NotImplementedException();
+        public IReadOnlyList<ManagedDownloadInfo> ListManaged() => Array.Empty<ManagedDownloadInfo>();
+        public DownloadCleanupResult CleanupManaged(TimeSpan? olderThan = null) => new();
     }
 
     private sealed class TestableUpdateService : UpdateService
     {
         private readonly string _version;
         public TestableUpdateService(ILogHelper l, IProcessRegistry p, IAppEnvironment e,
-            HttpMessageHandler h, string version) : base(l, p, e, h) => _version = version;
+            IDownloadService d, string version) : base(l, p, e, d) => _version = version;
         protected override string GetCurrentVersion() => _version;
     }
 

@@ -47,6 +47,9 @@ public static class CoreServiceExtensions
         // File transfer service for managed file copying with deduplication
         AddSingleton<IFileTransferService, FileTransferService>(services);
 
+        // Reusable HTTP download service (streamed file/string fetch with progress + sha256).
+        AddSingleton<IDownloadService, DownloadService>(services);
+
         // Path validator for centralized file/directory validation
         AddSingleton<IPathValidator, PathValidator>(services);
 

@@ -1089,6 +1089,8 @@
     "errors.MOD_MERGE_NO_INI": "None of the selected mods contain an editable .ini to merge.",
     "errors.MOD_MERGE_SOURCE_MISSING": "Could not read the files for mod {{id}} (no cache and the archive couldn't be extracted).",
     "errors.UPDATE_CHECK_FAILED": "Couldn't check for updates: {{reason}}",
+    "errors.DOWNLOAD_FAILED": "Download failed: {{reason}}",
+    "errors.DOWNLOAD_HASH_MISMATCH": "The downloaded file failed its integrity check and was discarded.",
     "errors.MOD_ARCHIVE_NOT_FOUND": "The mod archive file was not found. The file may have been deleted or moved.",
     "errors.MOD_NOT_FOUND": "The mod was not found in the database.",
     "errors.MOD_EXTRACTION_FAILED": "Failed to extract the mod archive. The file may be corrupted or in an unsupported format.",
