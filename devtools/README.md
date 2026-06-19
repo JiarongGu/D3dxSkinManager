@@ -38,6 +38,7 @@ One dispatcher (`dev.mjs`) forwards to every tool. All covered by `Bash(node dev
 | `node devtools/dev.mjs research <search\|scrape> …` | **Web research** (puppeteer + stealth, self-contained `research/`). Auto-installs Chromium (~280MB) on first use. |
 | `node devtools/dev.mjs crop <png> <x> <y> <w> <h>` | Crop a capture. |
 | `node devtools/dev.mjs manifest <dir> <version> [outFile]` | Generate the auto-update `manifest.json` (path/size/sha256 per file; excludes the launcher). Used by `release.yml`. See `docs/LAUNCHER_ARCHITECTURE.md`. |
+| `node devtools/dev.mjs test-update-apply` | End-to-end test of the launcher's APPLY phase: sandbox install + staged update → runs the real launcher `--apply-and-exit` → asserts overlay/add/remove/cleanup. |
 | `devtools/downscale.mjs <png>` | Manual downscale fallback (captures are auto-downscaled — see screenshot-hygiene). |
 
 ## Ground rules (why the loop is prompt-free)

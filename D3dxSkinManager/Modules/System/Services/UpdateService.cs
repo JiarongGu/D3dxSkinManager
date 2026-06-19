@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.Json;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -34,18 +35,22 @@ public class UpdateService : IUpdateService
 
     private readonly ILogHelper _logger;
     private readonly IProcessRegistry _processRegistry;
+    private readonly IAppEnvironment _appEnvironment;
 
-    public UpdateService(ILogHelper logger, IProcessRegistry processRegistry)
+    public UpdateService(ILogHelper logger, IProcessRegistry processRegistry, IAppEnvironment appEnvironment)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _processRegistry = processRegistry ?? throw new ArgumentNullException(nameof(processRegistry));
+        _appEnvironment = appEnvironment ?? throw new ArgumentNullException(nameof(appEnvironment));
     }
 
+    // The install dir (where the exe + manifest.json live; the dir the launcher manages).
+    private string InstallDir => _appEnvironment.BaseDirectory;
     // Update staging lives next to the install (same dir the launcher reads). The launcher applies
     // {StagingRoot}/staged over the install and clears StagingRoot on the next startup.
-    private static string StagingRoot => Path.Combine(AppContext.BaseDirectory, ".update");
-    private static string StagedDir => Path.Combine(StagingRoot, "staged");
-    private static string ReadyMarkerPath => Path.Combine(StagingRoot, "ready.json");
+    private string StagingRoot => Path.Combine(InstallDir, ".update");
+    private string StagedDir => Path.Combine(StagingRoot, "staged");
+    private string ReadyMarkerPath => Path.Combine(StagingRoot, "ready.json");
 
     private static HttpClient CreateHttpClient()
     {
@@ -158,6 +163,16 @@ public class UpdateService : IUpdateService
             ZipFile.ExtractToDirectory(zipPath, StagedDir, overwriteFiles: true);
             File.Delete(zipPath);
 
+            // Verify every staged file against the staged manifest's sha256 BEFORE marking ready, so the
+            // launcher never applies a corrupt/partial download. A mismatch aborts the stage.
+            _processRegistry.Report(procId, 97, "Verifying");
+            var problems = await VerifyStagedFilesAsync(StagedDir).ConfigureAwait(false);
+            if (problems.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Update verification failed ({problems.Count} file(s)): {string.Join(", ", problems.Take(3))}");
+            }
+
             // Mark ready — the launcher reads this on next startup.
             await File.WriteAllTextAsync(
                 ReadyMarkerPath,
@@ -197,6 +212,62 @@ public class UpdateService : IUpdateService
         }
     }
 
+    /// <summary>
+    /// Verify every file the staged manifest lists against its sha256. Returns a list of problems
+    /// (missing or hash-mismatched paths); empty = all good. Public for testing.
+    /// A missing/unreadable staged manifest is itself a problem (fail safe — don't apply unverifiable).
+    /// </summary>
+    public async Task<List<string>> VerifyStagedFilesAsync(string stagedDir)
+    {
+        var problems = new List<string>();
+        var manifestPath = Path.Combine(stagedDir, "manifest.json");
+        if (!File.Exists(manifestPath))
+        {
+            problems.Add("manifest.json (missing)");
+            return problems;
+        }
+
+        UpdateManifest? manifest;
+        try
+        {
+            manifest = JsonSerializer.Deserialize<UpdateManifest>(
+                await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception ex)
+        {
+            problems.Add($"manifest.json (unreadable: {ex.Message})");
+            return problems;
+        }
+        if (manifest == null) { problems.Add("manifest.json (empty)"); return problems; }
+
+        foreach (var file in manifest.Files)
+        {
+            var rel = file.Path.Replace('/', Path.DirectorySeparatorChar);
+            var full = Path.Combine(stagedDir, rel);
+            if (!File.Exists(full))
+            {
+                problems.Add($"{file.Path} (missing)");
+                continue;
+            }
+            if (string.IsNullOrEmpty(file.Sha256)) continue; // nothing to check against
+
+            var actual = await ComputeSha256Async(full).ConfigureAwait(false);
+            if (!string.Equals(actual, file.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                problems.Add($"{file.Path} (hash mismatch)");
+            }
+        }
+        return problems;
+    }
+
+    private static async Task<string> ComputeSha256Async(string path)
+    {
+        await using var stream = File.OpenRead(path);
+        var hash = await SHA256.HashDataAsync(stream).ConfigureAwait(false);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
     /// <summary>Stream a URL to a file, reporting 0–90% download progress on the process.</summary>
     private async Task DownloadToFileAsync(string url, string destPath, string procId)
     {
@@ -234,7 +305,7 @@ public class UpdateService : IUpdateService
             var manifestUrl = FindManifestAssetUrl(root);
             if (manifestUrl == null) return;
 
-            var localPath = Path.Combine(AppContext.BaseDirectory, "manifest.json");
+            var localPath = Path.Combine(InstallDir, "manifest.json");
             if (!File.Exists(localPath)) return;
 
             var jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };

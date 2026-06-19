@@ -163,7 +163,9 @@ User-requested (Settings → "Check for updates") or opt-in startup auto-check:
    (count + download size) for the update screen.
 2. On "Download" → `DownloadUpdateAsync` (fire-and-forget, progress via `ProcessRegistry` → Activity
    panel): download `D3dxSkinManager-v<ver>-win-x64.zip` (stable `releases/latest/download/` redirect),
-   extract to `{install}/.update/staged`, write `{install}/.update/ready.json`.
+   extract to `{install}/.update/staged`, **verify every staged file's sha256 against the staged
+   manifest** (a mismatch aborts the stage — the launcher never applies a corrupt download), then write
+   `{install}/.update/ready.json`.
 3. The update screen flips to "Update downloaded — restart to apply."
 
 ### Phase 2 — Launcher applies (`updater.cpp`, `ApplyPendingUpdate`)
@@ -178,8 +180,19 @@ Runs first in `main.cpp`, before the app starts. **No network, no prompt:**
 4. Clear `{install}/.update`, then launch the now-updated `D3dxSkinManager.exe`.
 
 Non-fatal throughout: any failure falls back to launching the current version. **The launcher never
-replaces itself.** sha256 verification of staged files is a future hardening step (the zip is fetched
-over GitHub https + extracted by the app).
+replaces itself.** The app sha256-verifies every staged file (against the staged manifest) before
+writing ready.json, so the launcher only ever applies a fully-verified stage.
+
+### Testing the flow
+
+- **Backend** (`UpdateServiceTests`): staged-update state (ready.json) + sha256 verification
+  (match / tamper / missing file / missing manifest).
+- **Manifest diff** (`ManifestDiffTests`): added / updated / removed + download size.
+- **Frontend** (`UpdateDialog.test`): dialog phases — check → available → download → ready, plus
+  ready-on-open and prefetched/failed.
+- **Launcher apply, end-to-end** (`node devtools/dev.mjs test-update-apply`): builds a sandbox install
+  + staged update and runs the REAL launcher with `--apply-and-exit`, asserting overlay / add / remove /
+  manifest refresh / staging cleanup.
 
 ### Benefits
 
@@ -362,8 +375,8 @@ Edit these files:
 
 ## Future Enhancements
 
-- [x] Implement auto-update functionality (manifest-driven, `updater.cpp`)
-- [ ] sha256-verify downloaded update files before applying
+- [x] Implement auto-update functionality (manifest-driven, two-phase)
+- [x] sha256-verify downloaded update files before applying (app verifies the stage)
 - [ ] Add crash reporting to launcher
 - [ ] Launcher self-update capability
 - [ ] Telemetry (opt-in)

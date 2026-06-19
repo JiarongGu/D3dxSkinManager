@@ -55,3 +55,6 @@ out/
 .env.test.local
 .env.production.local
 D3dxSkinManager/wwwroot/
+
+# devtools update-apply test sandbox (scratch)
+devtools/.update-sandbox/

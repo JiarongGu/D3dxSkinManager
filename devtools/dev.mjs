@@ -32,6 +32,7 @@ const NODE = {
   check: 'check-desktop.mjs',
   review: 'review-desktop.mjs',
   manifest: 'build-manifest.mjs',
+  'test-update-apply': 'test-update-apply.mjs',
 };
 
 const [cmd, ...rest] = process.argv.slice(2);

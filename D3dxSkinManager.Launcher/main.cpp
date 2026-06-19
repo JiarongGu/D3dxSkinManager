@@ -33,12 +33,20 @@ int WINAPI wWinMain(
     _In_ int nShowCmd)
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
     UNREFERENCED_PARAMETER(nShowCmd);
 
     // Get launcher directory
     std::wstring launcherDir = GetLauncherDirectory();
     std::wstring mainExePath = launcherDir + L"\\" + MAIN_EXE;
+
+    // Test/diagnostic seam: apply any staged update against this directory and exit WITHOUT launching
+    // the app (no .NET check, no MessageBox). Lets a harness exercise the real apply on a sandbox
+    // install dir (devtools/scripts/test-update-apply.mjs). Not used in normal launches.
+    if (lpCmdLine != nullptr && wcsstr(lpCmdLine, L"--apply-and-exit") != nullptr)
+    {
+        ApplyPendingUpdate(launcherDir);
+        return 0;
+    }
 
     // Step 1: Apply a pending update the app already downloaded + staged (before loading the main app).
     // No-op if nothing is staged; the launcher never checks GitHub itself (the app does that).
