@@ -315,12 +315,18 @@ public class WebViewInitializer
                     // Get file stream from custom scheme handler
                     var stream = _schemeHandler.HandleRequest(uri, out var contentType);
 
-                    // Create response
+                    // Cache thumbnails/previews so WebView2 doesn't re-read + re-decode every image on
+                    // each launch (the cause of slow thumbnail loading at startup). Thumbnails rarely
+                    // change; when they do, callers cache-bust with a ?t=<mtime> query (toAppUrl), which
+                    // is a distinct URL and bypasses this cache. 1-day TTL bounds any staleness.
+                    var headers = $"Content-Type: {contentType}\n" +
+                                  "Cache-Control: public, max-age=86400";
+
                     var response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
                         stream,
                         200,
                         "OK",
-                        $"Content-Type: {contentType}");
+                        headers);
 
                     args.Response = response;
                 }

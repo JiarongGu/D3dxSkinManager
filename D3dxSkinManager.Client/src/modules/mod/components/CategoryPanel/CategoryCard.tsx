@@ -79,6 +79,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
             alt={category.name}
             className="category-card__image"
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <span className="category-card__icon">
