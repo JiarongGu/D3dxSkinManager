@@ -125,6 +125,7 @@ public class ToolFacade : BaseFacade, IToolFacade
             "FIX_TOOLS_GET" => await _modFixToolService.GetAllAsync(),
             "FIX_TOOLS_IMPORT" => await ImportFixToolAsync(request),
             "FIX_TOOLS_DELETE" => await DeleteFixToolAsync(request),
+            "FIX_TOOLS_RENAME" => await RenameFixToolAsync(request),
             "FIX_TOOLS_SET_ENTRIES" => await SetFixToolEntriesAsync(request),
             "FIX_TOOLS_DETECT_PYTHON" => new { python = _modFixService.DetectPython() },
 
@@ -511,6 +512,14 @@ public class ToolFacade : BaseFacade, IToolFacade
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         await _modFixToolService.DeleteAsync(id).ConfigureAwait(false);
         return null;
+    }
+
+    private async Task<object?> RenameFixToolAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var newName = _payloadHelper.GetRequiredValue<string>(request.Payload, "newName");
+        var newId = await _modFixToolService.RenameAsync(id, newName).ConfigureAwait(false);
+        return new { id = newId };
     }
 
     private async Task<object?> SetFixToolEntriesAsync(IpcRequest request)

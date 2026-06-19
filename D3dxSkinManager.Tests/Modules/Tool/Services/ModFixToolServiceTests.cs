@@ -8,15 +8,15 @@ using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Tool.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Tool.Services;
 
 /// <summary>
-/// Tests for the per-profile fix-tool library: top-level scan (loose executables + folders), entry
-/// auto-resolution (lone exe over helper .py), unresolved + candidates, MULTIPLE entries per toolset
-/// via SetEntries, and deletion.
+/// Tests for the shared fix-tool library ({data}/fixtools): top-level scan (loose executables +
+/// folders), entry auto-resolution (lone exe over helper .py), unresolved + candidates, MULTIPLE
+/// entries per toolset via SetEntries, rename (folder-only), and deletion.
 /// </summary>
 public class ModFixToolServiceTests : IDisposable
 {
@@ -26,7 +26,7 @@ public class ModFixToolServiceTests : IDisposable
     public ModFixToolServiceTests()
     {
         _fixDir = Path.Combine(Path.GetTempPath(), "d3dx-fixtools-test-" + Guid.NewGuid().ToString("N"));
-        var paths = new Mock<IProfilePathService>();
+        var paths = new Mock<IGlobalPathService>();
         paths.Setup(p => p.FixToolsDirectory).Returns(_fixDir);
         _service = new ModFixToolService(paths.Object, Mock.Of<ILogHelper>());
     }
@@ -135,6 +135,35 @@ public class ModFixToolServiceTests : IDisposable
         await _service.DeleteAsync("loosefix.bat");
         (await _service.GetAllAsync()).Should().BeEmpty();
         File.Exists(Path.Combine(_fixDir, "loosefix.bat")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Rename_FolderTool_MovesFolder_AndKeepsContent()
+    {
+        var src = MakeFolderWith("run.exe");
+        try
+        {
+            var tool = await _service.ImportAsync("Old Name", src, isFolder: true);
+
+            var newId = await _service.RenameAsync(tool.Id, "New Name");
+
+            newId.Should().Be("New Name");
+            var all = await _service.GetAllAsync();
+            all.Should().ContainSingle(t => t.Id == "New Name");
+            all.Should().NotContain(t => t.Id == tool.Id);
+            File.Exists(Path.Combine(_fixDir, "New Name", "run.exe")).Should().BeTrue();
+        }
+        finally { Directory.Delete(src, true); }
+    }
+
+    [Fact]
+    public async Task Rename_LooseFileTool_Throws()
+    {
+        Directory.CreateDirectory(_fixDir);
+        File.WriteAllText(Path.Combine(_fixDir, "loose.bat"), "x");
+
+        var act = () => _service.RenameAsync("loose.bat", "Renamed");
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("FIX_TOOL_RENAME_FOLDER_ONLY");
     }
 
     public void Dispose()

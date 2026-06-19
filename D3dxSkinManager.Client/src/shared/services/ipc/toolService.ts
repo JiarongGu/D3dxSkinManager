@@ -228,6 +228,11 @@ export class ToolService extends BaseModuleService {
     return this.sendMessage<void>('FIX_TOOLS_DELETE', profileId, { id });
   }
 
+  /** Rename a folder-based fix tool. Returns the new id (sanitized + uniquified). */
+  async renameFixTool(profileId: string, id: string, newName: string): Promise<{ id: string }> {
+    return this.sendMessage<{ id: string }>('FIX_TOOLS_RENAME', profileId, { id, newName });
+  }
+
   /** Choose which file(s) inside a folder tool are its runnable entries (empty = revert to auto). */
   async setFixToolEntries(profileId: string, id: string, entries: string[]): Promise<void> {
     return this.sendMessage<void>('FIX_TOOLS_SET_ENTRIES', profileId, { id, entries });

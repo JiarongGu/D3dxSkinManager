@@ -20,6 +20,10 @@ public interface IGlobalPathService
     /// Centralized so they can be listed + cleaned in one place (see IDownloadService.CleanupAsync).</summary>
     string DownloadsDirectory { get; }
 
+    /// <summary>Shared fix-tool library ({data}/fixtools). Global (not per-profile) — fix tools are
+    /// game-agnostic scripts, so one central place is easier to manage.</summary>
+    string FixToolsDirectory { get; }
+
     void EnsureDirectoriesExist();
     string GetProfileDirectoryPath(string profileId);
     string GetProfileConfigPath(string profileId);
@@ -56,6 +60,8 @@ public class GlobalPathService : IGlobalPathService
 
     public string DownloadsDirectory => Path.Combine(BaseDataPath, "downloads");
 
+    public string FixToolsDirectory => Path.Combine(BaseDataPath, "fixtools");
+
     /// <summary>
     /// Ensure all standard global directories exist
     /// Creates directories if they don't exist
@@ -69,6 +75,7 @@ public class GlobalPathService : IGlobalPathService
         Directory.CreateDirectory(GlobalSettingsDirectory);
         Directory.CreateDirectory(LogsDirectory);
         Directory.CreateDirectory(DownloadsDirectory);
+        Directory.CreateDirectory(FixToolsDirectory);
     }
 
     // Helper method implementations

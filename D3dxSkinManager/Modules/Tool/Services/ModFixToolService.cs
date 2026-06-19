@@ -1,6 +1,6 @@
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 
 namespace D3dxSkinManager.Modules.Tool.Services;
@@ -23,6 +23,10 @@ public interface IModFixToolService
     /// <summary>Delete a fix tool (id = its top-level name) — removes the folder or the loose file.</summary>
     Task DeleteAsync(string id);
 
+    /// <summary>Rename a fix tool (folder tool only; loose-file tools are named by their file).
+    /// Returns the new id (sanitized + uniquified).</summary>
+    Task<string> RenameAsync(string id, string newName);
+
     /// <summary>
     /// Set which files inside a folder tool are its runnable entries (persists a marker). Pass an empty
     /// list to clear the choice and fall back to auto-resolution.
@@ -32,22 +36,25 @@ public interface IModFixToolService
 
 public class ModFixToolService : IModFixToolService
 {
-    private readonly IProfilePathService _profilePaths;
+    private readonly IGlobalPathService _globalPaths;
     private readonly ILogHelper _logger;
     // Entry auto-detection preference: self-contained exe first, then batch, then python.
     private static readonly string[] EntryExtPriority = { ".exe", ".bat", ".cmd", ".py" };
     // Marker file (inside a folder tool) recording the user's chosen entries (one relative path per line).
     private const string EntryMarker = ".fixentry";
 
-    public ModFixToolService(IProfilePathService profilePaths, ILogHelper logger)
+    public ModFixToolService(IGlobalPathService globalPaths, ILogHelper logger)
     {
-        _profilePaths = profilePaths;
+        _globalPaths = globalPaths;
         _logger = logger;
     }
 
+    // Fix tools now live in the SHARED data folder ({data}/fixtools), not per-profile.
+    private string Root => _globalPaths.FixToolsDirectory;
+
     public Task<List<ModFixTool>> GetAllAsync()
     {
-        var root = _profilePaths.FixToolsDirectory;
+        var root = Root;
         var tools = new List<ModFixTool>();
         if (!Directory.Exists(root)) return Task.FromResult(tools);
 
@@ -93,7 +100,7 @@ public class ModFixToolService : IModFixToolService
             throw new OperationException("FIX_TOOL_NAME_REQUIRED");
 
         var folderName = UniqueFolderName(Sanitize(name));
-        var toolDir = Path.Combine(_profilePaths.FixToolsDirectory, folderName);
+        var toolDir = Path.Combine(Root,folderName);
 
         // Detect file vs folder from the path itself (the `isFolder` arg is only a hint — a dropped
         // path doesn't say which, and the file picker/folder picker both yield a valid path).
@@ -133,7 +140,7 @@ public class ModFixToolService : IModFixToolService
 
     public Task DeleteAsync(string id)
     {
-        var path = Path.Combine(_profilePaths.FixToolsDirectory, id);
+        var path = Path.Combine(Root,id);
         try
         {
             if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
@@ -143,9 +150,29 @@ public class ModFixToolService : IModFixToolService
         return Task.CompletedTask;
     }
 
+    public Task<string> RenameAsync(string id, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName))
+            throw new OperationException("FIX_TOOL_NAME_REQUIRED");
+
+        var src = Path.Combine(Root, id);
+        if (!Directory.Exists(src))
+        {
+            // Loose-file tools are named by their file; only folder tools can be renamed.
+            throw new OperationException("FIX_TOOL_RENAME_FOLDER_ONLY");
+        }
+
+        var target = UniqueFolderName(Sanitize(newName));
+        if (string.Equals(target, id, StringComparison.Ordinal)) return Task.FromResult(id);
+
+        Directory.Move(src, Path.Combine(Root, target));
+        _logger.Info($"[ModFixTool] Renamed fix tool '{id}' → '{target}'", "ModFixToolService");
+        return Task.FromResult(target);
+    }
+
     public Task SetEntriesAsync(string id, List<string> relativeEntries)
     {
-        var toolDir = Path.Combine(_profilePaths.FixToolsDirectory, id);
+        var toolDir = Path.Combine(Root,id);
         if (!Directory.Exists(toolDir))
             throw new OperationException("FIX_TOOL_NOT_FOUND", "id", id);
 
@@ -217,7 +244,7 @@ public class ModFixToolService : IModFixToolService
 
     private string UniqueFolderName(string baseName)
     {
-        var root = _profilePaths.FixToolsDirectory;
+        var root = Root;
         var candidate = baseName;
         var i = 2;
         while (Directory.Exists(Path.Combine(root, candidate)) || File.Exists(Path.Combine(root, candidate)))

@@ -2,9 +2,10 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button, Space, Table, Progress, Input, Empty, Popconfirm, Tooltip, Select, Dropdown } from 'antd';
 import {
   ThunderboltOutlined, FolderOpenOutlined,
-  FileAddOutlined, DeleteOutlined, DownOutlined,
+  FileAddOutlined, DeleteOutlined, DownOutlined, EditOutlined,
 } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
+import { FormDialog } from '../../../../shared/components/dialogs/FormDialog';
 import { CompactField } from '../../../../shared/components/compact';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
@@ -49,6 +50,8 @@ const ModFixManagerInner: React.FC = () => {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ModFixProgress>();
   const [result, setResult] = useState<ModFixResult>();
+  const [renaming, setRenaming] = useState<FixTool>();
+  const [renameValue, setRenameValue] = useState('');
 
   const load = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -142,6 +145,22 @@ const ModFixManagerInner: React.FC = () => {
     }
   }, [selectedProfileId, load]);
 
+  const rename = useCallback(async () => {
+    if (!selectedProfileId || !renaming) return;
+    const newName = renameValue.trim();
+    if (!newName || newName === renaming.name) { setRenaming(undefined); return; }
+    try {
+      await api.tool.renameFixTool(selectedProfileId, renaming.id, newName);
+      setRenaming(undefined);
+      await load();
+    } catch (error) {
+      handleError(error);
+    }
+  }, [selectedProfileId, renaming, renameValue, load]);
+
+  // Only folder-based tools can be renamed (a loose single-file tool is named by its file).
+  const canRename = (tool: FixTool) => tool.candidates.length > 0;
+
   const setEntries = useCallback(async (tool: FixTool, entries: string[]) => {
     if (!selectedProfileId) return;
     try {
@@ -217,6 +236,16 @@ const ModFixManagerInner: React.FC = () => {
               </Button>
             </Dropdown>
           )}
+          {canRename(tool) && (
+            <Tooltip title={t('tools.modFix.rename')}>
+              <Button
+                size="small"
+                type="text"
+                icon={<EditOutlined />}
+                onClick={() => { setRenaming(tool); setRenameValue(tool.name); }}
+              />
+            </Tooltip>
+          )}
           <Popconfirm title={t('tools.modFix.deleteConfirm')} onConfirm={() => remove(tool)} okText={t('common.delete')} cancelText={t('common.cancel')}>
             <Button size="small" type="text" icon={<DeleteOutlined style={{ color: 'var(--color-error)' }} />} />
           </Popconfirm>
@@ -253,6 +282,22 @@ const ModFixManagerInner: React.FC = () => {
       ) : (
         <Table dataSource={tools} columns={columns} rowKey="id" size="small" pagination={false} className="mod-fix__table" />
       )}
+
+      <FormDialog
+        visible={!!renaming}
+        title={t('tools.modFix.rename')}
+        onCancel={() => setRenaming(undefined)}
+        onOk={rename}
+        width={420}
+      >
+        <Input
+          autoFocus
+          value={renameValue}
+          placeholder={t('tools.modFix.namePlaceholder')}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onPressEnter={() => void rename()}
+        />
+      </FormDialog>
 
       {/* Bulk-run feedback */}
       {running && progress && (

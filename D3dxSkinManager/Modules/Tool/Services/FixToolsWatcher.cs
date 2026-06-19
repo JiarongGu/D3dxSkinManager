@@ -2,11 +2,12 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Services;
 
 namespace D3dxSkinManager.Modules.Tool.Services;
 
 /// <summary>
-/// Watches the per-profile fixtools/ directory so the fix-tool library stays in sync with the folder:
+/// Watches the shared {data}/fixtools directory so the fix-tool library stays in sync with the folder:
 /// when the user drops in or removes a tool (a loose executable or a folder) on disk, a
 /// FIX_TOOLS_CHANGED event is emitted and the UI re-scans. Mirrors ModCacheWatcher's pattern.
 /// </summary>
@@ -18,16 +19,16 @@ public interface IFixToolsWatcher : IDisposable
 
 public class FixToolsWatcher : IFixToolsWatcher
 {
-    private readonly IProfilePathService _profilePaths;
+    private readonly IGlobalPathService _globalPaths;
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
     private FileSystemWatcher? _watcher;
     private readonly object _lock = new();
     private bool _isDisposed;
 
-    public FixToolsWatcher(IProfilePathService profilePaths, IProfileEventBus eventBus, ILogHelper logger)
+    public FixToolsWatcher(IGlobalPathService globalPaths, IProfileEventBus eventBus, ILogHelper logger)
     {
-        _profilePaths = profilePaths;
+        _globalPaths = globalPaths;
         _eventBus = eventBus;
         _logger = logger;
     }
@@ -38,7 +39,7 @@ public class FixToolsWatcher : IFixToolsWatcher
         {
             if (_watcher != null) return;
 
-            var dir = _profilePaths.FixToolsDirectory;
+            var dir = _globalPaths.FixToolsDirectory;
             if (!Directory.Exists(dir))
             {
                 try { Directory.CreateDirectory(dir); }
