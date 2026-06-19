@@ -27,6 +27,7 @@ public class ModMergeService : IModMergeService
     private readonly IProfilePathService _paths;
     private readonly IModArchiveService _archive;
     private readonly IModImportService _import;
+    private readonly IModRepository _repository;
     private readonly IArchiveHelper _archiveHelper;
     private readonly IProcessRegistry _processRegistry;
     private readonly ILogHelper _logger;
@@ -35,6 +36,7 @@ public class ModMergeService : IModMergeService
         IProfilePathService paths,
         IModArchiveService archive,
         IModImportService import,
+        IModRepository repository,
         IArchiveHelper archiveHelper,
         IProcessRegistry processRegistry,
         ILogHelper logger)
@@ -42,6 +44,7 @@ public class ModMergeService : IModMergeService
         _paths = paths;
         _archive = archive;
         _import = import;
+        _repository = repository;
         _archiveHelper = archiveHelper;
         _processRegistry = processRegistry;
         _logger = logger;
@@ -58,6 +61,10 @@ public class ModMergeService : IModMergeService
         var staging = Path.Combine(_paths.TempDirectory, $"merge-{Guid.NewGuid():N}");
         var content = Path.Combine(staging, "content");
         Directory.CreateDirectory(content);
+
+        // If every source shares the same (non-empty) category, the merged mod inherits it — variants of
+        // one character live in that character's category, so the merge belongs there too.
+        var sharedCategory = await ResolveSharedCategoryAsync(modIds).ConfigureAwait(false);
 
         var procId = _processRegistry.Start(ProcessType.ModImport, $"Merging {modIds.Count} mods → {safeName}");
         try
@@ -111,8 +118,20 @@ public class ModMergeService : IModMergeService
             _processRegistry.Report(procId, 90, "Importing");
             var mod = await _import.ImportAsync(archivePath).ConfigureAwait(false);
 
+            // Inherit the shared source category (if any) so the merge lands in the right place.
+            if (mod != null && !string.IsNullOrEmpty(sharedCategory))
+            {
+                var entity = await _repository.GetByIdAsync(mod.Id).ConfigureAwait(false);
+                if (entity != null)
+                {
+                    entity.Category = sharedCategory;
+                    await _repository.UpdateAsync(entity).ConfigureAwait(false);
+                    mod.Category = sharedCategory; // reflect it in the returned info
+                }
+            }
+
             _processRegistry.Complete(procId);
-            _logger.Info($"[ModMerge] Created '{safeName}' (namespace merge) from {modIds.Count} mods ({iniCount} .ini)");
+            _logger.Info($"[ModMerge] Created '{safeName}' (namespace merge) from {modIds.Count} mods ({iniCount} .ini), category='{sharedCategory ?? "(none)"}'");
             return mod;
         }
         catch (Exception ex)
@@ -124,6 +143,24 @@ public class ModMergeService : IModMergeService
         {
             TryDeleteDir(staging);
         }
+    }
+
+    /// <summary>
+    /// The category shared by ALL source mods, or null if they differ / any is uncategorized. Used to
+    /// give the merged mod that same category.
+    /// </summary>
+    private async Task<string?> ResolveSharedCategoryAsync(IReadOnlyList<string> modIds)
+    {
+        string? shared = null;
+        foreach (var id in modIds)
+        {
+            var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
+            var cat = entity?.Category;
+            if (string.IsNullOrEmpty(cat)) return null; // an uncategorized source → no shared category
+            if (shared == null) shared = cat;
+            else if (!string.Equals(shared, cat, StringComparison.Ordinal)) return null; // differ
+        }
+        return shared;
     }
 
     /// <summary>Active cache dir if present; otherwise extract the archive into the staging area. Null if neither.</summary>
