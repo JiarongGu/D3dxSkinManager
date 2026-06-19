@@ -30,18 +30,26 @@ public class UpdateService : IUpdateService
     private const string LatestDownloadBase =
         "https://github.com/JiarongGu/D3dxSkinManager/releases/latest/download/";
 
-    // Static HttpClient (intended to be long-lived / reused — avoids socket exhaustion).
-    private static readonly HttpClient Http = CreateHttpClient();
-
+    private readonly HttpClient _http;
     private readonly ILogHelper _logger;
     private readonly IProcessRegistry _processRegistry;
     private readonly IAppEnvironment _appEnvironment;
 
+    // DI constructor. The built-in container can't resolve HttpMessageHandler, so it selects this
+    // (fewer params) and the service builds a real HttpClient.
     public UpdateService(ILogHelper logger, IProcessRegistry processRegistry, IAppEnvironment appEnvironment)
+        : this(logger, processRegistry, appEnvironment, null)
+    {
+    }
+
+    // Test constructor: inject a stubbed HttpMessageHandler to fake GitHub responses.
+    public UpdateService(ILogHelper logger, IProcessRegistry processRegistry, IAppEnvironment appEnvironment,
+        HttpMessageHandler? handler)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _processRegistry = processRegistry ?? throw new ArgumentNullException(nameof(processRegistry));
         _appEnvironment = appEnvironment ?? throw new ArgumentNullException(nameof(appEnvironment));
+        _http = CreateHttpClient(handler);
     }
 
     // The install dir (where the exe + manifest.json live; the dir the launcher manages).
@@ -52,11 +60,13 @@ public class UpdateService : IUpdateService
     private string StagedDir => Path.Combine(StagingRoot, "staged");
     private string ReadyMarkerPath => Path.Combine(StagingRoot, "ready.json");
 
-    private static HttpClient CreateHttpClient()
+    private static HttpClient CreateHttpClient(HttpMessageHandler? handler)
     {
         // No total timeout: a download can take longer than the default 100s; per-read is handled by
         // the stream copy. (The check call is small and fast regardless.)
-        var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+        var client = handler != null
+            ? new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan }
+            : new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
         // GitHub rejects requests with no User-Agent (HTTP 403).
         client.DefaultRequestHeaders.UserAgent.ParseAdd("D3dxSkinManager-UpdateCheck");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
@@ -71,7 +81,7 @@ public class UpdateService : IUpdateService
         {
             _logger.Info($"Checking for update (current {currentVersion})...", "UpdateService");
 
-            var json = await Http.GetStringAsync(LatestReleaseApiUrl).ConfigureAwait(false);
+            var json = await _http.GetStringAsync(LatestReleaseApiUrl).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -271,7 +281,7 @@ public class UpdateService : IUpdateService
     /// <summary>Stream a URL to a file, reporting 0–90% download progress on the process.</summary>
     private async Task DownloadToFileAsync(string url, string destPath, string procId)
     {
-        using var resp = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+        using var resp = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
 
         var total = resp.Content.Headers.ContentLength ?? -1L;
@@ -310,7 +320,7 @@ public class UpdateService : IUpdateService
 
             var jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-            var remoteJson = await Http.GetStringAsync(manifestUrl).ConfigureAwait(false);
+            var remoteJson = await _http.GetStringAsync(manifestUrl).ConfigureAwait(false);
             var remote = JsonSerializer.Deserialize<UpdateManifest>(remoteJson, jsonOpts);
             var local = JsonSerializer.Deserialize<UpdateManifest>(
                 await File.ReadAllTextAsync(localPath).ConfigureAwait(false), jsonOpts);
@@ -347,8 +357,9 @@ public class UpdateService : IUpdateService
         return null;
     }
 
-    /// <summary>Running app version as "Major.Minor" (matches the csproj &lt;Version&gt;).</summary>
-    private static string GetCurrentVersion()
+    /// <summary>Running app version as "Major.Minor" (matches the csproj &lt;Version&gt;). Virtual so tests
+    /// can pin a deterministic current version for the comparison.</summary>
+    protected virtual string GetCurrentVersion()
     {
         var v = Assembly.GetExecutingAssembly().GetName().Version;
         if (v == null) return "0.0";
