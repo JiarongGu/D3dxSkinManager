@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Text;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
@@ -22,6 +23,14 @@ public interface IImageHelper
     /// <param name="targetFileName">Target file name (without extension, .png will be added)</param>
     /// <returns>Path to the converted PNG file, or null if conversion failed</returns>
     Task<string?> ConvertToPngAsync(string sourcePath, string targetDirectory, string targetFileName);
+
+    /// <summary>
+    /// Return a downscaled copy of <paramref name="sourcePath"/> (≤ maxDimension on the longest side),
+    /// cached in <paramref name="cacheDir"/> keyed by source path + mtime + maxDimension. If the source
+    /// is already within the bound it is returned unchanged (no work). Synchronous — safe to call from
+    /// the app:// scheme handler. Returns null on failure so the caller can fall back to the source.
+    /// </summary>
+    string? GetOrCreateDownscaled(string sourcePath, int maxDimension, string cacheDir);
 }
 
 /// <summary>
@@ -89,6 +98,47 @@ public class ImageHelper : IImageHelper
         catch (Exception ex)
         {
             _logger.Error($"Failed to convert image to PNG from '{sourcePath}': {ex.GetType().Name}: {ex.Message}", "ImageHelper", ex);
+            return null;
+        }
+    }
+
+    public string? GetOrCreateDownscaled(string sourcePath, int maxDimension, string cacheDir)
+    {
+        try
+        {
+            if (!File.Exists(sourcePath)) return null;
+
+            // Cache key: source path + mtime + size bound. mtime invalidates when the thumbnail changes.
+            var mtime = File.GetLastWriteTimeUtc(sourcePath).Ticks;
+            var keyBytes = global::System.Security.Cryptography.SHA1.HashData(
+                Encoding.UTF8.GetBytes($"{sourcePath}|{mtime}|{maxDimension}"));
+            var key = Convert.ToHexString(keyBytes);
+            var cachePath = Path.Combine(cacheDir, $"{key}.png");
+
+            if (File.Exists(cachePath)) return cachePath; // already downscaled this exact source
+
+            using var image = ImageSharpImage.Load<Rgba32>(sourcePath);
+            // Already small enough → serve the source as-is (avoid a pointless re-encode).
+            if (image.Width <= maxDimension && image.Height <= maxDimension) return sourcePath;
+
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Size = new SixLabors.ImageSharp.Size(maxDimension, maxDimension),
+                Mode = ResizeMode.Max, // fit within the box, preserve aspect ratio
+            }));
+
+            Directory.CreateDirectory(cacheDir);
+            // Encode to a temp file then move, so a concurrent reader never sees a half-written PNG.
+            var tempPath = cachePath + ".tmp";
+            image.SaveAsPng(tempPath);
+            try { File.Move(tempPath, cachePath, overwrite: true); }
+            catch { /* another thread won the race */ try { File.Delete(tempPath); } catch { } }
+
+            return File.Exists(cachePath) ? cachePath : sourcePath;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Downscale failed for '{sourcePath}': {ex.Message}", "ImageHelper");
             return null;
         }
     }
