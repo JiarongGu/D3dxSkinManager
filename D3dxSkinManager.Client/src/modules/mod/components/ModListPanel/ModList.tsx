@@ -28,7 +28,6 @@ import type { ModFixTool as FixToolEntry } from "../../../../shared/types/modFix
 import { eventBus, Module, ToolsEventType } from "../../../../shared/services/eventBus";
 import { GradingTag } from "../GradingTag";
 import { StatusTag } from "../../../../shared/components/common/StatusTag";
-import { HealthStatusIcon } from "../../../../shared/components/common/HealthStatusIcon";
 import { TagChip } from "../../../../shared/components/TagChip";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
@@ -98,7 +97,6 @@ export const ModList: React.FC<ModListProps> = ({
     mod?: ModInfo;
   }>({ visible: false });
   const busyModIds = useModsStore((s) => s.busyModIds);
-  const modHealth = useModsStore((s) => s.modHealth);
   const [showFixManager, setShowFixManager] = useState(false);
   const [iniEditorMod, setIniEditorMod] = useState<ModInfo>();
   const [mergeDialogMods, setMergeDialogMods] = useState<ModInfo[]>();
@@ -688,8 +686,6 @@ export const ModList: React.FC<ModListProps> = ({
             // Broken state: the source archive is gone, so the mod can't be loaded (orphaned cache-only
             // mods get their own treatment below).
             const isUnavailable = !mod.isAvailable && !mod.isOrphaned && !mod.isLoaded;
-            // Last-scan health (warning/error only) from the analyzer — point-in-time, not live.
-            const health = modHealth[mod.id];
 
             return (
               <div
@@ -751,13 +747,6 @@ export const ModList: React.FC<ModListProps> = ({
                       <Tooltip title={t("mods.list.unavailableHint")}>
                         <span>
                           <StatusTag tone="error" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.unavailable")} />
-                        </span>
-                      </Tooltip>
-                    )}
-                    {health && (
-                      <Tooltip title={t("mods.list.healthHint", { count: health.issueCount })}>
-                        <span className="mod-list-item-health">
-                          <HealthStatusIcon status={health.healthStatus} size={12} />
                         </span>
                       </Tooltip>
                     )}
