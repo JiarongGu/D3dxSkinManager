@@ -555,6 +555,7 @@
     "update.ready.title": "Update downloaded",
     "update.ready.detail": "Version {{version}} is ready to install.",
     "update.ready.restartHint": "Restart D3dxSkinManager to finish installing.",
+    "update.ready.statusBar": "Update ready — restart",
     "update.checkFailed": "Couldn't check for updates. Check your connection and try again.",
     "settings.notifications.languageChanged": "Language changed to: {{language}}",
     "settings.notifications.languageFailed": "Failed to change language",

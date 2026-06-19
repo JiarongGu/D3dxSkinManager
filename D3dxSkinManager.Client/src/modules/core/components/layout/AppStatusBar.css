@@ -24,6 +24,13 @@
   color: var(--color-text-secondary);
 }
 
+/* "Update ready — restart" pill (shown when an update is staged). */
+.app-status-bar-update-ready {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* ===== Progress bar container (always visible) ===== */
 
 .app-status-bar-task-area {

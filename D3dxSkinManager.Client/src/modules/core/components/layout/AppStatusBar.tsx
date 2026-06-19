@@ -11,6 +11,8 @@ import { api } from "../../../../shared/services/ipc";
 import { ModPresetMenu } from "./ModPresetMenu";
 import { ActivityPanel } from "./ActivityPanel";
 import { LaunchButton } from "./LaunchButton";
+import { UpdateDialog } from "../../../setting/components/UpdateDialog";
+import { systemService } from "../../../../shared/services/ipc";
 import "./AppStatusBar.css";
 
 // Global app metadata injected by backend
@@ -33,6 +35,8 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
   const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState("1.0.0");
   const [activityOpen, setActivityOpen] = useState(false);
+  const [updatePending, setUpdatePending] = useState(false);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
 
   // Mod statistics
@@ -54,6 +58,23 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
     if (metadata?.version) {
       setAppVersion(metadata.version);
     }
+  }, []);
+
+  // Show a persistent "update ready" pill when an update has been downloaded + staged (the launcher
+  // applies it on next restart). Checked once on mount — staging only changes via the download flow.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const state = await systemService.getUpdateState();
+        if (!cancelled) setUpdatePending(state.pending);
+      } catch {
+        // ignore — no indicator if the check fails
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Resume dispatcher: when the user resumes an interrupted process (ProcessRegistry emits
@@ -137,6 +158,16 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
 
         {/* Right side */}
         <Space size="large" style={{ marginLeft: "auto" }}>
+          {updatePending && (
+            <span
+              className="app-status-bar-update-ready"
+              onClick={() => setUpdateDialogOpen(true)}
+              title={t("update.ready.restartHint")}
+            >
+              <StatusTag tone="info" label={t("update.ready.statusBar")} />
+            </span>
+          )}
+
           <LaunchButton />
           <ModPresetMenu />
 
@@ -156,6 +187,7 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
       </div>
 
       <ActivityPanel open={activityOpen} onClose={() => setActivityOpen(false)} />
+      <UpdateDialog open={updateDialogOpen} onClose={() => setUpdateDialogOpen(false)} />
     </div>
   );
 };

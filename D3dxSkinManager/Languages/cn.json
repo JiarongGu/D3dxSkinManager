@@ -534,6 +534,7 @@
     "update.ready.title": "更新已下载",
     "update.ready.detail": "版本 {{version}} 已准备好安装。",
     "update.ready.restartHint": "重启 D3dxSkinManager 以完成安装。",
+    "update.ready.statusBar": "更新就绪——重启",
     "update.checkFailed": "无法检查更新。请检查网络连接后重试。",
     "settings.notifications.languageChanged": "语言已更改为: {{language}}",
     "settings.notifications.languageFailed": "更改语言失败",
