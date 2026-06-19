@@ -301,18 +301,22 @@ public class WebViewInitializer
         // Register filter for virtual host (embedded web resources)
         _webView.CoreWebView2.AddWebResourceRequestedFilter("https://app.local/*", CoreWebView2WebResourceContext.All);
 
-        // Handle web resource requests OFF the UI thread via a deferral.
-        // WebResourceRequested fires on the WinForms UI thread. If we resolve the response *inline*
-        // (read the file, build the response) the UI thread is blocked for the duration of every
-        // request — for a library with hundreds of category cards that startup burst FREEZES the window.
-        // `args.GetDeferral()` tells WebView2 "I'll respond later" so the handler returns to the UI thread
-        // IMMEDIATELY (microseconds); the actual read happens on the thread pool and the response is
-        // created back on the UI thread (CoreWebView2 is UI-affine) via non-blocking BeginInvoke.
+        // Two schemes, two serving strategies — the split matters:
         //
-        // NOTE: the past "slow thumbnails" regression was NOT the deferral — it was a per-request ImageSharp
-        // DECODE in CustomSchemeHandler (re-decoded every image just to measure it). That is removed; the
-        // read here is now just a fast local byte read, so the pool drains the burst quickly without
-        // ramp-stall. Do NOT serve these synchronously (freezes the UI) and do NOT decode in the path.
+        // app.local/* = the embedded prod bundle (index.html with JS/CSS inlined by vite-plugin-singlefile,
+        //   + a few assets). These are IN-MEMORY embedded resources, and index.html is the MAIN DOCUMENT
+        //   WebView2 is navigating to at startup. Serve them SYNCHRONOUSLY inline: an in-memory read is
+        //   instant (no disk, no freeze risk) and the navigation needs the document promptly. Deferring the
+        //   main document stalls the initial navigation → "stuck on start" (only reproduces in production;
+        //   dev loads the bundle from Vite over http, never through this handler).
+        //
+        // app://* = on-disk dynamic files (mod previews + category/profile thumbnails). A library with
+        //   hundreds of category cards fires that many DISK reads in a startup/scroll burst; doing those
+        //   inline blocks the UI thread → FREEZE. So these go OFF the UI thread via a deferral: GetDeferral
+        //   returns the UI thread immediately, the read happens async on the pool, and the response is built
+        //   back on the UI thread (CoreWebView2 is UI-affine) via non-blocking BeginInvoke.
+        //   (Do NOT decode images here — that earlier per-request ImageSharp decode was the real slowness,
+        //   not the deferral. Removed.)
         _webView.CoreWebView2.WebResourceRequested += (sender, args) =>
         {
             var uri = args.Request.Uri;
@@ -320,6 +324,46 @@ public class WebViewInitializer
             bool isLocal = uri.StartsWith("https://app.local/", StringComparison.OrdinalIgnoreCase);
             if (!isApp && !isLocal) return; // not ours — let WebView2 handle it
 
+            // --- app.local: synchronous, in-memory, prompt (main document + bundle) ---
+            if (isLocal)
+            {
+                try
+                {
+                    var path = uri.Substring("https://app.local/".Length);
+                    var queryIndex = path.IndexOf('?');
+                    if (queryIndex >= 0) path = path.Substring(0, queryIndex);
+                    var virtualPath = "wwwroot/" + path;
+
+                    var stream = _resourceProvider.GetResourceStream(virtualPath);
+                    if (stream != null)
+                    {
+                        var headers = $"Content-Type: {GetContentType(virtualPath)}\n" +
+                                      "Cache-Control: public, max-age=31536000, immutable\n" +
+                                      "Access-Control-Allow-Origin: *";
+                        args.Response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
+                            stream, 200, "OK", headers);
+                    }
+                    else
+                    {
+                        var data = global::System.Text.Encoding.UTF8.GetBytes($"Embedded resource not found: {virtualPath}");
+                        args.Response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
+                            new MemoryStream(data, writable: false), 404, "Not Found", "Content-Type: text/plain");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        var data = global::System.Text.Encoding.UTF8.GetBytes($"Error: {ex.Message}");
+                        args.Response = _webView.CoreWebView2.Environment.CreateWebResourceResponse(
+                            new MemoryStream(data, writable: false), 404, "Not Found", "Content-Type: text/plain");
+                    }
+                    catch { /* webview may be tearing down */ }
+                }
+                return;
+            }
+
+            // --- app://: deferred, off-UI-thread, async disk read (thumbnails/previews burst) ---
             var deferral = args.GetDeferral();
             _ = Task.Run(async () =>
             {
@@ -329,34 +373,10 @@ public class WebViewInitializer
                 string headers;
                 try
                 {
-                    if (isApp)
-                    {
-                        // Dynamic file resources (thumbnails/previews). Cache 1 day; callers cache-bust via ?t=<mtime>.
-                        var (bytes, contentType) = await _schemeHandler.HandleRequestBytesAsync(uri).ConfigureAwait(false);
-                        data = bytes;
-                        headers = $"Content-Type: {contentType}\nCache-Control: public, max-age=86400";
-                    }
-                    else
-                    {
-                        var path = uri.Substring("https://app.local/".Length);
-                        var queryIndex = path.IndexOf('?');
-                        if (queryIndex >= 0) path = path.Substring(0, queryIndex);
-                        var virtualPath = "wwwroot/" + path;
-
-                        using var stream = _resourceProvider.GetResourceStream(virtualPath);
-                        if (stream != null)
-                        {
-                            data = ReadAllBytes(stream);
-                            headers = $"Content-Type: {GetContentType(virtualPath)}\n" +
-                                      "Cache-Control: public, max-age=31536000, immutable\n" +
-                                      "Access-Control-Allow-Origin: *";
-                        }
-                        else
-                        {
-                            data = global::System.Text.Encoding.UTF8.GetBytes($"Embedded resource not found: {virtualPath}");
-                            status = 404; reason = "Not Found"; headers = "Content-Type: text/plain";
-                        }
-                    }
+                    // Cache 1 day; callers cache-bust via ?t=<mtime>.
+                    var (bytes, contentType) = await _schemeHandler.HandleRequestBytesAsync(uri).ConfigureAwait(false);
+                    data = bytes;
+                    headers = $"Content-Type: {contentType}\nCache-Control: public, max-age=86400";
                 }
                 catch (Exception ex)
                 {
@@ -387,18 +407,6 @@ public class WebViewInitializer
         };
 
         Console.WriteLine("[WebView2] Custom scheme handlers registered (app://, https://app.local/)");
-    }
-
-    /// <summary>Read a stream fully into a byte[] (disposes the stream). MemoryStream fast-paths to its buffer copy.</summary>
-    private static byte[] ReadAllBytes(Stream stream)
-    {
-        using (stream)
-        {
-            if (stream is MemoryStream ms) return ms.ToArray();
-            using var buffer = new MemoryStream();
-            stream.CopyTo(buffer);
-            return buffer.ToArray();
-        }
     }
 
     private static string GetContentType(string path)

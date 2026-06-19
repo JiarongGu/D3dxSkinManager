@@ -347,59 +347,62 @@ public class ModQueryService : IModQueryService
         // Use GetOrCreateAsync for cleaner cache-first pattern
         return await _cache.GetOrCreateAsync(_activeModsCacheKey, async entry =>
         {
-            // Yield to ensure async execution and allow UI updates
-            await Task.Yield();
-
-            // Cache miss - scan cache folder and build list
-            var activeMods = new List<ModInfo>();
-            var cacheModsDir = _profilePaths.CacheModsDirectory;
-
-            if (!Directory.Exists(cacheModsDir))
+            // CRITICAL: run the whole scan on the thread pool. This method is reached from an IPC handler
+            // that executes on the WinForms UI thread, and the per-mod DB query (SQLite) + EnrichAsync
+            // complete SYNCHRONOUSLY (SQLite has no real async I/O), so a bare `await Task.Yield()` only
+            // yields once — the loop then hammers the UI thread. For a large loaded library that froze the
+            // UI for ~5s on first call (blocking WebResourceRequested → thumbnails wouldn't load). Task.Run
+            // moves it off the UI thread so the IPC handler's await genuinely yields the pump.
+            return await Task.Run(async () =>
             {
-                return activeMods;  // Return empty list
-            }
+                var activeMods = new List<ModInfo>();
+                var cacheModsDir = _profilePaths.CacheModsDirectory;
 
-            // Step 1: Scan cache folder for active mods (not DISABLED-)
-            var cacheDirs = Directory.GetDirectories(cacheModsDir)
-                .Select(Path.GetFileName)
-                .Where(name => !string.IsNullOrEmpty(name) && !name.StartsWith("DISABLED-"))
-                .ToList();
-
-            // Step 2-3: For each ID found in cache, get from repository and enrich
-            foreach (var id in cacheDirs)
-            {
-                if (string.IsNullOrEmpty(id)) continue;
-
-                // Step 2: Get ModEntity from repository
-                var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
-
-                if (entity != null)
+                if (!Directory.Exists(cacheModsDir))
                 {
-                    // Convert entity to domain model
-                    var mod = ModMapper.ToDomain(entity);
-
-                    // Step 3: Enrich ModInfo (populate status flags, cache paths, etc.)
-                    var enriched = await _enrichmentService.EnrichAsync(mod).ConfigureAwait(false);
-                    activeMods.Add(enriched);
+                    return activeMods;  // Return empty list
                 }
-                else
+
+                // Step 1: Scan cache folder for active mod ids (not DISABLED-)
+                var activeIds = Directory.GetDirectories(cacheModsDir)
+                    .Select(Path.GetFileName)
+                    .Where(name => !string.IsNullOrEmpty(name) && !name.StartsWith("DISABLED-"))
+                    .Select(name => name!)
+                    .ToList();
+
+                if (activeIds.Count == 0) return activeMods;
+
+                // Step 2: ONE DB query for all entities, indexed by id. Was N separate GetByIdAsync calls
+                // (one SQLite round-trip per active mod) — O(N) queries collapsed to O(1).
+                var byId = (await _repository.GetAllAsync().ConfigureAwait(false))
+                    .GroupBy(e => e.Id).ToDictionary(g => g.Key, g => g.First());
+
+                foreach (var id in activeIds)
                 {
-                    // Step 4: Orphaned mod - not in database but exists in cache
-                    // Create minimal ModInfo with IsOrphaned flag for frontend to handle i18n
-                    // Use truncated ID (first 6 characters) for display name
-                    activeMods.Add(new ModInfo
+                    if (byId.TryGetValue(id, out var entity))
                     {
-                        Id = id,
-                        Name = id.Length >= 6 ? id.Substring(0, 6) : id, // Truncate ID for display
-                        IsLoaded = true,
-                        HasCache = true,
-                        IsOrphaned = true,
-                        CachePath = Path.Combine(cacheModsDir, id)
-                    });
+                        activeMods.Add(ModMapper.ToDomain(entity));
+                    }
+                    else
+                    {
+                        // Orphaned mod - exists in cache but not the DB. Name from truncated id; the
+                        // remaining flags (IsLoaded/HasCache/CachePath) are filled by EnrichAllAsync below.
+                        activeMods.Add(new ModInfo
+                        {
+                            Id = id,
+                            Name = id.Length >= 6 ? id.Substring(0, 6) : id,
+                            IsOrphaned = true,
+                        });
+                    }
                 }
-            }
 
-            return SortMods(activeMods);
+                // Step 3: ONE batch enrichment — scans the Mods/cache/previews directories ONCE for the
+                // whole list (PopulateStatusFlags). Was per-mod EnrichAsync, which re-scanned the entire
+                // library for every active mod (O(N*M)) — the cause of the multi-second UI freeze.
+                var enriched = await _enrichmentService.EnrichAllAsync(activeMods).ConfigureAwait(false);
+
+                return SortMods(enriched);
+            }).ConfigureAwait(false);
         }) ?? new List<ModInfo>();  // Fallback to empty list if null
     }
 }
