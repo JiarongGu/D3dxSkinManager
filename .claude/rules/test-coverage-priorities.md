@@ -52,11 +52,13 @@ converted to `vi.*` (no `requireActual` to worry about).
 **Current state:** `npm test` is GREEN — **99 passing**, 0 failing. The frontend verification gate is now
 `npx tsc --noEmit` + `npm test` + `npm run build` + visual (native `shot`).
 
+**Revived 2026-06-19:** `FindingsView.test` (9) — completed its antd stub (`Input`) + mocked `FormDialog`
+to a visible-gated stub (so it doesn't pull real antd Modal into the render). Now green.
+
 **Skipped suites (pre-existing test debt — triage, don't trust as coverage):** these were written but
 **never executed** before the runner existed, so they rotted against refactors —
 `ThemeContext.test`, `TooltipSystem.test` (mocked `modules/settings/services/settingsService`, a path that
 moved to `shared/services/ipc/`; even with the path fixed the assertions are stale), `settingsFileService.test`,
-`workflowService.test` (stale service-mock assertions), `FindingsView.test` (incomplete antd stub — renders
-`Input`/FormDialog the mock doesn't provide). All `describe.skip` with a `// TODO(test-runner)` marker.
+`workflowService.test` (stale service-mock assertions). All `describe.skip` with a `// TODO(test-runner)` marker.
 Plus 3 `it.skip` in `searchQueryParser.test` (id-field / lone-dash — decide whether the util *should*
 match `id` in an any-field search before un-skipping). `App.test.tsx` (CRA "learn react" boilerplate) was deleted.

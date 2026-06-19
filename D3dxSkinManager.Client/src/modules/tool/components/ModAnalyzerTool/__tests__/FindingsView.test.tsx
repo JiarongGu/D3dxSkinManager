@@ -1,4 +1,3 @@
-// TODO(test-runner): skipped — stale mocks/assertions predating refactors; triage per test-coverage-priorities.md
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -16,8 +15,16 @@ vi.mock('antd', () => {
       <div>{items?.map((item: any, i: number) => <div key={i}>{item.label}{item.children}</div>)}</div>
     ),
     Empty: ({ description }: any) => <div>{description}</div>,
+    Input: ({ value, onChange, placeholder }: any) => (
+      <input value={value} onChange={onChange} placeholder={placeholder} />
+    ),
   };
 });
+
+// Stub the edit dialog so it doesn't pull real antd Modal + the compact tree into the test render.
+vi.mock('../../../../../shared/components/dialogs/FormDialog', () => ({
+  FormDialog: ({ visible, title, children }: any) => (visible ? <div>{title}{children}</div> : null),
+}));
 
 // Mock i18n
 vi.mock('react-i18next', () => ({
@@ -92,7 +99,7 @@ const makeReport = (overrides: Partial<FullAnalysisReport> = {}): FullAnalysisRe
   ...overrides,
 });
 
-describe.skip('FindingsView', () => {
+describe('FindingsView', () => {
   const defaultProps = {
     report: makeReport(),
     scanning: false,
