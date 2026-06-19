@@ -64,9 +64,17 @@ but the service now calls `this.sendMessage(type, profileId, payload)` → `brid
 module, type, profileId, payload })` and returns **`undefined`**, and no longer `console.error`s.
 Rewrote the call assertions to the object shape + `null`→`undefined` + dropped the stale console assert. Green.
 
-**Skipped suites (pre-existing test debt — triage, don't trust as coverage):** `ThemeContext.test`,
-`TooltipSystem.test` — both mock `modules/settings/services/settingsService`, a path that moved to
-`shared/services/ipc/`; even with the import path fixed the assertions are stale vs the current
-components (need verifying the components still use settingsService at all). `describe.skip` + `// TODO(test-runner)`.
+`TooltipSystem.test` (13) — the `settingsService` *instance* lives in the ipc barrel
+(`settingsService.ts` only exports the class), so the mock/import had to target `'../../../services/ipc'`
+not the file (it was resolving to `undefined`). Also updated 2 stale assertions: the retry test now
+waits on the call count (not the displayed text, which already shows the default `all`), and
+`useAnnotation` no longer throws outside a provider (default-valued context) — asserts the default.
+`ThemeContext.test` — **DELETED** (obsolete): ThemeContext was refactored to read theme from
+`useSettingsStore` (SettingsProvider loads it); the test covered removed responsibilities (self-load,
+3× retry/backoff, throw-outside-provider). A fresh store-reactive suite (setTheme→updateGlobalSetting,
+effectiveTheme auto-resolution, data-theme) is a clean future task, not a revival.
+
+**No skipped suites remain.** Only 3 `it.skip` in `searchQueryParser.test` (the id-field / lone-dash
+question — decide whether an any-field search should match a mod's GUID before un-skipping).
 Plus 3 `it.skip` in `searchQueryParser.test` (id-field / lone-dash — decide whether the util *should*
 match `id` in an any-field search before un-skipping). `App.test.tsx` (CRA "learn react" boilerplate) was deleted.

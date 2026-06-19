@@ -1,14 +1,16 @@
-// TODO(test-runner): skipped — stale mocks/assertions predating refactors; triage per test-coverage-priorities.md
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AnnotationProvider, useAnnotation, AnnotationLevel } from '../TooltipSystem';
-import { settingsService } from '../../../services/ipc/settingsService';
+import { settingsService } from '../../../services/ipc';
 
-// Mock the settings service
-vi.mock('../../../services/ipc/settingsService');
+// The `settingsService` instance lives in the ipc barrel (settingsService.ts only exports the class),
+// so mock the barrel and stub the two methods the component uses.
+vi.mock('../../../services/ipc', () => ({
+  settingsService: { getGlobalSettings: vi.fn(), updateGlobalSetting: vi.fn() },
+}));
 
-describe.skip('AnnotationContext (TooltipSystem)', () => {
+describe('AnnotationContext (TooltipSystem)', () => {
   // Helper component to access context
   const TestComponent = () => {
     const { annotationLevel, setAnnotationLevel } = useAnnotation();
@@ -90,12 +92,12 @@ describe.skip('AnnotationContext (TooltipSystem)', () => {
       </AnnotationProvider>
     );
 
-    // Assert
+    // Assert: wait for the 3rd (successful) attempt. initialLevel is already 'all', so the displayed
+    // text matches the default from the start — wait on the call count, not the text.
     await waitFor(() => {
-      expect(screen.getByTestId('annotation-level')).toHaveTextContent('all');
+      expect(settingsService.getGlobalSettings).toHaveBeenCalledTimes(3);
     }, { timeout: 5000 });
-
-    expect(callCount).toBe(3); // Tried 3 times before success
+    expect(screen.getByTestId('annotation-level')).toHaveTextContent('all');
   });
 
   it('should fall back to default "all" after all retries fail', async () => {
@@ -284,20 +286,14 @@ describe.skip('AnnotationContext (TooltipSystem)', () => {
     expect(settingsService.updateGlobalSetting).toHaveBeenCalledWith('annotationLevel', 'off');
   });
 
-  it('should throw error when useAnnotation is used outside provider', () => {
-    // Arrange
-    const ComponentWithoutProvider = () => {
-      useAnnotation(); // This should throw
-      return <div>Test</div>;
-    };
+  it('returns the default annotation level when used outside a provider', () => {
+    // useAnnotation reads a default-valued context (createContext default 'all'), so it does NOT throw
+    // outside a provider — it returns the default. (Behavior changed from the original throw.)
+    const ComponentWithoutProvider = () => <div data-testid="lvl">{useAnnotation().annotationLevel}</div>;
 
-    // Act & Assert
-    // Suppress console.error for this test
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation();
+    render(<ComponentWithoutProvider />);
 
-    expect(() => render(<ComponentWithoutProvider />)).toThrow();
-
-    consoleSpy.mockRestore();
+    expect(screen.getByTestId('lvl')).toHaveTextContent('all');
   });
 
   it('should not update backend if level does not change', async () => {
