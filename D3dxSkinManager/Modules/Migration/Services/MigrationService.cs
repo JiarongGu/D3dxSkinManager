@@ -43,21 +43,13 @@ public class MigrationService : IMigrationService
     public MigrationService(
         IProfilePathService profilePaths,
         ILogHelper logger,
-        // Inject all migration steps
-        MigrationStep1AnalyzeSource step1,
-        MigrationStep2MigrateConfiguration step2,
-        MigrationStep3MigrateCategories step3,
-        MigrationStep4MigrateCategoryThumbnails step4,
-        MigrationStep5MigrateModArchives step5,
-        MigrationStep6MigrateModPreviews step6)
+        IEnumerable<IMigrationStep> steps)
     {
         _profilePaths = profilePaths;
         _logger = logger;
 
-        // Steps are automatically ordered by StepNumber
-        _steps = new List<IMigrationStep> { step1, step2, step3, step4, step5, step6 }
-            .OrderBy(s => s.StepNumber)
-            .ToList();
+        // Steps are automatically ordered by StepNumber (DI supplies them in registration order).
+        _steps = steps.OrderBy(s => s.StepNumber).ToList();
     }
 
     /// <summary>
@@ -65,7 +57,7 @@ public class MigrationService : IMigrationService
     /// </summary>
     public async Task<MigrationAnalysis> AnalyzeSourceAsync(string pythonPath)
     {
-        var step1 = _steps.First(s => s.StepNumber == 1) as MigrationStep1AnalyzeSource;
+        var step1 = _steps.FirstOrDefault(s => s.StepNumber == 1);
         if (step1 == null)
             throw new InvalidOperationException("Step 1 (Analyze Source) not found");
 

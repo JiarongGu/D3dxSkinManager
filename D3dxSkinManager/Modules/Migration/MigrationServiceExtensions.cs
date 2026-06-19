@@ -25,13 +25,14 @@ public static class MigrationServiceExtensions
         services.TryAddSingleton<IPythonCategoryFileParser, PythonCategoryFileParser>();
         services.TryAddSingleton<IPythonModIndexParser, PythonModIndexParser>();
 
-        // Register migration steps (each step is a separate service)
-        services.TryAddSingleton<MigrationStep1AnalyzeSource>();
-        services.TryAddSingleton<MigrationStep2MigrateConfiguration>();
-        services.TryAddSingleton<MigrationStep3MigrateCategories>();
-        services.TryAddSingleton<MigrationStep4MigrateCategoryThumbnails>();
-        services.TryAddSingleton<MigrationStep5MigrateModArchives>();
-        services.TryAddSingleton<MigrationStep6MigrateModPreviews>();
+        // Register migration steps as IMigrationStep so the orchestrator (MigrationService) receives them
+        // as IEnumerable<IMigrationStep> and self-orders by StepNumber. Add (not TryAdd) so all 6 register.
+        services.AddSingleton<IMigrationStep, MigrationStep1AnalyzeSource>();
+        services.AddSingleton<IMigrationStep, MigrationStep2MigrateConfiguration>();
+        services.AddSingleton<IMigrationStep, MigrationStep3MigrateCategories>();
+        services.AddSingleton<IMigrationStep, MigrationStep4MigrateCategoryThumbnails>();
+        services.AddSingleton<IMigrationStep, MigrationStep5MigrateModArchives>();
+        services.AddSingleton<IMigrationStep, MigrationStep6MigrateModPreviews>();
 
         // Register migration service (step-based orchestrator)
         services.TryAddSingleton<IMigrationService, MigrationService>();

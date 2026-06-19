@@ -19,7 +19,7 @@ Current state as of 2026-04-13. Update this when new tests are added.
 | ~~**ProfileService**~~ | ✅ DONE 2026-06-19 (`ProfileServiceTests` — create/get/update/delete lifecycle, delete-active guard, switch) |
 | ~~**ModFacade**~~ | ✅ DONE 2026-06-19 (`ModFacadeTests` — routing GET_ALL→repo+enrich, GET_BY_ID parses id payload (real PayloadHelper), missing-payload→error, LOAD→queue→lifecycle, unknown-type→error). 18 services mocked + real PayloadHelper. |
 | ~~**ModArchiveService**~~ | ✅ DONE 2026-06-19 (`ModArchiveServiceTests` (7) — path/exists, extract missing/success(maps type+fileCount)/planner-fail, delete exists/missing, single-file append. Planner mocked (no real 7z); `File.Exists` backed by a temp file). |
-| **MigrationService** | DEFERRED (legacy one-shot Python→React). Its ctor takes **6 concrete `MigrationStepN` classes**, not `IEnumerable<IMigrationStep>` — orchestration (ordering/progress/rollback) isn't unit-testable without first refactoring the ctor to inject the steps as `IEnumerable<IMigrationStep>` (then fakes can be substituted). Low ROI vs. risk for a rarely-used feature; do the ctor refactor first if/when it's touched. |
+| ~~**MigrationService**~~ | ✅ DONE 2026-06-19 (`MigrationServiceTests` (5)). Refactored the ctor from 6 concrete `MigrationStepN` params → `IEnumerable<IMigrationStep>` (DI registers each step `AddSingleton<IMigrationStep, …>`); the orchestrator self-orders by `StepNumber`. Tests: runs in StepNumber order regardless of injection order, a throwing step stops the run + records `FailedAtStep`/`FailedStepName`, progress reported through Complete, pre-cancelled token runs nothing, AnalyzeSourceAsync drives step 1. |
 
 ## What's well-tested
 
