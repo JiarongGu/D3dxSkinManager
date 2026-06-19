@@ -21,6 +21,13 @@ public interface ICustomSchemeHandler
     Stream HandleRequest(string url, out string contentType);
 
     /// <summary>
+    /// Async variant: resolves the app:// url and reads the file bytes with async I/O (no thread held
+    /// during the read). Returns the bytes + content type. Never throws — returns a small error payload
+    /// (text/plain) on failure so the caller can serve a 200/placeholder without special-casing.
+    /// </summary>
+    Task<(byte[] Data, string ContentType)> HandleRequestBytesAsync(string url);
+
+    /// <summary>
     /// Invalidate cache for a specific file path
     /// </summary>
     /// <param name="filePath">Absolute or relative file path to invalidate</param>
@@ -81,76 +88,95 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     /// </summary>
     public Stream HandleRequest(string url, out string contentType)
     {
-        contentType = "application/octet-stream";
+        var (absolutePath, ct, errorBytes) = ResolveRequest(url);
+        contentType = ct;
+        if (errorBytes != null) return new MemoryStream(errorBytes);
+        try
+        {
+            // Read into memory to avoid file handle leaks. Safe for a desktop app with local files.
+            return new MemoryStream(File.ReadAllBytes(absolutePath!), writable: false);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error reading request: {ex.Message}", "CustomScheme", ex);
+            contentType = "text/plain";
+            return new MemoryStream(Encoding.UTF8.GetBytes($"Error: {ex.Message}"));
+        }
+    }
 
+    public async Task<(byte[] Data, string ContentType)> HandleRequestBytesAsync(string url)
+    {
+        var (absolutePath, ct, errorBytes) = ResolveRequest(url);
+        if (errorBytes != null) return (errorBytes, ct);
+        try
+        {
+            // Async I/O: no thread-pool thread is held during the read, so a burst of thumbnail
+            // requests doesn't stall on thread-pool ramp-up.
+            var data = await File.ReadAllBytesAsync(absolutePath!).ConfigureAwait(false);
+            return (data, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error reading request: {ex.Message}", "CustomScheme", ex);
+            return (Encoding.UTF8.GetBytes($"Error: {ex.Message}"), "text/plain");
+        }
+    }
+
+    /// <summary>
+    /// Resolve an app:// url to an absolute file path + content type. Returns <c>errorBytes</c> (non-null)
+    /// instead of a path when the url is invalid / empty / not found, so callers serve that payload.
+    /// </summary>
+    private (string? AbsolutePath, string ContentType, byte[]? ErrorBytes) ResolveRequest(string url)
+    {
         try
         {
             _logger.Verbose($"Request: {url}", "CustomScheme");
 
-            // Fast validation: check scheme prefix
             if (!url.StartsWith(SchemePrefix, StringComparison.OrdinalIgnoreCase))
             {
                 _logger.Warn($"Invalid scheme: {url}", "CustomScheme");
-                contentType = "text/plain";
-                return new MemoryStream(_invalidSchemeError.Value); 
+                return (null, "text/plain", _invalidSchemeError.Value);
             }
 
-            // Extract and decode path efficiently
             var encodedPath = url.AsSpan(SchemePrefixLength);
             if (encodedPath.Length == 0)
             {
                 _logger.Warn("Empty file path", "CustomScheme");
-                contentType = "text/plain";
-                return new MemoryStream(_emptyPathError.Value);
+                return (null, "text/plain", _emptyPathError.Value);
             }
 
             // Strip query parameters (e.g., ?t=1234567890) used for cache busting
             var queryIndex = encodedPath.IndexOf('?');
-            if (queryIndex >= 0)
-            {
-                encodedPath = encodedPath.Slice(0, queryIndex);
-            }
+            if (queryIndex >= 0) encodedPath = encodedPath.Slice(0, queryIndex);
 
             var filePath = WebUtility.UrlDecode(encodedPath.ToString());
 
-            // Try to get cached normalized path or compute it
-            // Use IPathCache with size limit (500 entries) for LRU-like behavior
+            // Cached normalized path (IPathCache, 500-entry LRU-like)
             var cacheKey = CacheKeyPrefix + filePath;
             var absolutePath = _pathCache.GetOrCreate(cacheKey, entry =>
             {
-                entry.Size = 1; // Each entry counts as 1 unit toward the 500 limit
+                entry.Size = 1;
                 entry.SlidingExpiration = TimeSpan.FromMinutes(30);
-
                 var resolvedPath = Path.IsPathRooted(filePath)
                     ? filePath
                     : Path.Combine(_globalPathService.BaseDataPath, filePath);
                 return Path.GetFullPath(resolvedPath);
             });
 
-            // Check if file exists
             if (!File.Exists(absolutePath))
             {
                 _logger.Warn($"File not found: {absolutePath}", "CustomScheme");
-                contentType = "text/plain";
-                return new MemoryStream(_fileNotFoundError.Value);
+                return (null, "text/plain", _fileNotFoundError.Value);
             }
 
-            // Get cached content type
-            contentType = GetCachedContentType(absolutePath);
-
+            var contentType = GetCachedContentType(absolutePath);
             _logger.Verbose($"Serving: {absolutePath} ({contentType})", "CustomScheme");
-
-            // For non-images, read into memory to avoid file handle leaks
-            // This is safe for a desktop app with local files
-            var fileData = File.ReadAllBytes(absolutePath);
-            return new MemoryStream(fileData, writable: false);
+            return (absolutePath, contentType, null);
         }
         catch (Exception ex)
         {
             _logger.Error($"Error handling request: {ex.Message}", "CustomScheme", ex);
-            contentType = "text/plain";
-            var errorBytes = Encoding.UTF8.GetBytes($"Error: {ex.Message}");
-            return new MemoryStream(errorBytes);
+            return (null, "text/plain", Encoding.UTF8.GetBytes($"Error: {ex.Message}"));
         }
     }
 
