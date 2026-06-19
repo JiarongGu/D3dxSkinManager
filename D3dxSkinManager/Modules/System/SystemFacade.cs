@@ -98,6 +98,7 @@ public class SystemFacade : BaseFacade, ISystemFacade
             "OPEN_URL" => await OpenUrlHandlerAsync(request),
             "DOWNLOAD_UPDATE" => DownloadUpdateHandler(request),
             "GET_UPDATE_STATE" => await GetUpdateStateHandlerAsync(request),
+            "RESTART_FOR_UPDATE" => await RestartForUpdateHandlerAsync(request),
 
             // File dialogs
             "OPEN_FILE_DIALOG" => await OpenFileDialogAsync(request),
@@ -307,6 +308,16 @@ public class SystemFacade : BaseFacade, ISystemFacade
     private async Task<UpdateState> GetUpdateStateHandlerAsync(IpcRequest request)
     {
         return await GetUpdateStateAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// IPC handler: restart via the launcher to apply a staged update.
+    /// IPC Message: RESTART_FOR_UPDATE. The process exits shortly after acking.
+    /// </summary>
+    private async Task<object> RestartForUpdateHandlerAsync(IpcRequest request)
+    {
+        await _updateService.RestartToApplyUpdateAsync().ConfigureAwait(false);
+        return new { restarting = true };
     }
 
     private async Task<object> OpenFileDialogAsync(IpcRequest request)

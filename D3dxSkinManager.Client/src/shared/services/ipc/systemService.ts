@@ -157,6 +157,14 @@ export class SystemService extends BaseModuleService {
     return this.sendMessage<UpdateState>('GET_UPDATE_STATE');
   }
 
+  /**
+   * Restart via the launcher to apply a staged update (the app exits shortly after).
+   * Backend: SystemFacade.RestartForUpdateHandler
+   */
+  async restartForUpdate(): Promise<{ restarting: boolean }> {
+    return this.sendMessage<{ restarting: boolean }>('RESTART_FOR_UPDATE');
+  }
+
   // System Settings Operations
 
   async getSystemSettings(): Promise<SystemSettings> {

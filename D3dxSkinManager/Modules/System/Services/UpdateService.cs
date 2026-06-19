@@ -106,6 +106,32 @@ public class UpdateService : IUpdateService
         }
     }
 
+    private const string LauncherExeName = "D3dxSkinManager Launcher.exe";
+
+    public Task RestartToApplyUpdateAsync()
+    {
+        var launcher = Path.Combine(InstallDir, LauncherExeName);
+        if (!File.Exists(launcher))
+        {
+            // App was started without the launcher (e.g. bare exe) — can't apply automatically.
+            throw new OperationException(
+                "UPDATE_LAUNCHER_NOT_FOUND", (Dictionary<string, string>?)null,
+                "The launcher was not found, so the update can't be applied automatically. Please " +
+                "restart D3dxSkinManager via its launcher to finish installing.");
+        }
+
+        _logger.Info("Restarting via launcher to apply staged update", "UpdateService");
+        // Start the launcher (it applies the staged update, then relaunches), then exit this process so
+        // the launcher can overlay files (its robocopy retries handle the brief exe lock during exit).
+        Process.Start(new ProcessStartInfo { FileName = launcher, UseShellExecute = true, WorkingDirectory = InstallDir });
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(300).ConfigureAwait(false); // let the IPC ack flush first
+            Environment.Exit(0);
+        });
+        return Task.CompletedTask;
+    }
+
     public Task OpenUrlAsync(string url)
     {
         if (string.IsNullOrWhiteSpace(url) ||

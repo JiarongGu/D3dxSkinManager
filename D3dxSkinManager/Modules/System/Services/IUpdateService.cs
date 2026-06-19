@@ -25,4 +25,10 @@ public interface IUpdateService
 
     /// <summary>Whether a downloaded update is staged and waiting to be applied on the next startup.</summary>
     Task<UpdateState> GetUpdateStateAsync();
+
+    /// <summary>
+    /// Restart via the launcher to apply a staged update: starts the C++ launcher (which applies the
+    /// staged update, then relaunches the app) and exits this process. Throws if the launcher is missing.
+    /// </summary>
+    Task RestartToApplyUpdateAsync();
 }

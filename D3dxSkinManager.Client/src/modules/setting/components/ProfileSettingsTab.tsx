@@ -68,8 +68,11 @@ export const ProfileSettingsTab: React.FC = () => {
   // selector drives workMode directly.
   const handleWorkModeChange = (mode: ModWorkConfiguration['mode']) => setWorkMode(mode);
 
-  // One-click XXMI bind: sets work dir (importer folder) + launcher in one save, then resets baseline.
-  const handleSelectXxmiImporter = async (importerDir: string, _modsDir: string, launcherExe?: string) => {
+  // One-click XXMI bind: sets work dir (importer folder) + launcher + the headless launch args in one
+  // save, then resets baseline. The boot command is auto-derived — `XXMI Launcher.exe --nogui --xxmi
+  // <IMPORTER>` headlessly launches that importer's game (see xxmi-integration.md), so the user never
+  // needs to type a boot/launch option.
+  const handleSelectXxmiImporter = async (importerDir: string, _modsDir: string, launcherExe?: string, importerName?: string) => {
     if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
     try {
       await profileService.updateProfileConfig({
@@ -77,6 +80,7 @@ export const ProfileSettingsTab: React.FC = () => {
         workMode: "xxmi",
         workDirectory: importerDir,
         ...(launcherExe ? { launchPath: launcherExe } : {}),
+        ...(importerName ? { launchArgs: `--nogui --xxmi ${importerName}` } : {}),
       });
       setInitialProfileConfig({ mode: "xxmi", directory: importerDir, cleanupEnabled, cleanupMaxCaches });
       notification.success(t("settings.profile.modWork.xxmi.applied"));

@@ -127,9 +127,26 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ open, onClose, prefe
     }
   }, [info, stopPolling]);
 
+  const handleRestart = useCallback(async () => {
+    try {
+      await systemService.restartForUpdate(); // app exits + launcher applies the update
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  }, []);
+
   // Footer depends on phase.
   let footer: React.ReactNode;
-  if (phase === "available") {
+  if (phase === "ready") {
+    footer = (
+      <CompactSpace className="update-dialog__footer">
+        <CompactButton onClick={onClose}>{t("update.later")}</CompactButton>
+        <CompactButton type="primary" icon={<ReloadOutlined />} onClick={handleRestart}>
+          {t("update.ready.restartNow")}
+        </CompactButton>
+      </CompactSpace>
+    );
+  } else if (phase === "available") {
     footer = (
       <CompactSpace className="update-dialog__footer">
         <CompactButton onClick={onClose}>{t("update.later")}</CompactButton>

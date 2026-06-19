@@ -136,38 +136,32 @@ namespace D3dxSkinManager.Modules.Core.WebView
         /// Handle IPC messages from this session's WebView
         /// Routes to session dispatcher first (APP, DROP_ZONE), then global dispatcher
         /// </summary>
-        private async void OnIpcMessageReceived(object? sender, IpcMessageReceivedEventArgs e)
+        private void OnIpcMessageReceived(object? sender, IpcMessageReceivedEventArgs e)
         {
-            try
+            // Process OFF the UI thread so concurrent IPC calls don't serialize on / block the UI —
+            // the frontend treats IPC like a normal (concurrent) web API. This is safe: repositories use
+            // a fresh pooled SqliteConnection per operation (SQLite handles file-level locking), heavy
+            // ops are further serialized by their own backend queues, and SendResponse marshals the reply
+            // back to the UI thread itself.
+            _ = Task.Run(async () =>
             {
-                _logger.Verbose($"[{SessionId}] Received IPC message: {e.Message.Module}/{e.Message.Type}", "WebViewSession");
-
-                // Try session dispatcher first (APP, DROP_ZONE)
-                var response = await _sessionDispatcher.ProcessMessageAsync(e.Message);
-
-                // If no session handler, try global dispatcher
-                if (response == null)
+                try
                 {
-                    response = await _globalDispatcher.ProcessMessageAsync(e.Message);
-                }
+                    _logger.Verbose($"[{SessionId}] Received IPC message: {e.Message.Module}/{e.Message.Type}", "WebViewSession");
 
-                // Send response
-                if (response != null)
-                {
-                    e.SendResponse(response);
-                }
-                else
-                {
-                    e.SendResponse(IpcResponse.CreateError(e.Message.Id,
+                    // Try session dispatcher first (APP, DROP_ZONE), then global.
+                    var response = await _sessionDispatcher.ProcessMessageAsync(e.Message).ConfigureAwait(false)
+                                   ?? await _globalDispatcher.ProcessMessageAsync(e.Message).ConfigureAwait(false);
+
+                    e.SendResponse(response ?? IpcResponse.CreateError(e.Message.Id,
                         $"No handler registered for {e.Message.Module}/{e.Message.Type}"));
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"[{SessionId}] Error processing IPC message: {ex.Message}", "WebViewSession", ex);
-                var errorResponse = IpcResponse.CreateError(e.Message.Id, $"Session error: {ex.Message}");
-                e.SendResponse(errorResponse);
-            }
+                catch (Exception ex)
+                {
+                    _logger.Error($"[{SessionId}] Error processing IPC message: {ex.Message}", "WebViewSession", ex);
+                    e.SendResponse(IpcResponse.CreateError(e.Message.Id, $"Session error: {ex.Message}"));
+                }
+            });
         }
 
         /// <summary>

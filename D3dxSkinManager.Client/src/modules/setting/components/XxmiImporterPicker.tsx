@@ -15,9 +15,10 @@ interface XxmiImporterPickerProps {
   currentDirectory?: string;
   /**
    * Called when the user picks an importer; hands back the importer folder (= work dir), its Mods
-   * path, and the XXMI Launcher exe (= launch target) so one pick sets both locations.
+   * path, the XXMI Launcher exe (= launch target), and the importer NAME (e.g. "ZZMI") so the launch
+   * command can be auto-derived (`--nogui --xxmi <NAME>`). One pick sets work dir + launch.
    */
-  onSelect: (importerDir: string, modsDir: string, launcherExe?: string) => void;
+  onSelect: (importerDir: string, modsDir: string, launcherExe?: string, importerName?: string) => void;
 }
 
 /**
@@ -69,7 +70,7 @@ export const XxmiImporterPicker: React.FC<XxmiImporterPickerProps> = ({ profileI
   const onChange = useCallback((name: string) => {
     setImporterName(name);
     const imp = detect?.importers.find((i) => i.name === name);
-    if (imp) onSelect(imp.importerDir, imp.modsDir, detect?.launcherExe);
+    if (imp) onSelect(imp.importerDir, imp.modsDir, detect?.launcherExe, imp.name);
   }, [detect, onSelect]);
 
   const selected = detect?.importers.find((i) => i.name === importerName);
