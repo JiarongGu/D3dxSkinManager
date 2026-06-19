@@ -1,4 +1,3 @@
-// TODO(test-runner): skipped — stale mocks/assertions predating refactors; triage per test-coverage-priorities.md
 /**
  * Tests for WorkflowService.batchStartModImport
  *
@@ -35,7 +34,7 @@ function makeWorkflow(id: string): WorkflowInfo {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.skip('WorkflowService.batchStartModImport', () => {
+describe('WorkflowService.batchStartModImport', () => {
   let service: WorkflowService;
 
   beforeEach(() => {
@@ -49,7 +48,7 @@ describe.skip('WorkflowService.batchStartModImport', () => {
   });
 
   it('calls startModImport once per path', async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(service, 'startModImport')
       .mockImplementation(async (_, path) => makeWorkflow(path));
 
@@ -63,7 +62,7 @@ describe.skip('WorkflowService.batchStartModImport', () => {
   });
 
   it('forwards the defaultCategory to every startModImport call', async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(service, 'startModImport')
       .mockResolvedValue(makeWorkflow('wf-1'));
 
@@ -74,7 +73,7 @@ describe.skip('WorkflowService.batchStartModImport', () => {
   });
 
   it('omits failed paths and returns only successful results', async () => {
-    jest
+    vi
       .spyOn(service, 'startModImport')
       .mockResolvedValueOnce(makeWorkflow('wf-ok-1'))
       .mockRejectedValueOnce(new Error('Import failed'))
@@ -87,7 +86,7 @@ describe.skip('WorkflowService.batchStartModImport', () => {
   });
 
   it('returns an empty array when all paths fail', async () => {
-    jest
+    vi
       .spyOn(service, 'startModImport')
       .mockRejectedValue(new Error('network error'));
 
