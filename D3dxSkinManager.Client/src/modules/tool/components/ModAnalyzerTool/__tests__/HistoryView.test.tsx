@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { AnalysisSessionSummary } from '../../../../../shared/types/analysis.types';
 
 // Mock antd to avoid @rc-component/picker resolution issue in CRA Jest
-jest.mock('antd', () => {
+vi.mock('antd', () => {
   const React = require('react');
   return {
     Empty: ({ description }: any) => <div>{description}</div>,
@@ -13,14 +13,14 @@ jest.mock('antd', () => {
 });
 
 // Mock i18n
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
 
 // Mock compact components
-jest.mock('../../../../../shared/components/compact', () => {
+vi.mock('../../../../../shared/components/compact', () => {
   const React = require('react');
   return {
     CompactButton: ({ children, onClick, danger, disabled, ...rest }: any) => (
@@ -33,7 +33,7 @@ jest.mock('../../../../../shared/components/compact', () => {
 });
 
 // Mock ConfirmDialog
-jest.mock('../../../../../shared/components/dialogs/ConfirmDialog', () => ({
+vi.mock('../../../../../shared/components/dialogs/ConfirmDialog', () => ({
   ConfirmDialog: ({ visible, onOk, onCancel }: { visible: boolean; onOk: () => void; onCancel: () => void }) =>
     visible ? (
       <div data-testid="confirm-dialog">
@@ -64,14 +64,14 @@ const makeSessions = (): AnalysisSessionSummary[] => [
 describe('HistoryView', () => {
   const defaultProps = {
     sessions: makeSessions(),
-    onViewSession: jest.fn(),
-    onDeleteSession: jest.fn(),
-    onClearAll: jest.fn(),
-    onBack: jest.fn(),
+    onViewSession: vi.fn(),
+    onDeleteSession: vi.fn(),
+    onClearAll: vi.fn(),
+    onBack: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render session count', () => {

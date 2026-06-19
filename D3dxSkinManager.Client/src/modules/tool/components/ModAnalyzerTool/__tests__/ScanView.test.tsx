@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { AnalysisProgress } from '../../../../../shared/types/analysis.types';
 
 // Mock antd to avoid @rc-component/picker resolution issue in CRA Jest
-jest.mock('antd', () => {
+vi.mock('antd', () => {
   const React = require('react');
   return {
     Progress: (props: any) => <div data-testid="progress" />,
@@ -13,14 +13,14 @@ jest.mock('antd', () => {
 });
 
 // Mock i18n
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
 
 // Mock compact components
-jest.mock('../../../../../shared/components/compact', () => {
+vi.mock('../../../../../shared/components/compact', () => {
   const React = require('react');
   return {
     CompactButton: ({ children, onClick, disabled, ...rest }: any) => (
@@ -30,7 +30,7 @@ jest.mock('../../../../../shared/components/compact', () => {
 });
 
 // Mock CategorySelect (complex select component)
-jest.mock('../../../../../shared/components/CategorySelect', () => ({
+vi.mock('../../../../../shared/components/CategorySelect', () => ({
   CategorySelect: ({ value, onChange }: { value?: string; onChange: (v?: string) => void }) => (
     <select data-testid="category-select" value={value || ''} onChange={e => onChange(e.target.value || undefined)}>
       <option value="">All</option>
@@ -43,7 +43,7 @@ jest.mock('../../../../../shared/components/CategorySelect', () => ({
 import { ScanView } from '../components/ScanView';
 
 // Mock scrollIntoView (not available in JSDOM)
-Element.prototype.scrollIntoView = jest.fn();
+Element.prototype.scrollIntoView = vi.fn();
 
 describe('ScanView', () => {
   const defaultProps = {
@@ -54,17 +54,17 @@ describe('ScanView', () => {
     initialFeed: undefined as Array<{ name: string; status: string }> | undefined,
     categories: [{ id: 'cat-1', name: 'Weapons', parentId: undefined, children: [] }],
     selectedCategoryId: undefined as string | undefined,
-    onCategoryChange: jest.fn(),
-    onStart: jest.fn(),
-    onPause: jest.fn(),
-    onResume: jest.fn(),
-    onCancel: jest.fn(),
-    onViewHistory: jest.fn(),
+    onCategoryChange: vi.fn(),
+    onStart: vi.fn(),
+    onPause: vi.fn(),
+    onResume: vi.fn(),
+    onCancel: vi.fn(),
+    onViewHistory: vi.fn(),
     sessionCount: 0,
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render hero screen when not scanning', () => {
