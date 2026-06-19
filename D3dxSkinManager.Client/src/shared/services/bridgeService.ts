@@ -49,7 +49,7 @@ function isWebViewAvailable(): boolean {
 function getDevMockResponse(module: string, type: string): unknown {
   const key = `${module}:${type}`;
   const mocks: Record<string, unknown> = {
-    'SETTING:GET_GLOBAL': { theme: 'dark', annotationLevel: 'standard', logLevel: 'info', language: 'en', window: {} },
+    'SETTING:GET_GLOBAL': { theme: 'dark', annotationLevel: 'standard', logLevel: 'info', language: 'en', autoUpdateCheck: false, window: {} },
     'PROFILE:GET_ALL': { profiles: [{ id: 'dev', profileId: 'dev', name: 'Dev Profile', description: 'pure-UI preview' }], activeProfileId: 'dev' },
     'PROFILE:GET_ACTIVE': { id: 'dev', profileId: 'dev', name: 'Dev Profile' },
     'PROFILE:GET_CONFIG': {},

@@ -11,6 +11,7 @@
 //   check [port]                                                             desktop health verdict
 //   review [port]                                                            sweep every tab (regression)
 //   crop  <png> <x> <y> <w> <h>                                             crop a capture
+//   manifest <dir> <version> [outFile]                                       generate auto-update manifest.json
 //
 // stdout/stderr pass straight through. Allow-listed as `Bash(node devtools/dev.mjs:*)` → prompt-free.
 // The toolkit is meant to self-enhance: add a tool → add a row to NODE below + devtools/README.md.
@@ -30,6 +31,7 @@ const NODE = {
   crop: 'crop.mjs',
   check: 'check-desktop.mjs',
   review: 'review-desktop.mjs',
+  manifest: 'build-manifest.mjs',
 };
 
 const [cmd, ...rest] = process.argv.slice(2);

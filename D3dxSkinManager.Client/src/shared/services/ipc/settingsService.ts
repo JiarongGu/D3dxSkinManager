@@ -9,6 +9,7 @@ export interface GlobalSettings {
   annotationLevel: string;
   logLevel: string;
   language: string;
+  autoUpdateCheck: boolean;
   lastUpdated: string;
 }
 

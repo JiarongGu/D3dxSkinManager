@@ -25,6 +25,7 @@ public static class SystemServiceExtensions
         services.TryAddSingleton<ISystemProcessService, SystemProcessService>();
         services.TryAddSingleton<ISystemSettingsService, SystemSettingsService>();
         services.TryAddSingleton<ISystemFileService, SystemFileService>();
+        services.TryAddSingleton<IUpdateService, UpdateService>();
 
         // Register the facade itself
         services.TryAddSingleton<ISystemFacade, SystemFacade>();

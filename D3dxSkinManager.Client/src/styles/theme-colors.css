@@ -10,17 +10,19 @@
   --layout-header-height: 40px;
   --layout-statusbar-height: 32px;
 
-  /* Background Colors */
+  /* Background Colors
+     Hierarchy: layout/container = light-gray canvas; cards/inputs/elevated = white → surfaces pop
+     against the canvas (the old palette was near-identical grays with no separation). */
   --color-bg-base: #ffffff;
-  --color-bg-container: #f7f8fa;
-  --color-bg-elevated: #fafafa;
-  --color-bg-layout: #f5f5f5;
-  --color-bg-spotlight: #f5f5f5;
+  --color-bg-container: #f0f2f5;
+  --color-bg-elevated: #ffffff;
+  --color-bg-layout: #f0f2f5;
+  --color-bg-spotlight: #eaedf2;
   --color-bg-mask: rgba(0, 0, 0, 0.45);
 
   /* Border Colors */
-  --color-border-base: #d9d9d9;
-  --color-border-secondary: #dfdfdf;
+  --color-border-base: #d0d5dd;
+  --color-border-secondary: #e3e6eb;
 
   /* Text Colors */
   --color-text-base: rgba(0, 0, 0, 0.88);
@@ -57,16 +59,17 @@
   --color-info-border: #91d5ff;
 
   /* Component Specific */
-  --color-card-bg: #f7f8fa;
-  --color-card-header-bg: #f8f8f8;
+  --color-card-bg: #ffffff;
+  --color-card-header-bg: #fafbfc;
   --color-input-bg: #ffffff;
-  --color-input-border: #d9d9d9;
+  --color-input-border: #d0d5dd;
   --color-select-bg: #ffffff;
-  --color-table-header-bg: #f8f8f8;
-  --color-table-row-hover: #fafafa;
+  --color-table-header-bg: #f5f6f8;
+  --color-table-row-hover: #f5f7fa;
   --color-sider-bg: #ffffff;
-  --color-header-bg: #001529;
-  --color-header-text: #ffffff;
+  /* Header: light surface with dark text (was a dark-navy #001529 bar that clashed on the light body). */
+  --color-header-bg: #ffffff;
+  --color-header-text: rgba(0, 0, 0, 0.88);
 
   /* Shadows */
   --shadow-base: 0 2px 8px rgba(0, 0, 0, 0.15);

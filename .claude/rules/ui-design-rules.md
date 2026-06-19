@@ -13,6 +13,25 @@ Collected from design docs and past session mistakes. Check these BEFORE writing
 
 **CSS variables only** — `var(--color-*)`. Never hardcode hex colors except in theme definitions.
 
+## Theming — BOTH light and dark must be checked (light was broken until 2026-06-19)
+
+Tokens live in `src/styles/theme-colors.css`: a `:root,[data-theme="light"]` block and a
+`[data-theme="dark"]` block. `ThemeContext` sets `data-theme` on `<html>` AND drives the antd v6
+ConfigProvider algorithm — so a component that hardcodes a color works in one theme and **breaks in the
+other**. Rules:
+- **Never hardcode `#fff` / `rgba(255,255,255,…)` for text or chrome** — it's invisible on a light
+  surface. The header tabs + ProfileSwitcher did this (white text baked for an old dark-navy header) and
+  vanished in light theme. Use `var(--color-text-base|secondary)`, `var(--color-bg-spotlight)`,
+  `var(--color-primary|primary-bg)` so the element is theme-aware.
+- **Light palette is a hierarchy, not flat grays:** `--color-bg-layout`/`--color-bg-container` = light-gray
+  canvas (`#f0f2f5`); cards/inputs/modals = **white** (`--color-card-bg`/`--color-bg-elevated` = `#fff`)
+  so surfaces pop; borders must be visible (`--color-border-base #d0d5dd`). The old near-identical grays
+  (`#f7f8fa`/`#fafafa`/`#f5f5f5`) made panels invisible.
+- **The header is a light surface in light theme** (`--color-header-bg: #fff`, dark text), dark in dark
+  theme — driven by tokens, not hardcoded. Don't reintroduce a dark-navy (`#001529`) header.
+- **When you touch any chrome CSS, screenshot BOTH themes** (set theme via
+  `cdp ipc SETTING UPDATE_FIELD '{"key":"theme","value":"light"|"dark"}'` → `cdp reload`).
+
 ## Ant Design Component Gotchas
 
 ### `danger` prop causes icon button misalignment

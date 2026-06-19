@@ -34,6 +34,23 @@ export interface ScreenResolution {
   height: number;
 }
 
+/** Result of an app self-update check (GitHub Releases). Mirrors backend UpdateInfo. */
+export interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+  releaseName: string;
+  releaseNotes: string;
+  releaseUrl: string;
+  publishedAt: string;
+  /** True when a file-level changeset was computed (release + local manifest both present). */
+  hasManifest: boolean;
+  /** Files that would change (added + updated + removed). Valid when hasManifest. */
+  changedFileCount: number;
+  /** Bytes to download for the update. Valid when hasManifest. */
+  downloadSize: number;
+}
+
 /**
  * System service for file operations, dialogs, and system settings
  * Handles all system-level operations and configuration
@@ -97,6 +114,24 @@ export class SystemService extends BaseModuleService {
 
   async launchProcess(path: string, args?: string): Promise<void> {
     await this.sendMessage('LAUNCH_PROCESS', undefined, { path, args });
+  }
+
+  // App Self-Update
+
+  /**
+   * Check GitHub for a newer app version.
+   * Backend: SystemFacade.CheckForUpdateAsync
+   */
+  async checkForUpdate(): Promise<UpdateInfo> {
+    return this.sendMessage<UpdateInfo>('CHECK_FOR_UPDATE');
+  }
+
+  /**
+   * Open a URL (release download page) in the default browser.
+   * Backend: SystemFacade.OpenUrlAsync
+   */
+  async openUrl(url: string): Promise<void> {
+    await this.sendMessage('OPEN_URL', undefined, { url });
   }
 
   // System Settings Operations

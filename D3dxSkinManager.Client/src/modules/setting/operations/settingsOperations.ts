@@ -78,6 +78,34 @@ export async function updateLogLevel(
 }
 
 /**
+ * Toggle the "check for updates automatically" global setting.
+ * Optimistically updates the store, then persists to the backend.
+ */
+export async function updateAutoUpdateCheck(
+  enabled: boolean,
+  t: (key: string, params?: any) => string,
+): Promise<void> {
+  const { globalSettings, setGlobalSettings } = useSettingsStore.getState();
+
+  // Optimistic store update so the Switch reflects immediately.
+  if (globalSettings) {
+    setGlobalSettings({ ...globalSettings, autoUpdateCheck: enabled });
+  }
+
+  try {
+    await settingsService.updateGlobalSetting("autoUpdateCheck", String(enabled));
+  } catch (error: unknown) {
+    // Revert on failure.
+    if (globalSettings) {
+      setGlobalSettings({ ...globalSettings, autoUpdateCheck: !enabled });
+    }
+    notification.error(t("settings.notifications.settingsSaveFailed"));
+    logger.error("[settingsOperations] Failed to save autoUpdateCheck:", error);
+    handleError(error);
+  }
+}
+
+/**
  * Reset window state
  * Window will be centered on next restart
  */

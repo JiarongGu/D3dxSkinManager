@@ -76,6 +76,22 @@ public class GlobalSettingServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetSettingsAsync_AutoUpdateCheck_DefaultsToFalse()
+    {
+        (await _service.GetSettingsAsync()).AutoUpdateCheck.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task UpdateSettingAsync_AutoUpdateCheck_PersistsBoolean()
+    {
+        await _service.UpdateSettingAsync("autoUpdateCheck", "true");
+        (await _service.GetSettingsAsync()).AutoUpdateCheck.Should().BeTrue();
+
+        await _service.UpdateSettingAsync("autoUpdateCheck", "false");
+        (await _service.GetSettingsAsync()).AutoUpdateCheck.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task UpdateSettingAsync_UnknownKey_Throws()
     {
         await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateSettingAsync("bogus", "x"));

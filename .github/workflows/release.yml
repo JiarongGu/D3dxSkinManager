@@ -212,7 +212,14 @@ jobs:
             Copy-Item "$publishDir\libs" "$releaseDir\" -Recurse -Force
           }
 
-          # Create zip
+          # Generate the auto-update manifest (lists every updatable file + sha256; excludes the
+          # launcher, which never auto-updates). Written INTO the payload so the installed copy has a
+          # local baseline to diff against, and copied out as a standalone asset the launcher can fetch
+          # without downloading the whole zip. See docs/LAUNCHER_ARCHITECTURE.md.
+          node devtools\scripts\build-manifest.mjs "$releaseDir" "${{ steps.version.outputs.version }}" "$releaseDir\manifest.json"
+          Copy-Item "$releaseDir\manifest.json" "release\manifest.json" -Force
+
+          # Create zip (now includes manifest.json as the installed baseline)
           Compress-Archive -Path "$releaseDir\*" -DestinationPath "release\D3dxSkinManager-v${{ steps.version.outputs.version }}-win-x64.zip" -Force
 
       # ========================================
@@ -330,6 +337,7 @@ jobs:
           prerelease: ${{ inputs.prerelease }}
           files: |
             release/*.zip
+            release/manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

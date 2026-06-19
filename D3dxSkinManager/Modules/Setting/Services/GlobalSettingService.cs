@@ -154,6 +154,9 @@ public class GlobalSettingService : IGlobalSettingService
             case "language":
                 settings.Language = value.ToLowerInvariant();
                 break;
+            case "autoupdatecheck":
+                settings.AutoUpdateCheck = value.Equals("true", StringComparison.OrdinalIgnoreCase);
+                break;
             default:
                 throw new ArgumentException($"Unknown setting key: {key}");
         }

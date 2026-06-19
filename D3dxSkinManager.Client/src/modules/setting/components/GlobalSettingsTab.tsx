@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { Select } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
+import { ReloadOutlined, CloudDownloadOutlined } from "@ant-design/icons";
 import {
   CompactCard,
   CompactWarningButton,
+  CompactButton,
   CompactSelect,
+  CompactSwitch,
   CompactField,
 } from "../../../shared/components/compact";
 import { useTheme, ThemeMode } from "../../../shared/context/ThemeContext";
@@ -15,6 +17,7 @@ import { useSettingsStore } from "../store/settingsStore";
 import * as settingsOps from "../operations/settingsOperations";
 import { notification } from "../../../shared/utils/notification";
 import { changeLanguage } from "../../../shared/services/i18n";
+import { UpdateDialog } from "./UpdateDialog";
 
 const { Option } = Select;
 
@@ -25,10 +28,17 @@ const { Option } = Select;
 export const GlobalSettingsTab: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { t, i18n } = useTranslation();
-  const { logLevel } = useSettingsStore();
+  const { logLevel, globalSettings } = useSettingsStore();
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+
+  const autoUpdateCheck = globalSettings?.autoUpdateCheck ?? false;
 
   const handleLogLevelChange = async (value: string) => {
     await settingsOps.updateLogLevel(value, t);
+  };
+
+  const handleAutoUpdateToggle = async (checked: boolean) => {
+    await settingsOps.updateAutoUpdateCheck(checked, t);
   };
 
   const handleThemeChange = (value: ThemeMode) => {
@@ -80,12 +90,29 @@ export const GlobalSettingsTab: React.FC = () => {
           </CompactSelect>
         </CompactField>
 
+        <CompactField label={t("settings.global.autoUpdate.label")} description={t("settings.global.autoUpdate.tooltip")}>
+          <CompactSwitch
+            checked={autoUpdateCheck}
+            onChange={handleAutoUpdateToggle}
+            checkedChildren={t("common.enable")}
+            unCheckedChildren={t("common.disable")}
+          />
+        </CompactField>
+
+        <CompactField label={t("settings.global.checkForUpdate.label")} description={t("settings.global.checkForUpdate.tooltip")}>
+          <CompactButton icon={<CloudDownloadOutlined />} onClick={() => setUpdateDialogOpen(true)} block>
+            {t("settings.global.checkForUpdate.button")}
+          </CompactButton>
+        </CompactField>
+
         <CompactField label={t("settings.global.resetWindowState")} description={t("settings.global.resetWindowStateTooltip")}>
           <CompactWarningButton icon={<ReloadOutlined />} onClick={handleResetWindowState} block>
             {t("settings.global.resetWindowState")}
           </CompactWarningButton>
         </CompactField>
       </div>
+
+      <UpdateDialog open={updateDialogOpen} onClose={() => setUpdateDialogOpen(false)} />
     </CompactCard>
   );
 };

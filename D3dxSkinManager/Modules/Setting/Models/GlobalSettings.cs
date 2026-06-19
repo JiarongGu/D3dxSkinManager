@@ -26,6 +26,12 @@ public class GlobalSettings
     public string Language { get; set; } = "en";
 
     /// <summary>
+    /// Whether to automatically check GitHub for a newer app version on startup.
+    /// Defaults to OFF — the user opts in (manual check is always available in Settings).
+    /// </summary>
+    public bool AutoUpdateCheck { get; set; } = false;
+
+    /// <summary>
     /// Last updated timestamp
     /// </summary>
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;

@@ -39,9 +39,9 @@
   gap: 6px;
 }
 
-/* Tab text color - Both themes use white text on dark header */
+/* Tab text color - theme-aware (header is a light surface in light theme, dark in dark theme). */
 .app-header-tab.ant-btn {
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--color-text-secondary);
 }
 
 /* Remove Ant Design default hover effects */
@@ -52,28 +52,28 @@
   box-shadow: none !important;
 }
 
-/* Hover state - Same color as selected state */
+/* Hover state */
 .app-header-tab.ant-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-base);
+  background: var(--color-bg-spotlight);
 }
 
-/* Override global light theme button hover for header tabs */
+/* Override the global light-theme icon/text-button hover so header tabs keep their own tint. */
 [data-theme="light"] .app-header-tab.ant-btn:hover {
-  color: #fff !important;
-  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--color-text-base) !important;
+  background: var(--color-bg-spotlight) !important;
   border-color: transparent !important;
 }
 
-/* Selected state - Both themes use white overlay on dark header */
+/* Selected state - primary tint in both themes */
 .app-header-tab.ant-btn.app-header-tab-selected {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
   font-weight: 500;
 }
 
-/* Selected state hover - keep selected background */
+/* Selected state hover - keep selected look */
 .app-header-tab.ant-btn.app-header-tab-selected:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
 }

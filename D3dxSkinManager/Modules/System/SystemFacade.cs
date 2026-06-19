@@ -29,6 +29,10 @@ public interface ISystemFacade : IModuleFacade
     // Process Operations
     Task LaunchProcessAsync(string path, string? args = null);
 
+    // App Self-Update
+    Task<UpdateInfo> CheckForUpdateAsync();
+    Task OpenUrlAsync(string url);
+
     // System Settings
     Task<SystemSettings> GetSystemSettingsAsync();
     Task UpdateSystemSettingsAsync(SystemSettings settings);
@@ -54,6 +58,7 @@ public class SystemFacade : BaseFacade, ISystemFacade
     private readonly IPayloadHelper _payloadHelper;
     private readonly ISystemSettingsService _systemSettingsService;
     private readonly IProcessRegistry _processRegistry;
+    private readonly IUpdateService _updateService;
 
     public SystemFacade(
         IPathHelper pathHelper,
@@ -63,8 +68,10 @@ public class SystemFacade : BaseFacade, ISystemFacade
         ISystemSettingsService systemSettingsService,
         ISystemFileService fileSystemService,
         IProcessRegistry processRegistry,
+        IUpdateService updateService,
         ILogHelper logger) : base(logger)
     {
+        _updateService = updateService ?? throw new ArgumentNullException(nameof(updateService));
         _fileSystemService = fileSystemService ?? throw new ArgumentNullException(nameof(fileSystemService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
@@ -84,6 +91,10 @@ public class SystemFacade : BaseFacade, ISystemFacade
             "OPEN_FILE_IN_EXPLORER" => await OpenFileInExplorerAsync(request),
             "GET_ABSOLUTE_PATH" => await GetAbsolutePathAsync(request),
             "LAUNCH_PROCESS" => await LaunchProcessAsync(request),
+
+            // App self-update
+            "CHECK_FOR_UPDATE" => await CheckForUpdateHandlerAsync(request),
+            "OPEN_URL" => await OpenUrlHandlerAsync(request),
 
             // File dialogs
             "OPEN_FILE_DIALOG" => await OpenFileDialogAsync(request),
@@ -180,6 +191,16 @@ public class SystemFacade : BaseFacade, ISystemFacade
         await _processService.LaunchProcessAsync(path, args).ConfigureAwait(false);
     }
 
+    public async Task<UpdateInfo> CheckForUpdateAsync()
+    {
+        return await _updateService.CheckForUpdateAsync().ConfigureAwait(false);
+    }
+
+    public async Task OpenUrlAsync(string url)
+    {
+        await _updateService.OpenUrlAsync(url).ConfigureAwait(false);
+    }
+
     public async Task<SystemSettings> GetSystemSettingsAsync()
     {
         return await _systemSettingsService.GetSettingsAsync().ConfigureAwait(false);
@@ -233,6 +254,26 @@ public class SystemFacade : BaseFacade, ISystemFacade
         var args = _payloadHelper.GetOptionalValue<string>(request.Payload, "args");
         await LaunchProcessAsync(path, args).ConfigureAwait(false);
         return new { success = true, message = $"Launched process: {path}" };
+    }
+
+    /// <summary>
+    /// IPC handler for the app self-update check.
+    /// IPC Message: CHECK_FOR_UPDATE — Payload: { } — returns UpdateInfo.
+    /// </summary>
+    private async Task<UpdateInfo> CheckForUpdateHandlerAsync(IpcRequest request)
+    {
+        return await CheckForUpdateAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// IPC handler to open a URL in the default browser (release download page).
+    /// IPC Message: OPEN_URL — Payload: { url: string }.
+    /// </summary>
+    private async Task<object> OpenUrlHandlerAsync(IpcRequest request)
+    {
+        var url = _payloadHelper.GetRequiredValue<string>(request.Payload, "url");
+        await OpenUrlAsync(url).ConfigureAwait(false);
+        return new { success = true };
     }
 
     private async Task<object> OpenFileDialogAsync(IpcRequest request)

@@ -29,6 +29,9 @@ import {
   OnboardingWizard,
   ONBOARDING_DONE_KEY,
 } from "./modules/core/components/onboarding/OnboardingWizard";
+import { UpdateDialog } from "./modules/setting/components/UpdateDialog";
+import { settingsService, systemService, UpdateInfo } from "./shared/services/ipc";
+import { logger } from "./shared/utils/logger";
 
 import "./App.css";
 
@@ -43,6 +46,7 @@ const AppContent: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState("mods");
   const [shortcutsDialogVisible, setShortcutsDialogVisible] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | undefined>(undefined);
 
   // Get slide-in screen controls
   const { openScreen, closeScreen, closeAllScreens, screens } =
@@ -96,7 +100,41 @@ const AppContent: React.FC = () => {
     if (import.meta.env.DEV) {
       (window as unknown as { __openOnboarding?: () => void }).__openOnboarding = () =>
         setShowOnboarding(true);
+      // DEV: preview the "update available" dialog (no newer release exists to trigger it live).
+      (window as unknown as { __showUpdateAvailable?: () => void }).__showUpdateAvailable = () =>
+        setUpdateInfo({
+          currentVersion: "2.4",
+          latestVersion: "2.5",
+          updateAvailable: true,
+          releaseName: "D3dxSkinManager v2.5",
+          releaseNotes:
+            "### New Features\n\n- App self-update with a nice update screen\n- Auto-update toggle in settings (off by default)\n\n### Bug Fixes\n\n- Various stability improvements",
+          releaseUrl: "https://github.com/JiarongGu/D3dxSkinManager/releases/tag/v2.5",
+          publishedAt: "2026-06-19T00:00:00Z",
+          hasManifest: true,
+          changedFileCount: 3,
+          downloadSize: 14694798,
+        });
     }
+  }, []);
+
+  // Startup auto-update check — only when the user opted in (setting defaults OFF). Silent on failure
+  // (no network at startup shouldn't nag); shows the update dialog only if a newer version exists.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const settings = await settingsService.getGlobalSettings();
+        if (!settings?.autoUpdateCheck) return;
+        const info = await systemService.checkForUpdate();
+        if (!cancelled && info.updateAvailable) setUpdateInfo(info);
+      } catch (error: unknown) {
+        logger.warn("[App] Startup update check skipped:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Initialize keyboard shortcuts
@@ -158,6 +196,13 @@ const AppContent: React.FC = () => {
 
       {/* First-run onboarding (shown once; reopenable in DEV via window.__openOnboarding) */}
       <OnboardingWizard open={showOnboarding} onClose={() => setShowOnboarding(false)} />
+
+      {/* Startup auto-update prompt (only when a newer version was found) */}
+      <UpdateDialog
+        open={!!updateInfo}
+        prefetched={updateInfo}
+        onClose={() => setUpdateInfo(undefined)}
+      />
     </AnnotationProvider>
   );
 };

@@ -184,6 +184,41 @@ update-1.1.0.zip
   version.json          (metadata)
 ```
 
+### Update Manifest (differential updates)
+
+Every release publishes a **`manifest.json`** — both inside the zip (the installed baseline) and as a
+standalone release asset (so the updater can fetch just the manifest without the whole zip). It lists
+every auto-updatable file with its relative path, byte size, and sha256:
+
+```json
+{
+  "version": "2.5",
+  "generatedAt": "2026-06-19T05:41:14.057Z",
+  "files": [
+    { "path": "D3dxSkinManager.exe",        "size": 14694798, "sha256": "75452156…" },
+    { "path": "data/languages/en.json",     "size": 59800,    "sha256": "72f3f274…" },
+    { "path": "libs/7z.dll",                 "size": 1908736,  "sha256": "bbd705e3…" }
+  ]
+}
+```
+
+- **The launcher exe is NEVER listed** — it does not auto-update (it is the stable applier).
+- **Diff** the installed manifest against a release manifest to get the changeset:
+  - *Added* = path in release, not installed → download.
+  - *Updated* = path in both, sha256 differs → download + replace.
+  - *Removed* = path installed, not in release → delete.
+- Only changed files are downloaded → minimal update size.
+
+**Generation:** `node devtools/dev.mjs manifest <payloadDir> <version> [outFile]`
+(`devtools/scripts/build-manifest.mjs`). Wired into `.github/workflows/release.yml` (Step 10) — runs
+over the packaged `release/win-x64/` and publishes `manifest.json` alongside the zip.
+
+**Consumption:** the .NET app's `UpdateService` (System module) fetches the release manifest asset,
+diffs it against the local `manifest.json` (next to the running exe), and reports the changed-file
+count + download size in the in-app update dialog. The C++ launcher applies the changeset on restart
+(it can replace files the running app holds open; the running .NET process cannot replace its own exe).
+The diff model + pure `ManifestDiff.Compute` live in `Modules/System/Models/UpdateManifest.cs`.
+
 ## Advantages
 
 ### Over Self-Contained
