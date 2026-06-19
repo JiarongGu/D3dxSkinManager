@@ -228,6 +228,17 @@ public class ApplicationHost
             _logger.Info("Configuring global message dispatcher...", "Host");
             ConfigureMessagePipeline();
 
+            // Self-cleanup of transient leftovers (stale downloads, orphaned update staging, stale
+            // process entries from a previous session). Non-fatal — never blocks startup.
+            try
+            {
+                await _serviceProvider.GetRequiredService<IStartupCleanupService>().RunAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"Startup cleanup failed (non-critical): {ex.Message}", "Host");
+            }
+
             // Perform eager loading AFTER ProfileServiceRouter and MessageDispatcher are configured
             // This allows profile-scoped cache warming (category tree, mods) via MessageDispatcher
             await PerformEagerLoadingAsync();

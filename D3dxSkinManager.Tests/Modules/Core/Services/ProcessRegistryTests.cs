@@ -50,6 +50,23 @@ public class ProcessRegistryTests
     }
 
     [Fact]
+    public void PurgeStaleProcesses_RemovesFinished_KeepsRunning()
+    {
+        var running = _registry.Start(ProcessType.ModLoad, "Loading");
+        var done = _registry.Start(ProcessType.Package, "Export");
+        _registry.Complete(done);
+        var failed = _registry.Start(ProcessType.Analysis, "Scan");
+        _registry.Fail(failed, "boom");
+
+        var removed = _registry.PurgeStaleProcesses();
+
+        removed.Should().Be(2); // completed + failed
+        var all = _registry.GetAll();
+        all.Should().ContainSingle();
+        all[0].Id.Should().Be(running);
+    }
+
+    [Fact]
     public void Report_UpdatesProgressAndDetail_ClampedToRange()
     {
         var id = _registry.Start(ProcessType.Package, "Export");

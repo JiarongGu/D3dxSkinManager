@@ -19,6 +19,16 @@ in a feature service (UpdateService used to; it now delegates here).
   - `DownloadCleanupResult CleanupManaged(TimeSpan? olderThan = null)` — delete all (or only files older
     than the age); returns count + bytes freed.
 
+## Self-cleanup (automatic — no manual UI)
+The app cleans transient leftovers itself at startup via `IStartupCleanupService` (Core, run from
+`ApplicationHost` before eager loading, non-fatal): `CleanupManaged(7 days)` for stale downloads, deletes
+an **orphaned** update staging dir (`{install}/.update` with NO `ready.json`; a complete pending update
+is left for the launcher), and `IProcessRegistry.PurgeStaleProcesses()` (drops last session's finished +
+non-resumable-interrupted process entries, keeps resumable-interrupted ones). So managed downloads are a
+self-cleaning scratch area — don't add a manual "clean downloads" button; if a download must persist
+beyond a week, a feature should keep its own copy elsewhere. Tests: `StartupCleanupServiceTests`,
+`ProcessRegistryTests.PurgeStaleProcesses_*`.
+
 ## Conventions
 - **Progress is decoupled.** The service knows nothing about `ProcessRegistry`; the caller passes an
   `IProgress<DownloadProgress>` and maps it (e.g. UpdateService maps 0–100% → the registry's 0–90% band).

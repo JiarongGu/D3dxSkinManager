@@ -49,6 +49,13 @@ public interface IProcessRegistry
 
     /// <summary>Remove all finished (completed/failed/cancelled) entries from the history.</summary>
     void ClearCompleted();
+
+    /// <summary>
+    /// Startup self-cleanup: drop stale entries from a previous session — every finished process and
+    /// every interrupted-but-NOT-resumable process. Keeps running (none at startup) and resumable
+    /// interrupted entries (so the user can still resume them). Returns how many were removed.
+    /// </summary>
+    int PurgeStaleProcesses();
 }
 
 /// <summary>In-memory implementation of <see cref="IProcessRegistry"/>.</summary>
@@ -165,6 +172,32 @@ public class ProcessRegistry : IProcessRegistry
         }
         Persist();
         EmitSnapshot();
+    }
+
+    public int PurgeStaleProcesses()
+    {
+        int removed;
+        lock (_lock)
+        {
+            var stale = _processes.Values
+                .Where(p => p.Status != ProcessStatus.Running &&
+                            !(p.Status == ProcessStatus.Interrupted && p.Resumable))
+                .Select(p => p.Id)
+                .ToList();
+            foreach (var id in stale)
+            {
+                _processes.Remove(id);
+                DisposeCts(id);
+            }
+            removed = stale.Count;
+        }
+        if (removed > 0)
+        {
+            _logger.Info($"Purged {removed} stale process entr{(removed == 1 ? "y" : "ies")} on startup", "ProcessRegistry");
+            Persist();
+            EmitSnapshot();
+        }
+        return removed;
     }
 
     private void Finish(string id, ProcessStatus status, string? error)

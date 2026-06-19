@@ -50,6 +50,9 @@ public static class CoreServiceExtensions
         // Reusable HTTP download service (streamed file/string fetch with progress + sha256).
         AddSingleton<IDownloadService, DownloadService>(services);
 
+        // Startup self-cleanup (stale downloads, orphaned update staging, stale process entries).
+        AddSingleton<IStartupCleanupService, StartupCleanupService>(services);
+
         // Path validator for centralized file/directory validation
         AddSingleton<IPathValidator, PathValidator>(services);
 
