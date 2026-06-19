@@ -150,29 +150,36 @@ publish/
 5. Launcher executes `D3dxSkinManager.exe` directly
 6. Main application starts
 
-## Auto-Update Architecture (IMPLEMENTED — `updater.cpp`)
+## Auto-Update Architecture (IMPLEMENTED — two-phase)
 
-The C++ launcher applies updates before launching the app (a running app can't replace its own exe):
+A running .NET app can't replace its own exe (file lock), so the update is split: the **app downloads
++ stages**, the **launcher applies** on the next startup. The updater only runs when there is work —
+no GitHub check or prompt on every boot.
 
-### Update Flow (manifest-driven)
+### Phase 1 — App downloads + stages (`UpdateService`, System module)
 
-`CheckForUpdates(appDir)` runs first in `main.cpp`:
-1. Read the local `manifest.json` version (skip if absent — older build).
-2. Download the latest release `manifest.json` via GitHub's stable
-   `releases/latest/download/<asset>` redirect (`URLDownloadToFileW`, urlmon — no API/JSON-lib needed).
-3. Compare versions (numeric `X.Y[.Z]`). Not newer → return, launch current.
-4. Newer → **prompt the user** (Yes/No). On consent:
-   - Download `D3dxSkinManager-v<ver>-win-x64.zip` (asset name embeds the version).
-   - Extract via PowerShell `Expand-Archive` (no external zip lib).
-   - **Overlay** the staged files with `robocopy /E /XF "D3dxSkinManager Launcher.exe"** — every
-     file replaced/added EXCEPT the launcher itself (it's running).
-   - **Removals:** files in the old manifest but not the new one are deleted (only tracked files).
-   - The new `manifest.json` is copied in (becomes the next baseline).
-5. Launch the now-updated `D3dxSkinManager.exe`.
+User-requested (Settings → "Check for updates") or opt-in startup auto-check:
+1. `CheckForUpdateAsync` — query GitHub releases, compare version, compute the manifest changeset
+   (count + download size) for the update screen.
+2. On "Download" → `DownloadUpdateAsync` (fire-and-forget, progress via `ProcessRegistry` → Activity
+   panel): download `D3dxSkinManager-v<ver>-win-x64.zip` (stable `releases/latest/download/` redirect),
+   extract to `{install}/.update/staged`, write `{install}/.update/ready.json`.
+3. The update screen flips to "Update downloaded — restart to apply."
 
-Non-fatal throughout: any failure (offline, no manifest, download/extract error) falls back to
-launching the current version. **The launcher never replaces itself.** sha256 verification of
-downloaded files is a future hardening step (the zip is fetched over GitHub https).
+### Phase 2 — Launcher applies (`updater.cpp`, `ApplyPendingUpdate`)
+
+Runs first in `main.cpp`, before the app starts. **No network, no prompt:**
+1. No `{install}/.update/ready.json` → no-op (the common case).
+2. Otherwise overlay `{install}/.update/staged` onto the install with
+   `robocopy /E /XF "D3dxSkinManager Launcher.exe"` — replace/add every file EXCEPT the launcher
+   itself (it's running).
+3. **Removals:** files in the old manifest but not the new one are deleted (only tracked files; the
+   old + new `manifest.json` are read before the overlay overwrites it).
+4. Clear `{install}/.update`, then launch the now-updated `D3dxSkinManager.exe`.
+
+Non-fatal throughout: any failure falls back to launching the current version. **The launcher never
+replaces itself.** sha256 verification of staged files is a future hardening step (the zip is fetched
+over GitHub https + extracted by the app).
 
 ### Benefits
 
