@@ -1,5 +1,10 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
+import { enableMapSet } from 'immer';
+
+// The app enables Immer's Map/Set plugin (AppWrapper) before any store is created; stores use a Set
+// (e.g. modsStore.busyModIds), so tests need it too.
+enableMapSet();
 
 // jsdom is missing a few browser APIs the app touches during render — stub them so tests don't throw.
 // scrollIntoView: used by ModListPanel / ScanView auto-scroll.
