@@ -233,6 +233,7 @@
     "header.tabs.tools": "Tools",
     "launch.launch": "Launch",
     "launch.setup": "Set up launch",
+    "launch.configureHint": "No launch target configured — click to set one up in Settings → Mod Work.",
     "launch.configure": "Configure launch",
     "launch.configTitle": "Launch configuration",
     "launch.launching": "Launching…",

@@ -5,11 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { profileService, systemService } from '../../../../shared/services/ipc';
 import { notification } from '../../../../shared/utils/notification';
+import { navigateToTab } from '../../../../shared/hooks/useAppNavigation';
 
 /**
- * Status-bar quick-launch. When a launch target is configured (Launch tab), one click runs it via
- * SYSTEM/LAUNCH_PROCESS; otherwise it routes to the Launch tab to configure it. The config itself
- * lives in the Launch tab — this is just the shortcut.
+ * Status-bar quick-launch. When a launch target is configured (Settings → Mod Work / XXMI picker),
+ * one click runs it via SYSTEM/LAUNCH_PROCESS. When NOT configured (e.g. a freshly-upgraded library),
+ * it still shows as a "Set up launch" call-to-action that routes to Settings — so the button never
+ * silently disappears just because no path is set yet.
  */
 export const LaunchButton: React.FC = () => {
   const { t } = useTranslation();
@@ -30,7 +32,8 @@ export const LaunchButton: React.FC = () => {
   useEffect(() => { void loadConfig(); }, [loadConfig]);
 
   const onClick = useCallback(async () => {
-    if (!path) return;
+    // Not configured yet → take the user to Settings (Mod Work / XXMI picker) to set a launch target.
+    if (!path) { navigateToTab('settings'); return; }
     try {
       await systemService.launchProcess(path, args || undefined);
       notification.info(t('launch.launching'));
@@ -39,9 +42,17 @@ export const LaunchButton: React.FC = () => {
     }
   }, [path, args, t]);
 
-  // Status bar = status + quick actions only. Show a quick-launch ONLY when a target is configured;
-  // first-time setup lives in the Launch tab (not a status-bar call-to-action).
-  if (!selectedProfileId || !path) return null;
+  if (!selectedProfileId) return null;
+
+  // Configured → primary launch button. Not configured → a subtle "set up launch" prompt (so an
+  // upgraded library without a launch path still surfaces the action instead of hiding it).
+  if (!path) {
+    return (
+      <Button size="small" icon={<PlayCircleOutlined />} onClick={onClick} title={t('launch.configureHint')}>
+        {t('launch.setup')}
+      </Button>
+    );
+  }
 
   return (
     <Button type="primary" size="small" icon={<PlayCircleOutlined />} onClick={onClick} title={path}>

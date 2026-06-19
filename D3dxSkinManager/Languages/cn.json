@@ -212,6 +212,7 @@
     "header.tabs.tools": "工具",
     "launch.launch": "启动",
     "launch.setup": "设置启动",
+    "launch.configureHint": "尚未配置启动目标——点击前往“设置 → 模组工作”进行设置。",
     "launch.configure": "配置启动",
     "launch.configTitle": "启动配置",
     "launch.launching": "正在启动……",
