@@ -96,10 +96,10 @@ public class DropZoneManager : IDisposable
         if (_activeOverlays.ContainsKey(zoneId))
             return;
 
-        // Ensure we're on the UI thread
+        // Ensure we're on the UI thread (non-blocking — a blocking Invoke from a worker can deadlock).
         if (_parentForm.InvokeRequired)
         {
-            _parentForm.Invoke(() => CreateOverlay(zoneId, x, y, width, height));
+            _parentForm.BeginInvoke(() => CreateOverlay(zoneId, x, y, width, height));
             return;
         }
 
@@ -160,8 +160,20 @@ public class DropZoneManager : IDisposable
 
     #region Public API - Zone Registration
 
+    // Marshal to the UI thread NON-BLOCKING (BeginInvoke). Overlay management uses Win32/WinForms calls
+    // (PointToScreen, Controls.Add) that are UI-thread-only — and a BLOCKING Invoke from a worker thread
+    // can deadlock the UI (this caused an AppHang when IPC was dispatched off the UI thread). BeginInvoke
+    // never blocks the caller, so DropZone is safe to call from any thread.
+    private bool MarshalToUi(Action action)
+    {
+        if (!_parentForm.IsHandleCreated) { try { action(); } catch { } return true; }
+        if (_parentForm.InvokeRequired) { _parentForm.BeginInvoke(action); return true; }
+        return false; // already on UI thread — caller proceeds inline
+    }
+
     public void RegisterZone(string zoneId, int x, int y, int width, int height)
     {
+        if (MarshalToUi(() => RegisterZone(zoneId, x, y, width, height))) return;
         if (_activeOverlays.ContainsKey(zoneId))
         {
             // Update existing overlay bounds — same CSS→physical conversion as CreateOverlay
@@ -180,6 +192,7 @@ public class DropZoneManager : IDisposable
 
     public void UnregisterZone(string zoneId)
     {
+        if (MarshalToUi(() => UnregisterZone(zoneId))) return;
         if (_activeOverlays.ContainsKey(zoneId))
         {
             DestroyOverlay(zoneId);
@@ -194,6 +207,7 @@ public class DropZoneManager : IDisposable
 
     public void ShowOverlay(string zoneId)
     {
+        if (MarshalToUi(() => ShowOverlay(zoneId))) return;
         if (_activeOverlays.TryGetValue(zoneId, out var overlay))
         {
             overlay.OnFrontendMouseLeave();
@@ -202,6 +216,7 @@ public class DropZoneManager : IDisposable
 
     public void ClearAll()
     {
+        if (MarshalToUi(ClearAll)) return;
         DestroyAllOverlays();
         _logger.Info("All zones cleared", "DropZone");
     }
