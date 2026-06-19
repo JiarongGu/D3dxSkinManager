@@ -7,20 +7,19 @@ Current state as of 2026-04-13. Update this when new tests are added.
 | Area | What to test |
 |------|-------------|
 | **ProfileContext** | Profile loading, switching, create/delete, error handling |
-| **settingsStore** | Zustand state mutations, global vs profile settings |
-| **modService (IPC)** | loadMod, unloadMod, updateMetadata, batch ops |
-| **categoryService (IPC)** | getCategoryTree, hierarchy operations |
-| **settingsService (IPC)** | getGlobalSettings, updateGlobalSetting |
+| ~~**settingsStore**~~ | ✅ DONE 2026-06-19 (`settingsStore.test.ts` — dirty tracking, baseline reset) |
+| ~~**modsStore**~~ | ✅ DONE 2026-06-19 (`modsStore.test.ts` — setters, busy tracking, per-profile reset) |
+| **modService / categoryService / settingsService (IPC)** | thin `sendMessage` wrappers — LOW value (asserting "calls bridge with type X"); deprioritized |
 
 ## Backend — P0 gaps (untested, critical)
 
 | Area | What to test |
 |------|-------------|
-| **SettingFacade + GlobalSettingService** | Settings persistence, concurrent updates |
+| ~~**GlobalSettingService**~~ | ✅ DONE 2026-06-19 (`GlobalSettingServiceTests` — persistence, single-field update, cache, log-level, events) |
 | **ProfileFacade + ProfileService** | Profile CRUD lifecycle, config loading |
 | **ModFacade** | Full IPC routing, PayloadHelper parsing |
-| **ModArchiveService** | Archive extraction, error handling |
-| **MigrationService** | Multi-step migration, progress, rollback |
+| **ModArchiveService** | Archive extraction, error handling (heavier — file ops) |
+| **MigrationService** | Multi-step migration, progress, rollback (heavier) |
 
 ## What's well-tested
 
