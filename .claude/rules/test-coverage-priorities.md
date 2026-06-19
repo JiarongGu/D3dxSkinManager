@@ -74,7 +74,10 @@ waits on the call count (not the displayed text, which already shows the default
 3× retry/backoff, throw-outside-provider). A fresh store-reactive suite (setTheme→updateGlobalSetting,
 effectiveTheme auto-resolution, data-theme) is a clean future task, not a revival.
 
-**No skipped suites remain.** Only 3 `it.skip` in `searchQueryParser.test` (the id-field / lone-dash
-question — decide whether an any-field search should match a mod's GUID before un-skipping).
+**Fully green — no skips at all.** The `searchQueryParser` id/lone-dash question was resolved
+(2026-06-19, per user: *id-search is used internally a lot*): id matches **exactly** (full GUID, no
+substring noise) for both bare terms and the `id:` prefix — the tests were corrected to assert exact
+(`mod().id` is `'abc123'`, so `'abc'` must NOT match). Plus a real util fix: a standalone `'-'` (stray
+negation char) is now a no-op instead of a literal search term. Frontend suite: **168 passing, 0 skipped**.
 Plus 3 `it.skip` in `searchQueryParser.test` (id-field / lone-dash — decide whether the util *should*
 match `id` in an any-field search before un-skipping). `App.test.tsx` (CRA "learn react" boilerplate) was deleted.

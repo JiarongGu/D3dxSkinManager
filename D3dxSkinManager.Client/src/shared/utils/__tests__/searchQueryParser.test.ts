@@ -163,8 +163,9 @@ describe('matchesSearchQuery', () => {
     expect(matches('weapon', mod())).toBe(false);
   });
 
-  it.skip('matches by id', () => {
-    expect(matches('abc', mod())).toBe(true);
+  it('matches by id (exact — full id, not a substring)', () => {
+    expect(matches('abc123', mod())).toBe(true);  // full id matches
+    expect(matches('abc', mod())).toBe(false);     // partial id does NOT match (ids are exact, no substring noise)
     expect(matches('xyz', mod())).toBe(false);
   });
 
@@ -272,9 +273,10 @@ describe('field-specific search', () => {
     expect(matches('name:john', mod())).toBe(false);
   });
 
-  it.skip('id: restricts to id only', () => {
-    expect(matches('id:abc', mod())).toBe(true);
-    expect(matches('id:blue', mod())).toBe(false);
+  it('id: restricts to id only (exact)', () => {
+    expect(matches('id:abc123', mod())).toBe(true);  // exact id
+    expect(matches('id:abc', mod())).toBe(false);     // partial id does not match
+    expect(matches('id:blue', mod())).toBe(false);    // "blue" is the name, not the id
   });
 
   it('negated field prefix', () => {
@@ -343,9 +345,8 @@ describe('edge cases', () => {
     expect(q.isEmpty).toBe(true);
   });
 
-  it.skip('handles lone dash', () => {
-    // A lone "-" with nothing after is not a negation, just a dash
-    // The tokenizer will skip it since there's no following char
+  it('handles lone dash', () => {
+    // A lone "-" (stray negation char with nothing after) is a no-op — tokenizer skips it.
     const q = parseSearchQuery('- ');
     expect(q.isEmpty).toBe(true);
   });

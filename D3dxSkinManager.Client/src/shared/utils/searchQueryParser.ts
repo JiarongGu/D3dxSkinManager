@@ -156,7 +156,8 @@ function tokenizeGroup(raw: string, prefixes: [string, SearchField][]): SearchTe
       text = s.substring(start, i);
     }
 
-    if (text) {
+    // A standalone "-" (a stray negation char with nothing after it) is a no-op, not a literal search.
+    if (text && text !== '-') {
       terms.push({
         text: text.toLowerCase(),
         field,
