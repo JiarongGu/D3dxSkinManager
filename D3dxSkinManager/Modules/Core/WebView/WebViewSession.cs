@@ -136,32 +136,30 @@ namespace D3dxSkinManager.Modules.Core.WebView
         /// Handle IPC messages from this session's WebView
         /// Routes to session dispatcher first (APP, DROP_ZONE), then global dispatcher
         /// </summary>
-        private void OnIpcMessageReceived(object? sender, IpcMessageReceivedEventArgs e)
+        private async void OnIpcMessageReceived(object? sender, IpcMessageReceivedEventArgs e)
         {
-            // Process OFF the UI thread so concurrent IPC calls don't serialize on / block the UI —
-            // the frontend treats IPC like a normal (concurrent) web API. This is safe: repositories use
-            // a fresh pooled SqliteConnection per operation (SQLite handles file-level locking), heavy
-            // ops are further serialized by their own backend queues, and SendResponse marshals the reply
-            // back to the UI thread itself.
-            _ = Task.Run(async () =>
+            // Async on the UI thread: each `await` yields the message pump so concurrent IPC calls still
+            // interleave (the frontend gets concurrency), WITHOUT consuming a thread-pool thread per call.
+            // A previous version offloaded every message to Task.Run, but under heavy backend load (e.g.
+            // a full mod analysis extracting thousands of archives + blocking pool threads) that starved
+            // the thread pool and made IPC — even a quick XXMI detect — time out, freezing the app. Heavy
+            // work is already offloaded by the backend's own queues (FileOperationPlanner, ModOperationQueue,
+            // fire-and-forget facades), which is the correct place to bound concurrency.
+            try
             {
-                try
-                {
-                    _logger.Verbose($"[{SessionId}] Received IPC message: {e.Message.Module}/{e.Message.Type}", "WebViewSession");
+                _logger.Verbose($"[{SessionId}] Received IPC message: {e.Message.Module}/{e.Message.Type}", "WebViewSession");
 
-                    // Try session dispatcher first (APP, DROP_ZONE), then global.
-                    var response = await _sessionDispatcher.ProcessMessageAsync(e.Message).ConfigureAwait(false)
-                                   ?? await _globalDispatcher.ProcessMessageAsync(e.Message).ConfigureAwait(false);
+                var response = await _sessionDispatcher.ProcessMessageAsync(e.Message)
+                               ?? await _globalDispatcher.ProcessMessageAsync(e.Message);
 
-                    e.SendResponse(response ?? IpcResponse.CreateError(e.Message.Id,
-                        $"No handler registered for {e.Message.Module}/{e.Message.Type}"));
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error($"[{SessionId}] Error processing IPC message: {ex.Message}", "WebViewSession", ex);
-                    e.SendResponse(IpcResponse.CreateError(e.Message.Id, $"Session error: {ex.Message}"));
-                }
-            });
+                e.SendResponse(response ?? IpcResponse.CreateError(e.Message.Id,
+                    $"No handler registered for {e.Message.Module}/{e.Message.Type}"));
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[{SessionId}] Error processing IPC message: {ex.Message}", "WebViewSession", ex);
+                e.SendResponse(IpcResponse.CreateError(e.Message.Id, $"Session error: {ex.Message}"));
+            }
         }
 
         /// <summary>
