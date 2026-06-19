@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
   useCallback,
 } from "react";
@@ -75,9 +76,15 @@ export function ProfileProvider({
     profiles: [],
   });
 
+  // The action callbacks are memoized with [] deps, so reading `state` inside them would capture the
+  // FIRST render's value (stale closure). Mirror the latest state into a ref so the guards/lookups
+  // (delete-selected, select-from-list) see current data. See REACT_CLOSURE_PATTERNS.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   // Initialize profiles on mount - only run once
   useEffect(() => {
-     execute(async () => {
+    void execute(async () => {
       try {
         setError(undefined);
         // Load all profiles
@@ -113,7 +120,7 @@ export function ProfileProvider({
    * Load all profiles (no profileId needed for this request)
    */
   const loadProfiles = useCallback(async () => {
-    execute(async () => {
+    return execute(async () => {
       try {
         setError(undefined);
         const response = await profileService.getAllProfiles();
@@ -133,11 +140,11 @@ export function ProfileProvider({
    * The backend doesn't maintain an active profile
    */
   const selectProfile = useCallback(async (profileId: string) => {
-    execute(async () => {
+    return execute(async () => {
       try {
         setError(undefined);
         // Find the profile in our list
-        const profile = state.profiles.find((p) => p.id === profileId);
+        const profile = stateRef.current.profiles.find((p) => p.id === profileId);
         if (!profile) {
           // Load the profile if not in our list
           const loadedProfile = await profileService.getProfileById(profileId);
@@ -205,7 +212,7 @@ export function ProfileProvider({
     name: string,
     description?: string,
   ) => {
-    execute(async () => {
+    return execute(async () => {
       try {
         setError(undefined);
         await profileService.updateProfile({ profileId, name, description });
@@ -235,10 +242,10 @@ export function ProfileProvider({
    * Delete a profile
    */
   const deleteProfile = useCallback(async (profileId: string) => {
-    execute(async () => {
+    return execute(async () => {
       try {
         // Cannot delete the selected profile
-        if (state.selectedProfile?.id === profileId) {
+        if (stateRef.current.selectedProfile?.id === profileId) {
           throw new Error("Cannot delete the currently selected profile");
         }
         setError(undefined);

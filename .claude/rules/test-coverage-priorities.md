@@ -6,7 +6,7 @@ Current state as of 2026-04-13. Update this when new tests are added.
 
 | Area | What to test |
 |------|-------------|
-| **ProfileContext** | Profile loading, switching, create/delete, error handling |
+| ~~**ProfileContext**~~ | ✅ DONE 2026-06-19 (`ProfileContext.test.tsx` — load+select-active, first-fallback, load error, create-adds, delete-selected-guard, throws-outside-provider). Fixed a real **stale-closure bug**: delete/select guards read `state` from `useCallback([])` → mirrored latest state into a ref; action callbacks now `return execute(...)` so callers can catch. |
 | ~~**settingsStore**~~ | ✅ DONE 2026-06-19 (`settingsStore.test.ts` — dirty tracking, baseline reset) |
 | ~~**modsStore**~~ | ✅ DONE 2026-06-19 (`modsStore.test.ts` — setters, busy tracking, per-profile reset) |
 | **modService / categoryService / settingsService (IPC)** | thin `sendMessage` wrappers — LOW value (asserting "calls bridge with type X"); deprioritized |
@@ -17,7 +17,7 @@ Current state as of 2026-04-13. Update this when new tests are added.
 |------|-------------|
 | ~~**GlobalSettingService**~~ | ✅ DONE 2026-06-19 (`GlobalSettingServiceTests` — persistence, single-field update, cache, log-level, events) |
 | ~~**ProfileService**~~ | ✅ DONE 2026-06-19 (`ProfileServiceTests` — create/get/update/delete lifecycle, delete-active guard, switch) |
-| **ModFacade** | Full IPC routing, PayloadHelper parsing |
+| ~~**ModFacade**~~ | ✅ DONE 2026-06-19 (`ModFacadeTests` — routing GET_ALL→repo+enrich, GET_BY_ID parses id payload (real PayloadHelper), missing-payload→error, LOAD→queue→lifecycle, unknown-type→error). 18 services mocked + real PayloadHelper. |
 | **ModArchiveService** | Archive extraction, error handling (heavier — file ops) |
 | **MigrationService** | Multi-step migration, progress, rollback (heavier) |
 
