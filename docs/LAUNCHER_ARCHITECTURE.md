@@ -55,7 +55,7 @@ D3dxSkinManager uses a native C++ launcher to provide automatic .NET runtime ins
 **Key Files:**
 - `main.cpp` - Entry point and launch flow
 - `dotnet_runtime.cpp` - Runtime detection and installation
-- `updater.cpp` - Auto-update logic (stub)
+- `updater.cpp` - Auto-update logic (manifest-driven; implemented)
 - `launcher.rc` - Windows resource file (icon, version info)
 - `favicon.ico` - Application icon
 - `Launcher.vcxproj` - Visual Studio C++ project
@@ -150,19 +150,29 @@ publish/
 5. Launcher executes `D3dxSkinManager.exe` directly
 6. Main application starts
 
-## Auto-Update Architecture (Future)
+## Auto-Update Architecture (IMPLEMENTED — `updater.cpp`)
 
-The C++ launcher enables safe auto-updates:
+The C++ launcher applies updates before launching the app (a running app can't replace its own exe):
 
-### Update Flow
+### Update Flow (manifest-driven)
 
-1. Launcher checks for updates on startup
-2. If update available:
-   - Downloads update package (zip file)
-   - Extracts to temporary directory
-   - Replaces `D3dxSkinManager.exe` and other files
-   - **Does NOT replace launcher itself** (`D3dxSkinManager Launcher.exe` stays stable)
-   - Restarts application with new files
+`CheckForUpdates(appDir)` runs first in `main.cpp`:
+1. Read the local `manifest.json` version (skip if absent — older build).
+2. Download the latest release `manifest.json` via GitHub's stable
+   `releases/latest/download/<asset>` redirect (`URLDownloadToFileW`, urlmon — no API/JSON-lib needed).
+3. Compare versions (numeric `X.Y[.Z]`). Not newer → return, launch current.
+4. Newer → **prompt the user** (Yes/No). On consent:
+   - Download `D3dxSkinManager-v<ver>-win-x64.zip` (asset name embeds the version).
+   - Extract via PowerShell `Expand-Archive` (no external zip lib).
+   - **Overlay** the staged files with `robocopy /E /XF "D3dxSkinManager Launcher.exe"** — every
+     file replaced/added EXCEPT the launcher itself (it's running).
+   - **Removals:** files in the old manifest but not the new one are deleted (only tracked files).
+   - The new `manifest.json` is copied in (becomes the next baseline).
+5. Launch the now-updated `D3dxSkinManager.exe`.
+
+Non-fatal throughout: any failure (offline, no manifest, download/extract error) falls back to
+launching the current version. **The launcher never replaces itself.** sha256 verification of
+downloaded files is a future hardening step (the zip is fetched over GitHub https).
 
 ### Benefits
 
@@ -345,7 +355,8 @@ Edit these files:
 
 ## Future Enhancements
 
-- [ ] Implement auto-update functionality
+- [x] Implement auto-update functionality (manifest-driven, `updater.cpp`)
+- [ ] sha256-verify downloaded update files before applying
 - [ ] Add crash reporting to launcher
 - [ ] Launcher self-update capability
 - [ ] Telemetry (opt-in)
