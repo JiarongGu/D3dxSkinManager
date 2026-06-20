@@ -230,6 +230,7 @@ public class ApplicationHost
 
             // Self-cleanup of transient leftovers (stale downloads, orphaned update staging, stale
             // process entries from a previous session). Non-fatal — never blocks startup.
+            var cleanupSw = global::System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 await _serviceProvider.GetRequiredService<IStartupCleanupService>().RunAsync();
@@ -238,17 +239,35 @@ public class ApplicationHost
             {
                 _logger.Warn($"Startup cleanup failed (non-critical): {ex.Message}", "Host");
             }
+            cleanupSw.Stop();
+            Console.WriteLine($"[Startup] StartupCleanup took {cleanupSw.ElapsedMilliseconds}ms");
 
-            // Perform eager loading AFTER ProfileServiceRouter and MessageDispatcher are configured
-            // This allows profile-scoped cache warming (category tree, mods) via MessageDispatcher
-            await PerformEagerLoadingAsync();
+            // Eager loading (DB + category-tree cache warm, ~375ms) and WebView session creation
+            // (EnsureCoreWebView2Async — the ~600-800ms controller spawn) are INDEPENDENT. Run them
+            // concurrently: both are async and yield the UI thread on their I/O waits, so the cache
+            // warm overlaps the controller creation instead of summing serially. Measured: this is the
+            // real every-launch win (env CreateAsync was already cheap; see WebView2EnvironmentPrewarmer).
+            var overlapSw = global::System.Diagnostics.Stopwatch.StartNew();
+
+            // Start eager loading WITHOUT awaiting — it warms caches React reads after it has mounted,
+            // which is well after navigation, so it does not need to complete before the session starts.
+            // Task.Run offloads its continuations to the thread pool so it does NOT compete with the
+            // WebView controller creation (EnsureCoreWebView2Async) for the UI thread. Progress callbacks
+            // still marshal back to the UI thread via the Progress<T> captured inside.
+            var eagerTask = Task.Run(() => PerformEagerLoadingAsync());
 
             // Get Session Manager from DI
             _logger.Info("Getting session manager from DI...", "Host");
             _sessionManager = _serviceProvider.GetRequiredService<IWebViewSessionManager>();
 
-            // Create main WebView session
+            // Create main WebView session (runs concurrently with eager loading above)
             await CreateMainSessionAsync();
+
+            // Make sure cache warming finished before we report init complete.
+            await eagerTask;
+
+            overlapSw.Stop();
+            Console.WriteLine($"[Startup] EagerLoading+Session (overlapped) took {overlapSw.ElapsedMilliseconds}ms");
 
             _performanceMonitor.StopOperation("WebView2.Initialize");
 

@@ -1,5 +1,6 @@
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.WebView;
 
 namespace D3dxSkinManager.Infrastructure;
 
@@ -31,14 +32,27 @@ public static class ApplicationBootstrapper
         // Initialize WinForms
         InitializeWinForms();
 
+        // Prewarm the WebView2 browser environment NOW (fire-and-forget). The browser-process spawn is
+        // the dominant chunk of WebView2 init (~1-2s); starting it here lets it run while we build DI,
+        // load window state, create the form, and do eager loading — so by the time the WebView session
+        // needs it, it's usually ready. Does not need the message loop or any control.
+        _logger.Info("Prewarming WebView2 environment...", "Bootstrap");
+        WebView2EnvironmentPrewarmer.Begin(AppDomain.CurrentDomain.BaseDirectory);
+
         // Create application host
         var host = new ApplicationHost(appEnv, _logger);
 
         // Initialize services early (needed for window state loading)
+        var diSw = global::System.Diagnostics.Stopwatch.StartNew();
         host.InitializeServices();
+        diSw.Stop();
+        Console.WriteLine($"[Startup] InitializeServices (DI build) took {diSw.ElapsedMilliseconds}ms");
 
         // Create main form (window state already loaded, no visual jump)
+        var formSw = global::System.Diagnostics.Stopwatch.StartNew();
         host.CreateMainForm();
+        formSw.Stop();
+        Console.WriteLine($"[Startup] CreateMainForm took {formSw.ElapsedMilliseconds}ms");
 
         // Run the application
         host.Run();

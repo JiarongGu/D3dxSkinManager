@@ -29,66 +29,20 @@ public class WebViewInitializer
     {
         Console.WriteLine("[WebView2] Starting initialization...");
 
-        // Create user data folder for WebView2
-        var userDataFolder = Path.Combine(_baseDirectory, "data", "webview2");
-        Directory.CreateDirectory(userDataFolder);
-
-        // Create environment options for better performance
-        var options = new CoreWebView2EnvironmentOptions();
-        options.AdditionalBrowserArguments = "--enable-features=msWebView2EnableDraggableRegions " +
-                                             "--disable-features=msSmartScreenProtection " +
-                                             "--enable-gpu-rasterization " +
-                                             "--enable-zero-copy " +
-                                             "--enable-accelerated-2d-canvas " +
-                                             "--enable-hardware-overlays " +
-                                             "--force-color-profile=srgb " +
-                                             "--disable-background-timer-throttling " +
-                                             "--disable-renderer-backgrounding " +
-                                             "--disable-features=TranslateUI " +
-                                             "--disable-ipc-flooding-protection " +
-                                             "--disable-gpu-driver-bug-workarounds " +
-                                             "--disable-component-update " +
-                                             "--disable-default-apps " +
-                                             "--disable-domain-reliability " +
-                                             "--disable-sync " +
-                                             "--no-first-run " +
-                                             "--no-default-browser-check " +
-                                             "--disable-background-networking " +
-                                             "--disable-breakpad " +
-                                             // ENABLE V8 CODE CACHING - this is critical for fast subsequent loads!
-                                             // Code cache is stored in user data folder and persists between runs
-                                             "--enable-features=IsolatedCodeCache " +
-                                             // V8 JavaScript optimization flags:
-                                             // --no-lazy: Compile all functions immediately (not lazy)
-                                             // --always-opt: Always optimize (don't wait for hot code)
-                                             // --serialize-eager: Eagerly serialize code cache
-                                             // --max-old-space-size: Limit V8 memory
-                                             "--js-flags=--no-lazy --always-opt --serialize-eager --max-old-space-size=512 " +
-                                             "--enable-lazy-image-loading " +
-                                             "--enable-features=ScriptStreaming";
-
-        // DEV ONLY: because the app sets AdditionalBrowserArguments above, WebView2 IGNORES the
-        // WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS env var. The devtools toolkit (devtools/dev.mjs app …)
-        // sets that env to "--remote-debugging-port=9223" so CDP can attach; append it here in dev mode
-        // so the test tooling (devtools/dev.mjs check/cdp/review) can drive the real app. Never in prod.
-        if (IsDevelopmentMode())
-        {
-            var extraArgs = Environment.GetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS");
-            if (!string.IsNullOrWhiteSpace(extraArgs))
-            {
-                options.AdditionalBrowserArguments += " " + extraArgs.Trim();
-                Console.WriteLine($"[WebView2] DEV: appended browser args from env: {extraArgs.Trim()}");
-            }
-        }
-
-        // Create WebView2 environment with performance options
-        var environment = await CoreWebView2Environment.CreateAsync(
-            browserExecutableFolder: null,
-            userDataFolder: userDataFolder,
-            options: options);
+        // Use the prewarmed environment (started at process launch by WebView2EnvironmentPrewarmer.Begin)
+        // so the ~1-2s browser-process spawn overlaps the rest of startup instead of running serially here.
+        // The browser arguments (incl. the dev CDP env-var append) are built inside the prewarmer.
+        // The residual wait here = how much of the spawn did NOT overlap (≈0 when prewarm finished in time).
+        var envWait = global::System.Diagnostics.Stopwatch.StartNew();
+        var environment = await WebView2EnvironmentPrewarmer.GetAsync(_baseDirectory);
+        envWait.Stop();
+        Console.WriteLine($"[WebView2] Environment ready (InitAsync waited {envWait.ElapsedMilliseconds}ms for prewarm)");
 
         // Initialize WebView2
+        var ensureSw = global::System.Diagnostics.Stopwatch.StartNew();
         await _webView.EnsureCoreWebView2Async(environment);
+        ensureSw.Stop();
+        Console.WriteLine($"[WebView2] EnsureCoreWebView2Async took {ensureSw.ElapsedMilliseconds}ms");
 
         // Add navigation event handlers for debugging with precise timing
         var navigationStartTime = DateTime.MinValue;
