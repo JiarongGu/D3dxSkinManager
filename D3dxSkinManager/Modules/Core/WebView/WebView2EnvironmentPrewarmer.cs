@@ -51,7 +51,14 @@ public static class WebView2EnvironmentPrewarmer
     public static string BuildBrowserArguments(bool isDevelopment, string? devExtraArgs)
     {
         // Single enable-features / disable-features lists (comma-separated, each switch used once).
-        const string enableFeatures = "msWebView2EnableDraggableRegions,IsolatedCodeCache,ScriptStreaming";
+        // msWebView2CodeCache (research 2026-06-20, official WebView2 flags doc): makes JS served via
+        // WebResourceRequested (our embedded app.local bundle) eligible for V8 bytecode caching → faster
+        // 3rd+ React mount in PRODUCTION. No effect in dev (Vite serves the bundle over http, not through
+        // the handler), so it can't be measured by the dev loop. Pairs with IsolatedCodeCache.
+        // NOTE: measured + REJECTED here — SpareRendererForSitePerProcess (spawns an extra renderer →
+        // +150ms startup) and msWebView2CancelInitialNavigation (no measurable gain) both regressed startup.
+        const string enableFeatures = "msWebView2EnableDraggableRegions,IsolatedCodeCache,ScriptStreaming," +
+                                       "msWebView2CodeCache";
         const string disableFeatures = "msSmartScreenProtection,TranslateUI";
 
         var args =

@@ -47,7 +47,12 @@ export default defineConfig({
         capture: path.resolve(__dirname, 'capture.html'),
       },
       output: {
-        // Split vendor chunks for better caching
+        // Stable vendor chunks (separate from app code) so they keep their content hash across app
+        // updates → WebView2's HTTP cache + V8 IsolatedCodeCache reuse them without re-download/re-parse.
+        // NOTE: antd (~1.2MB) is used by the eager "mods" tab + app shell, so it cannot be deferred —
+        // measured auto-splitting only saved ~60KB of it while folding it into `main` (which re-hashes
+        // every release, defeating the code cache). Keep it pinned. The win comes from lazy-loading the
+        // non-default tabs/dialogs (App.tsx), which removes THEIR code from the initial parse.
         manualChunks: {
           'antd': ['antd'],
           'react-vendor': ['react', 'react-dom'],

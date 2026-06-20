@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
-import { Layout } from "antd";
+import { Layout, Spin } from "antd";
 import { registerNavigateToTab } from "./shared/hooks/useAppNavigation";
 import { initProcessBridge } from "./shared/store/processBridge";
 import { AppHeader } from "./modules/core/components/layout/AppHeader";
 import { AppStatusBar } from "./modules/core/components/layout/AppStatusBar";
+// Eager: the default ("mods") tab + always-present chrome. Everything else is code-split below so it
+// stays OUT of the initial bundle — the mods tab is the first paint, the rest loads on demand.
 import { ModHierarchicalView } from "./modules/mod/components/ModHierarchicalView";
-import { SettingsView } from "./modules/setting/components/SettingsView";
-import { ToolsView } from "./modules/tool/components/ToolsView";
-import { PluginsView } from "./modules/plugin/components/PluginsView";
 import { AnnotationProvider } from "./shared/components/common/TooltipSystem";
 import {
   SlideInScreenProvider,
@@ -20,18 +19,40 @@ import {
   keyboardManager,
   SHORTCUTS,
 } from "./modules/core/utils/KeyboardShortcutManager";
-import { KeyboardShortcutsDialog } from "./modules/core/components/dialogs/KeyboardShortcutsDialog";
-import { HelpWindow } from "./modules/help";
 import { ModProvider } from "./modules/mod";
 import { AppWrapper } from "./shared/components/AppWrapper";
 import { ErrorBoundary } from "./shared/components/ErrorBoundary";
-import {
-  OnboardingWizard,
-  ONBOARDING_DONE_KEY,
-} from "./modules/core/components/onboarding/OnboardingWizard";
-import { UpdateDialog } from "./modules/setting/components/UpdateDialog";
+import { ONBOARDING_DONE_KEY } from "./modules/core/components/onboarding/onboardingConstants";
 import { settingsService, systemService, UpdateInfo } from "./shared/services/ipc";
 import { logger } from "./shared/utils/logger";
+
+// Lazy — non-default tabs + on-demand dialogs. Each becomes its own chunk loaded only when first
+// shown, so the initial mount parses far less JS (faster first paint).
+const SettingsView = lazy(() =>
+  import("./modules/setting/components/SettingsView").then((m) => ({ default: m.SettingsView })),
+);
+const ToolsView = lazy(() =>
+  import("./modules/tool/components/ToolsView").then((m) => ({ default: m.ToolsView })),
+);
+const PluginsView = lazy(() =>
+  import("./modules/plugin/components/PluginsView").then((m) => ({ default: m.PluginsView })),
+);
+const HelpWindow = lazy(() =>
+  import("./modules/help").then((m) => ({ default: m.HelpWindow })),
+);
+const KeyboardShortcutsDialog = lazy(() =>
+  import("./modules/core/components/dialogs/KeyboardShortcutsDialog").then((m) => ({
+    default: m.KeyboardShortcutsDialog,
+  })),
+);
+const OnboardingWizard = lazy(() =>
+  import("./modules/core/components/onboarding/OnboardingWizard").then((m) => ({
+    default: m.OnboardingWizard,
+  })),
+);
+const UpdateDialog = lazy(() =>
+  import("./modules/setting/components/UpdateDialog").then((m) => ({ default: m.UpdateDialog })),
+);
 
 import "./App.css";
 
@@ -172,11 +193,14 @@ const AppContent: React.FC = () => {
         {/* Main Content Area - Scrollable */}
         <Layout className="app-content-layout">
           <Content className="app-content">
-            {/* Each tab wrapped in its own boundary so a crash in one tab degrades locally, not app-wide. */}
-            {selectedTab === "mods" && <ErrorBoundary compact label="Mods"><ModHierarchicalView /></ErrorBoundary>}
-            {selectedTab === "tools" && <ErrorBoundary compact label="Tools"><ToolsView /></ErrorBoundary>}
-            {selectedTab === "plugins" && <ErrorBoundary compact label="Plugins"><PluginsView /></ErrorBoundary>}
-            {selectedTab === "settings" && <ErrorBoundary compact label="Settings"><SettingsView /></ErrorBoundary>}
+            {/* Each tab wrapped in its own boundary so a crash in one tab degrades locally, not app-wide.
+                Suspense covers the lazy (non-default) tabs while their chunk loads on first open. */}
+            <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}><Spin /></div>}>
+              {selectedTab === "mods" && <ErrorBoundary compact label="Mods"><ModHierarchicalView /></ErrorBoundary>}
+              {selectedTab === "tools" && <ErrorBoundary compact label="Tools"><ToolsView /></ErrorBoundary>}
+              {selectedTab === "plugins" && <ErrorBoundary compact label="Plugins"><PluginsView /></ErrorBoundary>}
+              {selectedTab === "settings" && <ErrorBoundary compact label="Settings"><SettingsView /></ErrorBoundary>}
+            </Suspense>
           </Content>
         </Layout>
 
@@ -184,25 +208,30 @@ const AppContent: React.FC = () => {
         <AppStatusBar onHelpClick={handleHelpClick} />
       </Layout>
 
-      {/* Keyboard Shortcuts Dialog */}
-      <KeyboardShortcutsDialog
-        visible={shortcutsDialogVisible}
-        onClose={() => setShortcutsDialogVisible(false)}
-        shortcuts={keyboardManager.getShortcuts()}
-      />
+      {/* Lazy on-demand UI — each loads its chunk only when opened. SlideInScreenManager is here too
+          because it renders the lazy HelpWindow as screen content. fallback=null: nothing shows until
+          the user actually triggers one. */}
+      <Suspense fallback={null}>
+        {/* Keyboard Shortcuts Dialog */}
+        <KeyboardShortcutsDialog
+          visible={shortcutsDialogVisible}
+          onClose={() => setShortcutsDialogVisible(false)}
+          shortcuts={keyboardManager.getShortcuts()}
+        />
 
-      {/* Slide-in Screen Manager */}
-      <SlideInScreenManager />
+        {/* Slide-in Screen Manager */}
+        <SlideInScreenManager />
 
-      {/* First-run onboarding (shown once; reopenable in DEV via window.__openOnboarding) */}
-      <OnboardingWizard open={showOnboarding} onClose={() => setShowOnboarding(false)} />
+        {/* First-run onboarding (shown once; reopenable in DEV via window.__openOnboarding) */}
+        <OnboardingWizard open={showOnboarding} onClose={() => setShowOnboarding(false)} />
 
-      {/* Startup auto-update prompt (only when a newer version was found) */}
-      <UpdateDialog
-        open={!!updateInfo}
-        prefetched={updateInfo}
-        onClose={() => setUpdateInfo(undefined)}
-      />
+        {/* Startup auto-update prompt (only when a newer version was found) */}
+        <UpdateDialog
+          open={!!updateInfo}
+          prefetched={updateInfo}
+          onClose={() => setUpdateInfo(undefined)}
+        />
+      </Suspense>
     </AnnotationProvider>
   );
 };

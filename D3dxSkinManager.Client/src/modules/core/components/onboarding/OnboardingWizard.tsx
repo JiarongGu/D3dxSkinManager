@@ -19,8 +19,10 @@ import { useSettingsStore } from '../../../setting/store/settingsStore';
 import { XxmiImporterPicker } from '../../../setting/components/XxmiImporterPicker';
 import './OnboardingWizard.css';
 
-/** localStorage flag — per-machine "have we shown first-run onboarding" UX state (like theme). */
-export const ONBOARDING_DONE_KEY = 'd3dx.onboarding.completed.v1';
+/** localStorage flag — per-machine "have we shown first-run onboarding" UX state (like theme).
+ *  Re-exported from onboardingConstants so App can read it without importing this (lazy) component. */
+export { ONBOARDING_DONE_KEY } from './onboardingConstants';
+import { ONBOARDING_DONE_KEY } from './onboardingConstants';
 
 interface OnboardingWizardProps {
   open: boolean;
