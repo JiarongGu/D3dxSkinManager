@@ -99,9 +99,41 @@ sets** until the user unifies them. **Namespaces give this for free** — they i
    namespace doc shows, e.g. `$\global\tracking\isSwimming`). This is the ONLY edit to a source — no
    var/resource/section renaming (the namespace already disambiguates).
 3. **Master `.ini`** (`namespace = <MergeName>\Master`): `[Constants] global persist $swapvar` +
-   `[KeySwap] type=cycle $swapvar=0,1,…` (+ `$active`/`[Present]` as v1).
+   `[KeySwap] type=cycle $swapvar=0,1,…`.
 4. **Unify-keys later:** since each variant's keys are separate namespaced `[Key*]`, a future "unify
    shortcuts" step can rewrite them to share one key — until then they coexist.
+
+#### `activeOnly` on-screen gate — cross-namespace WRITES DON'T WORK; only READS do (FIXED 2026-06-21)
+**Symptom:** merged mod swapped variants correctly (default-swapvar change rendered the right one) but
+**the cycle key did nothing**. Root cause: the on-screen gate had each SOURCE write the MASTER's global
+(`$\global\<MergeName>\Master\active = 1` inside the gated override) and the master's `[KeySwap]` was
+`condition = $active == 1`. That is a cross-namespace **WRITE** — and 3DMigoto's namespace docs only ever
+demonstrate cross-namespace **READS** (`$x = $\global\tracking\isSwimming`) + **local writes**. The
+cross-ns write never took effect → master's `$active` stayed 0 → `condition` permanently false → key dead.
+The swap still worked because the gate is a cross-ns **read** (the proven primitive). The `activeOnly=false`
+path emitted no condition, so the key already worked there — the bug was only the default `activeOnly=true`.
+**Fix (use only proven primitives):** each SOURCE declares its OWN `global $mergeactive = 0` (in its own
+`[Constants]`), sets `$mergeactive = 1` LOCALLY inside its gated override, and resets it each frame via
+`[Present] post $mergeactive = 0`. The MASTER `[KeySwap]` OR-reads them cross-namespace:
+`condition = $\global\<ns0>\mergeactive == 1 || $\global\<ns1>\mergeactive == 1 || …`. So write=local,
+read=cross-ns — both proven. `BuildMaster` now takes the source-namespace list (to build the OR). Distinct
+var name `$mergeactive` avoids clashing with a source mod's own `$active`. Tests: `NamespaceMergeBuilderTests`.
+**RULE for any future cross-namespace coordination: read across namespaces, write locally — never the reverse.**
+
+#### Gate address MUST equal the DECLARED namespace — no extra `global\` (FIXED 2026-06-21)
+**Symptom:** BOTH variants rendered at once (the swapvar gate failed open). Root cause: the gate read was
+`if $\global\<MergeName>\Master\swapvar == N` but the master was declared `namespace = <MergeName>\Master`
+(no `global`). A cross-namespace read resolves as **`$\<namespace>\<var>`** — the leading `global` in the
+docs' example (`namespace = global\tracking` → `$\global\tracking\isSwimming`) is **part of the namespace
+name, not a magic prefix**. So `$\global\<MergeName>\Master\swapvar` ≠ the declared namespace → the var
+never resolved → 3DMigoto ran the `if` body anyway (**unresolved condition fails OPEN**) → every variant drew.
+**Fix:** ModMergeService now roots all merge namespaces under `global\` (`global\<MergeName>\Master`,
+`global\<MergeName>\mod<N>` — mirrors the one proven docs example) and the builder reads `$\<namespace>\<var>`
+verbatim (no hardcoded `global\`). Declared namespace == read address. Same correction applied to the
+`$mergeactive` reads. **Invariant: the `$\…\var` address a gate/condition reads must be BYTE-FOR-BYTE the
+target's declared `namespace = …` + `\` + var.** Tests assert this (incl. a no-double-`global\` guard).
+**STILL unverified in-game** (the OR-condition + cross-ns reads on a `[Key]`); if it misbehaves, toggling
+`activeOnly` OFF emits no condition → the key cycles unconditionally (guaranteed-working fallback).
 **Trade-off:** v2 is far less rewriting (prepend namespace + inject one gate) and preserves keybinds/vars;
 v1 hash-dedups (smaller output, no per-variant keys). **STILL NEEDS:** a real two-same-character in-game
 test to confirm the cross-namespace `if $\Master\swapvar` gating renders only the active variant (the one

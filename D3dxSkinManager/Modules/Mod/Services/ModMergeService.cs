@@ -72,8 +72,14 @@ public class ModMergeService : IModMergeService
             // Namespace-based merge (v2): keep each source .ini intact under its own namespace + gate its
             // overrides by the master's swapvar, so every variant's keybinds/vars/resources are preserved
             // as separate sets. See .claude/rules/3dmigoto-ini-interface.md (namespace merge).
-            var nsBase = NamespaceToken(safeName);
+            // Root every merge namespace under `global\` to mirror the ONE proven cross-namespace example
+            // in the 3DMigoto docs (namespace = global\tracking → read $\global\tracking\var). A
+            // cross-namespace read resolves as $\<namespace>\<var>, so the declared namespace MUST equal
+            // the address used to read it. (A previous bug prepended an extra `global\` only on the read
+            // side → the gate never resolved → the `if` failed open → BOTH variants drew.)
+            var nsBase = $"global\\{NamespaceToken(safeName)}";
             var masterNs = $"{nsBase}\\Master";
+            var sourceNamespaces = new List<string>();
             var iniCount = 0;
             for (var group = 0; group < modIds.Count; group++)
             {
@@ -92,6 +98,7 @@ public class ModMergeService : IModMergeService
                 // Transform each active .ini in place: namespace it + gate its overrides by swapvar. The
                 // .ini stays ENABLED — the namespace isolates it; the master coordinates which renders.
                 var srcNs = $"{nsBase}\\mod{group}";
+                sourceNamespaces.Add(srcNs);
                 var inis = Directory.GetFiles(groupDir, "*.ini", SearchOption.AllDirectories)
                     .Where(p => !Path.GetFileName(p).Contains("disabled", StringComparison.OrdinalIgnoreCase))
                     .ToList();
@@ -107,7 +114,7 @@ public class ModMergeService : IModMergeService
             if (iniCount == 0) throw new OperationException("MOD_MERGE_NO_INI");
 
             // Write the master .ini at the content root (sorted first alphabetically so it loads early).
-            var master = NamespaceMergeBuilder.BuildMaster(masterNs, key.Trim(), modIds.Count, activeOnly);
+            var master = NamespaceMergeBuilder.BuildMaster(masterNs, sourceNamespaces, key.Trim(), activeOnly);
             await File.WriteAllTextAsync(Path.Combine(content, "!merge_master.ini"), master, ct).ConfigureAwait(false);
 
             // Compress to a temp archive named after the mod (ImportAsync derives the name from it), then
