@@ -7,6 +7,8 @@ export interface OrphanedItem {
   sizeBytes: number;
   lastModified: string;
   category: OrphanCategory;
+  /** Set by the backend scanner — do not guess from the name (archives are extensionless files). */
+  isDirectory: boolean;
 }
 
 export interface OrphanScanResult {

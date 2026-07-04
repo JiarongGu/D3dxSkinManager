@@ -68,19 +68,22 @@ are lost, and rebinding writes only one. Also the combination-key path in the ed
 editing. Support multi-`key=` sections (parse as list, edit each) and fix combo capture on edit
 (`KeyCaptureInput` emits combos; verify write-back rewrites the right line).
 
-### B5. XXMI importer pick: no progress / manual override
-Picking an importer in Settings (`handleSelectXxmiImporter`) triggers work-dir switch + cache scanning
-with **no progress indication**. Register the switch on ProcessRegistry (status bar + Activity), and
-show the resolved dirs with an option to adjust manually.
+### B5. XXMI importer pick: no confirm/progress — ✅ FIXED 2026-07-05
+Picking an importer used to apply instantly from the dropdown with no summary or feedback. Now the
+pick is staged into a ConfirmDialog showing exactly what will be bound (work dir, deploy target,
+launcher, `--nogui --xxmi <NAME>` command) with an applying-spinner (async onOk) and a hint that
+every value stays manually adjustable in the section. Also fixed: apply now syncs the live
+`workDirectory` store value so the section isn't left dirty. Verified in-app, both themes.
 
-### B6. Cleanup tool: ignore dot-folders
-`FileCleanupService.ScanOrphanedModCachesAsync` enumerates every dir in the cache folder — folders
-starting with `.` (internal files/tools) must be skipped from orphan scanning/cleanup.
+### B6. Cleanup tool: ignore dot-folders — ✅ FIXED 2026-07-05
+`ScanOrphanedModCachesAsync` skips `.`-prefixed folders; the archive scan skips `.`-prefixed files.
+Tests: `FileCleanupServiceTests`.
 
-### B7. Cleanup tool: open-in-explorer broken for archive items
-`CleanupTab.handleOpenInExplorer` works for directories but not archive items — mod archives are
-**extensionless files**, so "open directory" fails. Use select-in-explorer (`openFileInExplorer` with
-highlight) for file items.
+### B7. Cleanup tool: open-in-explorer broken for archives — ✅ FIXED 2026-07-05
+Root cause: the UI guessed file-vs-directory from `name.includes('.')` — mod archives are
+extensionless FILES, so they were misclassified and `openDirectory(file)` failed. The scanner now
+reports `IsDirectory` on every `OrphanedItem` (backend knows what it scanned) and the UI uses it;
+select-in-explorer (`/select`) works for extensionless files. Tests: `FileCleanupServiceTests`.
 
 ---
 

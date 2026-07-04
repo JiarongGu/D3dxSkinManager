@@ -13,3 +13,36 @@
 .xxmi-picker__target code {
   color: var(--color-text-secondary);
 }
+
+/* Bind-confirmation dialog content (ConfirmDialog rendered by ProfileSettingsTab) */
+.xxmi-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.xxmi-confirm__row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  word-break: break-all;
+}
+
+.xxmi-confirm__label {
+  flex-shrink: 0;
+  min-width: 130px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.xxmi-confirm__row code {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.xxmi-confirm__hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}

@@ -190,7 +190,10 @@ const CleanupItem: React.FC<{
   onToggle: () => void;
 }> = ({ item, category, selected, onToggle }) => {
   const { t } = useTranslation();
-  const isDirectory = !item.name.includes('.');
+  // The scanner reports what it saw on disk — never guess from the name (mod archives are
+  // extensionless FILES and the old name-based heuristic misclassified them as directories,
+  // breaking open-in-explorer for the archive category).
+  const isDirectory = item.isDirectory;
   // MissingArchive items store mod ID in path — no file to open
   const canOpenInExplorer = category !== 'missingArchive';
 
@@ -200,6 +203,7 @@ const CleanupItem: React.FC<{
       if (isDirectory) {
         await systemService.openDirectory(item.path);
       } else {
+        // Select-in-explorer works for extensionless archive files too (explorer /select).
         await systemService.openFileInExplorer(item.path);
       }
     } catch {

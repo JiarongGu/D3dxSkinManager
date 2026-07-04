@@ -16,6 +16,7 @@ import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
 import { ModImportConfiguration, ModWorkConfiguration, profileService, systemService } from "../../../shared/services/ipc";
 import { logger } from "../../../shared/utils/logger";
+import { ConfirmDialog } from "../../../shared/components/dialogs/ConfirmDialog";
 import { XxmiImporterPicker } from "./XxmiImporterPicker";
 import { FixToolSettingsCard } from "./FixToolSettingsCard";
 import { SettingsSectionActions } from "./SettingsSectionActions";
@@ -68,25 +69,45 @@ export const ProfileSettingsTab: React.FC = () => {
   // selector drives workMode directly.
   const handleWorkModeChange = (mode: ModWorkConfiguration['mode']) => setWorkMode(mode);
 
-  // One-click XXMI bind: sets work dir (importer folder) + launcher + the headless launch args in one
-  // save, then resets baseline. The boot command is auto-derived — `XXMI Launcher.exe --nogui --xxmi
-  // <IMPORTER>` headlessly launches that importer's game (see xxmi-integration.md), so the user never
-  // needs to type a boot/launch option.
-  const handleSelectXxmiImporter = async (importerDir: string, _modsDir: string, launcherExe?: string, importerName?: string) => {
+  // XXMI bind is a two-step confirm (B5 UX fix): picking an importer used to apply instantly from a
+  // dropdown change with no summary or busy feedback. Now the pick is staged and a ConfirmDialog
+  // shows exactly what will be bound (work dir, deploy target, launcher, launch command) before the
+  // save runs — the dialog's async onOk gives the applying-spinner the user was missing, and the
+  // hint notes every value stays manually adjustable in this section afterwards.
+  const [pendingXxmi, setPendingXxmi] = useState<{
+    importerDir: string;
+    modsDir: string;
+    launcherExe?: string;
+    importerName?: string;
+  } | undefined>(undefined);
+
+  const handleSelectXxmiImporter = (importerDir: string, modsDir: string, launcherExe?: string, importerName?: string) => {
+    setPendingXxmi({ importerDir, modsDir, launcherExe, importerName });
+  };
+
+  // The boot command is auto-derived — `XXMI Launcher.exe --nogui --xxmi <IMPORTER>` headlessly
+  // launches that importer's game (see xxmi-integration.md), so the user never types a launch option.
+  const applyXxmiImporter = async () => {
+    const pick = pendingXxmi;
+    if (!pick) return;
     if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
     try {
       await profileService.updateProfileConfig({
         profileId: selectedProfileId,
         workMode: "xxmi",
-        workDirectory: importerDir,
-        ...(launcherExe ? { launchPath: launcherExe } : {}),
-        ...(importerName ? { launchArgs: `--nogui --xxmi ${importerName}` } : {}),
+        workDirectory: pick.importerDir,
+        ...(pick.launcherExe ? { launchPath: pick.launcherExe } : {}),
+        ...(pick.importerName ? { launchArgs: `--nogui --xxmi ${pick.importerName}` } : {}),
       });
-      setInitialProfileConfig({ mode: "xxmi", directory: importerDir, cleanupEnabled, cleanupMaxCaches });
+      // Sync the live field AND the baseline so the section isn't left dirty after the bind.
+      setWorkDirectory(pick.importerDir);
+      setInitialProfileConfig({ mode: "xxmi", directory: pick.importerDir, cleanupEnabled, cleanupMaxCaches });
       notification.success(t("settings.profile.modWork.xxmi.applied"));
     } catch (error: unknown) {
       notification.error(t("settings.notifications.profileConfigSaveFailed"));
       logger.error("[ProfileSettingsTab] Failed to apply XXMI importer:", error);
+    } finally {
+      setPendingXxmi(undefined);
     }
   };
 
@@ -182,11 +203,46 @@ export const ProfileSettingsTab: React.FC = () => {
                 <CompactInput value={internalWorkPath} disabled readOnly />
               )}
               {workMode === "xxmi" && (
-                <XxmiImporterPicker
-                  profileId={selectedProfileId ?? undefined}
-                  currentDirectory={workDirectory || undefined}
-                  onSelect={handleSelectXxmiImporter}
-                />
+                <>
+                  <XxmiImporterPicker
+                    profileId={selectedProfileId ?? undefined}
+                    currentDirectory={workDirectory || undefined}
+                    onSelect={handleSelectXxmiImporter}
+                  />
+                  <ConfirmDialog
+                    visible={!!pendingXxmi}
+                    title={t("settings.profile.modWork.xxmi.confirmTitle", { name: pendingXxmi?.importerName ?? "" })}
+                    content={
+                      <div className="xxmi-confirm">
+                        <div>{t("settings.profile.modWork.xxmi.confirmIntro")}</div>
+                        <div className="xxmi-confirm__row">
+                          <span className="xxmi-confirm__label">{t("settings.profile.modWork.xxmi.confirmWorkDir")}</span>
+                          <code>{pendingXxmi?.importerDir}</code>
+                        </div>
+                        <div className="xxmi-confirm__row">
+                          <span className="xxmi-confirm__label">{t("settings.profile.modWork.xxmi.confirmDeploy")}</span>
+                          <code>{pendingXxmi?.modsDir}</code>
+                        </div>
+                        {pendingXxmi?.launcherExe && (
+                          <div className="xxmi-confirm__row">
+                            <span className="xxmi-confirm__label">{t("settings.profile.modWork.xxmi.confirmLauncher")}</span>
+                            <code>{pendingXxmi.launcherExe}</code>
+                          </div>
+                        )}
+                        {pendingXxmi?.importerName && (
+                          <div className="xxmi-confirm__row">
+                            <span className="xxmi-confirm__label">{t("settings.profile.modWork.xxmi.confirmArgs")}</span>
+                            <code>--nogui --xxmi {pendingXxmi.importerName}</code>
+                          </div>
+                        )}
+                        <div className="xxmi-confirm__hint">{t("settings.profile.modWork.xxmi.confirmHint")}</div>
+                      </div>
+                    }
+                    okText={t("common.apply")}
+                    onOk={applyXxmiImporter}
+                    onCancel={() => setPendingXxmi(undefined)}
+                  />
+                </>
               )}
               {workMode === "external" && (
                 <Space.Compact style={{ width: "100%" }}>

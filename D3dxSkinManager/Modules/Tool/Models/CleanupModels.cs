@@ -23,6 +23,9 @@ public class OrphanedItem
     public long SizeBytes { get; set; }
     public string LastModified { get; set; } = string.Empty;
     public OrphanCategory Category { get; set; }
+    /// <summary>True when Path is a directory. The scanner knows — the UI must not guess from the
+    /// name (mod archives are extensionless files and used to be misclassified as directories).</summary>
+    public bool IsDirectory { get; set; }
 }
 
 /// <summary>

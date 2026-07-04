@@ -222,7 +222,8 @@ public class FileCleanupService : IFileCleanupService
                     Name = fileName,
                     SizeBytes = info.Length,
                     LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                    Category = OrphanCategory.Thumbnail
+                    Category = OrphanCategory.Thumbnail,
+                    IsDirectory = false
                 });
             }
         }
@@ -258,7 +259,8 @@ public class FileCleanupService : IFileCleanupService
                     Name = dirName,
                     SizeBytes = FileUtilities.GetDirectorySize(dir),
                     LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
-                    Category = OrphanCategory.Preview
+                    Category = OrphanCategory.Preview,
+                    IsDirectory = true
                 });
             }
         }
@@ -317,7 +319,8 @@ public class FileCleanupService : IFileCleanupService
                     Name = info.Name,
                     SizeBytes = info.Length,
                     LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                    Category = OrphanCategory.TempFile
+                    Category = OrphanCategory.TempFile,
+                    IsDirectory = false
                 });
             }
 
@@ -329,7 +332,8 @@ public class FileCleanupService : IFileCleanupService
                     Name = Path.GetFileName(dir),
                     SizeBytes = FileUtilities.GetDirectorySize(dir),
                     LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
-                    Category = OrphanCategory.TempFile
+                    Category = OrphanCategory.TempFile,
+                    IsDirectory = true
                 });
             }
         }
@@ -350,7 +354,8 @@ public class FileCleanupService : IFileCleanupService
                         Name = info.Name,
                         SizeBytes = info.Length,
                         LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                        Category = OrphanCategory.TempFile
+                        Category = OrphanCategory.TempFile,
+                        IsDirectory = false
                     });
                 }
             }
@@ -387,6 +392,11 @@ public class FileCleanupService : IFileCleanupService
             if (string.IsNullOrEmpty(dirName))
                 continue;
 
+            // Dot-folders (.vscode, tool/internal folders users keep in the Mods dir) are not mod
+            // caches — never report them as orphans (user rule 2026-07-05).
+            if (dirName.StartsWith('.'))
+                continue;
+
             // Extract the mod ID from directory name
             var modId = dirName.StartsWith(DISABLED_PREFIX)
                 ? dirName.Substring(DISABLED_PREFIX.Length)
@@ -400,7 +410,8 @@ public class FileCleanupService : IFileCleanupService
                     Name = dirName,
                     SizeBytes = FileUtilities.GetDirectorySize(dir),
                     LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
-                    Category = OrphanCategory.ModCache
+                    Category = OrphanCategory.ModCache,
+                    IsDirectory = true
                 });
             }
         }
@@ -426,6 +437,10 @@ public class FileCleanupService : IFileCleanupService
 
         foreach (var file in Directory.GetFiles(modsDir))
         {
+            // Dot-files (.gitkeep-style internal/tool files) are not mod archives — skip.
+            if (Path.GetFileName(file).StartsWith('.'))
+                continue;
+
             var fileName = Path.GetFileNameWithoutExtension(file);
             // Archive files are named by mod ID (with or without extension)
             if (!knownIds.Contains(fileName))
@@ -437,7 +452,8 @@ public class FileCleanupService : IFileCleanupService
                     Name = Path.GetFileName(file),
                     SizeBytes = info.Length,
                     LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                    Category = OrphanCategory.OrphanedArchive
+                    Category = OrphanCategory.OrphanedArchive,
+                    IsDirectory = false
                 });
             }
         }
