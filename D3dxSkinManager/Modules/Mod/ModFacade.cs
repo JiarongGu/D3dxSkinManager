@@ -409,10 +409,22 @@ public class ModFacade : BaseFacade, IModFacade
         return await _operationQueue.EnqueueAsync(id, () => _importService.UpdateModAsync(id, filePath)).ConfigureAwait(false);
     }
 
-    private async Task<bool> DeleteModAsync(IpcRequest request)
+    /// <summary>
+    /// IPC: DELETE — fire-and-forget. Deleting spans cache + preview + archive + DB through the
+    /// planner queue, which can block behind slower ops — awaiting it here froze the confirm dialog
+    /// (and the UI) for the duration. The deletion service registers a ModDelete process (Activity
+    /// panel) and the row refreshes via DELETED → MOD_LIST_UPDATED; failures emit REFRESHED to roll
+    /// back the frontend's optimistic removal. See background-task-tracking.md.
+    /// </summary>
+    private Task<object?> DeleteModAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        return await _operationQueue.EnqueueAsync(id, () => DeleteModAsync(id)).ConfigureAwait(false);
+        _ = Task.Run(async () =>
+        {
+            try { await _operationQueue.EnqueueAsync(id, () => DeleteModAsync(id)).ConfigureAwait(false); }
+            catch (Exception ex) { _logger.Error($"[ModFacade] Delete failed for {id}: {ex.Message}", ModuleName, ex); }
+        });
+        return Task.FromResult<object?>(new { started = true });
     }
 
     private async Task<bool> DeleteCacheAsync(IpcRequest request)
@@ -447,10 +459,20 @@ public class ModFacade : BaseFacade, IModFacade
         }).ConfigureAwait(false);
     }
 
-    private async Task<BatchDeleteResult> BatchDeleteModsAsync(IpcRequest request)
+    /// <summary>
+    /// IPC: BATCH_DELETE — fire-and-forget (see DELETE above). The deletion service owns ONE
+    /// cancellable ModDelete process for the whole batch and reports per-item progress; the mod
+    /// list updates incrementally via each DELETED event.
+    /// </summary>
+    private Task<object?> BatchDeleteModsAsync(IpcRequest request)
     {
         var ids = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "ids");
-        return await BatchDeleteModsAsync(ids).ConfigureAwait(false);
+        _ = Task.Run(async () =>
+        {
+            try { await BatchDeleteModsAsync(ids).ConfigureAwait(false); }
+            catch (Exception ex) { _logger.Error($"[ModFacade] Batch delete failed: {ex.Message}", ModuleName, ex); }
+        });
+        return Task.FromResult<object?>(new { started = true });
     }
 
     private async Task<BatchDeleteResult> BatchDeleteCachesAsync(IpcRequest request)

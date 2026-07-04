@@ -149,25 +149,23 @@ export async function updateMod(
 }
 
 /**
- * Delete a mod
- * Uses delayed loading (200ms) to avoid flicker for fast deletes
+ * Delete a mod. Fire-and-forget: the IPC acks immediately and the deletion runs in the background
+ * (ProcessRegistry → Activity panel). The row is removed optimistically; a backend failure emits
+ * REFRESHED → MOD_LIST_UPDATED which restores it.
  */
 export async function deleteMod(profileId: string, id: string): Promise<void> {
-  const { removeMod, addBusyMod, removeBusyMod } = useModsStore.getState();
+  const { removeMod } = useModsStore.getState();
 
-  addBusyMod(id);
   try {
     // Optimistically remove from list for instant feedback
     removeMod(id);
 
-    await modService.deleteMod(profileId, id);
-    notification.success(i18n.t('mods.operations.deleteSuccess'));
+    await modService.deleteMod(profileId, id); // immediate ack — work continues in background
+    notification.info(i18n.t('mods.operations.deleteStarted'));
   } catch (error: unknown) {
-    // Re-fetch on failure (mod wasn't actually deleted)
+    // The ack itself failed (transport/validation) — the mod wasn't touched, restore the list
     await refreshMods(profileId);
     handleError(error);
-  } finally {
-    removeBusyMod(id);
   }
 }
 

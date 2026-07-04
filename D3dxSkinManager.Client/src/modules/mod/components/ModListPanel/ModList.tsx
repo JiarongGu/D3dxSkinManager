@@ -212,19 +212,12 @@ export const ModList: React.FC<ModListProps> = ({
       const profileId = selectedProfileId;
 
       try {
-        const result = await modService.batchDeleteMods(profileId, selectedModIds);
-
-        if (result.successCount > 0) {
-          notification.success(
-            t("mods.notifications.batchDeleteSuccess", { count: result.successCount })
-          );
-        }
-
-        if (result.failedCount > 0) {
-          notification.error(
-            t("mods.notifications.batchDeleteFailed", { count: result.failedCount })
-          );
-        }
+        // Fire-and-forget: acks immediately, one cancellable process tracks the batch in the
+        // Activity panel and rows disappear as each DELETED event lands.
+        await modService.batchDeleteMods(profileId, selectedModIds);
+        notification.info(
+          t("mods.notifications.batchDeleteStarted", { count: selectedModIds.length })
+        );
       } catch (error: unknown) {
         notification.error(
           t("mods.notifications.batchDeleteFailed", { count: selectedModIds.length })

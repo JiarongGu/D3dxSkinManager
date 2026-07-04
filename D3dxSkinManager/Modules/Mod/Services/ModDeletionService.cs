@@ -2,6 +2,8 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Constants;
 using D3dxSkinManager.Modules.Core.Exceptions;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Mod.Mappers;
 using D3dxSkinManager.Modules.Context.Services;
@@ -35,6 +37,7 @@ public class ModDeletionService : IModDeletionService
     private readonly IModOperationQueue _operationQueue;
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
+    private readonly IProcessRegistry _processRegistry;
 
     public ModDeletionService(
         IModRepository repository,
@@ -45,7 +48,8 @@ public class ModDeletionService : IModDeletionService
         IFileOperationPlanner operationPlanner,
         IModOperationQueue operationQueue,
         ILogHelper logger,
-        IProfileEventBus eventBus)
+        IProfileEventBus eventBus,
+        IProcessRegistry processRegistry)
     {
         _repository = repository;
         _cacheService = cacheService;
@@ -56,13 +60,13 @@ public class ModDeletionService : IModDeletionService
         _operationQueue = operationQueue;
         _logger = logger;
         _eventBus = eventBus;
+        _processRegistry = processRegistry;
     }
 
     /// <summary>
-    /// Delete a mod by Id
-    /// Deletion order: Cache -> Preview -> Archive -> Database
-    /// If any step fails, the entire operation fails with OperationException
-    /// Uses enrichment service to accurately determine what needs to be deleted
+    /// Delete a mod by Id. Registers a ModDelete process on the registry (status bar + Activity
+    /// panel) — the facade fires this without awaiting, so the registry is the user's feedback.
+    /// On failure it also emits REFRESHED so the frontend's optimistic removal is rolled back.
     /// </summary>
     public async Task<bool> DeleteAsync(string id)
     {
@@ -80,6 +84,32 @@ public class ModDeletionService : IModDeletionService
                 $"Mod not found: {id}"
             );
         }
+
+        var procId = _processRegistry.Start(ProcessType.ModDelete, $"Deleting mod: {entity.Name}");
+        try
+        {
+            var result = await DeleteCoreAsync(entity).ConfigureAwait(false);
+            _processRegistry.Complete(procId);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _processRegistry.Fail(procId, ex is OperationException op ? op.Code : ex.Message);
+            // The frontend removes the row optimistically when it fires the delete — restore it.
+            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.REFRESHED).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// The deletion pipeline for one mod (no registry bookkeeping — callers own that).
+    /// Deletion order: Cache -> Preview -> Archive -> Database
+    /// If any step fails, the entire operation fails with OperationException
+    /// Uses enrichment service to accurately determine what needs to be deleted
+    /// </summary>
+    private async Task<bool> DeleteCoreAsync(Entities.ModEntity entity)
+    {
+        var id = entity.Id;
 
         // Convert to domain model
         var mod = ModMapper.ToDomain(entity);
@@ -277,9 +307,9 @@ public class ModDeletionService : IModDeletionService
     }
 
     /// <summary>
-    /// Batch delete multiple mods
-    /// Processes all deletions and returns summary of results
-    /// Emits events for each successful deletion
+    /// Batch delete multiple mods — ONE cancellable ModDelete process on the registry with per-item
+    /// progress. Called fire-and-forget from the facade; each successful deletion emits DELETED so
+    /// the list refreshes as items disappear. Partial failure marks the process Failed with a summary.
     /// </summary>
     public async Task<BatchDeleteResult> BatchDeleteAsync(List<string> ids)
     {
@@ -292,14 +322,35 @@ public class ModDeletionService : IModDeletionService
 
         _logger.Info($"Starting batch deletion for {ids.Count} mods", "ModDeletionService");
 
+        var procId = _processRegistry.Start(ProcessType.ModDelete, $"Deleting {ids.Count} mods", cancellable: true);
+        var token = _processRegistry.GetToken(procId);
+        var processed = 0;
+
         foreach (var id in ids)
         {
+            if (token.IsCancellationRequested)
+            {
+                _logger.Info($"Batch deletion cancelled after {processed}/{ids.Count} mods", "ModDeletionService");
+                break;
+            }
+
             try
             {
                 // Per-mod lock so a batch delete of mod X serializes against a concurrent load/unload/
                 // fix/single-delete of X (the facade queues the single-delete path the same way).
-                // DeleteAsync itself does NOT enqueue, so this never double-locks the same key.
-                var success = await _operationQueue.EnqueueAsync(id, () => DeleteAsync(id)).ConfigureAwait(false);
+                // DeleteCoreAsync does NOT enqueue or touch the registry, so this never double-locks
+                // the key and the batch stays a single process entry.
+                var success = await _operationQueue.EnqueueAsync(id, async () =>
+                {
+                    var entity = await _repository.GetByIdAsync(id).ConfigureAwait(false);
+                    if (entity == null)
+                    {
+                        _logger.Warn($"Mod not found for deletion: {id}", "ModDeletionService");
+                        return false;
+                    }
+                    return await DeleteCoreAsync(entity).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+
                 if (success)
                 {
                     result.SuccessCount++;
@@ -316,6 +367,21 @@ public class ModDeletionService : IModDeletionService
                 result.FailedCount++;
                 result.FailedIds.Add(id);
             }
+
+            processed++;
+            _processRegistry.Report(procId, processed * 100 / ids.Count, $"{processed}/{ids.Count}");
+        }
+
+        if (result.FailedCount > 0)
+        {
+            // Fail surfaces the summary in the Activity panel; the list is already accurate
+            // (successes emitted DELETED, failures were never removed client-side).
+            _processRegistry.Fail(procId, $"{result.FailedCount} of {ids.Count} mods failed to delete");
+        }
+        else
+        {
+            // Idempotent no-op when the registry already marked the process Cancelled.
+            _processRegistry.Complete(procId);
         }
 
         _logger.Info($"Batch deletion completed: {result.SuccessCount} succeeded, {result.FailedCount} failed", "ModDeletionService");

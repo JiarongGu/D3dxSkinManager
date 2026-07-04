@@ -90,10 +90,11 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Delete a mod permanently
+   * Delete a mod permanently. Fire-and-forget: the backend acks immediately and deletes in the
+   * background (ProcessRegistry → Activity panel); the list updates via MOD_LIST_UPDATED.
    */
-  async deleteMod(profileId: string, id: string): Promise<boolean> {
-    return this.sendTypedBoolean<ModIpcRequests>("DELETE", profileId, { id });
+  async deleteMod(profileId: string, id: string): Promise<void> {
+    await this.sendTypedMessage<ModIpcRequests, { started: boolean }>("DELETE", profileId, { id });
   }
 
   /**
@@ -117,13 +118,11 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Batch delete mods permanently (cache, preview, archive, database)
+   * Batch delete mods permanently (cache, preview, archive, database). Fire-and-forget: one
+   * cancellable ModDelete process tracks the batch in the Activity panel; results land there.
    */
-  async batchDeleteMods(
-    profileId: string,
-    ids: string[],
-  ): Promise<BatchDeleteResult> {
-    return this.sendTypedMessage<ModIpcRequests, BatchDeleteResult>(
+  async batchDeleteMods(profileId: string, ids: string[]): Promise<void> {
+    await this.sendTypedMessage<ModIpcRequests, { started: boolean }>(
       "BATCH_DELETE",
       profileId,
       { ids },

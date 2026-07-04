@@ -78,6 +78,7 @@ try {
 | mod-id migration | `ModIdMigrationService.MigrateAsync` |
 | package export/import | `ModPackageService` |
 | mod-merge (fire-and-forget) | `ModMergeService.MergeAsync` (IPC `MERGE_MODS` returns immediately) |
+| mod delete / batch delete (fire-and-forget) | `ModDeletionService` — single `DeleteAsync` = one ModDelete process; `BatchDeleteAsync` = ONE cancellable process with per-item progress. IPC `DELETE`/`BATCH_DELETE` ack immediately; failure emits `REFRESHED` to roll back the frontend's optimistic row removal |
 | mod analysis (status bar + Activity) | `ModAnalysisService` — `Start`/`Report`(per-mod %)/`Complete`/`Fail`. **Resumable**: `resumePayload` = sessionId; the `AppStatusBar` resume dispatcher re-invokes `resumeAnalysis(profileId, sessionId)` on `PROCESS_RESUME_REQUESTED` (type `analysis`). |
 
 NOT yet on the registry (own in-screen progress only): **file-cleanup scan**.

@@ -42,11 +42,11 @@ namespace-based mod-merge v2 — the GIMI-port v1 `MergeIniBuilder` was supersed
 
 ## Bugs / UX fixes (user-reported 2026-07-05, code-calibrated)
 
-### B1. Delete blocks the UI (not fire-and-forget)
-`ModList.tsx` `handleConfirmDelete` **awaits** the full DELETE IPC inside the ConfirmDialog, so the
-modal (and UI) hangs for the whole cache+archive+preview+DB deletion. Convert to the standard
-fire-and-forget pattern: handler acks immediately, deletion runs in background under the per-mod queue
-lock, progress via ProcessRegistry, list refreshes on `MOD_LIST_UPDATED`.
+### B1. Delete blocks the UI — ✅ FIXED 2026-07-05
+`DELETE`/`BATCH_DELETE` are now fire-and-forget (ack `{started:true}` in ~3ms, verified e2e).
+`ModDeletionService` owns the ProcessRegistry entries (single = one ModDelete process; batch = ONE
+cancellable process with per-item progress); failure emits `REFRESHED` to roll back the frontend's
+optimistic row removal. Tests: `ModDeletionServiceTests` (7).
 
 ### B2. Edit mod value hangs after save
 Saving a modified value hangs the UI. Likely the same class as B1 — the save path awaits a slow
