@@ -15,18 +15,9 @@ import type { ModInfo } from '../../../../../shared/types/mod.types';
 import type { CategoryInfo } from '../../../../../shared/types/category.types';
 
 import { formatBytes } from '../../../../../shared/utils/formatBytes';
+import { flattenCategoryOptions } from '../../../../../shared/utils/categoryTree';
 
 const { Search } = Input;
-
-function flattenCategories(cats: CategoryInfo[], prefix = ''): { value: string; label: string }[] {
-  const result: { value: string; label: string }[] = [];
-  for (const cat of cats) {
-    const label = prefix ? `${prefix} > ${cat.name}` : cat.name;
-    result.push({ value: cat.id, label });
-    result.push(...flattenCategories(cat.children, label));
-  }
-  return result;
-}
 
 function buildCategoryNameMap(cats: CategoryInfo[]): Map<string, string> {
   const map = new Map<string, string>();
@@ -55,7 +46,7 @@ export const ExportTab: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>();
 
   const categoryOptions = useMemo(() => {
-    return [{ value: '__all__', label: t('tools.modPackage.export.allCategories') }, ...flattenCategories(categories)];
+    return [{ value: '__all__', label: t('tools.modPackage.export.allCategories') }, ...flattenCategoryOptions(categories)];
   }, [categories, t]);
 
   const categoryNameMap = useMemo(() => buildCategoryNameMap(categories), [categories]);

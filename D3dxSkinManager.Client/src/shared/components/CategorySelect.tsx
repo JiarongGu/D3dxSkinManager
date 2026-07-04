@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CompactSelect } from './compact';
 import type { CompactSelectSize } from './compact';
 import type { CategoryInfo } from '../types/category.types';
+import { flattenCategoryOptions } from '../utils/categoryTree';
 
 interface CategorySelectProps {
   categories: CategoryInfo[];
@@ -13,16 +14,6 @@ interface CategorySelectProps {
   size?: CompactSelectSize;
   className?: string;
   style?: React.CSSProperties;
-}
-
-function flattenCategories(cats: CategoryInfo[], prefix = ''): { value: string; label: string }[] {
-  const result: { value: string; label: string }[] = [];
-  for (const cat of cats) {
-    const label = prefix ? `${prefix} > ${cat.name}` : cat.name;
-    result.push({ value: cat.id, label });
-    result.push(...flattenCategories(cat.children, label));
-  }
-  return result;
 }
 
 /**
@@ -37,7 +28,7 @@ export const CategorySelect: React.FC<CategorySelectProps> = ({
 
   const options = useMemo(() => [
     { value: ALL, label: placeholder || t('tools.modAnalyzer.allCategories') },
-    ...flattenCategories(categories),
+    ...flattenCategoryOptions(categories),
   ], [categories, placeholder, t]);
 
   return (

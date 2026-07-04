@@ -85,25 +85,6 @@ export class CategoryService extends BaseModuleService {
   }
 
   /**
-   * Flatten tree to list of all categories
-   */
-  flattenTree(tree: CategoryInfo[]): CategoryInfo[] {
-    const result: CategoryInfo[] = [];
-
-    const traverse = (categories: CategoryInfo[]) => {
-      for (const category of categories) {
-        result.push(category);
-        if (category.children.length > 0) {
-          traverse(category.children);
-        }
-      }
-    };
-
-    traverse(tree);
-    return result;
-  }
-
-  /**
    * Create a new Category category with auto-generated GUID
    * @param profileId - The profile ID
    * @param name - The display name of the category

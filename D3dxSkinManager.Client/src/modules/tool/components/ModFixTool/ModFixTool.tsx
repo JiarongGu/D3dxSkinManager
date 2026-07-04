@@ -6,7 +6,7 @@ import {
 } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { FormDialog } from '../../../../shared/components/dialogs/FormDialog';
-import { CompactField } from '../../../../shared/components/compact';
+import { CompactField, CompactIconButton } from '../../../../shared/components/compact';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
@@ -238,16 +238,14 @@ const ModFixManagerInner: React.FC = () => {
           )}
           {canRename(tool) && (
             <Tooltip title={t('tools.modFix.rename')}>
-              <Button
-                size="small"
-                type="text"
+              <CompactIconButton
                 icon={<EditOutlined />}
                 onClick={() => { setRenaming(tool); setRenameValue(tool.name); }}
               />
             </Tooltip>
           )}
           <Popconfirm title={t('tools.modFix.deleteConfirm')} onConfirm={() => remove(tool)} okText={t('common.delete')} cancelText={t('common.cancel')}>
-            <Button size="small" type="text" icon={<DeleteOutlined style={{ color: 'var(--color-error)' }} />} />
+            <CompactIconButton tone="danger" icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),

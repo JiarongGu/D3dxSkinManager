@@ -161,6 +161,21 @@ MessageDispatcher → ProfileServiceRouter) and all references corrected.
 
 ## Cross-cutting hygiene (ongoing)
 
+- **Deferred dedup targets** (from the 2026-07-05 duplication audit — do opportunistically or as
+  their feature comes up):
+  - **Shared `.ini` parse helper** — 4 divergent parsers (ModIniService, ModKeybindingService,
+    NamespaceMergeBuilder, ModAnalysisService) with inconsistent fullwidth `；` comment handling;
+    consolidate into a Core helper **when doing B4 (keybinding multi-key) or the analyzer rework**,
+    which touch those parsers anyway.
+  - **`RunTrackedAsync` ProcessRegistry extension** — 9+ services repeat the Start/try/Complete/Fail
+    wrapper; extract when next touching several producers at once.
+  - **`DISABLED-` prefix constant** — string literal in ~8 files (ModCacheService has a local const);
+    centralize alongside `GetCachePath` when next editing those services.
+  - **Oversized files** — ModImportWorkflowHandler (1213 lines, step handlers extractable),
+    ModAnalysisService (937), ModList.tsx (891, row renderer + context-menu builder extractable),
+    HelpWindow.tsx (861, per-section components), CategoryGrid.tsx (745).
+  - **`useEventSubscription` adoption** — ~15 components hand-wire `eventBus.subscribe`; migrate
+    as-you-touch.
 - Font sizes 12/14px only; CSS vars not hex; atomic design (L1/L2/L3 — `ui-component-layers.md`).
 - Defensive `Array.isArray` guards on components consuming IPC arrays (pure-UI crash class).
 - Verification gate: backend `dotnet build` + `dotnet test`; frontend `npx tsc --noEmit` + `npm test`

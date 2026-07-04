@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Empty, Spin, Input, Button } from 'antd';
 import { PlusOutlined, FolderOpenOutlined, FolderOutlined } from '@ant-design/icons';
 import { CategoryInfo } from '../../../../shared/types/category.types';
+import { flattenCategoryTree } from '../../../../shared/utils/categoryTree';
 import { ModInfo } from '../../../../shared/types/mod.types';
 import { CategoryCard } from './CategoryCard';
 import { groupModsByCategory, activeModsForNode } from './TreeNodeConverter';
@@ -255,17 +256,6 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
 // CategoryGrid
 // ============================================================
 
-/** Flatten a tree into a flat list preserving visual order */
-const flattenTree = (nodes: CategoryInfo[]): CategoryInfo[] => {
-  const result: CategoryInfo[] = [];
-  for (const node of nodes) {
-    result.push(node);
-    if (node.children.length > 0) {
-      result.push(...flattenTree(node.children));
-    }
-  }
-  return result;
-};
 
 export const CategoryGrid: React.FC = () => {
   const { t } = useTranslation();
@@ -304,7 +294,7 @@ export const CategoryGrid: React.FC = () => {
   const anchorIdRef = React.useRef<string | undefined>(undefined);
 
   // Flat list of visible nodes for shift+click range selection
-  const flatNodes = useMemo(() => flattenTree(filteredTree), [filteredTree]);
+  const flatNodes = useMemo(() => flattenCategoryTree(filteredTree), [filteredTree]);
 
   const { scrollRef, saveScrollPosition, restoreScrollPosition } = useScrollPosition('category-grid');
 

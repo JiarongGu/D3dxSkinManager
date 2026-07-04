@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Form, Space, Row, Col } from "antd";
 import { FolderOpenOutlined } from "@ant-design/icons";
 import { CategoryInfo } from "../../../../shared/types/category.types";
+import { flattenCategoryTree } from "../../../../shared/utils/categoryTree";
 import { useSlideInScreenContext } from "../../../../shared/context/SlideInScreenContext";
 import { systemService } from "../../../../shared/services/ipc";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
@@ -44,21 +45,6 @@ interface CategoryScreenProps {
     thumbnail?: string;
     description?: string;
   }) => Promise<void>;
-}
-
-/**
- * Flatten tree to get all nodes for parent selection
- */
-function flattenTree(nodes: CategoryInfo[]): CategoryInfo[] {
-  const result: CategoryInfo[] = [];
-
-  const traverse = (node: CategoryInfo) => {
-    result.push(node);
-    node.children.forEach((child) => traverse(child));
-  };
-
-  nodes.forEach((node) => traverse(node));
-  return result;
 }
 
 /**
@@ -139,7 +125,7 @@ export const CategoryScreenContent: React.FC<
       // Create mode - set defaults based on parent
       if (parentId) {
         // Find parent node to get its details
-        const allNodes = flattenTree(tree);
+        const allNodes = flattenCategoryTree(tree);
         const parentNode = allNodes.find((node) => node.id === parentId);
 
         if (parentNode) {
@@ -225,7 +211,7 @@ export const CategoryScreenContent: React.FC<
     }
   };
 
-  const allNodes = flattenTree(tree);
+  const allNodes = flattenCategoryTree(tree);
 
   return (
     <div>

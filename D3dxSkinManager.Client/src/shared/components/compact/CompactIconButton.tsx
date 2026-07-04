@@ -11,38 +11,27 @@ import './CompactIconButton.css';
  */
 export type IconButtonTone = 'default' | 'success' | 'danger' | 'primary';
 
-export interface CompactIconButtonProps {
+export interface CompactIconButtonProps
+  extends Omit<React.ComponentProps<typeof Button>, 'type' | 'icon' | 'size' | 'style'> {
   icon: React.ReactNode;
   tone?: IconButtonTone;
   /** Square size in px (default 26). */
   size?: number;
-  title?: string;
-  loading?: boolean;
-  disabled?: boolean;
-  className?: string;
-  onClick?: (e: React.MouseEvent<HTMLElement>) => void;
-  onMouseDown?: (e: React.MouseEvent<HTMLElement>) => void;
 }
 
+// Rest props are forwarded so antd Tooltip/Popconfirm (which inject hover/focus handlers via
+// cloneElement) work when wrapping this atom.
 export const CompactIconButton: React.FC<CompactIconButtonProps> = ({
   icon,
   tone = 'default',
   size = 26,
-  title,
-  loading,
-  disabled,
   className,
-  onClick,
-  onMouseDown,
+  ...rest
 }) => (
   <Button
+    {...rest}
     type="text"
     icon={icon}
-    title={title}
-    loading={loading}
-    disabled={disabled}
-    onClick={onClick}
-    onMouseDown={onMouseDown}
     className={classNames('compact-icon-btn', `compact-icon-btn--${tone}`, className)}
     style={{ width: size, height: size, minWidth: size }}
   />

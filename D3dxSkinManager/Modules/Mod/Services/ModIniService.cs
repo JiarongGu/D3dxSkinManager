@@ -27,28 +27,18 @@ public interface IModIniService
 
 public class ModIniService : IModIniService
 {
-    private readonly IProfilePathService _profilePathService;
+    private readonly IModCacheService _cacheService;
     private readonly IModArchiveService _archiveService;
     private readonly IModOperationQueue _operationQueue;
 
     public ModIniService(
-        IProfilePathService profilePathService,
+        IModCacheService cacheService,
         IModArchiveService archiveService,
         IModOperationQueue operationQueue)
     {
-        _profilePathService = profilePathService;
+        _cacheService = cacheService;
         _archiveService = archiveService;
         _operationQueue = operationQueue;
-    }
-
-    /// <summary>Resolve the extracted cache dir for a mod (active {id} or disabled DISABLED-{id}), or null.</summary>
-    private string? ResolveCacheDir(string modId)
-    {
-        var cacheModsPath = _profilePathService.CacheModsDirectory;
-        var active = Path.Combine(cacheModsPath, modId);
-        if (Directory.Exists(active)) return active;
-        var disabled = Path.Combine(cacheModsPath, $"DISABLED-{modId}");
-        return Directory.Exists(disabled) ? disabled : null;
     }
 
     // ---- Editability classification (the crux) -------------------------------------------------
@@ -89,7 +79,7 @@ public class ModIniService : IModIniService
     public async Task<List<ModIniFile>> GetIniFilesAsync(string modId)
     {
         var files = new List<ModIniFile>();
-        var cacheDir = ResolveCacheDir(modId);
+        var cacheDir = _cacheService.GetCachePath(modId);
         if (cacheDir == null) return files;
 
         foreach (var iniPath in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories)
@@ -160,7 +150,7 @@ public class ModIniService : IModIniService
 
         return _operationQueue.EnqueueAsync(modId, async () =>
         {
-            var cacheDir = ResolveCacheDir(modId);
+            var cacheDir = _cacheService.GetCachePath(modId);
             if (cacheDir == null)
                 throw new OperationException("MOD_NOT_EXTRACTED", "id", modId);
 

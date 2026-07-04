@@ -25,3 +25,10 @@ export type { DataTableProps, ColumnsType, ColumnType } from './DataTable';
 
 export { CountBadge } from './CountBadge';
 export type { CountBadgeProps } from './CountBadge';
+
+export { StatusTag } from './StatusTag';
+export type { StatusTagProps, StatusTone } from './StatusTag';
+
+export { HealthStatusIcon } from './HealthStatusIcon';
+
+export { KeyCaptureInput } from './KeyCaptureInput';

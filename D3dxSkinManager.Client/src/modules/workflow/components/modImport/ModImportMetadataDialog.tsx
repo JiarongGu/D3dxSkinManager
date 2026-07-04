@@ -13,6 +13,7 @@ import { FormDialog } from '../../../../shared/components/dialogs/FormDialog';
 import { CompactInput, CompactTextArea, CompactSelect } from '../../../../shared/components/compact';
 import { WorkflowInfo, ModImportWorkflowContext } from '../../types/workflow.types';
 import { categoryService } from '../../../../shared/services/ipc';
+import { flattenCategoryTree } from '../../../../shared/utils/categoryTree';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import './ModImportMetadataDialog.css';
 
@@ -59,7 +60,7 @@ export const ModImportMetadataDialog: React.FC<ModImportMetadataDialogProps> = (
       categoryService.getCategoryTree(selectedProfileId)
         .then(tree => {
           // Flatten the tree and create options
-          const flatCategories = categoryService.flattenTree(tree);
+          const flatCategories = flattenCategoryTree(tree);
           const options = flatCategories.map(cat => ({
             value: cat.id,
             label: cat.name,

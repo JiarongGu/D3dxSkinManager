@@ -37,18 +37,18 @@ public class ModKeybindingService : IModKeybindingService
 {
     private const string OrderMetadataKey = "keybindingOrder";
 
-    private readonly IProfilePathService _profilePathService;
+    private readonly IModCacheService _cacheService;
     private readonly IModArchiveService _archiveService;
     private readonly IModOperationQueue _operationQueue;
     private readonly IModRepository _repository;
 
     public ModKeybindingService(
-        IProfilePathService profilePathService,
+        IModCacheService cacheService,
         IModArchiveService archiveService,
         IModOperationQueue operationQueue,
         IModRepository repository)
     {
-        _profilePathService = profilePathService;
+        _cacheService = cacheService;
         _archiveService = archiveService;
         _operationQueue = operationQueue;
         _repository = repository;
@@ -84,16 +84,6 @@ public class ModKeybindingService : IModKeybindingService
     private static bool IsDisabledIni(string path) =>
         Path.GetFileName(path).Contains("disabled", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Resolve the extracted cache dir for a mod (active {id} or disabled DISABLED-{id}), or null.</summary>
-    private string? ResolveCacheDir(string modId)
-    {
-        var cacheModsPath = _profilePathService.CacheModsDirectory;
-        var active = Path.Combine(cacheModsPath, modId);
-        if (Directory.Exists(active)) return active;
-        var disabled = Path.Combine(cacheModsPath, $"DISABLED-{modId}");
-        return Directory.Exists(disabled) ? disabled : null;
-    }
-
     public Task<int> UpdateKeybindingAsync(string modId, string oldKey, string newKey)
     {
         if (string.IsNullOrWhiteSpace(oldKey) || string.IsNullOrWhiteSpace(newKey))
@@ -102,7 +92,7 @@ public class ModKeybindingService : IModKeybindingService
         // Per-mod lock so the edit + recompress can't race a load/unload/fix on the same mod.
         return _operationQueue.EnqueueAsync(modId, async () =>
         {
-            var cacheDir = ResolveCacheDir(modId);
+            var cacheDir = _cacheService.GetCachePath(modId);
             if (cacheDir == null)
             {
                 throw new OperationException("MOD_NOT_EXTRACTED", "id", modId);
@@ -192,20 +182,11 @@ public class ModKeybindingService : IModKeybindingService
 
         try
         {
-            var cacheModsPath = _profilePathService.CacheModsDirectory;
-
-            // Check for active mod folder first (without DISABLED- prefix)
-            var modWorkDir = Path.Combine(cacheModsPath, modId);
-
-            // If not found, check for disabled mod folder (with DISABLED- prefix)
-            if (!Directory.Exists(modWorkDir))
+            // Resolve the extracted cache dir (active {id} or DISABLED-{id})
+            var modWorkDir = _cacheService.GetCachePath(modId);
+            if (modWorkDir == null)
             {
-                modWorkDir = Path.Combine(cacheModsPath, $"DISABLED-{modId}");
-
-                if (!Directory.Exists(modWorkDir))
-                {
-                    return keybindings; // No cache exists (neither loaded nor disabled), return empty list
-                }
+                return keybindings; // No cache exists (neither loaded nor disabled), return empty list
             }
 
             // Find all .ini files in mod directory and subdirectories

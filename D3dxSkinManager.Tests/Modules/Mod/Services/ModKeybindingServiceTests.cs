@@ -17,7 +17,7 @@ namespace D3dxSkinManager.Tests.Modules.Mod.Services;
 /// </summary>
 public class ModKeybindingServiceTests : IDisposable
 {
-    private readonly Mock<IProfilePathService> _paths = new();
+    private readonly Mock<IModCacheService> _cache = new();
     private readonly Mock<IModArchiveService> _archive = new();
     private readonly Mock<IModRepository> _repo = new();
     private readonly IModOperationQueue _queue = new ModOperationQueue(Mock.Of<ILogHelper>());
@@ -28,9 +28,16 @@ public class ModKeybindingServiceTests : IDisposable
     {
         _cacheRoot = Path.Combine(Path.GetTempPath(), "d3dx-kb-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_cacheRoot);
-        _paths.Setup(p => p.CacheModsDirectory).Returns(_cacheRoot);
+        // GetCachePath contract: active {id} dir, else DISABLED-{id}, else null — over the temp root.
+        _cache.Setup(c => c.GetCachePath(It.IsAny<string>())).Returns((string id) =>
+        {
+            var active = Path.Combine(_cacheRoot, id);
+            if (Directory.Exists(active)) return active;
+            var disabled = Path.Combine(_cacheRoot, $"DISABLED-{id}");
+            return Directory.Exists(disabled) ? disabled : null;
+        });
         _archive.Setup(a => a.UpdateFileInArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
-        _service = new ModKeybindingService(_paths.Object, _archive.Object, _queue, _repo.Object);
+        _service = new ModKeybindingService(_cache.Object, _archive.Object, _queue, _repo.Object);
     }
 
     public void Dispose()

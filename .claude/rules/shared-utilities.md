@@ -13,6 +13,7 @@ Before writing ANY utility function (formatBytes, formatDate, clipboard copy, et
 | `imageUrlHelper` | `shared/utils/imageUrlHelper.ts` | File paths to `app://` URLs |
 | `memoizeDebounce` | `shared/utils/memoizeDebounce.ts` | Debounced memoization |
 | `parseSearchQuery` / `matchesSearchQuery` | `shared/utils/searchQueryParser.ts` | Search query parsing with AND/OR/NOT/field/exact operators |
+| `flattenCategoryTree` / `flattenCategoryOptions` | `shared/utils/categoryTree.ts` | Category tree → flat node list / breadcrumb select options. NEVER hand-roll a tree flattener (5 copies deduped 2026-07-05) |
 | `keyChord` (`buildRaw`/`buildDisplay`/`rawToDisplay`/`baseFromKey`) | `shared/utils/keyChord.ts` | 3DMigoto key-chord capture + raw↔friendly display (used by `KeybindingPreview` + `KeyCaptureInput`) |
 | `KeyCaptureInput` | `shared/components/common/KeyCaptureInput.tsx` | Focus + press a key → captures a 3DMigoto hotkey chord; emits raw value. Reuse for any hotkey field |
 | `navigateToTab` / `navigateToModSearch` | `shared/hooks/useAppNavigation.ts` | Cross-module tab navigation + mod search with category |
@@ -30,3 +31,4 @@ Before writing ANY utility function (formatBytes, formatDate, clipboard copy, et
 
 - **2026-04-13**: `formatBytes` was duplicated in 7 files across the codebase. Extracted to shared utility and removed all copies including dead-code methods on profileService and migrationService.
 - **2026-04-13**: `navigator.clipboard.writeText + notification.success` pattern was duplicated in 5 files. Extracted to `copyToClipboard` shared utility.
+- **2026-07-05**: category tree flattening was duplicated in 5 places (CategorySelect, ExportTab, CategoryScreen, CategoryGrid, ModEditScreen inline, + a `categoryService.flattenTree` class method). Extracted to `shared/utils/categoryTree.ts`; the service method was removed (rule #2: pure utilities are standalone functions, not IPC-class methods).

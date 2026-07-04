@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Form, Input, Space } from "antd";
 import { ModInfo } from "../../../../shared/types/mod.types";
+import { flattenCategoryTree } from "../../../../shared/utils/categoryTree";
 import { modService } from "../../../../shared/services/ipc";
 import { useSlideInScreen } from "../../../../shared/hooks/useSlideInScreen";
 import { CompactButton } from "../../../../shared/components/compact/CompactButton";
@@ -59,20 +60,9 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
 
   // Build category options from Category tree
   useEffect(() => {
-    const flattenTree = (
-      nodes: typeof CategoryTree,
-    ): Array<{ id: string; name: string }> => {
-      const result: Array<{ id: string; name: string }> = [];
-      for (const node of nodes) {
-        result.push({ id: node.id, name: node.name });
-        if (node.children) {
-          result.push(...flattenTree(node.children));
-        }
-      }
-      return result;
-    };
-
-    setCategoryOptions(flattenTree(CategoryTree));
+    setCategoryOptions(
+      flattenCategoryTree(CategoryTree).map((n) => ({ id: n.id, name: n.name })),
+    );
   }, [CategoryTree]);
 
   // Load authors and tags for autocomplete
