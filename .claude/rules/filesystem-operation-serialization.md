@@ -34,11 +34,17 @@ queue-locked. Used by `ModKeybindingService.UpdateKeybindingAsync`, the general 
 `ModIniService.UpdateEntryAsync`, and **`ModFixService`** (after a fix tool runs).
 
 **Fix-tool persistence is diff-based** (`ModFixService.PersistFixAsync`): snapshot the work dir
-(relpath ⇒ length+mtime) before the script, diff after, and patch ONLY the changed/added files via
+(relpath ⇒ length+mtime **+ sha256 for files ≤4MB** — fix scripts can rewrite a file preserving size
+AND timestamp, which a pure length+mtime diff misses; hashing covers exactly the small `.ini`/config
+files fix tools touch) before the script, diff after, and patch ONLY the changed/added files via
 `UpdateFileInArchiveAsync`. Full `CompressCacheToArchiveAsync` is the fallback only when a file was
 **deleted** (append can't remove entries) or the changed bytes are **≥50% of the mod**
 (`FullRecompressByteFraction`) — most fix tools only rewrite small `.ini` and leave the bulk textures
 untouched, so the fast path is the norm. A no-op fix (no file changed) leaves the archive untouched.
+**The fix runs IN the retained cache when one exists — active `{id}` OR disabled `DISABLED-{id}`
+(via `IModCacheService.GetCachePath`)** — so the working copy and the archive stay in sync; fixing
+only a temp extract left a disabled cache stale and the fix "didn't apply" when that cache was
+re-enabled (user report 2026-07-05, fixed). Only a mod with no cache at all stages to temp.
 
 ## Layer 2 — `IModOperationQueue` (logical serialization)
 

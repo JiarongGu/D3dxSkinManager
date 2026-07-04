@@ -58,12 +58,17 @@ e2e on a normal mod. Remaining suspect: the awaited archive patch on a **very la
 rewrites the container) — if the user still sees it, capture `cdp iplog` on the specific mod; the
 fix would be fire-and-forgetting the archive patch (ProcessRegistry) after the cache write.
 
-### B3. Fix tools not applied properly (change detection + sync back)
-`ModFixService.PersistFixAsync` diffs by **length+mtime snapshot** and patches changed files into the
-archive — but verify the full loop the user expects: detect **every** updated file via file update
-time (not only `.ini`), patch those back into the compressed archive, **and copy them back into the
-working/cache mod dir** so the deployed mod matches. Audit staging→archive→cache consistency; add a
-regression test with a fix that touches a non-`.ini` file.
+### B3. Fix tools not applied properly — ✅ FIXED 2026-07-05
+Two real gaps found and fixed:
+1. **Disabled-cache mods were fixed in a throwaway temp extract** — archive patched but the retained
+   `DISABLED-{id}` working copy left stale, so re-enabling it deployed PRE-fix content. The fix now
+   runs **in the retained cache in place** (active OR disabled, via `GetCachePath`) so cache and
+   archive stay in sync; only cacheless mods stage to temp.
+2. **Same-size+same-mtime rewrites were invisible** to the length+mtime diff (copystat-style script
+   writes) → fix silently never persisted. Snapshot now content-hashes files ≤4MB (covers all
+   `.ini`/config; bulk textures stay on the cheap check).
+Detection always covered ALL file types (not only `.ini`). Tests: `ModFixServiceTests` (10, real
+script execution incl. disabled-cache in-place + hash-detection regressions).
 
 ### B4. Keybinding: multiple `key=` lines per `[Key*]` + combo editing broken
 The `[Key*]` parser (`ModKeybindingService.ParseIniFileAsync`) keeps only the **first** `key =` line —

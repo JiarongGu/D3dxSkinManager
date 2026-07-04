@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -58,6 +59,7 @@ public class ModFixService : IModFixService
     private readonly IProfilePathService _profilePaths;
     private readonly IModQueryService _query;
     private readonly IModArchiveService _archive;
+    private readonly IModCacheService _cacheService;
     private readonly IModOperationQueue _operationQueue;
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
@@ -71,6 +73,7 @@ public class ModFixService : IModFixService
         IProfilePathService profilePaths,
         IModQueryService query,
         IModArchiveService archive,
+        IModCacheService cacheService,
         IModOperationQueue operationQueue,
         IProfileEventBus eventBus,
         ILogHelper logger,
@@ -82,6 +85,7 @@ public class ModFixService : IModFixService
         _profilePaths = profilePaths;
         _query = query;
         _archive = archive;
+        _cacheService = cacheService;
         _operationQueue = operationQueue;
         _eventBus = eventBus;
         _logger = logger;
@@ -237,15 +241,17 @@ public class ModFixService : IModFixService
     {
         var item = new ModFixItemResult { ModId = id, ModName = name };
 
-        var activeCache = Path.Combine(_profilePaths.CacheModsDirectory, id);
-        var inPlace = Directory.Exists(activeCache);
+        // A retained cache — active {id} OR disabled DISABLED-{id} — IS the working copy the next
+        // load deploys (EnableCacheAsync just renames it back). Fix it in place so the cache and the
+        // archive stay in sync: fixing only a temp extract left a disabled cache stale, and the fix
+        // "didn't apply" when that cache was re-enabled (user report 2026-07-05).
+        var cachePath = _cacheService.GetCachePath(id);
 
         string workDir;
         var isTemp = false;
-        if (inPlace)
+        if (cachePath != null)
         {
-            // Loaded/extracted: fix the live folder so the change is visible immediately too.
-            workDir = activeCache;
+            workDir = cachePath;
         }
         else
         {
@@ -317,16 +323,34 @@ public class ModFixService : IModFixService
     /// </summary>
     private const double FullRecompressByteFraction = 0.5;
 
-    /// <summary>Snapshot every file under <paramref name="dir"/> → forward-slash relpath ⇒ (length, lastWriteUtc).</summary>
-    private static Dictionary<string, (long Length, DateTime WriteUtc)> SnapshotDir(string dir)
+    /// <summary>
+    /// Files up to this size are content-hashed in the snapshot. Fix scripts sometimes rewrite a file
+    /// preserving its size and timestamp (temp-write + copystat style), which a length+mtime diff
+    /// misses entirely — the fix then silently never persisted. Hashing covers exactly the files fix
+    /// tools touch (.ini/config, a few KB); the bulk textures stay on the cheap length+mtime check.
+    /// </summary>
+    private const long HashSizeLimit = 4 * 1024 * 1024;
+
+    /// <summary>Snapshot every file under <paramref name="dir"/> → forward-slash relpath ⇒ (length, lastWriteUtc, hash for small files).</summary>
+    private static Dictionary<string, (long Length, DateTime WriteUtc, string? Hash)> SnapshotDir(string dir)
     {
-        var map = new Dictionary<string, (long, DateTime)>(StringComparer.OrdinalIgnoreCase);
+        var map = new Dictionary<string, (long, DateTime, string?)>(StringComparer.OrdinalIgnoreCase);
         if (!Directory.Exists(dir)) return map;
         foreach (var path in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
         {
             var info = new FileInfo(path);
             var rel = Path.GetRelativePath(dir, path).Replace('\\', '/');
-            map[rel] = (info.Length, info.LastWriteTimeUtc);
+            string? hash = null;
+            if (info.Length <= HashSizeLimit)
+            {
+                try
+                {
+                    using var stream = File.OpenRead(path);
+                    hash = Convert.ToHexString(SHA256.HashData(stream));
+                }
+                catch (IOException) { /* locked/unreadable — fall back to length+mtime for this file */ }
+            }
+            map[rel] = (info.Length, info.LastWriteTimeUtc, hash);
         }
         return map;
     }
@@ -337,12 +361,15 @@ public class ModFixService : IModFixService
     /// deleted (append can't remove entries) or too many files changed. A no-op fix touches nothing.
     /// </summary>
     private async Task PersistFixAsync(
-        string id, string name, string workDir, Dictionary<string, (long Length, DateTime WriteUtc)> before)
+        string id, string name, string workDir, Dictionary<string, (long Length, DateTime WriteUtc, string? Hash)> before)
     {
         var after = SnapshotDir(workDir);
         var deleted = before.Keys.Where(k => !after.ContainsKey(k)).ToList();
         var changed = after
-            .Where(kv => !before.TryGetValue(kv.Key, out var b) || b.Length != kv.Value.Length || b.WriteUtc != kv.Value.WriteUtc)
+            .Where(kv => !before.TryGetValue(kv.Key, out var b)
+                || b.Length != kv.Value.Length
+                || b.WriteUtc != kv.Value.WriteUtc
+                || b.Hash != kv.Value.Hash) // hashed small files: catches same-size+mtime rewrites
             .Select(kv => kv.Key)
             .ToList();
 
