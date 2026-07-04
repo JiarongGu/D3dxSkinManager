@@ -85,7 +85,8 @@ public class ModDeletionService : IModDeletionService
             );
         }
 
-        var procId = _processRegistry.Start(ProcessType.ModDelete, $"Deleting mod: {entity.Name}");
+        var procId = _processRegistry.Start(ProcessType.ModDelete, $"Deleting mod: {entity.Name}",
+            titleKey: "process.modDelete", titleArg: entity.Name);
         try
         {
             var result = await DeleteCoreAsync(entity).ConfigureAwait(false);
@@ -322,7 +323,8 @@ public class ModDeletionService : IModDeletionService
 
         _logger.Info($"Starting batch deletion for {ids.Count} mods", "ModDeletionService");
 
-        var procId = _processRegistry.Start(ProcessType.ModDelete, $"Deleting {ids.Count} mods", cancellable: true);
+        var procId = _processRegistry.Start(ProcessType.ModDelete, $"Deleting {ids.Count} mods", cancellable: true,
+            titleKey: "process.modDeleteBatch", titleArg: ids.Count.ToString());
         var token = _processRegistry.GetToken(procId);
         var processed = 0;
 

@@ -79,7 +79,8 @@ public class ModPackageService : IModPackageService
     public async Task<ExportResult> ExportAsync(ExportConfig config)
     {
         var result = new ExportResult { OutputPath = config.OutputPath };
-        var procId = _processRegistry.Start(Core.Models.ProcessType.Package, "Exporting mod package");
+        var procId = _processRegistry.Start(Core.Models.ProcessType.Package, "Exporting mod package",
+            titleKey: "process.packageExport");
 
         try
         {
@@ -360,7 +361,8 @@ public class ModPackageService : IModPackageService
     public async Task<ImportResult> ImportAsync(ImportConfig config)
     {
         var result = new ImportResult();
-        var procId = _processRegistry.Start(Core.Models.ProcessType.Package, "Importing mod package");
+        var procId = _processRegistry.Start(Core.Models.ProcessType.Package, "Importing mod package",
+            titleKey: "process.packageImport");
 
         try
         {

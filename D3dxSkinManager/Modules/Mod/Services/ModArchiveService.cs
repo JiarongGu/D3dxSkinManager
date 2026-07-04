@@ -208,7 +208,8 @@ public class ModArchiveService : IModArchiveService
     public async Task<bool> CompressCacheToArchiveAsync(string id, string cacheDirectory)
     {
         // Compression can take a while (large mod) — show it in the status bar / Activity panel.
-        var procId = _processRegistry.Start(ProcessType.ArchiveUpdate, $"Updating archive: {id}");
+        var procId = _processRegistry.Start(ProcessType.ArchiveUpdate, $"Updating archive: {id}",
+            titleKey: "process.archiveUpdate", titleArg: id);
         try
         {
             if (!Directory.Exists(cacheDirectory))

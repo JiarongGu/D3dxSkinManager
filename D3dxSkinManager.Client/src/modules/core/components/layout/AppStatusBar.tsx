@@ -4,7 +4,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { StatusTag } from "../../../../shared/components/common/StatusTag";
 import { useTranslation } from "react-i18next";
 import { useModsStore } from "../../../mod/store/modsStore";
-import { useProcessStore } from "../../../../shared/store/processStore";
+import { useProcessStore, processTitle } from "../../../../shared/store/processStore";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { eventBus, Module, SystemEventType } from "../../../../shared/services/eventBus";
 import { api } from "../../../../shared/services/ipc";
@@ -110,7 +110,7 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
               {idx > 0 && <div className="app-status-bar-task-panel-divider" />}
               <div className="app-status-bar-task-panel-item">
                 <LoadingOutlined spin className="app-status-bar-task-panel-icon" />
-                <span className="app-status-bar-task-panel-label">{task.title}</span>
+                <span className="app-status-bar-task-panel-label">{processTitle(task, t)}</span>
                 {task.progress !== undefined && (
                   <span className="app-status-bar-task-panel-progress">{task.progress}%</span>
                 )}

@@ -134,6 +134,13 @@ export async function updateMod(
           disablePreview: data.disablePreview,
         });
 
+        // Category is NOT part of UPDATE_METADATA — it needs the UPDATE_CATEGORY route
+        // (per-mod queue lock + auto-unload of a loaded mod). It used to be silently
+        // dropped here, so edit-screen category changes reverted on the next refresh.
+        if (data.category !== undefined) {
+          await modService.updateCategory(profileId, id, data.category);
+        }
+
         // Update local state (Zustand automatically updates mods)
         updateModLocal(id, data);
 

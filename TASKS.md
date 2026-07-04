@@ -48,11 +48,15 @@ namespace-based mod-merge v2 — the GIMI-port v1 `MergeIniBuilder` was supersed
 cancellable process with per-item progress); failure emits `REFRESHED` to roll back the frontend's
 optimistic row removal. Tests: `ModDeletionServiceTests` (7).
 
-### B2. Edit mod value hangs after save
-Saving a modified value hangs the UI. Likely the same class as B1 — the save path awaits a slow
-archive write (recompress instead of the fast single-file patch, or a queued op behind a long lock).
-Reproduce, trace which IPC blocks (`cdp iplog`), route the slow part through the fast patch and/or
-fire-and-forget.
+### B2. Edit mod value hangs after save — PARTIAL (real bug found+fixed; hang not reproduced)
+**Found + fixed 2026-07-05:** the edit screen's **category change was silently dropped** —
+`UPDATE_METADATA` has no Category field, so the edited value visually applied then reverted on the
+next refresh (very plausibly the reported symptom). `modOperations.updateMod` now routes a changed
+category through `UPDATE_CATEGORY` (queue-locked, auto-unload).
+**Hang itself not reproduced:** metadata path is pure DB (fast); `UPDATE_INI_ENTRY` measured **7ms**
+e2e on a normal mod. Remaining suspect: the awaited archive patch on a **very large** mod (append
+rewrites the container) — if the user still sees it, capture `cdp iplog` on the specific mod; the
+fix would be fire-and-forgetting the archive patch (ProcessRegistry) after the cache write.
 
 ### B3. Fix tools not applied properly (change detection + sync back)
 `ModFixService.PersistFixAsync` diffs by **length+mtime snapshot** and patches changed files into the

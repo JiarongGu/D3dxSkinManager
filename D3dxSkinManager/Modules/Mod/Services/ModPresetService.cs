@@ -147,7 +147,8 @@ public class ModPresetService : IModPresetService
 
         // Track the whole preset apply as one process (the headline progress); the individual
         // load/unload steps register their own short-lived processes too.
-        var procId = _processRegistry.Start(ProcessType.PresetApply, $"Applying preset: {entity.Name}");
+        var procId = _processRegistry.Start(ProcessType.PresetApply, $"Applying preset: {entity.Name}",
+            titleKey: "process.presetApply", titleArg: entity.Name);
         try
         {
             // Step 1: Unload all currently loaded mods
@@ -225,7 +226,8 @@ public class ModPresetService : IModPresetService
     {
         var currentlyLoaded = await _modRepository.GetLoadedIdsAsync().ConfigureAwait(false);
 
-        var procId = _processRegistry.Start(ProcessType.PresetApply, "Unloading all mods");
+        var procId = _processRegistry.Start(ProcessType.PresetApply, "Unloading all mods",
+            titleKey: "process.unloadAll");
         try
         {
             var total = currentlyLoaded.Count;

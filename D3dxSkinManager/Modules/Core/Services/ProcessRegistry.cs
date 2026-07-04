@@ -22,15 +22,19 @@ public interface IProcessRegistry
 {
     /// <summary>Register + start a process. Returns its id (pass to Report/Complete/Fail/GetToken).
     /// Set <paramref name="resumable"/> if the op checkpoints itself and can resume after a crash;
-    /// <paramref name="resumePayload"/> is the op-specific token the resume handler needs.</summary>
-    string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false, string? resumePayload = null);
+    /// <paramref name="resumePayload"/> is the op-specific token the resume handler needs.
+    /// Pass <paramref name="titleKey"/> (+ optional <paramref name="titleArg"/>, interpolated as
+    /// {{arg}}) so the Activity panel renders the title in the UI language; <paramref name="title"/>
+    /// stays the English fallback (also used in logs).</summary>
+    string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false, string? resumePayload = null, string? titleKey = null, string? titleArg = null);
 
     /// <summary>Request resuming an interrupted+resumable process — emits PROCESS_RESUME_REQUESTED for
     /// the owning op to continue from its checkpoint, and drops the interrupted entry.</summary>
     void RequestResume(string id);
 
-    /// <summary>Update progress (0–100, or null for indeterminate) and/or the detail line.</summary>
-    void Report(string id, int? progress = null, string? detail = null);
+    /// <summary>Update progress (0–100, or null for indeterminate) and/or the detail line.
+    /// Pass <paramref name="detailKey"/> for a localized stage line (detail stays the fallback).</summary>
+    void Report(string id, int? progress = null, string? detail = null, string? detailKey = null);
 
     /// <summary>Mark a process completed.</summary>
     void Complete(string id);
@@ -79,13 +83,15 @@ public class ProcessRegistry : IProcessRegistry
         LoadPersisted();
     }
 
-    public string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false, string? resumePayload = null)
+    public string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false, string? resumePayload = null, string? titleKey = null, string? titleArg = null)
     {
         var info = new ProcessInfo
         {
             Type = type,
             Status = ProcessStatus.Running,
             Title = title,
+            TitleKey = titleKey,
+            TitleArg = titleArg,
             Progress = progress,
             Cancellable = cancellable,
             Resumable = resumable,
@@ -102,13 +108,18 @@ public class ProcessRegistry : IProcessRegistry
         return info.Id;
     }
 
-    public void Report(string id, int? progress = null, string? detail = null)
+    public void Report(string id, int? progress = null, string? detail = null, string? detailKey = null)
     {
         lock (_lock)
         {
             if (!_processes.TryGetValue(id, out var p) || p.Status != ProcessStatus.Running) return;
             if (progress.HasValue) p.Progress = Math.Clamp(progress.Value, 0, 100);
-            if (detail != null) p.Detail = detail;
+            if (detail != null)
+            {
+                p.Detail = detail;
+                // A keyless detail (e.g. a "3/10" counter) must not keep a stale localized stage.
+                p.DetailKey = detailKey;
+            }
         }
         EmitSnapshot();
     }

@@ -173,7 +173,9 @@ public class ModAnalysisService : IModAnalysisService
 
         var resumeTitle = string.IsNullOrEmpty(session.CategoryName) ? "Analyzing mods" : $"Analyzing: {session.CategoryName}";
         _currentProcId = _processRegistry.Start(ProcessType.Analysis, resumeTitle, progress: 0,
-            resumable: true, resumePayload: session.Id);
+            resumable: true, resumePayload: session.Id,
+            titleKey: string.IsNullOrEmpty(session.CategoryName) ? "process.analysis" : "process.analysisCategory",
+            titleArg: session.CategoryName);
 
         try
         {
@@ -341,7 +343,9 @@ public class ModAnalysisService : IModAnalysisService
         // Track in the status bar + Activity panel (resumable: the session can be resumed after a crash).
         var scanTitle = string.IsNullOrEmpty(categoryName) ? "Analyzing mods" : $"Analyzing: {categoryName}";
         _currentProcId = _processRegistry.Start(ProcessType.Analysis, scanTitle, progress: 0,
-            resumable: true, resumePayload: session.Id);
+            resumable: true, resumePayload: session.Id,
+            titleKey: string.IsNullOrEmpty(categoryName) ? "process.analysis" : "process.analysisCategory",
+            titleArg: categoryName);
 
         try
         {

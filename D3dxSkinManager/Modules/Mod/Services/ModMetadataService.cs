@@ -310,7 +310,8 @@ public class ModMetadataService : IModMetadataService
         int updatedCount = 0;
         _logger.Info($"Batch updating category for {updates.Count} mods with individual categories", "ModMetadataService");
 
-        var procId = _processRegistry.Start(Core.Models.ProcessType.BatchUpdate, $"Updating category for {updates.Count} mods");
+        var procId = _processRegistry.Start(Core.Models.ProcessType.BatchUpdate, $"Updating category for {updates.Count} mods",
+            titleKey: "process.batchCategory", titleArg: updates.Count.ToString());
         var total = updates.Count;
         var processed = 0;
         foreach (var (id, category) in updates)

@@ -156,7 +156,8 @@ public class UpdateService : IUpdateService
     /// </summary>
     public async Task DownloadUpdateAsync()
     {
-        var procId = _processRegistry.Start(ProcessType.Download, "Downloading update");
+        var procId = _processRegistry.Start(ProcessType.Download, "Downloading update",
+            titleKey: "process.downloadUpdate");
         try
         {
             var info = await CheckForUpdateAsync().ConfigureAwait(false);
@@ -184,14 +185,14 @@ public class UpdateService : IUpdateService
             await _downloadService.DownloadAsync(
                 new DownloadRequest { Url = zipUrl, DestinationPath = zipPath }, progress).ConfigureAwait(false);
 
-            _processRegistry.Report(procId, 92, "Extracting");
+            _processRegistry.Report(procId, 92, "Extracting", detailKey: "process.stage.extracting");
             if (Directory.Exists(StagedDir)) Directory.Delete(StagedDir, recursive: true);
             ZipFile.ExtractToDirectory(zipPath, StagedDir, overwriteFiles: true);
             File.Delete(zipPath);
 
             // Verify every staged file against the staged manifest's sha256 BEFORE marking ready, so the
             // launcher never applies a corrupt/partial download. A mismatch aborts the stage.
-            _processRegistry.Report(procId, 97, "Verifying");
+            _processRegistry.Report(procId, 97, "Verifying", detailKey: "process.stage.verifying");
             var problems = await VerifyStagedFilesAsync(StagedDir).ConfigureAwait(false);
             if (problems.Count > 0)
             {
@@ -204,7 +205,7 @@ public class UpdateService : IUpdateService
                 ReadyMarkerPath,
                 JsonSerializer.Serialize(new { version = info.LatestVersion })).ConfigureAwait(false);
 
-            _processRegistry.Report(procId, 100, "Ready to install on restart");
+            _processRegistry.Report(procId, 100, "Ready to install on restart", detailKey: "process.stage.readyToInstall");
             _processRegistry.Complete(procId);
             _logger.Info($"Update {info.LatestVersion} staged; will apply on next launch.", "UpdateService");
         }

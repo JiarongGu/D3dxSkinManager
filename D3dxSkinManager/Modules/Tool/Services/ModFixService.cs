@@ -180,7 +180,9 @@ public class ModFixService : IModFixService
         var procId = _processRegistry.Start(
             ProcessType.ModFix,
             targets.Count == 1 ? $"Fixing mod: {targets[0].name}" : $"Fixing {targets.Count} mods ({scriptName})",
-            cancellable: true);
+            cancellable: true,
+            titleKey: targets.Count == 1 ? "process.fixMod" : "process.fixMods",
+            titleArg: targets.Count == 1 ? targets[0].name : targets.Count.ToString());
 
         // Combine the caller's token with the registry's cancel token (Activity-panel Cancel).
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _processRegistry.GetToken(procId));

@@ -68,7 +68,8 @@ public class FileCleanupService : IFileCleanupService
             OrphanCategory.Thumbnail, OrphanCategory.Preview, OrphanCategory.TempFile,
             OrphanCategory.ModCache, OrphanCategory.OrphanedArchive, OrphanCategory.MissingArchive
         };
-        var procId = _processRegistry.Start(Core.Models.ProcessType.FileScan, "Scanning for orphaned files");
+        var procId = _processRegistry.Start(Core.Models.ProcessType.FileScan, "Scanning for orphaned files",
+            titleKey: "process.fileScan");
         try
         {
             var done = 0;

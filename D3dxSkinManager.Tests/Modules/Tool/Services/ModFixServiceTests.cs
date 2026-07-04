@@ -46,7 +46,7 @@ public class ModFixServiceTests : IDisposable
         _paths.Setup(p => p.CacheModsDirectory).Returns(_cacheRoot);
         _eventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
             .Returns(Task.CompletedTask);
-        _registry.Setup(r => r.Start(It.IsAny<ProcessType>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<int?>(), It.IsAny<bool>(), It.IsAny<string?>()))
+        _registry.Setup(r => r.Start(It.IsAny<ProcessType>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<int?>(), It.IsAny<bool>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .Returns("proc-1");
         _registry.Setup(r => r.GetToken(It.IsAny<string>())).Returns(CancellationToken.None);
         // Default profile config so the runner resolves effective options to defaults.

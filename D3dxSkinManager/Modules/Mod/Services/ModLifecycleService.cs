@@ -111,7 +111,8 @@ public class ModLifecycleService : IModLifecycleService
 
         // Track this load as a process so it shows in the status bar / Activity panel (extraction of a
         // large archive can take a while). Abandoned legacy taskStore is replaced by this registry.
-        var procId = _processRegistry.Start(ProcessType.ModLoad, $"Loading mod: {modName}");
+        var procId = _processRegistry.Start(ProcessType.ModLoad, $"Loading mod: {modName}",
+            titleKey: "process.modLoad", titleArg: modName);
 
         try
         {
@@ -167,12 +168,12 @@ public class ModLifecycleService : IModLifecycleService
             if (IsDisabledCacheStale(id))
             {
                 _logger.Info($"Disabled cache for '{modName}' is stale (archive is newer) — re-extracting", "ModLifecycleService");
-                _processRegistry.Report(procId, null, "Refreshing stale cache");
+                _processRegistry.Report(procId, null, "Refreshing stale cache", detailKey: "process.stage.refreshingCache");
                 await _cacheService.DeleteCacheAsync(id).ConfigureAwait(false);
             }
             else
             {
-                _processRegistry.Report(procId, null, "Enabling cache");
+                _processRegistry.Report(procId, null, "Enabling cache", detailKey: "process.stage.enablingCache");
                 cacheEnabled = await _cacheService.EnableCacheAsync(id).ConfigureAwait(false);
             }
 
@@ -184,7 +185,7 @@ public class ModLifecycleService : IModLifecycleService
             {
                 // Emit LOADING event before extraction (decompression takes time)
                 await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOADING, new { Id = id }).ConfigureAwait(false);
-                _processRegistry.Report(procId, null, "Extracting archive");
+                _processRegistry.Report(procId, null, "Extracting archive", detailKey: "process.stage.extractingArchive");
 
                 // No (usable) cache, extract from archive
                 var cacheDir = Path.Combine(_profilePaths.CacheModsDirectory, id);

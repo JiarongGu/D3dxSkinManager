@@ -9,7 +9,7 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useProcessStore, ProcessInfo, ProcessStatus } from '../../../../shared/store/processStore';
+import { useProcessStore, processTitle, processDetail, ProcessInfo, ProcessStatus } from '../../../../shared/store/processStore';
 import { StatusTag, StatusTone } from '../../../../shared/components/common/StatusTag';
 import { systemService } from '../../../../shared/services/ipc';
 import './ActivityPanel.css';
@@ -40,6 +40,8 @@ function elapsed(p: ProcessInfo): string {
 const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
   const { t } = useTranslation();
   const meta = STATUS_META[p.status];
+  const title = processTitle(p, t);
+  const detail = processDetail(p, t);
   const progressStatus = p.status === 'failed' ? 'exception'
     : p.status === 'completed' ? 'success'
     : p.status === 'interrupted' ? 'normal'
@@ -49,7 +51,7 @@ const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
     <div className="activity-panel__row">
       <div className="activity-panel__row-head">
         <span className={`activity-panel__icon activity-panel__icon--${p.status}`}>{meta.icon}</span>
-        <span className="activity-panel__title" title={p.title}>{p.title}</span>
+        <span className="activity-panel__title" title={title}>{title}</span>
         <StatusTag tone={meta.tone} label={t(meta.key)} icon={null} className="activity-panel__status-tag" />
         {p.status === 'running' && p.cancellable && (
           <Button
@@ -84,7 +86,7 @@ const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
       )}
 
       <div className="activity-panel__row-meta">
-        {p.detail && <span className="activity-panel__detail" title={p.detail}>{p.detail}</span>}
+        {detail && <span className="activity-panel__detail" title={detail}>{detail}</span>}
         {p.error && <span className="activity-panel__error" title={p.error}>{p.error}</span>}
         <span className="activity-panel__elapsed">{elapsed(p)}</span>
       </div>

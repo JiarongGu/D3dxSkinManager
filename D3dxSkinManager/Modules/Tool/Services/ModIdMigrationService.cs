@@ -91,7 +91,8 @@ public class ModIdMigrationService : IModIdMigrationService
 
         // resumable: a crash mid-migration leaves an Interrupted process; resuming just re-runs this
         // (ScanAsync only returns non-GUID mods, so already-migrated ones are skipped — idempotent).
-        var procId = _processRegistry.Start(Core.Models.ProcessType.Migration, "Migrating mod IDs", resumable: true);
+        var procId = _processRegistry.Start(Core.Models.ProcessType.Migration, "Migrating mod IDs", resumable: true,
+            titleKey: "process.idMigration");
         try
         {
         var scanResult = await ScanAsync();

@@ -63,6 +63,11 @@ try {
 
 - `Finish` (Complete/Fail/Cancel) is **idempotent** — calling Complete after Fail is a safe no-op, so
   the "Complete at the end + Fail in catch/branches" pattern works.
+- **Titles/details are LOCALIZED via keys (2026-07-05).** `Start(..., titleKey: "process.x", titleArg: name)`
+  and `Report(..., detailKey: "process.stage.y")` — the frontend renders `t(key, {arg})` via
+  `processTitle()/processDetail()` (processStore); the plain `title`/`detail` strings stay as the
+  English fallback (+ logs). Add BOTH `process.*` keys (en+cn) for every new producer — a keyless
+  Start shows raw English in a non-English UI (the bug this fixed).
 - For cancellable ops: `Start(type, title, cancellable: true)` then honor `GetToken(procId)`.
 - `ProcessType`/`ProcessStatus` are camelCase on the wire (see `enum-serialization.md`).
 

@@ -48,10 +48,18 @@ public class ProcessInfo
     public ProcessType Type { get; set; } = ProcessType.Other;
     public ProcessStatus Status { get; set; } = ProcessStatus.Running;
 
-    /// <summary>Short title shown in the list (e.g. "Loading mod: Blue Hair").</summary>
+    /// <summary>Short title shown in the list (e.g. "Loading mod: Blue Hair"). English fallback —
+    /// the frontend prefers TitleKey when set so the Activity panel follows the UI language.</summary>
     public string Title { get; set; } = "";
-    /// <summary>Optional secondary detail line (e.g. current file / sub-step).</summary>
+    /// <summary>Frontend i18n key for the title (e.g. "process.modLoad"); interpolates TitleArg as {{arg}}.</summary>
+    public string? TitleKey { get; set; }
+    /// <summary>Single interpolation argument for TitleKey (mod name, count, ...).</summary>
+    public string? TitleArg { get; set; }
+
+    /// <summary>Optional secondary detail line (e.g. current file / sub-step). English fallback.</summary>
     public string? Detail { get; set; }
+    /// <summary>Frontend i18n key for the detail stage line (e.g. "process.stage.extracting").</summary>
+    public string? DetailKey { get; set; }
 
     /// <summary>0–100 for determinate progress; null = indeterminate spinner.</summary>
     public int? Progress { get; set; }

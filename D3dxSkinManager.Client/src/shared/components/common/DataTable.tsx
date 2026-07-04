@@ -99,8 +99,9 @@ export function DataTable<T extends object = any>({
   // Determine table size
   const tableSize = size || (compact ? 'small' : 'middle');
 
-  // Custom locale for empty state
-  const locale = emptyText ? { emptyText } : undefined;
+  // Empty state is always localized — antd's built-in "No data" is English-only and leaked raw
+  // into non-English UIs (e.g. the Plugins table). Callers can still pass a custom emptyText.
+  const locale = { emptyText: emptyText ?? t('common.table.empty') };
 
   return (
     <Table<T>

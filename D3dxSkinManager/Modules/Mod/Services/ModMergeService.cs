@@ -66,7 +66,8 @@ public class ModMergeService : IModMergeService
         // one character live in that character's category, so the merge belongs there too.
         var sharedCategory = await ResolveSharedCategoryAsync(modIds).ConfigureAwait(false);
 
-        var procId = _processRegistry.Start(ProcessType.ModImport, $"Merging {modIds.Count} mods → {safeName}");
+        var procId = _processRegistry.Start(ProcessType.ModImport, $"Merging {modIds.Count} mods → {safeName}",
+            titleKey: "process.merge", titleArg: safeName);
         try
         {
             // Namespace-based merge (v2): keep each source .ini intact under its own namespace + gate its
@@ -119,10 +120,10 @@ public class ModMergeService : IModMergeService
 
             // Compress to a temp archive named after the mod (ImportAsync derives the name from it), then
             // import it as a brand-new mod (own GUID, originals untouched).
-            _processRegistry.Report(procId, 75, "Compressing");
+            _processRegistry.Report(procId, 75, "Compressing", detailKey: "process.stage.compressing");
             var archivePath = Path.Combine(staging, $"{safeName}.7z");
             await _archiveHelper.CompressFolderAsync(content, archivePath, cancellationToken: ct).ConfigureAwait(false);
-            _processRegistry.Report(procId, 90, "Importing");
+            _processRegistry.Report(procId, 90, "Importing", detailKey: "process.stage.importing");
             var mod = await _import.ImportAsync(archivePath).ConfigureAwait(false);
 
             // Inherit the shared source category (if any) so the merge lands in the right place.

@@ -412,7 +412,8 @@ public class ModCacheService : IModCacheService
         var itemsToDelete = cacheItems.Where(item => item.Category == category).ToList();
 
         int deletedCount = 0;
-        var procId = _processRegistry.Start(ProcessType.Cleanup, $"Cleaning {category} caches");
+        var procId = _processRegistry.Start(ProcessType.Cleanup, $"Cleaning {category} caches",
+            titleKey: "process.cleanCaches", titleArg: category.ToString());
         try
         {
             var total = itemsToDelete.Count;

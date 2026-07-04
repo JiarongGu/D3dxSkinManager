@@ -53,7 +53,7 @@ public class ModDeletionServiceTests : IDisposable
 
         _mockRegistry
             .Setup(x => x.Start(It.IsAny<ProcessType>(), It.IsAny<string>(), It.IsAny<bool>(),
-                It.IsAny<int?>(), It.IsAny<bool>(), It.IsAny<string?>()))
+                It.IsAny<int?>(), It.IsAny<bool>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .Returns("proc1");
         _mockRegistry.Setup(x => x.GetToken(It.IsAny<string>())).Returns(CancellationToken.None);
 
@@ -153,7 +153,7 @@ public class ModDeletionServiceTests : IDisposable
 
         // Assert: the deletion is tracked as ONE ModDelete process and completed
         _mockRegistry.Verify(x => x.Start(ProcessType.ModDelete, It.Is<string>(t => t.Contains("Test")),
-            It.IsAny<bool>(), It.IsAny<int?>(), It.IsAny<bool>(), It.IsAny<string?>()), Times.Once);
+            It.IsAny<bool>(), It.IsAny<int?>(), It.IsAny<bool>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
         _mockRegistry.Verify(x => x.Complete("proc1"), Times.Once);
         _mockRegistry.Verify(x => x.Fail(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
@@ -200,8 +200,8 @@ public class ModDeletionServiceTests : IDisposable
         // progress reports, and Complete at the end.
         result.SuccessCount.Should().Be(3);
         _mockRegistry.Verify(x => x.Start(ProcessType.ModDelete, It.Is<string>(t => t.Contains("3")),
-            true, It.IsAny<int?>(), It.IsAny<bool>(), It.IsAny<string?>()), Times.Once);
-        _mockRegistry.Verify(x => x.Report("proc1", It.IsAny<int?>(), It.IsAny<string?>()), Times.Exactly(3));
+            true, It.IsAny<int?>(), It.IsAny<bool>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
+        _mockRegistry.Verify(x => x.Report("proc1", It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<string?>()), Times.Exactly(3));
         _mockRegistry.Verify(x => x.Complete("proc1"), Times.Once);
     }
 
