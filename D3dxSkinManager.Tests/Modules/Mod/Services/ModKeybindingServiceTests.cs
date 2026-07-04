@@ -156,4 +156,52 @@ type = cycle
         // Saved order wins over file order → "9" first.
         result.Select(k => k.Key).Should().ContainInOrder("9", "0");
     }
+
+    [Fact]
+    public async Task Parse_KeepsEveryKeyLineOfASection()
+    {
+        // B4 regression (user report 2026-07-05): a [Key*] section may carry MULTIPLE `key =` lines
+        // (keyboard + controller share state, per the 3DMigoto key doc) — later lines used to
+        // overwrite the first, so all but one binding silently vanished from the editor.
+        WriteModIni("MODMK", "[KeySwap]\nkey = no_ctrl alt j\nkey = XB_LEFT_SHOULDER\ntype = cycle\n$swap = 0,1\n");
+        _repo.Setup(r => r.GetByIdAsync("MODMK")).ReturnsAsync((D3dxSkinManager.Modules.Mod.Entities.ModEntity?)null);
+
+        var result = await _service.ParseKeybindingsAsync("MODMK");
+
+        result.Should().ContainSingle();
+        result[0].Key.Should().Be("no_ctrl alt j");
+        result[0].KeyDisplay.Should().Be("ALT + J");
+        result[0].AdditionalKeys.Should().ContainSingle().Which.Should().Be("XB_LEFT_SHOULDER");
+        result[0].Type.Should().Be("cycle");
+        result[0].Variable.Should().Be("$swap");
+    }
+
+    [Fact]
+    public async Task Parse_SkipsFullwidthCommentLines()
+    {
+        // Real mods mix ASCII `;` and fullwidth `；` comments — a `；key = ...` line is dead config.
+        WriteModIni("MODFW", "[KeySwap]\n；key = VK_F1\nkey = 9\ntype = cycle\n");
+        _repo.Setup(r => r.GetByIdAsync("MODFW")).ReturnsAsync((D3dxSkinManager.Modules.Mod.Entities.ModEntity?)null);
+
+        var result = await _service.ParseKeybindingsAsync("MODFW");
+
+        result.Should().ContainSingle();
+        result[0].Key.Should().Be("9");
+        result[0].AdditionalKeys.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task UpdateKeybinding_RebindsAnAdditionalKeyLine_LeavingTheFirstIntact()
+    {
+        // Each `key =` line of a multi-key section is independently rebindable.
+        var file = WriteModIni("MODMK2", "[KeySwap]\nkey = j\nkey = XB_LEFT_SHOULDER\ntype = cycle\n");
+
+        var changed = await _service.UpdateKeybindingAsync("MODMK2", "XB_LEFT_SHOULDER", "XB_RIGHT_SHOULDER");
+
+        changed.Should().Be(1);
+        var text = await File.ReadAllTextAsync(file);
+        text.Should().Contain("key = j");
+        text.Should().Contain("key = XB_RIGHT_SHOULDER");
+        text.Should().NotContain("XB_LEFT_SHOULDER");
+    }
 }

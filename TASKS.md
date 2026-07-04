@@ -70,12 +70,19 @@ Two real gaps found and fixed:
 Detection always covered ALL file types (not only `.ini`). Tests: `ModFixServiceTests` (10, real
 script execution incl. disabled-cache in-place + hash-detection regressions).
 
-### B4. Keybinding: multiple `key=` lines per `[Key*]` + combo editing broken
-The `[Key*]` parser (`ModKeybindingService.ParseIniFileAsync`) keeps only the **first** `key =` line —
-later `key =` lines in the same section (keyboard + controller share state, per the 3DMigoto key doc)
-are lost, and rebinding writes only one. Also the combination-key path in the editor doesn't work when
-editing. Support multi-`key=` sections (parse as list, edit each) and fix combo capture on edit
-(`KeyCaptureInput` emits combos; verify write-back rewrites the right line).
+### B4. Keybinding multi-`key=` + combo editing — ✅ FIXED 2026-07-05
+Three real bugs:
+1. **Later `key =` lines in a `[Key*]` section overwrote the first** — `ModKeybinding` now carries
+   `AdditionalKeys`/`AdditionalKeyDisplays`; the editor renders every chord as its own clickable
+   chip (keyboard + controller alternates), each independently rebindable (write-back already
+   replaced the matching line).
+2. **Combo capture used `e.key`** (layout/shift-dependent): Shift+1 produced `'!'`, symbol keys like
+   `[` didn't resolve → digit/symbol combos were uncapturable. New `baseFromEvent(e.code, e.key)`
+   resolves from the physical code (letters, digits, F1–F24, numpad, punctuation as raw chars).
+3. Fullwidth `；` comment lines weren't skipped by the keybinding parser/rewriter.
+Tests: `ModKeybindingServiceTests` (9) + keyChord vitest (6 new). Verified e2e: fixture with
+`key = no_ctrl alt j` + `key = XB_LEFT_SHOULDER` shows both chips; rebinding the controller line
+left the keyboard line intact; chip-captured **Ctrl+Shift+1** saved as `ctrl shift no_alt 1`.
 
 ### B5. XXMI importer pick: no confirm/progress — ✅ FIXED 2026-07-05
 Picking an importer used to apply instantly from the dropdown with no summary or feedback. Now the

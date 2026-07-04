@@ -44,8 +44,10 @@
   min-width: 120px;
   max-width: 120px;
   display: flex;
-  justify-content: flex-end;
-  align-items: center;
+  flex-direction: column; /* a section can carry several `key =` chords (keyboard + controller) */
+  justify-content: center;
+  align-items: stretch;
+  gap: 3px;
 }
 
 .keybinding-kbd {
@@ -60,6 +62,21 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer; /* click a chip to rebind that specific chord */
+  transition: border-color 0.15s;
+}
+
+.keybinding-kbd:hover {
+  border-color: var(--color-primary);
+}
+
+/* While one chord of the row is being recorded, its sibling chips are inert. */
+.keybinding-kbd--locked {
+  cursor: default;
+  opacity: 0.6;
+}
+.keybinding-kbd--locked:hover {
+  border-color: inherit;
 }
 
 /* Dark Theme Key Buttons */

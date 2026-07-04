@@ -153,9 +153,13 @@ Beyond the `key`/`type`/`$var` the editor exposes today, a `[Key*]` supports: `t
 `hold` / `toggle` / `cycle`; `back =` (a 2nd key that cycles **backward**); `wrap =` (cycle wrap, default
 true); `smart =` (cycle resync, default true); `delay`/`transition`/`transition_type`/`release_delay`/
 `release_transition`/`release_transition_type` (ms easing); **multiple `key =` lines** in one section
-(keyboard + controller share state); Xbox buttons `XB_*` (and `XB2_*` per-pad); combos via spaces with
-`NO_<mod>` / `NO_MODIFIERS` exclusions. `run = CommandList…` for advanced logic. The config editor should
-grow toward exposing `back`/`wrap`/`smart`/transitions + multi-key as it matures.
+(keyboard + controller share state) — **SUPPORTED since 2026-07-05**: `ModKeybinding.AdditionalKeys`
+holds the extra lines and the keybinding editor renders each chord as its own rebindable chip; Xbox
+buttons `XB_*` (and `XB2_*` per-pad); combos via spaces with `NO_<mod>` / `NO_MODIFIERS` exclusions.
+Chord capture resolves the base key from `KeyboardEvent.code` (`keyChord.baseFromEvent`) — `e.key` is
+layout/shift-dependent (Shift+1 → '!') and made digit/symbol combos uncapturable. `run = CommandList…`
+for advanced logic. The config editor should grow toward exposing `back`/`wrap`/`smart`/transitions
+as it matures.
 
 ## Still flagged
 - **Generate in-game toggle UI / on-screen menu — NO stock primitive (GROUNDED 2026-06-18).** The INI

@@ -39,4 +39,14 @@ public class ModKeybinding
     /// Values for cycle type (e.g., "0,1,2,3")
     /// </summary>
     public string CycleValues { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Raw values of any FURTHER `key =` lines in the same [Key*] section, beyond <see cref="Key"/>.
+    /// 3DMigoto allows multiple `key =` lines per section (keyboard + controller share state) — they
+    /// used to be silently dropped (only the last line survived parsing).
+    /// </summary>
+    public List<string> AdditionalKeys { get; set; } = new();
+
+    /// <summary>Friendly displays for <see cref="AdditionalKeys"/> (index-aligned).</summary>
+    public List<string> AdditionalKeyDisplays { get; set; } = new();
 }

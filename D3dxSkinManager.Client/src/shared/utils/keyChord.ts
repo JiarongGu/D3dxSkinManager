@@ -33,6 +33,36 @@ export function baseFromKey(key: string): string | null {
   return VK_MAP[key] ?? null;
 }
 
+/** Punctuation/numpad KeyboardEvent.code → 3DMigoto value (raw chars + VK names, per the key doc). */
+const CODE_MAP: Record<string, string> = {
+  Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';',
+  Quote: "'", Backquote: '`', Backslash: '\\', Comma: ',', Period: '.', Slash: '/',
+  NumpadMultiply: 'VK_MULTIPLY', NumpadAdd: 'VK_ADD', NumpadSubtract: 'VK_SUBTRACT',
+  NumpadDecimal: 'VK_DECIMAL', NumpadDivide: 'VK_DIVIDE',
+  ArrowUp: 'VK_UP', ArrowDown: 'VK_DOWN', ArrowLeft: 'VK_LEFT', ArrowRight: 'VK_RIGHT',
+  Space: 'VK_SPACE', Enter: 'VK_RETURN', Tab: 'VK_TAB', Backspace: 'VK_BACK',
+  Delete: 'VK_DELETE', Insert: 'VK_INSERT', Home: 'VK_HOME', End: 'VK_END',
+  PageUp: 'VK_PRIOR', PageDown: 'VK_NEXT',
+};
+
+/**
+ * The base key from a keydown EVENT, preferring the physical `code` over the produced `key`.
+ * `key` is layout/shift-dependent — Shift+1 yields '!', Ctrl+[ yields '[', neither of which the
+ * key-based lookup recognised, so COMBOS with digits/symbols could never be captured (the reported
+ * "combination key editing is not working"). `code` is stable: Digit1 stays Digit1 under Shift.
+ */
+export function baseFromEvent(code: string, key: string): string | null {
+  let m = /^Key([A-Z])$/.exec(code);
+  if (m) return m[1].toLowerCase();
+  m = /^(?:Digit|Numpad)([0-9])$/.exec(code);
+  if (m) return code.startsWith('Numpad') ? `VK_NUMPAD${m[1]}` : m[1];
+  m = /^F([1-9]|1[0-9]|2[0-4])$/.exec(code);
+  if (m) return 'VK_F' + m[1];
+  if (CODE_MAP[code]) return CODE_MAP[code];
+  // Unknown physical code (IME keys, media keys) — fall back to the produced key.
+  return baseFromKey(key);
+}
+
 /**
  * Raw 3DMigoto value. Unheld modifiers default to `no_ctrl`/`no_shift`/`no_alt`. e.g. "j" →
  * "no_ctrl no_shift no_alt j"; Ctrl+J → "ctrl no_shift no_alt j".

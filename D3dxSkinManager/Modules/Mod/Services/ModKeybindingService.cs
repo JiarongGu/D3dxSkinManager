@@ -117,7 +117,7 @@ public class ModKeybindingService : IModKeybindingService
                         inKeySection = trimmed.Trim('[', ']').StartsWith("Key", StringComparison.OrdinalIgnoreCase);
                         continue;
                     }
-                    if (!inKeySection || trimmed.StartsWith(";")) continue;
+                    if (!inKeySection || trimmed.StartsWith(";") || trimmed.StartsWith("；")) continue;
 
                     // Match a `key = <value>` assignment (case-insensitive name, value compared trimmed).
                     var m = Regex.Match(lines[i], @"^(\s*key\s*=\s*)(.+?)(\s*)$", RegexOptions.IgnoreCase);
@@ -255,6 +255,17 @@ public class ModKeybindingService : IModKeybindingService
                     existing.Variable = binding.Variable;
                     existing.CycleValues = binding.CycleValues;
                 }
+
+                // Union the extra key lines (a merged section may carry controller alternates).
+                for (var i = 0; i < binding.AdditionalKeys.Count; i++)
+                {
+                    if (!existing.AdditionalKeys.Contains(binding.AdditionalKeys[i], StringComparer.OrdinalIgnoreCase))
+                    {
+                        existing.AdditionalKeys.Add(binding.AdditionalKeys[i]);
+                        existing.AdditionalKeyDisplays.Add(
+                            i < binding.AdditionalKeyDisplays.Count ? binding.AdditionalKeyDisplays[i] : binding.AdditionalKeys[i]);
+                    }
+                }
             }
             else
             {
@@ -281,8 +292,9 @@ public class ModKeybindingService : IModKeybindingService
             {
                 var trimmedLine = line.Trim();
 
-                // Skip empty lines and comments
-                if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.StartsWith(";"))
+                // Skip empty lines and comments — real mods use the fullwidth `；` too
+                // (see .claude/rules/3dmigoto-ini-interface.md).
+                if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.StartsWith(";") || trimmedLine.StartsWith("；"))
                     continue;
 
                 // Check for section header
@@ -315,9 +327,20 @@ public class ModKeybindingService : IModKeybindingService
                     switch (key)
                     {
                         case "key":
-                            currentKeybinding.Key = value;
-                            currentKeybinding.KeyDisplay = ConvertKeyToDisplay(value);
-                            currentKeybinding.Description = ExtractDescription(currentSection);
+                            if (string.IsNullOrEmpty(currentKeybinding.Key))
+                            {
+                                currentKeybinding.Key = value;
+                                currentKeybinding.KeyDisplay = ConvertKeyToDisplay(value);
+                                currentKeybinding.Description = ExtractDescription(currentSection);
+                            }
+                            else
+                            {
+                                // A [Key*] section may carry MULTIPLE `key =` lines (keyboard +
+                                // controller share state, per the 3DMigoto key doc). They used to
+                                // overwrite each other here — keep every one.
+                                currentKeybinding.AdditionalKeys.Add(value);
+                                currentKeybinding.AdditionalKeyDisplays.Add(ConvertKeyToDisplay(value));
+                            }
                             break;
                         case "type":
                             currentKeybinding.Type = value;

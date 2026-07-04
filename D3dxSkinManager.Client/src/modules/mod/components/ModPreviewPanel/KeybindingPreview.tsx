@@ -9,7 +9,7 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 import { CompactIconButton } from '../../../../shared/components/compact';
 import { notification } from '../../../../shared/utils/notification';
 import { handleError } from '../../../../shared/utils/errorHandler';
-import { Chord, baseFromKey, buildRaw, buildDisplay } from '../../../../shared/utils/keyChord';
+import { Chord, baseFromEvent, buildRaw, buildDisplay } from '../../../../shared/utils/keyChord';
 import './KeybindingPreview.css';
 
 const { Text } = Typography;
@@ -24,7 +24,9 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
 
   const [keybindings, setKeybindings] = useState<ModKeybinding[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingKey, setEditingKey] = useState<string | null>(null); // the binding.key being edited
+  // The specific raw chord being rebound — a row can carry SEVERAL `key =` chords (keyboard +
+  // controller alternates), each independently editable, so track the raw value, not just the row.
+  const [editingRaw, setEditingRaw] = useState<string | null>(null);
   const [draftDisplay, setDraftDisplay] = useState('');               // friendly text shown in the field
   const [recording, setRecording] = useState(false);                  // field focused, listening for keys
   const [saving, setSaving] = useState(false);
@@ -45,23 +47,24 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
     }
   }, [selectedProfileId, modId]);
 
-  useEffect(() => { void load(); setEditingKey(null); }, [load]);
+  useEffect(() => { void load(); setEditingRaw(null); }, [load]);
 
-  const startEdit = (binding: ModKeybinding) => {
-    setEditingKey(binding.key);
-    draftRaw.current = binding.key;
-    setDraftDisplay(binding.keyDisplay || binding.key);
+  const startEdit = (rawKey: string, display: string) => {
+    setEditingRaw(rawKey);
+    draftRaw.current = rawKey;
+    setDraftDisplay(display || rawKey);
     held.current.clear();
   };
 
-  const cancelEdit = () => { setEditingKey(null); setDraftDisplay(''); draftRaw.current = ''; setRecording(false); held.current.clear(); };
+  const cancelEdit = () => { setEditingRaw(null); setDraftDisplay(''); draftRaw.current = ''; setRecording(false); held.current.clear(); };
 
   // Capture a chord: accumulate held keys; the latest non-modifier press + its modifier flags is the
   // binding. Value updates live as the chord builds; releasing all keys just locks it in.
+  // Base from e.code (layout/shift-independent) — e.key made digit/symbol combos uncapturable.
   const onCaptureKeyDown = (e: React.KeyboardEvent) => {
     e.preventDefault();
     held.current.add(e.code);
-    const base = baseFromKey(e.key);
+    const base = baseFromEvent(e.code, e.key);
     if (!base) return; // only a modifier so far — keep waiting
     const chord: Chord = { base, ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey };
     draftRaw.current = buildRaw(chord);
@@ -153,7 +156,15 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
         onDrop={(e) => { e.preventDefault(); handleDrop(); }}
       >
         {keybindings.map((binding, index) => {
-          const editing = editingKey === binding.key;
+          // Every chord of the row (primary + keyboard/controller alternates), each rebindable.
+          const chords: { raw: string; display: string }[] = [
+            { raw: binding.key, display: binding.keyDisplay },
+            ...(binding.additionalKeys ?? []).map((raw, i) => ({
+              raw,
+              display: binding.additionalKeyDisplays?.[i] ?? raw,
+            })),
+          ];
+          const editing = chords.some((c) => editingRaw === c.raw);
           return (
             <React.Fragment key={binding.key}>
               {dropIndex === index && dragIndex !== null && <div className="keybinding-drop-line" />}
@@ -173,21 +184,31 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                 <HolderOutlined />
               </span>
               <div className="keybinding-key">
-                {editing ? (
-                  <Input
-                    autoFocus
-                    readOnly
-                    size="small"
-                    className={classNames('keybinding-capture', { 'keybinding-capture--recording': recording })}
-                    value={draftDisplay}
-                    placeholder={t('mods.keybindings.pressKey')}
-                    onFocus={() => { setRecording(true); held.current.clear(); }}
-                    onBlur={() => setRecording(false)}
-                    onKeyDown={onCaptureKeyDown}
-                    onKeyUp={onCaptureKeyUp}
-                  />
-                ) : (
-                  <kbd className="keybinding-kbd">{binding.keyDisplay}</kbd>
+                {chords.map((chord) =>
+                  editingRaw === chord.raw ? (
+                    <Input
+                      key={chord.raw}
+                      autoFocus
+                      readOnly
+                      size="small"
+                      className={classNames('keybinding-capture', { 'keybinding-capture--recording': recording })}
+                      value={draftDisplay}
+                      placeholder={t('mods.keybindings.pressKey')}
+                      onFocus={() => { setRecording(true); held.current.clear(); }}
+                      onBlur={() => setRecording(false)}
+                      onKeyDown={onCaptureKeyDown}
+                      onKeyUp={onCaptureKeyUp}
+                    />
+                  ) : (
+                    <Tooltip key={chord.raw} title={t('mods.keybindings.rebind')}>
+                      <kbd
+                        className={classNames('keybinding-kbd', { 'keybinding-kbd--locked': editing })}
+                        onClick={() => { if (!editing) startEdit(chord.raw, chord.display); }}
+                      >
+                        {chord.display}
+                      </kbd>
+                    </Tooltip>
+                  ),
                 )}
               </div>
               <div className="keybinding-description">
@@ -202,7 +223,7 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                       icon={<CheckOutlined />}
                       loading={saving}
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => saveEdit(binding.key)}
+                      onClick={() => { if (editingRaw) void saveEdit(editingRaw); }}
                       title={t('common.save')}
                     />
                     <CompactIconButton
@@ -215,7 +236,7 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                   </>
                 ) : (
                   <Tooltip title={t('mods.keybindings.rebind')}>
-                    <CompactIconButton icon={<EditOutlined />} onClick={() => startEdit(binding)} />
+                    <CompactIconButton icon={<EditOutlined />} onClick={() => startEdit(binding.key, binding.keyDisplay)} />
                   </Tooltip>
                 )}
               </div>

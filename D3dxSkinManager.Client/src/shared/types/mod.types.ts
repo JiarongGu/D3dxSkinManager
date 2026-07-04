@@ -132,4 +132,8 @@ export interface ModKeybinding {
   variable: string;
   /** Values for cycle type (e.g., "0,1,2,3") */
   cycleValues: string;
+  /** Raw values of further `key =` lines in the same section (keyboard + controller alternates). */
+  additionalKeys: string[];
+  /** Friendly displays for additionalKeys (index-aligned). */
+  additionalKeyDisplays: string[];
 }

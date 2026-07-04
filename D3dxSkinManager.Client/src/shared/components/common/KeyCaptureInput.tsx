@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Input } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { Chord, baseFromKey, buildRaw, buildDisplay, rawToDisplay } from '../../utils/keyChord';
+import { Chord, baseFromEvent, buildRaw, buildDisplay, rawToDisplay } from '../../utils/keyChord';
 import './KeyCaptureInput.css';
 
 interface KeyCaptureInputProps {
@@ -28,7 +28,7 @@ export const KeyCaptureInput: React.FC<KeyCaptureInputProps> = ({ value, onChang
   const onKeyDown = (e: React.KeyboardEvent) => {
     e.preventDefault();
     held.current.add(e.code);
-    const base = baseFromKey(e.key);
+    const base = baseFromEvent(e.code, e.key);
     if (!base) return; // only a modifier held so far — keep waiting
     const chord: Chord = { base, ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey };
     setDraftDisplay(buildDisplay(chord));

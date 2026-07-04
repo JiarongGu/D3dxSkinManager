@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { baseFromKey, buildRaw, buildDisplay, rawToDisplay } from '../keyChord';
+import { baseFromKey, baseFromEvent, buildRaw, buildDisplay, rawToDisplay } from '../keyChord';
 
 describe('keyChord', () => {
   describe('baseFromKey', () => {
@@ -30,6 +30,38 @@ describe('keyChord', () => {
     it('returns null for unmapped keys', () => {
       expect(baseFromKey('Escape')).toBeNull();
       expect(baseFromKey('Dead')).toBeNull();
+    });
+  });
+
+  describe('baseFromEvent (B4: code-based, layout/shift-independent)', () => {
+    it('resolves letters and digits from the physical code', () => {
+      expect(baseFromEvent('KeyA', 'a')).toBe('a');
+      expect(baseFromEvent('Digit1', '1')).toBe('1');
+    });
+
+    it('captures Shift+digit combos (key would be "!" and used to fail)', () => {
+      expect(baseFromEvent('Digit1', '!')).toBe('1');
+    });
+
+    it('captures symbol keys 3DMigoto binds as raw chars', () => {
+      expect(baseFromEvent('BracketLeft', '[')).toBe('[');
+      expect(baseFromEvent('Minus', '-')).toBe('-');
+      expect(baseFromEvent('Slash', '/')).toBe('/');
+    });
+
+    it('maps numpad and extended function keys to VK names', () => {
+      expect(baseFromEvent('Numpad5', '5')).toBe('VK_NUMPAD5');
+      expect(baseFromEvent('NumpadAdd', '+')).toBe('VK_ADD');
+      expect(baseFromEvent('F13', 'F13')).toBe('VK_F13');
+    });
+
+    it('stays null for bare modifiers', () => {
+      expect(baseFromEvent('ControlLeft', 'Control')).toBeNull();
+      expect(baseFromEvent('ShiftRight', 'Shift')).toBeNull();
+    });
+
+    it('falls back to the produced key for unknown codes', () => {
+      expect(baseFromEvent('SomeExoticCode', 'Enter')).toBe('VK_RETURN');
     });
   });
 
