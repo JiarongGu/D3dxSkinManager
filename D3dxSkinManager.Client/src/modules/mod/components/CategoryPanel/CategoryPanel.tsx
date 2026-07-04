@@ -47,7 +47,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
   const setCategoryViewMode = useModsStore(s => s.setCategoryViewMode);
 
   // Get operations
-  const { setcategorySearch, setExpandedKeys, selectCategory, loadAllMods, loadLoadedMods } = useMods();
+  const { setCategorySearch, setExpandedKeys, selectCategory, loadAllMods, loadLoadedMods } = useMods();
 
   // Is unclassified selected?
   const isUnclassifiedSelected = selectedNode?.id === CATEGORY_IDS.UNCLASSIFIED;
@@ -209,7 +209,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
           selectedNode={selectedNode}
           onSelect={handleCategorySelect}
           searchQuery={searchQuery}
-          onSearchChange={setcategorySearch}
+          onSearchChange={setCategorySearch}
           expandedKeys={expandedKeys}
           onExpandedKeysChange={setExpandedKeys}
           onAddCategory={handleAddCategory}

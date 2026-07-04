@@ -255,7 +255,7 @@ public static IServiceCollection AddModsModule(this IServiceCollection services)
 **"How do I use the Facade pattern?"**
 - **Documentation:** `docs/architecture/CURRENT_ARCHITECTURE.md#facade-pattern`
 - **Example:** `Modules/Mods/ModFacade.cs:14`
-- **Base Class:** `Modules/Core/Facades/BaseFacade.cs`
+- **Base Class:** `Modules/Core/BaseFacade.cs`
 - **Purpose:** IPC entry point for module operations
 
 **Pattern:**
@@ -335,7 +335,7 @@ public interface IModRepository
 
 **"How do I add a React component?"**
 - **Skill:** `/react-component Name type features`
-- **Location:** `src/components/` or `src/modules/[module]/components/`
+- **Location:** `src/modules/[module]/components/` (module) or `src/shared/components/` (shared — see `ui-component-layers.md`)
 - **Pattern:** Functional components with hooks
 
 **Steps:**
@@ -350,24 +350,23 @@ public interface IModRepository
 ### Custom Hooks
 
 **"How do I create a custom hook?"**
-- **Documentation:** `docs/architecture/CURRENT_ARCHITECTURE.md#custom-hooks-pattern`
-- **Example:** `src/hooks/useModData.ts:8`
-- **Location:** `src/hooks/` or `src/modules/[module]/hooks/`
+- **Example:** `src/modules/mod/hooks/useMods.ts`
+- **Location:** `src/shared/hooks/` (cross-module) or `src/modules/[module]/hooks/`
 
 **Pattern:**
 ```typescript
-export const useModData = () => {
-  const [mods, setMods] = useState<ModInfo[]>([]);
+export const useThing = () => {
+  const [things, setThings] = useState<Thing[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadMods = async () => {
+  const loadThings = async (profileId: string) => {
     setLoading(true);
-    const data = await modService.getAllMods();
-    setMods(data);
+    const data = await someService.getAll(profileId);
+    setThings(data);
     setLoading(false);
   };
 
-  return { mods, loading, loadMods };
+  return { things, loading, loadThings };
 };
 ```
 
@@ -378,7 +377,7 @@ export const useModData = () => {
 **"How do I implement loading without flicker?"** ⭐ **NEW PATTERN**
 - **Documentation:** `docs/features/DELAYED_LOADING_UX_PATTERN.md`
 - **Hook:** `src/shared/hooks/useDelayedLoading.ts`
-- **Examples:** `useClassificationData.ts`, `useModData.ts`, `ConfirmDialog.tsx`
+- **Examples:** `ConfirmDialog.tsx`, `FormDialog.tsx` (built in via `useDelayedLoading`)
 
 **Use This Pattern Instead of Always-Show-Loading**
 

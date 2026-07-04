@@ -17,7 +17,7 @@ namespace D3dxSkinManager.Modules.Tool;
 /// <summary>
 /// Interface for Tools facade
 /// Module: TOOL
-/// Handles: SCAN_CACHE, CLEAN_CACHE, VALIDATE_STARTUP, screen capture, etc.
+/// Handles: SCAN_CACHE, CLEAN_CACHE, screen capture, etc.
 /// </summary>
 public interface IToolFacade : IModuleFacade { }
 
@@ -31,7 +31,6 @@ public class ToolFacade : BaseFacade, IToolFacade
     protected override string ModuleName => "ToolsFacade";
 
     private readonly IModCacheService _cacheService;
-    private readonly IStartupValidationService _validationService;
     private readonly IScreenCaptureProfileRepository _captureProfileRepository;
     private readonly IScreenCaptureService _screenCaptureService;
     private readonly IModPackageService _modPackageService;
@@ -46,7 +45,6 @@ public class ToolFacade : BaseFacade, IToolFacade
 
     public ToolFacade(
         IModCacheService cacheService,
-        IStartupValidationService validationService,
         IScreenCaptureProfileRepository captureProfileRepository,
         IScreenCaptureService screenCaptureService,
         IModPackageService modPackageService,
@@ -61,7 +59,6 @@ public class ToolFacade : BaseFacade, IToolFacade
         ILogHelper logger) : base(logger)
     {
         _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
-        _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
         _captureProfileRepository = captureProfileRepository ?? throw new ArgumentNullException(nameof(captureProfileRepository));
         _screenCaptureService = screenCaptureService ?? throw new ArgumentNullException(nameof(screenCaptureService));
         _modPackageService = modPackageService ?? throw new ArgumentNullException(nameof(modPackageService));
@@ -84,9 +81,6 @@ public class ToolFacade : BaseFacade, IToolFacade
             "SCAN_CACHE" => await ScanCacheAsync(),
             "TOOLS_GET_CACHE_STATS" or "GET_CACHE_STATISTICS" => await GetCacheStatisticsAsync(),
             "CLEAN_CACHE" => await CleanCacheAsync(request),
-
-            // Validation
-            "VALIDATE_STARTUP" => await ValidateStartupAsync(),
 
             // Screen Capture - Profile Management
             "SCREEN_CAPTURE_GET_PROFILES" => await GetCaptureProfilesAsync(),
@@ -164,11 +158,6 @@ public class ToolFacade : BaseFacade, IToolFacade
             new { category = category.ToString(), deletedCount });
 
         return deletedCount;
-    }
-
-    public async Task<StartupValidationReport> ValidateStartupAsync()
-    {
-        return await _validationService.ValidateStartupAsync().ConfigureAwait(false);
     }
 
     private async Task<int> CleanCacheAsync(IpcRequest request)

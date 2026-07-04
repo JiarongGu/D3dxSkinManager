@@ -116,7 +116,7 @@ Parameters are automatically converted between C# and TypeScript:
 ## Steps to Execute
 
 1. **Find backend facade**:
-   - Path: `Modules/{Module}/Facades/{Module}Facade.cs`
+   - Path: `Modules/{Module}/{Module}Facade.cs`
    - Verify service is injected in constructor
 
 2. **Add backend handler method**:
@@ -145,7 +145,7 @@ Parameters are automatically converted between C# and TypeScript:
 
 For: `/ipc-message-pair Mod VALIDATE_TEXTURE HandleValidateTextureAsync validateTexture ITextureValidationService filePath:string ValidationResult`
 
-**Backend** (`Modules/Mod/Facades/ModFacade.cs`):
+**Backend** (`Modules/Mod/ModFacade.cs`):
 ```csharp
 /// <summary>
 /// IPC handler for texture validation
@@ -291,9 +291,9 @@ Use after creating backend service:
 ## Reference Examples
 
 Look at existing IPC pairs:
-- `Modules/Mod/Facades/ModFacade.cs` + `shared/services/ipc/modService.ts`
-- `Modules/Profile/Facades/ProfileFacade.cs` + `shared/services/ipc/profileService.ts`
-- `Modules/Workflow/Facades/WorkflowFacade.cs` + `shared/services/ipc/workflowService.ts`
+- `Modules/Mod/ModFacade.cs` + `shared/services/ipc/modService.ts`
+- `Modules/Profile/ProfileFacade.cs` + `shared/services/ipc/profileService.ts`
+- `Modules/Workflow/WorkflowFacade.cs` + `shared/services/ipc/workflowService.ts`
 
 ## Evolution Note
 

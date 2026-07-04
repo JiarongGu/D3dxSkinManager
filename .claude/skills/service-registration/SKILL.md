@@ -82,8 +82,8 @@ public static class {Module}ServiceExtensions
 services.AddSingleton<IModLifecycleService, ModLifecycleService>();
 services.AddSingleton<IModQueryService, ModQueryService>();
 
-// Scoped - Per-request state (rare)
-services.AddScoped<IWorkflowExecutionService, WorkflowExecutionService>();
+// Scoped - Per-request state (rare in this codebase; most services are TryAddSingleton)
+services.AddScoped<IMyRequestScopedService, MyRequestScopedService>();
 ```
 
 ## Alphabetical Ordering

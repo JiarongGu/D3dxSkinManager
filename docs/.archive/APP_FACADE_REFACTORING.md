@@ -1,3 +1,8 @@
+> **⚠️ ARCHIVED 2026-07-05 — DESCRIBES A REMOVED COMPONENT.** There is no `AppFacade` in the codebase.
+> IPC routing is now: `MessageDispatcher` (middleware pipeline, `Modules/Core/Services/MessageDispatcher.cs`)
+> → `ProfileServiceRouter` (module→facade map over the profile-scoped provider, `Infrastructure/ProfileServiceRouter.cs`)
+> → module facades. See CURRENT_ARCHITECTURE.md.
+
 # AppFacade - Centralized IPC Routing
 
 **Last Updated:** 2026-02-23

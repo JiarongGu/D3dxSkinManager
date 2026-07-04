@@ -194,4 +194,4 @@ Creates:
 Look at these existing services for patterns:
 - `Modules/Mod/Services/ModLifecycleService.cs` - Service with event emission
 - `Modules/Category/Services/CategoryService.cs` - Service with caching
-- `Modules/Workflow/Services/WorkflowExecutionService.cs` - Service with complex logic
+- `Modules/Mod/Services/ModMergeService.cs` - Service with complex multi-step logic

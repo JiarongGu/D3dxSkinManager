@@ -197,7 +197,7 @@ export interface BatchError {
    - Return affected row count
 
 3. **Add facade handler**:
-   - Path: `Modules/{Module}/Facades/{Module}Facade.cs`
+   - Path: `Modules/{Module}/{Module}Facade.cs`
    - Extract IDs from IPC payload
    - Loop with try-catch for each ID
    - Aggregate results (success/failure counts)
@@ -241,7 +241,7 @@ public async Task<int> BatchDeleteAsync(List<string> ids)
 }
 ```
 
-**Backend Facade** (`Modules/Mod/Facades/ModFacade.cs`):
+**Backend Facade** (`Modules/Mod/ModFacade.cs`):
 ```csharp
 private async Task<BatchResult> HandleBatchDeleteModsAsync(IpcRequest request)
 {
@@ -395,9 +395,9 @@ Use after creating entity operations:
 ## Reference Examples
 
 See existing batch operations:
-- `Modules/Mod/Repositories/ModRepository.cs` - BatchDeleteAsync
-- `Modules/Workflow/Facades/WorkflowFacade.cs` - HandleBatchResumeWorkflowsAsync
-- `shared/services/ipc/modService.ts` - batchDeleteMods
+- `Modules/Mod/Services/ModDeletionService.cs` - BatchDeleteAsync (per-mod queue-locked)
+- `Modules/Workflow/WorkflowFacade.cs` - BatchDeleteWorkflowsAsync / BatchResumeWorkflowsAsync
+- `shared/services/ipc/workflowService.ts` - batch delete/resume methods
 
 ## Evolution Note
 

@@ -110,7 +110,7 @@ export interface ModsActions {
   setPreviewLoading: (loading: boolean) => void;
   setPreviewPaths: (paths: string[]) => void;
   bustPreviewCache: () => void;
-  setcategorySearch: (search: string) => void;
+  setCategorySearch: (search: string) => void;
   clearCategoryFilter: () => void;
 
   // UI Actions
@@ -358,7 +358,7 @@ export const useModsStore = create<ModsStore>()(
           state.selectedCategoryIds = ids;
         }),
 
-      setcategorySearch: (search) =>
+      setCategorySearch: (search) =>
         set((state) => {
           state.categorySearch = search;
         }),

@@ -83,7 +83,8 @@ source via a **command list branching on `$swapvar`**. Port this faithfully (gam
 its own subfolder so `filename` paths stay valid), run the above to emit `merged.ini`, compress to a NEW
 mod archive + register it (originals untouched in the library). Needs real two-same-character mods to
 verify the in-game swap. This is the model — port `genshin_merge_mods.py` section-for-section.
-**Shipped as `MergeIniBuilder` + `ModMergeService` (v1).**
+**v1 (`MergeIniBuilder`) shipped, was superseded by v2 and REMOVED from the codebase (2026-06) —
+`ModMergeService` now uses `NamespaceMergeBuilder` only. This section stays as the algorithm reference.**
 
 ### Mod-merge v2 — NAMESPACE-based (PREFERRED; preserves each variant's keybinds; design 2026-06-19)
 The GIMI-port (v1) **rebuilds** everything and **drops each source's `[Key*]`/`[Constants]`** → a merged

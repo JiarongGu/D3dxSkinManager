@@ -1,6 +1,7 @@
 # Extending Category Right-Click Context Menu
 
-When adding a new action to the category tree right-click menu, follow this 4-file wiring chain:
+When adding a new action to the category tree right-click menu, follow this 4-file wiring chain.
+All four files live in `src/modules/mod/components/CategoryPanel/`.
 
 ## Wiring Chain
 

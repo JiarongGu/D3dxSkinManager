@@ -20,7 +20,7 @@ Run the Glob/Grep commands for the pattern type below. Show top 2-3 results with
 | `service` | `Modules/{Module}/Services/*Service.cs` | `class.*Service.*:.*I.*Service` |
 | `repository` | `Modules/{Module}/Repositories/*Repository.cs` | `class.*Repository` |
 | `facade` | `Modules/{Module}/*Facade.cs` | `RouteMessageAsync\|HandleAsync` |
-| `event-handler` | `Modules/{Module}/EventHandlers/*.cs` | `IProfileEventBus\|EmitAsync` |
+| `event-handler` | `Modules/{Module}/Services/*EventHandler.cs` | `IProfileEventBus\|EmitAsync` |
 | `file-watcher` | `Modules/**/Services/*.cs` | `FileSystemWatcher` |
 | `cache-service` | `Modules/**/Services/*.cs` | `IMemoryCache\|GetOrCreateAsync` |
 | `batch-operation` | `Modules/**/*.cs` | `Batch\|IN \(@` |

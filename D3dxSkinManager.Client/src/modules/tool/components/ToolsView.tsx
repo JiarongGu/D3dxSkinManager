@@ -1,7 +1,6 @@
 import React, { useCallback } from 'react';
 import { Row, Col, Space } from 'antd';
 import {
-  CheckCircleOutlined,
   ClearOutlined,
   ImportOutlined,
   TagsOutlined,
@@ -13,7 +12,6 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { StartupValidationTool } from './StartupValidationTool';
 import { TagManagementTool } from './TagManagementTool/TagManagementTool';
 import { PythonMigrationTool } from './PythonMigrationTool/PythonMigrationTool';
 import { ModPackageTool } from './ModPackageTool/ModPackageTool';
@@ -97,13 +95,6 @@ export const ToolsView: React.FC = () => {
       description: t('tools.tagManagement.description'),
       icon: <TagsOutlined />,
       content: <TagManagementTool />,
-    },
-    {
-      key: 'startup-validation',
-      title: t('tools.startupValidation.title'),
-      description: t('tools.startupValidation.description'),
-      icon: <CheckCircleOutlined />,
-      content: <StartupValidationTool />,
     },
     {
       key: 'mod-analyzer',

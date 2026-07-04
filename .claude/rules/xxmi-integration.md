@@ -90,7 +90,7 @@ re-fixes hashes after a game update), previews, and **deploying** chosen mods in
   / future importers appear and config-only-uninstalled games don't. Two-level pick: choose root folder
   (选择文件夹) → choose importer sub (dropdown).
 - **One pick in the XXMI source sets BOTH locations. There is no Launch tab.** The picker lives in
-  **Settings → Mod Work** (`setting/components/XxmiImporterPicker.tsx`).
+  **Settings → Mod Work** (`src/modules/setting/components/XxmiImporterPicker.tsx`).
   Choosing an importer is a one-click immediate save (`ProfileSettingsTab.handleSelectXxmiImporter`):
   `updateProfileConfig({ workMode:'external', workDirectory:<importerDir>, launchPath:<launcherExe> })`
   → `CacheModsDirectory` becomes `<importerDir>\Mods` (deploy target) AND `launch.path` = the XXMI

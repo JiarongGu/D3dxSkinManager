@@ -166,4 +166,4 @@ useEffect(() => {
 
 - [AI_GUIDE.md](../AI_GUIDE.md) - Main development guide
 - AG Grid Documentation: https://www.ag-grid.com/
-- Component files: `src/renderer/features/mods/screens/BatchEditModsScreen.tsx`
+- Component files: `src/modules/mod/components/BatchEditScreen/`

@@ -39,8 +39,7 @@ Generate a TypeScript IPC service that communicates with backend facades.
 ```typescript
 // Location: shared/services/ipc/{serviceName}.ts
 
-import { BaseModuleService } from './BaseModuleService';
-import { Module } from '@/shared/constants/modules';
+import { BaseModuleService } from '../baseModuleService';
 import type { TypeFromShared } from '@/shared/types/moduleTypes';
 
 /**
@@ -48,7 +47,7 @@ import type { TypeFromShared } from '@/shared/types/moduleTypes';
  */
 export class {ServiceName} extends BaseModuleService {
   constructor() {
-    super(Module.{MODULE_CONSTANT});  // e.g., Module.MOD
+    super('{MODULE}');  // module name string, e.g. 'MOD', 'TOOL', 'LAUNCH'
   }
 
   /**
@@ -82,7 +81,15 @@ export const {serviceName} = new {ServiceName}();
 
 ## BaseModuleService Methods
 
-Use the appropriate method based on return type:
+**Preferred (typed):** `sendTypedMessage` / `sendTypedBoolean` / `sendTypedArray` / `sendTypedOptional`
+— generic over a `TRequests` map type so the message type + payload are checked at compile time
+(see `shared/types/ipc/modIpcRequests.ts` for the request-map pattern).
+
+**Legacy (still common, marked `@deprecated`):** `sendMessage<T>` / `sendBooleanMessage` /
+`sendArrayMessage<T>` / `sendOptionalMessage<T>`. There is NO `sendGlobalMessage` — global
+operations simply omit `profileId` (pass `undefined`).
+
+Pick by return type:
 
 - **`sendMessage<T>(type, profileId, payload)`** - Returns single object or void
   ```typescript
@@ -98,26 +105,25 @@ Use the appropriate method based on return type:
   }
   ```
 
-- **`sendGlobalMessage<T>(type, payload)`** - Global operations (no profileId)
+- **Global operation** - omit profileId
   ```typescript
   async getGlobalSettings(): Promise<Settings> {
-    return this.sendGlobalMessage<Settings>('GET_GLOBAL');
+    return this.sendMessage<Settings>('GET_GLOBAL');
   }
   ```
 
 ## Steps to Execute
 
 1. **Find or create service file**:
-   - Path: `D3dxSkinManager/shared/services/ipc/{serviceName}.ts` (camelCase)
+   - Path: `D3dxSkinManager.Client/src/shared/services/ipc/{serviceName}.ts` (camelCase)
    - If file exists, add new methods to existing class
    - If new file, create with full pattern
 
 2. **Create class structure**:
-   - Import BaseModuleService
-   - Import Module enum
+   - Import BaseModuleService from `'../baseModuleService'`
    - Import necessary types from shared/types
    - Class extends BaseModuleService
-   - Constructor calls super with Module.{CONSTANT}
+   - Constructor calls super with the module name string (e.g. `super('MOD')`)
 
 3. **Generate methods**:
    - For each method in the list:
@@ -131,7 +137,7 @@ Use the appropriate method based on return type:
    - Use camelCase for instance name (e.g., `modService`, `textureService`)
 
 5. **Update index.ts**:
-   - Path: `D3dxSkinManager/shared/services/ipc/index.ts`
+   - Path: `D3dxSkinManager.Client/src/shared/services/ipc/index.ts`
    - Add export: `export { {serviceName} } from './{serviceName}';`
    - Add to `api` object: `{serviceName},`
 
@@ -149,13 +155,12 @@ Creates/Updates:
 
 ```typescript
 // textureService.ts
-import { BaseModuleService } from './BaseModuleService';
-import { Module } from '@/shared/constants/modules';
+import { BaseModuleService } from '../baseModuleService';
 import type { TextureInfo } from '@/shared/types/modTypes';
 
 export class TextureService extends BaseModuleService {
   constructor() {
-    super(Module.MOD);
+    super('MOD');
   }
 
   /**
@@ -196,9 +201,9 @@ Convert method names to UPPER_SNAKE_CASE for message types:
 - ✅ Use singleton export pattern (lowercase instance name)
 - ✅ Use type-safe generics for all methods
 - ✅ Add JSDoc comments referencing backend facade/method
-- ✅ Use sendArrayMessage for array returns
-- ✅ Use sendMessage for single object or void
-- ✅ Use sendGlobalMessage for global operations (no profileId)
+- ✅ Use sendArrayMessage/sendTypedArray for array returns
+- ✅ Use sendMessage/sendTypedMessage for single object or void
+- ✅ Global operations omit profileId (there is NO sendGlobalMessage)
 - ✅ Message types are UPPER_SNAKE_CASE
 - ✅ Export both class and singleton instance
 - ❌ Don't create new IPC mechanisms (use BaseModuleService)

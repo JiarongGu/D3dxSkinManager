@@ -244,7 +244,7 @@ Frontend components subscribing to multiple specific events leads to:
 #### Example: ModListEventHandler
 
 ```csharp
-// Location: Modules/Mod/EventHandlers/ModListEventHandler.cs
+// Location: Modules/Mod/Services/ModListEventHandler.cs
 public class ModListEventHandler : IModListEventHandler
 {
     private readonly IProfileEventBus _eventBus;
@@ -278,7 +278,7 @@ services.AddSingleton<IModListEventHandler, ModListEventHandler>();
 #### Example: CategoryTreeEventHandler
 
 ```csharp
-// Location: Modules/Mod/EventHandlers/CategoryTreeEventHandler.cs
+// Location: Modules/Category/Services/CategoryEventHandler.cs (current name)
 public class CategoryTreeEventHandler : ICategoryTreeEventHandler
 {
     private readonly IProfileEventBus _eventBus;

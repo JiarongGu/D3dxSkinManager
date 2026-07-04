@@ -209,8 +209,8 @@ export const {ComponentName}: React.FC<{ComponentName}Props> = ({
 ## Steps to Execute
 
 1. **Determine component location**:
-   - Feature components: `features/{feature}/components/{ComponentName}.tsx`
-   - Shared components: `shared/components/{ComponentName}.tsx`
+   - Module components: `modules/{module}/components/{ComponentName}.tsx`
+   - Shared components: `shared/components/common/{ComponentName}.tsx` (atoms in `shared/components/compact/`)
    - Ask user if unclear
 
 2. **Create component file**:
@@ -324,10 +324,10 @@ className={classNames('component-name', {
 ## Reference Examples
 
 Look at these existing components for patterns:
-- `features/mods/components/ModListPanel.tsx` - List component with IPC
-- `features/profiles/components/ProfileSelector.tsx` - Form with validation
-- `shared/components/SlideInScreen.tsx` - Modal-style component
-- `features/mods/components/ModCard.tsx` - Card component with events
+- `modules/mod/components/ModListPanel/ModListPanel.tsx` - List component with IPC
+- `modules/setting/components/FixToolSettingsCard.tsx` - Form card with per-section save
+- `shared/components/common/SlideInScreen.tsx` - Slide-in screen component
+- `modules/mod/components/MergeModsDialog/MergeModsDialog.tsx` - Dialog with IPC + events
 
 ## Evolution Note
 

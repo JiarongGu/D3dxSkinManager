@@ -1,7 +1,9 @@
 # Module Architecture
 
-**Last Updated:** 2026-02-23
+**Last Updated:** 2026-07-05
 **Status:** Current Implementation
+**Scope:** Per-module organization (services, models, facades, status). For the high-level system
+overview, startup flow, and IPC format see [CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md).
 
 > **Consolidation Note:** This document replaces and consolidates:
 > - MODULE_STRUCTURE.md (deprecated)
@@ -204,5 +206,5 @@ When migrating from the old structure:
 
 **See Also:**
 - [CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md) - Overall system architecture
-- [APP_FACADE_REFACTORING.md](APP_FACADE_REFACTORING.md) - Centralized AppFacade pattern
+- [CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md) - IPC routing (MessageDispatcher + ProfileServiceRouter)
 - [DOMAIN_DESIGN.md](DOMAIN_DESIGN.md) - Domain-driven design principles

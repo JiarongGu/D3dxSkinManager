@@ -370,7 +370,7 @@ Before implementing a callback:
 ## Related Files
 
 - **Hook implementation:** [src/shared/hooks/useStableRef.ts](../../D3dxSkinManager.Client/src/shared/hooks/useStableRef.ts)
-- **Real-world usage:** [src/modules/mods/components/ClassificationPanel/useClassificationTreeOperations.tsx](../../D3dxSkinManager.Client/src/modules/mods/components/ClassificationPanel/useClassificationTreeOperations.tsx)
+- **Real-world usage:** [src/modules/mod/components/CategoryPanel/useCategoryTreeOperations.tsx](../../D3dxSkinManager.Client/src/modules/mod/components/CategoryPanel/useCategoryTreeOperations.tsx)
 - **Drag-drop hook:** [src/shared/hooks/useDragDrop.ts](../../D3dxSkinManager.Client/src/shared/hooks/useDragDrop.ts)
 
 ---

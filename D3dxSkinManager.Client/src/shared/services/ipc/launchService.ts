@@ -56,10 +56,6 @@ export class LaunchService extends BaseModuleService {
   }
 
   // Game methods
-  async launchGame(profileId: string, args?: string): Promise<boolean> {
-    return this.sendBooleanMessage('LAUNCH_GAME', profileId, args ? { arguments: args } : undefined);
-  }
-
   async launchCustomProgram(profileId: string, executablePath: string, args?: string): Promise<boolean> {
     return this.sendBooleanMessage('LAUNCH_CUSTOM', profileId, {
       executablePath,

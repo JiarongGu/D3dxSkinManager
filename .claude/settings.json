@@ -50,7 +50,7 @@
     ],
     "additionalDirectories": [
       ".claude",
-      ".claud/rules",
+      ".claude/rules",
       ".claude/skills"
     ]
   },

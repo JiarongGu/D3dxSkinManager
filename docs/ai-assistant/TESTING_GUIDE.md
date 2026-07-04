@@ -2,7 +2,7 @@
 
 > **🤖 FOR AI ASSISTANTS:** This guide ensures all code changes are properly tested before committing.
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-07-05 (frontend runner is vitest — `vi.*`, not `jest.*`)
 
 ---
 
@@ -86,31 +86,32 @@ dotnet test --filter "FullyQualifiedName~ClassificationServiceTests"
 dotnet test /p:CollectCoverage=true
 ```
 
-### Frontend (React 19 + Jest + React Testing Library)
+### Frontend (React 19 + Vitest + React Testing Library)
 
 **Location:** `D3dxSkinManager.Client/src/`
 
 **Framework Stack:**
-- Jest 27+ (test framework)
+- Vitest (runner — reuses Vite's esbuild pipeline; config in `vitest.config.ts`, `globals: true`)
 - React Testing Library (component testing)
-- @testing-library/jest-dom (assertions)
+- @testing-library/jest-dom (assertions, imported by `src/setupTests.ts`)
 - @testing-library/user-event (user interactions)
+
+> Use the **`vi`** global (`vi.mock`, `vi.fn`, `vi.clearAllMocks`) — NOT `jest.*`. Watch for
+> multi-line chains when migrating old tests (`const spy = jest⏎.spyOn(...)`), see
+> `.claude/rules/test-coverage-priorities.md`.
 
 **Run Tests:**
 ```bash
 cd D3dxSkinManager.Client
 
-# Run all tests
+# Run all tests (vitest run)
 npm test
 
 # Run in watch mode
-npm test -- --watch
+npm run test:watch
 
-# Run with coverage
-npm test -- --coverage
-
-# Run specific test file
-npm test -- ThemeContext.test.tsx
+# Run specific test file (name filter)
+npm test -- FindingsView
 
 # Update snapshots
 npm test -- -u
@@ -371,7 +372,7 @@ import { ThemeProvider, useTheme } from '../ThemeContext';
 import { settingsService } from '../../../modules/settings/services/settingsService';
 
 // Mock the settings service
-jest.mock('../../../modules/settings/services/settingsService');
+vi.mock('../../../modules/settings/services/settingsService');
 
 describe('ThemeContext', () => {
   // Helper component to access context
@@ -388,10 +389,10 @@ describe('ThemeContext', () => {
 
   beforeEach(() => {
     // Reset mocks before each test
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Default mock implementation
-    (settingsService.getGlobalSettings as jest.Mock).mockResolvedValue({
+    (settingsService.getGlobalSettings as ReturnType<typeof vi.fn>).mockResolvedValue({
       theme: 'light',
       logLevel: 'INFO',
       annotationLevel: 'all'
@@ -400,7 +401,7 @@ describe('ThemeContext', () => {
 
   it('should load theme from backend on mount', async () => {
     // Arrange
-    (settingsService.getGlobalSettings as jest.Mock).mockResolvedValue({
+    (settingsService.getGlobalSettings as ReturnType<typeof vi.fn>).mockResolvedValue({
       theme: 'dark',
       logLevel: 'INFO',
       annotationLevel: 'all'
@@ -422,7 +423,7 @@ describe('ThemeContext', () => {
   it('should retry on failure with exponential backoff', async () => {
     // Arrange
     let callCount = 0;
-    (settingsService.getGlobalSettings as jest.Mock).mockImplementation(() => {
+    (settingsService.getGlobalSettings as ReturnType<typeof vi.fn>).mockImplementation(() => {
       callCount++;
       if (callCount < 3) {
         return Promise.reject(new Error('Network error'));
@@ -471,10 +472,10 @@ describe('ThemeContext', () => {
 
   it('should rollback on save failure', async () => {
     // Arrange
-    (settingsService.updateGlobalSetting as jest.Mock).mockRejectedValue(
+    (settingsService.updateGlobalSetting as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Save failed')
     );
-    (settingsService.getGlobalSettings as jest.Mock)
+    (settingsService.getGlobalSettings as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({ theme: 'light', logLevel: 'INFO', annotationLevel: 'all' })
       .mockResolvedValueOnce({ theme: 'light', logLevel: 'INFO', annotationLevel: 'all' });
 
@@ -505,14 +506,14 @@ describe('ThemeContext', () => {
 **1. Mock External Dependencies**
 ```typescript
 // Mock WebView2 bridge service
-jest.mock('../../shared/services/bridgeService', () => ({
+vi.mock('../../shared/services/bridgeService', () => ({
   bridgeService: {
-    sendMessage: jest.fn(),
+    sendMessage: vi.fn(),
   },
 }));
 
 // Mock settings service
-jest.mock('../../modules/settings/services/settingsService');
+vi.mock('../../modules/settings/services/settingsService');
 ```
 
 **2. Use waitFor for Async Operations**
@@ -718,16 +719,16 @@ Here's a complete example for the recently added settings file service:
 import { settingsFileService } from '../settingsFileService';
 import { bridgeService } from '../../../../shared/services/bridgeService';
 
-jest.mock('../../../../shared/services/bridgeService');
+vi.mock('../../../../shared/services/bridgeService');
 
 describe('settingsFileService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getSettingsFile', () => {
     it('should parse and return JSON data', async () => {
-      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
         success: true,
         content: '{"theme":"dark"}'
       });
@@ -743,7 +744,7 @@ describe('settingsFileService', () => {
     });
 
     it('should return null if file does not exist', async () => {
-      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
         success: false
       });
 
@@ -753,7 +754,7 @@ describe('settingsFileService', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      (bridgeService.sendMessage as jest.Mock).mockRejectedValue(
+      (bridgeService.sendMessage as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error('Network error')
       );
 
@@ -765,7 +766,7 @@ describe('settingsFileService', () => {
 
   describe('saveSettingsFile', () => {
     it('should serialize and save JSON data', async () => {
-      (bridgeService.sendMessage as jest.Mock).mockResolvedValue({
+      (bridgeService.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
         success: true
       });
 
@@ -850,4 +851,4 @@ threw.Should().BeTrue("token cancellation must abort the queued wait");
 
 ---
 
-*Last updated: 2026-04-12*
+*Last updated: 2026-07-05*

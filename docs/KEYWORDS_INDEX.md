@@ -31,21 +31,19 @@
 
 | What You Need | Where To Look |
 |---------------|---------------|
-| Entry point & DI | [keywords/BACKEND.md](keywords/BACKEND.md#entry-point) |
-| Core services | [keywords/BACKEND.md](keywords/BACKEND.md#core-module) |
-| Mods module | [keywords/BACKEND.md](keywords/BACKEND.md#mods-module) |
-| Migration system | [keywords/BACKEND.md](keywords/BACKEND.md#migration-module) |
-| Other modules | [keywords/BACKEND.md](keywords/BACKEND.md#modules) |
+| Entry, infrastructure, IPC routing | [keywords/BACKEND.md](keywords/BACKEND.md) — "Entry + Infrastructure" |
+| Core services (registry, download, WebView) | [keywords/BACKEND.md](keywords/BACKEND.md) — "Core module" |
+| Mod services (lifecycle, archive, merge, ini) | [keywords/BACKEND.md](keywords/BACKEND.md) — "Mod module" |
+| Everything else (tool, setting, workflow…) | [keywords/BACKEND.md](keywords/BACKEND.md) — "Other modules" |
 
 ### Frontend (React + TypeScript) - [FULL DETAILS →](keywords/FRONTEND.md)
 
 | What You Need | Where To Look |
 |---------------|---------------|
-| Components | [keywords/FRONTEND.md](keywords/FRONTEND.md#module-components) |
-| Hooks | [keywords/FRONTEND.md](keywords/FRONTEND.md#custom-hooks) |
-| Services | [keywords/FRONTEND.md](keywords/FRONTEND.md#services) |
-| Context providers | [keywords/FRONTEND.md](keywords/FRONTEND.md#context-providers) |
-| Dialogs & windows | [keywords/FRONTEND.md](keywords/FRONTEND.md#dialog-components) |
+| Module components (mod, tool, setting…) | [keywords/FRONTEND.md](keywords/FRONTEND.md) — "Modules" |
+| Shared atoms/dialogs (compact, common) | [keywords/FRONTEND.md](keywords/FRONTEND.md) — "Shared components" |
+| Hooks, context, stores | [keywords/FRONTEND.md](keywords/FRONTEND.md) — "Shared hooks/context/stores" |
+| IPC services + types | [keywords/FRONTEND.md](keywords/FRONTEND.md) — "Services" / "Types" |
 
 ### Documentation - [FULL DETAILS →](keywords/DOCUMENTATION.md)
 
@@ -71,16 +69,16 @@
 ## Most Common Quick Links
 
 ### Backend Entry Points
-- **Program.cs** → `D3dxSkinManager/Program.cs` (main entry, DI, IPC)
-- **ModFacade** → `Modules/Mods/ModFacade.cs` (mod operations)
-- **MigrationService** → `Modules/Migration/Services/MigrationService.cs` (Python → React migration)
+- **Program.cs** → `D3dxSkinManager/Program.cs` (main entry)
+- **ProfileServiceRouter** → `Infrastructure/ProfileServiceRouter.cs` (IPC module → facade routing)
+- **ModFacade** → `Modules/Mod/ModFacade.cs` (mod operations)
 - **MigrationRunner** → `Modules/Fluent/Services/MigrationRunner.cs` (database schema migrations)
 
 **Full Backend Index:** [keywords/BACKEND.md](keywords/BACKEND.md)
 
 ### Frontend Entry Points
 - **App.tsx** → `src/App.tsx` (root component)
-- **ModsView** → `src/modules/mods/components/ModsView.tsx` (main mods UI)
+- **ModHierarchicalView** → `src/modules/mod/components/ModHierarchicalView.tsx` (main 3-panel mods UI)
 - **bridgeService** → `src/shared/services/bridgeService.ts` (IPC)
 
 **Full Frontend Index:** [keywords/FRONTEND.md](keywords/FRONTEND.md)
@@ -169,10 +167,7 @@ docs/
 ---
 
 **Routing System Files:**
-- [keywords/BACKEND.md](keywords/BACKEND.md) (~350 lines)
-- [keywords/FRONTEND.md](keywords/FRONTEND.md) (~550 lines)
+- [keywords/BACKEND.md](keywords/BACKEND.md) (~120 lines, rewritten 2026-07-05)
+- [keywords/FRONTEND.md](keywords/FRONTEND.md) (~120 lines, rewritten 2026-07-05)
 - [keywords/DOCUMENTATION.md](keywords/DOCUMENTATION.md) (~220 lines)
 - [keywords/HOW_TO.md](keywords/HOW_TO.md) (~370 lines)
-
-**Backup:**
-- [architecture/KEYWORDS_INDEX_DETAILED_BACKUP.md](architecture/KEYWORDS_INDEX_DETAILED_BACKUP.md) (original detailed index)

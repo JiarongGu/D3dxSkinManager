@@ -138,13 +138,13 @@ await settingsService.getGlobalSettings();  // No profile needed
 // Mixed service
 class LaunchService extends BaseModuleService {
   // Profile-scoped
-  async launchGame(profileId: string): Promise<boolean> {
-    return this.sendBooleanMessage('LAUNCH_GAME', profileId);
+  async launchCustomProgram(profileId: string, executablePath: string): Promise<boolean> {
+    return this.sendBooleanMessage('LAUNCH_CUSTOM', profileId, { executablePath });
   }
 
   // Global
-  async getD3DMigotoVersions(): Promise<string[]> {
-    return this.sendArrayMessage<string>('GET_D3DMIGOTO_VERSIONS');
+  async getAvailableVersions(profileId: string): Promise<D3DMigotoVersion[]> {
+    return this.sendArrayMessage<D3DMigotoVersion>('LAUNCH_GET_VERSIONS', profileId);
   }
 }
 ```

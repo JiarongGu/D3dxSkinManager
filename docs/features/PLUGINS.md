@@ -330,9 +330,9 @@ Frontend can call custom backend message handlers:
 
 **Frontend:**
 ```typescript
-import { photinoService } from '../services/photino';
+import { bridgeService } from 'shared/services/bridgeService';
 
-const result = await photinoService.sendMessage('MY_CUSTOM_ACTION', {
+const result = await bridgeService.sendMessage('MY_CUSTOM_ACTION', {
   param1: 'value1',
   param2: 'value2'
 });

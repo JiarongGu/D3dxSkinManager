@@ -346,7 +346,7 @@ if (window.chrome?.webview?.postMessage) {
 
 **Verification:** Check console for "[Dev Mode]" messages
 
-**File:** `D3dxSkinManager.Client/src/services/photino.ts:55`
+**File:** `D3dxSkinManager.Client/src/shared/services/bridgeService.ts`
 
 ---
 
@@ -625,7 +625,7 @@ Frontend sends message but never gets response
 **Solution:**
 ```typescript
 // Ensure this is called during initialization
-photinoService.initializeMessageReceiver();
+bridgeService.initializeMessageReceiver();
 ```
 
 **Root Cause 2:** Backend not sending response
@@ -910,12 +910,11 @@ Code or steps to fix
 
 **Issue:** Frontend can't communicate with backend in dev mode
 
-**Current Solution:** Mock data in photino.ts
-
-**Future:** Consider adding API server mode for development
+**Current Solution:** DEV fake-bridge in `shared/services/bridgeService.ts` (canned bootstrap data
+so the shell renders in plain Chrome — see `.claude/rules/desktop-app-testing.md` "Pure-UI testing")
 
 ---
 
 *This troubleshooting guide is maintained by AI assistants. Add issues as you encounter them!*
 
-*Last updated: 2026-02-17*
+*Last updated: 2026-07-05 (photino references corrected to bridgeService — the app is WebView2)*

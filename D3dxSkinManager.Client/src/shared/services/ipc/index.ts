@@ -10,7 +10,6 @@ export * from './profileService';
 export * from './workflowService';
 export * from './launchService';
 export * from './settingsService';
-export * from './validationService';
 export * from './categoryService';
 export * from './languageService';
 export * from './systemService';
@@ -22,7 +21,6 @@ import { ProfileService } from './profileService';
 import { WorkflowService } from './workflowService';
 import { LaunchService } from './launchService';
 import { SettingsService } from './settingsService';
-import { ValidationService } from './validationService';
 import { CategoryService } from './categoryService';
 import { LanguageService } from './languageService';
 import { SystemService } from './systemService';
@@ -37,7 +35,6 @@ export const api = {
   workflow: new WorkflowService(),
   launch: new LaunchService(),
   settings: new SettingsService(),
-  validation: new ValidationService(),
   category: new CategoryService(),
   language: new LanguageService(),
   system: new SystemService(),
@@ -50,7 +47,6 @@ export const profileService = api.profile;
 export const workflowService = api.workflow;
 export const launchService = api.launch;
 export const settingsService = api.settings;
-export const validationService = api.validation;
 export const categoryService = api.category;
 export const languageService = api.language;
 export const systemService = api.system;

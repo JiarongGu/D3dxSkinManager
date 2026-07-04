@@ -68,7 +68,7 @@ export function useMods() {
     openEditDialog: state.openEditDialog,
     closeEditDialog: state.closeEditDialog,
     setSearchQuery: state.setSearchQuery,
-    setcategorySearch: state.setcategorySearch,
+    setCategorySearch: state.setCategorySearch,
     setExpandedKeys: state.setExpandedKeys,
     setSelectedCategory: state.setSelectedCategory,
     setAvailableTags: state.setAvailableTags,

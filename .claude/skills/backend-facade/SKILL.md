@@ -142,16 +142,15 @@ public async Task<bool> ImportModAsync(IpcRequest request)
 ## Steps to Execute
 
 1. **Find the module location**:
-   - Search for `Modules/{Module}/Facades/` directory
-   - If directory doesn't exist, create it
+   - Facades live at the module root: `Modules/{Module}/{FacadeName}.cs`
+   - (There is NO `Facades/` subdirectory in this codebase)
 
-2. **Create interface file**:
-   - Path: `Modules/{Module}/Facades/I{FacadeName}.cs`
-   - Empty interface extending IModuleFacade
+2. **Create interface + implementation in ONE file**:
+   - Path: `Modules/{Module}/{FacadeName}.cs`
+   - Interface `I{FacadeName} : IModuleFacade` at the top of the same file (see ToolFacade.cs)
    - Add XML documentation explaining purpose
 
-3. **Create implementation file**:
-   - Path: `Modules/{Module}/Facades/{FacadeName}.cs`
+3. **Implementation**:
    - Extend BaseFacade and implement I{FacadeName}
    - Inject only services (NO repositories, NO event bus)
    - Create private methods for IPC handlers
@@ -183,8 +182,7 @@ public async Task<bool> ImportModAsync(IpcRequest request)
 For: `/backend-facade ModFacade Mod IModLifecycleService,IModQueryService`
 
 Creates:
-- `Modules/Mod/Facades/IModFacade.cs`
-- `Modules/Mod/Facades/ModFacade.cs` (extends BaseFacade)
+- `Modules/Mod/ModFacade.cs` (IModFacade interface + implementation extending BaseFacade)
 - Updates `Modules/Mod/ModServiceExtensions.cs`
 
 ## Important Rules
@@ -203,6 +201,6 @@ Creates:
 ## Reference Examples
 
 Look at these existing facades for patterns:
-- `Modules/Mod/Facades/ModFacade.cs` - Thin facade that delegates to services
-- `Modules/Profile/Facades/ProfileFacade.cs` - Simple delegation pattern
-- `Modules/Workflow/Facades/WorkflowFacade.cs` - IPC parameter extraction
+- `Modules/Mod/ModFacade.cs` - Thin facade that delegates to services
+- `Modules/Profile/ProfileFacade.cs` - Simple delegation pattern
+- `Modules/Workflow/WorkflowFacade.cs` - IPC parameter extraction

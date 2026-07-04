@@ -1,7 +1,10 @@
 # AI Assistant Guide
 
-**Version:** 7.1
-**Last Updated:** 2026-04-13
+**Version:** 7.3
+**Last Updated:** 2026-07-05 (cleanup pass: StartupValidation tool + dead LAUNCH_GAME route removed;
+skill reference paths corrected; keywords/BACKEND.md + FRONTEND.md rewritten as compact indexes;
+CHANGELOG archived by month; APP_FACADE_REFACTORING.md archived — routing is MessageDispatcher →
+ProfileServiceRouter, there is no AppFacade)
 
 > Mandatory rules are in CLAUDE.md (auto-loaded). This file contains only unique reference content: the skills table, architecture quick-patterns, and documentation map.
 

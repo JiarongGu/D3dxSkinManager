@@ -3,7 +3,6 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Launch.Models;
 using D3dxSkinManager.Modules.Launch.Services;
-using D3dxSkinManager.Modules.Profiles.Services;
 using D3dxSkinManager.Modules.System.Services;
 
 namespace D3dxSkinManager.Modules.Launch;
@@ -21,7 +20,6 @@ public interface ILaunchFacade : IModuleFacade
     Task<bool> Launch3DMigotoAsync();
 
     // Game methods
-    Task<bool> LaunchGameAsync(string? customArgs = null);
     Task<bool> LaunchCustomProgramAsync(string programPath, string? arguments = null);
 
     // XXMI methods
@@ -40,21 +38,18 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
     private readonly I3DMigotoService _d3dMigotoService;
     private readonly IXxmiService _xxmiService;
     private readonly ISystemProcessService _processService;
-    private readonly IProfileService _profileService;
     private readonly IPayloadHelper _payloadHelper;
 
     public LaunchFacade(
         I3DMigotoService d3dMigotoService,
         IXxmiService xxmiService,
         ISystemProcessService processService,
-        IProfileService profileService,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
         _d3dMigotoService = d3dMigotoService ?? throw new ArgumentNullException(nameof(d3dMigotoService));
         _xxmiService = xxmiService ?? throw new ArgumentNullException(nameof(xxmiService));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
-        _profileService = profileService ?? throw new ArgumentNullException(nameof(profileService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -69,7 +64,6 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
             "LAUNCH_3DMIGOTO" => await Launch3DMigotoAsync(),
 
             // Game messages
-            "LAUNCH_GAME" => await LaunchGameAsync(request),
             "LAUNCH_CUSTOM" => await LaunchCustomProgramAsync(request),
 
             // XXMI messages
@@ -101,19 +95,6 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
     }
 
     // Game methods
-    public async Task<bool> LaunchGameAsync(string? customArgs = null)
-    {
-        var profile = await _profileService.GetActiveProfileAsync().ConfigureAwait(false);
-        if (profile == null)
-        {
-            throw new InvalidOperationException("No active profile found");
-        }
-
-        // TODO: Game launch configuration has been moved out of profile config
-        // Need to implement new game launch logic or store game path separately
-        throw new NotImplementedException("Game launch configuration is no longer stored in profile config. Feature needs to be reimplemented.");
-    }
-
     public async Task<bool> LaunchCustomProgramAsync(string programPath, string? arguments = null)
     {
         await _processService.LaunchProcessAsync(programPath, arguments, null).ConfigureAwait(false);
@@ -131,12 +112,6 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
     {
         var versionName = _payloadHelper.GetRequiredValue<string>(request.Payload, "versionName");
         return await DeployVersionAsync(versionName).ConfigureAwait(false);
-    }
-
-    private async Task<bool> LaunchGameAsync(IpcRequest request)
-    {
-        var customArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "arguments");
-        return await LaunchGameAsync(customArgs).ConfigureAwait(false);
     }
 
     private async Task<bool> LaunchCustomProgramAsync(IpcRequest request)

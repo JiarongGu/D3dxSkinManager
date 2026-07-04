@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-03-04
 **Status:** Current Implementation
-**Scope:** System overview and startup flow. For module boundaries → [DOMAIN_DESIGN.md](DOMAIN_DESIGN.md). For IPC routing → [APP_FACADE_REFACTORING.md](APP_FACADE_REFACTORING.md). For service registration → [SERVICE_REGISTRATION_ARCHITECTURE.md](SERVICE_REGISTRATION_ARCHITECTURE.md).
+**Scope:** System overview and startup flow. For module boundaries → [DOMAIN_DESIGN.md](DOMAIN_DESIGN.md). For service registration → [SERVICE_REGISTRATION_ARCHITECTURE.md](SERVICE_REGISTRATION_ARCHITECTURE.md).
 
 ## Overview
 
@@ -50,9 +50,11 @@ The application shows a minimal splash screen overlay while WebView2 compiles Ja
 ┌──────────────────────────┴──────────────────────────────────┐
 │                Backend (.NET 10 + WinForms)                  │
 ├─────────────────────────────────────────────────────────────┤
-│  ApplicationHost → IpcCommunicationHandler                   │
+│  ApplicationHost → IpcHandler (WebView2 bridge)              │
 │         ↓                                                    │
-│  MessageDispatcher → AppFacade (Top Router)                  │
+│  MessageDispatcher (middleware pipeline)                     │
+│         ↓                                                    │
+│  ProfileServiceRouter (module → profile-scoped facade)       │
 │         ↓                                                    │
 │  Module Facades → Services → Repositories                    │
 └─────────────────────────────────────────────────────────────┘
@@ -78,17 +80,9 @@ The application shows a minimal splash screen overlay while WebView2 compiles Ja
 ```
 
 ### Available Modules
-- **Core** - Shared infrastructure
-- **Context** - Profile-scoped services
-- **Mods** - Mod management
-- **Profiles** - Profile management
-- **Launch** - Game launching + D3DMigoto
-- **Tools** - Cache, validation, classification
-- **Settings** - Application settings
-- **System** - System utilities
-- **Plugins** - Plugin management
-- **Migration** - Python migration
-- **Warehouse** - Mod discovery (planned)
+
+See [MODULE_ARCHITECTURE.md](MODULE_ARCHITECTURE.md) for the full per-module list, status, and
+directory detail — this document stays high-level (system flow, IPC format, patterns).
 
 ## IPC Message Format
 
@@ -157,22 +151,22 @@ Use `CompactButton`, `CompactCard`, etc. from `shared/components/compact/` for c
 
 ## Backend Patterns
 
-### AppFacade (Top Router)
-```csharp
-public class AppFacade : IAppFacade {
-  public async Task<MessageResponse> HandleMessageAsync(MessageRequest request) {
-    var facade = GetFacadeByModuleName(request.Module);
-    return await facade.HandleMessageAsync(request);
-  }
+### IPC Routing (MessageDispatcher + ProfileServiceRouter)
 
-  private IModuleFacade? GetFacadeByModuleName(string moduleName) =>
-    moduleName.ToUpperInvariant() switch {
-      "MOD" => _modFacade,
-      "PROFILE" => _profileFacade,
-      // ... other modules
-      _ => null
-    };
-}
+There is no central "AppFacade" class. Routing is two pieces:
+
+- **`MessageDispatcher`** (`Modules/Core/Services/MessageDispatcher.cs`) — singleton middleware
+  pipeline; supports explicit `UseRoute(module, type, handler)` registrations and falls through to
+  the module-facade middleware.
+- **`ProfileServiceRouter`** (`Infrastructure/ProfileServiceRouter.cs`) — maps each module name to a
+  facade resolver over the **profile-scoped** service provider (`MapModule<TFacade>(moduleName, configureServices)`),
+  creates/caches per-profile providers, and runs profile DB migrations on first use.
+
+```csharp
+// Registration (per module)
+router.MapModule<IModFacade>("MOD", services => services.AddModsServices());
+
+// Dispatch: request.Module → profile-scoped provider → facade.HandleMessageAsync(request)
 ```
 
 ### Module Facade
@@ -203,7 +197,6 @@ public static IServiceCollection AddModsServices(this IServiceCollection service
 services.AddCoreServices();
 services.AddSettingsServices();
 services.AddProfileServices();
-services.AddSingleton<IAppFacade, AppFacade>();
 ```
 
 ## Plugin System
@@ -233,7 +226,7 @@ User Click → modService.loadMod(id)
     ↓
 { module: 'MOD', type: 'LOAD', payload: { id } }
     ↓
-IPC → AppFacade → ModFacade → ModService → ModRepository
+IPC → MessageDispatcher → ProfileServiceRouter → ModFacade → ModService → ModRepository
     ↓
 Response → IPC → Component Update
 ```
@@ -242,9 +235,9 @@ Response → IPC → Component Update
 
 ### Backend Module
 1. Create `Modules/NewModule/` folder
-2. Add facade interface & implementation
+2. Add facade interface & implementation (`Modules/NewModule/NewModuleFacade.cs`)
 3. Create service registration extension
-4. Register in AppFacade router
+4. Map the module in `ProfileServiceRouter` (`MapModule<INewModuleFacade>("NEWMODULE", ...)`)
 
 ### Frontend Module
 1. Create service extending BaseModuleService
@@ -262,6 +255,5 @@ Response → IPC → Component Update
 ## Related Documentation
 
 - [MODULE_ARCHITECTURE.md](MODULE_ARCHITECTURE.md) - Module details
-- [APP_FACADE_REFACTORING.md](APP_FACADE_REFACTORING.md) - Routing details
 - [DOMAIN_DESIGN.md](DOMAIN_DESIGN.md) - Domain boundaries
 - [FRONTEND_CONTEXT_ARCHITECTURE.md](FRONTEND_CONTEXT_ARCHITECTURE.md) - React context

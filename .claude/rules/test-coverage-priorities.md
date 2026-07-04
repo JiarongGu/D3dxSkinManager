@@ -48,8 +48,8 @@ ESM; vitest reuses Vite's esbuild pipeline so it "just works"). `tsconfig.json` 
 files from the build `tsc`, so test globals don't affect `npm run build`. The existing `jest.*` calls were
 converted to `vi.*` (no `requireActual` to worry about).
 
-**Current state:** `npm test` is GREEN — **99 passing**, 0 failing. The frontend verification gate is now
-`npx tsc --noEmit` + `npm test` + `npm run build` + visual (native `shot`).
+**Current state (2026-07-05):** `npm test` is GREEN — **192 passing, 0 skipped** (18 files). The frontend
+verification gate is `npx tsc --noEmit` + `npm test` + `npm run build` + visual (native `shot`).
 
 **Revived 2026-06-19:** `FindingsView.test` (9) — completed its antd stub (`Input`) + mocked `FormDialog`
 to a visible-gated stub. `workflowService.test` (6) — the failure was NOT stale assertions: the
@@ -77,6 +77,5 @@ effectiveTheme auto-resolution, data-theme) is a clean future task, not a reviva
 (2026-06-19, per user: *id-search is used internally a lot*): id matches **exactly** (full GUID, no
 substring noise) for both bare terms and the `id:` prefix — the tests were corrected to assert exact
 (`mod().id` is `'abc123'`, so `'abc'` must NOT match). Plus a real util fix: a standalone `'-'` (stray
-negation char) is now a no-op instead of a literal search term. Frontend suite: **168 passing, 0 skipped**.
-Plus 3 `it.skip` in `searchQueryParser.test` (id-field / lone-dash — decide whether the util *should*
-match `id` in an any-field search before un-skipping). `App.test.tsx` (CRA "learn react" boilerplate) was deleted.
+negation char) is now a no-op instead of a literal search term. The former 3 `it.skip` in
+`searchQueryParser.test` were resolved by that decision. `App.test.tsx` (CRA "learn react" boilerplate) was deleted.

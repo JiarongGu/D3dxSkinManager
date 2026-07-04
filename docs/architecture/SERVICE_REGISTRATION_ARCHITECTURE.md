@@ -29,7 +29,6 @@ public static IServiceCollection AddD3dxSkinManagerServices(
     // Profile-scoped services registered via ProfileServiceRouter
     // These are instantiated per-profile as needed
 
-    services.AddSingleton<IAppFacade, AppFacade>();
     services.AddPluginInfrastructure(dataPath);
 
     return services;
@@ -177,4 +176,4 @@ services.AddSingleton<IService, Service>();
 
 - [CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md) - System overview
 - [MODULE_ARCHITECTURE.md](MODULE_ARCHITECTURE.md) - Module structure
-- [APP_FACADE_REFACTORING.md](APP_FACADE_REFACTORING.md) - Facade patterns
+- [CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md) - IPC routing + facade patterns

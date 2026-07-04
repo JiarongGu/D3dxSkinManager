@@ -200,7 +200,8 @@ eventBus.subscribe(Module.MOD, ModEventType.MOD_LIST_UPDATED, handleModListUpdat
 
 ### 8. IPC Architecture
 
-**Decision:** Centralized AppFacade routes ALL frontend→backend communication
+**Decision:** ALL frontend→backend communication routes through one dispatch chain:
+`MessageDispatcher` (middleware pipeline) → `ProfileServiceRouter` (module → profile-scoped facade)
 
 **Message Format:**
 ```typescript
@@ -217,7 +218,7 @@ interface BridgeMessage {
 // Frontend sends
 { module: 'MOD', type: 'LOAD', profileId: 'abc', payload: { id: '...' } }
 
-// Backend routes through AppFacade → ModuleFacade → Service
+// Backend routes through MessageDispatcher → ProfileServiceRouter → ModuleFacade → Service
 ```
 
 ---
@@ -277,8 +278,8 @@ class ModService extends BaseModuleService {
 ```typescript
 // Container: Logic and state
 const ModListContainer = () => {
-  const { mods, loadMods } = useModData();
-  return <ModList mods={mods} onLoad={loadMods} />;
+  const { mods, loadAllMods } = useMods();
+  return <ModList mods={mods} onLoad={loadAllMods} />;
 };
 
 // Presentation: Pure UI

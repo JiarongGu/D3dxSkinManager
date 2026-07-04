@@ -88,8 +88,8 @@ Generates:
 ```
 
 Generates:
-- `features/mods/components/ModDetailsPanel.tsx` (component with hooks)
-- `features/mods/components/ModDetailsPanel.css` (BEM styles)
+- `modules/mod/components/ModDetailsPanel.tsx` (component with hooks)
+- `modules/mod/components/ModDetailsPanel.css` (BEM styles)
 - Updates parent `index.ts` (export)
 
 ## How Skills Work

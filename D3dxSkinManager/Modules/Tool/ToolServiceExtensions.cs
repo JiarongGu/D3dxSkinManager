@@ -9,7 +9,7 @@ namespace D3dxSkinManager.Modules.Tool;
 
 /// <summary>
 /// Service registration extensions for Tools module
-/// Registers cache, Category, validation services and facade
+/// Registers cache, cleanup, analysis, fix and screen-capture services and facade
 /// </summary>
 public static class ToolServiceExtensions
 {
@@ -20,11 +20,8 @@ public static class ToolServiceExtensions
     {
         Console.WriteLine("[ToolsFacade] Registering Tools services (profile-scoped)...");
 
-        // Register configuration service (required by validation and D3DMigoto) - using profile paths
+        // Register configuration service (required by D3DMigoto and migration) - using profile paths
         services.TryAddSingleton<IConfigurationService, ConfigurationService>();
-
-        // Register validation service
-        services.TryAddSingleton<IStartupValidationService, StartupValidationService>();
 
         // Register screen capture services
         services.TryAddSingleton<IScreenCaptureProfileRepository, ScreenCaptureProfileRepository>();

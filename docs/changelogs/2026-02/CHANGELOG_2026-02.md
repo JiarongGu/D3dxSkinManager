@@ -1,0 +1,362 @@
+# Changelog — late February 2026 (02-20 → 02-26)
+
+> Archived from `docs/CHANGELOG.md` on 2026-07-05. Entries below are verbatim.
+
+### Refactored - 2026-02-26 - Classification → Category: Major Module Refactoring ⭐⭐⭐⭐⭐
+Complete refactoring from "Classification" to "Category" terminology across the entire codebase, separating Category module from Mods module, implementing IMemoryCache for performance, and fixing migration system.
+**Impact**: ✅ Clearer terminology, better module separation, improved performance with caching, all tests passing (24/24)
+**Module Changes**:
+- **Separated Category Module**: Extracted from `Modules/Mods` to `Modules/Category`
+  - New namespace: `D3dxSkinManager.Modules.Category`
+  - Services: `CategoryService`, `CategoryRepository`, `CategoryFacade`
+  - Models: `CategoryInfo`
+  - Tests: `CategoryServiceTests` (11 unit tests), `CategoryRepositoryTests` (14 integration tests)
+- **Renamed Mods → Mod**: Singular naming convention across all modules
+  - `D3dxSkinManager.Modules.Mod` (was `Modules.Mods`)
+  - All modules now use singular names: Mod, Category, Plugin, Tool, Setting
+**Performance Improvements**:
+- **IMemoryCache Integration**: Replaced manual cache with Microsoft.Extensions.Caching.Memory
+  - Profile-specific cache keys: `CategoryTree_{profileId}`
+  - Automatic cache invalidation on updates (no more manual `RefreshTreeAsync`)
+  - 5-minute sliding expiration
+  - Singleton cache shared across profile-scoped services
+- **Removed RefreshTreeAsync**: Cache invalidation handles tree updates automatically
+**Frontend Changes**:
+- Translation keys: `t('Category.xxx')` → `t('category.xxx')`
+- CSS classes: `.Category-*` → `.category-*`
+- Service methods: `createNode` → `createCategory`, `updateNode` → `updateCategory`
+- Variable names: All "node" references changed to "category"
+**Backend Changes**:
+- Method renames: `MapToNode` → `MapToCategory`, `MoveNodeAsync` → `MoveCategoryAsync`
+- Comments updated: "node" → "category" throughout
+- CreateAsync pattern: Now accepts pre-generated GUIDs for better transaction control
+**Migration Fixes**:
+- Fixed directory path: `"Category"` → `"classification"` (matches Python source)
+- Fixed variable naming: `categoryNames` properly used as `List<string>`
+- Fixed parent ID assignment when category already exists
+- Parser: `IPythonCategoryFileParser` reads `classification/` directory
+**Test Coverage**:
+- CategoryServiceTests: 11 unit tests (GUID generation, name uniqueness, CRUD operations, cache invalidation)
+- CategoryRepositoryTests: 14 integration tests (SQLite operations, hierarchical queries, batch operations)
+- All 24 tests passing with proper async/await, FluentAssertions, and mocking
+**Files Changed**: 100+ files across backend (C#), frontend (TypeScript), tests, and documentation
+**Pattern**: Singular module naming, IMemoryCache for caching, pre-generated GUIDs, comprehensive test coverage
+**Documentation**: Updated CATEGORY_SYSTEM.md, MIGRATION_PARSER_ARCHITECTURE.md, architecture docs
+
+### Added - 2026-02-25 - Strong Typing: Module-Matched Event Types & Removed Legacy Operation System ⭐⭐⭐⭐
+Enhanced event subscription with module-to-event-type matching, preventing mismatched module/event combinations at compile-time. Removed obsolete operation notification system (replaced by TaskQueue).
+**Impact**: ✅ Impossible to use wrong event types with modules, removed ~400 lines of unused code, cleaner architecture
+**TypeScript Type Safety**:
+- **ModuleEventTypeMap**: Maps each module to its valid event type enum
+- **useEventSubscription**: Now enforces `T extends ModuleEventTypeMap[M]` - event type MUST match the module
+- **Compile-time errors**: Prevents `Module.MOD` with `TaskQueueEventType`, prevents string literals
+- **IntelliSense support**: IDE autocomplete shows only valid event types for each module
+**Removed Legacy System**:
+- Deleted `OperationContext.tsx` - replaced by TaskQueue system
+- Deleted `operation.types.ts` - no longer needed
+- Deleted `OperationMonitorScreen.tsx` - functionality in TaskQueue
+- Deleted `OPERATION_NOTIFICATION_SYSTEM.md` - obsolete documentation
+- Removed `OperationProvider` from App.tsx
+- Removed operation-based status bar props (operationName, activeOperationCount, onProgressClick)
+- Removed operation monitor keyboard shortcut (Ctrl+Shift+O)
+**Type Safety Examples**:
+```typescript
+// ✅ CORRECT: Module.MOD requires ModEventType
+useEventSubscription(Module.MOD, ModEventType.REFRESHED, () => { ... });
+
+// ❌ WRONG: String literal - TypeScript error
+useEventSubscription(Module.MOD, 'REFRESHED', () => { ... });
+
+// ❌ WRONG: Mismatched module/type - TypeScript error
+useEventSubscription(Module.MOD, TaskQueueEventType.PROGRESS, () => { ... });
+```
+**Files**: eventBus.ts (+ModuleEventTypeMap), useEventSubscription.ts, App.tsx, OPERATION_NOTIFICATION_SYSTEM.md (deleted), OperationContext.tsx (deleted), operation.types.ts (deleted), OperationMonitorScreen.tsx (deleted)
+**Pattern**: Compile-time type safety over runtime checks, TaskQueue system for progress tracking
+**Documentation**: Updated AI_GUIDE.md with ModuleEventTypeMap examples
+
+### Refactored - 2026-02-25 - Event System: Module + Type Pattern & Handler-Centric Performance Cache ⭐⭐⭐⭐⭐
+Completely refactored event system to use Module + Type pattern (matching IpcRequest structure), implemented handler-centric lazy caching for optimal performance, and removed all CUSTOM_EVENT usage for explicit type safety.
+**Impact**: ✅ Consistent architecture across IPC/Events, O(1) cached lookups, thread-safe with ConcurrentDictionary, full TypeScript type safety
+**Architecture Changes**:
+- **Module + Type Pattern**: Events now have separate `Module` and `Type` fields (e.g., `MOD` + `LOADED` instead of `"MOD_LOADED"`)
+- **No Module Prefixes**: Event type constants have NO module prefix (`LOADED` not `MOD_LOADED`, `PROGRESS` not `TASK_PROGRESS`)
+- **Handler-Centric Cache**: `ConcurrentDictionary<HandlerId, ConcurrentDictionary<EventId, bool>>` for lazy evaluation
+- **CUSTOM_EVENT Removed**: Every event now has explicit module and type
+**Backend Changes**:
+- EventMessage: Refactored from `{EventType, EventName, Data}` to `{Id, Module, Type, Payload, Timestamp}`
+- EventBus: Changed from 1-parameter to 2-parameter registration `RegisterHandler(modulePattern, typePattern, handler)`
+- EventBus: Handler-centric cache with no invalidation on registration, single TryRemove on unregistration
+- ModuleNames.cs: Created centralized module name constants (CORE, MOD, TASK_QUEUE, DROP_ZONE, etc.)
+- Event constants: Removed module prefixes from all event types (ModEvents.LOADED, TaskQueueEvents.PROGRESS, DropZoneEvents.CLICK)
+- IpcCommunicationHandler.SendNotification: Changed signature to `(module, type, payload)` from `(type, data)`
+- EventBusIpcBridge: Updated to call SendNotification with module and type at top level
+- DropZoneOverlay: Updated all 6 event emissions to use Module + Type pattern
+- ProfileEvents, MigrationEvents, ToolsEvents: Replaced CUSTOM_EVENT with explicit event types
+- Removed: ContextEvents.cs (duplicate), PluginEvents.cs (plugins use dynamic names)
+**Frontend Changes**:
+- Event interface: Changed from `{type, data}` to `{module, type, payload}`
+- Module enum: Added separate Module enum with all module names
+- Event type enums: Separate enums per module (SystemEventType, ModEventType, TaskQueueEventType, etc.)
+- EventPayloadMap: Type-safe payload mapping for compile-time checking
+- eventBus.subscribe: Changed to 2-parameter `(module, type, handler)` from `(type, handler)`
+- bridgeService: Updated to extract `{module, type, payload}` from top level (not nested in data)
+- All components: Updated to use Module + specific event type enums
+**Performance Optimization**:
+- Cache Structure: Handler → (Event → matches: bool) enables lazy evaluation
+- First emit: Pattern matching + cache store per handler
+- Subsequent emits: O(1) cache lookup per handler
+- Registration: Create empty cache (no iteration/invalidation)
+- Unregistration: Single TryRemove operation
+- Thread-safe: All operations use ConcurrentDictionary
+**Files**: EventBus.cs, EventMessage.cs, EventEmitter.cs, ModuleNames.cs, EventBusIpcBridge.cs, IpcCommunicationHandler.cs, DropZoneOverlay.cs, ModEvents.cs, TaskQueueEvents.cs, ProfileEvents.cs, MigrationEvents.cs, ToolsEvents.cs, SettingsEvents.cs, ModFacade.cs, TaskQueueService.cs, ProfileFacade.cs, MigrationFacade.cs, ToolsFacade.cs, eventBus.ts, bridgeService.ts, useEventSubscription.ts
+**Pattern**: Module + Type consistency across IPC/Events, lazy handler-centric caching, explicit types over CUSTOM_EVENT
+**Documentation**: Updated AI_GUIDE.md with complete event system patterns, EventBus performance details, Module + Type examples
+
+### Refactored - 2026-02-25 - ModFacade Cleanup: Remove Obsolete Message Types and Add Clipboard Check ⭐⭐⭐
+Removed legacy pre-classification and unused message types, migrated to modern classification tree system, and added clipboard image validation to prevent errors.
+**Impact**: ✅ 25.3% ModFacade size reduction (1,208→902 lines), cleaner architecture, better UX for paste operations
+**Removed Message Types**:
+- `GET_BY_OBJECT`, `GET_OBJECT_NAMES` - Legacy pre-classification methods (replaced by hierarchical classification tree)
+- `REFRESH_CLASSIFICATION_TREE` - Moved to direct service dependency in MigrationFacade (eliminates facade-to-facade coupling)
+- `REORDER_CLASSIFICATION_NODE` - Unused message handler
+**Added Features**:
+- `CHECK_CLIPBOARD_HAS_IMAGE` - Backend clipboard validation using STA threading
+- Disabled "Paste from Clipboard" menu item when no image present (prevents error logs)
+**Backend Changes**:
+- ImageService: Added `CheckClipboardHasImageAsync()` method
+- MigrationFacade: Injected `IClassificationService` directly instead of calling `ModFacade.RefreshClassificationTreeAsync()`
+- Removed obsolete methods from `IModFacade` interface
+- Removed 3 obsolete unit tests (~52 lines)
+**Frontend Changes**:
+- BatchEditDialog: Migrated from `modService.getObjectNames()` to `classificationService.getClassificationTree()` with `getAllLeafNodes()`
+- ModPreviewPanel: Added async clipboard check on context menu open, disable paste when clipboard empty
+- modService: Removed `getModsByObject()` and `getObjectNames()`, added `checkClipboardHasImage()`
+**Architecture Improvement**: Direct service dependencies where appropriate (MigrationFacade → ClassificationService) instead of facade-to-facade calls
+**Files**: ModFacade.cs, ImageService.cs, MigrationFacade.cs, ModFacadeTests.cs, modService.ts, BatchEditDialog/index.tsx, ModPreviewPanel.tsx
+**Pattern**: Thin facade for IPC routing, rich service layer for business logic, STA threading for Windows clipboard access
+
+### Added - 2026-02-25 - Comprehensive Tag Management System with Color Customization ⭐⭐⭐⭐
+Implemented a complete tag management system with master Tags table, color customization, real-time synchronization, and intelligent color pre-generation.
+**Impact**: ✅ Professional tag organization, theme-aware styling, optimized performance (eliminated N+1 queries), consistent UX
+**Architecture**:
+- **Two-table system**: Tags table (master with colors) + Mods.Tags (JSON array references)
+- **Centralized color management**: `tagColorsMap` state shared across MultiTagInput and TagManagementDialog
+- **Pre-generation**: Random colors assigned when typing new tags, saved to database on mod save
+- **Bulk loading**: `PopulateTagMetadataBulkAsync()` loads all tag colors with mod list (eliminates N+1 queries)
+**Backend** (C#):
+- New `Tag` model with name, color, timestamps
+- `TagRepository` with CRUD operations, search, usage tracking
+- `ModFacade.PopulateTagMetadataBulkAsync()` for bulk tag metadata loading
+- `ModInfo.TagsWithMetadata` property for pre-loaded tag colors
+- IPC handlers: `GET_ALL_TAGS`, `UPSERT_TAG`, `DELETE_TAG`
+**Frontend** (React/TypeScript):
+- **TagManagementDialog**: Visual tag selector with color picker, delete, theme-aware borders, consistent UI (always show controls)
+- **TagChip**: Reusable colored tag component with default fallback styling
+- **MultiTagInput**: Autocomplete with instant color feedback, pre-generates colors for new tags
+- **Color palette**: 10 theme-compatible colors matching backend
+- **Real-time sync**: Color changes in dialog immediately reflected in input
+- **Smart save**: Only saves to database for existing tags (deferred save for new tags)
+**UX Improvements**:
+- Debounced color saves (500ms) to reduce database writes
+- Tags show "+x more" when exceeding display limit
+- Compact grid layout for tag management dialog
+- Border radius reduced from 10px to 4px (less round, more modern)
+- Theme-aware borders: light (#d9d9d9) / dark (#424242) for unselected state
+- Deleted tags automatically removed from autocomplete
+**Files**: TagRepository.cs, ModFacade.cs, ModInfo.cs, TagMetadata.cs, TagManagementDialog.tsx/css, TagChip.tsx/css, MultiTagInput.tsx/css, ModList.tsx/css, ModEditScreen.tsx, TagsSection.tsx, BatchEditDialog/index.tsx, modService.ts, SettingsView.tsx, mod.types.ts, en.json
+**Dependencies**: lodash-es (for debounce utility with tree-shaking)
+**Pattern**: Frontend manages color palette; backend stores colors; centralized state via tagColorsMap
+
+### Refactored - 2026-02-25 - Remove Debug Console Logs from Frontend ⭐⭐
+Cleaned up all debug console.log statements throughout the frontend codebase.
+**Impact**: ✅ Cleaner console output, better production readiness, preserved intentional logging
+**Changes**:
+- Removed 37 debug console.log statements from 12 files
+- Preserved console.error, console.warn, console.info for production logging
+- Preserved logger.ts implementation (uses console.log internally)
+**Files**: useDropZone.ts (13 logs), AppInitializer.tsx (8 logs), ClassificationScreen.tsx (5 logs), CompactUpload.tsx (3 logs), GameLaunchTab.tsx (2 logs), and 7 others
+**Pattern**: Use logger utility for structured logging instead of raw console.log
+
+### Fixed - 2026-02-25 - ModEditScreen Form Initialization and Dropdown Styling ⭐⭐
+Fixed form not populating with initial values when editing mods and improved tag dropdown styling.
+**Impact**: ✅ Form fields now properly initialize with mod values, tag dropdown has better dark theme appearance
+**Changes**:
+- ModEditFormContent now accepts `mod` as prop for initialization (follows `undefined` convention, not `null`)
+- Simplified initialization logic - triggers when `mod` prop is available
+- Removed unnecessary `useStableRef` usage
+- Enhanced MultiTagInput dropdown: darker background, subtle selection highlight, 1px gaps between items
+- Removed debug console.log statements
+**Pattern**: useSlideInScreen captures content once - pass initial values as props, manage changing state internally
+**Files**: ModEditScreen.tsx, TagsSection.tsx, MultiTagInput.css
+**Docs**: Updated AI_GUIDE.md Slide-In Screen Pattern section with clarification on passing initial value props
+
+### Fixed - 2026-02-24 - Classification-Filtered Mod List Refresh After Deletion ⭐⭐⭐
+Fixed mod list not refreshing properly when deleting a mod while viewing a classification. Now refreshes both the main mod list and the classification-filtered mods list.
+**Impact**: ✅ Deleted mods immediately disappear from both lists, UI stays in sync with backend state
+**Component**: ModsContext.tsx - deleteMod now refreshes classification-filtered mods when a classification is selected
+**Pattern**: Follows same refresh logic as handleModsRefreshAfterCategoryChange in ModHierarchicalView
+
+### Fixed - 2026-02-24 - Migration & Classification Integrity Improvements ⭐⭐⭐⭐
+Fixed critical migration issues and improved data integrity for classification tree.
+**Impact**: ✅ Idempotent migration, proper ID-based references, orphaned node handling
+**Migration Changes**:
+- Step 3 now checks database for existing classifications by name (won't create duplicates)
+- Step 5 queries database for classification ID by object name (no in-memory mapping)
+- Mods now store classification IDs instead of names for referential integrity
+- Auto-detection rules use classification IDs
+- Both steps are idempotent (safe to re-run)
+**Classification Service**:
+- Orphaned classifications (invalid parentId) now treated as root nodes
+- Unclassified mods detection includes invalid category IDs
+- Added `draggable` attribute to ModList items for drag-and-drop
+**Frontend**:
+- Fixed CompleteStep.css colors for light theme (was using hardcoded white)
+- EventBusIpcBridge now uses BeginInvoke (non-blocking UI thread marshaling)
+**Files**: MigrationStep3MigrateClassifications.cs, MigrationStep5MigrateModArchives.cs, ClassificationService.cs, ModQueryService.cs, CompleteStep.css, IpcCommunicationHandler.cs
+**Removed**: NotificationService (replaced with EventBus pattern)
+**Docs**: Updated MIGRATION_ARCHITECTURE.md and TROUBLESHOOTING.md with idempotency and orphaned node handling
+
+### Documentation - 2026-02-23 - Massive Documentation Cleanup ⭐⭐⭐⭐⭐
+Aggressive optimization for AI code generation efficiency.
+**Impact**: ✅ 70%+ reduction, focused purely on code generation patterns
+**Removed:** 7 folders, 32+ obsolete/redundant files
+**Optimized:** WORKFLOWS (803→329), DEVELOPMENT (843→179), DESIGN_DECISIONS (874→372),
+OPERATION_NOTIFICATION (880→292), GUIDELINES (780→388)
+**Final:** 43 files (was 75+), estimated <10K lines (was ~35K)
+
+### Refactored - 2026-02-23 - Complete Data Layer null → undefined Migration ⭐⭐⭐⭐
+Comprehensively migrated entire frontend data layer from `null` to `undefined` for absent values while preserving React's `null` for component semantics. This addresses JavaScript/TypeScript best practices where `undefined` is the natural "absence of value".
+**Impact**: ✅ Type-safe data layer, clearer semantics, eliminates null vs undefined confusion
+**Scope**:
+- Services (11 files): classificationService, profileService, modService, languageService, profileConfigService, launchService, migrationService, imageUrlHelper, notification, baseModuleService, etc.
+- Hooks (4 files): useDelayedLoading, useDragDrop, useOptimisticUpdate, useStableRef
+- Contexts (3 files): ProfileContext, OperationContext, AppInitializer
+- Components (9 files): ModsContext, ClassificationTree, ModList, ModHierarchicalView, ClassificationPanel operations, etc.
+- I18n system: Updated to use undefined for missing translations
+**Total**: 26 files with 146 insertions and 122 deletions
+**Key improvements**:
+- baseModuleService now auto-converts backend `null` to frontend `undefined`
+- All service return types: `Promise<T | null>` → `Promise<T | undefined>`
+- All data state: `Data | null` → `Data | undefined`
+- Preserved `null` for: React component returns (`return null;`), DOM refs (`useRef<HTMLElement>(null)`), conditional rendering
+- Backend compatibility maintained through automatic null/undefined conversion
+**Guideline**: AI_GUIDE.md clearly distinguishes - `undefined` for data layer, `null` for React/DOM requirements
+
+### Fixed - 2026-02-23 - Classification Tree Empty Container Context Menu
+Fixed right-click context menu not appearing on empty classification tree container.
+**Impact**: ✅ Users can now add root classifications when tree is empty via right-click
+**Component**: ClassificationTree.tsx - Changed null to empty string for consistency
+
+### Improved - 2026-02-23 - Classification Category Name Display ⭐⭐⭐
+Mod list now displays human-readable category names instead of GUIDs. Optimized refresh logic to only update when necessary using node relationship checks.
+**Impact**: ✅ User-friendly category display, efficient updates, follows useDelayedLoading pattern
+**Backend**: ModFacade.PopulateCategoryNamesBulkAsync maps IDs to names
+**Frontend**: Smart refresh - only when name changes AND (current node OR descendant)
+
+### Fixed - 2026-02-23 - First Boot & Context Menu Issues ⭐⭐
+Fixed three critical UX issues: Lazy<T> re-entrancy error on first boot, context menu not appearing on empty classification panel, and context menu not working on empty whitespace in tree.
+**Impact**: ✅ Application boots successfully on first run, context menus work consistently
+**Backend**: ProfileService - Created internal CreateProfileInternalAsync() to break circular dependency
+**Frontend**: ClassificationTree - Fixed visibility logic (null vs undefined) and moved handler to outer container
+
+### Simplified - 2026-02-23 - Logging System Architecture & DI Container ⭐⭐⭐⭐
+Simplified logging initialization and removed unnecessary ServiceContainer wrapper. AppEnvironment reads log level from GlobalSettingsService on startup, eliminating complex initialization logic. Replaced ServiceContainer with direct ServiceCollection usage.
+**Impact**: ✅ Cleaner architecture, removed ~80 lines of unnecessary code, simpler DI setup
+**Components**: AppEnvironment.cs (simplified ReadLogLevel), removed ServiceContainer.cs, ApplicationHost uses ServiceCollection directly
+**Frontend**: Improved log level option labels (All → Debug → Info → Warn → Error → Off)
+
+### Implemented - 2026-02-23 - Global Settings Log Level Integration ⭐⭐⭐
+Integrated backend C# log level control with global settings. GlobalSettingsService now applies log level changes to LogHelper immediately when updated from UI.
+**Impact**: ✅ Dynamic log level control from settings, no restart needed, supports all/debug/info/warning/error/off
+**Components**: GlobalSettingsService.cs, GlobalSettings.cs
+**How it works**: Settings UI → SettingsFacade → GlobalSettingsService.UpdateSettingAsync → LogHelper.MinimumLevel updated
+
+### Improved - 2026-02-22 - Simplified Centralized Logging ⭐⭐⭐⭐
+Reorganized logging to use centralized `data\logs` directory with simple log level-based files. Daily rotation, uses GlobalPathService for path management.
+**Impact**: ✅ Simple and maintainable, easier troubleshooting, level-based log files with daily rotation
+**Structure**: `data\logs\{level}-{date}.log` (debug, info, warning, error) plus combined `all-{date}.log`
+**Documentation**: [architecture/LOGGING_ARCHITECTURE.md](architecture/LOGGING_ARCHITECTURE.md)
+
+### Added - 2026-02-22 - Log Level Configuration ⭐⭐⭐
+Implemented configurable log levels based on environment. Development shows Info+, Production shows Warning+. Debug logs filtered by default to reduce console noise.
+**Impact**: ✅ Cleaner console output, configurable via D3DX_LOG_LEVEL env var, automatic environment detection
+**Components**: LogHelper.cs, AppEnvironment.cs, ApplicationBootstrapper.cs
+
+### Optimized - 2026-02-22 - WinForms UI Performance Improvements ⭐⭐⭐⭐
+Implemented double buffering, GPU acceleration enhancements, performance monitoring. Created OptimizedForm class, enhanced WebView2 settings, added IPerformanceMonitor service.
+**Impact**: ✅ Smoother UI rendering, no flicker, better responsiveness, performance metrics tracking
+**Components**: OptimizedForm.cs, ApplicationHost.cs, WebViewInitializer.cs, PerformanceMonitor.cs
+
+### Fixed - 2026-02-22 - Comprehensive Code Quality Improvements ⭐⭐⭐⭐
+Fixed Console.WriteLine usage (5 Infrastructure files → ILogger), NotImplementedException (2 files → graceful returns), frontend services (3 services → extend BaseModuleService).
+**Impact**: ✅ Consistent logging, no runtime exceptions, uniform service architecture
+**Details**: changelogs/2026-02/2026-02-22-comprehensive-code-review.md *(archived)*
+
+### Refactored - 2026-02-22 - Frontend Architecture Improvements & Critical Fixes ⭐⭐⭐⭐⭐
+Major frontend refactoring based on comprehensive code review (152 files analyzed). Fixed critical architectural issues and anti-patterns.
+**Fixed**: SettingsService and SettingsFileService now extend BaseModuleService, removed window.location.reload anti-pattern, added i18n to ProfileSwitcher
+**Impact**: ✅ Consistent service architecture, proper state management, no page reloads on profile switch
+**Components**: settingsService.ts, settingsFileService.ts, ProfileSwitcher.tsx
+
+### Cleaned - 2026-02-22 - Frontend Code Cleanup & Obsolete Archive Removal ⭐⭐⭐
+Comprehensive frontend review and cleanup. Removed unused demo component (174 lines), deprecated Photino type aliases, and 6 obsolete archive files/folders (~2,053 lines).
+**Impact**: ✅ Cleaner codebase, reduced maintenance burden, faster navigation
+**Removed**: SlideInScreenDemo.tsx, PhotinoMessage/PhotinoResponse aliases, 4 archive docs, 2 archive folders
+
+### Updated - 2026-02-22 - Documentation Cleanup: Photino → WebView2 References ⭐⭐⭐
+Comprehensive documentation update across all files. Updated 19+ documentation files to reflect WebView2 migration: changed Photino.NET references to WebView2, photinoService → bridgeService, IPC transport details.
+**Impact**: ✅ Accurate documentation for new architecture
+**Files**: README.md, CURRENT_ARCHITECTURE.md, HOW_TO.md, BACKEND.md, FRONTEND.md, DEVELOPMENT.md, PROJECT_OVERVIEW.md, PROJECT_STRUCTURE.md, GUIDELINES.md, WORKFLOWS.md, INTERNATIONALIZATION.md
+
+### Optimized - 2026-02-22 - CustomSchemeHandler & File Dialog Performance ⭐⭐⭐⭐
+Optimized CustomSchemeHandler with LRU cache (500 items), content type caching, 4KB buffer streaming. Fixed SystemFileDialogService 2-5 second delay by reusing main UI thread.
+**Impact**: ✅ Faster image loading, instant file dialogs, no memory leaks
+**Components**: CustomSchemeHandler.cs, LruCache utility, SystemFileDialogService.cs
+
+### Migrated - 2026-02-22 - Photino.NET → WinForms + WebView2 ⭐⭐⭐⭐⭐
+Complete migration from Photino.NET to WinForms + WebView2 architecture. New composition layer, middleware pipeline with Lazy<T> caching, profile-scoped services, GPU acceleration.
+**Impact**: ✅ Better Windows integration, performance optimizations, standard WebView2 API
+**Details**: docs/technical/winforms-webview2-migration.md *(archived)*
+
+### Added - 2026-02-21 - Classification Management with SHA-256 Thumbnail Deduplication ⭐⭐⭐⭐⭐
+Complete "Add Classification" feature with thumbnail support, SHA-256 deduplication, IPC-based validation, and file lock detection. FileTransferService for reusable file copying.
+**Impact**: ✅ Create classifications with thumbnails, automatic deduplication, duplicate prevention, file lock error handling
+**Details**: changelogs/2026-02/2026-02-21-classification-thumbnail-management.md *(archived)*
+
+### Added - 2026-02-21 - Complete Internationalization (i18n) System ⭐⭐⭐⭐⭐
+Implemented comprehensive bilingual support (English + Chinese) with react-i18next. 507 translation keys per language, 16 components internationalized, flat JSON structure.
+**Impact**: ✅ Full bilingual support, easy to add more languages
+**Docs**: [features/INTERNATIONALIZATION.md](features/INTERNATIONALIZATION.md), [how-to/ADD_I18N_TO_COMPONENT.md](how-to/ADD_I18N_TO_COMPONENT.md)
+
+### Added - 2026-02-21 - Category-Based Mod Loading with Error Handling ⭐⭐⭐⭐⭐
+Auto-unload conflicting mods, comprehensive error code system (backend + frontend), user-friendly error messages for all scenarios.
+**Impact**: ✅ No mod conflicts, clear error guidance
+**Details**: changelogs/2026-02/2026-02-21-category-based-loading-error-handling.md *(archived)*
+
+### Added - 2026-02-21 - Operation Notification System ⭐⭐⭐⭐⭐
+Complete backend → frontend push notification system for real-time progress tracking (0-100%). Status bar integration + operation monitor screen (Ctrl+Shift+O).
+**Impact**: ✅ Real-time progress visibility, operation history (last 50)
+**Details**: changelogs/2026-02/2026-02-21-operation-notification-system.md *(archived)*
+
+### Refactored - 2026-02-21 - Declarative Drag & Drop API + Service Layer ⭐⭐⭐⭐⭐
+Completely refactored `useDragDrop` with clean declarative API. Auto data extraction, object parameters, ~75% less boilerplate. Added `classificationService` abstraction layer.
+**Impact**: ✅ Type-safe, cleaner code, consistent UX
+**Details**: changelogs/2026-02/2026-02-21-drag-drop-api-improvements.md *(archived)*
+
+### Fixed - 2026-02-21 - Classification Tree "Drop Into" Easier to Trigger ⭐⭐⭐⭐
+Fixed difficult-to-trigger "drop into" mode. Implemented native DOM drag detection with 15% edges / 70% middle zones (was 25%/50%).
+**Impact**: ✅ Much easier to create child nodes
+**Details**: changelogs/2026-02/2026-02-21-classification-tree-drag-drop-fix.md *(archived)*
+
+### Fixed - 2026-02-21 - Status Bar Mod Count Updates ⭐⭐⭐⭐
+Fixed status bar not updating on load/unload or category changes. Unified mod state by moving `ModsProvider` to app-level. Removed duplicate `useModData` hook.
+**Impact**: ✅ Real-time mod state from single source of truth
+**Bundle Size**: 470.71 KB
+
+### Refactored - 2026-02-20 - Delayed Loading Pattern ⭐⭐⭐⭐
+Replaced complex `useOptimisticUpdate` verification with simpler `useDelayedLoading`. Eliminated UI flicker, reduced code by ~250 lines and bundle size by ~1KB.
+**Impact**: ✅ Clearer architecture, faster builds, no flicker
+**Details**: changelogs/2026-02/2026-02-20-delayed-loading-refactoring.md *(archived)*, [features/DELAYED_LOADING_UX_PATTERN.md](features/DELAYED_LOADING_UX_PATTERN.md)
+
+---
+

@@ -239,11 +239,10 @@ private async Task CopyDirectoryRecursiveAsync(string sourceDir, string destDir)
 ---
 
 ### Tools Module
-**Purpose**: Utility services for configuration, validation, and auto-detection
+**Purpose**: Utility services for configuration and auto-detection
 
 **Services:**
 - `ConfigurationService` - Application configuration management
-- `StartupValidationService` - Startup validation checks
 - `ModAutoDetectionService` - Auto-detect mod object names
 
 **Dependencies:**
@@ -252,7 +251,7 @@ private async Task CopyDirectoryRecursiveAsync(string sourceDir, string destDir)
 
 **Used By:**
 - Migration Module (for configuration migration)
-- Frontend (for validation and auto-detection)
+- Frontend (for auto-detection)
 
 **Key Rules:**
 - ✅ Use `ConfigurationService` for all config operations

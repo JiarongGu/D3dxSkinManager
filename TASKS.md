@@ -9,7 +9,11 @@
 > the app. The app is the **compressed mod library + organize + fix + edit + deploy**; **XXMI is the
 > runtime** (injects 3DMigoto, launches the game). We complement XXMI, never reimplement it.
 
-Last consolidated: 2026-06-18.
+Last consolidated: 2026-07-05. This file holds only PENDING work — shipped features live in git
+history + `docs/CHANGELOG.md`. (Shipped this last stretch and verified in code: XXMI settings
+integration, per-profile fix-tool settings, single-file archive patch, keybinding editor, `.ini`
+config editor, fix diff-persistence, onboarding wizard, mod-card clarity, mod health badge,
+namespace-based mod-merge v2 — the GIMI-port v1 `MergeIniBuilder` was superseded and removed.)
 
 ---
 
@@ -30,139 +34,135 @@ Last consolidated: 2026-06-18.
   Authoritative reference: `leotorrez.github.io/modding/docs/*` (scrape via `devtools/dev.mjs research`,
   it's a JS SPA). Interface notes + the mod-merge/namespace contract live in
   `.claude/rules/3dmigoto-ini-interface.md`.
+- **Long ops are fire-and-forget** — never `await` a slow op in an IPC handler (bridge times out, UI
+  freezes). Kick off in background, report via `ProcessRegistry` → status bar + Activity panel. See
+  `.claude/rules/background-task-tracking.md`.
 
 ---
 
-## Recently shipped (this stretch)
+## Bugs / UX fixes (user-reported 2026-07-05, code-calibrated)
 
-- **XXMI integration in Settings** ✅ — 3-value work mode (internal/external/xxmi); importer list
-  **discovered from disk** (scan the XXMI root for importer markers, enriched by config); one pick sets
-  deploy dir + launcher path. Launch via status-bar button. Launch tab removed.
-- **Per-profile fix-tool settings** ✅ — `ModFixService` reads `config.FixTools` at run time (python path
-  +Detect, timeout, extensions, auto-confirm); `FixToolSettingsCard` with per-section save/reset.
-- **Single-file archive patch** ✅ — `UpdateFileInArchive` planner op + `ArchiveHelper` append-replace
-  (proven not-duplicate). ~143ms vs ~2.5s. Foundation for fast `.ini`/keybinding/fix writes.
-- **Keybinding editor** ✅ — chord capture (combo + `no_` defaults, recording indicator), rebind written
-  back via the fast patch. `CompactIconButton` atom (tone-border hover).
-- **General config (`.ini`) editor** ✅ — `ModIniService` parses every `.ini` → sections → entries,
-  classifies editable (`[Key*]`/`[Constants]`) vs read-only (hash/override/resource/shader/command);
-  parses `namespace`; one-value write-back via the fast patch with a **server-side read-only guard**.
-  UI = slide-in, left tab per file (equal-height independent scroll), friendly labels, `type`→Mode select,
-  advanced collapsed. Opened from mod right-click **"Edit config"**. 8 tests.
-- **Fix-tool diff-based persistence** ✅ — after a fix runs, patch only the changed/added files; full
-  recompress only on a deletion or when changed bytes ≥50% of the mod. Most fixes touch tiny `.ini`, so
-  the fast path is the norm. 8 tests.
-- **Settings UX / atomic design** ✅ — per-section save/reset; `CompactField`, `StatusTag`,
-  `CompactIconButton` atoms; rows aligned (see `.claude/rules/ui-component-layers.md`).
-- **Mod health on the card** ✅ — last-scan health (warning/error + issue count) shows as a 12px badge
-  on the mod row (tooltip "Last scan: N issues"). Backend `ANALYSIS_GET_LATEST_HEALTH` → `modHealth`
-  map in the store, refreshed on init + `MOD_ANALYSIS_COMPLETE`. Point-in-time by design. This is the
-  reachable slice of #7 (surface existing detection); see `.claude/rules/mod-list-derived-data.md`.
+### B1. Delete blocks the UI (not fire-and-forget)
+`ModList.tsx` `handleConfirmDelete` **awaits** the full DELETE IPC inside the ConfirmDialog, so the
+modal (and UI) hangs for the whole cache+archive+preview+DB deletion. Convert to the standard
+fire-and-forget pattern: handler acks immediately, deletion runs in background under the per-mod queue
+lock, progress via ProcessRegistry, list refreshes on `MOD_LIST_UPDATED`.
+
+### B2. Edit mod value hangs after save
+Saving a modified value hangs the UI. Likely the same class as B1 — the save path awaits a slow
+archive write (recompress instead of the fast single-file patch, or a queued op behind a long lock).
+Reproduce, trace which IPC blocks (`cdp iplog`), route the slow part through the fast patch and/or
+fire-and-forget.
+
+### B3. Fix tools not applied properly (change detection + sync back)
+`ModFixService.PersistFixAsync` diffs by **length+mtime snapshot** and patches changed files into the
+archive — but verify the full loop the user expects: detect **every** updated file via file update
+time (not only `.ini`), patch those back into the compressed archive, **and copy them back into the
+working/cache mod dir** so the deployed mod matches. Audit staging→archive→cache consistency; add a
+regression test with a fix that touches a non-`.ini` file.
+
+### B4. Keybinding: multiple `key=` lines per `[Key*]` + combo editing broken
+The `[Key*]` parser (`ModKeybindingService.ParseIniFileAsync`) keeps only the **first** `key =` line —
+later `key =` lines in the same section (keyboard + controller share state, per the 3DMigoto key doc)
+are lost, and rebinding writes only one. Also the combination-key path in the editor doesn't work when
+editing. Support multi-`key=` sections (parse as list, edit each) and fix combo capture on edit
+(`KeyCaptureInput` emits combos; verify write-back rewrites the right line).
+
+### B5. XXMI importer pick: no progress / manual override
+Picking an importer in Settings (`handleSelectXxmiImporter`) triggers work-dir switch + cache scanning
+with **no progress indication**. Register the switch on ProcessRegistry (status bar + Activity), and
+show the resolved dirs with an option to adjust manually.
+
+### B6. Cleanup tool: ignore dot-folders
+`FileCleanupService.ScanOrphanedModCachesAsync` enumerates every dir in the cache folder — folders
+starting with `.` (internal files/tools) must be skipped from orphan scanning/cleanup.
+
+### B7. Cleanup tool: open-in-explorer broken for archive items
+`CleanupTab.handleOpenInExplorer` works for directories but not archive items — mod archives are
+**extensionless files**, so "open directory" fails. Use select-in-explorer (`openFileInExplorer` with
+highlight) for file items.
 
 ---
 
-## Next up (prioritized, grounded)
+## Next up (features, prioritized)
 
-### 1. Mod-merge ✅ SHIPPED (pending in-game validation)
-Combine several mods of one slot into a single mod that **cycles between them with one key**. Built as a
-faithful port of GIMI's `genshin_merge_mods.py` (NOT namespace-based — hash-dedup + `[CommandList]`
-branching on `$swapvar`; see `.claude/rules/3dmigoto-ini-interface.md`):
-- `MergeIniBuilder` (pure, 5 structural tests) — dedup overrides by `(hash, match_first_index)`, branch
-  command lists on `$swapvar`, suffix binds/resource refs by `.{group}`, emit `[Constants] $swapvar` +
-  `[KeySwap]` cycle + `[Present]`.
-- `ModMergeService` — stage each source's cache, run the engine, disable source `.ini`s in the copy,
-  compress → import as a NEW mod (own GUID, originals untouched). IPC `MERGE_MODS`.
-- `MergeModsDialog` — multi-select right-click "Merge N Mods" → reorder + name + cycle key → creates it.
-- Verified file-level e2e (new mod with valid merged `.ini`). **Remaining: in-game swap validation with
-  two real same-character mods (user-side; game not available to the agent).** Known MVP gaps: reflection/
-  credit/transparency special-cases + source ShaderOverride/CustomShader sections are dropped.
+### 1. Update a preset in place with the current setting
+`ModPresetService.UpdateAsync` only renames. Add "overwrite preset with currently-loaded mods"
+(IPC + context-menu/action on the preset). Small, high-value.
 
-### 2. #4 First-run onboarding + mod-card clarity
-- **First-run onboarding ✅** — `OnboardingWizard` (`modules/core/components/onboarding/`), a 3-step
-  FormDialog (welcome → mod location via reused `XxmiImporterPicker` → ready). Every step skippable;
-  shown once, completion remembered in `localStorage` (`d3dx.onboarding.completed.v1`). Picking an XXMI
-  importer applies `workMode:xxmi` + launcher exactly like Settings (`handleSelectXxmiImporter`). Wired in
-  `App.tsx` (opens on first run; DEV reopen via `window.__openOnboarding`). EN+CN verified in the real app.
-- **Mod-card clarity ✅** — each mod row carries a scannable left-border accent + faint tint:
-  green=loaded, red=unavailable (source archive missing, +UNAVAILABLE tag w/ tooltip), dashed amber +
-  dimmed/italic=orphaned (unmanaged cache). Selection always wins via `:not()` guards. The list stays
-  text-dense on purpose — a category can hold **hundreds** of mods and thumbnails aren't always present,
-  so a grid was deliberately NOT chosen.
-- Per-category active indicator ✅ — a small white-ringed green dot on the category card thumbnail + tree
-  node when it (or a collapsed descendant) has a loaded mod; tooltip names the mod. `activeMods` lives in
-  the mods store (refreshed by ModProvider on load/unload/profile), grouped by category id.
+### 2. Mod-merge — in-game validation (user-side)
+Namespace merge v2 is shipped (`NamespaceMergeBuilder` + `ModMergeService`, IPC `MERGE_MODS`).
+**Remaining:** a real two-same-character in-game test to confirm the `$\<ns>\swapvar` gating +
+OR-condition cycle key (the one unverified assumption — see `3dmigoto-ini-interface.md`). Fallback if
+the key misbehaves: `activeOnly` OFF emits no condition.
 
-### 3. Config-editor growth (extend the `.ini` editor)
-- ✅ `wrap`/`smart` render as a **Switch**; `key`/`back` rows use a **visual chord-capture**
-  (`KeyCaptureInput`, shared with the keybinding editor via `shared/utils/keyChord.ts`).
-- Still: `transition*` as ms number fields, **multiple `key=` lines**, Xbox `XB_*`, controller combos.
-- Per-toggle grouping that ties a `[Key]`'s cycle list to the `$var` it drives (cross-section view).
+### 3. Analyzer improvement (better 3DMigoto understanding)
+Current analysis flags are heuristic — we have limited grounding in what 3DMigoto actually accepts.
+Ground the checks in the authoritative INI docs (`leotorrez.github.io/modding/docs/*` — scrape via
+`research`): valid section types, command syntax, key options, namespace rules. Then refine
+health/duplicate/conflict logic (fewer false positives, real actionable findings).
 
-### 4. #3 Remote mod library (the big reach)
-- Browse/fetch/download from remote sources (GameBanana-style) → one-click import into a profile.
-- Background WebView2 + per-site adapters (configurable, never hard-coded). Reuse ProcessRegistry +
-  Activity panel for download/import progress.
+### 4. Mod optimization tool (dedup assets, normalize names)
+New tool: within a mod (or merge output), sha-dedup identical asset files (textures/buffers),
+rewrite `.ini` `filename =` refs to the canonical copy, and normalize file names. Big archive-size
+win for merged/multi-variant mods. Reuse the config-editor parse layer + planner-serialized writes.
 
-### 5. #12 App self-update
-- Check latest GitHub release → download → prompt. Configurable channel + opt-out.
+### 5. Config-editor growth (extend the `.ini` editor)
+Still open: `transition*` as ms number fields, **multiple `key=` lines** (ties into B4), Xbox `XB_*`,
+controller combos; per-toggle grouping that ties a `[Key]`'s cycle list to the `$var` it drives
+(cross-section view).
 
-### 6. Robustness of the file-based lifecycle (ongoing — "robustness IS the UX")
-A file-based system with many interaction cycles (import → extract/cache → load/unload → fix → edit →
-recompress → merge → delete) must never strand or corrupt mod state on a failure. Hardening pass:
-- ✅ Preview-folder deletion now routes through `IFileOperationPlanner` (was a raw `Directory.Delete`
-  that raced the planner) — `ModDeletionService`, regression-tested.
-- ✅ Batch delete now serializes each deletion under the per-mod `IModOperationQueue` lock (was an
-  unguarded loop that could race a concurrent load/unload/fix of the same mod) — regression-tested.
-- Next audits: import partial-failure cleanup (extract OK → compress fails → orphaned cache/archive?),
-  merge staging cleanup on failure, and an audit pass that no mod archive/cache/preview path is mutated
-  with raw `Directory.*`/`File.*` outside the planner. See `filesystem-operation-serialization.md`.
+### 6. Remote mod library (the big reach)
+Browse/fetch/download from remote sources (GameBanana-style) → one-click import into a profile.
+Background WebView2 + per-site adapters (configurable, never hard-coded). Reuse ProcessRegistry +
+Activity panel for download/import progress.
 
-### 7. Mod-modification assistance (user wish 2026-06-19 — "really hard", future/research)
-"Help modify the mod: re-color, model update, detect hash change, apply mod to a different character."
-Honest feasibility (game-agnostic, grounded in the 3DMigoto `.ini` model):
-- **Detect hash change / needs-refix** — *reachable.* After a game update a mod's `TextureOverride`
-  hashes stop matching. We already run fix tools + analysis; surface a "may need re-fix" flag by
-  comparing against known-good hash sets / re-running the fix detect step. Best near-term candidate.
-- **Re-color** — *partial.* Could expose the mod's texture files (DDS) for external editing or basic
-  recolor via image ops, but real recoloring is per-texture artist work; no reliable generic automation.
-- **Apply mod to a different character** — *hard.* This is hash-retargeting/porting (remap one
-  character's hashes/buffers to another). Community does it manually per-mod; not reliably automatable.
-- **Model update** — *very hard.* Mesh/vertex-buffer surgery = full modding work, out of scope.
-> Verdict: pursue **hash-change detection / needs-refix flag** first (leverages existing fix+analysis);
-> treat recolor/retarget/model as long-horizon research, not committed scope.
+### 7. App self-update
+Check latest GitHub release → download → prompt. Configurable channel + opt-out.
+(`DownloadService` + update staging groundwork exists — see `.claude/rules/download-service.md`.)
+
+---
+
+## Ongoing / research
+
+### Robustness of the file-based lifecycle ("robustness IS the UX")
+Next audits: import partial-failure cleanup (extract OK → compress fails → orphaned cache/archive?),
+merge staging cleanup on failure, and a pass that no mod archive/cache/preview path is mutated with
+raw `Directory.*`/`File.*` outside the planner. See `filesystem-operation-serialization.md`.
+
+### Mod-modification assistance (user wish 2026-06-19 — "really hard")
+Pursue **hash-change detection / needs-refix flag** first (after a game update, compare
+`TextureOverride` hashes against known-good sets / fix-tool detect step — leverages existing
+fix+analysis). Recolor = partial (expose DDS for external editing). Retarget-to-other-character and
+model surgery = long-horizon research, not committed scope.
+
+### Doc consolidation — DONE 2026-07-05
+CURRENT/MODULE architecture overlap resolved (each has one job); CHANGELOG split into
+`docs/changelogs/2026-02|03/`; `keywords/FRONTEND.md` + `BACKEND.md` rewritten as compact current
+indexes; `APP_FACADE_REFACTORING.md` archived (AppFacade no longer exists — routing is
+MessageDispatcher → ProfileServiceRouter) and all references corrected.
 
 ---
 
 ## Parked / dropped (with reasons)
 
-- **In-game on-screen toggle UI / menu — DROPPED.** No stock 3DMigoto primitive: `command-list`/`present`/
-  `custom-shader` have no text/font/notification; `CustomShader` is raw DX11. Would require shipping a font
-  texture + text-render shader — out of scope for generate-from-`.ini`. (Mods just cycle keys; the only
-  built-in readout is 3DMigoto's debug overlay in `d3dx.ini`.)
-- **3DMigoto plugin-DLL interface — parked (low priority).** Not in the INI docs; lives in `bo3b/3Dmigoto`
-  source. XXMI bundles its own DLL, so we don't need it.
-- **Own 3DMigoto launcher (replicate XXMI inject) — parked.** `D3DMigotoService` exists but inject is
-  XXMI's job; we lean on XXMI.
-- **Set category color/icon — deferred.** Needs a `Category.color` field full-stack (model+repo+IPC+picker).
-
----
-
-## Open bugs / backlog
-
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 11 | thumbnail right-click crash | **Deferred (no repro)** | Set aside per user 2026-06-18 — preview menu is guarded + panels have error boundaries, no live repro. Re-add if it recurs (capture `[ErrorBoundary]` console output to pinpoint). |
-| 10 | temp cleanup | **Largely done** | FileCleanupTool scans/cleans temp orphans. Follow-up: opt-in auto-clean on exit (configurable). |
-| 16 | mod-load status detail | **Mostly done** | Reports "Enabling cache / Extracting / Refreshing stale cache". Optional: per-file extraction counts. |
-
-> Done & verified earlier (kept for history): #6 fix tool, #9 stale-cache invalidation, #13 filtered-selection,
-> #14 mod update (replace content), #3 keybinding+config editor, #4/#5 launch via XXMI. Fix-tool library
-> (folder-derived, watcher, multi-entry). See git history for detail.
+- **In-game on-screen toggle UI / menu — DROPPED.** No stock 3DMigoto primitive (no text/font/overlay
+  command; `CustomShader` is raw DX11). Mods just cycle keys.
+- **3DMigoto plugin-DLL interface — parked (low priority).** Not in the INI docs; XXMI bundles its own DLL.
+- **Own 3DMigoto launcher (replicate XXMI inject) — parked.** `D3DMigotoService` backend exists but has
+  no UI; injection is XXMI's job. (Kept in code deliberately — do not "clean up" without a decision.)
+- **Set category color/icon — deferred.** Needs a `Category.color` field full-stack.
+- **#11 thumbnail right-click crash — deferred (no repro).** Preview menu guarded + error boundaries;
+  re-add if it recurs (capture `[ErrorBoundary]` console output).
+- **Temp cleanup follow-up:** opt-in auto-clean on exit (configurable). Core FileCleanupTool is done.
+- **Mod-load status detail follow-up:** optional per-file extraction counts. Stage reporting is done.
 
 ---
 
 ## Cross-cutting hygiene (ongoing)
+
 - Font sizes 12/14px only; CSS vars not hex; atomic design (L1/L2/L3 — `ui-component-layers.md`).
 - Defensive `Array.isArray` guards on components consuming IPC arrays (pure-UI crash class).
-- Frontend test runner is NOT wired (see `test-coverage-priorities.md`) — gate is `tsc` + `npm run build`
-  + native `shot`. Wiring jest/vitest is a real reliability task.
+- Verification gate: backend `dotnet build` + `dotnet test`; frontend `npx tsc --noEmit` + `npm test`
+  (vitest, 192 passing) + `npm run build` + native `shot`. See `test-coverage-priorities.md`.
+- After a multi-file wiring chain (3+ files), record it as a `.claude/rules/*.md`.

@@ -235,7 +235,7 @@ const loadClassificationTree = useCallback(async (profileId: string) => {
 
 ### Example 2: Mod List Loading
 
-**File:** `modules/mods/context/hooks/useModData.ts`
+**File:** (historical example — the pattern now lives in `shared/hooks/useDelayedLoading.ts` consumers, e.g. the shared dialogs)
 
 ```typescript
 const { loading, execute } = useDelayedLoading(200);

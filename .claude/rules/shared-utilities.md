@@ -16,8 +16,8 @@ Before writing ANY utility function (formatBytes, formatDate, clipboard copy, et
 | `keyChord` (`buildRaw`/`buildDisplay`/`rawToDisplay`/`baseFromKey`) | `shared/utils/keyChord.ts` | 3DMigoto key-chord capture + raw↔friendly display (used by `KeybindingPreview` + `KeyCaptureInput`) |
 | `KeyCaptureInput` | `shared/components/common/KeyCaptureInput.tsx` | Focus + press a key → captures a 3DMigoto hotkey chord; emits raw value. Reuse for any hotkey field |
 | `navigateToTab` / `navigateToModSearch` | `shared/hooks/useAppNavigation.ts` | Cross-module tab navigation + mod search with category |
-| `useTaskStore` | `shared/store/taskStore.ts` | Global background task tracking (addTask/updateTask/removeTask) |
-| `initTaskEventBridge` | `shared/store/taskEventBridge.ts` | Backend progress events → taskStore (analysis, package) |
+| `useProcessStore` | `shared/store/processStore.ts` | Read-only Zustand mirror of the backend ProcessRegistry (see `background-task-tracking.md`) |
+| `initProcessBridge` | `shared/store/processBridge.ts` | PROCESS_LIST_UPDATED events → processStore |
 
 ## Rules
 

@@ -112,17 +112,13 @@ public class {HandlerName} : I{HandlerName}
 
 ## Steps to Execute
 
-1. **Find or create EventHandlers directory**:
-   - Path: `Modules/{Module}/EventHandlers/`
-   - Create directory if it doesn't exist
+1. **Handler location**:
+   - Event handlers live in `Modules/{Module}/Services/` alongside the module's services
+   - (There is NO `EventHandlers/` subdirectory — see ModListEventHandler.cs, CategoryEventHandler.cs)
 
-2. **Create interface file**:
-   - Path: `Modules/{Module}/EventHandlers/I{HandlerName}.cs`
-   - Empty interface (just for DI registration)
-   - Add XML documentation explaining purpose
-
-3. **Create implementation file**:
-   - Path: `Modules/{Module}/EventHandlers/{HandlerName}.cs`
+2. **Create the handler file**:
+   - Path: `Modules/{Module}/Services/{HandlerName}.cs`
+   - Interface `I{HandlerName} : IDisposable` in the SAME file (see ModListEventHandler.cs)
    - Inject IProfileEventBus and ILogHelper
    - In constructor, subscribe to all source events
    - Each subscription calls EmitConsolidatedEvent
@@ -244,8 +240,7 @@ useEffect(() => {
 For: `/event-handler ModListEventHandler Mod LOADED,UNLOADED,DELETED,IMPORTED MOD_LIST_UPDATED`
 
 Creates:
-- `Modules/Mod/EventHandlers/IModListEventHandler.cs`
-- `Modules/Mod/EventHandlers/ModListEventHandler.cs`
+- `Modules/Mod/Services/ModListEventHandler.cs` (interface + implementation in one file)
 - Updates `Modules/Mod/ModServiceExtensions.cs`
 - May update `Modules/Mod/Constants/ModEvents.cs` (if target event is new)
 
@@ -279,8 +274,8 @@ Don't create event handler when:
 ## Reference Examples
 
 Look at these existing handlers:
-- `Modules/Mod/EventHandlers/ModListEventHandler.cs` - 8 events → 1 event
-- `Modules/Workflow/EventHandlers/WorkflowProgressHandler.cs` - Step consolidation
+- `Modules/Mod/Services/ModListEventHandler.cs` - 8 events → 1 MOD_LIST_UPDATED event
+- `Modules/Category/Services/CategoryEventHandler.cs` - category-affecting events → CATEGORY_TREE_UPDATED
 
 ## Evolution Note
 
