@@ -93,9 +93,11 @@ select-in-explorer (`/select`) works for extensionless files. Tests: `FileCleanu
 
 ## Next up (features, prioritized)
 
-### 1. Update a preset in place with the current setting
-`ModPresetService.UpdateAsync` only renames. Add "overwrite preset with currently-loaded mods"
-(IPC + context-menu/action on the preset). Small, high-value.
+### 1. Update a preset in place — ✅ SHIPPED 2026-07-05
+`ModPresetService.OverwriteAsync` replaces a preset's mod list with the currently loaded mods
+(name kept; PRESET_NOT_FOUND / PRESET_NO_ACTIVE_MODS guards). IPC `OVERWRITE_PRESET`; preset menu
+rows have a sync button → confirm dialog → success toast; PRESET_SAVED refreshes the menu.
+Tests: `ModPresetServiceTests` (3). Verified e2e (32→31 count change, name kept).
 
 ### 2. Mod-merge — in-game validation (user-side)
 Namespace merge v2 is shipped (`NamespaceMergeBuilder` + `ModMergeService`, IPC `MERGE_MODS`).

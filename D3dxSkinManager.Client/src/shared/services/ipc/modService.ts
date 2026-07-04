@@ -658,6 +658,18 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Overwrite a preset's mod list with the currently loaded mods (keeps its name).
+   * Backend: ModFacade.OverwritePresetAsync
+   */
+  async overwritePreset(profileId: string, id: string): Promise<ModPresetInfo> {
+    return this.sendTypedMessage<ModIpcRequests, ModPresetInfo>(
+      "OVERWRITE_PRESET",
+      profileId,
+      { id },
+    );
+  }
+
+  /**
    * Delete a preset
    */
   async deletePreset(profileId: string, id: string): Promise<boolean> {

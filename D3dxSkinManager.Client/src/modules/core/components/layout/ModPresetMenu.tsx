@@ -6,6 +6,7 @@ import {
   DeleteOutlined,
   PlayCircleOutlined,
   StopOutlined,
+  SyncOutlined,
 } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "../../../../shared/context/ProfileContext";
@@ -33,6 +34,7 @@ export const ModPresetMenu: React.FC = () => {
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [presetName, setPresetName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string }>();
+  const [overwriteTarget, setOverwriteTarget] = useState<{ id: string; name: string }>();
 
   const loadPresets = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -113,6 +115,20 @@ export const ModPresetMenu: React.FC = () => {
     setDeleteTarget(undefined);
   }, [selectedProfileId, deleteTarget, t]);
 
+  const confirmOverwritePreset = useCallback(async () => {
+    if (!selectedProfileId || !overwriteTarget) return;
+    try {
+      const result = await modService.overwritePreset(selectedProfileId, overwriteTarget.id);
+      notification.success(
+        t("statusBar.presets.overwritten", { name: result.name, count: result.modCount }),
+      );
+    } catch (error: unknown) {
+      handleError(error);
+    } finally {
+      setOverwriteTarget(undefined);
+    }
+  }, [selectedProfileId, overwriteTarget, t]);
+
   const handleUnloadAll = useCallback(async () => {
     if (!selectedProfileId) return;
     try {
@@ -164,6 +180,16 @@ export const ModPresetMenu: React.FC = () => {
               <span className="mod-preset-menu__item-count">
                 {t("statusBar.presets.modCount", { count: preset.modCount })}
               </span>
+              <button
+                className="mod-preset-menu__item-update"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOverwriteTarget({ id: preset.id, name: preset.name });
+                }}
+                title={t("statusBar.presets.overwrite")}
+              >
+                <SyncOutlined />
+              </button>
               <button
                 className="mod-preset-menu__item-delete"
                 onClick={(e) => {
@@ -230,6 +256,16 @@ export const ModPresetMenu: React.FC = () => {
         okText={t("common.delete")}
         cancelText={t("common.cancel")}
         okType="danger"
+      />
+
+      <ConfirmDialog
+        visible={!!overwriteTarget}
+        title={t("statusBar.presets.overwriteConfirmTitle")}
+        content={overwriteTarget ? t("statusBar.presets.overwriteConfirm", { name: overwriteTarget.name }) : ""}
+        onOk={confirmOverwritePreset}
+        onCancel={() => setOverwriteTarget(undefined)}
+        okText={t("statusBar.presets.overwrite")}
+        cancelText={t("common.cancel")}
       />
     </>
   );

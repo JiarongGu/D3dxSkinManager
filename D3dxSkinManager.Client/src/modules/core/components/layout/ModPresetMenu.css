@@ -29,7 +29,8 @@
   flex-shrink: 0;
 }
 
-.mod-preset-menu__item-delete {
+.mod-preset-menu__item-delete,
+.mod-preset-menu__item-update {
   background: none;
   border: 1px solid var(--color-border-base);
   border-radius: 4px;
@@ -46,4 +47,9 @@
 .mod-preset-menu__item-delete:hover {
   color: var(--color-error);
   border-color: var(--color-error);
+}
+
+.mod-preset-menu__item-update:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }

@@ -18,6 +18,7 @@ public interface IModPresetService
     Task<List<ModPresetInfo>> GetAllAsync();
     Task<ModPresetInfo> SaveAsync(string name);
     Task<ModPresetInfo> UpdateAsync(string id, string name);
+    Task<ModPresetInfo> OverwriteAsync(string id);
     Task<bool> DeleteAsync(string id);
     Task<ModPresetApplyResult> ApplyAsync(string id);
     Task<bool> UnloadAllAsync();
@@ -114,6 +115,31 @@ public class ModPresetService : IModPresetService
 
         entity.Name = name.Trim();
         await _presetRepository.UpdateAsync(entity).ConfigureAwait(false);
+
+        return ToInfo(entity);
+    }
+
+    /// <summary>
+    /// Overwrite a preset's mod list with the currently loaded mods (keeps its name).
+    /// The "update preset with current setting" the user asked for — Save/Update only
+    /// created new presets or renamed.
+    /// </summary>
+    public async Task<ModPresetInfo> OverwriteAsync(string id)
+    {
+        var entity = await _presetRepository.GetByIdAsync(id).ConfigureAwait(false);
+        if (entity == null)
+            throw new OperationException("PRESET_NOT_FOUND", new Dictionary<string, string> { { "id", id } });
+
+        var loadedIds = await _modRepository.GetLoadedIdsAsync().ConfigureAwait(false);
+        if (loadedIds.Count == 0)
+            throw new OperationException("PRESET_NO_ACTIVE_MODS");
+
+        entity.ModIds = JsonSerializer.Serialize(loadedIds);
+        await _presetRepository.UpdateAsync(entity).ConfigureAwait(false);
+        _logger.Info($"Overwrote preset '{entity.Name}' with {loadedIds.Count} currently loaded mods", "ModPresetService");
+
+        // PRESET_SAVED refreshes the preset menu (same consumer as a new save).
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PRESET_SAVED, new { id = entity.Id, name = entity.Name }).ConfigureAwait(false);
 
         return ToInfo(entity);
     }

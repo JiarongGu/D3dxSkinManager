@@ -157,6 +157,7 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_PRESETS" => await GetPresetsAsync(),
             "SAVE_PRESET" => await SavePresetAsync(request),
             "UPDATE_PRESET" => await UpdatePresetAsync(request),
+            "OVERWRITE_PRESET" => await OverwritePresetAsync(request),
             "DELETE_PRESET" => await DeletePresetAsync(request),
             "APPLY_PRESET" => await ApplyPresetAsync(request),
             "UNLOAD_ALL_MODS" => await UnloadAllModsAsync(),
@@ -831,6 +832,13 @@ public class ModFacade : BaseFacade, IModFacade
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
         return await _presetService.UpdateAsync(id, name).ConfigureAwait(false);
+    }
+
+    /// <summary>IPC: OVERWRITE_PRESET — replace a preset's mod list with the currently loaded mods.</summary>
+    private async Task<ModPresetInfo> OverwritePresetAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await _presetService.OverwriteAsync(id).ConfigureAwait(false);
     }
 
     private async Task<bool> DeletePresetAsync(IpcRequest request)
