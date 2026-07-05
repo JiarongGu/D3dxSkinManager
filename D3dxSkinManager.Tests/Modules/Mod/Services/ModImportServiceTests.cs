@@ -270,6 +270,51 @@ public class ModImportServiceTests
     }
 
     [Fact]
+    public async Task ImportAsync_WhenDbCreateFails_RollsBackCopiedArchiveAndPreviews()
+    {
+        // Partial-failure audit (2026-07-05): the archive is copied BEFORE the DB row exists. If
+        // CreateAsync then fails, the copied archive + auto-imported previews must be rolled back —
+        // otherwise they sit as invisible orphans until a cleanup-tool scan.
+        var filePath = "C:\\test\\my-mod.7z";
+
+        _mockPathValidator.Setup(x => x.ValidateFileExists(filePath));
+        _mockRepository.Setup(x => x.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, It.IsAny<string>())).ReturnsAsync("mock-path");
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(It.IsAny<string>())).ReturnsAsync(1);
+        _mockMetadataService.Setup(x => x.CreateAsync(It.IsAny<CreateModRequest>()))
+            .ThrowsAsync(new InvalidOperationException("DB write failed"));
+        _mockArchiveService.Setup(x => x.DeleteArchiveAsync(It.IsAny<string>())).ReturnsAsync(true);
+        _mockImageService.Setup(x => x.GetPreviewPathsAsync(It.IsAny<string>()))
+            .ReturnsAsync(new List<string> { "previews/x/1.png" });
+        _mockImageService.Setup(x => x.DeletePreviewAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ImportAsync(filePath));
+
+        _mockArchiveService.Verify(x => x.DeleteArchiveAsync(It.IsAny<string>()), Times.Once, "the copied archive must be rolled back");
+        _mockImageService.Verify(x => x.DeletePreviewAsync(It.IsAny<string>(), "previews/x/1.png"), Times.Once, "auto-imported previews must be rolled back");
+        _mockEventBus.Verify(x => x.EmitAsync("MOD", "IMPORTED", It.IsAny<object>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ImportAsync_WhenRollbackItselfFails_StillThrowsTheOriginalError()
+    {
+        // Rollback is best-effort: a rollback failure must not mask the real import error.
+        var filePath = "C:\\test\\my-mod.7z";
+
+        _mockPathValidator.Setup(x => x.ValidateFileExists(filePath));
+        _mockRepository.Setup(x => x.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+        _mockArchiveService.Setup(x => x.CopyArchiveAsync(filePath, It.IsAny<string>())).ReturnsAsync("mock-path");
+        _mockImageService.Setup(x => x.TryAutoImportPreviewsFromCacheAsync(It.IsAny<string>())).ReturnsAsync(0);
+        _mockMetadataService.Setup(x => x.CreateAsync(It.IsAny<CreateModRequest>()))
+            .ThrowsAsync(new InvalidOperationException("DB write failed"));
+        _mockArchiveService.Setup(x => x.DeleteArchiveAsync(It.IsAny<string>()))
+            .ThrowsAsync(new IOException("archive locked"));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ImportAsync(filePath));
+        ex.Message.Should().Be("DB write failed");
+    }
+
+    [Fact]
     public async Task ImportAsync_WithSpecialCharactersInFilename_ShouldSanitizeForName()
     {
         // Arrange

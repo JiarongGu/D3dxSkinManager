@@ -197,9 +197,16 @@ pre-releases; add a `releases` (non-latest) query + channel setting when that ha
 ## Ongoing / research
 
 ### Robustness of the file-based lifecycle ("robustness IS the UX")
-Next audits: import partial-failure cleanup (extract OK → compress fails → orphaned cache/archive?),
-merge staging cleanup on failure, and a pass that no mod archive/cache/preview path is mutated with
-raw `Directory.*`/`File.*` outside the planner. See `filesystem-operation-serialization.md`.
+Audit round DONE 2026-07-05 (findings + verdicts recorded in the rule's bypass table):
+- **Import partial-failure — REAL GAP, FIXED**: `ImportAsync` copies the archive before the DB row;
+  a `CreateAsync` failure orphaned it. Now `RollbackImportAsync` (planner-routed) best-effort undoes
+  the copy + auto-imported previews; rollback failure never masks the original error. Covers the
+  workflow import too. Tests: `ModImportServiceTests` (+2).
+- Merge staging cleanup on failure — already correct (`finally TryDeleteDir(staging)`).
+- Raw-FS sweep over `Modules/` — new reviewed rows: ModOptimizeService (queue-locked, LOW),
+  ModIniService/ModKeybindingService cache-`.ini` writes (accepted by design), FileCleanupService
+  orphan deletes (LOW), ModPackageService (external-dir writes; preview copy = ImageService class).
+Future rounds: re-run the sweep whenever a new service mutates mod data.
 
 ### Mod-modification assistance (user wish 2026-06-19 — "really hard")
 Pursue **hash-change detection / needs-refix flag** first (after a game update, compare

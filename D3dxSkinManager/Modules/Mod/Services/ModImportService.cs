@@ -89,46 +89,78 @@ public class ModImportService : IModImportService
             // Step 2: Copy archive to mods directory
             await _archiveService.CopyArchiveAsync(filePath, id).ConfigureAwait(false);
 
-            // Step 3: Try to scan for preview images from cache directory
-            // This will look in common cache locations for matching images
             try
             {
-                var previewCount = await _imageService.TryAutoImportPreviewsFromCacheAsync(id).ConfigureAwait(false);
-                if (previewCount > 0)
+                // Step 3: Try to scan for preview images from cache directory
+                // This will look in common cache locations for matching images
+                try
                 {
-                    _logger.Info($"Auto-imported {previewCount} preview(s) from cache", "ModImportService");
+                    var previewCount = await _imageService.TryAutoImportPreviewsFromCacheAsync(id).ConfigureAwait(false);
+                    if (previewCount > 0)
+                    {
+                        _logger.Info($"Auto-imported {previewCount} preview(s) from cache", "ModImportService");
+                    }
                 }
+                catch (Exception ex)
+                {
+                    _logger.Info($"Failed to auto-import previews from cache: {ex.Message}", "ModImportService");
+                }
+
+                // Step 4: Create ModInfo with default values (user can edit later)
+                var createRequest = new CreateModRequest
+                {
+                    Id = id,
+                    Category = null, // User will categorize manually
+                    Name = Path.GetFileNameWithoutExtension(filePath),
+                    Author = null, // User can add later
+                    Description = null, // User can add later
+                    Type = Path.GetExtension(filePath).TrimStart('.'),
+                    Grading = "G", // Default to General
+                    Tags = new List<string>()
+                };
+
+                var mod = await _metadataService.CreateAsync(createRequest).ConfigureAwait(false);
+                _logger.Info($"Import complete: {mod.Name} ({id})", "ModImportService");
+
+                // Emit IMPORTED event
+                await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.IMPORTED, mod).ConfigureAwait(false);
+
+                return mod;
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.Info($"Failed to auto-import previews from cache: {ex.Message}", "ModImportService");
+                // The archive was already copied but the mod has no DB row — without rollback it
+                // would sit invisible until a cleanup-tool orphan scan. Best-effort undo.
+                await RollbackImportAsync(id).ConfigureAwait(false);
+                throw;
             }
-
-            // Step 4: Create ModInfo with default values (user can edit later)
-            var createRequest = new CreateModRequest
-            {
-                Id = id,
-                Category = null, // User will categorize manually
-                Name = Path.GetFileNameWithoutExtension(filePath),
-                Author = null, // User can add later
-                Description = null, // User can add later
-                Type = Path.GetExtension(filePath).TrimStart('.'),
-                Grading = "G", // Default to General
-                Tags = new List<string>()
-            };
-
-            var mod = await _metadataService.CreateAsync(createRequest).ConfigureAwait(false);
-            _logger.Info($"Import complete: {mod.Name} ({id})", "ModImportService");
-
-            // Emit IMPORTED event
-            await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.IMPORTED, mod).ConfigureAwait(false);
-
-            return mod;
         }
         catch (Exception ex)
         {
             _logger.Info($"Import failed: {ex.Message}", "ModImportService");
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Best-effort rollback of a partial import (archive copied, DB row never created): delete the
+    /// copied archive (planner-serialized) and any auto-imported previews. Failures are only logged —
+    /// the file-cleanup tool's orphan scan remains the safety net.
+    /// </summary>
+    private async Task RollbackImportAsync(string id)
+    {
+        try
+        {
+            await _archiveService.DeleteArchiveAsync(id).ConfigureAwait(false);
+            foreach (var preview in await _imageService.GetPreviewPathsAsync(id).ConfigureAwait(false))
+            {
+                await _imageService.DeletePreviewAsync(id, preview).ConfigureAwait(false);
+            }
+            _logger.Info($"Rolled back partial import: {id}", "ModImportService");
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Import rollback incomplete for {id}: {ex.Message} (the cleanup tool's orphan scan will catch leftovers)", "ModImportService");
         }
     }
 
