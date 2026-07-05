@@ -79,10 +79,16 @@ public class RemoteImportService : IRemoteImportService
             case "cloudreve":
                 return _cloudreve.ResolveAsync(option.Url, ct);
             case "direct":
-                var name = Path.GetFileName(new Uri(option.Url).LocalPath);
+                // The URL basename is often just an id (e.g. gamebanana.com/dl/123 → "123", no
+                // extension → import can't tell the archive type). Prefer the option Name when it
+                // looks like a real filename (GameBanana puts _sFile "mod_1.0.7z" there).
+                var urlName = Path.GetFileName(new Uri(option.Url).LocalPath);
+                var looksLikeFile = option.Name.Contains('.') && !option.Name.Contains(' ');
+                var name = looksLikeFile ? option.Name
+                    : (Path.HasExtension(urlName) ? urlName : (string.IsNullOrWhiteSpace(urlName) ? "download" : urlName));
                 return Task.FromResult(new RemoteResolveResult
                 {
-                    FileName = string.IsNullOrWhiteSpace(name) ? "download" : name,
+                    FileName = name,
                     Size = 0, // unknown until the download's Content-Length
                     DownloadUrl = option.Url,
                 });

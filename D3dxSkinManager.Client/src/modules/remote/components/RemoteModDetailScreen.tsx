@@ -66,9 +66,13 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
     })();
   }, [selectedProfileId, sourceId, detailUrl]);
 
+  // Cloudreve (share API) AND direct (URL is the file, e.g. GameBanana /dl/{id}) both download+import
+  // in-app; everything else (Quark, unknown hosts) opens in the browser.
+  const isImportable = (type: string) => type === 'cloudreve' || type === 'direct';
+
   const handleDownload = async (option: RemoteDownloadOption) => {
     if (!selectedProfileId) return;
-    if (option.type !== 'cloudreve') {
+    if (!isImportable(option.type)) {
       // Unsupported host — hand off to the system browser.
       void api.system.openUrl(option.url);
       return;
@@ -109,12 +113,10 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   return (
     <div className="remote-detail">
       <div className="remote-detail__header">
-        <div className="remote-detail__heading">
-          <h2 className="remote-detail__title">{detail.title || fallbackTitle}</h2>
-          <span className="remote-detail__meta">
-            {t('remote.detailMeta', { images: detail.images.length, downloads: detail.downloads.length })}
-          </span>
-        </div>
+        {/* Title comes from the slide-in header — don't repeat it here (was a duplicated title). */}
+        <span className="remote-detail__meta">
+          {t('remote.detailMeta', { images: detail.images.length, downloads: detail.downloads.length })}
+        </span>
         <div className="remote-detail__actions">
           {detail.downloads.length === 0 && (
             <span className="remote-detail__no-download">{t('remote.noDownloads')}</span>
@@ -125,12 +127,12 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
           {detail.downloads.map((option) => (
             <CompactButton
               key={option.url}
-              type={option.type === 'cloudreve' ? 'primary' : 'default'}
-              icon={option.type === 'cloudreve' ? <CloudDownloadOutlined /> : <LinkOutlined />}
+              type={isImportable(option.type) ? 'primary' : 'default'}
+              icon={isImportable(option.type) ? <CloudDownloadOutlined /> : <LinkOutlined />}
               loading={resolving === option.url}
               onClick={() => void handleDownload(option)}
             >
-              {option.type === 'cloudreve'
+              {isImportable(option.type)
                 ? t('remote.downloadImport', { host: option.name })
                 : t('remote.openExternal', { host: option.name })}
             </CompactButton>

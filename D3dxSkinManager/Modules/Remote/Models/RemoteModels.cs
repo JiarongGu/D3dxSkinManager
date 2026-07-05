@@ -110,6 +110,10 @@ public class RemoteModCard
     /// engine can extract one. Stored in the index for filtering + display. Null when the site/engine
     /// has no per-card category (e.g. huihui, where the list itself is the game).</summary>
     public string? Category { get; set; }
+
+    /// <summary>Date hint (yyyy-MM-dd) when the engine can extract one directly (e.g. GameBanana
+    /// _tsDateAdded). Null lets the index fall back to the adapter's imageDatePattern.</summary>
+    public string? DateHint { get; set; }
 }
 
 public class RemoteBrowseResult

@@ -15,11 +15,12 @@ public class GameBananaEngineTests
     {
       "_aMetadata": { "_nRecordCount": 30, "_nPerpage": 15, "_bIsComplete": false },
       "_aRecords": [
-        { "_idRow": 1, "_sModelName": "Mod", "_sName": "Vivian Vampire", "_sProfileUrl": "https://gamebanana.com/mods/1",
+        { "_idRow": 1, "_sModelName": "Mod", "_sName": "Vivian Vampire", "_sProfileUrl": "https://gamebanana.com/mods/1", "_tsDateAdded": 1700000000,
           "_aRootCategory": { "_sName": "Skins", "_sProfileUrl": "https://gamebanana.com/mods/cats/1" },
           "_aPreviewMedia": { "_aImages": [ { "_sType": "screenshot", "_sBaseUrl": "https://images.gamebanana.com/img/ss/mods", "_sFile": "raw.jpg", "_sFile530": "530-90_raw.jpg", "_sFile220": "220-90_raw.jpg" } ] } },
         { "_idRow": 2, "_sModelName": "Sound", "_sName": "Not a mod", "_sProfileUrl": "https://gamebanana.com/sounds/2" },
-        { "_idRow": 3, "_sModelName": "Mod", "_sName": "", "_sProfileUrl": "https://gamebanana.com/mods/3" }
+        { "_idRow": 3, "_sModelName": "Mod", "_sName": "", "_sProfileUrl": "https://gamebanana.com/mods/3" },
+        { "_idRow": 4, "_sModelName": "Mod", "_sName": "Newer Mod", "_sProfileUrl": "https://gamebanana.com/mods/4", "_tsDateAdded": 1800000000 }
       ]
     }
     """;
@@ -44,13 +45,16 @@ public class GameBananaEngineTests
     {
         var result = GameBananaEngine.ParseSubfeed(Subfeed, "https://gamebanana.com", 1);
 
-        // Only the one valid Mod record (Sound filtered; empty-name mod dropped).
-        result.Cards.Should().HaveCount(1);
-        var card = result.Cards[0];
-        card.Title.Should().Be("Vivian Vampire");
+        // Two valid Mods (Sound filtered; empty-name mod dropped), newest-first by date added
+        // regardless of the array order the API returned.
+        result.Cards.Should().HaveCount(2);
+        result.Cards.Select(c => c.Title).Should().ContainInOrder("Newer Mod", "Vivian Vampire");
+
+        var card = result.Cards.Single(c => c.Title == "Vivian Vampire");
         card.DetailUrl.Should().Be("https://gamebanana.com/mods/1");
         card.ImageUrl.Should().Be("https://images.gamebanana.com/img/ss/mods/530-90_raw.jpg", "cards use the 530px variant");
         card.Category.Should().Be("Skins", "the root category is captured for filtering");
+        card.DateHint.Should().Be("2023-11-14", "unix _tsDateAdded → yyyy-MM-dd");
         result.TotalPages.Should().Be(2, "ceil(30 / 15)");
     }
 

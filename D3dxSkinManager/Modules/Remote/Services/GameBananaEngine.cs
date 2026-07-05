@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json;
 using D3dxSkinManager.Modules.Remote.Models;
 
@@ -40,6 +41,7 @@ public static class GameBananaEngine
 
         if (root.TryGetProperty("_aRecords", out var records) && records.ValueKind == JsonValueKind.Array)
         {
+            var scored = new List<(long ts, RemoteModCard card)>();
             foreach (var rec in records.EnumerateArray())
             {
                 if (GetString(rec, "_sModelName") is { } model && !model.Equals("Mod", StringComparison.OrdinalIgnoreCase))
@@ -47,14 +49,20 @@ public static class GameBananaEngine
                 var url = GetString(rec, "_sProfileUrl");
                 var name = GetString(rec, "_sName");
                 if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(name)) continue;
-                result.Cards.Add(new RemoteModCard
+                var ts = GetLong(rec, "_tsDateAdded");
+                scored.Add((ts, new RemoteModCard
                 {
                     Title = name,
                     DetailUrl = url,
                     ImageUrl = FirstImageUrl(rec) ?? string.Empty,
                     Category = RootCategoryName(rec),
-                });
+                    DateHint = ts > 0 ? DateTimeOffset.FromUnixTimeSeconds(ts).UtcDateTime.ToString("yyyy-MM-dd") : null,
+                }));
             }
+            // The API can return a page's records in ascending order (looked reversed on screen) — force
+            // newest-first by date added so each page reads the same as the site's "new" listing.
+            foreach (var (_, card) in scored.OrderByDescending(x => x.ts))
+                result.Cards.Add(card);
         }
 
         // Total pages from the metadata (record count / per-page). Caller caps the crawl.
@@ -142,4 +150,7 @@ public static class GameBananaEngine
 
     private static int GetInt(JsonElement el, string prop) =>
         el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) ? n : 0;
+
+    private static long GetLong(JsonElement el, string prop) =>
+        el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt64(out var n) ? n : 0;
 }
