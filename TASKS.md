@@ -144,6 +144,12 @@ detections are REAL mod defects that 3DMigoto tolerates → severity downgraded 
 comments out stray ones, persists via the fast archive patch; requires the mod's cache. The
 findings "stale" section widened to **Needs Attention** (all warning-status mods now have a home).
 Tests: +5 taxonomy + 4 repair tests (535 backend). Repair verified e2e on a planted-defect fixture.
+**Analyzer workflow UX SHIPPED 2026-07-05 (3):** `analyzerUiStore` persists view/session/filter/search
+across close-reopen (per-profile, locate-a-mod-and-come-back restores where you were, verified live);
+per-row **Fix with…** dropdown runs a fix tool on the finding's mod in place (fire-and-forget →
+Activity panel, no navigation); HistoryView icon pair migrated to `CompactIconButton` L1 (danger-button
+vertical-offset fix). Fix-tool library is **per-profile** again (`{profile}/fixtools`, one-time seed
+from the legacy global dir).
 
 ### 4. Mod optimization (dedup assets) — ✅ SHIPPED 2026-07-05
 `ModOptimizeService`: sha256-groups byte-identical non-`.ini` files in the mod's cache (active or
