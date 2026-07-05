@@ -11,3 +11,14 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Standalone analyzer window (analyzer.html): the analyzer content uses negative margins to bleed
+   into the slide-in's padding; in a bare window we add matching padding so it isn't clipped, and
+   fill the viewport. */
+.analyzer-window-root {
+  height: 100vh;
+  padding: 20px 24px;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: var(--color-bg-layout, #f0f2f5);
+}

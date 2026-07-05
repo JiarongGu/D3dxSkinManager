@@ -48,6 +48,9 @@ public static class ToolServiceExtensions
         services.TryAddSingleton<IModFixToolService, ModFixToolService>();
         services.TryAddSingleton<IFixToolsWatcher, FixToolsWatcher>();
 
+        // Analyzer pop-out window (separate WebView2 window, like the capture control panel)
+        services.TryAddSingleton<IAnalyzerWindowService, AnalyzerWindowService>();
+
         // Register facade
         services.TryAddSingleton<IToolFacade, ToolFacade>();
         services.TryAddSingleton<ToolFacade>();

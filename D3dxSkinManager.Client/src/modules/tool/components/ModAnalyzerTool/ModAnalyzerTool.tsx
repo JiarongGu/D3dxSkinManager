@@ -50,7 +50,9 @@ function findCategoryName(nodes: CategoryInfo[], id: string): string | undefined
   return undefined;
 }
 
-const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () => void }> = ({ initialCategoryId, onClose }) => {
+/** The analyzer content without the slide-in chrome — rendered directly in the pop-out window
+ * (analyzer.tsx). onClose is a no-op there (the OS window has its own close). */
+export const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () => void; inWindow?: boolean }> = ({ initialCategoryId, onClose, inWindow }) => {
   const { selectedProfileId } = useProfile();
   const { t } = useTranslation();
 
@@ -430,6 +432,9 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
           sessionCount={sessions.length}
           hasLastResult={!!lastSessionId}
           onViewLastResults={() => void viewLastResults()}
+          onOpenInWindow={inWindow || !selectedProfileId ? undefined : () => {
+            void api.tool.toggleAnalyzerWindow(selectedProfileId).catch(handleError);
+          }}
         />
       )}
       {viewMode === 'findings' && report && (

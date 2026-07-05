@@ -45,6 +45,7 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'index.html'),
         capture: path.resolve(__dirname, 'capture.html'),
+        analyzer: path.resolve(__dirname, 'analyzer.html'),
       },
       output: {
         // Stable vendor chunks (separate from app code) so they keep their content hash across app

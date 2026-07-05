@@ -11,6 +11,7 @@ import {
   LoadingOutlined,
   StopOutlined,
   FileSearchOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton } from '../../../../../shared/components/compact';
@@ -42,10 +43,12 @@ interface ScanViewProps {
   /** A previous session is remembered — offer a one-click return to its results. */
   hasLastResult?: boolean;
   onViewLastResults?: () => void;
+  /** Pop the analyzer out into a separate window (undefined = already in the window / hide). */
+  onOpenInWindow?: () => void;
 }
 
 export const ScanView: React.FC<ScanViewProps> = ({
-  progress, scanning, cancelling, loading, initialFeed, categories, selectedCategoryId, onCategoryChange, onStart, onPause, onResume, onCancel, onViewHistory, sessionCount, hasLastResult, onViewLastResults,
+  progress, scanning, cancelling, loading, initialFeed, categories, selectedCategoryId, onCategoryChange, onStart, onPause, onResume, onCancel, onViewHistory, sessionCount, hasLastResult, onViewLastResults, onOpenInWindow,
 }) => {
   const { t } = useTranslation();
   const percent = progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
@@ -111,6 +114,11 @@ export const ScanView: React.FC<ScanViewProps> = ({
             {sessionCount > 0 && (
               <CompactButton icon={<HistoryOutlined />} onClick={onViewHistory}>
                 {t('tools.modAnalyzer.viewHistory')} ({sessionCount})
+              </CompactButton>
+            )}
+            {onOpenInWindow && (
+              <CompactButton icon={<ExportOutlined />} onClick={onOpenInWindow}>
+                {t('tools.modAnalyzer.openInWindow')}
               </CompactButton>
             )}
           </div>

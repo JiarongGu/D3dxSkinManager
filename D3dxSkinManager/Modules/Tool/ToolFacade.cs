@@ -40,6 +40,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     private readonly IModFixService _modFixService;
     private readonly IModFixToolService _modFixToolService;
     private readonly IFixToolsWatcher _fixToolsWatcher;
+    private readonly IAnalyzerWindowService _analyzerWindowService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IProfileEventBus _eventBus;
 
@@ -54,10 +55,12 @@ public class ToolFacade : BaseFacade, IToolFacade
         IModFixService modFixService,
         IModFixToolService modFixToolService,
         IFixToolsWatcher fixToolsWatcher,
+        IAnalyzerWindowService analyzerWindowService,
         IPayloadHelper payloadHelper,
         IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
     {
+        _analyzerWindowService = analyzerWindowService ?? throw new ArgumentNullException(nameof(analyzerWindowService));
         _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
         _captureProfileRepository = captureProfileRepository ?? throw new ArgumentNullException(nameof(captureProfileRepository));
         _screenCaptureService = screenCaptureService ?? throw new ArgumentNullException(nameof(screenCaptureService));
@@ -97,6 +100,9 @@ public class ToolFacade : BaseFacade, IToolFacade
 
             // Screen Capture - Control Panel
             "SCREEN_CAPTURE_TOGGLE_CONTROL_PANEL" => await ToggleCaptureControlPanelAsync(request),
+
+            // Analyzer pop-out window
+            "ANALYZER_TOGGLE_WINDOW" => await ToggleAnalyzerWindowAsync(request),
 
             // Mod Package - Export/Import
             "MOD_PACKAGE_EXPORT" => await ExportModPackageAsync(request),
@@ -332,6 +338,13 @@ public class ToolFacade : BaseFacade, IToolFacade
         var profileId = request.ProfileId ?? throw new InvalidOperationException("ProfileId is required");
         await ToggleCaptureControlPanelAsync(profileId).ConfigureAwait(false);
         return null;
+    }
+
+    private async Task<object?> ToggleAnalyzerWindowAsync(IpcRequest request)
+    {
+        var profileId = request.ProfileId ?? throw new InvalidOperationException("ProfileId is required");
+        await _analyzerWindowService.ToggleAsync(profileId).ConfigureAwait(false);
+        return new { toggled = true };
     }
 
     // ===== Mod Package - Export/Import =====

@@ -29,7 +29,8 @@ namespace D3dxSkinManager.Modules.Core.WebView
             IServiceProvider serviceProvider,
             ICustomSchemeHandler schemeHandler,
             Form form,
-            SplashScreenPanel? splashScreen = null)
+            SplashScreenPanel? splashScreen = null,
+            bool ownEnvironment = false)
         {
             SessionId = sessionId;
             WebView = webView ?? throw new ArgumentNullException(nameof(webView));
@@ -40,8 +41,9 @@ namespace D3dxSkinManager.Modules.Core.WebView
             // Get embedded resource provider from DI
             var resourceProvider = serviceProvider.GetRequiredService<IEmbeddedResourceProvider>();
 
-            // Per-session initializer
-            Initializer = new WebViewInitializer(WebView, schemeHandler, resourceProvider);
+            // Per-session initializer. Secondary windows (ownEnvironment=true) run on their own STA
+            // thread and must create their own CoreWebView2Environment there.
+            Initializer = new WebViewInitializer(WebView, schemeHandler, resourceProvider, ownEnvironment);
 
             // Per-session IPC
             Ipc = new IpcHandler(WebView, _logger);

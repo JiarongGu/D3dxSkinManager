@@ -96,6 +96,11 @@ export class ToolService extends BaseModuleService {
     return this.sendMessage<void>('SCREEN_CAPTURE_TOGGLE_CONTROL_PANEL', profileId, undefined);
   }
 
+  /** Pop the analyzer out into a separate window (toggle: open if closed, close if open). */
+  async toggleAnalyzerWindow(profileId: string): Promise<void> {
+    return this.sendMessage<void>('ANALYZER_TOGGLE_WINDOW', profileId, undefined);
+  }
+
   // ===== Mod Package Export/Import =====
 
   async exportModPackage(profileId: string, config: Omit<ExportConfig, 'outputPath'> & { outputPath: string }): Promise<ExportResult> {

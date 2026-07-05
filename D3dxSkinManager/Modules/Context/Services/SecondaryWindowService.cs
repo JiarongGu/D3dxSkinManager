@@ -155,7 +155,8 @@ public class SecondaryWindowService : ISecondaryWindowService
                     _serviceProvider,
                     _schemeHandler,
                     form,
-                    splashScreenPanel  // Pass splash screen to session
+                    splashScreenPanel,  // Pass splash screen to session
+                    ownEnvironment: true // secondary window: own STA thread → own WebView2 environment
                 );
                 _logger.Info("[SecondaryWindow] WebViewSession instance created");
                 return newSession;
@@ -330,7 +331,8 @@ public class SecondaryWindowService : ISecondaryWindowService
                     _serviceProvider,
                     _schemeHandler,
                     form,
-                    splashScreenPanel
+                    splashScreenPanel,
+                    ownEnvironment: true // secondary window: own STA thread → own WebView2 environment
                 );
             });
 

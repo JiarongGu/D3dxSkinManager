@@ -26,6 +26,10 @@ public static class WebView2EnvironmentPrewarmer
     /// <summary>
     /// Return the prewarmed environment task, starting it on first call. The WebView initializer awaits
     /// this instead of calling CreateAsync itself, so it pays only the remaining (often zero) time.
+    /// ONLY the main window may use this — a CoreWebView2Environment is thread-affine to the thread that
+    /// created it (here, the main UI thread). Secondary windows run on their own STA thread and MUST use
+    /// <see cref="CreateForThreadAsync"/> instead (accessing this shared env off-thread throws
+    /// "CoreWebView2Environment members can only be accessed from the UI thread").
     /// </summary>
     public static Task<CoreWebView2Environment> GetAsync(string baseDirectory)
     {
@@ -34,6 +38,14 @@ public static class WebView2EnvironmentPrewarmer
             return _task ??= CreateAsync(baseDirectory);
         }
     }
+
+    /// <summary>
+    /// Create a FRESH environment on the CALLING thread (for secondary windows on their own STA thread).
+    /// Not cached — each secondary window gets its own, affine to its thread. Same options + user-data
+    /// folder as the prewarmed one, so they share the browser process (WebView2 allows multiple
+    /// environments over one user-data folder when options match).
+    /// </summary>
+    public static Task<CoreWebView2Environment> CreateForThreadAsync(string baseDirectory) => CreateAsync(baseDirectory);
 
     /// <summary>
     /// Build the Chromium command-line passed via <see cref="CoreWebView2EnvironmentOptions.AdditionalBrowserArguments"/>.
