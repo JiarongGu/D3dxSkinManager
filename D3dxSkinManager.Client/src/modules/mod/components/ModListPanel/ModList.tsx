@@ -563,6 +563,7 @@ export const ModList: React.FC<ModListProps> = ({
       disabled: !mod?.hasCache,
       onClick: () => setOptimizeMod(mod),
     },
+    buildFixSubmenu([mod.id]),
     { type: "divider" as const },
 
     // Group 2: Copy Operations
@@ -638,7 +639,6 @@ export const ModList: React.FC<ModListProps> = ({
       disabled: !mod?.hasCache || busyModIds.has(mod.id),
       onClick: () => handleUpdateArchive(mod),
     },
-    buildFixSubmenu([mod.id]),
     {
       key: "update-mod",
       label: t("contextMenu.updateMod"),

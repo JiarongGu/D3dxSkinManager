@@ -256,23 +256,25 @@ const ModFixManagerInner: React.FC = () => {
     <div className="mod-fix" ref={dropRef}>
       <div className="mod-fix__description">{t('tools.modFix.description')}</div>
 
-      {/* Add a fix tool */}
-      <CompactField label={t('tools.modFix.addTool')} description={t('tools.modFix.addHint')}>
-        <Space.Compact style={{ width: '100%' }}>
-          <CompactInput
-            value={newName}
-            placeholder={t('tools.modFix.namePlaceholder')}
-            onChange={(e) => setNewName(e.target.value)}
-            disabled={busy}
-          />
-          <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
-            {t('tools.modFix.addFolder')}
-          </CompactButton>
-          <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
-            {t('tools.modFix.addFile')}
-          </CompactButton>
-        </Space.Compact>
-      </CompactField>
+      {/* Add a fix tool — bordered import panel; the whole screen accepts drag-drop */}
+      <div className="mod-fix__import">
+        <CompactField label={t('tools.modFix.addTool')} description={t('tools.modFix.addHint')}>
+          <Space.Compact style={{ width: '100%' }}>
+            <CompactInput
+              value={newName}
+              placeholder={t('tools.modFix.namePlaceholder')}
+              onChange={(e) => setNewName(e.target.value)}
+              disabled={busy}
+            />
+            <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
+              {t('tools.modFix.addFolder')}
+            </CompactButton>
+            <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
+              {t('tools.modFix.addFile')}
+            </CompactButton>
+          </Space.Compact>
+        </CompactField>
+      </div>
 
       {/* Library */}
       {tools.length === 0 ? (

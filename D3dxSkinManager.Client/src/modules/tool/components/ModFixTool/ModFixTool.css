@@ -45,3 +45,17 @@
 .mod-fix__table {
   margin-top: 8px;
 }
+
+/* Import panel — dashed border signals the screen is a drop target for tools */
+.mod-fix__import {
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px dashed var(--color-border-base);
+  border-radius: 8px;
+  background: var(--color-card-bg);
+  transition: border-color 0.15s ease;
+}
+
+.mod-fix__import:hover {
+  border-color: var(--color-primary);
+}

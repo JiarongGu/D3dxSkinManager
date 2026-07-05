@@ -20,8 +20,9 @@
 }
 
 /* === Table Row Hover Effects === */
+/* Token, not a hex: #e6f7ff (light blue) used to flash on hover in BOTH themes — unreadable in dark. */
 .ant-table-tbody > tr:hover > td {
-  background: #e6f7ff !important;
+  background: var(--color-table-row-hover);
   transition: background 0.2s ease;
 }
 

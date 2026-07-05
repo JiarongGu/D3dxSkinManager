@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin } from 'antd';
-import { CloudDownloadOutlined, LinkOutlined } from '@ant-design/icons';
+import { CloudDownloadOutlined, GlobalOutlined, LinkOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
@@ -114,6 +114,9 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
           {detail.downloads.length === 0 && (
             <span className="remote-detail__no-download">{t('remote.noDownloads')}</span>
           )}
+          <CompactButton icon={<GlobalOutlined />} onClick={() => void api.system.openUrl(detail.detailUrl)}>
+            {t('remote.openPage')}
+          </CompactButton>
           {detail.downloads.map((option) => (
             <CompactButton
               key={option.url}
