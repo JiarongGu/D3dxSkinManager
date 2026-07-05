@@ -15,11 +15,12 @@
   height: 200px;
 }
 
-/* LEFT — review column: flexible but CAPPED (an uncapped gallery grew huge on wide screens). */
+/* LEFT — review column: flexible with a sane cap (the slide-in is responsive now, so the pair
+   fills it — no dead side slack; the cap only kicks in on very wide screens). */
 .remote-detail__review {
   flex: 1 1 auto;
   min-width: 0;
-  max-width: 620px;
+  max-width: 860px;
   display: flex;
   flex-direction: column;
   gap: 10px;

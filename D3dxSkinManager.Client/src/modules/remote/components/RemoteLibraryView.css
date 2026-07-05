@@ -157,6 +157,12 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.2s ease;
+}
+
+/* Subtle zoom affordance on hover (standard gallery-card pattern). */
+.remote-card:hover .remote-card__image {
+  transform: scale(1.04);
 }
 
 /* Meta stacks: title line, then tags/date footer — a single row squeezed all three on a 170px card. */

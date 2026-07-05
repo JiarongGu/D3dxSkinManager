@@ -273,7 +273,8 @@ export const RemoteLibraryView: React.FC = () => {
             fallbackTitle={card.title}
           />
         ),
-        width: '980px',
+        // Responsive: use the window (huge dead side margins at a fixed 980px on wide screens).
+        width: 'min(1180px, 92vw)',
       });
     },
     [openScreen, t, sources],
