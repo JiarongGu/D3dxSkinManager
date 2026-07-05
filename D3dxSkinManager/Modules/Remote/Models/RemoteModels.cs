@@ -201,7 +201,40 @@ public class RemoteIndexPage
     public int Total { get; set; }
 }
 
-/// <summary>Which source + game list a PROFILE targets (a profile is one game).</summary>
+// ---- Redesigned library model (remote-library-redesign.md) --------------------------------------
+
+/// <summary>One ordered import rule: if the mod carries ALL of <see cref="Tags"/>, it imports into
+/// <see cref="CategoryId"/>. Rules are evaluated in order; first match wins, else uncategorized.</summary>
+public class RemoteTagRule
+{
+    public string Name { get; set; } = string.Empty;
+    public List<string> Tags { get; set; } = new();
+    public string CategoryId { get; set; } = string.Empty;
+}
+
+/// <summary>A configured remote library a profile can browse (site + game + import rules). A profile
+/// owns MANY of these (switchable), managed in library management — replaces the single binding.</summary>
+public class RemoteLibrary
+{
+    public string Id { get; set; } = string.Empty;
+    public string SourceId { get; set; } = string.Empty;
+    public string ListId { get; set; } = string.Empty;
+    /// <summary>Display name, e.g. "GameBanana · Genshin".</summary>
+    public string Name { get; set; } = string.Empty;
+    /// <summary>Ordered tag→category rules; first match wins, no match = uncategorized.</summary>
+    public List<RemoteTagRule> TagRules { get; set; } = new();
+    public DateTime AddedAtUtc { get; set; }
+}
+
+/// <summary>The profile's configured libraries + which one the main screen is showing.</summary>
+public class RemoteLibrariesState
+{
+    public List<RemoteLibrary> Libraries { get; set; } = new();
+    public string? ActiveLibraryId { get; set; }
+}
+
+/// <summary>Which source + game list a PROFILE targets (a profile is one game).
+/// LEGACY — being replaced by <see cref="RemoteLibrary"/> (remote-library-redesign.md).</summary>
 public class RemoteBinding
 {
     public string SourceId { get; set; } = string.Empty;
