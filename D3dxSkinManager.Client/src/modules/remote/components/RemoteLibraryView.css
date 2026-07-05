@@ -11,6 +11,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  row-gap: 6px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--color-border-secondary);
   background: var(--color-bg-container);
@@ -73,8 +74,14 @@
 
 .remote-library__origin {
   margin-left: auto;
+  min-width: 0;
+  max-width: 320px;
   font-size: 12px;
   color: var(--color-text-secondary);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .remote-library__content {
@@ -139,18 +146,19 @@
   display: block;
 }
 
+/* Meta stacks: title line, then tags/date footer — a single row squeezed all three on a 170px card. */
 .remote-card__meta {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 6px 8px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
 }
 
 .remote-card__title {
-  flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
+  line-height: 1.35;
   color: var(--color-text-base);
   white-space: nowrap;
   overflow: hidden;

@@ -46,10 +46,11 @@ public class GameBananaEngineTests
     {
         var result = GameBananaEngine.ParseSubfeed(Subfeed, "https://gamebanana.com", 1);
 
-        // Two valid Mods (Sound filtered; empty-name mod dropped), newest-first by date added
-        // regardless of the array order the API returned.
+        // Two valid Mods (Sound filtered; empty-name mod dropped), in the API's ORIGINAL order —
+        // the default Subfeed order IS the site's page order (verified in Chrome 2026-07-06); a
+        // client-side re-sort by dateAdded buried freshly-updated old mods and lost the first mod.
         result.Cards.Should().HaveCount(2);
-        result.Cards.Select(c => c.Title).Should().ContainInOrder("Newer Mod", "Vivian Vampire");
+        result.Cards.Select(c => c.Title).Should().ContainInOrder("Vivian Vampire", "Newer Mod");
 
         var card = result.Cards.Single(c => c.Title == "Vivian Vampire");
         card.DetailUrl.Should().Be("https://gamebanana.com/mods/1");
@@ -90,7 +91,8 @@ public class GameBananaEngineTests
     public void BuildUrls_MatchApiV11Shape()
     {
         GameBananaEngine.BuildSubfeedUrl("https://gamebanana.com", "8552", 2)
-            .Should().Be("https://gamebanana.com/apiv11/Game/8552/Subfeed?_nPage=2&_sSort=new");
+            .Should().Be("https://gamebanana.com/apiv11/Game/8552/Subfeed?_nPage=2",
+                "no _sSort — the default Subfeed order matches the site page");
         GameBananaEngine.BuildProfilePageUrl("https://gamebanana.com/", "529138")
             .Should().Be("https://gamebanana.com/apiv11/Mod/529138/ProfilePage");
     }

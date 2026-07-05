@@ -52,8 +52,13 @@ public class GameBananaEngine : RemoteSiteEngineBase
 
     // ---- URL builders + parsers (static — unit-tested without HTTP) -----------------------------
 
+    // NO _sSort param — the DEFAULT Subfeed order IS the site's game-page order (verified against
+    // gamebanana.com/games/19567 in Chrome, 2026-07-06: first 10 mods matched exactly). It's the
+    // site's own recently-updated/featured mix — NOT reconstructible client-side (an earlier
+    // _sSort=new + re-sort by _tsDateAdded buried freshly-UPDATED old mods, dropping the page's
+    // first mod entirely). Preserve the API's returned order verbatim.
     public static string BuildSubfeedUrl(string baseUrl, string gameId, int page) =>
-        $"{baseUrl.TrimEnd('/')}/apiv11/Game/{gameId}/Subfeed?_nPage={Math.Max(1, page)}&_sSort=new";
+        $"{baseUrl.TrimEnd('/')}/apiv11/Game/{gameId}/Subfeed?_nPage={Math.Max(1, page)}";
 
     /// <summary>Game-scoped mod search (listId = the GameBanana game id; null searches site-wide).</summary>
     public static string BuildSearchUrl(string baseUrl, string query, string? gameId, int page) =>
@@ -79,15 +84,16 @@ public class GameBananaEngine : RemoteSiteEngineBase
 
         if (root.TryGetProperty("_aRecords", out var records) && records.ValueKind == JsonValueKind.Array)
         {
-            var scored = new List<(long ts, RemoteModCard card)>();
             foreach (var rec in records.EnumerateArray())
             {
                 if (GetString(rec, "_sModelName") is { } model && !model.Equals("Mod", StringComparison.OrdinalIgnoreCase))
-                    continue; // subfeeds can carry non-mod submissions (sounds, WiPs) — mods only
+                    continue; // subfeeds carry non-mod submissions (Questions, WiPs, Sounds) — mods only
                 var url = GetString(rec, "_sProfileUrl");
                 var name = GetString(rec, "_sName");
                 if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(name)) continue;
-                var ts = GetLong(rec, "_tsDateAdded");
+                // Recency = last UPDATE (what the site surfaces); falls back to the added date.
+                var ts = GetLong(rec, "_tsDateModified");
+                if (ts <= 0) ts = GetLong(rec, "_tsDateAdded");
                 var card = new RemoteModCard
                 {
                     Title = name,
@@ -98,12 +104,9 @@ public class GameBananaEngine : RemoteSiteEngineBase
                 // Super category ("Skins", "UI") — the subfeed's only taxonomy level; the sub category
                 // lives on the ProfilePage and joins via GetDetail. Both are TAGS (redesign).
                 if (CategoryName(rec, "_aRootCategory") is { } super_) card.Tags.Add(super_);
-                scored.Add((ts, card));
-            }
-            // The API can return a page's records in ascending order (looked reversed on screen) — force
-            // newest-first by date added so each page reads the same as the site's "new" listing.
-            foreach (var (_, card) in scored.OrderByDescending(x => x.ts))
+                // API order preserved verbatim — it IS the site's page order (see BuildSubfeedUrl).
                 result.Cards.Add(card);
+            }
         }
 
         // Total pages from the metadata (record count / per-page). Caller caps the crawl.
