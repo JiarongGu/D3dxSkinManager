@@ -203,6 +203,25 @@ export const RemoteLibraryView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ui.sourceId, ui.listId]);
 
+  // BUILT-IN AUTO-SYNC: when the active library's index is STALE (older than 30 min), kick a silent
+  // incremental update — on opening the library and again on a timer while the tab stays mounted.
+  // The backend is idempotent (an already-running sync is a no-op ack).
+  useEffect(() => {
+    if (!selectedProfileId || !ui.sourceId || !ui.listId) return;
+    const STALE_MS = 30 * 60 * 1000;
+    const maybeSync = () => {
+      const at = useRemoteUiStore.getState().index?.info.syncedAtUtc;
+      if (at && Date.now() - new Date(at).getTime() < STALE_MS) return;
+      void api.remote.indexSync(selectedProfileId, ui.sourceId!, ui.listId!, false)
+        .then((ack) => { if (ack.started && ack.processId) setSyncProcId(ack.processId); })
+        .catch(() => undefined); // silent — background freshness, not a user action
+    };
+    const timer = setInterval(maybeSync, STALE_MS);
+    maybeSync();
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileId, ui.sourceId, ui.listId]);
+
   const openDetail = useCallback(
     (card: { detailUrl: string; title: string; key: string; tags: string[] }) => {
       const state = useRemoteUiStore.getState();
@@ -298,7 +317,6 @@ export const RemoteLibraryView: React.FC = () => {
           options={libState.libraries.map((l) => ({ value: l.id, label: l.name }))}
           onChange={(id) => void switchLibrary(id)}
         />
-        <CompactIconButton icon={<AppstoreOutlined />} title={t('remote.manage')} onClick={openManagement} />
         {/* One CONSISTENT compact toolbar for every engine — search covers titles AND tags; sort acts
             on the synced index (disabled until data lands); icon actions with distinct icons.
             Full-reindex lives in library management, not here. */}
@@ -330,14 +348,29 @@ export const RemoteLibraryView: React.FC = () => {
           title={t('remote.updateHint')}
           onClick={() => void startSync(false)}
         />
+        {/* Pager lives in the toolbar (was easy to miss below the fold). Our index count only. */}
+        {indexReady && (ui.index?.total ?? 0) > INDEX_PAGE_SIZE && (
+          <Pagination
+            className="remote-library__pager-inline"
+            simple
+            size="small"
+            current={ui.page}
+            total={ui.index!.total}
+            pageSize={INDEX_PAGE_SIZE}
+            showSizeChanger={false}
+            onChange={(p) => void loadIndex(p, ui.searchText)}
+          />
+        )}
+        {/* Right side: sync freshness only (the switcher already names the library). */}
         <span className="remote-library__origin" title={source?.baseUrl}>
           {syncedAt
             ? t('remote.lastSynced', {
                 time: new Date(syncedAt).toLocaleString(),
                 count: ui.index?.info.entryCount ?? 0,
               })
-            : activeLibrary?.name}
+            : null}
         </span>
+        <CompactIconButton icon={<AppstoreOutlined />} title={t('remote.manage')} onClick={openManagement} />
       </div>
 
       {/* Sync status bar: live progress while a crawl runs (interface stays usable — the grid fills
@@ -399,20 +432,6 @@ export const RemoteLibraryView: React.FC = () => {
         )}
       </div>
 
-      {/* ONE pager, driven by OUR synced list's count (the library is our own list built by the
-          sync strategy — never mirror the site's pagination). Pre-sync, the live preview shows
-          page 1 only with the sync hint above pushing to sync. */}
-      {indexReady && (ui.index?.total ?? 0) > INDEX_PAGE_SIZE && (
-        <div className="remote-library__pager">
-          <Pagination
-            current={ui.page}
-            total={ui.index!.total}
-            pageSize={INDEX_PAGE_SIZE}
-            showSizeChanger={false}
-            onChange={(p) => void loadIndex(p, ui.searchText)}
-          />
-        </div>
-      )}
     </div>
   );
 };

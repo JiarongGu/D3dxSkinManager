@@ -199,6 +199,63 @@ public class RemoteIndexService : IRemoteIndexService
         var count = await _repository.CountAsync(source.Id, listId).ConfigureAwait(false);
         _logger.Info($"[Remote] Index synced: {source.Id}_{listId} — {count} entries, crawled {crawledPages}/{totalPages} pages, pruned {pruned} ({(incremental ? "update" : "full")})",
             "RemoteIndexService");
+
+        // DETAIL ENRICHMENT: when the engine's detail pages carry tags the list feed doesn't
+        // (GameBanana's sub category), process every not-yet-enriched entry's detail — newest first,
+        // rate-limited, cancellable. Failures stay unmarked and retry on the next sync.
+        if (_browse.DetailProvidesTags(source.Id))
+        {
+            await EnrichDetailsAsync(source.Id, listId, listName, procId, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Politeness delay between detail fetches during enrichment.</summary>
+    private static readonly TimeSpan DetailDelay = TimeSpan.FromMilliseconds(150);
+    /// <summary>Abort enrichment after this many consecutive failures (site down / blocking).</summary>
+    private const int MaxConsecutiveDetailFailures = 10;
+
+    private async Task EnrichDetailsAsync(string sourceId, string listId, string listName, string procId, CancellationToken ct)
+    {
+        var total = 0;
+        var failures = 0;
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            var batch = await _repository.GetUnenrichedAsync(sourceId, listId, 200).ConfigureAwait(false);
+            if (batch.Count == 0) break;
+
+            foreach (var entry in batch)
+            {
+                ct.ThrowIfCancellationRequested();
+                await Task.Delay(DetailDelay, ct).ConfigureAwait(false);
+                try
+                {
+                    var detail = await _browse.GetDetailAsync(sourceId, entry.DetailUrl, ct).ConfigureAwait(false);
+                    if (detail.Tags.Count > 0)
+                        await _repository.MergeEntryTagsAsync(sourceId, listId, entry.Id, detail.Tags).ConfigureAwait(false);
+                    await _repository.MarkEnrichedAsync(sourceId, listId, entry.Id).ConfigureAwait(false);
+                    failures = 0;
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"[Remote] Detail enrichment failed for {entry.DetailUrl}: {ex.Message}", "RemoteIndexService");
+                    if (++failures >= MaxConsecutiveDetailFailures)
+                    {
+                        _logger.Warn($"[Remote] Enrichment aborted after {failures} consecutive failures", "RemoteIndexService");
+                        return;
+                    }
+                }
+                total++;
+                if (total % 10 == 0)
+                {
+                    _processRegistry.Report(procId, null, $"{listName} · {total}",
+                        detailKey: "process.stage.enrichingDetails");
+                }
+            }
+        }
+        if (total > 0)
+            _logger.Info($"[Remote] Detail enrichment: processed {total} entries for {sourceId}_{listId}", "RemoteIndexService");
     }
 
     private Task UpsertPageAsync(RemoteSourceConfig source, string listId, IReadOnlyList<RemoteModCard> cards, int pageNumber, long generation)

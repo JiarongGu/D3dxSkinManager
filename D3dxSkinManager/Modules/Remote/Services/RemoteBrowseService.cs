@@ -17,6 +17,10 @@ public interface IRemoteBrowseService
     Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null, CancellationToken ct = default);
     Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl, CancellationToken ct = default);
 
+    /// <summary>True when this source's detail pages carry tags the list feed doesn't — the sync
+    /// then runs a detail-enrichment phase (engine capability).</summary>
+    bool DetailProvidesTags(string sourceId);
+
     /// <summary>Run a CANDIDATE config (not necessarily saved) against the live site: parse list
     /// page 1 + the first card's detail, report what was extracted — the adapter authoring loop.</summary>
     Task<RemoteSourceTestResult> TestConfigAsync(RemoteSourceConfig config, string? listId, CancellationToken ct = default);
@@ -75,6 +79,12 @@ public class RemoteBrowseService : IRemoteBrowseService
     {
         var config = _sources.GetById(sourceId);
         return GetDetailCoreAsync(config, detailUrl, ct);
+    }
+
+    public bool DetailProvidesTags(string sourceId)
+    {
+        var config = _sources.GetById(sourceId);
+        return Resolve(config).ProvidesDetailTags;
     }
 
     private Task<RemoteModDetail> GetDetailCoreAsync(RemoteSourceConfig config, string detailUrl, CancellationToken ct)

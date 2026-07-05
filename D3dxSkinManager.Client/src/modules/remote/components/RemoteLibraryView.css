@@ -187,12 +187,9 @@
   color: var(--color-primary);
 }
 
-.remote-library__pager {
-  display: flex;
-  justify-content: center;
-  padding: 8px;
-  border-top: 1px solid var(--color-border-secondary);
-  background: var(--color-bg-container);
+/* Compact pager inside the toolbar (the bottom pager was easy to miss below the fold). */
+.remote-library__pager-inline {
+  white-space: nowrap;
 }
 
 .remote-library--setup {

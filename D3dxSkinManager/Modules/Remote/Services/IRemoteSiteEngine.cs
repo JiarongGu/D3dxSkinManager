@@ -20,6 +20,10 @@ public interface IRemoteSiteEngine
     /// <summary>Whether this source can search (drives the UI's search box for live search).</summary>
     bool SupportsSearch(RemoteSourceConfig config);
 
+    /// <summary>True when detail pages carry TAGS the list feed doesn't (e.g. GameBanana's sub
+    /// category) — the sync then runs a detail-enrichment phase over unprocessed entries.</summary>
+    bool ProvidesDetailTags { get; }
+
     Task<RemoteBrowseResult> BrowseAsync(RemoteSourceConfig config, string listId, int page, CancellationToken ct);
 
     /// <summary><paramref name="listId"/> scopes the search to one game where the site supports it
@@ -43,6 +47,7 @@ public abstract class RemoteSiteEngineBase : IRemoteSiteEngine
 
     public abstract string EngineId { get; }
     public abstract bool SupportsSearch(RemoteSourceConfig config);
+    public virtual bool ProvidesDetailTags => false;
     public abstract Task<RemoteBrowseResult> BrowseAsync(RemoteSourceConfig config, string listId, int page, CancellationToken ct);
     public abstract Task<RemoteBrowseResult> SearchAsync(RemoteSourceConfig config, string query, string? listId, CancellationToken ct);
     public abstract Task<RemoteModDetail> GetDetailAsync(RemoteSourceConfig config, string detailUrl, CancellationToken ct);

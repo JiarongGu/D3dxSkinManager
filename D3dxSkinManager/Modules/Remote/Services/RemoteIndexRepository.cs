@@ -23,6 +23,12 @@ public interface IRemoteIndexRepository
     /// <summary>Merge extra tags into one entry's tag list (e.g. the sub category a GameBanana detail
     /// page reveals — the subfeed only carries the super). Flat merge, order-preserving, deduped.</summary>
     Task MergeEntryTagsAsync(string sourceId, string listId, string entryId, IReadOnlyList<string> tags);
+
+    /// <summary>Entries whose detail page hasn't been processed yet (EnrichedUtc NULL), newest first.</summary>
+    Task<List<RemoteIndexEntry>> GetUnenrichedAsync(string sourceId, string listId, int limit);
+
+    /// <summary>Stamp an entry's detail as processed (with or without new tags).</summary>
+    Task MarkEnrichedAsync(string sourceId, string listId, string entryId);
     Task<int> CountAsync(string sourceId, string listId);
     Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
         string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize);
@@ -152,6 +158,26 @@ public class RemoteIndexRepository : IRemoteIndexRepository
         await connection.ExecuteAsync(
             "UPDATE RemoteIndexEntries SET Tags = @tags WHERE SourceId = @sourceId AND ListId = @listId AND EntryId = @entryId",
             new { tags = global::System.Text.Json.JsonSerializer.Serialize(merged), sourceId, listId, entryId });
+    }
+
+    public async Task<List<RemoteIndexEntry>> GetUnenrichedAsync(string sourceId, string listId, int limit)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        var rows = await connection.QueryAsync<RemoteIndexEntry>(@"
+            SELECT EntryId AS Id, Title, DetailUrl, ImageUrl, Tags AS TagsJson
+            FROM RemoteIndexEntries
+            WHERE SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL AND EnrichedUtc IS NULL
+            ORDER BY Generation DESC, SortKey ASC
+            LIMIT @limit", new { sourceId, listId, limit = Math.Max(1, limit) });
+        return rows.ToList();
+    }
+
+    public async Task MarkEnrichedAsync(string sourceId, string listId, string entryId)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.ExecuteAsync(
+            "UPDATE RemoteIndexEntries SET EnrichedUtc = @Now WHERE SourceId = @sourceId AND ListId = @listId AND EntryId = @entryId",
+            new { sourceId, listId, entryId, Now = DateTime.UtcNow });
     }
 
     public async Task<int> CountAsync(string sourceId, string listId)

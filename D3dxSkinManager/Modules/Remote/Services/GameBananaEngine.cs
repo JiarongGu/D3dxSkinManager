@@ -29,6 +29,9 @@ public class GameBananaEngine : RemoteSiteEngineBase
 
     public override bool SupportsSearch(RemoteSourceConfig config) => true;
 
+    /// <summary>The sub category exists ONLY on the ProfilePage — sync enriches details for it.</summary>
+    public override bool ProvidesDetailTags => true;
+
     public override async Task<RemoteBrowseResult> BrowseAsync(RemoteSourceConfig config, string listId, int page, CancellationToken ct)
     {
         var json = await FetchAsync(BuildSubfeedUrl(config.BaseUrl, listId, page), ct).ConfigureAwait(false);

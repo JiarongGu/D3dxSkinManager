@@ -46,7 +46,7 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, EntryId TEXT NOT NULL,
                 Title TEXT NOT NULL DEFAULT '', DetailUrl TEXT NOT NULL, ImageUrl TEXT NOT NULL DEFAULT '',
                 Tags TEXT, DateHint TEXT, Generation INTEGER NOT NULL DEFAULT 0, SortKey INTEGER NOT NULL DEFAULT 0,
-                FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL, RemovedUtc TEXT,
+                FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL, RemovedUtc TEXT, EnrichedUtc TEXT,
                 PRIMARY KEY (SourceId, ListId, EntryId));
             CREATE TABLE RemoteIndexMeta (
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, SyncedAtUtc TEXT,
@@ -225,6 +225,42 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         tags.Should().HaveCount(3);
         tags[0].Name.Should().Be("Skins");   // most frequent first
         tags[0].Count.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Sync_EnrichesDetails_WhenEngineProvidesDetailTags_AndOnlyOnce()
+    {
+        SetupPages(new List<RemoteModCard> { Card(1, "A", tags: new[] { "Skins" }), Card(2, "B") });
+        _browse.Setup(b => b.DetailProvidesTags("huihui")).Returns(true);
+        _browse.Setup(b => b.GetDetailAsync("huihui", It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string url, CancellationToken __) => new RemoteModDetail
+            {
+                DetailUrl = url,
+                Tags = new List<string> { url.Contains("/1.") ? "Jane Doe" : "Ellen" },
+            });
+
+        await SyncAndWaitAsync();
+        // Wait for the enrichment tail (runs inside the same process, after the crawl).
+        for (var i = 0; i < 100; i++)
+        {
+            var check = await _service.QueryAsync("huihui", "2", null, 1, 10);
+            if (check.Entries.All(e => e.Tags.Count >= 1) && check.Entries.Single(e => e.Id == "1").Tags.Count == 2) break;
+            await Task.Delay(50);
+        }
+
+        var entries = (await _service.QueryAsync("huihui", "2", null, 1, 10)).Entries;
+        entries.Single(e => e.Id == "1").Tags.Should().BeEquivalentTo(new[] { "Skins", "Jane Doe" },
+            because: "the detail tag merges with the list tag");
+        entries.Single(e => e.Id == "2").Tags.Should().BeEquivalentTo(new[] { "Ellen" });
+
+        // Second sync: everything already enriched — no further detail fetches for old entries.
+        _browse.Invocations.Clear();
+        SetupPages(new List<RemoteModCard> { Card(1, "A", tags: new[] { "Skins" }), Card(2, "B") });
+        _browse.Setup(b => b.DetailProvidesTags("huihui")).Returns(true);
+        await SyncAndWaitAsync();
+        await Task.Delay(200); // give a would-be enrichment a moment to (wrongly) start
+        _browse.Verify(b => b.GetDetailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never, "already-enriched entries are not refetched");
     }
 
     [Fact]

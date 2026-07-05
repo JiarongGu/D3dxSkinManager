@@ -812,6 +812,7 @@
     "process.stage.verifying": "Verifying",
     "process.stage.readyToInstall": "Ready to install on restart",
     "process.stage.compressing": "Compressing",
+    "process.stage.enrichingDetails": "Processing mod details",
     "process.remoteSync": "Syncing remote library: {{arg}}",
     "process.stage.crawling": "Crawling pages",
     "process.remoteSyncAll": "Syncing remote library: {{arg}} (all lists)",
