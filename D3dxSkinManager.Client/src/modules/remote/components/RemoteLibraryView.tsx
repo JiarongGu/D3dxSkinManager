@@ -348,19 +348,6 @@ export const RemoteLibraryView: React.FC = () => {
           title={t('remote.updateHint')}
           onClick={() => void startSync(false)}
         />
-        {/* Pager lives in the toolbar (was easy to miss below the fold). Our index count only. */}
-        {indexReady && (ui.index?.total ?? 0) > INDEX_PAGE_SIZE && (
-          <Pagination
-            className="remote-library__pager-inline"
-            simple
-            size="small"
-            current={ui.page}
-            total={ui.index!.total}
-            pageSize={INDEX_PAGE_SIZE}
-            showSizeChanger={false}
-            onChange={(p) => void loadIndex(p, ui.searchText)}
-          />
-        )}
         {/* Right side: sync freshness only (the switcher already names the library). */}
         <span className="remote-library__origin" title={source?.baseUrl}>
           {syncedAt
@@ -432,6 +419,18 @@ export const RemoteLibraryView: React.FC = () => {
         )}
       </div>
 
+      {/* Bottom button pager (the design that works) — driven by OUR index count only. */}
+      {indexReady && (ui.index?.total ?? 0) > INDEX_PAGE_SIZE && (
+        <div className="remote-library__pager">
+          <Pagination
+            current={ui.page}
+            total={ui.index!.total}
+            pageSize={INDEX_PAGE_SIZE}
+            showSizeChanger={false}
+            onChange={(p) => void loadIndex(p, ui.searchText)}
+          />
+        </div>
+      )}
     </div>
   );
 };
