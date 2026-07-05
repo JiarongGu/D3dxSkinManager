@@ -239,9 +239,14 @@ MessageDispatcher → ProfileServiceRouter) and all references corrected.
 
 - **Deferred dedup targets** (from the 2026-07-05 duplication audit — do opportunistically or as
   their feature comes up):
-  - **Shared `.ini` parse helper** — `Core/Helpers/IniParser` SHIPPED with the analyzer rework
-    (2026-07-05); `ModAnalysisService` migrated. Remaining consumers to migrate opportunistically:
-    ModIniService, ModKeybindingService, NamespaceMergeBuilder (their write-back line rewriters stay).
+  - **Shared `.ini` parse helper** — DONE 2026-07-05: `Core/Helpers/IniParser` shipped with the
+    analyzer rework; ModAnalysisService, **ModIniService.GetIniFilesAsync** and
+    **ModKeybindingService.ParseIniFileAsync** migrated (read paths). Side-fixes from the migration:
+    control-flow lines (`if $x == 1`) no longer surface as bogus editable entries; `condition =`
+    lines no longer misread as a keybinding's cycle var; disabled check now covers FOLDERS
+    (`IsDisabledPath`, XXMI `exclude_recursive` semantics); key rebind matches/preserves inline
+    comments. Write-back line rewriters stay by design, and NamespaceMergeBuilder stays a raw-line
+    rewriter (IniParser is read-only — it strips the comments/layout a rewriter must preserve).
   - **`RunTrackedAsync` ProcessRegistry extension** — 9+ services repeat the Start/try/Complete/Fail
     wrapper; extract when next touching several producers at once.
   - **`DISABLED-` prefix constant** — DONE 2026-07-05: `Modules/Mod/ModConventions`

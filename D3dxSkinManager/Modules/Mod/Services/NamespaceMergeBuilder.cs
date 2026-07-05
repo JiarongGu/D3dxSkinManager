@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -114,7 +115,7 @@ public static class NamespaceMergeBuilder
             foreach (var line in section.Body)
             {
                 var trimmed = line.Trim();
-                if (trimmed.Length == 0 || trimmed.StartsWith(";") || trimmed.StartsWith("；")) { cmds.Add(line); continue; }
+                if (trimmed.Length == 0 || IniParser.IsCommentLine(trimmed)) { cmds.Add(line); continue; }
                 var eq = trimmed.IndexOf('=');
                 var key = eq > 0 ? trimmed[..eq].Trim() : trimmed;
                 if (DeclarationKeys.Contains(key)) decls.Add(line);

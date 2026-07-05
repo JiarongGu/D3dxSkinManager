@@ -204,4 +204,36 @@ type = cycle
         text.Should().Contain("key = XB_RIGHT_SHOULDER");
         text.Should().NotContain("XB_LEFT_SHOULDER");
     }
+
+    [Fact]
+    public async Task Parse_StripsInlineComment_AndRebindPreservesIt()
+    {
+        // A `key = VK_F1 ; hair toggle` line: the parse shows the clean chord (IniParser strips inline
+        // comments) and the rebind must match on the STRIPPED value + keep the comment on the line.
+        var file = WriteModIni("MODIC", "[KeySwap]\nkey = VK_F1 ; hair toggle\ntype = cycle\n");
+        _repo.Setup(r => r.GetByIdAsync("MODIC")).ReturnsAsync((D3dxSkinManager.Modules.Mod.Entities.ModEntity?)null);
+
+        var parsed = await _service.ParseKeybindingsAsync("MODIC");
+        parsed.Should().ContainSingle().Which.Key.Should().Be("VK_F1");
+
+        var changed = await _service.UpdateKeybindingAsync("MODIC", "VK_F1", "VK_F2");
+
+        changed.Should().Be(1);
+        (await File.ReadAllTextAsync(file)).Should().Contain("key = VK_F2 ; hair toggle");
+    }
+
+    [Fact]
+    public async Task Parse_ConditionLine_DoesNotBecomeTheCycleVariable()
+    {
+        // `condition = $active == 1` used to be misread by a value-side regex as Variable=$active,
+        // CycleValues="= 1" when the section had no real `$var =` assignment (IniParser migration guard).
+        WriteModIni("MODCOND", "[KeySwap]\ncondition = $active == 1\nkey = 9\ntype = cycle\n");
+        _repo.Setup(r => r.GetByIdAsync("MODCOND")).ReturnsAsync((D3dxSkinManager.Modules.Mod.Entities.ModEntity?)null);
+
+        var result = await _service.ParseKeybindingsAsync("MODCOND");
+
+        result.Should().ContainSingle();
+        result[0].Variable.Should().BeNullOrEmpty();
+        result[0].CycleValues.Should().BeNullOrEmpty();
+    }
 }

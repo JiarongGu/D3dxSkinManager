@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -77,13 +78,6 @@ public class ModIniService : IModIniService
         return (true, null);
     }
 
-    // Strip an inline comment (`;` or fullwidth `；`) from a value's RHS, returning the value part only.
-    private static string StripInlineComment(string rhs)
-    {
-        var idx = rhs.IndexOfAny(new[] { ';', '；' });
-        return (idx >= 0 ? rhs[..idx] : rhs).Trim();
-    }
-
     public async Task<List<ModIniFile>> GetIniFilesAsync(string modId)
     {
         var files = new List<ModIniFile>();
@@ -91,54 +85,39 @@ public class ModIniService : IModIniService
         if (cacheDir == null) return files;
 
         foreach (var iniPath in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories)
-                     // Skip disabled .ini (e.g. a merged mod's DISABLED*.ini sources) — inactive in-game.
-                     .Where(p => !Path.GetFileName(p).Contains("disabled", StringComparison.OrdinalIgnoreCase))
+                     // Skip disabled files/folders (DISABLED*.ini, disabled subdirs) — inactive in-game.
+                     .Where(p => !IniParser.IsDisabledPath(Path.GetRelativePath(cacheDir, p)))
                      .OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
         {
             var lines = await File.ReadAllLinesAsync(iniPath).ConfigureAwait(false);
+            var doc = IniParser.Parse(lines);
             var file = new ModIniFile
             {
                 RelativePath = Path.GetRelativePath(cacheDir, iniPath).Replace('\\', '/'),
                 FileName = Path.GetFileName(iniPath),
+                Namespace = doc.Namespace,
             };
 
-            ModIniSection? section = null;
-            for (var i = 0; i < lines.Length; i++)
+            foreach (var parsed in doc.Sections)
             {
-                var trimmed = lines[i].Trim();
-                if (trimmed.Length == 0 || trimmed.StartsWith(";") || trimmed.StartsWith("；")) continue;
-
-                if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                var section = new ModIniSection { Name = parsed.Name, Advanced = IsAdvancedSection(parsed.Name) };
+                file.Sections.Add(section);
+                foreach (var entry in parsed.Entries)
                 {
-                    var name = trimmed.Trim('[', ']').Trim();
-                    section = new ModIniSection { Name = name, Advanced = IsAdvancedSection(name) };
-                    file.Sections.Add(section);
-                    continue;
+                    // Control-flow / command lines without '=' (if/else/endif, bare draw) aren't
+                    // key=value entries — nothing to edit.
+                    if (entry.Key == null || entry.Value == null) continue;
+
+                    var (editable, reason) = Classify(section.Name, entry.Key, entry.Value);
+                    section.Entries.Add(new ModIniEntry
+                    {
+                        Key = entry.Key,
+                        Value = entry.Value,
+                        LineIndex = entry.LineIndex,
+                        Editable = editable,
+                        LockReason = reason,
+                    });
                 }
-
-                // Capture the 3DMigoto `namespace = X` directive (relates files together). It may appear
-                // before any section, so check it regardless of section context.
-                if (file.Namespace == null)
-                {
-                    var ns = Regex.Match(trimmed, @"^namespace\s*=\s*(.+?)\s*(?:[;；].*)?$", RegexOptions.IgnoreCase);
-                    if (ns.Success) { file.Namespace = ns.Groups[1].Value.Trim(); continue; }
-                }
-
-                if (section == null) continue; // assignment before any section — ignore for editing
-                var eq = trimmed.IndexOf('=');
-                if (eq <= 0) continue;
-
-                var rawKey = trimmed[..eq].Trim();
-                var value = StripInlineComment(trimmed[(eq + 1)..]);
-                var (editable, reason) = Classify(section.Name, rawKey, value);
-                section.Entries.Add(new ModIniEntry
-                {
-                    Key = rawKey,
-                    Value = value,
-                    LineIndex = i,
-                    Editable = editable,
-                    LockReason = reason,
-                });
             }
 
             // Only surface files that actually have sections (skip junk).
@@ -207,7 +186,7 @@ public class ModIniService : IModIniService
 
             var result = new IniRepairResult();
             foreach (var iniPath in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories)
-                         .Where(p => !Core.Helpers.IniParser.IsDisabledPath(Path.GetRelativePath(cacheDir, p)))
+                         .Where(p => !IniParser.IsDisabledPath(Path.GetRelativePath(cacheDir, p)))
                          .OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
             {
                 var lines = (await File.ReadAllLinesAsync(iniPath).ConfigureAwait(false)).ToList();
@@ -228,8 +207,8 @@ public class ModIniService : IModIniService
                 foreach (var line in lines)
                 {
                     var trimmed = line.Trim();
-                    var meaningful = trimmed.Length > 0 && !Core.Helpers.IniParser.IsCommentLine(trimmed)
-                        ? Core.Helpers.IniParser.StripInlineComment(trimmed)
+                    var meaningful = trimmed.Length > 0 && !IniParser.IsCommentLine(trimmed)
+                        ? IniParser.StripInlineComment(trimmed)
                         : string.Empty;
 
                     if (meaningful.StartsWith('[') && meaningful.EndsWith(']'))

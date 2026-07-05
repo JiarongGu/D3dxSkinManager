@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
+using D3dxSkinManager.Modules.Core.Helpers;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
@@ -77,13 +78,6 @@ public class ModKeybindingService : IModKeybindingService
         return obj.ToJsonString();
     }
 
-    /// <summary>
-    /// A disabled .ini (name contains "disabled", e.g. a merged mod's DISABLED0.ini) is inactive in-game,
-    /// so its keybindings must be ignored. Matches GIMI's collect_ini convention.
-    /// </summary>
-    private static bool IsDisabledIni(string path) =>
-        Path.GetFileName(path).Contains("disabled", StringComparison.OrdinalIgnoreCase);
-
     public Task<int> UpdateKeybindingAsync(string modId, string oldKey, string newKey)
     {
         if (string.IsNullOrWhiteSpace(oldKey) || string.IsNullOrWhiteSpace(newKey))
@@ -103,7 +97,8 @@ public class ModKeybindingService : IModKeybindingService
             var newVal = newKey.Trim();
             var changedFiles = new List<string>();
 
-            foreach (var iniFile in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories).Where(p => !IsDisabledIni(p)))
+            foreach (var iniFile in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories)
+                         .Where(p => !IniParser.IsDisabledPath(Path.GetRelativePath(cacheDir, p))))
             {
                 var lines = await File.ReadAllLinesAsync(iniFile).ConfigureAwait(false);
                 var inKeySection = false;
@@ -117,13 +112,14 @@ public class ModKeybindingService : IModKeybindingService
                         inKeySection = trimmed.Trim('[', ']').StartsWith("Key", StringComparison.OrdinalIgnoreCase);
                         continue;
                     }
-                    if (!inKeySection || trimmed.StartsWith(";") || trimmed.StartsWith("；")) continue;
+                    if (!inKeySection || IniParser.IsCommentLine(trimmed)) continue;
 
-                    // Match a `key = <value>` assignment (case-insensitive name, value compared trimmed).
-                    var m = Regex.Match(lines[i], @"^(\s*key\s*=\s*)(.+?)(\s*)$", RegexOptions.IgnoreCase);
+                    // Match a `key = <value>` assignment. The value is compared with any inline comment
+                    // stripped (the parse strips them too), and the comment is preserved on rewrite.
+                    var m = Regex.Match(lines[i], @"^(\s*key\s*=\s*)(.*?)(\s*(?:[;；].*)?)$", RegexOptions.IgnoreCase);
                     if (m.Success && string.Equals(m.Groups[2].Value.Trim(), oldVal, StringComparison.OrdinalIgnoreCase))
                     {
-                        lines[i] = m.Groups[1].Value + newVal;
+                        lines[i] = m.Groups[1].Value + newVal + m.Groups[3].Value;
                         fileChanged = true;
                         changed++;
                     }
@@ -190,8 +186,9 @@ public class ModKeybindingService : IModKeybindingService
             }
 
             // Find all .ini files in mod directory and subdirectories
-            // Skip disabled .ini (e.g. a merged mod's DISABLED*.ini source files) — they're inactive in-game.
-            var iniFiles = Directory.GetFiles(modWorkDir, "*.ini", SearchOption.AllDirectories).Where(p => !IsDisabledIni(p)).ToArray();
+            // Skip disabled files/folders (DISABLED*.ini, disabled subdirs) — they're inactive in-game.
+            var iniFiles = Directory.GetFiles(modWorkDir, "*.ini", SearchOption.AllDirectories)
+                .Where(p => !IniParser.IsDisabledPath(Path.GetRelativePath(modWorkDir, p))).ToArray();
 
             foreach (var iniFile in iniFiles)
             {
@@ -284,87 +281,50 @@ public class ModKeybindingService : IModKeybindingService
 
         try
         {
+            // Shared tolerant parse (both comment chars, control-flow-safe, inline comments stripped)
+            // — see Core.Helpers.IniParser + .claude/rules/3dmigoto-ini-interface.md.
             var lines = await File.ReadAllLinesAsync(filePath);
-            string? currentSection = null;
-            var currentKeybinding = new ModKeybinding();
+            var doc = IniParser.Parse(lines);
 
-            foreach (var line in lines)
+            foreach (var section in doc.Sections)
             {
-                var trimmedLine = line.Trim();
+                if (!section.Name.StartsWith("Key", StringComparison.OrdinalIgnoreCase)) continue;
 
-                // Skip empty lines and comments — real mods use the fullwidth `；` too
-                // (see .claude/rules/3dmigoto-ini-interface.md).
-                if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.StartsWith(";") || trimmedLine.StartsWith("；"))
-                    continue;
-
-                // Check for section header
-                if (trimmedLine.StartsWith("[") && trimmedLine.EndsWith("]"))
+                var binding = new ModKeybinding { SectionName = section.Name };
+                foreach (var entry in section.Entries)
                 {
-                    // Save previous keybinding if it was a key section
-                    if (currentSection != null && currentSection.StartsWith("Key", StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrEmpty(currentKeybinding.Key))
+                    if (entry.Key == null || entry.Value == null) continue;
+
+                    if (entry.Key.Equals("key", StringComparison.OrdinalIgnoreCase))
                     {
-                        keybindings.Add(currentKeybinding);
-                    }
-
-                    currentSection = trimmedLine.Trim('[', ']');
-                    currentKeybinding = new ModKeybinding
-                    {
-                        SectionName = currentSection
-                    };
-                    continue;
-                }
-
-                // Parse key-value pairs within sections
-                if (currentSection != null && currentSection.StartsWith("Key", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = trimmedLine.Split('=', 2);
-                    if (parts.Length != 2) continue;
-
-                    var key = parts[0].Trim().ToLower();
-                    var value = parts[1].Trim();
-
-                    switch (key)
-                    {
-                        case "key":
-                            if (string.IsNullOrEmpty(currentKeybinding.Key))
-                            {
-                                currentKeybinding.Key = value;
-                                currentKeybinding.KeyDisplay = ConvertKeyToDisplay(value);
-                                currentKeybinding.Description = ExtractDescription(currentSection);
-                            }
-                            else
-                            {
-                                // A [Key*] section may carry MULTIPLE `key =` lines (keyboard +
-                                // controller share state, per the 3DMigoto key doc). They used to
-                                // overwrite each other here — keep every one.
-                                currentKeybinding.AdditionalKeys.Add(value);
-                                currentKeybinding.AdditionalKeyDisplays.Add(ConvertKeyToDisplay(value));
-                            }
-                            break;
-                        case "type":
-                            currentKeybinding.Type = value;
-                            break;
-                    }
-
-                    // Check if this line assigns to a variable (e.g., "$color = 0,1,2,3")
-                    if (trimmedLine.Contains("$"))
-                    {
-                        var match = Regex.Match(trimmedLine, @"\$(\w+)\s*=\s*(.+)");
-                        if (match.Success)
+                        if (string.IsNullOrEmpty(binding.Key))
                         {
-                            currentKeybinding.Variable = "$" + match.Groups[1].Value;
-                            currentKeybinding.CycleValues = match.Groups[2].Value;
+                            binding.Key = entry.Value;
+                            binding.KeyDisplay = ConvertKeyToDisplay(entry.Value);
+                            binding.Description = ExtractDescription(section.Name);
+                        }
+                        else
+                        {
+                            // A [Key*] section may carry MULTIPLE `key =` lines (keyboard +
+                            // controller share state, per the 3DMigoto key doc) — keep every one.
+                            binding.AdditionalKeys.Add(entry.Value);
+                            binding.AdditionalKeyDisplays.Add(ConvertKeyToDisplay(entry.Value));
                         }
                     }
+                    else if (entry.Key.Equals("type", StringComparison.OrdinalIgnoreCase))
+                    {
+                        binding.Type = entry.Value;
+                    }
+                    else if (entry.Key.StartsWith('$'))
+                    {
+                        // The section's cycle assignment (e.g. `$color = 0,1,2,3`). Matching on the
+                        // KEY keeps `condition = $x == 1` lines from being misread as cycle vars.
+                        binding.Variable = entry.Key;
+                        binding.CycleValues = entry.Value;
+                    }
                 }
-            }
 
-            // Don't forget the last keybinding
-            if (currentSection != null && currentSection.StartsWith("Key", StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrEmpty(currentKeybinding.Key))
-            {
-                keybindings.Add(currentKeybinding);
+                if (!string.IsNullOrEmpty(binding.Key)) keybindings.Add(binding);
             }
         }
         catch (Exception ex)

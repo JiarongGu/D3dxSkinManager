@@ -105,6 +105,35 @@ run = CommandListSkinTexture
     }
 
     [Fact]
+    public async Task GetIniFiles_ControlFlowLines_AreNotEntries()
+    {
+        // [Constants] may hold if/endif blocks — `if $x == 1` used to be split on the first '=' of
+        // '==' and surface as a bogus EDITABLE entry keyed "if $x" (IniParser migration regression guard).
+        WriteModIni("MODCF", "mod.ini", "[Constants]\nglobal $x = 0\nif $x == 1\nglobal $y = 2\nendif\n");
+
+        var files = await _service.GetIniFilesAsync("MODCF");
+
+        var constants = files.Single().Sections.Single(s => s.Name == "Constants");
+        constants.Entries.Select(e => e.Key).Should().BeEquivalentTo("global $x", "global $y");
+        constants.Entries.Should().OnlyContain(e => e.Editable);
+    }
+
+    [Fact]
+    public async Task GetIniFiles_SkipsDisabledFolders()
+    {
+        // The disabled convention covers FOLDERS too (XXMI exclude_recursive = DISABLED*), not just
+        // file names — a .ini under a disabled dir never loads.
+        WriteModIni("MODDF", "mod.ini", Sample);
+        var sub = Path.Combine(_cacheRoot, "MODDF", "DISABLED backup");
+        Directory.CreateDirectory(sub);
+        File.WriteAllText(Path.Combine(sub, "old.ini"), Sample);
+
+        var files = await _service.GetIniFilesAsync("MODDF");
+
+        files.Should().ContainSingle().Which.RelativePath.Should().Be("mod.ini");
+    }
+
+    [Fact]
     public async Task UpdateEntry_RewritesValue_PreservesKeyAndComment_PatchesArchive()
     {
         // A constant default with an inline comment + indentation — both must be preserved.
