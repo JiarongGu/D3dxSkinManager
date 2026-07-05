@@ -13,6 +13,8 @@ interface RemoteUiState {
   listId?: string;
   page: number;
   searchText: string;
+  /** Index sort: site order (default) or newest date hint first. */
+  sort: 'site' | 'date';
   /** Last LIVE browse/search result (fallback when the index was never synced). */
   result?: RemoteBrowseResult;
   /** True when `result` came from a site search rather than list browsing. */
@@ -24,6 +26,7 @@ interface RemoteUiState {
   setList: (listId: string | undefined) => void;
   setPage: (page: number) => void;
   setSearchText: (text: string) => void;
+  setSort: (sort: 'site' | 'date') => void;
   setResult: (result: RemoteBrowseResult | undefined, isSearchResult: boolean) => void;
   setIndex: (index: RemoteIndexPage | undefined) => void;
   /** Reset when the profile changes — remote selection is per-profile context. */
@@ -35,6 +38,7 @@ const initialState = {
   listId: undefined as string | undefined,
   page: 1,
   searchText: '',
+  sort: 'site' as 'site' | 'date',
   result: undefined as RemoteBrowseResult | undefined,
   isSearchResult: false,
   index: undefined as RemoteIndexPage | undefined,
@@ -49,6 +53,7 @@ export const useRemoteUiStore = create<RemoteUiState>((set, get) => ({
   setList: (listId) => set({ listId, page: 1, result: undefined, isSearchResult: false, index: undefined }),
   setPage: (page) => set({ page }),
   setSearchText: (searchText) => set({ searchText }),
+  setSort: (sort) => set({ sort, page: 1 }),
   setResult: (result, isSearchResult) => set({ result, isSearchResult }),
   setIndex: (index) => set({ index }),
   ensureProfile: (profileId) => {

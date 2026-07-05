@@ -16,6 +16,10 @@
   align-items: flex-start;
 }
 
+.remote-source-manager__row:hover {
+  border-color: var(--color-primary);
+}
+
 .remote-source-manager__row {
   display: flex;
   align-items: center;
@@ -53,6 +57,10 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 8px;
+  background: var(--color-card-bg);
 }
 
 .remote-source-manager__hint {
@@ -68,6 +76,7 @@
 .remote-source-manager__actions {
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .remote-source-manager__test {

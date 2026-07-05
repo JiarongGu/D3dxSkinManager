@@ -60,13 +60,19 @@ export class RemoteService extends BaseModuleService {
     search: string | undefined,
     page: number,
     pageSize: number,
+    sort?: string,
   ): Promise<RemoteIndexPage> {
-    return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize });
+    return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize, sort });
   }
 
   /** Start a background crawl of all list pages (Activity panel). Immediate ack. */
   async indexSync(profileId: string, sourceId: string, listId: string): Promise<RemoteDownloadImportAck> {
     return this.sendMessage<RemoteDownloadImportAck>('INDEX_SYNC', profileId, { sourceId, listId });
+  }
+
+  /** Sync EVERY list of a source under one Activity-panel process. */
+  async indexSyncAll(profileId: string, sourceId: string): Promise<RemoteDownloadImportAck> {
+    return this.sendMessage<RemoteDownloadImportAck>('INDEX_SYNC_ALL', profileId, { sourceId });
   }
 
   /** Validate + persist a (possibly user-authored) adapter. */

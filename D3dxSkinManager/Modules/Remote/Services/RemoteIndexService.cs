@@ -17,11 +17,16 @@ namespace D3dxSkinManager.Modules.Remote.Services;
 /// </summary>
 public interface IRemoteIndexService
 {
-    /// <summary>Filtered + paged slice of the cached index (empty info when never synced).</summary>
-    RemoteIndexPage Query(string sourceId, string listId, string? search, int page, int pageSize);
+    /// <summary>Filtered + paged slice of the cached index (empty info when never synced).
+    /// <paramref name="sort"/>: "site" (default, the site's own recency order) or "date"
+    /// (newest DateHint first).</summary>
+    RemoteIndexPage Query(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null);
 
     /// <summary>Start a background crawl of all pages of the list. Returns the process id.</summary>
     string StartSync(string sourceId, string listId);
+
+    /// <summary>Sync EVERY list of the source under one cancellable process. Returns the process id.</summary>
+    string StartSyncAll(string sourceId);
 }
 
 public class RemoteIndexService : IRemoteIndexService
@@ -59,7 +64,7 @@ public class RemoteIndexService : IRemoteIndexService
         _logger = logger;
     }
 
-    public RemoteIndexPage Query(string sourceId, string listId, string? search, int page, int pageSize)
+    public RemoteIndexPage Query(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null)
     {
         var cache = Load(sourceId, listId) ?? new RemoteIndexCache
         {
@@ -73,7 +78,10 @@ public class RemoteIndexService : IRemoteIndexService
             filtered = filtered.Where(e => terms.All(t => e.Title.Contains(t, StringComparison.OrdinalIgnoreCase)));
         }
 
-        var ordered = filtered.OrderBy(e => e.SortKey).ToList();
+        var ordered = string.Equals(sort, "date", StringComparison.OrdinalIgnoreCase)
+            // Newest date hint first; entries without a hint sink to the end (kept in site order there).
+            ? filtered.OrderByDescending(e => e.DateHint ?? string.Empty).ThenBy(e => e.SortKey).ToList()
+            : filtered.OrderBy(e => e.SortKey).ToList();
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 500);
         return new RemoteIndexPage
@@ -104,31 +112,8 @@ public class RemoteIndexService : IRemoteIndexService
             var ct = _processRegistry.GetToken(procId);
             try
             {
-                var cache = Load(sourceId, listId) ?? new RemoteIndexCache();
-                var byId = cache.Entries.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
-                var now = DateTime.UtcNow;
-
-                _processRegistry.Report(procId, 1, "Page 1", detailKey: "process.stage.crawling");
-                var first = await _browse.BrowseAsync(sourceId, listId, 1, ct).ConfigureAwait(false);
-                var totalPages = Math.Min(first.TotalPages ?? MaxPages, MaxPages);
-                Merge(byId, first.Cards, source, pageNumber: 1, now);
-
-                for (var page = 2; page <= totalPages; page++)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    await Task.Delay(PageDelay, ct).ConfigureAwait(false);
-                    var result = await _browse.BrowseAsync(sourceId, listId, page, ct).ConfigureAwait(false);
-                    if (result.Cards.Count == 0 && first.TotalPages == null) break; // unknown total — stop at the first empty page
-                    Merge(byId, result.Cards, source, page, now);
-
-                    _processRegistry.Report(procId, (int)(page * 100.0 / totalPages), $"Page {page}/{totalPages}",
-                        detailKey: "process.stage.crawling");
-                    if (page % 20 == 0) Save(sourceId, listId, byId, totalPages, syncedAt: null); // crash checkpoint
-                }
-
-                Save(sourceId, listId, byId, totalPages, DateTime.UtcNow);
+                await CrawlListAsync(source, listId, procId, basePct: 0, spanPct: 100, ct).ConfigureAwait(false);
                 _processRegistry.Complete(procId);
-                _logger.Info($"[Remote] Index synced: {key} — {byId.Count} entries / {totalPages} pages", "RemoteIndexService");
             }
             catch (OperationCanceledException)
             {
@@ -146,6 +131,83 @@ public class RemoteIndexService : IRemoteIndexService
         });
 
         return procId;
+    }
+
+    public string StartSyncAll(string sourceId)
+    {
+        var source = _sources.GetById(sourceId);
+        if (source.Lists.Count == 0) return string.Empty;
+        var key = $"{sourceId}_*";
+
+        lock (_syncLock)
+        {
+            if (_activeSyncs.Contains(key)) return string.Empty;
+            _activeSyncs.Add(key);
+        }
+
+        var procId = _processRegistry.Start(ProcessType.Download, $"Syncing remote library: {source.Name} (all)",
+            cancellable: true, titleKey: "process.remoteSyncAll", titleArg: source.Name);
+
+        _ = Task.Run(async () =>
+        {
+            var ct = _processRegistry.GetToken(procId);
+            try
+            {
+                var span = 100 / source.Lists.Count;
+                for (var i = 0; i < source.Lists.Count; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await CrawlListAsync(source, source.Lists[i].Id, procId, basePct: i * span, spanPct: span, ct)
+                        .ConfigureAwait(false);
+                }
+                _processRegistry.Complete(procId);
+            }
+            catch (OperationCanceledException)
+            {
+                _processRegistry.Cancel(procId);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[Remote] Full-site sync failed for {sourceId}: {ex.Message}", "RemoteIndexService", ex);
+                _processRegistry.Fail(procId, ex.Message);
+            }
+            finally
+            {
+                lock (_syncLock) { _activeSyncs.Remove(key); }
+            }
+        });
+
+        return procId;
+    }
+
+    /// <summary>Crawl one list into its cache, reporting progress into the [basePct, basePct+spanPct] band.</summary>
+    private async Task CrawlListAsync(RemoteSourceConfig source, string listId, string procId, int basePct, int spanPct, CancellationToken ct)
+    {
+        var cache = Load(source.Id, listId) ?? new RemoteIndexCache();
+        var byId = cache.Entries.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
+        var now = DateTime.UtcNow;
+        var listName = source.Lists.FirstOrDefault(l => l.Id == listId)?.Name ?? listId;
+
+        _processRegistry.Report(procId, basePct, $"{listName} 1", detailKey: "process.stage.crawling");
+        var first = await _browse.BrowseAsync(source.Id, listId, 1, ct).ConfigureAwait(false);
+        var totalPages = Math.Min(first.TotalPages ?? MaxPages, MaxPages);
+        Merge(byId, first.Cards, source, pageNumber: 1, now);
+
+        for (var page = 2; page <= totalPages; page++)
+        {
+            ct.ThrowIfCancellationRequested();
+            await Task.Delay(PageDelay, ct).ConfigureAwait(false);
+            var result = await _browse.BrowseAsync(source.Id, listId, page, ct).ConfigureAwait(false);
+            if (result.Cards.Count == 0 && first.TotalPages == null) break; // unknown total — stop at the first empty page
+            Merge(byId, result.Cards, source, page, now);
+
+            _processRegistry.Report(procId, basePct + (int)(page * (double)spanPct / totalPages),
+                $"{listName} {page}/{totalPages}", detailKey: "process.stage.crawling");
+            if (page % 20 == 0) Save(source.Id, listId, byId, totalPages, syncedAt: null); // crash checkpoint
+        }
+
+        Save(source.Id, listId, byId, totalPages, DateTime.UtcNow);
+        _logger.Info($"[Remote] Index synced: {source.Id}_{listId} — {byId.Count} entries / {totalPages} pages", "RemoteIndexService");
     }
 
     // ---- helpers ---------------------------------------------------------------------------

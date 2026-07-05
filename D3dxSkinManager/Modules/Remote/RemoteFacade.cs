@@ -20,7 +20,7 @@ public interface IRemoteFacade : IModuleFacade
     Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl);
     Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option);
     string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option);
-    Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize);
+    Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null);
     string StartIndexSync(string sourceId, string listId);
 }
 
@@ -61,6 +61,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "DOWNLOAD_IMPORT" => StartDownloadImport(request),
             "INDEX_QUERY" => await QueryIndexAsync(request),
             "INDEX_SYNC" => StartIndexSync(request),
+            "INDEX_SYNC_ALL" => StartIndexSyncAll(request),
             "SAVE_SOURCE" => SaveSource(request),
             "DELETE_SOURCE" => DeleteSource(request),
             "GET_SOURCE_CONFIG" => _sourceStore.GetById(
@@ -89,9 +90,9 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     public string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option) =>
         _import.StartDownloadImport(sourceId, detail, option);
 
-    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize)
+    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null)
     {
-        var result = _index.Query(sourceId, listId, search, page, pageSize);
+        var result = _index.Query(sourceId, listId, search, page, pageSize, sort);
         // Flag entries this profile already imported (matched by detail URL from mod Metadata).
         var imported = await _import.GetImportedDetailUrlsAsync().ConfigureAwait(false);
         if (imported.Count > 0)
@@ -152,7 +153,15 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var search = _payloadHelper.GetOptionalValue<string>(request.Payload, "search");
         var page = _payloadHelper.GetOptionalValue<int>(request.Payload, "page");
         var pageSize = _payloadHelper.GetOptionalValue<int>(request.Payload, "pageSize");
-        return QueryIndexAsync(sourceId, listId, search, page <= 0 ? 1 : page, pageSize <= 0 ? 60 : pageSize);
+        var sort = _payloadHelper.GetOptionalValue<string>(request.Payload, "sort");
+        return QueryIndexAsync(sourceId, listId, search, page <= 0 ? 1 : page, pageSize <= 0 ? 60 : pageSize, sort);
+    }
+
+    private object StartIndexSyncAll(IpcRequest request)
+    {
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        var processId = _index.StartSyncAll(sourceId);
+        return new { started = processId.Length > 0, processId };
     }
 
     private object StartIndexSync(IpcRequest request)

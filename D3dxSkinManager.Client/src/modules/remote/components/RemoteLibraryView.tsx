@@ -62,7 +62,7 @@ export const RemoteLibraryView: React.FC = () => {
       try {
         setLoading(true);
         const index = await api.remote.indexQuery(
-          selectedProfileId, state.sourceId, state.listId, search?.trim() || undefined, page, INDEX_PAGE_SIZE);
+          selectedProfileId, state.sourceId, state.listId, search?.trim() || undefined, page, INDEX_PAGE_SIZE, state.sort);
         state.setPage(page);
         state.setIndex(index);
         if (index.info.entryCount === 0) {
@@ -133,6 +133,17 @@ export const RemoteLibraryView: React.FC = () => {
     }
   }, [selectedProfileId, t]);
 
+  const startSyncAll = useCallback(async () => {
+    const state = useRemoteUiStore.getState();
+    if (!selectedProfileId || !state.sourceId) return;
+    try {
+      const ack = await api.remote.indexSyncAll(selectedProfileId, state.sourceId);
+      notification.info(t(ack.started ? 'remote.syncStarted' : 'remote.syncRunningOrDone'));
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  }, [selectedProfileId, t]);
+
   // First load (or returning to the tab with no cached result yet).
   useEffect(() => {
     if (!ui.index && !ui.result && ui.sourceId && ui.listId && !loading) void loadIndex(1, ui.searchText);
@@ -182,19 +193,17 @@ export const RemoteLibraryView: React.FC = () => {
   return (
     <div className="remote-library">
       <div className="remote-library__toolbar">
-        {sources.length > 1 && (
-          <Select
-            className="remote-library__source"
-            size="small"
-            value={ui.sourceId}
-            options={sources.map((s) => ({ value: s.id, label: s.name }))}
-            onChange={(v) => {
-              ui.setSource(v);
-              const src = sources.find((s) => s.id === v);
-              if (src && src.lists.length > 0) useRemoteUiStore.getState().setList(src.lists[0].id);
-            }}
-          />
-        )}
+        <Select
+          className="remote-library__source"
+          size="small"
+          value={ui.sourceId}
+          options={sources.map((s) => ({ value: s.id, label: s.name }))}
+          onChange={(v) => {
+            ui.setSource(v);
+            const src = sources.find((s) => s.id === v);
+            if (src && src.lists.length > 0) useRemoteUiStore.getState().setList(src.lists[0].id);
+          }}
+        />
         {source && source.lists.length > 0 && (
           <Select
             className="remote-library__list"
@@ -215,12 +224,32 @@ export const RemoteLibraryView: React.FC = () => {
             allowClear
           />
         )}
+        {indexReady && (
+          <Select
+            className="remote-library__sort"
+            size="small"
+            value={ui.sort}
+            options={[
+              { value: 'site', label: t('remote.sortSite') },
+              { value: 'date', label: t('remote.sortDate') },
+            ]}
+            onChange={(v) => {
+              ui.setSort(v);
+              void loadIndex(1, useRemoteUiStore.getState().searchText);
+            }}
+          />
+        )}
         <CompactButton icon={<ReloadOutlined />} onClick={refresh}>
           {t('common.refresh')}
         </CompactButton>
         <Tooltip title={t('remote.notSynced')}>
           <CompactButton icon={<SyncOutlined />} onClick={() => void startSync()}>
             {t('remote.sync')}
+          </CompactButton>
+        </Tooltip>
+        <Tooltip title={t('remote.syncAllHint')}>
+          <CompactButton icon={<SyncOutlined />} onClick={() => void startSyncAll()}>
+            {t('remote.syncAll')}
           </CompactButton>
         </Tooltip>
         <CompactButton

@@ -17,6 +17,7 @@
   "listUrlTemplate": "/?list_{list}_{page}/",
   "searchUrlTemplate": "/?keyword={query}",
   "cardPattern": "<a[^>]+href=\"(?<url>/\\?news_[^\"]+)\"[^>]*>[\\s\\S]{0,600}?<img[^>]+src=\"(?<image>[^\"]+)\"[^>]*alt=\"(?<title>[^\"]*)\"",
+  "cardScopePattern": "最近更新</h2>(?<scope>[\\s\\S]*)",
   "totalPagesPattern": "href=\"/\\?list_{list}_(?<pages>\\d+)/\"",
   "detailTitlePattern": "<h1[^>]*>(?<title>[\\s\\S]*?)</h1>",
   "detailImagePattern": "<img[^>]+src=\"(?<image>/static/upload/[^\"]+)\"",

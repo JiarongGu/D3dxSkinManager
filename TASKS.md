@@ -13,7 +13,7 @@
 
 ## In progress
 
-(none)
+- [ ] Remote tab fix batch — LIVE VERIFY remaining (code shipped, gates green): confirm in-app that page 2 shows different cards than page 1 (scope fix), sort-by-date reorders, 同步全站 runs one process over all 4 lists, toolbar controls align, source Select always visible. Then re-sync polluted index caches (old hot-card duplicates keep stale order until re-sync; true pruning is a backlog item).
 
 ## Backlog
 - [ ] Save presist values, so after reload the mod back we have the presist value 3dmigoto usually resets if a new mod is loaded, and also need to allow to reset this or save this to the ini for default

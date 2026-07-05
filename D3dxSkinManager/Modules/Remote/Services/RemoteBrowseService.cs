@@ -139,6 +139,13 @@ public class RemoteBrowseService : IRemoteBrowseService
 
     private List<RemoteModCard> ExtractCards(RemoteSourceConfig source, string html)
     {
+        // Scope to the main list region when the adapter defines one (hot/recent sidebars repeat
+        // the same cards on every page). Fallback: whole page (e.g. search layouts).
+        if (!string.IsNullOrWhiteSpace(source.CardScopePattern))
+        {
+            var scope = Match(source.CardScopePattern, html);
+            if (scope.Success) html = scope.Groups["scope"].Value;
+        }
         // Dedup by detail URL (hot/recent sidebars repeat items, some anchors are image-only) —
         // keep the first entry with a non-empty title.
         var byUrl = new Dictionary<string, RemoteModCard>();

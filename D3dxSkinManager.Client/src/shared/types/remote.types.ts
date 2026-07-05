@@ -95,6 +95,7 @@ export interface RemoteSourceConfigDto {
   listUrlTemplate?: string;
   searchUrlTemplate?: string;
   cardPattern: string;
+  cardScopePattern?: string;
   totalPagesPattern?: string;
   detailTitlePattern: string;
   detailImagePattern?: string;

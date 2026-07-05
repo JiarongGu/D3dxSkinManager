@@ -33,6 +33,12 @@ public class RemoteSourceConfig
     /// <summary>Regex over the list/search page HTML with named groups: url, image, title.</summary>
     public string CardPattern { get; set; } = string.Empty;
 
+    /// <summary>Optional regex isolating the MAIN list region (named group: scope) before the card
+    /// pattern runs — excludes hot/recent sidebars that repeat identical cards on every page and
+    /// would pollute pagination + the synced index. No match → falls back to the whole page
+    /// (search pages often have a different layout).</summary>
+    public string? CardScopePattern { get; set; }
+
     /// <summary>Optional regex finding the last page number (named group: pages; {list} substituted).
     /// The MAX numeric match wins. Null = unknown total (UI paginates blindly).</summary>
     public string? TotalPagesPattern { get; set; }

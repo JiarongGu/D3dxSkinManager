@@ -181,6 +181,7 @@ public class RemoteSourceStore : IRemoteSourceStore
             ("detailTitlePattern", config.DetailTitlePattern),
             ("detailImagePattern", config.DetailImagePattern),
             ("downloadLinkPattern", config.DownloadLinkPattern),
+            ("cardScopePattern", config.CardScopePattern),
             ("totalPagesPattern", config.TotalPagesPattern),
             ("entryIdPattern", config.EntryIdPattern),
             ("imageDatePattern", config.ImageDatePattern),
@@ -220,7 +221,23 @@ public class RemoteSourceStore : IRemoteSourceStore
             try
             {
                 var config = JsonSerializer.Deserialize<RemoteSourceConfig>(File.ReadAllText(seedFile), JsonOptions);
-                if (config == null || string.IsNullOrWhiteSpace(config.Id) || known.Contains(config.Id)) continue;
+                if (config == null || string.IsNullOrWhiteSpace(config.Id)) continue;
+
+                // ADDITIVE upgrade: an existing config missing a field a newer seed provides gets
+                // just that field filled in (never overwrites values the user set).
+                var current = existing.FirstOrDefault(s => string.Equals(s.Id, config.Id, StringComparison.OrdinalIgnoreCase));
+                if (current != null)
+                {
+                    if (string.IsNullOrWhiteSpace(current.CardScopePattern) && !string.IsNullOrWhiteSpace(config.CardScopePattern))
+                    {
+                        current.CardScopePattern = config.CardScopePattern;
+                        File.WriteAllText(Path.Combine(dir, $"{current.Id}.json"), JsonSerializer.Serialize(current, JsonOptions));
+                        seeded = true;
+                        _logger.Info($"Upgraded remote source adapter {current.Id}: added cardScopePattern", "RemoteSourceStore");
+                    }
+                    continue;
+                }
+                if (known.Contains(config.Id)) continue;
 
                 var target = Path.Combine(dir, Path.GetFileName(seedFile));
                 if (File.Exists(target)) continue; // same file name but unparseable/other id — don't clobber
