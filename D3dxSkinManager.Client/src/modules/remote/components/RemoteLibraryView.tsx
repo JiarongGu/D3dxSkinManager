@@ -8,7 +8,7 @@ import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactInput } from '../../../shared/components/compact';
-import type { RemoteSourceInfo } from '../../../shared/types/remote.types';
+import type { RemoteBinding, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
 import { RemoteSourceManagerScreen } from './RemoteSourceManagerScreen';
@@ -28,24 +28,37 @@ export const RemoteLibraryView: React.FC = () => {
 
   const [sources, setSources] = useState<RemoteSourceInfo[]>([]);
   const [loading, setLoading] = useState(false);
+  // undefined = still loading; null = profile hasn't picked its game yet (setup mode).
+  const [binding, setBindingState] = useState<RemoteBinding | null | undefined>(undefined);
+  const [setupSource, setSetupSource] = useState<string>();
+  const [setupList, setSetupList] = useState<string>();
 
   const ui = useRemoteUiStore();
   const source = sources.find((s) => s.id === ui.sourceId);
   const indexReady = (ui.index?.info.entryCount ?? 0) > 0;
 
-  // Load the configured sources once per profile; restore/derive the selection.
+  // Load sources + this profile's game binding. A profile is ONE game: bound → that source+list
+  // drives everything; unbound → setup mode.
   useEffect(() => {
     if (!selectedProfileId) return;
     ui.ensureProfile(selectedProfileId);
     void (async () => {
       try {
-        const list = await api.remote.getSources(selectedProfileId);
+        const [list, bound] = await Promise.all([
+          api.remote.getSources(selectedProfileId),
+          api.remote.getBinding(selectedProfileId),
+        ]);
         setSources(list);
+        setBindingState(bound ?? null);
         const state = useRemoteUiStore.getState();
-        if (!state.sourceId && list.length > 0) state.setSource(list[0].id);
-        const src = list.find((s) => s.id === useRemoteUiStore.getState().sourceId);
-        if (src && !useRemoteUiStore.getState().listId && src.lists.length > 0) {
-          useRemoteUiStore.getState().setList(src.lists[0].id);
+        if (bound) {
+          if (state.sourceId !== bound.sourceId) state.setSource(bound.sourceId);
+          if (useRemoteUiStore.getState().listId !== bound.listId) {
+            useRemoteUiStore.getState().setList(bound.listId);
+          }
+        } else {
+          setSetupSource(list[0]?.id);
+          setSetupList(list[0]?.lists[0]?.id);
         }
       } catch (error: unknown) {
         handleError(error);
@@ -53,6 +66,32 @@ export const RemoteLibraryView: React.FC = () => {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfileId]);
+
+  const bindAndSync = useCallback(async () => {
+    if (!selectedProfileId || !setupSource || !setupList) return;
+    try {
+      const result = await api.remote.setBinding(selectedProfileId, setupSource, setupList, true);
+      setBindingState(result.binding);
+      const state = useRemoteUiStore.getState();
+      state.setSource(result.binding.sourceId);
+      useRemoteUiStore.getState().setList(result.binding.listId);
+      notification.info(t('remote.syncStarted'));
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  }, [selectedProfileId, setupSource, setupList, t]);
+
+  const rebind = useCallback(async () => {
+    if (!selectedProfileId) return;
+    try {
+      await api.remote.clearBinding(selectedProfileId);
+      setSetupSource(binding?.sourceId ?? sources[0]?.id);
+      setSetupList(binding?.listId ?? sources[0]?.lists[0]?.id);
+      setBindingState(null);
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  }, [selectedProfileId, binding, sources]);
 
   /** Query the synced index; when it's empty (never synced), fall back to live browsing. */
   const loadIndex = useCallback(
@@ -189,30 +228,75 @@ export const RemoteLibraryView: React.FC = () => {
   const loaded = indexReady || !!ui.result;
 
   const syncedAt = ui.index?.info.syncedAtUtc;
+  const setupSourceInfo = sources.find((s) => s.id === setupSource);
+  const boundListName = source?.lists.find((l) => l.id === ui.listId)?.name ?? ui.listId;
+
+  if (binding === undefined) {
+    return (
+      <div className="remote-library__loading">
+        <Spin />
+      </div>
+    );
+  }
+
+  // SETUP MODE — the profile hasn't picked its game yet: choose source + game, bind & sync.
+  if (binding === null) {
+    return (
+      <div className="remote-library remote-library--setup">
+        <div className="remote-setup">
+          <h2 className="remote-setup__title">{t('remote.setupTitle')}</h2>
+          <p className="remote-setup__hint">{t('remote.setupHint')}</p>
+          <div className="remote-setup__row">
+            <Select
+              className="remote-library__source"
+              size="small"
+              value={setupSource}
+              placeholder={t('remote.setupPickSource')}
+              options={sources.map((s) => ({ value: s.id, label: s.name }))}
+              onChange={(v) => {
+                setSetupSource(v);
+                setSetupList(sources.find((s) => s.id === v)?.lists[0]?.id);
+              }}
+            />
+            <Select
+              className="remote-library__list"
+              size="small"
+              value={setupList}
+              placeholder={t('remote.setupPickGame')}
+              options={(setupSourceInfo?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
+              onChange={setSetupList}
+            />
+            <CompactButton type="primary" icon={<SyncOutlined />} disabled={!setupSource || !setupList}
+              onClick={() => void bindAndSync()}>
+              {t('remote.bindAndSync')}
+            </CompactButton>
+          </div>
+          <CompactButton
+            icon={<SettingOutlined />}
+            onClick={() =>
+              openScreen({
+                title: t('remote.manageTitle'),
+                content: <RemoteSourceManagerScreen onChanged={() => {
+                  if (selectedProfileId) void api.remote.getSources(selectedProfileId).then(setSources).catch(handleError);
+                }} />,
+                width: '760px',
+              })
+            }
+          >
+            {t('remote.custom')}
+          </CompactButton>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="remote-library">
       <div className="remote-library__toolbar">
-        <Select
-          className="remote-library__source"
-          size="small"
-          value={ui.sourceId}
-          options={sources.map((s) => ({ value: s.id, label: s.name }))}
-          onChange={(v) => {
-            ui.setSource(v);
-            const src = sources.find((s) => s.id === v);
-            if (src && src.lists.length > 0) useRemoteUiStore.getState().setList(src.lists[0].id);
-          }}
-        />
-        {source && source.lists.length > 0 && (
-          <Select
-            className="remote-library__list"
-            size="small"
-            value={ui.listId}
-            options={source.lists.map((l) => ({ value: l.id, label: l.name }))}
-            onChange={(v) => ui.setList(v)}
-          />
-        )}
+        <span className="remote-library__bound" title={source?.baseUrl}>
+          {source?.name} · {boundListName}
+        </span>
+        <CompactButton onClick={() => void rebind()}>{t('remote.rebind')}</CompactButton>
         {(indexReady || source?.hasSearch) && (
           <CompactInput
             className="remote-library__search"

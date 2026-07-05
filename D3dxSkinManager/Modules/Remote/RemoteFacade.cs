@@ -32,6 +32,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     private readonly IRemoteImportService _import;
     private readonly IRemoteIndexService _index;
     private readonly IRemoteSourceStore _sourceStore;
+    private readonly IRemoteBindingStore _binding;
     private readonly IPayloadHelper _payloadHelper;
 
     public RemoteFacade(
@@ -39,6 +40,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         IRemoteImportService import,
         IRemoteIndexService index,
         IRemoteSourceStore sourceStore,
+        IRemoteBindingStore binding,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
@@ -46,6 +48,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         _import = import ?? throw new ArgumentNullException(nameof(import));
         _index = index ?? throw new ArgumentNullException(nameof(index));
         _sourceStore = sourceStore ?? throw new ArgumentNullException(nameof(sourceStore));
+        _binding = binding ?? throw new ArgumentNullException(nameof(binding));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -68,6 +71,9 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId")),
             "TEST_SOURCE" => await TestSourceAsync(request),
             "GET_SOURCE_TEMPLATE" => _sourceStore.GetTemplateJson(),
+            "GET_BINDING" => (object?)_binding.Get(),
+            "SET_BINDING" => SetBinding(request),
+            "CLEAR_BINDING" => ClearBinding(),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -182,6 +188,24 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     {
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         return _sourceStore.Delete(sourceId);
+    }
+
+    private object SetBinding(IpcRequest request)
+    {
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        var listId = _payloadHelper.GetRequiredValue<string>(request.Payload, "listId");
+        _ = _sourceStore.GetById(sourceId); // validate the source exists before persisting
+        var binding = _binding.Set(sourceId, listId);
+        // Bind & sync in one step (the setup flow's "绑定并开始同步"). Idempotent if already syncing.
+        var sync = _payloadHelper.GetOptionalValue<bool>(request.Payload, "sync");
+        var processId = sync ? _index.StartSync(sourceId, listId) : string.Empty;
+        return new { binding, processId };
+    }
+
+    private object ClearBinding()
+    {
+        _binding.Clear();
+        return true;
     }
 
     private Task<RemoteSourceTestResult> TestSourceAsync(IpcRequest request)

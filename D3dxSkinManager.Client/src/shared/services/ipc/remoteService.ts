@@ -11,7 +11,9 @@ import type {
   RemoteDownloadOption,
   RemoteIndexPage,
   RemoteModDetail,
+  RemoteBinding,
   RemoteResolveResult,
+  RemoteSetBindingResult,
   RemoteSourceConfigDto,
   RemoteSourceInfo,
   RemoteSourceTestResult,
@@ -87,6 +89,20 @@ export class RemoteService extends BaseModuleService {
   /** Run a candidate config against the live site (page 1 + first detail). */
   async testSource(profileId: string, config: RemoteSourceConfigDto, listId?: string): Promise<RemoteSourceTestResult> {
     return this.sendMessage<RemoteSourceTestResult>('TEST_SOURCE', profileId, { config, listId });
+  }
+
+  /** This profile's game binding (null when the profile hasn't picked a game yet). */
+  async getBinding(profileId: string): Promise<RemoteBinding | null> {
+    return this.sendMessage<RemoteBinding | null>('GET_BINDING', profileId);
+  }
+
+  /** Bind the profile to a source+list; sync=true starts the index crawl immediately. */
+  async setBinding(profileId: string, sourceId: string, listId: string, sync: boolean): Promise<RemoteSetBindingResult> {
+    return this.sendMessage<RemoteSetBindingResult>('SET_BINDING', profileId, { sourceId, listId, sync });
+  }
+
+  async clearBinding(profileId: string): Promise<boolean> {
+    return this.sendMessage<boolean>('CLEAR_BINDING', profileId);
   }
 
   async getSourceTemplate(profileId: string): Promise<string> {

@@ -113,3 +113,15 @@ export interface RemoteSourceTestResult {
   detailDownloads: RemoteDownloadOption[];
   detailImageCount: number;
 }
+
+/** Which source + game list a PROFILE targets (a profile is one game). */
+export interface RemoteBinding {
+  sourceId: string;
+  listId: string;
+  boundAtUtc: string;
+}
+
+export interface RemoteSetBindingResult {
+  binding: RemoteBinding;
+  processId: string;
+}

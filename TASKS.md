@@ -13,7 +13,7 @@
 
 ## In progress
 
-- [ ] Remote library must be PROFILE-BASED (user 2026-07-05): a profile = a game, so the remote view should bind to the profile — move adapter configs + index caches from global `{data}/remote-sources` to per-profile storage via `IProfilePathService` (RemoteSourceStore + RemoteIndexService swap `IGlobalPathService` path props; they are already profile-scoped services in the router so DI just works), keep SEEDS global (`{data}/remote-source-seeds`), migrate/copy existing global configs+caches into the active profile on first load (one-time, like fix-tools EnsureSeeded), and let the profile remember its selected source+list (persist in ProfileConfiguration or reuse the per-profile reset in remoteUiStore + persist selection to profile config). Decide: per-profile default list binding (e.g. ZZZ profile → 绝区零) — could store `remoteDefault` in profile config set from the UI.
+(none)
 
 ## Backlog
 - [ ] Save presist values, so after reload the mod back we have the presist value 3dmigoto usually resets if a new mod is loaded, and also need to allow to reset this or save this to the ini for default

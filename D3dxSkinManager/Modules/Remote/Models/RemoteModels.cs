@@ -189,6 +189,14 @@ public class RemoteIndexPage
     public int Total { get; set; }
 }
 
+/// <summary>Which source + game list a PROFILE targets (a profile is one game).</summary>
+public class RemoteBinding
+{
+    public string SourceId { get; set; } = string.Empty;
+    public string ListId { get; set; } = string.Empty;
+    public DateTime BoundAtUtc { get; set; }
+}
+
 /// <summary>What a candidate adapter config extracted from the live site — the authoring feedback loop.</summary>
 public class RemoteSourceTestResult
 {

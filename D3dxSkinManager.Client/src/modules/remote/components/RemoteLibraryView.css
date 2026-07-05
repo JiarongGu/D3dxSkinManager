@@ -156,3 +156,45 @@
   border-top: 1px solid var(--color-border-secondary);
   background: var(--color-bg-container);
 }
+
+.remote-library--setup {
+  align-items: center;
+  justify-content: center;
+}
+
+.remote-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  padding: 32px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 10px;
+  background: var(--color-card-bg);
+  max-width: 520px;
+}
+
+.remote-setup__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.remote-setup__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.remote-setup__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.remote-library__bound {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-base);
+}
