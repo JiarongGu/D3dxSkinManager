@@ -131,6 +131,10 @@ public class GameBananaEngine : RemoteSiteEngineBase
         // Tags: the ProfilePage carries the SUB (leaf) category; the super comes from the subfeed card.
         if (CategoryName(root, "_aCategory") is { } sub) detail.Tags.Add(sub);
 
+        // Description: _sText is HTML-ish rich text — strip to plain text for the info panel.
+        if (GetString(root, "_sText") is { } text && !string.IsNullOrWhiteSpace(text))
+            detail.Description = StripHtml(text);
+
         // Gallery: every preview image at full resolution.
         if (root.TryGetProperty("_aPreviewMedia", out var media)
             && media.TryGetProperty("_aImages", out var images) && images.ValueKind == JsonValueKind.Array)
@@ -197,6 +201,14 @@ public class GameBananaEngine : RemoteSiteEngineBase
 
     private static string? GetString(JsonElement el, string prop) =>
         el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    /// <summary>Rich text → plain text (tags stripped, entities decoded, whitespace collapsed).</summary>
+    private static string StripHtml(string html)
+    {
+        var text = global::System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", string.Empty);
+        text = global::System.Net.WebUtility.HtmlDecode(text);
+        return global::System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n").Trim();
+    }
 
     private static int GetInt(JsonElement el, string prop) =>
         el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) ? n : 0;

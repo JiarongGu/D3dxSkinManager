@@ -218,6 +218,17 @@
   min-width: 0;
 }
 
+/* Tag-alias rows: raw tag picker + label input. */
+.remote-lib-mgmt__alias-tag {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.remote-lib-mgmt__alias-label {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
 /* Pinned bottom action bar (never scrolls with the content). */
 .remote-lib-mgmt__actions {
   display: flex;

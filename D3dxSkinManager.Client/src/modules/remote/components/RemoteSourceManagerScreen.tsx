@@ -8,7 +8,7 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactIconButton } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
-import type { RemoteSourceConfigDto, RemoteSourceInfo } from '../../../shared/types/remote.types';
+import type { RemoteSourceConfig, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { RemoteSourceEditor } from './RemoteSourceEditor';
 import './RemoteSourceManagerScreen.css';
 
@@ -29,7 +29,7 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
   const [sources, setSources] = useState<RemoteSourceInfo[]>([]);
   const [loading, setLoading] = useState(true);
   // undefined = editor closed; { initial } = open (initial undefined → a new blank adapter).
-  const [editing, setEditing] = useState<{ initial?: RemoteSourceConfigDto }>();
+  const [editing, setEditing] = useState<{ initial?: RemoteSourceConfig }>();
   const [deleteTarget, setDeleteTarget] = useState<RemoteSourceInfo>();
 
   const reload = useCallback(async () => {

@@ -30,8 +30,11 @@ public interface IRemoteIndexRepository
     /// <summary>Stamp an entry's detail as processed (with or without new tags).</summary>
     Task MarkEnrichedAsync(string sourceId, string listId, string entryId);
     Task<int> CountAsync(string sourceId, string listId);
+    /// <summary><paramref name="tagLabels"/> = the source's per-language display labels; search terms
+    /// matching a LABEL also match the raw tag (labels are searchable, not display-only).</summary>
     Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
-        string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize);
+        string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize,
+        Dictionary<string, Dictionary<string, string>>? tagLabels = null);
     /// <summary>Distinct site tags present in the index (for the filter dropdown), by frequency.</summary>
     Task<List<RemoteTagCount>> GetTagsAsync(string sourceId, string listId);
 }
@@ -189,7 +192,8 @@ public class RemoteIndexRepository : IRemoteIndexRepository
     }
 
     public async Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
-        string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize)
+        string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize,
+        Dictionary<string, Dictionary<string, string>>? tagLabels = null)
     {
         var where = "SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL";
         var args = new DynamicParameters(new { sourceId, listId });
@@ -209,8 +213,19 @@ public class RemoteIndexRepository : IRemoteIndexRepository
                 // Escape LIKE wildcards in the user's term.
                 var escaped = terms[i].Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
                 // Each term matches the TITLE or any TAG (comprehensive search, like the mod search).
-                where += $" AND (Title LIKE @term{i} ESCAPE '\\' OR EXISTS (" +
-                         $"SELECT 1 FROM json_each(RemoteIndexEntries.Tags) WHERE json_each.value LIKE @term{i} ESCAPE '\\'))";
+                var clause = $"Title LIKE @term{i} ESCAPE '\\' OR EXISTS (" +
+                             $"SELECT 1 FROM json_each(RemoteIndexEntries.Tags) WHERE json_each.value LIKE @term{i} ESCAPE '\\')";
+
+                // Tag ALIASES are searchable too: a term matching a label in ANY language expands to
+                // its raw tag(s) (e.g. "角色皮肤" finds mods tagged "Character Skins").
+                var expanded = ExpandTermThroughLabels(tagLabels, terms[i]);
+                if (expanded.Count > 0)
+                {
+                    clause += $" OR EXISTS (SELECT 1 FROM json_each(RemoteIndexEntries.Tags) WHERE json_each.value IN @exp{i})";
+                    args.Add($"exp{i}", expanded);
+                }
+
+                where += $" AND ({clause})";
                 args.Add($"term{i}", $"%{escaped}%");
             }
         }
@@ -238,6 +253,23 @@ public class RemoteIndexRepository : IRemoteIndexRepository
             catch { /* corrupt cache row — leave empty */ }
         }
         return (total, rows);
+    }
+
+    /// <summary>Raw tags whose alias (in ANY language) contains the search term, case-insensitive.</summary>
+    private static List<string> ExpandTermThroughLabels(
+        Dictionary<string, Dictionary<string, string>>? tagLabels, string term)
+    {
+        var result = new List<string>();
+        if (tagLabels == null) return result;
+        foreach (var lang in tagLabels.Values)
+        {
+            foreach (var (rawTag, label) in lang)
+            {
+                if (label.Contains(term, StringComparison.OrdinalIgnoreCase) && !result.Contains(rawTag))
+                    result.Add(rawTag);
+            }
+        }
+        return result;
     }
 
     public async Task<List<RemoteTagCount>> GetTagsAsync(string sourceId, string listId)

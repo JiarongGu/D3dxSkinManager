@@ -40,8 +40,11 @@
   min-width: 110px;
 }
 
+/* Wide, growing search — it's the comprehensive filter (title + tags), like the mod list search. */
 .remote-library__search {
-  width: 220px;
+  flex: 1 1 260px;
+  min-width: 200px;
+  max-width: 480px;
 }
 
 /* Card footer: tag chips left, date right. */

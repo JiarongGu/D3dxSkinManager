@@ -16,6 +16,8 @@ export interface RemoteSourceInfo {
   baseUrl: string;
   lists: RemoteListConfig[];
   hasSearch: boolean;
+  /** Per-language display labels for site tags: lang → (raw tag → label). Raw names stay identity. */
+  tagLabels: Record<string, Record<string, string>>;
 }
 
 export interface RemoteModCard {
@@ -48,6 +50,8 @@ export interface RemoteModDetail {
   downloads: RemoteDownloadOption[];
   /** Site tags visible on the detail page (e.g. GameBanana sub category). */
   tags: string[];
+  /** Plain-text page description, when the engine extracts one (GameBanana _sText). */
+  description?: string;
 }
 
 export interface RemoteResolveResult {
@@ -98,7 +102,7 @@ export interface RemoteIndexPage {
 }
 
 /** Full adapter config — mirrors RemoteSourceConfig (the editable JSON). */
-export interface RemoteSourceConfigDto {
+export interface RemoteSourceConfig {
   id: string;
   name: string;
   baseUrl: string;
@@ -115,6 +119,8 @@ export interface RemoteSourceConfigDto {
   downloadLinkPattern: string;
   entryIdPattern?: string;
   imageDatePattern?: string;
+  /** Per-language display labels for site tags (lang → raw tag → label). */
+  tagLabels?: Record<string, Record<string, string>>;
   resolvers: { match: string; type: string; name: string }[];
 }
 

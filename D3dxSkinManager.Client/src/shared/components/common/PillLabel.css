@@ -1,26 +1,9 @@
+/* Visuals come from the shared tag-chip classes (TagChip.css) — the mod-tag design. Only the
+   overflow behavior for dense layouts (cards) lives here. */
 .pill-label {
-  display: inline-flex;
-  align-items: center;
-  font-size: 12px;
-  line-height: 18px;
-  padding: 0 6px;
-  border-radius: 9px;
-  white-space: nowrap;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 140px;
-}
-
-.pill-label--primary {
-  background: var(--color-primary-bg, rgba(22, 119, 255, 0.12));
-  color: var(--color-primary);
-}
-
-.pill-label--neutral {
-  background: var(--color-bg-layout);
-  color: var(--color-text-secondary);
-}
-
-.pill-label--clickable {
-  cursor: pointer;
+  white-space: nowrap;
+  margin-inline-end: 0; /* antd Tag default margin fights flex gap */
 }

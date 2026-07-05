@@ -78,7 +78,10 @@ public class RemoteIndexService : IRemoteIndexService
     public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null)
     {
         var meta = await _repository.GetMetaAsync(sourceId, listId).ConfigureAwait(false);
-        var (total, entries) = await _repository.QueryAsync(sourceId, listId, search, tag, sort, page, pageSize).ConfigureAwait(false);
+        // Pass the source's tag-alias table so search terms matching an alias (any language) hit the
+        // raw tag too (aliases are searchable, not display-only).
+        var tagLabels = _sources.GetById(sourceId).TagLabels;
+        var (total, entries) = await _repository.QueryAsync(sourceId, listId, search, tag, sort, page, pageSize, tagLabels).ConfigureAwait(false);
         return new RemoteIndexPage
         {
             Info = new RemoteIndexInfo

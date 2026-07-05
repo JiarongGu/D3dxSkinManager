@@ -25,6 +25,19 @@
   "detailTitlePattern": "",
   "downloadLinkPattern": "",
   "entryIdPattern": "/mods/(?<id>\\d+)",
+  // PER-LANGUAGE display labels for site tags (configurable i18n; user-editable via management).
+  // Outer key = app language code; raw tag names stay the stored/filter/rule identity.
+  "tagLabels": {
+    "cn": {
+      "Character Skins": "角色皮肤",
+      "Weapon Skins": "武器皮肤",
+      "UI": "界面",
+      "Skins": "皮肤",
+      "Other/Misc": "其他",
+      "Sound Effects": "音效",
+      "Tools": "工具"
+    }
+  },
   "resolvers": [
     { "match": "gamebanana\\.com/dl/", "type": "direct", "name": "GameBanana" }
   ]

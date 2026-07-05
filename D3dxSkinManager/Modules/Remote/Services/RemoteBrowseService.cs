@@ -56,6 +56,7 @@ public class RemoteBrowseService : IRemoteBrowseService
             Lists = s.Lists,
             HasSearch = _engines.TryGetValue(string.IsNullOrWhiteSpace(s.Engine) ? "http" : s.Engine, out var engine)
                         && engine.SupportsSearch(s),
+            TagLabels = s.TagLabels,
         }).ToList();
         return Task.FromResult(list);
     }

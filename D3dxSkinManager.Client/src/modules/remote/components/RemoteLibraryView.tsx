@@ -10,6 +10,7 @@ import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactIconButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
 import type { RemoteLibrariesState, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
+import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
@@ -26,7 +27,7 @@ const INDEX_PAGE_SIZE = 60;
  * live in remoteUiStore so leaving the tab and coming back restores where you were.
  */
 export const RemoteLibraryView: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { selectedProfileId } = useProfile();
   const { openScreen } = useSlideInScreenContext();
 
@@ -234,6 +235,7 @@ export const RemoteLibraryView: React.FC = () => {
             listId={state.listId}
             entryId={card.key}
             entryTags={card.tags}
+            tagLabels={sources.find((s) => s.id === state.sourceId)?.tagLabels}
             detailUrl={card.detailUrl}
             fallbackTitle={card.title}
           />
@@ -241,7 +243,7 @@ export const RemoteLibraryView: React.FC = () => {
         width: '980px',
       });
     },
-    [openScreen, t],
+    [openScreen, t, sources],
   );
 
   const openManagement = useCallback(() => {
@@ -405,8 +407,12 @@ export const RemoteLibraryView: React.FC = () => {
                   <div className="remote-card__footer">
                     {card.tags.length > 0 && (
                       <span className="remote-card__tags">
-                        {card.tags.map((tag) => (
-                          <span key={tag} className="remote-card__tag">{tag}</span>
+                        {/* Most specific first (sub category) — mapped through the source's
+                            per-language label table; overflow hides the generic super. */}
+                        {orderTagsForDisplay(card.tags).map((tag) => (
+                          <span key={tag} className="remote-card__tag" title={tag}>
+                            {remoteTagLabel(source?.tagLabels, i18n.language, tag)}
+                          </span>
                         ))}
                       </span>
                     )}

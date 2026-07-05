@@ -15,17 +15,17 @@ import {
   CompactSwitch,
   CompactTextArea,
 } from '../../../shared/components/compact';
-import type { RemoteSourceConfigDto, RemoteSourceTestResult } from '../../../shared/types/remote.types';
+import type { RemoteSourceConfig, RemoteSourceTestResult } from '../../../shared/types/remote.types';
 import './RemoteSourceEditor.css';
 
 interface RemoteSourceEditorProps {
   /** The config to edit; undefined = a fresh (blank http) adapter. */
-  initial?: RemoteSourceConfigDto;
+  initial?: RemoteSourceConfig;
   onCancel: () => void;
-  onSaved: (saved: RemoteSourceConfigDto) => void;
+  onSaved: (saved: RemoteSourceConfig) => void;
 }
 
-const BLANK: RemoteSourceConfigDto = {
+const BLANK: RemoteSourceConfig = {
   id: '',
   name: '',
   baseUrl: '',
@@ -55,7 +55,7 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
 
-  const [cfg, setCfg] = useState<RemoteSourceConfigDto>(() => ({ ...BLANK, ...initial }));
+  const [cfg, setCfg] = useState<RemoteSourceConfig>(() => ({ ...BLANK, ...initial }));
   const [advanced, setAdvanced] = useState(false);
   const [rawText, setRawText] = useState('');
   const [testing, setTesting] = useState(false);
@@ -66,7 +66,7 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
   const isGameBanana = (cfg.engine ?? 'http') === 'gamebanana';
   const isNew = !initial;
 
-  const set = <K extends keyof RemoteSourceConfigDto>(key: K, value: RemoteSourceConfigDto[K]) =>
+  const set = <K extends keyof RemoteSourceConfig>(key: K, value: RemoteSourceConfig[K]) =>
     setCfg((c) => ({ ...c, [key]: value }));
 
   // --- lists (games) ---
@@ -84,10 +84,10 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
     setCfg((c) => ({ ...c, resolvers: c.resolvers.filter((_, idx) => idx !== i) }));
 
   /** The config to send — parsed from the raw editor when in advanced mode. */
-  const resolveConfig = (): RemoteSourceConfigDto | undefined => {
+  const resolveConfig = (): RemoteSourceConfig | undefined => {
     if (!advanced) return cfg;
     try {
-      return JSON.parse(rawText) as RemoteSourceConfigDto;
+      return JSON.parse(rawText) as RemoteSourceConfig;
     } catch (e) {
       setTestError(String(e));
       return undefined;
@@ -99,7 +99,7 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
       setRawText(JSON.stringify(cfg, null, 2));
     } else {
       try {
-        setCfg(JSON.parse(rawText) as RemoteSourceConfigDto);
+        setCfg(JSON.parse(rawText) as RemoteSourceConfig);
       } catch {
         /* keep the form state if the raw JSON is invalid */
       }

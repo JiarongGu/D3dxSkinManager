@@ -5,10 +5,11 @@
   min-width: 0;
 }
 
-/* Fixed-height letterbox stage — image size never moves the layout below. */
+/* Fixed-height letterbox stage — image size never moves the layout below. Image sits flush LEFT
+   (a centered portrait image read as a mystery gap on its left). */
 .image-gallery__stage {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   background: var(--color-bg-layout);
   border: 1px solid var(--color-border-secondary);

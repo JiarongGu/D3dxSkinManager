@@ -28,6 +28,7 @@ import type { CategoryInfo } from '../../../shared/types/category.types';
 import type {
   RemoteLibrariesState,
   RemoteLibrary,
+  RemoteSourceConfig,
   RemoteSourceInfo,
   RemoteTagRule,
 } from '../../../shared/types/remote.types';
@@ -46,7 +47,7 @@ interface RemoteLibraryManagementScreenProps {
  * defaults in res/, custom sites live here).
  */
 export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScreenProps> = ({ onChanged }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { selectedProfileId } = useProfile();
 
   const [sources, setSources] = useState<RemoteSourceInfo[]>([]);
@@ -59,6 +60,10 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const [addList, setAddList] = useState<string>();
   // Edit state — a working copy of the library being edited (rules deep-copied so cancel discards).
   const [editing, setEditing] = useState<RemoteLibrary>();
+  // Tag ALIASES for the current app language (raw tag → display label; searchable). They live on
+  // the SOURCE config (shared vocabulary for every library of the site) — edited here like rules.
+  const [editingAliases, setEditingAliases] = useState<{ tag: string; label: string }[]>([]);
+  const [editingConfig, setEditingConfig] = useState<RemoteSourceConfig>();
   const [removeTarget, setRemoveTarget] = useState<RemoteLibrary>();
 
   const reload = useCallback(async () => {
@@ -112,12 +117,23 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
 
   const startEdit = async (library: RemoteLibrary) => {
     setEditing({ ...library, tagRules: library.tagRules.map((r) => ({ ...r, tags: [...r.tags] })) });
+    setEditingAliases([]);
+    setEditingConfig(undefined);
     if (selectedProfileId) {
       // Seed the rule tag-pickers with the tags actually present in this library's index.
       void api.remote
         .indexTags(selectedProfileId, library.sourceId, library.listId)
         .then((tags) => setTagOptions(tags.map((x) => x.name)))
         .catch(() => setTagOptions([]));
+      // Load the SOURCE config's tag aliases for the current app language (edited like rules).
+      void api.remote
+        .getSourceConfig(selectedProfileId, library.sourceId)
+        .then((config) => {
+          setEditingConfig(config);
+          const langMap = config.tagLabels?.[i18n.language] ?? {};
+          setEditingAliases(Object.entries(langMap).map(([tag, label]) => ({ tag, label })));
+        })
+        .catch(handleError);
     }
   };
 
@@ -125,6 +141,14 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     if (!selectedProfileId || !editing) return;
     try {
       await api.remote.libraryUpdate(selectedProfileId, editing);
+      // Persist the tag aliases back onto the SOURCE config (this language's table only).
+      if (editingConfig) {
+        const tagLabels = { ...(editingConfig.tagLabels ?? {}) };
+        tagLabels[i18n.language] = Object.fromEntries(
+          editingAliases.filter((a) => a.tag.trim() && a.label.trim()).map((a) => [a.tag.trim(), a.label.trim()]),
+        );
+        await api.remote.saveSource(selectedProfileId, { ...editingConfig, tagLabels });
+      }
       setEditing(undefined);
       await notifyChanged();
     } catch (error: unknown) {
@@ -247,6 +271,51 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
               <CompactIconButton icon={<ArrowUpOutlined />} title={t('common.moveUp')} onClick={() => moveRule(i, -1)} />
               <CompactIconButton icon={<ArrowDownOutlined />} title={t('common.moveDown')} onClick={() => moveRule(i, 1)} />
               <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.remove')} onClick={() => removeRule(i)} />
+            </div>
+          ))}
+
+          {/* TAG ALIASES (current app language) — display names that are ALSO searchable; they live
+              on the SOURCE config (shared vocabulary for every library of this site). */}
+          <div className="remote-lib-mgmt__section-head">
+            <span className="remote-lib-mgmt__section-title">{t('remote.tagAliases')}</span>
+            <CompactButton
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={() => setEditingAliases((a) => [...a, { tag: '', label: '' }])}
+            >
+              {t('remote.addAlias')}
+            </CompactButton>
+          </div>
+          <div className="remote-lib-mgmt__rules-hint">{t('remote.tagAliasesHint')}</div>
+          {editingAliases.map((alias, i) => (
+            <div key={i} className="remote-lib-mgmt__rule">
+              <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
+              <Select
+                className="remote-lib-mgmt__alias-tag"
+                mode="tags"
+                size="middle"
+                maxCount={1}
+                value={alias.tag ? [alias.tag] : []}
+                placeholder={t('remote.aliasRawTag')}
+                options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
+                onChange={(v) =>
+                  setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, tag: v[v.length - 1] ?? '' } : x)))
+                }
+              />
+              <CompactInput
+                className="remote-lib-mgmt__alias-label"
+                value={alias.label}
+                placeholder={t('remote.aliasLabel')}
+                onChange={(e) =>
+                  setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))
+                }
+              />
+              <CompactIconButton
+                tone="danger"
+                icon={<DeleteOutlined />}
+                title={t('common.remove')}
+                onClick={() => setEditingAliases((a) => a.filter((_, idx) => idx !== i))}
+              />
             </div>
           ))}
         </div>

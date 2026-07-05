@@ -63,6 +63,12 @@ public class RemoteSourceConfig
     /// <summary>Optional regex extracting a date hint (yyyyMMdd, named group: date) from the card
     /// image URL — many sites embed the upload date in the image path.</summary>
     public string? ImageDatePattern { get; set; }
+
+    /// <summary>Optional DISPLAY labels for site tag names, PER LANGUAGE (configurable i18n —
+    /// supports multiple dialects): outer key = app language code ("cn", "en", …), inner = raw tag →
+    /// label (e.g. cn: "Character Skins" → "角色皮肤"). Raw names stay the stored/filter/rule
+    /// identity; only the UI maps through the current language's table, falling back to the raw name.</summary>
+    public Dictionary<string, Dictionary<string, string>> TagLabels { get; set; } = new();
 }
 
 public class RemoteListConfig
@@ -97,6 +103,9 @@ public class RemoteSourceInfo
     public string BaseUrl { get; set; } = string.Empty;
     public List<RemoteListConfig> Lists { get; set; } = new();
     public bool HasSearch { get; set; }
+
+    /// <summary>Per-language display labels for site tag names (see RemoteSourceConfig.TagLabels).</summary>
+    public Dictionary<string, Dictionary<string, string>> TagLabels { get; set; } = new();
 }
 
 /// <summary>One mod card on a list/search page. URLs are absolute.</summary>
@@ -143,6 +152,9 @@ public class RemoteModDetail
     /// <summary>Site tags visible on the detail page (e.g. GameBanana sub category). Merged with the
     /// index entry's tags for display + import tag-rules.</summary>
     public List<string> Tags { get; set; } = new();
+
+    /// <summary>Plain-text description from the page, when the engine can extract one (GameBanana _sText).</summary>
+    public string? Description { get; set; }
 }
 
 /// <summary>A resolved direct download (Cloudreve share → presigned URL).</summary>
