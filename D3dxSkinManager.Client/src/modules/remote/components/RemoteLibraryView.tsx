@@ -307,45 +307,43 @@ export const RemoteLibraryView: React.FC = () => {
         <CompactButton icon={<AppstoreOutlined />} onClick={openManagement}>
           {t('remote.manage')}
         </CompactButton>
-        {(indexReady || source?.hasSearch) && (
-          <CompactInput
-            className="remote-library__search"
-            placeholder={t('remote.searchPlaceholder')}
-            value={ui.searchText}
-            onChange={(e) => ui.setSearchText(e.target.value)}
-            onPressEnter={() => void runSearch()}
-            suffix={<SearchOutlined onClick={() => void runSearch()} />}
-            allowClear
-          />
-        )}
-        {indexReady && (
-          <CompactSelect
-            className="remote-library__sort"
-            value={ui.sort}
-            options={[
-              { value: 'site', label: t('remote.sortSite') },
-              { value: 'date', label: t('remote.sortDate') },
-            ]}
-            onChange={(v) => {
-              ui.setSort(v);
-              void loadIndex(1, useRemoteUiStore.getState().searchText);
-            }}
-          />
-        )}
-        {indexReady && tagCounts.length > 0 && (
-          <CompactSelect
-            className="remote-library__tag-filter"
-            value={ui.tagFilter ?? ''}
-            options={[
-              { value: '', label: t('remote.allTags') },
-              ...tagCounts.map((c) => ({ value: c.name, label: `${c.name} (${c.count})` })),
-            ]}
-            onChange={(v) => {
-              ui.setTagFilter(v || undefined);
-              void loadIndex(1, useRemoteUiStore.getState().searchText);
-            }}
-          />
-        )}
+        {/* One CONSISTENT toolbar regardless of sync state — sort/tag act on the synced index and
+            are disabled (not hidden) until the first sync, so the layout never jumps. */}
+        <CompactInput
+          className="remote-library__search"
+          placeholder={t('remote.searchPlaceholder')}
+          value={ui.searchText}
+          onChange={(e) => ui.setSearchText(e.target.value)}
+          onPressEnter={() => void runSearch()}
+          suffix={<SearchOutlined onClick={() => void runSearch()} />}
+          allowClear
+        />
+        <CompactSelect
+          className="remote-library__sort"
+          value={ui.sort}
+          disabled={!indexReady}
+          options={[
+            { value: 'site', label: t('remote.sortSite') },
+            { value: 'date', label: t('remote.sortDate') },
+          ]}
+          onChange={(v) => {
+            ui.setSort(v);
+            void loadIndex(1, useRemoteUiStore.getState().searchText);
+          }}
+        />
+        <CompactSelect
+          className="remote-library__tag-filter"
+          value={ui.tagFilter ?? ''}
+          disabled={!indexReady || tagCounts.length === 0}
+          options={[
+            { value: '', label: t('remote.allTags') },
+            ...tagCounts.map((c) => ({ value: c.name, label: `${c.name} (${c.count})` })),
+          ]}
+          onChange={(v) => {
+            ui.setTagFilter(v || undefined);
+            void loadIndex(1, useRemoteUiStore.getState().searchText);
+          }}
+        />
         <CompactButton icon={<ReloadOutlined />} onClick={refresh}>
           {t('common.refresh')}
         </CompactButton>
@@ -420,6 +418,9 @@ export const RemoteLibraryView: React.FC = () => {
         )}
       </div>
 
+      {/* ONE pager, driven by OUR synced list's count (the library is our own list built by the
+          sync strategy — never mirror the site's pagination). Pre-sync, the live preview shows
+          page 1 only with the sync hint above pushing to sync. */}
       {indexReady && (ui.index?.total ?? 0) > INDEX_PAGE_SIZE && (
         <div className="remote-library__pager">
           <Pagination
@@ -428,18 +429,6 @@ export const RemoteLibraryView: React.FC = () => {
             pageSize={INDEX_PAGE_SIZE}
             showSizeChanger={false}
             onChange={(p) => void loadIndex(p, ui.searchText)}
-          />
-        </div>
-      )}
-      {!indexReady && !ui.isSearchResult && ui.result && (ui.result.totalPages ?? 0) > 1 && (
-        <div className="remote-library__pager">
-          <Pagination
-            simple
-            current={ui.page}
-            total={(ui.result.totalPages ?? 1) * 10}
-            pageSize={10}
-            showSizeChanger={false}
-            onChange={(p) => void browseLive(p)}
           />
         </div>
       )}

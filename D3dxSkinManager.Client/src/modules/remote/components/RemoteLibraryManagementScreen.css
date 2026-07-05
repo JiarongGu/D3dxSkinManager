@@ -5,6 +5,73 @@
   font-size: 14px;
 }
 
+/* Fill the slide-in body so the tabs bar / edit header stay PINNED at the top and the action bar
+   at the bottom — only the middle content scrolls (tabs+save scrolling away was the bug). */
+.remote-lib-mgmt--fill {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  gap: 0;
+  margin-top: -8px; /* pull the tabs bar closer to the slide-in header (gap was too big) */
+}
+
+.remote-lib-mgmt__tabs {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.remote-lib-mgmt__tabs .ant-tabs-nav {
+  margin-bottom: 10px;
+}
+
+/* Tab labels: identical plain-text layout so both titles baseline-align. */
+.remote-lib-mgmt__tabs .ant-tabs-tab {
+  font-size: 14px;
+  padding: 8px 2px;
+}
+
+.remote-lib-mgmt__tabs .ant-tabs-content-holder {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.remote-lib-mgmt__tabs .ant-tabs-content,
+.remote-lib-mgmt__tabs .ant-tabs-tabpane {
+  height: 100%;
+}
+
+/* Scrollable middle of the edit mode (name + rules); header/actions stay pinned. */
+.remote-lib-mgmt__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 2px;
+}
+
+.remote-lib-mgmt__name-input {
+  max-width: 420px;
+}
+
+/* Standardized section heading: 14px semibold + inline action (antd Title h4 was ~20px — too big). */
+.remote-lib-mgmt__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.remote-lib-mgmt__section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-base);
+}
+
 .remote-lib-mgmt__loading {
   display: flex;
   justify-content: center;
@@ -96,13 +163,14 @@
   min-width: 160px;
 }
 
-/* Edit mode header: back + title. */
+/* Edit mode header: back + title — pinned (never scrolls). */
 .remote-lib-mgmt__edit-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-bottom: 8px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--color-border-secondary);
+  flex-shrink: 0;
 }
 
 .remote-lib-mgmt__edit-title {
@@ -144,10 +212,12 @@
   min-width: 0;
 }
 
+/* Pinned bottom action bar (never scrolls with the content). */
 .remote-lib-mgmt__actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding-top: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--color-border-secondary);
+  flex-shrink: 0;
 }

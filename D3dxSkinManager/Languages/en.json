@@ -57,7 +57,7 @@
     "remote.ruleName": "rule name",
     "remote.ruleTags": "tags (all must match)",
     "remote.rulePickCategory": "import into",
-    "remote.tabLibraries": "My libraries",
+    "remote.tabLibraries": "Libraries",
     "remote.tabSites": "Sites",
     "remote.activeLibrary": "Active",
     "remote.clickToActivate": "Click to switch to this library",

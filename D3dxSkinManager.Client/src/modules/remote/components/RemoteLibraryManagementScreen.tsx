@@ -7,7 +7,6 @@ import {
   ArrowUpOutlined,
   DeleteOutlined,
   EditOutlined,
-  GlobalOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
@@ -19,7 +18,6 @@ import {
   CompactField,
   CompactIconButton,
   CompactInput,
-  CompactSection,
   CompactSelect,
 } from '../../../shared/components/compact';
 import { StatusTag } from '../../../shared/components/common/StatusTag';
@@ -171,21 +169,33 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
 
   const addSourceInfo = sources.find((s) => s.id === addSource);
 
-  // ---- EDIT MODE: name + ordered tag rules (replaces the tabs while open) ---------------------
+  // ---- EDIT MODE: pinned header + scrollable body + pinned actions ----------------------------
   if (editing) {
     return (
-      <div className="remote-lib-mgmt">
+      <div className="remote-lib-mgmt remote-lib-mgmt--fill">
         <div className="remote-lib-mgmt__edit-header">
           <CompactIconButton icon={<ArrowLeftOutlined />} title={t('common.cancel')} onClick={() => setEditing(undefined)} />
           <span className="remote-lib-mgmt__edit-title">{t('remote.editLibrary', { name: editing.name })}</span>
         </div>
 
-        <CompactField label={t('remote.fieldName')}>
-          <CompactInput value={editing.name} onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })} />
-        </CompactField>
+        <div className="remote-lib-mgmt__scroll">
+          <CompactField label={t('remote.fieldName')}>
+            <CompactInput
+              className="remote-lib-mgmt__name-input"
+              value={editing.name}
+              onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })}
+            />
+          </CompactField>
 
-        <CompactSection title={t('remote.tagRules')}>
-          <div className="remote-lib-mgmt__rules-hint">{t('remote.tagRulesHint')}</div>
+          <div className="remote-lib-mgmt__section-head">
+            <span className="remote-lib-mgmt__section-title">{t('remote.tagRules')}</span>
+            <CompactButton size="small" icon={<PlusOutlined />} onClick={addRule}>
+              {t('remote.addRule')}
+            </CompactButton>
+          </div>
+          <div className="remote-lib-mgmt__rules-hint">
+            {t('remote.tagRulesHint')} {t('remote.tagRulesDefault')}
+          </div>
           {editing.tagRules.length === 0 && (
             <div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>
           )}
@@ -219,11 +229,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
               <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.remove')} onClick={() => removeRule(i)} />
             </div>
           ))}
-          <CompactButton size="small" icon={<PlusOutlined />} onClick={addRule}>
-            {t('remote.addRule')}
-          </CompactButton>
-          <div className="remote-lib-mgmt__rules-default">{t('remote.tagRulesDefault')}</div>
-        </CompactSection>
+        </div>
 
         <div className="remote-lib-mgmt__actions">
           <CompactButton onClick={() => setEditing(undefined)}>{t('common.cancel')}</CompactButton>
@@ -323,12 +329,13 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   );
 
   return (
-    <div className="remote-lib-mgmt">
+    <div className="remote-lib-mgmt remote-lib-mgmt--fill">
       <Tabs
+        className="remote-lib-mgmt__tabs"
         defaultActiveKey="libraries"
         items={[
           { key: 'libraries', label: t('remote.tabLibraries'), children: librariesTab },
-          { key: 'sites', label: (<span><GlobalOutlined /> {t('remote.tabSites')}</span>), children: sitesTab },
+          { key: 'sites', label: t('remote.tabSites'), children: sitesTab },
         ]}
       />
 

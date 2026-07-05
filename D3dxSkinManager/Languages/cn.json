@@ -57,7 +57,7 @@
     "remote.ruleName": "规则名称",
     "remote.ruleTags": "标签（需全部匹配）",
     "remote.rulePickCategory": "导入到",
-    "remote.tabLibraries": "我的库",
+    "remote.tabLibraries": "库",
     "remote.tabSites": "站点",
     "remote.activeLibrary": "使用中",
     "remote.clickToActivate": "点击切换到此库",
