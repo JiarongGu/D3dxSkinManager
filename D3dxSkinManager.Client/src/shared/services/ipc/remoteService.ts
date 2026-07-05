@@ -33,8 +33,8 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteBrowseResult>('BROWSE', profileId, { sourceId, listId, page });
   }
 
-  async search(profileId: string, sourceId: string, query: string): Promise<RemoteBrowseResult> {
-    return this.sendMessage<RemoteBrowseResult>('SEARCH', profileId, { sourceId, query });
+  async search(profileId: string, sourceId: string, query: string, listId?: string): Promise<RemoteBrowseResult> {
+    return this.sendMessage<RemoteBrowseResult>('SEARCH', profileId, { sourceId, query, listId });
   }
 
   async getDetail(profileId: string, sourceId: string, url: string): Promise<RemoteModDetail> {

@@ -61,7 +61,11 @@ public class RemoteBrowseServiceTests
         store.Setup(s => s.GetById("huihui")).Returns(_config);
         store.Setup(s => s.GetById(It.Is<string>(id => id != "huihui")))
             .Throws(new OperationException("REMOTE_SOURCE_NOT_FOUND", "id", "x"));
-        _service = new RemoteBrowseService(store.Object, _fetcher, Mock.Of<ILogHelper>());
+        _service = new RemoteBrowseService(store.Object, new IRemoteSiteEngine[]
+        {
+            new HttpRegexEngine(_fetcher, Mock.Of<ILogHelper>()),
+            new GameBananaEngine(_fetcher, Mock.Of<ILogHelper>()),
+        });
     }
 
     private const string ListHtml = """

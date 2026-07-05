@@ -22,6 +22,10 @@ public static class RemoteServiceExtensions
         services.TryAddSingleton<IRemoteBindingStore, RemoteBindingStore>();
         services.TryAddSingleton<IRemoteImageCacheService, RemoteImageCacheService>();
         services.TryAddSingleton<IRemotePageFetcher, HttpPageFetcher>();
+        // Site engines (remote-library-redesign.md) — one per site family; a source config's `engine`
+        // field names which one handles it. Adding a site = adding an engine registration here.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IRemoteSiteEngine, HttpRegexEngine>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IRemoteSiteEngine, GameBananaEngine>());
         services.TryAddSingleton<IRemoteBrowseService, RemoteBrowseService>();
         services.TryAddSingleton<ICloudreveShareResolver, CloudreveShareResolver>();
         services.TryAddSingleton<IRemoteIndexRepository, RemoteIndexRepository>();

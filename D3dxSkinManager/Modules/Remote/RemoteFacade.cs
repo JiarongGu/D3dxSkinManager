@@ -16,7 +16,7 @@ public interface IRemoteFacade : IModuleFacade
 {
     Task<List<RemoteSourceInfo>> GetSourcesAsync();
     Task<RemoteBrowseResult> BrowseAsync(string sourceId, string listId, int page);
-    Task<RemoteBrowseResult> SearchAsync(string sourceId, string query);
+    Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null);
     Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl);
     Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option);
     string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option);
@@ -92,8 +92,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     public async Task<RemoteBrowseResult> BrowseAsync(string sourceId, string listId, int page) =>
         await _browse.BrowseAsync(sourceId, listId, page).ConfigureAwait(false);
 
-    public async Task<RemoteBrowseResult> SearchAsync(string sourceId, string query) =>
-        await _browse.SearchAsync(sourceId, query).ConfigureAwait(false);
+    public async Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null) =>
+        await _browse.SearchAsync(sourceId, query, listId).ConfigureAwait(false);
 
     public async Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl) =>
         await _browse.GetDetailAsync(sourceId, detailUrl).ConfigureAwait(false);
@@ -133,7 +133,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     {
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         var query = _payloadHelper.GetRequiredValue<string>(request.Payload, "query");
-        return SearchAsync(sourceId, query);
+        var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
+        return SearchAsync(sourceId, query, listId);
     }
 
     private Task<RemoteModDetail> GetDetailAsync(IpcRequest request)

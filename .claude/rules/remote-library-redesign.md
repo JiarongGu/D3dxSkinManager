@@ -4,6 +4,35 @@ The first remote-library cut (single per-profile binding, single category per mo
 was the wrong foundation. This is the agreed rebuild. Supersedes the binding model in `remote-library.md`
 (keep that file for the site/API facts — huihui + GameBanana endpoints — which are still valid).
 
+## Full-code review (2026-07-06, all 17 backend files + 4 components read end-to-end)
+
+**SOUND — keep as-is:**
+- Index storage: per-profile SQLite, composite key (SourceId, ListId, EntryId), generation ordering,
+  soft-delete pruning, incremental stop-at-known-page, sync meta. Engine-agnostic + tested.
+- Image cache (sha1-named, per-profile, app://-servable, gated downloads, cleanup category).
+- Download-host resolvers (cloudreve/direct/external) + CloudreveShareResolver — host logic is correctly
+  SEPARATE from site engines (a site references hosts; hosts recur across sites).
+- Fire-and-forget syncs/imports via ProcessRegistry + frontend auto-refresh on completion.
+- `res/` read-only defaults + seed-if-missing; entry-id extraction (stable site id).
+
+**STRUCTURAL FLAWS — the rebuild fixes these:**
+1. Single binding per profile (+ DefaultCategoryId ON the binding, picker in the browse toolbar) —
+   wrong model entirely → RemoteLibrary[] + tag rules + management screen.
+2. One `Category` per mod → must be `Tags[]` (GameBanana super+sub). The Category column/filter
+   (migration 202607060002) is already obsolete → 202607060003 swaps it for Tags.
+3. **Import identity = detailUrl string equality** — breaks when a site moves hosts (huihui does!).
+   → record `{sourceId, listId, entryId}` in mod Metadata; match "imported" by entryId.
+4. **Imported-flag is O(all mods) JSON-parse per INDEX_QUERY page** (GetImportedDetailUrlsAsync walks
+   every mod row each page flip; 2589 mods = 2589 parses) → in-memory cache invalidated on import/delete.
+5. RemoteBrowseService inlines `if (IsGameBanana)` + regex parsing → IRemoteSiteEngine dispatch.
+6. RemoteSourceConfig conflates identity + engine choice + http-regex fields + games + resolvers;
+   validation special-cases engine names → engines own/validate their config slice.
+7. RemoteLibraryView is a 507-line monolith (setup + bound + toolbar + grid) → decompose with the
+   switcher work.
+8. Search is huihui-only; must be an engine capability (SupportsSearch + listId-scoped).
+9. Detail page single-column → left (review/gallery) / right (actions; sites can have MANY links).
+10. remoteUiStore keyed by sourceId/listId → key by active library id.
+
 ## Architecture: per-site ENGINES + generalized storage
 
 The site-specific logic is a **library engine** — mostly HARDCODED per site, taking only small config

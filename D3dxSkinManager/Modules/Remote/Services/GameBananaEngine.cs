@@ -1,27 +1,65 @@
 using System.Linq;
 using System.Text.Json;
+using D3dxSkinManager.Modules.Core.Exceptions;
+using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Remote.Models;
 
 namespace D3dxSkinManager.Modules.Remote.Services;
 
 /// <summary>
-/// Parser for the GameBanana apiv11 JSON API (adapter <c>engine = "gamebanana"</c>). GameBanana is a
-/// JSON API, not scrapeable HTML, so the regex-over-HTML path (the "http" engine) can't read it — this
-/// turns its Subfeed + ProfilePage responses into the same <see cref="RemoteModCard"/>/
-/// <see cref="RemoteModDetail"/> DTOs the rest of the pipeline consumes. All URLs are absolute.
+/// Site engine for the GameBanana apiv11 JSON API (adapter <c>engine = "gamebanana"</c>). GameBanana
+/// is a JSON API, not scrapeable HTML, so the regex "http" engine can't read it — this is a HARDCODED
+/// engine (remote-library-redesign.md) whose only config is the base URL + game ids; it normalizes the
+/// API responses into the shared DTOs. Parsing lives in public statics (unit-tested without HTTP).
 ///
 /// Verified live 2026-07-06 (see remote-library.md):
 /// - list:     {base}/apiv11/Game/{gameId}/Subfeed?_nPage={n}&amp;_sSort=new  → _aRecords[] + _aMetadata
+/// - search:   {base}/apiv11/Util/Search/Results?_sModelName=Mod&amp;_sSearchString={q}&amp;_idGameRow={gameId}&amp;_nPage={n}
 /// - detail:   {base}/apiv11/Mod/{id}/ProfilePage                            → _aFiles[]._sDownloadUrl (DIRECT)
 /// - NSFW:     content-rated mods are ALREADY in the subfeed (_sInitialVisibility warn/hide) — no auth
 ///             or extra param needed; we index every record.
 /// </summary>
-public static class GameBananaEngine
+public class GameBananaEngine : RemoteSiteEngineBase
 {
     public const string EngineName = "gamebanana";
 
+    public GameBananaEngine(IRemotePageFetcher fetcher, ILogHelper logger) : base(fetcher, logger) { }
+
+    public override string EngineId => EngineName;
+
+    public override bool SupportsSearch(RemoteSourceConfig config) => true;
+
+    public override async Task<RemoteBrowseResult> BrowseAsync(RemoteSourceConfig config, string listId, int page, CancellationToken ct)
+    {
+        var json = await FetchAsync(BuildSubfeedUrl(config.BaseUrl, listId, page), ct).ConfigureAwait(false);
+        return ParseSubfeed(json, config.BaseUrl, page);
+    }
+
+    public override async Task<RemoteBrowseResult> SearchAsync(RemoteSourceConfig config, string query, string? listId, CancellationToken ct)
+    {
+        var json = await FetchAsync(BuildSearchUrl(config.BaseUrl, query, listId, 1), ct).ConfigureAwait(false);
+        // The search response carries the same _aRecords shape as the Subfeed.
+        return ParseSubfeed(json, config.BaseUrl, 1);
+    }
+
+    public override async Task<RemoteModDetail> GetDetailAsync(RemoteSourceConfig config, string detailUrl, CancellationToken ct)
+    {
+        var modId = ExtractModId(detailUrl)
+            ?? throw new OperationException("REMOTE_FETCH_FAILED", "url", detailUrl);
+        var json = await FetchAsync(BuildProfilePageUrl(config.BaseUrl, modId), ct).ConfigureAwait(false);
+        return ParseProfilePage(json, detailUrl);
+    }
+
+    // ---- URL builders + parsers (static — unit-tested without HTTP) -----------------------------
+
     public static string BuildSubfeedUrl(string baseUrl, string gameId, int page) =>
         $"{baseUrl.TrimEnd('/')}/apiv11/Game/{gameId}/Subfeed?_nPage={Math.Max(1, page)}&_sSort=new";
+
+    /// <summary>Game-scoped mod search (listId = the GameBanana game id; null searches site-wide).</summary>
+    public static string BuildSearchUrl(string baseUrl, string query, string? gameId, int page) =>
+        $"{baseUrl.TrimEnd('/')}/apiv11/Util/Search/Results?_sModelName=Mod&_sSearchString={Uri.EscapeDataString(query.Trim())}"
+        + (string.IsNullOrWhiteSpace(gameId) ? string.Empty : $"&_idGameRow={gameId}")
+        + $"&_nPage={Math.Max(1, page)}";
 
     public static string BuildProfilePageUrl(string baseUrl, string modId) =>
         $"{baseUrl.TrimEnd('/')}/apiv11/Mod/{modId}/ProfilePage";

@@ -174,7 +174,7 @@ export const RemoteLibraryView: React.FC = () => {
     }
     try {
       setLoading(true);
-      const result = await api.remote.search(selectedProfileId, state.sourceId, query);
+      const result = await api.remote.search(selectedProfileId, state.sourceId, query, state.listId);
       state.setPage(1);
       state.setResult(result, true);
     } catch (error: unknown) {
