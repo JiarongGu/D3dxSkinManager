@@ -16,18 +16,9 @@
 (none)
 
 ## Backlog
-- [ ] we dont really need to sync whole remote site
-- [ ] once we synced with one library we should be able to update, not just resync entirely
-- [ ] downloaded mod should have a reference to the remote, so we know this mod is been downloaded
-- [ ] we should have a cached location for remote site (loaded image content and extra) so we dont need to load those from remote all the time, also provide way to clean them up (in cleanup tool you might also need to improve the cleanup tool ui/ux)
-- [ ] since we dont have whole remote site sync so remote cache should belong to profile level instead data level (you might think of use sqlite instead of json to store the data)
-- [ ] remote mod slide-in-screen ui/ux update
-- [ ] fix tools import ui/ux update, table hover color
-- [ ] after merge nothing shows (character when invisible)
-- [ ] when merge mod if there are same assets, try to dedup
-- [ ] move fix in the context menu below the optimize mod and rename it to "fix mod"
-- [ ] we need a better way from mod list back to analyzed result, currently logic of remember the last result also cause an ui/ux issue when entering the analyzer
-- [ ] Save presist values, so after reload the mod back we have the presist value 3dmigoto usually resets if a new mod is loaded, and also need to allow to reset this or save this to the ini for default
+- [ ] after merge nothing shows (character invisible) — IN-GAME GATED: render-gating (`$\<ns>\swapvar` in NamespaceMergeBuilder) is the one unverified assumption; blind edits keep backfiring (see `3dmigoto-ini-interface.md`). Needs a failing merged `.ini` or in-game iteration. Fallback: merge with `activeOnly` OFF.
+- [ ] when merge mod if there are same assets, try to dedup — depends on the above (rewriting resource paths on an unverified render path can itself cause invisibility)
+- [ ] Save persist values: after reload restore a mod's 3DMigoto `$var` state (3DMigoto resets on new mod load); allow reset + save-to-ini-as-default — RUNTIME GATED (needs the game to verify persisted-var behavior); large feature, needs a design pass
 
 ### Features
 - [ ] Remote library: WebView2-rendered fetch engine for JS-heavy/anti-bot sites (`engine:"webview"` — seam exists in `IRemotePageFetcher`)
@@ -58,15 +49,16 @@
 - Thumbnail right-click crash — no repro; re-add if it recurs (capture `[ErrorBoundary]`)
 - Temp cleanup: opt-in auto-clean on exit; mod-load per-file extraction counts
 
-## Done (recent — one line + commit; older history in git log / docs/changelogs/)
-- [x] Remote library: per-profile game binding (setup view, bind & sync, 换绑; binding in {profile}/remote-binding.json) — `488489a`
-- [x] Remote library fix batch: cardScopePattern (pagination pollution), sort-by-date, sync-all, toolbar sizes, always-visible switcher — `8081f81`
-- [x] Remote library stage 4: in-app adapter manager (add/edit/live-test/delete) + `direct` download method — `ab2e08a`
-- [x] Remote library stage 3: shipped-JSON seeder + synced local index (instant search, date hints, imported badge, sha256 identity) — `17f99ad`
-- [x] Remote library stages 1–2: config-driven adapters + Cloudreve resolve + browse tab + download/import — `d77f6fd`, `9215b72`
-- [x] Robustness audit: partial-import rollback + raw-FS sweep verdicts — `b48799a`
-- [x] IniParser migration of ModIniService/ModKeybindingService read paths — `d67e97c`
-- [x] Analyzer UX: state persistence, fix-in-place, CompactIconButton L1 — `194d71f`
+## Done (recent — newest first; hashes omitted because history is periodically rebased, see `git log`)
+- [x] UX polish: cleanup tool (open button → CompactIconButton, positive "all clean" empty state) + remote detail meta line
+- [x] Analyzer back-nav: scan landing on open (no auto-jump into stale findings) + explicit "View last results" button
+- [x] UI batch: 修复模组/Fix Mod moved below 优化模组 + renamed; app-wide table hover uses the theme token; fix-tools dashed import panel; remote detail open-page button
+- [x] Remote image cache: per-profile `{profile}/remote-cache/images` (grid+detail serve via app:// after first load) + cleanup-tool 远程缓存 category
+- [x] Remote index v2: per-profile SQLite (migration + repository), incremental UPDATE sync (stops at first fully-known page), whole-site sync removed, mod→remote reference
+- [x] App-wide sweep: raw antd form controls → compact L1 atoms (23 files, uniform 32px; CompactInput/Button forward refs)
+- [x] Remote library: per-profile game binding (setup view, bind & sync, 换绑); adapter manager (add/edit/live-test/delete) + `direct` download method; seeder + synced index + fix batch (scope/sort/sizes)
+- [x] Remote library stages 1–2: config-driven adapters + Cloudreve resolve + browse tab + download/import
+- [x] Robustness audit: partial-import rollback + raw-FS sweep; IniParser read-path migration; analyzer UX (persistence, fix-in-place)
 - [x] Everything earlier (analyzer grounding/dedup taxonomy/repair, import-queue overhaul, per-profile fix tools, config editor complete, XXMI settings, self-update, presets, optimizer, B1–B7) — see `git log` + `docs/changelogs/`
 
 ## Verification gate (every change)
