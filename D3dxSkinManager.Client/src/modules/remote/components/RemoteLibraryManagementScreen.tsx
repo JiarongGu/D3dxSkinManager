@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Select, Spin } from 'antd';
+import { Select, Spin, Tabs } from 'antd';
 import {
   ArrowDownOutlined,
+  ArrowLeftOutlined,
   ArrowUpOutlined,
-  CheckCircleFilled,
   DeleteOutlined,
   EditOutlined,
+  GlobalOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
@@ -15,13 +16,13 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import {
   CompactButton,
-  CompactDivider,
   CompactField,
   CompactIconButton,
   CompactInput,
   CompactSection,
   CompactSelect,
 } from '../../../shared/components/compact';
+import { StatusTag } from '../../../shared/components/common/StatusTag';
 import { CategorySelect } from '../../../shared/components/CategorySelect';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import type { CategoryInfo } from '../../../shared/types/category.types';
@@ -40,9 +41,10 @@ interface RemoteLibraryManagementScreenProps {
 }
 
 /**
- * Library management (remote-library-redesign.md): the profile's configured libraries — add
- * (site → game → sync), edit (name + ORDERED tag→category import rules), remove, set active.
- * The sites/adapters section (read-only defaults in res/ + advanced custom configs) sits below.
+ * Library management (remote-library-redesign.md), TWO TABS: "My libraries" (the profile's configured
+ * libraries — the everyday tab: add site→game→sync, switch active, edit name + ORDERED tag→category
+ * import rules, remove) and "Sites" (the adapter configs — rarely used; shipped ones are read-only
+ * defaults in res/, custom sites live here).
  */
 export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScreenProps> = ({ onChanged }) => {
   const { t } = useTranslation();
@@ -56,7 +58,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const [adding, setAdding] = useState(false);
   const [addSource, setAddSource] = useState<string>();
   const [addList, setAddList] = useState<string>();
-  // Edit state — a working copy of the library being edited.
+  // Edit state — a working copy of the library being edited (rules deep-copied so cancel discards).
   const [editing, setEditing] = useState<RemoteLibrary>();
   const [removeTarget, setRemoveTarget] = useState<RemoteLibrary>();
 
@@ -100,7 +102,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   };
 
   const handleSetActive = async (library: RemoteLibrary) => {
-    if (!selectedProfileId) return;
+    if (!selectedProfileId || library.id === libState?.activeLibraryId) return;
     try {
       setLibState(await api.remote.librarySetActive(selectedProfileId, library.id));
       onChanged?.();
@@ -110,9 +112,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   };
 
   const startEdit = async (library: RemoteLibrary) => {
-    // Deep-copy the rules so cancel discards edits; load the library's tag options for the pickers.
     setEditing({ ...library, tagRules: library.tagRules.map((r) => ({ ...r, tags: [...r.tags] })) });
     if (selectedProfileId) {
+      // Seed the rule tag-pickers with the tags actually present in this library's index.
       void api.remote
         .indexTags(selectedProfileId, library.sourceId, library.listId)
         .then((tags) => setTagOptions(tags.map((x) => x.name)))
@@ -169,18 +171,24 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
 
   const addSourceInfo = sources.find((s) => s.id === addSource);
 
-  // ---- EDIT MODE: name + ordered tag rules ---------------------------------------------------
+  // ---- EDIT MODE: name + ordered tag rules (replaces the tabs while open) ---------------------
   if (editing) {
     return (
       <div className="remote-lib-mgmt">
-        <CompactSection title={t('remote.editLibrary', { name: editing.name })}>
-          <CompactField label={t('remote.fieldName')}>
-            <CompactInput value={editing.name} onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })} />
-          </CompactField>
-        </CompactSection>
+        <div className="remote-lib-mgmt__edit-header">
+          <CompactIconButton icon={<ArrowLeftOutlined />} title={t('common.cancel')} onClick={() => setEditing(undefined)} />
+          <span className="remote-lib-mgmt__edit-title">{t('remote.editLibrary', { name: editing.name })}</span>
+        </div>
+
+        <CompactField label={t('remote.fieldName')}>
+          <CompactInput value={editing.name} onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })} />
+        </CompactField>
 
         <CompactSection title={t('remote.tagRules')}>
           <div className="remote-lib-mgmt__rules-hint">{t('remote.tagRulesHint')}</div>
+          {editing.tagRules.length === 0 && (
+            <div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>
+          )}
           {editing.tagRules.map((rule, i) => (
             <div key={i} className="remote-lib-mgmt__rule">
               <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
@@ -227,73 +235,102 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     );
   }
 
-  // ---- LIST MODE: my libraries + add + sites section ------------------------------------------
-  return (
-    <div className="remote-lib-mgmt">
-      <CompactSection title={t('remote.myLibraries')}>
-        {libState.libraries.length === 0 && (
-          <div className="remote-lib-mgmt__empty">{t('remote.noLibraries')}</div>
-        )}
-        {libState.libraries.map((library) => {
-          const src = sources.find((s) => s.id === library.sourceId);
-          const listName = src?.lists.find((l) => l.id === library.listId)?.name ?? library.listId;
-          const isActive = library.id === libState.activeLibraryId;
-          return (
-            <div key={library.id} className="remote-lib-mgmt__row">
-              <div className="remote-lib-mgmt__row-main" onClick={() => void handleSetActive(library)}>
-                <span className="remote-lib-mgmt__row-name">
-                  {isActive && <CheckCircleFilled className="remote-lib-mgmt__active" />}
-                  {library.name}
-                </span>
-                <span className="remote-lib-mgmt__row-detail">
-                  {src?.name ?? library.sourceId} · {listName}
-                  {library.tagRules.length > 0 && ` · ${t('remote.rulesCount', { count: library.tagRules.length })}`}
-                </span>
-              </div>
-              <CompactIconButton icon={<EditOutlined />} title={t('common.edit')} onClick={() => void startEdit(library)} />
-              <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.remove')} onClick={() => setRemoveTarget(library)} />
+  // ---- TABS: libraries (primary) / sites (rare) ------------------------------------------------
+  const librariesTab = (
+    <div className="remote-lib-mgmt__tab">
+      {libState.libraries.length === 0 && (
+        <div className="remote-lib-mgmt__empty">{t('remote.noLibraries')}</div>
+      )}
+      {libState.libraries.map((library) => {
+        const src = sources.find((s) => s.id === library.sourceId);
+        const listName = src?.lists.find((l) => l.id === library.listId)?.name ?? library.listId;
+        const isActive = library.id === libState.activeLibraryId;
+        // Detail line: source · game (+ rules). Skip when it just repeats the default name.
+        const detailBase = `${src?.name ?? library.sourceId} · ${listName}`;
+        const rulesSuffix = library.tagRules.length > 0 ? ` · ${t('remote.rulesCount', { count: library.tagRules.length })}` : '';
+        const detail = detailBase === library.name && !rulesSuffix ? undefined : `${detailBase === library.name ? '' : detailBase}${rulesSuffix}`.replace(/^ · /, '');
+        return (
+          <div
+            key={library.id}
+            className={isActive ? 'remote-lib-mgmt__row remote-lib-mgmt__row--active' : 'remote-lib-mgmt__row'}
+            title={isActive ? undefined : t('remote.clickToActivate')}
+            onClick={() => void handleSetActive(library)}
+          >
+            <div className="remote-lib-mgmt__row-main">
+              <span className="remote-lib-mgmt__row-name">{library.name}</span>
+              {detail && <span className="remote-lib-mgmt__row-detail">{detail}</span>}
             </div>
-          );
-        })}
-
-        {!adding && (
-          <CompactButton icon={<PlusOutlined />} onClick={() => setAdding(true)}>
-            {t('remote.addLibrary')}
-          </CompactButton>
-        )}
-        {adding && (
-          <div className="remote-lib-mgmt__add">
-            <CompactSelect
-              className="remote-lib-mgmt__add-source"
-              value={addSource}
-              placeholder={t('remote.setupPickSource')}
-              options={sources.map((s) => ({ value: s.id, label: s.name }))}
-              onChange={(v) => {
-                setAddSource(v);
-                setAddList(sources.find((s) => s.id === v)?.lists[0]?.id);
+            {isActive && <StatusTag tone="success" label={t('remote.activeLibrary')} />}
+            <CompactIconButton
+              icon={<EditOutlined />}
+              title={t('common.edit')}
+              onClick={(e) => {
+                e.stopPropagation();
+                void startEdit(library);
               }}
             />
-            <CompactSelect
-              className="remote-lib-mgmt__add-list"
-              value={addList}
-              placeholder={t('remote.setupPickGame')}
-              options={(addSourceInfo?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
-              onChange={setAddList}
+            <CompactIconButton
+              tone="danger"
+              icon={<DeleteOutlined />}
+              title={t('common.remove')}
+              onClick={(e) => {
+                e.stopPropagation();
+                setRemoveTarget(library);
+              }}
             />
-            <CompactButton type="primary" disabled={!addSource || !addList} onClick={() => void handleAdd()}>
-              {t('remote.addAndSync')}
-            </CompactButton>
-            <CompactButton onClick={() => setAdding(false)}>{t('common.cancel')}</CompactButton>
           </div>
-        )}
-      </CompactSection>
+        );
+      })}
 
-      <CompactDivider />
+      {!adding && (
+        <CompactButton icon={<PlusOutlined />} onClick={() => setAdding(true)}>
+          {t('remote.addLibrary')}
+        </CompactButton>
+      )}
+      {adding && (
+        <div className="remote-lib-mgmt__add">
+          <CompactSelect
+            className="remote-lib-mgmt__add-source"
+            value={addSource}
+            placeholder={t('remote.setupPickSource')}
+            options={sources.map((s) => ({ value: s.id, label: s.name }))}
+            onChange={(v) => {
+              setAddSource(v);
+              setAddList(sources.find((s) => s.id === v)?.lists[0]?.id);
+            }}
+          />
+          <CompactSelect
+            className="remote-lib-mgmt__add-list"
+            value={addList}
+            placeholder={t('remote.setupPickGame')}
+            options={(addSourceInfo?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
+            onChange={setAddList}
+          />
+          <CompactButton type="primary" disabled={!addSource || !addList} onClick={() => void handleAdd()}>
+            {t('remote.addAndSync')}
+          </CompactButton>
+          <CompactButton onClick={() => setAdding(false)}>{t('common.cancel')}</CompactButton>
+        </div>
+      )}
+    </div>
+  );
 
-      <CompactSection title={t('remote.sitesSection')}>
-        <div className="remote-lib-mgmt__sites-hint">{t('remote.sitesHint')}</div>
-        <RemoteSourceManagerScreen onChanged={() => void notifyChanged()} />
-      </CompactSection>
+  const sitesTab = (
+    <div className="remote-lib-mgmt__tab">
+      <div className="remote-lib-mgmt__sites-hint">{t('remote.sitesHint')}</div>
+      <RemoteSourceManagerScreen onChanged={() => void notifyChanged()} />
+    </div>
+  );
+
+  return (
+    <div className="remote-lib-mgmt">
+      <Tabs
+        defaultActiveKey="libraries"
+        items={[
+          { key: 'libraries', label: t('remote.tabLibraries'), children: librariesTab },
+          { key: 'sites', label: (<span><GlobalOutlined /> {t('remote.tabSites')}</span>), children: sitesTab },
+        ]}
+      />
 
       <ConfirmDialog
         visible={!!removeTarget}

@@ -1,7 +1,7 @@
 .remote-lib-mgmt {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   font-size: 14px;
 }
 
@@ -11,23 +11,43 @@
   padding: 48px 0;
 }
 
+.remote-lib-mgmt__tab {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
 .remote-lib-mgmt__empty,
 .remote-lib-mgmt__rules-hint,
+.remote-lib-mgmt__rules-empty,
 .remote-lib-mgmt__rules-default,
 .remote-lib-mgmt__sites-hint {
   font-size: 12px;
   color: var(--color-text-secondary);
 }
 
-/* A configured library row — click body to set active. */
+/* A configured library row — click to make it the active library. */
 .remote-lib-mgmt__row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 10px;
+  padding: 10px 12px;
   border: 1px solid var(--color-border-secondary);
   border-radius: var(--border-radius-base);
   background: var(--color-bg-container);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.remote-lib-mgmt__row:hover {
+  border-color: var(--color-primary);
+}
+
+.remote-lib-mgmt__row--active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg, rgba(22, 119, 255, 0.08));
+  cursor: default;
 }
 
 .remote-lib-mgmt__row-main {
@@ -36,35 +56,49 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  cursor: pointer;
 }
 
 .remote-lib-mgmt__row-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   font-weight: 500;
-}
-
-.remote-lib-mgmt__active {
-  color: var(--color-success, #52c41a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .remote-lib-mgmt__row-detail {
   font-size: 12px;
   color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* Inline add-library flow. */
 .remote-lib-mgmt__add {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px dashed var(--color-border-base);
+  border-radius: var(--border-radius-base);
 }
 
 .remote-lib-mgmt__add-source,
 .remote-lib-mgmt__add-list {
   min-width: 160px;
+}
+
+/* Edit mode header: back + title. */
+.remote-lib-mgmt__edit-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remote-lib-mgmt__edit-title {
+  font-size: 14px;
+  font-weight: 600;
 }
 
 /* One ordered tag rule: order badge, name, tags, category, reorder/remove. */
