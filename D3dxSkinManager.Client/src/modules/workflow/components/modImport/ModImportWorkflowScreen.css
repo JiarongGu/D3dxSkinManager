@@ -12,7 +12,7 @@
 .mod-import-workflow-screen-status-bar {
   margin-top: -1px;
   margin-bottom: 12px;
-  padding: 4px 16px;
+  padding: 8px 16px;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border-secondary);
 }
@@ -35,6 +35,46 @@
   background: var(--color-border-base);
   margin: 0 8px;
 }
+
+/* Clickable status chips — filter the queue by state */
+.mod-import-workflow-screen-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mod-import-workflow-screen-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.mod-import-workflow-screen-chip:hover {
+  color: var(--color-text-base);
+  border-color: var(--color-border-base);
+}
+
+.mod-import-workflow-screen-chip--active {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.mod-import-workflow-screen-chip-count {
+  font-weight: 600;
+}
+
+.mod-import-workflow-screen-chip--running .mod-import-workflow-screen-chip-count { color: var(--color-primary); }
+.mod-import-workflow-screen-chip--waiting .mod-import-workflow-screen-chip-count { color: var(--color-warning); }
+.mod-import-workflow-screen-chip--completed .mod-import-workflow-screen-chip-count { color: var(--color-success); }
+.mod-import-workflow-screen-chip--failed .mod-import-workflow-screen-chip-count { color: var(--color-error); }
 
 /* Stat Item */
 .mod-import-workflow-screen-stat {

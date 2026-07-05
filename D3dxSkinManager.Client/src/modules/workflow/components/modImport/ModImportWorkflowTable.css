@@ -59,7 +59,10 @@
 .mod-import-workflow-table-name {
   font-weight: 500;
   font-size: 14px;
-  flex: 1;
+  /* Shrinkable but NOT greedy — flex:1 shoved the file count to the far cell edge, leaving a
+     huge gap between the name and its "(N files)" suffix. */
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -69,7 +72,6 @@
 .mod-import-workflow-table-file-count {
   color: var(--color-text-tertiary);
   font-size: 12px;
-  margin-left: 8px;
   white-space: nowrap;
 }
 
@@ -97,30 +99,8 @@
   font-size: 16px;
 }
 
-/* Action buttons */
-.mod-import-workflow-table .ant-btn-sm {
-  height: 32px;
-  padding: 0 12px;
-  font-size: 14px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.mod-import-workflow-table .ant-btn-sm:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.mod-import-workflow-table .ant-btn-icon-only {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-}
-
-.mod-import-workflow-table .ant-btn-icon-only.ant-btn-sm {
-  height: 32px;
-  width: 32px;
-  min-width: 32px;
-}
+/* Action buttons: sizing is owned by CompactButton (24px small) — the old 32px overrides here
+   fought the shared atom and were the kind of per-screen drift that causes misaligned buttons. */
 
 /* Batch Action Toolbar */
 .mod-import-workflow-table-batch-toolbar {
@@ -179,14 +159,14 @@
   text-align: center;
 }
 
-/* Expandable row */
+/* Expandable row — theme tokens, not white tints (invisible/wrong in light theme) */
 .mod-import-workflow-table .ant-table-expanded-row > td {
   padding: 24px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-bg-container);
 }
 
 .mod-import-workflow-table .ant-descriptions-bordered .ant-descriptions-item-label {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-bg-spotlight);
   font-weight: 500;
 }
 

@@ -344,3 +344,12 @@
   padding-right: 0 !important;
 }
 
+
+/* Optical alignment for icon-only danger buttons: the box/anticon/svg geometry is pixel-identical
+   to sibling buttons (verified via computed-style diff, 2026-07-05), but the DeleteOutlined glyph's
+   ink sits high in its em-box, so the red button READS ~1px higher next to check/edit icons —
+   especially at fractional DPI where the 1px red border rasterizes on a different pixel row.
+   Nudge the glyph down half a pixel to optically center it. */
+.compact-button.ant-btn.ant-btn-icon-only.ant-btn-dangerous .anticon svg {
+  transform: translateY(0.5px);
+}

@@ -348,7 +348,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         )}
         {workflow.errorMessage && (
           <Descriptions.Item label={t("workflow.queue.error")} span={2}>
-            <span style={{ color: "#ff4d4f" }}>{workflow.errorMessage}</span>
+            <span style={{ color: "var(--color-error)" }}>{workflow.errorMessage}</span>
           </Descriptions.Item>
         )}
         {context?.importedModId && (
@@ -374,7 +374,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       showSorterTooltip: false,
       render: (name: string, row: WorkflowTableRow) => (
         <div className="mod-import-workflow-table-name-cell">
-          <FolderOutlined style={{ marginRight: 8, color: "#1890ff" }} />
+          <FolderOutlined style={{ marginRight: 8, color: "var(--color-primary)" }} />
           <Tooltip title={row.context?.folderPath}>
             <span className="mod-import-workflow-table-name">{name}</span>
           </Tooltip>
@@ -401,7 +401,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       render: (_: unknown, row: WorkflowTableRow) => {
         const categoryName = row.context?.categoryName;
         if (!categoryName) {
-          return <span style={{ color: "#8c8c8c" }}>{t("common.notSet")}</span>;
+          return <span style={{ color: "var(--color-text-tertiary)" }}>{t("common.notSet")}</span>;
         }
         return <span>{categoryName}</span>;
       },
@@ -471,7 +471,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
             size="small"
             strokeColor={
               row.workflow.status === WorkflowStatus.WaitingForInput
-                ? "#faad14"
+                ? "var(--color-warning)"
                 : undefined
             }
           />
@@ -549,7 +549,6 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
                   shape="default"
                   icon={<DeleteOutlined />}
                   onClick={() => handleDeleteWorkflow(workflow.id)}
-                  danger
                 />
               </Tooltip>
             )}

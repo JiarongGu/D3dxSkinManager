@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Space } from 'antd';
-import { FolderOpenOutlined, CheckOutlined, DeleteOutlined, LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { FolderOpenOutlined, CheckOutlined, DeleteOutlined, LoadingOutlined, ClearOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import classNames from 'classnames';
 import { CompactButton } from '../../../../shared/components/compact';
 import { ModImportWorkflowTable } from './ModImportWorkflowTable';
 import { useWorkflowQueue } from '../../hooks/modImport/useWorkflowQueue';
@@ -12,26 +13,35 @@ import { refreshMods } from '../../../mod/operations/modOperations';
 import { systemService } from '../../../../shared/services/ipc';
 import { workflowService } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
+import { notification } from '../../../../shared/utils/notification';
 import { useDropZone } from '../../../../shared/hooks/useDropZone';
 import './ModImportWorkflowScreen.css';
 
+/** Status filter groups for the dashboard chips. */
+type QueueFilter = 'all' | 'running' | 'waiting' | 'completed' | 'failed';
+
+const FILTER_STATUSES: Record<Exclude<QueueFilter, 'all'>, WorkflowStatus[]> = {
+  running: [WorkflowStatus.Pending, WorkflowStatus.Processing, WorkflowStatus.Paused, WorkflowStatus.Deleting],
+  waiting: [WorkflowStatus.WaitingForInput],
+  completed: [WorkflowStatus.Completed],
+  failed: [WorkflowStatus.Failed, WorkflowStatus.Cancelled],
+};
+
 /**
- * Mod Import Workflow Screen
- *
- * Download manager style dashboard for importing mods:
- * - Status dashboard with overall statistics
- * - Table view of all active imports with real-time progress
- * - Batch action support (pause/resume/delete)
- * - Auto-imports after compression (no confirmation needed)
- * - Support for multiple concurrent imports
- * - Automatically refreshes mod list when imports complete
+ * Mod Import Workflow Screen — download-manager-style dashboard for importing mods.
+ * - Clickable status chips (filter the queue by state)
+ * - Real-time progress table with expandable detail rows + drag-drop imports
+ * - Batch confirm/delete with result toasts; one-click clear of finished tasks
+ * - AUTO-RESUME: interrupted imports (Pending/Processing rows with no active backend
+ *   task, e.g. after an app restart) are resumed automatically when the screen opens.
  */
 export const ModImportWorkflowScreen: React.FC = () => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
-  const { workflows, clearCompleted, refresh, isLoading } = useWorkflowQueue();
+  const { workflows, refresh, isLoading } = useWorkflowQueue();
   const [selectedWorkflowIds, setSelectedWorkflowIds] = React.useState<string[]>([]);
   const [defaultCategory, setDefaultCategory] = React.useState<string | undefined>();
+  const [filter, setFilter] = React.useState<QueueFilter>('all');
 
   // Ref for the table body to attach drop zone
   const tableBodyRef = useRef<HTMLElement | null>(null);
@@ -84,7 +94,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
       WorkflowEventType.COMPLETED,
       async (event) => {
         if (event?.payload) {
-                    // Refresh the mod list when a workflow completes
+          // Refresh the mod list when a workflow completes
           await refreshMods(selectedProfileId);
         }
       }
@@ -95,26 +105,27 @@ export const ModImportWorkflowScreen: React.FC = () => {
     };
   }, [selectedProfileId]);
 
-  // Calculate stats
-  const stats = useMemo(() => {
-    const waiting = workflows.filter((w) => w.status === WorkflowStatus.WaitingForInput).length;
-    const active = workflows.filter(
-      (w) =>
-        w.status === WorkflowStatus.Pending ||
-        w.status === WorkflowStatus.Processing ||
-        w.status === WorkflowStatus.WaitingForInput
-    ).length;
-    const completed = workflows.filter((w) => w.status === WorkflowStatus.Completed).length;
-    const failed = workflows.filter((w) => w.status === WorkflowStatus.Failed).length;
+  // Calculate stats for the filter chips
+  const stats = useMemo(() => ({
+    all: workflows.length,
+    running: workflows.filter((w) => FILTER_STATUSES.running.includes(w.status)).length,
+    waiting: workflows.filter((w) => FILTER_STATUSES.waiting.includes(w.status)).length,
+    completed: workflows.filter((w) => FILTER_STATUSES.completed.includes(w.status)).length,
+    failed: workflows.filter((w) => FILTER_STATUSES.failed.includes(w.status)).length,
+  }), [workflows]);
 
-    return { active, waiting, completed, failed, total: workflows.length };
-  }, [workflows]);
+  const filteredWorkflows = useMemo(() => {
+    if (filter === 'all') return workflows;
+    const statuses = FILTER_STATUSES[filter];
+    return workflows.filter((w) => statuses.includes(w.status));
+  }, [workflows, filter]);
 
-  const hasCompleted = workflows.some((w) =>
-    w.status === WorkflowStatus.Completed ||
-    w.status === WorkflowStatus.Failed ||
-    w.status === WorkflowStatus.Cancelled
-  );
+  const finishedIds = useMemo(() => workflows
+    .filter((w) =>
+      w.status === WorkflowStatus.Completed ||
+      w.status === WorkflowStatus.Failed ||
+      w.status === WorkflowStatus.Cancelled)
+    .map((w) => w.id), [workflows]);
 
   const selectedWaitingCount = useMemo(() => {
     return selectedWorkflowIds.filter((id) => {
@@ -123,33 +134,42 @@ export const ModImportWorkflowScreen: React.FC = () => {
     }).length;
   }, [selectedWorkflowIds, workflows]);
 
-  // Track active workflow count from backend (checked once on mount)
+  // ===== Resume logic =====
+  // Interrupted imports (Pending/Processing rows with nothing actually running in the backend —
+  // the state a restart leaves behind) used to sit dead until the user found the "Start Queue"
+  // button. Now: once the queue has loaded, if stuck rows exist and the backend reports 0 active
+  // workflows, resume them all automatically (once per screen mount) and say so. The manual
+  // button remains as a fallback for anything still stuck afterwards.
   const [activeWorkflowCount, setActiveWorkflowCount] = React.useState<number>(0);
+  const autoResumeTried = useRef(false);
 
-  // Check active workflow count once when screen opens
   useEffect(() => {
-    if (!selectedProfileId) return;
+    if (!selectedProfileId || isLoading) return;
+    const stuck = workflows.filter(
+      (w) => w.status === WorkflowStatus.Pending || w.status === WorkflowStatus.Processing);
+    if (stuck.length === 0) return;
 
-    const checkActiveCount = async () => {
+    const checkAndResume = async () => {
       try {
         const count = await workflowService.getActiveWorkflowCount(selectedProfileId);
         setActiveWorkflowCount(count);
-      } catch (error: unknown) {
-        // Silently fail - not critical
-        setActiveWorkflowCount(0);
+        if (count > 0 || autoResumeTried.current) return;
+        autoResumeTried.current = true;
+        await workflowService.resumeAllStuckWorkflowsByType(selectedProfileId, 'MOD_IMPORT');
+        notification.info(t('workflow.queue.autoResumed', { count: stuck.length }));
+        refresh();
+        setActiveWorkflowCount(await workflowService.getActiveWorkflowCount(selectedProfileId));
+      } catch {
+        // Non-critical — the manual Start Queue button still covers this.
       }
     };
+    void checkAndResume();
+  }, [selectedProfileId, isLoading, workflows, refresh, t]);
 
-    checkActiveCount();
-  }, [selectedProfileId]);
-
-  // Show "Start Queue" button only when:
-  // 1. There are Pending/Processing workflows in the database
-  // 2. No workflows are actively running in the backend (activeWorkflowCount === 0)
-  // This typically happens after app reboot when workflows are stuck
+  // Manual fallback — only relevant when stuck rows remain AFTER the auto-resume attempt.
   const shouldShowStartQueue = useMemo(() => {
     const hasPending = workflows.some((w) => w.status === WorkflowStatus.Pending || w.status === WorkflowStatus.Processing);
-    return hasPending && activeWorkflowCount === 0;
+    return hasPending && activeWorkflowCount === 0 && autoResumeTried.current;
   }, [workflows, activeWorkflowCount]);
 
   const [importing, setImporting] = React.useState(false);
@@ -223,14 +243,14 @@ export const ModImportWorkflowScreen: React.FC = () => {
     try {
       // Batch resume selected workflows (confirm action = continue workflow)
       const result = await workflowService.batchResumeWorkflows(selectedProfileId, selectedWorkflowIds);
-
-      // Clear selection and refresh
       setSelectedWorkflowIds([]);
       refresh();
 
-      // Show result notification
       if (result.failed.length > 0) {
-              }
+        notification.warning(t('workflow.queue.batchPartialFailed', { count: result.failed.length }));
+      } else {
+        notification.success(t('workflow.queue.batchConfirmed', { count: result.successful.length }));
+      }
     } catch (error: unknown) {
       handleError(error);
     }
@@ -242,84 +262,83 @@ export const ModImportWorkflowScreen: React.FC = () => {
     try {
       // Batch delete selected workflows (with temp file cleanup)
       const result = await workflowService.batchDeleteWorkflows(selectedProfileId, selectedWorkflowIds);
-
-      // Clear selection and refresh
       setSelectedWorkflowIds([]);
       refresh();
 
-      // Show result notification
       if (result.failed.length > 0) {
-              }
-    } catch (error: unknown) {
-      handleError(error);
-    }
-  };
-
-  /**
-   * Start the workflow queue (used after app reboot)
-   * Backend will identify and resume ALL stuck MOD_IMPORT workflows
-   * The concurrency manager will queue them and process up to N in parallel
-   */
-  const handleStartQueue = async () => {
-    if (!selectedProfileId) return;
-
-    try {
-      // Backend will find and resume all stuck MOD_IMPORT workflows
-      // This is more reliable than frontend identifying them
-      await workflowService.resumeAllStuckWorkflowsByType(selectedProfileId, 'MOD_IMPORT');
-
-      // Refresh to show updated status and re-check active count
-      refresh();
-
-      // Re-check active workflow count after starting queue
-      try {
-        const count = await workflowService.getActiveWorkflowCount(selectedProfileId);
-        setActiveWorkflowCount(count);
-      } catch (error: unknown) {
-        // Silently fail - not critical
+        notification.warning(t('workflow.queue.batchPartialFailed', { count: result.failed.length }));
+      } else {
+        notification.success(t('workflow.queue.batchDeleted', { count: result.successful.length }));
       }
     } catch (error: unknown) {
       handleError(error);
     }
   };
 
+  /** Remove every finished (completed/failed/cancelled) task from the queue in one click. */
+  const handleClearFinished = async () => {
+    if (!selectedProfileId || finishedIds.length === 0) return;
+
+    try {
+      const result = await workflowService.batchDeleteWorkflows(selectedProfileId, finishedIds);
+      refresh();
+      if (result.failed.length > 0) {
+        notification.warning(t('workflow.queue.batchPartialFailed', { count: result.failed.length }));
+      } else {
+        notification.success(t('workflow.queue.batchDeleted', { count: result.successful.length }));
+      }
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  };
+
+  /** Manual fallback: resume ALL stuck MOD_IMPORT workflows (auto-resume runs this on open). */
+  const handleStartQueue = async () => {
+    if (!selectedProfileId) return;
+
+    try {
+      await workflowService.resumeAllStuckWorkflowsByType(selectedProfileId, 'MOD_IMPORT');
+      refresh();
+      try {
+        setActiveWorkflowCount(await workflowService.getActiveWorkflowCount(selectedProfileId));
+      } catch {
+        // Non-critical.
+      }
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  };
+
+  const filterChips: { key: QueueFilter; label: string; count: number; className?: string }[] = [
+    { key: 'all', label: t('mods.import.stats.total'), count: stats.all },
+    { key: 'running', label: t('mods.import.stats.active'), count: stats.running, className: 'mod-import-workflow-screen-chip--running' },
+    { key: 'waiting', label: t('workflow.status.awaitingConfirmation'), count: stats.waiting, className: 'mod-import-workflow-screen-chip--waiting' },
+    { key: 'completed', label: t('mods.import.stats.completed'), count: stats.completed, className: 'mod-import-workflow-screen-chip--completed' },
+    { key: 'failed', label: t('mods.import.stats.failed'), count: stats.failed, className: 'mod-import-workflow-screen-chip--failed' },
+  ];
+
   return (
     <div className="mod-import-workflow-screen">
       {/* Status Bar - Top */}
       <div className="mod-import-workflow-screen-status-bar">
         <Space size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Space size="middle">
-            {/* Total */}
-            <div className="mod-import-workflow-screen-stat">
-              <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.total')}</span>
-              <span className="mod-import-workflow-screen-stat-value">{stats.total}</span>
-            </div>
-
-            {/* Active (waiting for action / in progress) */}
-            <div className="mod-import-workflow-screen-stat">
-              {stats.active > 0 && stats.waiting < stats.active ? (
-                <LoadingOutlined className="mod-import-workflow-screen-stat-icon" spin />
-              ) : (
-                <ClockCircleOutlined className="mod-import-workflow-screen-stat-icon" />
-              )}
-              <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.active')}</span>
-              <span className="mod-import-workflow-screen-stat-value">{stats.waiting}/{stats.active}</span>
-            </div>
-
-            {/* Completed */}
-            <div className="mod-import-workflow-screen-stat">
-              <CheckCircleOutlined className="mod-import-workflow-screen-stat-icon mod-import-workflow-screen-stat-icon--success" />
-              <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.completed')}</span>
-              <span className="mod-import-workflow-screen-stat-value">{stats.completed}</span>
-            </div>
-
-            {/* Failed */}
-            <div className="mod-import-workflow-screen-stat">
-              <CloseCircleOutlined className="mod-import-workflow-screen-stat-icon mod-import-workflow-screen-stat-icon--error" />
-              <span className="mod-import-workflow-screen-stat-label">{t('mods.import.stats.failed')}</span>
-              <span className="mod-import-workflow-screen-stat-value">{stats.failed}</span>
-            </div>
-          </Space>
+          {/* Clickable status chips — filter the queue */}
+          <div className="mod-import-workflow-screen-chips">
+            {filterChips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                className={classNames('mod-import-workflow-screen-chip', chip.className, {
+                  'mod-import-workflow-screen-chip--active': filter === chip.key,
+                })}
+                onClick={() => setFilter(chip.key)}
+              >
+                {chip.key === 'running' && stats.running > 0 && <LoadingOutlined spin />}
+                <span>{chip.label}</span>
+                <span className="mod-import-workflow-screen-chip-count">{chip.count}</span>
+              </button>
+            ))}
+          </div>
 
           {/* Default Category Indicator */}
           {defaultCategory && (
@@ -346,7 +365,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
             {t('mods.import.import')}
           </CompactButton.Primary>
 
-          {/* Start Queue button - show only when workflows are stuck (Pending/Processing but not actively running in backend) */}
+          {/* Manual resume fallback — shown only if imports remain stuck after the auto-resume */}
           {shouldShowStartQueue && (
             <CompactButton.Success
               icon={<PlayCircleOutlined />}
@@ -361,7 +380,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
             disabled={selectedWaitingCount === 0}
             onClick={handleConfirmSelected}
           >
-            {t('workflow.queue.confirm')}
+            {t('workflow.queue.confirm')}{selectedWaitingCount > 0 ? ` (${selectedWaitingCount})` : ''}
           </CompactButton.Success>
 
           <CompactButton.Danger
@@ -369,8 +388,16 @@ export const ModImportWorkflowScreen: React.FC = () => {
             disabled={selectedWorkflowIds.length === 0}
             onClick={handleClearSelected}
           >
-            {t("common.delete")}
+            {t('common.delete')}{selectedWorkflowIds.length > 0 ? ` (${selectedWorkflowIds.length})` : ''}
           </CompactButton.Danger>
+
+          <CompactButton
+            icon={<ClearOutlined />}
+            disabled={finishedIds.length === 0}
+            onClick={handleClearFinished}
+          >
+            {t('workflow.queue.clearFinished')}{finishedIds.length > 0 ? ` (${finishedIds.length})` : ''}
+          </CompactButton>
         </Space>
       </div>
 
@@ -379,7 +406,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
         <div className="mod-import-workflow-screen-drop-message" data-drop-message={t('mods.panel.dropToImport')} />
         {isLoading && workflows.length === 0 ? (
           <div className="mod-import-workflow-screen-loading">
-            <LoadingOutlined spin style={{ fontSize: 32, color: '#1890ff' }} />
+            <LoadingOutlined spin style={{ fontSize: 32, color: 'var(--color-primary)' }} />
             <div className="mod-import-workflow-screen-loading-text">
               {t('mods.import.loading.preparing')}
             </div>
@@ -389,7 +416,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
           </div>
         ) : (
           <ModImportWorkflowTable
-            workflows={workflows}
+            workflows={filteredWorkflows}
             onRefresh={refresh}
             selectedRowKeys={selectedWorkflowIds}
             onSelectionChange={setSelectedWorkflowIds}
