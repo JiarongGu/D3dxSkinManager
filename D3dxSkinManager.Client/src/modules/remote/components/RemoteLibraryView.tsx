@@ -275,6 +275,8 @@ export const RemoteLibraryView: React.FC = () => {
         ),
         // Responsive: use the window (huge dead side margins at a fixed 980px on wide screens).
         width: 'min(1180px, 92vw)',
+        // The info card carries the mod name — the slide-in header would duplicate it and eat a row.
+        headless: true,
       });
     },
     [openScreen, t, sources],

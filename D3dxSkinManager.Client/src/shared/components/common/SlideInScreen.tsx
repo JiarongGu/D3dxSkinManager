@@ -23,6 +23,8 @@ export interface SlideInScreenProps {
   isClosing?: boolean;
   loading?: boolean;
   loadingText?: string;
+  /** No header bar — the content owns the full panel; a floating close button renders instead. */
+  headless?: boolean;
 }
 
 /**
@@ -40,6 +42,7 @@ export function SlideInScreen({
   isClosing = false,
   loading = false,
   loadingText,
+  headless = false,
 }: SlideInScreenProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -86,20 +89,30 @@ export function SlideInScreen({
           </div>
         )}
 
-        {/* Header */}
-        <div className="slide-in-screen-header">
-          <h2 className="slide-in-screen-title">{title}</h2>
+        {/* Header — or a floating close button when the content owns the panel (headless). */}
+        {!headless ? (
+          <div className="slide-in-screen-header">
+            <h2 className="slide-in-screen-title">{title}</h2>
+            <CompactButton
+              type="text"
+              icon={<CloseOutlined />}
+              onClick={() => !isClosing && !loading && onClose()}
+              disabled={loading}
+              className="slide-in-screen-close-btn"
+            />
+          </div>
+        ) : (
           <CompactButton
             type="text"
             icon={<CloseOutlined />}
             onClick={() => !isClosing && !loading && onClose()}
             disabled={loading}
-            className="slide-in-screen-close-btn"
+            className="slide-in-screen-close-btn slide-in-screen-close-btn--floating"
           />
-        </div>
+        )}
 
         {/* Content */}
-        <div className="slide-in-screen-content">
+        <div className={classNames('slide-in-screen-content', { 'slide-in-screen-content--headless': headless })}>
           <CurrentSlideInScreenContext.Provider value={id}>
             {children}
           </CurrentSlideInScreenContext.Provider>
@@ -133,6 +146,7 @@ export function SlideInScreenManager() {
           isClosing={screen.isClosing}
           loading={screen.loading}
           loadingText={screen.loadingText}
+          headless={screen.headless}
         >
           {screen.content}
         </SlideInScreen>

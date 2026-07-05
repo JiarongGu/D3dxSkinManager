@@ -131,6 +131,22 @@
   background: var(--color-bg-container);
 }
 
+/* Headless mode: the content owns the full panel (screens that carry their own title). */
+.slide-in-screen-content--headless {
+  padding: 16px 20px;
+}
+
+.slide-in-screen-close-btn--floating {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 3;
+  background: var(--color-bg-elevated, var(--color-bg-container));
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 50%;
+  box-shadow: var(--box-shadow-base);
+}
+
 /* Custom scrollbar for content */
 .slide-in-screen-content::-webkit-scrollbar {
   width: 8px;

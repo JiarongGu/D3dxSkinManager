@@ -12,6 +12,9 @@ export interface SlideInScreenConfig {
   parentId?: string;
   loading?: boolean;
   loadingText?: string;
+  /** No header bar — the content owns the full panel; a floating close button is rendered instead.
+   * For screens that carry their own title (e.g. the remote mod detail's info card). */
+  headless?: boolean;
 }
 
 interface SlideInScreenContextValue {

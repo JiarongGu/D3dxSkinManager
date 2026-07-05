@@ -108,11 +108,13 @@
   background: var(--color-bg-elevated, var(--color-bg-container));
 }
 
-/* Mod name inside the info card — the anchor of the right column's hierarchy. */
+/* Mod name inside the info card — the anchor of the right column's hierarchy. Right padding
+   reserves room for the headless slide-in's floating close button above the card corner. */
 .remote-detail__name {
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
+  padding-right: 34px;
   color: var(--color-text-base);
   display: -webkit-box;
   -webkit-line-clamp: 2;
