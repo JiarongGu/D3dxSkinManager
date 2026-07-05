@@ -34,9 +34,6 @@ const SettingsView = lazy(() =>
 const ToolsView = lazy(() =>
   import("./modules/tool/components/ToolsView").then((m) => ({ default: m.ToolsView })),
 );
-const PluginsView = lazy(() =>
-  import("./modules/plugin/components/PluginsView").then((m) => ({ default: m.PluginsView })),
-);
 const HelpWindow = lazy(() =>
   import("./modules/help").then((m) => ({ default: m.HelpWindow })),
 );
@@ -198,7 +195,6 @@ const AppContent: React.FC = () => {
             <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}><Spin /></div>}>
               {selectedTab === "mods" && <ErrorBoundary compact label="Mods"><ModHierarchicalView /></ErrorBoundary>}
               {selectedTab === "tools" && <ErrorBoundary compact label="Tools"><ToolsView /></ErrorBoundary>}
-              {selectedTab === "plugins" && <ErrorBoundary compact label="Plugins"><PluginsView /></ErrorBoundary>}
               {selectedTab === "settings" && <ErrorBoundary compact label="Settings"><SettingsView /></ErrorBoundary>}
             </Suspense>
           </Content>

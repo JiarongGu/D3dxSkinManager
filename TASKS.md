@@ -197,6 +197,11 @@ MessageDispatcher → ProfileServiceRouter) and all references corrected.
 - **3DMigoto plugin-DLL interface — parked (low priority).** Not in the INI docs; XXMI bundles its own DLL.
 - **Own 3DMigoto launcher (replicate XXMI inject) — parked.** `D3DMigotoService` backend exists but has
   no UI; injection is XXMI's job. (Kept in code deliberately — do not "clean up" without a decision.)
+- **Plugin system UI — REMOVED 2026-07-05 (user decision: not implementing now).** The 插件 nav tab,
+  `src/modules/plugin/` (PluginsView/PluginRegistry/usePluginSystem) and the dead `AppSider` were
+  deleted; frontend `Module.PLUGIN` event plumbing removed. The BACKEND `Modules/Plugin/`
+  (PluginLoader/PluginRegistry/PluginFacade, loads `Plugins/` dir at startup) stays parked like
+  D3DMigotoService — do not remove without a decision; re-add UI from git history if revived.
 - **Set category color/icon — deferred.** Needs a `Category.color` field full-stack.
 - **#11 thumbnail right-click crash — deferred (no repro).** Preview menu guarded + error boundaries;
   re-add if it recurs (capture `[ErrorBoundary]` console output).

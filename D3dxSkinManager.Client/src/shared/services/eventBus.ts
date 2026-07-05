@@ -23,7 +23,6 @@ export enum Module {
   PROFILE = "PROFILE",
   MIGRATION = "MIGRATION",
   TOOL = "TOOL",
-  PLUGIN = "PLUGIN",
 }
 
 // Core event types
@@ -116,9 +115,6 @@ export enum ToolsEventType {
   FIX_TOOLS_CHANGED = "FIX_TOOLS_CHANGED",
 }
 
-// NOTE: Plugin events are NOT currently used in backend - reserved for future cross-plugin communication
-export type PluginEventType = string;
-
 // Map each module to its valid event type enum
 export interface ModuleEventTypeMap {
   [Module.APP]: never; // No events currently emitted from APP module
@@ -131,7 +127,6 @@ export interface ModuleEventTypeMap {
   [Module.PROFILE]: ProfileEventType;
   [Module.MIGRATION]: MigrationEventType;
   [Module.TOOL]: ToolsEventType;
-  [Module.PLUGIN]: PluginEventType;
 }
 
 // Event payload type mapping
@@ -237,9 +232,6 @@ export interface EventPayloadMap {
     [ToolsEventType.MOD_FIX_COMPLETE]: ModFixResult;
     [ToolsEventType.FIX_TOOLS_CHANGED]: unknown;
   };
-
-  // Plugins events (not currently used)
-  [Module.PLUGIN]: Record<string, never>;
 }
 
 // Generic event structure
@@ -362,5 +354,4 @@ export const EventType = {
   ...ProfileEventType,
   ...MigrationEventType,
   ...ToolsEventType,
-  // PluginEventType is just 'string' now - no enum values to spread
 } as const;

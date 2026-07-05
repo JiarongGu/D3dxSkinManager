@@ -622,13 +622,6 @@ export const HelpWindow: React.FC = () => {
         </Paragraph>
       </div>
 
-      <div>
-        <Title level={4}>Plugin System</Title>
-        <Paragraph>
-          View and manage plugins from the <Tag>Plugins</Tag> view.
-          The plugin system supports multiple games and mod formats with extensible architecture.
-        </Paragraph>
-      </div>
     </Space>
   );
 
@@ -752,7 +745,6 @@ export const HelpWindow: React.FC = () => {
         <Title level={4}>Key Features</Title>
         <ul className="help-window-list">
           <li>Hierarchical category tree with GUID-based organization</li>
-          <li>Plugin architecture supporting multiple games and mod formats</li>
           <li>Real-time search with negation and advanced filtering</li>
           <li>Batch operations and workflow-based import queue</li>
           <li>Mod health analyzer with duplicate detection and conflict finder</li>
