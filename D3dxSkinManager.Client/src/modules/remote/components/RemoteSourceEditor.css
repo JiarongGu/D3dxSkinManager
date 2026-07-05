@@ -1,0 +1,81 @@
+.remote-source-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-size: 14px;
+}
+
+/* A dynamic row (a game list entry, or a download resolver) — inputs grow, remove button fixed. */
+.remote-source-editor__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remote-source-editor__row > :global(.compact-input),
+.remote-source-editor__row > :global(.ant-input) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.remote-source-editor__row-id {
+  flex: 0 0 120px !important;
+}
+
+.remote-source-editor__row-match {
+  flex: 2 1 auto !important;
+}
+
+.remote-source-editor__row-type {
+  flex: 0 0 130px;
+}
+
+.remote-source-editor__raw {
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 12px;
+}
+
+.remote-source-editor__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-secondary);
+  flex-wrap: wrap;
+}
+
+.remote-source-editor__advanced {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.remote-source-editor__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.remote-source-editor__test {
+  padding: 10px 12px;
+  border-radius: var(--border-radius-base);
+  background: var(--color-bg-spotlight);
+  font-size: 12px;
+  color: var(--color-text-base);
+}
+
+.remote-source-editor__test--error {
+  background: var(--color-error-bg, rgba(255, 77, 79, 0.1));
+  color: var(--color-error);
+  font-family: 'Consolas', 'Menlo', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.remote-source-editor__samples {
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+}
