@@ -49,12 +49,13 @@ export function toAppUrl(path: string | undefined, cacheTimestamp?: number): str
 }
 
 /**
- * Proxy URL for a REMOTE image: served by the backend scheme handler, which fetches the image into
- * the GLOBAL on-demand cache ({data}/remote-images) on first request — no preload IPC round-trip.
+ * proxy:// URL for a REMOTE image: the backend scheme handler fetches it into the GLOBAL on-demand
+ * cache ({data}/remote-images) on first request — no preload IPC round-trip. A DEDICATED scheme so
+ * the URL states its contract: app:// = local file, proxy:// = remote resource via the backend cache.
  * Non-http inputs are returned unchanged (already-local paths keep using toAppUrl).
  */
 export function remoteImageUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
   if (!url.startsWith('http://') && !url.startsWith('https://')) return url;
-  return `app://remote-image/?u=${encodeURIComponent(url)}`;
+  return `proxy://image/?u=${encodeURIComponent(url)}`;
 }

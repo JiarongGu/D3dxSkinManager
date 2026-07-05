@@ -261,6 +261,10 @@ public class WebViewInitializer
         // Register filter for app:// scheme (dynamic file resources)
         _webView.CoreWebView2.AddWebResourceRequestedFilter("app://*", CoreWebView2WebResourceContext.All);
 
+        // proxy:// = remote resources fetched+cached by the backend on demand (proxy://image/?u=<url>).
+        // Distinct scheme so the URL states its contract: app:// = local file, proxy:// = remote-via-cache.
+        _webView.CoreWebView2.AddWebResourceRequestedFilter("proxy://*", CoreWebView2WebResourceContext.All);
+
         // Register filter for virtual host (embedded web resources)
         _webView.CoreWebView2.AddWebResourceRequestedFilter("https://app.local/*", CoreWebView2WebResourceContext.All);
 
@@ -284,8 +288,9 @@ public class WebViewInitializer
         {
             var uri = args.Request.Uri;
             bool isApp = uri.StartsWith("app://", StringComparison.OrdinalIgnoreCase);
+            bool isProxy = uri.StartsWith("proxy://", StringComparison.OrdinalIgnoreCase);
             bool isLocal = uri.StartsWith("https://app.local/", StringComparison.OrdinalIgnoreCase);
-            if (!isApp && !isLocal) return; // not ours — let WebView2 handle it
+            if (!isApp && !isProxy && !isLocal) return; // not ours — let WebView2 handle it
 
             // --- app.local: synchronous, in-memory, prompt (main document + bundle) ---
             if (isLocal)
@@ -326,7 +331,7 @@ public class WebViewInitializer
                 return;
             }
 
-            // --- app://: deferred, off-UI-thread, async disk read (thumbnails/previews burst) ---
+            // --- app:// + proxy://: deferred, off-UI-thread, async (disk read / remote fetch+cache) ---
             var deferral = args.GetDeferral();
             _ = Task.Run(async () =>
             {
@@ -369,7 +374,7 @@ public class WebViewInitializer
             });
         };
 
-        Console.WriteLine("[WebView2] Custom scheme handlers registered (app://, https://app.local/)");
+        Console.WriteLine("[WebView2] Custom scheme handlers registered (app://, proxy://, https://app.local/)");
     }
 
     private static string GetContentType(string path)

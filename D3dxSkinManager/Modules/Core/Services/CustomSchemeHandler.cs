@@ -75,9 +75,10 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     private const string SchemePrefix = "app://";
     private const int SchemePrefixLength = 6; // Length of "app://"
     private const string CacheKeyPrefix = "NormalizedPath_";
-    /// <summary>Proxy prefix for remote images: app://remote-image/?u=&lt;urlencoded&gt; — fetched
-    /// on demand into the GLOBAL cache by <see cref="IRemoteImageProxy"/> (no frontend preload).</summary>
-    private const string RemoteImagePrefix = "app://remote-image/";
+    /// <summary>Dedicated proxy scheme for remote images: proxy://image/?u=&lt;urlencoded&gt; — fetched
+    /// on demand into the GLOBAL cache by <see cref="IRemoteImageProxy"/> (no frontend preload).
+    /// Its own scheme so the URL states the contract: app:// = local file, proxy:// = remote-via-cache.</summary>
+    private const string RemoteImagePrefix = "proxy://image/";
 
     private readonly IRemoteImageProxy _remoteImageProxy;
 
