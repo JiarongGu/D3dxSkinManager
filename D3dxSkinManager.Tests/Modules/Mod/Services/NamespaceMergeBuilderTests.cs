@@ -44,14 +44,20 @@ drawindexed = auto
 
         ini.Should().Contain("[TextureOverrideBody]");
         ini.Should().Contain("allow_duplicate_hash = true");
-        // The master swapvar is copied into a LOCAL via a cross-namespace read in an ASSIGNMENT (proven),
-        // and the gate reads the LOCAL (proven). Reading the cross-ns var directly in the `if` condition
-        // was the invisible-character bug (user report 2026-07-06) — must NOT appear.
+        // The master swapvar is mirrored into a LOCAL via a cross-namespace read in [Present] (the docs'
+        // one proven pattern), and each gated override branches on the LOCAL. Reading the cross-ns var
+        // inline in the override (in the `if`, then in an assignment) was the invisible-character bug
+        // (user reports 2026-07-06) — the mirror must live in [Present], the gate must read the local.
         ini.Should().Contain("$mergeswap = $\\Merge\\Master\\swapvar");
         ini.Should().Contain("if $mergeswap == 1");
         ini.Should().NotContain("if $\\Merge\\Master\\swapvar");        // never gate on the cross-ns read directly
         ini.Should().Contain("global $mergeswap = 0");                   // local mirror declared
         ini.Should().Contain("endif");
+        // The cross-namespace read must sit in [Present] (per-frame mirror), AFTER the override's local gate.
+        var presentAt = ini.IndexOf("[Present]", StringComparison.Ordinal);
+        var mirrorAt = ini.IndexOf("$mergeswap = $\\Merge\\Master\\swapvar", StringComparison.Ordinal);
+        presentAt.Should().BeGreaterThan(0);
+        mirrorAt.Should().BeGreaterThan(presentAt, "the cross-namespace read lives in [Present], not inline in the override");
         // Active variant flags itself on-screen via a LOCAL write (the proven primitive — a cross-namespace
         // write to the master's $active never took effect, which left the switch key dead). The master
         // reads this flag cross-namespace.
@@ -116,6 +122,30 @@ drawindexed = auto
         var masterIni = NamespaceMergeBuilder.BuildMaster(master, new[] { "global\\Foo\\mod0" }, "v", activeOnly: true);
         masterIni.Should().StartWith("namespace = global\\Foo\\Master");
         masterIni.Should().Contain("condition = $\\global\\Foo\\mod0\\mergeactive == 1");
+    }
+
+    [Fact]
+    public void TransformSource_InjectsMirrorIntoExistingPresent_Once()
+    {
+        // A source that already HAS a [Present] must get the swapvar mirror added to it (not a second
+        // [Present]), so the per-frame cross-namespace read runs exactly once.
+        const string withPresent = @"[Constants]
+global persist $hair = 0
+
+[Present]
+post $active = 0
+
+[TextureOverrideBody]
+hash = abcd1234
+drawindexed = auto
+";
+        var ini = NamespaceMergeBuilder.TransformSource(withPresent, "Merge\\mod0", "Merge\\Master", 0);
+
+        System.Text.RegularExpressions.Regex.Matches(ini, @"\[Present\]").Count.Should().Be(1, "only one [Present]");
+        System.Text.RegularExpressions.Regex.Matches(ini, @"\$mergeswap = \$\\Merge\\Master\\swapvar").Count
+            .Should().Be(1, "the cross-namespace mirror is emitted exactly once, in [Present]");
+        ini.Should().Contain("post $active = 0", "the source's own [Present] body is preserved");
+        ini.Should().Contain("if $mergeswap == 0");
     }
 
     [Fact]

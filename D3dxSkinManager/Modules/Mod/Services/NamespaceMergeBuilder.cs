@@ -14,9 +14,16 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 /// (<c>allow_duplicate_hash</c> lets the variants share a hash; <c>if $\Master\swapvar == N … endif</c>
 /// picks the active one). A separate master `.ini` declares <c>$swapvar</c> + the cycle <c>[KeySwap]</c>.
 ///
-/// NOTE: the cross-namespace gate + duplicate-hash behaviour is the part that must be confirmed in-game
-/// with two real same-character mods — the INI docs confirm cross-namespace var reads but not the render
-/// gating end-to-end.
+/// The render gate follows the docs' ONE proven cross-namespace pattern: each source's <c>[Present]</c>
+/// mirrors the master's <c>$swapvar</c> into a LOCAL <c>$mergeswap</c> once per frame
+/// (<c>$mergeswap = $\global\{master}\swapvar</c> — identical in shape to the docs'
+/// <c>$swapvar = $\global\tracking\isSwimming</c>), and each gated override branches on the LOCAL
+/// (<c>if $mergeswap == N</c>). Doing the cross-namespace read inline inside the override — the two
+/// earlier attempts — is undocumented and rendered the character invisible in-game (2026-07-06).
+///
+/// NOTE: still confirm in-game with two real same-character mods. If it still misbehaves, the
+/// guaranteed-working fallback is <paramref name="activeOnly"/>=false + no gate (the swap key just
+/// cycles unconditionally).
 /// </summary>
 public static class NamespaceMergeBuilder
 {
@@ -32,11 +39,13 @@ public static class NamespaceMergeBuilder
     // these cross-namespace. Named distinctively so it never clashes with a source mod's own $active/var.
     private const string ActiveVar = "$mergeactive";
 
-    // LOCAL mirror of the master's swapvar. Each source copies the master value into this local via a
-    // cross-namespace READ in an ASSIGNMENT (the proven primitive) and gates on the LOCAL. Reading a
-    // cross-namespace var directly inside an `if` CONDITION is NOT a proven 3DMigoto primitive and left
-    // the gate unresolved → the `if` never ran → the merged character was INVISIBLE (user report,
-    // 2026-07-06, verified against a real broken merge). See 3dmigoto-ini-interface.md.
+    // LOCAL mirror of the master's swapvar. The cross-namespace READ that populates it lives in the
+    // source's [Present] — this is the EXACT (and only) proven cross-namespace pattern in the 3DMigoto
+    // namespace docs: `[Present] $swapvar = $\global\tracking\isSwimming` mirrors another namespace's
+    // var into a local, once per frame. Overrides then branch on the LOCAL mirror (a same-namespace
+    // read — always works). Two earlier attempts did the cross-ns read INLINE inside every
+    // TextureOverride (in the `if` condition, then in an assignment) — neither is a documented pattern
+    // and both left the character INVISIBLE in-game (user reports 2026-07-06). See 3dmigoto-ini-interface.md.
     private const string SwapMirror = "$mergeswap";
 
     /// <summary>
@@ -93,12 +102,16 @@ public static class NamespaceMergeBuilder
                 continue;
             }
 
-            // [Present]: re-emit + reset the flag at frame end (post), so it clears when the char leaves.
-            if (activeOnly && name.Equals("Present", StringComparison.OrdinalIgnoreCase))
+            // [Present]: runs every frame. Mirror the master's swapvar into our LOCAL here — this is the
+            // EXACT proven cross-namespace-read pattern from the namespace docs
+            // (`[Present] $swapvar = $\global\tracking\isSwimming`). Overrides branch on the LOCAL mirror.
+            // When activeOnly, also reset the on-screen flag at frame end (post).
+            if (name.Equals("Present", StringComparison.OrdinalIgnoreCase))
             {
                 sb.Append(section.Header).Append('\n');
                 foreach (var line in section.Body) sb.Append(line).Append('\n');
-                sb.Append($"post {ActiveVar} = 0\n");
+                sb.Append($"{SwapMirror} = {swapVar}\n");
+                if (activeOnly) sb.Append($"post {ActiveVar} = 0\n");
                 sawPresent = true;
                 continue;
             }
@@ -131,10 +144,10 @@ public static class NamespaceMergeBuilder
 
             foreach (var d in decls) sb.Append(d).Append('\n');
             sb.Append("allow_duplicate_hash = true\n");
-            // Copy the master's swapvar into a LOCAL (cross-ns read in an assignment — proven), then
-            // gate on the LOCAL (local read in a condition — proven). Reading the cross-ns var directly
-            // in the `if` was the invisible-character bug.
-            sb.Append($"{SwapMirror} = {swapVar}\n");
+            // Gate on the LOCAL swapvar mirror — a same-namespace read, which always works. The
+            // cross-namespace read that populates the mirror lives in [Present] (see above). Doing the
+            // cross-ns read inline here (the two previous attempts) is not a documented pattern and
+            // rendered the character invisible.
             sb.Append($"if {SwapMirror} == {group}\n");
             // When the active variant's hash renders, flag the character on-screen (LOCAL write — the
             // proven primitive). The master's cycle key reads this cross-namespace so it only fires for
@@ -151,7 +164,14 @@ public static class NamespaceMergeBuilder
             if (activeOnly) sb.Append($"global {ActiveVar} = 0\n");
             sb.Append($"global {SwapMirror} = 0\n");
         }
-        if (activeOnly && !sawPresent) sb.Append($"\n[Present]\npost {ActiveVar} = 0\n");
+        // Every source needs a [Present] to host the per-frame cross-namespace swapvar mirror — even
+        // without activeOnly. (The gate in each override reads the LOCAL mirror this populates.)
+        if (!sawPresent)
+        {
+            sb.Append("\n[Present]\n");
+            sb.Append($"{SwapMirror} = {swapVar}\n");
+            if (activeOnly) sb.Append($"post {ActiveVar} = 0\n");
+        }
 
         return sb.ToString();
     }
