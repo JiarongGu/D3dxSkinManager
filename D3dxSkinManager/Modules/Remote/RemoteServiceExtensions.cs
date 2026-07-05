@@ -20,7 +20,6 @@ public static class RemoteServiceExtensions
 
         services.TryAddSingleton<IRemoteSourceStore, RemoteSourceStore>();
         services.TryAddSingleton<IRemoteLibraryStore, RemoteLibraryStore>();
-        services.TryAddSingleton<IRemoteImageCacheService, RemoteImageCacheService>();
         services.TryAddSingleton<IRemotePageFetcher, HttpPageFetcher>();
         // Site engines (remote-library-redesign.md) — one per site family; a source config's `engine`
         // field names which one handles it. Adding a site = adding an engine registration here.

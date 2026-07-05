@@ -210,9 +210,11 @@
 }
 
 /* === Smooth Scrolling === */
+/* Token-driven (was hardcoded light-gray hexes — broke in dark theme); matches the global
+   scrollbar styling in theme-colors.css. */
 .ant-table-body {
   scrollbar-width: thin;
-  scrollbar-color: #d9d9d9 #f0f0f0;
+  scrollbar-color: var(--color-border-base) transparent;
 }
 
 .ant-table-body::-webkit-scrollbar {
@@ -221,18 +223,18 @@
 }
 
 .ant-table-body::-webkit-scrollbar-track {
-  background: #f0f0f0;
+  background: transparent;
   border-radius: 4px;
 }
 
 .ant-table-body::-webkit-scrollbar-thumb {
-  background: #d9d9d9;
+  background: var(--color-border-base);
   border-radius: 4px;
   transition: background 0.3s ease;
 }
 
 .ant-table-body::-webkit-scrollbar-thumb:hover {
-  background: #bfbfbf;
+  background: var(--color-text-secondary);
 }
 
 /* === Skeleton Loading Animation === */

@@ -191,54 +191,29 @@
   font-weight: 500;
 }
 
-/* Scrollbar Styling - Light Theme */
-[data-theme="light"] .mod-import-workflow-table .ant-table-body {
+/* Scrollbar styling — one TOKEN-driven block; the tokens switch with the theme (the old per-theme
+   blocks hardcoded light-gray hexes). Matches the global scrollbar styling in theme-colors.css. */
+.mod-import-workflow-table .ant-table-body {
   scrollbar-width: thin;
-  scrollbar-color: #d9d9d9 #f0f0f0;
+  scrollbar-color: var(--color-border-base) transparent;
 }
 
-[data-theme="light"] .mod-import-workflow-table .ant-table-body::-webkit-scrollbar {
+.mod-import-workflow-table .ant-table-body::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-[data-theme="light"] .mod-import-workflow-table .ant-table-body::-webkit-scrollbar-track {
-  background: #f0f0f0;
+.mod-import-workflow-table .ant-table-body::-webkit-scrollbar-track {
+  background: transparent;
   border-radius: 4px;
 }
 
-[data-theme="light"] .mod-import-workflow-table .ant-table-body::-webkit-scrollbar-thumb {
-  background: #d9d9d9;
-  border-radius: 4px;
-  transition: background 0.3s ease;
-}
-
-[data-theme="light"] .mod-import-workflow-table .ant-table-body::-webkit-scrollbar-thumb:hover {
-  background: #bfbfbf;
-}
-
-/* Scrollbar Styling - Dark Theme */
-[data-theme="dark"] .mod-import-workflow-table .ant-table-body {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border-base) var(--color-bg-container);
-}
-
-[data-theme="dark"] .mod-import-workflow-table .ant-table-body::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-[data-theme="dark"] .mod-import-workflow-table .ant-table-body::-webkit-scrollbar-track {
-  background: var(--color-bg-container);
-  border-radius: 4px;
-}
-
-[data-theme="dark"] .mod-import-workflow-table .ant-table-body::-webkit-scrollbar-thumb {
+.mod-import-workflow-table .ant-table-body::-webkit-scrollbar-thumb {
   background: var(--color-border-base);
   border-radius: 4px;
   transition: background 0.3s ease;
 }
 
-[data-theme="dark"] .mod-import-workflow-table .ant-table-body::-webkit-scrollbar-thumb:hover {
-  background: #595959;
+.mod-import-workflow-table .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
 }

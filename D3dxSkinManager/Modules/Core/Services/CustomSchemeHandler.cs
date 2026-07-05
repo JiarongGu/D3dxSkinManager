@@ -75,12 +75,19 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     private const string SchemePrefix = "app://";
     private const int SchemePrefixLength = 6; // Length of "app://"
     private const string CacheKeyPrefix = "NormalizedPath_";
+    /// <summary>Proxy prefix for remote images: app://remote-image/?u=&lt;urlencoded&gt; — fetched
+    /// on demand into the GLOBAL cache by <see cref="IRemoteImageProxy"/> (no frontend preload).</summary>
+    private const string RemoteImagePrefix = "app://remote-image/";
 
-    public CustomSchemeHandler(IGlobalPathService globalPathService, ILogHelper logger, PathCache pathCache)
+    private readonly IRemoteImageProxy _remoteImageProxy;
+
+    public CustomSchemeHandler(IGlobalPathService globalPathService, ILogHelper logger, PathCache pathCache,
+        IRemoteImageProxy remoteImageProxy)
     {
         _globalPathService = globalPathService;
         _logger = logger;
         _pathCache = pathCache;
+        _remoteImageProxy = remoteImageProxy;
     }
 
     /// <summary>
@@ -88,6 +95,14 @@ public class CustomSchemeHandler : ICustomSchemeHandler
     /// </summary>
     public Stream HandleRequest(string url, out string contentType)
     {
+        if (url.StartsWith(RemoteImagePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            // Rare sync path — the deferred async route below is the normal server.
+            var (data, proxyCt) = HandleRemoteImageAsync(url).GetAwaiter().GetResult();
+            contentType = proxyCt;
+            return new MemoryStream(data, writable: false);
+        }
+
         var (absolutePath, ct, errorBytes) = ResolveRequest(url);
         contentType = ct;
         if (errorBytes != null) return new MemoryStream(errorBytes);
@@ -106,6 +121,9 @@ public class CustomSchemeHandler : ICustomSchemeHandler
 
     public async Task<(byte[] Data, string ContentType)> HandleRequestBytesAsync(string url)
     {
+        if (url.StartsWith(RemoteImagePrefix, StringComparison.OrdinalIgnoreCase))
+            return await HandleRemoteImageAsync(url).ConfigureAwait(false);
+
         var (absolutePath, ct, errorBytes) = ResolveRequest(url);
         if (errorBytes != null) return (errorBytes, ct);
         try
@@ -118,6 +136,27 @@ public class CustomSchemeHandler : ICustomSchemeHandler
         catch (Exception ex)
         {
             _logger.Error($"Error reading request: {ex.Message}", "CustomScheme", ex);
+            return (Encoding.UTF8.GetBytes($"Error: {ex.Message}"), "text/plain");
+        }
+    }
+
+    /// <summary>Serve a remote image through the global on-demand cache (fetches on miss).</summary>
+    private async Task<(byte[] Data, string ContentType)> HandleRemoteImageAsync(string url)
+    {
+        try
+        {
+            var queryIndex = url.IndexOf("u=", StringComparison.OrdinalIgnoreCase);
+            var remoteUrl = queryIndex < 0 ? null : WebUtility.UrlDecode(url[(queryIndex + 2)..]);
+            var path = string.IsNullOrWhiteSpace(remoteUrl)
+                ? null
+                : await _remoteImageProxy.GetOrFetchAsync(remoteUrl!).ConfigureAwait(false);
+            if (path == null) return (_fileNotFoundError.Value, "text/plain");
+            var data = await File.ReadAllBytesAsync(path).ConfigureAwait(false);
+            return (data, GetCachedContentType(path));
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Remote image proxy error: {ex.Message}", "CustomScheme", ex);
             return (Encoding.UTF8.GetBytes($"Error: {ex.Message}"), "text/plain");
         }
     }

@@ -43,13 +43,16 @@ public class FileCleanupService : IFileCleanupService
     private readonly ILogHelper _logger;
     private readonly Core.Services.IProcessRegistry _processRegistry;
 
+    private readonly Core.Services.IGlobalPathService _globalPaths;
+
     public FileCleanupService(
         IProfilePathService profilePaths,
         IModRepository repository,
         ICategoryService categoryService,
         IProfileService profileService,
         ILogHelper logger,
-        Core.Services.IProcessRegistry processRegistry)
+        Core.Services.IProcessRegistry processRegistry,
+        Core.Services.IGlobalPathService globalPaths)
     {
         _profilePaths = profilePaths;
         _repository = repository;
@@ -57,6 +60,7 @@ public class FileCleanupService : IFileCleanupService
         _profileService = profileService;
         _logger = logger;
         _processRegistry = processRegistry;
+        _globalPaths = globalPaths;
     }
 
     public async Task<List<OrphanScanResult>> ScanAllOrphansAsync()
@@ -306,23 +310,40 @@ public class FileCleanupService : IFileCleanupService
     /// See TempFileConstants for all temp file patterns.
     /// </summary>
     /// <summary>
-    /// Cached remote-library images ({profile}/remote-cache) — not orphans, but a cache the user
-    /// can reclaim; re-browsing the remote tab re-downloads what it needs.
+    /// Cached remote-library images — not orphans, but a cache the user can reclaim (the proxy
+    /// re-downloads on demand). Two locations: the LEGACY per-profile cache ({profile}/remote-cache,
+    /// pre-proxy) and the GLOBAL on-demand proxy cache ({data}/remote-images).
     /// </summary>
     private OrphanScanResult ScanRemoteCache()
     {
         var result = new OrphanScanResult { Category = OrphanCategory.RemoteCache };
-        var cacheDir = Path.Combine(_profilePaths.ProfilePath, "remote-cache");
-        if (!Directory.Exists(cacheDir)) return result;
 
-        foreach (var dir in Directory.GetDirectories(cacheDir))
+        var cacheDir = Path.Combine(_profilePaths.ProfilePath, "remote-cache");
+        if (Directory.Exists(cacheDir))
+        {
+            foreach (var dir in Directory.GetDirectories(cacheDir))
+            {
+                result.Items.Add(new OrphanedItem
+                {
+                    Path = dir,
+                    Name = Path.GetFileName(dir),
+                    SizeBytes = FileUtilities.GetDirectorySize(dir),
+                    LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
+                    Category = OrphanCategory.RemoteCache,
+                    IsDirectory = true
+                });
+            }
+        }
+
+        var globalImages = Path.Combine(_globalPaths.BaseDataPath, "remote-images");
+        if (Directory.Exists(globalImages))
         {
             result.Items.Add(new OrphanedItem
             {
-                Path = dir,
-                Name = Path.GetFileName(dir),
-                SizeBytes = FileUtilities.GetDirectorySize(dir),
-                LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
+                Path = globalImages,
+                Name = "remote-images (global)",
+                SizeBytes = FileUtilities.GetDirectorySize(globalImages),
+                LastModified = Directory.GetLastWriteTime(globalImages).ToString("yyyy-MM-dd HH:mm:ss"),
                 Category = OrphanCategory.RemoteCache,
                 IsDirectory = true
             });

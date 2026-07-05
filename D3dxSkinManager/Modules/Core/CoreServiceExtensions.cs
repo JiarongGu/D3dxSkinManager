@@ -65,6 +65,9 @@ public static class CoreServiceExtensions
         // Event emitter helper for null-safe plugin event emission
         AddSingleton<IEventEmitter, EventEmitter>(services);
 
+        // Global on-demand remote-image cache behind the app://remote-image/ proxy URLs.
+        AddSingleton<IRemoteImageProxy, RemoteImageProxy>(services);
+
         // Custom scheme handler for app:// URLs (image serving)
         // Uses dedicated path cache configured above
         AddSingleton<ICustomSchemeHandler, CustomSchemeHandler>(services);

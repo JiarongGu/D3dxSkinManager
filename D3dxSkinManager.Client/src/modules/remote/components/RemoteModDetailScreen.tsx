@@ -7,7 +7,7 @@ import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { formatBytes } from '../../../shared/utils/formatBytes';
-import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
+import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
 import { CompactButton } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import { KeyValueRows } from '../../../shared/components/common/KeyValueRows';
@@ -53,7 +53,6 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   const [detail, setDetail] = useState<RemoteModDetail>();
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState<string>();
-  const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   // Download-time category choice (undefined = follow the library's tag rules).
   const [importCategory, setImportCategory] = useState<string>();
@@ -73,9 +72,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
         ]);
         setDetail(loaded);
         setCategories(cats);
-        // Cache the gallery images per profile (fire-and-forget; falls back to remote URLs).
-        void api.remote.resolveImages(selectedProfileId, loaded.images)
-          .then(setImageMap).catch(() => undefined);
+        // Images render through the app://remote-image proxy — fetched+cached on demand, no preload.
       } catch (error: unknown) {
         handleError(error);
       } finally {
@@ -149,7 +146,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
         )}
         <ImageGallery
           images={detail.images}
-          resolveSrc={(u) => (imageMap[u] ? toAppUrl(imageMap[u]) ?? u : u)}
+          resolveSrc={(u) => remoteImageUrl(u) ?? u}
           alt={detail.title}
         />
         {detail.images.length === 0 && (

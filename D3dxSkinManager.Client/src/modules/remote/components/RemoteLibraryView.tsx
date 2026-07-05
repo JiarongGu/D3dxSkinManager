@@ -9,7 +9,7 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
 import type { RemoteLibrariesState, RemoteSourceInfo, RemoteTagCount } from '../../../shared/types/remote.types';
-import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
+import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
@@ -36,11 +36,11 @@ export const RemoteLibraryView: React.FC = () => {
   const [libState, setLibState] = useState<RemoteLibrariesState>();
   // Distinct SITE tags in the synced index — the grid tag filter.
   const [tagCounts, setTagCounts] = useState<RemoteTagCount[]>([]);
-  // Remote image URL -> cached local path (per-profile remote-cache; falls back to the URL).
-  const [imageMap, setImageMap] = useState<Record<string, string>>({});
   // The in-flight background sync process id — watched so the grid auto-refreshes from the index
   // when the crawl finishes (otherwise you'd stare at the pre-sync live fallback until a manual refresh).
   const [syncProcId, setSyncProcId] = useState<string>();
+  // Libraries whose empty index already auto-kicked a sync this session (avoid re-kicking on paging).
+  const autoSynced = React.useRef(new Set<string>());
 
   const ui = useRemoteUiStore();
   const activeLibrary = libState?.libraries.find((l) => l.id === libState.activeLibraryId);
@@ -102,9 +102,20 @@ export const RemoteLibraryView: React.FC = () => {
         state.setPage(page);
         state.setIndex(index);
         if (index.info.entryCount === 0) {
-          // Never synced — live-browse the first page so the tab isn't empty.
+          // Never synced — live-browse the first page so the tab isn't empty, and AUTO-START the
+          // sync (once per library per session; backend is idempotent). Standardized flow: every
+          // engine gets its index built the same way, so search/sort/tags/pagination just work.
           const result = await api.remote.browse(selectedProfileId, state.sourceId, state.listId, page);
           state.setResult(result, false);
+          const key = `${state.sourceId}|${state.listId}`;
+          if (!autoSynced.current.has(key)) {
+            autoSynced.current.add(key);
+            const ack = await api.remote.indexSync(selectedProfileId, state.sourceId, state.listId, false);
+            if (ack.started && ack.processId) {
+              setSyncProcId(ack.processId);
+              notification.info(t('remote.syncStarted'));
+            }
+          }
         } else {
           // Refresh the tag-filter options from the (possibly just-synced) index.
           void api.remote
@@ -118,7 +129,7 @@ export const RemoteLibraryView: React.FC = () => {
         setLoading(false);
       }
     },
-    [selectedProfileId],
+    [selectedProfileId, t],
   );
 
   const browseLive = useCallback(
@@ -192,22 +203,6 @@ export const RemoteLibraryView: React.FC = () => {
     if (!ui.index && !ui.result && ui.sourceId && ui.listId && !loading) void loadIndex(1, ui.searchText);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ui.sourceId, ui.listId]);
-
-  // Resolve the visible cards' images through the per-profile cache (fire-and-forget; the grid
-  // renders remote URLs until the local copies are ready, then swaps).
-  const cacheImages = useCallback((urls: string[]) => {
-    if (!selectedProfileId || urls.length === 0) return;
-    void api.remote
-      .resolveImages(selectedProfileId, urls)
-      .then((map) => setImageMap((prev) => ({ ...prev, ...map })))
-      .catch(() => undefined);
-  }, [selectedProfileId]);
-
-  useEffect(() => {
-    const urls = (ui.index?.entries ?? []).map((e) => e.imageUrl).concat((ui.result?.cards ?? []).map((c) => c.imageUrl));
-    cacheImages(urls.filter((u) => u && !imageMap[u]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ui.index, ui.result]);
 
   const openDetail = useCallback(
     (card: { detailUrl: string; title: string; key: string; tags: string[] }) => {
@@ -390,7 +385,7 @@ export const RemoteLibraryView: React.FC = () => {
             {cards.map((card) => (
               <div key={card.key} className="remote-card" onClick={() => openDetail(card)}>
                 <div className="remote-card__image-wrap">
-                  <img className="remote-card__image" src={imageMap[card.imageUrl] ? toAppUrl(imageMap[card.imageUrl]) : card.imageUrl} alt={card.title} loading="lazy" />
+                  <img className="remote-card__image" src={remoteImageUrl(card.imageUrl)} alt={card.title} loading="lazy" />
                   {card.imported && (
                     <span className="remote-card__imported" title={t('remote.importedBadge')}>
                       <CheckCircleFilled /> {t('remote.importedBadge')}

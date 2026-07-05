@@ -92,11 +92,6 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteDownloadImportAck>('INDEX_SYNC', profileId, { sourceId, listId, full });
   }
 
-  /** Map remote image URLs -> cached local (app://-servable) paths; misses fall back to the URL. */
-  async resolveImages(profileId: string, urls: string[]): Promise<Record<string, string>> {
-    return this.sendMessage<Record<string, string>>('RESOLVE_IMAGES', profileId, { urls });
-  }
-
   /** Validate + persist a (possibly user-authored) adapter. */
   async saveSource(profileId: string, config: RemoteSourceConfigDto): Promise<RemoteSourceConfigDto> {
     return this.sendMessage<RemoteSourceConfigDto>('SAVE_SOURCE', profileId, { config });

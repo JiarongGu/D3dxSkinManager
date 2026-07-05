@@ -32,7 +32,6 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     private readonly IRemoteIndexService _index;
     private readonly IRemoteSourceStore _sourceStore;
     private readonly IRemoteLibraryStore _libraries;
-    private readonly IRemoteImageCacheService _imageCache;
     private readonly IPayloadHelper _payloadHelper;
 
     public RemoteFacade(
@@ -41,7 +40,6 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         IRemoteIndexService index,
         IRemoteSourceStore sourceStore,
         IRemoteLibraryStore libraries,
-        IRemoteImageCacheService imageCache,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
@@ -50,7 +48,6 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         _index = index ?? throw new ArgumentNullException(nameof(index));
         _sourceStore = sourceStore ?? throw new ArgumentNullException(nameof(sourceStore));
         _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries));
-        _imageCache = imageCache ?? throw new ArgumentNullException(nameof(imageCache));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -75,7 +72,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId")),
             "TEST_SOURCE" => await TestSourceAsync(request),
             "GET_SOURCE_TEMPLATE" => _sourceStore.GetTemplateJson(),
-            "RESOLVE_IMAGES" => await _imageCache.ResolveAsync(_payloadHelper.GetRequiredValue<List<string>>(request.Payload, "urls")),
+            // Remote images are served via the app://remote-image proxy (global on-demand cache) —
+            // the old RESOLVE_IMAGES preload round-trip is gone.
             // Configured libraries (remote-library-redesign.md): a profile owns many, switchable.
             "LIBRARY_GET_STATE" => _libraries.GetState(),
             "LIBRARY_ADD" => AddLibrary(request),

@@ -349,23 +349,24 @@ body {
   color: var(--color-text-base);
 }
 
-/* Scrollbar Styling for Dark Theme */
-[data-theme="dark"] ::-webkit-scrollbar {
+/* Scrollbar styling — TOKEN-driven so it matches BOTH themes (was dark-only; light theme fell back
+   to Chromium defaults). Transparent track blends with whatever surface hosts the scroller. */
+::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-track {
-  background: var(--color-bg-container);
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background: var(--color-border-base);
   border-radius: 4px;
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: #595959;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
 }
 
 /* Global Border Radius Application - Reduced for sharper, more modern look */

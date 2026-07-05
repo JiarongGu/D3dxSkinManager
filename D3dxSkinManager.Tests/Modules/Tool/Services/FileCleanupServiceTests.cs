@@ -48,9 +48,11 @@ public class FileCleanupServiceTests : IDisposable
         _repository.Setup(r => r.GetAllAsync())
             .ReturnsAsync(new List<ModEntity> { new() { Id = "KNOWN", Name = "Known", Type = "7z", Grading = "G" } });
 
+        var globalPaths = new Mock<D3dxSkinManager.Modules.Core.Services.IGlobalPathService>();
+        globalPaths.Setup(g => g.BaseDataPath).Returns(Path.Combine(_root, "data"));
         _service = new FileCleanupService(
             _paths.Object, _repository.Object, _categories.Object,
-            _profiles.Object, _logger.Object, _registry.Object);
+            _profiles.Object, _logger.Object, _registry.Object, globalPaths.Object);
     }
 
     [Fact]
