@@ -7,17 +7,19 @@
 import { BaseModuleService } from '../baseModuleService';
 import type {
   RemoteBrowseResult,
-  RemoteCategoryCount,
   RemoteDownloadImportAck,
   RemoteDownloadOption,
   RemoteIndexPage,
+  RemoteLibrariesState,
+  RemoteLibrary,
+  RemoteLibraryAddResult,
   RemoteModDetail,
-  RemoteBinding,
   RemoteResolveResult,
-  RemoteSetBindingResult,
   RemoteSourceConfigDto,
   RemoteSourceInfo,
   RemoteSourceTestResult,
+  RemoteTagCount,
+  RemoteTagRule,
 } from '../../types/remote.types';
 
 export class RemoteService extends BaseModuleService {
@@ -45,14 +47,19 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteResolveResult>('RESOLVE_DOWNLOAD', profileId, { option });
   }
 
-  /** Immediate ack — the download+import runs in the background (Activity panel). */
+  /** Immediate ack — the download+import runs in the background (Activity panel).
+   * listId/entryId record the durable remote identity; tags feed the library's tag→category rules. */
   async downloadImport(
     profileId: string,
     sourceId: string,
     detail: RemoteModDetail,
     option: RemoteDownloadOption,
+    context?: { listId?: string; entryId?: string; tags?: string[] },
   ): Promise<RemoteDownloadImportAck> {
-    return this.sendMessage<RemoteDownloadImportAck>('DOWNLOAD_IMPORT', profileId, { sourceId, detail, option });
+    return this.sendMessage<RemoteDownloadImportAck>('DOWNLOAD_IMPORT', profileId, {
+      sourceId, detail, option,
+      listId: context?.listId, entryId: context?.entryId, tags: context?.tags,
+    });
   }
 
   /** Filtered + paged slice of the SYNCED local index (instant; empty info when never synced). */
@@ -64,14 +71,14 @@ export class RemoteService extends BaseModuleService {
     page: number,
     pageSize: number,
     sort?: string,
-    category?: string,
+    tag?: string,
   ): Promise<RemoteIndexPage> {
-    return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize, sort, category });
+    return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize, sort, tag });
   }
 
-  /** Distinct site categories present in the synced index (for the filter dropdown), by frequency. */
-  async indexCategories(profileId: string, sourceId: string, listId: string): Promise<RemoteCategoryCount[]> {
-    return this.sendArrayMessage<RemoteCategoryCount>('INDEX_CATEGORIES', profileId, { sourceId, listId });
+  /** Distinct site tags present in the synced index (for the filter dropdown), by frequency. */
+  async indexTags(profileId: string, sourceId: string, listId: string): Promise<RemoteTagCount[]> {
+    return this.sendArrayMessage<RemoteTagCount>('INDEX_TAGS', profileId, { sourceId, listId });
   }
 
   /**
@@ -102,23 +109,35 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteSourceTestResult>('TEST_SOURCE', profileId, { config, listId });
   }
 
-  /** This profile's game binding (null when the profile hasn't picked a game yet). */
-  async getBinding(profileId: string): Promise<RemoteBinding | null> {
-    return this.sendMessage<RemoteBinding | null>('GET_BINDING', profileId);
+  // ---- configured libraries (a profile owns many; switchable) ------------------------------
+
+  async libraryGetState(profileId: string): Promise<RemoteLibrariesState> {
+    return this.sendMessage<RemoteLibrariesState>('LIBRARY_GET_STATE', profileId);
   }
 
-  /** Bind the profile to a source+list; sync=true starts the index crawl immediately. */
-  async setBinding(profileId: string, sourceId: string, listId: string, sync: boolean): Promise<RemoteSetBindingResult> {
-    return this.sendMessage<RemoteSetBindingResult>('SET_BINDING', profileId, { sourceId, listId, sync });
+  /** Add a library; sync=true starts its index crawl immediately. */
+  async libraryAdd(
+    profileId: string,
+    sourceId: string,
+    listId: string,
+    name?: string,
+    tagRules?: RemoteTagRule[],
+    sync = true,
+  ): Promise<RemoteLibraryAddResult> {
+    return this.sendMessage<RemoteLibraryAddResult>('LIBRARY_ADD', profileId, { sourceId, listId, name, tagRules, sync });
   }
 
-  async clearBinding(profileId: string): Promise<boolean> {
-    return this.sendMessage<boolean>('CLEAR_BINDING', profileId);
+  /** Edit name/tag rules (source+game identity is fixed after creation). */
+  async libraryUpdate(profileId: string, library: RemoteLibrary): Promise<RemoteLibrary> {
+    return this.sendMessage<RemoteLibrary>('LIBRARY_UPDATE', profileId, { library });
   }
 
-  /** Set the local category that downloaded mods import into (undefined = uncategorized). */
-  async setDefaultCategory(profileId: string, categoryId?: string): Promise<RemoteBinding | null> {
-    return this.sendMessage<RemoteBinding | null>('SET_DEFAULT_CATEGORY', profileId, { categoryId });
+  async libraryRemove(profileId: string, libraryId: string): Promise<boolean> {
+    return this.sendMessage<boolean>('LIBRARY_REMOVE', profileId, { libraryId });
+  }
+
+  async librarySetActive(profileId: string, libraryId: string): Promise<RemoteLibrariesState> {
+    return this.sendMessage<RemoteLibrariesState>('LIBRARY_SET_ACTIVE', profileId, { libraryId });
   }
 
   async getSourceTemplate(profileId: string): Promise<string> {

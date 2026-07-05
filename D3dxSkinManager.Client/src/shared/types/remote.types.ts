@@ -22,6 +22,9 @@ export interface RemoteModCard {
   title: string;
   detailUrl: string;
   imageUrl: string;
+  /** Site tags (standardized across engines — e.g. GameBanana super category). */
+  tags: string[];
+  dateHint?: string;
 }
 
 export interface RemoteBrowseResult {
@@ -43,6 +46,8 @@ export interface RemoteModDetail {
   detailUrl: string;
   images: string[];
   downloads: RemoteDownloadOption[];
+  /** Site tags visible on the detail page (e.g. GameBanana sub category). */
+  tags: string[];
 }
 
 export interface RemoteResolveResult {
@@ -56,8 +61,8 @@ export interface RemoteDownloadImportAck {
   processId: string;
 }
 
-/** A distinct site category present in the index + its mod count (filter dropdown). */
-export interface RemoteCategoryCount {
+/** A distinct site tag present in the index + its mod count (filter dropdown). */
+export interface RemoteTagCount {
   name: string;
   count: number;
 }
@@ -67,7 +72,8 @@ export interface RemoteIndexEntry {
   title: string;
   detailUrl: string;
   imageUrl: string;
-  category?: string;
+  /** Site tags (chips + filter). */
+  tags: string[];
   dateHint?: string;
   sortKey: number;
   firstSeenUtc: string;
@@ -121,16 +127,30 @@ export interface RemoteSourceTestResult {
   detailImageCount: number;
 }
 
-/** Which source + game list a PROFILE targets (a profile is one game). */
-export interface RemoteBinding {
-  sourceId: string;
-  listId: string;
-  boundAtUtc: string;
-  /** Local category id that downloaded mods import into (undefined = uncategorized). */
-  defaultCategoryId?: string;
+/** One ordered import rule: a mod carrying ALL of `tags` imports into `categoryId`. */
+export interface RemoteTagRule {
+  name: string;
+  tags: string[];
+  categoryId: string;
 }
 
-export interface RemoteSetBindingResult {
-  binding: RemoteBinding;
+/** A configured remote library (site + game + import rules). A profile owns MANY, switchable. */
+export interface RemoteLibrary {
+  id: string;
+  sourceId: string;
+  listId: string;
+  name: string;
+  /** Ordered — first rule whose tags all match wins; no match = uncategorized. */
+  tagRules: RemoteTagRule[];
+  addedAtUtc: string;
+}
+
+export interface RemoteLibrariesState {
+  libraries: RemoteLibrary[];
+  activeLibraryId?: string;
+}
+
+export interface RemoteLibraryAddResult {
+  library: RemoteLibrary;
   processId: string;
 }

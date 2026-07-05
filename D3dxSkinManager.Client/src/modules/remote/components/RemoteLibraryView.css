@@ -25,7 +25,12 @@
   min-width: 110px;
 }
 
-.remote-library__category {
+.remote-library__switcher {
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.remote-library__tag-filter {
   min-width: 150px;
   max-width: 220px;
 }
@@ -38,20 +43,32 @@
   width: 220px;
 }
 
-.remote-library__import-into {
-  display: inline-flex;
+/* Card footer: tag chips left, date right. */
+.remote-card__footer {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
+  min-width: 0;
 }
 
-.remote-library__import-into-label {
+.remote-card__tags {
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.remote-card__tag {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--color-primary-bg, rgba(22, 119, 255, 0.12));
+  color: var(--color-primary);
   white-space: nowrap;
-}
-
-.remote-library__import-into .compact-select {
-  min-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
 }
 
 .remote-library__origin {

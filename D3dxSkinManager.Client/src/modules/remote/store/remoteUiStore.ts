@@ -15,8 +15,8 @@ interface RemoteUiState {
   searchText: string;
   /** Index sort: site order (default) or newest date hint first. */
   sort: 'site' | 'date';
-  /** Active site-category filter (undefined = all categories). */
-  categoryFilter?: string;
+  /** Active site-tag filter (undefined = all categories). */
+  tagFilter?: string;
   /** Last LIVE browse/search result (fallback when the index was never synced). */
   result?: RemoteBrowseResult;
   /** True when `result` came from a site search rather than list browsing. */
@@ -29,7 +29,7 @@ interface RemoteUiState {
   setPage: (page: number) => void;
   setSearchText: (text: string) => void;
   setSort: (sort: 'site' | 'date') => void;
-  setCategoryFilter: (category: string | undefined) => void;
+  setTagFilter: (category: string | undefined) => void;
   setResult: (result: RemoteBrowseResult | undefined, isSearchResult: boolean) => void;
   setIndex: (index: RemoteIndexPage | undefined) => void;
   /** Reset when the profile changes — remote selection is per-profile context. */
@@ -42,7 +42,7 @@ const initialState = {
   page: 1,
   searchText: '',
   sort: 'site' as 'site' | 'date',
-  categoryFilter: undefined as string | undefined,
+  tagFilter: undefined as string | undefined,
   result: undefined as RemoteBrowseResult | undefined,
   isSearchResult: false,
   index: undefined as RemoteIndexPage | undefined,
@@ -53,12 +53,12 @@ export const useRemoteUiStore = create<RemoteUiState>((set, get) => ({
   ...initialState,
 
   setSource: (sourceId) =>
-    set({ sourceId, listId: undefined, page: 1, categoryFilter: undefined, result: undefined, isSearchResult: false, index: undefined }),
-  setList: (listId) => set({ listId, page: 1, categoryFilter: undefined, result: undefined, isSearchResult: false, index: undefined }),
+    set({ sourceId, listId: undefined, page: 1, tagFilter: undefined, result: undefined, isSearchResult: false, index: undefined }),
+  setList: (listId) => set({ listId, page: 1, tagFilter: undefined, result: undefined, isSearchResult: false, index: undefined }),
   setPage: (page) => set({ page }),
   setSearchText: (searchText) => set({ searchText }),
   setSort: (sort) => set({ sort, page: 1 }),
-  setCategoryFilter: (categoryFilter) => set({ categoryFilter, page: 1 }),
+  setTagFilter: (tagFilter) => set({ tagFilter, page: 1 }),
   setResult: (result, isSearchResult) => set({ result, isSearchResult }),
   setIndex: (index) => set({ index }),
   ensureProfile: (profileId) => {

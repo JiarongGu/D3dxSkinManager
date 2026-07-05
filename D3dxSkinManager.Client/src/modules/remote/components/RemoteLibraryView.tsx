@@ -1,27 +1,27 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Empty, Pagination, Spin, Tooltip } from 'antd';
-import { CheckCircleFilled, ReloadOutlined, SearchOutlined, SettingOutlined, SyncOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, CheckCircleFilled, ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
-import { CategorySelect } from '../../../shared/components/CategorySelect';
-import type { CategoryInfo } from '../../../shared/types/category.types';
-import type { RemoteBinding, RemoteCategoryCount, RemoteSourceInfo } from '../../../shared/types/remote.types';
+import type { RemoteLibrariesState, RemoteSourceInfo, RemoteTagCount } from '../../../shared/types/remote.types';
 import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
-import { RemoteSourceManagerScreen } from './RemoteSourceManagerScreen';
+import { RemoteLibraryManagementScreen } from './RemoteLibraryManagementScreen';
 import './RemoteLibraryView.css';
 
 const INDEX_PAGE_SIZE = 60;
 
 /**
- * Remote mod library tab. Primary browse source is the SYNCED LOCAL INDEX (instant filter/search/
+ * Remote mod library tab (remote-library-redesign.md). A profile owns MANY configured libraries
+ * (site + game + import tag-rules); the toolbar switches between them; library management
+ * adds/edits/removes them. Primary browse source is the SYNCED LOCAL INDEX (instant filter/search/
  * paging, offline); live page browsing is the fallback until the first sync. Selection and results
  * live in remoteUiStore so leaving the tab and coming back restores where you were.
  */
@@ -32,82 +32,62 @@ export const RemoteLibraryView: React.FC = () => {
 
   const [sources, setSources] = useState<RemoteSourceInfo[]>([]);
   const [loading, setLoading] = useState(false);
-  // undefined = still loading; null = profile hasn't picked its game yet (setup mode).
-  const [binding, setBindingState] = useState<RemoteBinding | null | undefined>(undefined);
-  const [setupSource, setSetupSource] = useState<string>();
-  // Profile category tree — for the "import into" default-category picker.
-  const [categories, setCategories] = useState<CategoryInfo[]>([]);
-  // Distinct SITE categories in the synced index — for the grid category filter.
-  const [categoryCounts, setCategoryCounts] = useState<RemoteCategoryCount[]>([]);
+  // undefined = still loading; the profile's configured libraries + which is active.
+  const [libState, setLibState] = useState<RemoteLibrariesState>();
+  // Distinct SITE tags in the synced index — the grid tag filter.
+  const [tagCounts, setTagCounts] = useState<RemoteTagCount[]>([]);
   // Remote image URL -> cached local path (per-profile remote-cache; falls back to the URL).
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
-  const [setupList, setSetupList] = useState<string>();
   // The in-flight background sync process id — watched so the grid auto-refreshes from the index
   // when the crawl finishes (otherwise you'd stare at the pre-sync live fallback until a manual refresh).
   const [syncProcId, setSyncProcId] = useState<string>();
 
   const ui = useRemoteUiStore();
+  const activeLibrary = libState?.libraries.find((l) => l.id === libState.activeLibraryId);
   const source = sources.find((s) => s.id === ui.sourceId);
   const indexReady = (ui.index?.info.entryCount ?? 0) > 0;
 
-  // Load sources + this profile's game binding. A profile is ONE game: bound → that source+list
-  // drives everything; unbound → setup mode.
+  /** Point the browse state at a library (source+list drive every query below). */
+  const applyLibrary = useCallback((sourceId?: string, listId?: string) => {
+    const state = useRemoteUiStore.getState();
+    if (state.sourceId !== sourceId) state.setSource(sourceId);
+    if (useRemoteUiStore.getState().listId !== listId) useRemoteUiStore.getState().setList(listId);
+  }, []);
+
+  const reloadLibraries = useCallback(async () => {
+    if (!selectedProfileId) return;
+    try {
+      const [list, state] = await Promise.all([
+        api.remote.getSources(selectedProfileId),
+        api.remote.libraryGetState(selectedProfileId),
+      ]);
+      setSources(list);
+      setLibState(state);
+      const active = state.libraries.find((l) => l.id === state.activeLibraryId);
+      applyLibrary(active?.sourceId, active?.listId);
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  }, [selectedProfileId, applyLibrary]);
+
   useEffect(() => {
     if (!selectedProfileId) return;
     ui.ensureProfile(selectedProfileId);
-    void (async () => {
-      try {
-        const [list, bound, cats] = await Promise.all([
-          api.remote.getSources(selectedProfileId),
-          api.remote.getBinding(selectedProfileId),
-          api.category.getCategoryTree(selectedProfileId).catch(() => [] as CategoryInfo[]),
-        ]);
-        setSources(list);
-        setBindingState(bound ?? null);
-        setCategories(cats);
-        const state = useRemoteUiStore.getState();
-        if (bound) {
-          if (state.sourceId !== bound.sourceId) state.setSource(bound.sourceId);
-          if (useRemoteUiStore.getState().listId !== bound.listId) {
-            useRemoteUiStore.getState().setList(bound.listId);
-          }
-        } else {
-          setSetupSource(list[0]?.id);
-          setSetupList(list[0]?.lists[0]?.id);
-        }
-      } catch (error: unknown) {
-        handleError(error);
-      }
-    })();
+    void reloadLibraries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfileId]);
 
-  const bindAndSync = useCallback(async () => {
-    if (!selectedProfileId || !setupSource || !setupList) return;
-    try {
-      const result = await api.remote.setBinding(selectedProfileId, setupSource, setupList, true);
-      setBindingState(result.binding);
-      const state = useRemoteUiStore.getState();
-      state.setSource(result.binding.sourceId);
-      useRemoteUiStore.getState().setList(result.binding.listId);
-      if (result.processId) setSyncProcId(result.processId);
-      notification.info(t('remote.syncStarted'));
-    } catch (error: unknown) {
-      handleError(error);
-    }
-  }, [selectedProfileId, setupSource, setupList, t]);
-
-  const rebind = useCallback(async () => {
+  const switchLibrary = useCallback(async (libraryId: string) => {
     if (!selectedProfileId) return;
     try {
-      await api.remote.clearBinding(selectedProfileId);
-      setSetupSource(binding?.sourceId ?? sources[0]?.id);
-      setSetupList(binding?.listId ?? sources[0]?.lists[0]?.id);
-      setBindingState(null);
+      const state = await api.remote.librarySetActive(selectedProfileId, libraryId);
+      setLibState(state);
+      const active = state.libraries.find((l) => l.id === state.activeLibraryId);
+      applyLibrary(active?.sourceId, active?.listId);
     } catch (error: unknown) {
       handleError(error);
     }
-  }, [selectedProfileId, binding, sources]);
+  }, [selectedProfileId, applyLibrary]);
 
   /** Query the synced index; when it's empty (never synced), fall back to live browsing. */
   const loadIndex = useCallback(
@@ -118,7 +98,7 @@ export const RemoteLibraryView: React.FC = () => {
         setLoading(true);
         const index = await api.remote.indexQuery(
           selectedProfileId, state.sourceId, state.listId, search?.trim() || undefined, page, INDEX_PAGE_SIZE,
-          state.sort, state.categoryFilter);
+          state.sort, state.tagFilter);
         state.setPage(page);
         state.setIndex(index);
         if (index.info.entryCount === 0) {
@@ -126,11 +106,11 @@ export const RemoteLibraryView: React.FC = () => {
           const result = await api.remote.browse(selectedProfileId, state.sourceId, state.listId, page);
           state.setResult(result, false);
         } else {
-          // Refresh the category filter options from the (possibly just-synced) index.
+          // Refresh the tag-filter options from the (possibly just-synced) index.
           void api.remote
-            .indexCategories(selectedProfileId, state.sourceId, state.listId)
-            .then(setCategoryCounts)
-            .catch(() => setCategoryCounts([]));
+            .indexTags(selectedProfileId, state.sourceId, state.listId)
+            .then(setTagCounts)
+            .catch(() => setTagCounts([]));
         }
       } catch (error: unknown) {
         handleError(error);
@@ -207,16 +187,6 @@ export const RemoteLibraryView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncProcess?.status]);
 
-  const setDefaultCategory = useCallback(async (categoryId?: string) => {
-    if (!selectedProfileId) return;
-    try {
-      const updated = await api.remote.setDefaultCategory(selectedProfileId, categoryId);
-      setBindingState((b) => (b ? { ...b, defaultCategoryId: updated?.defaultCategoryId } : b));
-    } catch (error: unknown) {
-      handleError(error);
-    }
-  }, [selectedProfileId]);
-
   // First load (or returning to the tab with no cached result yet).
   useEffect(() => {
     if (!ui.index && !ui.result && ui.sourceId && ui.listId && !loading) void loadIndex(1, ui.searchText);
@@ -240,16 +210,38 @@ export const RemoteLibraryView: React.FC = () => {
   }, [ui.index, ui.result]);
 
   const openDetail = useCallback(
-    (detailUrl: string, title: string) => {
-      if (!ui.sourceId) return;
+    (card: { detailUrl: string; title: string; key: string; tags: string[] }) => {
+      const state = useRemoteUiStore.getState();
+      if (!state.sourceId) return;
       openScreen({
-        title: title || t('remote.detailTitle'),
-        content: <RemoteModDetailScreen sourceId={ui.sourceId} detailUrl={detailUrl} fallbackTitle={title} />,
-        width: '860px',
+        title: card.title || t('remote.detailTitle'),
+        content: (
+          <RemoteModDetailScreen
+            sourceId={state.sourceId}
+            listId={state.listId}
+            entryId={card.key}
+            entryTags={card.tags}
+            detailUrl={card.detailUrl}
+            fallbackTitle={card.title}
+          />
+        ),
+        width: '980px',
       });
     },
-    [openScreen, t, ui.sourceId],
+    [openScreen, t],
   );
+
+  const openManagement = useCallback(() => {
+    openScreen({
+      title: t('remote.manageTitle'),
+      content: (
+        <RemoteLibraryManagementScreen
+          onChanged={() => void reloadLibraries()}
+        />
+      ),
+      width: '860px',
+    });
+  }, [openScreen, t, reloadLibraries]);
 
   const refresh = () => {
     if (indexReady) void loadIndex(ui.page, ui.searchText);
@@ -264,6 +256,7 @@ export const RemoteLibraryView: React.FC = () => {
         title: e.title,
         detailUrl: e.detailUrl,
         imageUrl: e.imageUrl,
+        tags: e.tags ?? [],
         dateHint: e.dateHint,
         imported: e.imported,
       }))
@@ -272,16 +265,14 @@ export const RemoteLibraryView: React.FC = () => {
         title: c.title,
         detailUrl: c.detailUrl,
         imageUrl: c.imageUrl,
-        dateHint: undefined as string | undefined,
+        tags: c.tags ?? [],
+        dateHint: c.dateHint,
         imported: false,
       }));
   const loaded = indexReady || !!ui.result;
-
   const syncedAt = ui.index?.info.syncedAtUtc;
-  const setupSourceInfo = sources.find((s) => s.id === setupSource);
-  const boundListName = source?.lists.find((l) => l.id === ui.listId)?.name ?? ui.listId;
 
-  if (binding === undefined) {
+  if (libState === undefined) {
     return (
       <div className="remote-library__loading">
         <Spin />
@@ -289,49 +280,15 @@ export const RemoteLibraryView: React.FC = () => {
     );
   }
 
-  // SETUP MODE — the profile hasn't picked its game yet: choose source + game, bind & sync.
-  if (binding === null) {
+  // NO LIBRARIES YET — point the user at library management to add the first one.
+  if (libState.libraries.length === 0) {
     return (
       <div className="remote-library remote-library--setup">
         <div className="remote-setup">
           <h2 className="remote-setup__title">{t('remote.setupTitle')}</h2>
           <p className="remote-setup__hint">{t('remote.setupHint')}</p>
-          <div className="remote-setup__row">
-            <CompactSelect
-              className="remote-library__source"
-                  value={setupSource}
-              placeholder={t('remote.setupPickSource')}
-              options={sources.map((s) => ({ value: s.id, label: s.name }))}
-              onChange={(v) => {
-                setSetupSource(v);
-                setSetupList(sources.find((s) => s.id === v)?.lists[0]?.id);
-              }}
-            />
-            <CompactSelect
-              className="remote-library__list"
-                  value={setupList}
-              placeholder={t('remote.setupPickGame')}
-              options={(setupSourceInfo?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
-              onChange={setSetupList}
-            />
-            <CompactButton type="primary" icon={<SyncOutlined />} disabled={!setupSource || !setupList}
-              onClick={() => void bindAndSync()}>
-              {t('remote.bindAndSync')}
-            </CompactButton>
-          </div>
-          <CompactButton
-            icon={<SettingOutlined />}
-            onClick={() =>
-              openScreen({
-                title: t('remote.manageTitle'),
-                content: <RemoteSourceManagerScreen onChanged={() => {
-                  if (selectedProfileId) void api.remote.getSources(selectedProfileId).then(setSources).catch(handleError);
-                }} />,
-                width: '760px',
-              })
-            }
-          >
-            {t('remote.custom')}
+          <CompactButton type="primary" icon={<AppstoreOutlined />} onClick={openManagement}>
+            {t('remote.addLibrary')}
           </CompactButton>
         </div>
       </div>
@@ -341,20 +298,15 @@ export const RemoteLibraryView: React.FC = () => {
   return (
     <div className="remote-library">
       <div className="remote-library__toolbar">
-        <span className="remote-library__bound" title={source?.baseUrl}>
-          {source?.name} · {boundListName}
-        </span>
-        <CompactButton onClick={() => void rebind()}>{t('remote.rebind')}</CompactButton>
-        <span className="remote-library__import-into">
-          <span className="remote-library__import-into-label">{t('remote.importInto')}</span>
-          <CategorySelect
-            categories={categories}
-            value={binding?.defaultCategoryId}
-            placeholder={t('remote.importUncategorized')}
-            onChange={(id) => void setDefaultCategory(id)}
-            size="small"
-          />
-        </span>
+        <CompactSelect
+          className="remote-library__switcher"
+          value={libState.activeLibraryId}
+          options={libState.libraries.map((l) => ({ value: l.id, label: l.name }))}
+          onChange={(id) => void switchLibrary(id)}
+        />
+        <CompactButton icon={<AppstoreOutlined />} onClick={openManagement}>
+          {t('remote.manage')}
+        </CompactButton>
         {(indexReady || source?.hasSearch) && (
           <CompactInput
             className="remote-library__search"
@@ -369,7 +321,7 @@ export const RemoteLibraryView: React.FC = () => {
         {indexReady && (
           <CompactSelect
             className="remote-library__sort"
-              value={ui.sort}
+            value={ui.sort}
             options={[
               { value: 'site', label: t('remote.sortSite') },
               { value: 'date', label: t('remote.sortDate') },
@@ -380,16 +332,16 @@ export const RemoteLibraryView: React.FC = () => {
             }}
           />
         )}
-        {indexReady && categoryCounts.length > 0 && (
+        {indexReady && tagCounts.length > 0 && (
           <CompactSelect
-            className="remote-library__category"
-            value={ui.categoryFilter ?? ''}
+            className="remote-library__tag-filter"
+            value={ui.tagFilter ?? ''}
             options={[
-              { value: '', label: t('remote.allCategories') },
-              ...categoryCounts.map((c) => ({ value: c.name, label: `${c.name} (${c.count})` })),
+              { value: '', label: t('remote.allTags') },
+              ...tagCounts.map((c) => ({ value: c.name, label: `${c.name} (${c.count})` })),
             ]}
             onChange={(v) => {
-              ui.setCategoryFilter(v || undefined);
+              ui.setTagFilter(v || undefined);
               void loadIndex(1, useRemoteUiStore.getState().searchText);
             }}
           />
@@ -407,33 +359,13 @@ export const RemoteLibraryView: React.FC = () => {
             {t('remote.fullReindex')}
           </CompactButton>
         </Tooltip>
-        <CompactButton
-          icon={<SettingOutlined />}
-          onClick={() =>
-            openScreen({
-              title: t('remote.manageTitle'),
-              content: (
-                <RemoteSourceManagerScreen
-                  onChanged={() => {
-                    if (selectedProfileId) {
-                      void api.remote.getSources(selectedProfileId).then(setSources).catch(handleError);
-                    }
-                  }}
-                />
-              ),
-              width: '760px',
-            })
-          }
-        >
-          {t('remote.manage')}
-        </CompactButton>
         <span className="remote-library__origin" title={source?.baseUrl}>
           {syncedAt
             ? t('remote.lastSynced', {
                 time: new Date(syncedAt).toLocaleString(),
                 count: ui.index?.info.entryCount ?? 0,
               })
-            : source?.name}
+            : activeLibrary?.name}
         </span>
       </div>
 
@@ -458,7 +390,7 @@ export const RemoteLibraryView: React.FC = () => {
         {!loading && cards.length > 0 && (
           <div className="remote-library__grid">
             {cards.map((card) => (
-              <div key={card.key} className="remote-card" onClick={() => openDetail(card.detailUrl, card.title)}>
+              <div key={card.key} className="remote-card" onClick={() => openDetail(card)}>
                 <div className="remote-card__image-wrap">
                   <img className="remote-card__image" src={imageMap[card.imageUrl] ? toAppUrl(imageMap[card.imageUrl]) : card.imageUrl} alt={card.title} loading="lazy" />
                   {card.imported && (
@@ -471,7 +403,16 @@ export const RemoteLibraryView: React.FC = () => {
                   <div className="remote-card__title" title={card.title}>
                     {card.title || t('remote.untitled')}
                   </div>
-                  {card.dateHint && <div className="remote-card__date">{card.dateHint}</div>}
+                  <div className="remote-card__footer">
+                    {card.tags.length > 0 && (
+                      <span className="remote-card__tags">
+                        {card.tags.map((tag) => (
+                          <span key={tag} className="remote-card__tag">{tag}</span>
+                        ))}
+                      </span>
+                    )}
+                    {card.dateHint && <span className="remote-card__date">{card.dateHint}</span>}
+                  </div>
                 </div>
               </div>
             ))}
@@ -482,7 +423,7 @@ export const RemoteLibraryView: React.FC = () => {
       {indexReady && (ui.index?.total ?? 0) > INDEX_PAGE_SIZE && (
         <div className="remote-library__pager">
           <Pagination
-              current={ui.page}
+            current={ui.page}
             total={ui.index!.total}
             pageSize={INDEX_PAGE_SIZE}
             showSizeChanger={false}
@@ -494,7 +435,7 @@ export const RemoteLibraryView: React.FC = () => {
         <div className="remote-library__pager">
           <Pagination
             simple
-              current={ui.page}
+            current={ui.page}
             total={(ui.result.totalPages ?? 1) * 10}
             pageSize={10}
             showSizeChanger={false}

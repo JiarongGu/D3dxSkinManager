@@ -112,19 +112,24 @@ Review (gallery/preview/info) on the LEFT, actions (download links — some site
 - **Download**: direct (`/dl/{id}`), resolver type `direct`, real filename from `_sFile`. DONE.
 - **Order**: sort each page newest-first by `_tsDateAdded` (DONE) + capture as DateHint.
 
-## Phased implementation
-1. **Engine abstraction**: `IRemoteSiteEngine` + `HttpRegexEngine` (extract current regex logic from
-   RemoteBrowseService) + `GameBananaEngine` (wrap the existing static parser); RemoteBrowseService →
-   thin dispatcher. Registered by EngineId in DI.
-2. **Data structure (backend)**: `RemoteLibrary` model + `RemoteLibraryStore` (per-profile
-   remote-libraries.json; add/remove/update/setActive/getActive) — additive alongside the old binding
-   first so nothing breaks. Index `Category`→`Tags` (migration) + GameBanana super+sub capture +
-   generalized tag filter. Import applies the active library's ordered tag-rules.
-3. **Facade + IPC**: library CRUD + switch; query/filter by tag; gamebanana search.
-4. **Frontend**: main-screen library switcher; library management (add: site→game→tag-rules; edit/remove);
-   tag filter + tag chips; detail left/right split. Retire the single-binding UI + the per-binding
-   default-category picker.
-5. Remove the old binding model once all callers move to libraries.
+## Phased implementation — ALL PHASES SHIPPED 2026-07-06
+1. ✅ **Engine abstraction**: `IRemoteSiteEngine` + `RemoteSiteEngineBase` (shared fetch/URL) +
+   `HttpRegexEngine` + `GameBananaEngine` (instance engine, statics kept testable, game-scoped search);
+   `RemoteBrowseService` = thin dispatcher (containment check central); DI via TryAddEnumerable.
+2. ✅ **Standardized data**: migration 202607060003 drop+recreates RemoteIndexEntries with a `Tags`
+   JSON column (index = re-syncable cache); tag filter via `json_each` exact match; INDEX_TAGS distinct
+   counts; GameBanana super (subfeed `_aRootCategory`) + sub (ProfilePage `_aCategory`) as tags.
+   `RemoteLibraryStore` ({profile}/remote-libraries.json, legacy binding auto-upgrades); import records
+   the durable identity {sourceId, listId, entryId} in Metadata.remote; imported-lookup cached
+   (TTL 30s + invalidate-on-import); ordered tag-rules → category (`MatchTagRules`).
+3. ✅ **IPC**: LIBRARY_GET_STATE/ADD/UPDATE/REMOVE/SET_ACTIVE (+ add-with-sync), INDEX_TAGS, INDEX_QUERY
+   `tag`, DOWNLOAD_IMPORT {listId, entryId, tags}, SEARCH listId; binding routes + RemoteBindingStore DELETED.
+4. ✅ **Frontend**: library switcher in the toolbar; `RemoteLibraryManagementScreen` (libraries CRUD +
+   ORDERED tag-rules editor with reorder + sites/adapters section embedded); tag chips on cards + tag
+   filter; detail LEFT (gallery/tags) / RIGHT (actions) split; empty state → "add library".
+5. ✅ Binding model removed.
+Verified live 2026-07-06: legacy binding upgraded, add+sync (517 entries), switch, tags on cards/detail,
+rules editor UI. Tests: 43 backend remote + 204 frontend.
 
 Rules that bind: `download-service.md`, `background-task-tracking.md`, `use-project-paths.md`,
 `enum-serialization.md` (tags/rules camelCase on the wire), `ui-component-layers.md` (L1 atoms),

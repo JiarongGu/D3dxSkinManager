@@ -20,18 +20,26 @@ import './RemoteModDetailScreen.css';
 
 interface RemoteModDetailScreenProps {
   sourceId: string;
+  /** Index context (when opened from a synced entry) — records the durable import identity. */
+  listId?: string;
+  entryId?: string;
+  /** Tags known from the index entry/card (merged with the detail page's own tags). */
+  entryTags?: string[];
   detailUrl: string;
   fallbackTitle?: string;
 }
 
 /**
- * Slide-in detail screen for one remote mod: preview images + download options.
- * Resolvable options (Cloudreve) confirm with the real file name/size, then start the background
- * download+import (result lands in the Activity panel + mod list). External options open in the
- * system browser.
+ * Slide-in detail for one remote mod — LEFT/RIGHT split (remote-library-redesign.md): review
+ * (gallery + tags) on the left, actions (open page + download options — sites can have MANY) on the
+ * right. Importable options (cloudreve/direct) confirm with the real file name/size then start the
+ * background download+import; external hosts open in the system browser.
  */
 export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   sourceId,
+  listId,
+  entryId,
+  entryTags,
   detailUrl,
   fallbackTitle,
 }) => {
@@ -70,6 +78,9 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   // in-app; everything else (Quark, unknown hosts) opens in the browser.
   const isImportable = (type: string) => type === 'cloudreve' || type === 'direct';
 
+  // Entry tags (index) ∪ detail-page tags — shown as chips + fed to the import's tag rules.
+  const allTags = Array.from(new Set([...(entryTags ?? []), ...(detail?.tags ?? [])]));
+
   const handleDownload = async (option: RemoteDownloadOption) => {
     if (!selectedProfileId) return;
     if (!isImportable(option.type)) {
@@ -91,7 +102,11 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   const handleConfirmImport = async () => {
     if (!selectedProfileId || !detail || !confirmState) return;
     try {
-      await api.remote.downloadImport(selectedProfileId, sourceId, detail, confirmState.option);
+      await api.remote.downloadImport(selectedProfileId, sourceId, detail, confirmState.option, {
+        listId,
+        entryId,
+        tags: allTags,
+      });
       notification.info(t('remote.importStarted', { name: detail.title || fallbackTitle }));
     } catch (error: unknown) {
       handleError(error);
@@ -112,63 +127,75 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
 
   return (
     <div className="remote-detail">
-      <div className="remote-detail__header">
-        {/* Title comes from the slide-in header — don't repeat it here (was a duplicated title). */}
+      {/* LEFT: review — gallery + tags (title comes from the slide-in header). */}
+      <div className="remote-detail__review">
+        {allTags.length > 0 && (
+          <div className="remote-detail__tags">
+            {allTags.map((tag) => (
+              <span key={tag} className="remote-detail__tag">{tag}</span>
+            ))}
+          </div>
+        )}
+        {detail.images.length > 0 && (
+          <div className="remote-detail__gallery">
+            <div className="remote-detail__main-image-wrap">
+              <img
+                className="remote-detail__main-image"
+                src={(() => { const u = detail.images[Math.min(activeImage, detail.images.length - 1)]; return imageMap[u] ? toAppUrl(imageMap[u]) : u; })()}
+                alt={detail.title}
+              />
+            </div>
+            {detail.images.length > 1 && (
+              <div className="remote-detail__thumbs">
+                {detail.images.map((image, index) => (
+                  <img
+                    key={image}
+                    src={imageMap[image] ? toAppUrl(imageMap[image]) : image}
+                    alt=""
+                    loading="lazy"
+                    className={
+                      index === activeImage
+                        ? 'remote-detail__thumb remote-detail__thumb--active'
+                        : 'remote-detail__thumb'
+                    }
+                    onClick={() => setActiveImage(index)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {detail.images.length === 0 && (
+          <div className="remote-detail__no-images">{t('remote.noImages')}</div>
+        )}
+      </div>
+
+      {/* RIGHT: actions — open page + every download option stacked. */}
+      <div className="remote-detail__actions">
+        <div className="remote-detail__actions-title">{t('remote.actionsTitle')}</div>
+        <CompactButton icon={<GlobalOutlined />} onClick={() => void api.system.openUrl(detail.detailUrl)}>
+          {t('remote.openPage')}
+        </CompactButton>
+        {detail.downloads.length === 0 && (
+          <span className="remote-detail__no-download">{t('remote.noDownloads')}</span>
+        )}
+        {detail.downloads.map((option) => (
+          <CompactButton
+            key={option.url}
+            type={isImportable(option.type) ? 'primary' : 'default'}
+            icon={isImportable(option.type) ? <CloudDownloadOutlined /> : <LinkOutlined />}
+            loading={resolving === option.url}
+            onClick={() => void handleDownload(option)}
+          >
+            {isImportable(option.type)
+              ? t('remote.downloadImport', { host: option.name })
+              : t('remote.openExternal', { host: option.name })}
+          </CompactButton>
+        ))}
         <span className="remote-detail__meta">
           {t('remote.detailMeta', { images: detail.images.length, downloads: detail.downloads.length })}
         </span>
-        <div className="remote-detail__actions">
-          {detail.downloads.length === 0 && (
-            <span className="remote-detail__no-download">{t('remote.noDownloads')}</span>
-          )}
-          <CompactButton icon={<GlobalOutlined />} onClick={() => void api.system.openUrl(detail.detailUrl)}>
-            {t('remote.openPage')}
-          </CompactButton>
-          {detail.downloads.map((option) => (
-            <CompactButton
-              key={option.url}
-              type={isImportable(option.type) ? 'primary' : 'default'}
-              icon={isImportable(option.type) ? <CloudDownloadOutlined /> : <LinkOutlined />}
-              loading={resolving === option.url}
-              onClick={() => void handleDownload(option)}
-            >
-              {isImportable(option.type)
-                ? t('remote.downloadImport', { host: option.name })
-                : t('remote.openExternal', { host: option.name })}
-            </CompactButton>
-          ))}
-        </div>
       </div>
-
-      {detail.images.length > 0 && (
-        <div className="remote-detail__gallery">
-          <div className="remote-detail__main-image-wrap">
-            <img
-              className="remote-detail__main-image"
-              src={(() => { const u = detail.images[Math.min(activeImage, detail.images.length - 1)]; return imageMap[u] ? toAppUrl(imageMap[u]) : u; })()}
-              alt={detail.title}
-            />
-          </div>
-          {detail.images.length > 1 && (
-            <div className="remote-detail__thumbs">
-              {detail.images.map((image, index) => (
-                <img
-                  key={image}
-                  src={imageMap[image] ? toAppUrl(imageMap[image]) : image}
-                  alt=""
-                  loading="lazy"
-                  className={
-                    index === activeImage
-                      ? 'remote-detail__thumb remote-detail__thumb--active'
-                      : 'remote-detail__thumb'
-                  }
-                  onClick={() => setActiveImage(index)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       <ConfirmDialog
         visible={!!confirmState}
