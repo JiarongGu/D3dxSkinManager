@@ -16,6 +16,7 @@ public class GameBananaEngineTests
       "_aMetadata": { "_nRecordCount": 30, "_nPerpage": 15, "_bIsComplete": false },
       "_aRecords": [
         { "_idRow": 1, "_sModelName": "Mod", "_sName": "Vivian Vampire", "_sProfileUrl": "https://gamebanana.com/mods/1",
+          "_aRootCategory": { "_sName": "Skins", "_sProfileUrl": "https://gamebanana.com/mods/cats/1" },
           "_aPreviewMedia": { "_aImages": [ { "_sType": "screenshot", "_sBaseUrl": "https://images.gamebanana.com/img/ss/mods", "_sFile": "raw.jpg", "_sFile530": "530-90_raw.jpg", "_sFile220": "220-90_raw.jpg" } ] } },
         { "_idRow": 2, "_sModelName": "Sound", "_sName": "Not a mod", "_sProfileUrl": "https://gamebanana.com/sounds/2" },
         { "_idRow": 3, "_sModelName": "Mod", "_sName": "", "_sProfileUrl": "https://gamebanana.com/mods/3" }
@@ -49,6 +50,7 @@ public class GameBananaEngineTests
         card.Title.Should().Be("Vivian Vampire");
         card.DetailUrl.Should().Be("https://gamebanana.com/mods/1");
         card.ImageUrl.Should().Be("https://images.gamebanana.com/img/ss/mods/530-90_raw.jpg", "cards use the 530px variant");
+        card.Category.Should().Be("Skins", "the root category is captured for filtering");
         result.TotalPages.Should().Be(2, "ceil(30 / 15)");
     }
 

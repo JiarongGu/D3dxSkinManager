@@ -18,8 +18,12 @@ namespace D3dxSkinManager.Modules.Remote.Services;
 public interface IRemoteIndexService
 {
     /// <summary>Filtered + paged slice of the index (empty info when never synced).
-    /// <paramref name="sort"/>: "site" (default) or "date" (newest DateHint first).</summary>
-    Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null);
+    /// <paramref name="sort"/>: "site" (default) or "date" (newest DateHint first).
+    /// <paramref name="category"/>: filter to one site category (null = all).</summary>
+    Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? category = null);
+
+    /// <summary>Distinct site categories in the index (for the filter dropdown), by frequency.</summary>
+    Task<List<RemoteCategoryCount>> GetCategoriesAsync(string sourceId, string listId);
 
     /// <summary>Start a background sync. <paramref name="full"/> forces a complete re-crawl of every
     /// page and prunes entries the site no longer lists (soft-delete); the default is an incremental
@@ -57,10 +61,13 @@ public class RemoteIndexService : IRemoteIndexService
         _logger = logger;
     }
 
-    public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null)
+    public Task<List<RemoteCategoryCount>> GetCategoriesAsync(string sourceId, string listId) =>
+        _repository.GetCategoriesAsync(sourceId, listId);
+
+    public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? category = null)
     {
         var meta = await _repository.GetMetaAsync(sourceId, listId).ConfigureAwait(false);
-        var (total, entries) = await _repository.QueryAsync(sourceId, listId, search, sort, page, pageSize).ConfigureAwait(false);
+        var (total, entries) = await _repository.QueryAsync(sourceId, listId, search, category, sort, page, pageSize).ConfigureAwait(false);
         return new RemoteIndexPage
         {
             Info = new RemoteIndexInfo
@@ -195,6 +202,7 @@ public class RemoteIndexService : IRemoteIndexService
                 Title = card.Title,
                 DetailUrl = card.DetailUrl,
                 ImageUrl = card.ImageUrl,
+                Category = card.Category,
                 DateHint = ExtractDateHint(source, card.ImageUrl),
                 SortKey = pageNumber * 10000L + i,
             });

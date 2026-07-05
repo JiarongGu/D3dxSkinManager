@@ -52,6 +52,7 @@ public static class GameBananaEngine
                     Title = name,
                     DetailUrl = url,
                     ImageUrl = FirstImageUrl(rec) ?? string.Empty,
+                    Category = RootCategoryName(rec),
                 });
             }
         }
@@ -101,6 +102,13 @@ public static class GameBananaEngine
             }
         }
         return detail;
+    }
+
+    /// <summary>The record's root category name (e.g. "Skins", "Other/Misc"), used for filtering.</summary>
+    private static string? RootCategoryName(JsonElement record)
+    {
+        if (record.TryGetProperty("_aRootCategory", out var cat)) return GetString(cat, "_sName");
+        return null;
     }
 
     private static string? FirstImageUrl(JsonElement record)

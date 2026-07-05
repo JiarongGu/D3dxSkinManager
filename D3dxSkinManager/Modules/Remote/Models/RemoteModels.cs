@@ -105,6 +105,11 @@ public class RemoteModCard
     public string Title { get; set; } = string.Empty;
     public string DetailUrl { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
+
+    /// <summary>The site's own category for this mod (e.g. GameBanana root category "Skins"), when the
+    /// engine can extract one. Stored in the index for filtering + display. Null when the site/engine
+    /// has no per-card category (e.g. huihui, where the list itself is the game).</summary>
+    public string? Category { get; set; }
 }
 
 public class RemoteBrowseResult
@@ -150,6 +155,9 @@ public class RemoteIndexEntry
     public string DetailUrl { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
 
+    /// <summary>The site's category for this mod (for filtering + display). Null = uncategorized on the site.</summary>
+    public string? Category { get; set; }
+
     /// <summary>Date hint (yyyy-MM-dd) derived from the image path, when the adapter can extract one.</summary>
     public string? DateHint { get; set; }
 
@@ -161,6 +169,13 @@ public class RemoteIndexEntry
 
     /// <summary>Set at query time: a mod in the current profile was imported from this entry. Not persisted meaningfully.</summary>
     public bool Imported { get; set; }
+}
+
+/// <summary>A distinct site category present in the index + how many mods carry it (filter dropdown).</summary>
+public class RemoteCategoryCount
+{
+    public string Name { get; set; } = string.Empty;
+    public int Count { get; set; }
 }
 
 /// <summary>Metadata about a synced index (per source+list cache file).</summary>

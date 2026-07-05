@@ -40,6 +40,7 @@
     "common.enable": "Enable",
     "common.no": "No",
     "remote.sync": "Sync",
+    "remote.allCategories": "All categories",
     "remote.importInto": "Import into",
     "remote.importUncategorized": "Uncategorized",
     "remote.update": "Update",

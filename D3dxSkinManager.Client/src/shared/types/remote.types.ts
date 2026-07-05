@@ -56,11 +56,18 @@ export interface RemoteDownloadImportAck {
   processId: string;
 }
 
+/** A distinct site category present in the index + its mod count (filter dropdown). */
+export interface RemoteCategoryCount {
+  name: string;
+  count: number;
+}
+
 export interface RemoteIndexEntry {
   id: string;
   title: string;
   detailUrl: string;
   imageUrl: string;
+  category?: string;
   dateHint?: string;
   sortKey: number;
   firstSeenUtc: string;

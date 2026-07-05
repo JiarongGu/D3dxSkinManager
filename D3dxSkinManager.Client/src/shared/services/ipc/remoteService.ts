@@ -7,6 +7,7 @@
 import { BaseModuleService } from '../baseModuleService';
 import type {
   RemoteBrowseResult,
+  RemoteCategoryCount,
   RemoteDownloadImportAck,
   RemoteDownloadOption,
   RemoteIndexPage,
@@ -63,8 +64,14 @@ export class RemoteService extends BaseModuleService {
     page: number,
     pageSize: number,
     sort?: string,
+    category?: string,
   ): Promise<RemoteIndexPage> {
-    return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize, sort });
+    return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize, sort, category });
+  }
+
+  /** Distinct site categories present in the synced index (for the filter dropdown), by frequency. */
+  async indexCategories(profileId: string, sourceId: string, listId: string): Promise<RemoteCategoryCount[]> {
+    return this.sendArrayMessage<RemoteCategoryCount>('INDEX_CATEGORIES', profileId, { sourceId, listId });
   }
 
   /**

@@ -46,7 +46,7 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, EntryId TEXT NOT NULL,
                 Title TEXT NOT NULL DEFAULT '', DetailUrl TEXT NOT NULL, ImageUrl TEXT NOT NULL DEFAULT '',
                 DateHint TEXT, Generation INTEGER NOT NULL DEFAULT 0, SortKey INTEGER NOT NULL DEFAULT 0,
-                FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL, RemovedUtc TEXT,
+                FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL, RemovedUtc TEXT, Category TEXT,
                 PRIMARY KEY (SourceId, ListId, EntryId));
             CREATE TABLE RemoteIndexMeta (
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, SyncedAtUtc TEXT,
@@ -55,11 +55,12 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         cmd.ExecuteNonQuery();
     }
 
-    private static RemoteModCard Card(int id, string title, string date = "20260621") => new()
+    private static RemoteModCard Card(int id, string title, string date = "20260621", string? category = null) => new()
     {
         Title = title,
         DetailUrl = $"https://huihui168.org/?news_12/{id}.html",
         ImageUrl = $"https://huihui168.org/static/upload/image/{date}/img{id}.jpg",
+        Category = category,
     };
 
     private void SetupPages(params List<RemoteModCard>[] pages)
@@ -200,6 +201,25 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         await SyncAndWaitAsync(full: true);
         (await _service.QueryAsync("huihui", "2", null, 1, 50)).Entries.Select(e => e.Id)
             .Should().BeEquivalentTo(new[] { "1", "2" });
+    }
+
+    [Fact]
+    public async Task Query_FiltersByCategory_AndListsDistinctCategories()
+    {
+        SetupPages(new List<RemoteModCard>
+        {
+            Card(1, "A", category: "Skins"), Card(2, "B", category: "Skins"), Card(3, "C", category: "Other/Misc"),
+        });
+        await SyncAndWaitAsync();
+
+        (await _service.QueryAsync("huihui", "2", null, 1, 50, category: "Skins")).Total.Should().Be(2);
+        (await _service.QueryAsync("huihui", "2", null, 1, 50, category: "Other/Misc")).Entries.Single().Id.Should().Be("3");
+        (await _service.QueryAsync("huihui", "2", null, 1, 50)).Total.Should().Be(3, "no filter = all");
+
+        var cats = await _service.GetCategoriesAsync("huihui", "2");
+        cats.Should().HaveCount(2);
+        cats[0].Name.Should().Be("Skins");   // most frequent first
+        cats[0].Count.Should().Be(2);
     }
 
     [Fact]

@@ -10,7 +10,7 @@ import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
 import { CategorySelect } from '../../../shared/components/CategorySelect';
 import type { CategoryInfo } from '../../../shared/types/category.types';
-import type { RemoteBinding, RemoteSourceInfo } from '../../../shared/types/remote.types';
+import type { RemoteBinding, RemoteCategoryCount, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { useRemoteUiStore } from '../store/remoteUiStore';
@@ -37,6 +37,8 @@ export const RemoteLibraryView: React.FC = () => {
   const [setupSource, setSetupSource] = useState<string>();
   // Profile category tree — for the "import into" default-category picker.
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
+  // Distinct SITE categories in the synced index — for the grid category filter.
+  const [categoryCounts, setCategoryCounts] = useState<RemoteCategoryCount[]>([]);
   // Remote image URL -> cached local path (per-profile remote-cache; falls back to the URL).
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [setupList, setSetupList] = useState<string>();
@@ -115,13 +117,20 @@ export const RemoteLibraryView: React.FC = () => {
       try {
         setLoading(true);
         const index = await api.remote.indexQuery(
-          selectedProfileId, state.sourceId, state.listId, search?.trim() || undefined, page, INDEX_PAGE_SIZE, state.sort);
+          selectedProfileId, state.sourceId, state.listId, search?.trim() || undefined, page, INDEX_PAGE_SIZE,
+          state.sort, state.categoryFilter);
         state.setPage(page);
         state.setIndex(index);
         if (index.info.entryCount === 0) {
           // Never synced — live-browse the first page so the tab isn't empty.
           const result = await api.remote.browse(selectedProfileId, state.sourceId, state.listId, page);
           state.setResult(result, false);
+        } else {
+          // Refresh the category filter options from the (possibly just-synced) index.
+          void api.remote
+            .indexCategories(selectedProfileId, state.sourceId, state.listId)
+            .then(setCategoryCounts)
+            .catch(() => setCategoryCounts([]));
         }
       } catch (error: unknown) {
         handleError(error);
@@ -367,6 +376,20 @@ export const RemoteLibraryView: React.FC = () => {
             ]}
             onChange={(v) => {
               ui.setSort(v);
+              void loadIndex(1, useRemoteUiStore.getState().searchText);
+            }}
+          />
+        )}
+        {indexReady && categoryCounts.length > 0 && (
+          <CompactSelect
+            className="remote-library__category"
+            value={ui.categoryFilter ?? ''}
+            options={[
+              { value: '', label: t('remote.allCategories') },
+              ...categoryCounts.map((c) => ({ value: c.name, label: `${c.name} (${c.count})` })),
+            ]}
+            onChange={(v) => {
+              ui.setCategoryFilter(v || undefined);
               void loadIndex(1, useRemoteUiStore.getState().searchText);
             }}
           />

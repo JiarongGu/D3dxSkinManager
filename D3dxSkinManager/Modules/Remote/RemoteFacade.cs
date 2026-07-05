@@ -20,7 +20,7 @@ public interface IRemoteFacade : IModuleFacade
     Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl);
     Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option);
     string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option);
-    Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null);
+    Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? category = null);
     string StartIndexSync(string sourceId, string listId, bool full = false);
 }
 
@@ -66,6 +66,9 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "RESOLVE_DOWNLOAD" => await ResolveDownloadAsync(request),
             "DOWNLOAD_IMPORT" => StartDownloadImport(request),
             "INDEX_QUERY" => await QueryIndexAsync(request),
+            "INDEX_CATEGORIES" => await _index.GetCategoriesAsync(
+                _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId"),
+                _payloadHelper.GetRequiredValue<string>(request.Payload, "listId")),
             "INDEX_SYNC" => StartIndexSync(request),
             "SAVE_SOURCE" => SaveSource(request),
             "DELETE_SOURCE" => DeleteSource(request),
@@ -101,9 +104,9 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     public string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option) =>
         _import.StartDownloadImport(sourceId, detail, option);
 
-    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null)
+    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? category = null)
     {
-        var result = await _index.QueryAsync(sourceId, listId, search, page, pageSize, sort).ConfigureAwait(false);
+        var result = await _index.QueryAsync(sourceId, listId, search, page, pageSize, sort, category).ConfigureAwait(false);
         // Flag entries this profile already imported (matched by detail URL from mod Metadata).
         var imported = await _import.GetImportedDetailUrlsAsync().ConfigureAwait(false);
         if (imported.Count > 0)
@@ -165,7 +168,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var page = _payloadHelper.GetOptionalValue<int>(request.Payload, "page");
         var pageSize = _payloadHelper.GetOptionalValue<int>(request.Payload, "pageSize");
         var sort = _payloadHelper.GetOptionalValue<string>(request.Payload, "sort");
-        return QueryIndexAsync(sourceId, listId, search, page <= 0 ? 1 : page, pageSize <= 0 ? 60 : pageSize, sort);
+        var category = _payloadHelper.GetOptionalValue<string>(request.Payload, "category");
+        return QueryIndexAsync(sourceId, listId, search, page <= 0 ? 1 : page, pageSize <= 0 ? 60 : pageSize, sort, category);
     }
 
     private object StartIndexSync(IpcRequest request)
