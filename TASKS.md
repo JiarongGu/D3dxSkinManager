@@ -117,11 +117,18 @@ Namespace merge v2 is shipped (`NamespaceMergeBuilder` + `ModMergeService`, IPC 
 OR-condition cycle key (the one unverified assumption — see `3dmigoto-ini-interface.md`). Fallback if
 the key misbehaves: `activeOnly` OFF emits no condition.
 
-### 3. Analyzer improvement (better 3DMigoto understanding)
-Current analysis flags are heuristic — we have limited grounding in what 3DMigoto actually accepts.
-Ground the checks in the authoritative INI docs (`leotorrez.github.io/modding/docs/*` — scrape via
-`research`): valid section types, command syntax, key options, namespace rules. Then refine
-health/duplicate/conflict logic (fewer false positives, real actionable findings).
+### 3. Analyzer improvement (better 3DMigoto understanding) — ✅ SHIPPED 2026-07-05
+Grounded the checks in the scraped leotorrez INI docs (override/resource/operators/constants/present/
+custom-shader): new shared `Core/Helpers/IniParser` (both comment chars, control-flow-safe, namespace
+directive, `IsDisabledPath`); DISABLED-prefixed inis excluded from hashes (killed false conflicts/
+duplicates on merged mods); new checks — MalformedHash (8/16-hex), DeadOverride, UnbalancedCondition
+(Error), DuplicateSection (Info — real mods repeat [Constants]), KeyMissingBinding, AllIniDisabled;
+ShaderOverride hashes join the conflict set; plugin refs map pattern→name explicitly + presence check
+covers the XXMI `<importer>/Core`. Real-library audit: missingPlugin noise 39→6 on a 12-mod sample.
+**Dedup-assist UX (the analyzer's core job): "keep this one" on every duplicate-group card → confirm
+dialog → background batch delete** (Activity panel); issue rows show localized type chips; the
+stale/missing filter now includes missingPlugin. Tests: IniParserTests (9) + 4 grounded-check
+service tests (526 backend total). Verified live against the real library both themes.
 
 ### 4. Mod optimization (dedup assets) — ✅ SHIPPED 2026-07-05
 `ModOptimizeService`: sha256-groups byte-identical non-`.ini` files in the mod's cache (active or
@@ -195,10 +202,9 @@ MessageDispatcher → ProfileServiceRouter) and all references corrected.
 
 - **Deferred dedup targets** (from the 2026-07-05 duplication audit — do opportunistically or as
   their feature comes up):
-  - **Shared `.ini` parse helper** — 4 divergent parsers (ModIniService, ModKeybindingService,
-    NamespaceMergeBuilder, ModAnalysisService) with inconsistent fullwidth `；` comment handling;
-    consolidate into a Core helper **when doing B4 (keybinding multi-key) or the analyzer rework**,
-    which touch those parsers anyway.
+  - **Shared `.ini` parse helper** — `Core/Helpers/IniParser` SHIPPED with the analyzer rework
+    (2026-07-05); `ModAnalysisService` migrated. Remaining consumers to migrate opportunistically:
+    ModIniService, ModKeybindingService, NamespaceMergeBuilder (their write-back line rewriters stay).
   - **`RunTrackedAsync` ProcessRegistry extension** — 9+ services repeat the Start/try/Complete/Fail
     wrapper; extract when next touching several producers at once.
   - **`DISABLED-` prefix constant** — string literal in ~8 files (ModCacheService has a local const);

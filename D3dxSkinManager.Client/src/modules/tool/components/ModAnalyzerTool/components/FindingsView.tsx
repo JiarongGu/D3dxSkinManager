@@ -40,11 +40,13 @@ interface FindingsViewProps {
   deletingModId?: string;
   onEditModName?: (modId: string, newName: string) => void;
   onLocateMods?: (modIds: string[]) => void;
+  /** Dedup-assist: keep one mod of a duplicate group, delete the rest (staged + confirmed by the parent). */
+  onResolveGroup?: (keep: ModAnalysisResult, groupMods: ModAnalysisResult[]) => void;
 }
 
 type FindingCategory = 'all' | 'broken' | 'stale' | 'duplicates' | 'conflicts' | 'healthy';
 
-export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, deletingModId, onEditModName, onLocateMods }) => {
+export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, deletingModId, onEditModName, onLocateMods, onResolveGroup }) => {
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
   const [category, setCategory] = useState<FindingCategory>('all');
@@ -52,8 +54,9 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
   const [editName, setEditName] = useState('');
 
   const brokenMods = useMemo(() => report.results.filter(r => r.healthStatus === 'error'), [report]);
+  // "Stale or missing" covers stale hashes AND missing plugin refs (the section title always said so).
   const staleMods = useMemo(() => report.results.filter(r =>
-    r.issues.some(i => i.type === 'staleHash')
+    r.issues.some(i => i.type === 'staleHash' || i.type === 'missingPlugin')
   ), [report]);
   const healthyMods = useMemo(() => report.results.filter(r => r.healthStatus === 'healthy'), [report]);
 
@@ -149,7 +152,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
               items={filteredContent.duplicates.map((g, i) => ({
                 key: i,
                 label: <DuplicateHeader group={g} onLocate={onLocateMods} />,
-                children: <DuplicateDetail group={g} onDeleteMod={onDeleteMod} deletingModId={deletingModId} onStartEdit={(modId, name) => { setEditingMod({ modId, currentName: name }); setEditName(name); }} />,
+                children: <DuplicateDetail group={g} onDeleteMod={onDeleteMod} deletingModId={deletingModId} onStartEdit={(modId, name) => { setEditingMod({ modId, currentName: name }); setEditName(name); }} onResolveGroup={onResolveGroup} />,
               }))}
             />
           </FindingSection>
@@ -264,6 +267,12 @@ const CopyIdButton: React.FC<{ modId: string }> = ({ modId }) => {
   );
 };
 
+/** Short i18n'd label chip for an issue type — makes the issue list scannable by kind. */
+const IssueTypeChip: React.FC<{ type: string }> = ({ type }) => {
+  const { t } = useTranslation();
+  return <Tag className="mod-analyzer__issue-type">{t(`tools.modAnalyzer.issueType.${type}`, { defaultValue: type })}</Tag>;
+};
+
 const ModRow: React.FC<{ mod: ModAnalysisResult; onLocate?: (modIds: string[]) => void }> = ({ mod, onLocate }) => {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
@@ -293,6 +302,7 @@ const ModRow: React.FC<{ mod: ModAnalysisResult; onLocate?: (modIds: string[]) =
           {mod.issues.map((issue, idx) => (
             <div key={idx} className="mod-analyzer__issue-row">
               <HealthStatusIcon status={issue.severity} />
+              <IssueTypeChip type={issue.type} />
               <span>{issue.message}</span>
               {issue.filePath && (
                 <Tooltip title={issue.filePath}>
@@ -335,7 +345,7 @@ const DuplicateHeader: React.FC<{ group: DuplicateGroup; onLocate?: (modIds: str
   );
 };
 
-const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: string) => void; deletingModId?: string; onStartEdit?: (modId: string, currentName: string) => void }> = ({ group, onDeleteMod, deletingModId, onStartEdit }) => {
+const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: string) => void; deletingModId?: string; onStartEdit?: (modId: string, currentName: string) => void; onResolveGroup?: (keep: ModAnalysisResult, groupMods: ModAnalysisResult[]) => void }> = ({ group, onDeleteMod, deletingModId, onStartEdit, onResolveGroup }) => {
   const { t } = useTranslation();
   return (
     <div className="mod-analyzer__mod-cards">
@@ -363,6 +373,14 @@ const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: s
                     <EditOutlined
                       className="mod-analyzer__mod-edit"
                       onClick={e => { e.stopPropagation(); if (!deletingModId) onStartEdit(mod.modId, mod.modName); }}
+                    />
+                  </Tooltip>
+                )}
+                {onResolveGroup && group.mods.length > 1 && (
+                  <Tooltip title={t('tools.modAnalyzer.keepThisOne')}>
+                    <CheckCircleOutlined
+                      className="mod-analyzer__mod-keep"
+                      onClick={e => { e.stopPropagation(); if (!deletingModId) onResolveGroup(mod, group.mods); }}
                     />
                   </Tooltip>
                 )}

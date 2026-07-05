@@ -55,16 +55,16 @@ public class ModAnalysisService : IModAnalysisService
 
     private static readonly string[] BufferExtensions = [".buf", ".ib"];
     private static readonly string[] TextureExtensions = [".dds", ".png", ".jpg", ".jpeg", ".tga", ".bmp"];
-    private static readonly Regex SectionHeaderRegex = new(@"^\[(.+)\]$", RegexOptions.Compiled);
-    private static readonly Regex HashRegex = new(@"^hash\s*=\s*([0-9a-fA-F]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex FilenameRegex = new(@"^filename\s*=\s*(.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    private static readonly string[] PluginPatterns = [
-        @"\ZZMI\", @"\SRMI\", @"\GIMI\", @"\WWMI\",
-        @"\ShaderFixes\", @"\RabbitFX\",
-        @"CommandList\ZZMI", @"CommandList\SRMI", @"CommandList\GIMI", @"CommandList\WWMI",
-        @"Resource\ZZMI", @"Resource\SRMI", @"Resource\GIMI", @"Resource\WWMI",
-        @"Resource\ShaderFixes", @"Resource\RabbitFX",
+    // pattern → the plugin NAME it implies. The old name extraction split on '\' and took the FIRST
+    // segment, which produced bogus "CommandList"/"Resource" plugin refs on every namespaced call
+    // (real-library audit 2026-07-05).
+    private static readonly (string Pattern, string Plugin)[] PluginPatterns = [
+        (@"\ZZMI\", "ZZMI"), (@"\SRMI\", "SRMI"), (@"\GIMI\", "GIMI"), (@"\WWMI\", "WWMI"),
+        (@"\ShaderFixes\", "ShaderFixes"), (@"\RabbitFX\", "RabbitFX"),
+        (@"CommandList\ZZMI", "ZZMI"), (@"CommandList\SRMI", "SRMI"), (@"CommandList\GIMI", "GIMI"), (@"CommandList\WWMI", "WWMI"),
+        (@"Resource\ZZMI", "ZZMI"), (@"Resource\SRMI", "SRMI"), (@"Resource\GIMI", "GIMI"), (@"Resource\WWMI", "WWMI"),
+        (@"Resource\ShaderFixes", "ShaderFixes"), (@"Resource\RabbitFX", "RabbitFX"),
     ];
 
     public ModAnalysisService(
@@ -489,9 +489,20 @@ public class ModAnalysisService : IModAnalysisService
         var allPluginRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int textureOverrideCount = 0;
 
-        var iniFiles = Directory.GetFiles(modDir, "*.ini", SearchOption.AllDirectories);
+        // DISABLED-prefixed files/folders are skipped by the runtime (XXMI exclude_recursive /
+        // GIMI-merge convention) — they must not contribute hashes/overrides or the analyzer
+        // reports false conflicts and duplicates on merged mods.
+        var allIniFiles = Directory.GetFiles(modDir, "*.ini", SearchOption.AllDirectories);
+        var iniFiles = allIniFiles.Where(f => !IniParser.IsDisabledPath(Path.GetRelativePath(modDir, f))).ToArray();
+        int disabledIniCount = allIniFiles.Length - iniFiles.Length;
+
         if (iniFiles.Length == 0)
-            issues.Add(new ModHealthIssue { Type = HealthIssueType.NoIniFile, Severity = HealthIssueSeverity.Error, Message = "No .ini files found" });
+        {
+            if (disabledIniCount > 0)
+                issues.Add(new ModHealthIssue { Type = HealthIssueType.AllIniDisabled, Severity = HealthIssueSeverity.Warning, Message = $"All {disabledIniCount} .ini file(s) are disabled — the mod renders nothing" });
+            else
+                issues.Add(new ModHealthIssue { Type = HealthIssueType.NoIniFile, Severity = HealthIssueSeverity.Error, Message = "No .ini files found" });
+        }
 
         var allFiles = Directory.GetFiles(modDir, "*", SearchOption.AllDirectories);
         int resourceFileCount = allFiles.Count(f =>
@@ -500,17 +511,18 @@ public class ModAnalysisService : IModAnalysisService
             return BufferExtensions.Contains(ext) || TextureExtensions.Contains(ext);
         });
 
-        if (allFiles.Length <= 1 && iniFiles.Length == 0)
+        if (allFiles.Length <= 1 && allIniFiles.Length == 0)
             issues.Add(new ModHealthIssue { Type = HealthIssueType.EmptyMod, Severity = HealthIssueSeverity.Error, Message = "Mod directory is empty" });
 
         foreach (var iniFile in iniFiles)
         {
+            var iniName = Path.GetFileName(iniFile);
             try
             {
                 var lines = await File.ReadAllLinesAsync(iniFile).ConfigureAwait(false);
-                if (lines.Length == 0) { issues.Add(new ModHealthIssue { Type = HealthIssueType.EmptyIniFile, Severity = HealthIssueSeverity.Warning, Message = $"Empty: {Path.GetFileName(iniFile)}" }); continue; }
+                if (lines.Length == 0) { issues.Add(new ModHealthIssue { Type = HealthIssueType.EmptyIniFile, Severity = HealthIssueSeverity.Warning, Message = $"Empty: {iniName}" }); continue; }
 
-                var structure = ParseIniStructure(lines);
+                var structure = ParseIniStructure(lines, iniName, issues);
                 foreach (var h in structure.TargetHashes) allTargetHashes.Add(h);
                 foreach (var p in structure.PluginReferences) allPluginRefs.Add(p);
                 textureOverrideCount += structure.TextureOverrideCount;
@@ -519,20 +531,25 @@ public class ModAnalysisService : IModAnalysisService
                 foreach (var refFile in structure.BufferFiles.Concat(structure.TextureFiles))
                 {
                     if (!FileExistsInTree(modDir, iniDir, refFile))
-                        issues.Add(new ModHealthIssue { Type = HealthIssueType.MissingResource, Severity = HealthIssueSeverity.Warning, Message = $"Missing: {refFile}" });
+                        issues.Add(new ModHealthIssue { Type = HealthIssueType.MissingResource, Severity = HealthIssueSeverity.Warning, Message = $"Missing: {refFile}", FilePath = iniName });
                 }
             }
             catch (Exception ex)
             {
-                issues.Add(new ModHealthIssue { Type = HealthIssueType.InvalidIniSyntax, Severity = HealthIssueSeverity.Error, Message = $"Parse error: {ex.Message}" });
+                issues.Add(new ModHealthIssue { Type = HealthIssueType.InvalidIniSyntax, Severity = HealthIssueSeverity.Error, Message = $"Parse error: {ex.Message}", FilePath = iniName });
             }
         }
 
-        // Plugin presence check
+        // Plugin presence check. In XXMI mode the importer ships its core plugin (e.g. ZZMI) under
+        // <importer>/Core — the importer root is the parent of the cache Mods dir, so check there too
+        // or every ZZMI-namespaced mod reports a false "plugin not found".
         var tdMigotoDir = _profilePaths.TdMigotoDirectory;
+        var importerCoreDir = Path.Combine(Directory.GetParent(_profilePaths.CacheModsDirectory)?.FullName ?? _profilePaths.CacheModsDirectory, "Core");
         foreach (var plugin in allPluginRefs)
         {
-            if (!Directory.Exists(Path.Combine(tdMigotoDir, plugin)) && !Directory.Exists(Path.Combine(_profilePaths.CacheModsDirectory, plugin)))
+            if (!Directory.Exists(Path.Combine(tdMigotoDir, plugin)) &&
+                !Directory.Exists(Path.Combine(_profilePaths.CacheModsDirectory, plugin)) &&
+                !Directory.Exists(Path.Combine(importerCoreDir, plugin)))
                 issues.Add(new ModHealthIssue { Type = HealthIssueType.MissingPlugin, Severity = HealthIssueSeverity.Info, Message = $"Plugin not found: {plugin}" });
         }
 
@@ -755,27 +772,84 @@ public class ModAnalysisService : IModAnalysisService
     }
 
     // ===== INI Parsing =====
+    // Grounded in the authoritative 3DMigoto INI docs (leotorrez.github.io/modding/docs — scraped
+    // 2026-07-05; see .claude/rules/3dmigoto-ini-interface.md): hash is 8 hex chars on a
+    // TextureOverride and 16 on a ShaderOverride; an *Override matches via hash OR match_*/
+    // filter_index (neither → dead section); conditions are if / else if|elif / else / endif with
+    // nesting; comments are ';' or fullwidth '；' (IniParser handles both).
 
-    private ModIniStructure ParseIniStructure(string[] lines)
+    private static readonly Regex HexRegex = new(@"^[0-9a-fA-F]+$", RegexOptions.Compiled);
+
+    private ModIniStructure ParseIniStructure(string[] lines, string fileName, List<ModHealthIssue> issues)
     {
         var structure = new ModIniStructure();
-        bool inTextureOverride = false, inResource = false;
-        foreach (var line in lines)
+        var doc = IniParser.Parse(lines);
+        var seenSectionNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var section in doc.Sections)
         {
-            var trimmed = line.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith(";")) continue;
-            var ci = trimmed.IndexOf(';'); if (ci > 0) trimmed = trimmed[..ci].TrimEnd();
+            // Info, not Warning: real working mods commonly repeat [Constants] etc. in one file
+            // (3DMigoto warns but merges them) — 13 hits in a 12-mod library sample.
+            if (!seenSectionNames.Add(section.Name))
+                issues.Add(new ModHealthIssue { Type = HealthIssueType.DuplicateSection, Severity = HealthIssueSeverity.Info, Message = $"Duplicate section [{section.Name}]", FilePath = fileName });
 
-            var sm = SectionHeaderRegex.Match(trimmed);
-            if (sm.Success) { var sn = sm.Groups[1].Value; inTextureOverride = sn.StartsWith("TextureOverride", StringComparison.OrdinalIgnoreCase); inResource = sn.StartsWith("Resource", StringComparison.OrdinalIgnoreCase); if (inTextureOverride) structure.TextureOverrideCount++; if (inResource) structure.ResourceCount++; continue; }
+            bool isTextureOverride = section.Name.StartsWith("TextureOverride", StringComparison.OrdinalIgnoreCase);
+            bool isShaderOverride = section.Name.StartsWith("ShaderOverride", StringComparison.OrdinalIgnoreCase);
+            if (isTextureOverride) structure.TextureOverrideCount++;
+            if (section.Name.StartsWith("Resource", StringComparison.OrdinalIgnoreCase))
+            {
+                structure.ResourceCount++;
+                foreach (var entry in section.Entries.Where(e => string.Equals(e.Key, "filename", StringComparison.OrdinalIgnoreCase) && e.Value != null))
+                {
+                    var fn = entry.Value!;
+                    var ext = Path.GetExtension(fn).ToLowerInvariant();
+                    if (BufferExtensions.Contains(ext)) structure.BufferFiles.Add(fn);
+                    else if (TextureExtensions.Contains(ext)) structure.TextureFiles.Add(fn);
+                }
+            }
 
-            if (inTextureOverride) { var hm = HashRegex.Match(trimmed); if (hm.Success) structure.TargetHashes.Add(hm.Groups[1].Value.ToLowerInvariant()); }
-            if (inResource) { var fm = FilenameRegex.Match(trimmed); if (fm.Success) { var fn = fm.Groups[1].Value.Trim(); var ext = Path.GetExtension(fn).ToLowerInvariant(); if (BufferExtensions.Contains(ext)) structure.BufferFiles.Add(fn); else if (TextureExtensions.Contains(ext)) structure.TextureFiles.Add(fn); } }
+            if (isTextureOverride || isShaderOverride)
+            {
+                var hash = section.GetValue("hash");
+                if (hash != null)
+                {
+                    int expectedLen = isTextureOverride ? 8 : 16;
+                    if (!HexRegex.IsMatch(hash) || hash.Length != expectedLen)
+                        issues.Add(new ModHealthIssue { Type = HealthIssueType.MalformedHash, Severity = HealthIssueSeverity.Warning, Message = $"[{section.Name}] hash \"{hash}\" is not a {expectedLen}-char hex hash — it will never match", FilePath = fileName });
+                    else
+                        structure.TargetHashes.Add(hash.ToLowerInvariant());
+                }
+                else if (!section.HasKeyStartingWith("match_") && !section.HasKey("filter_index"))
+                {
+                    issues.Add(new ModHealthIssue { Type = HealthIssueType.DeadOverride, Severity = HealthIssueSeverity.Warning, Message = $"[{section.Name}] has no hash and no match_* filter — it never triggers", FilePath = fileName });
+                }
+            }
 
-            foreach (var pattern in PluginPatterns)
-                if (trimmed.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                    structure.PluginReferences.Add(pattern.Trim('\\').Split('\\')[0]);
+            if (section.Name.StartsWith("Key", StringComparison.OrdinalIgnoreCase) &&
+                !section.HasKey("key") && !section.HasKey("back"))
+            {
+                issues.Add(new ModHealthIssue { Type = HealthIssueType.KeyMissingBinding, Severity = HealthIssueSeverity.Warning, Message = $"[{section.Name}] has no key/back binding — it can never fire", FilePath = fileName });
+            }
+
+            // if / else if|elif / else / endif balance (nesting allowed; unresolved conditions
+            // fail OPEN in 3DMigoto, so a broken block silently draws everything).
+            int depth = 0;
+            bool underflow = false;
+            foreach (var entry in section.Entries)
+            {
+                var raw = entry.Raw;
+                if (raw.StartsWith("if ", StringComparison.OrdinalIgnoreCase) || string.Equals(raw, "if", StringComparison.OrdinalIgnoreCase)) depth++;
+                else if (string.Equals(raw, "endif", StringComparison.OrdinalIgnoreCase)) { depth--; if (depth < 0) { underflow = true; break; } }
+            }
+            if (depth != 0 || underflow)
+                issues.Add(new ModHealthIssue { Type = HealthIssueType.UnbalancedCondition, Severity = HealthIssueSeverity.Error, Message = $"[{section.Name}] has unbalanced if/endif — the section will not run as written", FilePath = fileName });
+
+            foreach (var entry in section.Entries)
+                foreach (var (pattern, plugin) in PluginPatterns)
+                    if (entry.Raw.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                        structure.PluginReferences.Add(plugin);
         }
+
         return structure;
     }
 

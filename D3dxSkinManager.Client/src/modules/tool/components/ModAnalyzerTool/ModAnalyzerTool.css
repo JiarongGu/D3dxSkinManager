@@ -390,6 +390,13 @@
   color: var(--color-text-secondary);
 }
 
+.mod-analyzer__issue-type {
+  flex-shrink: 0;
+  margin-inline-end: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .mod-analyzer__issue-file {
   color: var(--color-text-tertiary);
   font-size: 12px;
@@ -515,6 +522,7 @@
 
 .mod-analyzer__mod-preview-actions .mod-analyzer__copy-id,
 .mod-analyzer__mod-preview-actions .mod-analyzer__mod-edit,
+.mod-analyzer__mod-preview-actions .mod-analyzer__mod-keep,
 .mod-analyzer__mod-preview-actions .mod-analyzer__mod-delete {
   display: flex;
   align-items: center;
@@ -538,6 +546,33 @@
 .mod-analyzer__mod-preview-actions .mod-analyzer__mod-delete:hover {
   background: rgba(0, 0, 0, 0.8);
   color: var(--color-error);
+}
+
+.mod-analyzer__mod-preview-actions .mod-analyzer__mod-keep:hover {
+  background: rgba(0, 0, 0, 0.8);
+  color: var(--color-success);
+}
+
+/* Dedup-assist confirm dialog content */
+.mod-analyzer__dedup-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.mod-analyzer__dedup-confirm-list {
+  margin: 0;
+  padding-left: 20px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.mod-analyzer__dedup-confirm-hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
 }
 
 .mod-analyzer__mod-info {

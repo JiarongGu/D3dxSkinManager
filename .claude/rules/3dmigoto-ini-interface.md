@@ -179,6 +179,20 @@ as it matures.
 (puppeteer), NOT WebFetch.
 
 ## Where this lives in our code
-- Parse today: `Modules/Mod/Services/ModKeybindingService.cs` (`ParseKeybindingsAsync`, `[Key*]` only).
+- **Shared read-parser: `Modules/Core/Helpers/IniParser.cs`** (2026-07-05) — sections + entries, BOTH
+  comment chars (`;`/`；`), control-flow lines kept raw (never split `if $x == 1` on '='), `namespace =`
+  first-line directive, and `IsDisabledPath` (any path segment starting "disabled" — XXMI
+  `exclude_recursive = DISABLED*` / GIMI-merge renames; those files never load, so tools must skip
+  them). Used by `ModAnalysisService`; migrate other read-paths opportunistically (write-back
+  rewriters keep their own line-level edits).
+- **Analyzer is grounded in these docs** (`ModAnalysisService.ParseIniStructure`, 2026-07-05): hash =
+  8 hex on TextureOverride / 16 on ShaderOverride (wrong → MalformedHash; valid shader hashes join the
+  conflict set); an *Override with no `hash` and no `match_*`/`filter_index` → DeadOverride; `[Key*]`
+  without `key`/`back` → KeyMissingBinding; per-section if/endif balance → UnbalancedCondition (Error —
+  unresolved conditions fail OPEN); duplicate section name in one file → Info (real mods repeat
+  `[Constants]`; 3DMigoto merges); DISABLED inis excluded from hashes (fixes false conflicts/duplicates
+  on merged mods; all-disabled → AllIniDisabled Warning). Plugin refs map pattern→NAME explicitly and
+  the presence check includes the XXMI importer's `<importer>/Core/<plugin>` dir.
+- Keybinding parse: `Modules/Mod/Services/ModKeybindingService.cs` (`ParseKeybindingsAsync`, `[Key*]` only).
 - `.ini`s live in the extracted cache (`CacheModsDirectory/{id}` or `DISABLED-{id}`), recompressed into
   the archive (source of truth) — see `filesystem-operation-serialization.md` + `use-project-paths.md`.

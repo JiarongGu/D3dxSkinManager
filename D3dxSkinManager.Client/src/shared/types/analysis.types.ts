@@ -1,6 +1,11 @@
 // NOTE: Enums are camelCase because IpcHandler serializes with JsonStringEnumConverter(CamelCase)
 export type HealthIssueSeverity = 'error' | 'warning' | 'info';
-export type HealthIssueType = 'noIniFile' | 'emptyMod' | 'missingResource' | 'invalidIniSyntax' | 'emptyIniFile' | 'staleHash' | 'missingPlugin';
+export type HealthIssueType =
+  | 'noIniFile' | 'emptyMod' | 'missingResource' | 'invalidIniSyntax' | 'emptyIniFile'
+  | 'staleHash' | 'missingPlugin'
+  // Grounded checks (2026-07-05, 3DMigoto INI docs)
+  | 'allIniDisabled' | 'malformedHash' | 'unbalancedCondition' | 'duplicateSection'
+  | 'deadOverride' | 'keyMissingBinding';
 export type DuplicateType = 'identical' | 'textureVariant';
 export type AnalysisStatus = 'idle' | 'running' | 'paused' | 'completed' | 'cancelled';
 

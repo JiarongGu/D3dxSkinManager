@@ -516,4 +516,133 @@ public class ModAnalysisServiceTests : IDisposable
         report.DuplicateGroups[0].Mods.Should().HaveCount(2);
         report.IdenticalCount.Should().Be(1);
     }
+
+    // ===== Grounded ini checks (2026-07-05 — leotorrez INI docs; see 3dmigoto-ini-interface.md) =====
+
+    /// <summary>Create a real cached mod dir + wire mocks so StartAnalysisAsync analyzes it; returns inserted findings.</summary>
+    private List<AnalysisFindingEntity> ArrangeCachedMod(string modId, params (string relPath, string content)[] files)
+    {
+        var modDir = Path.Combine(_tempDir, "mods", modId);
+        Directory.CreateDirectory(modDir);
+        foreach (var (relPath, content) in files)
+        {
+            var full = Path.Combine(modDir, relPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            File.WriteAllText(full, content);
+        }
+
+        var entities = new List<ModEntity> { new() { Id = modId, Name = modId } };
+        var enriched = new List<ModInfo> { new() { Id = modId, Name = modId, HasCache = true, IsAvailable = true } };
+        _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(entities);
+        _mockEnrichmentService.Setup(e => e.EnrichAllAsync(It.IsAny<List<ModInfo>>())).ReturnsAsync(enriched);
+
+        var inserted = new List<AnalysisFindingEntity>();
+        AnalysisSessionEntity? capturedSession = null;
+        _mockAnalysisRepository
+            .Setup(r => r.CreateSessionAsync(It.IsAny<AnalysisSessionEntity>()))
+            .Callback<AnalysisSessionEntity>(s => capturedSession = s)
+            .ReturnsAsync((AnalysisSessionEntity s) => s.Id);
+        _mockAnalysisRepository
+            .Setup(r => r.InsertFindingAsync(It.IsAny<AnalysisFindingEntity>()))
+            .Callback<AnalysisFindingEntity>(f => inserted.Add(f))
+            .Returns(Task.CompletedTask);
+        _mockAnalysisRepository
+            .Setup(r => r.GetSessionAsync(It.IsAny<string>()))
+            .ReturnsAsync((string id) => capturedSession?.Id == id ? capturedSession : null);
+        _mockAnalysisRepository
+            .Setup(r => r.GetFindingsBySessionAsync(It.IsAny<string>()))
+            .ReturnsAsync(() => inserted);
+        return inserted;
+    }
+
+    private static List<string> IssueTypeNames(AnalysisFindingEntity finding)
+    {
+        var issues = JsonSerializer.Deserialize<List<ModHealthIssue>>(finding.HealthIssues)!;
+        return issues.Select(i => i.Type.ToString()).ToList();
+    }
+
+    [Fact]
+    public async Task StartAnalysisAsync_GroundedChecks_FlagMalformedHash_DeadOverride_UnbalancedIf_DuplicateSection_UnboundKey()
+    {
+        var inserted = ArrangeCachedMod("mod-checks", ("mod.ini", string.Join('\n', new[]
+        {
+            "[TextureOverrideBadHash]",
+            "hash = 12345",                    // not 8 hex → MalformedHash
+            "[TextureOverrideDead]",
+            "handling = skip",                 // no hash, no match_* → DeadOverride
+            "[TextureOverrideGood]",
+            "hash = 5aeb1350",
+            "if $x == 1",                      // never closed → UnbalancedCondition
+            "run = CommandListA",
+            "[TextureOverrideGood]",           // same name again → DuplicateSection
+            "hash = aabbccdd",
+            "[KeyDead]",
+            "type = cycle",                    // no key=/back= → KeyMissingBinding
+        })));
+
+        var report = await _service.StartAnalysisAsync(null);
+
+        inserted.Should().HaveCount(1);
+        var types = IssueTypeNames(inserted[0]);
+        types.Should().Contain("MalformedHash");
+        types.Should().Contain("DeadOverride");
+        types.Should().Contain("UnbalancedCondition");
+        types.Should().Contain("DuplicateSection");
+        types.Should().Contain("KeyMissingBinding");
+        inserted[0].HealthStatus.Should().Be("error", "unbalanced if/endif is an Error");
+        report.ErrorCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task StartAnalysisAsync_DisabledIniFiles_AreExcludedFromHashes()
+    {
+        // A merged mod: the active merged.ini plus the original renamed DISABLED*.ini.
+        // The disabled file's hash must NOT count (the runtime never loads it) — it used to
+        // produce false conflicts/duplicates.
+        var inserted = ArrangeCachedMod("mod-disabled",
+            ("merged.ini", "[TextureOverrideA]\nhash = 5aeb1350\n"),
+            ("DISABLEDoriginal.ini", "[TextureOverrideB]\nhash = deadbeef\n"),
+            (Path.Combine("disabled", "old.ini"), "[TextureOverrideC]\nhash = cafebabe\n"));
+
+        await _service.StartAnalysisAsync(null);
+
+        inserted.Should().HaveCount(1);
+        var hashes = JsonSerializer.Deserialize<List<string>>(inserted[0].TargetHashes)!;
+        hashes.Should().BeEquivalentTo(new[] { "5aeb1350" });
+        inserted[0].IniFileCount.Should().Be(1, "only the active ini counts");
+    }
+
+    [Fact]
+    public async Task StartAnalysisAsync_AllIniDisabled_IsWarningNotError()
+    {
+        var inserted = ArrangeCachedMod("mod-all-disabled",
+            ("DISABLEDmod.ini", "[TextureOverrideA]\nhash = 5aeb1350\n"));
+
+        await _service.StartAnalysisAsync(null);
+
+        inserted.Should().HaveCount(1);
+        IssueTypeNames(inserted[0]).Should().Contain("AllIniDisabled");
+        inserted[0].HealthStatus.Should().Be("warning");
+    }
+
+    [Fact]
+    public async Task StartAnalysisAsync_FullwidthComments_AndShaderHashes_ParseCorrectly()
+    {
+        var inserted = ArrangeCachedMod("mod-fullwidth", ("mod.ini", string.Join('\n', new[]
+        {
+            "[TextureOverrideA]",
+            "；hash = deadbeef",               // fullwidth-commented → ignored
+            "hash = 5aeb1350",
+            "[ShaderOverrideB]",
+            "hash = 030dbce199e10697",         // 16-hex shader hash → collected, not malformed
+        })));
+
+        await _service.StartAnalysisAsync(null);
+
+        inserted.Should().HaveCount(1);
+        var hashes = JsonSerializer.Deserialize<List<string>>(inserted[0].TargetHashes)!;
+        hashes.Should().BeEquivalentTo(new[] { "5aeb1350", "030dbce199e10697" });
+        IssueTypeNames(inserted[0]).Should().NotContain("MalformedHash");
+        inserted[0].HealthStatus.Should().Be("healthy");
+    }
 }

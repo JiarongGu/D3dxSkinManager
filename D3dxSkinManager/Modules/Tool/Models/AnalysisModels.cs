@@ -12,7 +12,14 @@ public enum HealthIssueType
     InvalidIniSyntax,
     EmptyIniFile,
     StaleHash,
-    MissingPlugin
+    MissingPlugin,
+    // Grounded checks (2026-07-05, leotorrez INI docs — see .claude/rules/3dmigoto-ini-interface.md)
+    AllIniDisabled,       // every .ini is DISABLED-prefixed → the mod renders nothing
+    MalformedHash,        // hash not hex / wrong length (TextureOverride = 8, ShaderOverride = 16)
+    UnbalancedCondition,  // if/endif depth mismatch inside a section
+    DuplicateSection,     // same section name twice in one file
+    DeadOverride,         // *Override with no hash and no match_* / filter_index — never triggers
+    KeyMissingBinding     // [Key*] with no key=/back= line — unreachable binding
 }
 
 public enum DuplicateType { Identical, TextureVariant }

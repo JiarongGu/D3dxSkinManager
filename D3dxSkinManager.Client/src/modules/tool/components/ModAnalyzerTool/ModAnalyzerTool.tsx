@@ -7,7 +7,9 @@ import { eventBus, Module, ToolsEventType } from '../../../../shared/services/ev
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
 import { navigateToModSearch } from '../../../../shared/hooks/useAppNavigation';
-import type { FullAnalysisReport, AnalysisProgress, AnalysisSessionSummary } from '../../../../shared/types/analysis.types';
+import { notification } from '../../../../shared/utils/notification';
+import { ConfirmDialog } from '../../../../shared/components/dialogs/ConfirmDialog';
+import type { FullAnalysisReport, AnalysisProgress, AnalysisSessionSummary, ModAnalysisResult } from '../../../../shared/types/analysis.types';
 import type { CategoryInfo } from '../../../../shared/types/category.types';
 import { ScanView } from './components/ScanView';
 import { FindingsView } from './components/FindingsView';
@@ -246,6 +248,57 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
     } catch (error: unknown) { handleError(error); }
   }, [selectedProfileId]);
 
+  // Remove a set of mod ids from the report optimistically (single delete + group dedup share this).
+  const removeFromReport = useCallback((modIds: string[]) => {
+    const idSet = new Set(modIds);
+    setReport(prev => {
+      if (!prev) return prev;
+      const newResults = prev.results.filter(r => !idSet.has(r.modId));
+      const newGroups = prev.duplicateGroups
+        .map(g => ({ ...g, mods: g.mods.filter(m => !idSet.has(m.modId)) }))
+        .filter(g => g.mods.length > 1); // Dissolve single-mod groups
+      const newConflicts = prev.conflicts
+        .map(c => ({ ...c, mods: c.mods.filter(m => !idSet.has(m.modId)) }))
+        .filter(c => c.mods.length > 1);
+      return {
+        ...prev,
+        results: newResults,
+        analyzedCount: newResults.length,
+        totalMods: Math.max(prev.totalMods - modIds.length, newResults.length),
+        duplicateGroups: newGroups,
+        identicalCount: newGroups.filter(g => g.type === 'identical').length,
+        textureVariantCount: newGroups.filter(g => g.type === 'textureVariant').length,
+        conflicts: newConflicts,
+        conflictCount: newConflicts.length,
+        affectedModCount: new Set(newConflicts.flatMap(c => c.mods.map(m => m.modId))).size,
+        healthyCount: newResults.filter(r => r.healthStatus === 'healthy').length,
+        warningCount: newResults.filter(r => r.healthStatus === 'warning').length,
+        errorCount: newResults.filter(r => r.healthStatus === 'error').length,
+      };
+    });
+  }, []);
+
+  // Dedup-assist: "keep this one, delete the rest" — staged into a ConfirmDialog, then batch-deleted
+  // in the background (ONE cancellable process in the Activity panel).
+  const [resolvingGroup, setResolvingGroup] = useState<{ keep: ModAnalysisResult; remove: ModAnalysisResult[] }>();
+
+  const startResolveGroup = useCallback((keep: ModAnalysisResult, groupMods: ModAnalysisResult[]) => {
+    const remove = groupMods.filter(m => m.modId !== keep.modId);
+    if (remove.length > 0) setResolvingGroup({ keep, remove });
+  }, []);
+
+  const confirmResolveGroup = useCallback(async () => {
+    const group = resolvingGroup;
+    if (!group || !selectedProfileId) return;
+    try {
+      const ids = group.remove.map(m => m.modId);
+      await api.mod.batchDeleteMods(selectedProfileId, ids);
+      removeFromReport(ids);
+      notification.info(t('tools.modAnalyzer.dedupStarted', { count: ids.length }));
+    } catch (error: unknown) { handleError(error); }
+    finally { setResolvingGroup(undefined); }
+  }, [resolvingGroup, selectedProfileId, removeFromReport, t]);
+
   const deleteDuplicateMod = useCallback(async (modId: string) => {
     if (!selectedProfileId || deletingModId) return;
     setDeletingModId(modId);
@@ -318,8 +371,32 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
           deletingModId={deletingModId}
           onEditModName={editModName}
           onLocateMods={locateMods}
+          onResolveGroup={startResolveGroup}
         />
       )}
+      <ConfirmDialog
+        visible={!!resolvingGroup}
+        title={t('tools.modAnalyzer.dedupConfirmTitle')}
+        okType="danger"
+        okText={t('tools.modAnalyzer.dedupConfirmOk', { count: resolvingGroup?.remove.length ?? 0 })}
+        onOk={confirmResolveGroup}
+        onCancel={() => setResolvingGroup(undefined)}
+        content={
+          <div className="mod-analyzer__dedup-confirm">
+            <div>
+              {t('tools.modAnalyzer.dedupConfirmKeep')}: <strong>{resolvingGroup?.keep.modName}</strong>
+              {resolvingGroup?.keep.isLoaded && <> ({t('tools.modAnalyzer.loaded')})</>}
+            </div>
+            <div>{t('tools.modAnalyzer.dedupConfirmDeleteIntro', { count: resolvingGroup?.remove.length ?? 0 })}</div>
+            <ul className="mod-analyzer__dedup-confirm-list">
+              {resolvingGroup?.remove.map(m => (
+                <li key={m.modId}>{m.modName}{m.isLoaded ? ` (${t('tools.modAnalyzer.loaded')})` : ''}</li>
+              ))}
+            </ul>
+            <div className="mod-analyzer__dedup-confirm-hint">{t('tools.modAnalyzer.dedupConfirmHint')}</div>
+          </div>
+        }
+      />
       {viewMode === 'history' && (
         <HistoryView
           sessions={sessions}
