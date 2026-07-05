@@ -7,8 +7,8 @@ using D3dxSkinManager.Modules.Core.Services;
 namespace D3dxSkinManager.Modules.Tool.Services;
 
 /// <summary>
-/// Watches the shared {data}/fixtools directory so the fix-tool library stays in sync with the folder:
-/// when the user drops in or removes a tool (a loose executable or a folder) on disk, a
+/// Watches the PROFILE's {profile}/fixtools directory so the fix-tool library stays in sync with the
+/// folder: when the user drops in or removes a tool (a loose executable or a folder) on disk, a
 /// FIX_TOOLS_CHANGED event is emitted and the UI re-scans. Mirrors ModCacheWatcher's pattern.
 /// </summary>
 public interface IFixToolsWatcher : IDisposable
@@ -19,16 +19,16 @@ public interface IFixToolsWatcher : IDisposable
 
 public class FixToolsWatcher : IFixToolsWatcher
 {
-    private readonly IGlobalPathService _globalPaths;
+    private readonly IProfilePathService _profilePaths;
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
     private FileSystemWatcher? _watcher;
     private readonly object _lock = new();
     private bool _isDisposed;
 
-    public FixToolsWatcher(IGlobalPathService globalPaths, IProfileEventBus eventBus, ILogHelper logger)
+    public FixToolsWatcher(IProfilePathService profilePaths, IProfileEventBus eventBus, ILogHelper logger)
     {
-        _globalPaths = globalPaths;
+        _profilePaths = profilePaths;
         _eventBus = eventBus;
         _logger = logger;
     }
@@ -39,7 +39,7 @@ public class FixToolsWatcher : IFixToolsWatcher
         {
             if (_watcher != null) return;
 
-            var dir = _globalPaths.FixToolsDirectory;
+            var dir = _profilePaths.FixToolsDirectory;
             if (!Directory.Exists(dir))
             {
                 try { Directory.CreateDirectory(dir); }

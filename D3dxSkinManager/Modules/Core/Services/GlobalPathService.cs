@@ -60,6 +60,8 @@ public class GlobalPathService : IGlobalPathService
 
     public string DownloadsDirectory => Path.Combine(BaseDataPath, "downloads");
 
+    // LEGACY (pre-2026-07): fix tools moved to {profile}/fixtools — kept only as the one-time
+    // seed source (ModFixToolService.EnsureSeeded). Do not create or write it anymore.
     public string FixToolsDirectory => Path.Combine(BaseDataPath, "fixtools");
 
     /// <summary>
@@ -75,7 +77,7 @@ public class GlobalPathService : IGlobalPathService
         Directory.CreateDirectory(GlobalSettingsDirectory);
         Directory.CreateDirectory(LogsDirectory);
         Directory.CreateDirectory(DownloadsDirectory);
-        Directory.CreateDirectory(FixToolsDirectory);
+        // FixToolsDirectory intentionally NOT created — legacy location (per-profile since 2026-07).
     }
 
     // Helper method implementations

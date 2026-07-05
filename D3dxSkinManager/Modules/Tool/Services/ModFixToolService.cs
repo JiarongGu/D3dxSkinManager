@@ -1,3 +1,4 @@
+using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
@@ -36,6 +37,7 @@ public interface IModFixToolService
 
 public class ModFixToolService : IModFixToolService
 {
+    private readonly IProfilePathService _profilePaths;
     private readonly IGlobalPathService _globalPaths;
     private readonly ILogHelper _logger;
     // Entry auto-detection preference: self-contained exe first, then batch, then python.
@@ -43,17 +45,48 @@ public class ModFixToolService : IModFixToolService
     // Marker file (inside a folder tool) recording the user's chosen entries (one relative path per line).
     private const string EntryMarker = ".fixentry";
 
-    public ModFixToolService(IGlobalPathService globalPaths, ILogHelper logger)
+    public ModFixToolService(IProfilePathService profilePaths, IGlobalPathService globalPaths, ILogHelper logger)
     {
+        _profilePaths = profilePaths;
         _globalPaths = globalPaths;
         _logger = logger;
     }
 
-    // Fix tools now live in the SHARED data folder ({data}/fixtools), not per-profile.
-    private string Root => _globalPaths.FixToolsDirectory;
+    // Fix tools are PER PROFILE ({profile}/fixtools) — different games need different tool sets.
+    // The global {data}/fixtools only remains as a legacy seed source (see EnsureSeeded).
+    private string Root => _profilePaths.FixToolsDirectory;
+
+    /// <summary>
+    /// One-time seed: when this profile has never had a fixtools dir but the legacy SHARED
+    /// {data}/fixtools holds tools (pre-2026-07 layout), copy them in so existing users keep their
+    /// library. Dir-exists is the "already seeded" marker — deleting every tool later won't re-seed.
+    /// </summary>
+    private void EnsureSeeded()
+    {
+        var root = Root;
+        if (Directory.Exists(root)) return;
+
+        var legacy = _globalPaths.FixToolsDirectory;
+        Directory.CreateDirectory(root);
+        if (!Directory.Exists(legacy)) return;
+
+        try
+        {
+            foreach (var file in Directory.GetFiles(legacy))
+                File.Copy(file, Path.Combine(root, Path.GetFileName(file)), overwrite: false);
+            foreach (var dir in Directory.GetDirectories(legacy))
+                CopyDirectory(dir, Path.Combine(root, Path.GetFileName(dir)));
+            _logger.Info($"[ModFixTool] Seeded profile fixtools from legacy shared folder ({legacy})", "ModFixToolService");
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[ModFixTool] Legacy fixtools seed failed: {ex.Message}", "ModFixToolService");
+        }
+    }
 
     public Task<List<ModFixTool>> GetAllAsync()
     {
+        EnsureSeeded();
         var root = Root;
         var tools = new List<ModFixTool>();
         if (!Directory.Exists(root)) return Task.FromResult(tools);
@@ -98,6 +131,7 @@ public class ModFixToolService : IModFixToolService
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new OperationException("FIX_TOOL_NAME_REQUIRED");
+        EnsureSeeded();
 
         var folderName = UniqueFolderName(Sanitize(name));
         var toolDir = Path.Combine(Root,folderName);

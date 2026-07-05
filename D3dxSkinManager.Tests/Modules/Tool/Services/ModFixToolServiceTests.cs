@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
+using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
@@ -14,21 +15,26 @@ using D3dxSkinManager.Modules.Tool.Services;
 namespace D3dxSkinManager.Tests.Modules.Tool.Services;
 
 /// <summary>
-/// Tests for the shared fix-tool library ({data}/fixtools): top-level scan (loose executables +
-/// folders), entry auto-resolution (lone exe over helper .py), unresolved + candidates, MULTIPLE
-/// entries per toolset via SetEntries, rename (folder-only), and deletion.
+/// Tests for the PER-PROFILE fix-tool library ({profile}/fixtools): top-level scan (loose
+/// executables + folders), entry auto-resolution (lone exe over helper .py), unresolved +
+/// candidates, MULTIPLE entries per toolset via SetEntries, rename (folder-only), deletion, and
+/// the one-time seed from the legacy shared {data}/fixtools location.
 /// </summary>
 public class ModFixToolServiceTests : IDisposable
 {
     private readonly string _fixDir;
+    private readonly string _legacyDir;
     private readonly ModFixToolService _service;
 
     public ModFixToolServiceTests()
     {
         _fixDir = Path.Combine(Path.GetTempPath(), "d3dx-fixtools-test-" + Guid.NewGuid().ToString("N"));
-        var paths = new Mock<IGlobalPathService>();
-        paths.Setup(p => p.FixToolsDirectory).Returns(_fixDir);
-        _service = new ModFixToolService(paths.Object, Mock.Of<ILogHelper>());
+        _legacyDir = Path.Combine(Path.GetTempPath(), "d3dx-fixtools-legacy-" + Guid.NewGuid().ToString("N"));
+        var profilePaths = new Mock<IProfilePathService>();
+        profilePaths.Setup(p => p.FixToolsDirectory).Returns(_fixDir);
+        var globalPaths = new Mock<IGlobalPathService>();
+        globalPaths.Setup(p => p.FixToolsDirectory).Returns(_legacyDir);
+        _service = new ModFixToolService(profilePaths.Object, globalPaths.Object, Mock.Of<ILogHelper>());
     }
 
     private static string MakeFile(string ext)
@@ -166,8 +172,37 @@ public class ModFixToolServiceTests : IDisposable
         (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("FIX_TOOL_RENAME_FOLDER_ONLY");
     }
 
+    // ===== Legacy seed (global {data}/fixtools → {profile}/fixtools, one-time) =====
+
+    [Fact]
+    public async Task GetAll_FirstAccess_SeedsFromLegacySharedFolder()
+    {
+        Directory.CreateDirectory(Path.Combine(_legacyDir, "OldTool"));
+        File.WriteAllText(Path.Combine(_legacyDir, "OldTool", "fix.exe"), "x");
+        File.WriteAllText(Path.Combine(_legacyDir, "loose.bat"), "x");
+
+        var tools = await _service.GetAllAsync();
+
+        tools.Select(t => t.Id).Should().BeEquivalentTo(["OldTool", "loose.bat"]);
+        File.Exists(Path.Combine(_fixDir, "OldTool", "fix.exe")).Should().BeTrue("legacy tools are copied into the profile");
+        Directory.Exists(_legacyDir).Should().BeTrue("the legacy folder is left untouched");
+    }
+
+    [Fact]
+    public async Task GetAll_AfterProfileDirExists_DoesNotReseed()
+    {
+        Directory.CreateDirectory(_fixDir); // profile already initialized (even if empty)
+        Directory.CreateDirectory(_legacyDir);
+        File.WriteAllText(Path.Combine(_legacyDir, "late.bat"), "x");
+
+        var tools = await _service.GetAllAsync();
+
+        tools.Should().BeEmpty("dir-exists is the seeded marker — deleting all tools must not resurrect legacy ones");
+    }
+
     public void Dispose()
     {
         try { if (Directory.Exists(_fixDir)) Directory.Delete(_fixDir, true); } catch { }
+        try { if (Directory.Exists(_legacyDir)) Directory.Delete(_legacyDir, true); } catch { }
     }
 }
