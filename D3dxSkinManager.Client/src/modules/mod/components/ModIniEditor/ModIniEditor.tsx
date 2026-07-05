@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Collapse, Empty, Tooltip, Input, Spin, Tabs, Select, Switch } from 'antd';
+import { Collapse, Empty, Tooltip, Input, InputNumber, Spin, Tabs, Select, Switch } from 'antd';
 import {
   LockOutlined, CheckOutlined, CloseOutlined, SettingOutlined, ApartmentOutlined,
 } from '@ant-design/icons';
@@ -45,6 +45,11 @@ function friendlyKey(key: string, t: (k: string) => string): string {
     delay: t('modIni.field.delay'),
     wrap: t('modIni.field.wrap'),
     smart: t('modIni.field.smart'),
+    transition: t('modIni.field.transition'),
+    transition_type: t('modIni.field.transitionType'),
+    release_delay: t('modIni.field.releaseDelay'),
+    release_transition: t('modIni.field.releaseTransition'),
+    release_transition_type: t('modIni.field.releaseTransitionType'),
   };
   if (known[lower]) return known[lower];
   // Strip 3DMigoto variable qualifiers and the $ sigil, then humanize what's left.
@@ -242,6 +247,10 @@ const IniSection: React.FC<{
 };
 
 const TYPE_OPTIONS = ['cycle', 'hold', 'toggle'];
+// [Key*] millisecond easings (delay/transition families) — number fields, not free text.
+const MS_KEYS = new Set(['delay', 'transition', 'release_delay', 'release_transition']);
+// Easing curves 3DMigoto accepts for transition_type / release_transition_type (docs: key page).
+const TRANSITION_TYPE_OPTIONS = ['linear', 'cosine'];
 
 const IniRow: React.FC<{
   entry: ModIniEntry;
@@ -266,6 +275,10 @@ const IniRow: React.FC<{
   const isBoolean = !advanced && (keyLower === 'wrap' || keyLower === 'smart');
   // Hotkey rows: capture a chord visually instead of typing raw VK text. (key = main, back = reverse-cycle)
   const isHotkey = !advanced && (keyLower === 'key' || keyLower === 'back');
+  // Millisecond easings (delay/transition families) → a number field with an ms suffix.
+  const isMs = !advanced && MS_KEYS.has(keyLower);
+  // Easing curve → a Select over the values 3DMigoto accepts.
+  const isTransitionType = !advanced && (keyLower === 'transition_type' || keyLower === 'release_transition_type');
 
   const commitValue = async (value: string) => {
     if (saving) return;
@@ -327,6 +340,55 @@ const IniRow: React.FC<{
           <Switch size="small" checked={on} loading={saving} disabled={saving} onChange={(v) => void commitValue(v ? 'true' : 'false')} />
         </span>
         <span className="ini-row__actions" />
+      </div>
+    );
+  }
+
+  if (isTransitionType) {
+    const options = Array.from(new Set([entry.value, ...TRANSITION_TYPE_OPTIONS]))
+      .filter(Boolean)
+      .map((v) => ({ value: v, label: v }));
+    return (
+      <div className="ini-row">
+        {labelEl}
+        <Select
+          className="ini-row__input"
+          size="small"
+          value={entry.value || undefined}
+          placeholder="linear"
+          disabled={saving}
+          loading={saving}
+          options={options}
+          onChange={(v) => void commitValue(v)}
+        />
+        <span className="ini-row__actions" />
+      </div>
+    );
+  }
+
+  if (isMs) {
+    return (
+      <div className="ini-row">
+        {labelEl}
+        <InputNumber
+          className="ini-row__input"
+          size="small"
+          min={0}
+          step={50}
+          value={draft === '' ? undefined : Number(draft)}
+          disabled={saving}
+          suffix="ms"
+          onChange={(v) => setDraft(v === null || v === undefined ? '' : String(v))}
+          onPressEnter={() => void commitValue(draft)}
+        />
+        <span className="ini-row__actions">
+          {dirty && (
+            <>
+              <CompactIconButton tone="success" icon={<CheckOutlined />} loading={saving} title={t('common.save')} onClick={() => void commitValue(draft)} />
+              <CompactIconButton tone="danger" icon={<CloseOutlined />} disabled={saving} title={t('common.cancel')} onClick={() => setDraft(entry.value)} />
+            </>
+          )}
+        </span>
       </div>
     );
   }

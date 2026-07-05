@@ -136,9 +136,13 @@ open, shows kept/struck-through copies + saved bytes, Apply → Activity panel. 
 ref-rewrite machinery; add as an optimizer option later.
 
 ### 5. Config-editor growth (extend the `.ini` editor)
-Still open: `transition*` as ms number fields, **multiple `key=` lines** (ties into B4), Xbox `XB_*`,
-controller combos; per-toggle grouping that ties a `[Key]`'s cycle list to the `$var` it drives
-(cross-section view).
+SHIPPED 2026-07-05: `delay`/`transition`/`release_delay`/`release_transition` render as ms
+`InputNumber` fields (suffix "ms", step 50) and `transition_type`/`release_transition_type` as a
+linear/cosine Select in `ModIniEditor`, with friendly labels in both languages. Multiple `key=`
+lines shipped earlier with B4. Verified e2e both themes against a fixture `[Key*]`; UI save
+persists via `UPDATE_INI_ENTRY`.
+Still open: Xbox `XB_*` / controller-combo helpers in `KeyCaptureInput`; per-toggle grouping that
+ties a `[Key]`'s cycle list to the `$var` it drives (cross-section view).
 
 ### 6. Remote mod library (the big reach)
 Browse/fetch/download from remote sources (GameBanana-style) → one-click import into a profile.
