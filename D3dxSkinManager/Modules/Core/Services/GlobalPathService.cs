@@ -24,6 +24,10 @@ public interface IGlobalPathService
     /// game-agnostic scripts, so one central place is easier to manage.</summary>
     string FixToolsDirectory { get; }
 
+    /// <summary>Remote mod-library site adapters ({data}/remote-sources — one JSON per site).
+    /// Global: a site serves multiple games; the list/game choice happens in the UI.</summary>
+    string RemoteSourcesDirectory { get; }
+
     void EnsureDirectoriesExist();
     string GetProfileDirectoryPath(string profileId);
     string GetProfileConfigPath(string profileId);
@@ -64,6 +68,8 @@ public class GlobalPathService : IGlobalPathService
     // seed source (ModFixToolService.EnsureSeeded). Do not create or write it anymore.
     public string FixToolsDirectory => Path.Combine(BaseDataPath, "fixtools");
 
+    public string RemoteSourcesDirectory => Path.Combine(BaseDataPath, "remote-sources");
+
     /// <summary>
     /// Ensure all standard global directories exist
     /// Creates directories if they don't exist
@@ -77,6 +83,7 @@ public class GlobalPathService : IGlobalPathService
         Directory.CreateDirectory(GlobalSettingsDirectory);
         Directory.CreateDirectory(LogsDirectory);
         Directory.CreateDirectory(DownloadsDirectory);
+        Directory.CreateDirectory(RemoteSourcesDirectory);
         // FixToolsDirectory intentionally NOT created — legacy location (per-profile since 2026-07).
     }
 

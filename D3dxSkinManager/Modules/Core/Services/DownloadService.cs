@@ -26,6 +26,10 @@ public interface IDownloadService
     Task<string> GetStringAsync(string url, IReadOnlyDictionary<string, string>? headers = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>POST a JSON body and return the response body (e.g. a JSON API call).</summary>
+    Task<string> PostJsonAsync(string url, string jsonBody, IReadOnlyDictionary<string, string>? headers = null,
+        CancellationToken cancellationToken = default);
+
     /// <summary>The managed downloads directory — the one place kept downloads live + get cleaned.</summary>
     string ManagedDirectory { get; }
 
@@ -151,6 +155,31 @@ public class DownloadService : IDownloadService
         try
         {
             using var req = BuildRequest(url, headers);
+            using var resp = await _http.SendAsync(req, cancellationToken).ConfigureAwait(false);
+            resp.EnsureSuccessStatusCode();
+            return await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new OperationException(
+                "DOWNLOAD_FAILED",
+                new Dictionary<string, string> { { "url", url }, { "reason", ex.Message } },
+                $"Request failed: {ex.Message}");
+        }
+    }
+
+    public async Task<string> PostJsonAsync(string url, string jsonBody,
+        IReadOnlyDictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var req = BuildRequest(url, headers);
+            req.Method = HttpMethod.Post;
+            req.Content = new StringContent(jsonBody, global::System.Text.Encoding.UTF8, "application/json");
             using var resp = await _http.SendAsync(req, cancellationToken).ConfigureAwait(false);
             resp.EnsureSuccessStatusCode();
             return await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

@@ -6,6 +6,7 @@ using D3dxSkinManager.Modules.Profiles;
 using D3dxSkinManager.Modules.System;
 using D3dxSkinManager.Modules.Tool;
 using D3dxSkinManager.Modules.Launch;
+using D3dxSkinManager.Modules.Remote;
 using D3dxSkinManager.Modules.Migration;
 using D3dxSkinManager.Modules.Workflow;
 using D3dxSkinManager.Modules.Core.Services;
@@ -521,6 +522,7 @@ public class ApplicationHost
             .MapFacade<ICategoryFacade>(ModuleNames.CATEGORY, services => services.AddCategoryServices())
             .MapFacade<IToolFacade>(ModuleNames.TOOL, services => services.AddToolsServices())
             .MapFacade<ILaunchFacade>("LAUNCH", services => services.AddLaunchServices())
+            .MapFacade<IRemoteFacade>("REMOTE", services => services.AddRemoteServices())
             .MapFacade<IMigrationFacade>("MIGRATION", services => services.AddMigrationServices())
             .MapFacade<IPluginFacade>(ModuleNames.PLUGIN, services => services.AddPluginsServices())
             .MapFacade<IWorkflowFacade>(ModuleNames.WORKFLOW, services => services.AddWorkflowServices());

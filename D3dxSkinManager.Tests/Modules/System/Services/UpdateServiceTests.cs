@@ -224,6 +224,9 @@ public class UpdateServiceTests : IDisposable
             CancellationToken cancellationToken = default)
             => Task.FromResult(url.EndsWith("/releases/latest") ? _releasesJson : "{}");
 
+        public Task<string> PostJsonAsync(string url, string jsonBody, IReadOnlyDictionary<string, string>? headers = null,
+            CancellationToken cancellationToken = default) => throw new NotImplementedException();
+
         public async Task<DownloadResult> DownloadAsync(DownloadRequest request,
             IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
         {
