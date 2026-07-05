@@ -31,18 +31,21 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     private readonly IRemoteBrowseService _browse;
     private readonly IRemoteImportService _import;
     private readonly IRemoteIndexService _index;
+    private readonly IRemoteSourceStore _sourceStore;
     private readonly IPayloadHelper _payloadHelper;
 
     public RemoteFacade(
         IRemoteBrowseService browse,
         IRemoteImportService import,
         IRemoteIndexService index,
+        IRemoteSourceStore sourceStore,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
         _browse = browse ?? throw new ArgumentNullException(nameof(browse));
         _import = import ?? throw new ArgumentNullException(nameof(import));
         _index = index ?? throw new ArgumentNullException(nameof(index));
+        _sourceStore = sourceStore ?? throw new ArgumentNullException(nameof(sourceStore));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -58,6 +61,12 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "DOWNLOAD_IMPORT" => StartDownloadImport(request),
             "INDEX_QUERY" => await QueryIndexAsync(request),
             "INDEX_SYNC" => StartIndexSync(request),
+            "SAVE_SOURCE" => SaveSource(request),
+            "DELETE_SOURCE" => DeleteSource(request),
+            "GET_SOURCE_CONFIG" => _sourceStore.GetById(
+                _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId")),
+            "TEST_SOURCE" => await TestSourceAsync(request),
+            "GET_SOURCE_TEMPLATE" => _sourceStore.GetTemplateJson(),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -152,5 +161,24 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var listId = _payloadHelper.GetRequiredValue<string>(request.Payload, "listId");
         var processId = StartIndexSync(sourceId, listId);
         return new { started = processId.Length > 0, processId };
+    }
+
+    private object SaveSource(IpcRequest request)
+    {
+        var config = _payloadHelper.GetRequiredValue<RemoteSourceConfig>(request.Payload, "config");
+        return _sourceStore.Save(config);
+    }
+
+    private object DeleteSource(IpcRequest request)
+    {
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        return _sourceStore.Delete(sourceId);
+    }
+
+    private Task<RemoteSourceTestResult> TestSourceAsync(IpcRequest request)
+    {
+        var config = _payloadHelper.GetRequiredValue<RemoteSourceConfig>(request.Payload, "config");
+        var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
+        return _browse.TestConfigAsync(config, listId);
     }
 }

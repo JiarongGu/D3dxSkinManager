@@ -1,0 +1,89 @@
+/* Remote library adapter manager — list + JSON editor + live test feedback. */
+
+.remote-source-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.remote-source-manager__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.remote-source-manager__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 6px;
+  background: var(--color-card-bg);
+}
+
+.remote-source-manager__row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.remote-source-manager__name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-base);
+}
+
+.remote-source-manager__url {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.remote-source-manager__editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.remote-source-manager__hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.remote-source-manager__textarea {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.remote-source-manager__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.remote-source-manager__test {
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--color-bg-layout);
+  border: 1px solid var(--color-border-secondary);
+  color: var(--color-text-base);
+}
+
+.remote-source-manager__test--error {
+  color: var(--color-error, #ff4d4f);
+}
+
+.remote-source-manager__samples {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+}

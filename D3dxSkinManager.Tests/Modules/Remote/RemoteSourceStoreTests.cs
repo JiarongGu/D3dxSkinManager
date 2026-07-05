@@ -100,6 +100,53 @@ public class RemoteSourceStoreTests : IDisposable
     }
 
     [Fact]
+    public void Save_PersistsAValidConfig_ById()
+    {
+        var config = RemoteBrowseServiceTests.LoadHuihuiSeed();
+        config.Id = "mysite";
+
+        _store.Save(config);
+
+        File.Exists(Path.Combine(_dir, "mysite.json")).Should().BeTrue();
+        _store.GetById("mysite").Name.Should().Be(config.Name);
+    }
+
+    [Theory]
+    [InlineData("bad id!", "https://ok.example")] // invalid id chars
+    [InlineData("ok", "not-a-url")]               // invalid baseUrl
+    public void Save_RejectsInvalidConfigs(string id, string baseUrl)
+    {
+        var config = RemoteBrowseServiceTests.LoadHuihuiSeed();
+        config.Id = id;
+        config.BaseUrl = baseUrl;
+
+        var act = () => _store.Save(config);
+        act.Should().Throw<OperationException>().Which.Code.Should().Be("REMOTE_SOURCE_INVALID");
+    }
+
+    [Fact]
+    public void Save_RejectsNonCompilingRegex()
+    {
+        var config = RemoteBrowseServiceTests.LoadHuihuiSeed();
+        config.CardPattern = "(unclosed";
+
+        var act = () => _store.Save(config);
+        act.Should().Throw<OperationException>().Which.Code.Should().Be("REMOTE_SOURCE_INVALID");
+    }
+
+    [Fact]
+    public void Delete_RemovesTheConfigFile_ByAdapterId()
+    {
+        var config = RemoteBrowseServiceTests.LoadHuihuiSeed();
+        config.Id = "gone";
+        _store.Save(config);
+
+        _store.Delete("gone").Should().BeTrue();
+        Directory.GetFiles(_dir, "*.json").Should().BeEmpty();
+        _store.Delete("gone").Should().BeFalse();
+    }
+
+    [Fact]
     public void ShippedHuihuiSeed_Deserializes_WithIndexPatterns()
     {
         // Sanity over the REAL shipped file (copied to test output via csproj Content).

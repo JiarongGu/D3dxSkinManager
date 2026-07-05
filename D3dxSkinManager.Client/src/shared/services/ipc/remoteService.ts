@@ -12,7 +12,9 @@ import type {
   RemoteIndexPage,
   RemoteModDetail,
   RemoteResolveResult,
+  RemoteSourceConfigDto,
   RemoteSourceInfo,
+  RemoteSourceTestResult,
 } from '../../types/remote.types';
 
 export class RemoteService extends BaseModuleService {
@@ -65,5 +67,28 @@ export class RemoteService extends BaseModuleService {
   /** Start a background crawl of all list pages (Activity panel). Immediate ack. */
   async indexSync(profileId: string, sourceId: string, listId: string): Promise<RemoteDownloadImportAck> {
     return this.sendMessage<RemoteDownloadImportAck>('INDEX_SYNC', profileId, { sourceId, listId });
+  }
+
+  /** Validate + persist a (possibly user-authored) adapter. */
+  async saveSource(profileId: string, config: RemoteSourceConfigDto): Promise<RemoteSourceConfigDto> {
+    return this.sendMessage<RemoteSourceConfigDto>('SAVE_SOURCE', profileId, { config });
+  }
+
+  async deleteSource(profileId: string, sourceId: string): Promise<boolean> {
+    return this.sendMessage<boolean>('DELETE_SOURCE', profileId, { sourceId });
+  }
+
+  /** Run a candidate config against the live site (page 1 + first detail). */
+  async testSource(profileId: string, config: RemoteSourceConfigDto, listId?: string): Promise<RemoteSourceTestResult> {
+    return this.sendMessage<RemoteSourceTestResult>('TEST_SOURCE', profileId, { config, listId });
+  }
+
+  async getSourceTemplate(profileId: string): Promise<string> {
+    return this.sendMessage<string>('GET_SOURCE_TEMPLATE', profileId);
+  }
+
+  /** The FULL adapter config (for the edit screen; GET_SOURCES only carries display info). */
+  async getSourceConfig(profileId: string, sourceId: string): Promise<RemoteSourceConfigDto> {
+    return this.sendMessage<RemoteSourceConfigDto>('GET_SOURCE_CONFIG', profileId, { sourceId });
   }
 }

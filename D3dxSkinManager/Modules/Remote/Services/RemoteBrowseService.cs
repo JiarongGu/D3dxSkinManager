@@ -17,6 +17,10 @@ public interface IRemoteBrowseService
     Task<RemoteBrowseResult> BrowseAsync(string sourceId, string listId, int page, CancellationToken ct = default);
     Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, CancellationToken ct = default);
     Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl, CancellationToken ct = default);
+
+    /// <summary>Run a CANDIDATE config (not necessarily saved) against the live site: parse list
+    /// page 1 + the first card's detail, report what was extracted — the adapter authoring loop.</summary>
+    Task<RemoteSourceTestResult> TestConfigAsync(RemoteSourceConfig config, string? listId, CancellationToken ct = default);
 }
 
 public class RemoteBrowseService : IRemoteBrowseService
@@ -47,9 +51,11 @@ public class RemoteBrowseService : IRemoteBrowseService
         return Task.FromResult(list);
     }
 
-    public async Task<RemoteBrowseResult> BrowseAsync(string sourceId, string listId, int page, CancellationToken ct = default)
+    public Task<RemoteBrowseResult> BrowseAsync(string sourceId, string listId, int page, CancellationToken ct = default) =>
+        BrowseCoreAsync(_sources.GetById(sourceId), listId, page, ct);
+
+    private async Task<RemoteBrowseResult> BrowseCoreAsync(RemoteSourceConfig source, string listId, int page, CancellationToken ct)
     {
-        var source = _sources.GetById(sourceId);
         var template = page <= 1 ? source.ListUrlFirstPage : source.ListUrlTemplate;
         var path = template.Replace("{list}", listId).Replace("{page}", page.ToString());
         var html = await FetchAsync(source, Absolute(source.BaseUrl, path), ct).ConfigureAwait(false);
@@ -70,9 +76,35 @@ public class RemoteBrowseService : IRemoteBrowseService
         return new RemoteBrowseResult { Page = 1, Cards = ExtractCards(source, html) };
     }
 
-    public async Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl, CancellationToken ct = default)
+    public Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl, CancellationToken ct = default) =>
+        GetDetailCoreAsync(_sources.GetById(sourceId), detailUrl, ct);
+
+    public async Task<RemoteSourceTestResult> TestConfigAsync(RemoteSourceConfig config, string? listId, CancellationToken ct = default)
     {
-        var source = _sources.GetById(sourceId);
+        var list = listId ?? config.Lists.FirstOrDefault()?.Id
+            ?? throw new OperationException("REMOTE_SOURCE_INVALID", "reason", "config has no lists");
+
+        var browse = await BrowseCoreAsync(config, list, 1, ct).ConfigureAwait(false);
+        var result = new RemoteSourceTestResult
+        {
+            CardCount = browse.Cards.Count,
+            SampleTitles = browse.Cards.Take(5).Select(c => c.Title).ToList(),
+            TotalPages = browse.TotalPages,
+        };
+
+        var firstCard = browse.Cards.FirstOrDefault();
+        if (firstCard != null)
+        {
+            var detail = await GetDetailCoreAsync(config, firstCard.DetailUrl, ct).ConfigureAwait(false);
+            result.DetailTitle = detail.Title;
+            result.DetailDownloads = detail.Downloads;
+            result.DetailImageCount = detail.Images.Count;
+        }
+        return result;
+    }
+
+    private async Task<RemoteModDetail> GetDetailCoreAsync(RemoteSourceConfig source, string detailUrl, CancellationToken ct)
+    {
         var url = Absolute(source.BaseUrl, detailUrl);
         // Containment: only fetch pages of the configured site with the site's parser.
         if (!url.StartsWith(source.BaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))

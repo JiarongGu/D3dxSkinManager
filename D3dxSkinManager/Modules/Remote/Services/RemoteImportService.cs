@@ -63,16 +63,38 @@ public class RemoteImportService : IRemoteImportService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Download-method dispatch — each resolver `type` in an adapter maps to a strategy here.
+    /// "cloudreve" = share-API resolve; "direct" = the URL IS the file (covers simple sites with
+    /// zero code); "external"/unknown = browser-only. New methods (other pan APIs, auth'd hosts)
+    /// slot in as new cases + adapter resolver types.
+    /// </summary>
     public Task<RemoteResolveResult> ResolveAsync(RemoteDownloadOption option, CancellationToken ct = default)
     {
-        if (!string.Equals(option.Type, "cloudreve", StringComparison.OrdinalIgnoreCase))
-            throw new OperationException("REMOTE_DOWNLOAD_UNSUPPORTED", "host", option.Name);
-        return _cloudreve.ResolveAsync(option.Url, ct);
+        switch (option.Type.ToLowerInvariant())
+        {
+            case "cloudreve":
+                return _cloudreve.ResolveAsync(option.Url, ct);
+            case "direct":
+                var name = Path.GetFileName(new Uri(option.Url).LocalPath);
+                return Task.FromResult(new RemoteResolveResult
+                {
+                    FileName = string.IsNullOrWhiteSpace(name) ? "download" : name,
+                    Size = 0, // unknown until the download's Content-Length
+                    DownloadUrl = option.Url,
+                });
+            default:
+                throw new OperationException("REMOTE_DOWNLOAD_UNSUPPORTED", "host", option.Name);
+        }
     }
+
+    private static bool IsImportable(string type) =>
+        string.Equals(type, "cloudreve", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(type, "direct", StringComparison.OrdinalIgnoreCase);
 
     public string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option)
     {
-        if (!string.Equals(option.Type, "cloudreve", StringComparison.OrdinalIgnoreCase))
+        if (!IsImportable(option.Type))
             throw new OperationException("REMOTE_DOWNLOAD_UNSUPPORTED", "host", option.Name);
 
         var title = string.IsNullOrWhiteSpace(detail.Title) ? option.Url : detail.Title.Trim();
@@ -88,7 +110,7 @@ public class RemoteImportService : IRemoteImportService
                 Directory.CreateDirectory(staging);
 
                 _processRegistry.Report(procId, 2, "Resolving download", detailKey: "process.stage.resolving");
-                var resolved = await _cloudreve.ResolveAsync(option.Url, ct).ConfigureAwait(false);
+                var resolved = await ResolveAsync(option, ct).ConfigureAwait(false);
 
                 var archivePath = Path.Combine(staging, Path.GetFileName(resolved.FileName));
                 var progress = new Progress<DownloadProgress>(p =>

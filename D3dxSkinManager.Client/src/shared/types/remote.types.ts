@@ -83,3 +83,32 @@ export interface RemoteIndexPage {
   /** Entries matching the filter (before paging). */
   total: number;
 }
+
+/** Full adapter config — mirrors RemoteSourceConfig (the editable JSON). */
+export interface RemoteSourceConfigDto {
+  id: string;
+  name: string;
+  baseUrl: string;
+  engine?: string;
+  lists: RemoteListConfig[];
+  listUrlFirstPage: string;
+  listUrlTemplate?: string;
+  searchUrlTemplate?: string;
+  cardPattern: string;
+  totalPagesPattern?: string;
+  detailTitlePattern: string;
+  detailImagePattern?: string;
+  downloadLinkPattern: string;
+  entryIdPattern?: string;
+  imageDatePattern?: string;
+  resolvers: { match: string; type: string; name: string }[];
+}
+
+export interface RemoteSourceTestResult {
+  cardCount: number;
+  sampleTitles: string[];
+  totalPages?: number;
+  detailTitle?: string;
+  detailDownloads: RemoteDownloadOption[];
+  detailImageCount: number;
+}

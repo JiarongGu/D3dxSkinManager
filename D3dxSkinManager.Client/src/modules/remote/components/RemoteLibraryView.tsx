@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Empty, Pagination, Select, Spin, Tooltip } from 'antd';
-import { CheckCircleFilled, ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, ReloadOutlined, SearchOutlined, SettingOutlined, SyncOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { api } from '../../../shared/services/ipc';
@@ -11,6 +11,7 @@ import { CompactButton, CompactInput } from '../../../shared/components/compact'
 import type { RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
+import { RemoteSourceManagerScreen } from './RemoteSourceManagerScreen';
 import './RemoteLibraryView.css';
 
 const INDEX_PAGE_SIZE = 60;
@@ -222,6 +223,26 @@ export const RemoteLibraryView: React.FC = () => {
             {t('remote.sync')}
           </CompactButton>
         </Tooltip>
+        <CompactButton
+          icon={<SettingOutlined />}
+          onClick={() =>
+            openScreen({
+              title: t('remote.manageTitle'),
+              content: (
+                <RemoteSourceManagerScreen
+                  onChanged={() => {
+                    if (selectedProfileId) {
+                      void api.remote.getSources(selectedProfileId).then(setSources).catch(handleError);
+                    }
+                  }}
+                />
+              ),
+              width: '760px',
+            })
+          }
+        >
+          {t('remote.manage')}
+        </CompactButton>
         <span className="remote-library__origin" title={source?.baseUrl}>
           {syncedAt
             ? t('remote.lastSynced', {

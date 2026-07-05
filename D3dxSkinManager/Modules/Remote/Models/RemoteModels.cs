@@ -182,3 +182,15 @@ public class RemoteIndexPage
     /// <summary>Total entries matching the filter (before paging).</summary>
     public int Total { get; set; }
 }
+
+/// <summary>What a candidate adapter config extracted from the live site — the authoring feedback loop.</summary>
+public class RemoteSourceTestResult
+{
+    public int CardCount { get; set; }
+    public List<string> SampleTitles { get; set; } = new();
+    public int? TotalPages { get; set; }
+    /// <summary>Detail parse of the first card (null when no cards matched).</summary>
+    public string? DetailTitle { get; set; }
+    public List<RemoteDownloadOption> DetailDownloads { get; set; } = new();
+    public int DetailImageCount { get; set; }
+}

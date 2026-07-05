@@ -205,10 +205,22 @@ see `.claude/rules/remote-library.md` for the grounded site/Cloudreve research +
   Metadata JSON (sha256 free from DownloadService); index entries flag `imported` → 已导入 badge.
 - Verified e2e live: 终末地 synced (23 pages → 515 entries in ~15s), instant "UI" filter (7 hits,
   date hints), imported badge round-trip (import → flag true → deleted, library restored).
+**Stage 4 SHIPPED 2026-07-05 (user-added libraries + pluggable download methods):**
+- **库管理 (Manage) screen** on the Remote tab: list adapters, add (prefilled from the shipped
+  template), edit (loads the full config JSON), **live test** (runs the candidate config against
+  the real site — page-1 card count/total pages/sample titles + first-card detail parse), delete
+  (confirm dialog). SAVE validates server-side (`REMOTE_SOURCE_INVALID`: id/baseUrl/lists +
+  every regex must compile). IPC: SAVE_SOURCE/DELETE_SOURCE/TEST_SOURCE/GET_SOURCE_CONFIG/
+  GET_SOURCE_TEMPLATE.
+- **Download-method dispatch**: resolver `type` now routes strategies — `cloudreve` (share API),
+  **`direct` (the URL is the file — simple sites need zero code)**, `external` (browser). New
+  methods = new case + adapter resolver type; fetch `engine` seam unchanged for WebView2 later.
+- Verified live: manager listed Hui站, edit loaded the config, 测试 parsed 52 cards / 146 pages +
+  first detail (2 download links, 7 images) against the live site. Tests +5 (save/validate/delete).
 **Remaining (later stages):** WebView2-rendered fetch engine for JS-heavy sites (`engine:"webview"`
-seam exists); UI for adding/editing site adapters (today: drop a JSON); more resolver types
-(quark etc. need accounts — shown as open-in-browser); auto re-sync scheduling + stale-entry
-pruning; sha256-based duplicate detection ACROSS entries (same file shared by multiple posts).
+seam exists); account-gated resolver types (quark — shown as open-in-browser); auto re-sync
+scheduling + stale-entry pruning; sha256-based duplicate detection ACROSS entries; form-based
+adapter editor (today: validated JSON editor with live test).
 
 ### 7. App self-update — ✅ SHIPPED (verified in code 2026-07-05)
 `UpdateService`: GitHub latest-release check (version + release notes + manifest file-diff) →
