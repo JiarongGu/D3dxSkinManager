@@ -177,6 +177,25 @@ const FileCleanupToolInner: React.FC = () => {
         />
       ),
     },
+{
+      key: 'remoteCache',
+      label: (
+        <TabLabel
+          text={t('tools.fileCleanup.tabs.remoteCache')}
+          count={getResultForCategory('remoteCache')?.totalCount}
+        />
+      ),
+      children: (
+        <CleanupTab
+          category="remoteCache"
+          scanResult={getResultForCategory('remoteCache')}
+          scanning={scanning}
+          onCleaned={handleCleaned}
+          emptyMessage={t('tools.fileCleanup.noRemoteCache')}
+          description={t('tools.fileCleanup.remoteCacheDescription')}
+        />
+      ),
+    },
   ];
 
   if (scanning && scanResults.length === 0) {

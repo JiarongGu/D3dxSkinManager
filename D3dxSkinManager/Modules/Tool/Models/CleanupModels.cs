@@ -10,7 +10,8 @@ public enum OrphanCategory
     TempFile,
     ModCache,
     OrphanedArchive,
-    MissingArchive
+    MissingArchive,
+    RemoteCache
 }
 
 /// <summary>

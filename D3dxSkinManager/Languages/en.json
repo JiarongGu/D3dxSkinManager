@@ -1034,6 +1034,9 @@
 
     "tools.fileCleanup.title": "File Cleanup",
     "tools.fileCleanup.description": "Find and remove orphaned thumbnails, temp files, and mod caches",
+    "tools.fileCleanup.tabs.remoteCache": "Remote Cache",
+    "tools.fileCleanup.noRemoteCache": "No cached remote-library files",
+    "tools.fileCleanup.remoteCacheDescription": "Cached images and data from remote mod libraries. Safe to clean — browsing the Remote tab re-downloads what it needs.",
     "tools.fileCleanup.tabs.thumbnails": "Thumbnails",
     "tools.fileCleanup.tabs.previews": "Previews",
     "tools.fileCleanup.tabs.tempFiles": "Temp Files",

@@ -66,7 +66,8 @@ public class FileCleanupService : IFileCleanupService
         var categories = new[]
         {
             OrphanCategory.Thumbnail, OrphanCategory.Preview, OrphanCategory.TempFile,
-            OrphanCategory.ModCache, OrphanCategory.OrphanedArchive, OrphanCategory.MissingArchive
+            OrphanCategory.ModCache, OrphanCategory.OrphanedArchive, OrphanCategory.MissingArchive,
+            OrphanCategory.RemoteCache
         };
         var procId = _processRegistry.Start(Core.Models.ProcessType.FileScan, "Scanning for orphaned files",
             titleKey: "process.fileScan");
@@ -100,6 +101,7 @@ public class FileCleanupService : IFileCleanupService
             OrphanCategory.ModCache => await ScanOrphanedModCachesAsync().ConfigureAwait(false),
             OrphanCategory.OrphanedArchive => await ScanOrphanedArchivesAsync().ConfigureAwait(false),
             OrphanCategory.MissingArchive => await ScanMissingArchivesAsync().ConfigureAwait(false),
+            OrphanCategory.RemoteCache => ScanRemoteCache(),
             _ => new OrphanScanResult { Category = category }
         };
     }
@@ -303,6 +305,31 @@ public class FileCleanupService : IFileCleanupService
     /// 3. Preview directories — _temp_reorder files from interrupted reorder ops
     /// See TempFileConstants for all temp file patterns.
     /// </summary>
+    /// <summary>
+    /// Cached remote-library images ({profile}/remote-cache) — not orphans, but a cache the user
+    /// can reclaim; re-browsing the remote tab re-downloads what it needs.
+    /// </summary>
+    private OrphanScanResult ScanRemoteCache()
+    {
+        var result = new OrphanScanResult { Category = OrphanCategory.RemoteCache };
+        var cacheDir = Path.Combine(_profilePaths.ProfilePath, "remote-cache");
+        if (!Directory.Exists(cacheDir)) return result;
+
+        foreach (var dir in Directory.GetDirectories(cacheDir))
+        {
+            result.Items.Add(new OrphanedItem
+            {
+                Path = dir,
+                Name = Path.GetFileName(dir),
+                SizeBytes = FileUtilities.GetDirectorySize(dir),
+                LastModified = Directory.GetLastWriteTime(dir).ToString("yyyy-MM-dd HH:mm:ss"),
+                Category = OrphanCategory.RemoteCache,
+                IsDirectory = true
+            });
+        }
+        return result;
+    }
+
     private OrphanScanResult ScanOrphanedTempFiles()
     {
         var result = new OrphanScanResult { Category = OrphanCategory.TempFile };

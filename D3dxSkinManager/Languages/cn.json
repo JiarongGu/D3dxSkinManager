@@ -1034,6 +1034,9 @@
 
     "tools.fileCleanup.title": "文件清理",
     "tools.fileCleanup.description": "查找并删除孤立的缩略图、临时文件和模组缓存",
+    "tools.fileCleanup.tabs.remoteCache": "远程缓存",
+    "tools.fileCleanup.noRemoteCache": "没有远程库缓存文件",
+    "tools.fileCleanup.remoteCacheDescription": "远程模组库缓存的图片和数据。可安全清理 — 浏览远程库页时会按需重新下载。",
     "tools.fileCleanup.tabs.thumbnails": "缩略图",
     "tools.fileCleanup.tabs.previews": "预览",
     "tools.fileCleanup.tabs.tempFiles": "临时文件",

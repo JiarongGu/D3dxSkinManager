@@ -7,6 +7,7 @@ import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { formatBytes } from '../../../shared/utils/formatBytes';
+import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 import { CompactButton } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import { KeyValueRows } from '../../../shared/components/common/KeyValueRows';
@@ -41,6 +42,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [resolving, setResolving] = useState<string>();
+  const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [confirmState, setConfirmState] = useState<{
     option: RemoteDownloadOption;
     resolved: RemoteResolveResult;
@@ -51,7 +53,11 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
     void (async () => {
       try {
         setLoading(true);
-        setDetail(await api.remote.getDetail(selectedProfileId, sourceId, detailUrl));
+        const loaded = await api.remote.getDetail(selectedProfileId, sourceId, detailUrl);
+        setDetail(loaded);
+        // Cache the gallery images per profile (fire-and-forget; falls back to remote URLs).
+        void api.remote.resolveImages(selectedProfileId, loaded.images)
+          .then(setImageMap).catch(() => undefined);
       } catch (error: unknown) {
         handleError(error);
       } finally {
@@ -129,7 +135,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
           <div className="remote-detail__main-image-wrap">
             <img
               className="remote-detail__main-image"
-              src={detail.images[Math.min(activeImage, detail.images.length - 1)]}
+              src={(() => { const u = detail.images[Math.min(activeImage, detail.images.length - 1)]; return imageMap[u] ? toAppUrl(imageMap[u]) : u; })()}
               alt={detail.title}
             />
           </div>
@@ -138,7 +144,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
               {detail.images.map((image, index) => (
                 <img
                   key={image}
-                  src={image}
+                  src={imageMap[image] ? toAppUrl(imageMap[image]) : image}
                   alt=""
                   loading="lazy"
                   className={

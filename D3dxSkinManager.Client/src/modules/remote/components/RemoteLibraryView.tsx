@@ -9,6 +9,7 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
 import type { RemoteBinding, RemoteSourceInfo } from '../../../shared/types/remote.types';
+import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
 import { RemoteSourceManagerScreen } from './RemoteSourceManagerScreen';
@@ -31,6 +32,8 @@ export const RemoteLibraryView: React.FC = () => {
   // undefined = still loading; null = profile hasn't picked its game yet (setup mode).
   const [binding, setBindingState] = useState<RemoteBinding | null | undefined>(undefined);
   const [setupSource, setSetupSource] = useState<string>();
+  // Remote image URL -> cached local path (per-profile remote-cache; falls back to the URL).
+  const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [setupList, setSetupList] = useState<string>();
 
   const ui = useRemoteUiStore();
@@ -177,6 +180,22 @@ export const RemoteLibraryView: React.FC = () => {
     if (!ui.index && !ui.result && ui.sourceId && ui.listId && !loading) void loadIndex(1, ui.searchText);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ui.sourceId, ui.listId]);
+
+  // Resolve the visible cards' images through the per-profile cache (fire-and-forget; the grid
+  // renders remote URLs until the local copies are ready, then swaps).
+  const cacheImages = useCallback((urls: string[]) => {
+    if (!selectedProfileId || urls.length === 0) return;
+    void api.remote
+      .resolveImages(selectedProfileId, urls)
+      .then((map) => setImageMap((prev) => ({ ...prev, ...map })))
+      .catch(() => undefined);
+  }, [selectedProfileId]);
+
+  useEffect(() => {
+    const urls = (ui.index?.entries ?? []).map((e) => e.imageUrl).concat((ui.result?.cards ?? []).map((c) => c.imageUrl));
+    cacheImages(urls.filter((u) => u && !imageMap[u]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ui.index, ui.result]);
 
   const openDetail = useCallback(
     (detailUrl: string, title: string) => {
@@ -370,7 +389,7 @@ export const RemoteLibraryView: React.FC = () => {
             {cards.map((card) => (
               <div key={card.key} className="remote-card" onClick={() => openDetail(card.detailUrl, card.title)}>
                 <div className="remote-card__image-wrap">
-                  <img className="remote-card__image" src={card.imageUrl} alt={card.title} loading="lazy" />
+                  <img className="remote-card__image" src={imageMap[card.imageUrl] ? toAppUrl(imageMap[card.imageUrl]) : card.imageUrl} alt={card.title} loading="lazy" />
                   {card.imported && (
                     <span className="remote-card__imported" title={t('remote.importedBadge')}>
                       <CheckCircleFilled /> {t('remote.importedBadge')}

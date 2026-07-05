@@ -33,6 +33,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     private readonly IRemoteIndexService _index;
     private readonly IRemoteSourceStore _sourceStore;
     private readonly IRemoteBindingStore _binding;
+    private readonly IRemoteImageCacheService _imageCache;
     private readonly IPayloadHelper _payloadHelper;
 
     public RemoteFacade(
@@ -41,6 +42,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         IRemoteIndexService index,
         IRemoteSourceStore sourceStore,
         IRemoteBindingStore binding,
+        IRemoteImageCacheService imageCache,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
@@ -49,6 +51,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         _index = index ?? throw new ArgumentNullException(nameof(index));
         _sourceStore = sourceStore ?? throw new ArgumentNullException(nameof(sourceStore));
         _binding = binding ?? throw new ArgumentNullException(nameof(binding));
+        _imageCache = imageCache ?? throw new ArgumentNullException(nameof(imageCache));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -70,6 +73,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId")),
             "TEST_SOURCE" => await TestSourceAsync(request),
             "GET_SOURCE_TEMPLATE" => _sourceStore.GetTemplateJson(),
+            "RESOLVE_IMAGES" => await _imageCache.ResolveAsync(_payloadHelper.GetRequiredValue<List<string>>(request.Payload, "urls")),
             "GET_BINDING" => (object?)_binding.Get(),
             "SET_BINDING" => SetBinding(request),
             "CLEAR_BINDING" => ClearBinding(),
