@@ -110,6 +110,15 @@
 
 /* Capture field mirrors the .keybinding-kbd chip so edit mode matches the display (same footprint,
    monospace, fills the key column). Recording = accent border. */
+.keybinding-capture-group {
+  width: 100%;
+}
+
+.keybinding-capture-group .ant-btn {
+  height: 29px;            /* match the capture field */
+  font-size: 12px;
+}
+
 .keybinding-capture.ant-input {
   width: 100%;
   height: 29px;            /* match the .keybinding-kbd chip exactly */

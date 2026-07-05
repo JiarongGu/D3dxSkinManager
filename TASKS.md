@@ -148,17 +148,24 @@ SHIPPED 2026-07-05: `delay`/`transition`/`release_delay`/`release_transition` re
 linear/cosine Select in `ModIniEditor`, with friendly labels in both languages. Multiple `key=`
 lines shipped earlier with B4. Verified e2e both themes against a fixture `[Key*]`; UI save
 persists via `UPDATE_INI_ENTRY`.
-Still open: Xbox `XB_*` / controller-combo helpers in `KeyCaptureInput`; per-toggle grouping that
-ties a `[Key]`'s cycle list to the `$var` it drives (cross-section view).
+SHIPPED 2026-07-05 (2): Xbox controller helpers — `XboxButtonPicker` (shared L1 dropdown of the
+`XB_*` set; gamepad presses fire no KeyboardEvent so they're picked, not captured) attached to
+`KeyCaptureInput` AND the keybinding-chip editor; `keyChord` renders XB/XB2 values friendly
+("XB LB"). Verified live (pick → field shows XB LB → cancel restores).
+Still open: per-toggle grouping that ties a `[Key]`'s cycle list to the `$var` it drives
+(cross-section view).
 
 ### 6. Remote mod library (the big reach)
 Browse/fetch/download from remote sources (GameBanana-style) → one-click import into a profile.
 Background WebView2 + per-site adapters (configurable, never hard-coded). Reuse ProcessRegistry +
 Activity panel for download/import progress.
 
-### 7. App self-update
-Check latest GitHub release → download → prompt. Configurable channel + opt-out.
-(`DownloadService` + update staging groundwork exists — see `.claude/rules/download-service.md`.)
+### 7. App self-update — ✅ SHIPPED (verified in code 2026-07-05)
+`UpdateService`: GitHub latest-release check (version + release notes + manifest file-diff) →
+download + sha256-verify → stage to `{install}/.update` → the C++ launcher applies on next start.
+UI: Global settings check button + `UpdateDialog`; auto-check opt-in toggle (`autoUpdateCheck`).
+**Deferred: configurable channel** (beta/pre-release) — pointless until the repo actually publishes
+pre-releases; add a `releases` (non-latest) query + channel setting when that happens.
 
 ---
 

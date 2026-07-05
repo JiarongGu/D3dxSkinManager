@@ -4,6 +4,7 @@
   "translations": {
     "keyCapture.placeholder": "Click and press a key",
     "keyCapture.recording": "Press a key…",
+    "keyCapture.xbPicker": "Pick a controller button (XB_*) — gamepad presses can't be captured",
     "mods.list.healthHint": "Last scan: {{count}} issue(s) — open the Analyzer to review or fix.",
     "modIni.field.wrap": "Cycle wrap-around",
     "modIni.field.smart": "Smart resync",

@@ -4,6 +4,7 @@
   "translations": {
     "keyCapture.placeholder": "点击并按下按键",
     "keyCapture.recording": "请按下按键…",
+    "keyCapture.xbPicker": "选择手柄按键（XB_*）— 手柄按键无法直接捕获",
     "mods.list.healthHint": "上次扫描：{{count}} 个问题 —— 打开分析器查看或修复。",
     "modIni.field.wrap": "循环回绕",
     "modIni.field.smart": "智能重新同步",

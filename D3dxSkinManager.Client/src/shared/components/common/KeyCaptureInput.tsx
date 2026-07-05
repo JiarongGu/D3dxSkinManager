@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
 import classNames from 'classnames';
-import { Input } from 'antd';
+import { Input, Space } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Chord, baseFromEvent, buildRaw, buildDisplay, rawToDisplay } from '../../utils/keyChord';
+import { XboxButtonPicker } from './XboxButtonPicker';
 import './KeyCaptureInput.css';
 
 interface KeyCaptureInputProps {
@@ -17,7 +18,8 @@ interface KeyCaptureInputProps {
 /**
  * L2 control: focus it and press a key (with modifiers) to capture a 3DMigoto hotkey chord. Shows a
  * friendly display ("Ctrl + J") of the current value, emits the raw value (with `no_*` defaults) on
- * capture. Reused by the keybinding editor and the config editor. Pure UI — parent persists onChange.
+ * capture. Controller buttons (XB_*) can't be captured (no KeyboardEvent) — the XB picker sets them.
+ * Reused by the keybinding editor and the config editor. Pure UI — parent persists onChange.
  */
 export const KeyCaptureInput: React.FC<KeyCaptureInputProps> = ({ value, onChange, disabled, className }) => {
   const { t } = useTranslation();
@@ -38,17 +40,23 @@ export const KeyCaptureInput: React.FC<KeyCaptureInputProps> = ({ value, onChang
   const display = recording ? (draftDisplay || t('keyCapture.recording')) : rawToDisplay(value);
 
   return (
-    <Input
-      size="small"
-      readOnly
-      disabled={disabled}
-      className={classNames('key-capture-input', { 'key-capture-input--recording': recording }, className)}
-      value={display}
-      placeholder={t('keyCapture.placeholder')}
-      onFocus={() => { setRecording(true); setDraftDisplay(''); held.current.clear(); }}
-      onBlur={() => setRecording(false)}
-      onKeyDown={onKeyDown}
-      onKeyUp={(e) => { e.preventDefault(); held.current.delete(e.code); }}
-    />
+    <Space.Compact className={classNames('key-capture-input-group', className)}>
+      <Input
+        size="small"
+        readOnly
+        disabled={disabled}
+        className={classNames('key-capture-input', { 'key-capture-input--recording': recording })}
+        value={display}
+        placeholder={t('keyCapture.placeholder')}
+        onFocus={() => { setRecording(true); setDraftDisplay(''); held.current.clear(); }}
+        onBlur={() => setRecording(false)}
+        onKeyDown={onKeyDown}
+        onKeyUp={(e) => { e.preventDefault(); held.current.delete(e.code); }}
+      />
+      <XboxButtonPicker
+        disabled={disabled}
+        onPick={(raw) => { setDraftDisplay(rawToDisplay(raw)); onChange(raw); }}
+      />
+    </Space.Compact>
   );
 };

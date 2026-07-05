@@ -14,3 +14,12 @@
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px var(--color-primary-bg);
 }
+
+/* Input + XB picker as one compact group; the input takes the remaining width. */
+.key-capture-input-group {
+  width: 100%;
+}
+
+.key-capture-input-group .key-capture-input {
+  flex: 1;
+}

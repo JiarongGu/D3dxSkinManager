@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Empty, Spin, Typography, Input, Tooltip } from 'antd';
+import { Empty, Spin, Typography, Input, Tooltip, Space } from 'antd';
 import { EditOutlined, CheckOutlined, CloseOutlined, HolderOutlined } from '@ant-design/icons';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,8 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 import { CompactIconButton } from '../../../../shared/components/compact';
 import { notification } from '../../../../shared/utils/notification';
 import { handleError } from '../../../../shared/utils/errorHandler';
-import { Chord, baseFromEvent, buildRaw, buildDisplay } from '../../../../shared/utils/keyChord';
+import { Chord, baseFromEvent, buildRaw, buildDisplay, rawToDisplay } from '../../../../shared/utils/keyChord';
+import { XboxButtonPicker } from '../../../../shared/components/common/XboxButtonPicker';
 import './KeybindingPreview.css';
 
 const { Text } = Typography;
@@ -186,19 +187,23 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
               <div className="keybinding-key">
                 {chords.map((chord) =>
                   editingRaw === chord.raw ? (
-                    <Input
-                      key={chord.raw}
-                      autoFocus
-                      readOnly
-                      size="small"
-                      className={classNames('keybinding-capture', { 'keybinding-capture--recording': recording })}
-                      value={draftDisplay}
-                      placeholder={t('mods.keybindings.pressKey')}
-                      onFocus={() => { setRecording(true); held.current.clear(); }}
-                      onBlur={() => setRecording(false)}
-                      onKeyDown={onCaptureKeyDown}
-                      onKeyUp={onCaptureKeyUp}
-                    />
+                    <Space.Compact key={chord.raw} className="keybinding-capture-group">
+                      <Input
+                        autoFocus
+                        readOnly
+                        size="small"
+                        className={classNames('keybinding-capture', { 'keybinding-capture--recording': recording })}
+                        value={draftDisplay}
+                        placeholder={t('mods.keybindings.pressKey')}
+                        onFocus={() => { setRecording(true); held.current.clear(); }}
+                        onBlur={() => setRecording(false)}
+                        onKeyDown={onCaptureKeyDown}
+                        onKeyUp={onCaptureKeyUp}
+                      />
+                      <XboxButtonPicker
+                        onPick={(raw) => { draftRaw.current = raw; setDraftDisplay(rawToDisplay(raw)); }}
+                      />
+                    </Space.Compact>
                   ) : (
                     <Tooltip key={chord.raw} title={t('mods.keybindings.rebind')}>
                       <kbd

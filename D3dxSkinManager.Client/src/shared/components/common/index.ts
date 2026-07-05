@@ -35,3 +35,5 @@ export { KeyCaptureInput } from './KeyCaptureInput';
 
 export { KeyValueRows } from './KeyValueRows';
 export type { KeyValueRowsProps, KeyValueRowItem } from './KeyValueRows';
+
+export { XboxButtonPicker } from './XboxButtonPicker';

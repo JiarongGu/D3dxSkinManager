@@ -25,6 +25,27 @@ const VK_DISPLAY: Record<string, string> = {
   VK_END: 'End', VK_PRIOR: 'PgUp', VK_NEXT: 'PgDn',
 };
 
+/**
+ * Xbox controller buttons 3DMigoto accepts as `key =` values (see the key doc — `XB_*`; a second
+ * pad uses `XB2_*`, type it manually). Gamepad presses don't fire KeyboardEvents, so these are
+ * PICKED from a menu instead of captured. `label` is the friendly display ("XB LB").
+ */
+export const XBOX_BUTTONS: { value: string; label: string }[] = [
+  { value: 'XB_A', label: 'XB A' }, { value: 'XB_B', label: 'XB B' },
+  { value: 'XB_X', label: 'XB X' }, { value: 'XB_Y', label: 'XB Y' },
+  { value: 'XB_DPAD_UP', label: 'XB D-Pad ↑' }, { value: 'XB_DPAD_DOWN', label: 'XB D-Pad ↓' },
+  { value: 'XB_DPAD_LEFT', label: 'XB D-Pad ←' }, { value: 'XB_DPAD_RIGHT', label: 'XB D-Pad →' },
+  { value: 'XB_LEFT_SHOULDER', label: 'XB LB' }, { value: 'XB_RIGHT_SHOULDER', label: 'XB RB' },
+  { value: 'XB_LEFT_TRIGGER', label: 'XB LT' }, { value: 'XB_RIGHT_TRIGGER', label: 'XB RT' },
+  { value: 'XB_LEFT_THUMB', label: 'XB LS' }, { value: 'XB_RIGHT_THUMB', label: 'XB RS' },
+  { value: 'XB_START', label: 'XB Start' }, { value: 'XB_BACK', label: 'XB Back' },
+  { value: 'XB_GUIDE', label: 'XB Guide' },
+];
+
+const XB_DISPLAY: Record<string, string> = Object.fromEntries(
+  XBOX_BUTTONS.map((b) => [b.value, b.label]),
+);
+
 /** The non-modifier base key for a 3DMigoto binding, or null while only modifiers are held. */
 export function baseFromKey(key: string): string | null {
   if (key === 'Control' || key === 'Alt' || key === 'Shift' || key === 'Meta') return null;
@@ -72,6 +93,13 @@ export function buildRaw(c: Chord): string {
 }
 
 function baseDisplay(base: string): string {
+  const upper = base.toUpperCase();
+  // XB2_* (second controller) shares the XB_* display with a "2" marker.
+  if (upper.startsWith('XB2_')) {
+    const xb = XB_DISPLAY['XB_' + upper.slice(4)];
+    return xb ? xb.replace('XB ', 'XB2 ') : base;
+  }
+  if (upper.startsWith('XB_')) return XB_DISPLAY[upper] ?? base;
   return base.startsWith('VK_') ? (VK_DISPLAY[base] ?? base.replace('VK_', '')) : base.toUpperCase();
 }
 

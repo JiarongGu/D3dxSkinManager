@@ -117,5 +117,26 @@ describe('keyChord', () => {
       expect(rawToDisplay('')).toBe('');
       expect(rawToDisplay('   ')).toBe('');
     });
+
+    it('renders Xbox controller buttons (picked, not captured)', () => {
+      expect(rawToDisplay('XB_LEFT_SHOULDER')).toBe('XB LB');
+      expect(rawToDisplay('XB_A')).toBe('XB A');
+      expect(rawToDisplay('XB_DPAD_UP')).toBe('XB D-Pad ↑');
+      // Second-pad variant shares the display with a "2" marker.
+      expect(rawToDisplay('XB2_A')).toBe('XB2 A');
+      // Unknown XB token falls back to the raw value.
+      expect(rawToDisplay('XB_NOT_A_BUTTON')).toBe('XB_NOT_A_BUTTON');
+    });
+  });
+
+  describe('XBOX_BUTTONS', () => {
+    it('every entry is an XB_-prefixed raw value with a friendly label', async () => {
+      const { XBOX_BUTTONS } = await import('../keyChord');
+      expect(XBOX_BUTTONS.length).toBeGreaterThanOrEqual(15);
+      for (const b of XBOX_BUTTONS) {
+        expect(b.value).toMatch(/^XB_[A-Z_]+$/);
+        expect(b.label.startsWith('XB ')).toBe(true);
+      }
+    });
   });
 });
