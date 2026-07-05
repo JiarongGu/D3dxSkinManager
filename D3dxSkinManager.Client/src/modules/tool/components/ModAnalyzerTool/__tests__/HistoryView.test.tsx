@@ -29,6 +29,9 @@ vi.mock('../../../../../shared/components/compact', () => {
     CompactCard: ({ children, onClick, ...rest }: any) => (
       <div onClick={onClick} {...rest}>{children}</div>
     ),
+    CompactIconButton: ({ icon, onClick, title, tone, ...rest }: any) => (
+      <button onClick={onClick} title={title} {...rest}>{icon}</button>
+    ),
   };
 });
 

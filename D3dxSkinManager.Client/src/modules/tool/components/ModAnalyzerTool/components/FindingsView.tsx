@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Input, Tag, Tooltip, Collapse, Empty } from 'antd';
+import { Input, Tag, Tooltip, Collapse, Empty, Dropdown } from 'antd';
 import {
   SearchOutlined,
   CloseCircleOutlined,
@@ -18,7 +18,7 @@ import {
   ToolFilled,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { CompactButton, CompactInput } from '../../../../../shared/components/compact';
+import { CompactButton, CompactInput, CompactIconButton } from '../../../../../shared/components/compact';
 import { FormDialog } from '../../../../../shared/components/dialogs/FormDialog';
 import { HealthStatusIcon } from '../../../../../shared/components/common/HealthStatusIcon';
 import { StatusTag } from '../../../../../shared/components/common/StatusTag';
@@ -30,6 +30,7 @@ import type {
   DuplicateGroup,
   ModConflict,
 } from '../../../../../shared/types/analysis.types';
+import type { ModFixTool as FixToolInfo } from '../../../../../shared/types/modFix.types';
 
 interface FindingsViewProps {
   report: FullAnalysisReport;
@@ -46,14 +47,27 @@ interface FindingsViewProps {
   /** Repair unbalanced if/endif in a mod's inis (needs an extracted cache). */
   onRepairIni?: (modId: string) => void;
   repairingModId?: string;
+  /** Fix-tool library — enables the per-row "fix with…" dropdown (runs in place, analyzer stays open). */
+  fixTools?: FixToolInfo[];
+  onRunFix?: (toolName: string, entryPath: string, recompress: boolean, modId: string) => void;
+  /** Controlled filter/search (persisted by the parent so close/reopen restores them). */
+  filter?: FindingCategory;
+  onFilterChange?: (f: FindingCategory) => void;
+  search?: string;
+  onSearchChange?: (s: string) => void;
 }
 
-type FindingCategory = 'all' | 'broken' | 'stale' | 'duplicates' | 'conflicts' | 'healthy';
+export type FindingCategory = 'all' | 'broken' | 'stale' | 'duplicates' | 'conflicts' | 'healthy';
 
-export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, deletingModId, onEditModName, onLocateMods, onResolveGroup, onRepairIni, repairingModId }) => {
+export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, deletingModId, onEditModName, onLocateMods, onResolveGroup, onRepairIni, repairingModId, fixTools, onRunFix, filter, onFilterChange, search, onSearchChange }) => {
   const { t } = useTranslation();
-  const [searchText, setSearchText] = useState('');
-  const [category, setCategory] = useState<FindingCategory>('all');
+  // Controlled when the parent persists them; internal state otherwise (tests, standalone use).
+  const [internalSearch, setInternalSearch] = useState('');
+  const [internalCategory, setInternalCategory] = useState<FindingCategory>('all');
+  const searchText = search ?? internalSearch;
+  const setSearchText = onSearchChange ?? setInternalSearch;
+  const category = filter ?? internalCategory;
+  const setCategory = onFilterChange ?? setInternalCategory;
   const [editingMod, setEditingMod] = useState<{ modId: string; currentName: string }>();
   const [editName, setEditName] = useState('');
 
@@ -131,7 +145,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.brokenMods')}
             count={filteredContent.broken.length}
           >
-            {filteredContent.broken.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} onRepairIni={onRepairIni} repairing={repairingModId === mod.modId} />)}
+            {filteredContent.broken.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} onRepairIni={onRepairIni} repairing={repairingModId === mod.modId} fixTools={fixTools} onRunFix={onRunFix} />)}
           </FindingSection>
         )}
 
@@ -142,7 +156,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.staleHashOrPlugin')}
             count={filteredContent.stale.length}
           >
-            {filteredContent.stale.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} onRepairIni={onRepairIni} repairing={repairingModId === mod.modId} />)}
+            {filteredContent.stale.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} onRepairIni={onRepairIni} repairing={repairingModId === mod.modId} fixTools={fixTools} onRunFix={onRunFix} />)}
           </FindingSection>
         )}
 
@@ -182,7 +196,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.healthyMods')}
             count={filteredContent.healthy.length}
           >
-            {filteredContent.healthy.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} onRepairIni={onRepairIni} repairing={repairingModId === mod.modId} />)}
+            {filteredContent.healthy.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} onRepairIni={onRepairIni} repairing={repairingModId === mod.modId} fixTools={fixTools} onRunFix={onRunFix} />)}
           </FindingSection>
         )}
 
@@ -279,9 +293,32 @@ const IssueTypeChip: React.FC<{ type: string }> = ({ type }) => {
   return <Tag className="mod-analyzer__issue-type">{t(`tools.modAnalyzer.issueType.${type}`, { defaultValue: type })}</Tag>;
 };
 
-const ModRow: React.FC<{ mod: ModAnalysisResult; onLocate?: (modIds: string[]) => void; onRepairIni?: (modId: string) => void; repairing?: boolean }> = ({ mod, onLocate, onRepairIni, repairing }) => {
+const ModRow: React.FC<{
+  mod: ModAnalysisResult;
+  onLocate?: (modIds: string[]) => void;
+  onRepairIni?: (modId: string) => void;
+  repairing?: boolean;
+  fixTools?: FixToolInfo[];
+  onRunFix?: (toolName: string, entryPath: string, recompress: boolean, modId: string) => void;
+}> = ({ mod, onLocate, onRepairIni, repairing, fixTools, onRunFix }) => {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
+
+  // "Fix with…" — the mod-list right-click Fix submenu, flattened, runnable IN PLACE from the
+  // finding row (the fix is fire-and-forget → Activity panel; the analyzer never closes).
+  type FixMenuItem = { key: string; label: string; disabled?: boolean; onClick?: () => void };
+  const fixItems: FixMenuItem[] = (fixTools ?? []).flatMap((tf): FixMenuItem[] => {
+    if (tf.entries.length === 0)
+      return [{ key: `fix-${tf.id}`, label: `${tf.name} — ${t('tools.modFix.setEntryFirst')}`, disabled: true }];
+    if (tf.entries.length === 1)
+      return [{ key: `fix-${tf.id}`, label: tf.name, onClick: () => onRunFix?.(tf.name, tf.entries[0].path, tf.recompressDefault, mod.modId) }];
+    return tf.entries.map((e) => ({
+      key: `fix-${tf.id}-${e.name}`,
+      label: `${tf.name} — ${e.name}`,
+      onClick: () => onRunFix?.(tf.name, e.path, tf.recompressDefault, mod.modId),
+    }));
+  });
+  if (fixItems.length === 0) fixItems.push({ key: 'fix-none', label: t('contextMenu.noFixTools'), disabled: true });
 
   return (
     <div className="mod-analyzer__mod-row">
@@ -294,6 +331,15 @@ const ModRow: React.FC<{ mod: ModAnalysisResult; onLocate?: (modIds: string[]) =
         {mod.issues.length > 0 && <StatusTag tone="error" icon={null} label={mod.issues.length} />}
         <span className="mod-analyzer__mod-row-meta">{mod.textureOverrideCount} {t('tools.modAnalyzer.overrides')}</span>
         <CopyIdButton modId={mod.modId} />
+        {onRunFix && (
+          <Dropdown menu={{ items: fixItems }} trigger={['click']}>
+            <span onClick={e => e.stopPropagation()}>
+              <Tooltip title={t('tools.modAnalyzer.fixWith')}>
+                <CompactIconButton tone="primary" size={22} icon={<ThunderboltOutlined />} />
+              </Tooltip>
+            </span>
+          </Dropdown>
+        )}
         {onLocate && (
           <Tooltip title={t('tools.modAnalyzer.locateInModPanel')}>
             <AimOutlined

@@ -11,6 +11,8 @@ import { notification } from '../../../../shared/utils/notification';
 import { ConfirmDialog } from '../../../../shared/components/dialogs/ConfirmDialog';
 import type { FullAnalysisReport, AnalysisProgress, AnalysisSessionSummary, ModAnalysisResult } from '../../../../shared/types/analysis.types';
 import type { CategoryInfo } from '../../../../shared/types/category.types';
+import type { ModFixTool as FixToolInfo } from '../../../../shared/types/modFix.types';
+import { useAnalyzerUiStore } from '../../store/analyzerUiStore';
 import { ScanView } from './components/ScanView';
 import { FindingsView } from './components/FindingsView';
 import { HistoryView } from './components/HistoryView';
@@ -62,6 +64,46 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
   const [initialFeed, setInitialFeed] = useState<Array<{ name: string; status: string }>>();
   const [cancelling, setCancelling] = useState(false);
   const [deletingModId, setDeletingModId] = useState<string>();
+
+  // ===== Persistent UI state (analyzerUiStore) =====
+  // The tool unmounts on close (e.g. after "locate in mod list"); the store remembers the session
+  // being viewed + the findings filter/search so reopening lands the user exactly where they were.
+  const analyzerUi = useAnalyzerUiStore();
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (!selectedProfileId || restoredRef.current) return;
+    restoredRef.current = true;
+    analyzerUi.ensureProfile(selectedProfileId);
+    const { sessionId, viewMode: storedMode } = useAnalyzerUiStore.getState();
+    // An explicit category open (context menu) starts a fresh scan — don't restore over it.
+    if (initialCategoryId || !sessionId || storedMode !== 'findings') return;
+    void (async () => {
+      try {
+        const r = await api.tool.getAnalysisReport(selectedProfileId, sessionId);
+        setReport(r);
+        setViewMode('findings');
+      } catch { /* session may be gone — stay on scan */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileId]);
+  // Keep the store current so the NEXT open restores this state.
+  useEffect(() => { analyzerUi.setViewMode(viewMode); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [viewMode]);
+  useEffect(() => { analyzerUi.setSession(report?.sessionId); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [report?.sessionId]);
+
+  // ===== Fix tools (run a fix directly from a finding row — the analyzer stays open) =====
+  const [fixTools, setFixTools] = useState<FixToolInfo[]>([]);
+  useEffect(() => {
+    if (!selectedProfileId) return;
+    api.tool.getFixTools(selectedProfileId).then(setFixTools).catch(() => setFixTools([]));
+  }, [selectedProfileId]);
+
+  const runFix = useCallback(async (toolName: string, entryPath: string, recompress: boolean, modId: string) => {
+    if (!selectedProfileId) return;
+    try {
+      await api.tool.runModFix(selectedProfileId, { scriptPath: entryPath, modIds: [modId], recompress });
+      notification.info(t('mods.notifications.fixStarted', { name: toolName }));
+    } catch (error: unknown) { handleError(error); }
+  }, [selectedProfileId, t]);
 
   // Load categories
   useEffect(() => {
@@ -387,6 +429,12 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
           onResolveGroup={startResolveGroup}
           onRepairIni={repairIni}
           repairingModId={repairingModId}
+          fixTools={fixTools}
+          onRunFix={runFix}
+          filter={analyzerUi.findingsFilter}
+          onFilterChange={analyzerUi.setFindingsFilter}
+          search={analyzerUi.searchText}
+          onSearchChange={analyzerUi.setSearchText}
         />
       )}
       <ConfirmDialog

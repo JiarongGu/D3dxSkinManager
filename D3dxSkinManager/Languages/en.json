@@ -936,6 +936,8 @@
     "tools.modAnalyzer.broken": "Broken",
     "tools.modAnalyzer.staleOrMissing": "Needs Attention",
     "tools.modAnalyzer.repair": "Repair",
+    "tools.modAnalyzer.fixWith": "Run a fix tool on this mod (stays here — result in the Activity panel)",
+    "tools.modAnalyzer.viewSession": "View results",
     "tools.modAnalyzer.repairIni": "Fix unbalanced if/endif in this mod's .ini files",
     "tools.modAnalyzer.repairNeedsCache": "Load the mod first — repair needs the extracted files",
     "tools.modAnalyzer.repairDone": "Repaired {{files}} file(s): {{added}} endif added, {{removed}} stray removed. Rescan to refresh.",

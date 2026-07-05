@@ -11,7 +11,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { CompactButton, CompactCard } from '../../../../../shared/components/compact';
+import { CompactButton, CompactCard, CompactIconButton } from '../../../../../shared/components/compact';
 import { StatusTag } from '../../../../../shared/components/common/StatusTag';
 import { ConfirmDialog } from '../../../../../shared/components/dialogs/ConfirmDialog';
 import type { AnalysisSessionSummary } from '../../../../../shared/types/analysis.types';
@@ -108,9 +108,12 @@ const SessionCard: React.FC<{
             {session.categoryName && <Tag>{session.categoryName}</Tag>}
             {!session.categoryName && <Tag>{t('tools.modAnalyzer.allCategories')}</Tag>}
           </div>
+          {/* CompactIconButton (L1): identical borderless render path for both actions — the old
+              primary + primary-danger CompactButton pair rasterized their 1px borders on different
+              pixel rows at fractional DPI, reading as the danger button sitting higher. */}
           <div className="mod-analyzer__session-card-actions" onClick={e => e.stopPropagation()}>
-            <CompactButton type="primary" icon={<EyeOutlined />} onClick={onView} />
-            <CompactButton type="primary" danger icon={<DeleteOutlined />} onClick={onDelete} />
+            <CompactIconButton tone="primary" icon={<EyeOutlined />} title={t('tools.modAnalyzer.viewSession')} onClick={onView} />
+            <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.delete')} onClick={onDelete} />
           </div>
         </div>
         <div className="mod-analyzer__session-card-stats">

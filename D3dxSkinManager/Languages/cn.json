@@ -936,6 +936,8 @@
     "tools.modAnalyzer.broken": "损坏",
     "tools.modAnalyzer.staleOrMissing": "需要关注",
     "tools.modAnalyzer.repair": "修复",
+    "tools.modAnalyzer.fixWith": "对此模组运行修复工具（无需离开 — 结果见活动面板）",
+    "tools.modAnalyzer.viewSession": "查看结果",
     "tools.modAnalyzer.repairIni": "修复此模组 .ini 中不匹配的 if/endif",
     "tools.modAnalyzer.repairNeedsCache": "请先加载模组 — 修复需要已解压的文件",
     "tools.modAnalyzer.repairDone": "已修复 {{files}} 个文件：补充 {{added}} 个 endif，注释 {{removed}} 个多余 endif。重新扫描以刷新。",
