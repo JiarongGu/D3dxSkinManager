@@ -67,12 +67,13 @@
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       <TargetPath>data\languages\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </Content>
-    <!-- Remote-library adapter seeds (copied into {data}/remote-sources on first run by RemoteSourceStore) -->
+    <!-- Remote-library adapter default configs (seeds). Ship under a top-level resources\ folder
+         (NOT user data\); RemoteSourceStore copies any missing one into {data}/remote-sources on first run. -->
     <Content Include="RemoteSources\**\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <TargetPath>data\remote-source-seeds\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <TargetPath>resources\remote-sources\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </Content>
   </ItemGroup>
   <!-- Native libraries (7z.dll - architecture-specific, kept separate for runtime loading) -->

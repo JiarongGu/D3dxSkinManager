@@ -74,8 +74,12 @@ public class GlobalPathService : IGlobalPathService
 
     public string RemoteSourcesDirectory => Path.Combine(BaseDataPath, "remote-sources");
 
-    // Shipped seeds — created by the build (csproj Content), not by EnsureDirectoriesExist.
-    public string RemoteSourceSeedsDirectory => Path.Combine(BaseDataPath, "remote-source-seeds");
+    // Shipped, read-only default configs live under a top-level `resources/` folder (sibling of
+    // `data/`), NOT inside user `data/`. Created by the build (csproj Content), not EnsureDirectoriesExist.
+    // RemoteSourceStore copies any missing adapter from here into the writable RemoteSourcesDirectory.
+    public string ResourcesPath => Path.Combine(_environment.BaseDirectory, "resources");
+
+    public string RemoteSourceSeedsDirectory => Path.Combine(ResourcesPath, "remote-sources");
 
     /// <summary>
     /// Ensure all standard global directories exist

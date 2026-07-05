@@ -281,15 +281,13 @@ foreach ($plat in $platforms) {
         Copy-Item -Path "$sourcePath\data\languages\*" -Destination $langDestPath -Force
     }
 
-    # Copy remote-library adapter seeds (RemoteSourceStore copies these into {data}/remote-sources on
-    # first run — without them the remote library shows NO sites). Kept separate like languages.
-    if (Test-Path "$sourcePath\data\remote-source-seeds") {
-        $seedsDestPath = Join-Path $destPath "data\remote-source-seeds"
-        New-Item -ItemType Directory -Path $seedsDestPath -Force | Out-Null
-        Copy-Item -Path "$sourcePath\data\remote-source-seeds\*" -Destination $seedsDestPath -Force
-        Write-Host "    📦 Copied remote-source seeds" -ForegroundColor Gray
+    # Copy the shipped resources\ folder (site default configs / seeds). RemoteSourceStore copies these
+    # into {data}/remote-sources on first run — without them the remote library shows NO sites.
+    if (Test-Path "$sourcePath\resources") {
+        Copy-Item -Path "$sourcePath\resources" -Destination $destPath -Recurse -Force
+        Write-Host "    📦 Copied resources folder (site default configs)" -ForegroundColor Gray
     } else {
-        Write-Host "    ⚠️  Warning: remote-source-seeds not found! Remote library will show no sites." -ForegroundColor Yellow
+        Write-Host "    ⚠️  Warning: resources folder not found! Remote library will show no sites." -ForegroundColor Yellow
     }
 
     # Copy native libraries (7z.dll for fast archive extraction)
