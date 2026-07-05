@@ -165,12 +165,9 @@
   transform: scale(1.04);
 }
 
-/* Meta stacks: title line, then tags/date footer — a single row squeezed all three on a 170px card. */
+/* Meta row is title-only (tags/date live as image badges). */
 .remote-card__meta {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
+  padding: 7px 10px 8px;
 }
 
 .remote-card__title {
@@ -182,6 +179,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.15s ease;
+}
+
+.remote-card:hover .remote-card__title {
+  color: var(--color-primary);
 }
 
 .remote-card__date {

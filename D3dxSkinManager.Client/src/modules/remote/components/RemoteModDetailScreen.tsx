@@ -151,9 +151,12 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
         )}
       </div>
 
-      {/* RIGHT: info on top (tags + the page's description), downloads box below. */}
+      {/* RIGHT: info card (title · tags · description), downloads card below. */}
       <div className="remote-detail__side">
         <div className="remote-detail__panel remote-detail__info">
+          <div className="remote-detail__name" title={detail.title || fallbackTitle}>
+            {detail.title || fallbackTitle}
+          </div>
           {allTags.length > 0 && (
             <div className="remote-detail__tags">
               {orderTagsForDisplay(allTags).map((tag) => (
@@ -162,18 +165,20 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
             </div>
           )}
           {detail.description && (
-            <div className="remote-detail__description">{detail.description}</div>
+            <>
+              <div className="remote-detail__divider" />
+              <div className="remote-detail__description">{detail.description}</div>
+            </>
           )}
-          <span className="remote-detail__meta">
-            {t('remote.detailMeta', { images: detail.images.length, downloads: detail.downloads.length })}
-          </span>
         </div>
 
         <div className="remote-detail__panel remote-detail__actions">
-          <div className="remote-detail__actions-title">{t('remote.actionsTitle')}</div>
-          <CompactButton icon={<GlobalOutlined />} onClick={() => void api.system.openUrl(detail.detailUrl)}>
-            {t('remote.openPage')}
-          </CompactButton>
+          <div className="remote-detail__actions-title">
+            {t('remote.actionsTitle')}
+            {detail.downloads.length > 0 && (
+              <span className="remote-detail__actions-count">{detail.downloads.length}</span>
+            )}
+          </div>
           {detail.downloads.length === 0 && (
             <span className="remote-detail__no-download">{t('remote.noDownloads')}</span>
           )}
@@ -191,6 +196,10 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
                 : t('remote.openExternal', { host: option.name })}
             </CompactButton>
           ))}
+          <div className="remote-detail__divider" />
+          <CompactButton icon={<GlobalOutlined />} onClick={() => void api.system.openUrl(detail.detailUrl)}>
+            {t('remote.openPage')}
+          </CompactButton>
         </div>
       </div>
 
