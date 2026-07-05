@@ -3,10 +3,14 @@ import classNames from 'classnames';
 import './ImageGallery.css';
 
 /**
- * ImageGallery — L2 molecule: a FIXED-height letterboxed main stage + a single horizontal thumbnail
- * strip. Pure presentational (images via props; optional resolveSrc maps remote URLs to cached local
- * ones). The stage height never changes with the image, so the thumb strip / selection never jumps.
- * Mouse wheel over the strip scrolls it horizontally; the scrollbar is slim.
+ * ImageGallery — L2 molecule: a FIXED-height stage + a single horizontal thumbnail strip. Pure
+ * presentational (images via props; optional resolveSrc maps remote URLs to cached local ones).
+ * The stage height never changes with the image, so the thumb strip never jumps. Mouse wheel over
+ * the strip scrolls it horizontally; the scrollbar is slim.
+ *
+ * HERO mode (backdrop + overlay): the current image also renders as a blurred, dimmed cover layer
+ * behind the letterboxed foreground — the "mod page hero" look — and `overlay` renders over the
+ * stage's bottom edge (title/tags/etc., supplied by the caller).
  */
 export interface ImageGalleryProps {
   images: string[];
@@ -15,6 +19,10 @@ export interface ImageGalleryProps {
   alt?: string;
   /** Stage height (CSS size). Default keeps the gallery stable across image sizes. */
   stageHeight?: string;
+  /** Render the current image as a blurred cover layer behind the contained foreground. */
+  backdropBlur?: boolean;
+  /** Content rendered over the stage's bottom edge (gets a readability scrim). */
+  overlay?: React.ReactNode;
   className?: string;
 }
 
@@ -23,6 +31,8 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   resolveSrc,
   alt = '',
   stageHeight = 'min(56vh, 620px)',
+  backdropBlur = false,
+  overlay,
   className,
 }) => {
   const [active, setActive] = useState(0);
@@ -48,9 +58,13 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   const current = images[Math.min(active, images.length - 1)];
 
   return (
-    <div className={classNames('image-gallery', className)}>
+    <div className={classNames('image-gallery', { 'image-gallery--hero': backdropBlur }, className)}>
       <div className="image-gallery__stage" style={{ height: stageHeight }}>
+        {backdropBlur && (
+          <img className="image-gallery__backdrop" src={src(current)} alt="" aria-hidden />
+        )}
         <img className="image-gallery__main" src={src(current)} alt={alt} />
+        {overlay && <div className="image-gallery__overlay">{overlay}</div>}
       </div>
       {images.length > 1 && (
         <div ref={stripRef} className="image-gallery__strip">

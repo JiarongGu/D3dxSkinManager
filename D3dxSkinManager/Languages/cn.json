@@ -72,6 +72,7 @@
     "remote.noRules": "还没有规则 — 该库的所有模组都会导入为未分类。",
     "remote.sitesHint": "内置站点配置为只读默认值；其他站点可添加自定义配置。",
     "remote.actionsTitle": "下载",
+    "remote.noDescription": "页面没有描述",
     "remote.noImages": "无预览图",
     "remote.syncing": "库同步中… {{percent}}% — 同步期间可继续浏览",
     "remote.update": "更新",

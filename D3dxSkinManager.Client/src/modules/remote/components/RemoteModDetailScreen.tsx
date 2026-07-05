@@ -12,7 +12,6 @@ import { CompactButton } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import { KeyValueRows } from '../../../shared/components/common/KeyValueRows';
 import { ImageGallery } from '../../../shared/components/common/ImageGallery';
-import { PillLabel } from '../../../shared/components/common/PillLabel';
 import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
 import { CategorySelect } from '../../../shared/components/CategorySelect';
 import type { CategoryInfo } from '../../../shared/types/category.types';
@@ -138,38 +137,42 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   if (!detail) return null;
 
   return (
-    <div className="remote-detail">
-      {/* LEFT: the gallery, flush-left (title comes from the slide-in header). */}
-      <div className="remote-detail__review">
-        <ImageGallery
-          images={detail.images}
-          resolveSrc={(u) => remoteImageUrl(u) ?? u}
-          alt={detail.title}
-        />
-        {detail.images.length === 0 && (
-          <div className="remote-detail__no-images">{t('remote.noImages')}</div>
-        )}
-      </div>
-
-      {/* RIGHT: info card (title · tags · description), downloads card below. */}
-      <div className="remote-detail__side">
-        <div className="remote-detail__panel remote-detail__info">
-          <div className="remote-detail__name" title={detail.title || fallbackTitle}>
-            {detail.title || fallbackTitle}
-          </div>
-          {allTags.length > 0 && (
-            <div className="remote-detail__tags">
-              {orderTagsForDisplay(allTags).map((tag) => (
-                <PillLabel key={tag} label={remoteTagLabel(tagLabels, i18n.language, tag)} title={tag} />
-              ))}
+    <div className="remote-detail remote-detail--page">
+      {/* HERO: blurred-cover backdrop + letterboxed image, title/tags overlaid (mod-page look). */}
+      <ImageGallery
+        className="remote-detail__hero"
+        images={detail.images}
+        resolveSrc={(u) => remoteImageUrl(u) ?? u}
+        alt={detail.title}
+        backdropBlur
+        stageHeight="min(46vh, 480px)"
+        overlay={
+          <div className="remote-detail__hero-meta">
+            <div className="remote-detail__hero-title" title={detail.title || fallbackTitle}>
+              {detail.title || fallbackTitle}
             </div>
-          )}
-          {detail.description && (
-            <>
-              <div className="remote-detail__divider" />
-              <div className="remote-detail__description">{detail.description}</div>
-            </>
-          )}
+            {allTags.length > 0 && (
+              <div className="remote-detail__hero-tags">
+                {orderTagsForDisplay(allTags).map((tag) => (
+                  <span key={tag} className="remote-detail__hero-tag" title={tag}>
+                    {remoteTagLabel(tagLabels, i18n.language, tag)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        }
+      />
+      {detail.images.length === 0 && (
+        <div className="remote-detail__no-images">{t('remote.noImages')}</div>
+      )}
+
+      {/* BODY: description flows left, downloads card fixed right. */}
+      <div className="remote-detail__body">
+        <div className="remote-detail__panel remote-detail__info">
+          {detail.description
+            ? <div className="remote-detail__description">{detail.description}</div>
+            : <span className="remote-detail__no-download">{t('remote.noDescription')}</span>}
         </div>
 
         <div className="remote-detail__panel remote-detail__actions">

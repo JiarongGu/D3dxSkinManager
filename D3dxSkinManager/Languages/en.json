@@ -72,6 +72,7 @@
     "remote.noRules": "No rules yet — every mod from this library imports uncategorized.",
     "remote.sitesHint": "Shipped site configs are read-only defaults; add a custom site for anything else.",
     "remote.actionsTitle": "Downloads",
+    "remote.noDescription": "No description on the page",
     "remote.noImages": "No preview images",
     "remote.syncing": "Syncing library… {{percent}}% — you can keep browsing while it fills",
     "remote.update": "Update",

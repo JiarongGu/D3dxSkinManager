@@ -1,11 +1,11 @@
-/* Remote mod detail slide-in — LEFT review (gallery/tags) / RIGHT actions (downloads) split.
-   No own height/overflow — the slide-in body is the single scroll container. */
+/* Remote mod detail — MOD-PAGE layout (headless slide-in): full-bleed HERO (blurred-cover backdrop
+   + letterboxed image + title/tags overlay), thumb strip, then description (left, flows) and the
+   downloads card (right, fixed). */
 
-.remote-detail {
+.remote-detail--page {
   display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  justify-content: center; /* the capped gallery + fixed side column sit centered in wide screens */
+  flex-direction: column;
+  gap: 12px;
 }
 
 .remote-detail__loading {
@@ -15,22 +15,148 @@
   height: 200px;
 }
 
-/* LEFT — review column: flexible with a sane cap (the slide-in is responsive now, so the pair
-   fills it — no dead side slack; the cap only kicks in on very wide screens). */
-.remote-detail__review {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 860px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* Full-bleed hero: cancel the headless slide-in's content padding on top/sides. */
+.remote-detail__hero {
+  margin: -16px -20px 0;
 }
 
-/* Tags row (PillLabel atoms); the gallery itself is the shared ImageGallery L2 component. */
-.remote-detail__tags {
+/* The strip re-indents to the content grid (the hero container bleeds). */
+.remote-detail__hero .image-gallery__strip {
+  padding: 8px 20px 0;
+}
+
+/* Hero overlay: title + tag badges (physical contrast colors over artwork, not theme tokens). */
+.remote-detail__hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 40px; /* room for the floating close on short heroes */
+}
+
+.remote-detail__hero-title {
+  font-size: 16px; /* hero heading — replaces the slide-in header's h2 */
+  font-weight: 600;
+  line-height: 1.35;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.remote-detail__hero-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.remote-detail__hero-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 12px;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+}
+
+/* BODY: description flows, downloads fixed. */
+.remote-detail__body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.remote-detail__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-base);
+  background: var(--color-bg-elevated, var(--color-bg-container));
+}
+
+.remote-detail__info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.remote-detail__actions {
+  flex: 0 0 280px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  position: sticky;
+  top: 0;
+}
+
+.remote-detail__divider {
+  height: 1px;
+  background: var(--color-border-secondary);
+  margin: 2px 0;
+}
+
+.remote-detail__actions-title {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.remote-detail__actions-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  background: var(--color-primary-bg, rgba(22, 119, 255, 0.12));
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Download buttons: only the TEXT ellipsizes (tooltip has the full name); the icon never trims. */
+.remote-detail__actions .compact-button {
+  width: 100%;
+  min-width: 0;
+}
+
+.remote-detail__actions .compact-button .anticon {
+  flex-shrink: 0;
+}
+
+.remote-detail__actions .compact-button > span:not(.anticon) {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Page description: plain text, comfortable reading measure. */
+.remote-detail__description {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 72ch;
+}
+
+.remote-detail__no-images,
+.remote-detail__no-download {
+  font-size: 12px;
+  color: var(--color-text-secondary);
 }
 
 /* Download confirm: identity rows + the download-time category override. */
@@ -56,119 +182,4 @@
 .remote-detail__confirm-category .ant-select {
   flex: 1;
   min-width: 0;
-}
-
-.remote-detail__no-images {
-  padding: 32px 0;
-  text-align: center;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-/* RIGHT — side column: HARD-fixed width (long download names used to widen it and squeeze the
-   gallery — the review column above gets the REMAINING width, fixed by layout not content);
-   INFO panel on top (tags + page description), DOWNLOADS box below. */
-.remote-detail__side {
-  flex: 0 0 260px;
-  width: 260px;
-  min-width: 260px;
-  max-width: 260px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-}
-
-/* Download buttons stay INSIDE the box: only the TEXT ellipsizes (full name in the tooltip);
-   the icon never trims. */
-.remote-detail__actions .compact-button {
-  min-width: 0;
-}
-
-.remote-detail__actions .compact-button .anticon {
-  flex-shrink: 0;
-}
-
-.remote-detail__actions .compact-button > span:not(.anticon) {
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.remote-detail__panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--border-radius-base);
-  background: var(--color-bg-elevated, var(--color-bg-container));
-}
-
-/* Mod name inside the info card — the anchor of the right column's hierarchy. Right padding
-   reserves room for the headless slide-in's floating close button above the card corner. */
-.remote-detail__name {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  padding-right: 34px;
-  color: var(--color-text-base);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.remote-detail__divider {
-  height: 1px;
-  background: var(--color-border-secondary);
-  margin: 2px 0;
-}
-
-.remote-detail__actions-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  margin-left: 6px;
-  border-radius: 9px;
-  background: var(--color-primary-bg, rgba(22, 119, 255, 0.12));
-  color: var(--color-primary);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-/* Page description: plain text, scroll-capped so long pages don't push the downloads away. */
-.remote-detail__description {
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--color-text-secondary);
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 300px;
-  overflow-y: auto;
-  padding-right: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border-base) transparent;
-}
-
-.remote-detail__actions-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.remote-detail__actions .compact-button {
-  width: 100%;
-}
-
-.remote-detail__no-download,
-.remote-detail__meta {
-  font-size: 12px;
-  color: var(--color-text-secondary);
 }
