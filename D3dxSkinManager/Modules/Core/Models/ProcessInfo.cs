@@ -35,6 +35,7 @@ public enum ProcessType
     FileScan,
     Download,
     ModFix,
+    Optimize,
     Other,
 }
 

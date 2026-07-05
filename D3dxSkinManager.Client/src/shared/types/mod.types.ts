@@ -137,3 +137,21 @@ export interface ModKeybinding {
   /** Friendly displays for additionalKeys (index-aligned). */
   additionalKeyDisplays: string[];
 }
+
+/** A set of byte-identical files inside one mod. */
+export interface ModDuplicateGroup {
+  /** Size of ONE copy in bytes. */
+  sizeBytes: number;
+  /** The copy that is kept — references are rewritten to it. */
+  canonical: string;
+  /** Redundant copies (forward-slash relpaths). */
+  duplicates: string[];
+}
+
+/** Read-only result of the duplicate-asset scan. */
+export interface ModOptimizeScanResult {
+  totalFiles: number;
+  groups: ModDuplicateGroup[];
+  /** Bytes freed if all duplicates are removed. */
+  wastedBytes: number;
+}

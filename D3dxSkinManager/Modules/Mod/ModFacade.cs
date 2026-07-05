@@ -48,6 +48,7 @@ public class ModFacade : BaseFacade, IModFacade
     private readonly IModKeybindingService _keybindingService;
     private readonly IModIniService _iniService;
     private readonly IModMergeService _mergeService;
+    private readonly IModOptimizeService _optimizeService;
     private readonly IModPresetService _presetService;
     private readonly IModArchiveService _archiveService;
     private readonly IModOperationQueue _operationQueue;
@@ -68,6 +69,7 @@ public class ModFacade : BaseFacade, IModFacade
         IModKeybindingService keybindingService,
         IModIniService iniService,
         IModMergeService mergeService,
+        IModOptimizeService optimizeService,
         IModPresetService presetService,
         IModArchiveService archiveService,
         IModOperationQueue operationQueue,
@@ -88,6 +90,7 @@ public class ModFacade : BaseFacade, IModFacade
         _keybindingService = keybindingService;
         _iniService = iniService;
         _mergeService = mergeService;
+        _optimizeService = optimizeService;
         _presetService = presetService;
         _archiveService = archiveService;
         _operationQueue = operationQueue;
@@ -152,6 +155,8 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_INI_FILES" => await GetIniFilesAsync(request),
             "UPDATE_INI_ENTRY" => await UpdateIniEntryAsync(request),
             "MERGE_MODS" => await MergeModsAsync(request),
+            "OPTIMIZE_SCAN" => await OptimizeScanAsync(request),
+            "OPTIMIZE_APPLY" => await OptimizeApplyAsync(request),
 
             // Preset operations
             "GET_PRESETS" => await GetPresetsAsync(),
@@ -790,6 +795,28 @@ public class ModFacade : BaseFacade, IModFacade
         var newValue = _payloadHelper.GetRequiredValue<string>(request.Payload, "newValue");
         var line = await _iniService.UpdateEntryAsync(id, relativePath, lineIndex, newValue).ConfigureAwait(false);
         return new { line };
+    }
+
+    /// <summary>IPC: OPTIMIZE_SCAN — read-only duplicate-asset scan (awaited; hashing is fast enough for a dialog spinner).</summary>
+    private async Task<ModOptimizeScanResult> OptimizeScanAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await _optimizeService.ScanAsync(id).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// IPC: OPTIMIZE_APPLY — fire-and-forget: ref rewrite + delete + full recompress is slow, so it runs
+    /// in the background and reports via the ProcessRegistry; the list refreshes via REFRESHED.
+    /// </summary>
+    private Task<object?> OptimizeApplyAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        _ = Task.Run(async () =>
+        {
+            try { await _optimizeService.ApplyAsync(id).ConfigureAwait(false); }
+            catch (Exception ex) { _logger.Error($"[ModFacade] Optimize failed for {id}: {ex.Message}", ModuleName, ex); }
+        });
+        return Task.FromResult<object?>(new { started = true });
     }
 
     /// <summary>

@@ -72,6 +72,7 @@ Layer-3 event consolidation.
 | `ModKeybindingService` | `[Key*]` parse + rebind write-back (fast patch) |
 | `ModIniService` | config editor: parse all `.ini` → entries, server-side read-only guard |
 | `ModMergeService` + `NamespaceMergeBuilder` | namespace-based mod-merge v2 (`3dmigoto-ini-interface.md`) |
+| `ModOptimizeService` | duplicate-asset dedup: rewrite `filename =` refs → canonical, delete copies, recompress |
 | `ModListEventHandler` | 8 events → `MOD_LIST_UPDATED` |
 | `ModRepository` / `TagRepository` | SQLite access |
 

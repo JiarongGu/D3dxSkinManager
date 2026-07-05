@@ -49,6 +49,7 @@ public class ModFacadeTests
             Mock.Of<IModKeybindingService>(),
             Mock.Of<IModIniService>(),
             Mock.Of<IModMergeService>(),
+            Mock.Of<IModOptimizeService>(),
             Mock.Of<IModPresetService>(),
             Mock.Of<IModArchiveService>(),
             _queue.Object,

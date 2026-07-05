@@ -1,0 +1,76 @@
+.mod-optimize {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+}
+
+.mod-optimize__scanning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.mod-optimize__clean {
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.mod-optimize__summary {
+  font-size: 14px;
+}
+
+.mod-optimize__groups {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.mod-optimize__group {
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 4px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mod-optimize__canonical {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.mod-optimize__canonical code {
+  color: var(--color-text-base);
+  word-break: break-all;
+}
+
+.mod-optimize__size {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.mod-optimize__duplicate {
+  font-size: 12px;
+  padding-left: 12px;
+}
+
+.mod-optimize__duplicate code {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
+  word-break: break-all;
+}
+
+.mod-optimize__hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}

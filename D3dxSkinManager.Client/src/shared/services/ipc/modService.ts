@@ -9,6 +9,7 @@ import {
   BatchDeleteResult,
   ModPresetInfo,
   ModPresetApplyResult,
+  ModOptimizeScanResult,
 } from "../../types/mod.types";
 import type { ModIpcRequests } from "../../types/ipc/modIpcRequests";
 import type { ModIniFile } from "../../types/modIni.types";
@@ -587,6 +588,25 @@ export class ModService extends BaseModuleService {
     activeOnly = true,
   ): Promise<void> {
     await this.sendMessage<{ started: boolean }>("MERGE_MODS", profileId, { ids, name, key, activeOnly });
+  }
+
+  // ============= Optimize Operations =============
+
+  /**
+   * Read-only duplicate-asset scan of the mod's extracted cache.
+   * Backend: ModFacade.OptimizeScanAsync
+   */
+  async optimizeScan(profileId: string, id: string): Promise<ModOptimizeScanResult> {
+    return this.sendTypedMessage<ModIpcRequests, ModOptimizeScanResult>("OPTIMIZE_SCAN", profileId, { id });
+  }
+
+  /**
+   * Apply the dedup (rewrite refs, delete copies, recompress). Fire-and-forget: the backend acks
+   * immediately and reports via the ProcessRegistry; the list refreshes via MOD_LIST_UPDATED.
+   * Backend: ModFacade.OptimizeApplyAsync
+   */
+  async optimizeApply(profileId: string, id: string): Promise<void> {
+    await this.sendTypedMessage<ModIpcRequests, { started: boolean }>("OPTIMIZE_APPLY", profileId, { id });
   }
 
   // ============= .ini Editor Operations =============

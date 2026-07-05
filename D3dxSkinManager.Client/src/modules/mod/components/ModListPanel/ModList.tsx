@@ -12,6 +12,7 @@ import {
   FolderOpenOutlined,
   FileTextOutlined,
   MergeCellsOutlined,
+  CompressOutlined,
   ClearOutlined,
   CopyOutlined,
   SyncOutlined,
@@ -43,6 +44,7 @@ import { BatchEditModsScreen } from "../BatchEditScreen";
 import { ModFixTool } from "../../../tool/components/ModFixTool/ModFixTool";
 import { ModIniEditor } from "../ModIniEditor/ModIniEditor";
 import { MergeModsDialog } from "../MergeModsDialog/MergeModsDialog";
+import { ModOptimizeDialog } from "../ModOptimizeDialog/ModOptimizeDialog";
 import { useMods } from "../../hooks/useMods";
 import "./ModList.css";
 
@@ -100,6 +102,7 @@ export const ModList: React.FC<ModListProps> = ({
   const [showFixManager, setShowFixManager] = useState(false);
   const [iniEditorMod, setIniEditorMod] = useState<ModInfo>();
   const [mergeDialogMods, setMergeDialogMods] = useState<ModInfo[]>();
+  const [optimizeMod, setOptimizeMod] = useState<ModInfo>();
 
   // DEV-only: open the config editor directly (bypasses the context menu) for fast UI iteration in
   // Chrome / CDP. Stripped from production builds.
@@ -553,6 +556,13 @@ export const ModList: React.FC<ModListProps> = ({
       disabled: !mod?.hasCache,
       onClick: () => setIniEditorMod(mod),
     },
+    {
+      key: "optimize",
+      label: t("contextMenu.optimize"),
+      icon: <CompressOutlined />,
+      disabled: !mod?.hasCache,
+      onClick: () => setOptimizeMod(mod),
+    },
     { type: "divider" as const },
 
     // Group 2: Copy Operations
@@ -879,6 +889,13 @@ export const ModList: React.FC<ModListProps> = ({
         visible={!!iniEditorMod}
         mod={iniEditorMod}
         onClose={() => setIniEditorMod(undefined)}
+      />
+      {/* Duplicate-asset optimizer — right-click "Optimize" (extracted mods only) */}
+      <ModOptimizeDialog
+        visible={!!optimizeMod}
+        modId={optimizeMod?.id}
+        modName={optimizeMod?.name}
+        onClose={() => setOptimizeMod(undefined)}
       />
       {/* Mod-merge — combine the selected mods into a new cycle-merged mod */}
       <MergeModsDialog

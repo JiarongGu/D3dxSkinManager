@@ -26,6 +26,7 @@ export type ProcessType =
   | 'fileScan'
   | 'download'
   | 'modFix'
+  | 'optimize'
   | 'other';
 
 export interface ProcessInfo {

@@ -123,10 +123,17 @@ Ground the checks in the authoritative INI docs (`leotorrez.github.io/modding/do
 `research`): valid section types, command syntax, key options, namespace rules. Then refine
 health/duplicate/conflict logic (fewer false positives, real actionable findings).
 
-### 4. Mod optimization tool (dedup assets, normalize names)
-New tool: within a mod (or merge output), sha-dedup identical asset files (textures/buffers),
-rewrite `.ini` `filename =` refs to the canonical copy, and normalize file names. Big archive-size
-win for merged/multi-variant mods. Reuse the config-editor parse layer + planner-serialized writes.
+### 4. Mod optimization (dedup assets) — ✅ SHIPPED 2026-07-05
+`ModOptimizeService`: sha256-groups byte-identical non-`.ini` files in the mod's cache (active or
+disabled), rewrites every `filename =` ref (resolved relative to each `.ini`'s own dir, separator
+style preserved) to the canonical copy, deletes redundant copies only when no reference remains,
+then full-recompresses (deletions can't append). `.ini` files are never deduplicated (sections load
+per-file). IPC `OPTIMIZE_SCAN` (awaited, read-only) + `OPTIMIZE_APPLY` (fire-and-forget, ONE
+`process.optimize` registry entry). UI: mod right-click **优化模组 / Optimize Mod** → dialog scans on
+open, shows kept/struck-through copies + saved bytes, Apply → Activity panel. Tests:
+`ModOptimizeServiceTests` (5, real files incl. cross-folder relative-ref rewrite). Verified e2e.
+**Follow-up (not shipped): file-name normalization** — renaming referenced files needs the same
+ref-rewrite machinery; add as an optimizer option later.
 
 ### 5. Config-editor growth (extend the `.ini` editor)
 Still open: `transition*` as ms number fields, **multiple `key=` lines** (ties into B4), Xbox `XB_*`,
