@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from 'antd';
+
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../shared/context/ProfileContext';
@@ -7,6 +7,7 @@ import { profileService, systemService } from '../../../../shared/services/ipc';
 import { eventBus, Module, ProfileEventType } from '../../../../shared/services/eventBus';
 import { notification } from '../../../../shared/utils/notification';
 import { navigateToTab } from '../../../../shared/hooks/useAppNavigation';
+import { CompactButton } from '../../../../shared/components/compact';
 
 /**
  * Status-bar quick-launch. When a launch target is configured (Settings → Mod Work / XXMI picker),
@@ -57,15 +58,15 @@ export const LaunchButton: React.FC = () => {
   // upgraded library without a launch path still surfaces the action instead of hiding it).
   if (!path) {
     return (
-      <Button size="small" icon={<PlayCircleOutlined />} onClick={onClick} title={t('launch.configureHint')}>
+      <CompactButton size="small" icon={<PlayCircleOutlined />} onClick={onClick} title={t('launch.configureHint')}>
         {t('launch.setup')}
-      </Button>
+      </CompactButton>
     );
   }
 
   return (
-    <Button type="primary" size="small" icon={<PlayCircleOutlined />} onClick={onClick} title={path}>
+    <CompactButton type="primary" size="small" icon={<PlayCircleOutlined />} onClick={onClick} title={path}>
       {t('launch.launch')}
-    </Button>
+    </CompactButton>
   );
 };

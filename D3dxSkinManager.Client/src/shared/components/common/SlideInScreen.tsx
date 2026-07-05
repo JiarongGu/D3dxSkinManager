@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, createContext, useContext } from 'react';
 import classNames from 'classnames';
 import { CloseOutlined } from '@ant-design/icons';
-import { Button, Spin } from 'antd';
+import { Spin } from 'antd';
 import { useSlideInScreenContext } from '../../context/SlideInScreenContext';
 import './SlideInScreen.css';
+import { CompactButton } from '../compact';
 
 // Context to track which screen we're currently inside
 const CurrentSlideInScreenContext = createContext<string | undefined>(undefined);
@@ -88,7 +89,7 @@ export function SlideInScreen({
         {/* Header */}
         <div className="slide-in-screen-header">
           <h2 className="slide-in-screen-title">{title}</h2>
-          <Button
+          <CompactButton
             type="text"
             icon={<CloseOutlined />}
             onClick={() => !isClosing && !loading && onClose()}

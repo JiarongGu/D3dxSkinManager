@@ -1,8 +1,8 @@
 import React from 'react';
-import { Form, Input } from 'antd';
+import { Form } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { CompactTextArea, CompactInput } from '../../../../shared/components/compact';
 
-const { TextArea } = Input;
 
 /**
  * Basic information section for mod editing
@@ -22,7 +22,7 @@ export const BasicInfoSection: React.FC = () => {
           { whitespace: true, message: t('mods.edit.nameRequired') }
         ]}
       >
-        <Input placeholder={t('mods.edit.namePlaceholder')} />
+        <CompactInput placeholder={t('mods.edit.namePlaceholder')} />
       </Form.Item>
 
       {/* Description */}
@@ -31,7 +31,7 @@ export const BasicInfoSection: React.FC = () => {
         name="description"
         tooltip={t('mods.edit.descriptionTooltip')}
       >
-        <TextArea
+        <CompactTextArea
           placeholder={t('mods.edit.descriptionPlaceholder')}
           rows={3}
           showCount

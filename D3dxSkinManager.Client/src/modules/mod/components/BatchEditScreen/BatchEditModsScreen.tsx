@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Typography, Button } from 'antd';
+import { Typography } from 'antd';
 import { SearchOutlined, UndoOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
 import { cloneDeep } from 'lodash-es';
 import { AgGridReact } from 'ag-grid-react';
@@ -250,7 +250,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
         {/* Editor-style Toolbar */}
         <div className="batch-edit-toolbar">
           <div className="batch-edit-toolbar-left">
-            <Button
+            <CompactButton
               icon={<UndoOutlined />}
               onClick={handleReset}
               disabled={!hasChanges}
@@ -258,7 +258,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
             >
               {t('mods.batchEdit.toolbar.reset')}
               <span className="batch-edit-shortcut">Ctrl+Z</span>
-            </Button>
+            </CompactButton>
             <span className="batch-edit-divider" />
             <div className="batch-edit-toolbar-info">
               <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -269,14 +269,14 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
           </div>
 
           <div className="batch-edit-toolbar-right">
-            <Button
+            <CompactButton
               icon={<SearchOutlined />}
               onClick={() => setShowSearchReplace(prev => !prev)}
               size="small"
             >
               {t('mods.batchEdit.toolbar.findReplace')}
               <span className="batch-edit-shortcut">Ctrl+F</span>
-            </Button>
+            </CompactButton>
           </div>
         </div>
 

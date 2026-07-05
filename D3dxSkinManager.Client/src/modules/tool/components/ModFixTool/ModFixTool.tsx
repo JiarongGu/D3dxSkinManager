@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Button, Space, Table, Progress, Input, Empty, Popconfirm, Tooltip, Select, Dropdown } from 'antd';
+import { Space, Table, Progress, Empty, Popconfirm, Tooltip, Dropdown } from 'antd';
 import {
   ThunderboltOutlined, FolderOpenOutlined,
   FileAddOutlined, DeleteOutlined, DownOutlined, EditOutlined,
 } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { FormDialog } from '../../../../shared/components/dialogs/FormDialog';
-import { CompactField, CompactIconButton } from '../../../../shared/components/compact';
+import { CompactField, CompactIconButton, CompactInput, CompactSelect, CompactButton } from '../../../../shared/components/compact';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
@@ -196,7 +196,7 @@ const ModFixManagerInner: React.FC = () => {
           <code className="mod-fix__output">{tool.entries[0]?.name}</code>
         ) : (
           // Folder tool — pick one or MORE entries to expose.
-          <Select<string[]>
+          <CompactSelect<string[]>
             mode="multiple"
             size="small"
             placeholder={t('tools.modFix.selectEntry')}
@@ -217,23 +217,23 @@ const ModFixManagerInner: React.FC = () => {
         <Space size={4}>
           {tool.entries.length <= 1 ? (
             <Tooltip title={tool.entries.length === 0 ? t('tools.modFix.setEntryFirst') : ''}>
-              <Button
+              <CompactButton
                 size="small"
                 icon={<ThunderboltOutlined />}
                 onClick={() => tool.entries[0] && runEntry(tool, tool.entries[0].path)}
                 disabled={running || tool.entries.length === 0}
               >
                 {t('tools.modFix.runAll')}
-              </Button>
+              </CompactButton>
             </Tooltip>
           ) : (
             <Dropdown
               disabled={running}
               menu={{ items: tool.entries.map((e) => ({ key: e.path, label: e.name, onClick: () => runEntry(tool, e.path) })) }}
             >
-              <Button size="small" icon={<ThunderboltOutlined />}>
+              <CompactButton size="small" icon={<ThunderboltOutlined />}>
                 {t('tools.modFix.runAll')} <DownOutlined />
-              </Button>
+              </CompactButton>
             </Dropdown>
           )}
           {canRename(tool) && (
@@ -259,18 +259,18 @@ const ModFixManagerInner: React.FC = () => {
       {/* Add a fix tool */}
       <CompactField label={t('tools.modFix.addTool')} description={t('tools.modFix.addHint')}>
         <Space.Compact style={{ width: '100%' }}>
-          <Input
+          <CompactInput
             value={newName}
             placeholder={t('tools.modFix.namePlaceholder')}
             onChange={(e) => setNewName(e.target.value)}
             disabled={busy}
           />
-          <Button icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
+          <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
             {t('tools.modFix.addFolder')}
-          </Button>
-          <Button icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
+          </CompactButton>
+          <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
             {t('tools.modFix.addFile')}
-          </Button>
+          </CompactButton>
         </Space.Compact>
       </CompactField>
 
@@ -288,7 +288,7 @@ const ModFixManagerInner: React.FC = () => {
         onOk={rename}
         width={420}
       >
-        <Input
+        <CompactInput
           autoFocus
           value={renameValue}
           placeholder={t('tools.modFix.namePlaceholder')}

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Empty, Spin, Input, Button } from 'antd';
+import { Empty, Spin, Input } from 'antd';
 import { PlusOutlined, FolderOpenOutlined, FolderOutlined } from '@ant-design/icons';
 import { CategoryInfo } from '../../../../shared/types/category.types';
 import { flattenCategoryTree } from '../../../../shared/utils/categoryTree';
@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import type { MenuProps } from 'antd';
 import classNames from 'classnames';
 import './CategoryGrid.css';
+import { CompactButton } from '../../../../shared/components/compact';
 
 const { Search } = Input;
 
@@ -648,7 +649,7 @@ export const CategoryGrid: React.FC = () => {
           className="category-grid-search"
           allowClear
         />
-        <Button
+        <CompactButton
           type="default"
           icon={<PlusOutlined />}
           onClick={() => onAddCategory?.()}

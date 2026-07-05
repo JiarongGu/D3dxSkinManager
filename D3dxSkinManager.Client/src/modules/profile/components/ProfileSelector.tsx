@@ -1,8 +1,9 @@
 import React from 'react';
-import { Select, Button, Space, Spin } from 'antd';
+import { Space, Spin } from 'antd';
 import { UserOutlined, SettingOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import './ProfileSelector.css';
+import { CompactSelect, CompactButton } from '../../../shared/components/compact';
 
 interface ProfileSelectorProps {
   onManageProfiles?: () => void;
@@ -30,7 +31,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onManageProfil
   return (
     <Space>
       <UserOutlined className="profile-selector-icon" />
-      <Select
+      <CompactSelect
         value={selectedProfileId}
         onChange={handleProfileChange}
         className="profile-selector-dropdown"
@@ -42,7 +43,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onManageProfil
         }))}
       />
       {onManageProfiles && (
-        <Button
+        <CompactButton
           type="text"
           size="small"
           icon={<SettingOutlined />}

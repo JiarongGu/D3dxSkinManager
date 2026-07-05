@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Input, Checkbox, Tag, Select, Progress, Row, Col, List, Empty, Descriptions } from 'antd';
+import { Checkbox, Tag, Progress, Row, Col, List, Empty, Descriptions, Input } from 'antd';
 import { FolderOpenOutlined, InboxOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { CompactButton, CompactSpace, CompactCard, CompactAlert, CompactDivider } from '../../../../../shared/components/compact';
+import { CompactButton, CompactSpace, CompactCard, CompactAlert, CompactDivider, CompactSelect } from '../../../../../shared/components/compact';
 import { StatusTag, StatusTone } from '../../../../../shared/components/common/StatusTag';
 import { toAppUrl } from '../../../../../shared/utils/imageUrlHelper';
 import { useModPackage } from '../context/ModPackageContext';
@@ -304,22 +304,19 @@ export const ImportTab: React.FC = () => {
               value={search}
               onChange={e => setSearch(e.target.value)}
               allowClear
-              size="middle"
               className="mod-transfer__search"
             />
-            <Select
+            <CompactSelect
               value={categoryFilter || '__all__'}
               onChange={v => setCategoryFilter(v === '__all__' ? undefined : v)}
               options={categoryOptions}
-              size="middle"
               className="mod-transfer__category-filter"
               popupMatchSelectWidth={false}
             />
-            <Select
+            <CompactSelect
               value={statusFilter || '__all__'}
               onChange={v => setStatusFilter(v === '__all__' ? undefined : v)}
               options={statusOptions}
-              size="middle"
               className="mod-transfer__status-filter"
               popupMatchSelectWidth={false}
             />

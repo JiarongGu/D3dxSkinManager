@@ -31,17 +31,18 @@ export interface CompactButtonProps extends Omit<ButtonProps, "size"> {
   className?: string;
 }
 
-export const CompactButton: React.FC<CompactButtonProps> = ({
+export const CompactButton = React.forwardRef<HTMLButtonElement, CompactButtonProps>(({
   size = "medium",
   className = "",
   children,
   ...rest
-}) => {
+}, ref) => {
   // Map our size to Ant Design size
   const antdSize = size === "medium" ? "middle" : size;
 
   return (
     <Button
+      ref={ref}
       size={antdSize}
       className={classNames(
         "compact-button",
@@ -53,7 +54,8 @@ export const CompactButton: React.FC<CompactButtonProps> = ({
       {children}
     </Button>
   );
-};
+});
+CompactButton.displayName = "CompactButton";
 
 /**
  * CompactButton.Primary - Primary action button (convenience wrapper)

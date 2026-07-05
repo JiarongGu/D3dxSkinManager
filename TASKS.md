@@ -16,6 +16,17 @@
 (none)
 
 ## Backlog
+- [ ] we dont really need to sync whole remote site
+- [ ] once we synced with one library we should be able to update, not just resync entirely
+- [ ] downloaded mod should have a reference to the remote, so we know this mod is been downloaded
+- [ ] we should have a cached location for remote site (loaded image content and extra) so we dont need to load those from remote all the time, also provide way to clean them up (in cleanup tool you might also need to improve the cleanup tool ui/ux)
+- [ ] since we dont have whole remote site sync so remote cache should belong to profile level instead data level (you might think of use sqlite instead of json to store the data)
+- [ ] remote mod slide-in-screen ui/ux update
+- [ ] fix tools import ui/ux update, table hover color
+- [ ] after merge nothing shows (character when invisible)
+- [ ] when merge mod if there are same assets, try to dedup
+- [ ] move fix in the context menu below the optimize mod and rename it to "fix mod"
+- [ ] we need a better way from mod list back to analyzed result, currently logic of remember the last result also cause an ui/ux issue when entering the analyzer
 - [ ] Save presist values, so after reload the mod back we have the presist value 3dmigoto usually resets if a new mod is loaded, and also need to allow to reset this or save this to the ini for default
 
 ### Features

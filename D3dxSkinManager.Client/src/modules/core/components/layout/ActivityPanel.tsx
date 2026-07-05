@@ -1,5 +1,5 @@
 import React from 'react';
-import { Drawer, Progress, Button, Empty } from 'antd';
+import { Drawer, Progress, Empty } from 'antd';
 import {
   LoadingOutlined,
   CheckCircleOutlined,
@@ -13,6 +13,7 @@ import { useProcessStore, processTitle, processDetail, ProcessInfo, ProcessStatu
 import { StatusTag, StatusTone } from '../../../../shared/components/common/StatusTag';
 import { systemService } from '../../../../shared/services/ipc';
 import './ActivityPanel.css';
+import { CompactButton } from '../../../../shared/components/compact';
 
 interface ActivityPanelProps {
   open: boolean;
@@ -54,23 +55,23 @@ const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
         <span className="activity-panel__title" title={title}>{title}</span>
         <StatusTag tone={meta.tone} label={t(meta.key)} icon={null} className="activity-panel__status-tag" />
         {p.status === 'running' && p.cancellable && (
-          <Button
+          <CompactButton
             size="small"
             type="text"
             danger
             onClick={() => void systemService.cancelProcess(p.id)}
           >
             {t('activity.actions.cancel')}
-          </Button>
+          </CompactButton>
         )}
         {p.status === 'interrupted' && p.resumable && (
-          <Button
+          <CompactButton
             size="small"
             type="link"
             onClick={() => void systemService.resumeProcess(p.id)}
           >
             {t('activity.actions.resume')}
-          </Button>
+          </CompactButton>
         )}
       </div>
 
@@ -114,9 +115,9 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ open, onClose }) =
       className="activity-panel"
       extra={
         hasFinished && (
-          <Button size="small" onClick={() => void systemService.clearCompletedProcesses()}>
+          <CompactButton size="small" onClick={() => void systemService.clearCompletedProcesses()}>
             {t('activity.actions.clearCompleted')}
-          </Button>
+          </CompactButton>
         )
       }
     >

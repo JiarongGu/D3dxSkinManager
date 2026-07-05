@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Button, Checkbox, Empty, Result, Spin, Tag, Tooltip } from 'antd';
+import { Checkbox, Empty, Result, Spin, Tag, Tooltip } from 'antd';
 import {
   DeleteOutlined,
   ReloadOutlined,
@@ -15,6 +15,7 @@ import { systemService } from '../../../../../shared/services/ipc';
 import { handleError } from '../../../../../shared/utils/errorHandler';
 import { formatBytes } from '../../../../../shared/utils/formatBytes';
 import type { OrphanCategory, OrphanScanResult, OrphanedItem } from '../../../../../shared/types/cleanup.types';
+import { CompactButton } from '../../../../../shared/components/compact';
 
 interface CleanupTabProps {
   category: OrphanCategory;
@@ -132,7 +133,7 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
               {selectedPaths.size} {t('tools.fileCleanup.selected')} · {formatBytes(selectedSize)}
             </span>
           )}
-          <Button
+          <CompactButton
             type="primary"
             danger
             icon={<DeleteOutlined />}
@@ -142,7 +143,7 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
             size="small"
           >
             {t('tools.fileCleanup.cleanSelected')}
-          </Button>
+          </CompactButton>
         </div>
       </div>
 
@@ -228,7 +229,7 @@ const CleanupItem: React.FC<{
       <span className="file-cleanup__item-date">{item.lastModified}</span>
       {canOpenInExplorer && (
         <Tooltip title={t('tools.fileCleanup.openInExplorer')}>
-          <Button
+          <CompactButton
             type="text"
             size="small"
             icon={<FolderOpenOutlined />}

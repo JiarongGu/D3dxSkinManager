@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Button, Space, Spin, Tag, Table, Progress } from 'antd';
+import { Space, Spin, Tag, Table, Progress } from 'antd';
 import { CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,7 @@ import type {
   ModIdMigrationItemResult,
 } from '../../../../shared/types/modIdMigration.types';
 import './ModIdMigrationTool.css';
+import { CompactButton } from '../../../../shared/components/compact';
 
 interface ModIdMigrationToolProps {
   visible: boolean;
@@ -197,17 +198,17 @@ const ModIdMigrationToolInner: React.FC<InnerProps> = ({ onMigrationComplete }) 
             <>
               <ScanTable items={scanResult.items} />
               <div className="mod-id-migration__actions">
-                <Button
+                <CompactButton
                   type="primary"
                   onClick={migrate}
                   loading={migrating}
                   icon={<SyncOutlined />}
                 >
                   {t('tools.modIdMigration.migrateAll')}
-                </Button>
-                <Button onClick={scan} disabled={migrating}>
+                </CompactButton>
+                <CompactButton onClick={scan} disabled={migrating}>
                   {t('tools.modIdMigration.rescan')}
-                </Button>
+                </CompactButton>
               </div>
             </>
           )}
@@ -227,9 +228,9 @@ const ModIdMigrationToolInner: React.FC<InnerProps> = ({ onMigrationComplete }) 
           </div>
           <ResultTable items={migrationResult.results} />
           <div className="mod-id-migration__actions">
-            <Button onClick={scan}>
+            <CompactButton onClick={scan}>
               {t('tools.modIdMigration.rescan')}
-            </Button>
+            </CompactButton>
           </div>
         </>
       )}

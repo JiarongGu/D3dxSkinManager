@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Input, Switch, Tooltip, Typography } from 'antd';
+import { Modal, Tooltip, Typography } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { modService } from '../../../../shared/services/ipc';
 import { notification } from '../../../../shared/utils/notification';
 import { handleError } from '../../../../shared/utils/errorHandler';
-import { CompactIconButton } from '../../../../shared/components/compact';
+import { CompactIconButton, CompactInput, CompactSwitch } from '../../../../shared/components/compact';
 import type { ModInfo } from '../../../../shared/types/mod.types';
 import './MergeModsDialog.css';
 
@@ -118,12 +118,12 @@ export const MergeModsDialog: React.FC<MergeModsDialogProps> = ({ visible, mods,
 
       <div className="merge-dialog__field">
         <span className="merge-dialog__field-label">{t('mods.merge.name')}</span>
-        <Input size="small" value={name} disabled={busy} onChange={(e) => setName(e.target.value)} maxLength={80} />
+        <CompactInput size="small" value={name} disabled={busy} onChange={(e) => setName(e.target.value)} maxLength={80} />
       </div>
 
       <div className="merge-dialog__field">
         <span className="merge-dialog__field-label">{t('mods.merge.key')}</span>
-        <Input
+        <CompactInput
           size="small"
           className="merge-dialog__key"
           value={key}
@@ -139,7 +139,7 @@ export const MergeModsDialog: React.FC<MergeModsDialogProps> = ({ visible, mods,
         <span className="merge-dialog__field-label">
           <Tooltip title={t('mods.merge.activeOnlyHint')}>{t('mods.merge.activeOnly')}</Tooltip>
         </span>
-        <Switch size="small" checked={activeOnly} disabled={busy} onChange={setActiveOnly} />
+        <CompactSwitch size="small" checked={activeOnly} disabled={busy} onChange={setActiveOnly} />
       </div>
     </Modal>
   );

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Input, Checkbox, Select, Progress, Row, Col, List, Spin } from 'antd';
+import { Checkbox, Progress, Row, Col, List, Spin, Input } from 'antd';
 import {
   RightOutlined,
   CloseOutlined,
@@ -8,7 +8,7 @@ import {
   FolderOpenOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { CompactButton, CompactInput, CompactCard, CompactAlert, CompactSpace, CompactDivider } from '../../../../../shared/components/compact';
+import { CompactButton, CompactInput, CompactCard, CompactAlert, CompactSpace, CompactDivider, CompactSelect } from '../../../../../shared/components/compact';
 import { api } from '../../../../../shared/services/ipc';
 import { useModPackage } from '../context/ModPackageContext';
 import type { ModInfo } from '../../../../../shared/types/mod.types';
@@ -251,14 +251,12 @@ export const ExportTab: React.FC = () => {
               value={search}
               onChange={e => setSearch(e.target.value)}
               allowClear
-              size="middle"
               className="mod-transfer__search"
             />
-            <Select
+            <CompactSelect
               value={categoryFilter || '__all__'}
               onChange={v => setCategoryFilter(v === '__all__' ? undefined : v)}
               options={categoryOptions}
-              size="middle"
               className="mod-transfer__category-filter"
               popupMatchSelectWidth={false}
             />

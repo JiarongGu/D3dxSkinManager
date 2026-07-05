@@ -1,10 +1,11 @@
 import React, { useRef, useState } from 'react';
 import classNames from 'classnames';
-import { Input, Space } from 'antd';
+import { Space } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Chord, baseFromEvent, buildRaw, buildDisplay, rawToDisplay } from '../../utils/keyChord';
 import { XboxButtonPicker } from './XboxButtonPicker';
 import './KeyCaptureInput.css';
+import { CompactInput } from '../compact';
 
 interface KeyCaptureInputProps {
   /** Raw 3DMigoto key value (e.g. "no_ctrl no_shift no_alt j"). */
@@ -41,7 +42,7 @@ export const KeyCaptureInput: React.FC<KeyCaptureInputProps> = ({ value, onChang
 
   return (
     <Space.Compact className={classNames('key-capture-input-group', className)}>
-      <Input
+      <CompactInput
         size="small"
         readOnly
         disabled={disabled}

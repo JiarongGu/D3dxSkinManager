@@ -1,6 +1,6 @@
 ﻿import { notification } from '../../../shared/utils/notification';
 import React, { useState } from 'react';
-import { Button, Avatar } from 'antd';
+import { Avatar } from 'antd';
 import {
   UserOutlined,
   SettingOutlined
@@ -11,6 +11,7 @@ import { Profile } from '../../../shared/types/profile.types';
 import { useTranslation } from 'react-i18next';
 import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 import './ProfileSwitcher.css';
+import { CompactButton } from '../../../shared/components/compact';
 
 interface ProfileSwitcherProps {
   onManageClick?: () => void;
@@ -120,7 +121,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 
   return (
     <>
-      <Button
+      <CompactButton
         ref={buttonRef}
         className="profile-switcher-button"
         loading={loading}
@@ -153,7 +154,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
             {!activeProfile && <span className="profile-switcher-placeholder">{t('profiles.switcher.selectProfile')}</span>}
           </div>
         </div>
-      </Button>
+      </CompactButton>
 
       <ContextMenu
         items={menuItems}

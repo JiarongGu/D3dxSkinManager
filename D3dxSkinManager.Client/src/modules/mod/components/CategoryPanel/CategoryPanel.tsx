@@ -1,6 +1,6 @@
 ﻿import { notification } from '../../../../shared/utils/notification';
 import React, { useCallback, useState, useEffect } from 'react';
-import { Layout, Button, Tooltip } from 'antd';
+import { Layout, Tooltip } from 'antd';
 import { ApartmentOutlined, AppstoreOutlined, CheckCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { CategoryInfo, CATEGORY_IDS } from '../../../../shared/types/category.types';
 import { CategoryTree } from './CategoryTree';
@@ -18,6 +18,7 @@ import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
 import { ModPackageTool } from '../../../tool/components/ModPackageTool/ModPackageTool';
 import { ModAnalyzerTool } from '../../../tool/components/ModAnalyzerTool/ModAnalyzerTool';
 import './CategoryPanel.css';
+import { CompactButton } from '../../../../shared/components/compact';
 
 const { Sider } = Layout;
 
@@ -236,7 +237,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
         {/* Right section - Action icon buttons */}
         <div className="category-panel-status-right">
           <Tooltip title={t(categoryViewMode === 'tree' ? 'category.gridView' : 'category.treeView')} placement="top">
-            <Button
+            <CompactButton
               type="text"
               size="small"
               icon={categoryViewMode === 'tree' ? <AppstoreOutlined /> : <ApartmentOutlined />}
@@ -245,7 +246,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
             />
           </Tooltip>
           <Tooltip title={t('category.showAllMods')} placement="top">
-            <Button
+            <CompactButton
               type="text"
               size="small"
               icon={<UnorderedListOutlined />}
@@ -254,7 +255,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
             />
           </Tooltip>
           <Tooltip title={t('category.showLoadedMods')} placement="top">
-            <Button
+            <CompactButton
               type="text"
               size="small"
               icon={<CheckCircleOutlined />}

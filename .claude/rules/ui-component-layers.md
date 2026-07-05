@@ -49,7 +49,12 @@ or `useModsStore`, it's actually L3 — split it: a dumb L1/L2 view + an L3 wrap
 ## Rules for the agent
 
 1. **Reuse before creating.** Need a button/input/tag/badge/card? Use the `compact/` atom or a `common/`
-   atom. Never hand-roll a styled `<button>`/`<div>` that duplicates an atom. (See `shared-utilities.md`.)
+   atom. Never hand-roll a styled `<button>`/`<div>` that duplicates an atom, and **never use raw antd
+   form controls (`Button`/`Input`/`TextArea`/`Select`/`Switch`) in L3 views** — an app-wide sweep
+   migrated all 23 offending files (2026-07-05, `devtools/scripts/codemod-compact-atoms.mjs`; the
+   mixed-height toolbar bug class). Raw antd stays ONLY for components with no atom (Modal→dialogs/,
+   Table/Tabs/Tree/Dropdown/Pagination/Spin/Empty/Tooltip/InputNumber/Segmented/Radio/Checkbox) and
+   `Input.Search`. `CompactInput`/`CompactButton` forward refs since this sweep. (See `shared-utilities.md`.)
 2. **New atom (L1):** pure props, no IPC/store, in `compact/` (or `common/` for non-form visuals). Must be
    usable in pure-UI Chrome with no backend.
 3. **New connected piece (L3):** keep the visual part as an L1/L2 component and add a thin L3 wrapper that

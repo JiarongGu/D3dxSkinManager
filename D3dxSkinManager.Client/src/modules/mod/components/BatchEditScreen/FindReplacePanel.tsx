@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Input, Select, Checkbox, Button, Space } from 'antd';
+import { Checkbox, Space } from 'antd';
 import { SearchOutlined, CloseOutlined, SwapOutlined, EnterOutlined } from '@ant-design/icons';
 import { debounce } from 'lodash-es';
 import { useTranslation } from 'react-i18next';
 import './FindReplacePanel.css';
+import { CompactInput, CompactButton } from '../../../../shared/components/compact';
 
 interface FindReplacePanelProps {
   visible: boolean;
@@ -127,7 +128,7 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
       <div className="find-replace-row">
         <div className="find-replace-input-group">
           <SearchOutlined className="find-replace-icon" />
-          <Input
+          <CompactInput
             ref={findInputRef}
             value={config.find}
             onChange={(e) => handleFindChange(e.target.value)}
@@ -156,7 +157,7 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
         </div>
 
         <div className="find-replace-actions">
-          <Button
+          <CompactButton
             type="text"
             size="small"
             icon={<CloseOutlined />}
@@ -171,7 +172,7 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
       <div className="find-replace-row">
         <div className="find-replace-input-group">
           <SwapOutlined className="find-replace-icon" />
-          <Input
+          <CompactInput
             value={config.replace}
             onChange={(e) => setConfig({ ...config, replace: e.target.value })}
             placeholder={t('mods.batchEdit.findReplace.replacePlaceholder')}
@@ -185,7 +186,7 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
         </div>
 
         <div className="find-replace-actions">
-          <Button
+          <CompactButton
             type="text"
             size="small"
             icon={<EnterOutlined />}

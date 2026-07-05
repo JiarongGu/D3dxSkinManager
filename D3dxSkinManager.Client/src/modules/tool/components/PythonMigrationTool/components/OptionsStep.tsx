@@ -1,8 +1,8 @@
 ﻿import React, { useEffect } from 'react';
-import { Form, Input, Checkbox, Radio } from 'antd';
+import { Form, Checkbox, Radio } from 'antd';
 import { useTranslation } from 'react-i18next';
 
-import { CompactSpace, CompactAlert, CompactDivider } from '../../../../../shared/components/compact';
+import { CompactSpace, CompactAlert, CompactDivider, CompactInput } from '../../../../../shared/components/compact';
 import { usePythonMigrationTool } from '../context/PythonMigrationToolContext';
 import { ArchiveHandling } from '../services/migrationService';
 import './MigrationSteps.css';
@@ -50,7 +50,7 @@ export const OptionsStep: React.FC = () => {
           tooltip={t('migration.options.environmentTooltip')}
           style={{ marginBottom: 16 }}
         >
-          <Input placeholder={analysis?.activeEnvironment} />
+          <CompactInput placeholder={analysis?.activeEnvironment} />
         </Form.Item>
 
         <Form.Item label={t('migration.options.whatToMigrate')} style={{ marginBottom: 16 }}>
@@ -114,7 +114,7 @@ export const OptionsStep: React.FC = () => {
                   name="profileName"
                   rules={[{ required: true, message: t('migration.options.profileNameRequired') }]}
                 >
-                  <Input
+                  <CompactInput
                     placeholder={analysis?.activeEnvironment || t('migration.options.profileNamePlaceholder')}
                   />
                 </Form.Item>
@@ -123,7 +123,7 @@ export const OptionsStep: React.FC = () => {
                   name="workDirectory"
                   tooltip={t('migration.options.workDirectoryTooltip')}
                 >
-                  <Input
+                  <CompactInput
                     placeholder={t('migration.options.workDirectoryPlaceholder')}
                   />
                 </Form.Item>

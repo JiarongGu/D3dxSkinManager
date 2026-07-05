@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Input, Tag, Tooltip, Collapse, Empty, Dropdown } from 'antd';
+import { Tag, Tooltip, Collapse, Empty, Dropdown } from 'antd';
 import {
   SearchOutlined,
   CloseCircleOutlined,
@@ -232,7 +232,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
         }}
         onCancel={() => setEditingMod(undefined)}
       >
-        <Input
+        <CompactInput
           value={editName}
           onChange={e => setEditName(e.target.value)}
           onPressEnter={() => {

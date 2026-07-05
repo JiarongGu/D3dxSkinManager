@@ -1,7 +1,8 @@
 import React from 'react';
-import { Dropdown, Button, Tooltip } from 'antd';
+import { Dropdown, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { XBOX_BUTTONS } from '../../utils/keyChord';
+import { CompactButton } from '../compact';
 
 interface XboxButtonPickerProps {
   /** Called with the raw 3DMigoto value (e.g. "XB_LEFT_SHOULDER") when a button is picked. */
@@ -27,9 +28,9 @@ export const XboxButtonPicker: React.FC<XboxButtonPickerProps> = ({ onPick, disa
     >
       <Tooltip title={t('keyCapture.xbPicker')}>
         {/* onMouseDown preventDefault: don't blur the capture field the picker sits next to. */}
-        <Button size="small" disabled={disabled} onMouseDown={(e) => e.preventDefault()}>
+        <CompactButton size="small" disabled={disabled} onMouseDown={(e) => e.preventDefault()}>
           XB
-        </Button>
+        </CompactButton>
       </Tooltip>
     </Dropdown>
   );

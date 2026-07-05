@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Empty, Spin, Typography, Input, Tooltip, Space } from 'antd';
+import { Empty, Spin, Typography, Tooltip, Space } from 'antd';
 import { EditOutlined, CheckOutlined, CloseOutlined, HolderOutlined } from '@ant-design/icons';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { ModKeybinding } from '../../../../shared/types/mod.types';
 import { modService } from '../../../../shared/services/ipc';
 import { useProfile } from '../../../../shared/context/ProfileContext';
-import { CompactIconButton } from '../../../../shared/components/compact';
+import { CompactIconButton, CompactInput } from '../../../../shared/components/compact';
 import { notification } from '../../../../shared/utils/notification';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { Chord, baseFromEvent, buildRaw, buildDisplay, rawToDisplay } from '../../../../shared/utils/keyChord';
@@ -188,7 +188,7 @@ export const KeybindingPreview: React.FC<KeybindingPreviewProps> = ({ modId }) =
                 {chords.map((chord) =>
                   editingRaw === chord.raw ? (
                     <Space.Compact key={chord.raw} className="keybinding-capture-group">
-                      <Input
+                      <CompactInput
                         autoFocus
                         readOnly
                         size="small"

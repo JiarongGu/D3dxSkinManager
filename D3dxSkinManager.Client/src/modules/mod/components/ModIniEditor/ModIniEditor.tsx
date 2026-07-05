@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Collapse, Empty, Tooltip, Input, InputNumber, Spin, Tabs, Select, Switch } from 'antd';
+import { Collapse, Empty, Tooltip, InputNumber, Spin, Tabs } from 'antd';
 import {
   LockOutlined, CheckOutlined, CloseOutlined, SettingOutlined, ApartmentOutlined,
 } from '@ant-design/icons';
@@ -9,7 +9,7 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 import { api } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { notification } from '../../../../shared/utils/notification';
-import { CompactIconButton } from '../../../../shared/components/compact';
+import { CompactIconButton, CompactInput, CompactSelect, CompactSwitch } from '../../../../shared/components/compact';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { KeyCaptureInput } from '../../../../shared/components/common/KeyCaptureInput';
 import type { ModInfo } from '../../../../shared/types/mod.types';
@@ -389,7 +389,7 @@ const IniRow: React.FC<{
     return (
       <div className="ini-row ini-row--linked">
         {labelEl}
-        <Select
+        <CompactSelect
           className="ini-row__input"
           size="small"
           value={entry.value || undefined}
@@ -408,7 +408,7 @@ const IniRow: React.FC<{
     return (
       <div className="ini-row">
         {labelEl}
-        <Select
+        <CompactSelect
           className="ini-row__input"
           size="small"
           value={entry.value}
@@ -429,7 +429,7 @@ const IniRow: React.FC<{
       <div className="ini-row">
         {labelEl}
         <span className="ini-row__input">
-          <Switch size="small" checked={on} loading={saving} disabled={saving} onChange={(v) => void commitValue(v ? 'true' : 'false')} />
+          <CompactSwitch size="small" checked={on} loading={saving} disabled={saving} onChange={(v) => void commitValue(v ? 'true' : 'false')} />
         </span>
         <span className="ini-row__actions" />
       </div>
@@ -443,7 +443,7 @@ const IniRow: React.FC<{
     return (
       <div className="ini-row">
         {labelEl}
-        <Select
+        <CompactSelect
           className="ini-row__input"
           size="small"
           value={entry.value || undefined}
@@ -505,7 +505,7 @@ const IniRow: React.FC<{
   return (
     <div className="ini-row">
       {labelEl}
-      <Input
+      <CompactInput
         className="ini-row__input"
         size="small"
         value={draft}

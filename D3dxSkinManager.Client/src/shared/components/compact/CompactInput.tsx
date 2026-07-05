@@ -23,11 +23,11 @@ export interface CompactInputProps extends Omit<InputProps, 'size'> {
   size?: CompactInputSize;
 }
 
-export const CompactInput: React.FC<CompactInputProps> = ({
+export const CompactInput = React.forwardRef<any, CompactInputProps>(({
   size = 'medium',
   className = '',
   ...rest
-}) => {
+}, ref) => {
   // Map our size to Ant Design size
   const antdSize = size === 'medium' ? 'middle' : size;
 
@@ -35,9 +35,10 @@ export const CompactInput: React.FC<CompactInputProps> = ({
   const inputClassName = `compact-input compact-input-${size} ${className}`.trim();
 
   return (
-    <Input size={antdSize} className={inputClassName} {...rest} />
+    <Input ref={ref} size={antdSize} className={inputClassName} {...rest} />
   );
-};
+});
+CompactInput.displayName = 'CompactInput';
 
 /**
  * CompactTextArea - TextArea component with consistent compact sizing

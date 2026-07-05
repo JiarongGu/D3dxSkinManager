@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Select, Space } from 'antd';
+import { Space } from 'antd';
 import { FolderOpenOutlined, LoadingOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { CompactButton, CompactAlert } from '../../../shared/components/compact';
+import { CompactButton, CompactAlert, CompactSelect } from '../../../shared/components/compact';
 import { StatusTag } from '../../../shared/components/common/StatusTag';
 import { systemService, launchService } from '../../../shared/services/ipc';
 import type { XxmiDetectResult, XxmiImporter } from '../../../shared/services/ipc/launchService';
@@ -105,7 +105,7 @@ export const XxmiImporterPicker: React.FC<XxmiImporterPickerProps> = ({
   return (
     <div className="xxmi-picker">
       <Space.Compact style={{ width: '100%' }}>
-        <Select
+        <CompactSelect
           style={{ flex: 1 }}
           placeholder={t('launch.xxmi.importerPlaceholderSettings')}
           value={importerName}
