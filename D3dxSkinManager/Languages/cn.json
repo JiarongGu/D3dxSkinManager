@@ -57,6 +57,7 @@
     "modIni.field.type": "模式",
     "modIni.field.condition": "条件",
     "modIni.field.back": "返回键",
+    "modIni.field.default": "默认值",
     "modIni.field.delay": "延迟",
     "modIni.field.transition": "过渡时长",
     "modIni.field.transitionType": "过渡曲线",

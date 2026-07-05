@@ -167,8 +167,12 @@ SHIPPED 2026-07-05 (2): Xbox controller helpers — `XboxButtonPicker` (shared L
 `XB_*` set; gamepad presses fire no KeyboardEvent so they're picked, not captured) attached to
 `KeyCaptureInput` AND the keybinding-chip editor; `keyChord` renders XB/XB2 values friendly
 ("XB LB"). Verified live (pick → field shows XB LB → cancel restores).
-Still open: per-toggle grouping that ties a `[Key]`'s cycle list to the `$var` it drives
-(cross-section view).
+SHIPPED 2026-07-05 (3): per-toggle grouping — each toggle card now surfaces the `[Constants]`
+default of the `$var` its `[Key]` cycles (a Select over the exact cycle-list domain, never a
+switch), removed from the plain Variables group; unclaimed vars stay listed. Frontend-only
+(computed over `GET_INI_FILES`); writes go through the existing `UPDATE_INI_ENTRY` fast patch.
+Verified live round-trip on a real mod (`global persist $xie` 0→1→0 on disk).
+**Config-editor item COMPLETE.**
 
 ### 6. Remote mod library (the big reach)
 Browse/fetch/download from remote sources (GameBanana-style) → one-click import into a profile.

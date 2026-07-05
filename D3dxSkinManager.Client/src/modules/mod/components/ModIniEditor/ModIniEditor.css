@@ -199,3 +199,10 @@
   font-size: 12px;
   color: var(--color-text-tertiary, var(--color-text-secondary));
 }
+
+/* Per-toggle default row (a [Constants] var surfaced inside the toggle that drives it) */
+.ini-row--linked {
+  border-top: 1px dashed var(--color-border-secondary);
+  margin-top: 4px;
+  padding-top: 8px;
+}

@@ -174,6 +174,18 @@ const ModIniEditorInner: React.FC<{ mod: ModInfo }> = ({ mod }) => {
   );
 };
 
+/** A [Constants] default linked to the toggle ([Key*] section) whose cycle list drives it. */
+interface LinkedDefault {
+  entry: ModIniEntry;
+  /** The values the toggle's key cycles through (the $var's meaningful domain). */
+  cycleValues: string[];
+}
+
+/** Normalize a variable reference: strip global/persist/local qualifiers, keep the $name. */
+function varName(key: string): string {
+  return key.toLowerCase().replace(/\b(global|persist|local)\b/g, '').trim();
+}
+
 const IniFileBody: React.FC<{
   file: ModIniFile;
   onSave: (relativePath: string, lineIndex: number, newValue: string) => Promise<void>;
@@ -181,6 +193,31 @@ const IniFileBody: React.FC<{
   const { t } = useTranslation();
   const tunable = file.sections.filter((s) => !s.advanced);
   const advanced = file.sections.filter((s) => s.advanced);
+
+  // PER-TOGGLE GROUPING: a [Key*] section's `$var = a,b,…` line is the cycle list of the variable
+  // it drives; that variable's DEFAULT lives in [Constants]. Surface the default INSIDE the
+  // toggle's card (as a select over the cycle values) and drop it from the plain Variables group,
+  // so one toggle is edited in one place.
+  const constants = tunable.filter((s) => /^constants$/i.test(s.name));
+  const constantsByVar = new Map<string, ModIniEntry>();
+  for (const c of constants)
+    for (const e of c.entries)
+      if (e.key.includes('$')) constantsByVar.set(varName(e.key), e);
+
+  const linkedBySection = new Map<string, LinkedDefault[]>();
+  const claimed = new Set<number>(); // lineIndexes of Constants entries shown inside a toggle
+  for (const s of tunable) {
+    if (!/^key/i.test(s.name)) continue;
+    for (const e of s.entries) {
+      if (!e.key.trim().startsWith('$')) continue;
+      const def = constantsByVar.get(varName(e.key));
+      if (!def || claimed.has(def.lineIndex)) continue;
+      claimed.add(def.lineIndex);
+      const list = linkedBySection.get(s.name) ?? [];
+      list.push({ entry: def, cycleValues: e.value.split(',').map((v) => v.trim()).filter(Boolean) });
+      linkedBySection.set(s.name, list);
+    }
+  }
 
   return (
     <div className="ini-file-body">
@@ -196,7 +233,14 @@ const IniFileBody: React.FC<{
       )}
 
       {tunable.map((section) => (
-        <IniSection key={section.name} file={file} section={section} onSave={onSave} />
+        <IniSection
+          key={section.name}
+          file={file}
+          section={section}
+          onSave={onSave}
+          linkedDefaults={linkedBySection.get(section.name)}
+          omitLineIndexes={/^constants$/i.test(section.name) ? claimed : undefined}
+        />
       ))}
 
       {advanced.length > 0 && (
@@ -226,20 +270,41 @@ const IniSection: React.FC<{
   file: ModIniFile;
   section: ModIniSection;
   onSave: (relativePath: string, lineIndex: number, newValue: string) => Promise<void>;
-}> = ({ file, section, onSave }) => {
+  /** [Constants] defaults driven by THIS toggle — shown here instead of the Variables group. */
+  linkedDefaults?: LinkedDefault[];
+  /** Constants entries claimed by a toggle — hidden from the plain Variables listing. */
+  omitLineIndexes?: Set<number>;
+}> = ({ file, section, onSave, linkedDefaults, omitLineIndexes }) => {
   const { t } = useTranslation();
+  const entries = omitLineIndexes
+    ? section.entries.filter((e) => !omitLineIndexes.has(e.lineIndex))
+    : section.entries;
+
+  // A Variables group whose vars ALL belong to toggles has nothing left to show.
+  if (entries.length === 0 && (linkedDefaults?.length ?? 0) === 0) return null;
+
   return (
     <div className={`ini-section${section.advanced ? ' ini-section--advanced' : ''}`}>
       <div className="ini-section__header">
         <span className="ini-section__name">{section.advanced ? `[${section.name}]` : friendlySection(section.name, t)}</span>
         {section.advanced && <StatusTag tone="neutral" label={t('modIni.readOnly')} />}
       </div>
-      {section.entries.map((entry) => (
+      {entries.map((entry) => (
         <IniRow
           key={entry.lineIndex}
           entry={entry}
           advanced={section.advanced}
           onSave={(v) => onSave(file.relativePath, entry.lineIndex, v)}
+        />
+      ))}
+      {(linkedDefaults ?? []).map((link) => (
+        <IniRow
+          key={`default-${link.entry.lineIndex}`}
+          entry={link.entry}
+          advanced={false}
+          labelOverride={`${t('modIni.field.default')} (${friendlyKey(link.entry.key, t)})`}
+          selectValues={link.cycleValues}
+          onSave={(v) => onSave(file.relativePath, link.entry.lineIndex, v)}
         />
       ))}
     </div>
@@ -256,14 +321,18 @@ const IniRow: React.FC<{
   entry: ModIniEntry;
   advanced: boolean;
   onSave: (value: string) => Promise<void>;
-}> = ({ entry, advanced, onSave }) => {
+  /** Custom label (per-toggle default rows override the plain var name). */
+  labelOverride?: string;
+  /** When set, render a Select over these values (a toggle var's cycle list — its whole domain). */
+  selectValues?: string[];
+}> = ({ entry, advanced, onSave, labelOverride, selectValues }) => {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(entry.value);
   const [saving, setSaving] = useState(false);
   useEffect(() => setDraft(entry.value), [entry.value]);
   const dirty = draft !== entry.value;
   // Advanced rows keep the raw key; tunable rows get a friendly label (raw key in tooltip).
-  const label = advanced ? entry.key : friendlyKey(entry.key, t);
+  const label = labelOverride ?? (advanced ? entry.key : friendlyKey(entry.key, t));
   const keyLower = entry.key.trim().toLowerCase();
 
   // Friendly control: the toggle Mode (type=cycle/hold/toggle) → a Select. Variable defaults are NOT
@@ -310,6 +379,29 @@ const IniRow: React.FC<{
       <span className="ini-row__key">{label}</span>
     </Tooltip>
   );
+
+  // Per-toggle default: the $var's value is one of the values its key cycles through — a Select
+  // over that exact domain (never a boolean switch; see 3dmigoto-ini-interface.md).
+  if (selectValues && selectValues.length > 0 && entry.editable) {
+    const options = Array.from(new Set([entry.value, ...selectValues]))
+      .filter((v) => v !== '')
+      .map((v) => ({ value: v, label: v }));
+    return (
+      <div className="ini-row ini-row--linked">
+        {labelEl}
+        <Select
+          className="ini-row__input"
+          size="small"
+          value={entry.value || undefined}
+          disabled={saving}
+          loading={saving}
+          options={options}
+          onChange={(v) => void commitValue(v)}
+        />
+        <span className="ini-row__actions" />
+      </div>
+    );
+  }
 
   if (isMode) {
     const options = Array.from(new Set([entry.value, ...TYPE_OPTIONS])).map((v) => ({ value: v, label: v }));

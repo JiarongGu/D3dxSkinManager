@@ -57,6 +57,7 @@
     "modIni.field.type": "Mode",
     "modIni.field.condition": "Condition",
     "modIni.field.back": "Back key",
+    "modIni.field.default": "Default",
     "modIni.field.delay": "Delay",
     "modIni.field.transition": "Transition",
     "modIni.field.transitionType": "Transition Curve",
