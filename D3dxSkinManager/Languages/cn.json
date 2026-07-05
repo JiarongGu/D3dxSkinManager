@@ -69,6 +69,7 @@
     "remote.bindAndSync": "绑定并开始同步",
     "remote.rebind": "换绑",
     "remote.custom": "自定义站点",
+    "remote.detailMeta": "{{images}} 张图片 · {{downloads}} 个下载链接",
     "remote.openPage": "打开原页面",
     "remote.searchPlaceholder": "搜索该站点的模组",
     "remote.noResults": "未找到模组",

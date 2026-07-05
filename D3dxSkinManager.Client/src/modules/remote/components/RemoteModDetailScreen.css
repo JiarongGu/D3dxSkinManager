@@ -24,13 +24,24 @@
   flex-wrap: wrap;
 }
 
+.remote-detail__heading {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.remote-detail__meta {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
 .remote-detail__title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-base);
-  flex: 1;
-  min-width: 200px;
 }
 
 .remote-detail__actions {

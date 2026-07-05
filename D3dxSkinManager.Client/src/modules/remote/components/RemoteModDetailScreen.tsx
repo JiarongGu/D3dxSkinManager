@@ -109,7 +109,12 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   return (
     <div className="remote-detail">
       <div className="remote-detail__header">
-        <h2 className="remote-detail__title">{detail.title || fallbackTitle}</h2>
+        <div className="remote-detail__heading">
+          <h2 className="remote-detail__title">{detail.title || fallbackTitle}</h2>
+          <span className="remote-detail__meta">
+            {t('remote.detailMeta', { images: detail.images.length, downloads: detail.downloads.length })}
+          </span>
+        </div>
         <div className="remote-detail__actions">
           {detail.downloads.length === 0 && (
             <span className="remote-detail__no-download">{t('remote.noDownloads')}</span>

@@ -2,11 +2,11 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Checkbox, Empty, Result, Spin, Tag, Tooltip } from 'antd';
 import {
   DeleteOutlined,
-  ReloadOutlined,
   FolderOutlined,
   FolderOpenOutlined,
   FileOutlined,
   InfoCircleOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../../shared/context/ProfileContext';
@@ -15,7 +15,7 @@ import { systemService } from '../../../../../shared/services/ipc';
 import { handleError } from '../../../../../shared/utils/errorHandler';
 import { formatBytes } from '../../../../../shared/utils/formatBytes';
 import type { OrphanCategory, OrphanScanResult, OrphanedItem } from '../../../../../shared/types/cleanup.types';
-import { CompactButton } from '../../../../../shared/components/compact';
+import { CompactButton, CompactIconButton } from '../../../../../shared/components/compact';
 
 interface CleanupTabProps {
   category: OrphanCategory;
@@ -165,7 +165,15 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
       {/* Items list */}
       {items.length === 0 ? (
         <div className="file-cleanup__empty">
-          <Empty description={emptyMessage} />
+          {scanResult ? (
+            // Scan ran and found nothing — a positive "all clean" signal, not a bare no-data box.
+            <Result
+              icon={<CheckCircleOutlined style={{ color: 'var(--color-success)' }} />}
+              title={emptyMessage}
+            />
+          ) : (
+            <Empty description={emptyMessage} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          )}
         </div>
       ) : (
         <div className="file-cleanup__list">
@@ -228,15 +236,12 @@ const CleanupItem: React.FC<{
       )}
       <span className="file-cleanup__item-date">{item.lastModified}</span>
       {canOpenInExplorer && (
-        <Tooltip title={t('tools.fileCleanup.openInExplorer')}>
-          <CompactButton
-            type="text"
-            size="small"
-            icon={<FolderOpenOutlined />}
-            onClick={handleOpenInExplorer}
-            className="file-cleanup__item-open"
-          />
-        </Tooltip>
+        <CompactIconButton
+          icon={<FolderOpenOutlined />}
+          title={t('tools.fileCleanup.openInExplorer')}
+          onClick={handleOpenInExplorer}
+          className="file-cleanup__item-open"
+        />
       )}
     </div>
   );
