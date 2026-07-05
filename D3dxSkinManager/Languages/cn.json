@@ -154,6 +154,8 @@
     "remote.noResults": "未找到模组",
     "remote.untitled": "（无标题）",
     "remote.detailTitle": "模组详情",
+    "remote.importAction": "导入",
+    "remote.openAction": "打开",
     "remote.noDownloads": "此页面没有支持的下载链接",
     "remote.downloadImport": "下载并导入（{{host}}）",
     "remote.openExternal": "在浏览器打开 {{host}}",

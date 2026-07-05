@@ -154,6 +154,8 @@
     "remote.noResults": "No mods found",
     "remote.untitled": "(untitled)",
     "remote.detailTitle": "Mod details",
+    "remote.importAction": "Import",
+    "remote.openAction": "Open",
     "remote.noDownloads": "No supported download links on this page",
     "remote.downloadImport": "Download & import ({{host}})",
     "remote.openExternal": "Open {{host}} in browser",

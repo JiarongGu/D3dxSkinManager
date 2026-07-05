@@ -185,19 +185,23 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
           {detail.downloads.length === 0 && (
             <span className="remote-detail__no-download">{t('remote.noDownloads')}</span>
           )}
+          {/* One clean row per file: the NAME gets its own ellipsized line, the action is a short
+              constant label — no more filename-inside-parentheses button soup. */}
           {detail.downloads.map((option) => (
-            <CompactButton
-              key={option.url}
-              type={isImportable(option.type) ? 'primary' : 'default'}
-              icon={isImportable(option.type) ? <CloudDownloadOutlined /> : <LinkOutlined />}
-              loading={resolving === option.url}
-              title={option.name}
-              onClick={() => void handleDownload(option)}
-            >
-              {isImportable(option.type)
-                ? t('remote.downloadImport', { host: option.name })
-                : t('remote.openExternal', { host: option.name })}
-            </CompactButton>
+            <div key={option.url} className="remote-detail__dl-row">
+              <span className="remote-detail__dl-name" title={option.name}>
+                {isImportable(option.type) ? <CloudDownloadOutlined /> : <LinkOutlined />}
+                <span className="remote-detail__dl-text">{option.name}</span>
+              </span>
+              <CompactButton
+                size="small"
+                type={isImportable(option.type) ? 'primary' : 'default'}
+                loading={resolving === option.url}
+                onClick={() => void handleDownload(option)}
+              >
+                {isImportable(option.type) ? t('remote.importAction') : t('remote.openAction')}
+              </CompactButton>
+            </div>
           ))}
           <div className="remote-detail__divider" />
           <CompactButton icon={<GlobalOutlined />} onClick={() => void api.system.openUrl(detail.detailUrl)}>

@@ -29,7 +29,7 @@
 /* HERO mode: the current image doubles as a blurred, dimmed cover backdrop (mod-page look). */
 .image-gallery--hero .image-gallery__stage {
   border: none;
-  border-radius: 0;
+  border-radius: var(--border-radius-base);
   background: #000;
 }
 

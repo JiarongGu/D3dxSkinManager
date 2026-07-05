@@ -15,14 +15,10 @@
   height: 200px;
 }
 
-/* Full-bleed hero: cancel the headless slide-in's content padding on top/sides. */
-.remote-detail__hero {
-  margin: -16px -20px 0;
-}
-
-/* The strip re-indents to the content grid (the hero container bleeds). */
+/* Framed hero on the content grid — a true full-bleed is impossible to align (the panel's
+   scrollbar eats 8px on the right edge, measured), so the hero sits flush with the body cards. */
 .remote-detail__hero .image-gallery__strip {
-  padding: 8px 20px 0;
+  padding: 8px 0 0;
 }
 
 /* Hero overlay: title + tag badges (physical contrast colors over artwork, not theme tokens). */
@@ -125,22 +121,44 @@
   font-weight: 500;
 }
 
-/* Download buttons: only the TEXT ellipsizes (tooltip has the full name); the icon never trims. */
-.remote-detail__actions .compact-button {
-  width: 100%;
-  min-width: 0;
+/* Download rows: filename (ellipsized, tooltip carries the full name) + a short action button. */
+.remote-detail__dl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.remote-detail__actions .compact-button .anticon {
-  flex-shrink: 0;
-}
-
-.remote-detail__actions .compact-button > span:not(.anticon) {
+.remote-detail__dl-name {
   flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-base);
+  overflow: hidden;
+}
+
+.remote-detail__dl-name .anticon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+/* The filename text ellipsizes on its own (flex children can't ellipsize directly). */
+.remote-detail__dl-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
+}
+
+.remote-detail__dl-row .compact-button {
+  flex-shrink: 0;
+}
+
+/* The open-page button spans the card. */
+.remote-detail__actions > .compact-button {
+  width: 100%;
 }
 
 /* Page description: plain text, comfortable reading measure. */
