@@ -66,29 +66,44 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
   const [deletingModId, setDeletingModId] = useState<string>();
 
   // ===== Persistent UI state (analyzerUiStore) =====
-  // The tool unmounts on close (e.g. after "locate in mod list"); the store remembers the session
-  // being viewed + the findings filter/search so reopening lands the user exactly where they were.
+  // The tool unmounts on close (e.g. after "locate in mod list"). The store remembers the last
+  // viewed session + findings filter/search. We do NOT auto-jump into stale findings on open (that
+  // was jarring — you'd land in old results instead of the scan landing and couldn't tell it was
+  // stale). Instead the scan landing offers an explicit "View last results" button, so returning to
+  // the analyzed result after fixing / locating a mod is one obvious click.
   const analyzerUi = useAnalyzerUiStore();
+  const [lastSessionId, setLastSessionId] = useState<string>();
   const restoredRef = useRef(false);
   useEffect(() => {
     if (!selectedProfileId || restoredRef.current) return;
     restoredRef.current = true;
     analyzerUi.ensureProfile(selectedProfileId);
-    const { sessionId, viewMode: storedMode } = useAnalyzerUiStore.getState();
-    // An explicit category open (context menu) starts a fresh scan — don't restore over it.
-    if (initialCategoryId || !sessionId || storedMode !== 'findings') return;
-    void (async () => {
-      try {
-        const r = await api.tool.getAnalysisReport(selectedProfileId, sessionId);
-        setReport(r);
-        setViewMode('findings');
-      } catch { /* session may be gone — stay on scan */ }
-    })();
+    // A category open (context menu) starts a fresh scan — ignore the remembered session.
+    if (initialCategoryId) return;
+    setLastSessionId(useAnalyzerUiStore.getState().sessionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfileId]);
-  // Keep the store current so the NEXT open restores this state.
+
+  // Load a remembered session's report on demand (the "View last results" button).
+  const viewLastResults = useCallback(async () => {
+    if (!selectedProfileId || !lastSessionId) return;
+    try {
+      const r = await api.tool.getAnalysisReport(selectedProfileId, lastSessionId);
+      setReport(r);
+      setViewMode('findings');
+    } catch {
+      setLastSessionId(undefined); // session gone — drop the affordance
+      notification.info(t('tools.modAnalyzer.lastResultGone'));
+    }
+  }, [selectedProfileId, lastSessionId, t]);
+
+  // Keep the store current so the NEXT open can offer "View last results".
   useEffect(() => { analyzerUi.setViewMode(viewMode); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [viewMode]);
-  useEffect(() => { analyzerUi.setSession(report?.sessionId); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [report?.sessionId]);
+  useEffect(() => {
+    analyzerUi.setSession(report?.sessionId);
+    if (report?.sessionId) setLastSessionId(report.sessionId);
+    /* eslint-disable-line react-hooks/exhaustive-deps */
+  }, [report?.sessionId]);
 
   // ===== Fix tools (run a fix directly from a finding row — the analyzer stays open) =====
   const [fixTools, setFixTools] = useState<FixToolInfo[]>([]);
@@ -413,6 +428,8 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
           onCancel={cancelScan}
           onViewHistory={() => setViewMode('history')}
           sessionCount={sessions.length}
+          hasLastResult={!!lastSessionId}
+          onViewLastResults={() => void viewLastResults()}
         />
       )}
       {viewMode === 'findings' && report && (

@@ -1024,6 +1024,8 @@
     "tools.modAnalyzer.allCategories": "All Categories",
     "tools.modAnalyzer.newScan": "New Scan",
     "tools.modAnalyzer.history": "History",
+    "tools.modAnalyzer.viewLastResults": "View last results",
+    "tools.modAnalyzer.lastResultGone": "The last analysis is no longer available — run a new scan",
     "tools.modAnalyzer.viewHistory": "View History",
     "tools.modAnalyzer.noHistory": "No analysis history",
     "tools.modAnalyzer.back": "Back",

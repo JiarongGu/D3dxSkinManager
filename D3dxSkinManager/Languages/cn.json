@@ -1024,6 +1024,8 @@
     "tools.modAnalyzer.allCategories": "所有分类",
     "tools.modAnalyzer.newScan": "新扫描",
     "tools.modAnalyzer.history": "历史记录",
+    "tools.modAnalyzer.viewLastResults": "查看上次结果",
+    "tools.modAnalyzer.lastResultGone": "上次分析结果已不可用 — 请重新扫描",
     "tools.modAnalyzer.viewHistory": "查看历史",
     "tools.modAnalyzer.noHistory": "无分析历史",
     "tools.modAnalyzer.back": "返回",
