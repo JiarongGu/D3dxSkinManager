@@ -19,8 +19,7 @@ public interface IRemoteFacade : IModuleFacade
     Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null);
     Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl);
     Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option);
-    string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option);
-    Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? category = null);
+    Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null);
     string StartIndexSync(string sourceId, string listId, bool full = false);
 }
 
@@ -32,7 +31,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     private readonly IRemoteImportService _import;
     private readonly IRemoteIndexService _index;
     private readonly IRemoteSourceStore _sourceStore;
-    private readonly IRemoteBindingStore _binding;
+    private readonly IRemoteLibraryStore _libraries;
     private readonly IRemoteImageCacheService _imageCache;
     private readonly IPayloadHelper _payloadHelper;
 
@@ -41,7 +40,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         IRemoteImportService import,
         IRemoteIndexService index,
         IRemoteSourceStore sourceStore,
-        IRemoteBindingStore binding,
+        IRemoteLibraryStore libraries,
         IRemoteImageCacheService imageCache,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
@@ -50,7 +49,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         _import = import ?? throw new ArgumentNullException(nameof(import));
         _index = index ?? throw new ArgumentNullException(nameof(index));
         _sourceStore = sourceStore ?? throw new ArgumentNullException(nameof(sourceStore));
-        _binding = binding ?? throw new ArgumentNullException(nameof(binding));
+        _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries));
         _imageCache = imageCache ?? throw new ArgumentNullException(nameof(imageCache));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
@@ -66,7 +65,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "RESOLVE_DOWNLOAD" => await ResolveDownloadAsync(request),
             "DOWNLOAD_IMPORT" => StartDownloadImport(request),
             "INDEX_QUERY" => await QueryIndexAsync(request),
-            "INDEX_CATEGORIES" => await _index.GetCategoriesAsync(
+            "INDEX_TAGS" => await _index.GetTagsAsync(
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId"),
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "listId")),
             "INDEX_SYNC" => StartIndexSync(request),
@@ -77,11 +76,15 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "TEST_SOURCE" => await TestSourceAsync(request),
             "GET_SOURCE_TEMPLATE" => _sourceStore.GetTemplateJson(),
             "RESOLVE_IMAGES" => await _imageCache.ResolveAsync(_payloadHelper.GetRequiredValue<List<string>>(request.Payload, "urls")),
-            "GET_BINDING" => (object?)_binding.Get(),
-            "SET_BINDING" => SetBinding(request),
-            "SET_DEFAULT_CATEGORY" => (object?)_binding.SetDefaultCategory(
-                _payloadHelper.GetOptionalValue<string>(request.Payload, "categoryId")),
-            "CLEAR_BINDING" => ClearBinding(),
+            // Configured libraries (remote-library-redesign.md): a profile owns many, switchable.
+            "LIBRARY_GET_STATE" => _libraries.GetState(),
+            "LIBRARY_ADD" => AddLibrary(request),
+            "LIBRARY_UPDATE" => _libraries.Update(
+                _payloadHelper.GetRequiredValue<RemoteLibrary>(request.Payload, "library")),
+            "LIBRARY_REMOVE" => _libraries.Remove(
+                _payloadHelper.GetRequiredValue<string>(request.Payload, "libraryId")),
+            "LIBRARY_SET_ACTIVE" => _libraries.SetActive(
+                _payloadHelper.GetRequiredValue<string>(request.Payload, "libraryId")),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -101,18 +104,18 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     public async Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option) =>
         await _import.ResolveAsync(option).ConfigureAwait(false);
 
-    public string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option) =>
-        _import.StartDownloadImport(sourceId, detail, option);
-
-    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? category = null)
+    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null)
     {
-        var result = await _index.QueryAsync(sourceId, listId, search, page, pageSize, sort, category).ConfigureAwait(false);
-        // Flag entries this profile already imported (matched by detail URL from mod Metadata).
-        var imported = await _import.GetImportedDetailUrlsAsync().ConfigureAwait(false);
-        if (imported.Count > 0)
+        var result = await _index.QueryAsync(sourceId, listId, search, page, pageSize, sort, tag).ConfigureAwait(false);
+        // Flag entries this profile already imported. Primary match = the standardized identity key
+        // (sourceId|listId|entryId — survives a site changing hosts); legacy imports fall back to
+        // detail-URL matching. The lookup is cached in the import service (no per-page mod rescan).
+        var (keys, legacyUrls) = await _import.GetImportedLookupAsync().ConfigureAwait(false);
+        if (keys.Count > 0 || legacyUrls.Count > 0)
         {
             foreach (var entry in result.Entries)
-                entry.Imported = imported.Contains(entry.DetailUrl);
+                entry.Imported = keys.Contains(RemoteImportService.ImportedKey(sourceId, listId, entry.Id))
+                                 || legacyUrls.Contains(entry.DetailUrl);
         }
         return result;
     }
@@ -155,9 +158,12 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         // Parse + validate synchronously so bad input errors right away; the work itself runs in
         // the background (never await a long op in an IPC handler — the bridge times out).
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
+        var entryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "entryId");
+        var tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags");
         var detail = _payloadHelper.GetRequiredValue<RemoteModDetail>(request.Payload, "detail");
         var option = _payloadHelper.GetRequiredValue<RemoteDownloadOption>(request.Payload, "option");
-        var processId = StartDownloadImport(sourceId, detail, option);
+        var processId = _import.StartDownloadImport(sourceId, listId, entryId, tags, detail, option);
         return new { started = true, processId };
     }
 
@@ -169,8 +175,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var page = _payloadHelper.GetOptionalValue<int>(request.Payload, "page");
         var pageSize = _payloadHelper.GetOptionalValue<int>(request.Payload, "pageSize");
         var sort = _payloadHelper.GetOptionalValue<string>(request.Payload, "sort");
-        var category = _payloadHelper.GetOptionalValue<string>(request.Payload, "category");
-        return QueryIndexAsync(sourceId, listId, search, page <= 0 ? 1 : page, pageSize <= 0 ? 60 : pageSize, sort, category);
+        var tag = _payloadHelper.GetOptionalValue<string>(request.Payload, "tag");
+        return QueryIndexAsync(sourceId, listId, search, page <= 0 ? 1 : page, pageSize <= 0 ? 60 : pageSize, sort, tag);
     }
 
     private object StartIndexSync(IpcRequest request)
@@ -194,22 +200,17 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         return _sourceStore.Delete(sourceId);
     }
 
-    private object SetBinding(IpcRequest request)
+    private object AddLibrary(IpcRequest request)
     {
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         var listId = _payloadHelper.GetRequiredValue<string>(request.Payload, "listId");
-        _ = _sourceStore.GetById(sourceId); // validate the source exists before persisting
-        var binding = _binding.Set(sourceId, listId);
-        // Bind & sync in one step (the setup flow's "绑定并开始同步"). Idempotent if already syncing.
+        var name = _payloadHelper.GetOptionalValue<string>(request.Payload, "name");
+        var tagRules = _payloadHelper.GetOptionalValue<List<RemoteTagRule>>(request.Payload, "tagRules");
+        var library = _libraries.Add(sourceId, listId, name ?? string.Empty, tagRules);
+        // Add & sync in one step (the "add library" flow). Idempotent if already syncing.
         var sync = _payloadHelper.GetOptionalValue<bool>(request.Payload, "sync");
         var processId = sync ? _index.StartSync(sourceId, listId) : string.Empty;
-        return new { binding, processId };
-    }
-
-    private object ClearBinding()
-    {
-        _binding.Clear();
-        return true;
+        return new { library, processId };
     }
 
     private Task<RemoteSourceTestResult> TestSourceAsync(IpcRequest request)

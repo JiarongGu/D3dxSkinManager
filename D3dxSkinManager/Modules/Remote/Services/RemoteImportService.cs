@@ -18,15 +18,18 @@ namespace D3dxSkinManager.Modules.Remote.Services;
 /// </summary>
 public interface IRemoteImportService
 {
-    /// <summary>Resolve a download option to file name/size (for the confirm UI). Cloudreve only.</summary>
+    /// <summary>Resolve a download option to file name/size (for the confirm UI). Importable types only.</summary>
     Task<RemoteResolveResult> ResolveAsync(RemoteDownloadOption option, CancellationToken ct = default);
 
-    /// <summary>Start the background download+import. Returns the process id immediately.</summary>
-    string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option);
+    /// <summary>Start the background download+import. Returns the process id immediately.
+    /// <paramref name="listId"/>/<paramref name="entryId"/> record the STANDARDIZED remote identity;
+    /// <paramref name="tags"/> feed the library's ordered tag→category rules.</summary>
+    string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
+        RemoteModDetail detail, RemoteDownloadOption option);
 
-    /// <summary>Detail URLs of every mod in this profile that was imported from a remote source
-    /// (from the `remote` block each import records in the mod's Metadata JSON).</summary>
-    Task<HashSet<string>> GetImportedDetailUrlsAsync();
+    /// <summary>Identity keys ("sourceId|listId|entryId") + legacy detail URLs of every mod imported
+    /// from a remote source — cached (rebuilt on TTL/import) so INDEX_QUERY doesn't rescan all mods.</summary>
+    Task<(HashSet<string> Keys, HashSet<string> LegacyUrls)> GetImportedLookupAsync();
 }
 
 public class RemoteImportService : IRemoteImportService
@@ -34,15 +37,22 @@ public class RemoteImportService : IRemoteImportService
     /// <summary>How many detail-page images become mod previews (first = thumbnail).</summary>
     private const int MaxPreviewImages = 3;
 
+    /// <summary>Imported-lookup cache TTL — bounds staleness after out-of-band changes (mod deletes).</summary>
+    private static readonly TimeSpan ImportedCacheTtl = TimeSpan.FromSeconds(30);
+
     private readonly ICloudreveShareResolver _cloudreve;
     private readonly IDownloadService _download;
     private readonly IModImportService _import;
     private readonly IModRepository _repository;
     private readonly IImageService _imageService;
-    private readonly IRemoteBindingStore _binding;
+    private readonly IRemoteLibraryStore _libraries;
     private readonly IProfilePathService _profilePaths;
     private readonly IProcessRegistry _processRegistry;
     private readonly ILogHelper _logger;
+
+    private (HashSet<string> Keys, HashSet<string> LegacyUrls)? _importedCache;
+    private DateTime _importedCacheAtUtc;
+    private readonly object _importedCacheLock = new();
 
     public RemoteImportService(
         ICloudreveShareResolver cloudreve,
@@ -50,7 +60,7 @@ public class RemoteImportService : IRemoteImportService
         IModImportService import,
         IModRepository repository,
         IImageService imageService,
-        IRemoteBindingStore binding,
+        IRemoteLibraryStore libraries,
         IProfilePathService profilePaths,
         IProcessRegistry processRegistry,
         ILogHelper logger)
@@ -60,7 +70,7 @@ public class RemoteImportService : IRemoteImportService
         _import = import;
         _repository = repository;
         _imageService = imageService;
-        _binding = binding;
+        _libraries = libraries;
         _profilePaths = profilePaths;
         _processRegistry = processRegistry;
         _logger = logger;
@@ -101,7 +111,8 @@ public class RemoteImportService : IRemoteImportService
         string.Equals(type, "cloudreve", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "direct", StringComparison.OrdinalIgnoreCase);
 
-    public string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option)
+    public string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
+        RemoteModDetail detail, RemoteDownloadOption option)
     {
         if (!IsImportable(option.Type))
             throw new OperationException("REMOTE_DOWNLOAD_UNSUPPORTED", "host", option.Name);
@@ -145,12 +156,16 @@ public class RemoteImportService : IRemoteImportService
                 if (entity != null)
                 {
                     if (!string.IsNullOrWhiteSpace(detail.Title)) entity.Name = detail.Title.Trim();
-                    // Drop the import into the profile's chosen default category (was always uncategorized).
-                    var defaultCategory = _binding.Get()?.DefaultCategoryId;
-                    if (!string.IsNullOrWhiteSpace(defaultCategory)) entity.Category = defaultCategory;
-                    entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, detail.DetailUrl, downloaded.Sha256);
+                    // Local category from the library's ORDERED tag rules — first rule whose tags all
+                    // match wins; no match = uncategorized (remote-library-redesign.md).
+                    var allTags = (tags ?? new List<string>()).Concat(detail.Tags)
+                        .Where(t => !string.IsNullOrWhiteSpace(t)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    var category = ResolveCategory(sourceId, listId, allTags);
+                    if (!string.IsNullOrWhiteSpace(category)) entity.Category = category;
+                    entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, listId, entryId, detail.DetailUrl, downloaded.Sha256);
                     await _repository.UpdateAsync(entity).ConfigureAwait(false);
                 }
+                InvalidateImportedCache();
 
                 _processRegistry.Report(procId, 90, "Importing previews", detailKey: "process.stage.previews");
                 await ImportPreviewImagesAsync(mod.Id, detail.Images, staging, ct).ConfigureAwait(false);
@@ -176,19 +191,66 @@ public class RemoteImportService : IRemoteImportService
         return procId;
     }
 
-    public async Task<HashSet<string>> GetImportedDetailUrlsAsync()
+    /// <summary>First tag rule (in order) whose tags ALL match wins; no library / no match = null.</summary>
+    private string? ResolveCategory(string sourceId, string? listId, List<string> tags)
     {
+        if (string.IsNullOrWhiteSpace(listId)) return null;
+        var library = _libraries.FindBySourceList(sourceId, listId);
+        return library == null ? null : MatchTagRules(library.TagRules, tags);
+    }
+
+    /// <summary>The ORDERED tag-rule evaluation (remote-library-redesign.md): first rule whose tags
+    /// ALL match (case-insensitive) wins; empty/invalid rules skipped; no match = null (uncategorized).</summary>
+    public static string? MatchTagRules(IEnumerable<RemoteTagRule> rules, IReadOnlyCollection<string> tags)
+    {
+        foreach (var rule in rules)
+        {
+            if (rule.Tags.Count == 0 || string.IsNullOrWhiteSpace(rule.CategoryId)) continue;
+            if (rule.Tags.All(rt => tags.Contains(rt, StringComparer.OrdinalIgnoreCase)))
+                return rule.CategoryId;
+        }
+        return null;
+    }
+
+    public async Task<(HashSet<string> Keys, HashSet<string> LegacyUrls)> GetImportedLookupAsync()
+    {
+        lock (_importedCacheLock)
+        {
+            if (_importedCache != null && DateTime.UtcNow - _importedCacheAtUtc < ImportedCacheTtl)
+                return _importedCache.Value;
+        }
+
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var urls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var entity in await _repository.GetAllAsync().ConfigureAwait(false))
         {
-            var url = ReadRemoteDetailUrl(entity.Metadata);
-            if (!string.IsNullOrEmpty(url)) urls.Add(url!);
+            var remote = ReadRemote(entity.Metadata);
+            if (remote == null) continue;
+            if (!string.IsNullOrEmpty(remote.Value.Key)) keys.Add(remote.Value.Key!);
+            if (!string.IsNullOrEmpty(remote.Value.DetailUrl)) urls.Add(remote.Value.DetailUrl!);
         }
-        return urls;
+
+        var result = (keys, urls);
+        lock (_importedCacheLock)
+        {
+            _importedCache = result;
+            _importedCacheAtUtc = DateTime.UtcNow;
+        }
+        return result;
     }
 
-    /// <summary>Merge the remote-import identity into a Metadata JSON string (other fields preserved).</summary>
-    public static string WriteRemoteMetadata(string? metadata, string sourceId, string detailUrl, string sha256)
+    private void InvalidateImportedCache()
+    {
+        lock (_importedCacheLock) { _importedCache = null; }
+    }
+
+    public static string ImportedKey(string sourceId, string listId, string entryId) =>
+        $"{sourceId}|{listId}|{entryId}";
+
+    /// <summary>Merge the STANDARDIZED remote identity into a Metadata JSON string (other fields
+    /// preserved): sourceId+listId+entryId is the durable key (detailUrl breaks when a site moves
+    /// hosts); detailUrl kept as a convenience link; sha256 for re-download dedup.</summary>
+    public static string WriteRemoteMetadata(string? metadata, string sourceId, string? listId, string? entryId, string detailUrl, string sha256)
     {
         JsonObject obj;
         try
@@ -200,6 +262,8 @@ public class RemoteImportService : IRemoteImportService
         obj["remote"] = new JsonObject
         {
             ["sourceId"] = sourceId,
+            ["listId"] = listId,
+            ["entryId"] = entryId,
             ["detailUrl"] = detailUrl,
             ["sha256"] = sha256,
             ["importedAtUtc"] = DateTime.UtcNow.ToString("O"),
@@ -207,16 +271,27 @@ public class RemoteImportService : IRemoteImportService
         return obj.ToJsonString();
     }
 
-    public static string? ReadRemoteDetailUrl(string? metadata)
+    /// <summary>The identity key (when the import recorded one) + detailUrl from a Metadata JSON.</summary>
+    public static (string? Key, string? DetailUrl)? ReadRemote(string? metadata)
     {
         if (string.IsNullOrWhiteSpace(metadata)) return null;
         try
         {
-            var obj = JsonNode.Parse(metadata) as JsonObject;
-            return obj?["remote"]?["detailUrl"]?.GetValue<string>();
+            var remote = (JsonNode.Parse(metadata) as JsonObject)?["remote"] as JsonObject;
+            if (remote == null) return null;
+            var sourceId = remote["sourceId"]?.GetValue<string>();
+            var listId = remote["listId"]?.GetValue<string>();
+            var entryId = remote["entryId"]?.GetValue<string>();
+            var key = !string.IsNullOrEmpty(sourceId) && !string.IsNullOrEmpty(listId) && !string.IsNullOrEmpty(entryId)
+                ? ImportedKey(sourceId!, listId!, entryId!)
+                : null;
+            return (key, remote["detailUrl"]?.GetValue<string>());
         }
         catch { return null; }
     }
+
+    /// <summary>Legacy helper kept for tests/back-compat reads.</summary>
+    public static string? ReadRemoteDetailUrl(string? metadata) => ReadRemote(metadata)?.DetailUrl;
 
     /// <summary>Download up to N detail-page images and attach them as previews (best-effort).</summary>
     private async Task ImportPreviewImagesAsync(string modId, IReadOnlyList<string> images, string staging, CancellationToken ct)

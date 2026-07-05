@@ -21,9 +21,9 @@ public interface IRemoteIndexRepository
     Task<int> PruneStaleAsync(string sourceId, string listId, long currentGeneration);
     Task<int> CountAsync(string sourceId, string listId);
     Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
-        string sourceId, string listId, string? search, string? category, string? sort, int page, int pageSize);
-    /// <summary>Distinct non-null categories present in the index (for the filter dropdown), by frequency.</summary>
-    Task<List<RemoteCategoryCount>> GetCategoriesAsync(string sourceId, string listId);
+        string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize);
+    /// <summary>Distinct site tags present in the index (for the filter dropdown), by frequency.</summary>
+    Task<List<RemoteTagCount>> GetTagsAsync(string sourceId, string listId);
 }
 
 /// <summary>Meta row for one source+list index (sync bookkeeping).</summary>
@@ -87,19 +87,24 @@ public class RemoteIndexRepository : IRemoteIndexRepository
         {
             await connection.ExecuteAsync(@"
                 INSERT INTO RemoteIndexEntries
-                    (SourceId, ListId, EntryId, Title, DetailUrl, ImageUrl, Category, DateHint, Generation, SortKey, FirstSeenUtc, LastSeenUtc)
-                VALUES (@sourceId, @listId, @Id, @Title, @DetailUrl, @ImageUrl, @Category, @DateHint, @generation, @SortKey, @Now, @Now)
+                    (SourceId, ListId, EntryId, Title, DetailUrl, ImageUrl, Tags, DateHint, Generation, SortKey, FirstSeenUtc, LastSeenUtc)
+                VALUES (@sourceId, @listId, @Id, @Title, @DetailUrl, @ImageUrl, @Tags, @DateHint, @generation, @SortKey, @Now, @Now)
                 ON CONFLICT(SourceId, ListId, EntryId) DO UPDATE SET
                     Title = CASE WHEN excluded.Title != '' THEN excluded.Title ELSE Title END,
                     DetailUrl = excluded.DetailUrl,
                     ImageUrl = excluded.ImageUrl,
-                    Category = COALESCE(excluded.Category, Category),
+                    Tags = COALESCE(excluded.Tags, Tags),
                     DateHint = COALESCE(excluded.DateHint, DateHint),
                     Generation = excluded.Generation,
                     SortKey = excluded.SortKey,
                     LastSeenUtc = excluded.LastSeenUtc,
                     RemovedUtc = NULL", // a re-seen entry is un-removed
-                new { sourceId, listId, e.Id, e.Title, e.DetailUrl, e.ImageUrl, e.Category, e.DateHint, generation, e.SortKey, Now = DateTime.UtcNow },
+                new
+                {
+                    sourceId, listId, e.Id, e.Title, e.DetailUrl, e.ImageUrl,
+                    Tags = e.Tags.Count > 0 ? global::System.Text.Json.JsonSerializer.Serialize(e.Tags) : null,
+                    e.DateHint, generation, e.SortKey, Now = DateTime.UtcNow,
+                },
                 tx);
         }
         await tx.CommitAsync();
@@ -124,15 +129,16 @@ public class RemoteIndexRepository : IRemoteIndexRepository
     }
 
     public async Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
-        string sourceId, string listId, string? search, string? category, string? sort, int page, int pageSize)
+        string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize)
     {
         var where = "SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL";
         var args = new DynamicParameters(new { sourceId, listId });
 
-        if (!string.IsNullOrWhiteSpace(category))
+        if (!string.IsNullOrWhiteSpace(tag))
         {
-            where += " AND Category = @category";
-            args.Add("category", category);
+            // Tags is a JSON array — exact-match any element via json_each (bundled JSON1).
+            where += " AND EXISTS (SELECT 1 FROM json_each(RemoteIndexEntries.Tags) WHERE json_each.value = @tag)";
+            args.Add("tag", tag);
         }
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -158,23 +164,28 @@ public class RemoteIndexRepository : IRemoteIndexRepository
 
         args.Add("limit", Math.Clamp(pageSize, 1, 500));
         args.Add("offset", (Math.Max(1, page) - 1) * Math.Clamp(pageSize, 1, 500));
-        var rows = await connection.QueryAsync<RemoteIndexEntry>($@"
-            SELECT EntryId AS Id, Title, DetailUrl, ImageUrl, Category, DateHint, SortKey, FirstSeenUtc, LastSeenUtc
+        var rows = (await connection.QueryAsync<RemoteIndexEntry>($@"
+            SELECT EntryId AS Id, Title, DetailUrl, ImageUrl, Tags AS TagsJson, DateHint, SortKey, FirstSeenUtc, LastSeenUtc
             FROM RemoteIndexEntries WHERE {where}
             ORDER BY {order}
-            LIMIT @limit OFFSET @offset", args);
-        return (total, rows.ToList());
+            LIMIT @limit OFFSET @offset", args)).ToList();
+        foreach (var row in rows) // materialize the JSON tag list for the wire
+        {
+            if (string.IsNullOrEmpty(row.TagsJson)) continue;
+            try { row.Tags = global::System.Text.Json.JsonSerializer.Deserialize<List<string>>(row.TagsJson) ?? new(); }
+            catch { /* corrupt cache row — leave empty */ }
+        }
+        return (total, rows);
     }
 
-    public async Task<List<RemoteCategoryCount>> GetCategoriesAsync(string sourceId, string listId)
+    public async Task<List<RemoteTagCount>> GetTagsAsync(string sourceId, string listId)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        var rows = await connection.QueryAsync<RemoteCategoryCount>(@"
-            SELECT Category AS Name, COUNT(*) AS Count
-            FROM RemoteIndexEntries
+        var rows = await connection.QueryAsync<RemoteTagCount>(@"
+            SELECT json_each.value AS Name, COUNT(*) AS Count
+            FROM RemoteIndexEntries, json_each(RemoteIndexEntries.Tags)
             WHERE SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL
-              AND Category IS NOT NULL AND Category != ''
-            GROUP BY Category ORDER BY Count DESC, Category ASC",
+            GROUP BY json_each.value ORDER BY Count DESC, Name ASC",
             new { sourceId, listId });
         return rows.ToList();
     }

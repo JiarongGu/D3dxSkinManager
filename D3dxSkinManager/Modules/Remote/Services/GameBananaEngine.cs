@@ -88,14 +88,17 @@ public class GameBananaEngine : RemoteSiteEngineBase
                 var name = GetString(rec, "_sName");
                 if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(name)) continue;
                 var ts = GetLong(rec, "_tsDateAdded");
-                scored.Add((ts, new RemoteModCard
+                var card = new RemoteModCard
                 {
                     Title = name,
                     DetailUrl = url,
                     ImageUrl = FirstImageUrl(rec) ?? string.Empty,
-                    Category = RootCategoryName(rec),
                     DateHint = ts > 0 ? DateTimeOffset.FromUnixTimeSeconds(ts).UtcDateTime.ToString("yyyy-MM-dd") : null,
-                }));
+                };
+                // Super category ("Skins", "UI") — the subfeed's only taxonomy level; the sub category
+                // lives on the ProfilePage and joins via GetDetail. Both are TAGS (redesign).
+                if (CategoryName(rec, "_aRootCategory") is { } super_) card.Tags.Add(super_);
+                scored.Add((ts, card));
             }
             // The API can return a page's records in ascending order (looked reversed on screen) — force
             // newest-first by date added so each page reads the same as the site's "new" listing.
@@ -118,6 +121,9 @@ public class GameBananaEngine : RemoteSiteEngineBase
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
         var detail = new RemoteModDetail { DetailUrl = detailUrl, Title = GetString(root, "_sName") ?? string.Empty };
+
+        // Tags: the ProfilePage carries the SUB (leaf) category; the super comes from the subfeed card.
+        if (CategoryName(root, "_aCategory") is { } sub) detail.Tags.Add(sub);
 
         // Gallery: every preview image at full resolution.
         if (root.TryGetProperty("_aPreviewMedia", out var media)
@@ -150,10 +156,10 @@ public class GameBananaEngine : RemoteSiteEngineBase
         return detail;
     }
 
-    /// <summary>The record's root category name (e.g. "Skins", "Other/Misc"), used for filtering.</summary>
-    private static string? RootCategoryName(JsonElement record)
+    /// <summary>A category object's name (_aRootCategory = super, _aCategory = sub/leaf).</summary>
+    private static string? CategoryName(JsonElement record, string prop)
     {
-        if (record.TryGetProperty("_aRootCategory", out var cat)) return GetString(cat, "_sName");
+        if (record.TryGetProperty(prop, out var cat)) return GetString(cat, "_sName");
         return null;
     }
 

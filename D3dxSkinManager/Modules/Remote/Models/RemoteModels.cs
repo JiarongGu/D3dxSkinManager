@@ -106,10 +106,10 @@ public class RemoteModCard
     public string DetailUrl { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
 
-    /// <summary>The site's own category for this mod (e.g. GameBanana root category "Skins"), when the
-    /// engine can extract one. Stored in the index for filtering + display. Null when the site/engine
-    /// has no per-card category (e.g. huihui, where the list itself is the game).</summary>
-    public string? Category { get; set; }
+    /// <summary>The site's tags for this mod (STANDARDIZED across engines — e.g. GameBanana super
+    /// category "Skins"; the sub category joins from the detail page). Empty when the site/engine has
+    /// no per-card taxonomy (e.g. huihui, where the list itself is the game).</summary>
+    public List<string> Tags { get; set; } = new();
 
     /// <summary>Date hint (yyyy-MM-dd) when the engine can extract one directly (e.g. GameBanana
     /// _tsDateAdded). Null lets the index fall back to the adapter's imageDatePattern.</summary>
@@ -139,6 +139,10 @@ public class RemoteModDetail
     public string DetailUrl { get; set; } = string.Empty;
     public List<string> Images { get; set; } = new();
     public List<RemoteDownloadOption> Downloads { get; set; } = new();
+
+    /// <summary>Site tags visible on the detail page (e.g. GameBanana sub category). Merged with the
+    /// index entry's tags for display + import tag-rules.</summary>
+    public List<string> Tags { get; set; } = new();
 }
 
 /// <summary>A resolved direct download (Cloudreve share → presigned URL).</summary>
@@ -159,8 +163,12 @@ public class RemoteIndexEntry
     public string DetailUrl { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
 
-    /// <summary>The site's category for this mod (for filtering + display). Null = uncategorized on the site.</summary>
-    public string? Category { get; set; }
+    /// <summary>The site's tags for this mod (standardized across engines; filter + chips).</summary>
+    public List<string> Tags { get; set; } = new();
+
+    /// <summary>Raw DB value (JSON array) backing <see cref="Tags"/> — repository plumbing only.</summary>
+    [global::System.Text.Json.Serialization.JsonIgnore]
+    public string? TagsJson { get; set; }
 
     /// <summary>Date hint (yyyy-MM-dd) derived from the image path, when the adapter can extract one.</summary>
     public string? DateHint { get; set; }
@@ -175,8 +183,8 @@ public class RemoteIndexEntry
     public bool Imported { get; set; }
 }
 
-/// <summary>A distinct site category present in the index + how many mods carry it (filter dropdown).</summary>
-public class RemoteCategoryCount
+/// <summary>A distinct site tag present in the index + how many mods carry it (filter dropdown).</summary>
+public class RemoteTagCount
 {
     public string Name { get; set; } = string.Empty;
     public int Count { get; set; }

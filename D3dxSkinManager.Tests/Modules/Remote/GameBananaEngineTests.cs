@@ -29,6 +29,7 @@ public class GameBananaEngineTests
     {
       "_idRow": 529138,
       "_sName": "Vivian Vampire",
+      "_aCategory": { "_idRow": 12526, "_sName": "Hu Tao", "_sModelName": "ModCategory" },
       "_aPreviewMedia": { "_aImages": [
         { "_sBaseUrl": "https://images.gamebanana.com/img/ss/mods", "_sFile": "a.jpg", "_sFile530": "530-90_a.jpg" },
         { "_sBaseUrl": "https://images.gamebanana.com/img/ss/mods", "_sFile": "b.jpg" }
@@ -53,7 +54,7 @@ public class GameBananaEngineTests
         var card = result.Cards.Single(c => c.Title == "Vivian Vampire");
         card.DetailUrl.Should().Be("https://gamebanana.com/mods/1");
         card.ImageUrl.Should().Be("https://images.gamebanana.com/img/ss/mods/530-90_raw.jpg", "cards use the 530px variant");
-        card.Category.Should().Be("Skins", "the root category is captured for filtering");
+        card.Tags.Should().BeEquivalentTo(new[] { "Skins" }, "the super category is captured as a TAG");
         card.DateHint.Should().Be("2023-11-14", "unix _tsDateAdded → yyyy-MM-dd");
         result.TotalPages.Should().Be(2, "ceil(30 / 15)");
     }
@@ -73,6 +74,7 @@ public class GameBananaEngineTests
         detail.Downloads[0].Url.Should().Be("https://gamebanana.com/dl/111");
         detail.Downloads[0].Type.Should().Be("direct", "gamebanana files are direct downloads");
         detail.Downloads[0].Name.Should().Be("vivian_1.0.7z");
+        detail.Tags.Should().BeEquivalentTo(new[] { "Hu Tao" }, "the SUB category comes from the ProfilePage as a tag");
     }
 
     [Theory]

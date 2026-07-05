@@ -45,8 +45,8 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
             CREATE TABLE RemoteIndexEntries (
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, EntryId TEXT NOT NULL,
                 Title TEXT NOT NULL DEFAULT '', DetailUrl TEXT NOT NULL, ImageUrl TEXT NOT NULL DEFAULT '',
-                DateHint TEXT, Generation INTEGER NOT NULL DEFAULT 0, SortKey INTEGER NOT NULL DEFAULT 0,
-                FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL, RemovedUtc TEXT, Category TEXT,
+                Tags TEXT, DateHint TEXT, Generation INTEGER NOT NULL DEFAULT 0, SortKey INTEGER NOT NULL DEFAULT 0,
+                FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL, RemovedUtc TEXT,
                 PRIMARY KEY (SourceId, ListId, EntryId));
             CREATE TABLE RemoteIndexMeta (
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, SyncedAtUtc TEXT,
@@ -55,12 +55,12 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         cmd.ExecuteNonQuery();
     }
 
-    private static RemoteModCard Card(int id, string title, string date = "20260621", string? category = null) => new()
+    private static RemoteModCard Card(int id, string title, string date = "20260621", params string[] tags) => new()
     {
         Title = title,
         DetailUrl = $"https://huihui168.org/?news_12/{id}.html",
         ImageUrl = $"https://huihui168.org/static/upload/image/{date}/img{id}.jpg",
-        Category = category,
+        Tags = tags.ToList(),
     };
 
     private void SetupPages(params List<RemoteModCard>[] pages)
@@ -204,22 +204,27 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
-    public async Task Query_FiltersByCategory_AndListsDistinctCategories()
+    public async Task Query_FiltersByTag_AndListsDistinctTags()
     {
         SetupPages(new List<RemoteModCard>
         {
-            Card(1, "A", category: "Skins"), Card(2, "B", category: "Skins"), Card(3, "C", category: "Other/Misc"),
+            Card(1, "A", tags: new[] { "Skins", "Hu Tao" }), Card(2, "B", tags: new[] { "Skins" }), Card(3, "C", tags: new[] { "Other/Misc" }),
         });
         await SyncAndWaitAsync();
 
-        (await _service.QueryAsync("huihui", "2", null, 1, 50, category: "Skins")).Total.Should().Be(2);
-        (await _service.QueryAsync("huihui", "2", null, 1, 50, category: "Other/Misc")).Entries.Single().Id.Should().Be("3");
+        (await _service.QueryAsync("huihui", "2", null, 1, 50, tag: "Skins")).Total.Should().Be(2);
+        (await _service.QueryAsync("huihui", "2", null, 1, 50, tag: "Hu Tao")).Entries.Single().Id.Should().Be("1");
+        (await _service.QueryAsync("huihui", "2", null, 1, 50, tag: "Other/Misc")).Entries.Single().Id.Should().Be("3");
         (await _service.QueryAsync("huihui", "2", null, 1, 50)).Total.Should().Be(3, "no filter = all");
 
-        var cats = await _service.GetCategoriesAsync("huihui", "2");
-        cats.Should().HaveCount(2);
-        cats[0].Name.Should().Be("Skins");   // most frequent first
-        cats[0].Count.Should().Be(2);
+        // Entries carry their tag lists on the wire.
+        var all = await _service.QueryAsync("huihui", "2", null, 1, 50);
+        all.Entries.Single(e => e.Id == "1").Tags.Should().BeEquivalentTo("Skins", "Hu Tao");
+
+        var tags = await _service.GetTagsAsync("huihui", "2");
+        tags.Should().HaveCount(3);
+        tags[0].Name.Should().Be("Skins");   // most frequent first
+        tags[0].Count.Should().Be(2);
     }
 
     [Fact]
@@ -239,14 +244,23 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
-    public void RemoteMetadata_RoundTrips_AndPreservesOtherFields()
+    public void RemoteMetadata_RoundTrips_StandardizedIdentity_AndPreservesOtherFields()
     {
         var merged = RemoteImportService.WriteRemoteMetadata(
-            """{"keybindingOrder":["9","0"]}""", "huihui", "https://huihui168.org/?news_12/2845.html", "abc123");
+            """{"keybindingOrder":["9","0"]}""", "huihui", "2", "2845", "https://huihui168.org/?news_12/2845.html", "abc123");
 
         merged.Should().Contain("keybindingOrder", "existing metadata fields survive");
-        RemoteImportService.ReadRemoteDetailUrl(merged).Should().Be("https://huihui168.org/?news_12/2845.html");
-        RemoteImportService.ReadRemoteDetailUrl("{broken").Should().BeNull();
-        RemoteImportService.ReadRemoteDetailUrl(null).Should().BeNull();
+        var remote = RemoteImportService.ReadRemote(merged);
+        remote.Should().NotBeNull();
+        remote!.Value.Key.Should().Be(RemoteImportService.ImportedKey("huihui", "2", "2845"),
+            "the durable identity is sourceId|listId|entryId (detailUrl breaks when a site moves hosts)");
+        remote.Value.DetailUrl.Should().Be("https://huihui168.org/?news_12/2845.html");
+        RemoteImportService.ReadRemote("{broken").Should().BeNull();
+        RemoteImportService.ReadRemote(null).Should().BeNull();
+
+        // A LEGACY import (no listId/entryId) still resolves its detailUrl and yields no key.
+        var legacy = RemoteImportService.WriteRemoteMetadata(null, "huihui", null, null, "https://x/y", "sha");
+        RemoteImportService.ReadRemote(legacy)!.Value.Key.Should().BeNull();
+        RemoteImportService.ReadRemoteDetailUrl(legacy).Should().Be("https://x/y");
     }
 }
