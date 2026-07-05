@@ -12,13 +12,20 @@ code {
     monospace;
 }
 
-/* Standalone analyzer window (analyzer.html): the analyzer content uses negative margins to bleed
-   into the slide-in's padding; in a bare window we add matching padding so it isn't clipped, and
-   fill the viewport. */
+/* Standalone analyzer window (analyzer.html): fill the whole (resizable) window. The analyzer
+   content uses negative margins to bleed into the slide-in's padding — neutralize them here and
+   give it its own comfortable padding so it fills edge-to-edge and reflows as the window resizes. */
 .analyzer-window-root {
   height: 100vh;
-  padding: 20px 24px;
   overflow: hidden;
   box-sizing: border-box;
-  background: var(--color-bg-layout, #f0f2f5);
+}
+/* Fill edge-to-edge: no surrounding padding/bg strip that would mismatch the window's dark frame.
+   The analyzer's own sections (header/filters/hero) carry their backgrounds. */
+.analyzer-window-root .mod-analyzer {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background: var(--color-bg-container);
 }

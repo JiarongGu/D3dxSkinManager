@@ -235,18 +235,32 @@
   border-bottom: 1px solid var(--color-border-secondary);
   flex-shrink: 0;
   gap: 12px;
+  /* Wrap the search below the actions in a narrow window (the pop-out) instead of crushing them. */
+  flex-wrap: wrap;
 }
 
 .mod-analyzer__findings-header-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .mod-analyzer__findings-summary {
   font-size: 14px;
   color: var(--color-text-secondary);
   font-weight: 500;
+  /* Never let the flex row squeeze the CJK label into a per-character vertical column. */
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Let the search grow/shrink instead of forcing a fixed 240px that overflows a narrow window. */
+.mod-analyzer__findings-header .compact-input,
+.mod-analyzer__findings-header .ant-input-affix-wrapper {
+  flex: 1 1 180px;
+  min-width: 160px;
+  max-width: 280px;
 }
 
 /* Filter chips */

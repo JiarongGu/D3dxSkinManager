@@ -26,7 +26,7 @@ public interface ISecondaryWindowService : IDisposable
 {
     Task<Form?> CreateSecondaryWindowAsync(string windowName, string title, int defaultWidth, int defaultHeight, string htmlPage);
     Task<WindowPreloadConfig> PreloadWindowConfigAsync(string windowName, int defaultWidth, int defaultHeight);
-    Form? CreateSecondaryWindow(string windowName, string title, int defaultWidth, int defaultHeight, string htmlPage, WindowPreloadConfig config);
+    Form? CreateSecondaryWindow(string windowName, string title, int defaultWidth, int defaultHeight, string htmlPage, WindowPreloadConfig config, bool resizable = false);
     void CloseAllWindows();
     bool HasWindow(string windowName);
     void CloseWindow(string windowName);
@@ -284,7 +284,8 @@ public class SecondaryWindowService : ISecondaryWindowService
         int defaultWidth,
         int defaultHeight,
         string htmlPage,
-        WindowPreloadConfig config)
+        WindowPreloadConfig config,
+        bool resizable = false)
     {
         try
         {
@@ -299,12 +300,16 @@ public class SecondaryWindowService : ISecondaryWindowService
                 Text = title,
                 Size = new Size(defaultWidth, defaultHeight),
                 StartPosition = FormStartPosition.Manual,
-                FormBorderStyle = FormBorderStyle.FixedToolWindow,
-                MaximizeBox = false,
+                // Resizable windows (e.g. the analyzer) get a normal sizable border + maximize;
+                // fixed panels (e.g. the capture control) keep the compact tool-window border.
+                FormBorderStyle = resizable ? FormBorderStyle.Sizable : FormBorderStyle.FixedToolWindow,
+                MaximizeBox = resizable,
                 MinimizeBox = true,
-                TopMost = true,
+                // A resizable window shouldn't float over everything; a fixed control panel should.
+                TopMost = !resizable,
                 ShowInTaskbar = true,
-                Icon = null
+                Icon = null,
+                MinimumSize = resizable ? new Size(360, 420) : Size.Empty,
             };
 
             form.Location = config.Position;

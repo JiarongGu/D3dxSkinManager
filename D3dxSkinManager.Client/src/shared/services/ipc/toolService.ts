@@ -101,6 +101,11 @@ export class ToolService extends BaseModuleService {
     return this.sendMessage<void>('ANALYZER_TOGGLE_WINDOW', profileId, undefined);
   }
 
+  /** From the analyzer pop-out window: ask the MAIN window to locate these mods in the list. */
+  async requestLocate(profileId: string, modIds: string[], categoryId?: string): Promise<void> {
+    return this.sendMessage<void>('ANALYZER_REQUEST_LOCATE', profileId, { modIds, categoryId });
+  }
+
   // ===== Mod Package Export/Import =====
 
   async exportModPackage(profileId: string, config: Omit<ExportConfig, 'outputPath'> & { outputPath: string }): Promise<ExportResult> {

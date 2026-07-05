@@ -18,8 +18,10 @@ public interface IAnalyzerWindowService
 public class AnalyzerWindowService : IAnalyzerWindowService
 {
     private const string WindowName = "analyzer";
-    private const int DefaultWidth = 520;
-    private const int DefaultHeight = 720;
+    // Compact side-panel default — meant to sit beside the main window. The analyzer layout is made
+    // responsive (header wraps, rows reflow) so it reads well at this width; resizable for more room.
+    private const int DefaultWidth = 560;
+    private const int DefaultHeight = 820;
 
     private readonly ISecondaryWindowService _windowService;
     private readonly ILogHelper _logger;
@@ -53,7 +55,8 @@ public class AnalyzerWindowService : IAnalyzerWindowService
             {
                 Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
                 var form = _windowService.CreateSecondaryWindow(
-                    WindowName, "Mod Analyzer", DefaultWidth, DefaultHeight, "analyzer.html", windowConfig);
+                    WindowName, "Mod Analyzer", DefaultWidth, DefaultHeight, "analyzer.html", windowConfig,
+                    resizable: true);
                 if (form == null)
                 {
                     _logger.Error("[AnalyzerWindow] CreateSecondaryWindow returned null");

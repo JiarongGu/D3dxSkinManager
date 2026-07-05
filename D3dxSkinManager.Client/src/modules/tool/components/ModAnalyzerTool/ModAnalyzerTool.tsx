@@ -408,9 +408,15 @@ export const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClos
 
   const locateMods = useCallback(async (modIds: string[]) => {
     if (!selectedProfileId) return;
+    if (inWindow) {
+      // In the pop-out window there is no mod list — ask the MAIN window to locate it (relayed
+      // over the backend event bus). The window stays open so it can keep working the results.
+      await api.tool.requestLocate(selectedProfileId, modIds, report?.categoryId);
+      return;
+    }
     await navigateToModSearch(selectedProfileId, modIds, report?.categoryId);
     onClose();
-  }, [selectedProfileId, onClose, report?.categoryId]);
+  }, [selectedProfileId, onClose, report?.categoryId, inWindow]);
 
   return (
     <div className="mod-analyzer">

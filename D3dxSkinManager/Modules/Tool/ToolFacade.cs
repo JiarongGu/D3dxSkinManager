@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Tool.ModPackage.Services;
 using D3dxSkinManager.Modules.Tool.Models;
 using D3dxSkinManager.Modules.Tool.Services;
 using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
@@ -103,6 +104,8 @@ public class ToolFacade : BaseFacade, IToolFacade
 
             // Analyzer pop-out window
             "ANALYZER_TOGGLE_WINDOW" => await ToggleAnalyzerWindowAsync(request),
+            // Cross-window: analyzer window asks the MAIN window to locate a mod in the list
+            "ANALYZER_REQUEST_LOCATE" => await RequestLocateAsync(request),
 
             // Mod Package - Export/Import
             "MOD_PACKAGE_EXPORT" => await ExportModPackageAsync(request),
@@ -345,6 +348,20 @@ public class ToolFacade : BaseFacade, IToolFacade
         var profileId = request.ProfileId ?? throw new InvalidOperationException("ProfileId is required");
         await _analyzerWindowService.ToggleAsync(profileId).ConfigureAwait(false);
         return new { toggled = true };
+    }
+
+    /// <summary>
+    /// Relay a "locate these mods in the list" request from the analyzer pop-out window to the MAIN
+    /// window. Separate WebView2 windows share only the backend event bus, so we emit a MOD event that
+    /// the main window's ModProvider handles (the analyzer window has no ModProvider → no echo).
+    /// </summary>
+    private async Task<object?> RequestLocateAsync(IpcRequest request)
+    {
+        var modIds = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "modIds");
+        var categoryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "categoryId");
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.LOCATE_REQUESTED,
+            new { modIds, categoryId }).ConfigureAwait(false);
+        return new { requested = true };
     }
 
     // ===== Mod Package - Export/Import =====

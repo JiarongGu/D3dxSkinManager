@@ -18,6 +18,7 @@ import { debounce } from "lodash-es";
 import { logger } from "../../shared/utils/logger";
 import { memoizeDebounce } from "../../shared/utils/memoizeDebounce";
 import { useStableRef } from "../../shared/hooks/useStableRef";
+import { navigateToModSearch } from "../../shared/hooks/useAppNavigation";
 
 interface ModsProviderProps {
   children: React.ReactNode;
@@ -353,6 +354,19 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       },
     );
 
+    // Cross-window: the analyzer pop-out window asks the MAIN window to locate a mod in the list.
+    // Only the main window has ModProvider, so only it handles this (no echo in the analyzer window).
+    const unsubscribeLocateRequested = eventBus.subscribe(
+      Module.MOD,
+      ModEventType.LOCATE_REQUESTED,
+      (event) => {
+        const { modIds, categoryId } = event.payload ?? {};
+        if (selectedProfileIdRef.current && modIds?.length) {
+          void navigateToModSearch(selectedProfileIdRef.current, modIds, categoryId);
+        }
+      },
+    );
+
     return () => {
       handleModListUpdate.cancel();
       handleCategoryTreeUpdate.cancel();
@@ -374,6 +388,7 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
       unsubscribeMetadataUpdated();
       unsubscribeCacheChanged();
       unsubscribeAnalysisComplete();
+      unsubscribeLocateRequested();
     };
   }, []);
 

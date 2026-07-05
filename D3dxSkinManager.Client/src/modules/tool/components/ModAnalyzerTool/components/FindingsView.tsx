@@ -122,7 +122,6 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
           allowClear
-          style={{ width: 240 }}
         />
       </div>
 
