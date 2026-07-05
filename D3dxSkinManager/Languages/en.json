@@ -820,6 +820,7 @@
     "process.stage.readyToInstall": "Ready to install on restart",
     "process.stage.compressing": "Compressing",
     "process.stage.enrichingDetails": "Processing mod details",
+    "process.remoteEnrich": "Filling mod details: {{arg}}",
     "process.remoteSync": "Syncing remote library: {{arg}}",
     "process.stage.crawling": "Crawling pages",
     "process.remoteSyncAll": "Syncing remote library: {{arg}} (all lists)",

@@ -119,6 +119,10 @@ public class RemoteIndexService : IRemoteIndexService
             {
                 await CrawlAsync(source, listId, listName, procId, full, ct).ConfigureAwait(false);
                 _processRegistry.Complete(procId);
+                // The LIST SYNC is now complete — the index is up to date. Detail ENRICHMENT is a
+                // SEPARATE process (missing-data backfill: e.g. GameBanana sub-category tags), chained
+                // after the crawl so requests to the site stay serialized.
+                StartEnrichment(source, listId, listName);
             }
             catch (OperationCanceledException)
             {
@@ -138,15 +142,61 @@ public class RemoteIndexService : IRemoteIndexService
         return procId;
     }
 
+    /// <summary>Kick the detail-enrichment backfill as its OWN cancellable process (idempotent).</summary>
+    private void StartEnrichment(RemoteSourceConfig source, string listId, string listName)
+    {
+        if (!_browse.DetailProvidesTags(source.Id)) return;
+
+        var key = $"enrich:{source.Id}_{listId}";
+        lock (_syncLock)
+        {
+            if (_activeSyncs.Contains(key)) return;
+            _activeSyncs.Add(key);
+        }
+
+        var procId = _processRegistry.Start(ProcessType.Download, $"Filling mod details: {source.Name} · {listName}",
+            cancellable: true, titleKey: "process.remoteEnrich", titleArg: $"{source.Name} · {listName}");
+
+        _ = Task.Run(async () =>
+        {
+            var ct = _processRegistry.GetToken(procId);
+            try
+            {
+                await EnrichDetailsAsync(source.Id, listId, listName, procId, ct).ConfigureAwait(false);
+                _processRegistry.Complete(procId);
+            }
+            catch (OperationCanceledException)
+            {
+                _processRegistry.Cancel(procId);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[Remote] Detail enrichment failed for {key}: {ex.Message}", "RemoteIndexService", ex);
+                _processRegistry.Fail(procId, ex.Message);
+            }
+            finally
+            {
+                lock (_syncLock) { _activeSyncs.Remove(key); }
+            }
+        });
+    }
+
+    /// <summary>How many consecutive fully-known pages an incremental needs before it may stop —
+    /// feeds aren't strictly ordered (GameBanana mixes featured/recently-updated), so a single
+    /// known page can precede pages with unseen entries.</summary>
+    private const int IncrementalStopAfterKnownPages = 2;
+
     /// <summary>
-    /// Crawl the list: full on first run; an UPDATE afterwards — stop at the first page that
-    /// yields no entry we haven't seen before (only newer content sits above it).
+    /// Crawl the list. A pass is INCREMENTAL (early-stopping) only when a COMPLETE pass finished
+    /// before — otherwise (first sync, forced full, or a previously interrupted/partial crawl) it
+    /// walks every page, so the index can never keep a permanent hole.
     /// </summary>
     private async Task CrawlAsync(RemoteSourceConfig source, string listId, string listName, string procId, bool full, CancellationToken ct)
     {
         var meta = await _repository.GetMetaAsync(source.Id, listId).ConfigureAwait(false);
-        // Incremental only when we have a prior sync AND the caller didn't force a full re-crawl.
-        var incremental = meta?.SyncedAtUtc != null && !full;
+        // Incremental ONLY after a completed full pass — SyncedAtUtc alone isn't enough (a cancelled
+        // first crawl wrote entries; stopping early on top of that would never fill the deep pages).
+        var incremental = meta?.FullSyncCompletedUtc != null && !full;
         var generation = (meta?.Generation ?? 0) + 1;
         var known = incremental
             ? await _repository.GetKnownIdsAsync(source.Id, listId).ConfigureAwait(false)
@@ -156,6 +206,8 @@ public class RemoteIndexService : IRemoteIndexService
         var first = await _browse.BrowseAsync(source.Id, listId, 1, ct).ConfigureAwait(false);
         var totalPages = Math.Min(first.TotalPages ?? MaxPages, MaxPages);
         var crawledPages = 1;
+        var stoppedEarly = false;
+        var consecutiveKnown = 0;
         await UpsertPageAsync(source, listId, first.Cards, 1, generation).ConfigureAwait(false);
 
         for (var page = 2; page <= totalPages; page++)
@@ -169,10 +221,12 @@ public class RemoteIndexService : IRemoteIndexService
             await UpsertPageAsync(source, listId, result.Cards, page, generation).ConfigureAwait(false);
             crawledPages = page;
 
-            if (incremental && newCount == 0)
+            consecutiveKnown = newCount == 0 ? consecutiveKnown + 1 : 0;
+            if (incremental && consecutiveKnown >= IncrementalStopAfterKnownPages)
             {
-                // Everything on this page (and below — the site lists newest first) is already indexed.
-                _logger.Info($"[Remote] Update sync stopped at page {page} (no new entries)", "RemoteIndexService");
+                // Several fully-known pages in a row — anything deeper is already indexed.
+                _logger.Info($"[Remote] Update sync stopped at page {page} ({consecutiveKnown} known pages in a row)", "RemoteIndexService");
+                stoppedEarly = true;
                 break;
             }
 
@@ -190,6 +244,12 @@ public class RemoteIndexService : IRemoteIndexService
             pruned = await _repository.PruneStaleAsync(source.Id, listId, generation).ConfigureAwait(false);
         }
 
+        // A non-incremental pass reaching this line covered every page (only incrementals stop
+        // early) — record the completion so future syncs may go incremental. Interrupted/cancelled
+        // runs never get here, so a partial crawl can't unlock early-stopping.
+        _ = stoppedEarly; // (documented above — early stop implies incremental)
+        var fullCompleted = incremental ? meta!.FullSyncCompletedUtc : DateTime.UtcNow;
+
         await _repository.SetMetaAsync(new RemoteIndexMetaRow
         {
             SourceId = source.Id,
@@ -197,68 +257,75 @@ public class RemoteIndexService : IRemoteIndexService
             SyncedAtUtc = DateTime.UtcNow,
             TotalPages = totalPages,
             Generation = generation,
+            FullSyncCompletedUtc = fullCompleted,
         }).ConfigureAwait(false);
 
         var count = await _repository.CountAsync(source.Id, listId).ConfigureAwait(false);
         _logger.Info($"[Remote] Index synced: {source.Id}_{listId} — {count} entries, crawled {crawledPages}/{totalPages} pages, pruned {pruned} ({(incremental ? "update" : "full")})",
             "RemoteIndexService");
-
-        // DETAIL ENRICHMENT: when the engine's detail pages carry tags the list feed doesn't
-        // (GameBanana's sub category), process every not-yet-enriched entry's detail — newest first,
-        // rate-limited, cancellable. Failures stay unmarked and retry on the next sync.
-        if (_browse.DetailProvidesTags(source.Id))
-        {
-            await EnrichDetailsAsync(source.Id, listId, listName, procId, ct).ConfigureAwait(false);
-        }
     }
 
-    /// <summary>Politeness delay between detail fetches during enrichment.</summary>
+    /// <summary>Per-worker politeness delay between detail fetches during enrichment.</summary>
     private static readonly TimeSpan DetailDelay = TimeSpan.FromMilliseconds(150);
-    /// <summary>Abort enrichment after this many consecutive failures (site down / blocking).</summary>
-    private const int MaxConsecutiveDetailFailures = 10;
+    /// <summary>Small parallelism for the detail backfill (per user: "allow for small parallel").</summary>
+    private const int DetailParallelism = 3;
+    /// <summary>Abort enrichment after this many failures within one batch (site down / blocking).</summary>
+    private const int MaxBatchDetailFailures = 15;
 
     private async Task EnrichDetailsAsync(string sourceId, string listId, string listName, string procId, CancellationToken ct)
     {
-        var total = 0;
-        var failures = 0;
+        var total = await _repository.CountUnenrichedAsync(sourceId, listId).ConfigureAwait(false);
+        if (total == 0) return;
+
+        var processed = 0;
         while (true)
         {
             ct.ThrowIfCancellationRequested();
             var batch = await _repository.GetUnenrichedAsync(sourceId, listId, 200).ConfigureAwait(false);
             if (batch.Count == 0) break;
 
-            foreach (var entry in batch)
-            {
-                ct.ThrowIfCancellationRequested();
-                await Task.Delay(DetailDelay, ct).ConfigureAwait(false);
-                try
+            var batchFailures = 0;
+            await Parallel.ForEachAsync(batch,
+                new ParallelOptions { MaxDegreeOfParallelism = DetailParallelism, CancellationToken = ct },
+                async (entry, token) =>
                 {
-                    var detail = await _browse.GetDetailAsync(sourceId, entry.DetailUrl, ct).ConfigureAwait(false);
-                    if (detail.Tags.Count > 0)
-                        await _repository.MergeEntryTagsAsync(sourceId, listId, entry.Id, detail.Tags).ConfigureAwait(false);
-                    await _repository.MarkEnrichedAsync(sourceId, listId, entry.Id).ConfigureAwait(false);
-                    failures = 0;
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
-                {
-                    _logger.Warn($"[Remote] Detail enrichment failed for {entry.DetailUrl}: {ex.Message}", "RemoteIndexService");
-                    if (++failures >= MaxConsecutiveDetailFailures)
+                    await Task.Delay(DetailDelay, token).ConfigureAwait(false);
+                    try
                     {
-                        _logger.Warn($"[Remote] Enrichment aborted after {failures} consecutive failures", "RemoteIndexService");
-                        return;
+                        var detail = await _browse.GetDetailAsync(sourceId, entry.DetailUrl, token).ConfigureAwait(false);
+                        if (detail.Tags.Count > 0)
+                            await _repository.MergeEntryTagsAsync(sourceId, listId, entry.Id, detail.Tags).ConfigureAwait(false);
+                        await _repository.MarkEnrichedAsync(sourceId, listId, entry.Id).ConfigureAwait(false);
                     }
-                }
-                total++;
-                if (total % 10 == 0)
-                {
-                    _processRegistry.Report(procId, null, $"{listName} · {total}",
-                        detailKey: "process.stage.enrichingDetails");
-                }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex)
+                    {
+                        _logger.Warn($"[Remote] Detail enrichment failed for {entry.DetailUrl}: {ex.Message}", "RemoteIndexService");
+                        Interlocked.Increment(ref batchFailures);
+                    }
+                    var done = Interlocked.Increment(ref processed);
+                    if (done % 5 == 0 || done == total)
+                    {
+                        // Rich progress: what's processing now + done/total (percent drives the bar).
+                        _processRegistry.Report(procId, (int)Math.Min(100, done * 100.0 / total),
+                            $"{entry.Title} · {done}/{total}", detailKey: "process.stage.enrichingDetails");
+                    }
+                }).ConfigureAwait(false);
+
+            if (batchFailures >= MaxBatchDetailFailures)
+            {
+                _logger.Warn($"[Remote] Enrichment aborted: {batchFailures} failures in one batch", "RemoteIndexService");
+                return; // failed rows stay unmarked and retry on the next sync
+            }
+            if (batchFailures >= batch.Count)
+            {
+                // Every row in the batch failed — nothing was marked, so looping would re-fetch the
+                // same rows forever. Bail; they retry on the next sync.
+                _logger.Warn("[Remote] Enrichment aborted: batch made no progress", "RemoteIndexService");
+                return;
             }
         }
-        if (total > 0)
-            _logger.Info($"[Remote] Detail enrichment: processed {total} entries for {sourceId}_{listId}", "RemoteIndexService");
+        _logger.Info($"[Remote] Detail enrichment: processed {processed}/{total} entries for {sourceId}_{listId}", "RemoteIndexService");
     }
 
     private Task UpsertPageAsync(RemoteSourceConfig source, string listId, IReadOnlyList<RemoteModCard> cards, int pageNumber, long generation)

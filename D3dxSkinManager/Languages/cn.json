@@ -799,6 +799,7 @@
     "process.stage.readyToInstall": "重启后即可安装",
     "process.stage.compressing": "压缩中",
     "process.stage.enrichingDetails": "正在处理模组详情",
+    "process.remoteEnrich": "正在补全模组详情：{{arg}}",
     "process.remoteSync": "正在同步远程库：{{arg}}",
     "process.stage.crawling": "抓取页面中",
     "process.remoteSyncAll": "正在同步远程库：{{arg}}（全部列表）",

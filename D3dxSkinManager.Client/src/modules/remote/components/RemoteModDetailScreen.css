@@ -5,6 +5,7 @@
   display: flex;
   gap: 16px;
   align-items: flex-start;
+  justify-content: center; /* the capped gallery + fixed side column sit centered in wide screens */
 }
 
 .remote-detail__loading {
@@ -14,10 +15,11 @@
   height: 200px;
 }
 
-/* LEFT — review column. */
+/* LEFT — review column: flexible but CAPPED (an uncapped gallery grew huge on wide screens). */
 .remote-detail__review {
   flex: 1 1 auto;
   min-width: 0;
+  max-width: 620px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -62,14 +64,37 @@
   color: var(--color-text-secondary);
 }
 
-/* RIGHT — side column: INFO panel on top (tags + page description), DOWNLOADS box below. */
+/* RIGHT — side column: HARD-fixed width (long download names used to widen it and squeeze the
+   gallery — the review column above gets the REMAINING width, fixed by layout not content);
+   INFO panel on top (tags + page description), DOWNLOADS box below. */
 .remote-detail__side {
   flex: 0 0 260px;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   position: sticky;
   top: 0;
+}
+
+/* Download buttons stay INSIDE the box: only the TEXT ellipsizes (full name in the tooltip);
+   the icon never trims. */
+.remote-detail__actions .compact-button {
+  min-width: 0;
+}
+
+.remote-detail__actions .compact-button .anticon {
+  flex-shrink: 0;
+}
+
+.remote-detail__actions .compact-button > span:not(.anticon) {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .remote-detail__panel {

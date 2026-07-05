@@ -27,6 +27,9 @@ public interface IRemoteIndexRepository
     /// <summary>Entries whose detail page hasn't been processed yet (EnrichedUtc NULL), newest first.</summary>
     Task<List<RemoteIndexEntry>> GetUnenrichedAsync(string sourceId, string listId, int limit);
 
+    /// <summary>How many entries still need detail processing (drives the enrichment progress %).</summary>
+    Task<int> CountUnenrichedAsync(string sourceId, string listId);
+
     /// <summary>Stamp an entry's detail as processed (with or without new tags).</summary>
     Task MarkEnrichedAsync(string sourceId, string listId, string entryId);
     Task<int> CountAsync(string sourceId, string listId);
@@ -47,6 +50,11 @@ public class RemoteIndexMetaRow
     public DateTime? SyncedAtUtc { get; set; }
     public int TotalPages { get; set; }
     public long Generation { get; set; }
+
+    /// <summary>When a COMPLETE pass over every page last finished. Incremental early-stopping is
+    /// only sound once this is set — otherwise the next sync must crawl everything (a partial first
+    /// crawl + incrementals would leave a permanent hole).</summary>
+    public DateTime? FullSyncCompletedUtc { get; set; }
 }
 
 public class RemoteIndexRepository : IRemoteIndexRepository
@@ -73,12 +81,13 @@ public class RemoteIndexRepository : IRemoteIndexRepository
     {
         await using var connection = new SqliteConnection(_connectionString);
         await connection.ExecuteAsync(@"
-            INSERT INTO RemoteIndexMeta (SourceId, ListId, SyncedAtUtc, TotalPages, Generation)
-            VALUES (@SourceId, @ListId, @SyncedAtUtc, @TotalPages, @Generation)
+            INSERT INTO RemoteIndexMeta (SourceId, ListId, SyncedAtUtc, TotalPages, Generation, FullSyncCompletedUtc)
+            VALUES (@SourceId, @ListId, @SyncedAtUtc, @TotalPages, @Generation, @FullSyncCompletedUtc)
             ON CONFLICT(SourceId, ListId) DO UPDATE SET
                 SyncedAtUtc = excluded.SyncedAtUtc,
                 TotalPages = excluded.TotalPages,
-                Generation = excluded.Generation", meta);
+                Generation = excluded.Generation,
+                FullSyncCompletedUtc = excluded.FullSyncCompletedUtc", meta);
     }
 
     public async Task<HashSet<string>> GetKnownIdsAsync(string sourceId, string listId)
@@ -173,6 +182,14 @@ public class RemoteIndexRepository : IRemoteIndexRepository
             ORDER BY Generation DESC, SortKey ASC
             LIMIT @limit", new { sourceId, listId, limit = Math.Max(1, limit) });
         return rows.ToList();
+    }
+
+    public async Task<int> CountUnenrichedAsync(string sourceId, string listId)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        return await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM RemoteIndexEntries WHERE SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL AND EnrichedUtc IS NULL",
+            new { sourceId, listId });
     }
 
     public async Task MarkEnrichedAsync(string sourceId, string listId, string entryId)

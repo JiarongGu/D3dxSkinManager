@@ -51,6 +51,7 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
             CREATE TABLE RemoteIndexMeta (
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, SyncedAtUtc TEXT,
                 TotalPages INTEGER NOT NULL DEFAULT 0, Generation INTEGER NOT NULL DEFAULT 0,
+                FullSyncCompletedUtc TEXT,
                 PRIMARY KEY (SourceId, ListId));";
         cmd.ExecuteNonQuery();
     }
@@ -105,31 +106,61 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
-    public async Task UpdateSync_StopsAtTheFirstFullyKnownPage()
+    public async Task UpdateSync_StopsAfterTwoConsecutiveKnownPages()
     {
         SetupPages(
             new List<RemoteModCard> { Card(1, "A"), Card(2, "B") },
             new List<RemoteModCard> { Card(3, "C"), Card(4, "D") },
-            new List<RemoteModCard> { Card(5, "E") });
-        await SyncAndWaitAsync(); // full: 3 pages
+            new List<RemoteModCard> { Card(5, "E") },
+            new List<RemoteModCard> { Card(6, "F") });
+        await SyncAndWaitAsync(); // full: 4 pages → unlocks incremental
 
-        // Next sync: one NEW mod pushed everything down one slot — page 1 has 1 new entry, page 2
-        // has none new → the crawl must stop after page 2 and never request page 3.
+        // Next sync: one NEW mod pushed everything down — page 1 has 1 new, pages 2+3 have none new.
+        // Feeds aren't strictly ordered (featured mixing), so ONE known page must not stop the crawl;
+        // TWO consecutive known pages do → page 4 is never requested.
         SetupPages(
             new List<RemoteModCard> { Card(99, "NEW"), Card(1, "A") },
             new List<RemoteModCard> { Card(2, "B"), Card(3, "C") },
-            new List<RemoteModCard> { Card(4, "D"), Card(5, "E") });
+            new List<RemoteModCard> { Card(4, "D") },
+            new List<RemoteModCard> { Card(5, "E"), Card(6, "F") });
         await SyncAndWaitAsync();
 
-        // SetupPages() resets the mock between syncs, so recorded invocations here are the UPDATE
-        // sync's only — it must have stopped after page 2 and never requested page 3.
-        _browse.Verify(b => b.BrowseAsync("huihui", "2", 3, It.IsAny<CancellationToken>()), Times.Never,
-            "the update sync stops at the first fully-known page");
+        _browse.Verify(b => b.BrowseAsync("huihui", "2", 3, It.IsAny<CancellationToken>()), Times.Once,
+            "one known page is not enough to stop (unordered feeds)");
+        _browse.Verify(b => b.BrowseAsync("huihui", "2", 4, It.IsAny<CancellationToken>()), Times.Never,
+            "two consecutive known pages stop the update");
         var result = await _service.QueryAsync("huihui", "2", null, 1, 50);
-        result.Info.EntryCount.Should().Be(6);
-        // Recency order: the recrawled pages (new generation) come first in site order, the
-        // un-recrawled tail keeps its old relative order after them.
-        result.Entries.Select(e => e.Id).Should().ContainInOrder("99", "1", "2", "3", "4", "5");
+        result.Info.EntryCount.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task Sync_AfterInterruptedFirstCrawl_DoesNotStopEarly()
+    {
+        // Simulate an INTERRUPTED first crawl: entries + meta WITHOUT FullSyncCompletedUtc (a real
+        // interruption never writes meta, but a stale/legacy row could exist — either way, no
+        // completed full pass on record means NO early stopping).
+        SetupPages(
+            new List<RemoteModCard> { Card(1, "A") },
+            new List<RemoteModCard> { Card(2, "B") },
+            new List<RemoteModCard> { Card(3, "C") });
+        // Seed entries as if a partial crawl stored page 1 only, with meta lacking the completion flag.
+        await _repository.UpsertEntriesAsync("huihui", "2", new List<RemoteIndexEntry>
+        {
+            new() { Id = "1", Title = "A", DetailUrl = "https://huihui168.org/?news_12/1.html", SortKey = 10000 },
+        }, 1);
+        await _repository.SetMetaAsync(new RemoteIndexMetaRow
+        {
+            SourceId = "huihui", ListId = "2", SyncedAtUtc = DateTime.UtcNow.AddMinutes(-5),
+            TotalPages = 3, Generation = 1, FullSyncCompletedUtc = null,
+        });
+
+        await SyncAndWaitAsync(); // NOT forced full — but must still crawl everything
+
+        _browse.Verify(b => b.BrowseAsync("huihui", "2", 2, It.IsAny<CancellationToken>()), Times.Once,
+            "page 1 being fully known must not stop the repair crawl");
+        _browse.Verify(b => b.BrowseAsync("huihui", "2", 3, It.IsAny<CancellationToken>()), Times.Once);
+        (await _service.QueryAsync("huihui", "2", null, 1, 50)).Info.EntryCount.Should().Be(3,
+            "the hole left by the interrupted crawl is repaired");
     }
 
     [Fact]

@@ -183,6 +183,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
               type={isImportable(option.type) ? 'primary' : 'default'}
               icon={isImportable(option.type) ? <CloudDownloadOutlined /> : <LinkOutlined />}
               loading={resolving === option.url}
+              title={option.name}
               onClick={() => void handleDownload(option)}
             >
               {isImportable(option.type)

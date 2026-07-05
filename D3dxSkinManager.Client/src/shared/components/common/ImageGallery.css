@@ -5,15 +5,15 @@
   min-width: 0;
 }
 
-/* Fixed-height letterbox stage — image size never moves the layout below. Image sits flush LEFT
-   (a centered portrait image read as a mystery gap on its left). */
+/* Fixed-height letterbox stage — image size never moves the layout below. Image CENTERED; the
+   letterbox surface is the container tone (pure layout-black read too dark). */
 .image-gallery__stage {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
-  background: var(--color-bg-layout);
+  background: var(--color-bg-container);
   border: 1px solid var(--color-border-secondary);
-  border-radius: 8px;
+  border-radius: var(--border-radius-base);
   overflow: hidden;
 }
 

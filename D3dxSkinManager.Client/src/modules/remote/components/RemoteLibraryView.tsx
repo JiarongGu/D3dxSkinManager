@@ -11,7 +11,6 @@ import { CompactButton, CompactIconButton, CompactInput, CompactSelect } from '.
 import type { RemoteLibrariesState, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
 import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
-import { PillLabel } from '../../../shared/components/common/PillLabel';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
@@ -181,25 +180,42 @@ export const RemoteLibraryView: React.FC = () => {
     }
   }, [selectedProfileId, t]);
 
-  // PROGRESSIVE refresh while the tracked sync crawls: silently re-query the index every few
-  // seconds so the grid/pagination/sort fill up DURING the sync (the interface stays usable), then
-  // a final refresh when it finishes.
-  const syncProcess = useProcessStore((s) => (syncProcId ? s.processes.find((p) => p.id === syncProcId) : undefined));
+  // PROGRESSIVE refresh while the ACTIVE LIBRARY's sync crawls: silently re-query the index every
+  // few seconds so the grid/pagination/sort fill up DURING the sync (the interface stays usable),
+  // then a final refresh when it finishes. The process is discovered from the registry by its
+  // localized-title identity (titleKey + arg) — NOT just our own kick — so a running sync stays
+  // tracked across tab switches/remounts (it used to vanish with the component state).
+  const activeListName = source?.lists.find((l) => l.id === ui.listId)?.name ?? ui.listId;
+  const expectedSyncArg = source ? `${source.name} · ${activeListName}` : undefined;
+  const syncProcess = useProcessStore((s) =>
+    s.processes.find(
+      (p) =>
+        p.id === syncProcId ||
+        (p.titleKey === 'process.remoteSync' &&
+          p.titleArg === expectedSyncArg &&
+          (p.status === 'running' || p.status === 'queued')),
+    ),
+  );
+  const lastSyncSeen = React.useRef<string>(undefined);
   useEffect(() => {
-    if (!syncProcId || !syncProcess) return;
-    if (syncProcess.status === 'running' || syncProcess.status === 'queued') {
+    if (syncProcess && (syncProcess.status === 'running' || syncProcess.status === 'queued')) {
+      lastSyncSeen.current = syncProcess.id;
       const timer = setTimeout(() => {
         const state = useRemoteUiStore.getState();
         void loadIndex(state.page, state.searchText, true);
       }, 2500);
       return () => clearTimeout(timer);
     }
-    // Terminal state — final refresh (spinnerless keeps the grid stable) + stop tracking.
-    setSyncProcId(undefined);
-    void loadIndex(useRemoteUiStore.getState().page, useRemoteUiStore.getState().searchText, true);
+    // Terminal (id-tracked) OR the discovered process vanished from the running set — final
+    // spinnerless refresh + stop tracking.
+    if (syncProcess || lastSyncSeen.current) {
+      lastSyncSeen.current = undefined;
+      setSyncProcId(undefined);
+      void loadIndex(useRemoteUiStore.getState().page, useRemoteUiStore.getState().searchText, true);
+    }
     return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncProcId, syncProcess?.status, syncProcess?.progress]);
+  }, [syncProcess?.id, syncProcess?.status, syncProcess?.progress]);
 
   // First load (or returning to the tab with no cached result yet).
   useEffect(() => {
@@ -423,23 +439,18 @@ export const RemoteLibraryView: React.FC = () => {
                       <CheckCircleFilled /> {t('remote.importedBadge')}
                     </span>
                   )}
-                  {/* Bottom overlay on the image: ONE tag (most specific, mapped) + a +N counter for
-                      the rest, date at the right — keeps the meta row to just the title. */}
-                  {(card.tags.length > 0 || card.dateHint) && (
-                    <div className="remote-card__overlay">
-                      <span className="remote-card__overlay-tags" title={card.tags.join(' · ')}>
-                        {card.tags.length > 0 && (
-                          <PillLabel
-                            label={remoteTagLabel(source?.tagLabels, i18n.language, orderTagsForDisplay(card.tags)[0])}
-                            title={orderTagsForDisplay(card.tags)[0]}
-                          />
-                        )}
-                        {card.tags.length > 1 && (
-                          <span className="remote-card__overlay-more">+{card.tags.length - 1}</span>
-                        )}
-                      </span>
-                      {card.dateHint && <span className="remote-card__overlay-date">{card.dateHint}</span>}
-                    </div>
+                  {/* Image overlays (corner badges, glass style): ONE tag (most specific, mapped)
+                      + a +N counter TOP-LEFT; date BOTTOM-RIGHT — the meta row stays title-only. */}
+                  {card.tags.length > 0 && (
+                    <span className="remote-card__badge remote-card__badge--tag" title={card.tags.join(' · ')}>
+                      {remoteTagLabel(source?.tagLabels, i18n.language, orderTagsForDisplay(card.tags)[0])}
+                      {card.tags.length > 1 && (
+                        <span className="remote-card__badge-more">+{card.tags.length - 1}</span>
+                      )}
+                    </span>
+                  )}
+                  {card.dateHint && (
+                    <span className="remote-card__badge remote-card__badge--date">{card.dateHint}</span>
                   )}
                 </div>
                 <div className="remote-card__meta">
