@@ -238,8 +238,8 @@ MessageDispatcher → ProfileServiceRouter) and all references corrected.
     ModIniService, ModKeybindingService, NamespaceMergeBuilder (their write-back line rewriters stay).
   - **`RunTrackedAsync` ProcessRegistry extension** — 9+ services repeat the Start/try/Complete/Fail
     wrapper; extract when next touching several producers at once.
-  - **`DISABLED-` prefix constant** — string literal in ~8 files (ModCacheService has a local const);
-    centralize alongside `GetCachePath` when next editing those services.
+  - **`DISABLED-` prefix constant** — DONE 2026-07-05: `Modules/Mod/ModConventions`
+    (`DisabledCachePrefix` + `IsDisabledCacheName`/`CacheNameToModId`); all 8 call sites migrated.
   - **Oversized files** — ModImportWorkflowHandler (1213 lines, step handlers extractable),
     ModAnalysisService (937), ModList.tsx (891, row renderer + context-menu builder extractable),
     HelpWindow.tsx (861, per-section components), CategoryGrid.tsx (745).

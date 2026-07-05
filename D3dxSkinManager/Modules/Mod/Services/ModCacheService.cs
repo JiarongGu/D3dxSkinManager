@@ -52,7 +52,7 @@ public class ModCacheService : IModCacheService
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
     private readonly IProcessRegistry _processRegistry;
-    private const string DISABLED_PREFIX = "DISABLED-";
+    private const string DISABLED_PREFIX = ModConventions.DisabledCachePrefix;
 
     public ModCacheService(
         IProfilePathService profilePaths,

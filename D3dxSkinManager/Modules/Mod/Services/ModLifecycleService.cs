@@ -377,7 +377,7 @@ public class ModLifecycleService : IModLifecycleService
 
         var loadedDirectories = Directory.GetDirectories(_profilePaths.CacheModsDirectory)
             .Select(Path.GetFileName)
-            .Where(d => !string.IsNullOrEmpty(d) && !d.StartsWith("DISABLED-"))
+            .Where(d => !string.IsNullOrEmpty(d) && !ModConventions.IsDisabledCacheName(d))
             .ToHashSet();
 
         foreach (var mod in mods)

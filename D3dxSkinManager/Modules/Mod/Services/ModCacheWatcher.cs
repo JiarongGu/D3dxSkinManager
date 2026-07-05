@@ -115,14 +115,14 @@ public class ModCacheWatcher : IModCacheWatcher
             string? modId = null;
             bool wasLoaded = false;
 
-            if (folderName.StartsWith("DISABLED-"))
+            if (ModConventions.IsDisabledCacheName(folderName))
             {
                 // Disabled cache folder deleted (DISABLED-{ID})
-                modId = folderName.Substring("DISABLED-".Length);
+                modId = ModConventions.CacheNameToModId(folderName);
                 wasLoaded = false;
                 _logger.Info($"Disabled cache folder deleted externally: {folderName}", "ModCacheWatcher");
             }
-            else if (!folderName.StartsWith("DISABLED-"))
+            else
             {
                 // Active mod folder deleted ({ID})
                 // Don't restrict by length - support any ID format for backward compatibility
@@ -177,14 +177,14 @@ public class ModCacheWatcher : IModCacheWatcher
             string? modId = null;
             bool nowLoaded = false;
 
-            if (oldName?.StartsWith("DISABLED-") == true && newName?.StartsWith("DISABLED-") == false)
+            if (ModConventions.IsDisabledCacheName(oldName) && newName != null && !ModConventions.IsDisabledCacheName(newName))
             {
                 // Renamed from DISABLED-{ID} to {ID} = loaded
                 // Don't restrict by length - support any ID format for backward compatibility
                 modId = newName;
                 nowLoaded = true;
             }
-            else if (oldName?.StartsWith("DISABLED-") == false && newName?.StartsWith("DISABLED-") == true)
+            else if (oldName != null && !ModConventions.IsDisabledCacheName(oldName) && ModConventions.IsDisabledCacheName(newName))
             {
                 // Renamed from {ID} to DISABLED-{ID} = unloaded
                 // Don't restrict by length - support any ID format for backward compatibility

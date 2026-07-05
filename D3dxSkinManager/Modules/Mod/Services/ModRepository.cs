@@ -251,7 +251,7 @@ public class ModRepository : IModRepository
         foreach (var dir in directories)
         {
             var dirName = Path.GetFileName(dir);
-            if (!string.IsNullOrEmpty(dirName) && !dirName.StartsWith("DISABLED-"))
+            if (!string.IsNullOrEmpty(dirName) && !ModConventions.IsDisabledCacheName(dirName))
             {
                 loadedIds.Add(dirName);
             }

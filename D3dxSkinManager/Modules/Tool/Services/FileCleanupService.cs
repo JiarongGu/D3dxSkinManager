@@ -385,7 +385,7 @@ public class FileCleanupService : IFileCleanupService
         var entities = await _repository.GetAllAsync().ConfigureAwait(false);
         var knownIds = entities.Select(e => e.Id).ToHashSet();
 
-        const string DISABLED_PREFIX = "DISABLED-";
+        const string DISABLED_PREFIX = Mod.ModConventions.DisabledCachePrefix;
 
         foreach (var dir in Directory.GetDirectories(cacheDir))
         {

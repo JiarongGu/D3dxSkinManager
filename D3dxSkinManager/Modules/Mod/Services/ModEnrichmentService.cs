@@ -53,7 +53,7 @@ public class ModEnrichmentService : IModEnrichmentService
         var loadedDirectories = Directory.Exists(_profilePaths.CacheModsDirectory)
             ? Directory.GetDirectories(_profilePaths.CacheModsDirectory)
                 .Select(Path.GetFileName)
-                .Where(d => !string.IsNullOrEmpty(d) && !d.StartsWith("DISABLED-"))
+                .Where(d => !string.IsNullOrEmpty(d) && !ModConventions.IsDisabledCacheName(d))
                 .Select(d => d!)
                 .ToHashSet()
             : new HashSet<string>();
@@ -62,7 +62,7 @@ public class ModEnrichmentService : IModEnrichmentService
             ? Directory.GetDirectories(_profilePaths.CacheModsDirectory)
                 .Select(Path.GetFileName)
                 .Where(d => !string.IsNullOrEmpty(d))
-                .Select(d => d!.StartsWith("DISABLED-") ? d.Substring(9) : d)  // Remove DISABLED- prefix
+                .Select(d => ModConventions.CacheNameToModId(d!))
                 .ToHashSet()
             : new HashSet<string>();
 
