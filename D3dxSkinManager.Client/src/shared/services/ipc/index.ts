@@ -14,6 +14,7 @@ export * from './categoryService';
 export * from './languageService';
 export * from './systemService';
 export * from './toolService';
+export * from './remoteService';
 
 // Import classes for creating singleton instances
 import { ModService } from './modService';
@@ -25,6 +26,7 @@ import { CategoryService } from './categoryService';
 import { LanguageService } from './languageService';
 import { SystemService } from './systemService';
 import { ToolService } from './toolService';
+import { RemoteService } from './remoteService';
 
 /**
  * Consolidated API with all IPC services
@@ -39,6 +41,7 @@ export const api = {
   language: new LanguageService(),
   system: new SystemService(),
   tool: new ToolService(),
+  remote: new RemoteService(),
 } as const;
 
 // Legacy exports for backward compatibility
@@ -51,3 +54,4 @@ export const categoryService = api.category;
 export const languageService = api.language;
 export const systemService = api.system;
 export const toolService = api.tool;
+export const remoteService = api.remote;

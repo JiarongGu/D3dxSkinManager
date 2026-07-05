@@ -3,6 +3,7 @@ import classNames from "classnames";
 import { Layout, Button } from "antd";
 import {
   AppstoreOutlined,
+  CloudOutlined,
   ToolOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
@@ -34,6 +35,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const tabs: TabItem[] = [
     { key: "mods", icon: <AppstoreOutlined />, label: t("header.tabs.mods") },
+    { key: "remote", icon: <CloudOutlined />, label: t("header.tabs.remote") },
     { key: "tools", icon: <ToolOutlined />, label: t("header.tabs.tools") },
     {
       key: "settings",

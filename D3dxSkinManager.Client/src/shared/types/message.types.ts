@@ -14,7 +14,8 @@ export type ModuleName =
   | 'MIGRATION'
   | 'PROFILE'
   | 'DROP_ZONE' // WinForms drop zone overlay management
-  | 'WORKFLOW'; // Workflow management (replaces TASK_QUEUE)
+  | 'WORKFLOW' // Workflow management (replaces TASK_QUEUE)
+  | 'REMOTE'; // Remote mod library (site adapters + download/import)
 
 /**
  * Message types for module-based routing

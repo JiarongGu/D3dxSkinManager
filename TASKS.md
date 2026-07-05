@@ -180,10 +180,21 @@ switch), removed from the plain Variables group; unclaimed vars stay listed. Fro
 Verified live round-trip on a real mod (`global persist $xie` 0→1→0 on disk).
 **Config-editor item COMPLETE.**
 
-### 6. Remote mod library (the big reach)
-Browse/fetch/download from remote sources (GameBanana-style) → one-click import into a profile.
-Background WebView2 + per-site adapters (configurable, never hard-coded). Reuse ProcessRegistry +
-Activity panel for download/import progress.
+### 6. Remote mod library (the big reach) — V1 SHIPPED 2026-07-05
+Browse remote mod sites in-app → download → one-click import. **Config-driven site adapters**
+(JSON in `{data}/remote-sources/`, seeded with huihui168.org; drop another JSON to add a site) —
+see `.claude/rules/remote-library.md` for the grounded site/Cloudreve research + architecture.
+- Backend `Modules/Remote`: RemoteSourceStore / RemoteBrowseService (regex extraction, timeout-
+  guarded) / CloudreveShareResolver (anonymous v4 share→presigned URL) / RemoteImportService (one
+  cancellable ProcessRegistry flow: resolve → download → import → title + previews) / RemoteFacade.
+- Frontend: 远程库 tab (source+game picker, search, card grid, pagination), detail slide-in
+  (gallery + download options; Cloudreve = confirm-with-real-file-size → background import;
+  others = open in browser), `remoteUiStore` persists browse state across tab switches.
+- **Verified e2e live**: browsed 52 cards, imported 反虚化3.0 (174.6KB via Hui盘, 3 previews,
+  named from site title), Activity panel tracked it, test mod deleted after.
+**Remaining (later stages):** WebView2-rendered fetch engine for JS-heavy sites (`engine:"webview"`
+seam exists); UI for adding/editing site adapters (today: drop a JSON); more resolver types
+(quark etc. need accounts — shown as open-in-browser); detail-page pagination for search results.
 
 ### 7. App self-update — ✅ SHIPPED (verified in code 2026-07-05)
 `UpdateService`: GitHub latest-release check (version + release notes + manifest file-diff) →

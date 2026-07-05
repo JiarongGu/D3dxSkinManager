@@ -34,6 +34,11 @@ const SettingsView = lazy(() =>
 const ToolsView = lazy(() =>
   import("./modules/tool/components/ToolsView").then((m) => ({ default: m.ToolsView })),
 );
+const RemoteLibraryView = lazy(() =>
+  import("./modules/remote/components/RemoteLibraryView").then((m) => ({
+    default: m.RemoteLibraryView,
+  })),
+);
 const HelpWindow = lazy(() =>
   import("./modules/help").then((m) => ({ default: m.HelpWindow })),
 );
@@ -194,6 +199,7 @@ const AppContent: React.FC = () => {
                 Suspense covers the lazy (non-default) tabs while their chunk loads on first open. */}
             <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}><Spin /></div>}>
               {selectedTab === "mods" && <ErrorBoundary compact label="Mods"><ModHierarchicalView /></ErrorBoundary>}
+              {selectedTab === "remote" && <ErrorBoundary compact label="Remote"><RemoteLibraryView /></ErrorBoundary>}
               {selectedTab === "tools" && <ErrorBoundary compact label="Tools"><ToolsView /></ErrorBoundary>}
               {selectedTab === "settings" && <ErrorBoundary compact label="Settings"><SettingsView /></ErrorBoundary>}
             </Suspense>
