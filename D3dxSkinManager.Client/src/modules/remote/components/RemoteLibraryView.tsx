@@ -10,6 +10,7 @@ import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
 import type { RemoteBinding, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
+import { useProcessStore } from '../../../shared/store/processStore';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
 import { RemoteSourceManagerScreen } from './RemoteSourceManagerScreen';
@@ -35,6 +36,9 @@ export const RemoteLibraryView: React.FC = () => {
   // Remote image URL -> cached local path (per-profile remote-cache; falls back to the URL).
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [setupList, setSetupList] = useState<string>();
+  // The in-flight background sync process id — watched so the grid auto-refreshes from the index
+  // when the crawl finishes (otherwise you'd stare at the pre-sync live fallback until a manual refresh).
+  const [syncProcId, setSyncProcId] = useState<string>();
 
   const ui = useRemoteUiStore();
   const source = sources.find((s) => s.id === ui.sourceId);
@@ -78,6 +82,7 @@ export const RemoteLibraryView: React.FC = () => {
       const state = useRemoteUiStore.getState();
       state.setSource(result.binding.sourceId);
       useRemoteUiStore.getState().setList(result.binding.listId);
+      if (result.processId) setSyncProcId(result.processId);
       notification.info(t('remote.syncStarted'));
     } catch (error: unknown) {
       handleError(error);
@@ -169,11 +174,23 @@ export const RemoteLibraryView: React.FC = () => {
     if (!selectedProfileId || !state.sourceId || !state.listId) return;
     try {
       const ack = await api.remote.indexSync(selectedProfileId, state.sourceId, state.listId);
+      if (ack.started && ack.processId) setSyncProcId(ack.processId);
       notification.info(t(ack.started ? 'remote.syncStarted' : 'remote.syncRunningOrDone'));
     } catch (error: unknown) {
       handleError(error);
     }
   }, [selectedProfileId, t]);
+
+  // When the tracked background sync finishes, re-query the index so the grid shows the freshly
+  // crawled results instead of the pre-sync live fallback (no manual refresh needed).
+  const syncProcess = useProcessStore((s) => (syncProcId ? s.processes.find((p) => p.id === syncProcId) : undefined));
+  useEffect(() => {
+    if (syncProcId && syncProcess && syncProcess.status === 'completed') {
+      setSyncProcId(undefined);
+      void loadIndex(1, useRemoteUiStore.getState().searchText);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncProcess?.status]);
 
   // First load (or returning to the tab with no cached result yet).
   useEffect(() => {
