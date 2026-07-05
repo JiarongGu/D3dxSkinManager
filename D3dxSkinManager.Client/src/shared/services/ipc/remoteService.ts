@@ -109,6 +109,11 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<boolean>('CLEAR_BINDING', profileId);
   }
 
+  /** Set the local category that downloaded mods import into (undefined = uncategorized). */
+  async setDefaultCategory(profileId: string, categoryId?: string): Promise<RemoteBinding | null> {
+    return this.sendMessage<RemoteBinding | null>('SET_DEFAULT_CATEGORY', profileId, { categoryId });
+  }
+
   async getSourceTemplate(profileId: string): Promise<string> {
     return this.sendMessage<string>('GET_SOURCE_TEMPLATE', profileId);
   }

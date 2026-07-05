@@ -188,6 +188,10 @@ public class RemoteBinding
     public string SourceId { get; set; } = string.Empty;
     public string ListId { get; set; } = string.Empty;
     public DateTime BoundAtUtc { get; set; }
+
+    /// <summary>Local category id that mods downloaded from this library are imported into. Null =
+    /// uncategorized (the old "unknown" behaviour). Set per-profile since categories are per-profile.</summary>
+    public string? DefaultCategoryId { get; set; }
 }
 
 /// <summary>What a candidate adapter config extracted from the live site — the authoring feedback loop.</summary>

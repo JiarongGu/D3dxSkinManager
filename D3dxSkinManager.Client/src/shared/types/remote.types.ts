@@ -119,6 +119,8 @@ export interface RemoteBinding {
   sourceId: string;
   listId: string;
   boundAtUtc: string;
+  /** Local category id that downloaded mods import into (undefined = uncategorized). */
+  defaultCategoryId?: string;
 }
 
 export interface RemoteSetBindingResult {

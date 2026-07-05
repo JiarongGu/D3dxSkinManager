@@ -8,6 +8,8 @@ import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
+import { CategorySelect } from '../../../shared/components/CategorySelect';
+import type { CategoryInfo } from '../../../shared/types/category.types';
 import type { RemoteBinding, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 import { useProcessStore } from '../../../shared/store/processStore';
@@ -33,6 +35,8 @@ export const RemoteLibraryView: React.FC = () => {
   // undefined = still loading; null = profile hasn't picked its game yet (setup mode).
   const [binding, setBindingState] = useState<RemoteBinding | null | undefined>(undefined);
   const [setupSource, setSetupSource] = useState<string>();
+  // Profile category tree — for the "import into" default-category picker.
+  const [categories, setCategories] = useState<CategoryInfo[]>([]);
   // Remote image URL -> cached local path (per-profile remote-cache; falls back to the URL).
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [setupList, setSetupList] = useState<string>();
@@ -51,12 +55,14 @@ export const RemoteLibraryView: React.FC = () => {
     ui.ensureProfile(selectedProfileId);
     void (async () => {
       try {
-        const [list, bound] = await Promise.all([
+        const [list, bound, cats] = await Promise.all([
           api.remote.getSources(selectedProfileId),
           api.remote.getBinding(selectedProfileId),
+          api.category.getCategoryTree(selectedProfileId).catch(() => [] as CategoryInfo[]),
         ]);
         setSources(list);
         setBindingState(bound ?? null);
+        setCategories(cats);
         const state = useRemoteUiStore.getState();
         if (bound) {
           if (state.sourceId !== bound.sourceId) state.setSource(bound.sourceId);
@@ -192,6 +198,16 @@ export const RemoteLibraryView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncProcess?.status]);
 
+  const setDefaultCategory = useCallback(async (categoryId?: string) => {
+    if (!selectedProfileId) return;
+    try {
+      const updated = await api.remote.setDefaultCategory(selectedProfileId, categoryId);
+      setBindingState((b) => (b ? { ...b, defaultCategoryId: updated?.defaultCategoryId } : b));
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  }, [selectedProfileId]);
+
   // First load (or returning to the tab with no cached result yet).
   useEffect(() => {
     if (!ui.index && !ui.result && ui.sourceId && ui.listId && !loading) void loadIndex(1, ui.searchText);
@@ -320,6 +336,16 @@ export const RemoteLibraryView: React.FC = () => {
           {source?.name} · {boundListName}
         </span>
         <CompactButton onClick={() => void rebind()}>{t('remote.rebind')}</CompactButton>
+        <span className="remote-library__import-into">
+          <span className="remote-library__import-into-label">{t('remote.importInto')}</span>
+          <CategorySelect
+            categories={categories}
+            value={binding?.defaultCategoryId}
+            placeholder={t('remote.importUncategorized')}
+            onChange={(id) => void setDefaultCategory(id)}
+            size="small"
+          />
+        </span>
         {(indexReady || source?.hasSearch) && (
           <CompactInput
             className="remote-library__search"

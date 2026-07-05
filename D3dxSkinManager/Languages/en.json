@@ -40,6 +40,8 @@
     "common.enable": "Enable",
     "common.no": "No",
     "remote.sync": "Sync",
+    "remote.importInto": "Import into",
+    "remote.importUncategorized": "Uncategorized",
     "remote.update": "Update",
     "remote.updateHint": "Fetch only what's new since the last sync (stops at the first already-seen page)",
     "remote.fullReindex": "Full reindex",

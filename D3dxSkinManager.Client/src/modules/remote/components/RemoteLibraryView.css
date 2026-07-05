@@ -33,6 +33,22 @@
   width: 220px;
 }
 
+.remote-library__import-into {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.remote-library__import-into-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.remote-library__import-into .compact-select {
+  min-width: 140px;
+}
+
 .remote-library__origin {
   margin-left: auto;
   font-size: 12px;

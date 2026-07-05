@@ -40,6 +40,8 @@
     "common.enable": "启用",
     "common.no": "否",
     "remote.sync": "同步",
+    "remote.importInto": "导入到",
+    "remote.importUncategorized": "未分类",
     "remote.update": "更新",
     "remote.updateHint": "只获取上次同步后的新内容（遇到首个已收录页即停止）",
     "remote.fullReindex": "完整重建",

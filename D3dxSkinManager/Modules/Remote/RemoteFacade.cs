@@ -76,6 +76,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "RESOLVE_IMAGES" => await _imageCache.ResolveAsync(_payloadHelper.GetRequiredValue<List<string>>(request.Payload, "urls")),
             "GET_BINDING" => (object?)_binding.Get(),
             "SET_BINDING" => SetBinding(request),
+            "SET_DEFAULT_CATEGORY" => (object?)_binding.SetDefaultCategory(
+                _payloadHelper.GetOptionalValue<string>(request.Payload, "categoryId")),
             "CLEAR_BINDING" => ClearBinding(),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };

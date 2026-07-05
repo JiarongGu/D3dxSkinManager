@@ -15,6 +15,8 @@ public interface IRemoteBindingStore
 {
     RemoteBinding? Get();
     RemoteBinding Set(string sourceId, string listId);
+    /// <summary>Update just the default import category on the current binding (no re-bind). No-op if unbound.</summary>
+    RemoteBinding? SetDefaultCategory(string? categoryId);
     void Clear();
 }
 
@@ -55,7 +57,28 @@ public class RemoteBindingStore : IRemoteBindingStore
 
     public RemoteBinding Set(string sourceId, string listId)
     {
-        var binding = new RemoteBinding { SourceId = sourceId, ListId = listId, BoundAtUtc = DateTime.UtcNow };
+        // Re-binding to the SAME source+list preserves the chosen default category; a switch resets it.
+        var existing = Get();
+        var keepCategory = existing != null
+            && string.Equals(existing.SourceId, sourceId, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(existing.ListId, listId, StringComparison.OrdinalIgnoreCase)
+            ? existing.DefaultCategoryId : null;
+        var binding = new RemoteBinding
+        {
+            SourceId = sourceId,
+            ListId = listId,
+            BoundAtUtc = DateTime.UtcNow,
+            DefaultCategoryId = keepCategory,
+        };
+        File.WriteAllText(FilePath, JsonSerializer.Serialize(binding, JsonOptions));
+        return binding;
+    }
+
+    public RemoteBinding? SetDefaultCategory(string? categoryId)
+    {
+        var binding = Get();
+        if (binding == null) return null;
+        binding.DefaultCategoryId = string.IsNullOrWhiteSpace(categoryId) ? null : categoryId;
         File.WriteAllText(FilePath, JsonSerializer.Serialize(binding, JsonOptions));
         return binding;
     }

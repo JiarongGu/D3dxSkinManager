@@ -39,6 +39,7 @@ public class RemoteImportService : IRemoteImportService
     private readonly IModImportService _import;
     private readonly IModRepository _repository;
     private readonly IImageService _imageService;
+    private readonly IRemoteBindingStore _binding;
     private readonly IProfilePathService _profilePaths;
     private readonly IProcessRegistry _processRegistry;
     private readonly ILogHelper _logger;
@@ -49,6 +50,7 @@ public class RemoteImportService : IRemoteImportService
         IModImportService import,
         IModRepository repository,
         IImageService imageService,
+        IRemoteBindingStore binding,
         IProfilePathService profilePaths,
         IProcessRegistry processRegistry,
         ILogHelper logger)
@@ -58,6 +60,7 @@ public class RemoteImportService : IRemoteImportService
         _import = import;
         _repository = repository;
         _imageService = imageService;
+        _binding = binding;
         _profilePaths = profilePaths;
         _processRegistry = processRegistry;
         _logger = logger;
@@ -136,6 +139,9 @@ public class RemoteImportService : IRemoteImportService
                 if (entity != null)
                 {
                     if (!string.IsNullOrWhiteSpace(detail.Title)) entity.Name = detail.Title.Trim();
+                    // Drop the import into the profile's chosen default category (was always uncategorized).
+                    var defaultCategory = _binding.Get()?.DefaultCategoryId;
+                    if (!string.IsNullOrWhiteSpace(defaultCategory)) entity.Category = defaultCategory;
                     entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, detail.DetailUrl, downloaded.Sha256);
                     await _repository.UpdateAsync(entity).ConfigureAwait(false);
                 }
