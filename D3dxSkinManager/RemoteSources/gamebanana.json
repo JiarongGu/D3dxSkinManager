@@ -1,0 +1,31 @@
+{
+  // Built-in adapter for GameBanana (gamebanana.com) — apiv11 JSON API, verified live 2026-07-06
+  // (see .claude/rules/remote-library.md). engine="gamebanana" routes browse/detail through
+  // GameBananaEngine (JSON), NOT the regex-over-HTML path. The HTML url-templates/regex fields below
+  // are unused by that engine and left empty. Shipped as a SEED (copied into {data}/remote-sources/
+  // only when no adapter with this id exists — user edits are never overwritten).
+  //
+  // NSFW: content-rated mods are already returned by the Subfeed (with _sInitialVisibility warn/hide);
+  // we index every record, so adult content is included without login or extra params.
+  //
+  // Lists are GameBanana game ids (the XXMI-supported games): verified record counts 2026-07-06.
+  "id": "gamebanana",
+  "name": "GameBanana",
+  "baseUrl": "https://gamebanana.com",
+  "engine": "gamebanana",
+  "lists": [
+    { "id": "8552", "name": "Genshin Impact" },
+    { "id": "19567", "name": "Zenless Zone Zero" },
+    { "id": "20357", "name": "Wuthering Waves" },
+    { "id": "18366", "name": "Honkai: Star Rail" }
+  ],
+  "listUrlFirstPage": "",
+  "listUrlTemplate": "",
+  "cardPattern": "",
+  "detailTitlePattern": "",
+  "downloadLinkPattern": "",
+  "entryIdPattern": "/mods/(?<id>\\d+)",
+  "resolvers": [
+    { "match": "gamebanana\\.com/dl/", "type": "direct", "name": "GameBanana" }
+  ]
+}

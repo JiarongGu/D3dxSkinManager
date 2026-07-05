@@ -173,7 +173,12 @@ public class RemoteSourceStore : IRemoteSourceStore
         if (string.IsNullOrWhiteSpace(config.Name)) Fail("name is required");
         if (config.Lists.Count == 0 || config.Lists.Any(l => string.IsNullOrWhiteSpace(l.Id)))
             Fail("at least one list with an id is required");
-        if (string.IsNullOrWhiteSpace(config.ListUrlFirstPage)) Fail("listUrlFirstPage is required");
+
+        // The "gamebanana" engine is a JSON API — it needs none of the HTML url-templates/regex fields
+        // (the engine builds apiv11 URLs + parses JSON itself). Only validate the optional patterns it
+        // may still carry (entryIdPattern, imageDatePattern) below; skip the http-only requirements.
+        var isGameBanana = string.Equals(config.Engine, "gamebanana", StringComparison.OrdinalIgnoreCase);
+        if (!isGameBanana && string.IsNullOrWhiteSpace(config.ListUrlFirstPage)) Fail("listUrlFirstPage is required");
 
         foreach (var (label, pattern) in new (string, string?)[]
         {
@@ -189,7 +194,7 @@ public class RemoteSourceStore : IRemoteSourceStore
         {
             if (string.IsNullOrWhiteSpace(pattern))
             {
-                if (label is "cardPattern" or "detailTitlePattern" or "downloadLinkPattern")
+                if (!isGameBanana && label is "cardPattern" or "detailTitlePattern" or "downloadLinkPattern")
                     Fail($"{label} is required");
                 continue;
             }

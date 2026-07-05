@@ -5,6 +5,38 @@ Feature: browse remote mod sites in-app → download → one-click import into t
 libraries can be added without code (regex-based extraction v1; the fetch layer is a seam so a
 WebView2-rendered engine can be added for JS-heavy sites later).
 
+## Engines: "http" (regex-over-HTML) vs "gamebanana" (JSON API)
+The adapter `engine` field selects the PARSER (both fetch over plain HTTP via `IRemotePageFetcher`):
+- **`http`** (default) — regex extraction over server-rendered HTML (huihui). Uses `cardPattern`/
+  `detailTitlePattern`/`downloadLinkPattern`/etc.
+- **`gamebanana`** — GameBanana's apiv11 JSON API (`GameBananaEngine`, verified live 2026-07-06).
+  The HTML regex fields are unused (empty in the seed); `RemoteBrowseService` dispatches to
+  `GameBananaEngine.ParseSubfeed`/`ParseProfilePage`, and `RemoteSourceStore.Validate` skips the
+  http-only regex requirements when `engine=="gamebanana"`.
+
+### GameBanana (gamebanana.com) — apiv11 JSON, verified live 2026-07-06
+Not scrapeable HTML — a JSON API. `RemoteSources/gamebanana.json` seeds it. Endpoints:
+| Page | URL |
+|------|-----|
+| List, page N | `{base}/apiv11/Game/{gameId}/Subfeed?_nPage={N}&_sSort=new` → `_aRecords[]` + `_aMetadata{_nRecordCount,_nPerpage}` |
+| Detail + download | `{base}/apiv11/Mod/{id}/ProfilePage` → `_aFiles[]._sDownloadUrl` (DIRECT `gamebanana.com/dl/{fileId}`) + `_aPreviewMedia._aImages[]` |
+
+- **Record fields:** `_idRow`, `_sModelName` (filter to `"Mod"`), `_sName`, `_sProfileUrl` (detail URL
+  `.../mods/{id}` — the `entryIdPattern` `"/mods/(?<id>\d+)"` keys the index), `_tsDateAdded`,
+  `_aPreviewMedia._aImages[0]` (`_sBaseUrl` + `/` + `_sFile530` for cards, `_sFile` for the gallery).
+- **Download is trivial:** files are direct URLs → resolver `type: "direct"` (already handled by
+  `RemoteImportService.ResolveAsync`). No Cloudreve-style multi-step, no auth.
+- **NSFW comes FREE:** content-rated mods are ALREADY in the Subfeed (`_sInitialVisibility` = show/warn/
+  hide; page 1 of Genshin had 3 content-rated). We index every record → adult content is included with
+  NO login or extra param. (A fully-restricted class needing an account may exist; anon subfeed covers
+  the common case.)
+- **Game ids (the XXMI games, verified record counts 2026-07-06):** Genshin `8552`, ZZZ `19567`,
+  WuWa `20357`, HSR `18366`. Feeds are LARGE (Genshin 1243 pages) — first full sync is long but
+  cancellable; incremental Update stays cheap (the `MaxPages=500` backstop caps a runaway crawl).
+- **Our `D3dxSkinManager` User-Agent is accepted** by apiv11 (live browse+detail confirmed, no 403).
+- Search: not wired for GameBanana v1 (`HasSearch=false`); apiv11 has a search endpoint to add later.
+- Tests: `GameBananaEngineTests` (parse subfeed/profilepage, mod-id, url shapes).
+
 ## First supported site: huihui168.org ("Hui站") — verified by live probes 2026-07-05
 
 **Server-rendered** — plain HTTP with a browser User-Agent works for every page (NO JS rendering,

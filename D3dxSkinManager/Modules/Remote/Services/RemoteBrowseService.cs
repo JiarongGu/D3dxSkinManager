@@ -56,6 +56,14 @@ public class RemoteBrowseService : IRemoteBrowseService
 
     private async Task<RemoteBrowseResult> BrowseCoreAsync(RemoteSourceConfig source, string listId, int page, CancellationToken ct)
     {
+        // GameBanana is a JSON API — fetch the Subfeed and parse JSON, not HTML.
+        if (IsGameBanana(source))
+        {
+            var url = GameBananaEngine.BuildSubfeedUrl(source.BaseUrl, listId, page);
+            var json = await FetchAsync(source, url, ct).ConfigureAwait(false);
+            return GameBananaEngine.ParseSubfeed(json, source.BaseUrl, page);
+        }
+
         var template = page <= 1 ? source.ListUrlFirstPage : source.ListUrlTemplate;
         var path = template.Replace("{list}", listId).Replace("{page}", page.ToString());
         var html = await FetchAsync(source, Absolute(source.BaseUrl, path), ct).ConfigureAwait(false);
@@ -64,6 +72,9 @@ public class RemoteBrowseService : IRemoteBrowseService
         result.TotalPages = ExtractTotalPages(source, listId, html);
         return result;
     }
+
+    private static bool IsGameBanana(RemoteSourceConfig source) =>
+        string.Equals(source.Engine, GameBananaEngine.EngineName, StringComparison.OrdinalIgnoreCase);
 
     public async Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, CancellationToken ct = default)
     {
@@ -109,6 +120,16 @@ public class RemoteBrowseService : IRemoteBrowseService
         // Containment: only fetch pages of the configured site with the site's parser.
         if (!url.StartsWith(source.BaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
             throw new OperationException("REMOTE_FETCH_FAILED", "url", detailUrl);
+
+        // GameBanana: resolve the mod id → ProfilePage JSON (files + gallery), not HTML.
+        if (IsGameBanana(source))
+        {
+            var modId = GameBananaEngine.ExtractModId(url)
+                ?? throw new OperationException("REMOTE_FETCH_FAILED", "url", detailUrl);
+            var apiUrl = GameBananaEngine.BuildProfilePageUrl(source.BaseUrl, modId);
+            var profileJson = await FetchAsync(source, apiUrl, ct).ConfigureAwait(false);
+            return GameBananaEngine.ParseProfilePage(profileJson, url);
+        }
 
         var html = await FetchAsync(source, url, ct).ConfigureAwait(false);
 
@@ -186,7 +207,10 @@ public class RemoteBrowseService : IRemoteBrowseService
 
     private async Task<string> FetchAsync(RemoteSourceConfig source, string url, CancellationToken ct)
     {
-        if (!string.Equals(source.Engine, "http", StringComparison.OrdinalIgnoreCase))
+        // "http" (regex-over-HTML) and "gamebanana" (JSON API) both fetch over plain HTTP; the engine
+        // only decides how the response is PARSED (see BrowseCoreAsync/GetDetailCoreAsync).
+        if (!string.Equals(source.Engine, "http", StringComparison.OrdinalIgnoreCase)
+            && !IsGameBanana(source))
             throw new OperationException("REMOTE_ENGINE_UNSUPPORTED", "engine", source.Engine);
         try
         {
