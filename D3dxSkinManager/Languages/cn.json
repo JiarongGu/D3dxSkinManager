@@ -80,6 +80,8 @@
     "remote.fullReindexHint": "重新抓取所有页面，并移除站点上已不存在的模组",
     "remote.syncStarted": "库同步已开始 — 进度见活动面板",
     "remote.syncRunningOrDone": "同步已完成或正在进行 — 刷新查看结果",
+    "remote.lastSyncedTime": "已同步 {{time}}",
+    "remote.totalCount": "共 {{count}} 个",
     "remote.lastSynced": "已同步 {{time}} · {{count}} 个模组",
     "remote.notSynced": "同步一次该库即可实现即时搜索与离线浏览",
     "remote.importedBadge": "已导入",

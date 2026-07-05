@@ -80,6 +80,8 @@
     "remote.fullReindexHint": "Re-crawl every page and remove mods no longer on the site",
     "remote.syncStarted": "Library sync started — progress in the Activity panel",
     "remote.syncRunningOrDone": "Sync finished or already running — refresh to see results",
+    "remote.lastSyncedTime": "Synced {{time}}",
+    "remote.totalCount": "{{count}} mods",
     "remote.lastSynced": "Synced {{time}} · {{count}} mods",
     "remote.notSynced": "Sync this library once for instant search and offline browsing",
     "remote.importedBadge": "Imported",

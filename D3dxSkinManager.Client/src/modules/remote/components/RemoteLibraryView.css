@@ -31,6 +31,19 @@
   max-width: 280px;
 }
 
+/* Thin vertical separator between toolbar control groups. */
+.remote-library__toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-secondary);
+  flex-shrink: 0;
+}
+
+/* The first divider pushes the icon group to the far right. */
+.remote-library__toolbar-divider--push {
+  margin-left: auto;
+}
+
 .remote-library__tag-filter {
   min-width: 150px;
   max-width: 220px;
@@ -47,44 +60,41 @@
   max-width: 480px;
 }
 
-/* Card footer: tag chips left, date right. */
-.remote-card__footer {
+/* Bottom IMAGE OVERLAY: one tag chip (+N counter) left, date right — over a readability scrim.
+   Saves a whole meta row per card. (Physical contrast constants over artwork, not theme colors.) */
+.remote-card__overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 6px;
-  min-width: 0;
+  padding: 14px 6px 5px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
 }
 
-.remote-card__tags {
-  display: flex;
+.remote-card__overlay-tags {
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-  overflow: hidden;
   min-width: 0;
 }
 
-.remote-card__tag {
-  font-size: 12px;
-  padding: 0 6px;
-  border-radius: 8px;
-  background: var(--color-primary-bg, rgba(22, 119, 255, 0.12));
-  color: var(--color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.remote-card__overlay-tags .pill-label {
   max-width: 110px;
+  background: rgba(0, 0, 0, 0.45) !important; /* keep the chip readable over any artwork */
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
 }
 
-.remote-library__origin {
-  margin-left: auto;
-  min-width: 0;
-  max-width: 320px;
+.remote-card__overlay-more,
+.remote-card__overlay-date {
   font-size: 12px;
-  color: var(--color-text-secondary);
-  text-align: right;
+  color: rgba(255, 255, 255, 0.9);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .remote-library__content {
@@ -109,7 +119,7 @@
 
 .remote-card {
   border: 1px solid var(--color-border-secondary);
-  border-radius: 8px;
+  border-radius: var(--border-radius-base); /* app-standard radius (8px read too round) */
   overflow: hidden;
   background: var(--color-card-bg);
   cursor: pointer;
@@ -190,12 +200,27 @@
   color: var(--color-primary);
 }
 
+/* Bottom bar: synced time (left) · pager (center) · total (right corner). */
 .remote-library__pager {
-  display: flex;
-  justify-content: center;
-  padding: 8px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
   border-top: 1px solid var(--color-border-secondary);
   background: var(--color-bg-container);
+}
+
+.remote-library__pager-side {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.remote-library__pager-side--right {
+  text-align: right;
 }
 
 .remote-library--setup {

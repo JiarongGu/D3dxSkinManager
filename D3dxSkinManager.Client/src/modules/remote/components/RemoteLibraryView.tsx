@@ -11,6 +11,7 @@ import { CompactButton, CompactIconButton, CompactInput, CompactSelect } from '.
 import type { RemoteLibrariesState, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
 import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
+import { PillLabel } from '../../../shared/components/common/PillLabel';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
@@ -40,6 +41,8 @@ export const RemoteLibraryView: React.FC = () => {
   const [syncProcId, setSyncProcId] = useState<string>();
   // Libraries whose empty index already auto-kicked a sync this session (avoid re-kicking on paging).
   const autoSynced = React.useRef(new Set<string>());
+  // Debounce handle for the reactive (offline) index search.
+  const searchDebounce = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const ui = useRemoteUiStore();
   const activeLibrary = libState?.libraries.find((l) => l.id === libState.activeLibraryId);
@@ -204,24 +207,38 @@ export const RemoteLibraryView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ui.sourceId, ui.listId]);
 
-  // BUILT-IN AUTO-SYNC: when the active library's index is STALE (older than 30 min), kick a silent
-  // incremental update — on opening the library and again on a timer while the tab stays mounted.
-  // The backend is idempotent (an already-running sync is a no-op ack).
+  // BUILT-IN AUTO-SYNC: silently kick an incremental update when the loaded index is STALE
+  // (>30 min since its last completed sync) — when the freshness becomes known and on a timer while
+  // the tab stays mounted. Guards that fixed the "syncs on every open" bug: (1) NEVER act before the
+  // index query returned (info undefined ≠ stale); (2) at most one stale-kick per library per
+  // session (a failing sync must not retrigger every effect pass); the interval re-checks real
+  // freshness afterwards. Never-synced libraries are handled by loadIndex's empty-index path.
+  const staleKicked = React.useRef(new Set<string>());
+  const syncedAtUtc = ui.index?.info.syncedAtUtc;
   useEffect(() => {
     if (!selectedProfileId || !ui.sourceId || !ui.listId) return;
     const STALE_MS = 30 * 60 * 1000;
     const maybeSync = () => {
-      const at = useRemoteUiStore.getState().index?.info.syncedAtUtc;
+      const state = useRemoteUiStore.getState();
+      const info = state.index?.info;
+      if (!info || info.entryCount === 0) return; // not loaded / never synced — not ours to kick
+      const at = info.syncedAtUtc;
       if (at && Date.now() - new Date(at).getTime() < STALE_MS) return;
-      void api.remote.indexSync(selectedProfileId, ui.sourceId!, ui.listId!, false)
+      const key = `${state.sourceId}|${state.listId}`;
+      if (staleKicked.current.has(key)) return;
+      staleKicked.current.add(key);
+      void api.remote.indexSync(selectedProfileId, state.sourceId!, state.listId!, false)
         .then((ack) => { if (ack.started && ack.processId) setSyncProcId(ack.processId); })
         .catch(() => undefined); // silent — background freshness, not a user action
     };
-    const timer = setInterval(maybeSync, STALE_MS);
+    const timer = setInterval(() => {
+      staleKicked.current.clear(); // periodic re-check against real freshness
+      maybeSync();
+    }, STALE_MS);
     maybeSync();
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProfileId, ui.sourceId, ui.listId]);
+  }, [selectedProfileId, ui.sourceId, ui.listId, syncedAtUtc]);
 
   const openDetail = useCallback(
     (card: { detailUrl: string; title: string; key: string; tags: string[] }) => {
@@ -326,7 +343,19 @@ export const RemoteLibraryView: React.FC = () => {
           className="remote-library__search"
           placeholder={t('remote.searchPlaceholder')}
           value={ui.searchText}
-          onChange={(e) => ui.setSearchText(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            ui.setSearchText(value);
+            // The index search is OFFLINE (local SQLite) → fully reactive: search-as-you-type with a
+            // short debounce; clearing resets instantly. Live (unsynced) mode still searches on Enter
+            // to avoid spamming the site, but clearing resets the preview.
+            if (searchDebounce.current) clearTimeout(searchDebounce.current);
+            if (indexReady) {
+              searchDebounce.current = setTimeout(() => void loadIndex(1, value), 250);
+            } else if (value === '') {
+              void browseLive(1);
+            }
+          }}
           onPressEnter={() => void runSearch()}
           suffix={<SearchOutlined onClick={() => void runSearch()} />}
           allowClear
@@ -344,21 +373,16 @@ export const RemoteLibraryView: React.FC = () => {
             void loadIndex(1, useRemoteUiStore.getState().searchText);
           }}
         />
+        {/* Action icons: all grouped at the FAR RIGHT with separators (sync info + totals live in
+            the bottom bar corners instead). */}
+        <span className="remote-library__toolbar-divider remote-library__toolbar-divider--push" />
         <CompactIconButton icon={<ReloadOutlined />} title={t('common.refresh')} onClick={refresh} />
         <CompactIconButton
           icon={<CloudSyncOutlined />}
           title={t('remote.updateHint')}
           onClick={() => void startSync(false)}
         />
-        {/* Right side: sync freshness only (the switcher already names the library). */}
-        <span className="remote-library__origin" title={source?.baseUrl}>
-          {syncedAt
-            ? t('remote.lastSynced', {
-                time: new Date(syncedAt).toLocaleString(),
-                count: ui.index?.info.entryCount ?? 0,
-              })
-            : null}
-        </span>
+        <span className="remote-library__toolbar-divider" />
         <CompactIconButton icon={<AppstoreOutlined />} title={t('remote.manage')} onClick={openManagement} />
       </div>
 
@@ -399,24 +423,28 @@ export const RemoteLibraryView: React.FC = () => {
                       <CheckCircleFilled /> {t('remote.importedBadge')}
                     </span>
                   )}
+                  {/* Bottom overlay on the image: ONE tag (most specific, mapped) + a +N counter for
+                      the rest, date at the right — keeps the meta row to just the title. */}
+                  {(card.tags.length > 0 || card.dateHint) && (
+                    <div className="remote-card__overlay">
+                      <span className="remote-card__overlay-tags" title={card.tags.join(' · ')}>
+                        {card.tags.length > 0 && (
+                          <PillLabel
+                            label={remoteTagLabel(source?.tagLabels, i18n.language, orderTagsForDisplay(card.tags)[0])}
+                            title={orderTagsForDisplay(card.tags)[0]}
+                          />
+                        )}
+                        {card.tags.length > 1 && (
+                          <span className="remote-card__overlay-more">+{card.tags.length - 1}</span>
+                        )}
+                      </span>
+                      {card.dateHint && <span className="remote-card__overlay-date">{card.dateHint}</span>}
+                    </div>
+                  )}
                 </div>
                 <div className="remote-card__meta">
                   <div className="remote-card__title" title={card.title}>
                     {card.title || t('remote.untitled')}
-                  </div>
-                  <div className="remote-card__footer">
-                    {card.tags.length > 0 && (
-                      <span className="remote-card__tags">
-                        {/* Most specific first (sub category) — mapped through the source's
-                            per-language label table; overflow hides the generic super. */}
-                        {orderTagsForDisplay(card.tags).map((tag) => (
-                          <span key={tag} className="remote-card__tag" title={tag}>
-                            {remoteTagLabel(source?.tagLabels, i18n.language, tag)}
-                          </span>
-                        ))}
-                      </span>
-                    )}
-                    {card.dateHint && <span className="remote-card__date">{card.dateHint}</span>}
                   </div>
                 </div>
               </div>
@@ -425,16 +453,27 @@ export const RemoteLibraryView: React.FC = () => {
         )}
       </div>
 
-      {/* Bottom button pager (the design that works) — driven by OUR index count only. */}
-      {indexReady && (ui.index?.total ?? 0) > INDEX_PAGE_SIZE && (
+      {/* Bottom bar, 3 zones: synced time (left, important info) · button pager (center) ·
+          total count (right corner). Driven by OUR index count only. */}
+      {indexReady && (
         <div className="remote-library__pager">
-          <Pagination
-            current={ui.page}
-            total={ui.index!.total}
-            pageSize={INDEX_PAGE_SIZE}
-            showSizeChanger={false}
-            onChange={(p) => void loadIndex(p, ui.searchText)}
-          />
+          <span className="remote-library__pager-side remote-library__pager-side--left" title={source?.baseUrl}>
+            {syncedAt ? t('remote.lastSyncedTime', { time: new Date(syncedAt).toLocaleString() }) : null}
+          </span>
+          {(ui.index?.total ?? 0) > INDEX_PAGE_SIZE ? (
+            <Pagination
+              current={ui.page}
+              total={ui.index!.total}
+              pageSize={INDEX_PAGE_SIZE}
+              showSizeChanger={false}
+              onChange={(p) => void loadIndex(p, ui.searchText)}
+            />
+          ) : (
+            <span />
+          )}
+          <span className="remote-library__pager-side remote-library__pager-side--right">
+            {t('remote.totalCount', { count: ui.index?.total ?? 0 })}
+          </span>
         </div>
       )}
     </div>

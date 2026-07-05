@@ -224,100 +224,120 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
             />
           </CompactField>
 
-          <div className="remote-lib-mgmt__section-head">
-            <span className="remote-lib-mgmt__section-title">{t('remote.tagRules')}</span>
-            <CompactButton size="small" icon={<PlusOutlined />} onClick={addRule}>
-              {t('remote.addRule')}
-            </CompactButton>
-          </div>
-          <div className="remote-lib-mgmt__rules-hint">
-            {t('remote.tagRulesHint')} {t('remote.tagRulesDefault')}
-          </div>
-          {editing.tagRules.length === 0 && (
-            <div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>
-          )}
-          {editing.tagRules.map((rule, i) => (
-            <div key={i} className="remote-lib-mgmt__rule">
-              <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
-              <CompactInput
-                className="remote-lib-mgmt__rule-name"
-                value={rule.name}
-                placeholder={t('remote.ruleName')}
-                onChange={(e) => setRule(i, { name: e.target.value })}
-              />
-              <Select
-                className="remote-lib-mgmt__rule-tags"
-                mode="tags"
-                size="middle"
-                value={rule.tags}
-                placeholder={t('remote.ruleTags')}
-                options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
-                onChange={(tags) => setRule(i, { tags })}
-              />
-              <CompactInput
-                className="remote-lib-mgmt__rule-pattern"
-                value={rule.titlePattern ?? ''}
-                placeholder={t('remote.ruleTitlePattern')}
-                spellCheck={false}
-                onChange={(e) => setRule(i, { titlePattern: e.target.value || undefined })}
-              />
-              <CategorySelect
-                className="remote-lib-mgmt__rule-category"
-                categories={categories}
-                value={rule.categoryId || undefined}
-                placeholder={t('remote.rulePickCategory')}
-                onChange={(id) => setRule(i, { categoryId: id ?? '' })}
-              />
-              <CompactIconButton icon={<ArrowUpOutlined />} title={t('common.moveUp')} onClick={() => moveRule(i, -1)} />
-              <CompactIconButton icon={<ArrowDownOutlined />} title={t('common.moveDown')} onClick={() => moveRule(i, 1)} />
-              <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.remove')} onClick={() => removeRule(i)} />
-            </div>
-          ))}
-
-          {/* TAG ALIASES (current app language) — display names that are ALSO searchable; they live
-              on the SOURCE config (shared vocabulary for every library of this site). */}
-          <div className="remote-lib-mgmt__section-head">
-            <span className="remote-lib-mgmt__section-title">{t('remote.tagAliases')}</span>
-            <CompactButton
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={() => setEditingAliases((a) => [...a, { tag: '', label: '' }])}
-            >
-              {t('remote.addAlias')}
-            </CompactButton>
-          </div>
-          <div className="remote-lib-mgmt__rules-hint">{t('remote.tagAliasesHint')}</div>
-          {editingAliases.map((alias, i) => (
-            <div key={i} className="remote-lib-mgmt__rule">
-              <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
-              <Select
-                className="remote-lib-mgmt__alias-tag"
-                mode="tags"
-                size="middle"
-                maxCount={1}
-                value={alias.tag ? [alias.tag] : []}
-                placeholder={t('remote.aliasRawTag')}
-                options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
-                onChange={(v) =>
-                  setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, tag: v[v.length - 1] ?? '' } : x)))
-                }
-              />
-              <CompactInput
-                className="remote-lib-mgmt__alias-label"
-                value={alias.label}
-                placeholder={t('remote.aliasLabel')}
-                onChange={(e) =>
-                  setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))
-                }
-              />
-              <CompactIconButton
-                tone="danger"
-                icon={<DeleteOutlined />}
-                title={t('common.remove')}
-                onClick={() => setEditingAliases((a) => a.filter((_, idx) => idx !== i))}
-              />
-            </div>
-          ))}
+          {/* RULES and TAG NAMES are separate concerns → separate tabs. */}
+          <Tabs
+            defaultActiveKey="rules"
+            size="small"
+            items={[
+              {
+                key: 'rules',
+                label: t('remote.tagRules'),
+                children: (
+                  <div className="remote-lib-mgmt__tab">
+                    <div className="remote-lib-mgmt__section-head">
+                      <span className="remote-lib-mgmt__rules-hint">
+                        {t('remote.tagRulesHint')} {t('remote.tagRulesDefault')}
+                      </span>
+                      <CompactButton size="small" icon={<PlusOutlined />} onClick={addRule}>
+                        {t('remote.addRule')}
+                      </CompactButton>
+                    </div>
+                    {editing.tagRules.length === 0 && (
+                      <div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>
+                    )}
+                    {editing.tagRules.map((rule, i) => (
+                      <div key={i} className="remote-lib-mgmt__rule">
+                        <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
+                        <CompactInput
+                          className="remote-lib-mgmt__rule-name"
+                          value={rule.name}
+                          placeholder={t('remote.ruleName')}
+                          onChange={(e) => setRule(i, { name: e.target.value })}
+                        />
+                        <Select
+                          className="remote-lib-mgmt__rule-tags"
+                          mode="tags"
+                          size="middle"
+                          value={rule.tags}
+                          placeholder={t('remote.ruleTags')}
+                          options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
+                          onChange={(tags) => setRule(i, { tags })}
+                        />
+                        <CompactInput
+                          className="remote-lib-mgmt__rule-pattern"
+                          value={rule.titlePattern ?? ''}
+                          placeholder={t('remote.ruleTitlePattern')}
+                          spellCheck={false}
+                          onChange={(e) => setRule(i, { titlePattern: e.target.value || undefined })}
+                        />
+                        <CategorySelect
+                          className="remote-lib-mgmt__rule-category"
+                          categories={categories}
+                          value={rule.categoryId || undefined}
+                          placeholder={t('remote.rulePickCategory')}
+                          onChange={(id) => setRule(i, { categoryId: id ?? '' })}
+                        />
+                        <CompactIconButton icon={<ArrowUpOutlined />} title={t('common.moveUp')} onClick={() => moveRule(i, -1)} />
+                        <CompactIconButton icon={<ArrowDownOutlined />} title={t('common.moveDown')} onClick={() => moveRule(i, 1)} />
+                        <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.remove')} onClick={() => removeRule(i)} />
+                      </div>
+                    ))}
+                  </div>
+                ),
+              },
+              {
+                key: 'aliases',
+                label: t('remote.tagAliases'),
+                children: (
+                  <div className="remote-lib-mgmt__tab">
+                    {/* Display names that are ALSO searchable; they live on the SOURCE config
+                        (shared vocabulary for every library of this site). */}
+                    <div className="remote-lib-mgmt__section-head">
+                      <span className="remote-lib-mgmt__rules-hint">{t('remote.tagAliasesHint')}</span>
+                      <CompactButton
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={() => setEditingAliases((a) => [...a, { tag: '', label: '' }])}
+                      >
+                        {t('remote.addAlias')}
+                      </CompactButton>
+                    </div>
+                    {editingAliases.map((alias, i) => (
+                      <div key={i} className="remote-lib-mgmt__rule">
+                        <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
+                        <Select
+                          className="remote-lib-mgmt__alias-tag"
+                          mode="tags"
+                          size="middle"
+                          maxCount={1}
+                          value={alias.tag ? [alias.tag] : []}
+                          placeholder={t('remote.aliasRawTag')}
+                          options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
+                          onChange={(v) =>
+                            setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, tag: v[v.length - 1] ?? '' } : x)))
+                          }
+                        />
+                        <CompactInput
+                          className="remote-lib-mgmt__alias-label"
+                          value={alias.label}
+                          placeholder={t('remote.aliasLabel')}
+                          onChange={(e) =>
+                            setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))
+                          }
+                        />
+                        <CompactIconButton
+                          tone="danger"
+                          icon={<DeleteOutlined />}
+                          title={t('common.remove')}
+                          onClick={() => setEditingAliases((a) => a.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ),
+              },
+            ]}
+          />
         </div>
 
         <div className="remote-lib-mgmt__actions">
