@@ -32,6 +32,13 @@ public static class NamespaceMergeBuilder
     // these cross-namespace. Named distinctively so it never clashes with a source mod's own $active/var.
     private const string ActiveVar = "$mergeactive";
 
+    // LOCAL mirror of the master's swapvar. Each source copies the master value into this local via a
+    // cross-namespace READ in an ASSIGNMENT (the proven primitive) and gates on the LOCAL. Reading a
+    // cross-namespace var directly inside an `if` CONDITION is NOT a proven 3DMigoto primitive and left
+    // the gate unresolved → the `if` never ran → the merged character was INVISIBLE (user report,
+    // 2026-07-06, verified against a real broken merge). See 3dmigoto-ini-interface.md.
+    private const string SwapMirror = "$mergeswap";
+
     /// <summary>
     /// Transform a source `.ini`: strip any existing top-level <c>namespace</c>, prepend
     /// <paramref name="sourceNamespace"/>, and gate every hash-bearing <c>[TextureOverride*]</c>/
@@ -51,12 +58,11 @@ public static class NamespaceMergeBuilder
 
         // Cross-namespace var read = $\<namespace>\<var> (per the 3DMigoto namespace docs: a var declared
         // in `namespace = global\tracking` is read as `$\global\tracking\isSwimming` — the leading
-        // `global` is PART OF THE NAMESPACE NAME, not a magic prefix). So the address MUST equal the
-        // master's declared namespace exactly. The earlier code prepended an EXTRA `global\` only on the
-        // read side → the address didn't match the declared namespace → the var never resolved → the `if`
-        // failed open and BOTH variants drew. (ModMergeService roots the namespaces under `global\` so
-        // the declared namespace already starts with it.) Reads across namespaces are the proven
-        // primitive; writes are not.
+        // `global` is PART OF THE NAMESPACE NAME, not a magic prefix). ModMergeService roots the
+        // namespaces under `global\` so the declared namespace already starts with it.
+        // IMPORTANT: this cross-namespace read is only used as the RHS of an ASSIGNMENT into a LOCAL
+        // mirror (proven primitive); the gate then reads the LOCAL. Reading it directly in an `if`
+        // condition (the earlier code) is unproven and rendered the character invisible.
         var swapVar = $"$\\{masterNamespace}\\swapvar";
 
         var sawConstants = false;
@@ -77,11 +83,12 @@ public static class NamespaceMergeBuilder
 
             // [Constants]: re-emit untouched + declare our own LOCAL on-screen flag (a same-namespace
             // declaration; the master reads it cross-namespace).
-            if (activeOnly && name.Equals("Constants", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals("Constants", StringComparison.OrdinalIgnoreCase))
             {
                 sb.Append(section.Header).Append('\n');
                 foreach (var line in section.Body) sb.Append(line).Append('\n');
-                sb.Append($"global {ActiveVar} = 0\n");
+                if (activeOnly) sb.Append($"global {ActiveVar} = 0\n");
+                sb.Append($"global {SwapMirror} = 0\n"); // local mirror of the master swapvar
                 sawConstants = true;
                 continue;
             }
@@ -124,7 +131,11 @@ public static class NamespaceMergeBuilder
 
             foreach (var d in decls) sb.Append(d).Append('\n');
             sb.Append("allow_duplicate_hash = true\n");
-            sb.Append($"if {swapVar} == {group}\n");
+            // Copy the master's swapvar into a LOCAL (cross-ns read in an assignment — proven), then
+            // gate on the LOCAL (local read in a condition — proven). Reading the cross-ns var directly
+            // in the `if` was the invisible-character bug.
+            sb.Append($"{SwapMirror} = {swapVar}\n");
+            sb.Append($"if {SwapMirror} == {group}\n");
             // When the active variant's hash renders, flag the character on-screen (LOCAL write — the
             // proven primitive). The master's cycle key reads this cross-namespace so it only fires for
             // the character currently on screen, not globally.
@@ -133,8 +144,13 @@ public static class NamespaceMergeBuilder
             sb.Append("endif\n");
         }
 
-        // If the source had no [Constants]/[Present], add them so the flag exists + resets each frame.
-        if (activeOnly && !sawConstants) sb.Append($"\n[Constants]\nglobal {ActiveVar} = 0\n");
+        // If the source had no [Constants], add one declaring the swap mirror (+ the on-screen flag).
+        if (!sawConstants)
+        {
+            sb.Append("\n[Constants]\n");
+            if (activeOnly) sb.Append($"global {ActiveVar} = 0\n");
+            sb.Append($"global {SwapMirror} = 0\n");
+        }
         if (activeOnly && !sawPresent) sb.Append($"\n[Present]\npost {ActiveVar} = 0\n");
 
         return sb.ToString();

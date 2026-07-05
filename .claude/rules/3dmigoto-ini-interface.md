@@ -95,10 +95,24 @@ sets** until the user unifies them. **Namespaces give this for free** — they i
    (or rely on folder-path default). Keep the source `.ini` otherwise **intact** — its `[Key*]`,
    `[Constants] $vars`, `[TextureOverride*]`, `[Resource*]` are now all under that namespace, collision-free.
    So every variant's shortcuts/toggles still work independently (the "different sets" the user asked for).
-2. **Gate which variant renders:** inject `if $\<MergeName>\Master\swapvar == N … endif` around each
-   source's `[TextureOverride*]` draw/override (cross-namespace var read — same `$\ns\var` syntax the
-   namespace doc shows, e.g. `$\global\tracking\isSwimming`). This is the ONLY edit to a source — no
-   var/resource/section renaming (the namespace already disambiguates).
+2. **Gate which variant renders:** each source copies the master's swapvar into a LOCAL and gates on
+   the local — `$mergeswap = $\<MergeName>\Master\swapvar` (cross-namespace read in an ASSIGNMENT) then
+   `if $mergeswap == N … endif` (LOCAL read in the condition). This is the ONLY edit to a source — no
+   var/resource/section renaming (the namespace already disambiguates). **DO NOT** read the cross-ns var
+   directly in the `if` — see the invisible-character fix below.
+
+#### Gate on a LOCAL mirror, never a cross-ns read in the `if` condition (FIXED 2026-07-06)
+**Symptom:** after merge **nothing renders — the character is invisible** (default swapvar=0, yet group 0
+never draws). Root cause: the gate was `if $\global\<Merge>\Master\swapvar == N` — a cross-namespace
+read INSIDE an `if` condition. That is NOT a proven 3DMigoto primitive; the docs only ever demonstrate a
+cross-namespace read as the **RHS of an assignment** (`$x = $\global\tracking\isSwimming`) + a **local
+read** in conditions. The cross-ns read in the condition never resolved → the `if` body was skipped for
+every group → no override bound → invisible. (Diagnosed against a real broken merge, `薇薇安-吸血鬼
+(merged)`, 2026-07-06.) **Fix (`NamespaceMergeBuilder`):** declare `global $mergeswap = 0` in each
+source's `[Constants]`, and in each gated override do `$mergeswap = $\<Master>\swapvar` (proven read)
+then `if $mergeswap == N` (proven local condition). This is the SAME write-local/read-cross-ns rule that
+fixed the `$mergeactive` cycle key. **RULE: cross-namespace reads belong in assignments; conditions read
+locals — never put a `$\ns\var` read directly in an `if`.** Tests: `NamespaceMergeBuilderTests`.
 3. **Master `.ini`** (`namespace = <MergeName>\Master`): `[Constants] global persist $swapvar` +
    `[KeySwap] type=cycle $swapvar=0,1,…`.
 4. **Unify-keys later:** since each variant's keys are separate namespaced `[Key*]`, a future "unify

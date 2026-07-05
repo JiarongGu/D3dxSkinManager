@@ -16,7 +16,7 @@
 (none)
 
 ## Backlog
-- [ ] after merge nothing shows (character invisible) — IN-GAME GATED: render-gating (`$\<ns>\swapvar` in NamespaceMergeBuilder) is the one unverified assumption; blind edits keep backfiring (see `3dmigoto-ini-interface.md`). Needs a failing merged `.ini` or in-game iteration. Fallback: merge with `activeOnly` OFF.
+- [ ] after merge nothing shows — FIX SHIPPED (gate now copies swapvar into a local and gates on the local, not a cross-ns read in the `if`); awaiting in-game confirmation (the existing broken merge was hand-patched to test). Confirm it renders, then close.
 - [ ] when merge mod if there are same assets, try to dedup — depends on the above (rewriting resource paths on an unverified render path can itself cause invisibility)
 - [ ] Save persist values: after reload restore a mod's 3DMigoto `$var` state (3DMigoto resets on new mod load); allow reset + save-to-ini-as-default — RUNTIME GATED (needs the game to verify persisted-var behavior); large feature, needs a design pass
 

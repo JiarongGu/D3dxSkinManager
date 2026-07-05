@@ -44,11 +44,13 @@ drawindexed = auto
 
         ini.Should().Contain("[TextureOverrideBody]");
         ini.Should().Contain("allow_duplicate_hash = true");
-        // Cross-namespace read = $\<namespace>\<var> — it must equal the master's DECLARED namespace
-        // exactly (an extra `global\` only on the read side leaves the gate unresolved → it fails open →
-        // both variants render). The builder echoes the namespace it's given verbatim.
-        ini.Should().Contain("if $\\Merge\\Master\\swapvar == 1");
-        ini.Should().NotContain("$\\global\\Merge\\Master\\swapvar");
+        // The master swapvar is copied into a LOCAL via a cross-namespace read in an ASSIGNMENT (proven),
+        // and the gate reads the LOCAL (proven). Reading the cross-ns var directly in the `if` condition
+        // was the invisible-character bug (user report 2026-07-06) — must NOT appear.
+        ini.Should().Contain("$mergeswap = $\\Merge\\Master\\swapvar");
+        ini.Should().Contain("if $mergeswap == 1");
+        ini.Should().NotContain("if $\\Merge\\Master\\swapvar");        // never gate on the cross-ns read directly
+        ini.Should().Contain("global $mergeswap = 0");                   // local mirror declared
         ini.Should().Contain("endif");
         // Active variant flags itself on-screen via a LOCAL write (the proven primitive — a cross-namespace
         // write to the master's $active never took effect, which left the switch key dead). The master
@@ -61,7 +63,7 @@ drawindexed = auto
 
         // hash is a bind-time declaration → before the gate; the draw commands → inside it.
         var hashAt = ini.IndexOf("hash = abcd1234", StringComparison.Ordinal);
-        var ifAt = ini.IndexOf("if $\\Merge\\Master\\swapvar == 1", StringComparison.Ordinal);
+        var ifAt = ini.IndexOf("if $mergeswap == 1", StringComparison.Ordinal);
         var drawAt = ini.IndexOf("drawindexed = auto", StringComparison.Ordinal);
         var endifAt = ini.IndexOf("endif", StringComparison.Ordinal);
         hashAt.Should().BeLessThan(ifAt);
@@ -105,7 +107,10 @@ drawindexed = auto
         // read MUST be byte-for-byte the declared master namespace — else it fails open and both draw.
         const string master = "global\\Foo\\Master";
         var src = NamespaceMergeBuilder.TransformSource(Source, "global\\Foo\\mod0", master, 0);
-        src.Should().Contain($"if $\\{master}\\swapvar == 0");          // == "if $\global\Foo\Master\swapvar == 0"
+        // The cross-ns read address must equal the declared master namespace exactly (used as an
+        // assignment RHS into the local mirror), and the gate reads the local.
+        src.Should().Contain($"$mergeswap = $\\{master}\\swapvar");     // == "$mergeswap = $\global\Foo\Master\swapvar"
+        src.Should().Contain("if $mergeswap == 0");
         src.Should().NotContain("$\\global\\global\\");                 // no DOUBLE global\ (the old bug class)
 
         var masterIni = NamespaceMergeBuilder.BuildMaster(master, new[] { "global\\Foo\\mod0" }, "v", activeOnly: true);
