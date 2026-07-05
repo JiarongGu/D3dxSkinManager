@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -8,34 +7,26 @@ using D3dxSkinManager.Modules.Remote.Models;
 namespace D3dxSkinManager.Modules.Remote.Services;
 
 /// <summary>
-/// The SYNCED local index of a remote source list: a background crawl walks every list page once
-/// and persists the entries ({data}/remote-sources/.cache/{source}_{list}.json), so browsing,
-/// filtering and search afterwards are instant + offline — no per-query site requests. Entries are
-/// keyed by the site's stable id (adapter EntryIdPattern), carry a date hint (from the image path)
-/// and first/last-seen stamps, and keep the site's own recency order (SortKey).
-/// Sync is fire-and-forget with ONE cancellable ProcessRegistry entry (background-task-tracking.md).
+/// The SYNCED local index of the remote source list a profile targets — PER PROFILE, stored in the
+/// profile's SQLite DB (RemoteIndexRepository; migration 202607050002). The first sync crawls every
+/// list page; every later sync is an incremental UPDATE: it crawls from page 1 and STOPS at the
+/// first page containing nothing new (sites list newest-first, so everything beyond it is already
+/// indexed). Crawled entries carry a new sync generation so (Generation DESC, SortKey ASC) keeps
+/// the site's recency order across partial crawls. Sync is fire-and-forget with ONE cancellable
+/// ProcessRegistry entry (background-task-tracking.md).
 /// </summary>
 public interface IRemoteIndexService
 {
-    /// <summary>Filtered + paged slice of the cached index (empty info when never synced).
-    /// <paramref name="sort"/>: "site" (default, the site's own recency order) or "date"
-    /// (newest DateHint first).</summary>
-    RemoteIndexPage Query(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null);
+    /// <summary>Filtered + paged slice of the index (empty info when never synced).
+    /// <paramref name="sort"/>: "site" (default) or "date" (newest DateHint first).</summary>
+    Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null);
 
-    /// <summary>Start a background crawl of all pages of the list. Returns the process id.</summary>
+    /// <summary>Start a background sync — full on first run, incremental update afterwards.</summary>
     string StartSync(string sourceId, string listId);
-
-    /// <summary>Sync EVERY list of the source under one cancellable process. Returns the process id.</summary>
-    string StartSyncAll(string sourceId);
 }
 
 public class RemoteIndexService : IRemoteIndexService
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-    };
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(2);
     /// <summary>Politeness delay between page fetches during a sync.</summary>
     private static readonly TimeSpan PageDelay = TimeSpan.FromMilliseconds(250);
@@ -44,7 +35,7 @@ public class RemoteIndexService : IRemoteIndexService
 
     private readonly IRemoteSourceStore _sources;
     private readonly IRemoteBrowseService _browse;
-    private readonly IGlobalPathService _globalPaths;
+    private readonly IRemoteIndexRepository _repository;
     private readonly IProcessRegistry _processRegistry;
     private readonly ILogHelper _logger;
     private readonly HashSet<string> _activeSyncs = new(StringComparer.OrdinalIgnoreCase);
@@ -53,42 +44,33 @@ public class RemoteIndexService : IRemoteIndexService
     public RemoteIndexService(
         IRemoteSourceStore sources,
         IRemoteBrowseService browse,
-        IGlobalPathService globalPaths,
+        IRemoteIndexRepository repository,
         IProcessRegistry processRegistry,
         ILogHelper logger)
     {
         _sources = sources;
         _browse = browse;
-        _globalPaths = globalPaths;
+        _repository = repository;
         _processRegistry = processRegistry;
         _logger = logger;
     }
 
-    public RemoteIndexPage Query(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null)
+    public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null)
     {
-        var cache = Load(sourceId, listId) ?? new RemoteIndexCache
-        {
-            Info = new RemoteIndexInfo { SourceId = sourceId, ListId = listId },
-        };
-
-        IEnumerable<RemoteIndexEntry> filtered = cache.Entries;
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var terms = search.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            filtered = filtered.Where(e => terms.All(t => e.Title.Contains(t, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        var ordered = string.Equals(sort, "date", StringComparison.OrdinalIgnoreCase)
-            // Newest date hint first; entries without a hint sink to the end (kept in site order there).
-            ? filtered.OrderByDescending(e => e.DateHint ?? string.Empty).ThenBy(e => e.SortKey).ToList()
-            : filtered.OrderBy(e => e.SortKey).ToList();
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 500);
+        var meta = await _repository.GetMetaAsync(sourceId, listId).ConfigureAwait(false);
+        var (total, entries) = await _repository.QueryAsync(sourceId, listId, search, sort, page, pageSize).ConfigureAwait(false);
         return new RemoteIndexPage
         {
-            Info = cache.Info,
-            Total = ordered.Count,
-            Entries = ordered.Skip((page - 1) * pageSize).Take(pageSize).ToList(),
+            Info = new RemoteIndexInfo
+            {
+                SourceId = sourceId,
+                ListId = listId,
+                SyncedAtUtc = meta?.SyncedAtUtc,
+                TotalPages = meta?.TotalPages ?? 0,
+                EntryCount = await _repository.CountAsync(sourceId, listId).ConfigureAwait(false),
+            },
+            Total = total,
+            Entries = entries,
         };
     }
 
@@ -112,7 +94,7 @@ public class RemoteIndexService : IRemoteIndexService
             var ct = _processRegistry.GetToken(procId);
             try
             {
-                await CrawlListAsync(source, listId, procId, basePct: 0, spanPct: 100, ct).ConfigureAwait(false);
+                await CrawlAsync(source, listId, listName, procId, ct).ConfigureAwait(false);
                 _processRegistry.Complete(procId);
             }
             catch (OperationCanceledException)
@@ -133,65 +115,24 @@ public class RemoteIndexService : IRemoteIndexService
         return procId;
     }
 
-    public string StartSyncAll(string sourceId)
+    /// <summary>
+    /// Crawl the list: full on first run; an UPDATE afterwards — stop at the first page that
+    /// yields no entry we haven't seen before (only newer content sits above it).
+    /// </summary>
+    private async Task CrawlAsync(RemoteSourceConfig source, string listId, string listName, string procId, CancellationToken ct)
     {
-        var source = _sources.GetById(sourceId);
-        if (source.Lists.Count == 0) return string.Empty;
-        var key = $"{sourceId}_*";
+        var meta = await _repository.GetMetaAsync(source.Id, listId).ConfigureAwait(false);
+        var incremental = meta?.SyncedAtUtc != null;
+        var generation = (meta?.Generation ?? 0) + 1;
+        var known = incremental
+            ? await _repository.GetKnownIdsAsync(source.Id, listId).ConfigureAwait(false)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        lock (_syncLock)
-        {
-            if (_activeSyncs.Contains(key)) return string.Empty;
-            _activeSyncs.Add(key);
-        }
-
-        var procId = _processRegistry.Start(ProcessType.Download, $"Syncing remote library: {source.Name} (all)",
-            cancellable: true, titleKey: "process.remoteSyncAll", titleArg: source.Name);
-
-        _ = Task.Run(async () =>
-        {
-            var ct = _processRegistry.GetToken(procId);
-            try
-            {
-                var span = 100 / source.Lists.Count;
-                for (var i = 0; i < source.Lists.Count; i++)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    await CrawlListAsync(source, source.Lists[i].Id, procId, basePct: i * span, spanPct: span, ct)
-                        .ConfigureAwait(false);
-                }
-                _processRegistry.Complete(procId);
-            }
-            catch (OperationCanceledException)
-            {
-                _processRegistry.Cancel(procId);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"[Remote] Full-site sync failed for {sourceId}: {ex.Message}", "RemoteIndexService", ex);
-                _processRegistry.Fail(procId, ex.Message);
-            }
-            finally
-            {
-                lock (_syncLock) { _activeSyncs.Remove(key); }
-            }
-        });
-
-        return procId;
-    }
-
-    /// <summary>Crawl one list into its cache, reporting progress into the [basePct, basePct+spanPct] band.</summary>
-    private async Task CrawlListAsync(RemoteSourceConfig source, string listId, string procId, int basePct, int spanPct, CancellationToken ct)
-    {
-        var cache = Load(source.Id, listId) ?? new RemoteIndexCache();
-        var byId = cache.Entries.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
-        var now = DateTime.UtcNow;
-        var listName = source.Lists.FirstOrDefault(l => l.Id == listId)?.Name ?? listId;
-
-        _processRegistry.Report(procId, basePct, $"{listName} 1", detailKey: "process.stage.crawling");
+        _processRegistry.Report(procId, 1, $"{listName} 1", detailKey: "process.stage.crawling");
         var first = await _browse.BrowseAsync(source.Id, listId, 1, ct).ConfigureAwait(false);
         var totalPages = Math.Min(first.TotalPages ?? MaxPages, MaxPages);
-        Merge(byId, first.Cards, source, pageNumber: 1, now);
+        var crawledPages = 1;
+        await UpsertPageAsync(source, listId, first.Cards, 1, generation).ConfigureAwait(false);
 
         for (var page = 2; page <= totalPages; page++)
         {
@@ -199,38 +140,53 @@ public class RemoteIndexService : IRemoteIndexService
             await Task.Delay(PageDelay, ct).ConfigureAwait(false);
             var result = await _browse.BrowseAsync(source.Id, listId, page, ct).ConfigureAwait(false);
             if (result.Cards.Count == 0 && first.TotalPages == null) break; // unknown total — stop at the first empty page
-            Merge(byId, result.Cards, source, page, now);
 
-            _processRegistry.Report(procId, basePct + (int)(page * (double)spanPct / totalPages),
+            var newCount = result.Cards.Count(c => !known.Contains(ExtractEntryId(source, c.DetailUrl)));
+            await UpsertPageAsync(source, listId, result.Cards, page, generation).ConfigureAwait(false);
+            crawledPages = page;
+
+            if (incremental && newCount == 0)
+            {
+                // Everything on this page (and below — the site lists newest first) is already indexed.
+                _logger.Info($"[Remote] Update sync stopped at page {page} (no new entries)", "RemoteIndexService");
+                break;
+            }
+
+            _processRegistry.Report(procId, (int)(page * 100.0 / totalPages),
                 $"{listName} {page}/{totalPages}", detailKey: "process.stage.crawling");
-            if (page % 20 == 0) Save(source.Id, listId, byId, totalPages, syncedAt: null); // crash checkpoint
         }
 
-        Save(source.Id, listId, byId, totalPages, DateTime.UtcNow);
-        _logger.Info($"[Remote] Index synced: {source.Id}_{listId} — {byId.Count} entries / {totalPages} pages", "RemoteIndexService");
+        await _repository.SetMetaAsync(new RemoteIndexMetaRow
+        {
+            SourceId = source.Id,
+            ListId = listId,
+            SyncedAtUtc = DateTime.UtcNow,
+            TotalPages = totalPages,
+            Generation = generation,
+        }).ConfigureAwait(false);
+
+        var count = await _repository.CountAsync(source.Id, listId).ConfigureAwait(false);
+        _logger.Info($"[Remote] Index synced: {source.Id}_{listId} — {count} entries, crawled {crawledPages}/{totalPages} pages ({(incremental ? "update" : "full")})",
+            "RemoteIndexService");
     }
 
-    // ---- helpers ---------------------------------------------------------------------------
-
-    private void Merge(Dictionary<string, RemoteIndexEntry> byId, IReadOnlyList<RemoteModCard> cards,
-        RemoteSourceConfig source, int pageNumber, DateTime now)
+    private Task UpsertPageAsync(RemoteSourceConfig source, string listId, IReadOnlyList<RemoteModCard> cards, int pageNumber, long generation)
     {
+        var entries = new List<RemoteIndexEntry>(cards.Count);
         for (var i = 0; i < cards.Count; i++)
         {
             var card = cards[i];
-            var id = ExtractEntryId(source, card.DetailUrl);
-            if (!byId.TryGetValue(id, out var entry))
+            entries.Add(new RemoteIndexEntry
             {
-                entry = new RemoteIndexEntry { Id = id, FirstSeenUtc = now };
-                byId[id] = entry;
-            }
-            entry.Title = string.IsNullOrEmpty(card.Title) ? entry.Title : card.Title;
-            entry.DetailUrl = card.DetailUrl;
-            entry.ImageUrl = card.ImageUrl;
-            entry.DateHint = ExtractDateHint(source, card.ImageUrl) ?? entry.DateHint;
-            entry.SortKey = pageNumber * 10000L + i;
-            entry.LastSeenUtc = now;
+                Id = ExtractEntryId(source, card.DetailUrl),
+                Title = card.Title,
+                DetailUrl = card.DetailUrl,
+                ImageUrl = card.ImageUrl,
+                DateHint = ExtractDateHint(source, card.ImageUrl),
+                SortKey = pageNumber * 10000L + i,
+            });
         }
+        return _repository.UpsertEntriesAsync(source.Id, listId, entries, generation);
     }
 
     /// <summary>The site's stable id for a detail URL (adapter EntryIdPattern), else the URL itself.</summary>
@@ -259,46 +215,5 @@ public class RemoteIndexService : IRemoteIndexService
             return null;
         }
         catch (RegexMatchTimeoutException) { return null; }
-    }
-
-    private string CachePath(string sourceId, string listId)
-    {
-        var dir = Path.Combine(_globalPaths.RemoteSourcesDirectory, ".cache");
-        Directory.CreateDirectory(dir);
-        var safe = string.Concat($"{sourceId}_{listId}".Select(c => char.IsLetterOrDigit(c) || c == '_' || c == '-' ? c : '_'));
-        return Path.Combine(dir, $"{safe}.json");
-    }
-
-    private RemoteIndexCache? Load(string sourceId, string listId)
-    {
-        var path = CachePath(sourceId, listId);
-        if (!File.Exists(path)) return null;
-        try
-        {
-            return JsonSerializer.Deserialize<RemoteIndexCache>(File.ReadAllText(path), JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            _logger.Warn($"[Remote] Corrupt index cache {Path.GetFileName(path)}: {ex.Message}", "RemoteIndexService");
-            return null;
-        }
-    }
-
-    private void Save(string sourceId, string listId, Dictionary<string, RemoteIndexEntry> byId, int totalPages, DateTime? syncedAt)
-    {
-        var existing = syncedAt == null ? Load(sourceId, listId)?.Info.SyncedAtUtc : null;
-        var cache = new RemoteIndexCache
-        {
-            Info = new RemoteIndexInfo
-            {
-                SourceId = sourceId,
-                ListId = listId,
-                SyncedAtUtc = syncedAt ?? existing,
-                TotalPages = totalPages,
-                EntryCount = byId.Count,
-            },
-            Entries = byId.Values.OrderBy(e => e.SortKey).ToList(),
-        };
-        File.WriteAllText(CachePath(sourceId, listId), JsonSerializer.Serialize(cache, JsonOptions));
     }
 }

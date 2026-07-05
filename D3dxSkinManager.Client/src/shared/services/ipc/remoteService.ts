@@ -72,11 +72,6 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteDownloadImportAck>('INDEX_SYNC', profileId, { sourceId, listId });
   }
 
-  /** Sync EVERY list of a source under one Activity-panel process. */
-  async indexSyncAll(profileId: string, sourceId: string): Promise<RemoteDownloadImportAck> {
-    return this.sendMessage<RemoteDownloadImportAck>('INDEX_SYNC_ALL', profileId, { sourceId });
-  }
-
   /** Validate + persist a (possibly user-authored) adapter. */
   async saveSource(profileId: string, config: RemoteSourceConfigDto): Promise<RemoteSourceConfigDto> {
     return this.sendMessage<RemoteSourceConfigDto>('SAVE_SOURCE', profileId, { config });

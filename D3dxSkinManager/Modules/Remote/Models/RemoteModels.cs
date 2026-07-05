@@ -173,13 +173,6 @@ public class RemoteIndexInfo
     public int EntryCount { get; set; }
 }
 
-/// <summary>The persisted cache file shape.</summary>
-public class RemoteIndexCache
-{
-    public RemoteIndexInfo Info { get; set; } = new();
-    public List<RemoteIndexEntry> Entries { get; set; } = new();
-}
-
 /// <summary>A filtered/paged slice of the index for the UI.</summary>
 public class RemoteIndexPage
 {

@@ -172,17 +172,6 @@ export const RemoteLibraryView: React.FC = () => {
     }
   }, [selectedProfileId, t]);
 
-  const startSyncAll = useCallback(async () => {
-    const state = useRemoteUiStore.getState();
-    if (!selectedProfileId || !state.sourceId) return;
-    try {
-      const ack = await api.remote.indexSyncAll(selectedProfileId, state.sourceId);
-      notification.info(t(ack.started ? 'remote.syncStarted' : 'remote.syncRunningOrDone'));
-    } catch (error: unknown) {
-      handleError(error);
-    }
-  }, [selectedProfileId, t]);
-
   // First load (or returning to the tab with no cached result yet).
   useEffect(() => {
     if (!ui.index && !ui.result && ui.sourceId && ui.listId && !loading) void loadIndex(1, ui.searchText);
@@ -326,11 +315,6 @@ export const RemoteLibraryView: React.FC = () => {
         <Tooltip title={t('remote.notSynced')}>
           <CompactButton icon={<SyncOutlined />} onClick={() => void startSync()}>
             {t('remote.sync')}
-          </CompactButton>
-        </Tooltip>
-        <Tooltip title={t('remote.syncAllHint')}>
-          <CompactButton icon={<SyncOutlined />} onClick={() => void startSyncAll()}>
-            {t('remote.syncAll')}
           </CompactButton>
         </Tooltip>
         <CompactButton
