@@ -19,7 +19,9 @@ public interface IRemoteFacade : IModuleFacade
     Task<RemoteBrowseResult> SearchAsync(string sourceId, string query);
     Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl);
     Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option);
-    string StartDownloadImport(RemoteModDetail detail, RemoteDownloadOption option);
+    string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option);
+    Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize);
+    string StartIndexSync(string sourceId, string listId);
 }
 
 public class RemoteFacade : BaseFacade, IRemoteFacade
@@ -28,16 +30,19 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
 
     private readonly IRemoteBrowseService _browse;
     private readonly IRemoteImportService _import;
+    private readonly IRemoteIndexService _index;
     private readonly IPayloadHelper _payloadHelper;
 
     public RemoteFacade(
         IRemoteBrowseService browse,
         IRemoteImportService import,
+        IRemoteIndexService index,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
         _browse = browse ?? throw new ArgumentNullException(nameof(browse));
         _import = import ?? throw new ArgumentNullException(nameof(import));
+        _index = index ?? throw new ArgumentNullException(nameof(index));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -51,6 +56,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "GET_DETAIL" => await GetDetailAsync(request),
             "RESOLVE_DOWNLOAD" => await ResolveDownloadAsync(request),
             "DOWNLOAD_IMPORT" => StartDownloadImport(request),
+            "INDEX_QUERY" => await QueryIndexAsync(request),
+            "INDEX_SYNC" => StartIndexSync(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -70,8 +77,23 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     public async Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option) =>
         await _import.ResolveAsync(option).ConfigureAwait(false);
 
-    public string StartDownloadImport(RemoteModDetail detail, RemoteDownloadOption option) =>
-        _import.StartDownloadImport(detail, option);
+    public string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option) =>
+        _import.StartDownloadImport(sourceId, detail, option);
+
+    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize)
+    {
+        var result = _index.Query(sourceId, listId, search, page, pageSize);
+        // Flag entries this profile already imported (matched by detail URL from mod Metadata).
+        var imported = await _import.GetImportedDetailUrlsAsync().ConfigureAwait(false);
+        if (imported.Count > 0)
+        {
+            foreach (var entry in result.Entries)
+                entry.Imported = imported.Contains(entry.DetailUrl);
+        }
+        return result;
+    }
+
+    public string StartIndexSync(string sourceId, string listId) => _index.StartSync(sourceId, listId);
 
     // ---- payload-parsing handlers ----------------------------------------------------------
 
@@ -107,9 +129,28 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     {
         // Parse + validate synchronously so bad input errors right away; the work itself runs in
         // the background (never await a long op in an IPC handler — the bridge times out).
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         var detail = _payloadHelper.GetRequiredValue<RemoteModDetail>(request.Payload, "detail");
         var option = _payloadHelper.GetRequiredValue<RemoteDownloadOption>(request.Payload, "option");
-        var processId = StartDownloadImport(detail, option);
+        var processId = StartDownloadImport(sourceId, detail, option);
         return new { started = true, processId };
+    }
+
+    private Task<RemoteIndexPage> QueryIndexAsync(IpcRequest request)
+    {
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        var listId = _payloadHelper.GetRequiredValue<string>(request.Payload, "listId");
+        var search = _payloadHelper.GetOptionalValue<string>(request.Payload, "search");
+        var page = _payloadHelper.GetOptionalValue<int>(request.Payload, "page");
+        var pageSize = _payloadHelper.GetOptionalValue<int>(request.Payload, "pageSize");
+        return QueryIndexAsync(sourceId, listId, search, page <= 0 ? 1 : page, pageSize <= 0 ? 60 : pageSize);
+    }
+
+    private object StartIndexSync(IpcRequest request)
+    {
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        var listId = _payloadHelper.GetRequiredValue<string>(request.Payload, "listId");
+        var processId = StartIndexSync(sourceId, listId);
+        return new { started = processId.Length > 0, processId };
     }
 }

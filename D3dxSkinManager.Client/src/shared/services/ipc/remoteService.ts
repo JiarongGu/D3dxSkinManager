@@ -9,6 +9,7 @@ import type {
   RemoteBrowseResult,
   RemoteDownloadImportAck,
   RemoteDownloadOption,
+  RemoteIndexPage,
   RemoteModDetail,
   RemoteResolveResult,
   RemoteSourceInfo,
@@ -42,9 +43,27 @@ export class RemoteService extends BaseModuleService {
   /** Immediate ack — the download+import runs in the background (Activity panel). */
   async downloadImport(
     profileId: string,
+    sourceId: string,
     detail: RemoteModDetail,
     option: RemoteDownloadOption,
   ): Promise<RemoteDownloadImportAck> {
-    return this.sendMessage<RemoteDownloadImportAck>('DOWNLOAD_IMPORT', profileId, { detail, option });
+    return this.sendMessage<RemoteDownloadImportAck>('DOWNLOAD_IMPORT', profileId, { sourceId, detail, option });
+  }
+
+  /** Filtered + paged slice of the SYNCED local index (instant; empty info when never synced). */
+  async indexQuery(
+    profileId: string,
+    sourceId: string,
+    listId: string,
+    search: string | undefined,
+    page: number,
+    pageSize: number,
+  ): Promise<RemoteIndexPage> {
+    return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize });
+  }
+
+  /** Start a background crawl of all list pages (Activity panel). Immediate ack. */
+  async indexSync(profileId: string, sourceId: string, listId: string): Promise<RemoteDownloadImportAck> {
+    return this.sendMessage<RemoteDownloadImportAck>('INDEX_SYNC', profileId, { sourceId, listId });
   }
 }

@@ -22,6 +22,7 @@ public static class RemoteServiceExtensions
         services.TryAddSingleton<IRemotePageFetcher, HttpPageFetcher>();
         services.TryAddSingleton<IRemoteBrowseService, RemoteBrowseService>();
         services.TryAddSingleton<ICloudreveShareResolver, CloudreveShareResolver>();
+        services.TryAddSingleton<IRemoteIndexService, RemoteIndexService>();
         services.TryAddSingleton<IRemoteImportService, RemoteImportService>();
 
         services.TryAddSingleton<IRemoteFacade, RemoteFacade>();

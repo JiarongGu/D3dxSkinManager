@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -21,7 +22,11 @@ public interface IRemoteImportService
     Task<RemoteResolveResult> ResolveAsync(RemoteDownloadOption option, CancellationToken ct = default);
 
     /// <summary>Start the background download+import. Returns the process id immediately.</summary>
-    string StartDownloadImport(RemoteModDetail detail, RemoteDownloadOption option);
+    string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option);
+
+    /// <summary>Detail URLs of every mod in this profile that was imported from a remote source
+    /// (from the `remote` block each import records in the mod's Metadata JSON).</summary>
+    Task<HashSet<string>> GetImportedDetailUrlsAsync();
 }
 
 public class RemoteImportService : IRemoteImportService
@@ -65,7 +70,7 @@ public class RemoteImportService : IRemoteImportService
         return _cloudreve.ResolveAsync(option.Url, ct);
     }
 
-    public string StartDownloadImport(RemoteModDetail detail, RemoteDownloadOption option)
+    public string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option)
     {
         if (!string.Equals(option.Type, "cloudreve", StringComparison.OrdinalIgnoreCase))
             throw new OperationException("REMOTE_DOWNLOAD_UNSUPPORTED", "host", option.Name);
@@ -93,7 +98,7 @@ public class RemoteImportService : IRemoteImportService
                     _processRegistry.Report(procId, pct,
                         $"Downloading {FormatBytes(p.BytesReceived)}{(p.TotalBytes.HasValue ? " / " + FormatBytes(p.TotalBytes.Value) : "")}");
                 });
-                await _download.DownloadAsync(
+                var downloaded = await _download.DownloadAsync(
                     new DownloadRequest { Url = resolved.DownloadUrl, DestinationPath = archivePath },
                     progress, ct).ConfigureAwait(false);
 
@@ -102,11 +107,14 @@ public class RemoteImportService : IRemoteImportService
                 var mod = await _import.ImportAsync(archivePath).ConfigureAwait(false)
                           ?? throw new OperationException("REMOTE_IMPORT_FAILED", "reason", "import returned no mod");
 
-                // The archive file name is a hash-ish blob — use the site title as the mod name.
+                // The archive file name is a hash-ish blob — use the site title as the mod name, and
+                // record the remote identity (source, entry, detail URL, content sha256) in Metadata
+                // so the library can flag already-imported entries + dedupe re-downloads.
                 var entity = await _repository.GetByIdAsync(mod.Id).ConfigureAwait(false);
-                if (entity != null && !string.IsNullOrWhiteSpace(detail.Title))
+                if (entity != null)
                 {
-                    entity.Name = detail.Title.Trim();
+                    if (!string.IsNullOrWhiteSpace(detail.Title)) entity.Name = detail.Title.Trim();
+                    entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, detail.DetailUrl, downloaded.Sha256);
                     await _repository.UpdateAsync(entity).ConfigureAwait(false);
                 }
 
@@ -132,6 +140,48 @@ public class RemoteImportService : IRemoteImportService
         });
 
         return procId;
+    }
+
+    public async Task<HashSet<string>> GetImportedDetailUrlsAsync()
+    {
+        var urls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entity in await _repository.GetAllAsync().ConfigureAwait(false))
+        {
+            var url = ReadRemoteDetailUrl(entity.Metadata);
+            if (!string.IsNullOrEmpty(url)) urls.Add(url!);
+        }
+        return urls;
+    }
+
+    /// <summary>Merge the remote-import identity into a Metadata JSON string (other fields preserved).</summary>
+    public static string WriteRemoteMetadata(string? metadata, string sourceId, string detailUrl, string sha256)
+    {
+        JsonObject obj;
+        try
+        {
+            obj = JsonNode.Parse(string.IsNullOrWhiteSpace(metadata) ? "{}" : metadata)
+                as JsonObject ?? new JsonObject();
+        }
+        catch { obj = new JsonObject(); }
+        obj["remote"] = new JsonObject
+        {
+            ["sourceId"] = sourceId,
+            ["detailUrl"] = detailUrl,
+            ["sha256"] = sha256,
+            ["importedAtUtc"] = DateTime.UtcNow.ToString("O"),
+        };
+        return obj.ToJsonString();
+    }
+
+    public static string? ReadRemoteDetailUrl(string? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata)) return null;
+        try
+        {
+            var obj = JsonNode.Parse(metadata) as JsonObject;
+            return obj?["remote"]?["detailUrl"]?.GetValue<string>();
+        }
+        catch { return null; }
     }
 
     /// <summary>Download up to N detail-page images and attach them as previews (best-effort).</summary>

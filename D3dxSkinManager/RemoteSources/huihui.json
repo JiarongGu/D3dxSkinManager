@@ -1,0 +1,30 @@
+{
+  // Built-in adapter for huihui168.org ("Hui站") — patterns verified live 2026-07-05
+  // (see .claude/rules/remote-library.md). Shipped as a SEED: copied into
+  // {data}/remote-sources/ only when no adapter with this id exists there, so user edits
+  // (e.g. baseUrl when the site moves hosts) are never overwritten.
+  "id": "huihui",
+  "name": "Hui站",
+  "baseUrl": "https://huihui168.org",
+  "engine": "http",
+  "lists": [
+    { "id": "2", "name": "绝区零" },
+    { "id": "1", "name": "鸣潮" },
+    { "id": "3", "name": "星穹铁道" },
+    { "id": "4", "name": "终末地" }
+  ],
+  "listUrlFirstPage": "/?list_{list}/",
+  "listUrlTemplate": "/?list_{list}_{page}/",
+  "searchUrlTemplate": "/?keyword={query}",
+  "cardPattern": "<a[^>]+href=\"(?<url>/\\?news_[^\"]+)\"[^>]*>[\\s\\S]{0,600}?<img[^>]+src=\"(?<image>[^\"]+)\"[^>]*alt=\"(?<title>[^\"]*)\"",
+  "totalPagesPattern": "href=\"/\\?list_{list}_(?<pages>\\d+)/\"",
+  "detailTitlePattern": "<h1[^>]*>(?<title>[\\s\\S]*?)</h1>",
+  "detailImagePattern": "<img[^>]+src=\"(?<image>/static/upload/[^\"]+)\"",
+  "downloadLinkPattern": "<a[^>]+href=\"(?<url>https?://[^\"]+)\"",
+  "entryIdPattern": "news_\\d+/(?<id>\\d+)\\.html",
+  "imageDatePattern": "/(?<date>20\\d{6})/",
+  "resolvers": [
+    { "match": "^https?://cloudreve\\.", "type": "cloudreve", "name": "Hui盘" },
+    { "match": "^https?://pan\\.quark\\.cn/", "type": "external", "name": "夸克" }
+  ]
+}

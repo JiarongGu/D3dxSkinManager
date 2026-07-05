@@ -55,3 +55,31 @@ export interface RemoteDownloadImportAck {
   started: boolean;
   processId: string;
 }
+
+export interface RemoteIndexEntry {
+  id: string;
+  title: string;
+  detailUrl: string;
+  imageUrl: string;
+  dateHint?: string;
+  sortKey: number;
+  firstSeenUtc: string;
+  lastSeenUtc: string;
+  /** True when a mod in the current profile was imported from this entry. */
+  imported: boolean;
+}
+
+export interface RemoteIndexInfo {
+  sourceId: string;
+  listId: string;
+  syncedAtUtc?: string;
+  totalPages: number;
+  entryCount: number;
+}
+
+export interface RemoteIndexPage {
+  info: RemoteIndexInfo;
+  entries: RemoteIndexEntry[];
+  /** Entries matching the filter (before paging). */
+  total: number;
+}

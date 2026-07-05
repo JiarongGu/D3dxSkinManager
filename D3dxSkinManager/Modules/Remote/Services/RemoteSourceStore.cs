@@ -7,9 +7,11 @@ using D3dxSkinManager.Modules.Remote.Models;
 namespace D3dxSkinManager.Modules.Remote.Services;
 
 /// <summary>
-/// Loads remote-library site adapters from {data}/remote-sources/*.json and seeds the built-in
-/// huihui adapter on first run. Users (or future UI) add a site by dropping another JSON there —
-/// the directory is re-read on every listing, so no restart/watcher is needed.
+/// Loads remote-library site adapters from {data}/remote-sources/*.json. Shipped adapters live in
+/// {data}/remote-source-seeds/ (csproj Content, like the language files); the SEEDER copies any
+/// shipped adapter whose id isn't configured yet — so new adapters arrive with app updates while
+/// user-edited configs are never overwritten. Users (or future UI) add a site by dropping another
+/// JSON in remote-sources/ — the directory is re-read on every listing, so no restart/watcher.
 /// </summary>
 public interface IRemoteSourceStore
 {
@@ -41,8 +43,13 @@ public class RemoteSourceStore : IRemoteSourceStore
     {
         var dir = _globalPaths.RemoteSourcesDirectory;
         Directory.CreateDirectory(dir);
-        SeedIfEmpty(dir);
+        var sources = LoadDirectory(dir);
+        if (SeedMissing(dir, sources)) sources = LoadDirectory(dir);
+        return sources;
+    }
 
+    private List<RemoteSourceConfig> LoadDirectory(string dir)
+    {
         var sources = new List<RemoteSourceConfig>();
         foreach (var file in Directory.GetFiles(dir, "*.json").OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
         {
@@ -70,53 +77,36 @@ public class RemoteSourceStore : IRemoteSourceStore
         return source ?? throw new OperationException("REMOTE_SOURCE_NOT_FOUND", "id", sourceId);
     }
 
-    /// <summary>Write the built-in adapter(s) when the directory has no configs yet.</summary>
-    private void SeedIfEmpty(string dir)
-    {
-        if (Directory.EnumerateFiles(dir, "*.json").Any()) return;
-
-        try
-        {
-            var path = Path.Combine(dir, "huihui.json");
-            File.WriteAllText(path, JsonSerializer.Serialize(BuildHuihuiSeed(), JsonOptions));
-            _logger.Info("Seeded built-in remote source: huihui", "RemoteSourceStore");
-        }
-        catch (Exception ex)
-        {
-            _logger.Warn($"Failed to seed remote sources: {ex.Message}", "RemoteSourceStore");
-        }
-    }
-
     /// <summary>
-    /// The built-in huihui168.org adapter — patterns verified against the live site 2026-07-05
-    /// (see .claude/rules/remote-library.md). Users can edit the JSON (e.g. baseUrl when the site
-    /// moves hosts) — this seed is only written when NO config exists.
+    /// Copy every SHIPPED adapter ({data}/remote-source-seeds/*.json, ships with the app like the
+    /// language files) whose id has no config yet. Existing configs are never overwritten, so user
+    /// edits (e.g. a changed baseUrl) survive both re-runs and app updates.
     /// </summary>
-    public static RemoteSourceConfig BuildHuihuiSeed() => new()
+    private bool SeedMissing(string dir, List<RemoteSourceConfig> existing)
     {
-        Id = "huihui",
-        Name = "Hui站",
-        BaseUrl = "https://huihui168.org",
-        Engine = "http",
-        Lists =
-        [
-            new RemoteListConfig { Id = "2", Name = "绝区零" },
-            new RemoteListConfig { Id = "1", Name = "鸣潮" },
-            new RemoteListConfig { Id = "3", Name = "星穹铁道" },
-            new RemoteListConfig { Id = "4", Name = "终末地" },
-        ],
-        ListUrlFirstPage = "/?list_{list}/",
-        ListUrlTemplate = "/?list_{list}_{page}/",
-        SearchUrlTemplate = "/?keyword={query}",
-        CardPattern = "<a[^>]+href=\"(?<url>/\\?news_[^\"]+)\"[^>]*>[\\s\\S]{0,600}?<img[^>]+src=\"(?<image>[^\"]+)\"[^>]*alt=\"(?<title>[^\"]*)\"",
-        TotalPagesPattern = "href=\"/\\?list_{list}_(?<pages>\\d+)/\"",
-        DetailTitlePattern = "<h1[^>]*>(?<title>[\\s\\S]*?)</h1>",
-        DetailImagePattern = "<img[^>]+src=\"(?<image>/static/upload/[^\"]+)\"",
-        DownloadLinkPattern = "<a[^>]+href=\"(?<url>https?://[^\"]+)\"",
-        Resolvers =
-        [
-            new RemoteResolverRule { Match = "^https?://cloudreve\\.", Type = "cloudreve", Name = "Hui盘" },
-            new RemoteResolverRule { Match = "^https?://pan\\.quark\\.cn/", Type = "external", Name = "夸克" },
-        ],
-    };
+        var seedsDir = _globalPaths.RemoteSourceSeedsDirectory;
+        if (!Directory.Exists(seedsDir)) return false;
+
+        var known = new HashSet<string>(existing.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+        var seeded = false;
+        foreach (var seedFile in Directory.GetFiles(seedsDir, "*.json"))
+        {
+            try
+            {
+                var config = JsonSerializer.Deserialize<RemoteSourceConfig>(File.ReadAllText(seedFile), JsonOptions);
+                if (config == null || string.IsNullOrWhiteSpace(config.Id) || known.Contains(config.Id)) continue;
+
+                var target = Path.Combine(dir, Path.GetFileName(seedFile));
+                if (File.Exists(target)) continue; // same file name but unparseable/other id — don't clobber
+                File.Copy(seedFile, target);
+                seeded = true;
+                _logger.Info($"Seeded remote source adapter: {config.Id}", "RemoteSourceStore");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"Failed to seed remote source {Path.GetFileName(seedFile)}: {ex.Message}", "RemoteSourceStore");
+            }
+        }
+        return seeded;
+    }
 }

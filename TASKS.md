@@ -192,9 +192,23 @@ see `.claude/rules/remote-library.md` for the grounded site/Cloudreve research +
   others = open in browser), `remoteUiStore` persists browse state across tab switches.
 - **Verified e2e live**: browsed 52 cards, imported 反虚化3.0 (174.6KB via Hui盘, 3 previews,
   named from site title), Activity panel tracked it, test mod deleted after.
+**Stage 3 SHIPPED 2026-07-05 (seeder + synced index):**
+- **Seeder** replaces the hardcoded C# seed: adapters ship as JSON (`D3dxSkinManager/RemoteSources/*.json`
+  → `data/remote-source-seeds/`, like the language files); RemoteSourceStore copies any shipped
+  adapter whose ID isn't configured — user edits never overwritten, new adapters arrive with updates.
+- **Synced local index** per source+list (`{data}/remote-sources/.cache/`): background crawl of all
+  list pages (cancellable ProcessRegistry, 250ms politeness delay, checkpoint saves) → entries keyed
+  by the site's **stable id** (`entryIdPattern`) with **date hint** (`imageDatePattern` — image paths
+  embed upload dates), first/last-seen stamps, site recency order. INDEX_QUERY = instant local
+  filter/search + paging (offline); live browse remains the pre-sync fallback.
+- **Import identity**: each remote import records `{sourceId, detailUrl, sha256}` in the mod's
+  Metadata JSON (sha256 free from DownloadService); index entries flag `imported` → 已导入 badge.
+- Verified e2e live: 终末地 synced (23 pages → 515 entries in ~15s), instant "UI" filter (7 hits,
+  date hints), imported badge round-trip (import → flag true → deleted, library restored).
 **Remaining (later stages):** WebView2-rendered fetch engine for JS-heavy sites (`engine:"webview"`
 seam exists); UI for adding/editing site adapters (today: drop a JSON); more resolver types
-(quark etc. need accounts — shown as open-in-browser); detail-page pagination for search results.
+(quark etc. need accounts — shown as open-in-browser); auto re-sync scheduling + stale-entry
+pruning; sha256-based duplicate detection ACROSS entries (same file shared by multiple posts).
 
 ### 7. App self-update — ✅ SHIPPED (verified in code 2026-07-05)
 `UpdateService`: GitHub latest-release check (version + release notes + manifest file-diff) →

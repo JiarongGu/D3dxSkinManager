@@ -56,20 +56,31 @@ Non-zero `code` in a 200 body = error (`40081` aggregate, per-uri codes inside);
 ```
 Modules/Remote/
   Models/            RemoteSourceConfig (the JSON adapter), RemoteModCard, RemoteModDetail,
-                     RemoteDownloadOption, RemoteResolveResult
+                     RemoteDownloadOption, RemoteResolveResult, RemoteIndexEntry/Info/Cache/Page
   Services/
-    RemoteSourceStore     — loads {data}/remote-sources/*.json (IGlobalPathService), seeds huihui
-                            config on first run; user can drop new JSONs (or future UI)
-    IRemotePageFetcher    — GetStringAsync(url) seam; HttpPageFetcher (via IDownloadService) is v1;
-                            a WebView2PageFetcher can be added for JS-rendered sites (config `engine`)
+    RemoteSourceStore     — loads {data}/remote-sources/*.json; SEEDER copies shipped adapters
+                            ({data}/remote-source-seeds/, csproj Content from
+                            D3dxSkinManager/RemoteSources/*.json) whose id isn't configured yet —
+                            user edits never overwritten; drop a JSON to add a site
+    IRemotePageFetcher    — GetStringAsync/PostJsonAsync seam; HttpPageFetcher (via IDownloadService)
+                            is v1; a WebView2PageFetcher can back JS-rendered sites (config `engine`)
     RemoteBrowseService   — list/search/detail: fetch page → run the config's regex extraction →
                             DTOs (absolute URLs)
     CloudreveShareResolver— the 3-step API dance above (config resolver type "cloudreve")
+    RemoteIndexService    — SYNCED LOCAL INDEX per source+list ({data}/remote-sources/.cache/):
+                            background crawl of all pages (cancellable registry entry, 250ms delay,
+                            checkpoint saves); entries keyed by the site's stable id
+                            (config `entryIdPattern`), date hint from `imageDatePattern`,
+                            first/last-seen, site recency order; Query = instant local
+                            filter/search/paging
     RemoteImportService   — fire-and-forget download+import: ProcessRegistry entry → resolve →
                             IDownloadService.DownloadAsync into {profile}/temp → ModImportService
-                            .ImportAsync → rename to detail title + import preview images → events
+                            .ImportAsync → site title as name + previews + records
+                            `remote:{sourceId, detailUrl, sha256, importedAtUtc}` in ModEntity
+                            .Metadata (→ the index's `imported` flag / 已导入 badge)
   RemoteFacade         — GET_SOURCES / BROWSE / SEARCH / GET_DETAIL / RESOLVE_DOWNLOAD /
-                          DOWNLOAD_IMPORT (immediate ack; progress via Activity panel)
+                          DOWNLOAD_IMPORT / INDEX_QUERY / INDEX_SYNC (long ops ack immediately;
+                          progress via Activity panel)
 ```
 
 Rules that bind here: `download-service.md` (ALL HTTP through `IDownloadService` — it grew

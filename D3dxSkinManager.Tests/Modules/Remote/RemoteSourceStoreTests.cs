@@ -11,52 +11,80 @@ using D3dxSkinManager.Modules.Remote.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Remote;
 
-/// <summary>Seed + load behaviour of the remote source adapter store (temp dir; no real data).</summary>
+/// <summary>
+/// Seeder + load behaviour of the remote source adapter store: shipped adapters
+/// ({data}/remote-source-seeds) are copied in only when their id has no config yet, so user edits
+/// are never overwritten. Temp dirs; no real data.
+/// </summary>
 public class RemoteSourceStoreTests : IDisposable
 {
     private readonly string _dir;
+    private readonly string _seedsDir;
     private readonly RemoteSourceStore _store;
 
     public RemoteSourceStoreTests()
     {
-        _dir = Path.Combine(Path.GetTempPath(), "d3dx-remote-test-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(Path.GetTempPath(), "d3dx-remote-test-" + Guid.NewGuid().ToString("N"));
+        _dir = Path.Combine(root, "remote-sources");
+        _seedsDir = Path.Combine(root, "remote-source-seeds");
+        Directory.CreateDirectory(_dir);
+        Directory.CreateDirectory(_seedsDir);
         var paths = new Mock<IGlobalPathService>();
         paths.Setup(p => p.RemoteSourcesDirectory).Returns(_dir);
+        paths.Setup(p => p.RemoteSourceSeedsDirectory).Returns(_seedsDir);
         _store = new RemoteSourceStore(paths.Object, Mock.Of<ILogHelper>());
     }
 
     public void Dispose()
     {
-        try { if (Directory.Exists(_dir)) Directory.Delete(_dir, true); } catch { }
+        try { Directory.Delete(Path.GetDirectoryName(_dir)!, true); } catch { }
     }
 
+    private void WriteSeed(string fileName, string id) =>
+        File.WriteAllText(Path.Combine(_seedsDir, fileName),
+            $$"""{"id":"{{id}}","name":"Seed {{id}}","baseUrl":"https://seed.example"}""");
+
     [Fact]
-    public void GetAll_SeedsTheBuiltInAdapter_OnFirstRun()
+    public void GetAll_CopiesShippedSeeds_WhenTheirIdIsNotConfigured()
     {
+        WriteSeed("huihui.json", "huihui");
+
         var sources = _store.GetAll();
 
         sources.Should().ContainSingle().Which.Id.Should().Be("huihui");
         File.Exists(Path.Combine(_dir, "huihui.json")).Should().BeTrue();
-        sources[0].Resolvers.Should().Contain(r => r.Type == "cloudreve");
     }
 
     [Fact]
-    public void GetAll_DoesNotReseed_WhenAConfigExists()
+    public void GetAll_NeverOverwritesAnExistingConfigWithTheSameId()
     {
-        Directory.CreateDirectory(_dir);
-        File.WriteAllText(Path.Combine(_dir, "custom.json"),
-            """{"id":"custom","name":"Custom","baseUrl":"https://example.com","lists":[]}""");
+        WriteSeed("huihui.json", "huihui");
+        // The user edited their copy (different baseUrl) — the seed must NOT clobber it.
+        File.WriteAllText(Path.Combine(_dir, "mine.json"),
+            """{"id":"huihui","name":"Edited","baseUrl":"https://my-mirror.example"}""");
 
         var sources = _store.GetAll();
 
-        sources.Should().ContainSingle().Which.Id.Should().Be("custom");
-        File.Exists(Path.Combine(_dir, "huihui.json")).Should().BeFalse("seeding only happens into an empty dir");
+        sources.Should().ContainSingle().Which.BaseUrl.Should().Be("https://my-mirror.example");
+        File.Exists(Path.Combine(_dir, "huihui.json")).Should().BeFalse("the id is already configured");
+    }
+
+    [Fact]
+    public void GetAll_AddsNewShippedAdapters_NextToExistingConfigs()
+    {
+        // App update ships a second adapter — it appears without touching the first.
+        File.WriteAllText(Path.Combine(_dir, "huihui.json"),
+            """{"id":"huihui","name":"Existing","baseUrl":"https://existing.example"}""");
+        WriteSeed("newsite.json", "newsite");
+
+        var sources = _store.GetAll();
+
+        sources.Select(s => s.Id).Should().BeEquivalentTo("huihui", "newsite");
     }
 
     [Fact]
     public void GetAll_SkipsMalformedConfigs()
     {
-        Directory.CreateDirectory(_dir);
         File.WriteAllText(Path.Combine(_dir, "bad.json"), "{not json");
         File.WriteAllText(Path.Combine(_dir, "ok.json"),
             """{"id":"ok","name":"OK","baseUrl":"https://example.com"}""");
@@ -69,5 +97,16 @@ public class RemoteSourceStoreTests : IDisposable
     {
         var act = () => _store.GetById("nope");
         act.Should().Throw<OperationException>().Which.Code.Should().Be("REMOTE_SOURCE_NOT_FOUND");
+    }
+
+    [Fact]
+    public void ShippedHuihuiSeed_Deserializes_WithIndexPatterns()
+    {
+        // Sanity over the REAL shipped file (copied to test output via csproj Content).
+        var seed = RemoteBrowseServiceTests.LoadHuihuiSeed();
+        seed.Id.Should().Be("huihui");
+        seed.EntryIdPattern.Should().NotBeNullOrEmpty();
+        seed.ImageDatePattern.Should().NotBeNullOrEmpty();
+        seed.Resolvers.Should().Contain(r => r.Type == "cloudreve");
     }
 }

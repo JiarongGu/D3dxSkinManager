@@ -28,6 +28,10 @@ public interface IGlobalPathService
     /// Global: a site serves multiple games; the list/game choice happens in the UI.</summary>
     string RemoteSourcesDirectory { get; }
 
+    /// <summary>SHIPPED remote-source adapters ({data}/remote-source-seeds — csproj Content).
+    /// Read-only seed source; RemoteSourceStore copies missing adapters into RemoteSourcesDirectory.</summary>
+    string RemoteSourceSeedsDirectory { get; }
+
     void EnsureDirectoriesExist();
     string GetProfileDirectoryPath(string profileId);
     string GetProfileConfigPath(string profileId);
@@ -69,6 +73,9 @@ public class GlobalPathService : IGlobalPathService
     public string FixToolsDirectory => Path.Combine(BaseDataPath, "fixtools");
 
     public string RemoteSourcesDirectory => Path.Combine(BaseDataPath, "remote-sources");
+
+    // Shipped seeds — created by the build (csproj Content), not by EnsureDirectoriesExist.
+    public string RemoteSourceSeedsDirectory => Path.Combine(BaseDataPath, "remote-source-seeds");
 
     /// <summary>
     /// Ensure all standard global directories exist

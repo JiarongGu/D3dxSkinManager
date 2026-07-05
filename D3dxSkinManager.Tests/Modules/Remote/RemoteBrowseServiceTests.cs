@@ -37,9 +37,22 @@ public class RemoteBrowseServiceTests
             throw new NotSupportedException();
     }
 
+    /// <summary>The SHIPPED huihui adapter (csproj Content → test output) — tests run the real seed's regexes.</summary>
+    internal static RemoteSourceConfig LoadHuihuiSeed()
+    {
+        var path = System.IO.Path.Combine(AppContext.BaseDirectory, "data", "remote-source-seeds", "huihui.json");
+        var options = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+        return System.Text.Json.JsonSerializer.Deserialize<RemoteSourceConfig>(System.IO.File.ReadAllText(path), options)!;
+    }
+
     private readonly FakeFetcher _fetcher = new();
     private readonly RemoteBrowseService _service;
-    private readonly RemoteSourceConfig _config = RemoteSourceStore.BuildHuihuiSeed();
+    private readonly RemoteSourceConfig _config = LoadHuihuiSeed();
 
     public RemoteBrowseServiceTests()
     {

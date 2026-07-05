@@ -81,7 +81,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   const handleConfirmImport = async () => {
     if (!selectedProfileId || !detail || !confirmState) return;
     try {
-      await api.remote.downloadImport(selectedProfileId, detail, confirmState.option);
+      await api.remote.downloadImport(selectedProfileId, sourceId, detail, confirmState.option);
       notification.info(t('remote.importStarted', { name: detail.title || fallbackTitle }));
     } catch (error: unknown) {
       handleError(error);

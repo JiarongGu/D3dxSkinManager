@@ -49,6 +49,14 @@ public class RemoteSourceConfig
 
     /// <summary>Maps download URLs to resolver behaviour, first match wins.</summary>
     public List<RemoteResolverRule> Resolvers { get; set; } = new();
+
+    /// <summary>Optional regex extracting a STABLE per-mod id from the detail URL (named group: id).
+    /// Null = the absolute detail URL is the id. The id keys the synced index + import identity.</summary>
+    public string? EntryIdPattern { get; set; }
+
+    /// <summary>Optional regex extracting a date hint (yyyyMMdd, named group: date) from the card
+    /// image URL — many sites embed the upload date in the image path.</summary>
+    public string? ImageDatePattern { get; set; }
 }
 
 public class RemoteListConfig
@@ -124,4 +132,53 @@ public class RemoteResolveResult
     public string FileName { get; set; } = string.Empty;
     public long Size { get; set; }
     public string DownloadUrl { get; set; } = string.Empty;
+}
+
+// ---- Synced index (local cache of a source list) -------------------------------------------------
+
+/// <summary>One mod in the synced index — keyed by the site's stable entry id.</summary>
+public class RemoteIndexEntry
+{
+    public string Id { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string DetailUrl { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+
+    /// <summary>Date hint (yyyy-MM-dd) derived from the image path, when the adapter can extract one.</summary>
+    public string? DateHint { get; set; }
+
+    /// <summary>Site order at the last sync (page*10000 + position) — ascending = the site's own recency order.</summary>
+    public long SortKey { get; set; }
+
+    public DateTime FirstSeenUtc { get; set; }
+    public DateTime LastSeenUtc { get; set; }
+
+    /// <summary>Set at query time: a mod in the current profile was imported from this entry. Not persisted meaningfully.</summary>
+    public bool Imported { get; set; }
+}
+
+/// <summary>Metadata about a synced index (per source+list cache file).</summary>
+public class RemoteIndexInfo
+{
+    public string SourceId { get; set; } = string.Empty;
+    public string ListId { get; set; } = string.Empty;
+    public DateTime? SyncedAtUtc { get; set; }
+    public int TotalPages { get; set; }
+    public int EntryCount { get; set; }
+}
+
+/// <summary>The persisted cache file shape.</summary>
+public class RemoteIndexCache
+{
+    public RemoteIndexInfo Info { get; set; } = new();
+    public List<RemoteIndexEntry> Entries { get; set; } = new();
+}
+
+/// <summary>A filtered/paged slice of the index for the UI.</summary>
+public class RemoteIndexPage
+{
+    public RemoteIndexInfo Info { get; set; } = new();
+    public List<RemoteIndexEntry> Entries { get; set; } = new();
+    /// <summary>Total entries matching the filter (before paging).</summary>
+    public int Total { get; set; }
 }
