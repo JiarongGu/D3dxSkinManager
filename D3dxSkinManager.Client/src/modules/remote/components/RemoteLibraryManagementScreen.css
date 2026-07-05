@@ -203,8 +203,14 @@
 }
 
 .remote-lib-mgmt__rule-tags {
-  flex: 2 1 200px;
+  flex: 2 1 160px;
   min-width: 0;
+}
+
+.remote-lib-mgmt__rule-pattern {
+  flex: 1 1 130px;
+  min-width: 0;
+  font-family: 'Consolas', 'Menlo', monospace;
 }
 
 .remote-lib-mgmt__rule-category {

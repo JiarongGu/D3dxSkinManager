@@ -211,12 +211,16 @@ public class RemoteIndexPage
 
 // ---- Redesigned library model (remote-library-redesign.md) --------------------------------------
 
-/// <summary>One ordered import rule: if the mod carries ALL of <see cref="Tags"/>, it imports into
-/// <see cref="CategoryId"/>. Rules are evaluated in order; first match wins, else uncategorized.</summary>
+/// <summary>One ordered import rule. A mod matches when it carries ALL of <see cref="Tags"/> (if any
+/// are set) AND its title matches <see cref="TitlePattern"/> (if set) — at least one criterion must be
+/// set. Rules are evaluated in order; first match wins, else uncategorized. Title regex is the lever
+/// for sites with no tag taxonomy (huihui has none — verified 2026-07-06).</summary>
 public class RemoteTagRule
 {
     public string Name { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = new();
+    /// <summary>Optional case-insensitive regex matched against the mod title.</summary>
+    public string? TitlePattern { get; set; }
     public string CategoryId { get; set; } = string.Empty;
 }
 

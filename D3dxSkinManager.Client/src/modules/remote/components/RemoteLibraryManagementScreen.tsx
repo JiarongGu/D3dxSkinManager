@@ -217,6 +217,13 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                 options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
                 onChange={(tags) => setRule(i, { tags })}
               />
+              <CompactInput
+                className="remote-lib-mgmt__rule-pattern"
+                value={rule.titlePattern ?? ''}
+                placeholder={t('remote.ruleTitlePattern')}
+                spellCheck={false}
+                onChange={(e) => setRule(i, { titlePattern: e.target.value || undefined })}
+              />
               <CategorySelect
                 className="remote-lib-mgmt__rule-category"
                 categories={categories}

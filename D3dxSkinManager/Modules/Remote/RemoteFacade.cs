@@ -161,9 +161,10 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
         var entryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "entryId");
         var tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags");
+        var categoryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "categoryId");
         var detail = _payloadHelper.GetRequiredValue<RemoteModDetail>(request.Payload, "detail");
         var option = _payloadHelper.GetRequiredValue<RemoteDownloadOption>(request.Payload, "option");
-        var processId = _import.StartDownloadImport(sourceId, listId, entryId, tags, detail, option);
+        var processId = _import.StartDownloadImport(sourceId, listId, entryId, tags, detail, option, categoryId);
         return new { started = true, processId };
     }
 

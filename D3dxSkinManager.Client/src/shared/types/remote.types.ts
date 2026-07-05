@@ -127,10 +127,13 @@ export interface RemoteSourceTestResult {
   detailImageCount: number;
 }
 
-/** One ordered import rule: a mod carrying ALL of `tags` imports into `categoryId`. */
+/** One ordered import rule: matches when ALL `tags` are carried (if any) AND `titlePattern` matches
+ * the title (if set) — at least one criterion required. Title regex covers tagless sites (huihui). */
 export interface RemoteTagRule {
   name: string;
   tags: string[];
+  /** Optional case-insensitive regex against the mod title. */
+  titlePattern?: string;
   categoryId: string;
 }
 

@@ -11,6 +11,10 @@ import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 import { CompactButton } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import { KeyValueRows } from '../../../shared/components/common/KeyValueRows';
+import { ImageGallery } from '../../../shared/components/common/ImageGallery';
+import { PillLabel } from '../../../shared/components/common/PillLabel';
+import { CategorySelect } from '../../../shared/components/CategorySelect';
+import type { CategoryInfo } from '../../../shared/types/category.types';
 import type {
   RemoteDownloadOption,
   RemoteModDetail,
@@ -30,10 +34,10 @@ interface RemoteModDetailScreenProps {
 }
 
 /**
- * Slide-in detail for one remote mod — LEFT/RIGHT split (remote-library-redesign.md): review
- * (gallery + tags) on the left, actions (open page + download options — sites can have MANY) on the
- * right. Importable options (cloudreve/direct) confirm with the real file name/size then start the
- * background download+import; external hosts open in the system browser.
+ * Slide-in detail for one remote mod — LEFT review (ImageGallery + tags) / RIGHT actions (open page +
+ * download options). Importable options (cloudreve/direct) confirm with the real file name/size AND a
+ * download-time category picker (overrides the library's tag rules), then start the background
+ * download+import; external hosts open in the system browser.
  */
 export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   sourceId,
@@ -48,9 +52,11 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
 
   const [detail, setDetail] = useState<RemoteModDetail>();
   const [loading, setLoading] = useState(true);
-  const [activeImage, setActiveImage] = useState(0);
   const [resolving, setResolving] = useState<string>();
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
+  const [categories, setCategories] = useState<CategoryInfo[]>([]);
+  // Download-time category choice (undefined = follow the library's tag rules).
+  const [importCategory, setImportCategory] = useState<string>();
   const [confirmState, setConfirmState] = useState<{
     option: RemoteDownloadOption;
     resolved: RemoteResolveResult;
@@ -61,8 +67,12 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
     void (async () => {
       try {
         setLoading(true);
-        const loaded = await api.remote.getDetail(selectedProfileId, sourceId, detailUrl);
+        const [loaded, cats] = await Promise.all([
+          api.remote.getDetail(selectedProfileId, sourceId, detailUrl),
+          api.category.getCategoryTree(selectedProfileId).catch(() => [] as CategoryInfo[]),
+        ]);
         setDetail(loaded);
+        setCategories(cats);
         // Cache the gallery images per profile (fire-and-forget; falls back to remote URLs).
         void api.remote.resolveImages(selectedProfileId, loaded.images)
           .then(setImageMap).catch(() => undefined);
@@ -106,6 +116,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
         listId,
         entryId,
         tags: allTags,
+        categoryId: importCategory,
       });
       notification.info(t('remote.importStarted', { name: detail.title || fallbackTitle }));
     } catch (error: unknown) {
@@ -127,44 +138,20 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
 
   return (
     <div className="remote-detail">
-      {/* LEFT: review — gallery + tags (title comes from the slide-in header). */}
+      {/* LEFT: review — tags + gallery (title comes from the slide-in header). */}
       <div className="remote-detail__review">
         {allTags.length > 0 && (
           <div className="remote-detail__tags">
             {allTags.map((tag) => (
-              <span key={tag} className="remote-detail__tag">{tag}</span>
+              <PillLabel key={tag} label={tag} title={tag} />
             ))}
           </div>
         )}
-        {detail.images.length > 0 && (
-          <div className="remote-detail__gallery">
-            <div className="remote-detail__main-image-wrap">
-              <img
-                className="remote-detail__main-image"
-                src={(() => { const u = detail.images[Math.min(activeImage, detail.images.length - 1)]; return imageMap[u] ? toAppUrl(imageMap[u]) : u; })()}
-                alt={detail.title}
-              />
-            </div>
-            {detail.images.length > 1 && (
-              <div className="remote-detail__thumbs">
-                {detail.images.map((image, index) => (
-                  <img
-                    key={image}
-                    src={imageMap[image] ? toAppUrl(imageMap[image]) : image}
-                    alt=""
-                    loading="lazy"
-                    className={
-                      index === activeImage
-                        ? 'remote-detail__thumb remote-detail__thumb--active'
-                        : 'remote-detail__thumb'
-                    }
-                    onClick={() => setActiveImage(index)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <ImageGallery
+          images={detail.images}
+          resolveSrc={(u) => (imageMap[u] ? toAppUrl(imageMap[u]) ?? u : u)}
+          alt={detail.title}
+        />
         {detail.images.length === 0 && (
           <div className="remote-detail__no-images">{t('remote.noImages')}</div>
         )}
@@ -204,16 +191,28 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
         onCancel={() => setConfirmState(undefined)}
         content={
           confirmState && (
-            <KeyValueRows
-              boxed
-              rows={[
-                { label: t('remote.confirmMod'), value: detail.title || fallbackTitle || '' },
-                { label: t('remote.confirmFile'), value: confirmState.resolved.fileName },
-                { label: t('remote.confirmSize'), value: formatBytes(confirmState.resolved.size) },
-                { label: t('remote.confirmHost'), value: confirmState.option.name },
-              ]}
-              hint={t('remote.confirmHint')}
-            />
+            <div className="remote-detail__confirm">
+              <KeyValueRows
+                boxed
+                rows={[
+                  { label: t('remote.confirmMod'), value: detail.title || fallbackTitle || '' },
+                  { label: t('remote.confirmFile'), value: confirmState.resolved.fileName },
+                  { label: t('remote.confirmSize'), value: formatBytes(confirmState.resolved.size) },
+                  { label: t('remote.confirmHost'), value: confirmState.option.name },
+                ]}
+                hint={t('remote.confirmHint')}
+              />
+              <div className="remote-detail__confirm-category">
+                <span className="remote-detail__confirm-category-label">{t('remote.confirmCategory')}</span>
+                <CategorySelect
+                  categories={categories}
+                  value={importCategory}
+                  placeholder={t('remote.confirmCategoryByRules')}
+                  onChange={setImportCategory}
+                  size="small"
+                />
+              </div>
+            </div>
           )
         }
       />

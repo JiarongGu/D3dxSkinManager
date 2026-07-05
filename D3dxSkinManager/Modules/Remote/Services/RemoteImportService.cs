@@ -23,9 +23,10 @@ public interface IRemoteImportService
 
     /// <summary>Start the background download+import. Returns the process id immediately.
     /// <paramref name="listId"/>/<paramref name="entryId"/> record the STANDARDIZED remote identity;
-    /// <paramref name="tags"/> feed the library's ordered tag→category rules.</summary>
+    /// <paramref name="tags"/> feed the library's ordered tag→category rules; a non-null
+    /// <paramref name="categoryId"/> is the user's explicit download-time choice and OVERRIDES the rules.</summary>
     string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
-        RemoteModDetail detail, RemoteDownloadOption option);
+        RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null);
 
     /// <summary>Identity keys ("sourceId|listId|entryId") + legacy detail URLs of every mod imported
     /// from a remote source — cached (rebuilt on TTL/import) so INDEX_QUERY doesn't rescan all mods.</summary>
@@ -112,7 +113,7 @@ public class RemoteImportService : IRemoteImportService
         string.Equals(type, "direct", StringComparison.OrdinalIgnoreCase);
 
     public string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
-        RemoteModDetail detail, RemoteDownloadOption option)
+        RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null)
     {
         if (!IsImportable(option.Type))
             throw new OperationException("REMOTE_DOWNLOAD_UNSUPPORTED", "host", option.Name);
@@ -156,11 +157,14 @@ public class RemoteImportService : IRemoteImportService
                 if (entity != null)
                 {
                     if (!string.IsNullOrWhiteSpace(detail.Title)) entity.Name = detail.Title.Trim();
-                    // Local category from the library's ORDERED tag rules — first rule whose tags all
-                    // match wins; no match = uncategorized (remote-library-redesign.md).
+                    // Local category: the user's download-time choice wins; otherwise the library's
+                    // ORDERED rules (tags all-match + optional title regex; first match wins; no
+                    // match = uncategorized) — remote-library-redesign.md.
                     var allTags = (tags ?? new List<string>()).Concat(detail.Tags)
                         .Where(t => !string.IsNullOrWhiteSpace(t)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                    var category = ResolveCategory(sourceId, listId, allTags);
+                    var category = !string.IsNullOrWhiteSpace(categoryId)
+                        ? categoryId
+                        : ResolveCategory(sourceId, listId, allTags, detail.Title);
                     if (!string.IsNullOrWhiteSpace(category)) entity.Category = category;
                     entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, listId, entryId, detail.DetailUrl, downloaded.Sha256);
                     await _repository.UpdateAsync(entity).ConfigureAwait(false);
@@ -191,23 +195,43 @@ public class RemoteImportService : IRemoteImportService
         return procId;
     }
 
-    /// <summary>First tag rule (in order) whose tags ALL match wins; no library / no match = null.</summary>
-    private string? ResolveCategory(string sourceId, string? listId, List<string> tags)
+    /// <summary>First matching rule (in order) wins; no library / no match = null.</summary>
+    private string? ResolveCategory(string sourceId, string? listId, List<string> tags, string title)
     {
         if (string.IsNullOrWhiteSpace(listId)) return null;
         var library = _libraries.FindBySourceList(sourceId, listId);
-        return library == null ? null : MatchTagRules(library.TagRules, tags);
+        return library == null ? null : MatchTagRules(library.TagRules, tags, title);
     }
 
-    /// <summary>The ORDERED tag-rule evaluation (remote-library-redesign.md): first rule whose tags
-    /// ALL match (case-insensitive) wins; empty/invalid rules skipped; no match = null (uncategorized).</summary>
-    public static string? MatchTagRules(IEnumerable<RemoteTagRule> rules, IReadOnlyCollection<string> tags)
+    /// <summary>The ORDERED rule evaluation (remote-library-redesign.md): a rule matches when its tags
+    /// ALL match (case-insensitive, when any are set) AND its title regex matches (when set) — at
+    /// least one criterion required. First match wins; no match = null (uncategorized). Title regex is
+    /// the lever for tagless sites (huihui has no tag taxonomy).</summary>
+    public static string? MatchTagRules(IEnumerable<RemoteTagRule> rules, IReadOnlyCollection<string> tags, string? title = null)
     {
         foreach (var rule in rules)
         {
-            if (rule.Tags.Count == 0 || string.IsNullOrWhiteSpace(rule.CategoryId)) continue;
-            if (rule.Tags.All(rt => tags.Contains(rt, StringComparer.OrdinalIgnoreCase)))
-                return rule.CategoryId;
+            if (string.IsNullOrWhiteSpace(rule.CategoryId)) continue;
+            var hasTags = rule.Tags.Count > 0;
+            var hasPattern = !string.IsNullOrWhiteSpace(rule.TitlePattern);
+            if (!hasTags && !hasPattern) continue; // criterionless rule — never matches
+
+            if (hasTags && !rule.Tags.All(rt => tags.Contains(rt, StringComparer.OrdinalIgnoreCase)))
+                continue;
+            if (hasPattern)
+            {
+                try
+                {
+                    if (!global::System.Text.RegularExpressions.Regex.IsMatch(
+                            title ?? string.Empty, rule.TitlePattern!,
+                            global::System.Text.RegularExpressions.RegexOptions.IgnoreCase |
+                            global::System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                            TimeSpan.FromSeconds(1)))
+                        continue;
+                }
+                catch { continue; } // bad user regex / timeout — the rule just doesn't match
+            }
+            return rule.CategoryId;
         }
         return null;
     }

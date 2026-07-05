@@ -112,4 +112,24 @@ public class RemoteLibraryStoreTests : IDisposable
         RemoteImportService.MatchTagRules(rules, new[] { "UI" }).Should().BeNull("no match = uncategorized");
         RemoteImportService.MatchTagRules(new List<RemoteTagRule>(), new[] { "Skins" }).Should().BeNull();
     }
+
+    [Fact]
+    public void MatchTagRules_TitleRegex_AloneOrCombinedWithTags_BadRegexSkipped()
+    {
+        var rules = new List<RemoteTagRule>
+        {
+            // Title-only rule — the lever for tagless sites (huihui has no tag taxonomy).
+            new() { Name = "vivian by title", TitlePattern = "薇薇安|vivian", CategoryId = "vivian" },
+            // Tags AND title must both match.
+            new() { Name = "skin+jane", Tags = new() { "Skins" }, TitlePattern = "jane", CategoryId = "jane" },
+            // Broken regex — rule silently never matches.
+            new() { Name = "broken", TitlePattern = "[unclosed", CategoryId = "never" },
+        };
+
+        RemoteImportService.MatchTagRules(rules, Array.Empty<string>(), "薇薇安-吸血鬼").Should().Be("vivian");
+        RemoteImportService.MatchTagRules(rules, Array.Empty<string>(), "Vivian Vampire").Should().Be("vivian", "case-insensitive");
+        RemoteImportService.MatchTagRules(rules, new[] { "Skins" }, "Jane Doe Swimsuit").Should().Be("jane");
+        RemoteImportService.MatchTagRules(rules, Array.Empty<string>(), "Jane Doe").Should().BeNull("tag criterion unmet");
+        RemoteImportService.MatchTagRules(rules, new[] { "Skins" }, "Ellen").Should().BeNull("bad regex never matches");
+    }
 }

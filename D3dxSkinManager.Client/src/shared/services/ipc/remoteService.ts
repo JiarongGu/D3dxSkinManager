@@ -48,17 +48,19 @@ export class RemoteService extends BaseModuleService {
   }
 
   /** Immediate ack — the download+import runs in the background (Activity panel).
-   * listId/entryId record the durable remote identity; tags feed the library's tag→category rules. */
+   * listId/entryId record the durable remote identity; tags feed the library's tag→category rules;
+   * categoryId is the user's download-time choice and overrides the rules. */
   async downloadImport(
     profileId: string,
     sourceId: string,
     detail: RemoteModDetail,
     option: RemoteDownloadOption,
-    context?: { listId?: string; entryId?: string; tags?: string[] },
+    context?: { listId?: string; entryId?: string; tags?: string[]; categoryId?: string },
   ): Promise<RemoteDownloadImportAck> {
     return this.sendMessage<RemoteDownloadImportAck>('DOWNLOAD_IMPORT', profileId, {
       sourceId, detail, option,
       listId: context?.listId, entryId: context?.entryId, tags: context?.tags,
+      categoryId: context?.categoryId,
     });
   }
 

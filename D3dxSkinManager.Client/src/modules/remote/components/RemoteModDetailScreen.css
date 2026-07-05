@@ -23,69 +23,36 @@
   gap: 10px;
 }
 
+/* Tags row (PillLabel atoms); the gallery itself is the shared ImageGallery L2 component. */
 .remote-detail__tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.remote-detail__tag {
+/* Download confirm: identity rows + the download-time category override. */
+.remote-detail__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.remote-detail__confirm-category {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remote-detail__confirm-category-label {
   font-size: 12px;
-  padding: 1px 8px;
-  border-radius: 10px;
-  background: var(--color-primary-bg, rgba(22, 119, 255, 0.12));
-  color: var(--color-primary);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
-.remote-detail__gallery {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-}
-
-/* FIXED-height stage — the main image letterboxes inside it, so switching between images of
-   different sizes never moves the thumbnail strip (the selection used to jump around). */
-.remote-detail__main-image-wrap {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: min(56vh, 620px);
-  background: var(--color-bg-layout);
-  border: 1px solid var(--color-border-secondary);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.remote-detail__main-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-/* Single horizontal strip (scrolls when many) — constant height keeps the gallery stable. */
-.remote-detail__thumbs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.remote-detail__thumb {
-  flex: 0 0 72px;
-  width: 72px;
-  height: 72px;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  background: var(--color-bg-layout);
-}
-
-.remote-detail__thumb--active {
-  border-color: var(--color-primary);
+.remote-detail__confirm-category .category-select,
+.remote-detail__confirm-category .ant-select {
+  flex: 1;
+  min-width: 0;
 }
 
 .remote-detail__no-images {
