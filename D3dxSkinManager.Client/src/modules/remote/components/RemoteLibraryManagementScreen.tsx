@@ -8,6 +8,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
@@ -126,6 +127,18 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
       await api.remote.libraryUpdate(selectedProfileId, editing);
       setEditing(undefined);
       await notifyChanged();
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  };
+
+  /** Full reindex (re-crawl every page + prune removed entries) — the heavy sync lives HERE, not
+   * in the browse toolbar; the toolbar only offers the cheap incremental update. */
+  const fullReindex = async (library: RemoteLibrary) => {
+    if (!selectedProfileId) return;
+    try {
+      const ack = await api.remote.indexSync(selectedProfileId, library.sourceId, library.listId, true);
+      notification.info(t(ack.started ? 'remote.syncStarted' : 'remote.syncRunningOrDone'));
     } catch (error: unknown) {
       handleError(error);
     }
@@ -274,6 +287,14 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
               {detail && <span className="remote-lib-mgmt__row-detail">{detail}</span>}
             </div>
             {isActive && <StatusTag tone="success" label={t('remote.activeLibrary')} />}
+            <CompactIconButton
+              icon={<ReloadOutlined />}
+              title={t('remote.fullReindexHint')}
+              onClick={(e) => {
+                e.stopPropagation();
+                void fullReindex(library);
+              }}
+            />
             <CompactIconButton
               icon={<EditOutlined />}
               title={t('common.edit')}

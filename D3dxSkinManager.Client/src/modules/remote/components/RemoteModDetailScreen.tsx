@@ -67,7 +67,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
       try {
         setLoading(true);
         const [loaded, cats] = await Promise.all([
-          api.remote.getDetail(selectedProfileId, sourceId, detailUrl),
+          api.remote.getDetail(selectedProfileId, sourceId, detailUrl, listId),
           api.category.getCategoryTree(selectedProfileId).catch(() => [] as CategoryInfo[]),
         ]);
         setDetail(loaded);

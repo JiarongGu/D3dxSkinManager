@@ -68,6 +68,7 @@
     "remote.sitesHint": "Shipped site configs are read-only defaults; add a custom site for anything else.",
     "remote.actionsTitle": "Downloads",
     "remote.noImages": "No preview images",
+    "remote.syncing": "Syncing library… {{percent}}% — you can keep browsing while it fills",
     "remote.update": "Update",
     "remote.updateHint": "Fetch only what's new since the last sync (stops at the first already-seen page)",
     "remote.fullReindex": "Full reindex",

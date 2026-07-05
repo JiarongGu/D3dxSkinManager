@@ -138,11 +138,21 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         return SearchAsync(sourceId, query, listId);
     }
 
-    private Task<RemoteModDetail> GetDetailAsync(IpcRequest request)
+    private async Task<RemoteModDetail> GetDetailAsync(IpcRequest request)
     {
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         var detailUrl = _payloadHelper.GetRequiredValue<string>(request.Payload, "url");
-        return GetDetailAsync(sourceId, detailUrl);
+        var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
+        var detail = await GetDetailAsync(sourceId, detailUrl).ConfigureAwait(false);
+
+        // Detail pages can reveal tags the list feed doesn't carry (GameBanana's sub category) —
+        // merge them into the index entry so the tag filter learns them over time. Flat tags, no
+        // hierarchy; fire-and-forget so the detail view never waits on the index write.
+        if (!string.IsNullOrWhiteSpace(listId) && detail.Tags.Count > 0)
+        {
+            _ = Task.Run(() => _index.MergeEntryTagsByUrlAsync(sourceId, listId!, detail.DetailUrl, detail.Tags));
+        }
+        return detail;
     }
 
     private Task<RemoteResolveResult> ResolveDownloadAsync(IpcRequest request)

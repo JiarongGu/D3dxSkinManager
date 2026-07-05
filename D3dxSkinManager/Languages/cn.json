@@ -68,6 +68,7 @@
     "remote.sitesHint": "内置站点配置为只读默认值；其他站点可添加自定义配置。",
     "remote.actionsTitle": "下载",
     "remote.noImages": "无预览图",
+    "remote.syncing": "库同步中… {{percent}}% — 同步期间可继续浏览",
     "remote.update": "更新",
     "remote.updateHint": "只获取上次同步后的新内容（遇到首个已收录页即停止）",
     "remote.fullReindex": "完整重建",

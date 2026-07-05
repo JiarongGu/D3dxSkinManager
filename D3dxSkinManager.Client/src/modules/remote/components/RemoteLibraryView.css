@@ -174,12 +174,17 @@
 .remote-library__sync-hint {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 4px 12px;
   font-size: 12px;
   color: var(--color-text-secondary);
   background: var(--color-primary-bg, var(--color-bg-container));
   border-bottom: 1px solid var(--color-border-secondary);
+}
+
+/* Live crawl in progress — primary accent; the grid below stays fully usable. */
+.remote-library__sync-hint--active {
+  color: var(--color-primary);
 }
 
 .remote-library__pager {

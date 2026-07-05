@@ -25,6 +25,10 @@ public interface IRemoteIndexService
     /// <summary>Distinct site tags in the index (for the filter dropdown), by frequency.</summary>
     Task<List<RemoteTagCount>> GetTagsAsync(string sourceId, string listId);
 
+    /// <summary>Merge extra tags into an entry (keyed by its detail URL) — e.g. the sub category a
+    /// GameBanana detail page reveals; the subfeed only carries the super. Flat tags, no hierarchy.</summary>
+    Task MergeEntryTagsByUrlAsync(string sourceId, string listId, string detailUrl, IReadOnlyList<string> tags);
+
     /// <summary>Start a background sync. <paramref name="full"/> forces a complete re-crawl of every
     /// page and prunes entries the site no longer lists (soft-delete); the default is an incremental
     /// UPDATE that stops at the first page with nothing new. The first-ever sync is always full.</summary>
@@ -63,6 +67,13 @@ public class RemoteIndexService : IRemoteIndexService
 
     public Task<List<RemoteTagCount>> GetTagsAsync(string sourceId, string listId) =>
         _repository.GetTagsAsync(sourceId, listId);
+
+    public Task MergeEntryTagsByUrlAsync(string sourceId, string listId, string detailUrl, IReadOnlyList<string> tags)
+    {
+        if (tags.Count == 0) return Task.CompletedTask;
+        var source = _sources.GetById(sourceId);
+        return _repository.MergeEntryTagsAsync(sourceId, listId, ExtractEntryId(source, detailUrl), tags);
+    }
 
     public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null)
     {

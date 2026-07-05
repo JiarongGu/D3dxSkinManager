@@ -22,7 +22,10 @@
   object-fit: contain;
 }
 
-/* Single horizontal strip; wheel scrolls it horizontally (see component); SLIM scrollbar. */
+/* Single horizontal strip; wheel scrolls it horizontally (see component); SLIM scrollbar.
+   IMPORTANT: setting the standard `scrollbar-width` makes modern Chromium IGNORE the
+   ::-webkit-scrollbar pseudos below — so the THEME COLOR must come from the standard
+   `scrollbar-color` too (this was the "scrollbar color not themed" bug). */
 .image-gallery__strip {
   display: flex;
   gap: 8px;
@@ -30,7 +33,8 @@
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 4px;
-  scrollbar-width: thin; /* firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-base) transparent;
 }
 
 .image-gallery__strip::-webkit-scrollbar {

@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Empty, Pagination, Spin, Tooltip } from 'antd';
-import { AppstoreOutlined, CheckCircleFilled, ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, CheckCircleFilled, CloudSyncOutlined, ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
-import { CompactButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
-import type { RemoteLibrariesState, RemoteSourceInfo, RemoteTagCount } from '../../../shared/types/remote.types';
+import { CompactButton, CompactIconButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
+import type { RemoteLibrariesState, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { useRemoteUiStore } from '../store/remoteUiStore';
@@ -34,10 +34,8 @@ export const RemoteLibraryView: React.FC = () => {
   const [loading, setLoading] = useState(false);
   // undefined = still loading; the profile's configured libraries + which is active.
   const [libState, setLibState] = useState<RemoteLibrariesState>();
-  // Distinct SITE tags in the synced index — the grid tag filter.
-  const [tagCounts, setTagCounts] = useState<RemoteTagCount[]>([]);
-  // The in-flight background sync process id — watched so the grid auto-refreshes from the index
-  // when the crawl finishes (otherwise you'd stare at the pre-sync live fallback until a manual refresh).
+  // The in-flight background sync process id — watched for PROGRESSIVE refresh (the grid fills while
+  // the crawl runs; pagination/sort work as soon as the first pages land) + the final refresh.
   const [syncProcId, setSyncProcId] = useState<string>();
   // Libraries whose empty index already auto-kicked a sync this session (avoid re-kicking on paging).
   const autoSynced = React.useRef(new Set<string>());
@@ -89,47 +87,39 @@ export const RemoteLibraryView: React.FC = () => {
     }
   }, [selectedProfileId, applyLibrary]);
 
-  /** Query the synced index; when it's empty (never synced), fall back to live browsing. */
+  /** Query the synced index; when it's empty (never synced), fall back to live browsing.
+   * `silent` skips the spinner — used by the progressive refresh while a sync crawls. */
   const loadIndex = useCallback(
-    async (page: number, search?: string) => {
+    async (page: number, search?: string, silent = false) => {
       const state = useRemoteUiStore.getState();
       if (!selectedProfileId || !state.sourceId || !state.listId) return;
       try {
-        setLoading(true);
+        if (!silent) setLoading(true);
         const index = await api.remote.indexQuery(
           selectedProfileId, state.sourceId, state.listId, search?.trim() || undefined, page, INDEX_PAGE_SIZE,
-          state.sort, state.tagFilter);
+          state.sort);
         state.setPage(page);
         state.setIndex(index);
         if (index.info.entryCount === 0) {
           // Never synced — live-browse the first page so the tab isn't empty, and AUTO-START the
           // sync (once per library per session; backend is idempotent). Standardized flow: every
-          // engine gets its index built the same way, so search/sort/tags/pagination just work.
+          // engine gets its index built the same way, so search/sort/pagination just work.
           const result = await api.remote.browse(selectedProfileId, state.sourceId, state.listId, page);
           state.setResult(result, false);
           const key = `${state.sourceId}|${state.listId}`;
           if (!autoSynced.current.has(key)) {
             autoSynced.current.add(key);
             const ack = await api.remote.indexSync(selectedProfileId, state.sourceId, state.listId, false);
-            if (ack.started && ack.processId) {
-              setSyncProcId(ack.processId);
-              notification.info(t('remote.syncStarted'));
-            }
+            if (ack.started && ack.processId) setSyncProcId(ack.processId);
           }
-        } else {
-          // Refresh the tag-filter options from the (possibly just-synced) index.
-          void api.remote
-            .indexTags(selectedProfileId, state.sourceId, state.listId)
-            .then(setTagCounts)
-            .catch(() => setTagCounts([]));
         }
       } catch (error: unknown) {
-        handleError(error);
+        if (!silent) handleError(error);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     },
-    [selectedProfileId, t],
+    [selectedProfileId],
   );
 
   const browseLive = useCallback(
@@ -187,16 +177,25 @@ export const RemoteLibraryView: React.FC = () => {
     }
   }, [selectedProfileId, t]);
 
-  // When the tracked background sync finishes, re-query the index so the grid shows the freshly
-  // crawled results instead of the pre-sync live fallback (no manual refresh needed).
+  // PROGRESSIVE refresh while the tracked sync crawls: silently re-query the index every few
+  // seconds so the grid/pagination/sort fill up DURING the sync (the interface stays usable), then
+  // a final refresh when it finishes.
   const syncProcess = useProcessStore((s) => (syncProcId ? s.processes.find((p) => p.id === syncProcId) : undefined));
   useEffect(() => {
-    if (syncProcId && syncProcess && syncProcess.status === 'completed') {
-      setSyncProcId(undefined);
-      void loadIndex(1, useRemoteUiStore.getState().searchText);
+    if (!syncProcId || !syncProcess) return;
+    if (syncProcess.status === 'running' || syncProcess.status === 'queued') {
+      const timer = setTimeout(() => {
+        const state = useRemoteUiStore.getState();
+        void loadIndex(state.page, state.searchText, true);
+      }, 2500);
+      return () => clearTimeout(timer);
     }
+    // Terminal state — final refresh (spinnerless keeps the grid stable) + stop tracking.
+    setSyncProcId(undefined);
+    void loadIndex(useRemoteUiStore.getState().page, useRemoteUiStore.getState().searchText, true);
+    return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncProcess?.status]);
+  }, [syncProcId, syncProcess?.status, syncProcess?.progress]);
 
   // First load (or returning to the tab with no cached result yet).
   useEffect(() => {
@@ -299,11 +298,10 @@ export const RemoteLibraryView: React.FC = () => {
           options={libState.libraries.map((l) => ({ value: l.id, label: l.name }))}
           onChange={(id) => void switchLibrary(id)}
         />
-        <CompactButton icon={<AppstoreOutlined />} onClick={openManagement}>
-          {t('remote.manage')}
-        </CompactButton>
-        {/* One CONSISTENT toolbar regardless of sync state — sort/tag act on the synced index and
-            are disabled (not hidden) until the first sync, so the layout never jumps. */}
+        <CompactIconButton icon={<AppstoreOutlined />} title={t('remote.manage')} onClick={openManagement} />
+        {/* One CONSISTENT compact toolbar for every engine — search covers titles AND tags; sort acts
+            on the synced index (disabled until data lands); icon actions with distinct icons.
+            Full-reindex lives in library management, not here. */}
         <CompactInput
           className="remote-library__search"
           placeholder={t('remote.searchPlaceholder')}
@@ -326,32 +324,12 @@ export const RemoteLibraryView: React.FC = () => {
             void loadIndex(1, useRemoteUiStore.getState().searchText);
           }}
         />
-        <CompactSelect
-          className="remote-library__tag-filter"
-          value={ui.tagFilter ?? ''}
-          disabled={!indexReady || tagCounts.length === 0}
-          options={[
-            { value: '', label: t('remote.allTags') },
-            ...tagCounts.map((c) => ({ value: c.name, label: `${c.name} (${c.count})` })),
-          ]}
-          onChange={(v) => {
-            ui.setTagFilter(v || undefined);
-            void loadIndex(1, useRemoteUiStore.getState().searchText);
-          }}
+        <CompactIconButton icon={<ReloadOutlined />} title={t('common.refresh')} onClick={refresh} />
+        <CompactIconButton
+          icon={<CloudSyncOutlined />}
+          title={t('remote.updateHint')}
+          onClick={() => void startSync(false)}
         />
-        <CompactButton icon={<ReloadOutlined />} onClick={refresh}>
-          {t('common.refresh')}
-        </CompactButton>
-        <Tooltip title={t('remote.updateHint')}>
-          <CompactButton icon={<SyncOutlined />} onClick={() => void startSync(false)}>
-            {t('remote.update')}
-          </CompactButton>
-        </Tooltip>
-        <Tooltip title={t('remote.fullReindexHint')}>
-          <CompactButton icon={<ReloadOutlined />} onClick={() => void startSync(true)}>
-            {t('remote.fullReindex')}
-          </CompactButton>
-        </Tooltip>
         <span className="remote-library__origin" title={source?.baseUrl}>
           {syncedAt
             ? t('remote.lastSynced', {
@@ -362,10 +340,18 @@ export const RemoteLibraryView: React.FC = () => {
         </span>
       </div>
 
-      {!syncedAt && loaded && (
+      {/* Sync status bar: live progress while a crawl runs (interface stays usable — the grid fills
+          progressively); a sync CTA only when never synced and nothing is running. */}
+      {syncProcess && (syncProcess.status === 'running' || syncProcess.status === 'queued') && (
+        <div className="remote-library__sync-hint remote-library__sync-hint--active">
+          <SyncOutlined spin />
+          {t('remote.syncing', { percent: syncProcess.progress ?? 0 })}
+        </div>
+      )}
+      {!syncProcess && !syncedAt && loaded && (
         <div className="remote-library__sync-hint">
           {t('remote.notSynced')}
-          <CompactButton size="small" type="link" icon={<SyncOutlined />} onClick={() => void startSync()}>
+          <CompactButton size="small" type="link" icon={<CloudSyncOutlined />} onClick={() => void startSync()}>
             {t('remote.sync')}
           </CompactButton>
         </div>

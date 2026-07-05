@@ -19,6 +19,10 @@ public interface IRemoteIndexRepository
     /// <summary>Soft-delete entries a FULL crawl no longer saw (Generation &lt; the crawl's generation).
     /// Returns the number marked removed. Never call after an incremental crawl — it stops early.</summary>
     Task<int> PruneStaleAsync(string sourceId, string listId, long currentGeneration);
+
+    /// <summary>Merge extra tags into one entry's tag list (e.g. the sub category a GameBanana detail
+    /// page reveals — the subfeed only carries the super). Flat merge, order-preserving, deduped.</summary>
+    Task MergeEntryTagsAsync(string sourceId, string listId, string entryId, IReadOnlyList<string> tags);
     Task<int> CountAsync(string sourceId, string listId);
     Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
         string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize);
@@ -120,6 +124,36 @@ public class RemoteIndexRepository : IRemoteIndexRepository
             new { sourceId, listId, currentGeneration, Now = DateTime.UtcNow });
     }
 
+    public async Task MergeEntryTagsAsync(string sourceId, string listId, string entryId, IReadOnlyList<string> tags)
+    {
+        if (tags.Count == 0) return;
+        await using var connection = new SqliteConnection(_connectionString);
+        var existingJson = await connection.ExecuteScalarAsync<string?>(
+            "SELECT Tags FROM RemoteIndexEntries WHERE SourceId = @sourceId AND ListId = @listId AND EntryId = @entryId",
+            new { sourceId, listId, entryId });
+
+        List<string> merged;
+        try
+        {
+            merged = string.IsNullOrEmpty(existingJson)
+                ? new List<string>()
+                : global::System.Text.Json.JsonSerializer.Deserialize<List<string>>(existingJson!) ?? new List<string>();
+        }
+        catch { merged = new List<string>(); }
+
+        var before = merged.Count;
+        foreach (var tag in tags)
+        {
+            if (!string.IsNullOrWhiteSpace(tag) && !merged.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                merged.Add(tag);
+        }
+        if (merged.Count == before) return; // nothing new
+
+        await connection.ExecuteAsync(
+            "UPDATE RemoteIndexEntries SET Tags = @tags WHERE SourceId = @sourceId AND ListId = @listId AND EntryId = @entryId",
+            new { tags = global::System.Text.Json.JsonSerializer.Serialize(merged), sourceId, listId, entryId });
+    }
+
     public async Task<int> CountAsync(string sourceId, string listId)
     {
         await using var connection = new SqliteConnection(_connectionString);
@@ -148,7 +182,9 @@ public class RemoteIndexRepository : IRemoteIndexRepository
             {
                 // Escape LIKE wildcards in the user's term.
                 var escaped = terms[i].Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
-                where += $" AND Title LIKE @term{i} ESCAPE '\\'";
+                // Each term matches the TITLE or any TAG (comprehensive search, like the mod search).
+                where += $" AND (Title LIKE @term{i} ESCAPE '\\' OR EXISTS (" +
+                         $"SELECT 1 FROM json_each(RemoteIndexEntries.Tags) WHERE json_each.value LIKE @term{i} ESCAPE '\\'))";
                 args.Add($"term{i}", $"%{escaped}%");
             }
         }
