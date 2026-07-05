@@ -21,7 +21,7 @@ public interface IRemoteFacade : IModuleFacade
     Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option);
     string StartDownloadImport(string sourceId, RemoteModDetail detail, RemoteDownloadOption option);
     Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null);
-    string StartIndexSync(string sourceId, string listId);
+    string StartIndexSync(string sourceId, string listId, bool full = false);
 }
 
 public class RemoteFacade : BaseFacade, IRemoteFacade
@@ -112,7 +112,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         return result;
     }
 
-    public string StartIndexSync(string sourceId, string listId) => _index.StartSync(sourceId, listId);
+    public string StartIndexSync(string sourceId, string listId, bool full = false) => _index.StartSync(sourceId, listId, full);
 
     // ---- payload-parsing handlers ----------------------------------------------------------
 
@@ -170,7 +170,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     {
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         var listId = _payloadHelper.GetRequiredValue<string>(request.Payload, "listId");
-        var processId = StartIndexSync(sourceId, listId);
+        var full = _payloadHelper.GetOptionalValue<bool>(request.Payload, "full");
+        var processId = StartIndexSync(sourceId, listId, full);
         return new { started = processId.Length > 0, processId };
     }
 

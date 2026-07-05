@@ -16,6 +16,9 @@ public interface IRemoteIndexRepository
     Task SetMetaAsync(RemoteIndexMetaRow meta);
     Task<HashSet<string>> GetKnownIdsAsync(string sourceId, string listId);
     Task UpsertEntriesAsync(string sourceId, string listId, IReadOnlyList<RemoteIndexEntry> entries, long generation);
+    /// <summary>Soft-delete entries a FULL crawl no longer saw (Generation &lt; the crawl's generation).
+    /// Returns the number marked removed. Never call after an incremental crawl — it stops early.</summary>
+    Task<int> PruneStaleAsync(string sourceId, string listId, long currentGeneration);
     Task<int> CountAsync(string sourceId, string listId);
     Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
         string sourceId, string listId, string? search, string? sort, int page, int pageSize);
@@ -91,25 +94,36 @@ public class RemoteIndexRepository : IRemoteIndexRepository
                     DateHint = COALESCE(excluded.DateHint, DateHint),
                     Generation = excluded.Generation,
                     SortKey = excluded.SortKey,
-                    LastSeenUtc = excluded.LastSeenUtc",
+                    LastSeenUtc = excluded.LastSeenUtc,
+                    RemovedUtc = NULL", // a re-seen entry is un-removed
                 new { sourceId, listId, e.Id, e.Title, e.DetailUrl, e.ImageUrl, e.DateHint, generation, e.SortKey, Now = DateTime.UtcNow },
                 tx);
         }
         await tx.CommitAsync();
     }
 
+    public async Task<int> PruneStaleAsync(string sourceId, string listId, long currentGeneration)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        return await connection.ExecuteAsync(@"
+            UPDATE RemoteIndexEntries SET RemovedUtc = @Now
+            WHERE SourceId = @sourceId AND ListId = @listId
+              AND Generation < @currentGeneration AND RemovedUtc IS NULL",
+            new { sourceId, listId, currentGeneration, Now = DateTime.UtcNow });
+    }
+
     public async Task<int> CountAsync(string sourceId, string listId)
     {
         await using var connection = new SqliteConnection(_connectionString);
         return await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM RemoteIndexEntries WHERE SourceId = @sourceId AND ListId = @listId",
+            "SELECT COUNT(*) FROM RemoteIndexEntries WHERE SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL",
             new { sourceId, listId });
     }
 
     public async Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
         string sourceId, string listId, string? search, string? sort, int page, int pageSize)
     {
-        var where = "SourceId = @sourceId AND ListId = @listId";
+        var where = "SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL";
         var args = new DynamicParameters(new { sourceId, listId });
 
         if (!string.IsNullOrWhiteSpace(search))

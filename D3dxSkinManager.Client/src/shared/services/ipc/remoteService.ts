@@ -67,9 +67,13 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize, sort });
   }
 
-  /** Start a background crawl of all list pages (Activity panel). Immediate ack. */
-  async indexSync(profileId: string, sourceId: string, listId: string): Promise<RemoteDownloadImportAck> {
-    return this.sendMessage<RemoteDownloadImportAck>('INDEX_SYNC', profileId, { sourceId, listId });
+  /**
+   * Start a background sync (Activity panel; immediate ack). `full` forces a complete re-crawl of
+   * every page and prunes entries the site no longer lists; the default is a cheap incremental update
+   * that stops at the first page with nothing new.
+   */
+  async indexSync(profileId: string, sourceId: string, listId: string, full = false): Promise<RemoteDownloadImportAck> {
+    return this.sendMessage<RemoteDownloadImportAck>('INDEX_SYNC', profileId, { sourceId, listId, full });
   }
 
   /** Map remote image URLs -> cached local (app://-servable) paths; misses fall back to the URL. */

@@ -21,8 +21,10 @@ public interface IRemoteIndexService
     /// <paramref name="sort"/>: "site" (default) or "date" (newest DateHint first).</summary>
     Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null);
 
-    /// <summary>Start a background sync — full on first run, incremental update afterwards.</summary>
-    string StartSync(string sourceId, string listId);
+    /// <summary>Start a background sync. <paramref name="full"/> forces a complete re-crawl of every
+    /// page and prunes entries the site no longer lists (soft-delete); the default is an incremental
+    /// UPDATE that stops at the first page with nothing new. The first-ever sync is always full.</summary>
+    string StartSync(string sourceId, string listId, bool full = false);
 }
 
 public class RemoteIndexService : IRemoteIndexService
@@ -74,7 +76,7 @@ public class RemoteIndexService : IRemoteIndexService
         };
     }
 
-    public string StartSync(string sourceId, string listId)
+    public string StartSync(string sourceId, string listId, bool full = false)
     {
         var source = _sources.GetById(sourceId); // validates + errors synchronously on bad input
         var listName = source.Lists.FirstOrDefault(l => l.Id == listId)?.Name ?? listId;
@@ -94,7 +96,7 @@ public class RemoteIndexService : IRemoteIndexService
             var ct = _processRegistry.GetToken(procId);
             try
             {
-                await CrawlAsync(source, listId, listName, procId, ct).ConfigureAwait(false);
+                await CrawlAsync(source, listId, listName, procId, full, ct).ConfigureAwait(false);
                 _processRegistry.Complete(procId);
             }
             catch (OperationCanceledException)
@@ -119,10 +121,11 @@ public class RemoteIndexService : IRemoteIndexService
     /// Crawl the list: full on first run; an UPDATE afterwards — stop at the first page that
     /// yields no entry we haven't seen before (only newer content sits above it).
     /// </summary>
-    private async Task CrawlAsync(RemoteSourceConfig source, string listId, string listName, string procId, CancellationToken ct)
+    private async Task CrawlAsync(RemoteSourceConfig source, string listId, string listName, string procId, bool full, CancellationToken ct)
     {
         var meta = await _repository.GetMetaAsync(source.Id, listId).ConfigureAwait(false);
-        var incremental = meta?.SyncedAtUtc != null;
+        // Incremental only when we have a prior sync AND the caller didn't force a full re-crawl.
+        var incremental = meta?.SyncedAtUtc != null && !full;
         var generation = (meta?.Generation ?? 0) + 1;
         var known = incremental
             ? await _repository.GetKnownIdsAsync(source.Id, listId).ConfigureAwait(false)
@@ -156,6 +159,16 @@ public class RemoteIndexService : IRemoteIndexService
                 $"{listName} {page}/{totalPages}", detailKey: "process.stage.crawling");
         }
 
+        // A full crawl saw every page, so any entry still on the old generation is gone from the site
+        // — soft-delete it (keeps the row so a downloaded mod's reference still resolves). An
+        // incremental crawl stops early, so it must NEVER prune (would wrongly drop everything below
+        // the stop page).
+        var pruned = 0;
+        if (!incremental)
+        {
+            pruned = await _repository.PruneStaleAsync(source.Id, listId, generation).ConfigureAwait(false);
+        }
+
         await _repository.SetMetaAsync(new RemoteIndexMetaRow
         {
             SourceId = source.Id,
@@ -166,7 +179,7 @@ public class RemoteIndexService : IRemoteIndexService
         }).ConfigureAwait(false);
 
         var count = await _repository.CountAsync(source.Id, listId).ConfigureAwait(false);
-        _logger.Info($"[Remote] Index synced: {source.Id}_{listId} — {count} entries, crawled {crawledPages}/{totalPages} pages ({(incremental ? "update" : "full")})",
+        _logger.Info($"[Remote] Index synced: {source.Id}_{listId} — {count} entries, crawled {crawledPages}/{totalPages} pages, pruned {pruned} ({(incremental ? "update" : "full")})",
             "RemoteIndexService");
     }
 

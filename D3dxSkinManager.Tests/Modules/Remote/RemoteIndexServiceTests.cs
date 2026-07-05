@@ -46,7 +46,7 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, EntryId TEXT NOT NULL,
                 Title TEXT NOT NULL DEFAULT '', DetailUrl TEXT NOT NULL, ImageUrl TEXT NOT NULL DEFAULT '',
                 DateHint TEXT, Generation INTEGER NOT NULL DEFAULT 0, SortKey INTEGER NOT NULL DEFAULT 0,
-                FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL,
+                FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL, RemovedUtc TEXT,
                 PRIMARY KEY (SourceId, ListId, EntryId));
             CREATE TABLE RemoteIndexMeta (
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, SyncedAtUtc TEXT,
@@ -73,10 +73,10 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         }
     }
 
-    private async Task SyncAndWaitAsync()
+    private async Task SyncAndWaitAsync(bool full = false)
     {
         var before = (await _repository.GetMetaAsync("huihui", "2"))?.SyncedAtUtc;
-        _service.StartSync("huihui", "2").Should().NotBeEmpty();
+        _service.StartSync("huihui", "2", full).Should().NotBeEmpty();
         for (var i = 0; i < 100; i++)
         {
             var meta = await _repository.GetMetaAsync("huihui", "2");
@@ -164,6 +164,42 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         paged.Entries.Single().Id.Should().Be("3");
         var byDate = await _service.QueryAsync("huihui", "2", null, 1, 50, sort: "date");
         byDate.Entries.Select(e => e.Id).Should().ContainInOrder("2", "3", "1");
+    }
+
+    [Fact]
+    public async Task FullReindex_PrunesEntriesNoLongerOnSite_ButUpdateDoesNot()
+    {
+        SetupPages(new List<RemoteModCard> { Card(1, "A"), Card(2, "B"), Card(3, "C") });
+        await SyncAndWaitAsync(); // first sync is full
+
+        // The site dropped mod 2. An UPDATE must NOT prune (it stops early and can't tell removed
+        // from below-the-stop-page); the entry stays visible.
+        SetupPages(new List<RemoteModCard> { Card(1, "A"), Card(3, "C") });
+        await SyncAndWaitAsync();
+        (await _service.QueryAsync("huihui", "2", null, 1, 50)).Entries.Select(e => e.Id)
+            .Should().Contain("2", "an incremental update never prunes");
+
+        // A FULL reindex sees every page, so mod 2 (still on the old generation) is soft-deleted.
+        await SyncAndWaitAsync(full: true);
+        var result = await _service.QueryAsync("huihui", "2", null, 1, 50);
+        result.Entries.Select(e => e.Id).Should().BeEquivalentTo(new[] { "1", "3" });
+        result.Info.EntryCount.Should().Be(2, "removed entries are excluded from the count");
+    }
+
+    [Fact]
+    public async Task FullReindex_UnremovesAnEntryThatReappears()
+    {
+        SetupPages(new List<RemoteModCard> { Card(1, "A"), Card(2, "B") });
+        await SyncAndWaitAsync();
+        SetupPages(new List<RemoteModCard> { Card(1, "A") });
+        await SyncAndWaitAsync(full: true); // prunes mod 2
+        (await _service.QueryAsync("huihui", "2", null, 1, 50)).Info.EntryCount.Should().Be(1);
+
+        // Mod 2 comes back → the re-seen upsert clears RemovedUtc, so it's visible again.
+        SetupPages(new List<RemoteModCard> { Card(1, "A"), Card(2, "B") });
+        await SyncAndWaitAsync(full: true);
+        (await _service.QueryAsync("huihui", "2", null, 1, 50)).Entries.Select(e => e.Id)
+            .Should().BeEquivalentTo(new[] { "1", "2" });
     }
 
     [Fact]

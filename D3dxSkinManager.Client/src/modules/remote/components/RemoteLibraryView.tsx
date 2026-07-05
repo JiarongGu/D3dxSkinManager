@@ -169,11 +169,11 @@ export const RemoteLibraryView: React.FC = () => {
     }
   }, [selectedProfileId, loadIndex, browseLive]);
 
-  const startSync = useCallback(async () => {
+  const startSync = useCallback(async (full = false) => {
     const state = useRemoteUiStore.getState();
     if (!selectedProfileId || !state.sourceId || !state.listId) return;
     try {
-      const ack = await api.remote.indexSync(selectedProfileId, state.sourceId, state.listId);
+      const ack = await api.remote.indexSync(selectedProfileId, state.sourceId, state.listId, full);
       if (ack.started && ack.processId) setSyncProcId(ack.processId);
       notification.info(t(ack.started ? 'remote.syncStarted' : 'remote.syncRunningOrDone'));
     } catch (error: unknown) {
@@ -348,9 +348,14 @@ export const RemoteLibraryView: React.FC = () => {
         <CompactButton icon={<ReloadOutlined />} onClick={refresh}>
           {t('common.refresh')}
         </CompactButton>
-        <Tooltip title={t('remote.notSynced')}>
-          <CompactButton icon={<SyncOutlined />} onClick={() => void startSync()}>
-            {t('remote.sync')}
+        <Tooltip title={t('remote.updateHint')}>
+          <CompactButton icon={<SyncOutlined />} onClick={() => void startSync(false)}>
+            {t('remote.update')}
+          </CompactButton>
+        </Tooltip>
+        <Tooltip title={t('remote.fullReindexHint')}>
+          <CompactButton icon={<ReloadOutlined />} onClick={() => void startSync(true)}>
+            {t('remote.fullReindex')}
           </CompactButton>
         </Tooltip>
         <CompactButton
