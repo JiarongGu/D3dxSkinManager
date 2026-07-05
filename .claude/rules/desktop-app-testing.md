@@ -43,6 +43,10 @@ node devtools/dev.mjs input click 0.1 0.2   # NATIVE click (real Win32 input) �
 ```
 Frontend-only change → skip `rebuild`; Vite serves it live — `node devtools/dev.mjs cdp reload` is enough.
 
+> **`app kill`/`rebuild` only kill the DEV instance** (PIDs path-matched to the repo bin exe — see
+> `app-dev.mjs devPids()`). The user often runs their own INSTALLED copy of the app at the same time;
+> never `taskkill /IM` by process name (that killed the user's instance — user report 2026-07-05).
+
 ## Driving + capturing — prefer NATIVE over CDP for real interactions
 
 **CDP synthetic events (`Runtime.evaluate` `.click()` / `dispatchEvent`) are NOT real input.** They

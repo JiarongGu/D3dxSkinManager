@@ -29,7 +29,7 @@ One dispatcher (`dev.mjs`) forwards to every tool. All covered by `Bash(node dev
 
 | Command | What |
 |---|---|
-| `node devtools/dev.mjs app <kill\|build\|tsc\|test\|start\|restart\|rebuild\|wait> [port]` | **App lifecycle + checks.** `rebuild` = kill → `dotnet build` (errors only) → relaunch (dev mode + CDP) → wait. `build` = backend build; `tsc` = frontend typecheck; `test [path]` = vitest in the client dir (no `cd`). |
+| `node devtools/dev.mjs app <kill\|build\|tsc\|test\|start\|restart\|rebuild\|wait> [port]` | **App lifecycle + checks.** `rebuild` = kill → `dotnet build` (errors only) → relaunch (dev mode + CDP) → wait. `build` = backend build; `tsc` = frontend typecheck; `test [path]` = vitest in the client dir (no `cd`). `kill` is **path-matched to the repo bin exe** — a user-installed copy running from another folder is never touched. |
 | `node devtools/dev.mjs cdp <open\|nav\|menu\|probe\|key\|eval\|evalfile\|reload\|ipc\|events\|iplog\|shot\|grab\|wait> [arg] [port]` | **Drive + capture over CDP.** `open` clicks `playSelector`; `nav "<Tab>"`; `menu "<Item>"` (right-click 1st card → item); `eval "<js>"`; `reload [ms]`; `ipc <MOD> <TYPE> '<json>'` + `events`/`iplog` (via `window.__d3dx`); `shot [label]` = DOM screenshot; `wait <ms>`. |
 | `node devtools/dev.mjs shot [label]` | **Occlusion-immune** window capture (Windows.Graphics.Capture; works while the console covers the app). Builds `wgc-shot/` on first use. |
 | `node devtools/dev.mjs input <click\|rclick\|move\|drag> <x> <y> [x2 y2]` | **Native mouse input** (Win32 `PostMessage` to the leaf HWND; `x,y` = fractions 0..1 of the client area). Builds `win-input/` on first use. Pair with `shot`. |

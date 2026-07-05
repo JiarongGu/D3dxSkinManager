@@ -5,7 +5,8 @@
 // lets a single allow rule (`Bash(node devtools/dev.mjs app:*)`) cover the whole loop — unattended dev.
 //
 // Usage:  node devtools/dev.mjs app <action> [port]
-//   kill            — force-kill the running D3dxSkinManager.exe (frees the DLL lock so a rebuild can copy it)
+//   kill            — force-kill the DEV instance of D3dxSkinManager.exe (path-matched to the repo bin
+//                     exe — a user-installed copy running elsewhere is never touched); frees the DLL lock
 //   start [port]    — launch the app exe in Development mode (loads the live Vite server) with a CDP
 //                     remote-debugging port (RANDOM per launch unless [port] given; persisted to
 //                     devtools/.cdp-port); logs → app-dev-stdout/stderr.txt
@@ -46,10 +47,28 @@ for (const [flag, env] of Object.entries(cfg.debugFlags ?? {})) {
 const hideArg = argv.find((a) => a.startsWith('--hide='));
 const chromeHideMs = hideArg ? hideArg.slice('--hide='.length) : '60000';
 
+// PIDs of instances running OUR repo build only (ExecutablePath == the repo bin exe). The user may be
+// running their own INSTALLED copy of the app at the same time — a name-based `taskkill /IM` would kill
+// that too (it did, 2026-07-05). Path-matching guarantees we only ever touch the dev instance.
+function devPids() {
+  const procName = EXE_NAME.replace(/\.exe$/i, '');
+  try {
+    const out = execSync(
+      `powershell -NoProfile -Command "(Get-Process ${procName} -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq '${EXE.replace(/'/g, "''")}' }).Id"`,
+      { stdio: 'pipe' },
+    ).toString().trim();
+    return out ? out.split(/\r?\n/).map((s) => Number(s.trim())).filter(Boolean) : [];
+  } catch { return []; }
+}
+
 function kill() {
-  // Only the app exe — it holds the DLL lock + is the running app. We do NOT nuke dotnet.exe (that would
-  // kill the build server / unrelated hosts). /T also ends child processes (WebView2 helpers).
-  try { execSync(`taskkill /F /IM ${EXE_NAME} /T`, { stdio: 'ignore' }); } catch { /* not running */ }
+  // Kill by PID (path-matched dev instances only) — NEVER `taskkill /IM <name>` (kills the user's own
+  // installed instance too). /T also ends child processes (WebView2 helpers). We do NOT nuke dotnet.exe.
+  const pids = devPids();
+  for (const pid of pids) {
+    try { execSync(`taskkill /F /PID ${pid} /T`, { stdio: 'ignore' }); } catch { /* already gone */ }
+  }
+  return pids;
 }
 
 function start() {
@@ -102,8 +121,8 @@ function build() {
 }
 
 if (action === 'kill') {
-  kill();
-  console.log(`[${ms()}] killed ${EXE_NAME}`);
+  const pids = kill();
+  console.log(`[${ms()}] killed ${pids.length} dev instance(s) of ${EXE_NAME}${pids.length ? ` (pid ${pids.join(', ')})` : ''} — other instances untouched`);
 } else if (action === 'reset-db') {
   // Clean slate for testing: kill the app (it locks the db) then delete app.db + WAL/SHM sidecars.
   // Dev db lives under the exe's data dir (IWorkspaceContext RootPath = {exeDir}/data, DatabasePath = app.db).
