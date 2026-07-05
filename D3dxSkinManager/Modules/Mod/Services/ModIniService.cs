@@ -23,6 +23,14 @@ public interface IModIniService
     /// Patches only that .ini into the archive. Returns the rewritten line.
     /// </summary>
     Task<string> UpdateEntryAsync(string modId, string relativePath, int lineIndex, string newValue);
+
+    /// <summary>
+    /// Repair unbalanced if/endif blocks across the mod's ACTIVE .ini files (the analyzer's
+    /// UnbalancedCondition finding): appends missing <c>endif</c> lines at section end and comments
+    /// out stray extra <c>endif</c> lines. Requires an extracted cache; patched files persist via
+    /// the fast single-file archive path.
+    /// </summary>
+    Task<IniRepairResult> RepairConditionBalanceAsync(string modId);
 }
 
 public class ModIniService : IModIniService
@@ -186,6 +194,87 @@ public class ModIniService : IModIniService
             // Persist FAST: patch only this .ini inside the archive (no full recompress).
             await _archiveService.UpdateFileInArchiveAsync(modId, fullPath, relativePath.Replace('\\', '/')).ConfigureAwait(false);
             return rewritten;
+        });
+    }
+
+    public Task<IniRepairResult> RepairConditionBalanceAsync(string modId)
+    {
+        return _operationQueue.EnqueueAsync(modId, async () =>
+        {
+            var cacheDir = _cacheService.GetCachePath(modId);
+            if (cacheDir == null)
+                throw new OperationException("MOD_NOT_EXTRACTED", "id", modId);
+
+            var result = new IniRepairResult();
+            foreach (var iniPath in Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories)
+                         .Where(p => !Core.Helpers.IniParser.IsDisabledPath(Path.GetRelativePath(cacheDir, p)))
+                         .OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+            {
+                var lines = (await File.ReadAllLinesAsync(iniPath).ConfigureAwait(false)).ToList();
+                int added = 0, commented = 0;
+
+                // Walk sections tracking if/endif depth on NORMALIZED lines (same rules as the
+                // analyzer's check): stray endif (depth would go negative) → comment the line out;
+                // unclosed if at section end → insert the missing endif(s) before the next header.
+                var output = new List<string>(lines.Count + 4);
+                int depth = 0;
+                bool inSection = false;
+
+                void CloseSection()
+                {
+                    for (; depth > 0; depth--) { output.Add("endif ; auto-repaired: missing endif"); added++; }
+                }
+
+                foreach (var line in lines)
+                {
+                    var trimmed = line.Trim();
+                    var meaningful = trimmed.Length > 0 && !Core.Helpers.IniParser.IsCommentLine(trimmed)
+                        ? Core.Helpers.IniParser.StripInlineComment(trimmed)
+                        : string.Empty;
+
+                    if (meaningful.StartsWith('[') && meaningful.EndsWith(']'))
+                    {
+                        CloseSection();
+                        inSection = true;
+                        output.Add(line);
+                        continue;
+                    }
+
+                    if (inSection && meaningful.Length > 0)
+                    {
+                        if (meaningful.StartsWith("if ", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(meaningful, "if", StringComparison.OrdinalIgnoreCase))
+                        {
+                            depth++;
+                        }
+                        else if (string.Equals(meaningful, "endif", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (depth == 0)
+                            {
+                                output.Add("; auto-repaired stray endif: " + line.Trim());
+                                commented++;
+                                continue;
+                            }
+                            depth--;
+                        }
+                    }
+
+                    output.Add(line);
+                }
+                CloseSection();
+
+                if (added == 0 && commented == 0) continue;
+
+                await File.WriteAllLinesAsync(iniPath, output).ConfigureAwait(false);
+                var relative = Path.GetRelativePath(cacheDir, iniPath).Replace('\\', '/');
+                await _archiveService.UpdateFileInArchiveAsync(modId, iniPath, relative).ConfigureAwait(false);
+
+                result.FilesChanged++;
+                result.EndifsAdded += added;
+                result.StraysCommented += commented;
+            }
+
+            return result;
         });
     }
 

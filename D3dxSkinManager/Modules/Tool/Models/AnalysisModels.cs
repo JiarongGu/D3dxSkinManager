@@ -22,7 +22,12 @@ public enum HealthIssueType
     KeyMissingBinding     // [Key*] with no key=/back= line — unreachable binding
 }
 
-public enum DuplicateType { Identical, TextureVariant }
+// Dedup taxonomy (user-defined 2026-07-05):
+//   Identical       — same assets AND same (normalized) ini logic: exact clone
+//   IniVariant      — same asset bytes, DIFFERENT ini: hash-fixed / keybind-updated copy
+//   TextureVariant  — same buffers (mesh), different textures: retexture
+//   Similar         — scored fuzzy overlap incl. containment (one mod packaged inside another)
+public enum DuplicateType { Identical, TextureVariant, Similar, IniVariant }
 
 public enum AnalysisStatus { Idle, Running, Paused, Completed, Cancelled }
 
@@ -67,6 +72,9 @@ public class ModAnalysisResult
     // Plugin dependencies
     public List<string> PluginDependencies { get; set; } = new();
 
+    /// <summary>Per-aspect ini hashes, JSON {"key","constants","logic"} — null for old findings.</summary>
+    public string? IniFingerprints { get; set; }
+
     // Display
     public string? PreviewPath { get; set; }
 }
@@ -97,6 +105,19 @@ public class DuplicateGroup
     /// Combined with Identical type, this means the mods are exact clones.
     /// </summary>
     public bool AllHashesMatch { get; set; }
+
+    /// <summary>
+    /// For <see cref="DuplicateType.Similar"/> groups: the average pairwise similarity (0..1) —
+    /// weighted Jaccard over target hashes + buffer/texture file hashes. Null for exact groups.
+    /// </summary>
+    public double? SimilarityScore { get; set; }
+
+    /// <summary>
+    /// For <see cref="DuplicateType.IniVariant"/> groups: WHAT differs between the copies —
+    /// tokens from { "hashes", "keys", "constants", "logic" } (hash-fix / keybind update / defaults /
+    /// command-list logic). Fixed lowercase strings, mapped to labels in the UI.
+    /// </summary>
+    public List<string> IniDifferences { get; set; } = new();
 }
 
 public class ModConflict
@@ -178,6 +199,8 @@ public class FullAnalysisReport
     public List<DuplicateGroup> DuplicateGroups { get; set; } = new();
     public int IdenticalCount { get; set; }
     public int TextureVariantCount { get; set; }
+    public int IniVariantCount { get; set; }
+    public int SimilarCount { get; set; }
 
     // Conflicts (loaded mods only)
     public List<ModConflict> Conflicts { get; set; } = new();

@@ -6,7 +6,7 @@ export type HealthIssueType =
   // Grounded checks (2026-07-05, 3DMigoto INI docs)
   | 'allIniDisabled' | 'malformedHash' | 'unbalancedCondition' | 'duplicateSection'
   | 'deadOverride' | 'keyMissingBinding';
-export type DuplicateType = 'identical' | 'textureVariant';
+export type DuplicateType = 'identical' | 'textureVariant' | 'similar' | 'iniVariant';
 export type AnalysisStatus = 'idle' | 'running' | 'paused' | 'completed' | 'cancelled';
 
 export interface ModHealthIssue {
@@ -45,6 +45,10 @@ export interface DuplicateGroup {
   sharedHashes: string[];
   mods: ModAnalysisResult[];
   allHashesMatch: boolean;
+  /** For 'similar' groups: average pairwise similarity 0..1 (weighted overlap of hashes + asset bytes). */
+  similarityScore?: number;
+  /** For 'iniVariant' groups: what differs — tokens from 'hashes' | 'keys' | 'constants' | 'logic'. */
+  iniDifferences?: string[];
 }
 
 export interface ModConflict {

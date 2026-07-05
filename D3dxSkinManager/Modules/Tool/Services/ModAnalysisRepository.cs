@@ -42,6 +42,9 @@ public class AnalysisFindingEntity
     public long TextureSizeBytes { get; set; }
     public string BufferFileHashes { get; set; } = "[]";
     public string TextureFileHashes { get; set; } = "[]";
+    /// <summary>Per-aspect hashes of the mod's ACTIVE .ini contents, JSON {"key","constants","logic"}.
+    /// Null for pre-2026-07 findings (aspect comparison treats null as unknown).</summary>
+    public string? IniFingerprints { get; set; }
 }
 
 // ===== Repository =====
@@ -145,10 +148,10 @@ public class ModAnalysisRepository : IModAnalysisRepository
         await conn.ExecuteAsync(@"
             INSERT INTO AnalysisFindings (SessionId, ModId, TargetHashes, BufferHash, TextureHash,
                 HealthStatus, HealthIssues, PluginDependencies, IniFileCount, ResourceFileCount,
-                TextureOverrideCount, BufferSizeBytes, TextureSizeBytes, BufferFileHashes, TextureFileHashes)
+                TextureOverrideCount, BufferSizeBytes, TextureSizeBytes, BufferFileHashes, TextureFileHashes, IniFingerprints)
             VALUES (@SessionId, @ModId, @TargetHashes, @BufferHash, @TextureHash,
                 @HealthStatus, @HealthIssues, @PluginDependencies, @IniFileCount, @ResourceFileCount,
-                @TextureOverrideCount, @BufferSizeBytes, @TextureSizeBytes, @BufferFileHashes, @TextureFileHashes)", finding);
+                @TextureOverrideCount, @BufferSizeBytes, @TextureSizeBytes, @BufferFileHashes, @TextureFileHashes, @IniFingerprints)", finding);
     }
 
     public async Task<List<AnalysisFindingEntity>> GetFindingsBySessionAsync(string sessionId)

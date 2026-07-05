@@ -589,8 +589,8 @@ public class ModAnalysisServiceTests : IDisposable
         types.Should().Contain("UnbalancedCondition");
         types.Should().Contain("DuplicateSection");
         types.Should().Contain("KeyMissingBinding");
-        inserted[0].HealthStatus.Should().Be("error", "unbalanced if/endif is an Error");
-        report.ErrorCount.Should().Be(1);
+        inserted[0].HealthStatus.Should().Be("warning", "3DMigoto tolerates unbalanced if/endif (repairable) — the mod still works");
+        report.WarningCount.Should().Be(1);
     }
 
     [Fact]
@@ -623,6 +623,101 @@ public class ModAnalysisServiceTests : IDisposable
         inserted.Should().HaveCount(1);
         IssueTypeNames(inserted[0]).Should().Contain("AllIniDisabled");
         inserted[0].HealthStatus.Should().Be("warning");
+    }
+
+    // ===== Dedup taxonomy (2026-07-05): identical / iniVariant / textureVariant / similar =====
+
+    private static AnalysisFindingEntity Finding(string modId, string bufferHash, string textureHash,
+        string[] targetHashes, string[]? bufferFiles = null, string[]? textureFiles = null,
+        (string key, string constants, string logic)? fp = null) => new()
+    {
+        SessionId = "tax-session", ModId = modId,
+        BufferHash = bufferHash, TextureHash = textureHash,
+        TargetHashes = JsonSerializer.Serialize(targetHashes),
+        BufferFileHashes = JsonSerializer.Serialize(bufferFiles ?? []),
+        TextureFileHashes = JsonSerializer.Serialize(textureFiles ?? []),
+        HealthStatus = "healthy", HealthIssues = "[]", PluginDependencies = "[]",
+        IniFingerprints = fp == null ? null : JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["key"] = fp.Value.key, ["constants"] = fp.Value.constants, ["logic"] = fp.Value.logic,
+        }),
+    };
+
+    private async Task<FullAnalysisReport> ReportFor(params AnalysisFindingEntity[] findings)
+    {
+        var session = new AnalysisSessionEntity { Id = "tax-session", Status = "completed", TotalMods = findings.Length, StartedAt = "2026-07-05T10:00:00Z" };
+        _mockAnalysisRepository.Setup(r => r.GetSessionAsync("tax-session")).ReturnsAsync(session);
+        _mockAnalysisRepository.Setup(r => r.GetFindingsBySessionAsync("tax-session")).ReturnsAsync(findings.ToList());
+        _mockModRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ModEntity>());
+        _mockEnrichmentService.Setup(e => e.EnrichAllAsync(It.IsAny<List<ModInfo>>())).ReturnsAsync(new List<ModInfo>());
+        return await _service.GetSessionReportAsync("tax-session");
+    }
+
+    [Fact]
+    public async Task Dedup_SameAssets_DifferentTargetHashes_IsIniVariant_HashFix()
+    {
+        // Case 2 of the taxonomy: same asset bytes, different ini — here a hash-fix (target
+        // hashes changed, key/constants/logic fingerprints identical).
+        var report = await ReportFor(
+            Finding("mod-a", "BUF", "TEX", ["aaaa1111"], fp: ("K1", "C1", "L1")),
+            Finding("mod-b", "BUF", "TEX", ["bbbb2222"], fp: ("K1", "C1", "L1")));
+
+        report.DuplicateGroups.Should().HaveCount(1);
+        report.DuplicateGroups[0].Type.Should().Be(DuplicateType.IniVariant);
+        report.DuplicateGroups[0].IniDifferences.Should().BeEquivalentTo(["hashes"]);
+        report.IniVariantCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Dedup_SameAssets_DifferentKeyBindings_IsIniVariant_Keys()
+    {
+        var report = await ReportFor(
+            Finding("mod-a", "BUF", "TEX", ["aaaa1111"], fp: ("K1", "C1", "L1")),
+            Finding("mod-b", "BUF", "TEX", ["aaaa1111"], fp: ("K2", "C1", "L1")));
+
+        report.DuplicateGroups.Should().HaveCount(1);
+        report.DuplicateGroups[0].Type.Should().Be(DuplicateType.IniVariant);
+        report.DuplicateGroups[0].IniDifferences.Should().BeEquivalentTo(["keys"]);
+    }
+
+    [Fact]
+    public async Task Dedup_SameAssets_SameIni_IsIdentical_ExactClone()
+    {
+        var report = await ReportFor(
+            Finding("mod-a", "BUF", "TEX", ["aaaa1111"], fp: ("K1", "C1", "L1")),
+            Finding("mod-b", "BUF", "TEX", ["aaaa1111"], fp: ("K1", "C1", "L1")));
+
+        report.DuplicateGroups.Should().HaveCount(1);
+        report.DuplicateGroups[0].Type.Should().Be(DuplicateType.Identical);
+        report.DuplicateGroups[0].AllHashesMatch.Should().BeTrue("exact clones");
+    }
+
+    [Fact]
+    public async Task Dedup_ContainedMod_IsSimilar_WithScore()
+    {
+        // Case 3: mod-a is packaged INSIDE mod-b (all of a's files present in b, plus extras).
+        // Overlap coefficient = 1.0 for buffers/textures + same target subset → high score.
+        var report = await ReportFor(
+            Finding("mod-a", "BUF-A", "TEX-A", ["aaaa1111"], bufferFiles: ["F1", "F2"], textureFiles: ["T1"]),
+            Finding("mod-b", "BUF-B", "TEX-B", ["aaaa1111", "cccc3333"], bufferFiles: ["F1", "F2", "F3"], textureFiles: ["T1", "T2"]));
+
+        report.DuplicateGroups.Should().HaveCount(1);
+        report.DuplicateGroups[0].Type.Should().Be(DuplicateType.Similar);
+        report.DuplicateGroups[0].SimilarityScore.Should().BeGreaterThan(0.9);
+        report.DuplicateGroups[0].SharedHashes.Should().BeEquivalentTo(["aaaa1111"]);
+        report.SimilarCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Dedup_SameTargetOnly_NoSharedBytes_IsNotGrouped()
+    {
+        // Two unrelated skins of the same character: same target hashes but zero shared bytes —
+        // score 0.5, below the 0.70 threshold. NOT flagged as duplicates.
+        var report = await ReportFor(
+            Finding("mod-a", "BUF-A", "TEX-A", ["aaaa1111"], bufferFiles: ["F1"], textureFiles: ["T1"]),
+            Finding("mod-b", "BUF-B", "TEX-B", ["aaaa1111"], bufferFiles: ["F9"], textureFiles: ["T9"]));
+
+        report.DuplicateGroups.Should().BeEmpty();
     }
 
     [Fact]

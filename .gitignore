@@ -58,3 +58,4 @@ D3dxSkinManager/wwwroot/
 
 # devtools update-apply test sandbox (scratch)
 devtools/.update-sandbox/
+devtools/scratch-probe/

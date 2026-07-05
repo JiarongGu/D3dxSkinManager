@@ -299,6 +299,19 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
     finally { setResolvingGroup(undefined); }
   }, [resolvingGroup, selectedProfileId, removeFromReport, t]);
 
+  // One-click repair of unbalanced if/endif (analyzer finding) — requires the mod's cache.
+  const [repairingModId, setRepairingModId] = useState<string>();
+  const repairIni = useCallback(async (modId: string) => {
+    if (!selectedProfileId || repairingModId) return;
+    setRepairingModId(modId);
+    try {
+      const r = await api.mod.repairIniBalance(selectedProfileId, modId);
+      if (r.filesChanged === 0) notification.info(t('tools.modAnalyzer.repairNothing'));
+      else notification.success(t('tools.modAnalyzer.repairDone', { files: r.filesChanged, added: r.endifsAdded, removed: r.straysCommented }));
+    } catch (error: unknown) { handleError(error); }
+    finally { setRepairingModId(undefined); }
+  }, [selectedProfileId, repairingModId, t]);
+
   const deleteDuplicateMod = useCallback(async (modId: string) => {
     if (!selectedProfileId || deletingModId) return;
     setDeletingModId(modId);
@@ -372,6 +385,8 @@ const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClose: () =
           onEditModName={editModName}
           onLocateMods={locateMods}
           onResolveGroup={startResolveGroup}
+          onRepairIni={repairIni}
+          repairingModId={repairingModId}
         />
       )}
       <ConfirmDialog

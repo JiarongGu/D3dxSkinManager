@@ -164,4 +164,63 @@ run = CommandListSkinTexture
         var act = () => _service.UpdateEntryAsync("MODF", "../../escape.ini", 0, "1");
         (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("INI_FILE_NOT_FOUND");
     }
+
+    // ===== if/endif balance repair (analyzer's UnbalancedCondition fix) =====
+
+    [Fact]
+    public async Task Repair_AppendsMissingEndif_AtSectionEnd()
+    {
+        var file = WriteModIni("REP1", "mod.ini",
+            "[TextureOverrideA]\nhash = 5aeb1350\nif $x == 1\nvb0 = ResourceA\n\n[TextureOverrideB]\nhash = aabbccdd\n");
+
+        var result = await _service.RepairConditionBalanceAsync("REP1");
+
+        result.FilesChanged.Should().Be(1);
+        result.EndifsAdded.Should().Be(1);
+        result.StraysCommented.Should().Be(0);
+        var lines = await File.ReadAllLinesAsync(file);
+        var bIndex = Array.FindIndex(lines, l => l.Contains("[TextureOverrideB]"));
+        lines.Take(bIndex).Should().Contain(l => l.StartsWith("endif"), "the missing endif lands before the next section");
+        _archive.Verify(a => a.UpdateFileInArchiveAsync("REP1", It.IsAny<string>(), "mod.ini"), Times.Once);
+    }
+
+    [Fact]
+    public async Task Repair_CommentsOutStrayEndif()
+    {
+        var file = WriteModIni("REP2", "mod.ini",
+            "[TextureOverrideA]\nif $x == 1\nvb0 = ResourceA\nendif\nendif\n");
+
+        var result = await _service.RepairConditionBalanceAsync("REP2");
+
+        result.EndifsAdded.Should().Be(0);
+        result.StraysCommented.Should().Be(1);
+        var lines = await File.ReadAllLinesAsync(file);
+        lines.Count(l => l.TrimStart().StartsWith("endif")).Should().Be(1, "only the balanced endif survives");
+        lines.Should().Contain(l => l.StartsWith("; auto-repaired stray endif"));
+    }
+
+    [Fact]
+    public async Task Repair_BalancedFile_IsUntouched()
+    {
+        var file = WriteModIni("REP3", "mod.ini",
+            "[TextureOverrideA]\nif $x == 1\nvb0 = ResourceA\nelse\nvb0 = ResourceB\nendif\n");
+        var before = await File.ReadAllTextAsync(file);
+
+        var result = await _service.RepairConditionBalanceAsync("REP3");
+
+        result.FilesChanged.Should().Be(0);
+        (await File.ReadAllTextAsync(file)).Should().Be(before);
+        _archive.Verify(a => a.UpdateFileInArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Repair_SkipsDisabledIniFiles()
+    {
+        WriteModIni("REP4", "DISABLEDold.ini", "[TextureOverrideA]\nif $x == 1\n");
+        WriteModIni("REP4", "mod.ini", "[TextureOverrideA]\nhash = 5aeb1350\n");
+
+        var result = await _service.RepairConditionBalanceAsync("REP4");
+
+        result.FilesChanged.Should().Be(0, "the unbalanced file is DISABLED and never loads");
+    }
 }

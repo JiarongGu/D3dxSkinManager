@@ -15,6 +15,7 @@ import {
   EditOutlined,
   LoadingOutlined,
   AimOutlined,
+  ToolFilled,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactInput } from '../../../../../shared/components/compact';
@@ -42,11 +43,14 @@ interface FindingsViewProps {
   onLocateMods?: (modIds: string[]) => void;
   /** Dedup-assist: keep one mod of a duplicate group, delete the rest (staged + confirmed by the parent). */
   onResolveGroup?: (keep: ModAnalysisResult, groupMods: ModAnalysisResult[]) => void;
+  /** Repair unbalanced if/endif in a mod's inis (needs an extracted cache). */
+  onRepairIni?: (modId: string) => void;
+  repairingModId?: string;
 }
 
 type FindingCategory = 'all' | 'broken' | 'stale' | 'duplicates' | 'conflicts' | 'healthy';
 
-export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, deletingModId, onEditModName, onLocateMods, onResolveGroup }) => {
+export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, onNewScan, onRescan, onViewHistory, onDeleteMod, deletingModId, onEditModName, onLocateMods, onResolveGroup, onRepairIni, repairingModId }) => {
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
   const [category, setCategory] = useState<FindingCategory>('all');
@@ -54,8 +58,10 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
   const [editName, setEditName] = useState('');
 
   const brokenMods = useMemo(() => report.results.filter(r => r.healthStatus === 'error'), [report]);
-  // "Stale or missing" covers stale hashes AND missing plugin refs (the section title always said so).
+  // "Needs attention": every warning-status mod (missing resources, unbalanced if/endif, …) plus
+  // info-level stale-hash / missing-plugin hits — previously warning-only mods had NO section at all.
   const staleMods = useMemo(() => report.results.filter(r =>
+    r.healthStatus === 'warning' ||
     r.issues.some(i => i.type === 'staleHash' || i.type === 'missingPlugin')
   ), [report]);
   const healthyMods = useMemo(() => report.results.filter(r => r.healthStatus === 'healthy'), [report]);
@@ -125,7 +131,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.brokenMods')}
             count={filteredContent.broken.length}
           >
-            {filteredContent.broken.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} />)}
+            {filteredContent.broken.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} onRepairIni={onRepairIni} repairing={repairingModId === mod.modId} />)}
           </FindingSection>
         )}
 
@@ -136,7 +142,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.staleHashOrPlugin')}
             count={filteredContent.stale.length}
           >
-            {filteredContent.stale.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} />)}
+            {filteredContent.stale.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} onRepairIni={onRepairIni} repairing={repairingModId === mod.modId} />)}
           </FindingSection>
         )}
 
@@ -176,7 +182,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ report, scanning, on
             title={t('tools.modAnalyzer.healthyMods')}
             count={filteredContent.healthy.length}
           >
-            {filteredContent.healthy.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} />)}
+            {filteredContent.healthy.map(mod => <ModRow key={mod.modId} mod={mod} onLocate={onLocateMods} onRepairIni={onRepairIni} repairing={repairingModId === mod.modId} />)}
           </FindingSection>
         )}
 
@@ -273,7 +279,7 @@ const IssueTypeChip: React.FC<{ type: string }> = ({ type }) => {
   return <Tag className="mod-analyzer__issue-type">{t(`tools.modAnalyzer.issueType.${type}`, { defaultValue: type })}</Tag>;
 };
 
-const ModRow: React.FC<{ mod: ModAnalysisResult; onLocate?: (modIds: string[]) => void }> = ({ mod, onLocate }) => {
+const ModRow: React.FC<{ mod: ModAnalysisResult; onLocate?: (modIds: string[]) => void; onRepairIni?: (modId: string) => void; repairing?: boolean }> = ({ mod, onLocate, onRepairIni, repairing }) => {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
 
@@ -309,6 +315,21 @@ const ModRow: React.FC<{ mod: ModAnalysisResult; onLocate?: (modIds: string[]) =
                   <span className="mod-analyzer__issue-file">{issue.filePath.split(/[\\/]/).pop()}</span>
                 </Tooltip>
               )}
+              {/* One-click repair for unbalanced if/endif (needs the extracted cache) */}
+              {issue.type === 'unbalancedCondition' && onRepairIni &&
+                idx === mod.issues.findIndex(i => i.type === 'unbalancedCondition') && (
+                <Tooltip title={mod.hasCache ? t('tools.modAnalyzer.repairIni') : t('tools.modAnalyzer.repairNeedsCache')}>
+                  <CompactButton
+                    size="small"
+                    icon={<ToolFilled />}
+                    loading={repairing}
+                    disabled={!mod.hasCache || repairing}
+                    onClick={(e) => { e.stopPropagation(); onRepairIni(mod.modId); }}
+                  >
+                    {t('tools.modAnalyzer.repair')}
+                  </CompactButton>
+                </Tooltip>
+              )}
             </div>
           ))}
         </div>
@@ -321,14 +342,28 @@ const DuplicateHeader: React.FC<{ group: DuplicateGroup; onLocate?: (modIds: str
   const { t } = useTranslation();
   const isExactClone = group.type === 'identical' && group.allHashesMatch;
   const typeIcon = group.type === 'identical' ? <CopyOutlined /> : <BgColorsOutlined />;
-  const typeColor = isExactClone ? 'red' : group.type === 'identical' ? 'volcano' : 'orange';
+  const typeColor = isExactClone ? 'red'
+    : group.type === 'identical' ? 'volcano'
+    : group.type === 'similar' ? 'gold'
+    : group.type === 'iniVariant' ? 'geekblue'
+    : 'orange';
   const typeLabel = isExactClone
     ? t('tools.modAnalyzer.exactClone')
-    : group.type === 'identical' ? t('tools.modAnalyzer.identical') : t('tools.modAnalyzer.textureVariant');
+    : group.type === 'identical' ? t('tools.modAnalyzer.identical')
+    : group.type === 'similar' ? t('tools.modAnalyzer.similar')
+    : group.type === 'iniVariant' ? t('tools.modAnalyzer.iniVariant')
+    : t('tools.modAnalyzer.textureVariant');
 
   return (
     <div className="mod-analyzer__group-header">
-      <Tag color={typeColor}>{typeIcon} {typeLabel}</Tag>
+      <Tag color={typeColor}>
+        {typeIcon} {typeLabel}
+        {group.type === 'similar' && group.similarityScore != null && ` ~${Math.round(group.similarityScore * 100)}%`}
+      </Tag>
+      {/* iniVariant: say WHAT differs between the copies (hash fix / keybinds / defaults / logic) */}
+      {group.type === 'iniVariant' && (group.iniDifferences ?? []).map(d => (
+        <Tag key={d} className="mod-analyzer__inidiff-tag">{t(`tools.modAnalyzer.iniDiff.${d}`, { defaultValue: d })}</Tag>
+      ))}
       <span className="mod-analyzer__group-label">{group.groupLabel || t('tools.modAnalyzer.unknownGroup')}</span>
       <span className="mod-analyzer__group-count">{group.mods.length} {t('tools.modAnalyzer.mods')}</span>
       {group.sharedHashes.slice(0, 2).map(h => <Tag key={h} className="mod-analyzer__hash-tag">{h}</Tag>)}

@@ -154,6 +154,7 @@ public class ModFacade : BaseFacade, IModFacade
             "REORDER_KEYBINDINGS" => await ReorderKeybindingsAsync(request),
             "GET_INI_FILES" => await GetIniFilesAsync(request),
             "UPDATE_INI_ENTRY" => await UpdateIniEntryAsync(request),
+            "REPAIR_INI_BALANCE" => await RepairIniBalanceAsync(request),
             "MERGE_MODS" => await MergeModsAsync(request),
             "OPTIMIZE_SCAN" => await OptimizeScanAsync(request),
             "OPTIMIZE_APPLY" => await OptimizeApplyAsync(request),
@@ -795,6 +796,13 @@ public class ModFacade : BaseFacade, IModFacade
         var newValue = _payloadHelper.GetRequiredValue<string>(request.Payload, "newValue");
         var line = await _iniService.UpdateEntryAsync(id, relativePath, lineIndex, newValue).ConfigureAwait(false);
         return new { line };
+    }
+
+    /// <summary>IPC: REPAIR_INI_BALANCE — fix unbalanced if/endif across the mod's active .ini files.</summary>
+    private async Task<IniRepairResult> RepairIniBalanceAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        return await _iniService.RepairConditionBalanceAsync(id).ConfigureAwait(false);
     }
 
     /// <summary>IPC: OPTIMIZE_SCAN — read-only duplicate-asset scan (awaited; hashing is fast enough for a dialog spinner).</summary>

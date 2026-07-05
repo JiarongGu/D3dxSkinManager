@@ -129,6 +129,21 @@ covers the XXMI `<importer>/Core`. Real-library audit: missingPlugin noise 39→
 dialog → background batch delete** (Activity panel); issue rows show localized type chips; the
 stale/missing filter now includes missingPlugin. Tests: IniParserTests (9) + 4 grounded-check
 service tests (526 backend total). Verified live against the real library both themes.
+**Dedup taxonomy SHIPPED 2026-07-05 (2)** (user-defined 4 cases): `identical` (same assets + same
+ini = exact clone) / **`iniVariant`** (same asset bytes, different ini — labeled with WHAT differs:
+hash fix / keybindings / defaults / logic, via new per-aspect `IniFingerprints` finding column +
+migration 202607050001) / `textureVariant` (same buffers, new textures) / **`similar` ~N%** (scored
+overlap-coefficient over target hashes + buffer/texture bytes, threshold 0.70 — replaces the brittle
+buffer-only ≥80% subset check; containment = merged-mod case scores ~1.0). Score calibration
+(user-reported false positive): asset BYTES dominate (0.2 target / 0.55 buffers / 0.25 textures)
+plus a hard ≥0.6 byte-overlap gate — "same character" alone can't group different outfits sharing a
+base mesh. **Unbalanced if/endif: real-library forensics (300+ archives sampled) confirmed the
+detections are REAL mod defects that 3DMigoto tolerates → severity downgraded to Warning
+("repairable") AND a one-click repair shipped**: `ModIniService.RepairConditionBalanceAsync`
+(IPC `REPAIR_INI_BALANCE`, 修复 button on the finding row) appends missing `endif`s at section end,
+comments out stray ones, persists via the fast archive patch; requires the mod's cache. The
+findings "stale" section widened to **Needs Attention** (all warning-status mods now have a home).
+Tests: +5 taxonomy + 4 repair tests (535 backend). Repair verified e2e on a planted-defect fixture.
 
 ### 4. Mod optimization (dedup assets) — ✅ SHIPPED 2026-07-05
 `ModOptimizeService`: sha256-groups byte-identical non-`.ini` files in the mod's cache (active or

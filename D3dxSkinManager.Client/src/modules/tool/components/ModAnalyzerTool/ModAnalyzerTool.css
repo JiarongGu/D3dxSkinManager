@@ -397,6 +397,13 @@
   line-height: 18px;
 }
 
+/* iniVariant group: small tokens describing WHAT differs between the copies */
+.mod-analyzer__inidiff-tag {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-text-secondary);
+}
+
 .mod-analyzer__issue-file {
   color: var(--color-text-tertiary);
   font-size: 12px;

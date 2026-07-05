@@ -493,8 +493,17 @@ public class ModAnalysisService : IModAnalysisService
         // GIMI-merge convention) — they must not contribute hashes/overrides or the analyzer
         // reports false conflicts and duplicates on merged mods.
         var allIniFiles = Directory.GetFiles(modDir, "*.ini", SearchOption.AllDirectories);
-        var iniFiles = allIniFiles.Where(f => !IniParser.IsDisabledPath(Path.GetRelativePath(modDir, f))).ToArray();
+        var iniFiles = allIniFiles
+            .Where(f => !IniParser.IsDisabledPath(Path.GetRelativePath(modDir, f)))
+            // Deterministic order — the per-aspect ini fingerprints below concatenate file contents.
+            .OrderBy(f => Path.GetRelativePath(modDir, f), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         int disabledIniCount = allIniFiles.Length - iniFiles.Length;
+
+        // Per-aspect ini fingerprints — keys / constants / logic (hash= lines excluded from logic so
+        // a pure hash-fix reads as "same logic, different hashes"). Lets duplicate grouping say WHAT
+        // changed between two copies of the same mod (dedup taxonomy case 2).
+        var aspects = new IniAspectAccumulator();
 
         if (iniFiles.Length == 0)
         {
@@ -522,7 +531,7 @@ public class ModAnalysisService : IModAnalysisService
                 var lines = await File.ReadAllLinesAsync(iniFile).ConfigureAwait(false);
                 if (lines.Length == 0) { issues.Add(new ModHealthIssue { Type = HealthIssueType.EmptyIniFile, Severity = HealthIssueSeverity.Warning, Message = $"Empty: {iniName}" }); continue; }
 
-                var structure = ParseIniStructure(lines, iniName, issues);
+                var structure = ParseIniStructure(lines, iniName, issues, aspects);
                 foreach (var h in structure.TargetHashes) allTargetHashes.Add(h);
                 foreach (var p in structure.PluginReferences) allPluginRefs.Add(p);
                 textureOverrideCount += structure.TextureOverrideCount;
@@ -576,6 +585,7 @@ public class ModAnalysisService : IModAnalysisService
             TextureOverrideCount = textureOverrideCount,
             BufferSizeBytes = bufferFiles.Sum(f => new FileInfo(f).Length),
             TextureSizeBytes = textureFiles.Sum(f => new FileInfo(f).Length),
+            IniFingerprints = iniFiles.Length > 0 ? aspects.ToJson() : null,
         };
     }
 
@@ -627,7 +637,8 @@ public class ModAnalysisService : IModAnalysisService
                 BufferFileHashes = DeserializeList(f.BufferFileHashes),
                 TextureFileHashes = DeserializeList(f.TextureFileHashes),
                 BufferSizeBytes = f.BufferSizeBytes, TextureSizeBytes = f.TextureSizeBytes,
-                PluginDependencies = DeserializeList(f.PluginDependencies), PreviewPath = previewPath
+                PluginDependencies = DeserializeList(f.PluginDependencies), PreviewPath = previewPath,
+                IniFingerprints = f.IniFingerprints
             });
         }
 
@@ -669,92 +680,193 @@ public class ModAnalysisService : IModAnalysisService
             foreach (var m in mods) groupedModIds.Add(m.ModId);
         }
 
-        // Phase 2: Per-file hash overlap (catches merged mods — one contains another's buffers)
-        var ungroupedWithHashes = results
-            .Where(r => !groupedModIds.Contains(r.ModId) && r.BufferFileHashes.Count > 0)
-            .GroupBy(r => r.ModId).Select(g => g.First()).ToList();
+        // Phase 2: SCORED SIMILARITY — replaces the old buffer-only ≥80%-subset check, which was
+        // brittle: single hard cutoff, ignored textures and target hashes entirely, and gave the
+        // user no signal of HOW similar a group is. The overlap coefficient (|∩| / min size)
+        // handles both cases the old check aimed at (a merged mod CONTAINING another; edited
+        // variants sharing most bytes) plus retexture-only variants it missed.
+        var resultLookup = results.GroupBy(r => r.ModId).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        GroupSimilar(results, report, groupedModIds, resultLookup);
+    }
 
-        // Build inverted index: file hash → mod IDs
-        var fileHashToMods = new Dictionary<string, List<ModAnalysisResult>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var mod in ungroupedWithHashes)
-            foreach (var fh in mod.BufferFileHashes)
+    /// <summary>Minimum weighted similarity for two mods to land in one Similar group.</summary>
+    private const double SimilarityThreshold = 0.70;
+
+    /// <summary>
+    /// Overlap coefficient: |A ∩ B| / min(|A|, |B|). 1.0 when one set contains the other — the
+    /// right notion for "mod B is mod A plus extras" (merges, added variants). Empty sets score 0
+    /// ("no evidence", never "identical") so ini-only mods can't match everything.
+    /// </summary>
+    private static double Overlap(HashSet<string> a, HashSet<string> b)
+    {
+        if (a.Count == 0 || b.Count == 0) return 0;
+        int inter = a.Count < b.Count ? a.Count(b.Contains) : b.Count(a.Contains);
+        return (double)inter / Math.Min(a.Count, b.Count);
+    }
+
+    /// <summary>
+    /// Weighted similarity of two analyzed mods. Asset BYTES dominate: shared target hashes only
+    /// say "same character/part", which every mod for that character satisfies — weighting it high
+    /// grouped three DIFFERENT outfits that merely shared a base mesh (user report 2026-07-05).
+    /// A pair must also clear a hard byte-overlap gate (≥60% of the smaller mod's buffers OR
+    /// textures shared) before the weighted score even applies.
+    /// Exact clones → 1.0; retexture variant (same buffers) → ~0.75; a merge containing the mod →
+    /// ~1.0; different outfits off a common base (~half-shared buffers) → gated out or ~0.55.
+    /// </summary>
+    private static double SimilarityScore(ModAnalysisResult x, ModAnalysisResult y)
+    {
+        var tx = new HashSet<string>(x.TargetHashes, StringComparer.OrdinalIgnoreCase);
+        var ty = new HashSet<string>(y.TargetHashes, StringComparer.OrdinalIgnoreCase);
+        var bx = new HashSet<string>(x.BufferFileHashes, StringComparer.OrdinalIgnoreCase);
+        var by = new HashSet<string>(y.BufferFileHashes, StringComparer.OrdinalIgnoreCase);
+        var xx = new HashSet<string>(x.TextureFileHashes, StringComparer.OrdinalIgnoreCase);
+        var xy = new HashSet<string>(y.TextureFileHashes, StringComparer.OrdinalIgnoreCase);
+
+        var bufferOverlap = Overlap(bx, by);
+        var textureOverlap = Overlap(xx, xy);
+        if (Math.Max(bufferOverlap, textureOverlap) < 0.6) return 0; // byte-overlap gate
+
+        return 0.2 * Overlap(tx, ty) + 0.55 * bufferOverlap + 0.25 * textureOverlap;
+    }
+
+    private static void GroupSimilar(
+        List<ModAnalysisResult> results,
+        FullAnalysisReport report,
+        HashSet<string> groupedModIds,
+        Dictionary<string, ModAnalysisResult> resultLookup)
+    {
+        // Candidates: ungrouped mods with enough signal (a target hash set AND some hashed assets).
+        var candidates = results
+            .Where(r => !groupedModIds.Contains(r.ModId) &&
+                        r.TargetHashes.Count > 0 &&
+                        (r.BufferFileHashes.Count > 0 || r.TextureFileHashes.Count > 0))
+            .GroupBy(r => r.ModId).Select(g => g.First()).ToList();
+        if (candidates.Count < 2) return;
+
+        // Inverted index on target hashes — only pairs overriding at least one shared hash are scored.
+        var hashToMods = new Dictionary<string, List<ModAnalysisResult>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var mod in candidates)
+            foreach (var h in mod.TargetHashes)
             {
-                if (!fileHashToMods.TryGetValue(fh, out var list)) { list = []; fileHashToMods[fh] = list; }
+                if (!hashToMods.TryGetValue(h, out var list)) { list = []; hashToMods[h] = list; }
                 list.Add(mod);
             }
 
-        // Find mod pairs with significant buffer file overlap
-        var overlapGroups = new List<HashSet<string>>();
-        var checkedPairs = new HashSet<string>();
+        var groups = new List<(HashSet<string> Ids, List<double> Scores)>();
+        var scoredPairs = new HashSet<string>();
 
-        foreach (var mod in ungroupedWithHashes)
+        foreach (var mod in candidates)
         {
-            if (groupedModIds.Contains(mod.ModId)) continue;
-            var modHashSet = new HashSet<string>(mod.BufferFileHashes, StringComparer.OrdinalIgnoreCase);
-
-            // Find candidate mods that share at least one buffer file hash
-            var candidates = mod.BufferFileHashes
-                .Where(fileHashToMods.ContainsKey)
-                .SelectMany(fh => fileHashToMods[fh])
-                .Where(c => c.ModId != mod.ModId && !groupedModIds.Contains(c.ModId))
+            var partners = mod.TargetHashes
+                .Where(hashToMods.ContainsKey)
+                .SelectMany(h => hashToMods[h])
+                .Where(c => !string.Equals(c.ModId, mod.ModId, StringComparison.OrdinalIgnoreCase))
                 .GroupBy(c => c.ModId).Select(g => g.First());
 
-            foreach (var candidate in candidates)
+            foreach (var partner in partners)
             {
-                var pairKey = string.Compare(mod.ModId, candidate.ModId, StringComparison.OrdinalIgnoreCase) < 0
-                    ? $"{mod.ModId}|{candidate.ModId}" : $"{candidate.ModId}|{mod.ModId}";
-                if (!checkedPairs.Add(pairKey)) continue;
+                var pairKey = string.Compare(mod.ModId, partner.ModId, StringComparison.OrdinalIgnoreCase) < 0
+                    ? $"{mod.ModId}|{partner.ModId}" : $"{partner.ModId}|{mod.ModId}";
+                if (!scoredPairs.Add(pairKey)) continue;
 
-                var candidateHashSet = new HashSet<string>(candidate.BufferFileHashes, StringComparer.OrdinalIgnoreCase);
-                int sharedCount = modHashSet.Count(h => candidateHashSet.Contains(h));
-                int smallerSet = Math.Min(modHashSet.Count, candidateHashSet.Count);
+                var score = SimilarityScore(mod, partner);
+                if (score < SimilarityThreshold) continue;
 
-                // One mod's buffer files are a subset of the other (or ≥80% overlap with smaller set)
-                if (smallerSet > 0 && (double)sharedCount / smallerSet >= 0.8)
-                {
-                    // Merge into existing overlap group or create new one
-                    var existingGroup = overlapGroups.FirstOrDefault(g => g.Contains(mod.ModId) || g.Contains(candidate.ModId));
-                    if (existingGroup != null) { existingGroup.Add(mod.ModId); existingGroup.Add(candidate.ModId); }
-                    else overlapGroups.Add(new HashSet<string>(StringComparer.OrdinalIgnoreCase) { mod.ModId, candidate.ModId });
-                }
+                var existing = groups.FirstOrDefault(g => g.Ids.Contains(mod.ModId) || g.Ids.Contains(partner.ModId));
+                if (existing.Ids != null) { existing.Ids.Add(mod.ModId); existing.Ids.Add(partner.ModId); existing.Scores.Add(score); }
+                else groups.Add((new HashSet<string>(StringComparer.OrdinalIgnoreCase) { mod.ModId, partner.ModId }, [score]));
             }
         }
 
-        // Convert overlap groups to DuplicateGroups
-        var resultLookup = results.GroupBy(r => r.ModId).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-        foreach (var group in overlapGroups)
+        foreach (var (ids, scores) in groups)
         {
-            var mods = group.Where(resultLookup.ContainsKey).Select(id => resultLookup[id]).ToList();
-            if (mods.Count > 1)
-            {
-                AddDuplicateGroup(mods, report);
-                foreach (var m in mods) groupedModIds.Add(m.ModId);
-            }
+            var mods = ids.Where(resultLookup.ContainsKey).Select(id => resultLookup[id]).ToList();
+            if (mods.Count < 2) continue;
+            AddDuplicateGroup(mods, report, DuplicateType.Similar, scores.Average());
+            foreach (var m in mods) groupedModIds.Add(m.ModId);
         }
     }
 
-    private static void AddDuplicateGroup(List<ModAnalysisResult> mods, FullAnalysisReport report)
+    private static void AddDuplicateGroup(List<ModAnalysisResult> mods, FullAnalysisReport report,
+        DuplicateType? forcedType = null, double? similarityScore = null)
     {
         var textureGroups = mods.GroupBy(m => m.TextureHash).ToList();
-        var type = textureGroups.Count == 1 ? DuplicateType.Identical : DuplicateType.TextureVariant;
+        var firstHashes = string.Join(",", mods[0].TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase));
+        var allHashesMatch = mods.Count > 1 && mods.Skip(1).All(m =>
+            string.Join(",", m.TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase)) == firstHashes);
 
-        var allHashesMatch = false;
-        if (type == DuplicateType.Identical && mods.Count > 1)
+        // Same-asset groups split into the dedup taxonomy: exact clone (same ini too) vs INI
+        // VARIANT — the hash-fixed / keybind-updated copy of the same mod. The diff tokens say
+        // WHAT changed so the user can decide which copy to keep.
+        DuplicateType type;
+        var iniDifferences = new List<string>();
+        if (forcedType != null)
         {
-            var firstHashes = string.Join(",", mods[0].TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase));
-            allHashesMatch = mods.Skip(1).All(m =>
-                string.Join(",", m.TargetHashes.OrderBy(h => h, StringComparer.OrdinalIgnoreCase)) == firstHashes);
+            type = forcedType.Value;
+        }
+        else if (textureGroups.Count > 1)
+        {
+            type = DuplicateType.TextureVariant;
+        }
+        else
+        {
+            if (!allHashesMatch) iniDifferences.Add("hashes");
+            iniDifferences.AddRange(CompareIniAspects(mods));
+            type = iniDifferences.Count == 0 ? DuplicateType.Identical : DuplicateType.IniVariant;
+        }
+
+        // Similar groups: show the hashes the mods actually have in COMMON (first mod's list is
+        // misleading when the sets only mostly overlap).
+        var sharedHashes = mods.First().TargetHashes;
+        if (type == DuplicateType.Similar)
+        {
+            IEnumerable<string> common = mods.First().TargetHashes;
+            foreach (var m in mods.Skip(1))
+                common = common.Intersect(m.TargetHashes, StringComparer.OrdinalIgnoreCase);
+            sharedHashes = common.ToList();
         }
 
         report.DuplicateGroups.Add(new DuplicateGroup
         {
             Type = type,
             GroupLabel = mods.First().CategoryName,
-            SharedHashes = mods.First().TargetHashes,
+            SharedHashes = sharedHashes,
             Mods = mods,
-            AllHashesMatch = allHashesMatch
+            AllHashesMatch = allHashesMatch,
+            SimilarityScore = similarityScore,
+            IniDifferences = iniDifferences
         });
-        if (type == DuplicateType.Identical) report.IdenticalCount++; else report.TextureVariantCount++;
+        switch (type)
+        {
+            case DuplicateType.Identical: report.IdenticalCount++; break;
+            case DuplicateType.TextureVariant: report.TextureVariantCount++; break;
+            case DuplicateType.IniVariant: report.IniVariantCount++; break;
+            case DuplicateType.Similar: report.SimilarCount++; break;
+        }
+    }
+
+    /// <summary>
+    /// Which ini ASPECTS differ across a same-asset group: "keys" (bindings), "constants"
+    /// (defaults), "logic" (command lists / overrides minus hash lines). Findings without
+    /// fingerprints (pre-2026-07 scans) compare as unknown — no aspect tokens are reported.
+    /// </summary>
+    private static List<string> CompareIniAspects(List<ModAnalysisResult> mods)
+    {
+        var diffs = new List<string>();
+        var parsed = mods.Select(m =>
+        {
+            try { return m.IniFingerprints == null ? null : JsonSerializer.Deserialize<Dictionary<string, string>>(m.IniFingerprints); }
+            catch { return null; }
+        }).ToList();
+        if (parsed.Any(p => p == null)) return diffs;
+
+        foreach (var aspect in new[] { "key", "constants", "logic" })
+        {
+            var values = parsed.Select(p => p!.GetValueOrDefault(aspect, "")).Distinct().ToList();
+            if (values.Count > 1)
+                diffs.Add(aspect == "key" ? "keys" : aspect);
+        }
+        return diffs;
     }
 
     private static void BuildConflicts(List<ModAnalysisResult> loadedMods, FullAnalysisReport report)
@@ -780,7 +892,30 @@ public class ModAnalysisService : IModAnalysisService
 
     private static readonly Regex HexRegex = new(@"^[0-9a-fA-F]+$", RegexOptions.Compiled);
 
-    private ModIniStructure ParseIniStructure(string[] lines, string fileName, List<ModHealthIssue> issues)
+    /// <summary>Per-aspect ini content accumulator → sha256 fingerprints (key/constants/logic).</summary>
+    private sealed class IniAspectAccumulator
+    {
+        public global::System.Text.StringBuilder Keys { get; } = new();
+        public global::System.Text.StringBuilder Constants { get; } = new();
+        public global::System.Text.StringBuilder Logic { get; } = new();
+
+        public string ToJson()
+        {
+            static string Sha(global::System.Text.StringBuilder sb)
+            {
+                var bytes = SHA256.HashData(global::System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
+                return Convert.ToHexString(bytes);
+            }
+            return JsonSerializer.Serialize(new Dictionary<string, string>
+            {
+                ["key"] = Sha(Keys),
+                ["constants"] = Sha(Constants),
+                ["logic"] = Sha(Logic),
+            });
+        }
+    }
+
+    private ModIniStructure ParseIniStructure(string[] lines, string fileName, List<ModHealthIssue> issues, IniAspectAccumulator? aspects = null)
     {
         var structure = new ModIniStructure();
         var doc = IniParser.Parse(lines);
@@ -792,6 +927,21 @@ public class ModAnalysisService : IModAnalysisService
             // (3DMigoto warns but merges them) — 13 hits in a 12-mod library sample.
             if (!seenSectionNames.Add(section.Name))
                 issues.Add(new ModHealthIssue { Type = HealthIssueType.DuplicateSection, Severity = HealthIssueSeverity.Info, Message = $"Duplicate section [{section.Name}]", FilePath = fileName });
+
+            // Feed the per-aspect fingerprints: [Key*] / [Constants] / everything else. `hash =`
+            // lines are EXCLUDED from logic so a pure hash-fix compares as "same logic".
+            if (aspects != null)
+            {
+                var sink = section.Name.StartsWith("Key", StringComparison.OrdinalIgnoreCase) ? aspects.Keys
+                    : section.Name.StartsWith("Constants", StringComparison.OrdinalIgnoreCase) ? aspects.Constants
+                    : aspects.Logic;
+                sink.Append('[').Append(section.Name).Append("]\n");
+                foreach (var entry in section.Entries)
+                {
+                    if (sink == aspects.Logic && string.Equals(entry.Key, "hash", StringComparison.OrdinalIgnoreCase)) continue;
+                    sink.Append(entry.Raw).Append('\n');
+                }
+            }
 
             bool isTextureOverride = section.Name.StartsWith("TextureOverride", StringComparison.OrdinalIgnoreCase);
             bool isShaderOverride = section.Name.StartsWith("ShaderOverride", StringComparison.OrdinalIgnoreCase);
@@ -841,8 +991,11 @@ public class ModAnalysisService : IModAnalysisService
                 if (raw.StartsWith("if ", StringComparison.OrdinalIgnoreCase) || string.Equals(raw, "if", StringComparison.OrdinalIgnoreCase)) depth++;
                 else if (string.Equals(raw, "endif", StringComparison.OrdinalIgnoreCase)) { depth--; if (depth < 0) { underflow = true; break; } }
             }
+            // Warning, not Error: 3DMigoto tolerates these (auto-closes an unterminated `if` at
+            // section end, ignores a stray `endif`, logging a warning) so the mod still works —
+            // and the analyzer offers a one-click repair (ModIniService.RepairConditionBalanceAsync).
             if (depth != 0 || underflow)
-                issues.Add(new ModHealthIssue { Type = HealthIssueType.UnbalancedCondition, Severity = HealthIssueSeverity.Error, Message = $"[{section.Name}] has unbalanced if/endif — the section will not run as written", FilePath = fileName });
+                issues.Add(new ModHealthIssue { Type = HealthIssueType.UnbalancedCondition, Severity = HealthIssueSeverity.Warning, Message = $"[{section.Name}] has unbalanced if/endif (repairable)", FilePath = fileName });
 
             foreach (var entry in section.Entries)
                 foreach (var (pattern, plugin) in PluginPatterns)

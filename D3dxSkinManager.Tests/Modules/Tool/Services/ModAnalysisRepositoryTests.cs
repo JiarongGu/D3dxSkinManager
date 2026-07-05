@@ -32,7 +32,8 @@ public class ModAnalysisRepositoryTests : InMemoryDatabaseTestBase
                 Id INTEGER PRIMARY KEY AUTOINCREMENT, SessionId TEXT, ModId TEXT, TargetHashes TEXT,
                 BufferHash TEXT, TextureHash TEXT, HealthStatus TEXT, HealthIssues TEXT, PluginDependencies TEXT,
                 IniFileCount INTEGER, ResourceFileCount INTEGER, TextureOverrideCount INTEGER,
-                BufferSizeBytes INTEGER, TextureSizeBytes INTEGER, BufferFileHashes TEXT, TextureFileHashes TEXT
+                BufferSizeBytes INTEGER, TextureSizeBytes INTEGER, BufferFileHashes TEXT, TextureFileHashes TEXT,
+                IniFingerprints TEXT
             );";
         cmd.ExecuteNonQuery();
 

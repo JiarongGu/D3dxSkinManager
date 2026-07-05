@@ -639,6 +639,22 @@ export class ModService extends BaseModuleService {
     });
   }
 
+  /**
+   * Repair unbalanced if/endif blocks in the mod's active .ini files (analyzer's
+   * UnbalancedCondition finding): missing endifs appended, stray endifs commented out.
+   * Requires an extracted cache. Backend: ModFacade.RepairIniBalanceAsync.
+   */
+  async repairIniBalance(
+    profileId: string,
+    id: string,
+  ): Promise<{ filesChanged: number; endifsAdded: number; straysCommented: number }> {
+    return this.sendMessage<{ filesChanged: number; endifsAdded: number; straysCommented: number }>(
+      "REPAIR_INI_BALANCE",
+      profileId,
+      { id },
+    );
+  }
+
   // ============= Preset Operations =============
 
   /**

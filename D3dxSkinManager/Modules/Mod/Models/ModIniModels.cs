@@ -52,3 +52,11 @@ public class ModIniFile
 
     public List<ModIniSection> Sections { get; set; } = new();
 }
+
+/// <summary>Result of the if/endif balance repair (analyzer's UnbalancedCondition fix).</summary>
+public class IniRepairResult
+{
+    public int FilesChanged { get; set; }
+    public int EndifsAdded { get; set; }
+    public int StraysCommented { get; set; }
+}
