@@ -40,7 +40,7 @@ public class RemoteBrowseServiceTests
     /// <summary>The SHIPPED huihui adapter (csproj Content → test output) — tests run the real seed's regexes.</summary>
     internal static RemoteSourceConfig LoadHuihuiSeed()
     {
-        var path = System.IO.Path.Combine(AppContext.BaseDirectory, "resources", "remote-sources", "huihui.json");
+        var path = System.IO.Path.Combine(AppContext.BaseDirectory, "res", "remote-sources", "huihui.json");
         var options = new System.Text.Json.JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,

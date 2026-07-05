@@ -57,8 +57,8 @@ public class LanguageService : ILanguageService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         var globalPathsService = globalPaths ?? throw new ArgumentNullException(nameof(globalPaths));
 
-        // Use data/languages/ directory
-        _languagesDirectory = Path.Combine(globalPathsService.BaseDataPath, "languages");
+        // Shipped language files live under res/languages (sibling of libs/, not user data/).
+        _languagesDirectory = globalPathsService.LanguagesDirectory;
 
         // Ensure languages directory exists
         Directory.CreateDirectory(_languagesDirectory);

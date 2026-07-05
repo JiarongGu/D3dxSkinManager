@@ -28,9 +28,15 @@ public interface IGlobalPathService
     /// Global: a site serves multiple games; the list/game choice happens in the UI.</summary>
     string RemoteSourcesDirectory { get; }
 
-    /// <summary>SHIPPED remote-source adapters ({data}/remote-source-seeds — csproj Content).
+    /// <summary>SHIPPED remote-source adapters (res/remote-sources — csproj Content).
     /// Read-only seed source; RemoteSourceStore copies missing adapters into RemoteSourcesDirectory.</summary>
     string RemoteSourceSeedsDirectory { get; }
+
+    /// <summary>Top-level shipped read-only resources folder (res/ — sibling of libs/).</summary>
+    string ResourcesPath { get; }
+
+    /// <summary>Shipped language files (res/languages — csproj Content, read by LanguageService).</summary>
+    string LanguagesDirectory { get; }
 
     void EnsureDirectoriesExist();
     string GetProfileDirectoryPath(string profileId);
@@ -74,11 +80,14 @@ public class GlobalPathService : IGlobalPathService
 
     public string RemoteSourcesDirectory => Path.Combine(BaseDataPath, "remote-sources");
 
-    // Shipped, read-only default configs live under a top-level `resources/` folder (sibling of
-    // `data/`), NOT inside user `data/`. Created by the build (csproj Content), not EnsureDirectoriesExist.
-    // RemoteSourceStore copies any missing adapter from here into the writable RemoteSourcesDirectory.
-    public string ResourcesPath => Path.Combine(_environment.BaseDirectory, "resources");
+    // Shipped, read-only resources live under a top-level `res/` folder (sibling of `libs/`, next to
+    // the exe — NOT inside user `data/`). Created by the build (csproj Content), not EnsureDirectoriesExist.
+    public string ResourcesPath => Path.Combine(_environment.BaseDirectory, "res");
 
+    // Language files ship here (read at runtime by LanguageService).
+    public string LanguagesDirectory => Path.Combine(ResourcesPath, "languages");
+
+    // RemoteSourceStore copies any missing adapter from here into the writable RemoteSourcesDirectory.
     public string RemoteSourceSeedsDirectory => Path.Combine(ResourcesPath, "remote-sources");
 
     /// <summary>

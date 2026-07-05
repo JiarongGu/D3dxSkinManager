@@ -274,20 +274,13 @@ foreach ($plat in $platforms) {
         Copy-Item -Path "$sourcePath\D3dxSkinManager.exe" -Destination $destPath -Force
     }
 
-    # Copy language files (kept separate for easy user modification)
-    if (Test-Path "$sourcePath\data\languages") {
-        $langDestPath = Join-Path $destPath "data\languages"
-        New-Item -ItemType Directory -Path $langDestPath -Force | Out-Null
-        Copy-Item -Path "$sourcePath\data\languages\*" -Destination $langDestPath -Force
-    }
-
-    # Copy the shipped resources\ folder (site default configs / seeds). RemoteSourceStore copies these
-    # into {data}/remote-sources on first run — without them the remote library shows NO sites.
-    if (Test-Path "$sourcePath\resources") {
-        Copy-Item -Path "$sourcePath\resources" -Destination $destPath -Recurse -Force
-        Write-Host "    📦 Copied resources folder (site default configs)" -ForegroundColor Gray
+    # Copy the shipped res\ folder — holds language files AND remote-library adapter seeds. Without it
+    # the UI shows raw i18n keys and the remote library lists no sites (RemoteSourceStore seeds from here).
+    if (Test-Path "$sourcePath\res") {
+        Copy-Item -Path "$sourcePath\res" -Destination $destPath -Recurse -Force
+        Write-Host "    📦 Copied res folder (languages + site default configs)" -ForegroundColor Gray
     } else {
-        Write-Host "    ⚠️  Warning: resources folder not found! Remote library will show no sites." -ForegroundColor Yellow
+        Write-Host "    ⚠️  Warning: res folder not found! Languages + remote library will be missing." -ForegroundColor Yellow
     }
 
     # Copy native libraries (7z.dll for fast archive extraction)
