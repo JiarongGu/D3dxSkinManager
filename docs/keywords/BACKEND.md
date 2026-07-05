@@ -85,6 +85,7 @@ Layer-3 event consolidation.
 | `Setting` | GlobalSettingService (`data/settings/global.json`), LanguageService, SettingFileService, WindowStateService |
 | `System` | SystemFileDialogService, SystemFileService (open explorer/file), SystemProcessService, SystemSettingsService, `UpdateService` (GitHub release check + staged update → Launcher applies); SystemFacade also serves `GET_PROCESSES` etc. |
 | `Launch` | `XxmiService` (detect XXMI installs/importers — `xxmi-integration.md`), `D3DMigotoService` (parked, no UI) |
+| `Remote` | Remote mod library (`remote-library.md`): RemoteSourceStore (JSON adapters in `{data}/remote-sources/`, seeds huihui), RemoteBrowseService (regex extraction), CloudreveShareResolver (v4 share→presigned URL), RemoteImportService (download+import, ProcessRegistry), RemoteFacade (`REMOTE`) |
 | `Tool` | ModAnalysisService (+Repository) health/duplicates/conflicts; ModFixService (fix-tool runner, diff-based persist); ModFixToolService + FixToolsWatcher (fix-tool library); FileCleanupService (orphan scan/clean); ModIdMigrationService (hash→GUID); ConfigurationService; `ModPackage/` (export/import); `ScreenCapture/` (WGC capture + overlay) |
 | `Workflow` | import workflow state machine: `Handlers/ModImportWorkflowHandler`, `Repositories/WorkflowRepository`, WorkflowConcurrencyManager, WorkflowResumeService |
 | `Migration` | Python→React migration: MigrationService orchestrator + `Steps/` (1–6, `IMigrationStep` DI) + `Parsers/` |

@@ -33,6 +33,7 @@ longer exist. Everything is under `src/modules/` and `src/shared/`.)
 | `profile` | ProfileManager, ProfileSelector, ProfileSwitcher |
 | `setting` | SettingsView (4 flat tabs) — **ModWorkSettingsTab** (work-dir mode + **XxmiImporterPicker** + binding summary + editable game-launch — see `xxmi-integration.md`), **ModImportSettingsTab** (compression), FixToolSettingsCard, GlobalSettingsTab, SettingsSectionActions, UpdateDialog; `store/settingsStore.ts` (incl. `launchPath`/`launchArgs` + baseline) |
 | `tool` | ToolsView (card grid) + tools: FileCleanupTool/, ModAnalyzerTool/ (ScanView/FindingsView/HistoryView), ModFixTool/, ModIdMigrationTool/, ModPackageTool/ (Export/Import), PythonMigrationTool/, ScreenCaptureTool/, TagManagementTool/ |
+| `remote` | Remote mod library tab (`remote-library.md`): RemoteLibraryView (source/list pickers + card grid + pagination), RemoteModDetailScreen (gallery + download/import), `store/remoteUiStore.ts` (browse state survives tab switches) |
 | `workflow` | `components/modImport/` — ModImportWorkflowScreen + table (import queue) |
 
 ## Shared components (`src/shared/components/`) — layers per `ui-component-layers.md`
