@@ -20,6 +20,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cfg from '../project.config.mjs';
 import { shotPath, finalizeShot } from './_capture-util.mjs';
+import { devMainWindowHwnd } from './_dev-window.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const toolDir = resolve(repoRoot, 'devtools/wgc-shot');
@@ -28,7 +29,14 @@ const tfmDir = resolve(toolDir, 'bin/Release');
 const argv = process.argv.slice(2);
 const label = (argv.find((a) => !a.startsWith('--')) || 'app').replace(/[^a-z0-9._-]/gi, '_');
 const proc = argv[argv.indexOf('--proc') + 1] && argv.includes('--proc') ? argv[argv.indexOf('--proc') + 1] : cfg.processName;
-const hwnd = argv.includes('--hwnd') ? argv[argv.indexOf('--hwnd') + 1] : null;
+let hwnd = argv.includes('--hwnd') ? argv[argv.indexOf('--hwnd') + 1] : null;
+
+// Capture the DEV instance's window (path-matched HWND) — a bare process-name match can grab the
+// user's own installed instance running alongside (see _dev-window.mjs).
+if (!hwnd && !argv.includes('--proc')) {
+  hwnd = devMainWindowHwnd();
+  if (!hwnd) console.log('[shot-wgc] no dev-instance window found — falling back to process-name match');
+}
 
 function findExe() {
   if (!existsSync(tfmDir)) return null;

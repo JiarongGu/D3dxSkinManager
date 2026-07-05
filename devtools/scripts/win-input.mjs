@@ -14,6 +14,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cfg from '../project.config.mjs';
+import { devMainWindowHwnd } from './_dev-window.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const toolDir = resolve(repoRoot, 'devtools/win-input');
@@ -37,7 +38,12 @@ if (!exe) {
 }
 
 const argv = process.argv.slice(2);
-// Inject the default process name when the caller didn't pass one.
-if (!argv.includes('--proc')) argv.push('--proc', cfg.processName);
+// Target the DEV instance's window (path-matched HWND) — a bare process-name match can send real
+// input to the user's own installed instance running alongside (see _dev-window.mjs).
+if (!argv.includes('--proc') && !argv.includes('--hwnd')) {
+  const hwnd = devMainWindowHwnd();
+  if (hwnd) argv.push('--hwnd', hwnd);
+  else argv.push('--proc', cfg.processName);
+}
 const r = spawnSync(exe, argv, { stdio: 'inherit' });
 process.exit(r.status ?? 0);
