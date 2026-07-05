@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Select } from "antd";
-import { ReloadOutlined, CloudDownloadOutlined } from "@ant-design/icons";
+import { ReloadOutlined, CloudDownloadOutlined, SettingOutlined } from "@ant-design/icons";
 import {
   CompactCard,
   CompactWarningButton,
@@ -63,7 +63,7 @@ export const GlobalSettingsTab: React.FC = () => {
   };
 
   return (
-    <CompactCard>
+    <CompactCard title={<><SettingOutlined /> {t("settings.tabs.global")}</>}>
       <div className="settings-view-form-grid">
         <CompactField label={t("settings.global.theme.label")} description={t("settings.global.theme.tooltip")}>
           <CompactSelect value={theme} onChange={handleThemeChange}>

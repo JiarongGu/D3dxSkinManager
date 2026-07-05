@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Space, InputNumber } from "antd";
-import { ThunderboltOutlined, SearchOutlined } from "@ant-design/icons";
+import { ToolOutlined, SearchOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import {
   CompactCard,
@@ -104,47 +104,48 @@ export const FixToolSettingsCard: React.FC = () => {
 
   return (
     <CompactCard
-      style={{ marginTop: "16px" }}
-      title={<><ThunderboltOutlined /> {t("settings.profile.fixTools.title")}</>}
+      title={<><ToolOutlined /> {t("settings.profile.fixTools.title")}</>}
       extra={<SettingsSectionActions dirty={dirty} saving={saving} onSave={save} onReset={reset} />}
     >
-      <CompactField label={t("settings.profile.fixTools.python.label")} description={t("settings.profile.fixTools.python.hint")}>
-        <Space.Compact style={{ width: "100%" }}>
-          <CompactInput
-            value={pythonPath}
-            placeholder={t("settings.profile.fixTools.python.placeholder")}
-            onChange={(e) => setPythonPath(e.target.value)}
+      <div className="settings-view-profile-form-grid">
+        <CompactField label={t("settings.profile.fixTools.python.label")} description={t("settings.profile.fixTools.python.hint")}>
+          <Space.Compact style={{ width: "100%" }}>
+            <CompactInput
+              value={pythonPath}
+              placeholder={t("settings.profile.fixTools.python.placeholder")}
+              onChange={(e) => setPythonPath(e.target.value)}
+            />
+            <CompactButton icon={<SearchOutlined />} loading={detecting} onClick={detect}>
+              {t("settings.profile.fixTools.python.detect")}
+            </CompactButton>
+          </Space.Compact>
+        </CompactField>
+
+        <CompactField label={t("settings.profile.fixTools.timeout.label")}>
+          <InputNumber
+            min={1}
+            max={120}
+            value={timeoutMinutes}
+            onChange={(v) => setTimeoutMinutes(v ?? 5)}
+            style={{ width: "120px" }}
+            // antd v6 deprecated InputNumber `addonAfter`; `suffix` shows the unit inside the field.
+            suffix={t("settings.profile.fixTools.timeout.minutes")}
           />
-          <CompactButton icon={<SearchOutlined />} loading={detecting} onClick={detect}>
-            {t("settings.profile.fixTools.python.detect")}
-          </CompactButton>
-        </Space.Compact>
-      </CompactField>
+        </CompactField>
 
-      <CompactField label={t("settings.profile.fixTools.timeout.label")}>
-        <InputNumber
-          min={1}
-          max={120}
-          value={timeoutMinutes}
-          onChange={(v) => setTimeoutMinutes(v ?? 5)}
-          style={{ width: "120px" }}
-          // antd v6 deprecated InputNumber `addonAfter`; `suffix` shows the unit inside the field.
-          suffix={t("settings.profile.fixTools.timeout.minutes")}
-        />
-      </CompactField>
+        <CompactField label={t("settings.profile.fixTools.extensions.label")} description={t("settings.profile.fixTools.extensions.hint")}>
+          <CompactInput value={extensions} onChange={(e) => setExtensions(e.target.value)} placeholder={DEFAULT_EXTENSIONS} />
+        </CompactField>
 
-      <CompactField label={t("settings.profile.fixTools.extensions.label")} description={t("settings.profile.fixTools.extensions.hint")}>
-        <CompactInput value={extensions} onChange={(e) => setExtensions(e.target.value)} placeholder={DEFAULT_EXTENSIONS} />
-      </CompactField>
-
-      <CompactField label={t("settings.profile.fixTools.autoConfirm.label")} description={t("settings.profile.fixTools.autoConfirm.hint")}>
-        <CompactSwitch
-          checked={autoConfirm}
-          onChange={setAutoConfirm}
-          checkedChildren={t("common.enable")}
-          unCheckedChildren={t("common.disable")}
-        />
-      </CompactField>
+        <CompactField label={t("settings.profile.fixTools.autoConfirm.label")} description={t("settings.profile.fixTools.autoConfirm.hint")}>
+          <CompactSwitch
+            checked={autoConfirm}
+            onChange={setAutoConfirm}
+            checkedChildren={t("common.enable")}
+            unCheckedChildren={t("common.disable")}
+          />
+        </CompactField>
+      </div>
     </CompactCard>
   );
 };

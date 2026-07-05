@@ -514,3 +514,29 @@
   padding: 16px !important;
   text-align: center !important;
 }
+
+/* ========== Segmented (mode toggles) ========== */
+/* The default antd dark-theme thumb is near-invisible against a card background — make the
+   selected option unmistakable in BOTH themes by painting the thumb primary. */
+.ant-segmented {
+  background: var(--color-bg-spotlight);
+}
+
+.ant-segmented .ant-segmented-item {
+  color: var(--color-text-secondary);
+}
+
+.ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  color: var(--color-text-base);
+}
+
+.ant-segmented .ant-segmented-item-selected,
+.ant-segmented .ant-segmented-thumb {
+  background: var(--color-primary);
+}
+
+.ant-segmented .ant-segmented-item-selected {
+  /* white on primary blue — theme-independent, same as an antd primary button (NOT a surface color) */
+  color: #fff;
+  font-weight: 500;
+}

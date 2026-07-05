@@ -1,34 +1,32 @@
-import React, { useState } from "react";
-import { Space, InputNumber, Select, Segmented } from "antd";
-import { ThunderboltOutlined, FolderOpenOutlined } from "@ant-design/icons";
+import React, { useCallback, useState } from "react";
+import { Space, InputNumber, Segmented } from "antd";
+import { FolderOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import {
   CompactCard,
   CompactButton,
   CompactInput,
-  CompactSelect,
   CompactSwitch,
   CompactField,
 } from "../../../shared/components/compact";
+import { KeyValueRows, type KeyValueRowItem } from "../../../shared/components/common";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "../../../shared/context/ProfileContext";
 import { useSettingsStore } from "../store/settingsStore";
 import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
-import { ModImportConfiguration, ModWorkConfiguration, profileService, systemService } from "../../../shared/services/ipc";
+import { ModWorkConfiguration, profileService, systemService } from "../../../shared/services/ipc";
+import type { XxmiDetectResult } from "../../../shared/services/ipc/launchService";
 import { logger } from "../../../shared/utils/logger";
 import { ConfirmDialog } from "../../../shared/components/dialogs/ConfirmDialog";
 import { XxmiImporterPicker } from "./XxmiImporterPicker";
-import { FixToolSettingsCard } from "./FixToolSettingsCard";
 import { SettingsSectionActions } from "./SettingsSectionActions";
 
-const { Option } = Select;
-
 /**
- * Per-profile settings. Every row uses the CompactField L1 atom (label + optional description + control)
- * for a single, consistent form style across sections; controls are store-controlled (no antd Form).
- * Each card owns its Save/Reset (SettingsSectionActions) gated on its own dirty state.
+ * Mod Work settings tab: where loaded mods deploy (internal / XXMI importer / custom folder), the
+ * game-launch command the status-bar Launch button runs, and disabled-cache cleanup. Controls are
+ * store-controlled (no antd Form); the card owns its Save/Reset gated on its own dirty state.
  */
-export const ProfileSettingsTab: React.FC = () => {
+export const ModWorkSettingsTab: React.FC = () => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
 
@@ -38,32 +36,31 @@ export const ProfileSettingsTab: React.FC = () => {
     internalWorkPath,
     cleanupEnabled,
     cleanupMaxCaches,
-    compressionType,
-    compressionMode,
+    launchPath,
+    launchArgs,
     initialProfileConfig,
-    initialModImportConfig,
+    initialLaunchConfig,
     setWorkMode,
     setWorkDirectory,
     setCleanupEnabled,
     setCleanupMaxCaches,
-    setCompressionType,
-    setCompressionMode,
+    setLaunchPath,
+    setLaunchArgs,
+    setLaunchConfig,
     setInitialProfileConfig,
-    setInitialModImportConfig,
   } = useSettingsStore();
 
   const [savingWork, setSavingWork] = useState(false);
-  const [savingImport, setSavingImport] = useState(false);
+  // Latest XXMI detect result — enriches the binding summary (game folder, config path).
+  const [xxmiDetect, setXxmiDetect] = useState<XxmiDetectResult | undefined>(undefined);
 
-  // Per-section dirty (each card saves/resets independently).
   const workDirty =
     workMode !== initialProfileConfig.mode ||
     workDirectory !== initialProfileConfig.directory ||
     cleanupEnabled !== initialProfileConfig.cleanupEnabled ||
-    cleanupMaxCaches !== initialProfileConfig.cleanupMaxCaches;
-  const importDirty =
-    compressionType !== initialModImportConfig.compressionType ||
-    compressionMode !== initialModImportConfig.compressionMode;
+    cleanupMaxCaches !== initialProfileConfig.cleanupMaxCaches ||
+    launchPath !== initialLaunchConfig.path ||
+    launchArgs !== initialLaunchConfig.args;
 
   // Mod location is persisted as the work mode itself (internal / external / xxmi); the segmented
   // selector drives workMode directly.
@@ -85,27 +82,32 @@ export const ProfileSettingsTab: React.FC = () => {
     setPendingXxmi({ importerDir, modsDir, launcherExe, importerName });
   };
 
+  const handleXxmiDetect = useCallback((result: XxmiDetectResult) => setXxmiDetect(result), []);
+
   // The boot command is auto-derived — `XXMI Launcher.exe --nogui --xxmi <IMPORTER>` headlessly
   // launches that importer's game (see xxmi-integration.md), so the user never types a launch option.
   const applyXxmiImporter = async () => {
     const pick = pendingXxmi;
     if (!pick) return;
     if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
+    const newLaunchPath = pick.launcherExe ?? launchPath;
+    const newLaunchArgs = pick.importerName ? `--nogui --xxmi ${pick.importerName}` : launchArgs;
     try {
       await profileService.updateProfileConfig({
         profileId: selectedProfileId,
         workMode: "xxmi",
         workDirectory: pick.importerDir,
-        ...(pick.launcherExe ? { launchPath: pick.launcherExe } : {}),
-        ...(pick.importerName ? { launchArgs: `--nogui --xxmi ${pick.importerName}` } : {}),
+        launchPath: newLaunchPath,
+        launchArgs: newLaunchArgs,
       });
-      // Sync the live field AND the baseline so the section isn't left dirty after the bind.
+      // Sync the live fields AND the baselines so the section isn't left dirty after the bind.
       setWorkDirectory(pick.importerDir);
       setInitialProfileConfig({ mode: "xxmi", directory: pick.importerDir, cleanupEnabled, cleanupMaxCaches });
+      setLaunchConfig(newLaunchPath, newLaunchArgs);
       notification.success(t("settings.profile.modWork.xxmi.applied"));
     } catch (error: unknown) {
       notification.error(t("settings.notifications.profileConfigSaveFailed"));
-      logger.error("[ProfileSettingsTab] Failed to apply XXMI importer:", error);
+      logger.error("[ModWorkSettingsTab] Failed to apply XXMI importer:", error);
     } finally {
       setPendingXxmi(undefined);
     }
@@ -121,11 +123,23 @@ export const ProfileSettingsTab: React.FC = () => {
       if (result.success && result.filePath) setWorkDirectory(result.filePath);
     } catch (error: unknown) {
       notification.error(t("settings.notifications.workDirectoryFailed"));
-      logger.error("[ProfileSettingsTab] Failed to browse work directory:", error);
+      logger.error("[ModWorkSettingsTab] Failed to browse work directory:", error);
     }
   };
 
-  // --- Mod Work section save/reset ---
+  const handleBrowseLauncher = async () => {
+    try {
+      const result = await systemService.openFileDialog({
+        title: t("settings.profile.launch.dialogTitle"),
+        filters: [{ name: "Programs", extensions: ["exe", "bat", "cmd", "lnk"] }],
+        rememberPathKey: "launch-target",
+      });
+      if (result.success && result.filePath) setLaunchPath(result.filePath);
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  };
+
   const handleSaveWork = async () => {
     if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
     const usesCustomDir = workMode !== "internal";
@@ -141,8 +155,12 @@ export const ProfileSettingsTab: React.FC = () => {
         workDirectory: usesCustomDir ? workDirectory : undefined,
         cleanupEnabled,
         cleanupMaxCaches: Math.max(1, Math.min(100, cleanupMaxCaches)),
+        // Only send launch values that actually changed — an omitted field is preserved by the backend.
+        ...(launchPath !== initialLaunchConfig.path ? { launchPath } : {}),
+        ...(launchArgs !== initialLaunchConfig.args ? { launchArgs } : {}),
       });
       setInitialProfileConfig({ mode: workMode, directory: workDirectory, cleanupEnabled, cleanupMaxCaches });
+      setLaunchConfig(launchPath, launchArgs);
       notification.success(t("settings.notifications.profileConfigSaved"));
     } catch (error) {
       handleError(error);
@@ -156,32 +174,35 @@ export const ProfileSettingsTab: React.FC = () => {
     setWorkDirectory(initialProfileConfig.directory);
     setCleanupEnabled(initialProfileConfig.cleanupEnabled);
     setCleanupMaxCaches(initialProfileConfig.cleanupMaxCaches);
+    setLaunchPath(initialLaunchConfig.path);
+    setLaunchArgs(initialLaunchConfig.args);
   };
 
-  // --- Mod Import section save/reset ---
-  const handleSaveImport = async () => {
-    if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
-    setSavingImport(true);
-    try {
-      await profileService.updateProfileConfig({ profileId: selectedProfileId, compressionType, compressionMode });
-      setInitialModImportConfig({ compressionType, compressionMode });
-      notification.success(t("settings.notifications.profileConfigSaved"));
-    } catch (error) {
-      handleError(error);
-    } finally {
-      setSavingImport(false);
-    }
-  };
+  // Detect-enriched info about the SAVED binding (only when the detect result covers it).
+  const boundImporter = initialProfileConfig.mode === "xxmi"
+    ? xxmiDetect?.importers.find((i) => i.importerDir === initialProfileConfig.directory)
+    : undefined;
 
-  const handleResetImport = () => {
-    setCompressionType(initialModImportConfig.compressionType);
-    setCompressionMode(initialModImportConfig.compressionMode);
-  };
+  const bindingRows: KeyValueRowItem[] = initialProfileConfig.directory
+    ? [
+        { label: t("settings.profile.modWork.xxmi.confirmWorkDir"), value: initialProfileConfig.directory },
+        {
+          label: t("settings.profile.modWork.xxmi.confirmDeploy"),
+          value: `${initialProfileConfig.directory.replace(/[\\/]+$/, "")}\\Mods`,
+        },
+        ...(boundImporter?.gameFolder
+          ? [{ label: t("launch.xxmi.gameFolder"), value: boundImporter.gameFolder }]
+          : []),
+        ...(boundImporter && xxmiDetect?.configPath
+          ? [{ label: t("launch.xxmi.configPath"), value: xxmiDetect.configPath }]
+          : []),
+      ]
+    : [];
 
   return (
     <div className="settings-view-profile">
       <CompactCard
-        title={<><ThunderboltOutlined /> {t("settings.profile.modWork.title")}</>}
+        title={<><FolderOutlined /> {t("settings.profile.modWork.title")}</>}
         extra={<SettingsSectionActions dirty={workDirty} saving={savingWork} onSave={handleSaveWork} onReset={handleResetWork} />}
       >
         <div className="settings-view-profile-form-grid">
@@ -207,41 +228,26 @@ export const ProfileSettingsTab: React.FC = () => {
                   <XxmiImporterPicker
                     profileId={selectedProfileId ?? undefined}
                     currentDirectory={workDirectory || undefined}
+                    boundDirectory={initialProfileConfig.mode === "xxmi" ? initialProfileConfig.directory : ""}
                     onSelect={handleSelectXxmiImporter}
+                    onDetect={handleXxmiDetect}
                   />
-                  <ConfirmDialog
-                    visible={!!pendingXxmi}
-                    title={t("settings.profile.modWork.xxmi.confirmTitle", { name: pendingXxmi?.importerName ?? "" })}
-                    content={
-                      <div className="xxmi-confirm">
-                        <div>{t("settings.profile.modWork.xxmi.confirmIntro")}</div>
-                        <div className="xxmi-confirm__row">
-                          <span className="xxmi-confirm__label">{t("settings.profile.modWork.xxmi.confirmWorkDir")}</span>
-                          <code>{pendingXxmi?.importerDir}</code>
-                        </div>
-                        <div className="xxmi-confirm__row">
-                          <span className="xxmi-confirm__label">{t("settings.profile.modWork.xxmi.confirmDeploy")}</span>
-                          <code>{pendingXxmi?.modsDir}</code>
-                        </div>
-                        {pendingXxmi?.launcherExe && (
-                          <div className="xxmi-confirm__row">
-                            <span className="xxmi-confirm__label">{t("settings.profile.modWork.xxmi.confirmLauncher")}</span>
-                            <code>{pendingXxmi.launcherExe}</code>
-                          </div>
-                        )}
-                        {pendingXxmi?.importerName && (
-                          <div className="xxmi-confirm__row">
-                            <span className="xxmi-confirm__label">{t("settings.profile.modWork.xxmi.confirmArgs")}</span>
-                            <code>--nogui --xxmi {pendingXxmi.importerName}</code>
-                          </div>
-                        )}
-                        <div className="xxmi-confirm__hint">{t("settings.profile.modWork.xxmi.confirmHint")}</div>
-                      </div>
-                    }
-                    okText={t("common.apply")}
-                    onOk={applyXxmiImporter}
-                    onCancel={() => setPendingXxmi(undefined)}
-                  />
+                  {initialProfileConfig.mode === "xxmi" && bindingRows.length > 0 ? (
+                    <KeyValueRows
+                      boxed
+                      className="modwork-binding-summary"
+                      title={t("settings.profile.modWork.xxmi.summaryTitle")}
+                      rows={bindingRows}
+                      hint={t("settings.profile.modWork.xxmi.summaryHint")}
+                    />
+                  ) : (
+                    <KeyValueRows
+                      boxed
+                      className="modwork-binding-summary"
+                      rows={[]}
+                      hint={t("settings.profile.modWork.xxmi.noBinding")}
+                    />
+                  )}
                 </>
               )}
               {workMode === "external" && (
@@ -257,11 +263,59 @@ export const ProfileSettingsTab: React.FC = () => {
                 </Space.Compact>
               )}
             </div>
+            <ConfirmDialog
+              visible={!!pendingXxmi}
+              title={t("settings.profile.modWork.xxmi.confirmTitle", { name: pendingXxmi?.importerName ?? "" })}
+              content={
+                <div className="xxmi-confirm">
+                  <div>{t("settings.profile.modWork.xxmi.confirmIntro")}</div>
+                  <KeyValueRows
+                    rows={[
+                      { label: t("settings.profile.modWork.xxmi.confirmWorkDir"), value: pendingXxmi?.importerDir },
+                      { label: t("settings.profile.modWork.xxmi.confirmDeploy"), value: pendingXxmi?.modsDir },
+                      ...(pendingXxmi?.launcherExe
+                        ? [{ label: t("settings.profile.modWork.xxmi.confirmLauncher"), value: pendingXxmi.launcherExe }]
+                        : []),
+                      ...(pendingXxmi?.importerName
+                        ? [{ label: t("settings.profile.modWork.xxmi.confirmArgs"), value: `--nogui --xxmi ${pendingXxmi.importerName}` }]
+                        : []),
+                    ]}
+                    hint={t("settings.profile.modWork.xxmi.confirmHint")}
+                  />
+                </div>
+              }
+              okText={t("common.apply")}
+              onOk={applyXxmiImporter}
+              onCancel={() => setPendingXxmi(undefined)}
+            />
+          </CompactField>
+
+          <CompactField
+            label={t("settings.profile.launch.label")}
+            description={t("settings.profile.launch.tooltip")}
+          >
+            <Space.Compact style={{ width: "100%" }}>
+              <CompactInput
+                value={launchPath}
+                onChange={(e) => setLaunchPath(e.target.value)}
+                placeholder={t("launch.pathPlaceholder")}
+              />
+              <CompactButton icon={<FolderOpenOutlined />} onClick={handleBrowseLauncher}>
+                {t("common.browse")}
+              </CompactButton>
+            </Space.Compact>
+            <div style={{ marginTop: 8 }}>
+              <CompactInput
+                value={launchArgs}
+                onChange={(e) => setLaunchArgs(e.target.value)}
+                placeholder={t("settings.profile.launch.argsPlaceholder")}
+              />
+            </div>
           </CompactField>
 
           <CompactField
             label={t("settings.profile.modWork.cleanup.title")}
-            description={t("settings.profile.modWork.cleanup.hint")}
+            description={t("settings.profile.modWork.cleanup.tooltip")}
           >
             <Space align="center">
               <CompactSwitch
@@ -279,41 +333,11 @@ export const ProfileSettingsTab: React.FC = () => {
                 disabled={!cleanupEnabled}
                 style={{ width: "80px" }}
               />
+              <span>{t("settings.profile.modWork.cleanup.hint")}</span>
             </Space>
           </CompactField>
         </div>
       </CompactCard>
-
-      <CompactCard
-        style={{ marginTop: "16px" }}
-        title={<><ThunderboltOutlined /> {t("settings.profile.modImport.title")}</>}
-        extra={<SettingsSectionActions dirty={importDirty} saving={savingImport} onSave={handleSaveImport} onReset={handleResetImport} />}
-      >
-        <div className="settings-view-form-grid">
-          <CompactField
-            label={t("settings.profile.modImport.compressionType.label")}
-            description={t("settings.profile.modImport.compressionType.tooltip")}
-          >
-            <CompactSelect value={compressionType} onChange={setCompressionType}>
-              <Option value="7z">{t("settings.profile.modImport.compressionType.7z")}</Option>
-              <Option value="zip">{t("settings.profile.modImport.compressionType.zip")}</Option>
-              <Option value="rar">{t("settings.profile.modImport.compressionType.rar")}</Option>
-            </CompactSelect>
-          </CompactField>
-          <CompactField
-            label={t("settings.profile.modImport.compressionMode.label")}
-            description={t("settings.profile.modImport.compressionMode.tooltip")}
-          >
-            <CompactSelect value={compressionMode} onChange={setCompressionMode}>
-              <Option value="fast">{t("settings.profile.modImport.compressionMode.fast")}</Option>
-              <Option value="high">{t("settings.profile.modImport.compressionMode.high")}</Option>
-              <Option value="ultra">{t("settings.profile.modImport.compressionMode.ultra")}</Option>
-            </CompactSelect>
-          </CompactField>
-        </div>
-      </CompactCard>
-
-      <FixToolSettingsCard />
     </div>
   );
 };

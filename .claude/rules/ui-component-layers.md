@@ -18,7 +18,11 @@ or `useModsStore`, it's actually L3 — split it: a dumb L1/L2 view + an L3 wrap
 ## Current classification (audit 2026-06-18)
 
 - **L1 atoms:** `compact/Compact{Button,Input,Select,Switch,Text,Card,Alert,Divider,Space,Section,Field}`,
-  `common/{CloseButton,StatusIcon,HealthStatusIcon,CountBadge,StatusTag}`, `TagChip`.
+  `common/{CloseButton,StatusIcon,HealthStatusIcon,CountBadge,StatusTag,KeyValueRows}`, `TagChip`.
+  - `KeyValueRows` (added 2026-07-05): aligned label/value rows for config summaries + confirm dialogs
+    (paths, commands, bindings) — `rows` + optional `title`/`hint`; `boxed` renders a bordered panel.
+    Values are monospace + break-all. Use it instead of hand-rolling `__row`/`__label` path lists
+    (deduped the XXMI binding summary + bind-confirm dialog in ModWorkSettingsTab).
   - `CompactField` (added 2026-06-18): standardized labeled-field row — `label` + optional
     `description`/`hint` + control via children. Use it for ALL config/tooling form rows instead of
     hand-rolling `*__label` + control + `*__hint`. Adopted by GameLaunchTab + ModFixTool.

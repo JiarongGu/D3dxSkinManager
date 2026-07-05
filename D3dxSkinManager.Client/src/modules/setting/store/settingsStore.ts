@@ -47,6 +47,15 @@ export interface SettingsState {
     compressionMode: ModImportConfiguration['compressionMode'];
   };
 
+  // Launch config (config.launch — what the status-bar Launch button runs). Editable in the Mod
+  // Work tab; the XXMI bind flow auto-fills it. Baseline mirrors the other per-section configs.
+  launchPath: string;
+  launchArgs: string;
+  initialLaunchConfig: {
+    path: string;
+    args: string;
+  };
+
   // UI State
   error: string | undefined;
 }
@@ -76,6 +85,12 @@ export interface SettingsActions {
   setCompressionType: (type: ModImportConfiguration['compressionType']) => void;
   setCompressionMode: (mode: ModImportConfiguration['compressionMode']) => void;
   setInitialModImportConfig: (config: ModImportConfiguration) => void;
+
+  // Launch config
+  setLaunchPath: (path: string) => void;
+  setLaunchArgs: (args: string) => void;
+  /** Set current values AND the baseline (used on load + after a successful save/bind). */
+  setLaunchConfig: (path: string, args: string) => void;
 
   // Combined Actions
   updateWorkSettings: (mode:  ModWorkConfiguration['mode'], directory: string) => void;
@@ -122,6 +137,14 @@ const initialState: SettingsState = {
   initialModImportConfig: {
     compressionType: '7z',
     compressionMode: 'high',
+  },
+
+  // Launch config
+  launchPath: '',
+  launchArgs: '',
+  initialLaunchConfig: {
+    path: '',
+    args: '',
   },
 
   // UI State
@@ -279,6 +302,23 @@ export const useSettingsStore = create<SettingsStore>()(
         state.initialModImportConfig = config;
         state.compressionType = config.compressionType;
         state.compressionMode = config.compressionMode;
+      }),
+
+    setLaunchPath: (path) =>
+      set((state) => {
+        state.launchPath = path;
+      }),
+
+    setLaunchArgs: (args) =>
+      set((state) => {
+        state.launchArgs = args;
+      }),
+
+    setLaunchConfig: (path, args) =>
+      set((state) => {
+        state.launchPath = path;
+        state.launchArgs = args;
+        state.initialLaunchConfig = { path, args };
       }),
 
     // ============================================================

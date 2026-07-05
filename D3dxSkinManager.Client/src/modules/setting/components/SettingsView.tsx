@@ -1,11 +1,17 @@
 import React from "react";
 import { Tabs } from "antd";
-import { UserOutlined, SettingOutlined } from "@ant-design/icons";
+import { FolderOutlined, ImportOutlined, ToolOutlined, SettingOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
-import { ProfileSettingsTab } from "./ProfileSettingsTab";
+import { ModWorkSettingsTab } from "./ModWorkSettingsTab";
+import { ModImportSettingsTab } from "./ModImportSettingsTab";
+import { FixToolSettingsCard } from "./FixToolSettingsCard";
 import { GlobalSettingsTab } from "./GlobalSettingsTab";
 import "./SettingsView.css";
 
+/**
+ * Settings shell — one flat tab per concern (the old two-tab layout stacked three growing cards in
+ * one scroll page). Each profile tab owns its Save/Reset; Global saves immediately.
+ */
 export const SettingsView: React.FC = () => {
   const { t } = useTranslation();
 
@@ -13,17 +19,41 @@ export const SettingsView: React.FC = () => {
     <div className={"settings-view-container"}>
       <div className={"settings-view-content-wrapper"}>
         <Tabs
-          defaultActiveKey="profile"
+          defaultActiveKey="modWork"
           items={[
             {
-              key: "profile",
+              key: "modWork",
               label: (
                 <>
-                  <UserOutlined />
-                  {t("settings.tabs.profile")}
+                  <FolderOutlined />
+                  {t("settings.tabs.modWork")}
                 </>
               ),
-              children: <ProfileSettingsTab />,
+              children: <ModWorkSettingsTab />,
+            },
+            {
+              key: "modImport",
+              label: (
+                <>
+                  <ImportOutlined />
+                  {t("settings.tabs.modImport")}
+                </>
+              ),
+              children: <ModImportSettingsTab />,
+            },
+            {
+              key: "fixTools",
+              label: (
+                <>
+                  <ToolOutlined />
+                  {t("settings.tabs.fixTools")}
+                </>
+              ),
+              children: (
+                <div className="settings-view-profile">
+                  <FixToolSettingsCard />
+                </div>
+              ),
             },
             {
               key: "global",

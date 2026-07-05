@@ -60,4 +60,28 @@ describe('settingsStore', () => {
       expect(s().profileConfigChanged).toBe(false);
     });
   });
+
+  describe('launch config', () => {
+    it('setLaunchConfig sets current values AND the baseline', () => {
+      s().setLaunchConfig('E:\\XXMI\\Resources\\Bin\\XXMI Launcher.exe', '--nogui --xxmi ZZMI');
+
+      expect(s().launchPath).toBe('E:\\XXMI\\Resources\\Bin\\XXMI Launcher.exe');
+      expect(s().launchArgs).toBe('--nogui --xxmi ZZMI');
+      expect(s().initialLaunchConfig).toEqual({
+        path: 'E:\\XXMI\\Resources\\Bin\\XXMI Launcher.exe',
+        args: '--nogui --xxmi ZZMI',
+      });
+    });
+
+    it('setLaunchPath/setLaunchArgs edit current values without moving the baseline', () => {
+      s().setLaunchConfig('E:\\old.exe', '--old');
+
+      s().setLaunchPath('E:\\new.exe');
+      s().setLaunchArgs('--new');
+
+      expect(s().launchPath).toBe('E:\\new.exe');
+      expect(s().launchArgs).toBe('--new');
+      expect(s().initialLaunchConfig).toEqual({ path: 'E:\\old.exe', args: '--old' });
+    });
+  });
 });

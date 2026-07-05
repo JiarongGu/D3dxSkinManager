@@ -81,9 +81,11 @@ re-fixes hashes after a game update), previews, and **deploying** chosen mods in
   true for both `external` and `xxmi`, so `ProfilePathService.WorkDirectory` uses `Directory` for either.
   `ProfileFacade` UPDATE_CONFIG stores `Directory` for both. Frontend `ModWorkConfiguration.mode` union +
   `settingsOps.saveProfileConfig` treat external/xxmi the same (persist+validate the dir).
-- **`ProfileSettingsTab` work-dir = a `Segmented` bound DIRECTLY to `workMode`** (App default=internal /
+- **`ModWorkSettingsTab` work-dir = a `Segmented` bound DIRECTLY to `workMode`** (App default=internal /
   XXMI Launcher=xxmi / Custom folder=external). No derivation — the saved mode IS the source. Each mode
   reveals its control: internal→readonly internal path; xxmi→`XxmiImporterPicker`; external→manual path+browse.
+  (2026-07-05: SettingsView flattened to 4 tabs — ModWorkSettingsTab / ModImportSettingsTab /
+  FixToolSettingsCard / GlobalSettingsTab; the old ProfileSettingsTab was split and removed.)
 - **Importer list is DISCOVERED FROM DISK, not a fixed game set.** `XxmiService.DetectAsync` scans the
   root's top-level subfolders and treats any with importer markers (`Mods\` dir, or `d3dx.ini`/`d3d11.dll`
   — see `LooksLikeImporter`) as an importer; config only *enriches* (active flag, game_folder). So custom
@@ -91,14 +93,23 @@ re-fixes hashes after a game update), previews, and **deploying** chosen mods in
   (选择文件夹) → choose importer sub (dropdown).
 - **One pick in the XXMI source sets BOTH locations. There is no Launch tab.** The picker lives in
   **Settings → Mod Work** (`src/modules/setting/components/XxmiImporterPicker.tsx`).
-  Choosing an importer is a one-click immediate save (`ProfileSettingsTab.handleSelectXxmiImporter`):
-  `updateProfileConfig({ workMode:'external', workDirectory:<importerDir>, launchPath:<launcherExe> })`
-  → `CacheModsDirectory` becomes `<importerDir>\Mods` (deploy target) AND `launch.path` = the XXMI
-  Launcher exe. It then resets the settings-store baseline so the form isn't left dirty; later Saves
-  don't pass `launchPath` so it's preserved (backend overwrites only when provided).
-- **Launching** is the **status-bar `LaunchButton`** only (runs `launch.path`). The Launch nav tab +
-  `LaunchView`/`GameLaunchTab`/`D3DMigotoTab` were **removed** — config belongs with the setting it
-  drives, not a separate tab.
+  Choosing an importer stages a **ConfirmDialog** (work dir / deploy target / launcher / launch args —
+  B5 UX fix, no more silent instant-apply); confirming saves
+  `updateProfileConfig({ workMode:'xxmi', workDirectory:<importerDir>, launchPath:<launcherExe>,
+  launchArgs:'--nogui --xxmi <NAME>' })` → `CacheModsDirectory` becomes `<importerDir>\Mods` AND the
+  launch command is set. It then re-baselines the settings store so the form isn't left dirty.
+- **Picker/state indicators (2026-07-05):** the picker shows a "Reading XXMI configuration…" line while
+  `DetectAsync` runs (auto-detect never toasts — inline warning on failure), a green "detected — N
+  importers" result, and a **Bound / Not-applied** `StatusTag` comparing the selection against the SAVED
+  baseline dir. Under it, `ModWorkSettingsTab` renders a **binding summary** (`KeyValueRows`, boxed):
+  work dir, deploy target, and — when detect covers the bound importer — game folder + config path.
+- **Launch command is user-editable:** `ModWorkSettingsTab` has a "Game launch" field (path + browse +
+  args) persisted via `updateProfileConfig` launchPath/launchArgs (sent only when changed; empty string
+  clears, omitted preserves). Store mirrors it (`launchPath`/`launchArgs` + `initialLaunchConfig`
+  baseline; `setLaunchConfig` re-baselines on load/bind/save).
+- **Launching** is the **status-bar `LaunchButton`** only (runs `launch.path` + `launch.args`). The
+  Launch nav tab + `LaunchView`/`GameLaunchTab`/`D3DMigotoTab` were **removed** — config belongs with
+  the setting it drives, not a separate tab.
 - The own-3DMigoto route (`D3DMigotoService` backend) stays parked — it would require replicating XXMI's
   inject. Its UI (the legacy 3DMigoto tab) is gone.
 

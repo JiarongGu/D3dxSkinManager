@@ -32,3 +32,6 @@ export type { StatusTagProps, StatusTone } from './StatusTag';
 export { HealthStatusIcon } from './HealthStatusIcon';
 
 export { KeyCaptureInput } from './KeyCaptureInput';
+
+export { KeyValueRows } from './KeyValueRows';
+export type { KeyValueRowsProps, KeyValueRowItem } from './KeyValueRows';

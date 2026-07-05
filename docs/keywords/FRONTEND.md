@@ -32,7 +32,7 @@ longer exist. Everything is under `src/modules/` and `src/shared/`.)
 | `mod` | `ModProvider.tsx` (event subscriptions → store refresh); `store/modsStore.ts` (flat Zustand store: mods, selectedMod/s, activeMods, modHealth, categorySearch, expanded/locked keys…); `operations/` — modOperations, categoryOperations; `hooks/useMods.ts`, `useResizablePanels.ts`; `components/` — **CategoryPanel/** (tree+grid, context menu — see `context-menu-extension.md`), **ModListPanel/**, **ModPreviewPanel/**, ModHierarchicalView, **ModEditScreen/**, **BatchEditScreen/**, **ModIniEditor/** (config editor), **MergeModsDialog/**, TagManagementDialog, MultiTagInput, GradingTag, ResizeHandle |
 | `plugin` | PluginsView |
 | `profile` | ProfileManager, ProfileSelector, ProfileSwitcher |
-| `setting` | SettingsView (tabs) — GlobalSettingsTab, ProfileSettingsTab (work-dir mode incl. **XxmiImporterPicker** — see `xxmi-integration.md`), FixToolSettingsCard, SettingsSectionActions, UpdateDialog; `store/settingsStore.ts` |
+| `setting` | SettingsView (4 flat tabs) — **ModWorkSettingsTab** (work-dir mode + **XxmiImporterPicker** + binding summary + editable game-launch — see `xxmi-integration.md`), **ModImportSettingsTab** (compression), FixToolSettingsCard, GlobalSettingsTab, SettingsSectionActions, UpdateDialog; `store/settingsStore.ts` (incl. `launchPath`/`launchArgs` + baseline) |
 | `tool` | ToolsView (card grid) + tools: FileCleanupTool/, ModAnalyzerTool/ (ScanView/FindingsView/HistoryView), ModFixTool/, ModIdMigrationTool/, ModPackageTool/ (Export/Import), PythonMigrationTool/, ScreenCaptureTool/, TagManagementTool/ |
 | `workflow` | `components/modImport/` — ModImportWorkflowScreen + table (import queue) |
 

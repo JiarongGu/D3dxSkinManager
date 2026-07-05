@@ -4,6 +4,7 @@ import { PlayCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { profileService, systemService } from '../../../../shared/services/ipc';
+import { eventBus, Module, ProfileEventType } from '../../../../shared/services/eventBus';
 import { notification } from '../../../../shared/utils/notification';
 import { navigateToTab } from '../../../../shared/hooks/useAppNavigation';
 
@@ -30,6 +31,14 @@ export const LaunchButton: React.FC = () => {
     }
   }, [selectedProfileId]);
   useEffect(() => { void loadConfig(); }, [loadConfig]);
+
+  // The launch command is editable in Settings → Mod Work (and set by the XXMI bind) — refresh on save.
+  useEffect(() => {
+    const unsubscribe = eventBus.subscribe(Module.PROFILE, ProfileEventType.CONFIG_UPDATED, () => {
+      void loadConfig();
+    });
+    return unsubscribe;
+  }, [loadConfig]);
 
   const onClick = useCallback(async () => {
     // Not configured yet → take the user to Settings (Mod Work / XXMI picker) to set a launch target.

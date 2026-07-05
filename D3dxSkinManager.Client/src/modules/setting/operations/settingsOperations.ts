@@ -127,7 +127,7 @@ export async function resetWindowState(
  * Called when profile changes or settings view mounts
  */
 export async function loadProfileConfig(profileId: string): Promise<void> {
-  const { setInitialProfileConfig, setInternalWorkPath, setInitialModImportConfig, setError } =
+  const { setInitialProfileConfig, setInternalWorkPath, setInitialModImportConfig, setLaunchConfig, setError } =
     useSettingsStore.getState();
 
   if (!profileId) {
@@ -169,6 +169,9 @@ export async function loadProfileConfig(profileId: string): Promise<void> {
         compressionType,
         compressionMode,
       });
+
+      // Launch config mirror (displayed by the XXMI binding summary)
+      setLaunchConfig(config.launch?.path || "", config.launch?.args || "");
     }
   } catch (error: unknown) {
     logger.error("[settingsOperations] Failed to load profile config:", error);
