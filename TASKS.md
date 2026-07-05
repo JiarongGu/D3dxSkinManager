@@ -48,6 +48,8 @@
 - Temp cleanup: opt-in auto-clean on exit; mod-load per-file extraction counts
 
 ## Done (recent — one line + commit; older history in git log / docs/changelogs/)
+- [x] Remote library: per-profile game binding (setup view, bind & sync, 换绑; binding in {profile}/remote-binding.json) — `488489a`
+- [x] Remote library fix batch: cardScopePattern (pagination pollution), sort-by-date, sync-all, toolbar sizes, always-visible switcher — `8081f81`
 - [x] Remote library stage 4: in-app adapter manager (add/edit/live-test/delete) + `direct` download method — `ab2e08a`
 - [x] Remote library stage 3: shipped-JSON seeder + synced local index (instant search, date hints, imported badge, sha256 identity) — `17f99ad`
 - [x] Remote library stages 1–2: config-driven adapters + Cloudreve resolve + browse tab + download/import — `d77f6fd`, `9215b72`
