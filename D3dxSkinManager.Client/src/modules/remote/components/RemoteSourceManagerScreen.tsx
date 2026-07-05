@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input, Spin } from 'antd';
+import { Spin } from 'antd';
 import { DeleteOutlined, EditOutlined, ExperimentOutlined, PlusOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
-import { CompactButton } from '../../../shared/components/compact';
+import { CompactButton, CompactTextArea } from '../../../shared/components/compact';
 import { CompactIconButton } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import type { RemoteSourceConfigDto, RemoteSourceInfo, RemoteSourceTestResult } from '../../../shared/types/remote.types';
@@ -156,7 +156,7 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
       {editorText !== undefined && (
         <div className="remote-source-manager__editor">
           <div className="remote-source-manager__hint">{t('remote.editorHint')}</div>
-          <Input.TextArea
+          <CompactTextArea
             className="remote-source-manager__textarea"
             value={editorText}
             onChange={(e) => setEditorText(e.target.value)}

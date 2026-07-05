@@ -25,19 +25,6 @@
   min-width: 110px;
 }
 
-/* One control height for the whole toolbar — antd small Select (24px) vs CompactButton/Input
-   heights read as "different sizes"; normalize to 26px. */
-.remote-library__toolbar .ant-select .ant-select-selector,
-.remote-library__toolbar .ant-select .ant-select-content,
-.remote-library__toolbar .ant-btn,
-.remote-library__toolbar .ant-input-affix-wrapper {
-  height: 26px !important;
-  min-height: 26px;
-  display: inline-flex;
-  align-items: center;
-  font-size: 12px;
-}
-
 .remote-library__list {
   min-width: 110px;
 }

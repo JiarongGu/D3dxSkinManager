@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Empty, Pagination, Select, Spin, Tooltip } from 'antd';
+import { Empty, Pagination, Spin, Tooltip } from 'antd';
 import { CheckCircleFilled, ReloadOutlined, SearchOutlined, SettingOutlined, SyncOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
-import { CompactButton, CompactInput } from '../../../shared/components/compact';
+import { CompactButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
 import type { RemoteBinding, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
@@ -247,10 +247,9 @@ export const RemoteLibraryView: React.FC = () => {
           <h2 className="remote-setup__title">{t('remote.setupTitle')}</h2>
           <p className="remote-setup__hint">{t('remote.setupHint')}</p>
           <div className="remote-setup__row">
-            <Select
+            <CompactSelect
               className="remote-library__source"
-              size="small"
-              value={setupSource}
+                  value={setupSource}
               placeholder={t('remote.setupPickSource')}
               options={sources.map((s) => ({ value: s.id, label: s.name }))}
               onChange={(v) => {
@@ -258,10 +257,9 @@ export const RemoteLibraryView: React.FC = () => {
                 setSetupList(sources.find((s) => s.id === v)?.lists[0]?.id);
               }}
             />
-            <Select
+            <CompactSelect
               className="remote-library__list"
-              size="small"
-              value={setupList}
+                  value={setupList}
               placeholder={t('remote.setupPickGame')}
               options={(setupSourceInfo?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
               onChange={setSetupList}
@@ -309,10 +307,9 @@ export const RemoteLibraryView: React.FC = () => {
           />
         )}
         {indexReady && (
-          <Select
+          <CompactSelect
             className="remote-library__sort"
-            size="small"
-            value={ui.sort}
+              value={ui.sort}
             options={[
               { value: 'site', label: t('remote.sortSite') },
               { value: 'date', label: t('remote.sortDate') },
@@ -411,8 +408,7 @@ export const RemoteLibraryView: React.FC = () => {
       {indexReady && (ui.index?.total ?? 0) > INDEX_PAGE_SIZE && (
         <div className="remote-library__pager">
           <Pagination
-            size="small"
-            current={ui.page}
+              current={ui.page}
             total={ui.index!.total}
             pageSize={INDEX_PAGE_SIZE}
             showSizeChanger={false}
@@ -424,8 +420,7 @@ export const RemoteLibraryView: React.FC = () => {
         <div className="remote-library__pager">
           <Pagination
             simple
-            size="small"
-            current={ui.page}
+              current={ui.page}
             total={(ui.result.totalPages ?? 1) * 10}
             pageSize={10}
             showSizeChanger={false}
