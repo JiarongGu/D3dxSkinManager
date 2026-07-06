@@ -43,6 +43,8 @@ export interface RemoteDownloadOption {
   type: RemoteDownloadType | string;
   /** Site-known unzip password from the adapter's resolver rule (import uses it by default). */
   unzipPassword?: string;
+  /** Resolver opted into the recursive-unwrap workflow (carve disguised + unwrap nested layers). */
+  unwrapNested?: boolean;
 }
 
 export interface RemoteModDetail {

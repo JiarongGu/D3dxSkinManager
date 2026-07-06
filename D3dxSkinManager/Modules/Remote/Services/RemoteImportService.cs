@@ -162,7 +162,12 @@ public class RemoteImportService : IRemoteImportService
                     downloadHeaders = resolved.DownloadHeaders;
                 }
 
-                var archivePath = Path.Combine(staging, Path.GetFileName(resolved.FileName));
+                // The downloaded archive lands in the managed downloads folder ({data}/downloads,
+                // self-cleaning after 7 days), NOT profile temp — keep the raw download out of the
+                // scratch staging dir. A guid prefix avoids collisions (many sites name files "1.mp4").
+                Directory.CreateDirectory(_download.ManagedDirectory);
+                var archivePath = Path.Combine(_download.ManagedDirectory,
+                    $"{Guid.NewGuid():N}-{Path.GetFileName(resolved.FileName)}");
                 var progress = new Progress<DownloadProgress>(p =>
                 {
                     // Map download bytes onto the 5–60% band of the overall process.
@@ -189,31 +194,36 @@ public class RemoteImportService : IRemoteImportService
                     quarkSavedFids = null;
                 }
 
-                // ALWAYS normalize: extract + recompress into OUR storage format. A verbatim copy of
-                // the download would keep the site's password/odd container in the archive store and
-                // fail at load time. Most archives need NO password — extract plain first, and only
-                // when THAT fails with a password error retry with the user's password (or the
-                // resolver's site default).
+                // Normalize into OUR storage format: extract + recompress (a verbatim copy would keep
+                // the site's odd container/password and fail at load time). The resolver's config
+                // picks the extract WORKFLOW: opted-in hosts (huihui Quark) run the RECURSIVE UNWRAP
+                // (carve a disguised polyglot + unwrap nested archive layers, password per layer);
+                // everyone else does a plain single extract (plain first, password retry on failure).
                 _processRegistry.Report(procId, 62, "Extracting archive", detailKey: "process.stage.extracting");
                 var extractDir = Path.Combine(staging, "extract");
                 var unzipPassword = string.IsNullOrWhiteSpace(password) ? option.UnzipPassword : password;
                 try
                 {
-                    await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir).ConfigureAwait(false);
+                    if (option.UnwrapNested)
+                    {
+                        await _archiveHelper.ExtractArchiveRecursiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir).ConfigureAwait(false);
+                        }
+                        catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex) && !string.IsNullOrWhiteSpace(unzipPassword))
+                        {
+                            TryDeleteDir(extractDir);
+                            await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
+                        }
+                    }
                 }
                 catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex))
                 {
-                    if (string.IsNullOrWhiteSpace(unzipPassword))
-                        throw new OperationException("REMOTE_ARCHIVE_PASSWORD", "name", resolved.FileName);
-                    TryDeleteDir(extractDir); // drop any partial output from the plain attempt
-                    try
-                    {
-                        await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
-                    }
-                    catch (Exception ex2) when (ArchiveHelper.IsPasswordError(ex2))
-                    {
-                        throw new OperationException("REMOTE_ARCHIVE_PASSWORD", "name", resolved.FileName);
-                    }
+                    throw new OperationException("REMOTE_ARCHIVE_PASSWORD", "name", resolved.FileName);
                 }
                 ct.ThrowIfCancellationRequested();
 

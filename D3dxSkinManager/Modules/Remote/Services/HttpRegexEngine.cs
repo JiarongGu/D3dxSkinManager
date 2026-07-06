@@ -87,6 +87,7 @@ public class HttpRegexEngine : RemoteSiteEngineBase
                 Url = candidate,
                 Type = rule.Type,
                 UnzipPassword = rule.UnzipPassword,
+                UnwrapNested = rule.UnwrapNested,
             });
         }
 

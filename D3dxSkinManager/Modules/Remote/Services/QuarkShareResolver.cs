@@ -52,6 +52,10 @@ public class QuarkShareResolver : IQuarkShareResolver
     private const string Provider = "quark";
     private const string ApiBase = "https://drive-pc.quark.cn";
     private const string ApiQuery = "pr=ucpro&fr=pc";
+
+    /// <summary>Dedicated folder created in the user's cloud drive for the app's transient 转存 copies
+    /// (so saves don't litter the drive root). Reusable name for any future cloud-storage resolver.</summary>
+    public const string AppDriveFolder = "D3dxSkinManager";
     private const string UserAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
@@ -89,12 +93,14 @@ public class QuarkShareResolver : IQuarkShareResolver
         var best = await FindBestFileAsync(pwdId, stoken, "0", headers, 0, ct).ConfigureAwait(false)
                    ?? throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: share has no downloadable file");
 
-        // 3. SAVE (转存) the share file into the user's own drive (root), then poll the async task.
+        // 3. SAVE (转存) the share file into the app's dedicated folder in the user's drive (not the
+        // root), then poll the async task.
+        var appFolder = await EnsureAppFolderAsync(headers, ct).ConfigureAwait(false);
         var saveBody = JsonSerializer.Serialize(new
         {
             fid_list = new[] { best.Fid },
             fid_token_list = new[] { best.FidToken },
-            to_pdir_fid = "0",
+            to_pdir_fid = appFolder,
             pwd_id = pwdId,
             stoken,
             pdir_fid = best.PdirFid,
@@ -178,6 +184,31 @@ public class QuarkShareResolver : IQuarkShareResolver
         if (string.IsNullOrEmpty(stoken))
             throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: no share token (share may be private/expired)");
         return (stoken!, data);
+    }
+
+    /// <summary>Find (or create) the app's dedicated folder in the drive root; return its fid. The
+    /// transient 转存 copy is saved here so it never litters the drive root; the folder is reused.</summary>
+    private async Task<string> EnsureAppFolderAsync(IReadOnlyDictionary<string, string> headers, CancellationToken ct)
+    {
+        var listUrl = $"{ApiBase}/1/clouddrive/file/sort?{ApiQuery}&pdir_fid=0&_page=1&_size=100&_fetch_total=1&_sort=file_type:asc,updated_at:desc";
+        var root = await GetAsync(listUrl, headers, ct).ConfigureAwait(false);
+        if (root.GetProperty("data").TryGetProperty("list", out var list) && list.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var f in list.EnumerateArray())
+            {
+                var isDir = f.TryGetProperty("dir", out var d) && d.GetBoolean();
+                var name = f.TryGetProperty("file_name", out var n) ? n.GetString() : null;
+                if (isDir && string.Equals(name, AppDriveFolder, StringComparison.Ordinal))
+                    return f.GetProperty("fid").GetString()!;
+            }
+        }
+        // Not there — create it (synchronous; returns the new fid).
+        var mkBody = JsonSerializer.Serialize(new { pdir_fid = "0", file_name = AppDriveFolder, dir_path = "", dir_init_lock = false });
+        var mk = await PostAsync($"{ApiBase}/1/clouddrive/file?{ApiQuery}", mkBody, headers, ct).ConfigureAwait(false);
+        var fid = mk.GetProperty("data").TryGetProperty("fid", out var mkFid) ? mkFid.GetString() : null;
+        if (string.IsNullOrEmpty(fid))
+            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: could not create the app folder");
+        return fid!;
     }
 
     /// <summary>Poll an async task until status==2 (done); throw on failure/timeout. Returns task data.</summary>

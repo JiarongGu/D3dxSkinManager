@@ -105,6 +105,14 @@ public class RemoteResolverRule
     /// Used ONLY when a plain extraction fails with a password error (most archives need none);
     /// a user-entered password at download time overrides it.</summary>
     public string? UnzipPassword { get; set; }
+
+    /// <summary>Opt into the RECURSIVE-UNWRAP download workflow for this host: the downloaded file is
+    /// treated as a possibly-DISGUISED, possibly-MULTI-LAYER archive — extract by magic bytes (not
+    /// extension), carve an archive appended to a decoy (huihui's "safe keep": a real .mp4 with a zip
+    /// appended), and keep unwrapping nested archives (trying the password per layer) until the real
+    /// mod content. Reusable — any site whose downloads are wrapped this way can set it. Default off
+    /// (a plain single extract).</summary>
+    public bool UnwrapNested { get; set; }
 }
 
 // ---- DTOs (serialized camelCase to the frontend) ------------------------------------------------
@@ -158,6 +166,9 @@ public class RemoteDownloadOption
     /// <summary>The matched resolver's site-known unzip password. Import normalization tries a
     /// PLAIN extraction first and reaches for this only on a password failure.</summary>
     public string? UnzipPassword { get; set; }
+
+    /// <summary>The matched resolver's recursive-unwrap opt-in (carve disguised + unwrap nested layers).</summary>
+    public bool UnwrapNested { get; set; }
 }
 
 public class RemoteModDetail

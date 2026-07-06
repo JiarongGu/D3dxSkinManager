@@ -134,8 +134,11 @@ public class RemoteAccountTests : IDisposable
         store.Save(new OnlineStorageAccount { Provider = "quark", Cookie = "__puus=sess" });
         var download = new Mock<IDownloadService>();
         SetupTokenAndListing(download);
+        // The app-folder ensure step lists the drive root — return it already present (no mkdir).
+        download.Setup(d => d.GetStringAsync(It.Is<string>(u => u.Contains("file/sort")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""{"code":0,"data":{"list":[{"fid":"APPFOLDER","file_name":"D3dxSkinManager","dir":true}]}}""");
         // save → task_id; task poll → status 2 + saved fid; own-drive download → url.
-        download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("sharepage/save")), It.Is<string>(b => b.Contains("F_ZIP")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+        download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("sharepage/save")), It.Is<string>(b => b.Contains("F_ZIP") && b.Contains("APPFOLDER")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("""{"code":0,"data":{"task_id":"TASK1"}}""");
         download.Setup(d => d.GetStringAsync(It.Is<string>(u => u.Contains("task_id=TASK1")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("""{"code":0,"data":{"status":2,"save_as":{"save_as_top_fids":["MYFID"]}}}""");

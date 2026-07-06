@@ -92,6 +92,38 @@ public class ArchiveHelperUpdateTests : IDisposable
     }
 
     [Fact]
+    public async Task ExtractArchiveRecursive_UnwrapsNestedArchives_ThroughDisguisedExtension()
+    {
+        // Build mod.ini -> inner.7z -> outer.zip, then RENAME outer.zip to "1.mp4" (huihui's disguise).
+        // Recursive extract must detect by magic bytes and unwrap BOTH layers to the real mod.ini.
+        var content = Path.Combine(_root, "content");
+        Directory.CreateDirectory(content);
+        await File.WriteAllTextAsync(Path.Combine(content, "mod.ini"), "[KeyX]\nkey = 1\n");
+        var inner = Path.Combine(_root, "inner.7z");
+        await _helper.CompressFolderAsync(content, inner);
+
+        var innerHolder = Path.Combine(_root, "holder");
+        Directory.CreateDirectory(innerHolder);
+        File.Copy(inner, Path.Combine(innerHolder, "inner.7z"));
+        var outerZip = Path.Combine(_root, "outer.zip");
+        await _helper.CompressFolderAsync(innerHolder, outerZip, ArchiveFormat.Zip);
+
+        var disguised = Path.Combine(_root, "1.mp4"); // the "safe keep" fake extension
+        File.Move(outerZip, disguised);
+
+        var outDir = Path.Combine(_root, "rout");
+        var layers = await _helper.ExtractArchiveRecursiveAsync(disguised, outDir);
+
+        layers.Should().BeGreaterThanOrEqualTo(2, "outer(.mp4/zip) + inner(.7z) are both unwrapped");
+        var inis = Directory.GetFiles(outDir, "mod.ini", SearchOption.AllDirectories);
+        inis.Should().ContainSingle("the real mod file is reached through both wrappers");
+        (await File.ReadAllTextAsync(inis[0])).Should().Contain("key = 1");
+        // No archive files survive in the output — the recompressed mod holds content, not wrappers.
+        Directory.GetFiles(outDir, "*", SearchOption.AllDirectories).Any(_helper.IsArchiveFile)
+            .Should().BeFalse();
+    }
+
+    [Fact]
     public void ExtractArchive_UnencryptedArchive_IgnoresSuppliedPassword()
     {
         // A supplied password must be harmless for unencrypted archives — the import pipeline

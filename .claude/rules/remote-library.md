@@ -121,10 +121,34 @@ user's OWN drive) → download from there → DELETE the copy (cleanup). All aut
   (`OnlineStorageAccountsCard`; IPC `ACCOUNT_LIST`/`ACCOUNT_LOGIN`/`ACCOUNT_REMOVE`). **Logout** removes the
   stored cookie AND `ClearProfile` deletes the WebView2 profile folder (else it silently auto-logs-in).
   Not logged in → resolver throws `QUARK_NOT_LOGGED_IN`.
-- **Verified e2e** against a real account: silent capture, save→34.9MB download via cookie'd CDN,
-  saved copy deleted (drive root clean after). NOTE: **huihui's 夸克 links are PREVIEW VIDEOS** (`1.mp4`),
-  not the mod archive (that's the Hui盘/cloudreve link) — so quark-as-mod-source pays off on OTHER sites.
-  Adding another auth'd host = new resolver `type` + a `LoginTarget` entry in `ExternalLoginService`.
+- **Save target = a DEDICATED drive folder, not root.** `QuarkShareResolver.EnsureAppFolderAsync`
+  finds/creates `D3dxSkinManager` (const `AppDriveFolder`, reusable for future cloud resolvers) in the
+  drive root and 转存 into it (`to_pdir_fid = folder fid`); cleanup deletes the saved file, folder persists.
+  Quark mkdir: `POST /1/clouddrive/file {pdir_fid:"0", file_name, dir_path:"", dir_init_lock:false}` →
+  synchronous `data.fid`. Drive root listing: `GET /1/clouddrive/file/sort?pdir_fid=0`.
+- **Downloaded file → managed downloads** (`{data}/downloads`, self-cleaning), NOT profile temp; only
+  the extract/repack staging is temp.
+
+### huihui "safe keep" disguise → the RECURSIVE-UNWRAP workflow (config-gated, GROUNDED e2e 2026-07-06)
+huihui's 夸克 uploads are NOT the mod directly — they're a multi-layer disguise (a 网盘 anti-scan trick):
+`1.mp4` = a REAL mp4 with a **zip APPENDED** (polyglot; the zip's offsets are archive-relative so a
+whole-file reader rejects it) → inside: `MOD….7z.001` = an **encrypted 7z** (password `huihui`) →
+inside: `<name>.7z` (plain 7z) → the real mod (`chen.ini` + `Meshes/*.buf`). So the import must:
+- extract by **magic bytes**, not extension; **CARVE** a polyglot (find the first archive signature at a
+  non-zero offset, extract from there — `ArchiveHelper.TryCarveEmbeddedArchive`);
+- **recursively unwrap** nested archive layers, trying the password **per layer**, flattening the final
+  real content to the root — `ArchiveHelper.ExtractArchiveRecursiveAsync` (a "wrapper layer" = only
+  archive(s) + trivial junk `.url/.txt`; stop at real content).
+This is a **reusable, CONFIG-GATED workflow**: `RemoteResolverRule.UnwrapNested` (→ `RemoteDownloadOption
+.UnwrapNested`) opts a host in; huihui's quark resolver sets `"unwrapNested": true`. Off = a plain single
+extract (plain, password-retry). Any other site wrapped the same way just sets the flag.
+- **Gotcha (fixed):** `IsPasswordError` treats "data error"/"corrupted" as password-suspect; the carve
+  fallback must NOT be pre-empted by that — `ExtractArchive` records the password error, tries carve
+  first, and only throws the password error if carve also fails (so the caller's password-retry still runs).
+- **Verified e2e** against a real account: silent capture → save into `D3dxSkinManager` folder → 34.9MB
+  download via cookie'd CDN → carve+unwrap (mp4→zip→7z/huihui→7z→mod) → repack 7z (7MB, `chen.ini`+Meshes
+  at root) → import; saved copy + folder left clean. Adding another auth'd host = new resolver `type` +
+  a `LoginTarget` entry in `ExternalLoginService` (+ `unwrapNested` if it disguises the same way).
 
 ## Architecture (mirrors the app's module conventions)
 

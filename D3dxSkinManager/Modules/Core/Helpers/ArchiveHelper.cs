@@ -43,6 +43,13 @@ public interface IArchiveHelper
     Task<string?> DetectArchiveTypeAsync(string archivePath);
     Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory, string? password = null);
     ExtractionResult ExtractArchive(string archivePath, string targetDirectory, string? password = null);
+
+    /// <summary>Extract + recursively unwrap nested archives (magic-byte detection, so a disguised
+    /// extension still unwraps) until only real content remains. Returns the layer count unwrapped.</summary>
+    Task<int> ExtractArchiveRecursiveAsync(string archivePath, string targetDirectory, string? password = null, int maxDepth = 8);
+
+    /// <summary>Cheap magic-byte test: is this file an extractable archive regardless of extension?</summary>
+    bool IsArchiveFile(string path);
     Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.SevenZip, CompressionLevel compressionLevel = CompressionLevel.High, Action<int>? progressCallback = null, CancellationToken cancellationToken = default);
     Task<ArchiveValidationResult> ValidateArchiveAsync(string archivePath);
 
@@ -247,16 +254,64 @@ public class ArchiveHelper : IArchiveHelper
             // Initialize 7z.dll library (uses libs/7z.dll)
             InitializeSevenZip();
 
-            // Use SharpSevenZip for extraction (supports all common formats)
-            using var extractor = string.IsNullOrEmpty(password)
-                ? new SharpSevenZipExtractor(archivePath)
-                : new SharpSevenZipExtractor(archivePath, password);
-            extractor.ExtractArchive(targetDirectory);
+            // Extract with an explicit format, not the file extension. Sites disguise mods with a fake
+            // extension (huihui ships them as "1.mp4", a 网盘 "safe keep" trick) — and the disguise is
+            // often a POLYGLOT (a real media header with a zip APPENDED at the end), so first-bytes
+            // magic detection also misses it. So: try the magic-byte format first, then fall back to
+            // trying the common archive formats explicitly (a zip's directory is read from the END,
+            // so a media+zip polyglot extracts fine as Zip). Only a genuine non-archive fails them all.
+            var candidates = new List<InArchiveFormat>();
+            var detected = ToInArchiveFormat(result.DetectedType);
+            if (detected.HasValue) candidates.Add(detected.Value);
+            foreach (var f in new[] { InArchiveFormat.Zip, InArchiveFormat.SevenZip, InArchiveFormat.Rar, InArchiveFormat.Tar, InArchiveFormat.GZip, InArchiveFormat.BZip2 })
+                if (!candidates.Contains(f)) candidates.Add(f);
 
-            result.Success = true;
-            result.FileCount = (int)extractor.FilesCount;
-            _logger.Info($"Extracted {extractor.FilesCount} files from {Path.GetFileName(archivePath)}", "ArchiveHelper");
-            return result;
+            Exception? lastError = null;
+            Exception? passwordError = null;
+            foreach (var fmt in candidates)
+            {
+                try
+                {
+                    if (Directory.Exists(targetDirectory)) Directory.Delete(targetDirectory, recursive: true);
+                    Directory.CreateDirectory(targetDirectory);
+                    using var extractor = string.IsNullOrEmpty(password)
+                        ? new SharpSevenZipExtractor(archivePath, fmt)
+                        : new SharpSevenZipExtractor(archivePath, password, fmt);
+                    extractor.ExtractArchive(targetDirectory);
+                    result.Success = true;
+                    result.FileCount = (int)extractor.FilesCount;
+                    result.DetectedType ??= fmt.ToString().ToLowerInvariant();
+                    _logger.Info($"Extracted {extractor.FilesCount} files from {Path.GetFileName(archivePath)} (format {fmt})", "ArchiveHelper");
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    // Remember a password-suspect failure but DON'T bail yet — a polyglot's wrong-offset
+                    // read also looks like a "data error", and the carve fallback below is what fixes it.
+                    if (IsPasswordError(ex)) passwordError ??= ex;
+                }
+            }
+
+            // No format opened the WHOLE file — it may be a POLYGLOT (huihui's "safe keep": a real
+            // media file with an archive APPENDED, whose internal offsets are relative to the archive
+            // start, so a whole-file reader rejects it). Find the embedded archive signature and
+            // extract from THAT offset (a carved-out standalone archive).
+            var carved = TryCarveEmbeddedArchive(archivePath);
+            if (carved != null)
+            {
+                try
+                {
+                    _logger.Info($"Polyglot detected in {Path.GetFileName(archivePath)} — extracting carved archive", "ArchiveHelper");
+                    var inner = ExtractArchive(carved, targetDirectory, password);
+                    inner.DetectedType ??= "carved";
+                    return inner;
+                }
+                finally { try { File.Delete(carved); } catch { } }
+            }
+            // Prefer a password-suspect error (so the caller retries WITH a password) over a generic
+            // wrong-format error from a later candidate.
+            throw passwordError ?? lastError ?? new InvalidOperationException("no archive format matched");
         }
         catch (Exception ex)
         {
@@ -264,6 +319,165 @@ public class ArchiveHelper : IArchiveHelper
             result.ErrorMessage = ex.Message;
             _logger.Error($"Extraction failed: {ex.Message}", "ArchiveHelper", ex);
             throw new InvalidOperationException($"Archive extraction failed: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>Largest file we'll scan for an embedded (polyglot) archive — mods are tens of MB;
+    /// don't read a multi-GB file into memory hunting a signature.</summary>
+    private const long MaxCarveScanBytes = 600L * 1024 * 1024;
+
+    /// <summary>
+    /// A "polyglot" is a real file (e.g. mp4) with an archive APPENDED. Its archive offsets are
+    /// relative to the archive's own start, so a whole-file reader rejects it. Find the FIRST archive
+    /// signature at a non-zero offset and copy [offset..end] to a temp file (a clean standalone
+    /// archive). Returns the temp path, or null if no embedded archive is found. Caller deletes it.
+    /// </summary>
+    private string? TryCarveEmbeddedArchive(string archivePath)
+    {
+        try
+        {
+            var info = new FileInfo(archivePath);
+            if (!info.Exists || info.Length > MaxCarveScanBytes) return null;
+            var bytes = File.ReadAllBytes(archivePath);
+
+            // Signatures we can extract from. ZIP is scanned from the FIRST local-file header.
+            ReadOnlySpan<byte> zip = [0x50, 0x4B, 0x03, 0x04];
+            ReadOnlySpan<byte> sevenZip = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+            ReadOnlySpan<byte> rar = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07];
+
+            var best = -1;
+            foreach (var sig in new[] { zip.ToArray(), sevenZip.ToArray(), rar.ToArray() })
+            {
+                var at = IndexOf(bytes, sig, 1); // start at 1 — offset 0 was already tried whole-file
+                if (at >= 0 && (best < 0 || at < best)) best = at;
+            }
+            if (best <= 0) return null;
+
+            // Carve next to the source (same volume, not OS temp — the caller's staging dir owns it).
+            var temp = Path.Combine(Path.GetDirectoryName(archivePath) ?? ".", $"carve-{Guid.NewGuid():N}.bin");
+            File.WriteAllBytes(temp, bytes.AsSpan(best).ToArray());
+            return temp;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Polyglot carve scan failed: {ex.Message}", "ArchiveHelper");
+            return null;
+        }
+    }
+
+    private static int IndexOf(byte[] haystack, byte[] needle, int start)
+    {
+        for (var i = Math.Max(0, start); i <= haystack.Length - needle.Length; i++)
+        {
+            var match = true;
+            for (var j = 0; j < needle.Length; j++)
+                if (haystack[i + j] != needle[j]) { match = false; break; }
+            if (match) return i;
+        }
+        return -1;
+    }
+
+    /// <summary>Map a magic-byte detected type to a SharpSevenZip <see cref="InArchiveFormat"/> so a
+    /// disguised/extension-less file can still be extracted. Null = let SharpSevenZip guess by extension.</summary>
+    private static InArchiveFormat? ToInArchiveFormat(string? detectedType) => detectedType switch
+    {
+        "zip" => InArchiveFormat.Zip,
+        "7z" => InArchiveFormat.SevenZip,
+        "rar" => InArchiveFormat.Rar,
+        "gz" => InArchiveFormat.GZip,
+        "bz2" => InArchiveFormat.BZip2,
+        "tar" => InArchiveFormat.Tar,
+        _ => null,
+    };
+
+    /// <summary>Cheap magic-byte test: is this file an archive we can extract (regardless of its
+    /// extension)? Used by the recursive unwrap to find nested archives without trusting names.</summary>
+    public bool IsArchiveFile(string path)
+    {
+        try { return ToInArchiveFormat(DetectArchiveTypeAsync(path).GetAwaiter().GetResult()) != null; }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Extract an archive AND recursively unwrap any nested archives inside it, until only real
+    /// content remains (or <paramref name="maxDepth"/> is hit). Mods are sometimes wrapped in
+    /// multiple layers of zip — and some sites disguise the outer layer with a fake extension — so
+    /// the import pipeline always verifies the extracted tree instead of trusting one extract.
+    /// Detection is by MAGIC BYTES, so a nested "x.mp4" that is really a zip is still unwrapped.
+    /// <paramref name="password"/> (if any) is tried on each layer only when a plain extract fails
+    /// with a password error. Returns the number of archive layers unwrapped (>=1).
+    /// </summary>
+    /// <summary>Junk files a wrapper layer may carry beside the payload archive (promo links, readmes)
+    /// — they must not count as "real content" when deciding whether a layer is just a wrapper.</summary>
+    private static readonly HashSet<string> TrivialWrapperExtensions =
+        new(StringComparer.OrdinalIgnoreCase) { ".url", ".txt", ".md", ".nfo", ".htm", ".html" };
+
+    public async Task<int> ExtractArchiveRecursiveAsync(string archivePath, string targetDirectory, string? password = null, int maxDepth = 8)
+    {
+        Directory.CreateDirectory(targetDirectory);
+        var parent = Directory.GetParent(targetDirectory)!.FullName;
+        var work = Path.Combine(parent, $"unwrap-0-{Guid.NewGuid():N}");
+        await ExtractWithOptionalPasswordAsync(archivePath, work, password).ConfigureAwait(false);
+        var layers = 1;
+
+        for (var depth = 1; depth <= maxDepth; depth++)
+        {
+            var files = Directory.EnumerateFiles(work, "*", SearchOption.AllDirectories).ToList();
+            var archives = files.Where(IsArchiveFile).ToList();
+            var hasRealContent = files.Any(f => !IsArchiveFile(f)
+                && !TrivialWrapperExtensions.Contains(Path.GetExtension(f)));
+            // Real content present (or nothing left to unwrap) → this layer IS the mod. Stop.
+            if (archives.Count == 0 || hasRealContent) break;
+
+            // Pure wrapper layer (only nested archive(s) + junk) → descend: extract them into a fresh
+            // dir, discard this layer. Multiple archives extract into per-name subfolders (rare); the
+            // common huihui case is one archive → its content lands at the next layer's root (flat).
+            var next = Path.Combine(parent, $"unwrap-{depth}-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(next);
+            var single = archives.Count == 1;
+            foreach (var inner in archives)
+            {
+                var into = single ? next : Path.Combine(next, Path.GetFileNameWithoutExtension(inner));
+                await ExtractWithOptionalPasswordAsync(inner, into, password).ConfigureAwait(false);
+                layers++;
+            }
+            try { Directory.Delete(work, recursive: true); } catch { }
+            work = next;
+        }
+
+        // Move the final (real-content) tree into targetDirectory, then drop the working dir.
+        MergeDirectory(work, targetDirectory);
+        try { Directory.Delete(work, recursive: true); } catch { }
+        _logger.Info($"Recursive extract: {layers} archive layer(s) unwrapped from {Path.GetFileName(archivePath)}", "ArchiveHelper");
+        return layers;
+    }
+
+    /// <summary>Move every file from <paramref name="from"/> into <paramref name="to"/>, preserving
+    /// relative subpaths (same-volume move; falls back to copy across volumes).</summary>
+    private static void MergeDirectory(string from, string to)
+    {
+        foreach (var file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
+        {
+            var rel = Path.GetRelativePath(from, file);
+            var dest = Path.Combine(to, rel);
+            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+            if (File.Exists(dest)) File.Delete(dest);
+            File.Move(file, dest);
+        }
+    }
+
+    /// <summary>Extract trying NO password first; on a password-suspect failure, retry with the
+    /// supplied password (if any). Throws if both fail (or no password to try).</summary>
+    private async Task ExtractWithOptionalPasswordAsync(string archivePath, string targetDirectory, string? password)
+    {
+        try
+        {
+            await ExtractArchiveAsync(archivePath, targetDirectory).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (IsPasswordError(ex) && !string.IsNullOrEmpty(password))
+        {
+            try { if (Directory.Exists(targetDirectory)) Directory.Delete(targetDirectory, recursive: true); } catch { }
+            await ExtractArchiveAsync(archivePath, targetDirectory, password).ConfigureAwait(false);
         }
     }
 
