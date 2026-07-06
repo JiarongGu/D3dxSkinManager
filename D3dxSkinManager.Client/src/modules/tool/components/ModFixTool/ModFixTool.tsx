@@ -261,10 +261,10 @@ const ModFixManagerInner: React.FC = () => {
 
   const addButtons = (
     <div className="mod-fix__add">
-      <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
+      <CompactButton size="small" icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
         {t('tools.modFix.addFolder')}
       </CompactButton>
-      <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
+      <CompactButton size="small" icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
         {t('tools.modFix.addFile')}
       </CompactButton>
     </div>
