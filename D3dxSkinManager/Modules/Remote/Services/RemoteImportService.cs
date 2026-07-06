@@ -1,10 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Remote.Models;
 
@@ -30,10 +32,11 @@ public interface IRemoteImportService
     string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
         RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null, string? password = null);
 
-    /// <summary>Maps every mod imported from a remote source to its local mod id, for the INDEX_QUERY
-    /// join (imported flag + "locate"): standardized identity key ("sourceId|listId|entryId") → mod id,
-    /// and legacy detailUrl → mod id. Cached (rebuilt on TTL/import) so it doesn't rescan all mods.</summary>
-    Task<(Dictionary<string, string> KeyToModId, Dictionary<string, string> UrlToModId)> GetImportedLookupAsync();
+    /// <summary>Maps every mod imported from a remote source to its local mod id(s), for the INDEX_QUERY
+    /// join (imported flag + "locate"): standardized identity key ("sourceId|listId|entryId") → mod ids,
+    /// and legacy detailUrl → mod ids. LISTS because an entry can be downloaded multiple times. Cached
+    /// (rebuilt on TTL / on import / on mod delete) so it doesn't rescan all mods per query.</summary>
+    Task<(Dictionary<string, List<string>> KeyToModIds, Dictionary<string, List<string>> UrlToModIds)> GetImportedLookupAsync();
 }
 
 public class RemoteImportService : IRemoteImportService
@@ -56,7 +59,9 @@ public class RemoteImportService : IRemoteImportService
     private readonly IArchiveHelper _archiveHelper;
     private readonly ILogHelper _logger;
 
-    private (Dictionary<string, string> KeyToModId, Dictionary<string, string> UrlToModId)? _importedCache;
+    // Maps a remote entry to the LOCAL mod id(s) imported from it — a list because the same entry can be
+    // downloaded more than once (N local mods). Cached; rebuilt from the mod repo on TTL / invalidation.
+    private (Dictionary<string, List<string>> KeyToModIds, Dictionary<string, List<string>> UrlToModIds)? _importedCache;
     private DateTime _importedCacheAtUtc;
     private readonly object _importedCacheLock = new();
 
@@ -71,6 +76,7 @@ public class RemoteImportService : IRemoteImportService
         IProfilePathService profilePaths,
         IProcessRegistry processRegistry,
         IArchiveHelper archiveHelper,
+        IEventBus events,
         ILogHelper logger)
     {
         _cloudreve = cloudreve;
@@ -84,6 +90,12 @@ public class RemoteImportService : IRemoteImportService
         _processRegistry = processRegistry;
         _archiveHelper = archiveHelper;
         _logger = logger;
+
+        // Deleting a mod removes its remote-identity metadata → the imported lookup must drop it, so the
+        // remote list/detail stops flagging that entry as imported. Invalidate on mod delete/refresh
+        // (singleton service → subscribe once; the rebuild is lazy on the next INDEX_QUERY).
+        events.Subscribe(ModuleNames.MOD, ModEvents.DELETED, _ => { InvalidateImportedCache(); return Task.CompletedTask; });
+        events.Subscribe(ModuleNames.MOD, ModEvents.REFRESHED, _ => { InvalidateImportedCache(); return Task.CompletedTask; });
     }
 
     /// <summary>
@@ -336,7 +348,7 @@ public class RemoteImportService : IRemoteImportService
         return null;
     }
 
-    public async Task<(Dictionary<string, string> KeyToModId, Dictionary<string, string> UrlToModId)> GetImportedLookupAsync()
+    public async Task<(Dictionary<string, List<string>> KeyToModIds, Dictionary<string, List<string>> UrlToModIds)> GetImportedLookupAsync()
     {
         lock (_importedCacheLock)
         {
@@ -344,17 +356,22 @@ public class RemoteImportService : IRemoteImportService
                 return _importedCache.Value;
         }
 
-        var keyToMod = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var urlToMod = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var keyToMods = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var urlToMods = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        static void Add(Dictionary<string, List<string>> map, string key, string modId)
+        {
+            if (!map.TryGetValue(key, out var list)) map[key] = list = new List<string>();
+            if (!list.Contains(modId)) list.Add(modId);
+        }
         foreach (var entity in await _repository.GetAllAsync().ConfigureAwait(false))
         {
             var remote = ReadRemote(entity.Metadata);
             if (remote == null) continue;
-            if (!string.IsNullOrEmpty(remote.Value.Key)) keyToMod[remote.Value.Key!] = entity.Id;
-            if (!string.IsNullOrEmpty(remote.Value.DetailUrl)) urlToMod[remote.Value.DetailUrl!] = entity.Id;
+            if (!string.IsNullOrEmpty(remote.Value.Key)) Add(keyToMods, remote.Value.Key!, entity.Id);
+            if (!string.IsNullOrEmpty(remote.Value.DetailUrl)) Add(urlToMods, remote.Value.DetailUrl!, entity.Id);
         }
 
-        var result = (keyToMod, urlToMod);
+        var result = (keyToMods, urlToMods);
         lock (_importedCacheLock)
         {
             _importedCache = result;

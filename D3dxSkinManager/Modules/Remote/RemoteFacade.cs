@@ -71,6 +71,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "GET_DETAIL" => await GetDetailAsync(request),
             "RESOLVE_DOWNLOAD" => await ResolveDownloadAsync(request),
             "DOWNLOAD_IMPORT" => StartDownloadImport(request),
+            "RESOLVE_IMPORT_CATEGORY" => ResolveImportCategory(request),
             "INDEX_QUERY" => await QueryIndexAsync(request),
             "INDEX_TAGS" => await _index.GetTagsAsync(
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId"),
@@ -118,9 +119,10 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
 
     public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, bool importedOnly = false)
     {
-        // The imported lookup (key→modId, legacyUrl→modId) is cached in the import service (no per-page
-        // mod rescan). Used both to FLAG/LOCATE imported entries and to drive the "downloaded only" filter.
-        var (keyToMod, urlToMod) = await _import.GetImportedLookupAsync().ConfigureAwait(false);
+        // The imported lookup (key→modIds, legacyUrl→modIds — LISTS, an entry can be downloaded more than
+        // once) is cached in the import service (no per-page mod rescan). Used to FLAG/LOCATE imported
+        // entries and to drive the "downloaded only" filter.
+        var (keyToMods, urlToMods) = await _import.GetImportedLookupAsync().ConfigureAwait(false);
 
         // "Downloaded only": restrict the query to this source+list's imported entry ids (durable-key
         // imports; legacy url-only imports predate the redesign and are rare). Empty set → no results.
@@ -128,7 +130,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         if (importedOnly)
         {
             var prefix = RemoteImportService.ImportedKey(sourceId, listId, string.Empty); // "src|list|"
-            onlyEntryIds = keyToMod.Keys
+            onlyEntryIds = keyToMods.Keys
                 .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .Select(k => k[prefix.Length..])
                 .ToList();
@@ -136,17 +138,17 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
 
         var result = await _index.QueryAsync(sourceId, listId, search, page, pageSize, sort, tag, onlyEntryIds).ConfigureAwait(false);
 
-        // Flag + carry the local mod id for entries this profile already imported. Primary match = the
+        // Flag + carry the local mod id(s) for entries this profile already imported. Primary match = the
         // standardized identity key (survives a site changing hosts); legacy imports fall back to URL.
-        if (keyToMod.Count > 0 || urlToMod.Count > 0)
+        if (keyToMods.Count > 0 || urlToMods.Count > 0)
         {
             foreach (var entry in result.Entries)
             {
-                if (keyToMod.TryGetValue(RemoteImportService.ImportedKey(sourceId, listId, entry.Id), out var modId)
-                    || urlToMod.TryGetValue(entry.DetailUrl, out modId))
+                if (keyToMods.TryGetValue(RemoteImportService.ImportedKey(sourceId, listId, entry.Id), out var modIds)
+                    || urlToMods.TryGetValue(entry.DetailUrl, out modIds))
                 {
                     entry.Imported = true;
-                    entry.LocalModId = modId;
+                    entry.LocalModIds = modIds;
                 }
             }
         }
@@ -210,6 +212,21 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var option = _payloadHelper.GetRequiredValue<RemoteDownloadOption>(request.Payload, "option");
         var processId = _import.StartDownloadImport(sourceId, listId, entryId, tags, detail, option, categoryId, password);
         return new { started = true, processId };
+    }
+
+    /// <summary>Preview the local category a would-be import resolves to (the library's ORDERED tag
+    /// rules — same logic the import uses), so the download-confirm popup can PRESELECT it. Returns
+    /// { categoryId: null } when there's no library/list or no rule matches.</summary>
+    private object ResolveImportCategory(IpcRequest request)
+    {
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
+        var tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags") ?? new List<string>();
+        var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
+        if (string.IsNullOrWhiteSpace(listId)) return new { categoryId = (string?)null };
+        var library = _libraries.FindBySourceList(sourceId, listId!);
+        var categoryId = library == null ? null : RemoteImportService.MatchTagRules(library.TagRules, tags, title);
+        return new { categoryId };
     }
 
     private Task<RemoteIndexPage> QueryIndexAsync(IpcRequest request)

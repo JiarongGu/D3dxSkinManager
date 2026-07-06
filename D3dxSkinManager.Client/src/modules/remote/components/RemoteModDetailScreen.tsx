@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Spin } from 'antd';
+import { Skeleton } from 'antd';
+import { useDelayedLoading } from '../../../shared/hooks/useDelayedLoading';
 import { CheckCircleFilled, CloudDownloadOutlined, GlobalOutlined, LinkOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
@@ -35,10 +36,11 @@ interface RemoteModDetailScreenProps {
   fallbackTitle?: string;
   /** True when this entry was already imported into the current profile. */
   imported?: boolean;
-  /** The local mod id imported from this entry (when imported) — enables the "locate" jump. */
-  localModId?: string;
-  /** Jump to the imported local mod in the mod list (closes this screen). */
-  onLocate?: (localModId?: string) => void;
+  /** Local mod id(s) imported from this entry (when imported) — enables the "locate" jump. Multiple
+   * when the entry was downloaded more than once. */
+  localModIds?: string[];
+  /** Jump to the imported local mod(s) in the mod list (closes this screen). */
+  onLocate?: (localModIds?: string[]) => void;
 }
 
 /**
@@ -56,14 +58,15 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   detailUrl,
   fallbackTitle,
   imported,
-  localModId,
+  localModIds,
   onLocate,
 }) => {
   const { t, i18n } = useTranslation();
   const { selectedProfileId } = useProfile();
 
   const [detail, setDetail] = useState<RemoteModDetail>();
-  const [loading, setLoading] = useState(true);
+  // Delayed loading: only surfaces the skeleton if the fetch takes >150ms (no flash for fast loads).
+  const { loading, execute } = useDelayedLoading(150);
   const [resolving, setResolving] = useState<string>();
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   // Download-time category choice (undefined = follow the library's tag rules).
@@ -79,20 +82,30 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
     if (!selectedProfileId) return;
     void (async () => {
       try {
-        setLoading(true);
-        const [loaded, cats] = await Promise.all([
-          api.remote.getDetail(selectedProfileId, sourceId, detailUrl, listId),
-          api.category.getCategoryTree(selectedProfileId).catch(() => [] as CategoryInfo[]),
-        ]);
-        setDetail(loaded);
-        setCategories(cats);
-        // Images render through the app://remote-image proxy — fetched+cached on demand, no preload.
+        await execute(async () => {
+          const [loaded, cats] = await Promise.all([
+            api.remote.getDetail(selectedProfileId, sourceId, detailUrl, listId),
+            api.category.getCategoryTree(selectedProfileId).catch(() => [] as CategoryInfo[]),
+          ]);
+          setDetail(loaded);
+          setCategories(cats);
+          // Images render through the app://remote-image proxy — fetched+cached on demand, no preload.
+          // Preselect the category the library's tag rules would assign (same logic the import uses),
+          // so the download-confirm popup shows it up-front. Best-effort — no match leaves it unset.
+          try {
+            const tags = Array.from(new Set([...(entryTags ?? []), ...(loaded.tags ?? [])]));
+            const ruleCategory = await api.remote.resolveImportCategory(
+              selectedProfileId, sourceId, listId, tags, loaded.title || fallbackTitle);
+            if (ruleCategory) setImportCategory(ruleCategory);
+          } catch {
+            /* preselect is best-effort — a resolve failure must not break the detail view */
+          }
+        });
       } catch (error: unknown) {
         handleError(error);
-      } finally {
-        setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfileId, sourceId, detailUrl]);
 
   // Cloudreve (share API) AND direct (URL is the file, e.g. GameBanana /dl/{id}) both download+import
@@ -140,10 +153,22 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
     }
   };
 
+  // Layout-shaped skeleton (matches the real LEFT gallery / RIGHT actions split) — only shown once the
+  // delayed-loading hook flips (fast loads never flash it).
   if (loading) {
     return (
-      <div className="remote-detail__loading">
-        <Spin />
+      <div className="remote-detail remote-detail--page">
+        <div className="remote-detail__body">
+          <div className="remote-detail__main">
+            <Skeleton.Node active className="remote-detail__skeleton-hero"><span /></Skeleton.Node>
+            <div className="remote-detail__panel remote-detail__info">
+              <Skeleton active title={{ width: '40%' }} paragraph={{ rows: 3 }} />
+            </div>
+          </div>
+          <div className="remote-detail__panel remote-detail__actions">
+            <Skeleton active title={{ width: '50%' }} paragraph={{ rows: 5 }} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -158,19 +183,6 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
 
   const downloadsCard = (
     <div className="remote-detail__panel remote-detail__actions">
-      {/* Already-imported banner + "locate" — jumps to the local mod in the mod list. */}
-      {imported && (
-        <div className="remote-detail__imported">
-          <span className="remote-detail__imported-label">
-            <CheckCircleFilled /> {t('remote.importedBadge')}
-          </span>
-          {localModId && onLocate && (
-            <CompactButton size="small" onClick={() => onLocate(localModId)}>
-              {t('remote.locateMod')}
-            </CompactButton>
-          )}
-        </div>
-      )}
       <div className="remote-detail__actions-title">
         {t('remote.actionsTitle')}
         {detail.downloads.length > 0 && (
@@ -202,6 +214,21 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
       <CompactButton icon={<GlobalOutlined />} onClick={() => void api.system.openUrl(detail.detailUrl)}>
         {t('remote.openPage')}
       </CompactButton>
+
+      {/* Already-imported banner at the BOTTOM (clear of the headless slide-in's floating close button) —
+          "locate" jumps to the imported local mod(s) in the mod list (multiple if downloaded > once). */}
+      {imported && (
+        <div className="remote-detail__imported">
+          <span className="remote-detail__imported-label">
+            <CheckCircleFilled /> {t('remote.importedBadge')}
+          </span>
+          {localModIds?.length && onLocate ? (
+            <CompactButton size="small" onClick={() => onLocate(localModIds)}>
+              {localModIds.length > 1 ? t('remote.locateModN', { count: localModIds.length }) : t('remote.locateMod')}
+            </CompactButton>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 

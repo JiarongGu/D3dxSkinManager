@@ -272,8 +272,9 @@ public class RemoteIndexEntry
     /// <summary>Set at query time: a mod in the current profile was imported from this entry. Not persisted meaningfully.</summary>
     public bool Imported { get; set; }
 
-    /// <summary>Set at query time (when Imported): the local mod id, so the UI can jump to it ("locate"). Not persisted.</summary>
-    public string? LocalModId { get; set; }
+    /// <summary>Set at query time (when Imported): the local mod id(s) imported from this entry, so the UI
+    /// can jump to them ("locate"). A list because an entry can be downloaded multiple times. Not persisted.</summary>
+    public List<string>? LocalModIds { get; set; }
 }
 
 /// <summary>A distinct site tag present in the index + how many mods carry it (filter dropdown).</summary>

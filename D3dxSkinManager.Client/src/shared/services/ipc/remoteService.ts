@@ -67,6 +67,21 @@ export class RemoteService extends BaseModuleService {
     });
   }
 
+  /** Preview the local category the library's tag rules would assign to this entry (same logic the
+   * import uses) — lets the download-confirm popup PRESELECT it. null = no library/list or no match. */
+  async resolveImportCategory(
+    profileId: string,
+    sourceId: string,
+    listId: string | undefined,
+    tags: string[],
+    title: string | undefined,
+  ): Promise<string | undefined> {
+    const result = await this.sendMessage<{ categoryId: string | null }>('RESOLVE_IMPORT_CATEGORY', profileId, {
+      sourceId, listId, tags, title,
+    });
+    return result?.categoryId ?? undefined;
+  }
+
   /** Filtered + paged slice of the SYNCED local index (instant; empty info when never synced). */
   async indexQuery(
     profileId: string,

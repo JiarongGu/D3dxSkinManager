@@ -21,14 +21,25 @@
   min-height: 300px;
 }
 
-/* Already-imported banner in the actions column: label + a "locate" button. */
+/* Loading skeleton — the hero block fills the left column at the real gallery's height. */
+.remote-detail__skeleton-hero.ant-skeleton {
+  width: 100%;
+}
+
+.remote-detail__skeleton-hero .ant-skeleton-node {
+  width: 100%;
+  height: 300px;
+  border-radius: var(--border-radius-base);
+}
+
+/* Already-imported banner — sits at the BOTTOM of the actions column (clear of the floating close). */
 .remote-detail__imported {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  margin-bottom: 10px;
+  margin-top: 10px;
   border-radius: var(--border-radius-base);
   background: var(--color-success-bg, rgba(82, 196, 26, 0.12));
   border: 1px solid var(--color-success-border, rgba(82, 196, 26, 0.4));

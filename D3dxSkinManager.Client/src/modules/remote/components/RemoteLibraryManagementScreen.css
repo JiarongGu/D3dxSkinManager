@@ -16,7 +16,9 @@
 }
 
 .remote-lib-mgmt__tabs {
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0; /* take the remaining column space (NOT height:100%, which pushed the pinned edit
+                    footer off-screen once the rules/aliases list grew); the content-holder scrolls */
   display: flex;
   flex-direction: column;
 }
@@ -227,6 +229,26 @@
 .remote-lib-mgmt__rule-tags {
   flex: 2 1 160px;
   min-width: 0;
+}
+
+/* Tag-select chips: smaller so the multi-select row height matches the 32px inputs next to it
+   (the default chip made the select taller than its neighbours). The chip TEXT lives in
+   `.ant-select-selection-item-content`, whose line-height defaults to the control height (30px) and
+   was overflowing the 20px chip — center it with flex + a matching line-height. */
+.remote-lib-mgmt__rule-tags .ant-select-selection-item,
+.remote-lib-mgmt__alias-tag .ant-select-selection-item {
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 18px;
+  font-size: 12px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.remote-lib-mgmt__rule-tags .ant-select-selection-item-content,
+.remote-lib-mgmt__alias-tag .ant-select-selection-item-content {
+  line-height: 18px;
 }
 
 .remote-lib-mgmt__rule-pattern {

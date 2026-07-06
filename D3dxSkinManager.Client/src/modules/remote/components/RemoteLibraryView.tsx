@@ -276,7 +276,7 @@ export const RemoteLibraryView: React.FC = () => {
   }, [selectedProfileId, ui.sourceId, ui.listId, syncedAtUtc]);
 
   const openDetail = useCallback(
-    (card: { detailUrl: string; title: string; key: string; tags: string[]; imported?: boolean; localModId?: string }) => {
+    (card: { detailUrl: string; title: string; key: string; tags: string[]; imported?: boolean; localModIds?: string[] }) => {
       const state = useRemoteUiStore.getState();
       if (!state.sourceId) return;
       let screenId = '';
@@ -292,10 +292,10 @@ export const RemoteLibraryView: React.FC = () => {
             detailUrl={card.detailUrl}
             fallbackTitle={card.title}
             imported={card.imported}
-            localModId={card.localModId}
-            onLocate={(modId) => {
+            localModIds={card.localModIds}
+            onLocate={(modIds) => {
               closeScreen(screenId);
-              if (selectedProfileId && modId) void navigateToModSearch(selectedProfileId, [modId]);
+              if (selectedProfileId && modIds?.length) void navigateToModSearch(selectedProfileId, modIds);
             }}
           />
         ),
@@ -336,7 +336,7 @@ export const RemoteLibraryView: React.FC = () => {
         tags: e.tags ?? [],
         dateHint: e.dateHint,
         imported: e.imported,
-        localModId: e.localModId,
+        localModIds: e.localModIds,
       }))
     : (ui.result?.cards ?? []).map((c) => ({
         key: c.detailUrl,
@@ -346,7 +346,7 @@ export const RemoteLibraryView: React.FC = () => {
         tags: c.tags ?? [],
         dateHint: c.dateHint,
         imported: false,
-        localModId: undefined as string | undefined,
+        localModIds: undefined as string[] | undefined,
       }));
   const loaded = indexReady || !!ui.result;
   const syncedAt = ui.index?.info.syncedAtUtc;

@@ -93,6 +93,7 @@
     "remote.downloadedOnly": "只看已下载",
     "remote.noDownloaded": "还没有已下载的模组",
     "remote.locateMod": "查看模组",
+    "remote.locateModN": "查看 {{count}} 个模组",
     "remote.results": "{{count}} 个模组",
     "remote.manage": "库管理",
     "remote.manageTitle": "管理远程库",

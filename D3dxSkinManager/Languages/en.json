@@ -93,6 +93,7 @@
     "remote.downloadedOnly": "Show downloaded only",
     "remote.noDownloaded": "No downloaded mods yet",
     "remote.locateMod": "View mod",
+    "remote.locateModN": "View {{count}} mods",
     "remote.results": "{{count}} mods",
     "remote.manage": "Libraries",
     "remote.manageTitle": "Manage remote libraries",
