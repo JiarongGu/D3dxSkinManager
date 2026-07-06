@@ -31,14 +31,16 @@
 }
 
 /* The gallery (an .image-gallery flex column) takes the column's spare height; the stage
-   flexes inside it (stageHeight="auto" from the caller — flex owns the height here). */
+   flexes inside it (stageHeight="auto" from the caller — flex owns the height here).
+   flex-basis 0 everywhere: the geometry NEVER follows the image's intrinsic height — switching
+   to a taller/shorter image must not move the layout. */
 .remote-detail__hero {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
 }
 
 .remote-detail__hero .image-gallery__stage {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
 }
 
@@ -129,13 +131,13 @@
   background: var(--color-bg-elevated, var(--color-bg-container));
 }
 
-/* Description card: bounded under the gallery (the gallery dominates, mod-page style); the
-   description inside scrolls. --fill (no images) takes the whole column instead. */
+/* Description card: a FIXED band under the gallery (geometry stays put regardless of how much
+   text a mod has — the gallery height above is therefore constant too); the description inside
+   scrolls. --fill (no images) takes the whole column instead. */
 .remote-detail__info {
-  flex: 0 1 auto;
+  flex: 0 0 clamp(110px, 24%, 200px);
+  box-sizing: border-box;
   min-width: 0;
-  min-height: 0;
-  max-height: 34%;
   overflow: hidden;
 }
 

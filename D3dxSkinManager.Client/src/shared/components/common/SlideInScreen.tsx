@@ -104,6 +104,7 @@ export function SlideInScreen({
         ) : (
           <CompactButton
             type="text"
+            size="small"
             icon={<CloseOutlined />}
             onClick={() => !isClosing && !loading && onClose()}
             disabled={loading}

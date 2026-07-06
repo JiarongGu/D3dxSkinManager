@@ -136,15 +136,32 @@
   padding: 16px 20px;
 }
 
+/* Headless close: a QUIET round icon button — it sits over the content's top-right card, so no
+   border/shadow chrome (the old shadowed circle read as a foreign element). Size comes from the
+   CompactButton size="small" (24px — the medium 32px circle read oversized around the 12px ×).
+   !important: antd's generated button styles (radius 4px + default shadow) win otherwise. */
 .slide-in-screen-close-btn--floating {
   position: absolute;
-  top: 10px;
-  right: 14px;
+  top: 26px;
+  right: 30px;
   z-index: 3;
-  background: var(--color-bg-elevated, var(--color-bg-container));
-  border: 1px solid var(--color-border-secondary);
-  border-radius: 50%;
-  box-shadow: var(--box-shadow-base);
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--color-text-secondary) !important;
+  font-size: 12px;
+}
+
+/* Hover: translucent text-tone fill — visible on ANY surface in BOTH themes. (bg-layout was
+   pure black in dark theme; bg-spotlight was a delta-7 non-cue against the elevated card.) */
+.slide-in-screen-close-btn--floating:hover {
+  background: color-mix(in srgb, var(--color-text-base) 12%, transparent) !important;
+  color: var(--color-text-base) !important;
+}
+
+.slide-in-screen-close-btn--floating:hover .anticon {
+  color: var(--color-text-base);
 }
 
 /* Custom scrollbar for content */
