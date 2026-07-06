@@ -65,6 +65,26 @@ Ant Design's `danger` prop on `<Button>` uses a different internal rendering pat
 
 **Workaround:** Use inline `style={{ color: 'var(--color-error)' }}` on the icon instead of the `danger` prop when alignment with adjacent buttons matters. Or accept the minor visual difference for non-icon buttons where it's less noticeable.
 
+### Multi-select (`mode="tags"`/`multiple`) chip is taller than its 32px sibling inputs
+
+A multi-select's selected chips make the control taller than adjacent 32px `CompactInput`s, so a
+rule/alias row with a tag-select looks uneven once a tag is picked. Two things drive chip height and
+BOTH must be set — sizing only `.ant-select-selection-item` is not enough (bit twice, 2026-07-06):
+- The chip BOX: `.ant-select-selection-item` — set `height`, `display:inline-flex; align-items:center`,
+  small `margin`.
+- The chip TEXT: `.ant-select-selection-item-content` — its `line-height` **defaults to the control
+  height (30px)** and overflows a shorter chip. Set it to match (e.g. `18px`).
+
+```css
+.my-tag-select .ant-select-selection-item {
+  height: 20px; display: inline-flex; align-items: center;
+  font-size: 12px; margin-top: 2px; margin-bottom: 2px;
+}
+.my-tag-select .ant-select-selection-item-content { line-height: 18px; } /* was 30px → overflowed */
+```
+Verify in the app (`cdp eval` the chip's computed `.ant-select-selection-item-content` line-height) —
+the box can look right while the text line-height is still 30px.
+
 ### `Empty` component is for "no data" states only
 
 Don't use `<Empty>` for hero/landing screens. It adds unwanted default styling and semantics. Build custom hero layouts with plain divs + BEM classes.
