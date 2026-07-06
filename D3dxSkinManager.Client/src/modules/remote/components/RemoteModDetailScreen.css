@@ -2,10 +2,15 @@
    + letterboxed image + title/tags overlay), thumb strip, then description (left, flows) and the
    downloads card (right, fixed). */
 
+/* ONE-SCREEN app panel (not a scrolling web page): the detail fills the slide-in height; the hero
+   takes its fixed band, the body takes the REST, and only the description scrolls internally. */
 .remote-detail--page {
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: hidden;
 }
 
 .remote-detail__loading {
@@ -61,11 +66,75 @@
   white-space: nowrap;
 }
 
-/* BODY: description flows, downloads fixed. */
+/* BODY: fills the remaining height; cards stretch to it; description scrolls inside its card. */
 .remote-detail__body {
+  flex: 1;
+  min-height: 0;
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: stretch;
+}
+
+/* SPLIT layout (single image): contained figure left (fills the body height), info+downloads
+   stacked right. */
+.remote-detail__figure {
+  flex: 1 1 55%;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--color-bg-container);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-base);
+  overflow: hidden;
+}
+
+.remote-detail__figure-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.remote-detail__stack {
+  flex: 1 1 45%;
+  min-width: 300px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* In the stacked column the downloads card spans the column (not the fixed 280) and shrinks. */
+.remote-detail__stack .remote-detail__actions {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  flex: 0 1 auto;
+  align-self: stretch;
+}
+
+/* Title + tags inside cards (split/plain layouts — the hero carries them on its scrim). */
+.remote-detail__name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding-right: 34px; /* room for the floating close on the top card */
+  color: var(--color-text-base);
+}
+
+.remote-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Theme-aware variant of the tag badge for use on CARDS (not over artwork). */
+.remote-detail__hero-tag--flat {
+  background: var(--color-primary-bg, rgba(22, 119, 255, 0.12));
+  border: none;
+  color: var(--color-primary);
+  backdrop-filter: none;
 }
 
 .remote-detail__panel {
@@ -81,6 +150,8 @@
 .remote-detail__info {
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden; /* the description inside scrolls, the card doesn't grow */
 }
 
 .remote-detail__actions {
@@ -88,8 +159,13 @@
   width: 280px;
   min-width: 280px;
   max-width: 280px;
-  position: sticky;
-  top: 0;
+  min-height: 0;
+  overflow-y: auto; /* many download rows scroll inside the card */
+  align-self: flex-start;
+  max-height: 100%;
+  box-sizing: border-box; /* max-height must include the panel padding/border */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-base) transparent;
 }
 
 .remote-detail__divider {
@@ -161,7 +237,8 @@
   width: 100%;
 }
 
-/* Page description: plain text, comfortable reading measure. */
+/* Page description: plain text, comfortable reading measure. Scrolls INSIDE its card — the
+   one-screen layout never scrolls the page. */
 .remote-detail__description {
   font-size: 12px;
   line-height: 1.7;
@@ -169,6 +246,11 @@
   white-space: pre-wrap;
   word-break: break-word;
   max-width: 72ch;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-base) transparent;
 }
 
 .remote-detail__no-images,
