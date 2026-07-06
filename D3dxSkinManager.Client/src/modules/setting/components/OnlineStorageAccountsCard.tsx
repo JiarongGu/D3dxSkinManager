@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CloudOutlined, LoginOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { CompactCard, CompactButton } from "../../../shared/components/compact";
@@ -25,6 +25,16 @@ export const OnlineStorageAccountsCard: React.FC = () => {
   const { selectedProfileId } = useProfile();
   const [accounts, setAccounts] = useState<OnlineStorageAccountInfo[]>([]);
   const [busy, setBusy] = useState<string>();
+  const busyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Stop the button spinner and cancel its backstop timer.
+  const stopBusy = useCallback(() => {
+    if (busyTimerRef.current) {
+      clearTimeout(busyTimerRef.current);
+      busyTimerRef.current = undefined;
+    }
+    setBusy(undefined);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -40,14 +50,26 @@ export const OnlineStorageAccountsCard: React.FC = () => {
   }, [refresh]);
 
   // The login window is fire-and-forget (a real QR login outlives the IPC bridge timeout), so the
-  // status updates on the backend ONLINE_ACCOUNT_CHANGED event, not the login call's result.
+  // button stays busy from click until the backend says the window has popped up (LOGIN_WINDOW_SHOWN)
+  // or a silent cookie refresh finished (ONLINE_ACCOUNT_CHANGED) — not until the login call's ack.
   useEffect(() => {
-    const unsub = eventBus.subscribe(Module.SYSTEM, SystemEventType.ONLINE_ACCOUNT_CHANGED, () => {
-      setBusy(undefined);
+    const unsubShown = eventBus.subscribe(Module.SYSTEM, SystemEventType.LOGIN_WINDOW_SHOWN, () => {
+      stopBusy();
+    });
+    const unsubChanged = eventBus.subscribe(Module.SYSTEM, SystemEventType.ONLINE_ACCOUNT_CHANGED, () => {
+      stopBusy();
       void refresh();
     });
-    return () => unsub();
-  }, [refresh]);
+    return () => {
+      unsubShown();
+      unsubChanged();
+    };
+  }, [refresh, stopBusy]);
+
+  // Cancel any pending backstop timer on unmount.
+  useEffect(() => () => {
+    if (busyTimerRef.current) clearTimeout(busyTimerRef.current);
+  }, []);
 
   const accountFor = (provider: string) => accounts.find((a) => a.provider === provider);
 
@@ -57,13 +79,14 @@ export const OnlineStorageAccountsCard: React.FC = () => {
       setBusy(provider);
       await api.remote.accountLogin(selectedProfileId, provider); // opens the login window (ack only)
       notification.info(t("onlineStorage.loginWindowOpened"));
+      // Keep the button busy — the window takes a moment to init WebView2 + load. It clears when the
+      // backend reveals the window (LOGIN_WINDOW_SHOWN) or a silent refresh finishes. Backstop: drop
+      // busy after 30s so the button can't spin forever if neither event arrives.
+      if (busyTimerRef.current) clearTimeout(busyTimerRef.current);
+      busyTimerRef.current = setTimeout(() => setBusy(undefined), 30000);
     } catch (error: unknown) {
+      stopBusy();
       handleError(error);
-    } finally {
-      // The IPC just OPENS the window (fire-and-forget); clear busy now so the button is usable again
-      // — don't keep it spinning for the window's whole lifetime. The status flips to 已登录 later via
-      // the ONLINE_ACCOUNT_CHANGED event.
-      setBusy(undefined);
     }
   };
 

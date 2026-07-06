@@ -33,6 +33,7 @@ export enum SystemEventType {
   PROCESS_LIST_UPDATED = "PROCESS_LIST_UPDATED",
   PROCESS_RESUME_REQUESTED = "PROCESS_RESUME_REQUESTED",
   ONLINE_ACCOUNT_CHANGED = "ONLINE_ACCOUNT_CHANGED",
+  LOGIN_WINDOW_SHOWN = "LOGIN_WINDOW_SHOWN",
 }
 
 // Mod event types
@@ -139,6 +140,7 @@ export interface EventPayloadMap {
     [SystemEventType.APPLICATION_SHUTDOWN]: void;
     [SystemEventType.LOG_LEVEL_CHANGED]: { level: string };
     [SystemEventType.ONLINE_ACCOUNT_CHANGED]: void;
+    [SystemEventType.LOGIN_WINDOW_SHOWN]: void;
   };
 
   // Mod events

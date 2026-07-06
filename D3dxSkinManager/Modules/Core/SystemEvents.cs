@@ -25,4 +25,9 @@ public static class SystemEvents
     // An online-storage account (Quark, …) was logged in/out or changed. The login window can outlive
     // the IPC bridge timeout, so the Online Storage card refreshes on THIS event, not the IPC result.
     public const string ONLINE_ACCOUNT_CHANGED = "ONLINE_ACCOUNT_CHANGED";
+
+    // The external-login window has been REVEALED on-screen (login is required — not a silent cookie
+    // refresh). The login button stays busy from click until this fires, so the user sees a loading
+    // state during WebView2 init / page load instead of the button snapping back before the window shows.
+    public const string LOGIN_WINDOW_SHOWN = "LOGIN_WINDOW_SHOWN";
 }

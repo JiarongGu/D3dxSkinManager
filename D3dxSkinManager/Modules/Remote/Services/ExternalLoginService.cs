@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
@@ -125,6 +127,7 @@ public class ExternalLoginService : IExternalLoginService
     private readonly IFormInteractionService _forms;
     private readonly IOnlineAccountStore _accounts;
     private readonly IGlobalPathService _globalPaths;
+    private readonly IEventBus _events;
     private readonly ILogHelper _logger;
 
     /// <summary>Open login windows by provider — one at a time; a second Login while one is open just
@@ -135,11 +138,13 @@ public class ExternalLoginService : IExternalLoginService
         IFormInteractionService forms,
         IOnlineAccountStore accounts,
         IGlobalPathService globalPaths,
+        IEventBus events,
         ILogHelper logger)
     {
         _forms = forms;
         _accounts = accounts;
         _globalPaths = globalPaths;
+        _events = events;
         _logger = logger;
     }
 
@@ -222,8 +227,8 @@ public class ExternalLoginService : IExternalLoginService
 
         // Start OFF-SCREEN + off the taskbar: a WebView2 needs a real window handle to run, but if
         // the persistent profile is already logged in we capture the cookie and close WITHOUT the user
-        // ever seeing a window (silent refresh — "no interaction => no window"). We only REVEAL it if
-        // login is actually required (no session cookie within the grace period).
+        // ever seeing a window (silent refresh — "no interaction => no window"). We REVEAL it (with the
+        // loading splash) as soon as a pre-navigate cookie check shows login is actually required.
         var form = new Form
         {
             Text = $"{target.DisplayName} — Login",
@@ -237,11 +242,49 @@ public class ExternalLoginService : IExternalLoginService
         };
         var webView = new WebView2 { Dock = DockStyle.Fill, BackColor = Color.FromArgb(26, 26, 26) };
         form.Controls.Add(webView);
+
+        // Native LOADING splash — a white overlay panel ON TOP of the WebView2 (spinner + text). The
+        // window reveals with this showing the instant we know login is needed, so it pops up fast
+        // instead of only appearing once WebView2 + the page have finished loading. The page loads
+        // BEHIND it (no homepage flash); we drop it exactly on "login-ready" (login box framed).
+        var splash = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+        var splashLabel = new Label
+        {
+            Text = $"{target.DisplayName}\r\n正在加载登录…  ·  Loading…",
+            TextAlign = ContentAlignment.MiddleCenter,
+            AutoSize = false,
+            Font = new Font("Microsoft YaHei", 11f),
+            ForeColor = Color.FromArgb(51, 51, 51),
+            BackColor = Color.Transparent,
+        };
+        var splashBar = new ProgressBar { Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30 };
+        splash.Controls.Add(splashLabel);
+        splash.Controls.Add(splashBar);
+        void LayoutSplash()
+        {
+            splashLabel.SetBounds(0, splash.Height / 2 - 56, splash.Width, 44);
+            splashBar.SetBounds(splash.Width / 2 - 90, splash.Height / 2 + 2, 180, 8);
+        }
+        splash.Resize += (_, _) => LayoutSplash();
+        form.Controls.Add(splash);
+        splash.BringToFront(); // over the WebView2
+        LayoutSplash();
+        void HideSplash() { if (!splash.IsDisposed) splash.Visible = false; }
+
         _openWindows[provider] = form; // track so a repeat Login re-focuses instead of stacking
 
+        var shownEmitted = false;
         void RevealIfHidden()
         {
-            if (form.IsDisposed || form.ShowInTaskbar) return; // already visible
+            if (form.IsDisposed) return;
+            if (!shownEmitted)
+            {
+                // Login is required (not a silent refresh) → let the button stop spinning now that the
+                // window is popping up. Fire-and-forget: never block the UI thread on the event bus.
+                shownEmitted = true;
+                _ = _events.EmitAsync(ModuleNames.SYSTEM, SystemEvents.LOGIN_WINDOW_SHOWN);
+            }
+            if (form.ShowInTaskbar) return; // already on-screen
             form.ShowInTaskbar = true;
             form.StartPosition = FormStartPosition.CenterParent;
             var wa = Screen.FromControl(mainForm).WorkingArea;
@@ -278,18 +321,35 @@ public class ExternalLoginService : IExternalLoginService
             }
         }
 
-        // DETECT login: poll the profile's cookies. Session cookie present => capture + auto-close
-        // (the "already logged in" path closes before we ever reveal, so the window never shows).
-        // The window stays HIDDEN until the login page is READY: the isolate script posts
-        // "login-ready" once it has framed the login box → we reveal then (no homepage flash). The
-        // grace-tick reveal below is only a slow FALLBACK if that message never arrives.
-        const int graceTicks = 12; // ~9.6s fallback — the login-ready message normally reveals first
+        // SILENT REFRESH: if the persistent profile is already logged in, capture the cookie and finish
+        // WITHOUT ever showing a window. Checked BEFORE navigating (cookies live in the profile store,
+        // readable regardless of page state) so the splash never flashes for an already-signed-in user.
+        try
+        {
+            var existing = await webView.CoreWebView2.CookieManager.GetCookiesAsync(target.CookieUrl).ConfigureAwait(true);
+            if (existing.Any(c => target.AuthCookieNames.Contains(c.Name, StringComparer.OrdinalIgnoreCase)))
+            {
+                captured = true;
+                var info = await CaptureAsync(provider, target, webView).ConfigureAwait(true);
+                tcs.TrySetResult(info);
+                _openWindows.TryRemove(provider, out _);
+                form.Dispose(); // never shown — dispose the hidden form (+ its WebView2)
+                return;
+            }
+        }
+        catch { /* couldn't read cookies — fall through to the interactive login */ }
+
+        // Login IS required. Poll keeps detecting a mid-session login (QR scanned while the window is
+        // open) → capture + auto-close. The splash is dropped by "login-ready"; the tick fallback below
+        // only drops it if that message never arrives (Quark changed layout), so it's never stuck.
         var poll = new global::System.Windows.Forms.Timer { Interval = 800 };
         var ticks = 0;
+        const int splashFallbackTicks = 9; // ~7s — drop the splash even if "login-ready" never comes
         poll.Tick += async (_, _) =>
         {
             if (captured || form.IsDisposed) { poll.Stop(); return; }
             ticks++;
+            if (ticks >= splashFallbackTicks) HideSplash(); // show whatever loaded rather than splash-forever
             try
             {
                 var cookies = await webView.CoreWebView2.CookieManager.GetCookiesAsync(target.CookieUrl).ConfigureAwait(true);
@@ -297,11 +357,9 @@ public class ExternalLoginService : IExternalLoginService
                 {
                     poll.Stop();
                     await FinishAsync(autoClose: true).ConfigureAwait(true);
-                    return;
                 }
             }
             catch { /* transient — try again next tick */ }
-            if (ticks >= graceTicks) RevealIfHidden(); // login needed → show the window
         };
 
         // Manual close (user gave up before logging in, or closed after) still captures.
@@ -312,16 +370,16 @@ public class ExternalLoginService : IExternalLoginService
         };
         form.FormClosed += (_, _) => { poll.Dispose(); _openWindows.TryRemove(provider, out _); };
 
-        // Once the login page renders, isolate its login panel (per-provider script) so the window
-        // reads as a login box, not the site homepage. The window is loaded HIDDEN and only revealed
-        // when the script posts "login-ready" (page framed) — no homepage/loading flash.
+        // Once the login page renders (behind the splash), isolate its login panel (per-provider script)
+        // so the window reads as a login box, not the site homepage.
         webView.CoreWebView2.NavigationCompleted += async (_, e) =>
         {
             if (form.IsDisposed) return;
             if (!e.IsSuccess)
             {
-                // Page failed to load → show the retry overlay and reveal so the user sees it.
+                // Page failed to load → show the retry overlay in place of the splash.
                 try { webView.CoreWebView2.NavigateToString(LoginErrorHtml); } catch { }
+                HideSplash();
                 RevealIfHidden();
                 return;
             }
@@ -336,8 +394,8 @@ public class ExternalLoginService : IExternalLoginService
             if (msg == null) return;
             if (msg.StartsWith("login-ready") && !captured)
             {
-                // "login-ready:<w>:<h>" — resize the window to the login box (once) so there's no gap
-                // around it, then reveal. The login renders fine at box width (breakpoint is below it).
+                // "login-ready:<w>:<h>" — resize the window to the login box (once), then drop the
+                // splash so the framed login shows. The login renders fine at box width.
                 if (!resized)
                 {
                     resized = true;
@@ -357,13 +415,18 @@ public class ExternalLoginService : IExternalLoginService
                         form.ClientSize = new Size(Math.Min(pw, wa.Width - 40), Math.Min(ph, wa.Height - 60));
                     }
                 }
+                HideSplash();
                 RevealIfHidden();
             }
-            else if (msg == "reload") { try { webView.CoreWebView2.Navigate(target.LoginUrl); } catch { } }
+            else if (msg == "reload")
+            {
+                try { splash.Visible = true; webView.CoreWebView2.Navigate(target.LoginUrl); } catch { }
+            }
         };
 
         webView.CoreWebView2.Navigate(target.LoginUrl);
-        form.Show(mainForm); // shown off-screen; RevealIfHidden() brings it on-screen only if needed
+        form.Show(mainForm);   // created off-screen; the WebView2 loads behind the splash
+        RevealIfHidden();      // login is required → pop the window up NOW (splash showing) + emit shown
         poll.Start();
     }
 

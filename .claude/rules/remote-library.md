@@ -113,14 +113,24 @@ user's OWN drive) → download from there → DELETE the copy (cleanup). All aut
   Form (persistent per-provider profile under `{data}/settings/webview-login/{provider}`). It reads
   cookies from the **API origin** `https://drive-pc.quark.cn` (NOT `pan.quark.cn` — the session cookies
   `__puus`/`__pus`/`__kps`/`__uid` live on the parent domain `.quark.cn`; `pan.quark.cn` host-only has
-  none of them — this was the capture bug). **Window is HIDDEN-until-needed**: opens off-screen
-  (`Location=-32000,-32000`, `ShowInTaskbar=false`), polls cookies; already-logged-in (persistent
-  profile) → captures + closes WITHOUT ever showing (silent refresh); no session after ~2.4s grace →
-  reveals centered for the user to log in. Saves the `Cookie` header to `IOnlineAccountStore`
-  (`{data}/settings/online-accounts.json`, GLOBAL). Managed in **Settings → 在线存储 / Online Storage**
-  (`OnlineStorageAccountsCard`; IPC `ACCOUNT_LIST`/`ACCOUNT_LOGIN`/`ACCOUNT_REMOVE`). **Logout** removes the
-  stored cookie AND `ClearProfile` deletes the WebView2 profile folder (else it silently auto-logs-in).
-  Not logged in → resolver throws `QUARK_NOT_LOGGED_IN`.
+  none of them — this was the capture bug). **Window is HIDDEN-until-needed, then SPLASH-on-reveal**
+  (2026-07-06): opens off-screen (`Location=-32000,-32000`, `ShowInTaskbar=false`); a **pre-navigate
+  cookie check** (`GetCookiesAsync` reads the profile store regardless of page state) decides — already
+  logged-in → captures + disposes the hidden form WITHOUT ever showing (silent refresh, no flash); NOT
+  logged-in → **reveal immediately with a native loading splash** (a white WinForms `Panel` — Marquee
+  `ProgressBar` + label — added over the WebView2 via `BringToFront`) so the window pops up fast instead
+  of only appearing once WebView2 + the page finish loading. The page loads BEHIND the splash (no
+  homepage flash); the splash is dropped on `login-ready` (login box framed), on a nav error (→ retry
+  overlay), or a ~7s poll fallback (never splash-forever). On reveal the service emits
+  **`SystemEvents.LOGIN_WINDOW_SHOWN`** (a fire-and-forget global event → frontend `SystemEventType`) —
+  `OnlineStorageAccountsCard` keeps the login button **busy from click until that event** (or
+  `ONLINE_ACCOUNT_CHANGED` for the silent path), with a 30s backstop timeout, so the button no longer
+  snaps back before the window shows. `ExternalLoginService` injects `IEventBus` for this. Saves the
+  `Cookie` header to `IOnlineAccountStore` (`{data}/settings/online-accounts.json`, GLOBAL). Managed in
+  **Settings → 在线存储 / Online Storage** (`OnlineStorageAccountsCard`; IPC
+  `ACCOUNT_LIST`/`ACCOUNT_LOGIN`/`ACCOUNT_REMOVE`). **Logout** removes the stored cookie AND
+  `ClearProfile` deletes the WebView2 profile folder (else it silently auto-logs-in). Not logged in →
+  resolver throws `QUARK_NOT_LOGGED_IN`.
 - **Save target = a DEDICATED drive folder, not root.** `QuarkShareResolver.EnsureAppFolderAsync`
   finds/creates `D3dxSkinManager` (const `AppDriveFolder`, reusable for future cloud resolvers) in the
   drive root and 转存 into it (`to_pdir_fid = folder fid`); cleanup deletes the saved file, folder persists.
