@@ -203,8 +203,11 @@
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
-/* Live crawl in progress — primary accent; the grid below stays fully usable. */
-.remote-library__sync-hint--active {
+/* Live crawl status in the bottom-left slot (same place as the synced date) — primary accent. */
+.remote-library__syncing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--color-primary);
 }
 

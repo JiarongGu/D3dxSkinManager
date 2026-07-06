@@ -324,6 +324,7 @@ export const RemoteLibraryView: React.FC = () => {
       }));
   const loaded = indexReady || !!ui.result;
   const syncedAt = ui.index?.info.syncedAtUtc;
+  const syncActive = !!syncProcess && (syncProcess.status === 'running' || syncProcess.status === 'queued');
 
   if (libState === undefined) {
     return (
@@ -407,15 +408,9 @@ export const RemoteLibraryView: React.FC = () => {
         <CompactIconButton icon={<AppstoreOutlined />} title={t('remote.manage')} onClick={openManagement} />
       </div>
 
-      {/* Sync status bar: live progress while a crawl runs (interface stays usable — the grid fills
-          progressively); a sync CTA only when never synced and nothing is running. */}
-      {syncProcess && (syncProcess.status === 'running' || syncProcess.status === 'queued') && (
-        <div className="remote-library__sync-hint remote-library__sync-hint--active">
-          <SyncOutlined spin />
-          {t('remote.syncing', { percent: syncProcess.progress ?? 0 })}
-        </div>
-      )}
-      {!syncProcess && !syncedAt && loaded && (
+      {/* Sync PROGRESS moved to the bottom-left status slot (same place as the synced date). Only the
+          never-synced CTA stays here; the grid fills progressively while a crawl runs. */}
+      {!syncActive && !syncedAt && loaded && (
         <div className="remote-library__sync-hint">
           {t('remote.notSynced')}
           <CompactButton size="small" type="link" icon={<CloudSyncOutlined />} onClick={() => void startSync()}>
@@ -475,12 +470,19 @@ export const RemoteLibraryView: React.FC = () => {
         )}
       </div>
 
-      {/* Bottom bar, 3 zones: synced time (left, important info) · button pager (center) ·
-          total count (right corner). Driven by OUR index count only. */}
-      {indexReady && (
+      {/* Bottom bar, 3 zones: sync status (left — LIVE progress while syncing, else the synced date) ·
+          button pager (center) · total count (right corner). Driven by OUR index count only. Shown
+          while syncing too (so the status has a home even on the very first, index-empty crawl). */}
+      {(indexReady || syncActive) && (
         <div className="remote-library__pager">
           <span className="remote-library__pager-side remote-library__pager-side--left" title={source?.baseUrl}>
-            {syncedAt ? t('remote.lastSyncedTime', { time: new Date(syncedAt).toLocaleString() }) : null}
+            {syncActive ? (
+              <span className="remote-library__syncing">
+                <SyncOutlined spin /> {t('remote.syncing', { percent: syncProcess!.progress ?? 0 })}
+              </span>
+            ) : syncedAt ? (
+              t('remote.lastSyncedTime', { time: new Date(syncedAt).toLocaleString() })
+            ) : null}
           </span>
           {(ui.index?.total ?? 0) > INDEX_PAGE_SIZE ? (
             <Pagination
