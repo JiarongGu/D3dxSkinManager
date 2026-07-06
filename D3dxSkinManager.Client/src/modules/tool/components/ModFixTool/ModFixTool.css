@@ -61,14 +61,14 @@
   gap: 8px;
 }
 
-/* Card list — a short list of fix scripts reads better as cards than a data grid.
-   This is the ONLY scroller: flex:1 + min-height:0 lets it shrink & scroll internally while the
-   header (top) and settings (bottom) stay pinned. */
+/* Card list — natural height so few tools sit at the TOP (no mid-panel void). It only shrinks +
+   scrolls internally (flex-shrink + min-height:0 + overflow) when the list is long enough to need it;
+   header and settings never scroll. */
 .mod-fix__list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
 }
@@ -159,7 +159,6 @@
    open/close (no arrow). border-radius:0 so the border-top divider doesn't curve at the corners. */
 .mod-fix__settings {
   flex: 0 0 auto;
-  margin-top: auto;
   border-top: 1px solid var(--color-border-secondary);
   border-radius: 0;
 }
