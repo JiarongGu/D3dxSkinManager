@@ -21,6 +21,7 @@ import { Tag } from "../../../../shared/types/mod.types";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useTagManagement } from "../../../../shared/hooks/useTagManagement";
 import { notification } from "../../../../shared/utils/notification";
+import { formatDateTime } from "../../../../shared/utils/formatDate";
 import "./TagManagementTool.css";
 
 const { Search } = Input;
@@ -167,14 +168,14 @@ export const TagManagementTool: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 180,
-      render: (date: string) => new Date(date).toLocaleString(),
+      render: (date: string) => formatDateTime(date),
     },
     {
       title: 'Updated',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 180,
-      render: (date: string) => new Date(date).toLocaleString(),
+      render: (date: string) => formatDateTime(date),
     },
     {
       title: 'Action',

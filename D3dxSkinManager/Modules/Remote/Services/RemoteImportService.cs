@@ -6,6 +6,7 @@ using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Remote.Models;
@@ -187,7 +188,7 @@ public class RemoteImportService : IRemoteImportService
                     // Map download bytes onto the 5–60% band of the overall process.
                     var pct = p.Percent.HasValue ? 5 + (int)(p.Percent.Value * 0.55) : (int?)null;
                     _processRegistry.Report(procId, pct,
-                        $"Downloading {FormatBytes(p.BytesReceived)}{(p.TotalBytes.HasValue ? " / " + FormatBytes(p.TotalBytes.Value) : "")}");
+                        $"Downloading {FileUtilities.FormatBytes(p.BytesReceived)}{(p.TotalBytes.HasValue ? " / " + FileUtilities.FormatBytes(p.TotalBytes.Value) : "")}");
                 });
                 var downloaded = await _download.DownloadAsync(
                     new DownloadRequest
@@ -465,15 +466,6 @@ public class RemoteImportService : IRemoteImportService
                 _logger.Warn($"[Remote] Preview image skipped ({url}): {ex.Message}", "RemoteImportService");
             }
         }
-    }
-
-    private static string FormatBytes(long bytes)
-    {
-        string[] units = ["B", "KB", "MB", "GB"];
-        double value = bytes;
-        var unit = 0;
-        while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; }
-        return $"{value:0.#} {units[unit]}";
     }
 
     private void TryDeleteDir(string dir)

@@ -66,13 +66,6 @@
   border: 1px solid var(--color-border-secondary);
 }
 
-/* Shortcuts hint on right side */
-.batch-edit-shortcuts-hint {
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-}
-
 /* Grid wrapper */
 .batch-edit-grid-wrapper {
   flex: 1;

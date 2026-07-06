@@ -7,6 +7,7 @@ import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenCo
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
+import { formatDateTime } from '../../../shared/utils/formatDate';
 import { CompactButton, CompactIconButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
 import type { RemoteLibrariesState, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
@@ -525,7 +526,7 @@ export const RemoteLibraryView: React.FC = () => {
                 <SyncOutlined spin /> {t('remote.syncing', { percent: syncProcess!.progress ?? 0 })}
               </span>
             ) : syncedAt ? (
-              t('remote.lastSyncedTime', { time: new Date(syncedAt).toLocaleString() })
+              t('remote.lastSyncedTime', { time: formatDateTime(syncedAt) })
             ) : null}
           </span>
           {(ui.index?.total ?? 0) > INDEX_PAGE_SIZE ? (

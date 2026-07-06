@@ -122,26 +122,6 @@
   background: var(--color-primary-bg-hover);
 }
 
-.find-replace-column-select {
-  min-width: 90px;
-}
-
-.find-replace-column-select .ant-select-selector {
-  height: 22px !important;
-  min-height: 22px !important;
-  padding: 0 6px !important;
-  font-size: 12px !important;
-}
-
-.find-replace-column-select .ant-select-selection-item {
-  line-height: 20px !important;
-  font-size: 12px !important;
-}
-
-.find-replace-column-select .ant-select-arrow {
-  font-size: 12px;
-}
-
 .find-replace-button {
   font-size: 12px;
   height: 22px;

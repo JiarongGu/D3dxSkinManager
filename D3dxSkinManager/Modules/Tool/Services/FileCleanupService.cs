@@ -188,7 +188,7 @@ public class FileCleanupService : IFileCleanupService
             CleanEmptyDirectories(_profilePaths.PreviewsDirectory);
         }
 
-        _logger.Info($"Cleanup complete: {result.DeletedCount} deleted, {result.FailedCount} failed, {FormatBytes(result.FreedBytes)} freed", "FileCleanupService");
+        _logger.Info($"Cleanup complete: {result.DeletedCount} deleted, {result.FailedCount} failed, {FileUtilities.FormatBytes(result.FreedBytes)} freed", "FileCleanupService");
         return result;
     }
 
@@ -235,7 +235,7 @@ public class FileCleanupService : IFileCleanupService
             }
         }
 
-        _logger.Info($"Found {result.TotalCount} orphaned thumbnail items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
+        _logger.Info($"Found {result.TotalCount} orphaned thumbnail items ({FileUtilities.FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
         return result;
     }
 
@@ -272,7 +272,7 @@ public class FileCleanupService : IFileCleanupService
             }
         }
 
-        _logger.Info($"Found {result.TotalCount} orphaned preview items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
+        _logger.Info($"Found {result.TotalCount} orphaned preview items ({FileUtilities.FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
         return result;
     }
 
@@ -414,7 +414,7 @@ public class FileCleanupService : IFileCleanupService
             }
         }
 
-        _logger.Info($"Found {result.TotalCount} temp items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
+        _logger.Info($"Found {result.TotalCount} temp items ({FileUtilities.FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
         return result;
     }
 
@@ -465,7 +465,7 @@ public class FileCleanupService : IFileCleanupService
             }
         }
 
-        _logger.Info($"Found {result.TotalCount} orphaned mod cache items ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
+        _logger.Info($"Found {result.TotalCount} orphaned mod cache items ({FileUtilities.FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
         return result;
     }
 
@@ -507,7 +507,7 @@ public class FileCleanupService : IFileCleanupService
             }
         }
 
-        _logger.Info($"Found {result.TotalCount} orphaned archive files ({FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
+        _logger.Info($"Found {result.TotalCount} orphaned archive files ({FileUtilities.FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
         return result;
     }
 
@@ -579,11 +579,4 @@ public class FileCleanupService : IFileCleanupService
         }
     }
 
-    private static string FormatBytes(long bytes)
-    {
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
-        if (bytes < 1024 * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
-        return $"{bytes / (1024.0 * 1024 * 1024):F2} GB";
-    }
 }

@@ -32,6 +32,7 @@ import {
 import { profileService } from "../../../../shared/services/ipc";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import logger from "../../../../shared/utils/logger";
+import { formatDate } from "../../../../shared/utils/formatDate";
 import "./PythonMigrationTool.css";
 
 interface PythonMigrationToolProps {
@@ -150,7 +151,7 @@ export const PythonMigrationToolInner: React.FC<{
                 t('migration.defaultProfileName');
               await profileService.createProfile({
                 name: profileName,
-                description: t('migration.profileDescription', { date: new Date().toLocaleDateString() }),
+                description: t('migration.profileDescription', { date: formatDate(new Date()) }),
                 gameName: analysis?.activeEnvironment,
               });
               notification.success(

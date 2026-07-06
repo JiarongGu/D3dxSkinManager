@@ -15,6 +15,7 @@ import { CompactButton, CompactCard, CompactIconButton } from '../../../../../sh
 import { StatusTag } from '../../../../../shared/components/common/StatusTag';
 import { ConfirmDialog } from '../../../../../shared/components/dialogs/ConfirmDialog';
 import type { AnalysisSessionSummary } from '../../../../../shared/types/analysis.types';
+import { formatDateTime } from '../../../../../shared/utils/formatDate';
 
 interface HistoryViewProps {
   sessions: AnalysisSessionSummary[];
@@ -82,7 +83,7 @@ const SessionCard: React.FC<{
   onDelete: () => void;
 }> = ({ session, onView, onDelete }) => {
   const { t } = useTranslation();
-  const dateStr = new Date(session.startedAt).toLocaleString();
+  const dateStr = formatDateTime(session.startedAt);
   const isCompleted = session.status === 'completed';
   const isCancelled = session.status === 'cancelled';
   const isPaused = session.status === 'paused';

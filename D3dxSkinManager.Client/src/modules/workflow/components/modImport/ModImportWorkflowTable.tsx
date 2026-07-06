@@ -28,6 +28,7 @@ import {
   ModImportWorkflowSteps,
 } from "../../types/workflow.types";
 import { handleError, translateErrorMessage } from "../../../../shared/utils/errorHandler";
+import { formatDateTime } from "../../../../shared/utils/formatDate";
 import {
   ModImportMetadataDialog,
   ModImportMetadataFormValues,
@@ -339,11 +340,11 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
           </Descriptions.Item>
         )}
         <Descriptions.Item label={t("workflow.queue.createdAt")}>
-          {new Date(workflow.createdAt).toLocaleString()}
+          {formatDateTime(workflow.createdAt)}
         </Descriptions.Item>
         {workflow.completedAt && (
           <Descriptions.Item label={t("workflow.queue.completedAt")}>
-            {new Date(workflow.completedAt).toLocaleString()}
+            {formatDateTime(workflow.completedAt)}
           </Descriptions.Item>
         )}
         {workflow.errorMessage && (

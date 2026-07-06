@@ -24,6 +24,7 @@ import { HealthStatusIcon } from '../../../../../shared/components/common/Health
 import { StatusTag } from '../../../../../shared/components/common/StatusTag';
 import { copyToClipboard } from '../../../../../shared/utils/clipboardHelper';
 import { formatBytes } from '../../../../../shared/utils/formatBytes';
+import { toAppUrl } from '../../../../../shared/utils/imageUrlHelper';
 import type {
   FullAnalysisReport,
   ModAnalysisResult,
@@ -435,7 +436,7 @@ const DuplicateDetail: React.FC<{ group: DuplicateGroup; onDeleteMod?: (modId: s
         <div key={mod.modId} className="mod-analyzer__mod-card">
           <div className={`mod-analyzer__mod-preview ${!mod.previewPath ? 'mod-analyzer__mod-preview--empty' : ''}`}>
             {mod.previewPath ? (
-              <img src={`app://${encodeURIComponent(mod.previewPath)}`} alt={mod.modName} className="mod-analyzer__mod-preview-img" />
+              <img src={toAppUrl(mod.previewPath)} alt={mod.modName} className="mod-analyzer__mod-preview-img" />
             ) : (
               <BgColorsOutlined />
             )}
@@ -511,7 +512,7 @@ const ConflictRow: React.FC<{ conflict: ModConflict; onLocate?: (modIds: string[
         {conflict.mods.map(mod => (
           <div key={mod.modId} className="mod-analyzer__conflict-mod">
             {mod.previewPath ? (
-              <img src={`app://${encodeURIComponent(mod.previewPath)}`} alt={mod.modName} className="mod-analyzer__conflict-preview" />
+              <img src={toAppUrl(mod.previewPath)} alt={mod.modName} className="mod-analyzer__conflict-preview" />
             ) : (
               <div className="mod-analyzer__conflict-preview mod-analyzer__conflict-preview--empty"><ThunderboltOutlined /></div>
             )}

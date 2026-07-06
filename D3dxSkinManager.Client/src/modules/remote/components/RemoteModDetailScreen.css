@@ -13,14 +13,6 @@
   overflow: hidden;
 }
 
-.remote-detail__loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  min-height: 300px;
-}
-
 /* Loading skeleton — the hero block fills the left column at the real gallery's height. */
 .remote-detail__skeleton-hero.ant-skeleton {
   width: 100%;
