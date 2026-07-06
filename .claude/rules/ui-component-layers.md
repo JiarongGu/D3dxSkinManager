@@ -64,6 +64,35 @@ or `useModsStore`, it's actually L3 — split it: a dumb L1/L2 view + an L3 wrap
 5. **Migration is incremental** — do not mass-move files (breaks ~30 imports). When you touch a component,
    move it toward the right layer and update this table.
 
+## Atom sizing contract — the atoms are STRICT; make a NEW atom when a pattern doesn't fit (2026-07-07)
+
+The form-control atoms **enforce their size/hover with `!important`** so the app stays uniform:
+`CompactButton` = 32px (medium) via `.compact-button-medium { height:32px !important }`, `CompactInput`/
+`CompactSelect` = 32px, `CompactIconButton` = a 26px borderless square whose hover is a **background
+fill** (`--color-bg-spotlight` / tone-tinted), and `CompactTab` = a transparent 40px toolbar item.
+
+**Consequence (learned the hard way — a whole session of regressions):** you CANNOT drop a standard
+atom onto a component that needs different chrome and override it with plain CSS — the atom's
+`!important` wins and clobbers your styling (broke the header tabs, the profile button, and the icon
+actions). So:
+- **A control's chrome differs from the standard atom → make a NEW L1 atom** (as `CompactTab` was made
+  for the 40px transparent toolbar tabs + profile trigger). Do NOT revert to raw antd, and do NOT fight
+  the atom's `!important` with more `!important`.
+- **Icon-only actions → `CompactIconButton`** (never a raw `<Button type="text">` or a bare
+  `CompactButton` with just an icon). Its hover is a real bg fill; the old ad-hoc icon buttons had
+  border-only or invisible (`:hover{background:var(--color-bg-elevated)}` = the panel colour) hovers
+  that read as faint "ghost" buttons.
+- **Search inputs → `CompactInput` + a `prefix={<SearchOutlined/>}`**, NOT antd `Input.Search` (its
+  bordered search-button segment is redundant when search is live via `onChange`, and looks split).
+- **A `+`/toolbar action next to a search → `CompactButton type="default"` (icon-only) or
+  `CompactIconButton`** — keep the two search bars' containers identical (`.mod-list-panel-search-bar` ↔
+  `.category-grid-header`: same padding/border/48px/align-items).
+- **Panels that fill height** (mod-list, etc.): the antd `Sider` children live in
+  `.ant-layout-sider-children` — make THAT the flex column and let content `flex:1 1 0`; never a fixed
+  `height: calc(100% - Npx)` that ignores a conditional row (the on-search filter chip pushed the status
+  bar off-screen).
+- `InputNumber` has no atom yet — raw antd is allowed (see the allowed-raw list above).
+
 ## Why
 Without this, business logic leaks into visuals (the documented pure-UI crash class: components that
 `.map` IPC data and blow up with no backend), styling drifts, and the same control is re-implemented
