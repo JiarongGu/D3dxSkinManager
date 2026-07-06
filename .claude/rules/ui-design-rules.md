@@ -54,6 +54,21 @@ invisible). **Fix pattern:** don't put `overflow` on the flex item you want visi
 height, never shrink). For a genuinely-scrolling flex child, add `min-height:0` deliberately (that's the
 opposite case — you WANT it to shrink and scroll internally). Know which one you want.
 
+## SlideInScreen `width` prop is a NO-OP — the panel is `flex:1`; use `className` to scope geometry
+
+`useSlideInScreen({ width })` sets an inline `width` on `.slide-in-screen-panel`, but that element is
+`flex: 1` (CSS), so it **grows to fill** the container regardless — every slide-in renders ~95% wide and
+the `width` value (`'80%'`, `'560px'`, `'50%'`…) is silently ignored (verified 2026-07-07: a `560px`
+panel measured 1105px). Do NOT try to narrow a slide-in by changing `width` — it does nothing. To make a
+genuinely narrow/focused panel, pass `className` to `useSlideInScreen` (added 2026-07-07; threads to the
+`.slide-in-screen-container`) and scope the geometry there — grow the backdrop, fix the panel:
+```css
+.my-screen .slide-in-screen-blur-backdrop { flex: 1 1 auto; width: auto !important; }  /* backdrop fills */
+.my-screen .slide-in-screen-panel { flex: 0 1 560px; max-width: 100%; }                 /* panel fixed  */
+```
+This is opt-in (other slide-ins keep filling ~95%). ModFixTool uses `className="mod-fix-screen"` for a
+560px focused panel. (Globally honoring `width` would resize all 8+ slide-ins at once — don't.)
+
 ## Colors
 
 **CSS variables only** — `var(--color-*)`. Never hardcode hex colors except in theme definitions.
