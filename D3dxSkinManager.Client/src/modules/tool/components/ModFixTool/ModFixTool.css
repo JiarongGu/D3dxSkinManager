@@ -11,15 +11,24 @@
   max-width: 100%;
 }
 
-/* Single column: header → card list → run feedback → settings (pinned bottom). Panel owns scroll. */
+/* The slide-in content wrapper scrolls by default (overflow-y:auto). For this tool ONLY the card
+   list scrolls, so make the wrapper a non-scrolling flex column and let .mod-fix flex-fill it.
+   (A percentage height on .mod-fix didn't resolve here → an ~8px overflow gave a phantom scrollbar.) */
+.mod-fix-screen .slide-in-screen-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Single column: header + settings stay pinned; ONLY the card list scrolls (see .mod-fix__list).
+   flex-fills the content wrapper (which we made a flex column above) — no % height, no overflow. */
 .mod-fix {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
   padding: 4px 2px;
-  overflow-y: auto;
 }
 
 /* Header: one-line purpose + add actions, divided from the list. */
@@ -49,12 +58,16 @@
   gap: 8px;
 }
 
-/* Card list — a short list of fix scripts reads better as cards than a data grid. */
+/* Card list — a short list of fix scripts reads better as cards than a data grid.
+   This is the ONLY scroller: flex:1 + min-height:0 lets it shrink & scroll internally while the
+   header (top) and settings (bottom) stay pinned. */
 .mod-fix__list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .mod-fix__tool {
@@ -184,6 +197,9 @@
   flex: 0 0 auto;
   margin-top: auto;
   border-top: 1px solid var(--color-border-secondary);
+  /* The Collapse root carries a default border-radius → a plain border-top would curve at the
+     corners. Square it so the divider line is straight. */
+  border-radius: 0;
 }
 
 /* No expand arrow (expandIcon nulled) — remove antd's icon-slot inset so the label sits flush. */
