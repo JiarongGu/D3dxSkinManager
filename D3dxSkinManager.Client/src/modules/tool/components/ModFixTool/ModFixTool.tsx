@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Popconfirm, Tooltip } from 'antd';
+import { Popconfirm, Tooltip, Collapse } from 'antd';
 import {
   FolderOpenOutlined, FolderOutlined, FileOutlined,
   FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined, SettingOutlined,
@@ -232,12 +232,20 @@ const ModFixManagerInner: React.FC<{ compact: boolean }> = ({ compact }) => {
         <div className="mod-fix__list">{tools.map(renderTool)}</div>
       )}
 
-      {/* Settings — only in the full (Tools-grid) view; the compact context view is list-only. */}
+      {/* Settings — only in the full (Tools-grid) view; the compact context view is list-only.
+          Collapsible (click the label to open/close, no arrow), open by default. */}
       {!compact && (
-        <div className="mod-fix__settings-section">
-          <div className="mod-fix__section-label"><SettingOutlined /> {t('tools.modFix.tabSettings')}</div>
-          <FixToolSettingsCard />
-        </div>
+        <Collapse
+          ghost
+          className="mod-fix__settings"
+          expandIcon={() => null}
+          defaultActiveKey={['settings']}
+          items={[{
+            key: 'settings',
+            label: <span className="mod-fix__section-label"><SettingOutlined /> {t('tools.modFix.tabSettings')}</span>,
+            children: <FixToolSettingsCard />,
+          }]}
+        />
       )}
 
       <FormDialog
