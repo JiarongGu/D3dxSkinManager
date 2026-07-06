@@ -4,236 +4,167 @@ D3dxSkinManager is a **mod library manager** for 3DMigoto‑based games (via XXM
 
 It stores your mods **compressed**, lets you **organize, fix, edit, preview and deploy** them, and hands the actual in‑game injection to **XXMI**. Think of it as: *this app = your mod library + workshop; XXMI = the runtime that loads mods into the game.*
 
+This guide is organized as **workflows** — follow the section that matches what you want to do. New here? Read them in order 1 → 3; that's the whole basic loop (set up → add mods → play).
+
 > **Core idea:** mods live compressed in your library. **Loading** a mod extracts and deploys it into the game's Mods folder; **unloading** removes it. Only **one mod per category** is active at a time — loading a mod automatically unloads the previous one in the same category.
 
 ---
 
-## Getting Started
+## 1. First‑Time Setup
 
-Three steps to a working setup:
+**Goal:** get a profile and a deploy target so mods can load and the game can launch.
 
-1. **Create or select a Profile.** Click the **profile selector** in the top‑right header. Each profile has its own mod database, categories and settings — ideal for managing different games separately.
-2. **Set your Work Directory** (**Settings → Mod Work**). This is where mods get deployed so the game can load them. Pick one of:
-   - **App default** — the app manages its own internal folder.
-   - **XXMI Launcher** *(recommended)* — point at your XXMI install folder, then choose the importer (e.g. `ZZMI`). This sets both the deploy target (the importer's `Mods` folder) **and** the game‑launch command in one step.
-   - **Custom folder** — point at any 3DMigoto `Mods` folder.
-3. **Import some mods** and **load** the ones you want (see *Managing Mods*), then **Launch** the game.
+1. **Create or select a Profile** — click the **profile selector** (top‑right header). Each profile is its own workspace (mod database, categories, settings). Use one per game.
+2. **Open Settings → Mod Work** and choose a **Work Directory** — where mods deploy so the game loads them:
+   - **App default** — the app manages its own folder.
+   - **XXMI Launcher** *(recommended)* — point at your XXMI install, then pick the importer (e.g. `ZZMI`). This sets the deploy target (that importer's `Mods` folder) **and** the launch command in one step.
+   - **Custom folder** — any 3DMigoto `Mods` folder.
+3. **Confirm.** When you pick an XXMI importer, a confirmation shows the work dir, deploy target, launcher path and launch args before anything is applied.
 
-> If you use XXMI, choosing the importer stages a confirmation showing the work dir, deploy target, launcher path and launch args before applying — nothing changes silently.
-
----
-
-## The Interface
-
-- **Top navigation:** **Mods** (模组), **Remote Library** (远程库), **Tools** (工具), **Settings** (设置).
-- **Header:** profile selector, presets, and this Help.
-- **Status bar (bottom):** the **Launch** button (启动), **Presets** (预设), the loaded‑mods count, and the **Activity** area (background‑task progress + history).
-- **Theme & language:** switch light/dark theme and English/中文 in **Settings → Global**.
+> Next: add some mods (section 2), then load and launch (section 3).
 
 ---
 
-## Profiles
+## 2. Add Mods to Your Library
 
-A profile is a self‑contained workspace: its own mod library, categories, tags, presets and settings.
+**Goal:** get mods into your compressed library so you can organize and deploy them.
 
-- **Create / switch:** use the header profile selector.
-- **When to use multiple:** one per game, or per configuration you want to keep separate.
-- Deleting a profile removes its database and settings (mod archives on disk follow the profile's directory).
+### Import a file or folder
+1. **Drag & drop** an archive (`.zip` / `.7z` / `.rar`) or a mod folder onto the window — or use the **Import** button.
+2. The **import workflow** handles multi‑mod archives, naming and category assignment before the mods enter your library.
 
----
+### Import a shared package
+- Someone sent you a **package**? Import it the same way. You can also **export** a mod (or a set) as a package to share.
 
-## Managing Mods
-
-The **Mods** tab is your library: the **category tree** on the left, the **mod grid** on the right.
-
-### Loading & unloading
-1. Click a mod card to **load** it — the app extracts it and deploys it into your work directory.
-2. Loading a mod **unloads** any previously‑loaded mod in the **same category** (one active per category).
-3. Click the loaded mod again (or use its unload action) to **unload** it.
-
-A mod card shows its preview image, name, and state (loaded / available / unavailable / orphaned).
-
-### Finding mods
-- The **search box** matches title, tags and id. It supports operators: space = AND, `OR`, `NOT`/`-`, `field:value`, and `"exact phrase"`.
-- Click a category to filter to it; switch to the "all" view to search across everything.
-
-### Per‑mod actions (right‑click a mod)
-- **Edit** metadata (name, author, category, tags, grading, description).
-- **Replace content** from a file.
-- **Set preview / manage images.**
-- **Fix** (re‑fix hashes — see *Fixing Mods*).
-- **Keybindings** and **`.ini` editor** (see *Keybindings & Config*).
-- **Package** (export/share), **Merge**, **Optimize**, **Delete**.
-
-> Many actions need the mod's extracted files. If something is greyed out, **load the mod first** — then its keybindings and config become editable.
+> To pull mods from a website instead, see **section 8 — Download from the Remote Library**.
+> Every added mod is **normalized** into the app's storage format (extracted + re‑compressed), so odd containers or passwords never break loading later.
 
 ---
 
-## Categories
+## 3. Load a Mod & Launch the Game
 
-Categories organize your library as a tree and enforce the "one active per category" rule.
+**Goal:** activate a mod and play with it.
 
-- **Right‑click the tree** for: Add Sub‑Category, Add Root‑Category, Edit, Export, Delete.
-- **Drag** categories to reorder or move them.
-- A mod belongs to one category; loading it unloads the category's currently‑active mod.
+1. Go to the **Mods** tab. Pick a **category** on the left; its mods show on the right.
+2. **Click a mod** to **load** it — the app extracts and deploys it to your work directory.
+3. Remember the rule: loading a mod **unloads** any other mod in the **same category** (one active per category). Click the loaded mod again to **unload**.
+4. Press **Launch** (启动) in the status bar to start the game. With XXMI, launch injects the mod DLL and opens the game with mods active.
 
----
-
-## Tags
-
-Tags are free‑form labels for cross‑cutting organization (character, type, author…).
-
-- Add tags in a mod's **Edit** screen.
-- **Filter** the mod list by tag.
-- Mods imported from the **Remote Library** are auto‑tagged with the remote entry's tags.
+### Save loadouts with Presets
+- A **preset** stores your current set of loaded mods. Save one, then apply it later to restore exactly that combination — great for switching between curated setups. Presets live in the header / status‑bar **Presets**.
 
 ---
 
-## Importing Mods
+## 4. Organize Your Library
 
-- **Drag & drop** an archive (`.zip`/`.7z`/`.rar`) or a folder onto the window.
-- Or use the **Import** flow for a guided queue.
-- The **import workflow** handles multi‑mod archives, naming and category assignment before the mods enter your library.
-- **Packages:** export a mod (or a set) as a shareable package, and import packages others share with you.
+**Goal:** keep a large library findable.
 
-> Downloads always get **normalized** into the app's storage format (extracted and re‑compressed), so odd containers or passwords never break loading later.
-
----
-
-## Keybindings & Config
-
-3DMigoto mods use **key toggles** (swap variants, toggle parts). This app lets you view and rebind them safely.
-
-### Keybindings editor
-1. **Load the mod first** — keybindings are read from the extracted files.
-2. Open the mod's **keybindings**. For each binding you can:
-   - **Rebind the key:** focus the field and **press** the key/combo to capture it (modifiers and `NO_…` exclusions supported; add controller buttons with the **Xbox button picker**).
-   - Change the **type** (cycle / hold / toggle), edit the **cycle values** or **condition**.
-   - Add **multiple keys** to one binding (keyboard + controller share state).
-   - **Reorder** bindings by dragging (the order is saved as mod metadata).
-
-### `.ini` config editor
-- Edit safe `key = value` lines: `[Key*]` bindings and `[Constants]` tunables.
-- **Advanced/hash sections are locked** (texture overrides, resources, shaders). Editing a hash breaks the mod, so those are read‑only by design.
+- **Categories** (left tree): right‑click for Add Sub‑Category, Add Root‑Category, Edit, Export, Delete; **drag** to reorder or move. Each mod lives in one category (which drives the one‑active rule).
+- **Tags:** add free‑form labels in a mod's **Edit** screen; filter the list by tag. Remote‑imported mods are auto‑tagged.
+- **Search:** the box matches title, tags and id, with operators — space = AND, `OR`, `NOT`/`-`, `field:value`, `"exact phrase"`.
+- **Edit a mod** (right‑click → Edit): name, author, category, tags, grading, description.
+- **Previews:** set the thumbnail and manage a mod's images.
 
 ---
 
-## Fixing Mods
+## 5. Customize a Mod's Keys & Config
 
-When a game updates, mod **hashes** can break and mods stop rendering — they need re‑fixing.
+**Goal:** change a mod's toggle keys or tweak its settings.
 
-1. Add your fix tools under **Settings → Fix Tools** (per‑profile fix‑tool library).
-2. **Fix a mod:** right‑click → **Fix**. Or **fix a whole category** at once.
-3. The fix runs on the mod's working copy and re‑patches its archive automatically.
-
-> Close the game before fixing (an in‑use folder can't be modified). After a game update, running **Tools → Analysis** first tells you which mods need attention.
-
----
-
-## Merging Mods
-
-Combine several same‑character variants into **one mod** you cycle with a swap key.
-
-1. Select the mods to merge → **Merge**.
-2. Choose a **swap key** (cycles between variants in‑game).
-3. A new merged mod is created; the originals stay in your library untouched.
-
-The merge is **namespace‑based**, so each variant keeps its own keybinds/toggles as separate sets.
-
-> In‑game behavior (the swap key cycling variants) should be verified live after merging.
+1. **Load the mod first** — keybindings and config come from its extracted files (if the option is greyed out, this is why).
+2. Right‑click → **Keybindings**. For each binding you can:
+   - **Rebind:** focus the field and **press** the key/combo to capture it (modifiers and `NO_…` exclusions supported; add controller buttons with the **Xbox button picker**).
+   - Change the **type** (cycle / hold / toggle) and edit the **cycle values** / **condition**.
+   - Add **multiple keys** to one binding, and **drag to reorder** bindings.
+3. For deeper tweaks, right‑click → **`.ini` editor**: edit safe `key = value` lines (`[Key*]`, `[Constants]` tunables). Hash/override sections are **locked** — editing a hash breaks the mod.
 
 ---
 
-## Optimizing Mods
+## 6. Fix Mods After a Game Update
 
-Right‑click → **Optimize** to shrink and tidy a mod: de‑duplicate identical files and rewrite internal `filename` references. Useful for bloated or messy mods.
+**Goal:** make mods render again after the game changes hashes.
+
+1. **Close the game** (in‑use files can't be modified).
+2. Add your fix tools once under **Settings → Fix Tools**.
+3. Run **Tools → Analysis** to see which mods are broken (bad/missing hashes, conflicts, missing keybinds) — each mod gets a health badge.
+4. Right‑click a mod → **Fix** (or fix a whole **category** at once). The fix patches the mod and re‑saves its archive automatically.
+5. Re‑run Analysis or launch to confirm.
 
 ---
 
-## Remote Library
+## 7. Combine & Slim Down Mods
 
-Browse remote mod sites **inside the app**, then download and import with one flow. Sources shipped today: **Hui站 (huihui)** and **GameBanana**; you can add custom sites.
+**Goal:** advanced editing of your library.
 
-### Set up a library
-1. Open **library management** (库管理) from the Remote tab.
-2. In **Libraries**, add a library = a **site + game** (e.g. *GameBanana · Zenless Zone Zero*). Adding it starts a background **sync** that builds a local index for instant search, sorting and offline browsing.
-3. Switch the active library from the toolbar dropdown any time.
+- **Merge variants:** select several same‑character mods → **Merge** → pick a **swap key** that cycles between them in‑game. A new merged mod is created (originals kept); it's namespace‑based so each variant keeps its own keys. *Verify the swap key in‑game after merging.*
+- **Optimize:** right‑click → **Optimize** to de‑duplicate identical files and rewrite internal `filename` references — tidies bloated mods.
 
-### Browse & filter
-- The grid shows the synced index. **Search** matches title + tags; **sort** by site order or newest.
-- **Downloaded** filter (toolbar) shows only entries you've already imported.
-- Cards show a tag badge and a green **✓** when already imported.
+---
 
-### Download & import
-1. Click a mod → its **detail** page: gallery + tags on the left, **download links** on the right.
-2. Click a download:
-   - **Cloudreve / direct** hosts download and import **in‑app**.
-   - **Quark** downloads in‑app once you've logged in (see below).
-   - Other hosts open in your browser.
-3. Confirm the dialog (file, size, host) — optionally pick a **category** (overrides the library's tag rules) and an **unzip password** — then the download + import runs in the background (watch the **Activity** panel).
-4. When it finishes, the mod is in your library (tagged and categorized) and the remote entry shows the **✓ Imported** badge. Open its detail → **View mod** to jump to it in your library.
+## 8. Download Mods from the Remote Library
+
+**Goal:** browse mod sites in‑app and import with one flow. Built‑in sources: **Hui站 (huihui)** and **GameBanana** (plus custom sites).
+
+1. **Add a library.** Open **library management** (库管理) → **Libraries** → add one = a **site + game** (e.g. *GameBanana · Zenless Zone Zero*). Adding it starts a background **sync** that builds a local index (instant search / sort / offline). Switch the active library from the toolbar dropdown.
+2. **Browse & filter.** Search matches title + tags; sort by site order or newest; the **Downloaded** filter shows only what you've imported. Cards show a tag badge and a green **✓** when already imported.
+3. **Open a mod** → detail page: gallery + tags (left), **download links** (right).
+4. **Download & import.** Click a link:
+   - **Cloudreve / direct** → downloads + imports **in‑app**.
+   - **Quark** → downloads in‑app once you've logged in (section 9).
+   - Other hosts → open in your browser.
+   Confirm the dialog (file, size, host); optionally set a **category** (overrides tag rules) and an **unzip password**. The download + import runs in the background — watch **Activity**.
+5. **After import**, the mod is in your library (tagged + categorized) and the entry shows **✓ Imported**. Open its detail → **View mod** to jump to it locally.
 
 ### Import tag rules (per library)
 Each library has **ordered rules** mapping remote tags → a local category on import (first match wins; no match = uncategorized). Edit them in library management → the library's **Import rules** tab.
 
-### Quark accounts
-Quark downloads need a login. In **Settings → Online Storage**, click **Log in** — an in‑app window opens **Quark's own login page**; sign in there (you never type a password into this app), and the session is captured automatically. The app then downloads your Quark files like the official client does.
+---
+
+## 9. Accounts & Settings
+
+**Goal:** log in to download hosts and tune the app.
+
+- **Quark login** (**Settings → Online Storage → Log in**): an in‑app window opens **Quark's own login page** — sign in there (you never type a password into this app) and the session is captured automatically. The app then downloads your Quark files like the official desktop client does.
+- **Settings tabs:**
+  - **Mod Work** — work‑directory mode + game‑launch command (path + args, e.g. `--nogui --xxmi ZZMI`; some games need extras, e.g. WuWa `-DisableModule=streamline -dx11 -d3d11`).
+  - **Import** — import behavior / defaults.
+  - **Fix Tools** — the fix‑tool library.
+  - **Global** — theme (light/dark), language (English/中文), log level, automatic updates.
+  - **Online Storage** — download‑host accounts.
 
 ---
 
-## Presets
+## 10. Background Tasks & Activity
 
-A preset is a saved **set of loaded mods**. Save your current loadout as a preset, then apply it later to restore exactly that set — handy for switching between curated combinations. Presets live in the header / status‑bar **Presets**.
+**Goal:** track long operations.
 
----
-
-## Tools
-
-- **Mod Analysis** — scans your mods for health issues (bad/missing hashes, conflicts, dead overrides, missing keybinds) and shows a health badge per mod. Run it after a game update.
-- **File Cleanup** — finds and removes orphaned files (temp files, stale caches, the remote‑image cache) to reclaim space.
-- **Mod‑ID Migration** — migrates older hash‑based mod ids to stable GUIDs (one‑time housekeeping).
-- **Fix Tools** — manage the per‑profile fix‑tool library used by *Fixing Mods*.
+Loading, importing, syncing, merging, fixing and analysis all run in the **background** so the app stays responsive. The **status bar** shows a running summary; click the **Activity** area for the full panel — per‑task progress, history and cancel.
 
 ---
 
-## Launching the Game
+## 11. Interface Map (quick reference)
 
-- Press **Launch** (启动) in the status bar to run your configured launch command.
-- With **XXMI** mode, launch = XXMI injects the importer's DLL and starts the game with mod support.
-- Configure the command in **Settings → Mod Work → Game launch**: the executable path + arguments (e.g. `--nogui --xxmi ZZMI`). Some games need extra args (e.g. WuWa: `-DisableModule=streamline -dx11 -d3d11`).
-
----
-
-## Settings
-
-- **Mod Work** — work‑directory mode (App default / XXMI Launcher / Custom folder) and the game‑launch command.
-- **Import** — import behavior and defaults.
-- **Fix Tools** — manage the fix‑tool library.
-- **Global** — theme (light/dark), language (English/中文), log level, and automatic updates.
-- **Online Storage** — log in/out of download‑host accounts (Quark).
+- **Top navigation:** **Mods** (模组) · **Remote Library** (远程库) · **Tools** (工具) · **Settings** (设置).
+- **Header:** profile selector · this Help.
+- **Status bar (bottom):** **Launch** (启动) · **Presets** (预设) · loaded‑mods count · **Activity**.
+- **Mod card states:** loaded · available · unavailable · orphaned.
+- **Theme & language:** Settings → Global (both light and dark are supported).
 
 ---
 
-## Activity & Background Tasks
-
-Long operations — loading, importing, syncing, merging, fixing, analysis — run in the **background** so the app stays responsive. The **status bar** shows a running summary; click the **Activity** area to open the full panel with per‑task progress, history and cancel.
-
----
-
-## Tips & Troubleshooting
+## 12. Troubleshooting
 
 - **Keybindings look empty?** Load the mod first — they come from the extracted files.
 - **"Mod folder in use" / a fix or load fails?** Close the game first (it holds files open).
 - **Mods stopped showing after a game update?** Run **Tools → Analysis**, then **Fix** the flagged mods.
-- **Quark download fails?** Make sure you're logged in (Settings → Online Storage). Very large files download using the desktop‑client path; if a file is genuinely restricted, download it from Quark directly.
-- **Both light and dark themes** are supported — switch in Settings → Global.
-- Nothing you do here injects into a running game, so loading/fixing/deploying mods while the game is closed is safe to experiment with.
+- **Quark download fails?** Make sure you're logged in (Settings → Online Storage). Large files download via the desktop‑client path; if a file is genuinely restricted, download it from Quark directly.
+- **Experimenting is safe:** nothing here injects into a running game, so loading / fixing / deploying while the game is closed can't disrupt anything live.
 
 ---
 
 ## About
 
-D3dxSkinManager is open source. Report issues and find updates on GitHub:
+D3dxSkinManager is open source — report issues and get updates on GitHub:
 <https://github.com/JiarongGu/D3dxSkinManager>
 
-It complements — and does not replace — **XXMI** (which installs the importers, injects the mod DLL, and launches the game). This app is your compressed mod library, organizer, fixer and deployer.
+It **complements** XXMI (which installs importers, injects the mod DLL, and launches the game); this app is your compressed mod library, organizer, fixer and deployer.
