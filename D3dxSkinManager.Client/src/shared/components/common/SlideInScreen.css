@@ -142,8 +142,8 @@
    few px higher than before. box-shadow reset: antd's generated button shadow wins otherwise. */
 .slide-in-screen-close-btn--floating {
   position: absolute;
-  top: 18px;
-  right: 24px;
+  top: 24px;
+  right: 30px;
   z-index: 3;
   /* Transparent so it shows the panel behind it exactly (panels vary — e.g. the remote-detail actions
      panel is bg-elevated, not bg-container) — truly "same as the background", like the header close.
