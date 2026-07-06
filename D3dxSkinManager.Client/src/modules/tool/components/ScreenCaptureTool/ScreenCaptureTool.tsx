@@ -16,7 +16,7 @@ import {
   ScreenCaptureProvider,
   NEW_PROFILE_ID,
 } from "./ScreenCaptureContext";
-import { CompactButton, CompactInput, CompactSelect } from '../../../../shared/components/compact';
+import { CompactButton, CompactInput, CompactSelect, CompactIconButton } from '../../../../shared/components/compact';
 
 /**
  * Screen Capture Control Panel (Inner Component)
@@ -64,15 +64,15 @@ const ScreenCaptureToolInner: React.FC = () => {
               onPressEnter={handleSaveProfile}
               autoFocus
             />
-            <CompactButton
-              size="small"
+            <CompactIconButton
+              size={24}
+              tone="primary"
               icon={<CheckOutlined />}
               onClick={handleSaveProfile}
-              type="primary"
               title={t("capture.button.save")}
             />
-            <CompactButton
-              size="small"
+            <CompactIconButton
+              size={24}
               icon={<CloseOutlined />}
               onClick={handleCancelEditName}
               title={t("common.cancel")}
@@ -99,20 +99,20 @@ const ScreenCaptureToolInner: React.FC = () => {
                 (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
               }
             />
-            <CompactButton
-              size="small"
+            <CompactIconButton
+              size={24}
+              tone="primary"
               icon={<SaveOutlined />}
               onClick={handleSaveProfile}
               disabled={!isNewProfile && !isDirty}
-              type="primary"
               title={t("capture.button.save")}
             />
-            <CompactButton
-              size="small"
+            <CompactIconButton
+              size={24}
+              tone="danger"
               icon={<DeleteOutlined />}
               onClick={handleDeleteProfile}
               disabled={isNewProfile}
-              danger
               title={t("common.delete")}
             />
           </Space>
