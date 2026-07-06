@@ -65,6 +65,9 @@
     "remote.rulePickCategory": "导入到",
     "remote.confirmCategory": "导入到",
     "remote.confirmCategoryByRules": "按库规则 / 未分类",
+    "remote.confirmPassword": "解压密码",
+    "remote.confirmPasswordDefault": "站点默认：{{password}}",
+    "remote.confirmPasswordNone": "无（不需要则留空）",
     "remote.tabLibraries": "库",
     "remote.tabSites": "站点",
     "remote.activeLibrary": "使用中",
@@ -808,6 +811,7 @@
     "process.remoteSyncAll": "正在同步远程库：{{arg}}（全部列表）",
     "process.stage.importing": "导入中",    "process.remoteImport": "正在下载模组：{{arg}}",
     "process.stage.resolving": "解析下载地址",
+    "process.stage.repacking": "重新打包为存储格式",
     "process.stage.previews": "导入预览图",
 
     "process.optimize": "正在优化模组：{{arg}}",
@@ -1330,6 +1334,7 @@
     "errors.REMOTE_SHARE_EXPIRED": "分享链接已过期：{{url}}",
     "errors.REMOTE_DOWNLOAD_UNSUPPORTED": "{{host}} 下载需在浏览器中打开",
     "errors.REMOTE_IMPORT_FAILED": "远程导入失败：{{reason}}",
+    "errors.REMOTE_ARCHIVE_PASSWORD": "下载的压缩包需要解压密码（密码错误或缺失）或文件已损坏：{{name}}。请设置解压密码后重试。",
 
     "errors.DOWNLOAD_FAILED": "下载失败：{{reason}}",
     "errors.DOWNLOAD_HASH_MISMATCH": "下载的文件未通过完整性校验，已丢弃。",

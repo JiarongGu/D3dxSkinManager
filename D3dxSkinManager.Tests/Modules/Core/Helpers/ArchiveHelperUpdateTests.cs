@@ -59,4 +59,53 @@ public class ArchiveHelperUpdateTests : IDisposable
         File.Exists(Path.Combine(outDir, "other.txt")).Should().BeTrue();
         (await File.ReadAllTextAsync(Path.Combine(outDir, "other.txt"))).Should().Be("keep-me");
     }
+
+    [Fact]
+    public async Task ExtractArchive_PasswordProtected_ExtractsWithPassword_FailsWithout()
+    {
+        // Arrange: a source folder compressed WITH a password (remote sites ship passworded zips —
+        // e.g. huihui's 解压密码). A dummy helper compress first initializes the native 7z.dll.
+        var src = Path.Combine(_root, "psrc");
+        Directory.CreateDirectory(src);
+        await File.WriteAllTextAsync(Path.Combine(src, "mod.ini"), "[KeyX]\nkey = 0\n");
+        await _helper.CompressFolderAsync(src, Path.Combine(_root, "init-dummy.7z"));
+
+        var archive = Path.Combine(_root, "locked.7z");
+        var compressor = new global::SharpSevenZip.SharpSevenZipCompressor
+        {
+            ArchiveFormat = global::SharpSevenZip.OutArchiveFormat.SevenZip,
+        };
+        compressor.CompressDirectory(src, archive, "hui-secret");
+
+        // Correct password → extracts.
+        var okDir = Path.Combine(_root, "pok");
+        var result = _helper.ExtractArchive(archive, okDir, "hui-secret");
+        result.Success.Should().BeTrue();
+        (await File.ReadAllTextAsync(Path.Combine(okDir, "mod.ini"))).Should().Contain("key = 0");
+
+        // No password → fails, and the failure is classified as a password error (the remote import
+        // maps it to REMOTE_ARCHIVE_PASSWORD).
+        var failDir = Path.Combine(_root, "pfail");
+        var act = () => _helper.ExtractArchive(archive, failDir);
+        var ex = act.Should().Throw<Exception>().Which;
+        ArchiveHelper.IsPasswordError(ex).Should().BeTrue($"message was: {ex.Message}");
+    }
+
+    [Fact]
+    public void ExtractArchive_UnencryptedArchive_IgnoresSuppliedPassword()
+    {
+        // A supplied password must be harmless for unencrypted archives — the import pipeline
+        // extracts plain-first, but a user-typed password may still be handed to a plain archive.
+        var src = Path.Combine(_root, "usrc");
+        Directory.CreateDirectory(src);
+        File.WriteAllText(Path.Combine(src, "a.txt"), "plain");
+        var archive = Path.Combine(_root, "plain.7z");
+        _helper.CompressFolderAsync(src, archive).GetAwaiter().GetResult();
+
+        var outDir = Path.Combine(_root, "uout");
+        var result = _helper.ExtractArchive(archive, outDir, "wrong-password-does-not-matter");
+
+        result.Success.Should().BeTrue();
+        File.ReadAllText(Path.Combine(outDir, "a.txt")).Should().Be("plain");
+    }
 }

@@ -65,6 +65,9 @@
     "remote.rulePickCategory": "import into",
     "remote.confirmCategory": "Import into",
     "remote.confirmCategoryByRules": "By library rules / uncategorized",
+    "remote.confirmPassword": "Unzip password",
+    "remote.confirmPasswordDefault": "Site default: {{password}}",
+    "remote.confirmPasswordNone": "None (leave empty if not needed)",
     "remote.tabLibraries": "Libraries",
     "remote.tabSites": "Sites",
     "remote.activeLibrary": "Active",
@@ -829,6 +832,7 @@
     "process.remoteSyncAll": "Syncing remote library: {{arg}} (all lists)",
     "process.stage.importing": "Importing",    "process.remoteImport": "Downloading mod: {{arg}}",
     "process.stage.resolving": "Resolving download",
+    "process.stage.repacking": "Repacking into storage format",
     "process.stage.previews": "Importing previews",
 
     "process.optimize": "Optimizing mod: {{arg}}",
@@ -1330,6 +1334,7 @@
     "errors.REMOTE_SHARE_EXPIRED": "The share link has expired: {{url}}",
     "errors.REMOTE_DOWNLOAD_UNSUPPORTED": "{{host}} downloads must be opened in the browser",
     "errors.REMOTE_IMPORT_FAILED": "Remote import failed: {{reason}}",
+    "errors.REMOTE_ARCHIVE_PASSWORD": "The downloaded archive needs a password (wrong or missing) or is corrupted: {{name}}. Set the unzip password and retry.",
 
     "errors.DOWNLOAD_FAILED": "Download failed: {{reason}}",
     "errors.DOWNLOAD_HASH_MISMATCH": "The downloaded file failed its integrity check and was discarded.",

@@ -41,8 +41,8 @@ public class ArchiveValidationResult
 public interface IArchiveHelper
 {
     Task<string?> DetectArchiveTypeAsync(string archivePath);
-    Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory);
-    ExtractionResult ExtractArchive(string archivePath, string targetDirectory);
+    Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory, string? password = null);
+    ExtractionResult ExtractArchive(string archivePath, string targetDirectory, string? password = null);
     Task<string> CompressFolderAsync(string folderPath, string outputPath, ArchiveFormat format = ArchiveFormat.SevenZip, CompressionLevel compressionLevel = CompressionLevel.High, Action<int>? progressCallback = null, CancellationToken cancellationToken = default);
     Task<ArchiveValidationResult> ValidateArchiveAsync(string archivePath);
 
@@ -207,20 +207,21 @@ public class ArchiveHelper : IArchiveHelper
     /// Provides 10x+ faster extraction compared to pure managed implementations
     /// Supports: ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, ISO, and more
     /// </summary>
-    public async Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory)
+    public async Task<ExtractionResult> ExtractArchiveAsync(string archivePath, string targetDirectory, string? password = null)
     {
         if (!File.Exists(archivePath))
             throw new FileNotFoundException("Archive not found", archivePath);
 
-        return await Task.Run(() => ExtractArchive(archivePath, targetDirectory)).ConfigureAwait(false);
+        return await Task.Run(() => ExtractArchive(archivePath, targetDirectory, password)).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Extract archive using SharpSevenZip with native 7z.dll (sync version)
     /// Provides 10x+ faster extraction compared to pure managed implementations
-    /// Supports: ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, ISO, and more
+    /// Supports: ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, ISO, and more.
+    /// A password is safely ignored by unencrypted archives — pass it whenever one MIGHT apply.
     /// </summary>
-    public ExtractionResult ExtractArchive(string archivePath, string targetDirectory)
+    public ExtractionResult ExtractArchive(string archivePath, string targetDirectory, string? password = null)
     {
         if (!File.Exists(archivePath))
             throw new FileNotFoundException("Archive not found", archivePath);
@@ -247,7 +248,9 @@ public class ArchiveHelper : IArchiveHelper
             InitializeSevenZip();
 
             // Use SharpSevenZip for extraction (supports all common formats)
-            using var extractor = new SharpSevenZipExtractor(archivePath);
+            using var extractor = string.IsNullOrEmpty(password)
+                ? new SharpSevenZipExtractor(archivePath)
+                : new SharpSevenZipExtractor(archivePath, password);
             extractor.ExtractArchive(targetDirectory);
 
             result.Success = true;
@@ -262,6 +265,24 @@ public class ArchiveHelper : IArchiveHelper
             _logger.Error($"Extraction failed: {ex.Message}", "ArchiveHelper", ex);
             throw new InvalidOperationException($"Archive extraction failed: {ex.Message}", ex);
         }
+    }
+
+    /// <summary>Whether an extraction failure is password-SUSPECT. 7z reports a missing/wrong
+    /// password on AES-encrypted data as "File is corrupted. Data error has occured." (the CRC check
+    /// fails — indistinguishable from real corruption by design, verified in tests), so data-error
+    /// messages count too. Callers retry with a password; if that also fails, surface both
+    /// possibilities (wrong password OR corrupt file).</summary>
+    public static bool IsPasswordError(Exception ex)
+    {
+        for (Exception? e = ex; e != null; e = e.InnerException)
+        {
+            if (e.Message.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+                e.Message.Contains("encrypted", StringComparison.OrdinalIgnoreCase) ||
+                e.Message.Contains("data error", StringComparison.OrdinalIgnoreCase) ||
+                e.Message.Contains("corrupted", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

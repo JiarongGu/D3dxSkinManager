@@ -8,7 +8,7 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { formatBytes } from '../../../shared/utils/formatBytes';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
-import { CompactButton } from '../../../shared/components/compact';
+import { CompactButton, CompactInput } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import { KeyValueRows } from '../../../shared/components/common/KeyValueRows';
 import { ImageGallery } from '../../../shared/components/common/ImageGallery';
@@ -59,6 +59,8 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   // Download-time category choice (undefined = follow the library's tag rules).
   const [importCategory, setImportCategory] = useState<string>();
+  // User unzip password (empty = the resolver's site default; imports always extract + repack).
+  const [importPassword, setImportPassword] = useState('');
   const [confirmState, setConfirmState] = useState<{
     option: RemoteDownloadOption;
     resolved: RemoteResolveResult;
@@ -117,6 +119,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
         entryId,
         tags: allTags,
         categoryId: importCategory,
+        password: importPassword.trim() || undefined,
       });
       notification.info(t('remote.importStarted', { name: detail.title || fallbackTitle }));
     } catch (error: unknown) {
@@ -269,6 +272,19 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
                   placeholder={t('remote.confirmCategoryByRules')}
                   onChange={setImportCategory}
                   size="small"
+                />
+              </div>
+              {/* Imports always extract + repack into our storage format — the password feeds that
+                  extraction. Empty = the site's known default (shown as the placeholder). */}
+              <div className="remote-detail__confirm-category">
+                <span className="remote-detail__confirm-category-label">{t('remote.confirmPassword')}</span>
+                <CompactInput
+                  size="small"
+                  value={importPassword}
+                  placeholder={confirmState.option.unzipPassword
+                    ? t('remote.confirmPasswordDefault', { password: confirmState.option.unzipPassword })
+                    : t('remote.confirmPasswordNone')}
+                  onChange={(e) => setImportPassword(e.target.value)}
                 />
               </div>
             </div>

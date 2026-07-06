@@ -24,9 +24,10 @@ public interface IRemoteImportService
     /// <summary>Start the background download+import. Returns the process id immediately.
     /// <paramref name="listId"/>/<paramref name="entryId"/> record the STANDARDIZED remote identity;
     /// <paramref name="tags"/> feed the library's ordered tag→category rules; a non-null
-    /// <paramref name="categoryId"/> is the user's explicit download-time choice and OVERRIDES the rules.</summary>
+    /// <paramref name="categoryId"/> is the user's explicit download-time choice and OVERRIDES the rules;
+    /// <paramref name="password"/> is a user-entered unzip password (overrides the resolver's site default).</summary>
     string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
-        RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null);
+        RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null, string? password = null);
 
     /// <summary>Identity keys ("sourceId|listId|entryId") + legacy detail URLs of every mod imported
     /// from a remote source — cached (rebuilt on TTL/import) so INDEX_QUERY doesn't rescan all mods.</summary>
@@ -49,6 +50,7 @@ public class RemoteImportService : IRemoteImportService
     private readonly IRemoteLibraryStore _libraries;
     private readonly IProfilePathService _profilePaths;
     private readonly IProcessRegistry _processRegistry;
+    private readonly IArchiveHelper _archiveHelper;
     private readonly ILogHelper _logger;
 
     private (HashSet<string> Keys, HashSet<string> LegacyUrls)? _importedCache;
@@ -64,6 +66,7 @@ public class RemoteImportService : IRemoteImportService
         IRemoteLibraryStore libraries,
         IProfilePathService profilePaths,
         IProcessRegistry processRegistry,
+        IArchiveHelper archiveHelper,
         ILogHelper logger)
     {
         _cloudreve = cloudreve;
@@ -74,6 +77,7 @@ public class RemoteImportService : IRemoteImportService
         _libraries = libraries;
         _profilePaths = profilePaths;
         _processRegistry = processRegistry;
+        _archiveHelper = archiveHelper;
         _logger = logger;
     }
 
@@ -113,7 +117,7 @@ public class RemoteImportService : IRemoteImportService
         string.Equals(type, "direct", StringComparison.OrdinalIgnoreCase);
 
     public string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
-        RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null)
+        RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null, string? password = null)
     {
         if (!IsImportable(option.Type))
             throw new OperationException("REMOTE_DOWNLOAD_UNSUPPORTED", "host", option.Name);
@@ -136,8 +140,8 @@ public class RemoteImportService : IRemoteImportService
                 var archivePath = Path.Combine(staging, Path.GetFileName(resolved.FileName));
                 var progress = new Progress<DownloadProgress>(p =>
                 {
-                    // Map download bytes onto the 5–80% band of the overall process.
-                    var pct = p.Percent.HasValue ? 5 + (int)(p.Percent.Value * 0.75) : (int?)null;
+                    // Map download bytes onto the 5–60% band of the overall process.
+                    var pct = p.Percent.HasValue ? 5 + (int)(p.Percent.Value * 0.55) : (int?)null;
                     _processRegistry.Report(procId, pct,
                         $"Downloading {FormatBytes(p.BytesReceived)}{(p.TotalBytes.HasValue ? " / " + FormatBytes(p.TotalBytes.Value) : "")}");
                 });
@@ -146,8 +150,45 @@ public class RemoteImportService : IRemoteImportService
                     progress, ct).ConfigureAwait(false);
 
                 ct.ThrowIfCancellationRequested();
+
+                // ALWAYS normalize: extract + recompress into OUR storage format. A verbatim copy of
+                // the download would keep the site's password/odd container in the archive store and
+                // fail at load time. Most archives need NO password — extract plain first, and only
+                // when THAT fails with a password error retry with the user's password (or the
+                // resolver's site default).
+                _processRegistry.Report(procId, 62, "Extracting archive", detailKey: "process.stage.extracting");
+                var extractDir = Path.Combine(staging, "extract");
+                var unzipPassword = string.IsNullOrWhiteSpace(password) ? option.UnzipPassword : password;
+                try
+                {
+                    await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex))
+                {
+                    if (string.IsNullOrWhiteSpace(unzipPassword))
+                        throw new OperationException("REMOTE_ARCHIVE_PASSWORD", "name", resolved.FileName);
+                    TryDeleteDir(extractDir); // drop any partial output from the plain attempt
+                    try
+                    {
+                        await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
+                    }
+                    catch (Exception ex2) when (ArchiveHelper.IsPasswordError(ex2))
+                    {
+                        throw new OperationException("REMOTE_ARCHIVE_PASSWORD", "name", resolved.FileName);
+                    }
+                }
+                ct.ThrowIfCancellationRequested();
+
+                _processRegistry.Report(procId, 68, "Repacking", detailKey: "process.stage.repacking");
+                var normalized = Path.Combine(staging, "normalized",
+                    Path.GetFileNameWithoutExtension(resolved.FileName) + ".7z");
+                await _archiveHelper.CompressFolderAsync(extractDir, normalized,
+                    progressCallback: p => _processRegistry.Report(procId, 68 + p * 12 / 100, null),
+                    cancellationToken: ct).ConfigureAwait(false);
+
+                ct.ThrowIfCancellationRequested();
                 _processRegistry.Report(procId, 82, "Importing", detailKey: "process.stage.importing");
-                var mod = await _import.ImportAsync(archivePath).ConfigureAwait(false)
+                var mod = await _import.ImportAsync(normalized).ConfigureAwait(false)
                           ?? throw new OperationException("REMOTE_IMPORT_FAILED", "reason", "import returned no mod");
 
                 // The archive file name is a hash-ish blob — use the site title as the mod name, and

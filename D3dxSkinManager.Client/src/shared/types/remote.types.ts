@@ -41,6 +41,8 @@ export interface RemoteDownloadOption {
   name: string;
   url: string;
   type: RemoteDownloadType | string;
+  /** Site-known unzip password from the adapter's resolver rule (import uses it by default). */
+  unzipPassword?: string;
 }
 
 export interface RemoteModDetail {

@@ -81,7 +81,13 @@ public class HttpRegexEngine : RemoteSiteEngineBase
             var rule = config.Resolvers.FirstOrDefault(r => SafeIsMatch(r.Match, candidate));
             if (rule == null) continue; // VPN ads / unrelated anchors — only resolver-matched hosts count
             if (detail.Downloads.Any(d => d.Url == candidate)) continue;
-            detail.Downloads.Add(new RemoteDownloadOption { Name = rule.Name, Url = candidate, Type = rule.Type });
+            detail.Downloads.Add(new RemoteDownloadOption
+            {
+                Name = rule.Name,
+                Url = candidate,
+                Type = rule.Type,
+                UnzipPassword = rule.UnzipPassword,
+            });
         }
 
         return detail;

@@ -100,6 +100,11 @@ public class RemoteResolverRule
 
     /// <summary>Display label for the option (e.g. "Hui盘", "夸克").</summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>Site-known unzip password for archives from this host (e.g. huihui's "huihui").
+    /// Used ONLY when a plain extraction fails with a password error (most archives need none);
+    /// a user-entered password at download time overrides it.</summary>
+    public string? UnzipPassword { get; set; }
 }
 
 // ---- DTOs (serialized camelCase to the frontend) ------------------------------------------------
@@ -149,6 +154,10 @@ public class RemoteDownloadOption
 
     /// <summary>Resolver type: "cloudreve" (in-app download+import) or "external" (open in browser).</summary>
     public string Type { get; set; } = "external";
+
+    /// <summary>The matched resolver's site-known unzip password. Import normalization tries a
+    /// PLAIN extraction first and reaches for this only on a password failure.</summary>
+    public string? UnzipPassword { get; set; }
 }
 
 public class RemoteModDetail

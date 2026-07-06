@@ -30,8 +30,10 @@
   "downloadLinkPattern": "<a[^>]+href=\"(?<url>https?://[^\"]+)\"",
   "entryIdPattern": "news_\\d+/(?<id>\\d+)\\.html",
   "imageDatePattern": "/(?<date>20\\d{6})/",
+  // unzipPassword: the site's stated archive password (解压密码：huihui). Import extracts WITHOUT a
+  // password first and uses this only when that fails with a password error.
   "resolvers": [
-    { "match": "^https?://cloudreve\\.", "type": "cloudreve", "name": "Hui盘" },
-    { "match": "^https?://pan\\.quark\\.cn/", "type": "external", "name": "夸克" }
+    { "match": "^https?://cloudreve\\.", "type": "cloudreve", "name": "Hui盘", "unzipPassword": "huihui" },
+    { "match": "^https?://pan\\.quark\\.cn/", "type": "external", "name": "夸克", "unzipPassword": "huihui" }
   ]
 }

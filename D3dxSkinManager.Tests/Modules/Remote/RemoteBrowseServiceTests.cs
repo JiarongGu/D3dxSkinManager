@@ -173,6 +173,7 @@ public class RemoteBrowseServiceTests
             Name = "Hui盘",
             Url = "https://cloudreve.huihui123.org/s/qLzLs9",
             Type = "cloudreve",
+            UnzipPassword = "huihui", // the seed's site-known 解压密码 rides along on matched options
         });
         detail.Downloads[1].Type.Should().Be("external");
     }
