@@ -72,19 +72,16 @@ public class ExternalLoginService : IExternalLoginService
                       }
                       node = p;
                     }
-                    // Dock the login box LEFT, vertically centered. right:auto keeps its intrinsic
-                    // (shrink-to-fit) width; left:0 anchors it; margin:auto centres it vertically.
-                    // (Horizontal centering is unreliable — the --modal-- element isn't a clean fixed
-                    // -width block, so left:50%/transform mis-place the card; and the window can't
-                    // shrink to the box because Quark only renders the login above a ~1000px
-                    // breakpoint, wider than the box — so some margin is unavoidable, kept on the
-                    // right.) Don't touch display/flex (scatters its internal tabs). Clean white surround.
+                    // Pin the login box to the TOP-LEFT with no margin, so there's no gap above/left of
+                    // it. right:auto keeps its intrinsic (shrink-to-fit) width. Then post its measured
+                    // size so C# resizes the window to EXACTLY the box (no blank on the right/bottom).
+                    // Don't touch display/flex (scatters its internal tabs). Clean white surround.
                     el.style.setProperty('position','fixed','important');
                     el.style.setProperty('top','0','important');
-                    el.style.setProperty('bottom','0','important');
+                    el.style.setProperty('bottom','auto','important');
                     el.style.setProperty('left','0','important');
                     el.style.setProperty('right','auto','important');
-                    el.style.setProperty('margin','auto','important');
+                    el.style.setProperty('margin','0','important');
                     el.style.setProperty('transform','none','important');
                     el.style.setProperty('z-index','2147483647','important');
                     document.documentElement.style.background = '#fff';
@@ -93,9 +90,12 @@ public class ExternalLoginService : IExternalLoginService
                     document.body.style.overflow = 'hidden';
                     if (!signalled && window.chrome && window.chrome.webview) {
                       var r = el.getBoundingClientRect();
-                      if (r.width > 100 && r.height > 100) {
+                      // Signal once the box has a real rendered size (CSS px — small at high DPI, e.g.
+                      // ~327 at 200%; C# scales by DPI). Wait for a plausible full box, not a partial.
+                      if (r.width >= 260 && r.height >= 300) {
                         signalled = true;
-                        window.chrome.webview.postMessage('login-ready'); // C# reveals the window on this
+                        // C# reveals + resizes the window to the box on this.
+                        window.chrome.webview.postMessage('login-ready:' + Math.ceil(r.width) + ':' + Math.ceil(r.height));
                       }
                     }
                   } catch(e){} }
@@ -303,12 +303,37 @@ public class ExternalLoginService : IExternalLoginService
             if (!string.IsNullOrEmpty(target.FocusScript))
                 try { await webView.CoreWebView2.ExecuteScriptAsync(target.FocusScript).ConfigureAwait(true); } catch { }
         };
+        var resized = false;
         webView.CoreWebView2.WebMessageReceived += (_, e) =>
         {
             string? msg = null;
             try { msg = e.TryGetWebMessageAsString(); } catch { }
-            // Reveal once the login box is framed (script posts "login-ready"); reload on the retry button.
-            if (msg == "login-ready" && !captured) RevealIfHidden();
+            if (msg == null) return;
+            if (msg.StartsWith("login-ready") && !captured)
+            {
+                // "login-ready:<w>:<h>" — resize the window to the login box (once) so there's no gap
+                // around it, then reveal. The login renders fine at box width (breakpoint is below it).
+                if (!resized)
+                {
+                    resized = true;
+                    var parts = msg.Split(':');
+                    if (parts.Length == 3 && int.TryParse(parts[1], out var cw) && int.TryParse(parts[2], out var ch)
+                        && cw > 100 && ch > 100)
+                    {
+                        // WebView2 reports CSS px (DPI-independent — small at high DPI, e.g. 320 at
+                        // 200%); WinForms ClientSize is PHYSICAL px. Convert by the target monitor's DPI
+                        // (the window reveals on mainForm's screen). This is the native cross-boundary
+                        // case DpiHelper exists for.
+                        var scale = mainForm.DeviceDpi / 96.0;
+                        var wa = Screen.FromControl(mainForm).WorkingArea;
+                        var pw = (int)Math.Round(cw * scale);
+                        var ph = (int)Math.Round(ch * scale);
+                        _logger.Info($"[ExternalLogin] fit window: css {cw}x{ch} @ {mainForm.DeviceDpi}dpi -> {pw}x{ph}px", "ExternalLoginService");
+                        form.ClientSize = new Size(Math.Min(pw, wa.Width - 40), Math.Min(ph, wa.Height - 60));
+                    }
+                }
+                RevealIfHidden();
+            }
             else if (msg == "reload") { try { webView.CoreWebView2.Navigate(target.LoginUrl); } catch { } }
         };
 
