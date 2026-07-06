@@ -79,14 +79,14 @@ export const TagManagementTool: React.FC = () => {
 
     // Check for duplicates
     if (allTags.some((t) => t.name.toLowerCase() === values.name.toLowerCase())) {
-      notification.error(`Tag "${values.name}" already exists`);
+      notification.error(t('tags.duplicate', { name: values.name }));
       return;
     }
 
     try {
       await upsertTag(values.name, values.color);
       await loadTags();
-      notification.success(`Tag "${values.name}" created`);
+      notification.success(t('tags.created', { name: values.name }));
       setShowCreateDialog(false);
       form.resetFields();
     } catch (error: unknown) {
@@ -102,7 +102,7 @@ export const TagManagementTool: React.FC = () => {
       values.name !== editingTag.name &&
       allTags.some((t) => t.name.toLowerCase() === values.name.toLowerCase())
     ) {
-      notification.error(`Tag "${values.name}" already exists`);
+      notification.error(t('tags.duplicate', { name: values.name }));
       return;
     }
 
@@ -113,7 +113,7 @@ export const TagManagementTool: React.FC = () => {
       }
       await upsertTag(values.name, values.color);
       await loadTags();
-      notification.success(`Tag "${editingTag.name}" updated`);
+      notification.success(t('tags.updated', { name: editingTag.name }));
       setEditingTag(null);
       form.resetFields();
     } catch (error: unknown) {
@@ -127,7 +127,7 @@ export const TagManagementTool: React.FC = () => {
     try {
       await deleteTag(tagToDelete);
       await loadTags();
-      notification.success(`Tag "${tagToDelete}" deleted`);
+      notification.success(t('tags.deleted', { name: tagToDelete }));
       setTagToDelete(null);
     } catch (error: unknown) {
       notification.error(t('tags.error.deleteFailed'));
@@ -148,7 +148,7 @@ export const TagManagementTool: React.FC = () => {
 
   const columns: ColumnsType<Tag> = [
     {
-      title: 'Tag',
+      title: t('tags.columnTag'),
       key: 'tag',
       width: 200,
       render: (_: any, record: Tag) => (
@@ -158,21 +158,21 @@ export const TagManagementTool: React.FC = () => {
       ),
     },
     {
-      title: 'Created',
+      title: t('tags.columnCreated'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 180,
       render: (date: string) => formatDateTime(date),
     },
     {
-      title: 'Updated',
+      title: t('tags.columnUpdated'),
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 180,
       render: (date: string) => formatDateTime(date),
     },
     {
-      title: 'Action',
+      title: t('tags.columnAction'),
       key: 'action',
       width: 150,
       render: (_: any, record: Tag) => (
@@ -215,7 +215,7 @@ export const TagManagementTool: React.FC = () => {
             icon={<PlusOutlined />}
             onClick={openCreateDialog}
           >
-            Create Tag
+            {t('tags.createTitle')}
           </CompactButton>
           <CompactButton
             className="tag-management-tool-reload-button"
