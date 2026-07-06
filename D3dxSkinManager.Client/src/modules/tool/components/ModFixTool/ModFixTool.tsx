@@ -38,8 +38,10 @@ export const ModFixTool: React.FC<ModFixToolProps> = ({ visible, onClose, compac
     visible,
     title: t('tools.modFix.title'),
     content: <ModFixManagerInner compact={compact} />,
-    // Focused panel (see ModFixTool.css): compact = 560px list-only; full = 720px + settings.
-    className: compact ? 'mod-fix-screen' : 'mod-fix-screen mod-fix-screen--full',
+    // compact (right-click) = a narrow 560px focused panel (see .mod-fix-screen in ModFixTool.css).
+    // full (Tools grid) = a normal full-width slide-in like every other tool; content is centered
+    // in a readable column (.mod-fix max-width) — NOT a floaty narrow panel over the blurred grid.
+    className: compact ? 'mod-fix-screen' : undefined,
     onClose,
   });
   return null;

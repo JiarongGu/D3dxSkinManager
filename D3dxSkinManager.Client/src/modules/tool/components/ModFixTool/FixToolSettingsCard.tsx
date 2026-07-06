@@ -6,7 +6,6 @@ import {
   CompactInput,
   CompactButton,
   CompactSwitch,
-  CompactField,
 } from "../../../../shared/components/compact";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { profileService, toolService } from "../../../../shared/services/ipc";
@@ -100,48 +99,52 @@ export const FixToolSettingsCard: React.FC = () => {
     }
   }, [selectedProfileId, pythonPath, timeoutMinutes, extensions, autoConfirm, t]);
 
-  // Bare (no card/title) — hosted inside the ModFixTool "设置" collapse, which supplies the frame.
+  // Compact 1–2 row form (label above a small control), wraps to fit; Save/Reset pushed to the right.
+  // Persists to the per-profile fix-tool config (fixTools) — the same store the backend runner reads.
   return (
     <div className="mod-fix__settings-body">
-      <div className="mod-fix__settings-grid">
-        <CompactField label={t("settings.profile.fixTools.python.label")} description={t("settings.profile.fixTools.python.hint")}>
-          <Space.Compact style={{ width: "100%" }}>
-            <CompactInput
-              value={pythonPath}
-              placeholder={t("settings.profile.fixTools.python.placeholder")}
-              onChange={(e) => setPythonPath(e.target.value)}
-            />
-            <CompactButton icon={<SearchOutlined />} loading={detecting} onClick={detect}>
-              {t("settings.profile.fixTools.python.detect")}
-            </CompactButton>
-          </Space.Compact>
-        </CompactField>
-
-        <CompactField label={t("settings.profile.fixTools.timeout.label")}>
-          <InputNumber
-            min={1}
-            max={120}
-            value={timeoutMinutes}
-            onChange={(v) => setTimeoutMinutes(v ?? 5)}
-            style={{ width: "120px" }}
-            // antd v6 deprecated InputNumber `addonAfter`; `suffix` shows the unit inside the field.
-            suffix={t("settings.profile.fixTools.timeout.minutes")}
+      <label className="mod-fix__setting mod-fix__setting--grow">
+        <span className="mod-fix__setting-label">{t("settings.profile.fixTools.python.label")}</span>
+        <Space.Compact style={{ width: "100%" }}>
+          <CompactInput
+            size="small"
+            value={pythonPath}
+            placeholder={t("settings.profile.fixTools.python.placeholder")}
+            onChange={(e) => setPythonPath(e.target.value)}
           />
-        </CompactField>
+          <CompactButton size="small" icon={<SearchOutlined />} loading={detecting} onClick={detect}>
+            {t("settings.profile.fixTools.python.detect")}
+          </CompactButton>
+        </Space.Compact>
+      </label>
 
-        <CompactField label={t("settings.profile.fixTools.extensions.label")} description={t("settings.profile.fixTools.extensions.hint")}>
-          <CompactInput value={extensions} onChange={(e) => setExtensions(e.target.value)} placeholder={DEFAULT_EXTENSIONS} />
-        </CompactField>
+      <label className="mod-fix__setting">
+        <span className="mod-fix__setting-label">{t("settings.profile.fixTools.timeout.label")}</span>
+        <InputNumber
+          size="small"
+          min={1}
+          max={120}
+          value={timeoutMinutes}
+          onChange={(v) => setTimeoutMinutes(v ?? 5)}
+          style={{ width: 110 }}
+          suffix={t("settings.profile.fixTools.timeout.minutes")}
+        />
+      </label>
 
-        <CompactField label={t("settings.profile.fixTools.autoConfirm.label")} description={t("settings.profile.fixTools.autoConfirm.hint")}>
-          <CompactSwitch
-            checked={autoConfirm}
-            onChange={setAutoConfirm}
-            checkedChildren={t("common.enable")}
-            unCheckedChildren={t("common.disable")}
-          />
-        </CompactField>
-      </div>
+      <label className="mod-fix__setting mod-fix__setting--grow">
+        <span className="mod-fix__setting-label">{t("settings.profile.fixTools.extensions.label")}</span>
+        <CompactInput size="small" value={extensions} onChange={(e) => setExtensions(e.target.value)} placeholder={DEFAULT_EXTENSIONS} />
+      </label>
+
+      <label className="mod-fix__setting">
+        <span className="mod-fix__setting-label">{t("settings.profile.fixTools.autoConfirm.label")}</span>
+        <CompactSwitch
+          checked={autoConfirm}
+          onChange={setAutoConfirm}
+          checkedChildren={t("common.enable")}
+          unCheckedChildren={t("common.disable")}
+        />
+      </label>
 
       <div className="mod-fix__settings-actions">
         <CompactButton size="small" disabled={!dirty || saving} onClick={reset}>

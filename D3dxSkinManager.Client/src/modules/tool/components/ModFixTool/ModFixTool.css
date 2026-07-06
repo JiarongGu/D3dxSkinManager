@@ -11,11 +11,6 @@
   max-width: 100%;
 }
 
-/* Full (Tools-grid) view — wider, it also carries the settings section. */
-.mod-fix-screen--full .slide-in-screen-panel {
-  flex: 0 1 720px;
-}
-
 /* The slide-in content wrapper scrolls by default (overflow-y:auto). For this tool ONLY the card
    list scrolls, so make the wrapper a non-scrolling flex column and let .mod-fix flex-fill it.
    (A percentage height on .mod-fix didn't resolve here → an ~8px overflow gave a phantom scrollbar.) */
@@ -178,21 +173,35 @@
   cursor: pointer;
 }
 
+/* Compact settings — label-above-control fields flow in a wrap row (1–2 rows); save/reset at the end. */
 .mod-fix__settings-body {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 4px 2px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+  padding: 10px 2px 4px;
 }
 
-.mod-fix__settings-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
+.mod-fix__setting {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mod-fix__setting--grow {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.mod-fix__setting-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
 .mod-fix__settings-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-end;
   gap: 8px;
+  margin-left: auto;
 }
