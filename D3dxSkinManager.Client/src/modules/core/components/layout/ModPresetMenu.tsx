@@ -24,7 +24,7 @@ import { useEventSubscription } from "../../../../shared/hooks/useEventSubscript
 import { Module, ModEventType } from "../../../../shared/services/eventBus";
 import type { ModPresetInfo } from "../../../../shared/types/mod.types";
 import "./ModPresetMenu.css";
-import { CompactInput, CompactButton } from '../../../../shared/components/compact';
+import { CompactInput } from '../../../../shared/components/compact';
 
 export const ModPresetMenu: React.FC = () => {
   const { t } = useTranslation();
@@ -210,15 +210,16 @@ export const ModPresetMenu: React.FC = () => {
 
   return (
     <>
-      <CompactButton
-        type="text"
-        size="small"
+      {/* A dropdown-menu toggle, not an action button — styled like a footer menu item (full status-bar
+          height + hover fill), matching the header/footer nav rather than a boxed button. */}
+      <button
+        type="button"
         className="mod-preset-menu__trigger"
-        icon={<AppstoreOutlined />}
         onClick={handleButtonClick}
       >
-        {t("statusBar.presets")}
-      </CompactButton>
+        <AppstoreOutlined />
+        <span>{t("statusBar.presets")}</span>
+      </button>
 
       <ContextMenu
         items={menuItems}

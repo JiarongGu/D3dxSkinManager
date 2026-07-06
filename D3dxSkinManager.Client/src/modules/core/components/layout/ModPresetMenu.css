@@ -1,12 +1,23 @@
+/* Preset dropdown toggle — a footer menu item (not a boxed button): fills the full status-bar height
+   (so it isn't a short button floating with a gap) and gets a hover fill, like the header nav tabs. */
 .mod-preset-menu__trigger {
+  height: 32px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   font-size: 12px;
   color: var(--color-text-secondary);
-  padding: 0 4px;
-  height: auto;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .mod-preset-menu__trigger:hover {
-  color: var(--color-primary);
+  color: var(--color-text-base);
+  background: var(--color-bg-elevated);
 }
 
 .mod-preset-menu__item {

@@ -6,13 +6,20 @@
 
 .app-status-bar-main {
   height: 32px;
-  line-height: 32px;
-  padding: 0 16px;
+  /* line-height:normal (not 32px): a 32px line box baseline-aligned the inline buttons ~2px low
+     ("pushed down"); flex align-items:center centers everything cleanly instead. */
+  line-height: normal;
+  padding: 0 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
   gap: 16px;
+}
+
+/* Right-side cluster (launch / preset / count / version) — center every item + tighten the spacing. */
+.app-status-bar-main .ant-space {
+  align-items: center;
 }
 
 .app-status-bar-version {

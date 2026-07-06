@@ -160,7 +160,7 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
         </Popover>
 
         {/* Right side */}
-        <Space size="large" style={{ marginLeft: "auto" }}>
+        <Space size={10} style={{ marginLeft: "auto" }}>
           {updatePending && (
             <span
               className="app-status-bar-update-ready"
