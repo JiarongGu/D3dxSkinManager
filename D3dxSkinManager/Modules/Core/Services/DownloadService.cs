@@ -156,8 +156,7 @@ public class DownloadService : IDownloadService
         {
             using var req = BuildRequest(url, headers);
             using var resp = await _http.SendAsync(req, cancellationToken).ConfigureAwait(false);
-            resp.EnsureSuccessStatusCode();
-            return await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            return await ReadOrThrowAsync(resp, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -181,8 +180,7 @@ public class DownloadService : IDownloadService
             req.Method = HttpMethod.Post;
             req.Content = new StringContent(jsonBody, global::System.Text.Encoding.UTF8, "application/json");
             using var resp = await _http.SendAsync(req, cancellationToken).ConfigureAwait(false);
-            resp.EnsureSuccessStatusCode();
-            return await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            return await ReadOrThrowAsync(resp, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -195,6 +193,22 @@ public class DownloadService : IDownloadService
                 new Dictionary<string, string> { { "url", url }, { "reason", ex.Message } },
                 $"Request failed: {ex.Message}");
         }
+    }
+
+    /// <summary>Read the response body, then on a non-2xx status throw INCLUDING that body — many JSON
+    /// APIs (e.g. Quark) return their real error code/message in the body even on a 400, and
+    /// EnsureSuccessStatusCode() discards it (leaving an opaque "Response status code ... 400"). The
+    /// caller wraps this into DOWNLOAD_FAILED, so the surfaced reason now carries the API's message.</summary>
+    private static async Task<string> ReadOrThrowAsync(HttpResponseMessage resp, CancellationToken ct)
+    {
+        var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var snippet = body.Length > 500 ? body[..500] + "…" : body;
+            throw new HttpRequestException(
+                $"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}{(string.IsNullOrWhiteSpace(snippet) ? "" : $": {snippet}")}");
+        }
+        return body;
     }
 
     public string ManagedDirectory => _globalPaths.DownloadsDirectory;

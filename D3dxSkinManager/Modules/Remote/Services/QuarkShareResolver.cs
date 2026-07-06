@@ -217,7 +217,7 @@ public class QuarkShareResolver : IQuarkShareResolver
         for (var i = 0; i < 40; i++)
         {
             ct.ThrowIfCancellationRequested();
-            var r = await GetAsync($"{ApiBase}/1/clouddrive/task?{ApiQuery}&task_id={taskId}&retry_index={i}", headers, ct).ConfigureAwait(false);
+            var r = await GetAsync($"{ApiBase}/1/clouddrive/task?{ApiQuery}&task_id={Uri.EscapeDataString(taskId)}&retry_index={i}", headers, ct).ConfigureAwait(false);
             var data = r.GetProperty("data");
             var status = data.TryGetProperty("status", out var s) ? s.GetInt32() : -1;
             if (status == 2) return data;
