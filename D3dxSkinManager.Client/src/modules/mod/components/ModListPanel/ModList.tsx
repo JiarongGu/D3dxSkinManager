@@ -47,7 +47,7 @@ import { MergeModsDialog } from "../MergeModsDialog/MergeModsDialog";
 import { ModOptimizeDialog } from "../ModOptimizeDialog/ModOptimizeDialog";
 import { useMods } from "../../hooks/useMods";
 import "./ModList.css";
-import { CompactButton } from '../../../../shared/components/compact';
+import { CompactButton, CompactIconButton } from '../../../../shared/components/compact';
 
 // Estimated item height in pixels (used for bottom spacer to maintain correct scroll height)
 const ITEM_HEIGHT = 64;
@@ -790,8 +790,8 @@ export const ModList: React.FC<ModListProps> = ({
                 </div>
                 {
                   <div className="mod-list-item-actions">
-                    <CompactButton
-                      type="text"
+                    <CompactIconButton
+                      tone={mod.isLoaded ? 'success' : 'default'}
                       icon={
                         mod.isLoaded ? (
                           <PauseCircleOutlined className="mod-list-item-action-icon" />
@@ -814,8 +814,7 @@ export const ModList: React.FC<ModListProps> = ({
                       }
                       className="mod-list-item-action-button"
                     />
-                    <CompactButton
-                      type="text"
+                    <CompactIconButton
                       icon={
                         <EditOutlined className="mod-list-item-action-icon" />
                       }

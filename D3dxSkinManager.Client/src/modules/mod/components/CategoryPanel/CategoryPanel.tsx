@@ -18,7 +18,7 @@ import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
 import { ModPackageTool } from '../../../tool/components/ModPackageTool/ModPackageTool';
 import { ModAnalyzerTool } from '../../../tool/components/ModAnalyzerTool/ModAnalyzerTool';
 import './CategoryPanel.css';
-import { CompactButton } from '../../../../shared/components/compact';
+import { CompactIconButton } from '../../../../shared/components/compact';
 
 const { Sider } = Layout;
 
@@ -237,27 +237,24 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
         {/* Right section - Action icon buttons */}
         <div className="category-panel-status-right">
           <Tooltip title={t(categoryViewMode === 'tree' ? 'category.gridView' : 'category.treeView')} placement="top">
-            <CompactButton
-              type="text"
-              size="small"
+            <CompactIconButton
+              size={28}
               icon={categoryViewMode === 'tree' ? <AppstoreOutlined /> : <ApartmentOutlined />}
               onClick={handleToggleViewMode}
               className="category-panel-action-button"
             />
           </Tooltip>
           <Tooltip title={t('category.showAllMods')} placement="top">
-            <CompactButton
-              type="text"
-              size="small"
+            <CompactIconButton
+              size={28}
               icon={<UnorderedListOutlined />}
               onClick={handleShowAllMods}
               className="category-panel-action-button"
             />
           </Tooltip>
           <Tooltip title={t('category.showLoadedMods')} placement="top">
-            <CompactButton
-              type="text"
-              size="small"
+            <CompactIconButton
+              size={28}
               icon={<CheckCircleOutlined />}
               onClick={handleShowLoadedMods}
               className="category-panel-action-button"

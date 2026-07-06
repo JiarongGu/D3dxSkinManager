@@ -1,16 +1,17 @@
-/* The atom fully owns its look so neither antd's base button nor the global theme-colors icon-button
-   hover can leak through (boxy grey bg / long transition / drop shadow / colour change).
-   A 1px transparent border is always present (border-box) so the hover border adds no layout shift. */
+/* Borderless square icon action. Rest = just the glyph; hover = a subtle background FILL (a real,
+   tactile button feel). The old hover was a tone-coloured BORDER only with no background change,
+   which read as a faint "ghost" outline — replaced with a bg fill (same language as the header tabs).
+   A transparent border is never used, so there's no layout shift. */
 .compact-icon-btn.ant-btn,
 .compact-icon-btn.ant-btn:hover,
 .compact-icon-btn.ant-btn:focus,
 .compact-icon-btn.ant-btn:active {
   padding: 0;
-  background: transparent !important;          /* never change the background */
+  background: transparent;
+  border: none !important;
   box-shadow: none !important;
-  border: 1px solid transparent !important;    /* reserve space; coloured only on hover */
   border-radius: 6px;
-  transition: border-color 0.12s ease;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
 /* Center the glyph deterministically so every tone aligns regardless of the icon or antd's
@@ -33,15 +34,24 @@
 }
 .compact-icon-btn.ant-btn .ant-btn-loading-icon { display: none; }
 
-/* Hover = a tone-coloured border only. Background unchanged; icon colour PINNED to the tone (same as
-   base) with !important so antd's own text-button hover can't change it. */
-.compact-icon-btn.ant-btn:hover { border-color: var(--color-text-secondary) !important; color: var(--color-text-secondary) !important; }
-.compact-icon-btn--success.ant-btn,
-.compact-icon-btn--success.ant-btn:hover { color: var(--color-success) !important; }
-.compact-icon-btn--success.ant-btn:hover { border-color: var(--color-success) !important; }
-.compact-icon-btn--danger.ant-btn,
-.compact-icon-btn--danger.ant-btn:hover { color: var(--color-error) !important; }
-.compact-icon-btn--danger.ant-btn:hover { border-color: var(--color-error) !important; }
-.compact-icon-btn--primary.ant-btn,
-.compact-icon-btn--primary.ant-btn:hover { color: var(--color-primary) !important; }
-.compact-icon-btn--primary.ant-btn:hover { border-color: var(--color-primary) !important; }
+/* Hover = subtle background fill + stronger icon colour. Tones keep their colour at rest and tint
+   the fill on hover. `!important` beats antd's own text-button hover + the global icon-button hover. */
+.compact-icon-btn.ant-btn:hover {
+  background: var(--color-bg-spotlight) !important;
+  color: var(--color-text-base) !important;
+}
+.compact-icon-btn--success.ant-btn { color: var(--color-success) !important; }
+.compact-icon-btn--success.ant-btn:hover {
+  background: var(--color-success-bg) !important;
+  color: var(--color-success) !important;
+}
+.compact-icon-btn--danger.ant-btn { color: var(--color-error) !important; }
+.compact-icon-btn--danger.ant-btn:hover {
+  background: var(--color-error-bg) !important;
+  color: var(--color-error) !important;
+}
+.compact-icon-btn--primary.ant-btn { color: var(--color-primary) !important; }
+.compact-icon-btn--primary.ant-btn:hover {
+  background: var(--color-primary-bg) !important;
+  color: var(--color-primary) !important;
+}

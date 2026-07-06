@@ -169,14 +169,12 @@
   align-items: center;
 }
 
+/* Layout only — hover/tone come from the CompactIconButton atom (was an invisible bg-elevated
+   hover = the panel colour, which read as a ghost button). */
 .mod-list-item-action-button {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.mod-list-item-action-button:hover {
-  background: var(--color-bg-elevated) !important;
 }
 
 .mod-list-item-action-icon {
