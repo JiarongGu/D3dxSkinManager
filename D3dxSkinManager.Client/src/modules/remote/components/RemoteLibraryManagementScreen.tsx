@@ -344,7 +344,6 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
             list is scrolled (was at the top of the list and scrolled away); cancel/save on the right. */}
         <div className="remote-lib-mgmt__actions">
           <CompactButton
-            size="small"
             icon={<PlusOutlined />}
             onClick={editTab === 'aliases' ? addAlias : addRule}
           >

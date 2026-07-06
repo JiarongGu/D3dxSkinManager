@@ -349,24 +349,14 @@ body {
   color: var(--color-text-base);
 }
 
-/* Scrollbar styling — TOKEN-driven so it matches BOTH themes (was dark-only; light theme fell back
-   to Chromium defaults). Transparent track blends with whatever surface hosts the scroller. */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-border-base);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
+/* Global SLIM scrollbars — ONE consistent style for every scroller in the app. The STANDARD
+   properties (Chromium/WebView2 121+) render a thin scrollbar and, when set, take precedence over
+   any `::-webkit-scrollbar` customization — so the assorted per-component webkit overrides (6px/8px,
+   colored tracks) all collapse to this single thin look. Token-driven → matches BOTH themes;
+   transparent track blends with whatever surface hosts the scroller. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-base) transparent;
 }
 
 /* Global Border Radius Application - Reduced for sharper, more modern look */

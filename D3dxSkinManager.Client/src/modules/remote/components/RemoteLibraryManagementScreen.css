@@ -51,6 +51,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%; /* fill the (growing) tab-bar extra slot so the input can be wide */
   margin-right: 16px;
 }
 
@@ -61,7 +62,21 @@
 }
 
 .remote-lib-mgmt__name-input {
-  width: 220px;
+  flex: 1 1 auto;
+  width: auto;
+  max-width: 520px;
+}
+
+/* Edit-mode tab bar: let the name field (left extra) take the slack so the rules/aliases TABS sit at
+   the RIGHT edge and the name input gets the width. (Main libraries/sites tabs have no extra content,
+   so these rules are inert there — their tabs stay left-aligned.) */
+.remote-lib-mgmt__tabs .ant-tabs-nav .ant-tabs-extra-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.remote-lib-mgmt__tabs .ant-tabs-nav .ant-tabs-nav-wrap {
+  flex: 0 0 auto;
 }
 
 /* Standardized section heading: 14px semibold + inline action (antd Title h4 was ~20px — too big). */
