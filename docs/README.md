@@ -8,6 +8,7 @@
 
 | Need | Go To |
 |------|-------|
+| **End-user guide (EN / 中文)** | [user-guide/USER_GUIDE.en.md](user-guide/USER_GUIDE.en.md) · [user-guide/USER_GUIDE.cn.md](user-guide/USER_GUIDE.cn.md) — also shown in-app (Help) |
 | **AI Assistant Guide** | [AI_GUIDE.md](AI_GUIDE.md) ⭐⭐⭐ |
 | **Find Component/Service** | [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) ⭐⭐⭐ |
 | **Current Architecture** | [architecture/CURRENT_ARCHITECTURE.md](architecture/CURRENT_ARCHITECTURE.md) ⭐⭐⭐ |

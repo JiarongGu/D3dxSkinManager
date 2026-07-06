@@ -1,0 +1,104 @@
+/* L1 atom — themed markdown rendering (tokens only, 12/14px). */
+.markdown-view {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text-base);
+  word-break: break-word;
+}
+
+.markdown-view__h {
+  color: var(--color-text-base);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.markdown-view__h1 {
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+
+.markdown-view__h2 {
+  font-size: 14px;
+  margin: 20px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.markdown-view__h3 {
+  font-size: 14px;
+  margin: 16px 0 8px;
+}
+
+.markdown-view__h4 {
+  font-size: 12px;
+  margin: 12px 0 6px;
+  color: var(--color-text-secondary);
+}
+
+.markdown-view__p {
+  margin: 0 0 10px;
+}
+
+.markdown-view__ul,
+.markdown-view__ol {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+
+.markdown-view__ul li,
+.markdown-view__ol li {
+  margin: 3px 0;
+}
+
+/* Nested lists sit tighter. */
+.markdown-view__ul .markdown-view__ul,
+.markdown-view__ul .markdown-view__ol,
+.markdown-view__ol .markdown-view__ul,
+.markdown-view__ol .markdown-view__ol {
+  margin: 3px 0 3px;
+}
+
+.markdown-view__code {
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--color-bg-layout);
+  border: 1px solid var(--color-border-secondary);
+}
+
+.markdown-view__pre {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--border-radius-base);
+  background: var(--color-bg-layout);
+  border: 1px solid var(--color-border-secondary);
+  overflow-x: auto;
+}
+
+.markdown-view__pre code {
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 12px;
+  color: var(--color-text-base);
+  white-space: pre;
+}
+
+.markdown-view__quote {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--border-radius-base) var(--border-radius-base) 0;
+  background: var(--color-primary-bg, var(--color-bg-layout));
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.markdown-view__hr {
+  margin: 16px 0;
+  border: none;
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.markdown-view a {
+  color: var(--color-primary);
+}
