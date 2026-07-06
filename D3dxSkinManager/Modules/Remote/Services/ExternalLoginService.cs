@@ -72,11 +72,13 @@ public class ExternalLoginService : IExternalLoginService
                       }
                       node = p;
                     }
-                    // Dock the login box to the LEFT, vertically centered: fixed + left:0 + right:auto
-                    // keeps its intrinsic (shrink-to-fit) width — Quark's own layout right-docks it and
-                    // gives it no fixed width, so left:0/right:0 would stretch it and re-right-align the
-                    // card. margin:auto centres it vertically. Don't touch display/flex (scatters its
-                    // internal tabs). Clean white surround.
+                    // Dock the login box LEFT, vertically centered. right:auto keeps its intrinsic
+                    // (shrink-to-fit) width; left:0 anchors it; margin:auto centres it vertically.
+                    // (Horizontal centering is unreliable — the --modal-- element isn't a clean fixed
+                    // -width block, so left:50%/transform mis-place the card; and the window can't
+                    // shrink to the box because Quark only renders the login above a ~1000px
+                    // breakpoint, wider than the box — so some margin is unavoidable, kept on the
+                    // right.) Don't touch display/flex (scatters its internal tabs). Clean white surround.
                     el.style.setProperty('position','fixed','important');
                     el.style.setProperty('top','0','important');
                     el.style.setProperty('bottom','0','important');
@@ -102,6 +104,22 @@ public class ExternalLoginService : IExternalLoginService
                 })();
                 """),
         };
+
+    /// <summary>Shown IN the login window when the page fails to load — a retry button posts "reload".</summary>
+    private const string LoginErrorHtml = """
+        <!doctype html><html><head><meta charset="utf-8"><style>
+        html,body{height:100%;margin:0;display:flex;align-items:center;justify-content:center;
+          background:#fff;font-family:'Microsoft YaHei',system-ui,sans-serif;color:#333}
+        .box{text-align:center}
+        .t{font-size:16px;margin-bottom:6px}.s{font-size:13px;color:#999;margin-bottom:18px}
+        button{font-size:14px;padding:8px 22px;border:none;border-radius:6px;background:#1677ff;
+          color:#fff;cursor:pointer}button:hover{background:#4096ff}
+        </style></head><body><div class="box">
+        <div class="t">页面加载失败 / Page failed to load</div>
+        <div class="s">请检查网络后重试 · Check your connection and retry</div>
+        <button onclick="window.chrome.webview.postMessage('reload')">重新加载 / Reload</button>
+        </div></body></html>
+        """;
 
     private readonly IFormInteractionService _forms;
     private readonly IOnlineAccountStore _accounts;
@@ -170,9 +188,13 @@ public class ExternalLoginService : IExternalLoginService
         // Desktop-WIDTH window: Quark only renders its login at desktop width (a narrow window reflows
         // to a mobile layout with no login). The isolate script then hides the marketing page and
         // centres the login box in this window. Clamped to the monitor's working area.
+        // Desktop-WIDTH window: Quark only renders its login at desktop width (a narrower window
+        // reflows to a mobile layout with no login), so 1024 is about the tightest that still renders
+        // it. The isolate script hides the marketing page and docks the login box left; height fits
+        // the box with room for the agreement line.
         var work = Screen.FromControl(mainForm).WorkingArea;
-        var winW = Math.Min(1200, work.Width - 40);
-        var winH = Math.Min(820, work.Height - 60);
+        var winW = Math.Min(680, work.Width - 40);
+        var winH = Math.Min(800, work.Height - 60);
 
         // Start OFF-SCREEN + off the taskbar: a WebView2 needs a real window handle to run, but if
         // the persistent profile is already logged in we capture the cookie and close WITHOUT the user
@@ -268,24 +290,27 @@ public class ExternalLoginService : IExternalLoginService
         // Once the login page renders, isolate its login panel (per-provider script) so the window
         // reads as a login box, not the site homepage. The window is loaded HIDDEN and only revealed
         // when the script posts "login-ready" (page framed) — no homepage/loading flash.
-        if (!string.IsNullOrEmpty(target.FocusScript))
+        webView.CoreWebView2.NavigationCompleted += async (_, e) =>
         {
-            webView.CoreWebView2.NavigationCompleted += async (_, e) =>
+            if (form.IsDisposed) return;
+            if (!e.IsSuccess)
             {
-                if (!e.IsSuccess || form.IsDisposed) return;
+                // Page failed to load → show the retry overlay and reveal so the user sees it.
+                try { webView.CoreWebView2.NavigateToString(LoginErrorHtml); } catch { }
+                RevealIfHidden();
+                return;
+            }
+            if (!string.IsNullOrEmpty(target.FocusScript))
                 try { await webView.CoreWebView2.ExecuteScriptAsync(target.FocusScript).ConfigureAwait(true); } catch { }
-            };
-            webView.CoreWebView2.WebMessageReceived += (_, e) =>
-            {
-                string? msg = null;
-                try { msg = e.TryGetWebMessageAsString(); } catch { }
-                // Quark only renders the login at DESKTOP width — shrinking the window to the box size
-                // reflows the page to mobile and unmounts the login. So we keep the window wide enough
-                // to render it and just CENTER the login box (the script does the centering); here we
-                // only reveal the window once the box is framed.
-                if (msg != null && msg.StartsWith("login-ready") && !captured) RevealIfHidden();
-            };
-        }
+        };
+        webView.CoreWebView2.WebMessageReceived += (_, e) =>
+        {
+            string? msg = null;
+            try { msg = e.TryGetWebMessageAsString(); } catch { }
+            // Reveal once the login box is framed (script posts "login-ready"); reload on the retry button.
+            if (msg == "login-ready" && !captured) RevealIfHidden();
+            else if (msg == "reload") { try { webView.CoreWebView2.Navigate(target.LoginUrl); } catch { } }
+        };
 
         webView.CoreWebView2.Navigate(target.LoginUrl);
         form.Show(mainForm); // shown off-screen; RevealIfHidden() brings it on-screen only if needed
