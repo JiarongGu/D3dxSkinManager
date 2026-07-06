@@ -16,7 +16,6 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import {
   CompactButton,
-  CompactField,
   CompactIconButton,
   CompactInput,
   CompactSelect,
@@ -60,6 +59,8 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const [addList, setAddList] = useState<string>();
   // Edit state — a working copy of the library being edited (rules deep-copied so cancel discards).
   const [editing, setEditing] = useState<RemoteLibrary>();
+  // Which edit tab is active — drives the context-sensitive Add button in the pinned footer.
+  const [editTab, setEditTab] = useState('rules');
   // Tag ALIASES for the current app language (raw tag → display label; searchable). They live on
   // the SOURCE config (shared vocabulary for every library of the site) — edited here like rules.
   const [editingAliases, setEditingAliases] = useState<{ tag: string; label: string }[]>([]);
@@ -195,6 +196,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
       [rules[i], rules[j]] = [rules[j], rules[i]];
       return { ...e, tagRules: rules };
     });
+  const addAlias = () => setEditingAliases((a) => [...a, { tag: '', label: '' }]);
 
   if (!libState) {
     return (
@@ -215,33 +217,34 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
           <span className="remote-lib-mgmt__edit-title">{t('remote.editLibrary', { name: editing.name })}</span>
         </div>
 
-        <div className="remote-lib-mgmt__scroll">
-          <CompactField label={t('remote.fieldName')}>
-            <CompactInput
-              className="remote-lib-mgmt__name-input"
-              value={editing.name}
-              onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })}
-            />
-          </CompactField>
-
-          {/* RULES and TAG NAMES are separate concerns → separate tabs. */}
-          <Tabs
-            defaultActiveKey="rules"
-            size="small"
-            items={[
+        {/* Name lives in the tab bar (left extra) so it shares the row with the tabs — saves a whole
+            field row. RULES and TAG NAMES are separate concerns → separate tabs; the tab NAV stays
+            pinned (only the content scrolls) and the Add button lives in the pinned footer. */}
+        <Tabs
+          className="remote-lib-mgmt__tabs"
+          activeKey={editTab}
+          onChange={setEditTab}
+          tabBarExtraContent={{
+            left: (
+              <div className="remote-lib-mgmt__name-inline">
+                <span className="remote-lib-mgmt__name-inline-label">{t('remote.fieldName')}</span>
+                <CompactInput
+                  className="remote-lib-mgmt__name-input"
+                  value={editing.name}
+                  onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })}
+                />
+              </div>
+            ),
+          }}
+          items={[
               {
                 key: 'rules',
                 label: t('remote.tagRules'),
                 children: (
                   <div className="remote-lib-mgmt__tab">
-                    <div className="remote-lib-mgmt__section-head">
-                      <span className="remote-lib-mgmt__rules-hint">
-                        {t('remote.tagRulesHint')} {t('remote.tagRulesDefault')}
-                      </span>
-                      <CompactButton size="small" icon={<PlusOutlined />} onClick={addRule}>
-                        {t('remote.addRule')}
-                      </CompactButton>
-                    </div>
+                    <span className="remote-lib-mgmt__rules-hint">
+                      {t('remote.tagRulesHint')} {t('remote.tagRulesDefault')}
+                    </span>
                     {editing.tagRules.length === 0 && (
                       <div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>
                     )}
@@ -292,16 +295,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                   <div className="remote-lib-mgmt__tab">
                     {/* Display names that are ALSO searchable; they live on the SOURCE config
                         (shared vocabulary for every library of this site). */}
-                    <div className="remote-lib-mgmt__section-head">
-                      <span className="remote-lib-mgmt__rules-hint">{t('remote.tagAliasesHint')}</span>
-                      <CompactButton
-                        size="small"
-                        icon={<PlusOutlined />}
-                        onClick={() => setEditingAliases((a) => [...a, { tag: '', label: '' }])}
-                      >
-                        {t('remote.addAlias')}
-                      </CompactButton>
-                    </div>
+                    <span className="remote-lib-mgmt__rules-hint">{t('remote.tagAliasesHint')}</span>
                     {editingAliases.map((alias, i) => (
                       <div key={i} className="remote-lib-mgmt__rule">
                         <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
@@ -337,14 +331,24 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                 ),
               },
             ]}
-          />
-        </div>
+        />
 
+        {/* Pinned footer: the context-sensitive Add on the LEFT stays reachable no matter how far the
+            list is scrolled (was at the top of the list and scrolled away); cancel/save on the right. */}
         <div className="remote-lib-mgmt__actions">
-          <CompactButton onClick={() => setEditing(undefined)}>{t('common.cancel')}</CompactButton>
-          <CompactButton type="primary" onClick={() => void handleSaveEdit()}>
-            {t('common.save')}
+          <CompactButton
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={editTab === 'aliases' ? addAlias : addRule}
+          >
+            {editTab === 'aliases' ? t('remote.addAlias') : t('remote.addRule')}
           </CompactButton>
+          <div className="remote-lib-mgmt__actions-right">
+            <CompactButton onClick={() => setEditing(undefined)}>{t('common.cancel')}</CompactButton>
+            <CompactButton type="primary" onClick={() => void handleSaveEdit()}>
+              {t('common.save')}
+            </CompactButton>
+          </div>
         </div>
       </div>
     );
