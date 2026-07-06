@@ -29,6 +29,11 @@
   flex: 1 1 auto;
   min-height: 0;
   padding: 4px 2px;
+  /* Full-width panel, but keep the content in a centered readable column (don't stretch a short
+     list + a few fields across the whole width). No-op in the 560px compact panel. */
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
 }
 
 /* Header: one-line purpose (left) + add actions (right) on a single row, divided from the list. */
