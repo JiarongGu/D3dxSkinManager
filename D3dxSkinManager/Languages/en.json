@@ -1195,7 +1195,7 @@
     "tools.modFix.addedMultiple": "Added {{count}} fix tools",
     "tools.modFix.pickFolder": "Select fix-tool folder",
     "tools.modFix.added": "Added fix tool \"{{name}}\"",
-    "tools.modFix.empty": "No fix tools yet. Add one above.",
+    "tools.modFix.empty": "No fix tools yet — add a script folder or file to get started.",
     "tools.modFix.runAll": "Run on all",
     "tools.modFix.deleteConfirm": "Remove this fix tool?",
     "tools.modFix.rename": "Rename fix tool",

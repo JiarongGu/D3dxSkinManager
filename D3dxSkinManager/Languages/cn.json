@@ -1195,7 +1195,7 @@
     "tools.modFix.addedMultiple": "已添加 {{count}} 个修复工具",
     "tools.modFix.pickFolder": "选择修复工具文件夹",
     "tools.modFix.added": "已添加修复工具“{{name}}”",
-    "tools.modFix.empty": "暂无修复工具。请在上方添加。",
+    "tools.modFix.empty": "暂无修复工具 — 添加脚本文件夹或文件即可开始。",
     "tools.modFix.runAll": "对全部运行",
     "tools.modFix.deleteConfirm": "移除此修复工具？",
     "tools.modFix.rename": "重命名修复工具",

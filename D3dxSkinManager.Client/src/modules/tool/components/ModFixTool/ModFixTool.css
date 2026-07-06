@@ -25,7 +25,7 @@
   height: 100%;
 }
 
-/* Tools tab: toolbar → table → run feedback, stacked with breathing room. */
+/* Tools tab: header (add actions) → card list → run feedback. */
 .mod-fix__panel {
   display: flex;
   flex-direction: column;
@@ -34,24 +34,83 @@
   padding: 4px 2px;
 }
 
-/* Slim add-toolbar (management-table style): name grows, add buttons pinned right. */
-.mod-fix__toolbar {
+/* Header: add actions right-aligned above the list. */
+.mod-fix__panel-header {
+  display: flex;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.mod-fix__add {
+  display: flex;
+  gap: 8px;
+}
+
+/* Card list — a short list of fix scripts reads better as cards than a data grid. */
+.mod-fix__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.mod-fix__tool {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-base);
+  transition: border-color 0.15s;
 }
 
-.mod-fix__name {
-  flex: 0 1 360px;
+.mod-fix__tool:hover {
+  border-color: var(--color-border-base);
 }
 
-.mod-fix__toolbar-actions {
-  margin-left: auto;
+.mod-fix__tool-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+}
+
+.mod-fix__tool-info {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
 }
 
-/* Empty state fills the panel and centers (with the drag hint below the illustration). */
+.mod-fix__tool-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-base);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-fix__tool-entry {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  word-break: break-all;
+}
+
+.mod-fix__tool-entries {
+  max-width: 320px;
+}
+
+.mod-fix__tool-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Empty state fills the panel and centers: icon → text → add actions → drag hint. */
 .mod-fix__empty {
   flex: 1 1 auto;
   min-height: 0;
@@ -62,17 +121,19 @@
   gap: 12px;
 }
 
-.mod-fix__drop-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--color-text-tertiary);
+.mod-fix__empty-icon {
+  font-size: 40px;
+  color: var(--color-text-quaternary, var(--color-text-tertiary));
 }
 
-/* Table keeps natural height; the tab content-holder owns vertical scroll. */
-.mod-fix__table {
-  flex: 0 0 auto;
+.mod-fix__empty-text {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.mod-fix__drop-hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
 }
 
 /* Bulk-run progress — a slim inline bar while running. */

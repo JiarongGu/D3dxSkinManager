@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Space, Progress, Empty, Popconfirm, Tooltip, Dropdown, Tabs, Collapse } from 'antd';
+import { Space, Progress, Popconfirm, Tooltip, Dropdown, Tabs, Collapse } from 'antd';
 import {
-  ThunderboltOutlined, FolderOpenOutlined,
-  FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined,
+  ThunderboltOutlined, FolderOpenOutlined, FolderOutlined, FileOutlined,
+  FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined, DownOutlined,
 } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { DataTable } from '../../../../shared/components/common';
@@ -47,7 +47,6 @@ const ModFixManagerInner: React.FC = () => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
   const [tools, setTools] = useState<FixTool[]>([]);
-  const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ModFixProgress>();
@@ -99,18 +98,17 @@ const ModFixManagerInner: React.FC = () => {
           });
       if (!res.success || !res.filePath) return;
       const sourcePath = res.filePath;
-      const name = newName.trim() || sourcePath.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || 'Fix';
+      const name = sourcePath.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || 'Fix';
       setBusy(true);
       await api.tool.importFixTool(selectedProfileId, { name, sourcePath, isFolder });
       notification.success(t('tools.modFix.added', { name }));
-      setNewName('');
       await load();
     } catch (error) {
       handleError(error);
     } finally {
       setBusy(false);
     }
-  }, [selectedProfileId, newName, t, load]);
+  }, [selectedProfileId, t, load]);
 
   // Drag-drop import: drop file(s)/folder(s) anywhere on the manager to add them as fix tools.
   const dropRef = useRef<HTMLDivElement>(null);
@@ -187,103 +185,107 @@ const ModFixManagerInner: React.FC = () => {
     }
   }, [selectedProfileId]);
 
-  const columns: ColumnsType<FixTool> = [
-    { title: t('tools.modFix.columns.name'), dataIndex: 'name', key: 'name', ellipsis: true },
-    {
-      title: t('tools.modFix.columns.entry'),
-      key: 'entries',
-      render: (_: unknown, tool: FixTool) =>
-        tool.candidates.length <= 1 ? (
-          // One entry (loose single file, or a folder with a single script) — nothing to choose,
-          // so show the filename as plain text instead of an odd single-chip multi-select.
-          <code className="mod-fix__output">{tool.entries[0]?.name ?? tool.candidates[0]}</code>
-        ) : (
-          // Folder tool with multiple scripts — pick one or MORE entries to expose.
-          <CompactSelect<string[]>
-            mode="multiple"
+  // One fix tool = one card row: [icon] name (+ entry sub-line only when it adds info) … [run][rename][delete].
+  // A short list of scripts reads far better as cards than a wide data-grid with duplicate name/entry columns.
+  const renderTool = (tool: FixTool) => {
+    const isFolder = tool.candidates.length > 0;
+    const multi = tool.candidates.length > 1;
+    const entryName = tool.entries[0]?.name;
+    // Only show the entry when it actually differs from the name (single-file tools have name === entry).
+    const showEntry = !multi && !!entryName && entryName !== tool.name;
+
+    const runButton =
+      multi ? (
+        <Dropdown
+          disabled={running || tool.entries.length === 0}
+          menu={{ items: tool.entries.map((e) => ({ key: e.path, label: e.name, onClick: () => runEntry(tool, e.path) })) }}
+        >
+          <CompactButton type="primary" size="small" icon={<ThunderboltOutlined />}>
+            {t('tools.modFix.runAll')} <DownOutlined />
+          </CompactButton>
+        </Dropdown>
+      ) : (
+        <Tooltip title={tool.entries.length === 0 ? t('tools.modFix.setEntryFirst') : undefined}>
+          <CompactButton
+            type="primary"
             size="small"
-            placeholder={t('tools.modFix.selectEntry')}
-            style={{ minWidth: 240 }}
-            value={tool.entries.map((e) => e.name)}
-            options={tool.candidates.map((c) => ({ label: c, value: c }))}
-            onChange={(v) => void setEntries(tool, v)}
-            notFoundContent={t('tools.modFix.noCandidates')}
-            status={tool.entries.length === 0 ? 'warning' : undefined}
-          />
-        ),
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 200,
-      render: (_: unknown, tool: FixTool) => (
-        <Space size={4}>
-          {tool.entries.length <= 1 ? (
-            <Tooltip title={tool.entries.length === 0 ? t('tools.modFix.setEntryFirst') : t('tools.modFix.runAll')}>
-              <CompactIconButton
-                tone="primary"
-                icon={<ThunderboltOutlined />}
-                onClick={() => tool.entries[0] && runEntry(tool, tool.entries[0].path)}
-                disabled={running || tool.entries.length === 0}
-              />
-            </Tooltip>
-          ) : (
-            <Dropdown
-              disabled={running}
-              menu={{ items: tool.entries.map((e) => ({ key: e.path, label: e.name, onClick: () => runEntry(tool, e.path) })) }}
-            >
-              <CompactIconButton tone="primary" icon={<ThunderboltOutlined />} title={t('tools.modFix.runAll')} />
-            </Dropdown>
-          )}
+            icon={<ThunderboltOutlined />}
+            disabled={running || tool.entries.length === 0}
+            onClick={() => tool.entries[0] && runEntry(tool, tool.entries[0].path)}
+          >
+            {t('tools.modFix.runAll')}
+          </CompactButton>
+        </Tooltip>
+      );
+
+    return (
+      <div key={tool.id} className="mod-fix__tool">
+        <span className="mod-fix__tool-icon">{isFolder ? <FolderOutlined /> : <FileOutlined />}</span>
+        <div className="mod-fix__tool-info">
+          <div className="mod-fix__tool-name" title={tool.name}>{tool.name}</div>
+          {multi ? (
+            // Folder tool with multiple scripts — pick which entries to expose.
+            <CompactSelect<string[]>
+              mode="multiple"
+              size="small"
+              className="mod-fix__tool-entries"
+              placeholder={t('tools.modFix.selectEntry')}
+              value={tool.entries.map((e) => e.name)}
+              options={tool.candidates.map((c) => ({ label: c, value: c }))}
+              onChange={(v) => void setEntries(tool, v)}
+              notFoundContent={t('tools.modFix.noCandidates')}
+              status={tool.entries.length === 0 ? 'warning' : undefined}
+            />
+          ) : showEntry ? (
+            <code className="mod-fix__tool-entry">{entryName}</code>
+          ) : null}
+        </div>
+        <div className="mod-fix__tool-actions">
+          {runButton}
           {canRename(tool) && (
             <Tooltip title={t('tools.modFix.rename')}>
-              <CompactIconButton
-                icon={<EditOutlined />}
-                onClick={() => { setRenaming(tool); setRenameValue(tool.name); }}
-              />
+              <CompactIconButton icon={<EditOutlined />} onClick={() => { setRenaming(tool); setRenameValue(tool.name); }} />
             </Tooltip>
           )}
           <Popconfirm title={t('tools.modFix.deleteConfirm')} onConfirm={() => remove(tool)} okText={t('common.delete')} cancelText={t('common.cancel')}>
-            <CompactIconButton tone="danger" icon={<DeleteOutlined />} />
+            <Tooltip title={t('common.delete')}>
+              <CompactIconButton tone="danger" icon={<DeleteOutlined />} />
+            </Tooltip>
           </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+        </div>
+      </div>
+    );
+  };
 
   // ── Tools tab: add-toolbar → management table → contained run feedback (progress + collapsible
   //    last-run results). Everything about MANAGING and RUNNING tools lives here. ─────────────────
+  const addButtons = (
+    <div className="mod-fix__add">
+      <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
+        {t('tools.modFix.addFolder')}
+      </CompactButton>
+      <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
+        {t('tools.modFix.addFile')}
+      </CompactButton>
+    </div>
+  );
+
   const toolsTab = (
     <div className="mod-fix__panel">
-      {/* Slim add-toolbar (management-table style). Name optional — defaults to the file/folder name;
-          rename via the row. The whole screen accepts drag-drop. */}
-      <div className="mod-fix__toolbar">
-        <CompactInput
-          className="mod-fix__name"
-          value={newName}
-          placeholder={t('tools.modFix.namePlaceholder')}
-          onChange={(e) => setNewName(e.target.value)}
-          disabled={busy}
-        />
-        <div className="mod-fix__toolbar-actions">
-          <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
-            {t('tools.modFix.addFolder')}
-          </CompactButton>
-          <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
-            {t('tools.modFix.addFile')}
-          </CompactButton>
-        </div>
-      </div>
-
       {tools.length === 0 ? (
+        // Centered empty CTA — the add actions live here (no floating input); whole screen accepts drop.
         <div className="mod-fix__empty">
-          <Empty description={t('tools.modFix.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
-          <span className="mod-fix__drop-hint">
-            <InboxOutlined /> {t('tools.modFix.dropHint')}
-          </span>
+          <InboxOutlined className="mod-fix__empty-icon" />
+          <span className="mod-fix__empty-text">{t('tools.modFix.empty')}</span>
+          {addButtons}
+          <span className="mod-fix__drop-hint">{t('tools.modFix.dropHint')}</span>
         </div>
       ) : (
-        <DataTable dataSource={tools} columns={columns} rowKey="id" compact pagination={false} className="mod-fix__table" />
+        <>
+          {/* Header: add actions right-aligned. Rename/entry-pick happen on the cards themselves. */}
+          <div className="mod-fix__panel-header">{addButtons}</div>
+          <div className="mod-fix__list">{tools.map(renderTool)}</div>
+        </>
       )}
 
       {/* Bulk-run feedback, contained (not dumped): a slim progress bar while running, then the
