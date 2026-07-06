@@ -35,7 +35,7 @@
 .mod-preview-title {
   margin: 0;
   margin-bottom: 4px !important;
-  font-size: 18px !important;
+  /* font-size comes from CompactTitle (14px, per the 12/14 rule) — was a hardcoded 18px override. */
   font-weight: 600 !important;
 }
 

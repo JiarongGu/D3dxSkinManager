@@ -8,11 +8,12 @@ import { Tag, Typography, Divider } from 'antd';
 import { CodeOutlined } from '@ant-design/icons';
 import { InfoDialog } from '../../../../shared/components/dialogs';
 import { DataTable, ColumnsType } from '../../../../shared/components/common';
+import { CompactTitle } from '../../../../shared/components/compact';
 import { KeyboardShortcutManager, ShortcutConfig } from '../../utils/KeyboardShortcutManager';
 import { useTranslation } from 'react-i18next';
 import './KeyboardShortcutsDialog.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface KeyboardShortcutsDialogProps {
   visible: boolean;
@@ -95,12 +96,12 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
         {groupedShortcuts.map((group, index) => (
           <div key={group.title}>
             {index > 0 && <Divider />}
-            <Title
+            <CompactTitle
               level={5}
               className={index === 0 ? "keyboard-shortcuts-group-title keyboard-shortcuts-group-title-first" : "keyboard-shortcuts-group-title keyboard-shortcuts-group-title-subsequent"}
             >
               {group.title}
-            </Title>
+            </CompactTitle>
             <DataTable
               columns={columns}
               dataSource={group.shortcuts}
