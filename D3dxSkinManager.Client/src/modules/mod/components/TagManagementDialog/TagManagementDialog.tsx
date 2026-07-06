@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import classNames from 'classnames';
-import { Input, Tag as AntTag, Empty, Space, ColorPicker } from "antd";
+import { Tag as AntTag, Empty, Space, ColorPicker } from "antd";
 import {
   SearchOutlined,
   DeleteOutlined,
@@ -11,14 +11,12 @@ import { useTranslation } from "react-i18next";
 import { debounce } from "lodash-es";
 import { FormDialog } from "../../../../shared/components/dialogs/FormDialog";
 import { ConfirmDialog } from "../../../../shared/components/dialogs/ConfirmDialog";
-import { CompactButton } from "../../../../shared/components/compact/CompactButton";
+import { CompactButton, CompactInput } from "../../../../shared/components/compact";
 import { Tag } from "../../../../shared/types/mod.types";
 import { modService } from "../../../../shared/services/ipc";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { handleError } from "../../../../shared/utils/errorHandler";
 import "./TagManagementDialog.css";
-
-const { Search } = Input;
 
 export interface TagManagementDialogProps {
   visible: boolean;
@@ -294,7 +292,7 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
       <div className="tag-management-dialog">
         {/* Search bar */}
         <div className="tag-management-search">
-          <Search
+          <CompactInput
             placeholder={t('tags.searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

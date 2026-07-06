@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Checkbox, Progress, Row, Col, List, Spin, Input } from 'antd';
+import { Checkbox, Progress, Row, Col, List, Spin } from 'antd';
 import {
   RightOutlined,
   CloseOutlined,
   ClearOutlined,
   InboxOutlined,
   FolderOpenOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactInput, CompactCard, CompactAlert, CompactSpace, CompactDivider, CompactSelect } from '../../../../../shared/components/compact';
@@ -16,8 +17,6 @@ import type { CategoryInfo } from '../../../../../shared/types/category.types';
 
 import { formatBytes } from '../../../../../shared/utils/formatBytes';
 import { flattenCategoryOptions } from '../../../../../shared/utils/categoryTree';
-
-const { Search } = Input;
 
 function buildCategoryNameMap(cats: CategoryInfo[]): Map<string, string> {
   const map = new Map<string, string>();
@@ -246,11 +245,12 @@ export const ExportTab: React.FC = () => {
             </CompactButton>
           </div>
           <div className="mod-transfer__panel-filters">
-            <Search
+            <CompactInput
               placeholder={t('tools.modPackage.searchMods')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               allowClear
+              prefix={<SearchOutlined />}
               className="mod-transfer__search"
             />
             <CompactSelect

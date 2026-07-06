@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Checkbox, Tag, Progress, Row, Col, List, Empty, Descriptions, Input } from 'antd';
-import { FolderOpenOutlined, InboxOutlined } from '@ant-design/icons';
+import { Checkbox, Tag, Progress, Row, Col, List, Empty, Descriptions } from 'antd';
+import { FolderOpenOutlined, InboxOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { CompactButton, CompactSpace, CompactCard, CompactAlert, CompactDivider, CompactSelect } from '../../../../../shared/components/compact';
+import { CompactButton, CompactSpace, CompactCard, CompactAlert, CompactDivider, CompactSelect, CompactInput } from '../../../../../shared/components/compact';
 import { StatusTag, StatusTone } from '../../../../../shared/components/common/StatusTag';
 import { toAppUrl } from '../../../../../shared/utils/imageUrlHelper';
 import { useModPackage } from '../context/ModPackageContext';
@@ -10,8 +10,6 @@ import { useProfile } from '../../../../../shared/context/ProfileContext';
 import { api } from '../../../../../shared/services/ipc';
 import logger from '../../../../../shared/utils/logger';
 import type { AnalyzedModEntry } from '../../../../../shared/types/modPackage.types';
-
-const { Search } = Input;
 
 const statusTones: Record<string, StatusTone> = { new: 'success', update: 'warning' };
 const statusKeys: Record<string, string> = {
@@ -299,11 +297,12 @@ export const ImportTab: React.FC = () => {
             </CompactSpace>
           </div>
           <div className="mod-transfer__panel-filters">
-            <Search
+            <CompactInput
               placeholder={t('tools.modPackage.searchMods')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               allowClear
+              prefix={<SearchOutlined />}
               className="mod-transfer__search"
             />
             <CompactSelect

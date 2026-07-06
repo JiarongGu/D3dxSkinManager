@@ -11,6 +11,16 @@
   background: var(--color-bg-elevated) !important;
 }
 
+/* The panel is an antd Sider; its children live in `.ant-layout-sider-children`, which must be the
+   flex column so the content region can flex-fill (the search bar / filter chip / status bar are its
+   siblings). Without this, content had to use a brittle fixed height calc. */
+.mod-list-panel-flex > .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .mod-list-panel-empty-container {
   display: flex;
   align-items: center;
@@ -30,12 +40,22 @@
   border-bottom: 1px solid var(--color-border-secondary);
   flex-shrink: 0;
   height: 48px;
+  align-items: center;
+}
+
+/* The search input fills the bar (the + add button keeps its 32px square). */
+.mod-list-panel-search-bar .compact-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .mod-list-panel-content {
   position: relative; /* For positioning drop message */
-  height: calc(100% - 48px - 40px); /* Total height - search bar - status bar */
-  flex-shrink: 0;
+  /* Flex-fill the space left by the search bar + (optional) filter-status chip + status bar.
+     A fixed `calc(100% - 48px - 40px)` ignored the filter chip that appears on search, overflowing
+     the panel and pushing the status bar out of view. */
+  flex: 1 1 0;
+  min-height: 0;
   overflow: hidden; /* Don't scroll the parent, only the child */
 }
 
@@ -158,6 +178,7 @@
   padding: 4px 12px;
   font-size: 12px;
   color: var(--color-text-secondary);
+  flex-shrink: 0; /* reserve its row; content flexes around it */
 }
 .mod-list-panel-filter-status__count {
   font-size: 12px;

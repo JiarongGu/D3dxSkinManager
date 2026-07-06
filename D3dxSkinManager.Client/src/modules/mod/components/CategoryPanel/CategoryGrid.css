@@ -8,15 +8,20 @@
   flex-direction: column;
 }
 
+/* Matches .mod-list-panel-search-bar so the category + mod search bars are visually identical. */
 .category-grid-header {
   display: flex;
   gap: 8px;
   padding: 8px;
+  border-bottom: 1px solid var(--color-border-secondary);
   flex-shrink: 0;
+  height: 48px;
+  align-items: center;
 }
 
 .category-grid-search {
   flex: 1;
+  min-width: 0;
 }
 
 .category-grid-content-wrapper {
