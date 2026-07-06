@@ -62,6 +62,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const [editing, setEditing] = useState<RemoteLibrary>();
   // Which edit tab is active — drives the context-sensitive Add button in the pinned footer.
   const [editTab, setEditTab] = useState('rules');
+  // Controlled main tab (libraries / sites) so it's preserved when returning from an edit screen
+  // (an uncontrolled Tabs reset to the default "libraries" after editing a site — lost the Sites tab).
+  const [mainTab, setMainTab] = useState('libraries');
   // Editing/adding a SITE adapter — hosted here as a dedicated full screen (pinned header + actions),
   // consistent with the library editor. undefined = closed; { initial } open (undefined initial = new).
   const [editSource, setEditSource] = useState<{ initial?: RemoteSourceConfig }>();
@@ -483,7 +486,8 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     <div className="remote-lib-mgmt remote-lib-mgmt--fill">
       <Tabs
         className="remote-lib-mgmt__tabs"
-        defaultActiveKey="libraries"
+        activeKey={mainTab}
+        onChange={setMainTab}
         items={[
           { key: 'libraries', label: t('remote.tabLibraries'), children: librariesTab },
           { key: 'sites', label: t('remote.tabSites'), children: sitesTab },
