@@ -41,6 +41,19 @@ right edge trimmed). Always pair explicit `width:100%` with `box-sizing: border-
 (no explicit width) over `width:100%` where possible. And never mask overflow with `overflow-x:hidden` —
 it silently trims content; make the content fit instead.
 
+## A flex item with `overflow` set gets `min-height:auto → 0` and can COLLAPSE to 0px
+
+Per CSS spec, a flex item's automatic minimum size (`min-height:auto`, which normally keeps it at least
+its content height) only applies **when `overflow` is `visible`**. Set ANY non-visible `overflow`
+(`auto`/`scroll`/`hidden`, incl. `overflow-x`) on a flex item and its `min-height` resolves to **0** —
+so under any shrink pressure (a taller sibling in the same flex column) it collapses to 0px even though
+it has content. This bit ModFixTool (2026-07-07): the tools table had `flex:1; overflow:auto` and a tall
+settings card below it in the same flex column → the table crushed to **0px** (rows present in the DOM,
+invisible). **Fix pattern:** don't put `overflow` on the flex item you want visible — let the PANEL
+(`.mod-fix`) own the vertical scroll (`overflow-y:auto`) and give the child `flex:0 0 auto` (natural
+height, never shrink). For a genuinely-scrolling flex child, add `min-height:0` deliberately (that's the
+opposite case — you WANT it to shrink and scroll internally). Know which one you want.
+
 ## Colors
 
 **CSS variables only** — `var(--color-*)`. Never hardcode hex colors except in theme definitions.
