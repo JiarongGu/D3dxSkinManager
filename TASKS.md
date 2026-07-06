@@ -34,10 +34,12 @@
 - [ ] B2: "edit mod value hangs after save" — not reproduced; if it recurs, capture `cdp iplog` on that mod (suspect: awaited archive patch on a very large mod)
 
 ### Hygiene (opportunistic — do as-you-touch)
-- [ ] `RunTrackedAsync` ProcessRegistry wrapper (9+ services repeat Start/try/Complete/Fail — extract when next touching several producers)
-- [ ] Oversized-file splits: ModImportWorkflowHandler (1213), ModAnalysisService (~950), ModList.tsx (891), HelpWindow.tsx (861), CategoryGrid.tsx (745)
+- [ ] `RunTrackedAsync` ProcessRegistry wrapper (16 services repeat Start/try/Complete/Fail — extract when next touching several producers; risky as a big-bang, do incrementally)
+- [ ] Oversized-file splits: ModImportWorkflowHandler (1213), ModAnalysisService (~950), ModList.tsx (891), CategoryGrid.tsx (745), RemoteLibraryView.tsx (~570), RemoteLibraryManagementScreen.tsx (~530 — extract RuleEditor/AliasEditor/LibraryList)
 - [ ] `useEventSubscription` adoption (~15 components hand-wire `eventBus.subscribe`)
 - [ ] Migrate remaining `.ini` write-back rewriters' read paths opportunistically (parse layer done — `IniParser`)
+- [ ] Tests for the newest remote paths (audit 2026-07-06): `QuarkShareResolver` (token→save→download→cleanup, 23018), `GameBananaEngine` (ParseSubfeed/ProfilePage), `RemoteImportService.MatchTagRules` (ordered rules, title regex)
+- [ ] `Modules/Core/Helpers/` vs `Modules/Core/Utilities/` overlap (FileHelper vs FileUtilities, PathValidator vs ValidationHelper) — clarify split (stateful services vs static utils) or merge (audit 2026-07-06)
 
 ## Parked (with reasons — don't pick up without a decision)
 - In-game on-screen toggle UI — no 3DMigoto primitive (no text/overlay command)

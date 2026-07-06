@@ -9,6 +9,31 @@ Collected from design docs and past session mistakes. Check these BEFORE writing
 - 14px — Standard body text, buttons, inputs
 - 12px — Secondary text, labels, metadata, badges
 
+**Titles/section headers use `CompactTitle` (14px), NOT raw antd `<Typography.Title>`.** antd Title levels
+render ~20–38px — a rule violation. `CompactTitle` (used by `CompactSection`) now CLAMPS to 14px (12px
+for `level={5}`), keeping antd's bold weight (fixed 2026-07-06 — the site-config section titles 基本信息/
+游戏 were ~20px). Never restore a bare `<Title level=…>` in app chrome. The ONE sanctioned exception is
+the in-app help doc content (`.help-window-content-area`), which scopes h1/h2 to 18/16px for reading
+hierarchy — help DOC content, not chrome.
+
+## Scrollbars — ONE global slim style, no per-component overrides
+
+`theme-colors.css` defines a single global slim scrollbar: `* { scrollbar-width: thin; scrollbar-color:
+var(--color-border-base) transparent; }`. The STANDARD properties (Chromium/WebView2 121+) render a thin
+scrollbar and, when set, TAKE PRECEDENCE over any `::-webkit-scrollbar` customization — so per-component
+webkit rules are inert. **Do NOT add `::-webkit-scrollbar*` or `scrollbar-width`/`scrollbar-color` in a
+component CSS** — the global rule covers every scroller consistently (7 stale per-component blocks were
+removed 2026-07-06). If a scroller looks wrong, fix the container, not the scrollbar.
+
+## `width: 100%` needs `box-sizing: border-box` (else right-trim / overflow)
+
+A block with explicit `width: 100%` + padding/border under the default `content-box` overflows its parent
+by (padding+border) → the right edge gets clipped (if an ancestor has `overflow:hidden`) or forces a
+scrollbar. This bit the remote Sites list rows (2026-07-06: `width:100%` content-box row overflowed 22px,
+right edge trimmed). Always pair explicit `width:100%` with `box-sizing: border-box`. Prefer flex-stretch
+(no explicit width) over `width:100%` where possible. And never mask overflow with `overflow-x:hidden` —
+it silently trims content; make the content fit instead.
+
 ## Colors
 
 **CSS variables only** — `var(--color-*)`. Never hardcode hex colors except in theme definitions.

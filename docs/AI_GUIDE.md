@@ -1,10 +1,10 @@
 # AI Assistant Guide
 
-**Version:** 7.3
-**Last Updated:** 2026-07-05 (cleanup pass: StartupValidation tool + dead LAUNCH_GAME route removed;
-skill reference paths corrected; keywords/BACKEND.md + FRONTEND.md rewritten as compact indexes;
-CHANGELOG archived by month; APP_FACADE_REFACTORING.md archived — routing is MessageDispatcher →
-ProfileServiceRouter, there is no AppFacade)
+**Version:** 7.4
+**Last Updated:** 2026-07-06 (remote library redesign + in-app user guide shipped; post-feature cleanup
+pass — dedup scrollbar CSS, CompactTitle font clamp, dead code removed. Prior 7.3 pass: StartupValidation
+tool + dead LAUNCH_GAME route removed; keywords/BACKEND.md + FRONTEND.md rewritten as compact indexes;
+CHANGELOG archived by month; routing is MessageDispatcher → ProfileServiceRouter, there is no AppFacade)
 
 > Mandatory rules are in CLAUDE.md (auto-loaded). This file contains only unique reference content: the skills table, architecture quick-patterns, and documentation map.
 
@@ -110,6 +110,8 @@ Generate with: `/ipc-service ModService MOD doSomething`
 
 | Need | Load This |
 |------|-----------|
+| **Hard-won patterns / constraints (auto-loaded)** | **`.claude/rules/*.md`** — battle-tested wiring chains + gotchas (remote library, in-app guide, UI design, filesystem serialization, enum serialization, download service…). These OVERRIDE generic advice. |
+| End-user guide (also in-app Help) | [user-guide/USER_GUIDE.en.md](user-guide/USER_GUIDE.en.md) · [.cn.md](user-guide/USER_GUIDE.cn.md) |
 | Find code/files | [KEYWORDS_INDEX.md](KEYWORDS_INDEX.md) |
 | Architecture constraints | [DESIGN_DECISIONS.md](core/DESIGN_DECISIONS.md) |
 | Non-automatable patterns | [ADVANCED_PATTERNS.md](core/ADVANCED_PATTERNS.md) |

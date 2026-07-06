@@ -3,7 +3,7 @@
 > **Purpose:** Task-based quick reference for common operations
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
 
-**Last Updated:** 2026-03-08
+**Last Updated:** 2026-07-06
 
 **Recent Additions:**
 - IMemoryCache caching pattern → See "Adding Performance Caching"

@@ -133,4 +133,29 @@ rules editor UI. Tests: 43 backend remote + 204 frontend.
 
 Rules that bind: `download-service.md`, `background-task-tracking.md`, `use-project-paths.md`,
 `enum-serialization.md` (tags/rules camelCase on the wire), `ui-component-layers.md` (L1 atoms),
-`filesystem-operation-serialization.md` (n/a — this is profile JSON + the index DB, not mod archives).
+`filesystem-operation-serialization.md` (n/a — this is profile JSON + the index DB, not mod archives),
+`in-app-guide.md` (the user guide documents this feature).
+
+## Post-ship additions (2026-07-06)
+- **Imported tracking = "downloaded" filter + "locate" + local-mod tagging.** `RemoteImportService`
+  imported-lookup now returns MAPS (`key→modId`, `legacyUrl→modId`, not sets); `RemoteFacade.QueryIndexAsync`
+  sets `entry.Imported` + `entry.LocalModId` and takes `importedOnly` (computes this source/list's imported
+  entry-ids from the key map → `RemoteIndexService/Repository.QueryAsync(onlyEntryIds)` → SQL
+  `EntryId IN @ids`, empty set = no rows). Frontend: `remoteUiStore.downloadedOnly` + a toolbar toggle;
+  the card ✓ badge is a compact icon; the detail page shows an "already imported" banner with a **View
+  mod** button → `navigateToModSearch(profileId,[localModId])` (closes the slide-in). On import, the local
+  mod is TAGGED with the remote entry's tags (`entity.Tags = JSON(existing ∪ allTags)`) so it carries the
+  same taxonomy. The remote list auto-refreshes when a `process.remoteImport` process COMPLETES (watch the
+  completed count — NOT `MOD_LIST_UPDATED`, which fires before the metadata is written).
+- **Quark large-file download**: the resolver uses the quark **desktop-client** User-Agent
+  (`quark-cloud-drive/… Electron … Channel/pckk_other_ch`), NOT a browser UA — Quark gates its download
+  size limit (apiv1 code 23018) by product/UA. `REMOTE_QUARK_SIZE_LIMIT` is the fallback message. See
+  `remote-library.md` for the full Quark flow + `download-service.md` (body surfaced on non-2xx).
+- **Management edit-view UX pattern (`RemoteLibraryManagementScreen`).** Editing a LIBRARY or a SITE is a
+  dedicated `--fill` screen (pinned `← header` + scrollable body + pinned footer actions), NOT inline —
+  the tabs/hint are hidden while editing. Site editing is LIFTED to the management screen (`editSource`
+  state); `RemoteSourceManagerScreen` is list-only and routes edit/add up via `onEdit`. The main 库/站点
+  `Tabs` is CONTROLLED (`mainTab` state) so returning from an editor preserves the tab. List rows use
+  `box-sizing: border-box` (a `width:100%` content-box row overflowed + got right-trimmed). Tag pickers
+  use `CompactSelect` (never raw antd `Select`). Section titles use `CompactSection`/`CompactTitle`
+  (14px — see `ui-design-rules.md`).

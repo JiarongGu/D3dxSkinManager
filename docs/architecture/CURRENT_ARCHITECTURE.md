@@ -1,6 +1,6 @@
 # D3dxSkinManager - Current Architecture
 
-**Last Updated:** 2026-03-04
+**Last Updated:** 2026-07-06
 **Status:** Current Implementation
 **Scope:** System overview and startup flow. For module boundaries → [DOMAIN_DESIGN.md](DOMAIN_DESIGN.md). For service registration → [SERVICE_REGISTRATION_ARCHITECTURE.md](SERVICE_REGISTRATION_ARCHITECTURE.md).
 

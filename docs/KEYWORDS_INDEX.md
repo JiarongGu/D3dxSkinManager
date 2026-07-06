@@ -161,7 +161,7 @@ docs/
 ---
 
 **Current Line Count**: ~150 lines (Target: < 200 lines for routing hub)
-**Last Updated**: 2026-02-20 (v4.0 - Routing System)
+**Last Updated**: 2026-07-06 (v4.1 — remote library redesign + in-app user guide)
 **Next Review**: 2026-05-01
 
 ---

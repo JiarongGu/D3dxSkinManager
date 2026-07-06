@@ -11,6 +11,14 @@ in a feature service (UpdateService used to; it now delegates here).
   deletes the file + throws `OperationException("DOWNLOAD_HASH_MISMATCH")`). Network/IO failure →
   `OperationException("DOWNLOAD_FAILED")` (partial file removed). Honors cancellation.
 - `Task<string> GetStringAsync(url, headers?, ct)` — small JSON/text GET (e.g. a GitHub API call).
+- `Task<string> PostJsonAsync(url, jsonBody, headers?, ct)` — small JSON POST (e.g. a share/download API).
+- **Error responses carry the body (FIXED 2026-07-06).** `GetStringAsync`/`PostJsonAsync` no longer call
+  `EnsureSuccessStatusCode()` (which discards the body); they READ the body first and on a non-2xx status
+  throw INCLUDING a 500-char snippet of it → the wrapped `DOWNLOAD_FAILED` reason surfaces the API's real
+  message. This is what made a Quark `HTTP 400 code 23018 "download file size limit"` visible instead of an
+  opaque "Response status code does not indicate success: 400". `DownloadAsync` (streamed files) is
+  unchanged (still `EnsureSuccessStatusCode`). Callers that parse a body-`code` API (Quark) still get the
+  body on 4xx. When adding a JSON-API resolver, rely on this — don't re-add EnsureSuccessStatusCode.
 - **Managed downloads area** (the "one place kept downloads live + get cleaned"):
   - `string ManagedDirectory` = `IGlobalPathService.DownloadsDirectory` (`{data}/downloads`).
   - `DownloadToManagedAsync(url, fileName, progress?, expectedSha256?, ct)` — downloads into the managed
