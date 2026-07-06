@@ -19,8 +19,11 @@ export const CompactTitle: React.FC<CompactTitleProps> = ({
   style,
   ...rest
 }) => {
+  // Enforce the app's font-size rule (12/14 only): antd Title levels are ~20-38px, far too big for
+  // this app's chrome. Titles render at 14px (12px for the smallest level), keeping antd's bold weight.
   const defaultStyle: React.CSSProperties = {
     margin: '0 0 8px 0',
+    fontSize: level >= 5 ? 12 : 14,
     ...style,
   };
 

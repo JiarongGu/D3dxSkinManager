@@ -52,7 +52,7 @@
   align-items: center;
   gap: 6px;
   width: 100%; /* fill the (growing) tab-bar extra slot so the input can be wide */
-  margin-right: 16px;
+  margin-right: 24px; /* a clear default gap between the name input and the tabs */
 }
 
 .remote-lib-mgmt__name-inline-label {
@@ -64,7 +64,7 @@
 .remote-lib-mgmt__name-input {
   flex: 1 1 auto;
   width: auto;
-  max-width: 520px;
+  max-width: 420px;
 }
 
 /* Edit-mode tab bar: let the name field (left extra) take the slack so the rules/aliases TABS sit at
