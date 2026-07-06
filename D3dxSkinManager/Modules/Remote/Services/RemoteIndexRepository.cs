@@ -72,10 +72,22 @@ public class RemoteIndexRepository : IRemoteIndexRepository
     public async Task<RemoteIndexMetaRow?> GetMetaAsync(string sourceId, string listId)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        return await connection.QuerySingleOrDefaultAsync<RemoteIndexMetaRow>(
+        var meta = await connection.QuerySingleOrDefaultAsync<RemoteIndexMetaRow>(
             "SELECT * FROM RemoteIndexMeta WHERE SourceId = @sourceId AND ListId = @listId",
             new { sourceId, listId });
+        if (meta != null)
+        {
+            // SQLite loses DateTimeKind — re-mark as UTC so JSON serializes with the Z suffix.
+            // Without it the frontend parses the timestamp as LOCAL time and (east of UTC) every
+            // index looked hours stale → auto-sync fired on every library-page open (fixed 2026-07-06).
+            meta.SyncedAtUtc = SpecifyUtc(meta.SyncedAtUtc);
+            meta.FullSyncCompletedUtc = SpecifyUtc(meta.FullSyncCompletedUtc);
+        }
+        return meta;
     }
+
+    private static DateTime? SpecifyUtc(DateTime? value) =>
+        value is { Kind: DateTimeKind.Unspecified } dt ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : value;
 
     public async Task SetMetaAsync(RemoteIndexMetaRow meta)
     {
@@ -263,8 +275,10 @@ public class RemoteIndexRepository : IRemoteIndexRepository
             FROM RemoteIndexEntries WHERE {where}
             ORDER BY {order}
             LIMIT @limit OFFSET @offset", args)).ToList();
-        foreach (var row in rows) // materialize the JSON tag list for the wire
+        foreach (var row in rows) // materialize the JSON tag list + re-mark UTC kinds for the wire
         {
+            row.FirstSeenUtc = SpecifyUtc(row.FirstSeenUtc) ?? row.FirstSeenUtc;
+            row.LastSeenUtc = SpecifyUtc(row.LastSeenUtc) ?? row.LastSeenUtc;
             if (string.IsNullOrEmpty(row.TagsJson)) continue;
             try { row.Tags = global::System.Text.Json.JsonSerializer.Deserialize<List<string>>(row.TagsJson) ?? new(); }
             catch { /* corrupt cache row — leave empty */ }

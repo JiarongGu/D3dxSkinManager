@@ -89,6 +89,26 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
+    public async Task Meta_And_Entries_RoundTrip_As_UTC_Kind()
+    {
+        // SQLite loses DateTimeKind; the repository must re-mark UTC so JSON carries the Z suffix.
+        // Without it the frontend parsed syncedAtUtc as LOCAL time and (east of UTC) every index
+        // looked hours stale → the auto-sync fired on every library-page open (fixed 2026-07-06).
+        SetupPages(new List<RemoteModCard> { Card(10, "反虚化3.0") });
+        await SyncAndWaitAsync();
+
+        var meta = await _repository.GetMetaAsync("huihui", "2");
+        meta!.SyncedAtUtc!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        meta.FullSyncCompletedUtc!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        // Freshly synced must read as "just now", not hours old.
+        (DateTime.UtcNow - meta.SyncedAtUtc.Value).Should().BeLessThan(TimeSpan.FromMinutes(1));
+
+        var page = await _service.QueryAsync("huihui", "2", null, 1, 10);
+        page.Entries[0].FirstSeenUtc.Kind.Should().Be(DateTimeKind.Utc);
+        page.Entries[0].LastSeenUtc.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [Fact]
     public async Task FullSync_BuildsIndex_WithStableIds_DateHints_SiteOrder()
     {
         SetupPages(

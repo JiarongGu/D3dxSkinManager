@@ -224,11 +224,13 @@ export const RemoteLibraryView: React.FC = () => {
   }, [ui.sourceId, ui.listId]);
 
   // BUILT-IN AUTO-SYNC: silently kick an incremental update when the loaded index is STALE
-  // (>30 min since its last completed sync) — when the freshness becomes known and on a timer while
-  // the tab stays mounted. Guards that fixed the "syncs on every open" bug: (1) NEVER act before the
-  // index query returned (info undefined ≠ stale); (2) at most one stale-kick per library per
-  // session (a failing sync must not retrigger every effect pass); the interval re-checks real
-  // freshness afterwards. Never-synced libraries are handled by loadIndex's empty-index path.
+  // (>30 min since its last completed sync) — opening the page within that window does NOTHING;
+  // only staying on (or returning after) 30+ min re-syncs. Guards against the "syncs on every
+  // open" bug class: (1) NEVER act before the index query returned (info undefined ≠ stale);
+  // (2) at most one stale-kick per library between interval resets; (3) syncedAtUtc must parse
+  // as UTC — the backend re-marks DateTimeKind after SQLite so the Z suffix survives (east of
+  // UTC, a Z-less timestamp parsed as LOCAL always looked hours stale → synced on EVERY page
+  // open; fixed 2026-07-06). Never-synced libraries are handled by loadIndex's empty-index path.
   const staleKicked = React.useRef(new Set<string>());
   const syncedAtUtc = ui.index?.info.syncedAtUtc;
   useEffect(() => {
