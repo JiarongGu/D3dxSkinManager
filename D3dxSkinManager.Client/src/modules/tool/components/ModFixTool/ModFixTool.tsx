@@ -321,6 +321,7 @@ const ModFixManagerInner: React.FC = () => {
       <Collapse
         ghost
         className="mod-fix__settings"
+        expandIcon={() => null}
         items={[{
           key: 'settings',
           label: <span className="mod-fix__settings-label"><SettingOutlined /> {t('tools.modFix.tabSettings')}</span>,
