@@ -102,6 +102,10 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
           }
         });
       } catch (error: unknown) {
+        // A concurrent invocation (React StrictMode double-invokes this effect on the same instance
+        // while the first load is still in-flight) makes execute() throw — that's benign, the first
+        // load handles it. Only surface real failures. Mirrors ConfirmDialog/FormDialog.
+        if (error instanceof Error && error.message === 'Operation already in progress') return;
         handleError(error);
       }
     })();

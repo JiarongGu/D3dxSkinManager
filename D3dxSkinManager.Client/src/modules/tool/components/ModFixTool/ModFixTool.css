@@ -1,10 +1,30 @@
 .mod-fix {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   padding: 4px;
   height: 100%;
   min-height: 0;
+  /* Whole panel scrolls when the table + settings exceed the height; the table itself keeps its
+     natural height (no flex:1 — that fought the settings card and crushed the table to 0px). */
+  overflow-y: auto;
+}
+
+/* Slim add toolbar (management-table style, like the Tag tool header): name + add buttons + hint. */
+.mod-fix__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mod-fix__name {
+  max-width: 260px;
+}
+
+.mod-fix__toolbar-hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-left: 4px;
 }
 
 /* Empty state fills the space left below the add-tool panel and centers (was top-aligned). */
@@ -55,19 +75,19 @@
 }
 
 .mod-fix__table {
+  /* Natural height; the panel (.mod-fix) owns vertical scroll. Never shrink — a flex item with
+     overflow set gets min-height:auto→0 and collapses, so DON'T put overflow here. */
+  flex: 0 0 auto;
+}
+
+/* Fix-tool settings block, below the table (moved in from global Settings). Never shrinks. */
+.mod-fix__settings {
   margin-top: 8px;
+  flex: 0 0 auto;
 }
 
-/* Import panel — dashed border signals the screen is a drop target for tools */
-.mod-fix__import {
-  padding: 12px;
-  margin-bottom: 12px;
-  border: 1px dashed var(--color-border-base);
-  border-radius: 8px;
-  background: var(--color-card-bg);
-  transition: border-color 0.15s ease;
-}
-
-.mod-fix__import:hover {
-  border-color: var(--color-primary);
+.mod-fix__settings-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
 }

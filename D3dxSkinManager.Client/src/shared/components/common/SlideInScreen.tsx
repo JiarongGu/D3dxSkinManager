@@ -4,7 +4,7 @@ import { CloseOutlined } from '@ant-design/icons';
 import { Spin } from 'antd';
 import { useSlideInScreenContext } from '../../context/SlideInScreenContext';
 import './SlideInScreen.css';
-import { CompactButton } from '../compact';
+import { CompactIconButton } from '../compact';
 
 // Context to track which screen we're currently inside
 const CurrentSlideInScreenContext = createContext<string | undefined>(undefined);
@@ -93,8 +93,7 @@ export function SlideInScreen({
         {!headless ? (
           <div className="slide-in-screen-header">
             <h2 className="slide-in-screen-title">{title}</h2>
-            <CompactButton
-              type="text"
+            <CompactIconButton
               icon={<CloseOutlined />}
               onClick={() => !isClosing && !loading && onClose()}
               disabled={loading}
@@ -102,9 +101,7 @@ export function SlideInScreen({
             />
           </div>
         ) : (
-          <CompactButton
-            type="text"
-            size="small"
+          <CompactIconButton
             icon={<CloseOutlined />}
             onClick={() => !isClosing && !loading && onClose()}
             disabled={loading}

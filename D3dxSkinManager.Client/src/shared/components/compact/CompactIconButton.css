@@ -1,17 +1,19 @@
-/* Borderless square icon action. Rest = just the glyph; hover = a subtle background FILL (a real,
-   tactile button feel). The old hover was a tone-coloured BORDER only with no background change,
-   which read as a faint "ghost" outline — replaced with a bg fill (same language as the header tabs).
-   A transparent border is never used, so there's no layout shift. */
+/* Borderless-at-rest square icon action; on hover it becomes a clear bounded button — a VISIBLE
+   background overlay AND a border. History: border-only hover read as a faint "ghost"; a
+   `--color-bg-spotlight` fill was ~the same colour as the panel (invisible); so the hover uses a
+   theme-aware translucent OVERLAY (lighter in dark, darker in light) that contrasts on ANY surface,
+   plus a tone-coloured border. A 1px transparent border is always present (border-box) so the hover
+   border adds no layout shift. Square (6px) — every icon button stays square app-wide. */
 .compact-icon-btn.ant-btn,
 .compact-icon-btn.ant-btn:hover,
 .compact-icon-btn.ant-btn:focus,
 .compact-icon-btn.ant-btn:active {
   padding: 0;
   background: transparent;
-  border: none !important;
+  border: 1px solid transparent !important;
   box-shadow: none !important;
   border-radius: 6px;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 /* Center the glyph deterministically so every tone aligns regardless of the icon or antd's
@@ -34,24 +36,15 @@
 }
 .compact-icon-btn.ant-btn .ant-btn-loading-icon { display: none; }
 
-/* Hover = subtle background fill + stronger icon colour. Tones keep their colour at rest and tint
-   the fill on hover. `!important` beats antd's own text-button hover + the global icon-button hover. */
-.compact-icon-btn.ant-btn:hover {
-  background: var(--color-bg-spotlight) !important;
-  color: var(--color-text-base) !important;
-}
+/* Tone icon colour at rest. */
 .compact-icon-btn--success.ant-btn { color: var(--color-success) !important; }
-.compact-icon-btn--success.ant-btn:hover {
-  background: var(--color-success-bg) !important;
-  color: var(--color-success) !important;
-}
 .compact-icon-btn--danger.ant-btn { color: var(--color-error) !important; }
-.compact-icon-btn--danger.ant-btn:hover {
-  background: var(--color-error-bg) !important;
-  color: var(--color-error) !important;
-}
 .compact-icon-btn--primary.ant-btn { color: var(--color-primary) !important; }
-.compact-icon-btn--primary.ant-btn:hover {
-  background: var(--color-primary-bg) !important;
-  color: var(--color-primary) !important;
-}
+
+/* Hover = a clearly-visible translucent overlay (theme-aware) + a border + stronger colour. */
+[data-theme="dark"] .compact-icon-btn.ant-btn:hover { background: rgba(255, 255, 255, 0.12) !important; }
+[data-theme="light"] .compact-icon-btn.ant-btn:hover { background: rgba(0, 0, 0, 0.06) !important; }
+.compact-icon-btn.ant-btn:hover { border-color: var(--color-border-base) !important; color: var(--color-text-base) !important; }
+.compact-icon-btn--success.ant-btn:hover { border-color: var(--color-success) !important; color: var(--color-success) !important; }
+.compact-icon-btn--danger.ant-btn:hover { border-color: var(--color-error) !important; color: var(--color-error) !important; }
+.compact-icon-btn--primary.ant-btn:hover { border-color: var(--color-primary) !important; color: var(--color-primary) !important; }

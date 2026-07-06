@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Tag as AntTag, Form, Pagination, ColorPicker } from 'antd';
+import { Tag as AntTag, Form, Pagination, ColorPicker, Tooltip } from 'antd';
 import {
   SearchOutlined,
   DeleteOutlined,
@@ -11,7 +11,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../../../../shared/components/dialogs/ConfirmDialog";
 import { FormDialog } from "../../../../shared/components/dialogs/FormDialog";
-import { CompactSpace, CompactButton, CompactAlert, CompactInput } from '../../../../shared/components/compact';
+import { CompactSpace, CompactButton, CompactAlert, CompactInput, CompactIconButton } from '../../../../shared/components/compact';
 import { DataTable, ColumnsType } from "../../../../shared/components/common";
 import { Tag } from "../../../../shared/types/mod.types";
 import { useProfile } from "../../../../shared/context/ProfileContext";
@@ -174,24 +174,15 @@ export const TagManagementTool: React.FC = () => {
     {
       title: t('tags.columnAction'),
       key: 'action',
-      width: 150,
+      width: 90,
       render: (_: any, record: Tag) => (
         <CompactSpace size="small">
-          <CompactButton.Primary
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => openEditDialog(record)}
-          >
-            {t("common.edit")}
-          </CompactButton.Primary>
-          <CompactButton.Danger
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
-            onClick={() => setTagToDelete(record.name)}
-          >
-            {t("common.delete")}
-          </CompactButton.Danger>
+          <Tooltip title={t("common.edit")}>
+            <CompactIconButton icon={<EditOutlined />} onClick={() => openEditDialog(record)} />
+          </Tooltip>
+          <Tooltip title={t("common.delete")}>
+            <CompactIconButton tone="danger" icon={<DeleteOutlined />} onClick={() => setTagToDelete(record.name)} />
+          </Tooltip>
         </CompactSpace>
       ),
     },

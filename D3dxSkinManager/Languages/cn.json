@@ -1185,6 +1185,7 @@
     "tools.modFix.description": "管理你的修复工具集合。每个工具是一个脚本/程序（文件夹或单个文件），保存在当前配置中。可在模组右键菜单中对单个模组运行，或在此处对全部模组运行。常用于在游戏更新后修复 3DMigoto 哈希。",
     "tools.modFix.addTool": "添加修复工具",
     "tools.modFix.namePlaceholder": "名称（可选 — 默认使用文件/文件夹名）",
+    "tools.modFix.dropHint": "或将文件、文件夹拖到此处",
     "tools.modFix.addFolder": "添加文件夹",
     "tools.modFix.addFile": "添加文件",
     "tools.modFix.addHint": "修复工具可以是单个 .py/.exe/.bat/.cmd，也可以是包含它及其支持文件的文件夹。提示：可将文件或文件夹拖到此处添加。",

@@ -140,24 +140,25 @@
    border/shadow chrome (the old shadowed circle read as a foreign element). Size comes from the
    CompactButton size="small" (24px — the medium 32px circle read oversized around the 12px ×).
    !important: antd's generated button styles (radius 4px + default shadow) win otherwise. */
+/* Square (matches every icon button) + a scrim bg and subtle border so it reads as a bounded button
+   over artwork (this floating close sits over the detail hero image). */
 .slide-in-screen-close-btn--floating {
   position: absolute;
   top: 26px;
   right: 30px;
   z-index: 3;
-  border-radius: 50% !important;
-  background: transparent !important;
-  border: none !important;
+  border-radius: 6px !important;
+  background: rgba(0, 0, 0, 0.38) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
   box-shadow: none !important;
-  color: var(--color-text-secondary) !important;
+  color: #fff !important;
   font-size: 12px;
 }
 
-/* Hover: translucent text-tone fill — visible on ANY surface in BOTH themes. (bg-layout was
-   pure black in dark theme; bg-spotlight was a delta-7 non-cue against the elevated card.) */
 .slide-in-screen-close-btn--floating:hover {
-  background: color-mix(in srgb, var(--color-text-base) 12%, transparent) !important;
-  color: var(--color-text-base) !important;
+  background: rgba(0, 0, 0, 0.58) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  color: #fff !important;
 }
 
 .slide-in-screen-close-btn--floating:hover .anticon {

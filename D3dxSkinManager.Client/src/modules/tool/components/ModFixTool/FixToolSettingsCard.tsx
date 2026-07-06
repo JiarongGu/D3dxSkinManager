@@ -8,20 +8,19 @@ import {
   CompactButton,
   CompactSwitch,
   CompactField,
-} from "../../../shared/components/compact";
-import { useProfile } from "../../../shared/context/ProfileContext";
-import { profileService, toolService } from "../../../shared/services/ipc";
-import { notification } from "../../../shared/utils/notification";
-import { handleError } from "../../../shared/utils/errorHandler";
-import { SettingsSectionActions } from "./SettingsSectionActions";
+} from "../../../../shared/components/compact";
+import { useProfile } from "../../../../shared/context/ProfileContext";
+import { profileService, toolService } from "../../../../shared/services/ipc";
+import { notification } from "../../../../shared/utils/notification";
+import { handleError } from "../../../../shared/utils/errorHandler";
 
 const DEFAULT_EXTENSIONS = ".py, .exe, .bat, .cmd";
 
 /**
- * L3 settings card for the fix-tool runner — surfaces the previously hard-coded ModFixOptions as
- * editable per-profile config: Python interpreter (with auto-detect), per-mod timeout, accepted
- * script extensions, and stdin auto-confirm. Self-contained: loads + saves its own slice via
- * updateProfileConfig (independent of the page's main Save). See .claude/rules/xxmi-integration.md sibling work.
+ * L3 settings card for the fix-tool runner — surfaces the ModFixOptions as editable per-profile
+ * config: Python interpreter (with auto-detect), per-mod timeout, accepted script extensions, and
+ * stdin auto-confirm. Self-contained: loads + saves its own slice via updateProfileConfig. Lives
+ * INSIDE the ModFixTool screen (moved out of global Settings — config belongs with the tool it drives).
  */
 export const FixToolSettingsCard: React.FC = () => {
   const { t } = useTranslation();
@@ -105,9 +104,18 @@ export const FixToolSettingsCard: React.FC = () => {
   return (
     <CompactCard
       title={<><ToolOutlined /> {t("settings.profile.fixTools.title")}</>}
-      extra={<SettingsSectionActions dirty={dirty} saving={saving} onSave={save} onReset={reset} />}
+      extra={
+        <Space size="small">
+          <CompactButton size="small" disabled={!dirty || saving} onClick={reset}>
+            {t("settings.section.reset")}
+          </CompactButton>
+          <CompactButton size="small" type="primary" loading={saving} disabled={!dirty} onClick={save}>
+            {t("common.save")}
+          </CompactButton>
+        </Space>
+      }
     >
-      <div className="settings-view-profile-form-grid">
+      <div className="mod-fix__settings-grid">
         <CompactField label={t("settings.profile.fixTools.python.label")} description={t("settings.profile.fixTools.python.hint")}>
           <Space.Compact style={{ width: "100%" }}>
             <CompactInput

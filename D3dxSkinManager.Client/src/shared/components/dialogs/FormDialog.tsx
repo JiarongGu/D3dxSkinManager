@@ -68,9 +68,9 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   // Use custom footer if provided, otherwise use default
   const modalFooter = footer !== undefined ? footer : (
     <CompactSpace className="form-dialog-footer">
-      <CompactButton.Danger onClick={onCancel}>
+      <CompactButton onClick={onCancel}>
         {resolvedCancelText}
-      </CompactButton.Danger>
+      </CompactButton>
       {onOk && (
         <CompactButton
           type="primary"

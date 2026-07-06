@@ -1,12 +1,14 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Space, Table, Progress, Empty, Popconfirm, Tooltip, Dropdown } from 'antd';
+import { Space, Progress, Empty, Popconfirm, Tooltip, Dropdown } from 'antd';
 import {
   ThunderboltOutlined, FolderOpenOutlined,
   FileAddOutlined, DeleteOutlined, DownOutlined, EditOutlined,
 } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
+import { DataTable } from '../../../../shared/components/common';
+import { FixToolSettingsCard } from './FixToolSettingsCard';
 import { FormDialog } from '../../../../shared/components/dialogs/FormDialog';
-import { CompactField, CompactIconButton, CompactInput, CompactSelect, CompactButton } from '../../../../shared/components/compact';
+import { CompactIconButton, CompactInput, CompactSelect, CompactButton } from '../../../../shared/components/compact';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
@@ -217,24 +219,20 @@ const ModFixManagerInner: React.FC = () => {
       render: (_: unknown, tool: FixTool) => (
         <Space size={4}>
           {tool.entries.length <= 1 ? (
-            <Tooltip title={tool.entries.length === 0 ? t('tools.modFix.setEntryFirst') : ''}>
-              <CompactButton
-                size="small"
+            <Tooltip title={tool.entries.length === 0 ? t('tools.modFix.setEntryFirst') : t('tools.modFix.runAll')}>
+              <CompactIconButton
+                tone="primary"
                 icon={<ThunderboltOutlined />}
                 onClick={() => tool.entries[0] && runEntry(tool, tool.entries[0].path)}
                 disabled={running || tool.entries.length === 0}
-              >
-                {t('tools.modFix.runAll')}
-              </CompactButton>
+              />
             </Tooltip>
           ) : (
             <Dropdown
               disabled={running}
               menu={{ items: tool.entries.map((e) => ({ key: e.path, label: e.name, onClick: () => runEntry(tool, e.path) })) }}
             >
-              <CompactButton size="small" icon={<ThunderboltOutlined />}>
-                {t('tools.modFix.runAll')} <DownOutlined />
-              </CompactButton>
+              <CompactIconButton tone="primary" icon={<ThunderboltOutlined />} title={t('tools.modFix.runAll')} />
             </Dropdown>
           )}
           {canRename(tool) && (
@@ -257,31 +255,30 @@ const ModFixManagerInner: React.FC = () => {
     <div className="mod-fix" ref={dropRef}>
       <div className="mod-fix__description">{t('tools.modFix.description')}</div>
 
-      {/* Add a fix tool — bordered import panel; the whole screen accepts drag-drop */}
-      <div className="mod-fix__import">
-        <CompactField label={t('tools.modFix.addTool')} description={t('tools.modFix.addHint')}>
-          <Space.Compact style={{ width: '100%' }}>
-            <CompactInput
-              value={newName}
-              placeholder={t('tools.modFix.namePlaceholder')}
-              onChange={(e) => setNewName(e.target.value)}
-              disabled={busy}
-            />
-            <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
-              {t('tools.modFix.addFolder')}
-            </CompactButton>
-            <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
-              {t('tools.modFix.addFile')}
-            </CompactButton>
-          </Space.Compact>
-        </CompactField>
+      {/* Add a fix tool — slim toolbar above the table (management-table style); the whole screen
+          accepts drag-drop. Name is optional (defaults to the file/folder name; rename via the row). */}
+      <div className="mod-fix__toolbar">
+        <CompactInput
+          className="mod-fix__name"
+          value={newName}
+          placeholder={t('tools.modFix.namePlaceholder')}
+          onChange={(e) => setNewName(e.target.value)}
+          disabled={busy}
+        />
+        <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
+          {t('tools.modFix.addFolder')}
+        </CompactButton>
+        <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
+          {t('tools.modFix.addFile')}
+        </CompactButton>
+        <span className="mod-fix__toolbar-hint">{t('tools.modFix.dropHint')}</span>
       </div>
 
       {/* Library */}
       {tools.length === 0 ? (
         <Empty description={t('tools.modFix.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} className="mod-fix__empty" />
       ) : (
-        <Table dataSource={tools} columns={columns} rowKey="id" size="small" pagination={false} className="mod-fix__table" />
+        <DataTable dataSource={tools} columns={columns} rowKey="id" compact pagination={false} className="mod-fix__table" />
       )}
 
       <FormDialog
@@ -319,6 +316,12 @@ const ModFixManagerInner: React.FC = () => {
           <ResultTable items={result.results} />
         </>
       )}
+
+      {/* Fix-tool settings (Python / timeout / extensions / auto-confirm) — moved out of global
+          Settings; config lives with the tool it drives. Self-contained (own load + save/reset). */}
+      <div className="mod-fix__settings">
+        <FixToolSettingsCard />
+      </div>
     </div>
   );
 };
@@ -350,5 +353,5 @@ const ResultTable: React.FC<{ items: ModFixItemResult[] }> = ({ items }) => {
       },
     },
   ];
-  return <Table dataSource={items} columns={columns} rowKey="modId" size="small" pagination={false} scroll={{ y: 300 }} className="mod-fix__table" />;
+  return <DataTable dataSource={items} columns={columns} rowKey="modId" compact pagination={false} scroll={{ y: 300 }} className="mod-fix__table" />;
 };

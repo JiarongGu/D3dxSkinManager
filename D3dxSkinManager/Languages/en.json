@@ -1185,6 +1185,7 @@
     "tools.modFix.description": "Manage your collection of fix tools. Each tool is a script/program (a folder or single file) stored in this profile. Run one against a mod from its right-click menu, or against all mods here. Useful for repairing 3DMigoto hashes after a game update.",
     "tools.modFix.addTool": "Add a fix tool",
     "tools.modFix.namePlaceholder": "Name (optional — defaults to the file/folder name)",
+    "tools.modFix.dropHint": "…or drag a file / folder here",
     "tools.modFix.addFolder": "Add Folder",
     "tools.modFix.addFile": "Add File",
     "tools.modFix.addHint": "A fix tool can be a single .py/.exe/.bat/.cmd, or a folder containing it plus its support files. Tip: drag a file or folder here to add it.",
