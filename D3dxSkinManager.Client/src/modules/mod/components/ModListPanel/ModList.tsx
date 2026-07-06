@@ -2,7 +2,7 @@ import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useRef, useCallback } from "react";
 import classNames from "classnames";
-import { Tag, Button, Space, Spin, Dropdown, Tooltip } from "antd";
+import { Tag, Space, Spin, Dropdown, Tooltip } from 'antd';
 import type { MenuProps } from "antd";
 import {
   PlayCircleOutlined,
@@ -47,6 +47,7 @@ import { MergeModsDialog } from "../MergeModsDialog/MergeModsDialog";
 import { ModOptimizeDialog } from "../ModOptimizeDialog/ModOptimizeDialog";
 import { useMods } from "../../hooks/useMods";
 import "./ModList.css";
+import { CompactButton } from '../../../../shared/components/compact';
 
 // Estimated item height in pixels (used for bottom spacer to maintain correct scroll height)
 const ITEM_HEIGHT = 64;
@@ -388,19 +389,19 @@ export const ModList: React.FC<ModListProps> = ({
     <div className="mod-bulk-bar">
       <span className="mod-bulk-bar__count">{t("mods.bulkBar.selected", { count: selectedModIds.length })}</span>
       <Space size={6}>
-        <Button size="small" icon={<EditOutlined />} onClick={() => openBatchEditScreen(selectedMods())}>
+        <CompactButton size="small" icon={<EditOutlined />} onClick={() => openBatchEditScreen(selectedMods())}>
           {t("mods.bulkBar.edit")}
-        </Button>
+        </CompactButton>
         <Dropdown trigger={["click"]} menu={{ items: bulkFixMenuItems() }}>
-          <Button size="small" icon={<ThunderboltOutlined />}>{t("contextMenu.runFix")}</Button>
+          <CompactButton size="small" icon={<ThunderboltOutlined />}>{t("contextMenu.runFix")}</CompactButton>
         </Dropdown>
-        <Button size="small" icon={<DeleteOutlined style={{ color: "var(--color-error)" }} />} onClick={openBulkDelete}>
+        <CompactButton size="small" icon={<DeleteOutlined style={{ color: "var(--color-error)" }} />} onClick={openBulkDelete}>
           {t("mods.bulkBar.delete")}
-        </Button>
+        </CompactButton>
       </Space>
-      <Button size="small" type="text" className="mod-bulk-bar__clear" icon={<CloseOutlined />} onClick={() => onClearSelection?.()}>
+      <CompactButton size="small" type="text" className="mod-bulk-bar__clear" icon={<CloseOutlined />} onClick={() => onClearSelection?.()}>
         {t("mods.bulkBar.clear")}
-      </Button>
+      </CompactButton>
     </div>
   );
 
@@ -789,9 +790,8 @@ export const ModList: React.FC<ModListProps> = ({
                 </div>
                 {
                   <div className="mod-list-item-actions">
-                    <Button
+                    <CompactButton
                       type="text"
-                      size="middle"
                       icon={
                         mod.isLoaded ? (
                           <PauseCircleOutlined className="mod-list-item-action-icon" />
@@ -814,9 +814,8 @@ export const ModList: React.FC<ModListProps> = ({
                       }
                       className="mod-list-item-action-button"
                     />
-                    <Button
+                    <CompactButton
                       type="text"
-                      size="middle"
                       icon={
                         <EditOutlined className="mod-list-item-action-icon" />
                       }

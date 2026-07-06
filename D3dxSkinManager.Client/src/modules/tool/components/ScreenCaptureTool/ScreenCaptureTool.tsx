@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Form, InputNumber, Button, Space, Input, Select } from "antd";
+import { Form, InputNumber, Space } from 'antd';
 import {
   CameraOutlined,
   EyeOutlined,
@@ -16,7 +16,7 @@ import {
   ScreenCaptureProvider,
   NEW_PROFILE_ID,
 } from "./ScreenCaptureContext";
-import { CompactButton } from "../../../../shared/components/compact";
+import { CompactButton, CompactInput, CompactSelect } from '../../../../shared/components/compact';
 
 /**
  * Screen Capture Control Panel (Inner Component)
@@ -55,7 +55,7 @@ const ScreenCaptureToolInner: React.FC = () => {
       <Space style={{ width: "100%" }} size="small" orientation="vertical">
         {isEditingName ? (
           <Space size="small" style={{ width: "100%" }}>
-            <Input
+            <CompactInput
               size="small"
               style={{ flex: 1, minWidth: 188 }}
               placeholder={t("capture.enterProfileName")}
@@ -64,14 +64,14 @@ const ScreenCaptureToolInner: React.FC = () => {
               onPressEnter={handleSaveProfile}
               autoFocus
             />
-            <Button
+            <CompactButton
               size="small"
               icon={<CheckOutlined />}
               onClick={handleSaveProfile}
               type="primary"
               title={t("capture.button.save")}
             />
-            <Button
+            <CompactButton
               size="small"
               icon={<CloseOutlined />}
               onClick={handleCancelEditName}
@@ -80,7 +80,7 @@ const ScreenCaptureToolInner: React.FC = () => {
           </Space>
         ) : (
           <Space size="small" style={{ width: "100%" }}>
-            <Select
+            <CompactSelect
               style={{ flex: 1, minWidth: 188 }}
               placeholder={t("capture.selectProfile")}
               value={selectedProfileId ?? NEW_PROFILE_ID}
@@ -99,7 +99,7 @@ const ScreenCaptureToolInner: React.FC = () => {
                 (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
               }
             />
-            <Button
+            <CompactButton
               size="small"
               icon={<SaveOutlined />}
               onClick={handleSaveProfile}
@@ -107,7 +107,7 @@ const ScreenCaptureToolInner: React.FC = () => {
               type="primary"
               title={t("capture.button.save")}
             />
-            <Button
+            <CompactButton
               size="small"
               icon={<DeleteOutlined />}
               onClick={handleDeleteProfile}

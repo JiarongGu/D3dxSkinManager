@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Select, Tag } from "antd";
+import { Tag, Select } from 'antd';
 import { modService } from "../../../../shared/services/ipc";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import type { Tag as TagType } from "../../../../shared/types/mod.types";
 import "./MultiTagInput.css";
+import { CompactSelect } from '../../../../shared/components/compact';
 
 const { Option } = Select;
 
@@ -113,7 +114,7 @@ export const MultiTagInput: React.FC<MultiTagInputProps> = ({
   };
 
   return (
-    <Select
+    <CompactSelect
       mode="tags"
       value={value}
       onChange={handleChange}
@@ -139,6 +140,6 @@ export const MultiTagInput: React.FC<MultiTagInputProps> = ({
           {tag}
         </Option>
       ))}
-    </Select>
+    </CompactSelect>
   );
 };

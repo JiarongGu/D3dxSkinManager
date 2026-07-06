@@ -1,5 +1,5 @@
 import React from "react";
-import { Tree, Empty, Spin, Input, Button, Tooltip } from "antd";
+import { Tree, Empty, Spin, Tooltip, Input } from 'antd';
 import { PlusOutlined } from "@ant-design/icons";
 import { CategoryInfo } from "../../../../shared/types/category.types";
 import {
@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import type { MenuProps } from "antd";
 import classNames from "classnames";
 import "./CategoryTree.css";
+import { CompactButton } from '../../../../shared/components/compact';
 
 const { Search } = Input;
 
@@ -346,7 +347,7 @@ const CategoryTreeInner: React.FC = () => {
           className="category-tree-search"
           allowClear
         />
-        <Button
+        <CompactButton
           type="default"
           icon={<PlusOutlined />}
           onClick={() => onAddCategory?.()}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Input, Tag as AntTag, Form, Pagination, ColorPicker } from "antd";
+import { Tag as AntTag, Form, Pagination, ColorPicker, Input } from 'antd';
 import {
   SearchOutlined,
   DeleteOutlined,
@@ -11,11 +11,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../../../../shared/components/dialogs/ConfirmDialog";
 import { FormDialog } from "../../../../shared/components/dialogs/FormDialog";
-import {
-  CompactSpace,
-  CompactButton,
-  CompactAlert
-} from "../../../../shared/components/compact";
+import { CompactSpace, CompactButton, CompactAlert, CompactInput } from '../../../../shared/components/compact';
 import { DataTable, ColumnsType } from "../../../../shared/components/common";
 import { Tag } from "../../../../shared/types/mod.types";
 import { useProfile } from "../../../../shared/context/ProfileContext";
@@ -290,7 +286,7 @@ export const TagManagementTool: React.FC = () => {
               { max: 50, message: t('tags.tagNameMaxLength') },
             ]}
           >
-            <Input placeholder={t('tags.namePlaceholder')} />
+            <CompactInput placeholder={t('tags.namePlaceholder')} />
           </Form.Item>
           <Form.Item
             label={t('tags.color')}
@@ -324,7 +320,7 @@ export const TagManagementTool: React.FC = () => {
               { max: 50, message: t('tags.tagNameMaxLength') },
             ]}
           >
-            <Input placeholder={t('tags.namePlaceholder')} />
+            <CompactInput placeholder={t('tags.namePlaceholder')} />
           </Form.Item>
           <Form.Item
             label={t('tags.color')}

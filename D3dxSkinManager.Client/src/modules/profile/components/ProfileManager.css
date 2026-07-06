@@ -57,12 +57,12 @@
 }
 
 .profile-manager-description {
-  color: #595959;
+  color: var(--color-text-secondary);
 }
 
 .profile-manager-stats {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--color-text-tertiary);
 }
 
 .profile-manager-full-width-input {

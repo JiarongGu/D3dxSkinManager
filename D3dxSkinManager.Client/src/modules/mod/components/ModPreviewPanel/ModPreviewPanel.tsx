@@ -1,10 +1,10 @@
 import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import React, { useState } from "react";
-import { Typography, Button, Empty, Spin } from "antd";
+import { Typography, Empty, Spin } from 'antd';
 import { useTranslation } from "react-i18next";
 import classNames from "classnames";
 import { CopyOutlined, KeyOutlined, FolderOutlined } from "@ant-design/icons";
-import { CompactTextButton } from "../../../../shared/components/compact";
+import { CompactTextButton, CompactButton } from '../../../../shared/components/compact';
 import { FullScreenPreview } from "./FullScreenPreview";
 import { KeybindingPreview } from "./KeybindingPreview";
 import { ModInfoSection } from "./ModInfoSection";
@@ -193,7 +193,7 @@ export const ModPreviewPanel: React.FC = () => {
           >
             {mod.id}
           </Text>
-          <Button
+          <CompactButton
             type="text"
             size="small"
             icon={<CopyOutlined />}

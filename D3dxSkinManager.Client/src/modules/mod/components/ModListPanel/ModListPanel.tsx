@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { Layout, Empty, Input, Button, Spin, Popover, Tag } from "antd";
+import { Layout, Empty, Spin, Popover, Tag, Input } from 'antd';
 import { SearchOutlined, PlusOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 
@@ -15,6 +15,7 @@ import { workflowService } from "../../../../shared/services/ipc";
 import { handleError } from "../../../../shared/utils/errorHandler";
 import { parseSearchQuery, matchesSearchQuery, SearchableRecord, SearchField } from "../../../../shared/utils/searchQueryParser";
 import "./ModListPanel.css";
+import { CompactButton } from '../../../../shared/components/compact';
 
 const { Sider } = Layout;
 const { Search } = Input;
@@ -323,7 +324,7 @@ export const ModListPanel: React.FC = () => {
             </Popover>
           }
         />
-        <Button
+        <CompactButton
           type="default"
           icon={<PlusOutlined />}
           onClick={() => openImportWorkflowScreen()}

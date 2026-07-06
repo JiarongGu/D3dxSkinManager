@@ -272,7 +272,7 @@
 
 /* Confirm Dialog Icon */
 .mod-preview-confirm-icon {
-  color: #ff4d4f;
+  color: var(--color-error);
   font-size: 22px;
 }
 

@@ -1,5 +1,5 @@
 .profile-selector-icon {
-  color: #1890ff;
+  color: var(--color-primary);
 }
 
 .profile-selector-dropdown {

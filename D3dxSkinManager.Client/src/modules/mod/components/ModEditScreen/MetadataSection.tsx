@@ -1,7 +1,7 @@
 import React from "react";
-import { Form, Space, Select, AutoComplete } from "antd";
+import { Form, Space, AutoComplete, Select } from 'antd';
 import { useTranslation } from "react-i18next";
-import { CompactSwitch } from "../../../../shared/components/compact";
+import { CompactSwitch, CompactSelect } from '../../../../shared/components/compact';
 import "./MetadataSection.css";
 
 const { Option } = Select;
@@ -68,11 +68,11 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
         name="category"
         className="metadata-section-category"
       >
-        <Select
+        <CompactSelect
           showSearch
           placeholder={t("mods.edit.categoryPlaceholder")}
           filterOption={(input, option) =>
-            (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+            String(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
           }
           options={categoryOptions.map((cat) => ({
             value: cat.id,
@@ -103,13 +103,13 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
         tooltip={ageRatingTooltip}
         className="metadata-section-grading"
       >
-        <Select placeholder={t("mods.edit.ageRating.placeholder")}>
+        <CompactSelect placeholder={t("mods.edit.ageRating.placeholder")}>
           {ageRatingOptions.map((option) => (
             <Option key={option.value} value={option.value}>
               {option.label}
             </Option>
           ))}
-        </Select>
+        </CompactSelect>
       </Form.Item>
 
       <Form.Item

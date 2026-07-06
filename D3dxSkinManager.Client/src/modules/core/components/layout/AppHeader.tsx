@@ -1,6 +1,6 @@
 import React from "react";
 import classNames from "classnames";
-import { Layout, Button } from "antd";
+import { Layout } from 'antd';
 import {
   AppstoreOutlined,
   CloudOutlined,
@@ -12,6 +12,7 @@ import { ProfileManager } from "../../../profile/components/ProfileManager";
 import { useSlideInScreenContext } from "../../../../shared/context/SlideInScreenContext";
 import { useTranslation } from "react-i18next";
 import "./AppHeader.css";
+import { CompactButton } from '../../../../shared/components/compact';
 
 const { Header } = Layout;
 
@@ -64,7 +65,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             const isSelected = selectedTab === tab.key;
 
             return (
-              <Button
+              <CompactButton
                 key={tab.key}
                 type="text"
                 icon={tab.icon}
@@ -74,7 +75,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 })}
               >
                 {tab.label}
-              </Button>
+              </CompactButton>
             );
           })}
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Button, Input } from "antd";
+
 import {
   SaveOutlined,
   AppstoreOutlined,
@@ -24,6 +24,7 @@ import { useEventSubscription } from "../../../../shared/hooks/useEventSubscript
 import { Module, ModEventType } from "../../../../shared/services/eventBus";
 import type { ModPresetInfo } from "../../../../shared/types/mod.types";
 import "./ModPresetMenu.css";
+import { CompactInput, CompactButton } from '../../../../shared/components/compact';
 
 export const ModPresetMenu: React.FC = () => {
   const { t } = useTranslation();
@@ -209,7 +210,7 @@ export const ModPresetMenu: React.FC = () => {
 
   return (
     <>
-      <Button
+      <CompactButton
         type="text"
         size="small"
         className="mod-preset-menu__trigger"
@@ -217,7 +218,7 @@ export const ModPresetMenu: React.FC = () => {
         onClick={handleButtonClick}
       >
         {t("statusBar.presets")}
-      </Button>
+      </CompactButton>
 
       <ContextMenu
         items={menuItems}
@@ -238,7 +239,7 @@ export const ModPresetMenu: React.FC = () => {
         cancelText={t("common.cancel")}
         width={360}
       >
-        <Input
+        <CompactInput
           placeholder={t("statusBar.presets.savePrompt")}
           value={presetName}
           onChange={(e) => setPresetName(e.target.value)}
