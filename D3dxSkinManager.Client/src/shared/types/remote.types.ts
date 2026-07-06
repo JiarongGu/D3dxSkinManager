@@ -60,6 +60,16 @@ export interface RemoteResolveResult {
   fileName: string;
   size: number;
   downloadUrl: string;
+  /** Headers the download GET must carry (auth'd hosts like Quark — cookie + UA). */
+  downloadHeaders?: Record<string, string>;
+}
+
+/** A saved login for an auth'd download host (Quark). Cookie-free — the backend never ships it. */
+export interface OnlineStorageAccountInfo {
+  provider: string;
+  displayName: string;
+  loggedIn: boolean;
+  savedAtUtc?: string;
 }
 
 export interface RemoteDownloadImportAck {

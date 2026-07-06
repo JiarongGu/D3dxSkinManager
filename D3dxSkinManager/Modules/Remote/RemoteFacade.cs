@@ -32,6 +32,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     private readonly IRemoteIndexService _index;
     private readonly IRemoteSourceStore _sourceStore;
     private readonly IRemoteLibraryStore _libraries;
+    private readonly IOnlineAccountStore _accounts;
+    private readonly IExternalLoginService _login;
     private readonly IPayloadHelper _payloadHelper;
 
     public RemoteFacade(
@@ -40,6 +42,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         IRemoteIndexService index,
         IRemoteSourceStore sourceStore,
         IRemoteLibraryStore libraries,
+        IOnlineAccountStore accounts,
+        IExternalLoginService login,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
@@ -48,6 +52,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         _index = index ?? throw new ArgumentNullException(nameof(index));
         _sourceStore = sourceStore ?? throw new ArgumentNullException(nameof(sourceStore));
         _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries));
+        _accounts = accounts ?? throw new ArgumentNullException(nameof(accounts));
+        _login = login ?? throw new ArgumentNullException(nameof(login));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -83,6 +89,12 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "libraryId")),
             "LIBRARY_SET_ACTIVE" => _libraries.SetActive(
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "libraryId")),
+            // Online-storage accounts (auth'd download hosts, e.g. Quark) — the login opens an
+            // in-app WebView2 window and captures the session cookie (see ExternalLoginService).
+            "ACCOUNT_LIST" => _accounts.List(),
+            "ACCOUNT_LOGIN" => await _login.LoginAsync(
+                _payloadHelper.GetRequiredValue<string>(request.Payload, "provider")),
+            "ACCOUNT_REMOVE" => RemoveAccount(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }
@@ -228,5 +240,12 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var config = _payloadHelper.GetRequiredValue<RemoteSourceConfig>(request.Payload, "config");
         var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
         return _browse.TestConfigAsync(config, listId);
+    }
+
+    private object RemoveAccount(IpcRequest request)
+    {
+        var provider = _payloadHelper.GetRequiredValue<string>(request.Payload, "provider");
+        _accounts.Remove(provider);
+        return _accounts.List();
     }
 }

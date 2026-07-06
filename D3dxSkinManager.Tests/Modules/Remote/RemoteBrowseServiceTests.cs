@@ -175,7 +175,7 @@ public class RemoteBrowseServiceTests
             Type = "cloudreve",
             UnzipPassword = "huihui", // the seed's site-known 解压密码 rides along on matched options
         });
-        detail.Downloads[1].Type.Should().Be("external");
+        detail.Downloads[1].Type.Should().Be("quark", "the huihui seed resolves 夸克 via the Quark share API (needs a saved login)");
     }
 
     [Fact]

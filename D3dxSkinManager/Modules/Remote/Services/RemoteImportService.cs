@@ -43,6 +43,7 @@ public class RemoteImportService : IRemoteImportService
     private static readonly TimeSpan ImportedCacheTtl = TimeSpan.FromSeconds(30);
 
     private readonly ICloudreveShareResolver _cloudreve;
+    private readonly IQuarkShareResolver _quark;
     private readonly IDownloadService _download;
     private readonly IModImportService _import;
     private readonly IModRepository _repository;
@@ -59,6 +60,7 @@ public class RemoteImportService : IRemoteImportService
 
     public RemoteImportService(
         ICloudreveShareResolver cloudreve,
+        IQuarkShareResolver quark,
         IDownloadService download,
         IModImportService import,
         IModRepository repository,
@@ -70,6 +72,7 @@ public class RemoteImportService : IRemoteImportService
         ILogHelper logger)
     {
         _cloudreve = cloudreve;
+        _quark = quark;
         _download = download;
         _import = import;
         _repository = repository;
@@ -83,7 +86,8 @@ public class RemoteImportService : IRemoteImportService
 
     /// <summary>
     /// Download-method dispatch — each resolver `type` in an adapter maps to a strategy here.
-    /// "cloudreve" = share-API resolve; "direct" = the URL IS the file (covers simple sites with
+    /// "cloudreve" = share-API resolve (anonymous); "quark" = Quark share-API resolve using the
+    /// saved online-storage account cookie; "direct" = the URL IS the file (covers simple sites with
     /// zero code); "external"/unknown = browser-only. New methods (other pan APIs, auth'd hosts)
     /// slot in as new cases + adapter resolver types.
     /// </summary>
@@ -93,6 +97,8 @@ public class RemoteImportService : IRemoteImportService
         {
             case "cloudreve":
                 return _cloudreve.ResolveAsync(option.Url, ct);
+            case "quark":
+                return _quark.ResolveAsync(option.Url, ct);
             case "direct":
                 // The URL basename is often just an id (e.g. gamebanana.com/dl/123 → "123", no
                 // extension → import can't tell the archive type). Prefer the option Name when it
@@ -114,6 +120,7 @@ public class RemoteImportService : IRemoteImportService
 
     private static bool IsImportable(string type) =>
         string.Equals(type, "cloudreve", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(type, "quark", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "direct", StringComparison.OrdinalIgnoreCase);
 
     public string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
@@ -146,7 +153,12 @@ public class RemoteImportService : IRemoteImportService
                         $"Downloading {FormatBytes(p.BytesReceived)}{(p.TotalBytes.HasValue ? " / " + FormatBytes(p.TotalBytes.Value) : "")}");
                 });
                 var downloaded = await _download.DownloadAsync(
-                    new DownloadRequest { Url = resolved.DownloadUrl, DestinationPath = archivePath },
+                    new DownloadRequest
+                    {
+                        Url = resolved.DownloadUrl,
+                        DestinationPath = archivePath,
+                        Headers = resolved.DownloadHeaders, // auth'd hosts (Quark) need the cookie + UA on the CDN GET
+                    },
                     progress, ct).ConfigureAwait(false);
 
                 ct.ThrowIfCancellationRequested();

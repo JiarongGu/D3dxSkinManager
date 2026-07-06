@@ -27,6 +27,10 @@ public static class RemoteServiceExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IRemoteSiteEngine, GameBananaEngine>());
         services.TryAddSingleton<IRemoteBrowseService, RemoteBrowseService>();
         services.TryAddSingleton<ICloudreveShareResolver, CloudreveShareResolver>();
+        // Online-storage accounts (auth'd download hosts) + the Quark share resolver that uses them.
+        services.TryAddSingleton<IOnlineAccountStore, OnlineAccountStore>();
+        services.TryAddSingleton<IQuarkShareResolver, QuarkShareResolver>();
+        services.TryAddSingleton<IExternalLoginService, ExternalLoginService>();
         services.TryAddSingleton<IRemoteIndexRepository, RemoteIndexRepository>();
         services.TryAddSingleton<IRemoteIndexService, RemoteIndexService>();
         services.TryAddSingleton<IRemoteImportService, RemoteImportService>();

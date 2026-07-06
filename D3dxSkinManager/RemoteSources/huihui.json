@@ -34,6 +34,6 @@
   // password first and uses this only when that fails with a password error.
   "resolvers": [
     { "match": "^https?://cloudreve\\.", "type": "cloudreve", "name": "Hui盘", "unzipPassword": "huihui" },
-    { "match": "^https?://pan\\.quark\\.cn/", "type": "external", "name": "夸克", "unzipPassword": "huihui" }
+    { "match": "^https?://pan\\.quark\\.cn/", "type": "quark", "name": "夸克", "unzipPassword": "huihui" }
   ]
 }

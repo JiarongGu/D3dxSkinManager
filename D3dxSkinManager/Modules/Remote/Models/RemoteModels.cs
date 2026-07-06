@@ -181,6 +181,39 @@ public class RemoteResolveResult
     public string FileName { get; set; } = string.Empty;
     public long Size { get; set; }
     public string DownloadUrl { get; set; } = string.Empty;
+
+    /// <summary>Extra request headers the DOWNLOAD of <see cref="DownloadUrl"/> must carry (e.g. a
+    /// Quark session Cookie + UA — its CDN rejects the presigned URL without them). Null for hosts
+    /// whose resolved URL is unauthenticated (Cloudreve presigned, GameBanana direct).</summary>
+    public Dictionary<string, string>? DownloadHeaders { get; set; }
+}
+
+// ---- Online storage accounts (credentials for auth'd download hosts, e.g. Quark) -----------------
+
+/// <summary>A saved login for an online-storage host whose downloads need authentication. GLOBAL
+/// (not per-profile) — a host recurs across sites/profiles. The cookie is captured by an in-app
+/// login window (WebView2), never typed. Stored in {data}/online-accounts.json.</summary>
+public class OnlineStorageAccount
+{
+    /// <summary>Host key, e.g. "quark". Matches a resolver's <c>type</c>.</summary>
+    public string Provider { get; set; } = string.Empty;
+
+    /// <summary>Friendly account label captured at login (e.g. the Quark nickname), for the UI.</summary>
+    public string DisplayName { get; set; } = string.Empty;
+
+    /// <summary>The captured Cookie header value used to authenticate host API/CDN requests.</summary>
+    public string Cookie { get; set; } = string.Empty;
+
+    public DateTime SavedAtUtc { get; set; }
+}
+
+/// <summary>UI view of a saved account — never ships the raw cookie to the frontend.</summary>
+public class OnlineStorageAccountInfo
+{
+    public string Provider { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public bool LoggedIn { get; set; }
+    public DateTime? SavedAtUtc { get; set; }
 }
 
 // ---- Synced index (local cache of a source list) -------------------------------------------------

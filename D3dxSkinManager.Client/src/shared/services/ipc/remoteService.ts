@@ -20,6 +20,7 @@ import type {
   RemoteSourceTestResult,
   RemoteTagCount,
   RemoteTagRule,
+  OnlineStorageAccountInfo,
 } from '../../types/remote.types';
 
 export class RemoteService extends BaseModuleService {
@@ -146,5 +147,22 @@ export class RemoteService extends BaseModuleService {
   /** The FULL adapter config (for the edit screen; GET_SOURCES only carries display info). */
   async getSourceConfig(profileId: string, sourceId: string): Promise<RemoteSourceConfig> {
     return this.sendMessage<RemoteSourceConfig>('GET_SOURCE_CONFIG', profileId, { sourceId });
+  }
+
+  // ---- online-storage accounts (auth'd download hosts, e.g. Quark) --------------------------
+
+  /** Saved logins for auth'd download hosts (cookie-free view). */
+  async accountList(profileId: string): Promise<OnlineStorageAccountInfo[]> {
+    return this.sendArrayMessage<OnlineStorageAccountInfo>('ACCOUNT_LIST', profileId);
+  }
+
+  /** Open the in-app login window for a provider; resolves when the user closes it. */
+  async accountLogin(profileId: string, provider: string): Promise<OnlineStorageAccountInfo> {
+    return this.sendMessage<OnlineStorageAccountInfo>('ACCOUNT_LOGIN', profileId, { provider });
+  }
+
+  /** Log out (remove the saved cookie) and return the remaining accounts. */
+  async accountRemove(profileId: string, provider: string): Promise<OnlineStorageAccountInfo[]> {
+    return this.sendMessage<OnlineStorageAccountInfo[]>('ACCOUNT_REMOVE', profileId, { provider });
   }
 }
