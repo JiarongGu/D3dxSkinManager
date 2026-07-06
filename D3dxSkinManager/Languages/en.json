@@ -785,6 +785,7 @@
     "onlineStorage.logout": "Log out",
     "onlineStorage.loginSuccess": "Logged in to {{name}}.",
     "onlineStorage.loginNotCompleted": "Login window closed without signing in — nothing saved.",
+    "onlineStorage.loginWindowOpened": "Login window opened — the status updates once you sign in.",
     "onlineStorage.loggedOut": "Logged out.",
     "settings.profile.launch.label": "Game launch",
     "settings.profile.launch.tooltip": "What the status-bar Launch button runs. Binding an XXMI importer fills this automatically; adjust the program or arguments here.",

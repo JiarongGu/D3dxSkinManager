@@ -21,4 +21,8 @@ public static class SystemEvents
     // Raised when the user asks to resume an interrupted+resumable process. The owning op module
     // subscribes (filtering by process type) and continues from its persisted checkpoint.
     public const string PROCESS_RESUME_REQUESTED = "PROCESS_RESUME_REQUESTED";
+
+    // An online-storage account (Quark, …) was logged in/out or changed. The login window can outlive
+    // the IPC bridge timeout, so the Online Storage card refreshes on THIS event, not the IPC result.
+    public const string ONLINE_ACCOUNT_CHANGED = "ONLINE_ACCOUNT_CHANGED";
 }

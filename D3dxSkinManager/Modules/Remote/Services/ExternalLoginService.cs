@@ -29,9 +29,11 @@ public interface IExternalLoginService
 
 public class ExternalLoginService : IExternalLoginService
 {
-    /// <summary>Per-provider login target: where to send the user, which origin owns the cookie, and
-    /// which cookie names prove a completed login (so we don't save an anonymous session).</summary>
-    private sealed record LoginTarget(string LoginUrl, string CookieUrl, string[] AuthCookieNames, string DisplayName);
+    /// <summary>Per-provider login target: where to send the user, which origin owns the cookie,
+    /// which cookie names prove a completed login (so we don't save an anonymous session), and an
+    /// optional script to focus/scroll the login UI into view once the page renders.</summary>
+    private sealed record LoginTarget(string LoginUrl, string CookieUrl, string[] AuthCookieNames,
+        string DisplayName, string? FocusScript = null);
 
     private static readonly IReadOnlyDictionary<string, LoginTarget> Targets =
         new Dictionary<string, LoginTarget>(StringComparer.OrdinalIgnoreCase)
@@ -39,9 +41,18 @@ public class ExternalLoginService : IExternalLoginService
             // Quark: the session cookies (__puus/__pus/__kps/__uid) live on the PARENT domain
             // `.quark.cn`, not `pan.quark.cn` (verified from the login profile's cookie DB). Read
             // them from the API origin (drive-pc.quark.cn) so the domain cookies — the exact set the
-            // resolver must send to that host — are what we capture.
+            // resolver must send to that host — are what we capture. FocusScript defers past the SPA
+            // render, then focuses the phone-login input (or scrolls the QR/login panel into view).
             ["quark"] = new("https://pan.quark.cn/", "https://drive-pc.quark.cn",
-                new[] { "__puus", "__pus", "__kps", "__uid" }, "夸克网盘"),
+                new[] { "__puus", "__pus", "__kps", "__uid" }, "夸克网盘",
+                FocusScript: """
+                setTimeout(function(){ try {
+                  var inp = document.querySelector('input[type="tel"], input[placeholder*="手机"], input[type="text"]');
+                  if (inp) { inp.scrollIntoView({block:'center'}); inp.focus(); return; }
+                  var box = document.querySelector('[class*="login" i],[class*="qrcode" i],[class*="qr" i]');
+                  if (box) box.scrollIntoView({block:'center'});
+                } catch(e){} }, 900);
+                """),
         };
 
     private readonly IFormInteractionService _forms;
@@ -135,6 +146,7 @@ public class ExternalLoginService : IExternalLoginService
             form.Location = new Point(wa.X + (wa.Width - form.Width) / 2, wa.Y + (wa.Height - form.Height) / 2);
             form.Activate();
             form.BringToFront();
+            webView.Focus(); // keyboard/scan goes to the login page immediately
         }
 
         // Persistent, per-provider WebView2 profile so the login sticks between sessions (cleared on logout).
@@ -195,6 +207,17 @@ public class ExternalLoginService : IExternalLoginService
             await FinishAsync(autoClose: false).ConfigureAwait(true);
         };
         form.FormClosed += (_, _) => poll.Dispose();
+
+        // Once the login page loads, focus/scroll its login element into view (per-provider script).
+        if (!string.IsNullOrEmpty(target.FocusScript))
+        {
+            webView.CoreWebView2.NavigationCompleted += async (_, e) =>
+            {
+                if (!e.IsSuccess || form.IsDisposed) return;
+                try { await webView.CoreWebView2.ExecuteScriptAsync(target.FocusScript).ConfigureAwait(true); } catch { }
+                if (!form.IsDisposed && form.ShowInTaskbar) webView.Focus(); // only when the window is visible
+            };
+        }
 
         webView.CoreWebView2.Navigate(target.LoginUrl);
         form.Show(mainForm); // shown off-screen; RevealIfHidden() brings it on-screen only if needed

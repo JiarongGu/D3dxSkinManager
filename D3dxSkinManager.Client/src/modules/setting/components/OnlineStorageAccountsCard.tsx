@@ -5,6 +5,7 @@ import { CompactCard, CompactButton } from "../../../shared/components/compact";
 import { StatusTag } from "../../../shared/components/common/StatusTag";
 import { useProfile } from "../../../shared/context/ProfileContext";
 import { api } from "../../../shared/services/ipc";
+import { eventBus, Module, SystemEventType } from "../../../shared/services/eventBus";
 import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
 import type { OnlineStorageAccountInfo } from "../../../shared/types/remote.types";
@@ -38,23 +39,29 @@ export const OnlineStorageAccountsCard: React.FC = () => {
     void refresh();
   }, [refresh]);
 
+  // The login window is fire-and-forget (a real QR login outlives the IPC bridge timeout), so the
+  // status updates on the backend ONLINE_ACCOUNT_CHANGED event, not the login call's result.
+  useEffect(() => {
+    const unsub = eventBus.subscribe(Module.SYSTEM, SystemEventType.ONLINE_ACCOUNT_CHANGED, () => {
+      setBusy(undefined);
+      void refresh();
+    });
+    return () => unsub();
+  }, [refresh]);
+
   const accountFor = (provider: string) => accounts.find((a) => a.provider === provider);
 
   const handleLogin = async (provider: string) => {
     if (!selectedProfileId) return;
     try {
       setBusy(provider);
-      const result = await api.remote.accountLogin(selectedProfileId, provider);
-      if (result.loggedIn) {
-        notification.success(t("onlineStorage.loginSuccess", { name: result.displayName || provider }));
-      } else {
-        notification.info(t("onlineStorage.loginNotCompleted"));
-      }
-      await refresh();
+      await api.remote.accountLogin(selectedProfileId, provider); // opens the login window (ack only)
+      notification.info(t("onlineStorage.loginWindowOpened"));
+      // Status flips when ONLINE_ACCOUNT_CHANGED fires (window closed / captured). busy clears there
+      // (or on unmount) — a silent already-logged-in refresh also arrives via the event.
     } catch (error: unknown) {
-      handleError(error);
-    } finally {
       setBusy(undefined);
+      handleError(error);
     }
   };
 

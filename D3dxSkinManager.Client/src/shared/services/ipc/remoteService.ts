@@ -156,9 +156,11 @@ export class RemoteService extends BaseModuleService {
     return this.sendArrayMessage<OnlineStorageAccountInfo>('ACCOUNT_LIST', profileId);
   }
 
-  /** Open the in-app login window for a provider; resolves when the user closes it. */
-  async accountLogin(profileId: string, provider: string): Promise<OnlineStorageAccountInfo> {
-    return this.sendMessage<OnlineStorageAccountInfo>('ACCOUNT_LOGIN', profileId, { provider });
+  /** Open the in-app login window for a provider. Fire-and-forget (a real QR login outlives the IPC
+   * bridge timeout) — returns immediately; the account status updates via the ONLINE_ACCOUNT_CHANGED
+   * event when the window finishes. */
+  async accountLogin(profileId: string, provider: string): Promise<{ started: boolean }> {
+    return this.sendMessage<{ started: boolean }>('ACCOUNT_LOGIN', profileId, { provider });
   }
 
   /** Log out (remove the saved cookie) and return the remaining accounts. */

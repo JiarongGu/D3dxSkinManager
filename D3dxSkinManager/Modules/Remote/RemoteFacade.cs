@@ -1,4 +1,5 @@
 using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Remote.Models;
@@ -34,6 +35,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     private readonly IRemoteLibraryStore _libraries;
     private readonly IOnlineAccountStore _accounts;
     private readonly IExternalLoginService _login;
+    private readonly IEventBus _eventBus;
     private readonly IPayloadHelper _payloadHelper;
 
     public RemoteFacade(
@@ -44,6 +46,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         IRemoteLibraryStore libraries,
         IOnlineAccountStore accounts,
         IExternalLoginService login,
+        IEventBus eventBus,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
@@ -54,6 +57,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries));
         _accounts = accounts ?? throw new ArgumentNullException(nameof(accounts));
         _login = login ?? throw new ArgumentNullException(nameof(login));
+        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -92,8 +96,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             // Online-storage accounts (auth'd download hosts, e.g. Quark) — the login opens an
             // in-app WebView2 window and captures the session cookie (see ExternalLoginService).
             "ACCOUNT_LIST" => _accounts.List(),
-            "ACCOUNT_LOGIN" => await _login.LoginAsync(
-                _payloadHelper.GetRequiredValue<string>(request.Payload, "provider")),
+            "ACCOUNT_LOGIN" => StartAccountLogin(request),
             "ACCOUNT_REMOVE" => RemoveAccount(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -242,11 +245,30 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         return _browse.TestConfigAsync(config, listId);
     }
 
+    /// <summary>Open the login window FIRE-AND-FORGET (a real QR login easily outlives the 30s IPC
+    /// bridge timeout, which would leave the card stuck on "not logged in"). Ack immediately; when the
+    /// window finishes (captured or cancelled), emit ONLINE_ACCOUNT_CHANGED so the card refreshes.</summary>
+    private object StartAccountLogin(IpcRequest request)
+    {
+        var provider = _payloadHelper.GetRequiredValue<string>(request.Payload, "provider");
+        _ = Task.Run(async () =>
+        {
+            try { await _login.LoginAsync(provider).ConfigureAwait(false); }
+            catch (Exception ex) { _logger.Error($"[Remote] account login failed: {ex.Message}", ModuleName, ex); }
+            finally { await EmitAccountChangedAsync().ConfigureAwait(false); }
+        });
+        return new { started = true };
+    }
+
     private object RemoveAccount(IpcRequest request)
     {
         var provider = _payloadHelper.GetRequiredValue<string>(request.Payload, "provider");
         _accounts.Remove(provider);
         _login.ClearProfile(provider); // also wipe the WebView2 login profile so logout is a real logout
+        _ = EmitAccountChangedAsync();
         return _accounts.List();
     }
+
+    private Task EmitAccountChangedAsync() =>
+        _eventBus.EmitAsync(ModuleNames.SYSTEM, SystemEvents.ONLINE_ACCOUNT_CHANGED);
 }
