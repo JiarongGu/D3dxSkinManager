@@ -1,16 +1,40 @@
 .mod-fix {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 4px;
   height: 100%;
   min-height: 0;
-  /* Whole panel scrolls when the table + settings exceed the height; the table itself keeps its
-     natural height (no flex:1 — that fought the settings card and crushed the table to 0px). */
+  padding: 4px;
+}
+
+/* Tabs fill the panel; the tab CONTENT scrolls, the tab bar stays put. */
+.mod-fix__tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mod-fix__tabs .ant-tabs-content-holder {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
-/* Slim add toolbar (management-table style, like the Tag tool header): name + add buttons + hint. */
+.mod-fix__tabs .ant-tabs-content,
+.mod-fix__tabs .ant-tabs-tabpane {
+  height: 100%;
+}
+
+/* Tools tab: toolbar → table → run feedback, stacked with breathing room. */
+.mod-fix__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  padding: 4px 2px;
+}
+
+/* Slim add-toolbar (management-table style): name grows, add buttons pinned right. */
 .mod-fix__toolbar {
   display: flex;
   align-items: center;
@@ -18,39 +42,45 @@
 }
 
 .mod-fix__name {
-  max-width: 260px;
+  flex: 0 1 360px;
 }
 
-.mod-fix__toolbar-hint {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-  margin-left: 4px;
+.mod-fix__toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
 }
 
-/* Empty state fills the space left below the add-tool panel and centers (was top-aligned). */
+/* Empty state fills the panel and centers (with the drag hint below the illustration). */
 .mod-fix__empty {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
 }
 
-.mod-fix__description {
-  font-size: 14px;
-  color: var(--color-text-secondary);
+.mod-fix__drop-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
 }
 
-.mod-fix__actions {
-  display: flex;
-  gap: 8px;
+/* Table keeps natural height; the tab content-holder owns vertical scroll. */
+.mod-fix__table {
+  flex: 0 0 auto;
 }
 
+/* Bulk-run progress — a slim inline bar while running. */
 .mod-fix__progress {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 0 0 auto;
 }
 
 .mod-fix__progress-text {
@@ -58,8 +88,19 @@
   color: var(--color-text-secondary);
 }
 
-.mod-fix__summary {
-  margin-top: 4px;
+/* Run results, contained in a collapsible panel (never dumped under the table). */
+.mod-fix__result {
+  flex: 0 0 auto;
+}
+
+.mod-fix__result-summary {
+  align-items: center;
+}
+
+.mod-fix__result-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-base);
 }
 
 .mod-fix__output {
@@ -74,16 +115,9 @@
   font-size: 12px;
 }
 
-.mod-fix__table {
-  /* Natural height; the panel (.mod-fix) owns vertical scroll. Never shrink — a flex item with
-     overflow set gets min-height:auto→0 and collapses, so DON'T put overflow here. */
-  flex: 0 0 auto;
-}
-
-/* Fix-tool settings block, below the table (moved in from global Settings). Never shrinks. */
-.mod-fix__settings {
-  margin-top: 8px;
-  flex: 0 0 auto;
+/* Settings tab: the fix-tool settings card, roomy on its own. */
+.mod-fix__settings-view {
+  padding: 4px 2px;
 }
 
 .mod-fix__settings-grid {

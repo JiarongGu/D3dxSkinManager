@@ -1181,6 +1181,9 @@
     "tools.fileCleanup.cleanupPartial": "已删除 {{deleted}} 项，{{failed}} 项失败",
 
     "tools.modFix.title": "模组修复工具",
+    "tools.modFix.tabTools": "修复工具",
+    "tools.modFix.tabSettings": "设置",
+    "tools.modFix.lastRun": "上次运行",
     "tools.modFix.cardDescription": "对单个或全部模组运行修复脚本（.py/.exe），在游戏更新后修复失效的哈希",
     "tools.modFix.description": "管理你的修复工具集合。每个工具是一个脚本/程序（文件夹或单个文件），保存在当前配置中。可在模组右键菜单中对单个模组运行，或在此处对全部模组运行。常用于在游戏更新后修复 3DMigoto 哈希。",
     "tools.modFix.addTool": "添加修复工具",

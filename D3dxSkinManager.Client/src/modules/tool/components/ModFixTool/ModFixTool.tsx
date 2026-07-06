@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Space, Progress, Empty, Popconfirm, Tooltip, Dropdown } from 'antd';
+import { Space, Progress, Empty, Popconfirm, Tooltip, Dropdown, Tabs, Collapse } from 'antd';
 import {
   ThunderboltOutlined, FolderOpenOutlined,
-  FileAddOutlined, DeleteOutlined, DownOutlined, EditOutlined,
+  FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined,
 } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { DataTable } from '../../../../shared/components/common';
@@ -251,12 +251,12 @@ const ModFixManagerInner: React.FC = () => {
     },
   ];
 
-  return (
-    <div className="mod-fix" ref={dropRef}>
-      <div className="mod-fix__description">{t('tools.modFix.description')}</div>
-
-      {/* Add a fix tool — slim toolbar above the table (management-table style); the whole screen
-          accepts drag-drop. Name is optional (defaults to the file/folder name; rename via the row). */}
+  // ── Tools tab: add-toolbar → management table → contained run feedback (progress + collapsible
+  //    last-run results). Everything about MANAGING and RUNNING tools lives here. ─────────────────
+  const toolsTab = (
+    <div className="mod-fix__panel">
+      {/* Slim add-toolbar (management-table style). Name optional — defaults to the file/folder name;
+          rename via the row. The whole screen accepts drag-drop. */}
       <div className="mod-fix__toolbar">
         <CompactInput
           className="mod-fix__name"
@@ -265,21 +265,69 @@ const ModFixManagerInner: React.FC = () => {
           onChange={(e) => setNewName(e.target.value)}
           disabled={busy}
         />
-        <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
-          {t('tools.modFix.addFolder')}
-        </CompactButton>
-        <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
-          {t('tools.modFix.addFile')}
-        </CompactButton>
-        <span className="mod-fix__toolbar-hint">{t('tools.modFix.dropHint')}</span>
+        <div className="mod-fix__toolbar-actions">
+          <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
+            {t('tools.modFix.addFolder')}
+          </CompactButton>
+          <CompactButton icon={<FileAddOutlined />} loading={busy} onClick={() => addFrom(false)}>
+            {t('tools.modFix.addFile')}
+          </CompactButton>
+        </div>
       </div>
 
-      {/* Library */}
       {tools.length === 0 ? (
-        <Empty description={t('tools.modFix.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} className="mod-fix__empty" />
+        <div className="mod-fix__empty">
+          <Empty description={t('tools.modFix.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <span className="mod-fix__drop-hint">
+            <InboxOutlined /> {t('tools.modFix.dropHint')}
+          </span>
+        </div>
       ) : (
         <DataTable dataSource={tools} columns={columns} rowKey="id" compact pagination={false} className="mod-fix__table" />
       )}
+
+      {/* Bulk-run feedback, contained (not dumped): a slim progress bar while running, then the
+          per-mod results tucked into a collapsible panel (auto-open) so they don't crowd the list. */}
+      {running && progress && (
+        <div className="mod-fix__progress">
+          <Progress percent={progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0} size="small" />
+          <span className="mod-fix__progress-text">{progress.current}/{progress.total}: {progress.modName}</span>
+        </div>
+      )}
+      {result && !running && (
+        <Collapse
+          className="mod-fix__result"
+          defaultActiveKey={['result']}
+          items={[{
+            key: 'result',
+            label: (
+              <Space size="small" className="mod-fix__result-summary">
+                <span className="mod-fix__result-title">{t('tools.modFix.lastRun')}</span>
+                <StatusTag tone="success" label={`${t('tools.modFix.succeeded')}: ${result.succeeded}`} />
+                {result.failed > 0 && <StatusTag tone="error" label={`${t('tools.modFix.failed')}: ${result.failed}`} />}
+                {result.skipped > 0 && <StatusTag tone="neutral" label={`${t('tools.modFix.skipped')}: ${result.skipped}`} />}
+              </Space>
+            ),
+            children: <ResultTable items={result.results} />,
+          }]}
+        />
+      )}
+    </div>
+  );
+
+  return (
+    <div className="mod-fix" ref={dropRef}>
+      <Tabs
+        className="mod-fix__tabs"
+        items={[
+          { key: 'tools', label: t('tools.modFix.tabTools'), children: toolsTab },
+          {
+            key: 'settings',
+            label: t('tools.modFix.tabSettings'),
+            children: <div className="mod-fix__settings-view"><FixToolSettingsCard /></div>,
+          },
+        ]}
+      />
 
       <FormDialog
         visible={!!renaming}
@@ -296,32 +344,6 @@ const ModFixManagerInner: React.FC = () => {
           onPressEnter={() => void rename()}
         />
       </FormDialog>
-
-      {/* Bulk-run feedback */}
-      {running && progress && (
-        <div className="mod-fix__progress">
-          <Progress percent={progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0} size="small" />
-          <span className="mod-fix__progress-text">{progress.current}/{progress.total}: {progress.modName}</span>
-        </div>
-      )}
-      {result && !running && (
-        <>
-          <div className="mod-fix__summary">
-            <Space size="middle">
-              <StatusTag tone="success" label={`${t('tools.modFix.succeeded')}: ${result.succeeded}`} />
-              {result.failed > 0 && <StatusTag tone="error" label={`${t('tools.modFix.failed')}: ${result.failed}`} />}
-              {result.skipped > 0 && <StatusTag tone="neutral" label={`${t('tools.modFix.skipped')}: ${result.skipped}`} />}
-            </Space>
-          </div>
-          <ResultTable items={result.results} />
-        </>
-      )}
-
-      {/* Fix-tool settings (Python / timeout / extensions / auto-confirm) — moved out of global
-          Settings; config lives with the tool it drives. Self-contained (own load + save/reset). */}
-      <div className="mod-fix__settings">
-        <FixToolSettingsCard />
-      </div>
     </div>
   );
 };
