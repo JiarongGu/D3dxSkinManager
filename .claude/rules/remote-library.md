@@ -116,10 +116,16 @@ Modules/Remote/
                             first/last-seen, site recency order; Query = instant local
                             filter/search/paging
     RemoteImportService   — fire-and-forget download+import: ProcessRegistry entry → resolve →
-                            IDownloadService.DownloadAsync into {profile}/temp → ModImportService
-                            .ImportAsync → site title as name + previews + records
-                            `remote:{sourceId, detailUrl, sha256, importedAtUtc}` in ModEntity
-                            .Metadata (→ the index's `imported` flag / 已导入 badge)
+                            IDownloadService.DownloadAsync into {profile}/temp → **NORMALIZE
+                            (2026-07-06): extract + recompress to 7z — downloads are NEVER stored
+                            verbatim (passworded/odd containers would fail at load). Plain extract
+                            first; on a password-suspect failure (7z reports missing AES password as
+                            "Data error"/corrupted — indistinguishable from corruption) retry with
+                            the user's confirm-dialog password or the resolver's `unzipPassword`
+                            (huihui: "huihui"); still failing → REMOTE_ARCHIVE_PASSWORD** →
+                            ModImportService.ImportAsync(normalized) → site title as name + previews
+                            + records `remote:{sourceId, detailUrl, sha256, importedAtUtc}` in
+                            ModEntity.Metadata (→ the index's `imported` flag / 已导入 badge)
   RemoteFacade         — GET_SOURCES / BROWSE / SEARCH / GET_DETAIL / RESOLVE_DOWNLOAD /
                           DOWNLOAD_IMPORT / INDEX_QUERY / INDEX_SYNC (long ops ack immediately;
                           progress via Activity panel)
