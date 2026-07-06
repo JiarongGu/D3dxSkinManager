@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Select, Spin, Tabs } from 'antd';
+import { Spin, Tabs } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowLeftOutlined,
@@ -264,10 +264,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                           placeholder={t('remote.ruleName')}
                           onChange={(e) => setRule(i, { name: e.target.value })}
                         />
-                        <Select
+                        <CompactSelect
                           className="remote-lib-mgmt__rule-tags"
                           mode="tags"
-                          size="middle"
                           value={rule.tags}
                           placeholder={t('remote.ruleTags')}
                           options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
@@ -306,10 +305,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                     {editingAliases.map((alias, i) => (
                       <div key={i} className="remote-lib-mgmt__rule">
                         <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
-                        <Select
+                        <CompactSelect
                           className="remote-lib-mgmt__alias-tag"
                           mode="tags"
-                          size="middle"
                           maxCount={1}
                           value={alias.tag ? [alias.tag] : []}
                           placeholder={t('remote.aliasRawTag')}

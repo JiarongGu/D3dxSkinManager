@@ -169,41 +169,8 @@
   width: 100%;
 }
 
-/* Scrollbar styling for navigation */
-.help-window-nav::-webkit-scrollbar {
-  width: 6px;
-}
-
-.help-window-nav::-webkit-scrollbar-track {
-  background: var(--color-bg-container);
-}
-
-.help-window-nav::-webkit-scrollbar-thumb {
-  background: var(--color-border-secondary);
-  border-radius: 3px;
-}
-
-.help-window-nav::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-tertiary);
-}
-
-/* Scrollbar styling for content area */
-.help-window-content-area::-webkit-scrollbar {
-  width: 8px;
-}
-
-.help-window-content-area::-webkit-scrollbar-track {
-  background: var(--color-bg-base);
-}
-
-.help-window-content-area::-webkit-scrollbar-thumb {
-  background: var(--color-border-secondary);
-  border-radius: 4px;
-}
-
-.help-window-content-area::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-tertiary);
-}
+/* Scrollbars: the global slim style (theme-colors.css `* { scrollbar-width: thin }`) handles all
+   scrollers app-wide; no per-component overrides. */
 
 /* Responsive adjustments */
 @media (max-width: 768px) {

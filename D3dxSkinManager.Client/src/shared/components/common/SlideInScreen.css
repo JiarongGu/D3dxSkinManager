@@ -164,23 +164,7 @@
   color: var(--color-text-base);
 }
 
-/* Custom scrollbar for content */
-.slide-in-screen-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.slide-in-screen-content::-webkit-scrollbar-track {
-  background: var(--color-bg-base);
-}
-
-.slide-in-screen-content::-webkit-scrollbar-thumb {
-  background: var(--color-border-secondary);
-  border-radius: 4px;
-}
-
-.slide-in-screen-content::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-tertiary);
-}
+/* Scrollbar: handled globally (theme-colors.css `* { scrollbar-width: thin }`). */
 
 /* Animations */
 @keyframes slideInFromRight {

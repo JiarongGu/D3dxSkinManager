@@ -191,29 +191,4 @@
   font-weight: 500;
 }
 
-/* Scrollbar styling — one TOKEN-driven block; the tokens switch with the theme (the old per-theme
-   blocks hardcoded light-gray hexes). Matches the global scrollbar styling in theme-colors.css. */
-.mod-import-workflow-table .ant-table-body {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border-base) transparent;
-}
-
-.mod-import-workflow-table .ant-table-body::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.mod-import-workflow-table .ant-table-body::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
-
-.mod-import-workflow-table .ant-table-body::-webkit-scrollbar-thumb {
-  background: var(--color-border-base);
-  border-radius: 4px;
-  transition: background 0.3s ease;
-}
-
-.mod-import-workflow-table .ant-table-body::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
-}
+/* Scrollbars: handled globally (theme-colors.css `* { scrollbar-width: thin }`) — no table override. */

@@ -209,33 +209,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* === Smooth Scrolling === */
-/* Token-driven (was hardcoded light-gray hexes — broke in dark theme); matches the global
-   scrollbar styling in theme-colors.css. */
-.ant-table-body {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border-base) transparent;
-}
-
-.ant-table-body::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.ant-table-body::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
-
-.ant-table-body::-webkit-scrollbar-thumb {
-  background: var(--color-border-base);
-  border-radius: 4px;
-  transition: background 0.3s ease;
-}
-
-.ant-table-body::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
-}
+/* Scrollbars: handled globally (theme-colors.css `* { scrollbar-width: thin }`) — no table override. */
 
 /* === Skeleton Loading Animation === */
 .ant-skeleton-element {

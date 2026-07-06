@@ -127,21 +127,4 @@
   opacity: 0.7;
 }
 
-/* Scrollbar styling */
-.tag-management-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.tag-management-list::-webkit-scrollbar-track {
-  background: var(--background-color);
-  border-radius: 3px;
-}
-
-.tag-management-list::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 3px;
-}
-
-.tag-management-list::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-color);
-}
+/* Scrollbar: handled globally (theme-colors.css `* { scrollbar-width: thin }`). */

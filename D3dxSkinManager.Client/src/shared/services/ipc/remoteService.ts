@@ -141,10 +141,6 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteLibrariesState>('LIBRARY_SET_ACTIVE', profileId, { libraryId });
   }
 
-  async getSourceTemplate(profileId: string): Promise<string> {
-    return this.sendMessage<string>('GET_SOURCE_TEMPLATE', profileId);
-  }
-
   /** The FULL adapter config (for the edit screen; GET_SOURCES only carries display info). */
   async getSourceConfig(profileId: string, sourceId: string): Promise<RemoteSourceConfig> {
     return this.sendMessage<RemoteSourceConfig>('GET_SOURCE_CONFIG', profileId, { sourceId });

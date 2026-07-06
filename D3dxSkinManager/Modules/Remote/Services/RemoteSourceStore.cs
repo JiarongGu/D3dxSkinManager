@@ -24,9 +24,6 @@ public interface IRemoteSourceStore
 
     /// <summary>Delete the config file whose adapter has this id. True when something was removed.</summary>
     bool Delete(string sourceId);
-
-    /// <summary>An example adapter JSON (the shipped huihui seed) for the "add your own" editor.</summary>
-    string GetTemplateJson();
 }
 
 public class RemoteSourceStore : IRemoteSourceStore
@@ -133,31 +130,6 @@ public class RemoteSourceStore : IRemoteSourceStore
         }
         if (removed) _logger.Info($"Deleted remote source adapter: {sourceId}", "RemoteSourceStore");
         return removed;
-    }
-
-    public string GetTemplateJson()
-    {
-        var seedsDir = _globalPaths.RemoteSourceSeedsDirectory;
-        if (Directory.Exists(seedsDir))
-        {
-            var seed = Directory.GetFiles(seedsDir, "*.json").OrderBy(p => p).FirstOrDefault();
-            if (seed != null) return File.ReadAllText(seed);
-        }
-        // Minimal skeleton when no seeds ship (shouldn't happen in a real install).
-        return JsonSerializer.Serialize(new RemoteSourceConfig
-        {
-            Id = "mysite",
-            Name = "My Site",
-            BaseUrl = "https://example.com",
-            Lists = [new RemoteListConfig { Id = "1", Name = "Game" }],
-            ListUrlFirstPage = "/list/{list}/",
-            ListUrlTemplate = "/list/{list}/page/{page}/",
-            CardPattern = "<a[^>]+href=\"(?<url>[^\"]+)\"[^>]*><img[^>]+src=\"(?<image>[^\"]+)\"[^>]*alt=\"(?<title>[^\"]*)\"",
-            DetailTitlePattern = "<h1[^>]*>(?<title>[\\s\\S]*?)</h1>",
-            DetailImagePattern = "<img[^>]+src=\"(?<image>[^\"]+)\"",
-            DownloadLinkPattern = "<a[^>]+href=\"(?<url>https?://[^\"]+)\"",
-            Resolvers = [new RemoteResolverRule { Match = "\\.(zip|7z|rar)($|\\?)", Type = "direct", Name = "Direct" }],
-        }, JsonOptions);
     }
 
     /// <summary>Reject configs that could not work: bad id/baseUrl, missing lists, non-compiling regexes.</summary>

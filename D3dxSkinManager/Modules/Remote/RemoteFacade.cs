@@ -81,7 +81,6 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "GET_SOURCE_CONFIG" => _sourceStore.GetById(
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId")),
             "TEST_SOURCE" => await TestSourceAsync(request),
-            "GET_SOURCE_TEMPLATE" => _sourceStore.GetTemplateJson(),
             // Remote images are served via the app://remote-image proxy (global on-demand cache) —
             // the old RESOLVE_IMAGES preload round-trip is gone.
             // Configured libraries (remote-library-redesign.md): a profile owns many, switchable.

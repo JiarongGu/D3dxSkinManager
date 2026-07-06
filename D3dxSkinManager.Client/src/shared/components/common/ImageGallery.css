@@ -65,8 +65,6 @@
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border-base) transparent;
 }
 
 .image-gallery__strip::-webkit-scrollbar {
