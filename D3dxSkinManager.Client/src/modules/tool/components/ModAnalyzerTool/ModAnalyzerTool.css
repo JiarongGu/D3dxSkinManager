@@ -32,7 +32,9 @@
 }
 
 .mod-analyzer__hero-title {
-  font-size: 14px;
+  /* Hero/landing content title — 16px for hierarchy (was over-shrunk to 14px; see the content-title
+     distinction in ui-design-rules.md). */
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-text-base);
 }
