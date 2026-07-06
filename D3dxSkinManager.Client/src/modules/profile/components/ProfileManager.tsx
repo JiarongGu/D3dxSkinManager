@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from "react";
 import {
   Flex,
-  Button,
   Space,
   Tag,
   Tooltip,
   Form,
-  Input,
   ColorPicker,
   Spin,
   Row,
@@ -33,7 +31,7 @@ import { toAppUrl } from "../../../shared/utils/imageUrlHelper";
 import "./ProfileManager.css";
 import { notification } from "../../../shared/utils/notification";
 import { profileService, systemService } from "../../../shared/services/ipc";
-import { CompactThumbnailUpload, CompactPrimaryButton } from "../../../shared/components/compact";
+import { CompactThumbnailUpload, CompactPrimaryButton, CompactIconButton, CompactInput, CompactTextArea } from "../../../shared/components/compact";
 
 interface ProfileManagerProps {
   onProfileChanged?: () => void;
@@ -255,7 +253,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                       profile.id !== activeProfileId,
                   })}
                   style={{
-                    borderLeft: `4px solid ${profile.color || "#1890ff"}`,
+                    borderLeft: `4px solid ${profile.color || "var(--color-primary)"}`,
                   }}
                 >
                   <Flex
@@ -313,17 +311,15 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                   <Space>
                     {profile.id !== activeProfileId && (
                       <Tooltip title={t("profiles.tooltip.switch")}>
-                        <Button
+                        <CompactIconButton
                           icon={<SwapOutlined />}
-                          size="small"
                           onClick={() => handleSwitch(profile.id)}
                         />
                       </Tooltip>
                     )}
                     <Tooltip title={t("common.edit")}>
-                      <Button
+                      <CompactIconButton
                         icon={<EditOutlined />}
-                        size="small"
                         onClick={() => {
                           setEditingProfile(profile);
                           setEditThumbnailPath(profile.thumbnail);
@@ -340,10 +336,9 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                     </Tooltip>
                     {profile.id !== activeProfileId && (
                       <Tooltip title={t("common.delete")}>
-                        <Button
+                        <CompactIconButton
+                          tone="danger"
                           icon={<DeleteOutlined />}
-                          size="small"
-                          danger
                           onClick={() => {
                             setProfileToDelete(profile.id);
                             setDeleteConfirmVisible(true);
@@ -392,7 +387,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                 ]}
                 style={{ marginBottom: 12 }}
               >
-                <Input placeholder={t("profiles.form.name.placeholder")} />
+                <CompactInput placeholder={t("profiles.form.name.placeholder")} />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -411,7 +406,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
             name="gameName"
             style={{ marginBottom: 12 }}
           >
-            <Input placeholder={t("profiles.form.gameName.placeholder")} />
+            <CompactInput placeholder={t("profiles.form.gameName.placeholder")} />
           </Form.Item>
 
           <Form.Item
@@ -419,7 +414,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
             name="description"
             style={{ marginBottom: 12 }}
           >
-            <Input.TextArea
+            <CompactTextArea
               rows={2}
               placeholder={t("profiles.form.description.placeholder")}
             />
@@ -464,7 +459,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                 ]}
                 style={{ marginBottom: 12 }}
               >
-                <Input />
+                <CompactInput />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -483,7 +478,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
             name="gameName"
             style={{ marginBottom: 12 }}
           >
-            <Input />
+            <CompactInput />
           </Form.Item>
 
           <Form.Item
@@ -491,7 +486,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
             name="description"
             style={{ marginBottom: 12 }}
           >
-            <Input.TextArea rows={2} />
+            <CompactTextArea rows={2} />
           </Form.Item>
 
           <Form.Item
