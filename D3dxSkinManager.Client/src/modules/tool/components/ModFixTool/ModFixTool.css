@@ -32,7 +32,7 @@
   /* Full-width panel, but keep the content in a centered readable column (don't stretch a short
      list + a few fields across the whole width). No-op in the 560px compact panel. */
   width: 100%;
-  max-width: 860px;
+  max-width: 720px;
   margin: 0 auto;
 }
 
@@ -178,13 +178,17 @@
   cursor: pointer;
 }
 
-/* Compact settings — label-above-control fields flow in a wrap row (1–2 rows); save/reset at the end. */
+/* Compact settings — a defined panel (matches the tool cards) with label-above-control fields that
+   cluster left in a wrap row; save/reset sit right after them (not floated to the far edge). */
 .mod-fix__settings-body {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 10px 16px;
-  padding: 10px 2px 4px;
+  gap: 12px 16px;
+  padding: 14px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-base);
 }
 
 .mod-fix__setting {
@@ -194,8 +198,7 @@
 }
 
 .mod-fix__setting--grow {
-  flex: 1 1 220px;
-  min-width: 180px;
+  flex: 0 1 260px;
 }
 
 .mod-fix__setting-label {
@@ -208,5 +211,4 @@
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  margin-left: auto;
 }
