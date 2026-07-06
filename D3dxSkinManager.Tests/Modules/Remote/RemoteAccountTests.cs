@@ -93,14 +93,10 @@ public class RemoteAccountTests : IDisposable
         (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("QUARK_NOT_LOGGED_IN");
     }
 
-    [Fact]
-    public async Task Quark_Resolve_RecursesFolder_PicksLargestArchive_ReturnsCookiedHeaders()
+    /// <summary>token → detail(root=folder) → detail(sub=files). Used by both the metadata resolve
+    /// and the prepare flow.</summary>
+    private static void SetupTokenAndListing(Mock<IDownloadService> download)
     {
-        var store = NewStore();
-        store.Save(new OnlineStorageAccount { Provider = "quark", Cookie = "__puus=sess" });
-
-        // Fake the 3-step API: token → detail(root=folder) → detail(sub=files) → download.
-        var download = new Mock<IDownloadService>();
         download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("sharepage/token")), It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("""{"code":0,"data":{"stoken":"ST0KEN"}}""");
         download.Setup(d => d.GetStringAsync(It.Is<string>(u => u.Contains("pdir_fid=0")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
@@ -112,34 +108,71 @@ public class RemoteAccountTests : IDisposable
                   {"fid":"F_ZIP","file_name":"skin.7z","dir":false,"size":9000,"share_fid_token":"T2"}
                 ]}}
                 """);
-        download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("sharepage/download")), It.Is<string>(b => b.Contains("F_ZIP")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("""{"code":0,"data":[{"download_url":"https://cdn.quark.cn/dl/skin.7z?sign=x"}]}""");
+    }
+
+    [Fact]
+    public async Task Quark_Resolve_MetadataOnly_RecursesFolder_PicksLargestArchive_NoSave()
+    {
+        var store = NewStore();
+        store.Save(new OnlineStorageAccount { Provider = "quark", Cookie = "__puus=sess" });
+        var download = new Mock<IDownloadService>(MockBehavior.Strict);
+        SetupTokenAndListing(download);
 
         var resolver = new QuarkShareResolver(download.Object, store, Mock.Of<ILogHelper>());
         var result = await resolver.ResolveAsync("https://pan.quark.cn/s/71e1b2593cde");
 
         result.FileName.Should().Be("skin.7z", "the archive is preferred over the .txt");
         result.Size.Should().Be(9000);
-        result.DownloadUrl.Should().Be("https://cdn.quark.cn/dl/skin.7z?sign=x");
-        result.DownloadHeaders.Should().ContainKey("Cookie");
-        result.DownloadHeaders!["Cookie"].Should().Contain("__puus=sess", "the CDN GET needs the session cookie");
+        // Strict mock: no save/download endpoints were called — the confirm resolve must not 转存.
+        download.Verify(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("save")), It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Quark_Resolve_ExpiredCookie_NoDownloadUrl_Throws()
+    public async Task Quark_Prepare_Saves_Polls_ReturnsOwnDriveUrl_AndSavedFid()
     {
         var store = NewStore();
-        store.Save(new OnlineStorageAccount { Provider = "quark", Cookie = "__puus=stale" });
+        store.Save(new OnlineStorageAccount { Provider = "quark", Cookie = "__puus=sess" });
         var download = new Mock<IDownloadService>();
-        download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("token")), It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("""{"code":0,"data":{"stoken":"ST"}}""");
-        download.Setup(d => d.GetStringAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("""{"code":0,"data":{"list":[{"fid":"F","file_name":"a.7z","dir":false,"size":5,"share_fid_token":"T"}]}}""");
-        download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("download")), It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("""{"code":0,"data":[]}""");
+        SetupTokenAndListing(download);
+        // save → task_id; task poll → status 2 + saved fid; own-drive download → url.
+        download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("sharepage/save")), It.Is<string>(b => b.Contains("F_ZIP")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""{"code":0,"data":{"task_id":"TASK1"}}""");
+        download.Setup(d => d.GetStringAsync(It.Is<string>(u => u.Contains("task_id=TASK1")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""{"code":0,"data":{"status":2,"save_as":{"save_as_top_fids":["MYFID"]}}}""");
+        download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("file/download")), It.Is<string>(b => b.Contains("MYFID")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""{"code":0,"data":[{"download_url":"https://dl.quark.cn/skin.7z?sign=x"}]}""");
 
         var resolver = new QuarkShareResolver(download.Object, store, Mock.Of<ILogHelper>());
-        var act = () => resolver.ResolveAsync("https://pan.quark.cn/s/x");
-        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("REMOTE_RESOLVE_FAILED");
+        var prep = await resolver.PrepareDownloadAsync("https://pan.quark.cn/s/71e1b2593cde");
+
+        prep.FileName.Should().Be("skin.7z");
+        prep.DownloadUrl.Should().Be("https://dl.quark.cn/skin.7z?sign=x");
+        prep.SavedFids.Should().ContainSingle().Which.Should().Be("MYFID");
+        prep.Headers["Cookie"].Should().Contain("__puus=sess", "the CDN GET needs the session cookie");
+    }
+
+    [Fact]
+    public async Task Quark_Cleanup_DeletesSavedFids_AndSwallowsErrors()
+    {
+        var store = NewStore();
+        store.Save(new OnlineStorageAccount { Provider = "quark", Cookie = "__puus=sess" });
+        var download = new Mock<IDownloadService>();
+        download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("file/delete")), It.Is<string>(b => b.Contains("MYFID")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""{"code":0,"data":{"task_id":"DEL1"}}""");
+        download.Setup(d => d.GetStringAsync(It.Is<string>(u => u.Contains("task_id=DEL1")), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""{"code":0,"data":{"status":2}}""");
+
+        var resolver = new QuarkShareResolver(download.Object, store, Mock.Of<ILogHelper>());
+        await resolver.CleanupAsync(new[] { "MYFID" }); // must not throw
+        download.Verify(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("file/delete")), It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Quark_Prepare_NoAccount_Throws_NotLoggedIn()
+    {
+        var store = NewStore();
+        var resolver = new QuarkShareResolver(Mock.Of<IDownloadService>(), store, Mock.Of<ILogHelper>());
+        var act = () => resolver.PrepareDownloadAsync("https://pan.quark.cn/s/x");
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("QUARK_NOT_LOGGED_IN");
     }
 }

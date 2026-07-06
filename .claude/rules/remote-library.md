@@ -92,30 +92,39 @@ Three-step resolve, all verified live:
 host is the literal fs name `share`. (`cloudreve://share/{key}` → "failed to decode hash id" — wrong.)
 Non-zero `code` in a 200 body = error (`40081` aggregate, per-uri codes inside); message in `msg`.
 
-## Quark pan (夸克网盘) share API — needs a LOGIN cookie (resolver type `quark`, GROUNDED 2026-07-06)
-Anonymous download is IMPOSSIBLE (probed live): token + file-list work with no login, but the download
-step needs a logged-in session cookie (matches every open-source Quark tool — alist, quark-auto-save).
-`QuarkShareResolver` (apiv1 `ucpro`, host `drive-pc.quark.cn`):
-1. `POST /1/clouddrive/share/sharepage/token?pr=ucpro&fr=pc` `{pwd_id, passcode:""}` → `data.stoken` (anon).
-   `pwd_id` = the `/s/{pwd_id}` segment.
+## Quark pan (夸克网盘) share API — LOGIN cookie + SAVE-then-download-then-delete (VERIFIED E2E 2026-07-06)
+No anonymous OR direct share-download endpoint. The working flow is 转存 (save the share file into the
+user's OWN drive) → download from there → DELETE the copy (cleanup). All authed (apiv1 `ucpro`, host
+`drive-pc.quark.cn`, `Cookie`+UA+Referer `pan.quark.cn`). `QuarkShareResolver`:
+1. `POST /1/clouddrive/share/sharepage/token` `{pwd_id, passcode:""}` → `data.stoken` (`pwd_id` = `/s/{id}`).
 2. `GET  /1/clouddrive/share/sharepage/detail?...&pwd_id&stoken&pdir_fid&_page&_size` → `data.list`
-   (`fid`, `file_name`, `dir`, `size`, `share_fid_token`). **Root is often a FOLDER → recurse `pdir_fid`**;
-   pick the largest archive. (anon)
-3. `POST /1/clouddrive/share/sharepage/download?pr=ucpro&fr=pc`
-   `{fids:[fid], fid_tokens:[share_fid_token], pwd_id, stoken}` **WITH the account Cookie** →
-   `data[0].download_url`. The CDN url ALSO needs the cookie + UA on GET → returned in
-   `RemoteResolveResult.DownloadHeaders`, passed to `DownloadRequest.Headers`.
+   (`fid`,`file_name`,`dir`,`size`,`share_fid_token`). **Root is often a FOLDER → recurse `pdir_fid`**; pick largest archive.
+3. `POST /1/clouddrive/share/sharepage/save` `{fid_list, fid_token_list, to_pdir_fid:"0", pwd_id, stoken,
+   pdir_fid, scene:"link"}` → `data.task_id`; poll `GET /1/clouddrive/task?task_id&retry_index` until
+   `data.status==2` → `data.save_as.save_as_top_fids[0]` = the saved fid in the user's drive.
+4. `POST /1/clouddrive/file/download` `{fids:[savedFid]}` → `data[0].download_url` (CDN `dl-*.pds.quark.cn`;
+   the GET needs cookie+UA → `QuarkDownload.Headers`).
+5. `POST /1/clouddrive/file/delete` `{action_type:2, filelist:[savedFid], exclude_fids:[]}` → task; poll.
+- **Two resolve calls, ONE save:** confirm dialog + background both resolve. `ResolveAsync` is
+  metadata-only (token+detail, no save); `PrepareDownloadAsync` (background) does save+url; `CleanupAsync`
+  deletes. `RemoteImportService` branches on `type=="quark"`: prepare → download → cleanup right after
+  the bytes land (drive freed early) AND in the `finally` (covers cancel/fail) with `CancellationToken.None`.
 - **Cookie capture = in-app login window, not typed.** `ExternalLoginService` opens a native WebView2
-  Form on `pan.quark.cn` (persistent per-provider user-data folder under `{data}/settings/webview-login/`);
-  on close it reads `CoreWebView2.CookieManager.GetCookiesAsync` and, iff a session cookie
-  (`__puus`/`__pus`/`kps`) is present, saves the `Cookie` header to `IOnlineAccountStore`
-  (`{data}/settings/online-accounts.json`, GLOBAL — a host recurs across profiles). Managed in
-  **Settings → 在线存储 / Online Storage** (`OnlineStorageAccountsCard`; IPC `ACCOUNT_LIST`/`ACCOUNT_LOGIN`/
-  `ACCOUNT_REMOVE`). Not logged in → resolver throws `QUARK_NOT_LOGGED_IN`.
-- **UNVERIFIED live-download**: dev box is geo-blocked from `drive-pc.quark.cn` (only the `drive-h`
-  mobile host reached, which lacks the download endpoint). token+list confirmed via drive-h; the
-  cookie'd download leg + capture are unit-tested (canned JSON) but need an in-region confirm.
-  Adding another auth'd host = new resolver type + a `LoginTarget` entry in `ExternalLoginService`.
+  Form (persistent per-provider profile under `{data}/settings/webview-login/{provider}`). It reads
+  cookies from the **API origin** `https://drive-pc.quark.cn` (NOT `pan.quark.cn` — the session cookies
+  `__puus`/`__pus`/`__kps`/`__uid` live on the parent domain `.quark.cn`; `pan.quark.cn` host-only has
+  none of them — this was the capture bug). **Window is HIDDEN-until-needed**: opens off-screen
+  (`Location=-32000,-32000`, `ShowInTaskbar=false`), polls cookies; already-logged-in (persistent
+  profile) → captures + closes WITHOUT ever showing (silent refresh); no session after ~2.4s grace →
+  reveals centered for the user to log in. Saves the `Cookie` header to `IOnlineAccountStore`
+  (`{data}/settings/online-accounts.json`, GLOBAL). Managed in **Settings → 在线存储 / Online Storage**
+  (`OnlineStorageAccountsCard`; IPC `ACCOUNT_LIST`/`ACCOUNT_LOGIN`/`ACCOUNT_REMOVE`). **Logout** removes the
+  stored cookie AND `ClearProfile` deletes the WebView2 profile folder (else it silently auto-logs-in).
+  Not logged in → resolver throws `QUARK_NOT_LOGGED_IN`.
+- **Verified e2e** against a real account: silent capture, save→34.9MB download via cookie'd CDN,
+  saved copy deleted (drive root clean after). NOTE: **huihui's 夸克 links are PREVIEW VIDEOS** (`1.mp4`),
+  not the mod archive (that's the Hui盘/cloudreve link) — so quark-as-mod-source pays off on OTHER sites.
+  Adding another auth'd host = new resolver `type` + a `LoginTarget` entry in `ExternalLoginService`.
 
 ## Architecture (mirrors the app's module conventions)
 

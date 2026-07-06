@@ -842,6 +842,7 @@
     "process.remoteSyncAll": "Syncing remote library: {{arg}} (all lists)",
     "process.stage.importing": "Importing",    "process.remoteImport": "Downloading mod: {{arg}}",
     "process.stage.resolving": "Resolving download",
+    "process.stage.quarkSaving": "Saving to your Quark drive",
     "process.stage.repacking": "Repacking into storage format",
     "process.stage.previews": "Importing previews",
 

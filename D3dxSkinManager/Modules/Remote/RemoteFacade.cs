@@ -246,6 +246,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     {
         var provider = _payloadHelper.GetRequiredValue<string>(request.Payload, "provider");
         _accounts.Remove(provider);
+        _login.ClearProfile(provider); // also wipe the WebView2 login profile so logout is a real logout
         return _accounts.List();
     }
 }

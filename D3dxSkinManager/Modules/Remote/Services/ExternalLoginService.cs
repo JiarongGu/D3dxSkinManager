@@ -17,9 +17,14 @@ namespace D3dxSkinManager.Modules.Remote.Services;
 /// </summary>
 public interface IExternalLoginService
 {
-    /// <summary>Show the login window for a provider; resolves when the user closes it, with the
-    /// resulting (cookie-free) account info. Throws EXTERNAL_LOGIN_UNAVAILABLE off a known provider.</summary>
+    /// <summary>Show the login window for a provider; resolves when login is detected (or the user
+    /// closes it), with the resulting (cookie-free) account info. Throws EXTERNAL_LOGIN_UNAVAILABLE
+    /// off a known provider.</summary>
     Task<OnlineStorageAccountInfo> LoginAsync(string provider, CancellationToken ct = default);
+
+    /// <summary>Wipe the provider's persistent WebView2 login profile (its cached cookies/session), so
+    /// a later login starts fresh instead of silently auto-logging-in. Called on logout. Best-effort.</summary>
+    void ClearProfile(string provider);
 }
 
 public class ExternalLoginService : IExternalLoginService
@@ -31,9 +36,12 @@ public class ExternalLoginService : IExternalLoginService
     private static readonly IReadOnlyDictionary<string, LoginTarget> Targets =
         new Dictionary<string, LoginTarget>(StringComparer.OrdinalIgnoreCase)
         {
-            // Quark: __puus/__pus/kps are the session cookies the drive API checks.
-            ["quark"] = new("https://pan.quark.cn/", "https://pan.quark.cn",
-                new[] { "__puus", "__pus", "kps" }, "夸克网盘"),
+            // Quark: the session cookies (__puus/__pus/__kps/__uid) live on the PARENT domain
+            // `.quark.cn`, not `pan.quark.cn` (verified from the login profile's cookie DB). Read
+            // them from the API origin (drive-pc.quark.cn) so the domain cookies — the exact set the
+            // resolver must send to that host — are what we capture.
+            ["quark"] = new("https://pan.quark.cn/", "https://drive-pc.quark.cn",
+                new[] { "__puus", "__pus", "__kps", "__uid" }, "夸克网盘"),
         };
 
     private readonly IFormInteractionService _forms;
@@ -77,30 +85,69 @@ public class ExternalLoginService : IExternalLoginService
         return tcs.Task;
     }
 
+    public void ClearProfile(string provider)
+    {
+        // The WebView2 keeps its own cookie store in the per-provider user-data folder; removing our
+        // saved cookie alone would still let the next login window silently auto-log-in from it.
+        // Delete the folder so logout is a real logout. Best-effort — a locked folder (window still
+        // open) just isn't cleared; the app-wide account cookie is already gone.
+        var folder = ProfileFolder(provider);
+        try
+        {
+            if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[ExternalLogin] could not clear {provider} profile: {ex.Message}", "ExternalLoginService");
+        }
+    }
+
+    private string ProfileFolder(string provider) =>
+        Path.Combine(_globalPaths.GlobalSettingsDirectory, "webview-login", provider);
+
     private async Task ShowLoginWindowAsync(string provider, LoginTarget target, Form mainForm,
         TaskCompletionSource<OnlineStorageAccountInfo> tcs)
     {
+        // Start OFF-SCREEN + off the taskbar: a WebView2 needs a real window handle to run, but if
+        // the persistent profile is already logged in we capture the cookie and close WITHOUT the user
+        // ever seeing a window (silent refresh — "no interaction => no window"). We only REVEAL it if
+        // login is actually required (no session cookie within the grace period).
         var form = new Form
         {
             Text = $"{target.DisplayName} — Login",
             Width = 960,
             Height = 720,
-            StartPosition = FormStartPosition.CenterParent,
+            StartPosition = FormStartPosition.Manual,
+            Location = new Point(-32000, -32000),
+            ShowInTaskbar = false,
             Owner = mainForm,
             BackColor = Color.FromArgb(26, 26, 26),
         };
         var webView = new WebView2 { Dock = DockStyle.Fill, BackColor = Color.FromArgb(26, 26, 26) };
         form.Controls.Add(webView);
 
-        // Persistent, per-provider WebView2 profile so the login sticks between sessions.
-        var userDataFolder = Path.Combine(_globalPaths.GlobalSettingsDirectory, "webview-login", provider);
+        void RevealIfHidden()
+        {
+            if (form.IsDisposed || form.ShowInTaskbar) return; // already visible
+            form.ShowInTaskbar = true;
+            form.StartPosition = FormStartPosition.CenterParent;
+            var wa = Screen.FromControl(mainForm).WorkingArea;
+            form.Location = new Point(wa.X + (wa.Width - form.Width) / 2, wa.Y + (wa.Height - form.Height) / 2);
+            form.Activate();
+            form.BringToFront();
+        }
+
+        // Persistent, per-provider WebView2 profile so the login sticks between sessions (cleared on logout).
+        var userDataFolder = ProfileFolder(provider);
         Directory.CreateDirectory(userDataFolder);
         var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder).ConfigureAwait(true);
         await webView.EnsureCoreWebView2Async(env).ConfigureAwait(true);
 
         var captured = false;
-        // Capture on close (user decides when login is done). Idempotent via `captured`.
-        form.FormClosing += async (_, _) =>
+
+        // Shared finish: capture cookies once. `autoClose` = detected mid-session (close the window
+        // for the user); manual close routes here too. Idempotent via `captured`.
+        async Task FinishAsync(bool autoClose)
         {
             if (captured) return;
             captured = true;
@@ -108,16 +155,50 @@ public class ExternalLoginService : IExternalLoginService
             {
                 var info = await CaptureAsync(provider, target, webView).ConfigureAwait(true);
                 tcs.TrySetResult(info);
+                if (autoClose && !form.IsDisposed) form.Close();
             }
             catch (Exception ex)
             {
                 _logger.Error($"[ExternalLogin] capture failed: {ex.Message}", "ExternalLoginService", ex);
                 tcs.TrySetResult(new OnlineStorageAccountInfo { Provider = provider, LoggedIn = false });
             }
+        }
+
+        // DETECT login: poll the profile's cookies. Session cookie present => capture + auto-close
+        // (the "already logged in" path closes before the grace elapses, so the window never shows).
+        // Not present after the grace => reveal the window so the user can actually log in.
+        const int graceTicks = 3; // ~2.4s at 800ms — enough for a persisted session to surface
+        var poll = new global::System.Windows.Forms.Timer { Interval = 800 };
+        var ticks = 0;
+        poll.Tick += async (_, _) =>
+        {
+            if (captured || form.IsDisposed) { poll.Stop(); return; }
+            ticks++;
+            try
+            {
+                var cookies = await webView.CoreWebView2.CookieManager.GetCookiesAsync(target.CookieUrl).ConfigureAwait(true);
+                if (cookies.Any(c => target.AuthCookieNames.Contains(c.Name, StringComparer.OrdinalIgnoreCase)))
+                {
+                    poll.Stop();
+                    await FinishAsync(autoClose: true).ConfigureAwait(true);
+                    return;
+                }
+            }
+            catch { /* transient — try again next tick */ }
+            if (ticks >= graceTicks) RevealIfHidden(); // login needed → show the window
         };
 
+        // Manual close (user gave up before logging in, or closed after) still captures.
+        form.FormClosing += async (_, _) =>
+        {
+            poll.Stop();
+            await FinishAsync(autoClose: false).ConfigureAwait(true);
+        };
+        form.FormClosed += (_, _) => poll.Dispose();
+
         webView.CoreWebView2.Navigate(target.LoginUrl);
-        form.Show(mainForm);
+        form.Show(mainForm); // shown off-screen; RevealIfHidden() brings it on-screen only if needed
+        poll.Start();
     }
 
     /// <summary>Read the WebView2 profile's cookies for the host origin; save them iff a session

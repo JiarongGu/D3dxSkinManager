@@ -7,24 +7,44 @@ using D3dxSkinManager.Modules.Remote.Models;
 namespace D3dxSkinManager.Modules.Remote.Services;
 
 /// <summary>
-/// Resolves a Quark pan (夸克网盘) share link (https://pan.quark.cn/s/{pwd_id}) to a direct download.
+/// Resolves a Quark pan (夸克网盘) share link (https://pan.quark.cn/s/{pwd_id}) to a download, using the
+/// saved account cookie (captured by the in-app login window — see ExternalLoginService).
 ///
-/// Quark shares CANNOT be downloaded anonymously (verified 2026-07-06): the token + file-list steps
-/// work with no login, but the download endpoint needs a logged-in session cookie. That cookie is
-/// captured by the in-app login window (never typed) and stored per-provider in IOnlineAccountStore.
-/// Flow (apiv1, ucpro):
-///   1. POST /1/clouddrive/share/sharepage/token   {pwd_id, passcode}         → stoken   (anon)
-///   2. GET  /1/clouddrive/share/sharepage/detail   ?pwd_id&stoken&pdir_fid    → file list (anon; recurse dirs)
-///   3. POST /1/clouddrive/share/sharepage/download {fids, fid_tokens, pwd_id, stoken}
-///                                                   WITH the account Cookie   → data[].download_url
-/// The returned CDN url ALSO needs the cookie + UA on GET, so they ride back in DownloadHeaders.
-///
-/// NOTE: this dev machine is geo-blocked from drive-pc.quark.cn (only the drive-h host was reachable,
-/// which lacks the download endpoint), so the cookie'd download leg is UNVERIFIED here — confirm live.
+/// Quark has no anonymous OR direct share-download endpoint (verified live 2026-07-06). The working
+/// flow is SAVE-then-download-then-delete: the share file is copied into the user's own drive (转存),
+/// downloaded from there, and the copy deleted. All authed (apiv1 ucpro, host drive-pc.quark.cn):
+///   1. POST /share/sharepage/token   {pwd_id, passcode}                       → stoken
+///   2. GET  /share/sharepage/detail  ?pwd_id&stoken&pdir_fid                   → file list (recurse dirs)
+///   3. POST /share/sharepage/save    {fid_list, fid_token_list, to_pdir_fid:0} → task_id
+///      GET  /task ?task_id&retry_index (poll status==2)                        → save_as.save_as_top_fids
+///   4. POST /file/download           {fids:[savedFid]}                          → download_url (CDN)
+///   5. POST /file/delete             {action_type:2, filelist:[savedFid]}      → task (cleanup)
+/// The two resolve calls (confirm dialog + background download) are split so the SAVE happens ONCE, in
+/// the background: <see cref="ResolveAsync"/> is metadata-only; <see cref="PrepareDownloadAsync"/> does
+/// the save+url; <see cref="CleanupAsync"/> deletes the saved copy (called in the import's finally).
 /// </summary>
 public interface IQuarkShareResolver
 {
+    /// <summary>Metadata only (token+detail, NO save) — for the confirm dialog's file name/size.</summary>
     Task<RemoteResolveResult> ResolveAsync(string shareUrl, CancellationToken ct = default);
+
+    /// <summary>Save the share file to the user's drive and return the own-drive download URL + the
+    /// saved fids to clean up afterward. Background download path only.</summary>
+    Task<QuarkDownload> PrepareDownloadAsync(string shareUrl, CancellationToken ct = default);
+
+    /// <summary>Delete the saved copies from the user's drive (the "cleanup after download" step).
+    /// Best-effort — a failure is logged, never thrown (the download already succeeded).</summary>
+    Task CleanupAsync(IReadOnlyList<string> savedFids, CancellationToken ct = default);
+}
+
+/// <summary>A prepared Quark download: the CDN url + headers to fetch it, plus the drive fids to delete.</summary>
+public sealed class QuarkDownload
+{
+    public string FileName { get; init; } = string.Empty;
+    public long Size { get; init; }
+    public string DownloadUrl { get; init; } = string.Empty;
+    public Dictionary<string, string> Headers { get; init; } = new();
+    public IReadOnlyList<string> SavedFids { get; init; } = Array.Empty<string>();
 }
 
 public class QuarkShareResolver : IQuarkShareResolver
@@ -50,104 +70,170 @@ public class QuarkShareResolver : IQuarkShareResolver
 
     public async Task<RemoteResolveResult> ResolveAsync(string shareUrl, CancellationToken ct = default)
     {
-        var account = _accounts.Get(Provider);
-        if (account == null || string.IsNullOrWhiteSpace(account.Cookie))
-            throw new OperationException("QUARK_NOT_LOGGED_IN");
-
-        var pwdId = ParsePwdId(shareUrl);
-        var headers = BuildHeaders(account.Cookie);
-
-        // 1. Share token (anonymous).
-        var tokenBody = JsonSerializer.Serialize(new { pwd_id = pwdId, passcode = "" });
-        var token = await PostAsync($"{ApiBase}/1/clouddrive/share/sharepage/token?{ApiQuery}", tokenBody, headers, ct)
-            .ConfigureAwait(false);
-        var stoken = token.GetProperty("data").TryGetProperty("stoken", out var st) ? st.GetString() : null;
-        if (string.IsNullOrEmpty(stoken))
-            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: no share token (share may be private/expired)");
-
-        // 2. List files, recursing into folders to find the best archive.
-        var best = await FindBestFileAsync(pwdId, stoken!, "0", headers, depth: 0, ct).ConfigureAwait(false);
-        if (best == null)
-            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: share has no downloadable file");
-
-        // 3. Authenticated download URL.
-        var dlBody = JsonSerializer.Serialize(new
-        {
-            fids = new[] { best.Value.Fid },
-            fid_tokens = new[] { best.Value.FidToken },
-            pwd_id = pwdId,
-            stoken,
-        });
-        var dl = await PostAsync($"{ApiBase}/1/clouddrive/share/sharepage/download?{ApiQuery}", dlBody, headers, ct)
-            .ConfigureAwait(false);
-        var data = dl.GetProperty("data");
-        var url = data.ValueKind == JsonValueKind.Array && data.GetArrayLength() > 0
-            ? data[0].TryGetProperty("download_url", out var u) ? u.GetString() : null
-            : null;
-        if (string.IsNullOrEmpty(url))
-            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: no download url (cookie may be expired — log in again)");
-
+        var (headers, pwdId) = Auth(shareUrl);
+        var (stoken, _) = await TokenAsync(pwdId, headers, ct).ConfigureAwait(false);
+        var best = await FindBestFileAsync(pwdId, stoken, "0", headers, 0, ct).ConfigureAwait(false)
+                   ?? throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: share has no downloadable file");
         return new RemoteResolveResult
         {
-            FileName = best.Value.Name,
-            Size = Math.Max(0, best.Value.Size),
-            DownloadUrl = url!,
-            // Quark's CDN checks the cookie + UA on the GET too.
-            DownloadHeaders = BuildHeaders(account.Cookie),
+            FileName = best.Name,
+            Size = Math.Max(0, best.Size),
+            DownloadUrl = shareUrl, // placeholder — the real URL is minted in PrepareDownloadAsync
         };
     }
 
+    public async Task<QuarkDownload> PrepareDownloadAsync(string shareUrl, CancellationToken ct = default)
+    {
+        var (headers, pwdId) = Auth(shareUrl);
+        var (stoken, _) = await TokenAsync(pwdId, headers, ct).ConfigureAwait(false);
+        var best = await FindBestFileAsync(pwdId, stoken, "0", headers, 0, ct).ConfigureAwait(false)
+                   ?? throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: share has no downloadable file");
+
+        // 3. SAVE (转存) the share file into the user's own drive (root), then poll the async task.
+        var saveBody = JsonSerializer.Serialize(new
+        {
+            fid_list = new[] { best.Fid },
+            fid_token_list = new[] { best.FidToken },
+            to_pdir_fid = "0",
+            pwd_id = pwdId,
+            stoken,
+            pdir_fid = best.PdirFid,
+            pdir_save_all = false,
+            exclude_fids = Array.Empty<string>(),
+            scene = "link",
+        });
+        var save = await PostAsync($"{ApiBase}/1/clouddrive/share/sharepage/save?{ApiQuery}", saveBody, headers, ct).ConfigureAwait(false);
+        var taskId = save.GetProperty("data").TryGetProperty("task_id", out var tid) ? tid.GetString() : null;
+        if (string.IsNullOrEmpty(taskId))
+            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: save-to-drive returned no task (cookie may be expired — log in again)");
+
+        var taskData = await PollTaskAsync(taskId!, headers, ct).ConfigureAwait(false);
+        var savedFid = taskData.TryGetProperty("save_as", out var sa) && sa.TryGetProperty("save_as_top_fids", out var fids)
+            && fids.ValueKind == JsonValueKind.Array && fids.GetArrayLength() > 0
+                ? fids[0].GetString()
+                : null;
+        if (string.IsNullOrEmpty(savedFid))
+            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: save-to-drive produced no file");
+
+        // 4. Own-drive download URL.
+        var dlBody = JsonSerializer.Serialize(new { fids = new[] { savedFid } });
+        var dl = await PostAsync($"{ApiBase}/1/clouddrive/file/download?{ApiQuery}", dlBody, headers, ct).ConfigureAwait(false);
+        var data = dl.GetProperty("data");
+        var url = data.ValueKind == JsonValueKind.Array && data.GetArrayLength() > 0
+            && data[0].TryGetProperty("download_url", out var u) ? u.GetString() : null;
+        if (string.IsNullOrEmpty(url))
+        {
+            // Don't leak the saved copy if the URL step failed.
+            await CleanupAsync(new[] { savedFid! }, ct).ConfigureAwait(false);
+            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: no download url from own drive");
+        }
+
+        return new QuarkDownload
+        {
+            FileName = best.Name,
+            Size = Math.Max(0, best.Size),
+            DownloadUrl = url!,
+            Headers = BuildHeaders(_accounts.Get(Provider)?.Cookie ?? string.Empty), // CDN GET needs cookie + UA
+            SavedFids = new[] { savedFid! },
+        };
+    }
+
+    public async Task CleanupAsync(IReadOnlyList<string> savedFids, CancellationToken ct = default)
+    {
+        if (savedFids.Count == 0) return;
+        var account = _accounts.Get(Provider);
+        if (account == null || string.IsNullOrWhiteSpace(account.Cookie)) return;
+        var headers = BuildHeaders(account.Cookie);
+        try
+        {
+            var body = JsonSerializer.Serialize(new { action_type = 2, filelist = savedFids, exclude_fids = Array.Empty<string>() });
+            var del = await PostAsync($"{ApiBase}/1/clouddrive/file/delete?{ApiQuery}", body, headers, ct).ConfigureAwait(false);
+            var taskId = del.GetProperty("data").TryGetProperty("task_id", out var tid) ? tid.GetString() : null;
+            if (!string.IsNullOrEmpty(taskId)) await PollTaskAsync(taskId!, headers, ct).ConfigureAwait(false);
+            _logger.Info($"[Quark] cleaned up {savedFids.Count} saved file(s) after download", "QuarkShareResolver");
+        }
+        catch (Exception ex)
+        {
+            // The download already succeeded — a failed cleanup just leaves a copy in the user's drive.
+            _logger.Warn($"[Quark] cleanup failed (saved copy remains in drive): {ex.Message}", "QuarkShareResolver");
+        }
+    }
+
+    // ---- steps ---------------------------------------------------------------------------------
+
+    private (Dictionary<string, string> Headers, string PwdId) Auth(string shareUrl)
+    {
+        var account = _accounts.Get(Provider);
+        if (account == null || string.IsNullOrWhiteSpace(account.Cookie))
+            throw new OperationException("QUARK_NOT_LOGGED_IN");
+        return (BuildHeaders(account.Cookie), ParsePwdId(shareUrl));
+    }
+
+    private async Task<(string Stoken, JsonElement Data)> TokenAsync(string pwdId, IReadOnlyDictionary<string, string> headers, CancellationToken ct)
+    {
+        var body = JsonSerializer.Serialize(new { pwd_id = pwdId, passcode = "" });
+        var token = await PostAsync($"{ApiBase}/1/clouddrive/share/sharepage/token?{ApiQuery}", body, headers, ct).ConfigureAwait(false);
+        var data = token.GetProperty("data");
+        var stoken = data.TryGetProperty("stoken", out var st) ? st.GetString() : null;
+        if (string.IsNullOrEmpty(stoken))
+            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: no share token (share may be private/expired)");
+        return (stoken!, data);
+    }
+
+    /// <summary>Poll an async task until status==2 (done); throw on failure/timeout. Returns task data.</summary>
+    private async Task<JsonElement> PollTaskAsync(string taskId, IReadOnlyDictionary<string, string> headers, CancellationToken ct)
+    {
+        for (var i = 0; i < 40; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var r = await GetAsync($"{ApiBase}/1/clouddrive/task?{ApiQuery}&task_id={taskId}&retry_index={i}", headers, ct).ConfigureAwait(false);
+            var data = r.GetProperty("data");
+            var status = data.TryGetProperty("status", out var s) ? s.GetInt32() : -1;
+            if (status == 2) return data;
+            if (status == 3) throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: task failed");
+            await Task.Delay(800, ct).ConfigureAwait(false);
+        }
+        throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: task did not finish in time");
+    }
+
     /// <summary>DFS for the largest archive (mods ship as one big archive); any file if no archive.
-    /// Bounded depth so a pathological share can't recurse forever.</summary>
-    private async Task<(string Fid, string FidToken, string Name, long Size)?> FindBestFileAsync(
-        string pwdId, string stoken, string pdirFid, IReadOnlyDictionary<string, string> headers, int depth, CancellationToken ct)
+    /// Carries the parent dir fid so the save step can reference the source folder.</summary>
+    private async Task<QuarkFile?> FindBestFileAsync(string pwdId, string stoken, string pdirFid,
+        IReadOnlyDictionary<string, string> headers, int depth, CancellationToken ct)
     {
         if (depth > 5) return null;
         var list = await ListDirAsync(pwdId, stoken, pdirFid, headers, ct).ConfigureAwait(false);
 
-        (string Fid, string FidToken, string Name, long Size)? best = null;
+        QuarkFile? best = null;
         var bestIsArchive = false;
         foreach (var f in list.EnumerateArray())
         {
             var isDir = f.TryGetProperty("dir", out var d) && d.GetBoolean();
             if (isDir)
             {
-                var fid = f.GetProperty("fid").GetString();
-                var sub = fid == null ? null
-                    : await FindBestFileAsync(pwdId, stoken, fid, headers, depth + 1, ct).ConfigureAwait(false);
-                if (sub != null && Prefer(sub.Value, best, bestIsArchive, out var subArchive))
-                {
-                    best = sub;
-                    bestIsArchive = subArchive;
-                }
+                var fid = f.TryGetProperty("fid", out var df) ? df.GetString() : null;
+                var sub = fid == null ? null : await FindBestFileAsync(pwdId, stoken, fid, headers, depth + 1, ct).ConfigureAwait(false);
+                if (sub != null && Prefer(sub, best, bestIsArchive, out var subArchive)) { best = sub; bestIsArchive = subArchive; }
                 continue;
             }
-
-            var name = f.TryGetProperty("file_name", out var n) ? n.GetString() ?? string.Empty : string.Empty;
-            var candidate = (
+            var candidate = new QuarkFile(
                 Fid: f.TryGetProperty("fid", out var cf) ? cf.GetString() ?? string.Empty : string.Empty,
                 FidToken: f.TryGetProperty("share_fid_token", out var t) ? t.GetString() ?? string.Empty : string.Empty,
-                Name: name,
-                Size: f.TryGetProperty("size", out var s) ? s.GetInt64() : 0);
+                Name: f.TryGetProperty("file_name", out var n) ? n.GetString() ?? string.Empty : string.Empty,
+                Size: f.TryGetProperty("size", out var sz) ? sz.GetInt64() : 0,
+                PdirFid: pdirFid);
             if (string.IsNullOrEmpty(candidate.Fid) || string.IsNullOrEmpty(candidate.FidToken)) continue;
-            if (Prefer(candidate, best, bestIsArchive, out var isArchive))
-            {
-                best = candidate;
-                bestIsArchive = isArchive;
-            }
+            if (Prefer(candidate, best, bestIsArchive, out var isArchive)) { best = candidate; bestIsArchive = isArchive; }
         }
         return best;
     }
 
-    /// <summary>Prefer archives; among equals, the largest. Returns whether the candidate is chosen
-    /// and (out) whether it's an archive.</summary>
-    private static bool Prefer((string Fid, string FidToken, string Name, long Size) candidate,
-        (string Fid, string FidToken, string Name, long Size)? current, bool currentIsArchive, out bool isArchive)
+    private static bool Prefer(QuarkFile candidate, QuarkFile? current, bool currentIsArchive, out bool isArchive)
     {
         isArchive = ArchiveExtensions.Any(e => candidate.Name.EndsWith(e, StringComparison.OrdinalIgnoreCase));
         if (current == null) return true;
         if (isArchive && !currentIsArchive) return true;
-        if (isArchive == currentIsArchive) return candidate.Size > current.Value.Size;
+        if (isArchive == currentIsArchive) return candidate.Size > current.Size;
         return false;
     }
 
@@ -162,6 +248,8 @@ public class QuarkShareResolver : IQuarkShareResolver
             ? list
             : default;
     }
+
+    private sealed record QuarkFile(string Fid, string FidToken, string Name, long Size, string PdirFid);
 
     /// <summary>pwd_id from https://pan.quark.cn/s/{pwd_id}[/…].</summary>
     public static string ParsePwdId(string shareUrl)
@@ -189,7 +277,7 @@ public class QuarkShareResolver : IQuarkShareResolver
     private async Task<JsonElement> PostAsync(string url, string body, IReadOnlyDictionary<string, string> headers, CancellationToken ct) =>
         EnsureOk(await _download.PostJsonAsync(url, body, headers, ct).ConfigureAwait(false));
 
-    /// <summary>Quark returns 200 with a `code`/`status` in the body — non-zero + message = error.</summary>
+    /// <summary>Quark returns 200 with a `code` in the body — non-zero + message = error.</summary>
     private static JsonElement EnsureOk(string json)
     {
         JsonElement root;

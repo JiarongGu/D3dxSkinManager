@@ -137,12 +137,30 @@ public class RemoteImportService : IRemoteImportService
         {
             var ct = _processRegistry.GetToken(procId);
             var staging = Path.Combine(_profilePaths.TempDirectory, $"remote-{Guid.NewGuid():N}");
+            List<string>? quarkSavedFids = null; // set when Quark saved a copy to the drive — cleaned up in finally
             try
             {
                 Directory.CreateDirectory(staging);
 
-                _processRegistry.Report(procId, 2, "Resolving download", detailKey: "process.stage.resolving");
-                var resolved = await ResolveAsync(option, ct).ConfigureAwait(false);
+                // Resolve to a downloadable URL. Quark has no direct download: it SAVES the share file
+                // into the user's own drive (转存), downloads from there, and deletes the copy after
+                // (cleanup in the finally). Other hosts resolve directly.
+                RemoteResolveResult resolved;
+                Dictionary<string, string>? downloadHeaders;
+                if (string.Equals(option.Type, "quark", StringComparison.OrdinalIgnoreCase))
+                {
+                    _processRegistry.Report(procId, 2, "Saving to drive", detailKey: "process.stage.quarkSaving");
+                    var prepared = await _quark.PrepareDownloadAsync(option.Url, ct).ConfigureAwait(false);
+                    resolved = new RemoteResolveResult { FileName = prepared.FileName, Size = prepared.Size, DownloadUrl = prepared.DownloadUrl };
+                    downloadHeaders = prepared.Headers;
+                    quarkSavedFids = prepared.SavedFids.ToList();
+                }
+                else
+                {
+                    _processRegistry.Report(procId, 2, "Resolving download", detailKey: "process.stage.resolving");
+                    resolved = await ResolveAsync(option, ct).ConfigureAwait(false);
+                    downloadHeaders = resolved.DownloadHeaders;
+                }
 
                 var archivePath = Path.Combine(staging, Path.GetFileName(resolved.FileName));
                 var progress = new Progress<DownloadProgress>(p =>
@@ -157,11 +175,19 @@ public class RemoteImportService : IRemoteImportService
                     {
                         Url = resolved.DownloadUrl,
                         DestinationPath = archivePath,
-                        Headers = resolved.DownloadHeaders, // auth'd hosts (Quark) need the cookie + UA on the CDN GET
+                        Headers = downloadHeaders, // auth'd hosts (Quark) need the cookie + UA on the CDN GET
                     },
                     progress, ct).ConfigureAwait(false);
 
                 ct.ThrowIfCancellationRequested();
+
+                // Bytes are on disk — the Quark drive copy is no longer needed; delete it now (also
+                // covered by the finally, but freeing it early keeps the user's drive clean).
+                if (quarkSavedFids is { Count: > 0 })
+                {
+                    await _quark.CleanupAsync(quarkSavedFids, CancellationToken.None).ConfigureAwait(false);
+                    quarkSavedFids = null;
+                }
 
                 // ALWAYS normalize: extract + recompress into OUR storage format. A verbatim copy of
                 // the download would keep the site's password/odd container in the archive store and
@@ -241,6 +267,10 @@ public class RemoteImportService : IRemoteImportService
             }
             finally
             {
+                // Quark saved a copy to the user's drive but the download/import didn't reach the
+                // early cleanup (cancel/fail) — delete it now so nothing is left behind.
+                if (quarkSavedFids is { Count: > 0 })
+                    await _quark.CleanupAsync(quarkSavedFids, CancellationToken.None).ConfigureAwait(false);
                 TryDeleteDir(staging);
             }
         });

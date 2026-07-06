@@ -821,6 +821,7 @@
     "process.remoteSyncAll": "正在同步远程库：{{arg}}（全部列表）",
     "process.stage.importing": "导入中",    "process.remoteImport": "正在下载模组：{{arg}}",
     "process.stage.resolving": "解析下载地址",
+    "process.stage.quarkSaving": "正在转存到你的夸克网盘",
     "process.stage.repacking": "重新打包为存储格式",
     "process.stage.previews": "导入预览图",
 
