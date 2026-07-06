@@ -352,8 +352,10 @@ $releaseNotes
 
 - **D3dxSkinManager Launcher.exe** - Native C++ launcher with auto .NET installer
 - **D3dxSkinManager.exe** - Main application
-- **data/languages/** - Translation files (editable)
+- **res/languages/** - Translation files (shipped resources)
+- **res/remote-sources/** - Remote-library site default configs (seeds)
 - **libs/7z.dll** - Native 7-Zip library for fast archive extraction
+- **manifest.json** - Auto-update file manifest
 
 ## Changelog
 

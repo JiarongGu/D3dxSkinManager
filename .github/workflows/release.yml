@@ -202,9 +202,14 @@ jobs:
           # Copy main application
           Copy-Item "$publishDir\D3dxSkinManager.exe" "$releaseDir\D3dxSkinManager.exe"
 
-          # Copy language files
-          if (Test-Path "$publishDir\data\languages") {
-            Copy-Item "$publishDir\data" "$releaseDir\" -Recurse -Force
+          # Copy shipped resources (res\languages + res\remote-sources seeds). The publish output
+          # emits these under res\ (csproj Content TargetPath), NOT data\ — the old data\languages
+          # check silently skipped them, shipping a res-less zip + a 2-file manifest (fixed 2026-07-06).
+          if (Test-Path "$publishDir\res") {
+            Copy-Item "$publishDir\res" "$releaseDir\" -Recurse -Force
+          } else {
+            Write-Host "::error::res\ folder missing from publish output — languages + remote-source seeds would be lost"
+            exit 1
           }
 
           # Copy native libraries

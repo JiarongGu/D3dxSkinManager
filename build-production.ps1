@@ -46,6 +46,11 @@ if ($Platform -eq "all") {
     $platforms = @($Platform)
 }
 
+# App version (from the .csproj) — stamped into each platform's auto-update manifest.json.
+[xml]$csprojXml = Get-Content (Join-Path $PSScriptRoot "D3dxSkinManager\D3dxSkinManager.csproj")
+$appVersion = ($csprojXml.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
+if (-not $appVersion) { $appVersion = "0.0" }
+
 # Step 1: Build React Frontend
 if (-not $SkipFrontend) {
     Write-Host "[1/4] Building React frontend..." -ForegroundColor Yellow
@@ -294,6 +299,19 @@ foreach ($plat in $platforms) {
     # Note: All managed DLLs and web resources are embedded in the exe
     # Language files and native libraries (7z.dll) are kept separate
 
+    # Generate the auto-update manifest.json LAST (after exe + res + libs are all in place) so it lists
+    # every shipped file — INCLUDING res/ (languages + remote-source seeds) — with its sha256. The
+    # updater (UpdateService.VerifyStagedFilesAsync) requires this file in the payload; without it an
+    # update aborts ("manifest.json missing") and res/ changes never reach installed copies.
+    $manifestScript = Join-Path $PSScriptRoot "devtools\dev.mjs"
+    & node $manifestScript manifest $destPath $appVersion
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "    X Failed to generate manifest.json for $plat!" -ForegroundColor Red
+        Set-Location ..
+        exit 1
+    }
+    Write-Host "    📦 Generated manifest.json (v$appVersion, includes res/ + libs/)" -ForegroundColor Gray
+
     Write-Host "  ✅ $plat packaged to publish\$plat" -ForegroundColor Green
 }
 
@@ -334,8 +352,10 @@ if (-not $SelfContained -and -not $SkipBootstrapper) {
     Write-Host "  D3dxSkinManager.exe - Single executable with embedded resources" -ForegroundColor White
 }
 
-Write-Host "  data/languages/*.json - Language files (separate for easy editing)" -ForegroundColor White
+Write-Host "  res/languages/*.json - Language files (shipped resources)" -ForegroundColor White
+Write-Host "  res/remote-sources/*.json - Remote-library site default configs (seeds)" -ForegroundColor White
 Write-Host "  libs/7z.dll - 7-Zip native library (for fast archive extraction)" -ForegroundColor White
+Write-Host "  manifest.json - Auto-update file manifest (path + size + sha256)" -ForegroundColor White
 Write-Host "" -ForegroundColor White
 Write-Host "Embedded in main exe:" -ForegroundColor Yellow
 Write-Host "  - All managed DLLs (merged via Costura.Fody)" -ForegroundColor Green
@@ -344,7 +364,8 @@ Write-Host "  - Archive library (SharpSevenZip - managed wrapper)" -ForegroundCo
 Write-Host "  - SQLite native library (e_sqlite3.dll - extracted to temp at runtime)" -ForegroundColor Green
 Write-Host ""
 Write-Host "Separate files:" -ForegroundColor Yellow
-Write-Host "  • Language files (data/languages/*.json) - User can edit translations" -ForegroundColor White
+Write-Host "  • Language files (res/languages/*.json) - shipped, auto-updated" -ForegroundColor White
+Write-Host "  • Remote-library seeds (res/remote-sources/*.json) - default site configs" -ForegroundColor White
 Write-Host "  • Native library (libs/7z.dll) - 10x faster 7z/LZMA extraction vs pure managed" -ForegroundColor White
 Write-Host ""
 Write-Host "Note: Using native 7z.dll for performance - 10x+ faster archive extraction!" -ForegroundColor Cyan
