@@ -34,9 +34,13 @@
 
 .mod-preview-title {
   margin: 0;
-  margin-bottom: 4px !important;
-  /* font-size comes from CompactTitle (14px, per the 12/14 rule) — was a hardcoded 18px override. */
-  font-weight: 600 !important;
+  margin-bottom: 4px;
+  /* Prominent CONTENT/detail-panel title — 18px for hierarchy (this is the screen's main heading).
+     The 12/14 rule governs chrome/section/inline text; page & detail-panel titles go 16–18px.
+     See ui-design-rules.md. */
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-base);
 }
 
 .mod-preview-category {

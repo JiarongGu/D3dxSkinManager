@@ -4,7 +4,7 @@ import { Typography, Empty, Spin } from 'antd';
 import { useTranslation } from "react-i18next";
 import classNames from "classnames";
 import { CopyOutlined, KeyOutlined, FolderOutlined } from "@ant-design/icons";
-import { CompactTextButton, CompactIconButton, CompactTitle } from '../../../../shared/components/compact';
+import { CompactTextButton, CompactIconButton } from '../../../../shared/components/compact';
 import { FullScreenPreview } from "./FullScreenPreview";
 import { KeybindingPreview } from "./KeybindingPreview";
 import { ModInfoSection } from "./ModInfoSection";
@@ -122,9 +122,9 @@ export const ModPreviewPanel: React.FC = () => {
       <div className="mod-preview-header">
         <div className="mod-preview-header-content">
           <div className="mod-preview-header-title">
-            <CompactTitle level={4} className="mod-preview-title">
+            <div className="mod-preview-title">
               {mod.name}
-            </CompactTitle>
+            </div>
             <Text type="secondary" className="mod-preview-category">
               <FolderOutlined className="mod-preview-category-icon" />
               {mod.categoryName || t('category.unclassified')}

@@ -12,9 +12,16 @@ Collected from design docs and past session mistakes. Check these BEFORE writing
 **Titles/section headers use `CompactTitle` (14px), NOT raw antd `<Typography.Title>`.** antd Title levels
 render ~20–38px — a rule violation. `CompactTitle` (used by `CompactSection`) now CLAMPS to 14px (12px
 for `level={5}`), keeping antd's bold weight (fixed 2026-07-06 — the site-config section titles 基本信息/
-游戏 were ~20px). Never restore a bare `<Title level=…>` in app chrome. The ONE sanctioned exception is
-the in-app help doc content (`.help-window-content-area`), which scopes h1/h2 to 18/16px for reading
-hierarchy — help DOC content, not chrome.
+游戏 were ~20px). Never restore a bare `<Title level=…>` in app chrome.
+
+**Prominent CONTENT titles MAY be 16–18px (the distinction, clarified 2026-07-07).** The 12/14 rule
+governs **chrome**: section headers, inline labels, buttons, table/list text. But a **page / detail-panel
+/ hero title** — the mod-detail panel title (`.mod-preview-title`, **18px**), the slide-in header
+(`.slide-in-screen-title`, 18px), the remote-detail hero (`.remote-detail__hero-title`, 16px) — carries
+the screen's hierarchy and stays **16–18px**, NOT 14px. Don't shrink these to 14px "for the rule" (the
+mod-detail title was shrunk to 14px and the user asked for it back at 18px). Rule of thumb: **one main
+title per screen/panel = 16–18px; everything else = 12/14.** The in-app help doc content
+(`.help-window-content-area`, 16/18px) is the other exception.
 
 ## Scrollbars — ONE global slim style, no per-component overrides
 
