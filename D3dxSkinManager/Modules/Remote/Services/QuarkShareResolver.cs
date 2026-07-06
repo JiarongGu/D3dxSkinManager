@@ -56,8 +56,13 @@ public class QuarkShareResolver : IQuarkShareResolver
     /// <summary>Dedicated folder created in the user's cloud drive for the app's transient 转存 copies
     /// (so saves don't litter the drive root). Reusable name for any future cloud-storage resolver.</summary>
     public const string AppDriveFolder = "D3dxSkinManager";
+    // Identify as the Quark DESKTOP CLIENT (quark-cloud-drive), NOT a web browser. Quark gates the
+    // download size limit (apiv1 code 23018 "download file size limit") by product/UA: a browser UA is
+    // capped, the client UA is not — so a plain Chrome UA got 23018 on files the official client
+    // downloads fine. This UA (matching the widely-used AList quark driver) makes file/download mint a
+    // URL for large files too. Used on every API call + the CDN download GET.
     private const string UserAgent =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) quark-cloud-drive/2.5.20 Chrome/100.0.4896.160 Electron/18.3.5.4-b478491100 Safari/537.36 Channel/pckk_other_ch";
 
     private static readonly string[] ArchiveExtensions = [".zip", ".7z", ".rar", ".zzz"];
 

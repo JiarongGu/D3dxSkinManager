@@ -105,6 +105,12 @@ user's OWN drive) → download from there → DELETE the copy (cleanup). All aut
 4. `POST /1/clouddrive/file/download` `{fids:[savedFid]}` → `data[0].download_url` (CDN `dl-*.pds.quark.cn`;
    the GET needs cookie+UA → `QuarkDownload.Headers`).
 5. `POST /1/clouddrive/file/delete` `{action_type:2, filelist:[savedFid], exclude_fids:[]}` → task; poll.
+- **CLIENT User-Agent is REQUIRED for large files (code 23018, FIXED 2026-07-06).** `file/download` gates a
+  **download size limit by product/UA**: a browser UA gets `HTTP 400 code 23018 "download file size limit"`
+  on files the official client downloads fine; the Quark DESKTOP-CLIENT UA is NOT capped. So `UserAgent`
+  (used on every API call + the CDN GET) is the quark-cloud-drive Electron UA
+  (`…quark-cloud-drive/2.5.20 …Electron… Channel/pckk_other_ch`, matching the AList quark driver) — NOT a
+  plain Chrome UA. `REMOTE_QUARK_SIZE_LIMIT` remains as the fallback message if a real cap is ever hit.
 - **Two resolve calls, ONE save:** confirm dialog + background both resolve. `ResolveAsync` is
   metadata-only (token+detail, no save); `PrepareDownloadAsync` (background) does save+url; `CleanupAsync`
   deletes. `RemoteImportService` branches on `type=="quark"`: prepare → download → cleanup right after
