@@ -29,9 +29,11 @@ public interface IExternalLoginService
 
 public class ExternalLoginService : IExternalLoginService
 {
-    /// <summary>Per-provider login target: where to send the user, which origin owns the cookie, and
-    /// which cookie names prove a completed login (so we don't save an anonymous session).</summary>
-    private sealed record LoginTarget(string LoginUrl, string CookieUrl, string[] AuthCookieNames, string DisplayName);
+    /// <summary>Per-provider login target: where to send the user, which origin owns the cookie,
+    /// which cookie names prove a completed login (so we don't save an anonymous session), and an
+    /// optional script to bring the login UI into view once the page renders.</summary>
+    private sealed record LoginTarget(string LoginUrl, string CookieUrl, string[] AuthCookieNames,
+        string DisplayName, string? FocusScript = null);
 
     private static readonly IReadOnlyDictionary<string, LoginTarget> Targets =
         new Dictionary<string, LoginTarget>(StringComparer.OrdinalIgnoreCase)
@@ -40,8 +42,65 @@ public class ExternalLoginService : IExternalLoginService
             // `.quark.cn`, not `pan.quark.cn` (verified from the login profile's cookie DB). Read
             // them from the API origin (drive-pc.quark.cn) so the domain cookies — the exact set the
             // resolver must send to that host — are what we capture.
+            // pan.quark.cn renders its LoginComponent (QR / phone / wx) only at DESKTOP width, docked
+            // to the RIGHT of a big promo hero. So keep the window desktop-width to make it render,
+            // then ISOLATE the login: hide every sibling up the ancestor chain (WITHOUT moving the
+            // node — so React keeps reconciling it and the QR keeps polling) and pin the login to fill
+            // the viewport, centered on white. Re-applied on an interval to survive SPA re-renders, so
+            // the window reads as a clean Quark login box, not the marketing homepage.
             ["quark"] = new("https://pan.quark.cn/", "https://drive-pc.quark.cn",
-                new[] { "__puus", "__pus", "__kps", "__uid" }, "夸克网盘"),
+                new[] { "__puus", "__pus", "__kps", "__uid" }, "夸克网盘",
+                FocusScript: """
+                (function(){
+                  var signalled = false;
+                  function isolate(){ try {
+                    // The whole login box is "LoginComponent--modal--<hash>" (header + QR + footer +
+                    // agreement). The trailing "--" excludes its sub-parts (--modal-header-- etc).
+                    var el = document.querySelector('[class*="LoginComponent--modal--"]')
+                          || document.querySelector('[class*="LoginComponent"]');
+                    if (!el) return; // no LoginComponent (already logged in, or Quark changed the page)
+                                     // → do nothing; the window falls back to showing the page as-is.
+                    // Hide every sibling up the ancestor chain (don't MOVE the node — React keeps
+                    // reconciling it and the QR keeps polling).
+                    var node = el;
+                    while (node && node !== document.body) {
+                      var p = node.parentElement; if (!p) break;
+                      for (var i = 0; i < p.children.length; i++) {
+                        var c = p.children[i];
+                        if (c !== node && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE')
+                          c.style.setProperty('display','none','important');
+                      }
+                      node = p;
+                    }
+                    // Dock the login box to the LEFT, vertically centered: fixed + left:0 + right:auto
+                    // keeps its intrinsic (shrink-to-fit) width — Quark's own layout right-docks it and
+                    // gives it no fixed width, so left:0/right:0 would stretch it and re-right-align the
+                    // card. margin:auto centres it vertically. Don't touch display/flex (scatters its
+                    // internal tabs). Clean white surround.
+                    el.style.setProperty('position','fixed','important');
+                    el.style.setProperty('top','0','important');
+                    el.style.setProperty('bottom','0','important');
+                    el.style.setProperty('left','0','important');
+                    el.style.setProperty('right','auto','important');
+                    el.style.setProperty('margin','auto','important');
+                    el.style.setProperty('transform','none','important');
+                    el.style.setProperty('z-index','2147483647','important');
+                    document.documentElement.style.background = '#fff';
+                    document.body.style.background = '#fff';
+                    document.documentElement.style.overflow = 'hidden';
+                    document.body.style.overflow = 'hidden';
+                    if (!signalled && window.chrome && window.chrome.webview) {
+                      var r = el.getBoundingClientRect();
+                      if (r.width > 100 && r.height > 100) {
+                        signalled = true;
+                        window.chrome.webview.postMessage('login-ready'); // C# reveals the window on this
+                      }
+                    }
+                  } catch(e){} }
+                  var n = 0, iv = setInterval(function(){ isolate(); if (++n > 40) clearInterval(iv); }, 500);
+                  isolate();
+                })();
+                """),
         };
 
     private readonly IFormInteractionService _forms;
@@ -108,11 +167,12 @@ public class ExternalLoginService : IExternalLoginService
     private async Task ShowLoginWindowAsync(string provider, LoginTarget target, Form mainForm,
         TaskCompletionSource<OnlineStorageAccountInfo> tcs)
     {
-        // A REGULAR browser-size window so the user sees the login in Quark's normal page layout
-        // (rather than a cramped panel). Clamped to fit the monitor's working area.
+        // Desktop-WIDTH window: Quark only renders its login at desktop width (a narrow window reflows
+        // to a mobile layout with no login). The isolate script then hides the marketing page and
+        // centres the login box in this window. Clamped to the monitor's working area.
         var work = Screen.FromControl(mainForm).WorkingArea;
-        var winW = Math.Min(1280, work.Width - 80);
-        var winH = Math.Min(880, work.Height - 80);
+        var winW = Math.Min(1200, work.Width - 40);
+        var winH = Math.Min(820, work.Height - 60);
 
         // Start OFF-SCREEN + off the taskbar: a WebView2 needs a real window handle to run, but if
         // the persistent profile is already logged in we capture the cookie and close WITHOUT the user
@@ -172,9 +232,11 @@ public class ExternalLoginService : IExternalLoginService
         }
 
         // DETECT login: poll the profile's cookies. Session cookie present => capture + auto-close
-        // (the "already logged in" path closes before the grace elapses, so the window never shows).
-        // Not present after the grace => reveal the window so the user can actually log in.
-        const int graceTicks = 3; // ~2.4s at 800ms — enough for a persisted session to surface
+        // (the "already logged in" path closes before we ever reveal, so the window never shows).
+        // The window stays HIDDEN until the login page is READY: the isolate script posts
+        // "login-ready" once it has framed the login box → we reveal then (no homepage flash). The
+        // grace-tick reveal below is only a slow FALLBACK if that message never arrives.
+        const int graceTicks = 12; // ~9.6s fallback — the login-ready message normally reveals first
         var poll = new global::System.Windows.Forms.Timer { Interval = 800 };
         var ticks = 0;
         poll.Tick += async (_, _) =>
@@ -202,6 +264,28 @@ public class ExternalLoginService : IExternalLoginService
             await FinishAsync(autoClose: false).ConfigureAwait(true);
         };
         form.FormClosed += (_, _) => poll.Dispose();
+
+        // Once the login page renders, isolate its login panel (per-provider script) so the window
+        // reads as a login box, not the site homepage. The window is loaded HIDDEN and only revealed
+        // when the script posts "login-ready" (page framed) — no homepage/loading flash.
+        if (!string.IsNullOrEmpty(target.FocusScript))
+        {
+            webView.CoreWebView2.NavigationCompleted += async (_, e) =>
+            {
+                if (!e.IsSuccess || form.IsDisposed) return;
+                try { await webView.CoreWebView2.ExecuteScriptAsync(target.FocusScript).ConfigureAwait(true); } catch { }
+            };
+            webView.CoreWebView2.WebMessageReceived += (_, e) =>
+            {
+                string? msg = null;
+                try { msg = e.TryGetWebMessageAsString(); } catch { }
+                // Quark only renders the login at DESKTOP width — shrinking the window to the box size
+                // reflows the page to mobile and unmounts the login. So we keep the window wide enough
+                // to render it and just CENTER the login box (the script does the centering); here we
+                // only reveal the window once the box is framed.
+                if (msg != null && msg.StartsWith("login-ready") && !captured) RevealIfHidden();
+            };
+        }
 
         webView.CoreWebView2.Navigate(target.LoginUrl);
         form.Show(mainForm); // shown off-screen; RevealIfHidden() brings it on-screen only if needed
