@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Space, InputNumber } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import {
   CompactInput,
   CompactButton,
+  CompactField,
   CompactSwitch,
+  CompactSpace,
+  CompactInputNumber,
 } from "../../../../shared/components/compact";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { profileService, toolService } from "../../../../shared/services/ipc";
@@ -99,58 +101,52 @@ export const FixToolSettingsCard: React.FC = () => {
     }
   }, [selectedProfileId, pythonPath, timeoutMinutes, extensions, autoConfirm, t]);
 
-  // Compact 1–2 row form (label above a small control), wraps to fit; Save/Reset pushed to the right.
+  // Compact 1–2 row form (CompactField: label above control), wraps to fit; Save/Reset pushed right.
   // Persists to the per-profile fix-tool config (fixTools) — the same store the backend runner reads.
   return (
     <div className="mod-fix__settings-body">
-      <label className="mod-fix__setting mod-fix__setting--grow">
-        <span className="mod-fix__setting-label">{t("settings.profile.fixTools.python.label")}</span>
-        <Space.Compact style={{ width: "100%" }}>
+      <CompactField className="mod-fix__setting--grow" label={t("settings.profile.fixTools.python.label")}>
+        <CompactSpace compact block>
           <CompactInput
-            size="small"
             value={pythonPath}
             placeholder={t("settings.profile.fixTools.python.placeholder")}
             onChange={(e) => setPythonPath(e.target.value)}
           />
-          <CompactButton size="small" icon={<SearchOutlined />} loading={detecting} onClick={detect}>
+          <CompactButton icon={<SearchOutlined />} loading={detecting} onClick={detect}>
             {t("settings.profile.fixTools.python.detect")}
           </CompactButton>
-        </Space.Compact>
-      </label>
+        </CompactSpace>
+      </CompactField>
 
-      <label className="mod-fix__setting">
-        <span className="mod-fix__setting-label">{t("settings.profile.fixTools.timeout.label")}</span>
-        <InputNumber
-          size="small"
+      <CompactField label={t("settings.profile.fixTools.timeout.label")}>
+        <CompactInputNumber
           min={1}
           max={120}
           value={timeoutMinutes}
-          onChange={(v) => setTimeoutMinutes(v ?? 5)}
-          style={{ width: 110 }}
+          onChange={(v) => setTimeoutMinutes(typeof v === "number" ? v : 5)}
+          style={{ width: 120 }}
           suffix={t("settings.profile.fixTools.timeout.minutes")}
         />
-      </label>
+      </CompactField>
 
-      <label className="mod-fix__setting mod-fix__setting--grow">
-        <span className="mod-fix__setting-label">{t("settings.profile.fixTools.extensions.label")}</span>
-        <CompactInput size="small" value={extensions} onChange={(e) => setExtensions(e.target.value)} placeholder={DEFAULT_EXTENSIONS} />
-      </label>
+      <CompactField className="mod-fix__setting--grow" label={t("settings.profile.fixTools.extensions.label")}>
+        <CompactInput value={extensions} onChange={(e) => setExtensions(e.target.value)} placeholder={DEFAULT_EXTENSIONS} />
+      </CompactField>
 
-      <label className="mod-fix__setting">
-        <span className="mod-fix__setting-label">{t("settings.profile.fixTools.autoConfirm.label")}</span>
+      <CompactField label={t("settings.profile.fixTools.autoConfirm.label")}>
         <CompactSwitch
           checked={autoConfirm}
           onChange={setAutoConfirm}
           checkedChildren={t("common.enable")}
           unCheckedChildren={t("common.disable")}
         />
-      </label>
+      </CompactField>
 
       <div className="mod-fix__settings-actions">
-        <CompactButton size="small" disabled={!dirty || saving} onClick={reset}>
+        <CompactButton disabled={!dirty || saving} onClick={reset}>
           {t("settings.section.reset")}
         </CompactButton>
-        <CompactButton size="small" type="primary" loading={saving} disabled={!dirty} onClick={save}>
+        <CompactButton type="primary" loading={saving} disabled={!dirty} onClick={save}>
           {t("common.save")}
         </CompactButton>
       </div>

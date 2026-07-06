@@ -172,6 +172,86 @@ public class ModFixToolServiceTests : IDisposable
         (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("FIX_TOOL_RENAME_FOLDER_ONLY");
     }
 
+    // ===== Enable/disable toggle + per-entry aliases (persisted in a .fixmeta sidecar) =====
+
+    [Fact]
+    public async Task NewTool_IsEnabledByDefault()
+    {
+        var src = MakeFile(".exe");
+        try
+        {
+            var tool = await _service.ImportAsync("Fresh", src, isFolder: false);
+            tool.Enabled.Should().BeTrue();
+            (await _service.GetAllAsync()).Single(t => t.Id == tool.Id).Enabled.Should().BeTrue();
+        }
+        finally { File.Delete(src); }
+    }
+
+    [Fact]
+    public async Task SetEnabled_FolderTool_TogglesAndPersists_AndCleansMetaWhenReEnabled()
+    {
+        var src = MakeFolderWith("run.exe");
+        try
+        {
+            var tool = await _service.ImportAsync("Toggle Me", src, isFolder: true);
+
+            await _service.SetEnabledAsync(tool.Id, false);
+            (await _service.GetAllAsync()).Single(t => t.Id == tool.Id).Enabled.Should().BeFalse();
+            File.Exists(Path.Combine(_fixDir, tool.Id, ".fixmeta")).Should().BeTrue("disabled state is persisted");
+
+            await _service.SetEnabledAsync(tool.Id, true);
+            (await _service.GetAllAsync()).Single(t => t.Id == tool.Id).Enabled.Should().BeTrue();
+            File.Exists(Path.Combine(_fixDir, tool.Id, ".fixmeta")).Should().BeFalse("all-default meta is removed to keep the folder clean");
+        }
+        finally { Directory.Delete(src, true); }
+    }
+
+    [Fact]
+    public async Task SetEnabled_LooseTool_UsesSidecarMeta()
+    {
+        Directory.CreateDirectory(_fixDir);
+        File.WriteAllText(Path.Combine(_fixDir, "loose.bat"), "x");
+
+        await _service.SetEnabledAsync("loose.bat", false);
+
+        (await _service.GetAllAsync()).Single(t => t.Id == "loose.bat").Enabled.Should().BeFalse();
+        File.Exists(Path.Combine(_fixDir, "loose.bat.fixmeta")).Should().BeTrue("loose tools store meta in a sibling sidecar");
+        // The sidecar must NOT be picked up as its own tool (it isn't runnable).
+        (await _service.GetAllAsync()).Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task SetEntryAlias_SetsDisplayName_AndClearingRemovesIt()
+    {
+        var src = MakeFolderWith("a.exe", "b.exe");
+        try
+        {
+            var tool = await _service.ImportAsync("Aliased", src, isFolder: true);
+            await _service.SetEntriesAsync(tool.Id, new List<string> { "a.exe", "b.exe" });
+
+            await _service.SetEntryAliasAsync(tool.Id, "a.exe", "Skin Fix");
+            var entry = (await _service.GetAllAsync()).Single(t => t.Id == tool.Id).Entries.Single(e => e.Name == "a.exe");
+            entry.DisplayName.Should().Be("Skin Fix");
+            // The unaliased entry keeps no display name; candidates are unaffected by the sidecar.
+            var refreshed = (await _service.GetAllAsync()).Single(t => t.Id == tool.Id);
+            refreshed.Entries.Single(e => e.Name == "b.exe").DisplayName.Should().BeNull();
+            refreshed.Candidates.Should().BeEquivalentTo(new[] { "a.exe", "b.exe" });
+
+            await _service.SetEntryAliasAsync(tool.Id, "a.exe", "");
+            (await _service.GetAllAsync()).Single(t => t.Id == tool.Id)
+                .Entries.Single(e => e.Name == "a.exe").DisplayName.Should().BeNull("empty alias clears it");
+        }
+        finally { Directory.Delete(src, true); }
+    }
+
+    [Fact]
+    public async Task SetEnabled_UnknownTool_Throws()
+    {
+        Directory.CreateDirectory(_fixDir);
+        var act = () => _service.SetEnabledAsync("does-not-exist", false);
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("FIX_TOOL_NOT_FOUND");
+    }
+
     // ===== Legacy seed (global {data}/fixtools → {profile}/fixtools, one-time) =====
 
     [Fact]

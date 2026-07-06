@@ -248,6 +248,16 @@ export class ToolService extends BaseModuleService {
     return this.sendMessage<void>('FIX_TOOLS_SET_ENTRIES', profileId, { id, entries });
   }
 
+  /** Enable/disable a fix tool (disabled = hidden from the mod "Fix" menu, kept in the library). */
+  async setFixToolEnabled(profileId: string, id: string, enabled: boolean): Promise<void> {
+    return this.sendMessage<void>('FIX_TOOLS_SET_ENABLED', profileId, { id, enabled });
+  }
+
+  /** Set (or clear, when alias is empty) an entry's friendly display name (shown in the Fix menu). */
+  async setFixToolEntryAlias(profileId: string, id: string, entryName: string, alias: string): Promise<void> {
+    return this.sendMessage<void>('FIX_TOOLS_SET_ENTRY_ALIAS', profileId, { id, entryName, alias });
+  }
+
   /** Probe for an installed Python interpreter (py/python/python3); returns the command or undefined. */
   async detectPython(profileId: string): Promise<string | undefined> {
     const res = await this.sendMessage<{ python?: string }>('FIX_TOOLS_DETECT_PYTHON', profileId);

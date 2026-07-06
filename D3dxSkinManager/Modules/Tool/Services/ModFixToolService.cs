@@ -1,3 +1,4 @@
+using System.Text.Json;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -33,6 +34,12 @@ public interface IModFixToolService
     /// list to clear the choice and fall back to auto-resolution.
     /// </summary>
     Task SetEntriesAsync(string id, List<string> relativeEntries);
+
+    /// <summary>Enable/disable a tool (disabled = hidden from the mod "Fix" menu, kept in the library).</summary>
+    Task SetEnabledAsync(string id, bool enabled);
+
+    /// <summary>Set (or clear, when alias is empty) the friendly display name of one entry inside a tool.</summary>
+    Task SetEntryAliasAsync(string id, string entryName, string? alias);
 }
 
 public class ModFixToolService : IModFixToolService
@@ -44,6 +51,10 @@ public class ModFixToolService : IModFixToolService
     private static readonly string[] EntryExtPriority = { ".exe", ".bat", ".cmd", ".py" };
     // Marker file (inside a folder tool) recording the user's chosen entries (one relative path per line).
     private const string EntryMarker = ".fixentry";
+    // Sidecar JSON holding per-tool metadata that the folder alone can't express: enabled state + entry
+    // display-name aliases. Folder tool → inside the folder; loose-file tool → "{filename}.fixmeta" beside it.
+    private const string MetaMarker = ".fixmeta";
+    private static readonly JsonSerializerOptions MetaJson = new() { WriteIndented = true };
 
     public ModFixToolService(IProfilePathService profilePaths, IGlobalPathService globalPaths, ILogHelper logger)
     {
@@ -96,12 +107,14 @@ public class ModFixToolService : IModFixToolService
         {
             if (!IsRunnable(file)) continue;
             var fileName = Path.GetFileName(file);
+            var meta = ReadMeta(fileName);
             tools.Add(new ModFixTool
             {
                 Id = fileName,
                 Name = Path.GetFileNameWithoutExtension(fileName),
-                Entries = new List<ModFixEntry> { new() { Name = fileName, Path = file } },
+                Entries = new List<ModFixEntry> { new() { Name = fileName, Path = file, DisplayName = Alias(meta, fileName) } },
                 RecompressDefault = true,
+                Enabled = meta.Enabled,
             });
         }
 
@@ -109,9 +122,10 @@ public class ModFixToolService : IModFixToolService
         foreach (var dir in Directory.GetDirectories(root))
         {
             var name = Path.GetFileName(dir);
+            var meta = ReadMeta(name);
             var candidates = RunnableCandidates(dir);
             var entries = ResolveEntries(dir, candidates)
-                .Select(rel => new ModFixEntry { Name = rel, Path = Path.Combine(dir, rel) })
+                .Select(rel => new ModFixEntry { Name = rel, Path = Path.Combine(dir, rel), DisplayName = Alias(meta, rel) })
                 .ToList();
             tools.Add(new ModFixTool
             {
@@ -120,6 +134,7 @@ public class ModFixToolService : IModFixToolService
                 Entries = entries,
                 Candidates = candidates,
                 RecompressDefault = true,
+                Enabled = meta.Enabled,
             });
         }
 
@@ -229,7 +244,80 @@ public class ModFixToolService : IModFixToolService
         return Task.CompletedTask;
     }
 
+    public Task SetEnabledAsync(string id, bool enabled)
+    {
+        EnsureToolExists(id);
+        var meta = ReadMeta(id);
+        meta.Enabled = enabled;
+        WriteMeta(id, meta);
+        return Task.CompletedTask;
+    }
+
+    public Task SetEntryAliasAsync(string id, string entryName, string? alias)
+    {
+        EnsureToolExists(id);
+        var key = (entryName ?? string.Empty).Trim();
+        if (key.Length == 0) return Task.CompletedTask;
+
+        var meta = ReadMeta(id);
+        var clean = alias?.Trim();
+        if (string.IsNullOrEmpty(clean)) meta.Aliases.Remove(key);
+        else meta.Aliases[key] = clean;
+        WriteMeta(id, meta);
+        return Task.CompletedTask;
+    }
+
     // ---- helpers ----
+
+    private void EnsureToolExists(string id)
+    {
+        var path = Path.Combine(Root, id);
+        if (!Directory.Exists(path) && !File.Exists(path))
+            throw new OperationException("FIX_TOOL_NOT_FOUND", "id", id);
+    }
+
+    /// <summary>Resolve the .fixmeta sidecar path: inside a folder tool, or "{file}.fixmeta" beside a loose tool.</summary>
+    private string MetaPath(string id)
+    {
+        var toolPath = Path.Combine(Root, id);
+        return Directory.Exists(toolPath)
+            ? Path.Combine(toolPath, MetaMarker)
+            : Path.Combine(Root, id + MetaMarker);
+    }
+
+    private FixMeta ReadMeta(string id)
+    {
+        var path = MetaPath(id);
+        if (!File.Exists(path)) return new FixMeta();
+        try { return JsonSerializer.Deserialize<FixMeta>(File.ReadAllText(path)) ?? new FixMeta(); }
+        catch { return new FixMeta(); }
+    }
+
+    private void WriteMeta(string id, FixMeta meta)
+    {
+        var path = MetaPath(id);
+        try
+        {
+            // Keep the folder clean: an all-default meta (enabled, no aliases) needs no file.
+            if (meta.Enabled && meta.Aliases.Count == 0)
+            {
+                if (File.Exists(path)) File.Delete(path);
+                return;
+            }
+            File.WriteAllText(path, JsonSerializer.Serialize(meta, MetaJson));
+        }
+        catch (Exception ex) { _logger.Warn($"[ModFixTool] Failed to write meta for '{id}': {ex.Message}", "ModFixToolService"); }
+    }
+
+    private static string? Alias(FixMeta meta, string entryName)
+        => meta.Aliases.TryGetValue(entryName, out var a) && !string.IsNullOrWhiteSpace(a) ? a : null;
+
+    /// <summary>Per-tool sidecar metadata the folder can't express: enabled state + entry display aliases.</summary>
+    private sealed class FixMeta
+    {
+        public bool Enabled { get; set; } = true;
+        public Dictionary<string, string> Aliases { get; set; } = new();
+    }
 
     private static bool IsRunnable(string file)
         => EntryExtPriority.Contains(Path.GetExtension(file).ToLowerInvariant());

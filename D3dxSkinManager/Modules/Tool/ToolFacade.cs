@@ -130,6 +130,8 @@ public class ToolFacade : BaseFacade, IToolFacade
             "FIX_TOOLS_DELETE" => await DeleteFixToolAsync(request),
             "FIX_TOOLS_RENAME" => await RenameFixToolAsync(request),
             "FIX_TOOLS_SET_ENTRIES" => await SetFixToolEntriesAsync(request),
+            "FIX_TOOLS_SET_ENABLED" => await SetFixToolEnabledAsync(request),
+            "FIX_TOOLS_SET_ENTRY_ALIAS" => await SetFixToolEntryAliasAsync(request),
             "FIX_TOOLS_DETECT_PYTHON" => new { python = _modFixService.DetectPython() },
 
             // Mod Analysis
@@ -517,19 +519,29 @@ public class ToolFacade : BaseFacade, IToolFacade
         return null;
     }
 
+    // Fix-tool library mutations write markers INSIDE a tool folder (entries/aliases) which the folder
+    // watcher (IncludeSubdirectories=false) doesn't see — so emit FIX_TOOLS_CHANGED explicitly here so
+    // BOTH the manager and the mod-list "Fix" submenu re-scan (this is what makes a renamed toolset /
+    // renamed entry show in the context menu).
+    private Task EmitFixToolsChangedAsync()
+        => _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.FIX_TOOLS_CHANGED, new { });
+
     private async Task<object?> ImportFixToolAsync(IpcRequest request)
     {
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
         var sourcePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourcePath");
         var isFolder = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "isFolder") ?? false;
         var description = _payloadHelper.GetOptionalValue<string>(request.Payload, "description");
-        return await _modFixToolService.ImportAsync(name, sourcePath, isFolder, description).ConfigureAwait(false);
+        var tool = await _modFixToolService.ImportAsync(name, sourcePath, isFolder, description).ConfigureAwait(false);
+        await EmitFixToolsChangedAsync().ConfigureAwait(false);
+        return tool;
     }
 
     private async Task<object?> DeleteFixToolAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         await _modFixToolService.DeleteAsync(id).ConfigureAwait(false);
+        await EmitFixToolsChangedAsync().ConfigureAwait(false);
         return null;
     }
 
@@ -538,6 +550,7 @@ public class ToolFacade : BaseFacade, IToolFacade
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         var newName = _payloadHelper.GetRequiredValue<string>(request.Payload, "newName");
         var newId = await _modFixToolService.RenameAsync(id, newName).ConfigureAwait(false);
+        await EmitFixToolsChangedAsync().ConfigureAwait(false);
         return new { id = newId };
     }
 
@@ -546,6 +559,26 @@ public class ToolFacade : BaseFacade, IToolFacade
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
         var entries = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "entries") ?? new List<string>();
         await _modFixToolService.SetEntriesAsync(id, entries).ConfigureAwait(false);
+        await EmitFixToolsChangedAsync().ConfigureAwait(false);
+        return null;
+    }
+
+    private async Task<object?> SetFixToolEnabledAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var enabled = _payloadHelper.GetRequiredValue<bool>(request.Payload, "enabled");
+        await _modFixToolService.SetEnabledAsync(id, enabled).ConfigureAwait(false);
+        await EmitFixToolsChangedAsync().ConfigureAwait(false);
+        return null;
+    }
+
+    private async Task<object?> SetFixToolEntryAliasAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var entryName = _payloadHelper.GetRequiredValue<string>(request.Payload, "entryName");
+        var alias = _payloadHelper.GetOptionalValue<string>(request.Payload, "alias");
+        await _modFixToolService.SetEntryAliasAsync(id, entryName, alias).ConfigureAwait(false);
+        await EmitFixToolsChangedAsync().ConfigureAwait(false);
         return null;
     }
 

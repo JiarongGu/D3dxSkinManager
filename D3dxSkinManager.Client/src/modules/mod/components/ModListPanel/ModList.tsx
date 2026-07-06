@@ -328,13 +328,20 @@ export const ModList: React.FC<ModListProps> = ({
     }
   };
 
-  // "Fix" submenu: each toolset's entries flattened ("Toolset — entry" when it has several) + Manage.
+  // A runnable entry's menu label: the user's friendly name (alias), else the filename WITHOUT its
+  // extension. No "Toolset — " prefix (per user: friendly name only).
+  const entryLabel = (e: { displayName?: string; name: string }) =>
+    e.displayName?.trim() || e.name.replace(/\.[^.]+$/, '');
+
+  // "Fix" submenu: each toolset's entries flattened (friendly name per entry) + Manage.
   const buildFixSubmenu = (modIds: string[]): ContextMenuItem => {
     const children: ContextMenuItem[] = [];
-    if (fixTools.length === 0) {
+    // Disabled tools stay in the library but are hidden from the Fix menu.
+    const activeTools = fixTools.filter((t) => t.enabled !== false);
+    if (activeTools.length === 0) {
       children.push({ key: "fix-none", label: t("contextMenu.noFixTools"), disabled: true });
     }
-    for (const tf of fixTools) {
+    for (const tf of activeTools) {
       if (tf.entries.length === 0) {
         children.push({ key: `fix-${tf.id}`, label: `${tf.name} — ${t("tools.modFix.setEntryFirst")}`, disabled: true });
       } else if (tf.entries.length === 1) {
@@ -342,7 +349,7 @@ export const ModList: React.FC<ModListProps> = ({
         children.push({ key: `fix-${tf.id}`, label: tf.name, icon: <ThunderboltOutlined />, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, modIds) });
       } else {
         for (const e of tf.entries) {
-          children.push({ key: `fix-${tf.id}-${e.name}`, label: `${tf.name} — ${e.name}`, icon: <ThunderboltOutlined />, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, modIds) });
+          children.push({ key: `fix-${tf.id}-${e.name}`, label: entryLabel(e), icon: <ThunderboltOutlined />, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, modIds) });
         }
       }
     }
@@ -361,7 +368,7 @@ export const ModList: React.FC<ModListProps> = ({
 
   const bulkFixMenuItems = (): MenuProps["items"] => {
     const items: NonNullable<MenuProps["items"]> = [];
-    for (const tf of fixTools) {
+    for (const tf of fixTools.filter((t) => t.enabled !== false)) {
       if (tf.entries.length === 0) {
         items.push({ key: tf.id, label: `${tf.name} — ${t("tools.modFix.setEntryFirst")}`, disabled: true });
       } else if (tf.entries.length === 1) {
@@ -369,7 +376,7 @@ export const ModList: React.FC<ModListProps> = ({
         items.push({ key: tf.id, label: tf.name, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, selectedModIds) });
       } else {
         for (const e of tf.entries) {
-          items.push({ key: `${tf.id}-${e.name}`, label: `${tf.name} — ${e.name}`, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, selectedModIds) });
+          items.push({ key: `${tf.id}-${e.name}`, label: entryLabel(e), onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, selectedModIds) });
         }
       }
     }

@@ -8,6 +8,8 @@
 export interface ModFixEntry {
   name: string;
   path: string;
+  /** Optional friendly alias shown in the mod "Fix" menu instead of the raw filename. */
+  displayName?: string;
 }
 
 /** A registered fix tool ("toolset") in the per-profile library (mirrors backend ModFixTool). */
@@ -17,6 +19,8 @@ export interface ModFixTool {
   description?: string;
   recompressDefault: boolean;
   addedAt: string;
+  /** Active state. Disabled = kept in the library but hidden from the mod "Fix" menu. */
+  enabled: boolean;
   /** Runnable entries to launch. Empty = unresolved (pick from candidates). A toolset may have several. */
   entries: ModFixEntry[];
   /** Candidate runnable files (relative) to choose entries from. */

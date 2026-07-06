@@ -52,6 +52,10 @@ export type { CompactIconButtonProps, IconButtonTone } from './CompactIconButton
 export { CompactInput, CompactTextArea, CompactPassword } from './CompactInput';
 export type { CompactInputProps, CompactTextAreaProps, CompactPasswordProps, CompactInputSize } from './CompactInput';
 
+// Numeric input (consistent heights with CompactInput)
+export { CompactInputNumber } from './CompactInputNumber';
+export type { CompactInputNumberProps } from './CompactInputNumber';
+
 // Select component
 export { CompactSelect } from './CompactSelect';
 export type { CompactSelectProps, CompactSelectSize } from './CompactSelect';
@@ -67,3 +71,7 @@ export type { CompactThumbnailUploadProps } from './CompactThumbnailUpload';
 // Switch component
 export { CompactSwitch } from './CompactSwitch';
 export type { CompactSwitchProps } from './CompactSwitch';
+
+// Checkbox component
+export { CompactCheckbox } from './CompactCheckbox';
+export type { CompactCheckboxProps } from './CompactCheckbox';

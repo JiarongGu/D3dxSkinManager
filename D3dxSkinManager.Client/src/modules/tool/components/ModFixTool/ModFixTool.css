@@ -11,10 +11,12 @@
   max-width: 100%;
 }
 
-/* The slide-in content wrapper scrolls by default (overflow-y:auto). For this tool ONLY the card
-   list scrolls, so make the wrapper a non-scrolling flex column and let .mod-fix flex-fill it.
+/* The slide-in content wrapper scrolls by default (overflow-y:auto). For this tool ONLY the tool grid
+   scrolls, so make the wrapper a non-scrolling flex column and let .mod-fix flex-fill it — so the grid
+   fills the space and the settings block pins to the panel bottom (margin-top:auto). Both views.
    (A percentage height on .mod-fix didn't resolve here → an ~8px overflow gave a phantom scrollbar.) */
-.mod-fix-screen .slide-in-screen-content {
+.mod-fix-screen .slide-in-screen-content,
+.mod-fix-full .slide-in-screen-content {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -25,15 +27,11 @@
 .mod-fix {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 4px 2px;
-  /* Full-width panel, but keep the content in a centered readable column (don't stretch a short
-     list + a few fields across the whole width). No-op in the 560px compact panel. */
+  /* Fill the panel to the window width, like every other full-view tool (File Cleanup, Settings). */
   width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
 }
 
 /* Header: one-line purpose (left) + add actions (right) on a single row, divided from the list. */
@@ -61,9 +59,9 @@
   gap: 8px;
 }
 
-/* Card list — natural height so few tools sit at the TOP (no mid-panel void). It only shrinks +
-   scrolls internally (flex-shrink + min-height:0 + overflow) when the list is long enough to need it;
-   header and settings never scroll. */
+/* Row-card LIST — each tool is a full-width row card (stacked), so the tools area matches the
+   full-width config card below. Natural height so few tools sit at the TOP; only shrinks + scrolls
+   internally (flex-shrink + min-height:0 + overflow) when the list is long. Header + config never scroll. */
 .mod-fix__list {
   display: flex;
   flex-direction: column;
@@ -73,10 +71,11 @@
   overflow-y: auto;
 }
 
-.mod-fix__tool {
+/* A row card: the [icon] name … [actions] row, plus an optional body (multi-script config) below. */
+.mod-fix__card {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   padding: 10px 14px;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border-secondary);
@@ -84,26 +83,27 @@
   transition: border-color 0.15s;
 }
 
-.mod-fix__tool:hover {
+.mod-fix__card:hover {
   border-color: var(--color-border-base);
 }
 
-.mod-fix__tool-icon {
+/* Top row: [icon] name (or rename input) … [actions]. */
+.mod-fix__card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mod-fix__card-icon {
   flex: 0 0 auto;
   font-size: 18px;
   color: var(--color-text-secondary);
   display: inline-flex;
 }
 
-.mod-fix__tool-info {
-  flex: 1 1 auto;
+.mod-fix__card-name {
+  flex: 0 1 auto;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.mod-fix__tool-name {
   font-size: 14px;
   font-weight: 500;
   color: var(--color-text-base);
@@ -112,21 +112,93 @@
   white-space: nowrap;
 }
 
-.mod-fix__tool-entry {
+/* Edit-mode name input fills the row (wide); the body's alias inputs are full-width too and share the
+   same left edge, so name + entry inputs line up. */
+.mod-fix__card-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Read-only entry summary shown inline (muted) after the name, filling the middle. */
+.mod-fix__card-entry {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 12px;
   color: var(--color-text-tertiary);
-  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.mod-fix__tool-entries {
-  max-width: 260px;
+/* Folder tool with no entry chosen yet — nudge the user to edit + set one. */
+.mod-fix__card-entry--warn {
+  color: var(--color-warning);
 }
 
-.mod-fix__tool-actions {
+/* Actions pinned to the far right regardless of how much the name/entry fills. */
+.mod-fix__card-actions {
   flex: 0 0 auto;
+  margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+}
+
+/* Edit body — fills the card width (which follows the window). Padded so its full-width inputs line up
+   with the name input in the header row: left ≈ icon+gap, right ≈ before the save/cancel actions. */
+.mod-fix__card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 28px;
+  padding-right: 66px;
+}
+
+/* Each candidate = one row: [checkbox] filename (left) → friendly-name input (right). The whole row
+   fills the body, which is padded to span the same width as the toolset-name input above. */
+.mod-fix__entry-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mod-fix__entry-file {
+  flex: 0 0 34%;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-fix__entry-alias {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Enable toggle sits just left of the icon actions; small margin so it doesn't crowd them. */
+.mod-fix__card-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 2px;
+}
+
+/* Disabled tool — dim the whole card (the toggle stays usable) so it reads as "off, still here". */
+.mod-fix__card--disabled {
+  opacity: 0.55;
+}
+
+.mod-fix__card--disabled:hover {
+  opacity: 0.8;
+}
+
+/* The deleted tool's name inside the confirm dialog. */
+.mod-fix__delete-name {
+  margin-top: 6px;
+  font-weight: 600;
+  color: var(--color-text-base);
+  word-break: break-all;
 }
 
 /* Empty state fills the space and centers: icon → text → add actions → drag hint. */
@@ -155,59 +227,42 @@
   color: var(--color-text-tertiary);
 }
 
-/* Settings (full view only) — a collapsible block pinned below the list. Click the label to
-   open/close (no arrow). border-radius:0 so the border-top divider doesn't curve at the corners. */
+/* Config (full view only) — the config card, pinned to the panel BOTTOM (margin-top:auto pushes it
+   past the grid). No collapse, no section title — just the fields. Matches the tool cards' surface. */
 .mod-fix__settings {
   flex: 0 0 auto;
-  border-top: 1px solid var(--color-border-secondary);
-  border-radius: 0;
-}
-
-.mod-fix__settings .ant-collapse-header {
-  padding-inline: 0 !important;
-  align-items: center;
-}
-
-.mod-fix__section-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-base);
-  cursor: pointer;
-}
-
-/* Compact settings — a defined panel (matches the tool cards) with label-above-control fields that
-   cluster left in a wrap row; save/reset sit right after them (not floated to the far edge). */
-.mod-fix__settings-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 16px;
+  margin-top: auto;
   padding: 14px;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border-secondary);
   border-radius: var(--border-radius-base);
 }
 
-.mod-fix__setting {
+/* The config fields — CompactField rows (label above a uniform 32px control) clustered in a single wrap
+   row; save/reset pushed to the far edge. align-items:flex-end so every control's bottom lines up. */
+.mod-fix__settings-body {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
 }
 
+/* Give every field's control the same height box so a short control (the toggle) centers within it —
+   this keeps ALL the field labels aligned on one line (a bare toggle/checkbox otherwise sat lower). */
+.mod-fix__settings-body .compact-field__control {
+  min-height: 32px;
+  justify-content: center;
+}
+
+/* Field widths: fixed controls (timeout, switch) size to content; the text fields grow to fill. */
 .mod-fix__setting--grow {
-  flex: 0 1 260px;
+  flex: 1 1 220px;
+  min-width: 180px;
 }
 
-.mod-fix__setting-label {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
+/* Save/Reset — pushed to the far right so the fields stay clustered left; bottoms aligned to controls. */
 .mod-fix__settings-actions {
+  margin-left: auto;
   display: flex;
   align-items: flex-end;
   gap: 8px;

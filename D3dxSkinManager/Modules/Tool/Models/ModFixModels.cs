@@ -7,6 +7,8 @@ public class ModFixEntry
     public string Name { get; set; } = string.Empty;
     /// <summary>Absolute path used by the runner.</summary>
     public string Path { get; set; } = string.Empty;
+    /// <summary>Optional friendly alias shown in the mod "Fix" menu instead of the raw filename.</summary>
+    public string? DisplayName { get; set; }
 }
 
 /// <summary>
@@ -22,6 +24,10 @@ public class ModFixTool
     public string? Description { get; set; }
     public bool RecompressDefault { get; set; } = true;
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Whether this tool is active. Disabled tools stay in the library but are hidden from the
+    /// mod "Fix" menu (turn a tool off without removing it). Persisted in a <c>.fixmeta</c> sidecar.</summary>
+    public bool Enabled { get; set; } = true;
 
     /// <summary>The runnable entries the user can launch. Empty = unresolved (pick from Candidates).</summary>
     public List<ModFixEntry> Entries { get; set; } = new();

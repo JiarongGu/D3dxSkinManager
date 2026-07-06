@@ -1,0 +1,28 @@
+/* CompactInputNumber - consistent heights + type, matching CompactInput. */
+
+.compact-input-number-small {
+  font-size: 12px;
+}
+
+.compact-input-number-medium,
+.compact-input-number-large {
+  font-size: 14px;
+}
+
+/* Enforce the same heights as CompactInput so numeric fields line up with text fields. */
+.compact-input-number-small.ant-input-number {
+  height: 24px;
+}
+
+.compact-input-number-medium.ant-input-number {
+  height: 32px;
+}
+
+.compact-input-number-large.ant-input-number {
+  height: 40px;
+}
+
+/* Vertically center the value within the enforced height. */
+.compact-input-number .ant-input-number-input {
+  height: 100%;
+}

@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Popconfirm, Tooltip, Collapse } from 'antd';
+import { Tooltip } from 'antd';
 import {
-  FolderOpenOutlined, FolderOutlined, FileOutlined,
-  FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined, SettingOutlined,
+  FolderOpenOutlined, FolderOutlined, FileOutlined, CheckOutlined, CloseOutlined,
+  FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined,
 } from '@ant-design/icons';
 import { FixToolSettingsCard } from './FixToolSettingsCard';
-import { FormDialog } from '../../../../shared/components/dialogs/FormDialog';
-import { CompactIconButton, CompactInput, CompactSelect, CompactButton } from '../../../../shared/components/compact';
+import { CompactIconButton, CompactInput, CompactButton, CompactSwitch, CompactCheckbox } from '../../../../shared/components/compact';
+import { ConfirmDialog } from '../../../../shared/components/dialogs/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
 import { useDropZone } from '../../../../shared/hooks/useDropZone';
@@ -39,9 +39,10 @@ export const ModFixTool: React.FC<ModFixToolProps> = ({ visible, onClose, compac
     title: t('tools.modFix.title'),
     content: <ModFixManagerInner compact={compact} />,
     // compact (right-click) = a narrow 560px focused panel (see .mod-fix-screen in ModFixTool.css).
-    // full (Tools grid) = a normal full-width slide-in like every other tool; content is centered
-    // in a readable column (.mod-fix max-width) — NOT a floaty narrow panel over the blurred grid.
-    className: compact ? 'mod-fix-screen' : undefined,
+    // full (Tools grid) = a full-width slide-in like every other tool. Both make the content a flex
+    // column (mod-fix-screen / mod-fix-full) so the tool grid fills + scrolls and the settings block
+    // pins to the bottom of the panel.
+    className: compact ? 'mod-fix-screen' : 'mod-fix-full',
     onClose,
   });
   return null;
@@ -52,8 +53,13 @@ const ModFixManagerInner: React.FC<{ compact: boolean }> = ({ compact }) => {
   const { selectedProfileId } = useProfile();
   const [tools, setTools] = useState<FixTool[]>([]);
   const [busy, setBusy] = useState(false);
-  const [renaming, setRenaming] = useState<FixTool>();
-  const [renameValue, setRenameValue] = useState('');
+  const [deleting, setDeleting] = useState<FixTool>();
+  // Edit mode: a card is READ-ONLY until its edit button is clicked. Edits (toolset name + which
+  // scripts are entries + each entry's friendly name) are held as a draft and only written on Save.
+  const [editingId, setEditingId] = useState<string>();
+  const [draftName, setDraftName] = useState('');
+  const [draftEntries, setDraftEntries] = useState<string[]>([]);
+  const [draftAliases, setDraftAliases] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -130,75 +136,150 @@ const ModFixManagerInner: React.FC<{ compact: boolean }> = ({ compact }) => {
     }
   }, [selectedProfileId, load]);
 
-  const rename = useCallback(async () => {
-    if (!selectedProfileId || !renaming) return;
-    const newName = renameValue.trim();
-    if (!newName || newName === renaming.name) { setRenaming(undefined); return; }
-    try {
-      await api.tool.renameFixTool(selectedProfileId, renaming.id, newName);
-      setRenaming(undefined);
-      await load();
-    } catch (error) {
-      handleError(error);
-    }
-  }, [selectedProfileId, renaming, renameValue, load]);
-
-  // Only folder-based tools can be renamed (a loose single-file tool is named by its file).
+  // Only folder-based tools are editable (a loose single-file tool is named by its file, one entry).
   const canRename = (tool: FixTool) => tool.candidates.length > 0;
 
-  const setEntries = useCallback(async (tool: FixTool, entries: string[]) => {
+  // Enter edit mode — seed the draft from the tool. The card is read-only until this is called.
+  const startEdit = (tool: FixTool) => {
+    setEditingId(tool.id);
+    setDraftName(tool.name);
+    setDraftEntries(tool.entries.map((e) => e.name));
+    const aliases: Record<string, string> = {};
+    tool.entries.forEach((e) => { if (e.displayName) aliases[e.name] = e.displayName; });
+    setDraftAliases(aliases);
+  };
+
+  const cancelEdit = () => { setEditingId(undefined); setDraftName(''); setDraftEntries([]); setDraftAliases({}); };
+
+  const setEnabled = useCallback(async (tool: FixTool, enabled: boolean) => {
     if (!selectedProfileId) return;
     try {
-      await api.tool.setFixToolEntries(selectedProfileId, tool.id, entries);
+      await api.tool.setFixToolEnabled(selectedProfileId, tool.id, enabled);
       await load();
     } catch (error) {
       handleError(error);
     }
   }, [selectedProfileId, load]);
 
-  // One fix tool = one card row: [icon] name (+ entry sub-line / entry picker) … [rename][delete].
-  // No run button — fixing a mod is launched from the mod right-click "Fix" submenu, not here.
-  const renderTool = (tool: FixTool) => {
+  // Save all edits for one card at once: rename the toolset (a folder rename changes its id), then set
+  // which scripts are entries + each entry's alias against the (possibly new) id.
+  const saveEdit = useCallback(async (tool: FixTool) => {
+    if (!selectedProfileId) return;
+    let id = tool.id;
+    try {
+      if (tool.candidates.length > 0) {
+        const newName = draftName.trim();
+        if (newName && newName !== tool.name) {
+          const res = await api.tool.renameFixTool(selectedProfileId, id, newName);
+          id = res.id;
+        }
+        await api.tool.setFixToolEntries(selectedProfileId, id, draftEntries);
+        for (const name of draftEntries) {
+          await api.tool.setFixToolEntryAlias(selectedProfileId, id, name, (draftAliases[name] ?? '').trim());
+        }
+      }
+      setEditingId(undefined);
+      await load();
+    } catch (error) {
+      handleError(error);
+    }
+  }, [selectedProfileId, draftName, draftEntries, draftAliases, load]);
+
+  // One fix tool = one full-width ROW card. READ-ONLY by default (name + entry summary + toggle/edit/
+  // delete). Clicking edit (folder tools only) switches THAT card into edit mode — name input + entry
+  // picker + per-entry alias inputs — committed together on Save. No run button (a fix is launched from
+  // the mod right-click "Fix" submenu).
+  const renderCard = (tool: FixTool) => {
     const isFolder = tool.candidates.length > 0;
-    const multi = tool.candidates.length > 1;
-    const entryName = tool.entries[0]?.name;
-    // Only show the entry when it actually differs from the name (single-file tools have name === entry).
-    const showEntry = !multi && !!entryName && entryName !== tool.name;
+    const enabled = tool.enabled !== false;
+    const editing = editingId === tool.id;
+    // Read-only summary of the runnable entries (their friendly names, or filenames).
+    const entrySummary = tool.entries.map((e) => e.displayName || e.name).join(', ');
 
     return (
-      <div key={tool.id} className="mod-fix__tool">
-        <span className="mod-fix__tool-icon">{isFolder ? <FolderOutlined /> : <FileOutlined />}</span>
-        <div className="mod-fix__tool-info">
-          <div className="mod-fix__tool-name" title={tool.name}>{tool.name}</div>
-          {multi ? (
-            // Folder tool with multiple scripts — pick which entries the right-click menu exposes.
-            <CompactSelect<string[]>
-              mode="multiple"
-              size="small"
-              className="mod-fix__tool-entries"
-              placeholder={t('tools.modFix.selectEntry')}
-              value={tool.entries.map((e) => e.name)}
-              options={tool.candidates.map((c) => ({ label: c, value: c }))}
-              onChange={(v) => void setEntries(tool, v)}
-              notFoundContent={t('tools.modFix.noCandidates')}
-              status={tool.entries.length === 0 ? 'warning' : undefined}
+      <div key={tool.id} className={`mod-fix__card${enabled ? '' : ' mod-fix__card--disabled'}`}>
+        {/* Row: [icon] name (+ entry summary) … [toggle][edit][delete], or the edit input + save/cancel. */}
+        <div className="mod-fix__card-top">
+          <span className="mod-fix__card-icon">{isFolder ? <FolderOutlined /> : <FileOutlined />}</span>
+          {editing ? (
+            <CompactInput
+              className="mod-fix__card-rename"
+              autoFocus
+              value={draftName}
+              placeholder={t('tools.modFix.namePlaceholder')}
+              onChange={(e) => setDraftName(e.target.value)}
+              onPressEnter={() => void saveEdit(tool)}
+              onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit(); }}
             />
-          ) : showEntry ? (
-            <code className="mod-fix__tool-entry">{entryName}</code>
-          ) : null}
-        </div>
-        <div className="mod-fix__tool-actions">
-          {canRename(tool) && (
-            <Tooltip title={t('tools.modFix.rename')}>
-              <CompactIconButton icon={<EditOutlined />} onClick={() => { setRenaming(tool); setRenameValue(tool.name); }} />
-            </Tooltip>
+          ) : (
+            <>
+              <div className="mod-fix__card-name" title={tool.name}>{tool.name}</div>
+              {entrySummary ? (
+                <span className="mod-fix__card-entry" title={entrySummary}>{entrySummary}</span>
+              ) : isFolder ? (
+                <span className="mod-fix__card-entry mod-fix__card-entry--warn">{t('tools.modFix.setEntryFirst')}</span>
+              ) : null}
+            </>
           )}
-          <Popconfirm title={t('tools.modFix.deleteConfirm')} onConfirm={() => remove(tool)} okText={t('common.delete')} cancelText={t('common.cancel')}>
-            <Tooltip title={t('common.delete')}>
-              <CompactIconButton tone="danger" icon={<DeleteOutlined />} />
-            </Tooltip>
-          </Popconfirm>
+          <div className="mod-fix__card-actions">
+            {editing ? (
+              <>
+                <Tooltip title={t('common.save')}>
+                  <CompactIconButton tone="success" icon={<CheckOutlined />} onClick={() => void saveEdit(tool)} />
+                </Tooltip>
+                <Tooltip title={t('common.cancel')}>
+                  <CompactIconButton icon={<CloseOutlined />} onClick={cancelEdit} />
+                </Tooltip>
+              </>
+            ) : (
+              <>
+                {/* Turn a tool off without removing it (hidden from the mod Fix menu when off). */}
+                <Tooltip title={enabled ? t('common.disable') : t('common.enable')}>
+                  <span className="mod-fix__card-toggle">
+                    <CompactSwitch size="small" checked={enabled} onChange={(v) => void setEnabled(tool, v)} />
+                  </span>
+                </Tooltip>
+                {canRename(tool) && (
+                  <Tooltip title={t('common.edit')}>
+                    <CompactIconButton icon={<EditOutlined />} onClick={() => startEdit(tool)} />
+                  </Tooltip>
+                )}
+                <Tooltip title={t('common.delete')}>
+                  <CompactIconButton tone="danger" icon={<DeleteOutlined />} onClick={() => setDeleting(tool)} />
+                </Tooltip>
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Edit mode (folder tools): one row per candidate script — a checkbox (is it an entry?) + its
+            filename + a friendly-name input. A checkbox list (not a multi-select) keeps every control the
+            same height/width and consistent with the name input above. */}
+        {editing && isFolder && (
+          <div className="mod-fix__card-body">
+            {tool.candidates.map((c) => {
+              const selected = draftEntries.includes(c);
+              return (
+                <div className="mod-fix__entry-row" key={c}>
+                  <CompactCheckbox
+                    checked={selected}
+                    onChange={(e) =>
+                      setDraftEntries((prev) => (e.target.checked ? [...prev, c] : prev.filter((x) => x !== c)))
+                    }
+                  />
+                  <span className="mod-fix__entry-file" title={c}>{c}</span>
+                  <CompactInput
+                    className="mod-fix__entry-alias"
+                    value={draftAliases[c] ?? ''}
+                    placeholder={t('tools.modFix.namePlaceholder')}
+                    disabled={!selected}
+                    onChange={(ev) => setDraftAliases((prev) => ({ ...prev, [c]: ev.target.value }))}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -231,40 +312,27 @@ const ModFixManagerInner: React.FC<{ compact: boolean }> = ({ compact }) => {
           <span className="mod-fix__drop-hint">{t('tools.modFix.dropHint')}</span>
         </div>
       ) : (
-        <div className="mod-fix__list">{tools.map(renderTool)}</div>
+        <div className="mod-fix__list">{tools.map(renderCard)}</div>
       )}
 
-      {/* Settings — only in the full (Tools-grid) view; the compact context view is list-only.
-          Collapsible (click the label to open/close, no arrow), open by default. */}
+      {/* Config — only in the full (Tools-grid) view; the compact context view is list-only. Just the
+          config card (no collapse, no section title), pinned to the panel bottom. */}
       {!compact && (
-        <Collapse
-          ghost
-          className="mod-fix__settings"
-          expandIcon={() => null}
-          defaultActiveKey={['settings']}
-          items={[{
-            key: 'settings',
-            label: <span className="mod-fix__section-label"><SettingOutlined /> {t('tools.modFix.tabSettings')}</span>,
-            children: <FixToolSettingsCard />,
-          }]}
-        />
+        <div className="mod-fix__settings">
+          <FixToolSettingsCard />
+        </div>
       )}
 
-      <FormDialog
-        visible={!!renaming}
-        title={t('tools.modFix.rename')}
-        onCancel={() => setRenaming(undefined)}
-        onOk={rename}
-        width={420}
-      >
-        <CompactInput
-          autoFocus
-          value={renameValue}
-          placeholder={t('tools.modFix.namePlaceholder')}
-          onChange={(e) => setRenameValue(e.target.value)}
-          onPressEnter={() => void rename()}
-        />
-      </FormDialog>
+      {/* Delete confirmation — the shared app dialog (not a native antd Popconfirm). */}
+      <ConfirmDialog
+        visible={!!deleting}
+        title={t('common.delete')}
+        content={<>{t('tools.modFix.deleteConfirm')}<div className="mod-fix__delete-name">{deleting?.name}</div></>}
+        okText={t('common.delete')}
+        okType="danger"
+        onOk={async () => { const target = deleting; setDeleting(undefined); if (target) await remove(target); }}
+        onCancel={() => setDeleting(undefined)}
+      />
     </div>
   );
 };
