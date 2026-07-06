@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using D3dxSkinManager.Modules.Core.Exceptions;
@@ -126,6 +127,10 @@ public class ExternalLoginService : IExternalLoginService
     private readonly IGlobalPathService _globalPaths;
     private readonly ILogHelper _logger;
 
+    /// <summary>Open login windows by provider — one at a time; a second Login while one is open just
+    /// re-focuses it (the value is null while the window is being created).</summary>
+    private readonly ConcurrentDictionary<string, Form?> _openWindows = new(StringComparer.OrdinalIgnoreCase);
+
     public ExternalLoginService(
         IFormInteractionService forms,
         IOnlineAccountStore accounts,
@@ -146,6 +151,24 @@ public class ExternalLoginService : IExternalLoginService
         var mainForm = _forms.GetMainForm()
             ?? throw new OperationException("EXTERNAL_LOGIN_UNAVAILABLE", "provider", provider);
 
+        // One login window per provider. If one is already open/opening, just re-focus it and return —
+        // don't stack windows (the caller clears its button state immediately after this ack).
+        if (!_openWindows.TryAdd(provider, null))
+        {
+            mainForm.BeginInvoke(new Action(() =>
+            {
+                if (_openWindows.TryGetValue(provider, out var existing) && existing is { IsDisposed: false })
+                {
+                    try { existing.Activate(); existing.BringToFront(); } catch { }
+                }
+            }));
+            return Task.FromResult(new OnlineStorageAccountInfo
+            {
+                Provider = provider,
+                LoggedIn = _accounts.Get(provider) is { Cookie.Length: > 0 },
+            });
+        }
+
         var tcs = new TaskCompletionSource<OnlineStorageAccountInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // All WinForms/WebView2 work marshals to the UI thread.
@@ -155,6 +178,7 @@ public class ExternalLoginService : IExternalLoginService
             catch (Exception ex)
             {
                 _logger.Error($"[ExternalLogin] {provider} window failed: {ex.Message}", "ExternalLoginService", ex);
+                _openWindows.TryRemove(provider, out _);
                 tcs.TrySetException(new OperationException("EXTERNAL_LOGIN_FAILED", "provider", provider));
             }
         }));
@@ -213,6 +237,7 @@ public class ExternalLoginService : IExternalLoginService
         };
         var webView = new WebView2 { Dock = DockStyle.Fill, BackColor = Color.FromArgb(26, 26, 26) };
         form.Controls.Add(webView);
+        _openWindows[provider] = form; // track so a repeat Login re-focuses instead of stacking
 
         void RevealIfHidden()
         {
@@ -285,7 +310,7 @@ public class ExternalLoginService : IExternalLoginService
             poll.Stop();
             await FinishAsync(autoClose: false).ConfigureAwait(true);
         };
-        form.FormClosed += (_, _) => poll.Dispose();
+        form.FormClosed += (_, _) => { poll.Dispose(); _openWindows.TryRemove(provider, out _); };
 
         // Once the login page renders, isolate its login panel (per-provider script) so the window
         // reads as a login box, not the site homepage. The window is loaded HIDDEN and only revealed

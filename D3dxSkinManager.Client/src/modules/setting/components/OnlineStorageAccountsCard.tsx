@@ -57,11 +57,13 @@ export const OnlineStorageAccountsCard: React.FC = () => {
       setBusy(provider);
       await api.remote.accountLogin(selectedProfileId, provider); // opens the login window (ack only)
       notification.info(t("onlineStorage.loginWindowOpened"));
-      // Status flips when ONLINE_ACCOUNT_CHANGED fires (window closed / captured). busy clears there
-      // (or on unmount) — a silent already-logged-in refresh also arrives via the event.
     } catch (error: unknown) {
-      setBusy(undefined);
       handleError(error);
+    } finally {
+      // The IPC just OPENS the window (fire-and-forget); clear busy now so the button is usable again
+      // — don't keep it spinning for the window's whole lifetime. The status flips to 已登录 later via
+      // the ONLINE_ACCOUNT_CHANGED event.
+      setBusy(undefined);
     }
   };
 
