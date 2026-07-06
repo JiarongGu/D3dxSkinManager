@@ -25,6 +25,8 @@ export interface SlideInScreenProps {
   loadingText?: string;
   /** No header bar — the content owns the full panel; a floating close button renders instead. */
   headless?: boolean;
+  /** Extra class on the container — lets a screen scope its own geometry (e.g. a narrow panel). */
+  className?: string;
 }
 
 /**
@@ -43,6 +45,7 @@ export function SlideInScreen({
   loading = false,
   loadingText,
   headless = false,
+  className,
 }: SlideInScreenProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -63,7 +66,7 @@ export function SlideInScreen({
 
   return (
     <div
-      className={classNames('slide-in-screen-container', `slide-in-screen-level-${level}`, { closing: isClosing })}
+      className={classNames('slide-in-screen-container', `slide-in-screen-level-${level}`, { closing: isClosing }, className)}
       ref={containerRef}
     >
       {/* Blur backdrop indicator */}
@@ -145,6 +148,7 @@ export function SlideInScreenManager() {
           loading={screen.loading}
           loadingText={screen.loadingText}
           headless={screen.headless}
+          className={screen.className}
         >
           {screen.content}
         </SlideInScreen>

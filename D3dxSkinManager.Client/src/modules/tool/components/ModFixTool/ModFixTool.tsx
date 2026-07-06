@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Space, Progress, Popconfirm, Tooltip, Dropdown, Tabs, Collapse } from 'antd';
+import { Space, Progress, Popconfirm, Tooltip, Dropdown, Collapse } from 'antd';
 import {
   ThunderboltOutlined, FolderOpenOutlined, FolderOutlined, FileOutlined,
-  FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined, DownOutlined,
+  FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined, DownOutlined, SettingOutlined,
 } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { DataTable } from '../../../../shared/components/common';
@@ -37,7 +37,9 @@ export const ModFixTool: React.FC<ModFixToolProps> = ({ visible, onClose }) => {
     visible,
     title: t('tools.modFix.title'),
     content: <ModFixManagerInner />,
-    width: '80%',
+    // Narrow, focused panel — a short list of fix scripts doesn't need the full-width slide-in.
+    // `.mod-fix-screen` (see ModFixTool.css) fixes the panel to 560px and grows the blur backdrop.
+    className: 'mod-fix-screen',
     onClose,
   });
   return null;
@@ -257,8 +259,6 @@ const ModFixManagerInner: React.FC = () => {
     );
   };
 
-  // ── Tools tab: add-toolbar → management table → contained run feedback (progress + collapsible
-  //    last-run results). Everything about MANAGING and RUNNING tools lives here. ─────────────────
   const addButtons = (
     <div className="mod-fix__add">
       <CompactButton icon={<FolderOpenOutlined />} loading={busy} onClick={() => addFrom(true)}>
@@ -270,10 +270,16 @@ const ModFixManagerInner: React.FC = () => {
     </div>
   );
 
-  const toolsTab = (
-    <div className="mod-fix__panel">
+  return (
+    <div className="mod-fix" ref={dropRef}>
+      {/* Header: one-line purpose + add actions. */}
+      <div className="mod-fix__header">
+        <p className="mod-fix__desc">{t('tools.modFix.cardDescription')}</p>
+        <div className="mod-fix__header-actions">{addButtons}</div>
+      </div>
+
+      {/* Card list (or a centered empty CTA). The whole panel accepts drag-drop. */}
       {tools.length === 0 ? (
-        // Centered empty CTA — the add actions live here (no floating input); whole screen accepts drop.
         <div className="mod-fix__empty">
           <InboxOutlined className="mod-fix__empty-icon" />
           <span className="mod-fix__empty-text">{t('tools.modFix.empty')}</span>
@@ -281,15 +287,11 @@ const ModFixManagerInner: React.FC = () => {
           <span className="mod-fix__drop-hint">{t('tools.modFix.dropHint')}</span>
         </div>
       ) : (
-        <>
-          {/* Header: add actions right-aligned. Rename/entry-pick happen on the cards themselves. */}
-          <div className="mod-fix__panel-header">{addButtons}</div>
-          <div className="mod-fix__list">{tools.map(renderTool)}</div>
-        </>
+        <div className="mod-fix__list">{tools.map(renderTool)}</div>
       )}
 
-      {/* Bulk-run feedback, contained (not dumped): a slim progress bar while running, then the
-          per-mod results tucked into a collapsible panel (auto-open) so they don't crowd the list. */}
+      {/* Bulk-run feedback, contained: a slim progress bar while running, then the per-mod results
+          in a collapsible panel (auto-open) so they don't crowd the list. */}
       {running && progress && (
         <div className="mod-fix__progress">
           <Progress percent={progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0} size="small" />
@@ -314,21 +316,16 @@ const ModFixManagerInner: React.FC = () => {
           }]}
         />
       )}
-    </div>
-  );
 
-  return (
-    <div className="mod-fix" ref={dropRef}>
-      <Tabs
-        className="mod-fix__tabs"
-        items={[
-          { key: 'tools', label: t('tools.modFix.tabTools'), children: toolsTab },
-          {
-            key: 'settings',
-            label: t('tools.modFix.tabSettings'),
-            children: <div className="mod-fix__settings-view"><FixToolSettingsCard /></div>,
-          },
-        ]}
+      {/* Settings, tucked into a collapse at the bottom (secondary to managing/running tools). */}
+      <Collapse
+        ghost
+        className="mod-fix__settings"
+        items={[{
+          key: 'settings',
+          label: <span className="mod-fix__settings-label"><SettingOutlined /> {t('tools.modFix.tabSettings')}</span>,
+          children: <FixToolSettingsCard />,
+        }]}
       />
 
       <FormDialog

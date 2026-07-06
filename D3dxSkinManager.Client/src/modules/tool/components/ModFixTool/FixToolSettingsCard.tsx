@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Space, InputNumber } from "antd";
-import { ToolOutlined, SearchOutlined } from "@ant-design/icons";
+import { SearchOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import {
-  CompactCard,
   CompactInput,
   CompactButton,
   CompactSwitch,
@@ -101,20 +100,9 @@ export const FixToolSettingsCard: React.FC = () => {
     }
   }, [selectedProfileId, pythonPath, timeoutMinutes, extensions, autoConfirm, t]);
 
+  // Bare (no card/title) — hosted inside the ModFixTool "设置" collapse, which supplies the frame.
   return (
-    <CompactCard
-      title={<><ToolOutlined /> {t("settings.profile.fixTools.title")}</>}
-      extra={
-        <Space size="small">
-          <CompactButton size="small" disabled={!dirty || saving} onClick={reset}>
-            {t("settings.section.reset")}
-          </CompactButton>
-          <CompactButton size="small" type="primary" loading={saving} disabled={!dirty} onClick={save}>
-            {t("common.save")}
-          </CompactButton>
-        </Space>
-      }
-    >
+    <div className="mod-fix__settings-body">
       <div className="mod-fix__settings-grid">
         <CompactField label={t("settings.profile.fixTools.python.label")} description={t("settings.profile.fixTools.python.hint")}>
           <Space.Compact style={{ width: "100%" }}>
@@ -154,6 +142,15 @@ export const FixToolSettingsCard: React.FC = () => {
           />
         </CompactField>
       </div>
-    </CompactCard>
+
+      <div className="mod-fix__settings-actions">
+        <CompactButton size="small" disabled={!dirty || saving} onClick={reset}>
+          {t("settings.section.reset")}
+        </CompactButton>
+        <CompactButton size="small" type="primary" loading={saving} disabled={!dirty} onClick={save}>
+          {t("common.save")}
+        </CompactButton>
+      </div>
+    </div>
   );
 };

@@ -1,44 +1,47 @@
+/* Focused narrow panel — a short list of fix scripts doesn't need the full-width slide-in.
+   Scoped to this tool (className="mod-fix-screen" on the slide-in container): fix the panel to
+   560px and let the blur backdrop grow to fill the rest (its inline width is overridden). */
+.mod-fix-screen .slide-in-screen-blur-backdrop {
+  flex: 1 1 auto;
+  width: auto !important;
+}
+
+.mod-fix-screen .slide-in-screen-panel {
+  flex: 0 1 560px;
+  max-width: 100%;
+}
+
+/* Single column: header → card list → run feedback → settings (pinned bottom). Panel owns scroll. */
 .mod-fix {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  padding: 4px;
-}
-
-/* Tabs fill the panel; the tab CONTENT scrolls, the tab bar stays put. */
-.mod-fix__tabs {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.mod-fix__tabs .ant-tabs-content-holder {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.mod-fix__tabs .ant-tabs-content,
-.mod-fix__tabs .ant-tabs-tabpane {
-  height: 100%;
-}
-
-/* Tools tab: header (add actions) → card list → run feedback. */
-.mod-fix__panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
   height: 100%;
+  min-height: 0;
   padding: 4px 2px;
+  overflow-y: auto;
 }
 
-/* Header: add actions right-aligned above the list. */
-.mod-fix__panel-header {
+/* Header: one-line purpose + add actions, divided from the list. */
+.mod-fix__header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  flex: 0 0 auto;
+}
+
+.mod-fix__desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.mod-fix__header-actions {
   display: flex;
   justify-content: flex-end;
-  flex: 0 0 auto;
 }
 
 .mod-fix__add {
@@ -100,7 +103,7 @@
 }
 
 .mod-fix__tool-entries {
-  max-width: 320px;
+  max-width: 260px;
 }
 
 .mod-fix__tool-actions {
@@ -110,10 +113,10 @@
   gap: 6px;
 }
 
-/* Empty state fills the panel and centers: icon → text → add actions → drag hint. */
+/* Empty state fills the space and centers: icon → text → add actions → drag hint. */
 .mod-fix__empty {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 220px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -149,7 +152,7 @@
   color: var(--color-text-secondary);
 }
 
-/* Run results, contained in a collapsible panel (never dumped under the table). */
+/* Run results, contained in a collapsible panel (never dumped under the list). */
 .mod-fix__result {
   flex: 0 0 auto;
 }
@@ -176,8 +179,25 @@
   font-size: 12px;
 }
 
-/* Settings tab: the fix-tool settings card, roomy on its own. */
-.mod-fix__settings-view {
+/* Settings — collapsed at the bottom (secondary to managing/running tools). */
+.mod-fix__settings {
+  flex: 0 0 auto;
+  margin-top: auto;
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.mod-fix__settings-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--color-text-base);
+}
+
+.mod-fix__settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   padding: 4px 2px;
 }
 
@@ -185,4 +205,10 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
+}
+
+.mod-fix__settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }

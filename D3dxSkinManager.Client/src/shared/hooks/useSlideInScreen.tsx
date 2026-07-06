@@ -8,6 +8,8 @@ interface SlideInDialogOptions {
   content: React.ReactNode;
   width?: string;
   onClose?: () => void;
+  /** Extra class on the slide-in container — lets a screen scope its own geometry (narrow panel). */
+  className?: string;
 }
 
 /**
@@ -29,6 +31,7 @@ export function useSlideInScreen({
   content,
   width = '60%',
   onClose,
+  className,
 }: SlideInDialogOptions) {
   const { openScreen, closeScreen, setLoading: setLoadingContext } = useSlideInScreenContext();
   const parentScreenId = useCurrentSlideInScreenId();
@@ -42,13 +45,14 @@ export function useSlideInScreen({
         width,
         content,
         onClose,
+        className,
       }, parentScreenId);
     } else if (!visible && screenIdRef.current) {
       // Close screen
       closeScreen(screenIdRef.current);
       screenIdRef.current = undefined;
     }
-  }, [visible, title, content, width, openScreen, closeScreen, onClose, parentScreenId]);
+  }, [visible, title, content, width, className, openScreen, closeScreen, onClose, parentScreenId]);
 
   // Cleanup on unmount
   useEffect(() => {
