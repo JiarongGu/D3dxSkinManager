@@ -136,33 +136,21 @@
   padding: 16px 20px;
 }
 
-/* Headless close: a QUIET round icon button — it sits over the content's top-right card, so no
-   border/shadow chrome (the old shadowed circle read as a foreign element). Size comes from the
-   CompactButton size="small" (24px — the medium 32px circle read oversized around the 12px ×).
-   !important: antd's generated button styles (radius 4px + default shadow) win otherwise. */
-/* Square (matches every icon button) + a scrim bg and subtle border so it reads as a bounded button
-   over artwork (this floating close sits over the detail hero image). */
+/* Headless floating close — positioned top-right over the content, but styled like the REGULAR header
+   close: background matches the panel (so it reads as normal chrome, not a scrim over artwork) and it
+   inherits the base `.slide-in-screen-close-btn` color + the CompactIconButton hover overlay. Sits a
+   few px higher than before. box-shadow reset: antd's generated button shadow wins otherwise. */
 .slide-in-screen-close-btn--floating {
   position: absolute;
-  top: 26px;
-  right: 30px;
+  top: 18px;
+  right: 24px;
   z-index: 3;
-  border-radius: 6px !important;
-  background: rgba(0, 0, 0, 0.38) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  /* Transparent so it shows the panel behind it exactly (panels vary — e.g. the remote-detail actions
+     panel is bg-elevated, not bg-container) — truly "same as the background", like the header close.
+     CompactIconButton supplies the hover overlay. */
+  background: transparent !important;
+  border-color: transparent !important;
   box-shadow: none !important;
-  color: #fff !important;
-  font-size: 12px;
-}
-
-.slide-in-screen-close-btn--floating:hover {
-  background: rgba(0, 0, 0, 0.58) !important;
-  border-color: rgba(255, 255, 255, 0.5) !important;
-  color: #fff !important;
-}
-
-.slide-in-screen-close-btn--floating:hover .anticon {
-  color: var(--color-text-base);
 }
 
 /* Scrollbar: handled globally (theme-colors.css `* { scrollbar-width: thin }`). */
