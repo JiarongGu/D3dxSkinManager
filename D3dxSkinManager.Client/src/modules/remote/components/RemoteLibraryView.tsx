@@ -423,7 +423,6 @@ export const RemoteLibraryView: React.FC = () => {
         />
         {/* "Downloaded only" filter — show just the entries already imported into this profile. */}
         <CompactButton
-          size="small"
           type={ui.downloadedOnly ? 'primary' : 'default'}
           icon={<CheckCircleFilled />}
           disabled={!indexReady}
