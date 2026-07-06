@@ -191,11 +191,12 @@ const ModFixManagerInner: React.FC = () => {
       title: t('tools.modFix.columns.entry'),
       key: 'entries',
       render: (_: unknown, tool: FixTool) =>
-        tool.candidates.length === 0 ? (
-          // Loose single-file tool — nothing to choose.
-          <code className="mod-fix__output">{tool.entries[0]?.name}</code>
+        tool.candidates.length <= 1 ? (
+          // One entry (loose single file, or a folder with a single script) — nothing to choose,
+          // so show the filename as plain text instead of an odd single-chip multi-select.
+          <code className="mod-fix__output">{tool.entries[0]?.name ?? tool.candidates[0]}</code>
         ) : (
-          // Folder tool — pick one or MORE entries to expose.
+          // Folder tool with multiple scripts — pick one or MORE entries to expose.
           <CompactSelect<string[]>
             mode="multiple"
             size="small"
@@ -278,7 +279,7 @@ const ModFixManagerInner: React.FC = () => {
 
       {/* Library */}
       {tools.length === 0 ? (
-        <Empty description={t('tools.modFix.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t('tools.modFix.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} className="mod-fix__empty" />
       ) : (
         <Table dataSource={tools} columns={columns} rowKey="id" size="small" pagination={false} className="mod-fix__table" />
       )}

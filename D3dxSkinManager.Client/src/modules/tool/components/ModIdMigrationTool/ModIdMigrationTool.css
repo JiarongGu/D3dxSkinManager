@@ -7,9 +7,10 @@
 
 .mod-id-migration__loading {
   display: flex;
+  flex: 1;
+  min-height: 200px;
   justify-content: center;
   align-items: center;
-  padding: 48px;
 }
 
 .mod-id-migration__description {

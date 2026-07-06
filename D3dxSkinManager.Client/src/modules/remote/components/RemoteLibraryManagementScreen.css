@@ -98,8 +98,10 @@
 
 .remote-lib-mgmt__loading {
   display: flex;
+  flex: 1;
+  min-height: 240px;
   justify-content: center;
-  padding: 48px 0;
+  align-items: center;
 }
 
 .remote-lib-mgmt__tab {
