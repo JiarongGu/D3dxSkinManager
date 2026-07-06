@@ -20,9 +20,30 @@
   height: 200px;
 }
 
-/* Framed hero on the content grid — a true full-bleed is impossible to align (the panel's
-   scrollbar eats 8px on the right edge, measured), so the hero sits flush with the body cards. */
+/* LEFT column: hero gallery grows to fill, description card below (bounded, scrolls inside). */
+.remote-detail__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The gallery (an .image-gallery flex column) takes the column's spare height; the stage
+   flexes inside it (stageHeight="auto" from the caller — flex owns the height here). */
+.remote-detail__hero {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.remote-detail__hero .image-gallery__stage {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .remote-detail__hero .image-gallery__strip {
+  flex: 0 0 auto;
   padding: 8px 0 0;
 }
 
@@ -75,46 +96,7 @@
   align-items: stretch;
 }
 
-/* SPLIT layout (single image): contained figure left (fills the body height), info+downloads
-   stacked right. */
-.remote-detail__figure {
-  flex: 1 1 55%;
-  min-width: 0;
-  align-self: stretch;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: var(--color-bg-container);
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--border-radius-base);
-  overflow: hidden;
-}
-
-.remote-detail__figure-img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.remote-detail__stack {
-  flex: 1 1 45%;
-  min-width: 300px;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* In the stacked column the downloads card spans the column (not the fixed 280) and shrinks. */
-.remote-detail__stack .remote-detail__actions {
-  width: 100%;
-  min-width: 0;
-  max-width: none;
-  flex: 0 1 auto;
-  align-self: stretch;
-}
-
-/* Title + tags inside cards (split/plain layouts — the hero carries them on its scrim). */
+/* Title + tags inside the info card (no-image case — the hero carries them on its scrim). */
 .remote-detail__name {
   font-size: 14px;
   font-weight: 600;
@@ -147,23 +129,30 @@
   background: var(--color-bg-elevated, var(--color-bg-container));
 }
 
+/* Description card: bounded under the gallery (the gallery dominates, mod-page style); the
+   description inside scrolls. --fill (no images) takes the whole column instead. */
 .remote-detail__info {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   min-height: 0;
-  overflow: hidden; /* the description inside scrolls, the card doesn't grow */
+  max-height: 34%;
+  overflow: hidden;
 }
 
+.remote-detail__info--fill {
+  flex: 1 1 auto;
+  max-height: none;
+}
+
+/* RIGHT column: downloads ALWAYS full height (stretch), rows scroll inside when long. */
 .remote-detail__actions {
   flex: 0 0 280px;
   width: 280px;
   min-width: 280px;
   max-width: 280px;
   min-height: 0;
-  overflow-y: auto; /* many download rows scroll inside the card */
-  align-self: flex-start;
-  max-height: 100%;
-  box-sizing: border-box; /* max-height must include the panel padding/border */
+  overflow-y: auto;
+  box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-base) transparent;
 }
@@ -180,6 +169,7 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-secondary);
+  padding-right: 32px; /* the headless slide-in's floating close sits over this corner */
 }
 
 .remote-detail__actions-count {
@@ -237,15 +227,14 @@
   width: 100%;
 }
 
-/* Page description: plain text, comfortable reading measure. Scrolls INSIDE its card — the
-   one-screen layout never scrolls the page. */
+/* Page description: scrolls INSIDE its card — the one-screen layout never scrolls the page.
+   Width is bounded by the column, no reading-measure cap needed. */
 .remote-detail__description {
   font-size: 12px;
   line-height: 1.7;
   color: var(--color-text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
-  max-width: 72ch;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;

@@ -136,10 +136,11 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
 
   if (!detail) return null;
 
-  // ADAPTIVE layout — not every site has many images: several → HERO page; one → LEFT/RIGHT split;
-  // none → plain cards. The hero carries title/tags on its scrim; the other layouts put them in
-  // the info card (the slide-in is headless, so the title must live in the content).
-  const layout = detail.images.length > 1 ? 'hero' : detail.images.length === 1 ? 'split' : 'plain';
+  // ONE layout for every site: LEFT = hero gallery (blurred-cover backdrop, title/tags on the
+  // scrim) that GROWS to fill the column + description below; RIGHT = downloads, always full
+  // height. No images → title/tags move into the info card (the slide-in is headless, so the
+  // title must live in the content).
+  const hasImages = detail.images.length > 0;
 
   const downloadsCard = (
     <div className="remote-detail__panel remote-detail__actions">
@@ -200,71 +201,47 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
 
   return (
     <div className="remote-detail remote-detail--page">
-      {layout === 'hero' && (
-        <>
-          {/* HERO: blurred-cover backdrop + letterboxed image, title/tags on the scrim. */}
-          <ImageGallery
-            className="remote-detail__hero"
-            images={detail.images}
-            resolveSrc={(u) => remoteImageUrl(u) ?? u}
-            alt={detail.title}
-            backdropBlur
-            stageHeight="min(42vh, 440px)"
-            overlay={
-              <div className="remote-detail__hero-meta">
-                <div className="remote-detail__hero-title" title={detail.title || fallbackTitle}>
-                  {detail.title || fallbackTitle}
-                </div>
-                {allTags.length > 0 && (
-                  <div className="remote-detail__hero-tags">
-                    {orderTagsForDisplay(allTags).map((tag) => (
-                      <span key={tag} className="remote-detail__hero-tag" title={tag}>
-                        {remoteTagLabel(tagLabels, i18n.language, tag)}
-                      </span>
-                    ))}
+      <div className="remote-detail__body">
+        <div className="remote-detail__main">
+          {hasImages ? (
+            <>
+              {/* Hero gallery fills the column (width bounded by the downloads column). */}
+              <ImageGallery
+                className="remote-detail__hero"
+                images={detail.images}
+                resolveSrc={(u) => remoteImageUrl(u) ?? u}
+                alt={detail.title}
+                backdropBlur
+                stageHeight="auto"
+                overlay={
+                  <div className="remote-detail__hero-meta">
+                    <div className="remote-detail__hero-title" title={detail.title || fallbackTitle}>
+                      {detail.title || fallbackTitle}
+                    </div>
+                    {allTags.length > 0 && (
+                      <div className="remote-detail__hero-tags">
+                        {orderTagsForDisplay(allTags).map((tag) => (
+                          <span key={tag} className="remote-detail__hero-tag" title={tag}>
+                            {remoteTagLabel(tagLabels, i18n.language, tag)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            }
-          />
-          <div className="remote-detail__body">
-            <div className="remote-detail__panel remote-detail__info">{description}</div>
-            {downloadsCard}
-          </div>
-        </>
-      )}
-
-      {layout === 'split' && (
-        <div className="remote-detail__body">
-          {/* Single image: a contained figure on the left, info + downloads on the right. */}
-          <div className="remote-detail__figure">
-            <img
-              className="remote-detail__figure-img"
-              src={remoteImageUrl(detail.images[0]) ?? detail.images[0]}
-              alt={detail.title}
-            />
-          </div>
-          <div className="remote-detail__stack">
-            <div className="remote-detail__panel remote-detail__info">
+                }
+              />
+              <div className="remote-detail__panel remote-detail__info">{description}</div>
+            </>
+          ) : (
+            <div className="remote-detail__panel remote-detail__info remote-detail__info--fill">
               {titleAndTags}
               <div className="remote-detail__divider" />
               {description}
             </div>
-            {downloadsCard}
-          </div>
+          )}
         </div>
-      )}
-
-      {layout === 'plain' && (
-        <div className="remote-detail__body">
-          <div className="remote-detail__panel remote-detail__info">
-            {titleAndTags}
-            <div className="remote-detail__divider" />
-            {description}
-          </div>
-          {downloadsCard}
-        </div>
-      )}
+        {downloadsCard}
+      </div>
 
       <ConfirmDialog
         visible={!!confirmState}
